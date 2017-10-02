@@ -5,13 +5,17 @@ package authz
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration/internal/api/container"
-	"github.com/docker/docker/integration/internal/api/plugin"
-	"github.com/docker/docker/integration/internal/api/volume"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
+	networktypes "github.com/docker/docker/api/types/network"
+	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/util/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/require"
@@ -44,7 +48,7 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = plugin.InstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
 	require.Nil(t, err)
 	// start the daemon with the plugin and load busybox, --net=none build fails otherwise
 	// because it needs to pull busybox
@@ -52,10 +56,13 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	d.LoadBusybox(t)
 
 	// Ensure docker run command and accompanying docker ps are successful
-	id, err := container.Run(client, "busybox", []string{"top"})
+	createResponse, err := client.ContainerCreate(context.Background(), &container.Config{Cmd: []string{"top"}, Image: "busybox"}, &container.HostConfig{}, &networktypes.NetworkingConfig{}, "")
 	require.Nil(t, err)
 
-	_, err = client.ContainerInspect(context.Background(), id)
+	err = client.ContainerStart(context.Background(), createResponse.ID, types.ContainerStartOptions{})
+	require.Nil(t, err)
+
+	_, err = client.ContainerInspect(context.Background(), createResponse.ID)
 	require.Nil(t, err)
 }
 
@@ -67,22 +74,22 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = plugin.InstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
 	require.Nil(t, err)
 
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 	d.LoadBusybox(t)
 
-	_, err = volume.Create(client, "local", map[string]string{})
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// disable the plugin
-	err = plugin.Disable(client, authzPluginNameWithTag)
+	err = client.PluginDisable(context.Background(), authzPluginNameWithTag, types.PluginDisableOptions{})
 	require.Nil(t, err)
 
 	// now test to see if the docker api works.
-	_, err = volume.Create(client, "local", map[string]string{})
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
 	require.Nil(t, err)
 }
 
@@ -94,30 +101,30 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin
-	err = plugin.InstallGrantAllPermissions(client, authzPluginNameWithTag)
+	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
 	require.Nil(t, err)
 
 	// restart the daemon with the plugin
 	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
 
-	_, err = volume.Create(client, "local", map[string]string{})
+	_, err = client.VolumeCreate(context.Background(), volumetypes.VolumesCreateBody{Driver: "local"})
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = volume.Ls(client)
+	_, err = client.VolumeList(context.Background(), filters.Args{})
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
 	// The plugin will block the command before it can determine the volume does not exist
-	err = volume.Rm(client, "test")
+	err = client.VolumeRemove(context.Background(), "test", false)
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = volume.Inspect(client, "test")
+	_, err = client.VolumeInspect(context.Background(), "test")
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 
-	_, err = volume.Prune(client)
+	_, err = client.VolumesPrune(context.Background(), filters.Args{})
 	require.NotNil(t, err)
 	require.True(t, strings.Contains(err.Error(), fmt.Sprintf("Error response from daemon: plugin %s failed with error:", authzPluginNameWithTag)))
 }
@@ -130,7 +137,7 @@ func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
 	require.Nil(t, err)
 
 	// Install authz plugin with bad manifest
-	err = plugin.InstallGrantAllPermissions(client, authzPluginBadManifestName)
+	err = pluginInstallGrantAllPermissions(client, authzPluginBadManifestName)
 	require.Nil(t, err)
 
 	// start the daemon with the plugin, it will error
@@ -150,4 +157,22 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 
 	// restarting the daemon without requiring the plugin will succeed
 	d.Start(t)
+}
+
+func pluginInstallGrantAllPermissions(client client.APIClient, name string) error {
+	ctx := context.Background()
+	options := types.PluginInstallOptions{
+		RemoteRef:            name,
+		AcceptAllPermissions: true,
+	}
+	responseReader, err := client.PluginInstall(ctx, "", options)
+	if err != nil {
+		return err
+	}
+	defer responseReader.Close()
+	// we have to read the response out here because the client API
+	// actually starts a goroutine which we can only be sure has
+	// completed when we get EOF from reading responseBody
+	_, err = ioutil.ReadAll(responseReader)
+	return err
 }

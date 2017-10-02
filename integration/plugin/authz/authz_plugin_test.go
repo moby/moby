@@ -18,11 +18,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/integration/internal/api/container"
-	"github.com/docker/docker/integration/internal/api/image"
-	"github.com/docker/docker/integration/internal/api/system"
+	networktypes "github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/util/request"
+	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/require"
@@ -90,13 +92,16 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure command successful
-	id, err := container.Run(client, "busybox", []string{"top"})
+	createResponse, err := client.ContainerCreate(context.Background(), &container.Config{Cmd: []string{"top"}, Image: "busybox"}, &container.HostConfig{}, &networktypes.NetworkingConfig{}, "")
+	require.Nil(t, err)
+
+	err = client.ContainerStart(context.Background(), createResponse.ID, types.ContainerStartOptions{})
 	require.Nil(t, err)
 
 	assertURIRecorded(t, ctrl.requestsURIs, "/containers/create")
-	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", id))
+	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", createResponse.ID))
 
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.Nil(t, err)
 	require.Equal(t, 1, ctrl.versionReqCount)
 	require.Equal(t, 1, ctrl.versionResCount)
@@ -127,7 +132,7 @@ func TestAuthZPluginTLS(t *testing.T) {
 	client, err := request.NewTLSAPIClient(t, testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
 	require.Nil(t, err)
 
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.Nil(t, err)
 
 	require.Equal(t, "client", ctrl.reqUser)
@@ -144,7 +149,7 @@ func TestAuthZPluginDenyRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure command is blocked
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.NotNil(t, err)
 	require.Equal(t, 1, ctrl.versionReqCount)
 	require.Equal(t, 0, ctrl.versionResCount)
@@ -186,7 +191,7 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure command is blocked
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.NotNil(t, err)
 	require.Equal(t, 1, ctrl.versionReqCount)
 	require.Equal(t, 1, ctrl.versionResCount)
@@ -208,15 +213,19 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	client, err := d.NewClient()
 	require.Nil(t, err)
 
-	startTime := strconv.FormatInt(system.Time(t, client, testEnv).Unix(), 10)
-	events, errs, cancel := system.EventsSince(client, startTime)
+	startTime := strconv.FormatInt(systemTime(t, client, testEnv).Unix(), 10)
+	events, errs, cancel := systemEventsSince(client, startTime)
 	defer cancel()
 
 	// Create a container and wait for the creation events
-	id, err := container.Run(client, "busybox", []string{"top"})
+	createResponse, err := client.ContainerCreate(context.Background(), &container.Config{Cmd: []string{"top"}, Image: "busybox"}, &container.HostConfig{}, &networktypes.NetworkingConfig{}, "")
 	require.Nil(t, err)
+
+	err = client.ContainerStart(context.Background(), createResponse.ID, types.ContainerStartOptions{})
+	require.Nil(t, err)
+
 	for i := 0; i < 100; i++ {
-		c, err := client.ContainerInspect(context.Background(), id)
+		c, err := client.ContainerInspect(context.Background(), createResponse.ID)
 		require.Nil(t, err)
 		if c.State.Running {
 			break
@@ -232,7 +241,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	for !created && !started {
 		select {
 		case event := <-events:
-			if event.Type == eventtypes.ContainerEventType && event.Actor.ID == id {
+			if event.Type == eventtypes.ContainerEventType && event.Actor.ID == createResponse.ID {
 				if event.Action == "create" {
 					created = true
 				}
@@ -255,7 +264,31 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	// authorization plugin
 	assertURIRecorded(t, ctrl.requestsURIs, "/events")
 	assertURIRecorded(t, ctrl.requestsURIs, "/containers/create")
-	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", id))
+	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", createResponse.ID))
+}
+
+func systemTime(t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
+	if testEnv.IsLocalDaemon() {
+		return time.Now()
+	}
+
+	ctx := context.Background()
+	info, err := client.Info(ctx)
+	require.Nil(t, err)
+
+	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
+	require.Nil(t, err, "invalid time format in GET /info response")
+	return dt
+}
+
+func systemEventsSince(client client.APIClient, since string) (<-chan eventtypes.Message, <-chan error, func()) {
+	eventOptions := types.EventsOptions{
+		Since: since,
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	events, errs := client.Events(ctx, eventOptions)
+
+	return events, errs, cancel
 }
 
 func TestAuthZPluginErrorResponse(t *testing.T) {
@@ -268,7 +301,7 @@ func TestAuthZPluginErrorResponse(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure command is blocked
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.NotNil(t, err)
 	require.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage), err.Error())
 }
@@ -282,7 +315,7 @@ func TestAuthZPluginErrorRequest(t *testing.T) {
 	require.Nil(t, err)
 
 	// Ensure command is blocked
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.NotNil(t, err)
 	require.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage), err.Error())
 }
@@ -297,7 +330,7 @@ func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
 	client, err := d.NewClient()
 	require.Nil(t, err)
 
-	_, err = system.Version(client)
+	_, err = client.ServerVersion(context.Background())
 	require.Nil(t, err)
 
 	// assert plugin is only called once..
@@ -320,19 +353,83 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	savedImagePath := filepath.Join(tmp, "save.tar")
 
-	err = image.Save(client, savedImagePath, "busybox")
+	err = imageSave(client, savedImagePath, "busybox")
 	require.Nil(t, err)
-	err = image.Load(client, savedImagePath)
+	err = imageLoad(client, savedImagePath)
 	require.Nil(t, err)
 
 	exportedImagePath := filepath.Join(tmp, "export.tar")
 
-	id, err := container.Run(client, "busybox", []string{})
+	createResponse, err := client.ContainerCreate(context.Background(), &container.Config{Cmd: []string{}, Image: "busybox"}, &container.HostConfig{}, &networktypes.NetworkingConfig{}, "")
 	require.Nil(t, err)
-	err = container.Export(client, exportedImagePath, id)
+
+	err = client.ContainerStart(context.Background(), createResponse.ID, types.ContainerStartOptions{})
 	require.Nil(t, err)
-	err = image.Import(client, exportedImagePath)
+
+	responseReader, err := client.ContainerExport(context.Background(), createResponse.ID)
 	require.Nil(t, err)
+	defer responseReader.Close()
+	file, err := os.Create(exportedImagePath)
+	require.Nil(t, err)
+	defer file.Close()
+	_, err = io.Copy(file, responseReader)
+	require.Nil(t, err)
+
+	err = imageImport(client, exportedImagePath)
+	require.Nil(t, err)
+}
+
+func imageSave(client client.APIClient, path, image string) error {
+	ctx := context.Background()
+	responseReader, err := client.ImageSave(ctx, []string{image})
+	if err != nil {
+		return err
+	}
+	defer responseReader.Close()
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = io.Copy(file, responseReader)
+	return err
+}
+
+func imageLoad(client client.APIClient, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	quiet := true
+	ctx := context.Background()
+	response, err := client.ImageLoad(ctx, file, quiet)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	return nil
+}
+
+func imageImport(client client.APIClient, path string) error {
+	file, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	options := types.ImageImportOptions{}
+	ref := ""
+	source := types.ImageImportSource{
+		Source:     file,
+		SourceName: "-",
+	}
+	ctx := context.Background()
+	responseReader, err := client.ImageImport(ctx, source, ref, options)
+	if err != nil {
+		return err
+	}
+	defer responseReader.Close()
+	return nil
 }
 
 func TestAuthZPluginHeader(t *testing.T) {
