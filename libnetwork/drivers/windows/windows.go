@@ -62,11 +62,17 @@ type EndpointConnectivity struct {
 }
 
 type hnsEndpoint struct {
-	id             string
-	nid            string
-	profileID      string
-	Type           string
-	containerID    string
+	id        string
+	nid       string
+	profileID string
+	Type      string
+	//Note: Currently, the sandboxID is the same as the containerID since windows does
+	//not expose the sandboxID.
+	//In the future, windows will support a proper sandboxID that is different
+	//than the containerID.
+	//Therefore, we are using sandboxID now, so that we won't have to change this code
+	//when windows properly supports a sandboxID.
+	sandboxID      string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
 	epConnectivity *EndpointConnectivity // User specified parameters
@@ -731,9 +737,9 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	endpoint.containerID = sboxKey
+	endpoint.sandboxID = sboxKey
 
-	err = hcsshim.HotAttachEndpoint(endpoint.containerID, endpoint.profileID)
+	err = hcsshim.HotAttachEndpoint(endpoint.sandboxID, endpoint.profileID)
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
@@ -758,7 +764,7 @@ func (d *driver) Leave(nid, eid string) error {
 		return err
 	}
 
-	err = hcsshim.HotDetachEndpoint(endpoint.containerID, endpoint.profileID)
+	err = hcsshim.HotDetachEndpoint(endpoint.sandboxID, endpoint.profileID)
 	if err != nil {
 		// If container doesn't exists in hcs, do not throw error for hot add/remove
 		if err != hcsshim.ErrComputeSystemDoesNotExist {
