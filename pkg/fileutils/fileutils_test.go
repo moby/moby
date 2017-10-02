@@ -211,6 +211,13 @@ func TestReadSymlinkedDirectoryToFile(t *testing.T) {
 }
 
 func TestWildcardMatches(t *testing.T) {
+	match, _ := Matches("/tmp/dir1/dir2/dir3/file.txt", []string{"**/dir3"})
+	if !match {
+		t.Errorf("failed to get nested dir match, got %v", match)
+	}
+}
+
+func TestDirMatches(t *testing.T) {
 	match, _ := Matches("fileutils.go", []string{"*"})
 	if !match {
 		t.Errorf("failed to get a wildcard match, got %v", match)
