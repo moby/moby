@@ -31,7 +31,7 @@ var (
 
 func setupTestV2(t *testing.T) func() {
 	skip.IfCondition(t, testEnv.DaemonInfo.OSType != "linux")
-	requirement.HasHubConnectivity(t)
+	skip.IfCondition(t, !requirement.HasHubConnectivity(t))
 
 	teardown := setupTest(t)
 
