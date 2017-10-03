@@ -7,13 +7,11 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"runtime"
 	"strconv"
 	"strings"
 	"unicode"
 
 	"github.com/docker/docker/builder/dockerfile/command"
-	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -81,11 +79,10 @@ func (node *Node) AddChild(child *Node, startLine, endLine int) {
 }
 
 var (
-	dispatch             map[string]func(string, *Directive) (*Node, map[string]bool, error)
-	tokenWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenEscapeCommand   = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenPlatformCommand = regexp.MustCompile(`^#[ \t]*platform[ \t]*=[ \t]*(?P<platform>.*)$`)
-	tokenComment         = regexp.MustCompile(`^#.*$`)
+	dispatch           map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace    = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenComment       = regexp.MustCompile(`^#.*$`)
 )
 
 // DefaultEscapeToken is the default escape token
@@ -95,11 +92,9 @@ const DefaultEscapeToken = '\\'
 // parsing directives.
 type Directive struct {
 	escapeToken           rune           // Current escape token
-	platformToken         string         // Current platform token
 	lineContinuationRegex *regexp.Regexp // Current line continuation regex
 	processingComplete    bool           // Whether we are done looking for directives
 	escapeSeen            bool           // Whether the escape directive has been seen
-	platformSeen          bool           // Whether the platform directive has been seen
 }
 
 // setEscapeToken sets the default token for escaping characters in a Dockerfile.
@@ -112,25 +107,9 @@ func (d *Directive) setEscapeToken(s string) error {
 	return nil
 }
 
-// setPlatformToken sets the default platform for pulling images in a Dockerfile.
-func (d *Directive) setPlatformToken(s string) error {
-	s = strings.ToLower(s)
-	valid := []string{runtime.GOOS}
-	if system.LCOWSupported() {
-		valid = append(valid, "linux")
-	}
-	for _, item := range valid {
-		if s == item {
-			d.platformToken = s
-			return nil
-		}
-	}
-	return fmt.Errorf("invalid PLATFORM '%s'. Must be one of %v", s, valid)
-}
-
-// possibleParserDirective looks for one or more parser directives '# escapeToken=<char>' and
-// '# platform=<string>'. Parser directives must precede any builder instruction
-// or other comments, and cannot be repeated.
+// possibleParserDirective looks for parser directives, eg '# escapeToken=<char>'.
+// Parser directives must precede any builder instruction or other comments,
+// and cannot be repeated.
 func (d *Directive) possibleParserDirective(line string) error {
 	if d.processingComplete {
 		return nil
@@ -145,22 +124,6 @@ func (d *Directive) possibleParserDirective(line string) error {
 				}
 				d.escapeSeen = true
 				return d.setEscapeToken(tecMatch[i])
-			}
-		}
-	}
-
-	// Only recognise a platform token if LCOW is supported
-	if system.LCOWSupported() {
-		tpcMatch := tokenPlatformCommand.FindStringSubmatch(strings.ToLower(line))
-		if len(tpcMatch) != 0 {
-			for i, n := range tokenPlatformCommand.SubexpNames() {
-				if n == "platform" {
-					if d.platformSeen {
-						return errors.New("only one platform parser directive can be used")
-					}
-					d.platformSeen = true
-					return d.setPlatformToken(tpcMatch[i])
-				}
 			}
 		}
 	}
