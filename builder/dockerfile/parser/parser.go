@@ -237,10 +237,7 @@ func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 type Result struct {
 	AST         *Node
 	EscapeToken rune
-	// TODO @jhowardmsft - see https://github.com/moby/moby/issues/34617
-	// This next field will be removed in a future update for LCOW support.
-	OS       string
-	Warnings []string
+	Warnings    []string
 }
 
 // PrintWarnings to the writer
@@ -320,7 +317,6 @@ func Parse(rwc io.Reader) (*Result, error) {
 		AST:         root,
 		Warnings:    warnings,
 		EscapeToken: d.escapeToken,
-		OS:          d.platformToken,
 	}, handleScannerError(scanner.Err())
 }
 
