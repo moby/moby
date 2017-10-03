@@ -64,7 +64,7 @@ func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
 	// Try with a file source.
 	srcPath := containerCpPath(containerID, "/file1")
 	dstPath := cpPath(tmpDir, "notExists", "file1")
-	_, dstStatErr := os.Lstat(filepath.Dir(dstPath))
+	_, dstStatErr := os.Stat(filepath.Dir(dstPath))
 	c.Assert(os.IsNotExist(dstStatErr), checker.True)
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
