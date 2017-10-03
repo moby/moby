@@ -1,6 +1,8 @@
 package locker
 
 import (
+	"math/rand"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -121,4 +123,39 @@ func TestLockerConcurrency(t *testing.T) {
 	if ctr, exists := l.locks["test"]; exists {
 		t.Fatalf("lock should not exist: %v", ctr)
 	}
+}
+
+func BenchmarkLocker(b *testing.B) {
+	l := New()
+	for i := 0; i < b.N; i++ {
+		l.Lock("test")
+		l.Unlock("test")
+	}
+}
+
+func BenchmarkLockerParallel(b *testing.B) {
+	l := New()
+	b.SetParallelism(128)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			l.Lock("test")
+			l.Unlock("test")
+		}
+	})
+}
+
+func BenchmarkLockerMoreKeys(b *testing.B) {
+	l := New()
+	var keys []string
+	for i := 0; i < 64; i++ {
+		keys = append(keys, strconv.Itoa(i))
+	}
+	b.SetParallelism(128)
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			k := keys[rand.Intn(len(keys))]
+			l.Lock(k)
+			l.Unlock(k)
+		}
+	})
 }
