@@ -196,7 +196,7 @@ func TestErrorCases(t *testing.T) {
 		_, err = ParseInstruction(n)
 		if err != nil {
 			testutil.ErrorContains(t, err, c.expectedError)
-			return
+			continue
 		}
 		t.Fatalf("No error when executing test %s", c.name)
 	}
