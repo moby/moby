@@ -644,6 +644,7 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	unoExp, _ := types.ParseCIDR("10.2.2.0/16")
 	dueExp, _ := types.ParseCIDR("10.2.2.2/16")
 	treExp, _ := types.ParseCIDR("10.2.2.1/16")
+
 	if poolID, _, _, err = a.RequestPool("rosso", "10.2.0.0/16", "10.2.2.0/24", nil, false); err != nil {
 		t.Fatal(err)
 	}
@@ -690,6 +691,139 @@ func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(tre, treExp) {
+		t.Fatalf("Unexpected address: %v", tre)
+	}
+}
+
+func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
+	opts := map[string]string{
+		ipamapi.AllocSerialPrefix: "true"}
+	a, err := getAllocator()
+	if err != nil {
+		t.Fatal(err)
+	}
+	a.addrSpaces["rosso"] = &addrSpace{
+		id:      dsConfigKey + "/" + "rosso",
+		ds:      a.addrSpaces[localAddressSpace].ds,
+		alloc:   a.addrSpaces[localAddressSpace].alloc,
+		scope:   a.addrSpaces[localAddressSpace].scope,
+		subnets: map[SubnetKey]*PoolData{},
+	}
+
+	poolID, _, _, err := a.RequestPool("rosso", "172.28.0.0/16", "172.28.30.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var ip *net.IPNet
+	expected := &net.IPNet{IP: net.IP{172, 28, 30, 255}, Mask: net.IPMask{255, 255, 0, 0}}
+	for err == nil {
+		var c *net.IPNet
+		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+			ip = c
+		}
+	}
+	if err != ipamapi.ErrNoAvailableIPs {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expected, ip) {
+		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
+	}
+	rp := &net.IPNet{IP: net.IP{172, 28, 30, 97}, Mask: net.IPMask{255, 255, 0, 0}}
+	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+		t.Fatal(err)
+	}
+	if ip, _, err = a.RequestAddress(poolID, nil, opts); err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(rp, ip) {
+		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
+	}
+
+	_, _, _, err = a.RequestPool("rosso", "10.0.0.0/8", "10.0.0.0/16", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	poolID, _, _, err = a.RequestPool("rosso", "10.0.0.0/16", "10.0.0.0/24", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected = &net.IPNet{IP: net.IP{10, 0, 0, 255}, Mask: net.IPMask{255, 255, 0, 0}}
+	for err == nil {
+		var c *net.IPNet
+		if c, _, err = a.RequestAddress(poolID, nil, opts); err == nil {
+			ip = c
+		}
+	}
+	if err != ipamapi.ErrNoAvailableIPs {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(expected, ip) {
+		t.Fatalf("Unexpected last IP from subpool. Expected: %s. Got: %v.", expected, ip)
+	}
+	rp = &net.IPNet{IP: net.IP{10, 0, 0, 79}, Mask: net.IPMask{255, 255, 0, 0}}
+	if err = a.ReleaseAddress(poolID, rp.IP); err != nil {
+		t.Fatal(err)
+	}
+	if ip, _, err = a.RequestAddress(poolID, nil, opts); err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(rp, ip) {
+		t.Fatalf("Unexpected IP from subpool. Expected: %s. Got: %v.", rp, ip)
+	}
+
+	// Request any addresses from subpool after explicit address request
+	unoExp, _ := types.ParseCIDR("10.2.2.0/16")
+	dueExp, _ := types.ParseCIDR("10.2.2.2/16")
+	treExp, _ := types.ParseCIDR("10.2.2.1/16")
+	quaExp, _ := types.ParseCIDR("10.2.2.3/16")
+	fivExp, _ := types.ParseCIDR("10.2.2.4/16")
+	if poolID, _, _, err = a.RequestPool("rosso", "10.2.0.0/16", "10.2.2.0/24", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	tre, _, err := a.RequestAddress(poolID, treExp.IP, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(tre, treExp) {
+		t.Fatalf("Unexpected address: %v", tre)
+	}
+
+	uno, _, err := a.RequestAddress(poolID, nil, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(uno, unoExp) {
+		t.Fatalf("Unexpected address: %v", uno)
+	}
+
+	due, _, err := a.RequestAddress(poolID, nil, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(due, dueExp) {
+		t.Fatalf("Unexpected address: %v", due)
+	}
+
+	if err = a.ReleaseAddress(poolID, uno.IP); err != nil {
+		t.Fatal(err)
+	}
+	uno, _, err = a.RequestAddress(poolID, nil, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(uno, quaExp) {
+		t.Fatalf("Unexpected address: %v", uno)
+	}
+
+	if err = a.ReleaseAddress(poolID, tre.IP); err != nil {
+		t.Fatal(err)
+	}
+	tre, _, err = a.RequestAddress(poolID, nil, opts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !types.CompareIPNet(tre, fivExp) {
 		t.Fatalf("Unexpected address: %v", tre)
 	}
 }
@@ -899,7 +1033,7 @@ func assertGetAddress(t *testing.T, subnet string) {
 	start := time.Now()
 	run := 0
 	for err != ipamapi.ErrNoAvailableIPs {
-		_, err = a.getAddress(sub, bm, nil, nil)
+		_, err = a.getAddress(sub, bm, nil, nil, false)
 		run++
 	}
 	if printTime {

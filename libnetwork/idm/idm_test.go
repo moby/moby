@@ -46,7 +46,7 @@ func TestAllocate(t *testing.T) {
 		t.Fatal("Expected failure but succeeded")
 	}
 
-	o, err := i.GetID()
+	o, err := i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -59,7 +59,7 @@ func TestAllocate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -67,7 +67,7 @@ func TestAllocate(t *testing.T) {
 		t.Fatalf("Unexpected id returned: %d", o)
 	}
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,14 +75,14 @@ func TestAllocate(t *testing.T) {
 		t.Fatalf("Unexpected id returned: %d", o)
 	}
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err == nil {
 		t.Fatalf("Expected failure but succeeded: %d", o)
 	}
 
 	i.Release(50)
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +100,7 @@ func TestAllocate(t *testing.T) {
 func TestUninitialized(t *testing.T) {
 	i := &Idm{}
 
-	if _, err := i.GetID(); err == nil {
+	if _, err := i.GetID(false); err == nil {
 		t.Fatal("Expected failure but succeeded")
 	}
 
@@ -115,7 +115,7 @@ func TestAllocateInRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err := i.GetIDInRange(6, 6)
+	o, err := i.GetIDInRange(6, 6, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -127,7 +127,7 @@ func TestAllocateInRange(t *testing.T) {
 		t.Fatalf("Expected failure but succeeded")
 	}
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestAllocateInRange(t *testing.T) {
 
 	i.Release(6)
 
-	o, err = i.GetID()
+	o, err = i.GetID(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -146,7 +146,7 @@ func TestAllocateInRange(t *testing.T) {
 	}
 
 	for n := 7; n <= 10; n++ {
-		o, err := i.GetIDInRange(7, 10)
+		o, err := i.GetIDInRange(7, 10, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -165,7 +165,7 @@ func TestAllocateInRange(t *testing.T) {
 
 	i.Release(10)
 
-	o, err = i.GetIDInRange(5, 10)
+	o, err = i.GetIDInRange(5, 10, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,7 +175,7 @@ func TestAllocateInRange(t *testing.T) {
 
 	i.Release(5)
 
-	o, err = i.GetIDInRange(5, 10)
+	o, err = i.GetIDInRange(5, 10, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -188,7 +188,7 @@ func TestAllocateInRange(t *testing.T) {
 	}
 
 	for n := 5; n <= 10; n++ {
-		o, err := i.GetIDInRange(5, 10)
+		o, err := i.GetIDInRange(5, 10, false)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -210,7 +210,7 @@ func TestAllocateInRange(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	o, err = i.GetIDInRange(4096, ul)
+	o, err = i.GetIDInRange(4096, ul, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +218,7 @@ func TestAllocateInRange(t *testing.T) {
 		t.Fatalf("Unexpected id returned. Expected: 4096. Got: %d", o)
 	}
 
-	o, err = i.GetIDInRange(4096, ul)
+	o, err = i.GetIDInRange(4096, ul, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -226,11 +226,71 @@ func TestAllocateInRange(t *testing.T) {
 		t.Fatalf("Unexpected id returned. Expected: 4097. Got: %d", o)
 	}
 
-	o, err = i.GetIDInRange(4096, ul)
+	o, err = i.GetIDInRange(4096, ul, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if o != 4098 {
 		t.Fatalf("Unexpected id returned. Expected: 4098. Got: %d", o)
+	}
+}
+
+func TestAllocateSerial(t *testing.T) {
+	i, err := New(nil, "myids", 50, 55)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err = i.GetSpecificID(49); err == nil {
+		t.Fatal("Expected failure but succeeded")
+	}
+
+	if err = i.GetSpecificID(56); err == nil {
+		t.Fatal("Expected failure but succeeded")
+	}
+
+	o, err := i.GetID(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 50 {
+		t.Fatalf("Unexpected first id returned: %d", o)
+	}
+
+	err = i.GetSpecificID(50)
+	if err == nil {
+		t.Fatal(err)
+	}
+
+	o, err = i.GetID(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 51 {
+		t.Fatalf("Unexpected id returned: %d", o)
+	}
+
+	o, err = i.GetID(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 52 {
+		t.Fatalf("Unexpected id returned: %d", o)
+	}
+
+	i.Release(50)
+
+	o, err = i.GetID(true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if o != 53 {
+		t.Fatal("Unexpected id returned")
+	}
+
+	i.Release(52)
+	err = i.GetSpecificID(52)
+	if err != nil {
+		t.Fatal(err)
 	}
 }
