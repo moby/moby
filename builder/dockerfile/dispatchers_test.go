@@ -208,6 +208,7 @@ func TestOnbuild(t *testing.T) {
 func TestWorkdir(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
 	workingDir := "/app"
 	if runtime.GOOS == "windows" {
 		workingDir = "C:\\app"
