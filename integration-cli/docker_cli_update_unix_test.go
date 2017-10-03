@@ -180,7 +180,7 @@ func GetKernelVersion() *kernel.VersionInfo {
 // CheckKernelVersion checks if current kernel is newer than (or equal to)
 // the given version.
 func CheckKernelVersion(k, major, minor int) bool {
-	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) > 0
+	return kernel.CompareKernelVersion(*GetKernelVersion(), kernel.VersionInfo{Kernel: k, Major: major, Minor: minor}) >= 0
 }
 
 func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {
