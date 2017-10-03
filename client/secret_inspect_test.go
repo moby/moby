@@ -42,7 +42,7 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrSecretNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a secretNotFoundError error, got %v", err)
 	}
 }

@@ -62,7 +62,7 @@ func TestCheckpointListContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.CheckpointList(context.Background(), "unknown", types.CheckpointListOptions{})
-	if err == nil || !IsErrContainerNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a containerNotFound error, got %v", err)
 	}
 }

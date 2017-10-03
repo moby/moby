@@ -37,7 +37,7 @@ func TestContainerCreateImageNotFound(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusNotFound, "No such image")),
 	}
 	_, err := client.ContainerCreate(context.Background(), &container.Config{Image: "unknown_image"}, nil, nil, "unknown")
-	if err == nil || !IsErrImageNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected an imageNotFound error, got %v", err)
 	}
 }

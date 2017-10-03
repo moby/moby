@@ -42,7 +42,7 @@ func TestConfigInspectConfigNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrConfigNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a configNotFoundError error, got %v", err)
 	}
 }
@@ -53,7 +53,7 @@ func TestConfigInspect(t *testing.T) {
 		version: "1.30",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
-				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+				return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, req.URL)
 			}
 			content, err := json.Marshal(swarm.Config{
 				ID: "config_id",
