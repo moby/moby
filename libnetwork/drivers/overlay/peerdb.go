@@ -27,13 +27,11 @@ type peerEntry struct {
 }
 
 func (p *peerEntry) MarshalDB() peerEntryDB {
-	ones, bits := p.peerIPMask.Size()
 	return peerEntryDB{
-		eid:            p.eid,
-		vtep:           p.vtep.String(),
-		isLocal:        p.isLocal,
-		peerIPMaskOnes: ones,
-		peerIPMaskBits: bits,
+		eid:        p.eid,
+		vtep:       p.vtep.String(),
+		peerIPMask: p.peerIPMask.String(),
+		isLocal:    p.isLocal,
 	}
 }
 
@@ -41,18 +39,17 @@ func (p *peerEntry) MarshalDB() peerEntryDB {
 // the value inserted in the set has to be Hashable so the []byte had to be converted into
 // strings
 type peerEntryDB struct {
-	eid            string
-	vtep           string
-	peerIPMaskOnes int
-	peerIPMaskBits int
-	isLocal        bool
+	eid        string
+	vtep       string
+	peerIPMask string
+	isLocal    bool
 }
 
 func (p *peerEntryDB) UnMarshalDB() peerEntry {
 	return peerEntry{
 		eid:        p.eid,
 		vtep:       net.ParseIP(p.vtep),
-		peerIPMask: net.CIDRMask(p.peerIPMaskOnes, p.peerIPMaskBits),
+		peerIPMask: net.IPMask(net.ParseIP(p.peerIPMask)),
 		isLocal:    p.isLocal,
 	}
 }
@@ -454,19 +451,22 @@ func (d *driver) peerDeleteOp(nid, eid string, peerIP net.IP, peerIPMask net.IPM
 		logrus.Warn(err)
 	}
 
-	// Remove fdb entry to the bridge for the peer mac
-	if err := sbox.DeleteNeighbor(vtep, peerMac, true); err != nil {
-		if _, ok := err.(osl.NeighborSearchError); ok && dbEntries > 0 {
-			// We fall in here if there is a transient state and if the neighbor that is being deleted
-			// was never been configured into the kernel (we allow only 1 configuration at the time per <ip,mac> mapping)
-			return nil
+	// Local peers do not have any local configuration to delete
+	if !localPeer {
+		// Remove fdb entry to the bridge for the peer mac
+		if err := sbox.DeleteNeighbor(vtep, peerMac, true); err != nil {
+			if _, ok := err.(osl.NeighborSearchError); ok && dbEntries > 0 {
+				// We fall in here if there is a transient state and if the neighbor that is being deleted
+				// was never been configured into the kernel (we allow only 1 configuration at the time per <ip,mac> mapping)
+				return nil
+			}
+			return fmt.Errorf("could not delete fdb entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
 		}
-		return fmt.Errorf("could not delete fdb entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
-	}
 
-	// Delete neighbor entry for the peer IP
-	if err := sbox.DeleteNeighbor(peerIP, peerMac, true); err != nil {
-		return fmt.Errorf("could not delete neighbor entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
+		// Delete neighbor entry for the peer IP
+		if err := sbox.DeleteNeighbor(peerIP, peerMac, true); err != nil {
+			return fmt.Errorf("could not delete neighbor entry for nid:%s eid:%s into the sandbox:%v", nid, eid, err)
+		}
 	}
 
 	if dbEntries == 0 {
