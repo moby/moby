@@ -31,7 +31,7 @@ func TestImageInspectImageNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.ImageInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrImageNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected an imageNotFound error, got %v", err)
 	}
 }
