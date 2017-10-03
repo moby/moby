@@ -148,7 +148,7 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 	return d.builder.imageSources.Get(imageRefOrID, localOnly)
 }
 
-// FROM imagename[:tag | @digest] [AS build-stage-name]
+// FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()

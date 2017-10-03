@@ -1,6 +1,8 @@
 package instructions // import "github.com/docker/docker/builder/dockerfile/instructions"
 
 import (
+	"fmt"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -184,6 +186,16 @@ func TestErrorCases(t *testing.T) {
 			dockerfile:    `foo bar`,
 			expectedError: "unknown instruction: FOO",
 		},
+		{
+			name:          "Invalid platform",
+			dockerfile:    `FROM --platform=invalid busybox`,
+			expectedError: `invalid platform "invalid"`,
+		},
+		{
+			name:          "Only OS",
+			dockerfile:    fmt.Sprintf(`FROM --platform=%s/%s busybox`, runtime.GOOS, runtime.GOARCH),
+			expectedError: `invalid platform`,
+		},
 	}
 	for _, c := range cases {
 		r := strings.NewReader(c.dockerfile)
@@ -196,5 +208,4 @@ func TestErrorCases(t *testing.T) {
 		_, err = ParseInstruction(n)
 		testutil.ErrorContains(t, err, c.expectedError)
 	}
-
 }

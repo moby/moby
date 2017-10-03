@@ -3,6 +3,7 @@ package instructions // import "github.com/docker/docker/builder/dockerfile/inst
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -271,16 +273,31 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		return nil, err
 	}
 
+	flPlatform := req.flags.AddString("platform", "")
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
+	specPlatform := system.ParsePlatform(flPlatform.Value)
+	if specPlatform.OS == "" {
+		specPlatform.OS = runtime.GOOS
+	}
+	if err := system.ValidatePlatform(specPlatform); err != nil {
+		return nil, fmt.Errorf("invalid platform %q on FROM", flPlatform.Value)
+	}
+	if !system.IsOSSupported(specPlatform.OS) {
+		return nil, fmt.Errorf("unsupported platform %q on FROM", flPlatform.Value)
+	}
+	if err != nil {
+		return nil, err
+	}
 	code := strings.TrimSpace(req.original)
-
+	fmt.Println("JJH", specPlatform.OS)
 	return &Stage{
-		BaseName:   req.args[0],
-		Name:       stageName,
-		SourceCode: code,
-		Commands:   []Command{},
+		BaseName:        req.args[0],
+		Name:            stageName,
+		SourceCode:      code,
+		Commands:        []Command{},
+		OperatingSystem: specPlatform.OS,
 	}, nil
 
 }

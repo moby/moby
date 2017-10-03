@@ -357,10 +357,11 @@ type ShellCommand struct {
 
 // Stage represents a single stage in a multi-stage build
 type Stage struct {
-	Name       string
-	Commands   []Command
-	BaseName   string
-	SourceCode string
+	Name            string
+	Commands        []Command
+	BaseName        string
+	SourceCode      string
+	OperatingSystem string
 }
 
 // AddCommand to the stage
