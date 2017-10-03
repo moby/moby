@@ -71,38 +71,6 @@ func wrapResponseError(err error, resp serverResponse, object, id string) error 
 	}
 }
 
-// IsErrImageNotFound returns true if the error is caused
-// when an image is not found in the docker host.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrImageNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrContainerNotFound returns true if the error is caused
-// when a container is not found in the docker host.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrContainerNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrNetworkNotFound returns true if the error is caused
-// when a network is not found in the docker host.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrNetworkNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrVolumeNotFound returns true if the error is caused
-// when a volume is not found in the docker host.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrVolumeNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
 // unauthorizedError represents an authorization error in a remote registry.
 type unauthorizedError struct {
 	cause error
@@ -118,30 +86,6 @@ func (u unauthorizedError) Error() string {
 func IsErrUnauthorized(err error) bool {
 	_, ok := err.(unauthorizedError)
 	return ok
-}
-
-// IsErrNodeNotFound returns true if the error is caused
-// when a node is not found.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrNodeNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrServiceNotFound returns true if the error is caused
-// when a service is not found.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrServiceNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrTaskNotFound returns true if the error is caused
-// when a task is not found.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrTaskNotFound(err error) bool {
-	return IsErrNotFound(err)
 }
 
 type pluginPermissionDenied struct {
@@ -186,28 +130,4 @@ func (cli *Client) NewVersionError(APIrequired, feature string) error {
 		return fmt.Errorf("%q requires API version %s, but the Docker daemon API version is %s", feature, APIrequired, cli.version)
 	}
 	return nil
-}
-
-// IsErrSecretNotFound returns true if the error is caused
-// when a secret is not found.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrSecretNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrConfigNotFound returns true if the error is caused
-// when a config is not found.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrConfigNotFound(err error) bool {
-	return IsErrNotFound(err)
-}
-
-// IsErrPluginNotFound returns true if the error is caused
-// when a plugin is not found in the docker host.
-//
-// Deprecated: Use IsErrNotFound
-func IsErrPluginNotFound(err error) bool {
-	return IsErrNotFound(err)
 }
