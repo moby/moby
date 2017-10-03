@@ -708,28 +708,19 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	}
 
 	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a os/arch match", ref, len(mfstList.Manifests))
-	var manifestDigest digest.Digest
-	// TODO @jhowardmsft LCOW Support: Need to remove the hard coding in LCOW mode.
-	lookingForOS := runtime.GOOS
-	if system.LCOWSupported() {
-		lookingForOS = "linux"
-	}
-	for _, manifestDescriptor := range mfstList.Manifests {
-		// TODO(aaronl): The manifest list spec supports optional
-		// "features" and "variant" fields. These are not yet used.
-		// Once they are, their values should be interpreted here.
-		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == lookingForOS {
-			manifestDigest = manifestDescriptor.Digest
-			logrus.Debugf("found match for %s/%s with media type %s, digest %s", runtime.GOOS, runtime.GOARCH, manifestDescriptor.MediaType, manifestDigest.String())
-			break
-		}
-	}
 
-	if manifestDigest == "" {
+	manifestMatches := filterManifests(mfstList.Manifests)
+
+	if len(manifestMatches) == 0 {
 		errMsg := fmt.Sprintf("no matching manifest for %s/%s in the manifest list entries", runtime.GOOS, runtime.GOARCH)
 		logrus.Debugf(errMsg)
 		return "", "", errors.New(errMsg)
 	}
+
+	if len(manifestMatches) > 1 {
+		logrus.Debugf("found multiple matches in manifest list, choosing best match %s", manifestMatches[0].Digest.String())
+	}
+	manifestDigest := manifestMatches[0].Digest
 
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
