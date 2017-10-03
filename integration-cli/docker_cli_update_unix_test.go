@@ -141,8 +141,9 @@ func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 
 	isNewKernel := CheckKernelVersion(4, 6, 0)
 	name := "test-update-container"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
-	_, _, err := dockerCmdWithError("update", "--kernel-memory", "100M", name)
+	_, _, err := dockerCmdWithError("run", "-d", "--name", name, "busybox", "top")
+	c.Assert(err, check.IsNil)
+	_, _, err = dockerCmdWithError("update", "--kernel-memory", "100M", name)
 	// Update kernel memory to a running container without kernel memory initialized
 	// is not allowed before kernel version 4.6.
 	if !isNewKernel {
@@ -150,7 +151,6 @@ func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	} else {
 		c.Assert(err, check.IsNil)
 	}
-
 	dockerCmd(c, "pause", name)
 	_, _, err = dockerCmdWithError("update", "--kernel-memory", "200M", name)
 	if !isNewKernel {
@@ -169,11 +169,16 @@ func (s *DockerSuite) TestUpdateKernelMemoryUninitialized(c *check.C) {
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "314572800")
+	c.Assert(out, checker.Equals, "This should fail")
 }
 
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() *kernel.VersionInfo {
-	v, _ := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	v, err := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	fmt.Println("kernel version is : ", testEnv.DaemonInfo.KernelVersion)
+	fmt.Println("parse release is : ", v)
+	fmt.Println("error is : ", err)
+	fmt.Println("k, major, minor : ", v.Kernel, v.Major, v.Minor)
 	return v
 }
 
