@@ -3,7 +3,6 @@ package instructions // import "github.com/docker/docker/builder/dockerfile/inst
 import (
 	"fmt"
 	"regexp"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -278,20 +277,16 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		return nil, err
 	}
 	specPlatform := system.ParsePlatform(flPlatform.Value)
-	if specPlatform.OS == "" {
-		specPlatform.OS = runtime.GOOS
-	}
 	if err := system.ValidatePlatform(specPlatform); err != nil {
 		return nil, fmt.Errorf("invalid platform %q on FROM", flPlatform.Value)
 	}
-	if !system.IsOSSupported(specPlatform.OS) {
+	if specPlatform.OS != "" && !system.IsOSSupported(specPlatform.OS) {
 		return nil, fmt.Errorf("unsupported platform %q on FROM", flPlatform.Value)
 	}
 	if err != nil {
 		return nil, err
 	}
 	code := strings.TrimSpace(req.original)
-	fmt.Println("JJH", specPlatform.OS)
 	return &Stage{
 		BaseName:        req.args[0],
 		Name:            stageName,

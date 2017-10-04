@@ -145,14 +145,14 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 		imageRefOrID = stage.Image
 		localOnly = true
 	}
-	return d.builder.imageSources.Get(imageRefOrID, localOnly)
+	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.state.baseImage.OperatingSystem())
 }
 
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	image, err := d.getFromImage(d.shlex, cmd.BaseName)
+	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.OperatingSystem)
 	if err != nil {
 		return err
 	}
@@ -210,20 +210,44 @@ func (d *dispatchRequest) getExpandedImageName(shlex *shell.Lex, name string) (s
 	}
 	return name, nil
 }
-func (d *dispatchRequest) getImageOrStage(name string) (builder.Image, error) {
+
+// getOsFromFlagsAndStage calculates the operating system if we need to pull an image.
+// stagePlatform contains the value supplied by optional `--platform=` on
+// a current FROM statement. b.builder.options.Platform contains the operating
+// system part of the optional flag passed in the API call (or CLI flag
+// through `docker build --platform=...`).
+func (d *dispatchRequest) getOsFromFlagsAndStage(stagePlatform string) string {
+	osForPull := ""
+	// First, take the API platform if nothing provided on FROM
+	if stagePlatform == "" && d.builder.options.Platform != "" {
+		osForPull = d.builder.options.Platform
+	}
+	// Next, use the FROM flag if that was provided
+	if osForPull == "" && stagePlatform != "" {
+		osForPull = stagePlatform
+	}
+	// Finally, assume the host OS
+	if osForPull == "" {
+		osForPull = runtime.GOOS
+	}
+	return osForPull
+}
+
+func (d *dispatchRequest) getImageOrStage(name string, stagePlatform string) (builder.Image, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
 		localOnly = true
 	}
 
+	os := d.getOsFromFlagsAndStage(stagePlatform)
+
 	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
 		imageImage := &image.Image{}
 		imageImage.OS = runtime.GOOS
 		if runtime.GOOS == "windows" {
-			optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-			switch optionsOS {
+			switch os {
 			case "windows", "":
 				return nil, errors.New("Windows does not support FROM scratch")
 			case "linux":
@@ -232,23 +256,23 @@ func (d *dispatchRequest) getImageOrStage(name string) (builder.Image, error) {
 				}
 				imageImage.OS = "linux"
 			default:
-				return nil, errors.Errorf("operating system %q is not supported", optionsOS)
+				return nil, errors.Errorf("operating system %q is not supported", os)
 			}
 		}
 		return builder.Image(imageImage), nil
 	}
-	imageMount, err := d.builder.imageSources.Get(name, localOnly)
+	imageMount, err := d.builder.imageSources.Get(name, localOnly, os)
 	if err != nil {
 		return nil, err
 	}
 	return imageMount.Image(), nil
 }
-func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string) (builder.Image, error) {
+func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string, stagePlatform string) (builder.Image, error) {
 	name, err := d.getExpandedImageName(shlex, name)
 	if err != nil {
 		return nil, err
 	}
-	return d.getImageOrStage(name)
+	return d.getImageOrStage(name, stagePlatform)
 }
 
 func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
@@ -264,8 +288,7 @@ func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
 func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	runConfig := d.state.runConfig
 	var err error
-	baseImageOS := system.ParsePlatform(d.state.operatingSystem).OS
-	runConfig.WorkingDir, err = normalizeWorkdir(baseImageOS, runConfig.WorkingDir, c.Path)
+	runConfig.WorkingDir, err = normalizeWorkdir(d.state.baseImage.OperatingSystem(), runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
@@ -281,7 +304,7 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, baseImageOS))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.baseImage.OperatingSystem()))
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -316,7 +339,7 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 		return system.ErrNotSupportedOperatingSystem
 	}
 	stateRunConfig := d.state.runConfig
-	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem)
+	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.baseImage.OperatingSystem())
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
@@ -397,8 +420,7 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 //
 func dispatchCmd(d dispatchRequest, c *instructions.CmdCommand) error {
 	runConfig := d.state.runConfig
-	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, optionsOS)
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.baseImage.OperatingSystem())
 	runConfig.Cmd = cmd
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
@@ -441,8 +463,7 @@ func dispatchHealthcheck(d dispatchRequest, c *instructions.HealthCheckCommand) 
 //
 func dispatchEntrypoint(d dispatchRequest, c *instructions.EntrypointCommand) error {
 	runConfig := d.state.runConfig
-	optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, optionsOS)
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.baseImage.OperatingSystem())
 	runConfig.Entrypoint = cmd
 	if !d.state.cmdSet {
 		runConfig.Cmd = nil

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"strings"
 	"time"
 
@@ -104,7 +103,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		source = src
 	}
 
-	os := runtime.GOOS
+	os := ""
 	apiPlatform := system.ParsePlatform(config.Options.Platform)
 	if apiPlatform.OS != "" {
 		os = apiPlatform.OS
