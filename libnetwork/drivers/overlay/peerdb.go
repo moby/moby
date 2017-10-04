@@ -27,11 +27,13 @@ type peerEntry struct {
 }
 
 func (p *peerEntry) MarshalDB() peerEntryDB {
+	ones, bits := p.peerIPMask.Size()
 	return peerEntryDB{
-		eid:        p.eid,
-		vtep:       p.vtep.String(),
-		peerIPMask: p.peerIPMask.String(),
-		isLocal:    p.isLocal,
+		eid:            p.eid,
+		vtep:           p.vtep.String(),
+		peerIPMaskOnes: ones,
+		peerIPMaskBits: bits,
+		isLocal:        p.isLocal,
 	}
 }
 
@@ -39,17 +41,18 @@ func (p *peerEntry) MarshalDB() peerEntryDB {
 // the value inserted in the set has to be Hashable so the []byte had to be converted into
 // strings
 type peerEntryDB struct {
-	eid        string
-	vtep       string
-	peerIPMask string
-	isLocal    bool
+	eid            string
+	vtep           string
+	peerIPMaskOnes int
+	peerIPMaskBits int
+	isLocal        bool
 }
 
 func (p *peerEntryDB) UnMarshalDB() peerEntry {
 	return peerEntry{
 		eid:        p.eid,
 		vtep:       net.ParseIP(p.vtep),
-		peerIPMask: net.IPMask(net.ParseIP(p.peerIPMask)),
+		peerIPMask: net.CIDRMask(p.peerIPMaskOnes, p.peerIPMaskBits),
 		isLocal:    p.isLocal,
 	}
 }
