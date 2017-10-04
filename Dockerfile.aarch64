@@ -77,7 +77,7 @@ RUN apt-get update && apt-get install -y \
 # We don't have official binary golang 1.7.5 tarballs for ARM64, either for Go or
 # bootstrap, so we use Debian golang (1.7) as bootstrap to build Go from source code.
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.8.3
+ENV GO_VERSION 1.8.4
 RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
 	&& cd /usr/src/go/src \
 	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
