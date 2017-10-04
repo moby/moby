@@ -152,7 +152,7 @@ func (s *DockerSuite) TestRmiImageIDForceWithRunningContainersAndMultipleTags(c 
 
 	out, _, err := dockerCmdWithError("rmi", "-f", imgID)
 	// rmi -f should not delete image with running containers
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil) // NOTE: rmi -f fails silently on a real error see: https://github.com/docker/cli/issues/394
 	c.Assert(out, checker.Contains, "(cannot be forced) - image is being used by running container")
 }
 
@@ -245,7 +245,7 @@ func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
 	// Try to remove the image of the running container and see if it fails as expected.
 	out, _, err := dockerCmdWithError("rmi", "-f", imageIds[0])
 	// The image of the running container should not be removed.
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil) // NOTE: rmi -f fails silently on a real error see: https://github.com/docker/cli/issues/394
 	c.Assert(out, checker.Contains, "image is being used by running container", check.Commentf("out: %s", out))
 }
 
