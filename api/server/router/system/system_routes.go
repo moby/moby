@@ -123,7 +123,7 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 
 		if !onlyPastEvents {
 			dur := until.Sub(now)
-			timeout = time.NewTimer(dur).C
+			timeout = time.After(dur)
 		}
 	}
 
