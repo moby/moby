@@ -77,6 +77,13 @@ func (pm *PatternMatcher) Matches(file string) (bool, error) {
 			return false, err
 		}
 
+		if !match {
+			match, err = pattern.match(parentPath)
+			if err != nil {
+				return false, err
+			}
+		}
+
 		if !match && parentPath != "." {
 			// Check to see if the pattern matches one of our parent dirs.
 			if len(pattern.dirs) <= len(parentPathDirs) {
