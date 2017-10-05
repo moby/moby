@@ -1,3 +1,5 @@
+// +build windows
+
 package winio
 
 import (
@@ -83,7 +85,7 @@ func RunWithPrivileges(names []string, fn func() error) error {
 		return err
 	}
 	defer releaseThreadToken(token)
-	err = adjustPrivileges(token, privileges)
+	err = adjustPrivileges(token, privileges, SE_PRIVILEGE_ENABLED)
 	if err != nil {
 		return err
 	}
@@ -110,6 +112,15 @@ func mapPrivileges(names []string) ([]uint64, error) {
 
 // EnableProcessPrivileges enables privileges globally for the process.
 func EnableProcessPrivileges(names []string) error {
+	return enableDisableProcessPrivilege(names, SE_PRIVILEGE_ENABLED)
+}
+
+// DisableProcessPrivileges disables privileges globally for the process.
+func DisableProcessPrivileges(names []string) error {
+	return enableDisableProcessPrivilege(names, 0)
+}
+
+func enableDisableProcessPrivilege(names []string, action uint32) error {
 	privileges, err := mapPrivileges(names)
 	if err != nil {
 		return err
@@ -123,15 +134,15 @@ func EnableProcessPrivileges(names []string) error {
 	}
 
 	defer token.Close()
-	return adjustPrivileges(token, privileges)
+	return adjustPrivileges(token, privileges, action)
 }
 
-func adjustPrivileges(token windows.Token, privileges []uint64) error {
+func adjustPrivileges(token windows.Token, privileges []uint64, action uint32) error {
 	var b bytes.Buffer
 	binary.Write(&b, binary.LittleEndian, uint32(len(privileges)))
 	for _, p := range privileges {
 		binary.Write(&b, binary.LittleEndian, p)
-		binary.Write(&b, binary.LittleEndian, uint32(SE_PRIVILEGE_ENABLED))
+		binary.Write(&b, binary.LittleEndian, action)
 	}
 	prevState := make([]byte, b.Len())
 	reqSize := uint32(0)

@@ -165,14 +165,18 @@ WAIT:
 	if pair != nil && pair.Flags != LockFlagValue {
 		return nil, ErrLockConflict
 	}
+	locked := false
+	if pair != nil && pair.Session == l.lockSession {
+		goto HELD
+	}
 	if pair != nil && pair.Session != "" {
 		qOpts.WaitIndex = meta.LastIndex
 		goto WAIT
 	}
 
 	// Try to acquire the lock
-	lockEnt := l.lockEntry(l.lockSession)
-	locked, _, err := kv.Acquire(lockEnt, nil)
+	pair = l.lockEntry(l.lockSession)
+	locked, _, err = kv.Acquire(pair, nil)
 	if err != nil {
 		return nil, fmt.Errorf("failed to acquire lock: %v", err)
 	}
@@ -187,6 +191,7 @@ WAIT:
 		}
 	}
 
+HELD:
 	// Watch to ensure we maintain leadership
 	leaderCh := make(chan struct{})
 	go l.monitorLock(l.lockSession, leaderCh)

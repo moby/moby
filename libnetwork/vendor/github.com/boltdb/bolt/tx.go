@@ -473,6 +473,8 @@ func (tx *Tx) write() error {
 	for _, p := range tx.pages {
 		pages = append(pages, p)
 	}
+	// Clear out page cache early.
+	tx.pages = make(map[pgid]*page)
 	sort.Sort(pages)
 
 	// Write pages to disk in order.
@@ -517,8 +519,22 @@ func (tx *Tx) write() error {
 		}
 	}
 
-	// Clear out page cache.
-	tx.pages = make(map[pgid]*page)
+	// Put small pages back to page pool.
+	for _, p := range pages {
+		// Ignore page sizes over 1 page.
+		// These are allocated using make() instead of the page pool.
+		if int(p.overflow) != 0 {
+			continue
+		}
+
+		buf := (*[maxAllocSize]byte)(unsafe.Pointer(p))[:tx.db.pageSize]
+
+		// See https://go.googlesource.com/go/+/f03c9202c43e0abb130669852082117ca50aa9b1
+		for i := range buf {
+			buf[i] = 0
+		}
+		tx.db.pagePool.Put(buf)
+	}
 
 	return nil
 }

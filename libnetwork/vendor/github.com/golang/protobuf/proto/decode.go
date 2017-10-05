@@ -46,6 +46,10 @@ import (
 // errOverflow is returned when an integer is too large to be represented.
 var errOverflow = errors.New("proto: integer overflow")
 
+// ErrInternalBadWireType is returned by generated code when an incorrect
+// wire type is encountered. It does not get returned to user code.
+var ErrInternalBadWireType = errors.New("proto: internal error: bad wiretype for oneof")
+
 // The fundamental decoders that interpret bytes on the wire.
 // Those that take integer types all return uint64 and are
 // therefore of type valueDecoder.
@@ -57,7 +61,6 @@ var errOverflow = errors.New("proto: integer overflow")
 // int32, int64, uint32, uint64, bool, and enum
 // protocol buffer types.
 func DecodeVarint(buf []byte) (x uint64, n int) {
-	// x, n already 0
 	for shift := uint(0); shift < 64; shift += 7 {
 		if n >= len(buf) {
 			return 0, 0
@@ -74,13 +77,7 @@ func DecodeVarint(buf []byte) (x uint64, n int) {
 	return 0, 0
 }
 
-// DecodeVarint reads a varint-encoded integer from the Buffer.
-// This is the format for the
-// int32, int64, uint32, uint64, bool, and enum
-// protocol buffer types.
-func (p *Buffer) DecodeVarint() (x uint64, err error) {
-	// x, err already 0
-
+func (p *Buffer) decodeVarintSlow() (x uint64, err error) {
 	i := p.index
 	l := len(p.buf)
 
@@ -101,6 +98,107 @@ func (p *Buffer) DecodeVarint() (x uint64, err error) {
 	// The number is too large to represent in a 64-bit value.
 	err = errOverflow
 	return
+}
+
+// DecodeVarint reads a varint-encoded integer from the Buffer.
+// This is the format for the
+// int32, int64, uint32, uint64, bool, and enum
+// protocol buffer types.
+func (p *Buffer) DecodeVarint() (x uint64, err error) {
+	i := p.index
+	buf := p.buf
+
+	if i >= len(buf) {
+		return 0, io.ErrUnexpectedEOF
+	} else if buf[i] < 0x80 {
+		p.index++
+		return uint64(buf[i]), nil
+	} else if len(buf)-i < 10 {
+		return p.decodeVarintSlow()
+	}
+
+	var b uint64
+	// we already checked the first byte
+	x = uint64(buf[i]) - 0x80
+	i++
+
+	b = uint64(buf[i])
+	i++
+	x += b << 7
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 7
+
+	b = uint64(buf[i])
+	i++
+	x += b << 14
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 14
+
+	b = uint64(buf[i])
+	i++
+	x += b << 21
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 21
+
+	b = uint64(buf[i])
+	i++
+	x += b << 28
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 28
+
+	b = uint64(buf[i])
+	i++
+	x += b << 35
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 35
+
+	b = uint64(buf[i])
+	i++
+	x += b << 42
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 42
+
+	b = uint64(buf[i])
+	i++
+	x += b << 49
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 49
+
+	b = uint64(buf[i])
+	i++
+	x += b << 56
+	if b&0x80 == 0 {
+		goto done
+	}
+	x -= 0x80 << 56
+
+	b = uint64(buf[i])
+	i++
+	x += b << 63
+	if b&0x80 == 0 {
+		goto done
+	}
+	// x -= 0x80 << 63 // Always zero.
+
+	return 0, errOverflow
+
+done:
+	p.index = i
+	return x, nil
 }
 
 // DecodeFixed64 reads a 64-bit integer from the Buffer.
@@ -314,10 +412,30 @@ func UnmarshalMerge(buf []byte, pb Message) error {
 	return NewBuffer(buf).Unmarshal(pb)
 }
 
+// DecodeMessage reads a count-delimited message from the Buffer.
+func (p *Buffer) DecodeMessage(pb Message) error {
+	enc, err := p.DecodeRawBytes(false)
+	if err != nil {
+		return err
+	}
+	return NewBuffer(enc).Unmarshal(pb)
+}
+
+// DecodeGroup reads a tag-delimited group from the Buffer.
+func (p *Buffer) DecodeGroup(pb Message) error {
+	typ, base, err := getbase(pb)
+	if err != nil {
+		return err
+	}
+	return p.unmarshalType(typ.Elem(), GetProperties(typ.Elem()), true, base)
+}
+
 // Unmarshal parses the protocol buffer representation in the
 // Buffer and places the decoded result in pb.  If the struct
 // underlying pb does not match the data in the buffer, the results can be
 // unpredictable.
+//
+// Unlike proto.Unmarshal, this does not reset pb before starting to unmarshal.
 func (p *Buffer) Unmarshal(pb Message) error {
 	// If the object can unmarshal itself, let it.
 	if u, ok := pb.(Unmarshaler); ok {
@@ -356,6 +474,11 @@ func (o *Buffer) unmarshalType(st reflect.Type, prop *StructProperties, is_group
 		wire := int(u & 0x7)
 		if wire == WireEndGroup {
 			if is_group {
+				if required > 0 {
+					// Not enough information to determine the exact field.
+					// (See below.)
+					return &RequiredNotSetError{"{Unknown}"}
+				}
 				return nil // input is satisfied
 			}
 			return fmt.Errorf("proto: %s: wiretype end group for non-group", st)
@@ -368,12 +491,27 @@ func (o *Buffer) unmarshalType(st reflect.Type, prop *StructProperties, is_group
 		if !ok {
 			// Maybe it's an extension?
 			if prop.extendable {
-				if e := structPointer_Interface(base, st).(extendableProto); isExtensionField(e, int32(tag)) {
+				if e, _ := extendable(structPointer_Interface(base, st)); isExtensionField(e, int32(tag)) {
 					if err = o.skip(st, tag, wire); err == nil {
-						ext := e.ExtensionMap()[int32(tag)] // may be missing
+						extmap := e.extensionsWrite()
+						ext := extmap[int32(tag)] // may be missing
 						ext.enc = append(ext.enc, o.buf[oi:o.index]...)
-						e.ExtensionMap()[int32(tag)] = ext
+						extmap[int32(tag)] = ext
 					}
+					continue
+				}
+			}
+			// Maybe it's a oneof?
+			if prop.oneofUnmarshaler != nil {
+				m := structPointer_Interface(base, st).(Message)
+				// First return value indicates whether tag is a oneof field.
+				ok, err = prop.oneofUnmarshaler(m, tag, wire, o)
+				if err == ErrInternalBadWireType {
+					// Map the error to something more descriptive.
+					// Do the formatting here to save generated code space.
+					err = fmt.Errorf("bad wiretype for oneof field in %T", m)
+				}
+				if ok {
 					continue
 				}
 			}
@@ -561,9 +699,13 @@ func (o *Buffer) dec_slice_packed_bool(p *Properties, base structPointer) error 
 		return err
 	}
 	nb := int(nn) // number of bytes of encoded bools
+	fin := o.index + nb
+	if fin < o.index {
+		return errOverflow
+	}
 
 	y := *v
-	for i := 0; i < nb; i++ {
+	for o.index < fin {
 		u, err := p.valDec(o)
 		if err != nil {
 			return err
@@ -675,7 +817,7 @@ func (o *Buffer) dec_new_map(p *Properties, base structPointer) error {
 	oi := o.index       // index at the end of this map entry
 	o.index -= len(raw) // move buffer back to start of map entry
 
-	mptr := structPointer_Map(base, p.field, p.mtype) // *map[K]V
+	mptr := structPointer_NewAt(base, p.field, p.mtype) // *map[K]V
 	if mptr.Elem().IsNil() {
 		mptr.Elem().Set(reflect.MakeMap(mptr.Type().Elem()))
 	}
@@ -727,8 +869,15 @@ func (o *Buffer) dec_new_map(p *Properties, base structPointer) error {
 			return fmt.Errorf("proto: bad map data tag %d", raw[0])
 		}
 	}
+	keyelem, valelem := keyptr.Elem(), valptr.Elem()
+	if !keyelem.IsValid() {
+		keyelem = reflect.Zero(p.mtype.Key())
+	}
+	if !valelem.IsValid() {
+		valelem = reflect.Zero(p.mtype.Elem())
+	}
 
-	v.SetMapIndex(keyptr.Elem(), valptr.Elem())
+	v.SetMapIndex(keyelem, valelem)
 	return nil
 }
 

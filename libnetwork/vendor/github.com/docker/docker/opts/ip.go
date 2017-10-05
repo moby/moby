@@ -22,7 +22,7 @@ func NewIPOpt(ref *net.IP, defaultVal string) *IPOpt {
 }
 
 // Set sets an IPv4 or IPv6 address from a given string. If the given
-// string is not parseable as an IP address it returns an error.
+// string is not parsable as an IP address it returns an error.
 func (o *IPOpt) Set(val string) error {
 	ip := net.ParseIP(val)
 	if ip == nil {
