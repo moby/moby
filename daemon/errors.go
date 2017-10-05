@@ -64,6 +64,17 @@ func errExecPaused(id string) error {
 	return stateConflictError{cause}
 }
 
+type nameConflictError struct {
+	id   string
+	name string
+}
+
+func (e nameConflictError) Error() string {
+	return fmt.Sprintf("Conflict. The container name %q is already in use by container %q. You have to remove (or rename) that container to be able to reuse that name.", e.name, e.id)
+}
+
+func (nameConflictError) Conflict() {}
+
 type validationError struct {
 	cause error
 }
