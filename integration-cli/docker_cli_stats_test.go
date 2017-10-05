@@ -34,7 +34,7 @@ func (s *DockerSuite) TestStatsNoStream(c *check.C) {
 	select {
 	case outerr := <-ch:
 		c.Assert(outerr.err, checker.IsNil, check.Commentf("Error running stats: %v", outerr.err))
-		c.Assert(string(outerr.out), checker.Contains, id) //running container wasn't present in output
+		c.Assert(string(outerr.out), checker.Contains, id[:12]) //running container wasn't present in output
 	case <-time.After(3 * time.Second):
 		statsCmd.Process.Kill()
 		c.Fatalf("stats did not return immediately when not streaming")
