@@ -23,14 +23,16 @@ type Copier struct {
 	copyJobs  sync.WaitGroup
 	closeOnce sync.Once
 	closed    chan struct{}
+	location  *time.Location
 }
 
 // NewCopier creates a new Copier
-func NewCopier(srcs map[string]io.Reader, dst Logger) *Copier {
+func NewCopier(srcs map[string]io.Reader, dst Logger, location *time.Location) *Copier {
 	return &Copier{
-		srcs:   srcs,
-		dst:    dst,
-		closed: make(chan struct{}),
+		srcs:     srcs,
+		dst:      dst,
+		closed:   make(chan struct{}),
+		location: location,
 	}
 }
 
@@ -83,7 +85,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				default:
 					msg := NewMessage()
 					msg.Source = name
-					msg.Timestamp = time.Now().UTC()
+					msg.Timestamp = time.Now().In(c.location)
 					msg.Line = append(msg.Line, buf[p:p+q]...)
 
 					if logErr := c.dst.Log(msg); logErr != nil {
@@ -99,7 +101,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				if p < n {
 					msg := NewMessage()
 					msg.Source = name
-					msg.Timestamp = time.Now().UTC()
+					msg.Timestamp = time.Now().In(c.location)
 					msg.Line = append(msg.Line, buf[p:n]...)
 					msg.Partial = true
 

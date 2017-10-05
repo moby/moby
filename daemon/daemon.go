@@ -793,8 +793,9 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 	d.defaultLogConfig = containertypes.LogConfig{
-		Type:   config.LogConfig.Type,
-		Config: config.LogConfig.Config,
+		Type:     config.LogConfig.Type,
+		Timezone: config.LogConfig.Timezone,
+		Config:   config.LogConfig.Config,
 	}
 	d.EventsService = eventsService
 	d.volumes = volStore

@@ -59,8 +59,9 @@ var flatOptions = map[string]bool{
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type LogConfig struct {
-	Type   string            `json:"log-driver,omitempty"`
-	Config map[string]string `json:"log-opts,omitempty"`
+	Type     string            `json:"log-driver,omitempty"`
+	Timezone string            `json:"log-timezone,omitempty"`
+	Config   map[string]string `json:"log-opts,omitempty"`
 }
 
 // commonBridgeConfig stores all the platform-common bridge driver specific

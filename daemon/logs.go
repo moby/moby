@@ -159,6 +159,10 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		cfg.Type = daemon.defaultLogConfig.Type
 	}
 
+	if cfg.Timezone == "" {
+		cfg.Timezone = daemon.defaultLogConfig.Timezone
+	}
+
 	if cfg.Config == nil {
 		cfg.Config = make(map[string]string)
 	}
@@ -171,5 +175,5 @@ func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) err
 		}
 	}
 
-	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
+	return logger.ValidateLogOpts(cfg.Type, cfg.Config, cfg.Timezone)
 }
