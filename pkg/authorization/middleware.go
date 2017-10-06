@@ -48,17 +48,13 @@ func (m *Middleware) getAuthzPlugins() []Plugin {
 	return m.plugins
 }
 
-func namesOfPlugins(plugins []Plugin) []string {
+// GetPlugins gets the current authorization plugin chain
+func (m *Middleware) GetPlugins() []string {
 	names := []string{}
-	for _, plugin := range plugins {
+	for _, plugin := range m.getAuthzPlugins() {
 		names = append(names, plugin.Name())
 	}
 	return names
-}
-
-// GetPlugins gets the current authorization plugin chain
-func (m *Middleware) GetPlugins() []string {
-	return namesOfPlugins(m.getAuthzPlugins())
 }
 
 // SetPlugins sets the plugin used for authorization
@@ -69,7 +65,7 @@ func (m *Middleware) SetPlugins(names []string) error {
 	if err != nil {
 		return err
 	}
-	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+	if err := m.save(plugins); err != nil {
 		return err
 	}
 	m.plugins = plugins
@@ -90,7 +86,7 @@ func (m *Middleware) RemovePlugin(plugin *v2.Plugin) error {
 		}
 		plugins = append(plugins, authPlugin)
 	}
-	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+	if err := m.save(plugins); err != nil {
 		return err
 	}
 	m.plugins = plugins
@@ -110,7 +106,7 @@ func (m *Middleware) PrependUniqueFirst(names []string) error {
 	if err != nil {
 		return err
 	}
-	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+	if err := m.save(plugins); err != nil {
 		return err
 	}
 	m.plugins = plugins
@@ -139,11 +135,22 @@ func (m *Middleware) AppendPluginIfMissing(pluginV2 *v2.Plugin) error {
 		}
 	}
 	plugins := append(m.plugins, plugin)
-	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+	if err := m.save(plugins); err != nil {
 		return err
 	}
 	m.plugins = plugins
 	return nil
+}
+
+func (m *Middleware) save(plugins []Plugin) error {
+	names := []string{}
+	for _, plugin := range plugins {
+		if !plugin.IsV1() {
+			names = append(names, plugin.Name())
+		}
+	}
+
+	return m.saveChain(names)
 }
 
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
