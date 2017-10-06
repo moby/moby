@@ -3,13 +3,19 @@
 package distribution
 
 import (
+	"fmt"
 	"net/http"
 	"os"
+	"runtime"
+	"sort"
+	"strings"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
+	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 
@@ -54,4 +60,58 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 		rsc = nil
 	}
 	return rsc, err
+}
+
+func filterManifests(manifests []manifestlist.ManifestDescriptor) []manifestlist.ManifestDescriptor {
+	version := system.GetOSVersion()
+
+	// TODO @jhowardmsft LCOW Support: Need to remove the hard coding in LCOW mode.
+	lookingForOS := runtime.GOOS
+	osVersion := fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
+	if system.LCOWSupported() {
+		lookingForOS = "linux"
+		osVersion = ""
+	}
+
+	var matches []manifestlist.ManifestDescriptor
+	for _, manifestDescriptor := range manifests {
+		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == lookingForOS {
+			if !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
+				continue
+			}
+			matches = append(matches, manifestDescriptor)
+
+			logrus.Debugf("found match for %s/%s with media type %s, digest %s", runtime.GOOS, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+		}
+	}
+	sort.Stable(manifestsByVersion(matches))
+	return matches
+}
+
+func versionMatch(actual, expected string) bool {
+	// Check whether actual and expected are equivalent, or whether
+	// expected is a version prefix of actual.
+	return actual == "" || expected == "" || actual == expected || strings.HasPrefix(actual, expected+".")
+}
+
+type manifestsByVersion []manifestlist.ManifestDescriptor
+
+func (mbv manifestsByVersion) Less(i, j int) bool {
+	if mbv[i].Platform.OSVersion == "" {
+		return false
+	}
+	if mbv[j].Platform.OSVersion == "" {
+		return true
+	}
+	// TODO: Split version by parts and compare
+	// TODO: Prefer versions which have a greater version number
+	return false
+}
+
+func (mbv manifestsByVersion) Len() int {
+	return len(mbv)
+}
+
+func (mbv manifestsByVersion) Swap(i, j int) {
+	mbv[i], mbv[j] = mbv[j], mbv[i]
 }
