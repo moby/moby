@@ -165,7 +165,8 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
+	_, err = daemon.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output)
+	if err != nil {
 		return nil, err
 	}
 	return daemon.GetImage(name)

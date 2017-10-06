@@ -61,42 +61,46 @@ type v2Puller struct {
 	confirmedV2 bool
 }
 
-func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (err error) {
+func (p *v2Puller) Pull(ctx context.Context, ref reference.Named) (imgID string, err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
-		return err
+		return imgID, err
 	}
 
-	if err = p.pullV2Repository(ctx, ref); err != nil {
+	imgID, err = p.pullV2Repository(ctx, ref)
+	if err != nil {
 		if _, ok := err.(fallbackError); ok {
-			return err
+			return imgID, err
 		}
 		if continueOnError(err) {
-			return fallbackError{
+			return imgID, fallbackError{
 				err:         err,
 				confirmedV2: p.confirmedV2,
 				transportOK: true,
 			}
 		}
 	}
-	return err
+	return imgID, err
 }
 
-func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (err error) {
-	var layersDownloaded bool
+func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (imgID string, err error) {
+	var (
+		layersDownloaded bool
+		pulledNew        bool
+	)
 	if !reference.IsNameOnly(ref) {
-		layersDownloaded, err = p.pullV2Tag(ctx, ref)
+		imgID, layersDownloaded, err = p.pullV2Tag(ctx, ref)
 		if err != nil {
-			return err
+			return imgID, err
 		}
 	} else {
 		tags, err := p.repo.Tags(ctx).All(ctx)
 		if err != nil {
 			// If this repository doesn't exist on V2, we should
 			// permit a fallback to V1.
-			return allowV1Fallback(err)
+			return imgID, allowV1Fallback(err)
 		}
 
 		// The v2 registry knows about this repository, so we will not
@@ -107,17 +111,17 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		for _, tag := range tags {
 			tagRef, err := reference.WithTag(ref, tag)
 			if err != nil {
-				return err
+				return imgID, err
 			}
-			pulledNew, err := p.pullV2Tag(ctx, tagRef)
+			imgID, pulledNew, err = p.pullV2Tag(ctx, tagRef)
 			if err != nil {
 				// Since this is the pull-all-tags case, don't
 				// allow an error pulling a particular tag to
 				// make the whole pull fall back to v1.
 				if fallbackErr, ok := err.(fallbackError); ok {
-					return fallbackErr.err
+					return imgID, fallbackErr.err
 				}
-				return err
+				return imgID, err
 			}
 			// pulledNew is true if either new layers were downloaded OR if existing images were newly tagged
 			// TODO(tiborvass): should we change the name of `layersDownload`? What about message in WriteStatus?
@@ -125,9 +129,9 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named) (e
 		}
 	}
 
-	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, layersDownloaded)
+	writeStatus(reference.FamiliarString(ref), p.config.ProgressOutput, p.config.SuppressOutput, layersDownloaded)
 
-	return nil
+	return imgID, nil
 }
 
 type v2LayerDescriptor struct {
@@ -325,10 +329,10 @@ func (ld *v2LayerDescriptor) Registered(diffID layer.DiffID) {
 	ld.V2MetadataService.Add(diffID, metadata.V2Metadata{Digest: ld.digest, SourceRepository: ld.repoInfo.Name.Name()})
 }
 
-func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdated bool, err error) {
+func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (imgID string, tagUpdated bool, err error) {
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {
-		return false, err
+		return imgID, false, err
 	}
 
 	var (
@@ -338,21 +342,21 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	if digested, isDigested := ref.(reference.Canonical); isDigested {
 		manifest, err = manSvc.Get(ctx, digested.Digest())
 		if err != nil {
-			return false, err
+			return imgID, false, err
 		}
 		tagOrDigest = digested.Digest().String()
 	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
 		manifest, err = manSvc.Get(ctx, "", distribution.WithTag(tagged.Tag()))
 		if err != nil {
-			return false, allowV1Fallback(err)
+			return imgID, false, allowV1Fallback(err)
 		}
 		tagOrDigest = tagged.Tag()
 	} else {
-		return false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
+		return imgID, false, fmt.Errorf("internal error: reference has neither a tag nor a digest: %s", reference.FamiliarString(ref))
 	}
 
 	if manifest == nil {
-		return false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
+		return imgID, false, fmt.Errorf("image manifest does not exist for tag or digest %q", tagOrDigest)
 	}
 
 	if m, ok := manifest.(*schema2.DeserializedManifest); ok {
@@ -368,7 +372,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 			if configClass == "" {
 				configClass = "unknown"
 			}
-			return false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
+			return imgID, false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
 		}
 	}
 
@@ -387,24 +391,24 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
 		if p.config.RequireSchema2 {
-			return false, fmt.Errorf("invalid manifest: not schema2")
+			return imgID, false, fmt.Errorf("invalid manifest: not schema2")
 		}
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v)
 		if err != nil {
-			return false, err
+			return imgID, false, err
 		}
 	case *schema2.DeserializedManifest:
 		id, manifestDigest, err = p.pullSchema2(ctx, ref, v)
 		if err != nil {
-			return false, err
+			return imgID, false, err
 		}
 	case *manifestlist.DeserializedManifestList:
 		id, manifestDigest, err = p.pullManifestList(ctx, ref, v)
 		if err != nil {
-			return false, err
+			return imgID, false, err
 		}
 	default:
-		return false, invalidManifestFormatError{}
+		return imgID, false, invalidManifestFormatError{}
 	}
 
 	progress.Message(p.config.ProgressOutput, "", "Digest: "+manifestDigest.String())
@@ -413,26 +417,26 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named) (tagUpdat
 		oldTagID, err := p.config.ReferenceStore.Get(ref)
 		if err == nil {
 			if oldTagID == id {
-				return false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
+				return imgID, false, addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id)
 			}
 		} else if err != refstore.ErrDoesNotExist {
-			return false, err
+			return imgID, false, err
 		}
 
 		if canonical, ok := ref.(reference.Canonical); ok {
 			if err = p.config.ReferenceStore.AddDigest(canonical, id, true); err != nil {
-				return false, err
+				return imgID, false, err
 			}
 		} else {
 			if err = addDigestReference(p.config.ReferenceStore, ref, manifestDigest, id); err != nil {
-				return false, err
+				return imgID, false, err
 			}
 			if err = p.config.ReferenceStore.AddTag(ref, id, true); err != nil {
-				return false, err
+				return imgID, false, err
 			}
 		}
 	}
-	return true, nil
+	return reference.FamiliarString(id), true, nil
 }
 
 func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unverifiedManifest *schema1.SignedManifest) (id digest.Digest, manifestDigest digest.Digest, err error) {

@@ -48,6 +48,8 @@ type Config struct {
 	ReferenceStore refstore.Store
 	// RequireSchema2 ensures that only schema2 manifests are used.
 	RequireSchema2 bool
+
+	SuppressOutput bool
 }
 
 // ImagePullConfig stores pull configuration.

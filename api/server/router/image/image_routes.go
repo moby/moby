@@ -1,8 +1,10 @@
 package image
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"runtime"
@@ -80,9 +82,12 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		repo    = r.Form.Get("repo")
 		tag     = r.Form.Get("tag")
 		message = r.Form.Get("message")
+		q       = r.Form.Get("q")
 		err     error
 		output  = ioutils.NewWriteFlusher(w)
+		imgID   string
 	)
+
 	defer output.Close()
 
 	// TODO @jhowardmsft LCOW Support: Eventually we will need an API change
@@ -120,6 +125,8 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		platform = "linux"
 	}
 
+	suppressOutput := (q == "1")
+
 	w.Header().Set("Content-Type", "application/json")
 
 	if image != "" { //pull
@@ -141,7 +148,11 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			}
 		}
 
-		err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, output)
+		out := io.Writer(output)
+		if suppressOutput {
+			out = bytes.NewBuffer(nil)
+		}
+		imgID, err = s.backend.PullImage(ctx, image, tag, platform, metaHeaders, authConfig, out)
 	} else { //import
 		src := r.Form.Get("fromSrc")
 		// 'err' MUST NOT be defined within this block, we need any error
@@ -154,6 +165,15 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			return err
 		}
 		output.Write(streamformatter.FormatError(err))
+	}
+
+	if suppressOutput {
+		if imgID != "" {
+			fmt.Fprintln(streamformatter.NewStdoutWriter(output), image+"@"+imgID)
+		} else {
+			status := "Status: Image is up to date for %s:%s\n"
+			fmt.Fprintf(streamformatter.NewStdoutWriter(output), status, image, tag)
+		}
 	}
 
 	return nil

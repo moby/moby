@@ -97,7 +97,7 @@ func (pm *Manager) Inspect(refOrID string) (tp *types.Plugin, err error) {
 	return &p.PluginObj, nil
 }
 
-func (pm *Manager) pull(ctx context.Context, ref reference.Named, config *distribution.ImagePullConfig, outStream io.Writer) error {
+func (pm *Manager) pull(ctx context.Context, ref reference.Named, config *distribution.ImagePullConfig, outStream io.Writer) (err error) {
 	if outStream != nil {
 		// Include a buffer so that slow client connections don't affect
 		// transfer performance.
@@ -122,7 +122,11 @@ func (pm *Manager) pull(ctx context.Context, ref reference.Named, config *distri
 	} else {
 		config.ProgressOutput = progress.DiscardOutput()
 	}
-	return distribution.Pull(ctx, ref, config)
+	_, err = distribution.Pull(ctx, ref, config)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 type tempConfigStore struct {

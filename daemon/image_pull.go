@@ -18,7 +18,7 @@ import (
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) (imgID string, err error) {
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
 	// compatibility.
@@ -26,7 +26,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
-		return validationError{err}
+		return imgID, validationError{err}
 	}
 
 	if tag != "" {
@@ -39,14 +39,14 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 			ref, err = reference.WithTag(ref, tag)
 		}
 		if err != nil {
-			return validationError{err}
+			return imgID, validationError{err}
 		}
 	}
 
 	return daemon.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
 }
 
-func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.Named, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) (imgID string, err error) {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -81,10 +81,10 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 		Platform:        platform,
 	}
 
-	err := distribution.Pull(ctx, ref, imagePullConfig)
+	imgID, err = distribution.Pull(ctx, ref, imagePullConfig)
 	close(progressChan)
 	<-writesDone
-	return err
+	return imgID, err
 }
 
 // GetRepository returns a repository from the registry.
