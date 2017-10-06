@@ -83,8 +83,7 @@ func register(os ObjectStoreConfig) {
 	schema.Tables[os.Table.Name] = os.Table
 }
 
-// timedMutex wraps a sync.Mutex, and keeps track of how long it has been
-// locked.
+// timedMutex wraps a sync.Mutex, and keeps track of when it was locked.
 type timedMutex struct {
 	sync.Mutex
 	lockedAt atomic.Value
