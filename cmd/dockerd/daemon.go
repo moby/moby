@@ -40,7 +40,7 @@ import (
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pidfile"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
@@ -60,9 +60,8 @@ type DaemonCli struct {
 	configFile *string
 	flags      *pflag.FlagSet
 
-	api             *apiserver.Server
-	d               *daemon.Daemon
-	authzMiddleware *authorization.Middleware // authzMiddleware enables to dynamically reload the authorization plugins
+	api *apiserver.Server
+	d   *daemon.Daemon
 }
 
 // NewDaemonCli returns a daemon CLI
@@ -227,6 +226,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return fmt.Errorf("Error starting daemon: %v", err)
 	}
 
+	if err := d.PluginManager().AddPluginChain(cli.Config.AuthzMiddleware); err != nil {
+		return err
+	}
 	if err := cli.Config.AuthzMiddleware.PrependUniqueFirst(cli.Config.AuthorizationPlugins); err != nil {
 		return err
 	}
@@ -368,7 +370,7 @@ func (cli *DaemonCli) reloadConfig() {
 	reload := func(config *config.Config) {
 
 		// Revalidate and reload the authorization plugins
-		if err := cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins); err != nil {
+		if err := cli.Config.AuthzMiddleware.SetPlugins(config.AuthorizationPlugins); err != nil {
 			logrus.Fatal(err)
 			return
 		}
@@ -538,7 +540,7 @@ func initRouter(opts routerOptions) {
 }
 
 // TODO: remove this from cli and return the authzMiddleware
-func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore *plugin.Store) error {
+func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config, pluginStore plugingetter.PluginGetter) error {
 	v := cfg.Version
 
 	exp := middleware.NewExperimentalMiddleware(cli.Config.Experimental)
@@ -552,17 +554,9 @@ func (cli *DaemonCli) initMiddlewares(s *apiserver.Server, cfg *apiserver.Config
 		s.UseMiddleware(c)
 	}
 
-	authzMiddleware, err := authorization.NewMiddleware([]string{}, pluginStore)
-	if err != nil {
-		return err
-	}
-	cli.authzMiddleware = authzMiddleware
+	authzMiddleware := authorization.NewMiddleware(pluginStore)
 	cli.Config.AuthzMiddleware = authzMiddleware
-	s.UseMiddleware(cli.authzMiddleware)
-
-	pluginStore.HandleV2("authz", func(name string, client *plugins.Client) error {
-		return cli.Config.AuthzMiddleware.AppendPluginIfMissing(name)
-	})
+	s.UseMiddleware(authzMiddleware)
 
 	return nil
 }

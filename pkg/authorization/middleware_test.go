@@ -13,7 +13,8 @@ import (
 func TestMiddleware(t *testing.T) {
 	pluginNames := []string{"testPlugin1", "testPlugin2"}
 	var pluginGetter plugingetter.PluginGetter
-	m := NewMiddleware(pluginNames, pluginGetter)
+	m := NewMiddleware(pluginGetter)
+	m.SetPlugins(pluginNames)
 	authPlugins := m.getAuthzPlugins()
 	require.Equal(t, 2, len(authPlugins))
 	require.EqualValues(t, pluginNames[0], authPlugins[0].Name())

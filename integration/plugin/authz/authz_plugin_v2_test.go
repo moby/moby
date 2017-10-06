@@ -242,6 +242,57 @@ func TestAuthZPluginV2CombinedV1(t *testing.T) {
 	assertAuthzChainSequence(t, client, []string{authzPluginV1Alias, testAuthZPlugin})
 }
 
+func TestAuthZPluginV2ChainSequence(t *testing.T) {
+	defer setupTestV2(t)()
+
+	client, err := d.NewClient()
+	require.Nil(t, err)
+
+	err = pluginInstallGrantAllPermissionsAlias(client, "", authzPluginNameWithTag)
+	require.Nil(t, err)
+
+	// after single install
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
+
+	d.Restart(t, "--authorization-plugin="+authzPluginNameWithTag)
+
+	// after daemon command line specification
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
+
+	err = pluginInstallGrantAllPermissionsAlias(client, authzPluginAlias, authzPluginNameWithTag)
+	require.Nil(t, err)
+
+	// after alias install
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag, authzPluginAliasWithTag})
+
+	d.Restart(t)
+
+	// after restart with 2 plugins enabled
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag, authzPluginAliasWithTag})
+
+	d.Restart(t, "--authorization-plugin="+authzPluginAliasWithTag)
+
+	// after restart with 2 plugins enabled (alias specified on daemon CLI)
+	assertAuthzChainSequence(t, client, []string{authzPluginAliasWithTag, authzPluginNameWithTag})
+
+	err = client.PluginDisable(context.Background(), authzPluginAlias, types.PluginDisableOptions{})
+	require.Nil(t, err)
+
+	// after disabling alias specified on daemon CLI
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag})
+
+	err = client.PluginEnable(context.Background(), authzPluginAlias, types.PluginEnableOptions{})
+	require.Nil(t, err)
+
+	// after alias re-enable
+	assertAuthzChainSequence(t, client, []string{authzPluginNameWithTag, authzPluginAliasWithTag})
+
+	d.Restart(t, "--authorization-plugin="+authzPluginAliasWithTag, "--authorization-plugin="+authzPluginNameWithTag)
+
+	// after both plugins specified in daemon CLI
+	assertAuthzChainSequence(t, client, []string{authzPluginAliasWithTag, authzPluginNameWithTag})
+}
+
 func pluginInstallGrantAllPermissionsAlias(client client.APIClient, alias, name string) error {
 	ctx := context.Background()
 	options := types.PluginInstallOptions{

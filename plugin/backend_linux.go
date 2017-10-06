@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pools"
@@ -58,8 +57,10 @@ func (pm *Manager) Disable(refOrID string, config *types.PluginDisableConfig) er
 	}
 
 	for _, typ := range p.GetTypes() {
-		if typ.Capability == authorization.AuthZApiImplements {
-			pm.config.AuthzMiddleware.RemovePlugin(p)
+		if chain, ok := pm.config.PluginChains[typ.Capability]; ok {
+			if err := chain.RemovePlugin(p); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -82,6 +83,18 @@ func (pm *Manager) Enable(refOrID string, config *types.PluginEnableConfig) erro
 	if err := pm.enable(p, c, false); err != nil {
 		return err
 	}
+
+	for _, typ := range p.GetTypes() {
+		if chain, ok := pm.config.PluginChains[typ.Capability]; ok {
+			if err := chain.AppendPluginIfMissing(p); err != nil {
+				if e := pm.disable(p, c); e != nil {
+					return errors.Wrapf(err, "error disabling recently enabled plugin: %s", e.Error())
+				}
+				return err
+			}
+		}
+	}
+
 	pm.publisher.Publish(EventEnable{Plugin: p.PluginObj})
 	pm.config.LogPluginEvent(p.GetID(), refOrID, "enable")
 	return nil

@@ -21,7 +21,8 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	pluginNames := []string{authZPlugin.name}
 
 	var pluginGetter plugingetter.PluginGetter
-	middleWare := NewMiddleware(pluginNames, pluginGetter)
+	middleWare := NewMiddleware(pluginGetter)
+	middleWare.SetPlugins(pluginNames)
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		return nil
 	}

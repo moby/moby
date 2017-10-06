@@ -14,22 +14,32 @@ import (
 // Middleware uses a list of plugins to
 // handle authorization in the API requests.
 type Middleware struct {
-	mu      sync.Mutex
-	plugins []Plugin
-	pg      plugingetter.PluginGetter
+	mu        sync.Mutex
+	plugins   []Plugin
+	pg        plugingetter.PluginGetter
+	saveChain func([]string) error
 }
 
 // NewMiddleware creates a new Middleware
 // with a slice of plugins names.
-func NewMiddleware(names []string, pg plugingetter.PluginGetter) (*Middleware, error) {
-	plugins, err := newPlugins(pg, names)
-	if err != nil {
-		return nil, err
-	}
+func NewMiddleware(pg plugingetter.PluginGetter) *Middleware {
 	return &Middleware{
-		plugins: plugins,
-		pg:      pg,
-	}, nil
+		pg:        pg,
+		saveChain: func(names []string) error { return nil },
+	}
+}
+
+// SetSaveChain stores the saveChain function so that it can later be
+// used to persist the chain to disk
+func (m *Middleware) SetSaveChain(fn func([]string) error) {
+	m.mu.Lock()
+	m.saveChain = fn
+	m.mu.Unlock()
+}
+
+// Type informs users of the plugin type of this chain
+func (m *Middleware) Type() string {
+	return AuthZApiImplements
 }
 
 func (m *Middleware) getAuthzPlugins() []Plugin {
@@ -38,13 +48,17 @@ func (m *Middleware) getAuthzPlugins() []Plugin {
 	return m.plugins
 }
 
-// GetPlugins gets the current authorization plugin chain
-func (m *Middleware) GetPlugins() []string {
+func namesOfPlugins(plugins []Plugin) []string {
 	names := []string{}
-	for _, plugin := range m.getAuthzPlugins() {
+	for _, plugin := range plugins {
 		names = append(names, plugin.Name())
 	}
 	return names
+}
+
+// GetPlugins gets the current authorization plugin chain
+func (m *Middleware) GetPlugins() []string {
+	return namesOfPlugins(m.getAuthzPlugins())
 }
 
 // SetPlugins sets the plugin used for authorization
@@ -55,6 +69,9 @@ func (m *Middleware) SetPlugins(names []string) error {
 	if err != nil {
 		return err
 	}
+	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+		return err
+	}
 	m.plugins = plugins
 	return nil
 }
@@ -62,7 +79,7 @@ func (m *Middleware) SetPlugins(names []string) error {
 // RemovePlugin removes a single plugin from this authz middleware
 // chain; it takes a plugin object rather than a plugin name to ensure
 // that the name is valid
-func (m *Middleware) RemovePlugin(plugin *v2.Plugin) {
+func (m *Middleware) RemovePlugin(plugin *v2.Plugin) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	plugins := m.plugins[:0]
@@ -73,7 +90,11 @@ func (m *Middleware) RemovePlugin(plugin *v2.Plugin) {
 		}
 		plugins = append(plugins, authPlugin)
 	}
+	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+		return err
+	}
 	m.plugins = plugins
+	return nil
 }
 
 // PrependUniqueFirst prepends the named plugins to the authz chain
@@ -89,20 +110,23 @@ func (m *Middleware) PrependUniqueFirst(names []string) error {
 	if err != nil {
 		return err
 	}
+	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+		return err
+	}
 	m.plugins = plugins
 	return nil
 }
 
 // AppendPluginIfMissing appends the authorization plugin named to the
 // end of the chain if it isn't already in the chain
-func (m *Middleware) AppendPluginIfMissing(name string) error {
+func (m *Middleware) AppendPluginIfMissing(pluginV2 *v2.Plugin) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	plugin, err := newAuthorizationPlugin(m.pg, name)
-	if err != nil {
-		return err
+	name := pluginV2.Name()
+	plugin := &authorizationPlugin{
+		name:   name,
+		plugin: pluginV2.Client(),
 	}
-	name = plugin.Name()
 	for _, p := range m.plugins {
 		if p.Name() == name {
 			if p.IsV1() == plugin.IsV1() {
@@ -114,7 +138,11 @@ func (m *Middleware) AppendPluginIfMissing(name string) error {
 			return errV1V2Collision{"v2", "v1", name}
 		}
 	}
-	m.plugins = append(m.plugins, plugin)
+	plugins := append(m.plugins, plugin)
+	if err := m.saveChain(namesOfPlugins(plugins)); err != nil {
+		return err
+	}
+	m.plugins = plugins
 	return nil
 }
 
