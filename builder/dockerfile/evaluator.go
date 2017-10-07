@@ -21,7 +21,6 @@ package dockerfile
 
 import (
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -35,7 +34,8 @@ import (
 
 func dispatch(d dispatchRequest, cmd instructions.Command) error {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
-		err := c.CheckPlatform(d.builder.platform)
+		optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
+		err := c.CheckPlatform(optionsOS)
 		if err != nil {
 			return validationError{err}
 		}
@@ -218,19 +218,15 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 	s.runConfig.StdinOnce = false
 }
 
-// Add the default PATH to runConfig.ENV if one exists for the platform and there
+// Add the default PATH to runConfig.ENV if one exists for the operating system and there
 // is no PATH set. Note that Windows containers on Windows won't have one as it's set by HCS
 func (s *dispatchState) setDefaultPath() {
-	// TODO @jhowardmsft LCOW Support - This will need revisiting later
-	platform := runtime.GOOS
-	if system.LCOWSupported() {
-		platform = "linux"
-	}
-	if system.DefaultPathEnv(platform) == "" {
+	defaultPath := system.DefaultPathEnv(s.baseImage.OperatingSystem())
+	if defaultPath == "" {
 		return
 	}
 	envMap := opts.ConvertKVStringsToMap(s.runConfig.Env)
 	if _, ok := envMap["PATH"]; !ok {
-		s.runConfig.Env = append(s.runConfig.Env, "PATH="+system.DefaultPathEnv(platform))
+		s.runConfig.Env = append(s.runConfig.Env, "PATH="+defaultPath)
 	}
 }

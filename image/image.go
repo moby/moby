@@ -96,8 +96,8 @@ func (img *Image) RunConfig() *container.Config {
 	return img.Config
 }
 
-// Platform returns the image's operating system. If not populated, defaults to the host runtime OS.
-func (img *Image) Platform() string {
+// OperatingSystem returns the image's operating system. If not populated, defaults to the host runtime OS.
+func (img *Image) OperatingSystem() string {
 	os := img.OS
 	if os == "" {
 		os = runtime.GOOS

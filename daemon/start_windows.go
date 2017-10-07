@@ -10,7 +10,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	createOptions := []libcontainerd.CreateOption{}
 
 	// LCOW options.
-	if container.Platform == "linux" {
+	if container.OS == "linux" {
 		config := &client.Config{}
 		if err := config.GenerateDefault(daemon.configStore.GraphOptions); err != nil {
 			return nil, err

@@ -93,15 +93,6 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		}
 	}()
 
-	// TODO @jhowardmsft LCOW support - this will require rework to allow both linux and Windows simultaneously.
-	// This is an interim solution to hardcode to linux if LCOW is turned on.
-	if dockerfile.Platform == "" {
-		dockerfile.Platform = runtime.GOOS
-		if dockerfile.Platform == "windows" && system.LCOWSupported() {
-			dockerfile.Platform = "linux"
-		}
-	}
-
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
@@ -111,16 +102,27 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		source = src
 	}
 
+	os := runtime.GOOS
+	optionsPlatform := system.ParsePlatform(config.Options.Platform)
+	if dockerfile.OS != "" {
+		if optionsPlatform.OS != "" && optionsPlatform.OS != dockerfile.OS {
+			return nil, fmt.Errorf("invalid platform")
+		}
+		os = dockerfile.OS
+	} else if optionsPlatform.OS != "" {
+		os = optionsPlatform.OS
+	}
+	config.Options.Platform = os
+	dockerfile.OS = os
+
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
 		IDMappings:     bm.idMappings,
-		Platform:       dockerfile.Platform,
 	}
-
-	return newBuilder(ctx, builderOptions).build(source, dockerfile)
+	return newBuilder(ctx, builderOptions, os).build(source, dockerfile)
 }
 
 func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) (builder.Source, error) {
@@ -163,7 +165,6 @@ type builderOptions struct {
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
 	IDMappings     *idtools.IDMappings
-	Platform       string
 }
 
 // Builder is a Dockerfile builder
@@ -185,30 +186,13 @@ type Builder struct {
 	pathCache        pathCache
 	containerManager *containerManager
 	imageProber      ImageProber
-
-	// TODO @jhowardmft LCOW Support. This will be moved to options at a later
-	// stage, however that cannot be done now as it affects the public API
-	// if it were.
-	platform string
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
-// TODO @jhowardmsft LCOW support: Eventually platform can be moved into the builder
-// options, however, that would be an API change as it shares types.ImageBuildOptions.
-func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
+func newBuilder(clientCtx context.Context, options builderOptions, os string) *Builder {
 	config := options.Options
 	if config == nil {
 		config = new(types.ImageBuildOptions)
-	}
-
-	// @jhowardmsft LCOW Support. For the time being, this is interim. Eventually
-	// will be moved to types.ImageBuildOptions, but it can't for now as that would
-	// be an API change.
-	if options.Platform == "" {
-		options.Platform = runtime.GOOS
-	}
-	if options.Platform == "windows" && system.LCOWSupported() {
-		options.Platform = "linux"
 	}
 
 	b := &Builder{
@@ -222,9 +206,8 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		idMappings:       options.IDMappings,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, options.Platform, config.NoCache),
+		imageProber:      newImageProber(options.Backend, config.CacheFrom, os, config.NoCache),
 		containerManager: newContainerManager(options.Backend),
-		platform:         options.Platform,
 	}
 
 	return b
@@ -382,25 +365,19 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return config, nil
 	}
 
-	b := newBuilder(context.Background(), builderOptions{
-		Options: &types.ImageBuildOptions{NoCache: true},
-	})
-
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
 		return nil, validationError{err}
 	}
 
-	// TODO @jhowardmsft LCOW support. For now, if LCOW enabled, switch to linux.
-	// Also explicitly set the platform. Ultimately this will be in the builder
-	// options, but we can't do that yet as it would change the API.
-	if dockerfile.Platform == "" {
-		dockerfile.Platform = runtime.GOOS
+	os := runtime.GOOS
+	if dockerfile.OS != "" {
+		os = dockerfile.OS
 	}
-	if dockerfile.Platform == "windows" && system.LCOWSupported() {
-		dockerfile.Platform = "linux"
-	}
-	b.platform = dockerfile.Platform
+
+	b := newBuilder(context.Background(), builderOptions{
+		Options: &types.ImageBuildOptions{NoCache: true},
+	}, os)
 
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {

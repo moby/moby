@@ -2,6 +2,7 @@ package distribution
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
@@ -20,7 +21,7 @@ type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
-	Pull(ctx context.Context, ref reference.Named) error
+	Pull(ctx context.Context, ref reference.Named, platform string) error
 }
 
 // newPuller returns a Puller interface that will pull from either a v1 or v2
@@ -113,7 +114,13 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			lastErr = err
 			continue
 		}
-		if err := puller.Pull(ctx, ref); err != nil {
+
+		// Make sure we default the platform if it hasn't been supplied
+		if imagePullConfig.Platform == "" {
+			imagePullConfig.Platform = runtime.GOOS
+		}
+
+		if err := puller.Pull(ctx, ref, imagePullConfig.Platform); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
 			fallback := false

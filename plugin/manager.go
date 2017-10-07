@@ -379,11 +379,11 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 	return reflect.DeepEqual(a.Value, b.Value)
 }
 
-func configToRootFS(c []byte) (*image.RootFS, layer.Platform, error) {
-	// TODO @jhowardmsft LCOW - Will need to revisit this. For now, calculate the platform.
-	platform := layer.Platform(runtime.GOOS)
+func configToRootFS(c []byte) (*image.RootFS, layer.OS, error) {
+	// TODO @jhowardmsft LCOW - Will need to revisit this. For now, calculate the operating system.
+	os := layer.OS(runtime.GOOS)
 	if system.LCOWSupported() {
-		platform = "linux"
+		os = "linux"
 	}
 	var pluginConfig types.PluginConfig
 	if err := json.Unmarshal(c, &pluginConfig); err != nil {
@@ -391,10 +391,10 @@ func configToRootFS(c []byte) (*image.RootFS, layer.Platform, error) {
 	}
 	// validation for empty rootfs is in distribution code
 	if pluginConfig.Rootfs == nil {
-		return nil, platform, nil
+		return nil, os, nil
 	}
 
-	return rootFSFromPlugin(pluginConfig.Rootfs), platform, nil
+	return rootFSFromPlugin(pluginConfig.Rootfs), os, nil
 }
 
 func rootFSFromPlugin(pluginfs *types.PluginConfigRootfs) *image.RootFS {

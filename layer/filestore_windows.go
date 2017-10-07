@@ -7,19 +7,19 @@ import (
 	"strings"
 )
 
-// SetPlatform writes the "platform" file to the layer filestore
-func (fm *fileMetadataTransaction) SetPlatform(platform Platform) error {
-	if platform == "" {
+// SetOS writes the "os" file to the layer filestore
+func (fm *fileMetadataTransaction) SetOS(os OS) error {
+	if os == "" {
 		return nil
 	}
-	return fm.ws.WriteFile("platform", []byte(platform), 0644)
+	return fm.ws.WriteFile("os", []byte(os), 0644)
 }
 
-// GetPlatform reads the "platform" file from the layer filestore
-func (fms *fileMetadataStore) GetPlatform(layer ChainID) (Platform, error) {
-	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "platform"))
+// GetOS reads the "os" file from the layer filestore
+func (fms *fileMetadataStore) GetOS(layer ChainID) (OS, error) {
+	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "os"))
 	if err != nil {
-		// For backwards compatibility, the platform file may not exist. Default to "windows" if missing.
+		// For backwards compatibility, the os file may not exist. Default to "windows" if missing.
 		if os.IsNotExist(err) {
 			return "windows", nil
 		}
@@ -28,8 +28,8 @@ func (fms *fileMetadataStore) GetPlatform(layer ChainID) (Platform, error) {
 	content := strings.TrimSpace(string(contentBytes))
 
 	if content != "windows" && content != "linux" {
-		return "", fmt.Errorf("invalid platform value: %s", content)
+		return "", fmt.Errorf("invalid operating system value: %s", content)
 	}
 
-	return Platform(content), nil
+	return OS(content), nil
 }

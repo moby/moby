@@ -103,7 +103,7 @@ func TestCopyRunConfig(t *testing.T) {
 			doc:       "Set the command to a comment",
 			modifiers: []runConfigModifier{withCmdComment("comment", runtime.GOOS)},
 			expected: &container.Config{
-				Cmd: append(defaultShellForPlatform(runtime.GOOS), "#(nop) ", "comment"),
+				Cmd: append(defaultShellForOS(runtime.GOOS), "#(nop) ", "comment"),
 				Env: defaultEnv,
 			},
 		},

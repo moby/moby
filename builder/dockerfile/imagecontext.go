@@ -5,6 +5,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
 	dockerimage "github.com/docker/docker/image"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -20,8 +21,6 @@ type imageSources struct {
 	getImage  getAndMountFunc
 }
 
-// TODO @jhowardmsft LCOW Support: Eventually, platform can be moved to options.Options.Platform,
-// and removed from builderOptions, but that can't be done yet as it would affect the API.
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
 	getAndMount := func(idOrRef string, localOnly bool) (builder.Image, builder.ReleaseableLayer, error) {
 		pullOption := backend.PullOptionNoPull
@@ -32,11 +31,12 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 				pullOption = backend.PullOptionPreferLocal
 			}
 		}
+		optionsPlatform := system.ParsePlatform(options.Options.Platform)
 		return options.Backend.GetImageAndReleasableLayer(ctx, idOrRef, backend.GetImageAndLayerOptions{
 			PullOption: pullOption,
 			AuthConfig: options.Options.AuthConfigs,
 			Output:     options.ProgressWriter.Output,
-			Platform:   options.Platform,
+			OS:         optionsPlatform.OS,
 		})
 	}
 

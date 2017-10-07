@@ -22,13 +22,13 @@ func newBuilderWithMockBackend() *Builder {
 	mockBackend := &MockBackend{}
 	ctx := context.Background()
 	b := &Builder{
-		options:       &types.ImageBuildOptions{},
+		options:       &types.ImageBuildOptions{Platform: runtime.GOOS},
 		docker:        mockBackend,
 		Stdout:        new(bytes.Buffer),
 		clientCtx:     ctx,
 		disableCommit: true,
 		imageSources: newImageSources(ctx, builderOptions{
-			Options: &types.ImageBuildOptions{},
+			Options: &types.ImageBuildOptions{Platform: runtime.GOOS},
 			Backend: mockBackend,
 		}),
 		imageProber:      newImageProber(mockBackend, nil, runtime.GOOS, false),
@@ -118,11 +118,7 @@ func TestFromScratch(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, sb.state.hasFromImage())
 	assert.Equal(t, "", sb.state.imageID)
-	// Windows does not set the default path. TODO @jhowardmsft LCOW support. This will need revisiting as we get further into the implementation
 	expected := "PATH=" + system.DefaultPathEnv(runtime.GOOS)
-	if runtime.GOOS == "windows" {
-		expected = ""
-	}
 	assert.Equal(t, []string{expected}, sb.state.runConfig.Env)
 }
 

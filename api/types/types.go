@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-connections/nat"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // RootFS returns Image's RootFS description including the layer IDs.
@@ -327,7 +328,7 @@ type ContainerJSONBase struct {
 	Name            string
 	RestartCount    int
 	Driver          string
-	Platform        string
+	Platform        specs.Platform
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string
