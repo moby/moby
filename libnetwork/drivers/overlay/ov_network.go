@@ -119,7 +119,7 @@ func setDefaultVlan() {
 	data := []byte{'0', '\n'}
 
 	if err = ioutil.WriteFile(path, data, 0644); err != nil {
-		logrus.Errorf("endbling default vlan on bridge %s failed %v", brName, err)
+		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
 		os.Exit(1)
 	}
 	os.Exit(0)
