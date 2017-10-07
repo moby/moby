@@ -65,52 +65,47 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 func filterManifests(manifests []manifestlist.ManifestDescriptor, os string) []manifestlist.ManifestDescriptor {
 	osVersion := ""
 	if os == "windows" {
+		// TODO: Add UBR (Update Build Release) component after build
 		version := system.GetOSVersion()
 		osVersion = fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
-		logrus.Debugf("will only match entries with version %s", osVersion)
+		logrus.Debugf("will prefer entries with version %s", osVersion)
 	}
 
 	var matches []manifestlist.ManifestDescriptor
 	for _, manifestDescriptor := range manifests {
+		// TODO: Consider filtering out greater versions, including only greater UBR
 		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == os {
-			if os == "windows" && !versionMatch(manifestDescriptor.Platform.OSVersion, osVersion) {
-				logrus.Debugf("skipping %s", manifestDescriptor.Platform.OSVersion)
-				continue
-			}
 			matches = append(matches, manifestDescriptor)
 			logrus.Debugf("found match for %s/%s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
 	}
 	if os == "windows" {
-		sort.Stable(manifestsByVersion(matches))
+		sort.Stable(manifestsByVersion{osVersion, matches})
 	}
 	return matches
 }
 
 func versionMatch(actual, expected string) bool {
-	// Check whether actual and expected are equivalent, or whether
-	// expected is a version prefix of actual.
-	return actual == "" || expected == "" || actual == expected || strings.HasPrefix(actual, expected+".")
+	// Check whether the version matches up to the build, ignoring UBR
+	return strings.HasPrefix(actual, expected+".")
 }
 
-type manifestsByVersion []manifestlist.ManifestDescriptor
+type manifestsByVersion struct {
+	version string
+	list    []manifestlist.ManifestDescriptor
+}
 
 func (mbv manifestsByVersion) Less(i, j int) bool {
-	if mbv[i].Platform.OSVersion == "" {
-		return false
-	}
-	if mbv[j].Platform.OSVersion == "" {
-		return true
-	}
 	// TODO: Split version by parts and compare
 	// TODO: Prefer versions which have a greater version number
-	return false
+	// Move compatible versions to the top, with no other ordering changes
+	return versionMatch(mbv.list[i].Platform.OSVersion, mbv.version) && !versionMatch(mbv.list[j].Platform.OSVersion, mbv.version)
 }
 
 func (mbv manifestsByVersion) Len() int {
-	return len(mbv)
+	return len(mbv.list)
 }
 
 func (mbv manifestsByVersion) Swap(i, j int) {
-	mbv[i], mbv[j] = mbv[j], mbv[i]
+	mbv.list[i], mbv.list[j] = mbv.list[j], mbv.list[i]
 }
