@@ -4,8 +4,8 @@ description: "Documentation of changes that have been made to Engine API."
 keywords: "API, Docker, rcli, REST, documentation"
 ---
 
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
+<!-- This file is maintained within the moby/moby GitHub
+     repository at https://github.com/moby/moby/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
      periodically be overwritten by the definitive file. Pull
