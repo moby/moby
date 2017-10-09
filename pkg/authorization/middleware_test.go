@@ -6,20 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/stretchr/testify/require"
 )
-
-func TestMiddleware(t *testing.T) {
-	pluginNames := []string{"testPlugin1", "testPlugin2"}
-	var pluginGetter plugingetter.PluginGetter
-	m := NewMiddleware(pluginGetter)
-	m.SetPlugins(pluginNames)
-	authPlugins := m.getAuthzPlugins()
-	require.Equal(t, 2, len(authPlugins))
-	require.EqualValues(t, pluginNames[0], authPlugins[0].Name())
-	require.EqualValues(t, pluginNames[1], authPlugins[1].Name())
-}
 
 func TestNewResponseModifier(t *testing.T) {
 	recorder := httptest.NewRecorder()
@@ -45,10 +33,4 @@ func TestNewResponseModifier(t *testing.T) {
 		t.Fatalf("Header value must exists %s", recorder.Header().Get("H1"))
 	}
 
-}
-
-func setAuthzPlugins(m *Middleware, plugins []Plugin) {
-	m.mu.Lock()
-	m.plugins = plugins
-	m.mu.Unlock()
 }

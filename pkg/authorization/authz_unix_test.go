@@ -32,7 +32,7 @@ func TestAuthZRequestPluginError(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, "plugin")
 
 	request := Request{
 		User:           "user",
@@ -63,7 +63,7 @@ func TestAuthZRequestPlugin(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, "plugin")
 
 	request := Request{
 		User:           "user",
@@ -95,7 +95,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 	server.start()
 	defer server.stop()
 
-	authZPlugin := createTestPlugin(t)
+	authZPlugin := createTestPlugin(t, "plugin")
 
 	request := Request{
 		User:        "user",
@@ -202,7 +202,7 @@ func TestResponseModifierOverride(t *testing.T) {
 }
 
 // createTestPlugin creates a new sample authorization plugin
-func createTestPlugin(t *testing.T) *authorizationPlugin {
+func createTestPlugin(t *testing.T, name string) *authorizationPlugin {
 	pwd, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)
@@ -213,7 +213,7 @@ func createTestPlugin(t *testing.T) *authorizationPlugin {
 		t.Fatalf("Failed to create client %v", err)
 	}
 
-	return &authorizationPlugin{name: "plugin", plugin: client}
+	return &authorizationPlugin{name: name, plugin: client}
 }
 
 // AuthZPluginTestServer is a simple server that implements the authZ plugin interface
