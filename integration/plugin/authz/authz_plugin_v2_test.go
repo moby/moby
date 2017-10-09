@@ -182,6 +182,7 @@ func TestAuthZPluginV2NonexistentFailsDaemonStart(t *testing.T) {
 }
 
 func TestAuthZPluginV2TagAlias(t *testing.T) {
+	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()
@@ -202,6 +203,7 @@ func TestAuthZPluginV2TagAlias(t *testing.T) {
 func TestAuthZPluginV2CombinedV1(t *testing.T) {
 	skip.IfCondition(t, testEnv.DaemonInfo.OSType != "linux")
 	requirement.HasHubConnectivity(t)
+	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 
 	defer setupTestV1(t)()
 	ctrl.reqRes.Allow = true
@@ -243,6 +245,7 @@ func TestAuthZPluginV2CombinedV1(t *testing.T) {
 }
 
 func TestAuthZPluginV2ChainSequence(t *testing.T) {
+	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()
