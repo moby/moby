@@ -718,7 +718,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		}
 
 		if s.vni == 0 {
-			vxlanID, err := n.driver.vxlanIdm.GetID()
+			vxlanID, err := n.driver.vxlanIdm.GetID(true)
 			if err != nil {
 				return fmt.Errorf("failed to allocate vxlan id: %v", err)
 			}
