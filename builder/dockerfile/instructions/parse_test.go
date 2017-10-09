@@ -194,11 +194,7 @@ func TestErrorCases(t *testing.T) {
 		}
 		n := ast.AST.Children[0]
 		_, err = ParseInstruction(n)
-		if err != nil {
-			testutil.ErrorContains(t, err, c.expectedError)
-			return
-		}
-		t.Fatalf("No error when executing test %s", c.name)
+		testutil.ErrorContains(t, err, c.expectedError)
 	}
 
 }
