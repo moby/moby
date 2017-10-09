@@ -22,6 +22,55 @@ func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
 	cli.Docker(cli.Args("pull", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloaded)
 }
 
+func (s *DockerTrustSuite) TestTrustedPullDefaultsToLatest(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-isolated-pull")
+	repoNameWithoutTag := fmt.Sprintf("%v/dockercli/%s", privateRegistryURL, "trusted-isolated-pull")
+
+	// Try pull and check that it defaults to latest by pulling correctly
+	cli.Docker(cli.Args("pull", repoNameWithoutTag), trustedCmd).Assert(c, SuccessTagging)
+
+	cli.DockerCmd(c, "rmi", repoName)
+	// Try untrusted pull to ensure we pushed the tag to the registry
+	cli.Docker(cli.Args("pull", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloaded)
+}
+
+func (s *DockerTrustSuite) TestTrustedPullIgnoresUnsignedVersion(c *check.C) {
+	repoName := s.setupTrustedImage(c, "trusted-mixed-pull")
+
+	// Try pull and get digest of this image
+	result := cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, icmd.Success)
+
+	matches := digestRegex.FindStringSubmatch(result.Combined())
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", result.Combined()))
+	pullDigest := matches[1]
+
+	// clear the cache to set up for an unsigned image with the same name
+	cli.DockerCmd(c, "rmi", repoName)
+
+	// now build and push different image with the same tag, but do not sign
+	// tag the image and upload it to the private registry
+	cli.BuildCmd(c, repoName, build.WithDockerfile(`
+		FROM busybox
+		CMD echo iamnotsigned
+	`))
+	cli.DockerCmd(c, "push", repoName)
+	cli.DockerCmd(c, "rmi", repoName)
+
+	// Try pull and get digest of this image
+	result = cli.Docker(cli.Args("pull", repoName), trustedCmd).Assert(c, icmd.Success)
+
+	matches = digestRegex.FindStringSubmatch(result.Combined())
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", result.Combined()))
+	secondPullDigest := matches[1]
+
+	// assert the digest is the same as the originally signed image
+	c.Assert(secondPullDigest, checker.Equals, pullDigest)
+
+	cli.DockerCmd(c, "rmi", repoName)
+	// Try untrusted pull to ensure we pushed the tag to the registry
+	cli.Docker(cli.Args("pull", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloaded)
+}
+
 func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-isolated-pull")
 
