@@ -159,42 +159,6 @@ tags:
     x-displayName: "System"
 
 definitions:
-  ServiceUpdateBody:
-    allOf:
-      - $ref: "#/definitions/ServiceSpec"
-      - type: "object"
-        example:
-          Name: "top"
-          TaskTemplate:
-            ContainerSpec:
-              Image: "busybox"
-              Args:
-                - "top"
-            Resources:
-              Limits: {}
-              Reservations: {}
-            RestartPolicy:
-              Condition: "any"
-              MaxAttempts: 0
-            Placement: {}
-            ForceUpdate: 0
-          Mode:
-            Replicated:
-              Replicas: 1
-          UpdateConfig:
-            Parallelism: 2
-            Delay: 1000000000
-            FailureAction: "pause"
-            Monitor: 15000000000
-            MaxFailureRatio: 0.15
-          RollbackConfig:
-            Parallelism: 1
-            Delay: 1000000000
-            FailureAction: "pause"
-            Monitor: 15000000000
-            MaxFailureRatio: 0.15
-          EndpointSpec:
-            Mode: "vip"
   ServiceCreateBody:
     allOf:
       - $ref: "#/definitions/ServiceSpec"
@@ -2767,6 +2731,7 @@ definitions:
           Image:
             description: "The image name to use for the container"
             type: "string"
+            example: "busybox"
           Labels:
             description: "User-defined key/value data."
             type: "object"
@@ -2782,6 +2747,7 @@ definitions:
             type: "array"
             items:
               type: "string"
+            example: ["top"]
           Hostname:
             description: "The hostname to use for the container, as a valid RFC 1123 hostname."
             type: "string"
@@ -2989,6 +2955,7 @@ definitions:
               - "none"
               - "on-failure"
               - "any"
+            example: "any"
           Delay:
             description: "Delay between restart attempts."
             type: "integer"
@@ -2998,6 +2965,7 @@ definitions:
             type: "integer"
             format: "int64"
             default: 0
+            example: 0
           Window:
             description: "Windows is the time window used to evaluate the restart policy (default value is 0, which is unbounded)."
             type: "integer"
@@ -3044,6 +3012,7 @@ definitions:
       ForceUpdate:
         description: "A counter that triggers an update even if no relevant parameters have been changed."
         type: "integer"
+        example: 0
       Runtime:
         description: "Runtime is the type of runtime specified for the task executor."
         type: "string"
@@ -3216,6 +3185,7 @@ definitions:
       Name:
         description: "Name of the service."
         type: "string"
+        example: "top"
       Labels:
         description: "User-defined key/value metadata."
         type: "object"
@@ -3233,6 +3203,7 @@ definitions:
               Replicas:
                 type: "integer"
                 format: "int64"
+                example: 1
           Global:
             type: "object"
       UpdateConfig:
@@ -3243,10 +3214,12 @@ definitions:
             description: "Maximum number of tasks to be updated in one iteration (0 means unlimited parallelism)."
             type: "integer"
             format: "int64"
+            example: 2
           Delay:
             description: "Amount of time between updates, in nanoseconds."
             type: "integer"
             format: "int64"
+            example: 1000000000
           FailureAction:
             description: "Action to take if an updated task fails to run, or stops running during the update."
             type: "string"
@@ -3254,14 +3227,17 @@ definitions:
               - "continue"
               - "pause"
               - "rollback"
+            example: "pause"
           Monitor:
             description: "Amount of time to monitor each updated task for failures, in nanoseconds."
             type: "integer"
             format: "int64"
+            example: 15000000000
           MaxFailureRatio:
             description: "The fraction of tasks that may fail during an update before the failure action is invoked, specified as a floating point number between 0 and 1."
             type: "number"
             default: 0
+            example: 0.15
           Order:
             description: "The order of operations when rolling out an updated task. Either the old task is shut down before the new task is started, or the new task is started before the old task is shut down."
             type: "string"
@@ -3276,24 +3252,29 @@ definitions:
             description: "Maximum number of tasks to be rolled back in one iteration (0 means unlimited parallelism)."
             type: "integer"
             format: "int64"
+            example: 1
           Delay:
             description: "Amount of time between rollback iterations, in nanoseconds."
             type: "integer"
             format: "int64"
+            example: 1000000000
           FailureAction:
             description: "Action to take if an rolled back task fails to run, or stops running during the rollback."
             type: "string"
             enum:
               - "continue"
               - "pause"
+            example: "pause"
           Monitor:
             description: "Amount of time to monitor each rolled back task for failures, in nanoseconds."
             type: "integer"
             format: "int64"
+            example: 15000000000
           MaxFailureRatio:
             description: "The fraction of tasks that may fail during a rollback before the failure action is invoked, specified as a floating point number between 0 and 1."
             type: "number"
             default: 0
+            example: 0.15
           Order:
             description: "The order of operations when rolling back a task. Either the old task is shut down before the new task is started, or the new task is started before the old task is shut down."
             type: "string"
@@ -3362,6 +3343,7 @@ definitions:
           - "vip"
           - "dnsrr"
         default: "vip"
+        example: "vip"
       Ports:
         description: "List of exposed ports that this service is accessible on from the outside. Ports can only be provided if `vip` resolution mode is used."
         type: "array"
@@ -9092,7 +9074,7 @@ paths:
           in: "body"
           required: true
           schema:
-            $ref: "#/definitions/ServiceUpdateBody"
+            $ref: "#/definitions/ServiceSpec"
         - name: "version"
           in: "query"
           description: "The version number of the service object being updated. This is required to avoid conflicting writes."
