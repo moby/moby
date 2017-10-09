@@ -159,6 +159,293 @@ tags:
     x-displayName: "System"
 
 definitions:
+  ServiceUpdateBody:
+    allOf:
+      - $ref: "#/definitions/ServiceSpec"
+      - type: "object"
+        example:
+          Name: "top"
+          TaskTemplate:
+            ContainerSpec:
+              Image: "busybox"
+              Args:
+                - "top"
+            Resources:
+              Limits: {}
+              Reservations: {}
+            RestartPolicy:
+              Condition: "any"
+              MaxAttempts: 0
+            Placement: {}
+            ForceUpdate: 0
+          Mode:
+            Replicated:
+              Replicas: 1
+          UpdateConfig:
+            Parallelism: 2
+            Delay: 1000000000
+            FailureAction: "pause"
+            Monitor: 15000000000
+            MaxFailureRatio: 0.15
+          RollbackConfig:
+            Parallelism: 1
+            Delay: 1000000000
+            FailureAction: "pause"
+            Monitor: 15000000000
+            MaxFailureRatio: 0.15
+          EndpointSpec:
+            Mode: "vip"
+  ServiceCreateBody:
+    allOf:
+      - $ref: "#/definitions/ServiceSpec"
+      - type: "object"
+        example:
+          Name: "web"
+          TaskTemplate:
+            ContainerSpec:
+              Image: "nginx:alpine"
+              Mounts:
+                -
+                  ReadOnly: true
+                  Source: "web-data"
+                  Target: "/usr/share/nginx/html"
+                  Type: "volume"
+                  VolumeOptions:
+                    DriverConfig: {}
+                    Labels:
+                      com.example.something: "something-value"
+              Hosts: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
+              User: "33"
+              DNSConfig:
+                Nameservers: ["8.8.8.8"]
+                Search: ["example.org"]
+                Options: ["timeout:3"]
+              Secrets:
+                -
+                  File:
+                    Name: "www.example.org.key"
+                    UID: "33"
+                    GID: "33"
+                    Mode: 384
+                  SecretID: "fpjqlhnwb19zds35k8wn80lq9"
+                  SecretName: "example_org_domain_key"
+            LogDriver:
+              Name: "json-file"
+              Options:
+                max-file: "3"
+                max-size: "10M"
+            Placement: {}
+            Resources:
+              Limits:
+                MemoryBytes: 104857600
+              Reservations: {}
+            RestartPolicy:
+              Condition: "on-failure"
+              Delay: 10000000000
+              MaxAttempts: 10
+          Mode:
+            Replicated:
+              Replicas: 4
+          UpdateConfig:
+            Parallelism: 2
+            Delay: 1000000000
+            FailureAction: "pause"
+            Monitor: 15000000000
+            MaxFailureRatio: 0.15
+          RollbackConfig:
+            Parallelism: 1
+            Delay: 1000000000
+            FailureAction: "pause"
+            Monitor: 15000000000
+            MaxFailureRatio: 0.15
+          EndpointSpec:
+            Ports:
+              -
+                Protocol: "tcp"
+                PublishedPort: 8080
+                TargetPort: 80
+          Labels:
+            foo: "bar"
+  SecretCreateBody:
+    allOf:
+      - $ref: "#/definitions/SecretSpec"
+      - type: "object"
+        example:
+          Name: "app-key.crt"
+          Labels:
+            foo: "bar"
+          Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+          Driver:
+            Name: "secret-bucket"
+            Options:
+              OptionA: "value for driver option A"
+              OptionB: "value for driver option B"
+  ConfigCreateBody:
+    allOf:
+      - $ref: "#/definitions/ConfigSpec"
+      - type: "object"
+        example:
+          Name: "server.conf"
+          Labels:
+            foo: "bar"
+          Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+  ContainerUpdateUpdate:
+    allOf:
+      - $ref: "#/definitions/Resources"
+      - type: "object"
+        properties:
+          RestartPolicy:
+            $ref: "#/definitions/RestartPolicy"
+    example:
+      BlkioWeight: 300
+      CpuShares: 512
+      CpuPeriod: 100000
+      CpuQuota: 50000
+      CpuRealtimePeriod: 1000000
+      CpuRealtimeRuntime: 10000
+      CpusetCpus: "0,1"
+      CpusetMems: "0"
+      Memory: 314572800
+      MemorySwap: 514288000
+      MemoryReservation: 209715200
+      KernelMemory: 52428800
+      RestartPolicy:
+        MaximumRetryCount: 4
+        Name: "on-failure"
+  ContainerCreateBody:
+    allOf:
+      - $ref: "#/definitions/ContainerConfig"
+      - type: "object"
+        properties:
+          HostConfig:
+            $ref: "#/definitions/HostConfig"
+          NetworkingConfig:
+            description: "This container's networking configuration."
+            type: "object"
+            properties:
+              EndpointsConfig:
+                description: "A mapping of network name to endpoint configuration for that network."
+                type: "object"
+                additionalProperties:
+                  $ref: "#/definitions/EndpointSettings"
+    example:
+      Hostname: ""
+      Domainname: ""
+      User: ""
+      AttachStdin: false
+      AttachStdout: true
+      AttachStderr: true
+      Tty: false
+      OpenStdin: false
+      StdinOnce: false
+      Env:
+        - "FOO=bar"
+        - "BAZ=quux"
+      Cmd:
+        - "date"
+      Entrypoint: ""
+      Image: "ubuntu"
+      Labels:
+        com.example.vendor: "Acme"
+        com.example.license: "GPL"
+        com.example.version: "1.0"
+      Volumes:
+        /volumes/data: {}
+      WorkingDir: ""
+      NetworkDisabled: false
+      MacAddress: "12:34:56:78:9a:bc"
+      ExposedPorts:
+        22/tcp: {}
+      StopSignal: "SIGTERM"
+      StopTimeout: 10
+      HostConfig:
+        Binds:
+          - "/tmp:/tmp"
+        Links:
+          - "redis3:redis"
+        Memory: 0
+        MemorySwap: 0
+        MemoryReservation: 0
+        KernelMemory: 0
+        NanoCPUs: 500000
+        CpuPercent: 80
+        CpuShares: 512
+        CpuPeriod: 100000
+        CpuRealtimePeriod: 1000000
+        CpuRealtimeRuntime: 10000
+        CpuQuota: 50000
+        CpusetCpus: "0,1"
+        CpusetMems: "0,1"
+        MaximumIOps: 0
+        MaximumIOBps: 0
+        BlkioWeight: 300
+        BlkioWeightDevice:
+          - {}
+        BlkioDeviceReadBps:
+          - {}
+        BlkioDeviceReadIOps:
+          - {}
+        BlkioDeviceWriteBps:
+          - {}
+        BlkioDeviceWriteIOps:
+          - {}
+        MemorySwappiness: 60
+        OomKillDisable: false
+        OomScoreAdj: 500
+        PidMode: ""
+        PidsLimit: -1
+        PortBindings:
+          22/tcp:
+            - HostPort: "11022"
+        PublishAllPorts: false
+        Privileged: false
+        ReadonlyRootfs: false
+        Dns:
+          - "8.8.8.8"
+        DnsOptions:
+          - ""
+        DnsSearch:
+          - ""
+        VolumesFrom:
+          - "parent"
+          - "other:ro"
+        CapAdd:
+          - "NET_ADMIN"
+        CapDrop:
+          - "MKNOD"
+        GroupAdd:
+          - "newgroup"
+        RestartPolicy:
+          Name: ""
+          MaximumRetryCount: 0
+        AutoRemove: true
+        NetworkMode: "bridge"
+        Devices: []
+        Ulimits:
+          - {}
+        LogConfig:
+          Type: "json-file"
+          Config: {}
+        SecurityOpt: []
+        StorageOpt: {}
+        CgroupParent: ""
+        VolumeDriver: ""
+        ShmSize: 67108864
+      NetworkingConfig:
+        EndpointsConfig:
+          isolated_nw:
+            IPAMConfig:
+              IPv4Address: "172.20.30.33"
+              IPv6Address: "2001:db8:abcd::3033"
+              LinkLocalIPs:
+                - "169.254.34.68"
+                - "fe80::3468"
+            Links:
+              - "container_1"
+              - "container_2"
+            Aliases:
+              - "server_x"
+              - "server_y"
   Port:
     type: "object"
     description: "An open port on a container"
@@ -4359,140 +4646,7 @@ paths:
           in: "body"
           description: "Container to create"
           schema:
-            allOf:
-              - $ref: "#/definitions/ContainerConfig"
-              - type: "object"
-                properties:
-                  HostConfig:
-                    $ref: "#/definitions/HostConfig"
-                  NetworkingConfig:
-                    description: "This container's networking configuration."
-                    type: "object"
-                    properties:
-                      EndpointsConfig:
-                        description: "A mapping of network name to endpoint configuration for that network."
-                        type: "object"
-                        additionalProperties:
-                          $ref: "#/definitions/EndpointSettings"
-            example:
-              Hostname: ""
-              Domainname: ""
-              User: ""
-              AttachStdin: false
-              AttachStdout: true
-              AttachStderr: true
-              Tty: false
-              OpenStdin: false
-              StdinOnce: false
-              Env:
-                - "FOO=bar"
-                - "BAZ=quux"
-              Cmd:
-                - "date"
-              Entrypoint: ""
-              Image: "ubuntu"
-              Labels:
-                com.example.vendor: "Acme"
-                com.example.license: "GPL"
-                com.example.version: "1.0"
-              Volumes:
-                /volumes/data: {}
-              WorkingDir: ""
-              NetworkDisabled: false
-              MacAddress: "12:34:56:78:9a:bc"
-              ExposedPorts:
-                22/tcp: {}
-              StopSignal: "SIGTERM"
-              StopTimeout: 10
-              HostConfig:
-                Binds:
-                  - "/tmp:/tmp"
-                Links:
-                  - "redis3:redis"
-                Memory: 0
-                MemorySwap: 0
-                MemoryReservation: 0
-                KernelMemory: 0
-                NanoCPUs: 500000
-                CpuPercent: 80
-                CpuShares: 512
-                CpuPeriod: 100000
-                CpuRealtimePeriod: 1000000
-                CpuRealtimeRuntime: 10000
-                CpuQuota: 50000
-                CpusetCpus: "0,1"
-                CpusetMems: "0,1"
-                MaximumIOps: 0
-                MaximumIOBps: 0
-                BlkioWeight: 300
-                BlkioWeightDevice:
-                  - {}
-                BlkioDeviceReadBps:
-                  - {}
-                BlkioDeviceReadIOps:
-                  - {}
-                BlkioDeviceWriteBps:
-                  - {}
-                BlkioDeviceWriteIOps:
-                  - {}
-                MemorySwappiness: 60
-                OomKillDisable: false
-                OomScoreAdj: 500
-                PidMode: ""
-                PidsLimit: -1
-                PortBindings:
-                  22/tcp:
-                    - HostPort: "11022"
-                PublishAllPorts: false
-                Privileged: false
-                ReadonlyRootfs: false
-                Dns:
-                  - "8.8.8.8"
-                DnsOptions:
-                  - ""
-                DnsSearch:
-                  - ""
-                VolumesFrom:
-                  - "parent"
-                  - "other:ro"
-                CapAdd:
-                  - "NET_ADMIN"
-                CapDrop:
-                  - "MKNOD"
-                GroupAdd:
-                  - "newgroup"
-                RestartPolicy:
-                  Name: ""
-                  MaximumRetryCount: 0
-                AutoRemove: true
-                NetworkMode: "bridge"
-                Devices: []
-                Ulimits:
-                  - {}
-                LogConfig:
-                  Type: "json-file"
-                  Config: {}
-                SecurityOpt: []
-                StorageOpt: {}
-                CgroupParent: ""
-                VolumeDriver: ""
-                ShmSize: 67108864
-              NetworkingConfig:
-                EndpointsConfig:
-                  isolated_nw:
-                    IPAMConfig:
-                      IPv4Address: "172.20.30.33"
-                      IPv6Address: "2001:db8:abcd::3033"
-                      LinkLocalIPs:
-                        - "169.254.34.68"
-                        - "fe80::3468"
-                    Links:
-                      - "container_1"
-                      - "container_2"
-                    Aliases:
-                      - "server_x"
-                      - "server_y"
-
+            $ref: "#/definitions/ContainerCreateBody"
           required: true
       responses:
         201:
@@ -5390,28 +5544,7 @@ paths:
           in: "body"
           required: true
           schema:
-            allOf:
-              - $ref: "#/definitions/Resources"
-              - type: "object"
-                properties:
-                  RestartPolicy:
-                    $ref: "#/definitions/RestartPolicy"
-            example:
-              BlkioWeight: 300
-              CpuShares: 512
-              CpuPeriod: 100000
-              CpuQuota: 50000
-              CpuRealtimePeriod: 1000000
-              CpuRealtimeRuntime: 10000
-              CpusetCpus: "0,1"
-              CpusetMems: "0"
-              Memory: 314572800
-              MemorySwap: 514288000
-              MemoryReservation: 209715200
-              KernelMemory: 52428800
-              RestartPolicy:
-                MaximumRetryCount: 4
-                Name: "on-failure"
+            $ref: "#/definitions/ContainerUpdateUpdate"
       tags: ["Container"]
   /containers/{id}/rename:
     post:
@@ -8858,76 +8991,7 @@ paths:
           in: "body"
           required: true
           schema:
-            allOf:
-              - $ref: "#/definitions/ServiceSpec"
-              - type: "object"
-                example:
-                  Name: "web"
-                  TaskTemplate:
-                    ContainerSpec:
-                      Image: "nginx:alpine"
-                      Mounts:
-                        -
-                          ReadOnly: true
-                          Source: "web-data"
-                          Target: "/usr/share/nginx/html"
-                          Type: "volume"
-                          VolumeOptions:
-                            DriverConfig: {}
-                            Labels:
-                              com.example.something: "something-value"
-                      Hosts: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
-                      User: "33"
-                      DNSConfig:
-                        Nameservers: ["8.8.8.8"]
-                        Search: ["example.org"]
-                        Options: ["timeout:3"]
-                      Secrets:
-                        -
-                          File:
-                            Name: "www.example.org.key"
-                            UID: "33"
-                            GID: "33"
-                            Mode: 384
-                          SecretID: "fpjqlhnwb19zds35k8wn80lq9"
-                          SecretName: "example_org_domain_key"
-                    LogDriver:
-                      Name: "json-file"
-                      Options:
-                        max-file: "3"
-                        max-size: "10M"
-                    Placement: {}
-                    Resources:
-                      Limits:
-                        MemoryBytes: 104857600
-                      Reservations: {}
-                    RestartPolicy:
-                      Condition: "on-failure"
-                      Delay: 10000000000
-                      MaxAttempts: 10
-                  Mode:
-                    Replicated:
-                      Replicas: 4
-                  UpdateConfig:
-                    Parallelism: 2
-                    Delay: 1000000000
-                    FailureAction: "pause"
-                    Monitor: 15000000000
-                    MaxFailureRatio: 0.15
-                  RollbackConfig:
-                    Parallelism: 1
-                    Delay: 1000000000
-                    FailureAction: "pause"
-                    Monitor: 15000000000
-                    MaxFailureRatio: 0.15
-                  EndpointSpec:
-                    Ports:
-                      -
-                        Protocol: "tcp"
-                        PublishedPort: 8080
-                        TargetPort: 80
-                  Labels:
-                    foo: "bar"
+            $ref: "#/definitions/ServiceCreateBody"
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
@@ -9028,42 +9092,7 @@ paths:
           in: "body"
           required: true
           schema:
-            allOf:
-              - $ref: "#/definitions/ServiceSpec"
-              - type: "object"
-                example:
-                  Name: "top"
-                  TaskTemplate:
-                    ContainerSpec:
-                      Image: "busybox"
-                      Args:
-                        - "top"
-                    Resources:
-                      Limits: {}
-                      Reservations: {}
-                    RestartPolicy:
-                      Condition: "any"
-                      MaxAttempts: 0
-                    Placement: {}
-                    ForceUpdate: 0
-                  Mode:
-                    Replicated:
-                      Replicas: 1
-                  UpdateConfig:
-                    Parallelism: 2
-                    Delay: 1000000000
-                    FailureAction: "pause"
-                    Monitor: 15000000000
-                    MaxFailureRatio: 0.15
-                  RollbackConfig:
-                    Parallelism: 1
-                    Delay: 1000000000
-                    FailureAction: "pause"
-                    Monitor: 15000000000
-                    MaxFailureRatio: 0.15
-                  EndpointSpec:
-                    Mode: "vip"
-
+            $ref: "#/definitions/ServiceUpdateBody"
         - name: "version"
           in: "query"
           description: "The version number of the service object being updated. This is required to avoid conflicting writes."
@@ -9517,19 +9546,7 @@ paths:
         - name: "body"
           in: "body"
           schema:
-            allOf:
-              - $ref: "#/definitions/SecretSpec"
-              - type: "object"
-                example:
-                  Name: "app-key.crt"
-                  Labels:
-                    foo: "bar"
-                  Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
-                  Driver:
-                    Name: "secret-bucket"
-                    Options:
-                      OptionA: "value for driver option A"
-                      OptionB: "value for driver option B"
+            $ref: "#/definitions/SecretCreateBody"
       tags: ["Secret"]
   /secrets/{id}:
     get:
@@ -9722,14 +9739,7 @@ paths:
         - name: "body"
           in: "body"
           schema:
-            allOf:
-              - $ref: "#/definitions/ConfigSpec"
-              - type: "object"
-                example:
-                  Name: "server.conf"
-                  Labels:
-                    foo: "bar"
-                  Data: "VEhJUyBJUyBOT1QgQSBSRUFMIENFUlRJRklDQVRFCg=="
+            $ref: "#/definitions/ConfigCreateBody"
       tags: ["Config"]
   /configs/{id}:
     get:
