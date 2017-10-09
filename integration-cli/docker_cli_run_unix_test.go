@@ -770,7 +770,7 @@ func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	expected = "shares: invalid argument"
+	expected = "Invalid CPUShares value. Must be nonnegative."
 	c.Assert(out, checker.Contains, expected)
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
