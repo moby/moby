@@ -3,6 +3,7 @@
 package authz
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -13,9 +14,12 @@ import (
 	"testing"
 
 	"github.com/docker/docker/authorization"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/plugins"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -170,4 +174,11 @@ func assertBody(requestURI string, headers map[string]string, body []byte) {
 	if len(body) > 0 {
 		panic(fmt.Sprintf("Body included while it should not (Headers: '%v')", headers))
 	}
+}
+
+func assertAuthzChainSequence(t *testing.T, client client.APIClient, chain []string) {
+	info, err := client.Info(context.Background())
+	require.Nil(t, err)
+
+	assert.Equal(t, chain, info.Plugins.Authorization)
 }

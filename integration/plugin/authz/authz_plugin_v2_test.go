@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/util/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -312,11 +311,4 @@ func pluginInstallGrantAllPermissionsAlias(client client.APIClient, alias, name 
 	// completed when we get EOF from reading responseBody
 	_, err = ioutil.ReadAll(responseReader)
 	return err
-}
-
-func assertAuthzChainSequence(t *testing.T, client client.APIClient, chain []string) {
-	info, err := client.Info(context.Background())
-	require.Nil(t, err)
-
-	assert.Equal(t, chain, info.Plugins.Authorization)
 }

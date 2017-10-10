@@ -451,6 +451,39 @@ func TestAuthZPluginHeader(t *testing.T) {
 	require.Equal(t, "application/json", resp.Header["Content-Type"][0])
 }
 
+func TestAuthZPluginConfig(t *testing.T) {
+	defer setupTestV1(t)()
+	ctrl.reqRes.Allow = true
+	ctrl.resRes.Allow = true
+
+	// authz plugins specified in config file show up in chain and
+	// more can't be provided on the daemon command line
+	err := ioutil.WriteFile("/etc/docker/daemon.json", []byte(fmt.Sprintf(`{"authorization-plugins": ["%s"]}`, testAuthZPlugin)), 0644)
+	require.Nil(t, err)
+
+	d.Start(t)
+
+	client, err := d.NewClient()
+	require.Nil(t, err)
+
+	assertAuthzChainSequence(t, client, []string{testAuthZPlugin})
+
+	err = d.RestartWithError("--authorization-plugin=" + testAuthZPlugin)
+	require.NotNil(t, err)
+
+	err = ioutil.WriteFile("/etc/docker/daemon.json", []byte(`{"authorization-plugins": []}`), 0644)
+	require.Nil(t, err)
+
+	err = d.StartWithError("--authorization-plugin=" + testAuthZPlugin)
+	require.NotNil(t, err)
+
+	err = ioutil.WriteFile("/etc/docker/daemon.json", []byte(`{}`), 0644)
+	require.Nil(t, err)
+
+	err = d.StartWithError("--authorization-plugin=" + testAuthZPlugin)
+	require.Nil(t, err)
+}
+
 // assertURIRecorded verifies that the given URI was sent and recorded
 // in the authz plugin
 func assertURIRecorded(t *testing.T, uris []string, uri string) {
