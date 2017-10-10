@@ -158,7 +158,7 @@ RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/moby/moby
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Let us use a .bashrc file
@@ -189,8 +189,8 @@ RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
-# Upload docker source
-COPY . /go/src/github.com/docker/docker
+# Upload moby source
+COPY . /go/src/github.com/moby/moby
 
 # Options for hack/validate/gometalinter
 ENV GOMETALINTER_OPTS="--deadline 2m"
