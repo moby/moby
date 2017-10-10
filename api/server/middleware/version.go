@@ -28,11 +28,14 @@ func NewVersionMiddleware(s, d, m string) VersionMiddleware {
 }
 
 type versionUnsupportedError struct {
-	version, minVersion string
+	version, minVersion, maxVersion string
 }
 
 func (e versionUnsupportedError) Error() string {
-	return fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", e.version, e.minVersion)
+	if e.minVersion != "" {
+		return fmt.Sprintf("client version %s is too old. Minimum supported API version is %s, please upgrade your client to a newer version", e.version, e.minVersion)
+	}
+	return fmt.Sprintf("client version %s is too new. Maximum supported API version is %s", e.version, e.maxVersion)
 }
 
 func (e versionUnsupportedError) InvalidParameter() {}
@@ -44,9 +47,11 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		if apiVersion == "" {
 			apiVersion = v.defaultVersion
 		}
-
 		if versions.LessThan(apiVersion, v.minVersion) {
-			return versionUnsupportedError{apiVersion, v.minVersion}
+			return versionUnsupportedError{version: apiVersion, minVersion: v.minVersion}
+		}
+		if versions.GreaterThan(apiVersion, v.defaultVersion) {
+			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultVersion}
 		}
 
 		header := fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS)
