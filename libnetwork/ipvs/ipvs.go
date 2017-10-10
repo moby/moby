@@ -5,10 +5,17 @@ package ipvs
 import (
 	"net"
 	"syscall"
+	"time"
 
 	"fmt"
+
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+)
+
+const (
+	netlinkRecvSocketsTimeout = 3 * time.Second
+	netlinkSendSocketTimeout  = 30 * time.Second
 )
 
 // Service defines an IPVS service in its entirety.
@@ -80,6 +87,15 @@ func New(path string) (*Handle, error) {
 
 	sock, err := nl.GetNetlinkSocketAt(n, netns.None(), syscall.NETLINK_GENERIC)
 	if err != nil {
+		return nil, err
+	}
+	// Add operation timeout to avoid deadlocks
+	tv := syscall.NsecToTimeval(netlinkSendSocketTimeout.Nanoseconds())
+	if err := sock.SetSendTimeout(&tv); err != nil {
+		return nil, err
+	}
+	tv = syscall.NsecToTimeval(netlinkRecvSocketsTimeout.Nanoseconds())
+	if err := sock.SetReceiveTimeout(&tv); err != nil {
 		return nil, err
 	}
 

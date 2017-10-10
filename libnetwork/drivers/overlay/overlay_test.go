@@ -1,7 +1,9 @@
 package overlay
 
 import (
+	"context"
 	"net"
+	"syscall"
 	"testing"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
+	"github.com/vishvananda/netlink/nl"
 )
 
 func init() {
@@ -133,5 +136,38 @@ func TestOverlayType(t *testing.T) {
 	if dt.d.Type() != testNetworkType {
 		t.Fatalf("Expected Type() to return %q. Instead got %q", testNetworkType,
 			dt.d.Type())
+	}
+}
+
+// Test that the netlink socket close unblock the watchMiss to avoid deadlock
+func TestNetlinkSocket(t *testing.T) {
+	// This is the same code used by the overlay driver to create the netlink interface
+	// for the watch miss
+	nlSock, err := nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
+	if err != nil {
+		t.Fatal()
+	}
+	// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
+	tv := syscall.NsecToTimeval(soTimeout.Nanoseconds())
+	err = nlSock.SetReceiveTimeout(&tv)
+	if err != nil {
+		t.Fatal()
+	}
+	n := &network{id: "testnetid"}
+	ch := make(chan error)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	go func() {
+		n.watchMiss(nlSock)
+		ch <- nil
+	}()
+	time.Sleep(5 * time.Second)
+	nlSock.Close()
+	select {
+	case <-ch:
+	case <-ctx.Done():
+		{
+			t.Fatalf("Timeout expired")
+		}
 	}
 }
