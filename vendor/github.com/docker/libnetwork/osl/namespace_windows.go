@@ -5,12 +5,7 @@ import "testing"
 // GenerateKey generates a sandbox key based on the passed
 // container id.
 func GenerateKey(containerID string) string {
-	maxLen := 12
-	if len(containerID) < maxLen {
-		maxLen = len(containerID)
-	}
-
-	return containerID[:maxLen]
+	return containerID
 }
 
 // NewSandbox provides a new sandbox instance created in an os specific way

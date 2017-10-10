@@ -456,7 +456,7 @@ func RawCombinedOutputNative(args ...string) error {
 
 // ExistChain checks if a chain exists
 func ExistChain(chain string, table Table) bool {
-	if _, err := Raw("-t", string(table), "-L", chain); err == nil {
+	if _, err := Raw("-t", string(table), "-nL", chain); err == nil {
 		return true
 	}
 	return false
