@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/daemon/network"
 	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ContainerInspect returns low-level information about a
@@ -172,7 +171,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
-		Platform:     specs.Platform{OS: container.OS},
+		Platform:     container.OS,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),
