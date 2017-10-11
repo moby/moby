@@ -9,6 +9,8 @@ import (
 	"log"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"testing"
@@ -812,6 +814,65 @@ func TestManifestFetchWithEtag(t *testing.T) {
 	_, err = clientManifestService.Get(ctx, d1, distribution.WithTag("latest"), AddEtagToTag("latest", d1.String()))
 	if err != distribution.ErrManifestNotModified {
 		t.Fatal(err)
+	}
+}
+
+func TestManifestFetchWithAccept(t *testing.T) {
+	ctx := context.Background()
+	repo, _ := reference.WithName("test.example.com/repo")
+	_, dgst, _ := newRandomSchemaV1Manifest(repo, "latest", 6)
+	headers := make(chan []string, 1)
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		headers <- req.Header["Accept"]
+	}))
+	defer close(headers)
+	defer s.Close()
+
+	r, err := NewRepository(repo, s.URL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ms, err := r.Manifests(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	testCases := []struct {
+		// the media types we send
+		mediaTypes []string
+		// the expected Accept headers the server should receive
+		expect []string
+		// whether to sort the request and response values for comparison
+		sort bool
+	}{
+		{
+			mediaTypes: []string{},
+			expect:     distribution.ManifestMediaTypes(),
+			sort:       true,
+		},
+		{
+			mediaTypes: []string{"test1", "test2"},
+			expect:     []string{"test1", "test2"},
+		},
+		{
+			mediaTypes: []string{"test1"},
+			expect:     []string{"test1"},
+		},
+		{
+			mediaTypes: []string{""},
+			expect:     []string{""},
+		},
+	}
+	for _, testCase := range testCases {
+		ms.Get(ctx, dgst, distribution.WithManifestMediaTypes(testCase.mediaTypes))
+		actual := <-headers
+		if testCase.sort {
+			sort.Strings(actual)
+			sort.Strings(testCase.expect)
+		}
+		if !reflect.DeepEqual(actual, testCase.expect) {
+			t.Fatalf("unexpected Accept header values: %v", actual)
+		}
 	}
 }
 
