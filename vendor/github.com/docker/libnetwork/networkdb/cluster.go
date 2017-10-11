@@ -106,7 +106,7 @@ func (nDB *NetworkDB) clusterInit() error {
 	nDB.lastHealthTimestamp = nDB.lastStatsTimestamp
 
 	config := memberlist.DefaultLANConfig()
-	config.Name = nDB.config.NodeName
+	config.Name = nDB.config.NodeID
 	config.BindAddr = nDB.config.BindAddr
 	config.AdvertiseAddr = nDB.config.AdvertiseAddr
 	config.UDPBufferSize = nDB.config.PacketBufferSize
@@ -329,7 +329,7 @@ func (nDB *NetworkDB) reapTableEntries() {
 	var nodeNetworks []string
 	// This is best effort, if the list of network changes will be picked up in the next cycle
 	nDB.RLock()
-	for nid := range nDB.networks[nDB.config.NodeName] {
+	for nid := range nDB.networks[nDB.config.NodeID] {
 		nodeNetworks = append(nodeNetworks, nid)
 	}
 	nDB.RUnlock()
@@ -376,7 +376,7 @@ func (nDB *NetworkDB) reapTableEntries() {
 func (nDB *NetworkDB) gossip() {
 	networkNodes := make(map[string][]string)
 	nDB.RLock()
-	thisNodeNetworks := nDB.networks[nDB.config.NodeName]
+	thisNodeNetworks := nDB.networks[nDB.config.NodeID]
 	for nid := range thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
 
@@ -388,7 +388,7 @@ func (nDB *NetworkDB) gossip() {
 	if printHealth {
 		healthScore := nDB.memberlist.GetHealthScore()
 		if healthScore != 0 {
-			logrus.Warnf("NetworkDB stats - healthscore:%d (connectivity issues)", healthScore)
+			logrus.Warnf("NetworkDB stats %v(%v) - healthscore:%d (connectivity issues)", nDB.config.Hostname, nDB.config.NodeID, healthScore)
 		}
 		nDB.lastHealthTimestamp = time.Now()
 	}
@@ -419,7 +419,8 @@ func (nDB *NetworkDB) gossip() {
 		// Collect stats and print the queue info, note this code is here also to have a view of the queues empty
 		network.qMessagesSent += len(msgs)
 		if printStats {
-			logrus.Infof("NetworkDB stats - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
+			logrus.Infof("NetworkDB stats %v(%v) - netID:%s leaving:%t netPeers:%d entries:%d Queue qLen:%d netMsg/s:%d",
+				nDB.config.Hostname, nDB.config.NodeID,
 				nid, network.leaving, broadcastQ.NumNodes(), network.entriesNumber, broadcastQ.NumQueued(),
 				network.qMessagesSent/int((nDB.config.StatsPrintPeriod/time.Second)))
 			network.qMessagesSent = 0
@@ -456,7 +457,7 @@ func (nDB *NetworkDB) gossip() {
 func (nDB *NetworkDB) bulkSyncTables() {
 	var networks []string
 	nDB.RLock()
-	for nid, network := range nDB.networks[nDB.config.NodeName] {
+	for nid, network := range nDB.networks[nDB.config.NodeID] {
 		if network.leaving {
 			continue
 		}
@@ -522,10 +523,10 @@ func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 	var err error
 	var networks []string
 	for _, node := range nodes {
-		if node == nDB.config.NodeName {
+		if node == nDB.config.NodeID {
 			continue
 		}
-		logrus.Debugf("%s: Initiating bulk sync with node %v", nDB.config.NodeName, node)
+		logrus.Debugf("%v(%v): Initiating bulk sync with node %v", nDB.config.Hostname, nDB.config.NodeID, node)
 		networks = nDB.findCommonNetworks(node)
 		err = nDB.bulkSyncNode(networks, node, true)
 		// if its periodic bulksync stop after the first successful sync
@@ -556,7 +557,8 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		unsolMsg = "unsolicited"
 	}
 
-	logrus.Debugf("%s: Initiating %s bulk sync for networks %v with node %s", nDB.config.NodeName, unsolMsg, networks, node)
+	logrus.Debugf("%v(%v): Initiating %s bulk sync for networks %v with node %s",
+		nDB.config.Hostname, nDB.config.NodeID, unsolMsg, networks, node)
 
 	nDB.RLock()
 	mnode := nDB.nodes[node]
@@ -608,7 +610,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 	bsm := BulkSyncMessage{
 		LTime:       nDB.tableClock.Time(),
 		Unsolicited: unsolicited,
-		NodeName:    nDB.config.NodeName,
+		NodeName:    nDB.config.NodeID,
 		Networks:    networks,
 		Payload:     compound,
 	}
@@ -640,7 +642,7 @@ func (nDB *NetworkDB) bulkSyncNode(networks []string, node string, unsolicited b
 		case <-t.C:
 			logrus.Errorf("Bulk sync to node %s timed out", node)
 		case <-ch:
-			logrus.Debugf("%s: Bulk sync to node %s took %s", nDB.config.NodeName, node, time.Since(startTime))
+			logrus.Debugf("%v(%v): Bulk sync to node %s took %s", nDB.config.Hostname, nDB.config.NodeID, node, time.Since(startTime))
 		}
 		t.Stop()
 	}
@@ -677,7 +679,7 @@ OUTER:
 		idx := randomOffset(n)
 		node := nodes[idx]
 
-		if node == nDB.config.NodeName {
+		if node == nDB.config.NodeID {
 			continue
 		}
 

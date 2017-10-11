@@ -6,11 +6,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
 	"sort"
 	"sync"
 
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/datastore"
@@ -282,12 +280,8 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 	}
 
 	keys, _ := c.getKeys(subsysGossip)
-	hostname, _ := os.Hostname()
-	nodeName := hostname + "-" + stringid.TruncateID(stringid.GenerateRandomID())
-	logrus.Info("Gossip cluster hostname ", nodeName)
 
 	netDBConf := networkdb.DefaultConfig()
-	netDBConf.NodeName = nodeName
 	netDBConf.BindAddr = listenAddr
 	netDBConf.AdvertiseAddr = advertiseAddr
 	netDBConf.Keys = keys

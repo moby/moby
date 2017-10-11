@@ -34,11 +34,11 @@ func New(ds datastore.DataStore, id string, start, end uint64) (*Idm, error) {
 }
 
 // GetID returns the first available id in the set
-func (i *Idm) GetID() (uint64, error) {
+func (i *Idm) GetID(serial bool) (uint64, error) {
 	if i.handle == nil {
 		return 0, errors.New("ID set is not initialized")
 	}
-	ordinal, err := i.handle.SetAny()
+	ordinal, err := i.handle.SetAny(serial)
 	return i.start + ordinal, err
 }
 
@@ -56,7 +56,7 @@ func (i *Idm) GetSpecificID(id uint64) error {
 }
 
 // GetIDInRange returns the first available id in the set within a [start,end] range
-func (i *Idm) GetIDInRange(start, end uint64) (uint64, error) {
+func (i *Idm) GetIDInRange(start, end uint64, serial bool) (uint64, error) {
 	if i.handle == nil {
 		return 0, errors.New("ID set is not initialized")
 	}
@@ -65,7 +65,7 @@ func (i *Idm) GetIDInRange(start, end uint64) (uint64, error) {
 		return 0, errors.New("Requested range does not belong to the set")
 	}
 
-	ordinal, err := i.handle.SetAnyInRange(start-i.start, end-i.start)
+	ordinal, err := i.handle.SetAnyInRange(start-i.start, end-i.start, serial)
 
 	return i.start + ordinal, err
 }

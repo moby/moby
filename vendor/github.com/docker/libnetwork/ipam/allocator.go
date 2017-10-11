@@ -457,7 +457,15 @@ func (a *Allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 		return nil, nil, types.InternalErrorf("could not find bitmask in datastore for %s on address %v request from pool %s: %v",
 			k.String(), prefAddress, poolID, err)
 	}
-	ip, err := a.getAddress(p.Pool, bm, prefAddress, p.Range)
+	// In order to request for a serial ip address allocation, callers can pass in the option to request
+	// IP allocation serially or first available IP in the subnet
+	var serial bool
+	if opts != nil {
+		if val, ok := opts[ipamapi.AllocSerialPrefix]; ok {
+			serial = (val == "true")
+		}
+	}
+	ip, err := a.getAddress(p.Pool, bm, prefAddress, p.Range, serial)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -522,7 +530,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 	return bm.Unset(ipToUint64(h))
 }
 
-func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddress net.IP, ipr *AddressRange) (net.IP, error) {
+func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddress net.IP, ipr *AddressRange, serial bool) (net.IP, error) {
 	var (
 		ordinal uint64
 		err     error
@@ -535,7 +543,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 		return nil, ipamapi.ErrNoAvailableIPs
 	}
 	if ipr == nil && prefAddress == nil {
-		ordinal, err = bitmask.SetAny()
+		ordinal, err = bitmask.SetAny(serial)
 	} else if prefAddress != nil {
 		hostPart, e := types.GetHostPartIP(prefAddress, base.Mask)
 		if e != nil {
@@ -544,7 +552,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 		ordinal = ipToUint64(types.GetMinimalIP(hostPart))
 		err = bitmask.Set(ordinal)
 	} else {
-		ordinal, err = bitmask.SetAnyInRange(ipr.Start, ipr.End)
+		ordinal, err = bitmask.SetAnyInRange(ipr.Start, ipr.End, serial)
 	}
 
 	switch err {

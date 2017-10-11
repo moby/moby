@@ -2,7 +2,6 @@ package networkdb
 
 import (
 	"net"
-	"strings"
 	"time"
 
 	"github.com/gogo/protobuf/proto"
@@ -58,29 +57,6 @@ func (nDB *NetworkDB) checkAndGetNode(nEvent *NodeEvent) *node {
 	return nil
 }
 
-func (nDB *NetworkDB) purgeSameNode(n *node) {
-	nDB.Lock()
-	defer nDB.Unlock()
-
-	prefix := strings.Split(n.Name, "-")[0]
-	for _, nodes := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-		nDB.nodes,
-	} {
-		var nodeNames []string
-		for name, node := range nodes {
-			if strings.HasPrefix(name, prefix) && n.Addr.Equal(node.Addr) {
-				nodeNames = append(nodeNames, name)
-			}
-		}
-
-		for _, name := range nodeNames {
-			delete(nodes, name)
-		}
-	}
-}
-
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
@@ -108,7 +84,6 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 		return false
 	}
 
-	nDB.purgeSameNode(n)
 	n.ltime = nEvent.LTime
 
 	switch nEvent.Type {
@@ -140,7 +115,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	nDB.Lock()
 	defer nDB.Unlock()
 
-	if nEvent.NodeName == nDB.config.NodeName {
+	if nEvent.NodeName == nDB.config.NodeID {
 		return false
 	}
 
@@ -203,7 +178,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 
 	// Ignore the table events for networks that are in the process of going away
 	nDB.RLock()
-	networks := nDB.networks[nDB.config.NodeName]
+	networks := nDB.networks[nDB.config.NodeID]
 	network, ok := networks[tEvent.NetworkID]
 	// Check if the owner of the event is still part of the network
 	nodes := nDB.networkNodes[tEvent.NetworkID]
@@ -253,7 +228,8 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		// If it is a delete event and we did not have a state for it, don't propagate to the application
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
-		return e.reapTime > reapPeriod/6
+		// This also avoids that deletion of entries close to their garbage collection ends up circuling around forever
+		return e.reapTime > reapEntryInterval/6
 	}
 
 	var op opType
@@ -292,7 +268,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 	}
 
 	// Ignore messages that this node generated.
-	if tEvent.NodeName == nDB.config.NodeName {
+	if tEvent.NodeName == nDB.config.NodeID {
 		return
 	}
 
@@ -305,7 +281,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		}
 
 		nDB.RLock()
-		n, ok := nDB.networks[nDB.config.NodeName][tEvent.NetworkID]
+		n, ok := nDB.networks[nDB.config.NodeID][tEvent.NetworkID]
 		nDB.RUnlock()
 
 		// if the network is not there anymore, OR we are leaving the network OR the broadcast queue is not present
@@ -424,7 +400,7 @@ func (nDB *NetworkDB) handleMessage(buf []byte, isBulkSync bool) {
 	case MessageTypeCompound:
 		nDB.handleCompound(data, isBulkSync)
 	default:
-		logrus.Errorf("%s: unknown message type %d", nDB.config.NodeName, mType)
+		logrus.Errorf("%v(%v): unknown message type %d", nDB.config.Hostname, nDB.config.NodeID, mType)
 	}
 }
 
@@ -457,7 +433,7 @@ func (d *delegate) LocalState(join bool) []byte {
 
 	pp := NetworkPushPull{
 		LTime:    d.nDB.networkClock.Time(),
-		NodeName: d.nDB.config.NodeName,
+		NodeName: d.nDB.config.NodeID,
 	}
 
 	for name, nn := range d.nDB.networks {

@@ -87,6 +87,7 @@ func (h *Handle) CopyTo(o datastore.KVObject) error {
 	dstH.dbIndex = h.dbIndex
 	dstH.dbExists = h.dbExists
 	dstH.store = h.store
+	dstH.curr = h.curr
 	dstH.Unlock()
 
 	return nil

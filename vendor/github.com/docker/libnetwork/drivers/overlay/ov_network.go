@@ -119,7 +119,7 @@ func setDefaultVlan() {
 	data := []byte{'0', '\n'}
 
 	if err = ioutil.WriteFile(path, data, 0644); err != nil {
-		logrus.Errorf("endbling default vlan on bridge %s failed %v", brName, err)
+		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
 		os.Exit(1)
 	}
 	os.Exit(0)
@@ -251,8 +251,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 		if err := d.deleteEndpointFromStore(ep); err != nil {
 			logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
 		}
-
 	}
+	// flush the peerDB entries
+	d.peerFlush(nid)
 	d.deleteNetwork(nid)
 
 	vnis, err := n.releaseVxlanID()
@@ -505,11 +506,7 @@ func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) erro
 	vxlanIfaceOption := make([]osl.IfaceOption, 1)
 	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
 	Ifaces[vxlanName+"+vxlan"] = vxlanIfaceOption
-	err = sbox.Restore(Ifaces, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return sbox.Restore(Ifaces, nil, nil, nil)
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
@@ -760,55 +757,35 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
-
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
 			}
 
 			if n.driver.isSerfAlive() {
+				logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
 				mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
 				if err != nil {
 					logrus.Errorf("could not resolve peer %q: %v", ip, err)
 					continue
 				}
 				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
-			} else {
-				// If the gc_thresh values are lower kernel might knock off the neighor entries.
-				// When we get a L3 miss check if its a valid peer and reprogram the neighbor
-				// entry again. Rate limit it to once attempt every 500ms, just in case a faulty
-				// container sends a flood of packets to invalid peers
-				if !l3Miss {
-					continue
-				}
-				if time.Since(t) > 500*time.Millisecond {
+			} else if l3Miss && time.Since(t) > time.Second {
+				// All the local peers will trigger a miss notification but this one is expected and the local container will reply
+				// autonomously to the ARP request
+				// In case the gc_thresh3 values is low kernel might reject new entries during peerAdd. This will trigger the following
+				// extra logs that will inform of the possible issue.
+				// Entries created would not be deleted see documentation http://man7.org/linux/man-pages/man7/arp.7.html:
+				// Entries which are marked as permanent are never deleted by the garbage-collector.
+				// The time limit here is to guarantee that the dbSearch is not
+				// done too frequently causing a stall of the peerDB operations.
+				pKey, pEntry, err := n.driver.peerDbSearch(n.id, ip)
+				if err == nil && !pEntry.isLocal {
 					t = time.Now()
-					n.programNeighbor(ip)
+					logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresh on the host pKey:%+v pEntry:%+v err:%v",
+						neigh, l3Miss, l2Miss, *pKey, *pEntry, err)
 				}
 			}
 		}
-	}
-}
-
-func (n *network) programNeighbor(ip net.IP) {
-	peerMac, _, _, err := n.driver.peerDbSearch(n.id, ip)
-	if err != nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, no peer entry", ip)
-		return
-	}
-	s := n.getSubnetforIPAddr(ip)
-	if s == nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, not a valid subnet", ip)
-		return
-	}
-	sbox := n.sandbox()
-	if sbox == nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s, overlay sandbox missing", ip)
-		return
-	}
-	if err := sbox.AddNeighbor(ip, peerMac, true, sbox.NeighborOptions().LinkName(s.vxlanName)); err != nil {
-		logrus.Errorf("Reprogramming on L3 miss failed for %s: %v", ip, err)
-		return
 	}
 }
 
@@ -1058,7 +1035,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		}
 
 		if s.vni == 0 {
-			vxlanID, err := n.driver.vxlanIdm.GetID()
+			vxlanID, err := n.driver.vxlanIdm.GetID(true)
 			if err != nil {
 				return fmt.Errorf("failed to allocate vxlan id: %v", err)
 			}
@@ -1088,15 +1065,6 @@ func (n *network) contains(ip net.IP) bool {
 	}
 
 	return false
-}
-
-func (n *network) getSubnetforIPAddr(ip net.IP) *subnet {
-	for _, s := range n.subnets {
-		if s.subnetIP.Contains(ip) {
-			return s
-		}
-	}
-	return nil
 }
 
 // getSubnetforIP returns the subnet to which the given IP belongs

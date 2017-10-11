@@ -165,7 +165,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 	n.Unlock()
 
 	if vni == 0 {
-		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd)
+		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
 		if err != nil {
 			return err
 		}
