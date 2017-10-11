@@ -542,6 +542,7 @@ func (n *Node) Run(ctx context.Context) error {
 		n.done()
 	}()
 
+	// Flag that indicates if this manager node is *currently* the raft leader.
 	wasLeader := false
 	transferLeadershipLimit := rate.NewLimiter(rate.Every(time.Minute), 1)
 
@@ -563,10 +564,13 @@ func (n *Node) Run(ctx context.Context) error {
 				return errors.Wrap(err, "failed to save entries to storage")
 			}
 
+			// If the memory store lock has been held for too long,
+			// transferring leadership is an easy way to break out of it.
 			if wasLeader &&
 				(rd.SoftState == nil || rd.SoftState.RaftState == raft.StateLeader) &&
 				n.memoryStore.Wedged() &&
 				transferLeadershipLimit.Allow() {
+				log.G(ctx).Error("Attempting to transfer leadership")
 				if !n.opts.DisableStackDump {
 					signal.DumpStacks("")
 				}
@@ -612,6 +616,8 @@ func (n *Node) Run(ctx context.Context) error {
 			if rd.SoftState != nil {
 				if wasLeader && rd.SoftState.RaftState != raft.StateLeader {
 					wasLeader = false
+					log.G(ctx).Error("soft state changed, node no longer a leader, resetting and cancelling all waits")
+
 					if atomic.LoadUint32(&n.signalledLeadership) == 1 {
 						atomic.StoreUint32(&n.signalledLeadership, 0)
 						n.leadershipBroadcast.Publish(IsFollower)
@@ -630,6 +636,7 @@ func (n *Node) Run(ctx context.Context) error {
 					// cancelAll, or by its own check of signalledLeadership.
 					n.wait.cancelAll()
 				} else if !wasLeader && rd.SoftState.RaftState == raft.StateLeader {
+					// Node just became a leader.
 					wasLeader = true
 				}
 			}
@@ -1478,7 +1485,7 @@ func (n *Node) registerNode(node *api.RaftMember) error {
 	return nil
 }
 
-// ProposeValue calls Propose on the raft and waits
+// ProposeValue calls Propose on the underlying raft library(etcd/raft) and waits
 // on the commit log action before returning a result
 func (n *Node) ProposeValue(ctx context.Context, storeAction []api.StoreAction, cb func()) error {
 	ctx, cancel := n.WithContext(ctx)
@@ -1654,11 +1661,14 @@ func (n *Node) saveToStorage(
 	return nil
 }
 
-// processInternalRaftRequest sends a message to nodes participating
-// in the raft to apply a log entry and then waits for it to be applied
-// on the server. It will block until the update is performed, there is
-// an error or until the raft node finalizes all the proposals on node
-// shutdown.
+// processInternalRaftRequest proposes a value to be appended to the raft log.
+// It calls Propose() on etcd/raft, which calls back into the raft FSM,
+// which then sends a message to each of the participating nodes
+// in the raft group to apply a log entry and then waits for it to be applied
+// on this node. It will block until the this node:
+// 1. Gets the necessary replies back from the participating nodes and also performs the commit itself, or
+// 2. There is an error, or
+// 3. Until the raft node finalizes all the proposals on node shutdown.
 func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRaftRequest, cb func()) (proto.Message, error) {
 	n.stopMu.RLock()
 	if !n.IsMember() {
@@ -1679,6 +1689,7 @@ func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRa
 
 	// Do this check after calling register to avoid a race.
 	if atomic.LoadUint32(&n.signalledLeadership) != 1 {
+		log.G(ctx).Error("node is no longer leader, aborting propose")
 		n.wait.cancel(r.ID)
 		return nil, ErrLostLeadership
 	}
@@ -1703,14 +1714,23 @@ func (n *Node) processInternalRaftRequest(ctx context.Context, r *api.InternalRa
 	select {
 	case x, ok := <-ch:
 		if !ok {
+			// Wait notification channel was closed. This should only happen if the wait was cancelled.
+			log.G(ctx).Error("wait cancelled")
+			if atomic.LoadUint32(&n.signalledLeadership) == 1 {
+				log.G(ctx).Error("wait cancelled but node is still a leader")
+			}
 			return nil, ErrLostLeadership
 		}
 		return x.(proto.Message), nil
 	case <-waitCtx.Done():
 		n.wait.cancel(r.ID)
-		// if channel is closed, wait item was canceled, otherwise it was triggered
+		// If we can read from the channel, wait item was triggered. Otherwise it was cancelled.
 		x, ok := <-ch
 		if !ok {
+			log.G(ctx).WithError(waitCtx.Err()).Error("wait context cancelled")
+			if atomic.LoadUint32(&n.signalledLeadership) == 1 {
+				log.G(ctx).Error("wait context cancelled but node is still a leader")
+			}
 			return nil, ErrLostLeadership
 		}
 		return x.(proto.Message), nil
@@ -1779,21 +1799,26 @@ func (n *Node) processEntry(ctx context.Context, entry raftpb.Entry) error {
 	}
 
 	if !n.wait.trigger(r.ID, r) {
+		log.G(ctx).Errorf("wait not found for raft request id %x", r.ID)
+
 		// There was no wait on this ID, meaning we don't have a
 		// transaction in progress that would be committed to the
 		// memory store by the "trigger" call. Either a different node
 		// wrote this to raft, or we wrote it before losing the leader
-		// position and cancelling the transaction. Create a new
-		// transaction to commit the data.
+		// position and cancelling the transaction. This entry still needs
+		// to be committed since other nodes have already committed it.
+		// Create a new transaction to commit this entry.
 
 		// It should not be possible for processInternalRaftRequest
 		// to be running in this situation, but out of caution we
 		// cancel any current invocations to avoid a deadlock.
+		// TODO(anshul) This call is likely redundant, remove after consideration.
 		n.wait.cancelAll()
 
 		err := n.memoryStore.ApplyStoreActions(r.Action)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("failed to apply actions from raft")
+			// TODO(anshul) return err here ?
 		}
 	}
 	return nil

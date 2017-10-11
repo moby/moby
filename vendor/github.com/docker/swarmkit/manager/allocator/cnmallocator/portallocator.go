@@ -382,7 +382,7 @@ func (ps *portSpace) allocate(p *api.PortConfig) (err error) {
 	}
 
 	// Check out an arbitrary port from dynamic port space.
-	swarmPort, err := ps.dynamicPortSpace.GetID()
+	swarmPort, err := ps.dynamicPortSpace.GetID(true)
 	if err != nil {
 		return
 	}
