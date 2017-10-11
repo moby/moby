@@ -1298,7 +1298,10 @@ func setupDaemonProcess(config *config.Config) error {
 	if err := setupOOMScoreAdj(config.OOMScoreAdjust); err != nil {
 		return err
 	}
-	return setMayDetachMounts()
+	if err := setMayDetachMounts(); err != nil {
+		logrus.WithError(err).Warn("Could not set may_detach_mounts kernel parameter")
+	}
+	return nil
 }
 
 // This is used to allow removal of mountpoints that may be mounted in other
