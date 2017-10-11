@@ -50,6 +50,8 @@ info:
 
     In previous versions of Docker, it was possible to access the API without providing a version. This behaviour is now deprecated will be removed in a future version of Docker.
 
+    If the API version specified in the URL is not supported by the daemon, a HTTP `400 Bad Request` error message is returned.
+
     The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
 
     This documentation is for version 1.34 of the API. Use this table to find documentation for previous versions of the API:
