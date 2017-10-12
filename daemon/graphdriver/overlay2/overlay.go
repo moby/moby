@@ -303,6 +303,11 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 		"UpperDir":  path.Join(dir, "diff"),
 	}
 
+	projectID, err := d.quotaCtl.GetProjectID(dir)
+	if err == nil {
+		metadata["ProjectID"] = strconv.FormatInt(int64(projectID), 10)
+	}
+
 	lowerDirs, err := d.getLowerDirs(id)
 	if err != nil {
 		return nil, err
