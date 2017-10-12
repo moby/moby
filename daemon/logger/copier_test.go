@@ -65,7 +65,8 @@ func TestCopier(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog,
+		DefaultCopierBufferSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -105,7 +106,7 @@ func TestCopier(t *testing.T) {
 // TestCopierLongLines tests long lines without line breaks
 func TestCopierLongLines(t *testing.T) {
 	// Long lines (should be split at "bufSize")
-	const bufSize = 16 * 1024
+	bufSize := int(DefaultCopierBufferSize)
 	stdoutLongLine := strings.Repeat("a", bufSize)
 	stderrLongLine := strings.Repeat("b", bufSize)
 	stdoutTrailingLine := "stdout trailing line"
@@ -139,7 +140,8 @@ func TestCopierLongLines(t *testing.T) {
 			"stdout": &stdout,
 			"stderr": &stderr,
 		},
-		jsonLog)
+		jsonLog,
+		DefaultCopierBufferSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -189,7 +191,7 @@ func TestCopierSlow(t *testing.T) {
 	//encoder := &encodeCloser{Encoder: json.NewEncoder(&jsonBuf)}
 	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf), delay: 100 * time.Millisecond}
 
-	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog)
+	c := NewCopier(map[string]io.Reader{"stdout": &stdout}, jsonLog, DefaultCopierBufferSize)
 	c.Run()
 	wait := make(chan struct{})
 	go func() {
@@ -288,7 +290,8 @@ func benchmarkCopier(b *testing.B, length int) {
 			map[string]io.Reader{
 				"buffer": piped(b, 10, time.Nanosecond, buf),
 			},
-			&BenchmarkLoggerDummy{})
+			&BenchmarkLoggerDummy{},
+			DefaultCopierBufferSize)
 		c.Run()
 		c.Wait()
 		c.Close()

@@ -962,7 +962,15 @@ func (container *Container) startLogging() error {
 		return fmt.Errorf("failed to initialize logging driver: %v", err)
 	}
 
-	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l)
+	bufSize := logger.DefaultCopierBufferSize
+	if s, exists := container.HostConfig.LogConfig.Config["max-line-length"]; exists {
+		bufSize, err = units.RAMInBytes(s)
+		if err != nil {
+			return err
+		}
+	}
+
+	copier := logger.NewCopier(map[string]io.Reader{"stdout": container.StdoutPipe(), "stderr": container.StderrPipe()}, l, bufSize)
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l
