@@ -43,6 +43,10 @@ func (e versionUnsupportedError) InvalidParameter() {}
 // WrapHandler returns a new handler function wrapping the previous one in the request chain.
 func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error) func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	return func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+		w.Header().Set("Server", fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS))
+		w.Header().Set("API-Version", v.defaultVersion)
+		w.Header().Set("OSType", runtime.GOOS)
+
 		apiVersion := vars["version"]
 		if apiVersion == "" {
 			apiVersion = v.defaultVersion
@@ -53,11 +57,6 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		if versions.GreaterThan(apiVersion, v.defaultVersion) {
 			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultVersion}
 		}
-
-		header := fmt.Sprintf("Docker/%s (%s)", v.serverVersion, runtime.GOOS)
-		w.Header().Set("Server", header)
-		w.Header().Set("API-Version", v.defaultVersion)
-		w.Header().Set("OSType", runtime.GOOS)
 		// nolint: golint
 		ctx = context.WithValue(ctx, "api-version", apiVersion)
 		return handler(ctx, w, r, vars)
