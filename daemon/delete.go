@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/volume"
 	volumestore "github.com/docker/docker/volume/store"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -148,10 +149,19 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 // If the volume is referenced by a container it is not removed
 // This is called directly from the Engine API
 func (daemon *Daemon) VolumeRm(name string, force bool) error {
-	err := daemon.volumeRm(name)
+	v, err := daemon.volumes.Get(name)
+	if err != nil {
+		if force && volumestore.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+
+	err = daemon.volumeRm(v)
 	if err != nil && volumestore.IsInUse(err) {
 		return stateConflictError{err}
 	}
+
 	if err == nil || force {
 		daemon.volumes.Purge(name)
 		return nil
@@ -159,12 +169,7 @@ func (daemon *Daemon) VolumeRm(name string, force bool) error {
 	return err
 }
 
-func (daemon *Daemon) volumeRm(name string) error {
-	v, err := daemon.volumes.Get(name)
-	if err != nil {
-		return err
-	}
-
+func (daemon *Daemon) volumeRm(v volume.Volume) error {
 	if err := daemon.volumes.Remove(v); err != nil {
 		return errors.Wrap(err, "unable to remove volume")
 	}
