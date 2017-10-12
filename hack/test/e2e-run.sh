@@ -8,7 +8,13 @@ TIMEOUT=${TIMEOUT:-60m}
 
 SCRIPTDIR="$(dirname ${BASH_SOURCE[0]})"
 
-export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-amd64}
+if [ $(uname -m) == "x86_64" ]; then
+  ARCH="amd64"
+else
+  ARCH=$(uname -m)
+fi
+
+export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-${ARCH}}
 
 run_test_integration() {
   run_test_integration_suites
@@ -37,5 +43,14 @@ run_test_integration_legacy_suites() {
 
 bash $SCRIPTDIR/ensure-emptyfs.sh
 
+echo "ARCH: ${ARCH}"
+echo "DOCKER_ENGINE_GOARCH: ${DOCKER_ENGINE_GOARCH}"
+echo "DOCKER_INTEGRATION_DAEMON_DEST: ${DOCKER_INTEGRATION_DAEMON_DEST}"
+echo "DOCKER_REMOTE_DAEMON: ${DOCKER_REMOTE_DAEMON}"
+echo "TESTFLAGS: ${TESTFLAGS}"
+echo "TESTFLAGS_LEGACY: ${TESTFLAGS_LEGACY}"
+echo "TIMEOUT: ${TIMEOUT}"
+echo ""
 echo "Run integration tests"
+
 run_test_integration
