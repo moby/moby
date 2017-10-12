@@ -5,6 +5,9 @@ import (
 	"bytes"
 	"math/rand"
 	"strings"
+	"unicode/utf8"
+
+	"golang.org/x/text/width"
 )
 
 // GenerateRandomAlphaOnlyString generates an alphabetical random string with length n.
@@ -33,14 +36,49 @@ func GenerateRandomASCIIString(n int) string {
 // Ellipsis truncates a string to fit within maxlen, and appends ellipsis (...).
 // For maxlen of 3 and lower, no ellipsis is appended.
 func Ellipsis(s string, maxlen int) string {
-	r := []rune(s)
-	if len(r) <= maxlen {
+	byteLen := len(s)
+	if byteLen == utf8.RuneCountInString(s) {
+		r := []rune(s)
+		if byteLen <= maxlen {
+			return s
+		}
+		if maxlen <= 3 {
+			return string(r[:maxlen])
+		}
+		return string(r[:maxlen-3]) + "..."
+	}
+
+	var display []int
+	displayLen := 0
+	rs := []rune(s)
+	for _, r := range rs {
+		//In a broad sense, wide characters include East Asian Wide, East Asian Fullwidth, and East Asian Ambiguous,
+		//see http://unicode.org/reports/tr11/
+		kind := width.LookupRune(r).Kind()
+		if kind == width.EastAsianAmbiguous || kind == width.EastAsianWide || kind == width.EastAsianFullwidth {
+			displayLen += 2
+			display = append(display, displayLen)
+		} else {
+			displayLen++
+			display = append(display, displayLen)
+		}
+	}
+	if displayLen <= maxlen {
 		return s
 	}
 	if maxlen <= 3 {
-		return string(r[:maxlen])
+		for i := range display {
+			if display[i] <= maxlen && display[i+1] > maxlen {
+				return string(rs[:i+1])
+			}
+		}
 	}
-	return string(r[:maxlen-3]) + "..."
+	for i := range display {
+		if display[i] <= maxlen-3 && display[i+1] > maxlen-3 {
+			s = string(rs[:i+1]) + "..."
+		}
+	}
+	return s
 }
 
 // Truncate truncates a string to maxlen.

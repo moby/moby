@@ -60,17 +60,32 @@ func TestGenerateRandomAsciiStringIsAscii(t *testing.T) {
 func TestEllipsis(t *testing.T) {
 	str := "t🐳ststring"
 	newstr := Ellipsis(str, 3)
-	if newstr != "t🐳s" {
-		t.Fatalf("Expected t🐳s, got %s", newstr)
+	if newstr != "t🐳" {
+		t.Fatalf("Expected t🐳, got %s", newstr)
 	}
 	newstr = Ellipsis(str, 8)
-	if newstr != "t🐳sts..." {
-		t.Fatalf("Expected tests..., got %s", newstr)
+	if newstr != "t🐳st..." {
+		t.Fatalf("Expected t🐳st..., got %s", newstr)
 	}
 	newstr = Ellipsis(str, 20)
 	if newstr != "t🐳ststring" {
 		t.Fatalf("Expected t🐳ststring, got %s", newstr)
 	}
+
+	strCJK := "你好世界teststring"
+	newstrCJK := Ellipsis(strCJK, 3)
+	if newstrCJK != "你" {
+		t.Fatalf("Expected 你, got %s", newstrCJK)
+	}
+	newstrCJK = Ellipsis(strCJK, 8)
+	if newstrCJK != "你好..." {
+		t.Fatalf("Expected 你好..., got %s", newstrCJK)
+	}
+	newstrCJK = Ellipsis(strCJK, 20)
+	if newstrCJK != "你好世界teststring" {
+		t.Fatalf("Expected 你好世界teststring, got %s", newstrCJK)
+	}
+
 }
 
 func TestTruncate(t *testing.T) {
