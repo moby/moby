@@ -2789,7 +2789,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *check.C) {
 	case <-time.After(5 * time.Second):
 	}
 
-	expectedMessage := `level=debug msg="start clean shutdown of all containers with a 3 seconds timeout..."`
+	expectedMessage := `level=debug msg="daemon configured with a 3 seconds minimum shutdown timeout"`
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(content), checker.Contains, expectedMessage)
