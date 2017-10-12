@@ -13,4 +13,4 @@ test:
   override:
     - make circle-ci
   post:
-    - bash <(curl -s https://codecov.io/bash)
+    - bash <(curl -s https://codecov.io/bash) -C "$(git log --format="%H" -n 1)"
