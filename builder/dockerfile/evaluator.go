@@ -32,7 +32,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func dispatch(d dispatchRequest, cmd instructions.Command) error {
+func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
 		optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
 		err := c.CheckPlatform(optionsOS)
@@ -52,10 +52,16 @@ func dispatch(d dispatchRequest, cmd instructions.Command) error {
 		}
 	}
 
-	if d.builder.options.ForceRemove {
-		defer d.builder.containerManager.RemoveAll(d.builder.Stdout)
-	}
-
+	defer func() {
+		if d.builder.options.ForceRemove {
+			d.builder.containerManager.RemoveAll(d.builder.Stdout)
+			return
+		}
+		if d.builder.options.Remove && err == nil {
+			d.builder.containerManager.RemoveAll(d.builder.Stdout)
+			return
+		}
+	}()
 	switch c := cmd.(type) {
 	case *instructions.EnvCommand:
 		return dispatchEnv(d, c)

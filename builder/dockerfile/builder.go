@@ -322,7 +322,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 			if err := dispatch(dispatchRequest, cmd); err != nil {
 				return nil, err
 			}
-
 			dispatchRequest.state.updateRunConfig()
 			fmt.Fprintf(b.Stdout, " ---> %s\n", stringid.TruncateID(dispatchRequest.state.imageID))
 
@@ -334,9 +333,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 		if err := commitStage(dispatchRequest.state, stagesResults); err != nil {
 			return nil, err
 		}
-	}
-	if b.options.Remove {
-		b.containerManager.RemoveAll(b.Stdout)
 	}
 	buildArgs.WarnOnUnusedBuildArgs(b.Stdout)
 	return dispatchRequest.state, nil
