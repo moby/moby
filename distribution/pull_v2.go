@@ -581,8 +581,8 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			cancel()
 		} else {
 			configErrChan <- nil
+			configChan <- configJSON
 		}
-		configChan <- configJSON
 	}()
 
 	var (
@@ -707,7 +707,6 @@ func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan 
 		// Don't need a case for ctx.Done in the select because cancellation
 		// will trigger an error in p.pullSchema2ImageConfig.
 	}
-
 	rootfs, os, err := s.RootFSAndOSFromConfig(configJSON)
 	if err != nil {
 		return nil, nil, "", err
