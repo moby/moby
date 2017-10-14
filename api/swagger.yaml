@@ -159,77 +159,6 @@ tags:
     x-displayName: "System"
 
 definitions:
-  ServiceCreateBody:
-    allOf:
-      - $ref: "#/definitions/ServiceSpec"
-      - type: "object"
-        example:
-          Name: "web"
-          TaskTemplate:
-            ContainerSpec:
-              Image: "nginx:alpine"
-              Mounts:
-                -
-                  ReadOnly: true
-                  Source: "web-data"
-                  Target: "/usr/share/nginx/html"
-                  Type: "volume"
-                  VolumeOptions:
-                    DriverConfig: {}
-                    Labels:
-                      com.example.something: "something-value"
-              Hosts: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
-              User: "33"
-              DNSConfig:
-                Nameservers: ["8.8.8.8"]
-                Search: ["example.org"]
-                Options: ["timeout:3"]
-              Secrets:
-                -
-                  File:
-                    Name: "www.example.org.key"
-                    UID: "33"
-                    GID: "33"
-                    Mode: 384
-                  SecretID: "fpjqlhnwb19zds35k8wn80lq9"
-                  SecretName: "example_org_domain_key"
-            LogDriver:
-              Name: "json-file"
-              Options:
-                max-file: "3"
-                max-size: "10M"
-            Placement: {}
-            Resources:
-              Limits:
-                MemoryBytes: 104857600
-              Reservations: {}
-            RestartPolicy:
-              Condition: "on-failure"
-              Delay: 10000000000
-              MaxAttempts: 10
-          Mode:
-            Replicated:
-              Replicas: 4
-          UpdateConfig:
-            Parallelism: 2
-            Delay: 1000000000
-            FailureAction: "pause"
-            Monitor: 15000000000
-            MaxFailureRatio: 0.15
-          RollbackConfig:
-            Parallelism: 1
-            Delay: 1000000000
-            FailureAction: "pause"
-            Monitor: 15000000000
-            MaxFailureRatio: 0.15
-          EndpointSpec:
-            Ports:
-              -
-                Protocol: "tcp"
-                PublishedPort: 8080
-                TargetPort: 80
-          Labels:
-            foo: "bar"
   SecretCreateBody:
     allOf:
       - $ref: "#/definitions/SecretSpec"
@@ -490,9 +419,11 @@ definitions:
       Target:
         description: "Container path."
         type: "string"
+        example: "/usr/share/nginx/html"
       Source:
         description: "Mount source (e.g. a volume name, a host path)."
         type: "string"
+        example: "web-data"
       Type:
         description: |
           The mount type. Available types:
@@ -505,9 +436,11 @@ definitions:
           - "bind"
           - "volume"
           - "tmpfs"
+        example: "volume"
       ReadOnly:
         description: "Whether the mount should be read-only."
         type: "boolean"
+        example: true
       Consistency:
         description: "The consistency requirement for the mount: `default`, `consistent`, `cached`, or `delegated`."
         type: "string"
@@ -537,6 +470,8 @@ definitions:
             type: "object"
             additionalProperties:
               type: "string"
+            example:
+              com.example.something: "something-value"
           DriverConfig:
             description: "Map of driver specific options"
             type: "object"
@@ -2762,6 +2697,7 @@ definitions:
           User:
             description: "The user inside the container."
             type: "string"
+            example: "33"
           Groups:
             type: "array"
             description: "A list of additional groups that the container process will run as."
@@ -2852,6 +2788,7 @@ definitions:
                   IP_address canonical_hostname [aliases...]
             items:
               type: "string"
+            example: ["10.10.10.10 host1", "ABCD:EF01:2345:6789:ABCD:EF01:2345:6789 host2"]
           DNSConfig:
             description: "Specification for DNS related configurations in resolver configuration file (`resolv.conf`)."
             type: "object"
@@ -2861,16 +2798,19 @@ definitions:
                 type: "array"
                 items:
                   type: "string"
+                example: ["8.8.8.8"]
               Search:
                 description: "A search list for host-name lookup."
                 type: "array"
                 items:
                   type: "string"
+                example: ["example.org"]
               Options:
                 description: "A list of internal resolver variables to be modified (e.g., `debug`, `ndots:3`, etc.)."
                 type: "array"
                 items:
                   type: "string"
+                example: ["timeout:3"]
           Secrets:
             description: "Secrets contains references to zero or more secrets that will be exposed to the service."
             type: "array"
@@ -2884,24 +2824,30 @@ definitions:
                     Name:
                       description: "Name represents the final filename in the filesystem."
                       type: "string"
+                      example: "www.example.org.key"
                     UID:
                       description: "UID represents the file UID."
                       type: "string"
+                      example: "33"
                     GID:
                       description: "GID represents the file GID."
                       type: "string"
+                      example: "33"
                     Mode:
                       description: "Mode represents the FileMode of the file."
                       type: "integer"
                       format: "uint32"
+                      example: 384
                 SecretID:
                   description: "SecretID represents the ID of the specific secret that we're referencing."
                   type: "string"
+                  example: "fpjqlhnwb19zds35k8wn80lq9"
                 SecretName:
                   description: |
                     SecretName is the name of the secret that this references, but this is just provided for
                     lookup/display purposes. The secret in the reference will be identified by its ID.
                   type: "string"
+                  example: "example_org_domain_key"
           Configs:
             description: "Configs contains references to zero or more configs that will be exposed to the service."
             type: "array"
@@ -2960,6 +2906,7 @@ definitions:
             description: "Delay between restart attempts."
             type: "integer"
             format: "int64"
+            example: 10000000000
           MaxAttempts:
             description: "Maximum attempts to restart a given container before giving up (default value is 0, which is ignored)."
             type: "integer"
@@ -3033,10 +2980,14 @@ definitions:
         properties:
           Name:
             type: "string"
+            example: "json-file"
           Options:
             type: "object"
             additionalProperties:
               type: "string"
+            example:
+              max-file: "3"
+              max-size: "10M"
 
   TaskState:
     type: "string"
@@ -3306,12 +3257,15 @@ definitions:
         enum:
           - "tcp"
           - "udp"
+        example: "tcp"
       TargetPort:
         description: "The port inside the container."
         type: "integer"
+        example: 80
       PublishedPort:
         description: "The port on the swarm hosts."
         type: "integer"
+        example: 8080
       PublishMode:
         description: |
           The mode in which port is published.
@@ -8973,7 +8927,7 @@ paths:
           in: "body"
           required: true
           schema:
-            $ref: "#/definitions/ServiceCreateBody"
+            $ref: "#/definitions/ServiceSpec"
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
