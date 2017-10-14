@@ -16,7 +16,7 @@ run_test_integration() {
 }
 
 run_test_integration_suites() {
-  local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
+  local flags="-test.timeout=${TIMEOUT} $TESTFLAGS"
   for dir in /tests/integration/*; do
     if ! (
       cd $dir
@@ -28,7 +28,7 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
   (
-    flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS_LEGACY"
+    flags="-check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS_LEGACY"
     cd /tests/integration-cli
     echo "Running $PWD"
     ./test.main $flags
