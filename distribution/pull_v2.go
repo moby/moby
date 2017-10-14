@@ -576,9 +576,11 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	go func() {
 		configJSON, err := p.pullSchema2Config(ctx, target.Digest)
 		if err != nil {
+			configChan <- nil
 			configErrChan <- ImageConfigPullError{Err: err}
 			cancel()
-			return
+		} else {
+			configErrChan <- nil
 		}
 		configChan <- configJSON
 	}()
@@ -699,18 +701,18 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 }
 
 func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, layer.OS, error) {
-	select {
-	case configJSON := <-configChan:
-		rootfs, os, err := s.RootFSAndOSFromConfig(configJSON)
-		if err != nil {
-			return nil, nil, "", err
-		}
-		return configJSON, rootfs, os, nil
-	case err := <-errChan:
+	configJSON, err := <-configChan, <-errChan
+	if err != nil {
 		return nil, nil, "", err
 		// Don't need a case for ctx.Done in the select because cancellation
 		// will trigger an error in p.pullSchema2ImageConfig.
 	}
+
+	rootfs, os, err := s.RootFSAndOSFromConfig(configJSON)
+	if err != nil {
+		return nil, nil, "", err
+	}
+	return configJSON, rootfs, os, nil
 }
 
 // pullManifestList handles "manifest lists" which point to various
