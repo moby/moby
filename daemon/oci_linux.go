@@ -26,6 +26,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 // nolint: gosimple
@@ -469,6 +470,38 @@ func ensureSharedOrSlave(path string) error {
 	return nil
 }
 
+// Get the set of mount flags that are set on the mount that contains the given
+// path and are locked by CL_UNPRIVILEGED. This is necessary to ensure that
+// bind-mounting "with options" will not fail with user namespaces, due to
+// kernel restrictions that require user namespace mounts to preserve
+// CL_UNPRIVILEGED locked flags.
+func getUnprivilegedMountFlags(path string) ([]string, error) {
+	var statfs unix.Statfs_t
+	if err := unix.Statfs(path, &statfs); err != nil {
+		return nil, err
+	}
+
+	// The set of keys come from https://github.com/torvalds/linux/blob/v4.13/fs/namespace.c#L1034-L1048.
+	unprivilegedFlags := map[uint64]string{
+		unix.MS_RDONLY:     "ro",
+		unix.MS_NODEV:      "nodev",
+		unix.MS_NOEXEC:     "noexec",
+		unix.MS_NOSUID:     "nosuid",
+		unix.MS_NOATIME:    "noatime",
+		unix.MS_RELATIME:   "relatime",
+		unix.MS_NODIRATIME: "nodiratime",
+	}
+
+	var flags []string
+	for mask, flag := range unprivilegedFlags {
+		if uint64(statfs.Flags)&mask == mask {
+			flags = append(flags, flag)
+		}
+	}
+
+	return flags, nil
+}
+
 var (
 	mountPropagationMap = map[string]int{
 		"private":  mount.PRIVATE,
@@ -573,6 +606,19 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 		if pFlag != 0 {
 			opts = append(opts, mountPropagationReverseMap[pFlag])
+		}
+
+		// If we are using user namespaces, then we must make sure that we
+		// don't drop any of the CL_UNPRIVILEGED "locked" flags of the source
+		// "mount" when we bind-mount. The reason for this is that at the point
+		// when runc sets up the root filesystem, it is already inside a user
+		// namespace, and thus cannot change any flags that are locked.
+		if daemon.configStore.RemappedRoot != "" {
+			unprivOpts, err := getUnprivilegedMountFlags(m.Source)
+			if err != nil {
+				return err
+			}
+			opts = append(opts, unprivOpts...)
 		}
 
 		mt.Options = opts
