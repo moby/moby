@@ -105,7 +105,7 @@ func ParseCommand(node *parser.Node) (Command, error) {
 	return nil, errors.Errorf("%T is not a command type", s)
 }
 
-// UnknownInstruction represents an error occuring when a command is unresolvable
+// UnknownInstruction represents an error occurring when a command is unresolvable
 type UnknownInstruction struct {
 	Line        int
 	Instruction string
