@@ -55,7 +55,7 @@ install_dockercli() {
 	# No official release of these platforms
 	if [[ "$arch" != "x86_64" ]] && [[ "$arch" != "s390x" ]]; then
 		build_dockercli
-		return
+		return 0
 	fi
 
 	url=https://download.docker.com/linux/static
