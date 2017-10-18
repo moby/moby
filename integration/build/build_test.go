@@ -17,6 +17,7 @@ import (
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
+	defer setupTest(t)()
 	t.Parallel()
 	cases := []struct {
 		name                           string

@@ -6,9 +6,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/fixtures/load"
 	"github.com/stretchr/testify/require"
 )
+
+var frozenImages = []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
 
 type protectedElements struct {
 	containers map[string]struct{}
@@ -83,7 +84,7 @@ func ProtectImages(t testingT, testEnv *Execution) {
 	images := getExistingImages(t, testEnv)
 
 	if testEnv.OSType == "linux" {
-		images = append(images, ensureFrozenImagesLinux(t, testEnv)...)
+		images = append(images, frozenImages...)
 	}
 	testEnv.ProtectImage(t, images...)
 }
@@ -118,15 +119,6 @@ func tagsFromImageSummary(image types.ImageSummary) []string {
 		}
 	}
 	return result
-}
-
-func ensureFrozenImagesLinux(t testingT, testEnv *Execution) []string {
-	images := []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
-	err := load.FrozenImagesLinux(testEnv.APIClient(), images...)
-	if err != nil {
-		t.Fatalf("Failed to load frozen images: %s", err)
-	}
-	return images
 }
 
 // ProtectNetwork adds the specified network(s) to be protected in case of
