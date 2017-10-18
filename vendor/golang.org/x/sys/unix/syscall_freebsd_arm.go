@@ -11,8 +11,6 @@ import (
 	"unsafe"
 )
 
-func Getpagesize() int { return 4096 }
-
 func TimespecToNsec(ts Timespec) int64 { return ts.Sec*1e9 + int64(ts.Nsec) }
 
 func NsecToTimespec(nsec int64) (ts Timespec) {

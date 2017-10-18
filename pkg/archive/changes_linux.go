@@ -294,7 +294,7 @@ func OverlayChanges(layers []string, rw string) ([]Change, error) {
 func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 	if fi.Mode()&os.ModeCharDevice != 0 {
 		s := fi.Sys().(*syscall.Stat_t)
-		if major(s.Rdev) == 0 && minor(s.Rdev) == 0 {
+		if unix.Major(uint64(s.Rdev)) == 0 && unix.Minor(uint64(s.Rdev)) == 0 { // nolint: unconvert
 			return path, nil
 		}
 	}

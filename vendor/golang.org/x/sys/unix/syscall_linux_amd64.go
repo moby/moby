@@ -69,8 +69,6 @@ func Gettimeofday(tv *Timeval) (err error) {
 	return nil
 }
 
-func Getpagesize() int { return 4096 }
-
 func Time(t *Time_t) (tt Time_t, err error) {
 	var tv Timeval
 	errno := gettimeofday(&tv)
