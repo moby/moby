@@ -42,7 +42,7 @@ type AttachmentStore struct {
 	networkToNodeLBIP map[string]net.IP
 }
 
-// ResetAttachments clears any exsiting load balancer IP to network mapping and
+// ResetAttachments clears any existing load balancer IP to network mapping and
 // sets the mapping to the given attachments.
 func (store *AttachmentStore) ResetAttachments(attachments map[string]string) error {
 	store.ClearAttachments()

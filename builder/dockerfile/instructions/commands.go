@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 )
 
-// KeyValuePair represent an arbitrary named value (usefull in slice insted of map[string] string to preserve ordering)
+// KeyValuePair represent an arbitrary named value (useful in slice insted of map[string] string to preserve ordering)
 type KeyValuePair struct {
 	Key   string
 	Value string

@@ -42,7 +42,7 @@ func linuxValidateAbsolute(p string) error {
 }
 func (p *linuxParser) validateMountConfig(mnt *mount.Mount) error {
 	// there was something looking like a bug in existing codebase:
-	// - validateMountConfig on linux was called with options skipping bind source existance when calling ParseMountRaw
+	// - validateMountConfig on linux was called with options skipping bind source existence when calling ParseMountRaw
 	// - but not when calling ParseMountSpec directly... nor when the unit test called it directly
 	return p.validateMountConfigImpl(mnt, true)
 }
