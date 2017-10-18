@@ -499,7 +499,10 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 					// without doing a delete of all the objects
 					entry.ltime++
 				}
-				nDB.createOrUpdateEntry(nid, tname, key, entry)
+
+				if !oldEntry.deleting {
+					nDB.createOrUpdateEntry(nid, tname, key, entry)
+				}
 			} else {
 				// the local node is leaving the network, all the entries of remote nodes can be safely removed
 				nDB.deleteEntry(nid, tname, key)
