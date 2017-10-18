@@ -2688,6 +2688,13 @@ definitions:
               - "default"
               - "process"
               - "hyperv"
+      NetworkAttachmentSpec:
+        description: "Read-only spec type for non-swarm containers attached to swarm overlay networks"
+        type: "object"
+        properties:
+          ContainerID:
+            description: "ID of the container represented by this task"
+            type: "string"
       Resources:
         description: "Resource requirements which apply to each individual container created as part of the service."
         type: "object"

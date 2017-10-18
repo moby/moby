@@ -17,6 +17,8 @@ import (
 var (
 	// ErrUnsupportedRuntime returns an error if the runtime is not supported by the daemon
 	ErrUnsupportedRuntime = errors.New("unsupported runtime")
+	// ErrMismatchedRuntime returns an error if the runtime does not match the provided spec
+	ErrMismatchedRuntime = errors.New("mismatched Runtime and *Spec fields")
 )
 
 // ServiceFromGRPC converts a grpc Service to a Service.
@@ -176,15 +178,18 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 				return swarmapi.ServiceSpec{}, err
 			}
 			spec.Task.Runtime = &swarmapi.TaskSpec_Container{Container: containerSpec}
+		} else {
+			// If the ContainerSpec is nil, we can't set the task runtime
+			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
 		}
 	case types.RuntimePlugin:
-		if s.Mode.Replicated != nil {
-			return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
-		}
-
-		s.Mode.Global = &types.GlobalService{} // must always be global
-
 		if s.TaskTemplate.PluginSpec != nil {
+			if s.Mode.Replicated != nil {
+				return swarmapi.ServiceSpec{}, errors.New("plugins must not use replicated mode")
+			}
+
+			s.Mode.Global = &types.GlobalService{} // must always be global
+
 			pluginSpec, err := proto.Marshal(s.TaskTemplate.PluginSpec)
 			if err != nil {
 				return swarmapi.ServiceSpec{}, err
@@ -198,7 +203,16 @@ func ServiceSpecToGRPC(s types.ServiceSpec) (swarmapi.ServiceSpec, error) {
 					},
 				},
 			}
+		} else {
+			return swarmapi.ServiceSpec{}, ErrMismatchedRuntime
 		}
+	case types.RuntimeNetworkAttachment:
+		// NOTE(dperny) I'm leaving this case here for completeness. The actual
+		// code is left out out deliberately, as we should refuse to parse a
+		// Network Attachment runtime; it will cause weird behavior all over
+		// the system if we do. Instead, fallthrough and return
+		// ErrUnsupportedRuntime if we get one.
+		fallthrough
 	default:
 		return swarmapi.ServiceSpec{}, ErrUnsupportedRuntime
 	}
@@ -573,6 +587,12 @@ func updateConfigToGRPC(updateConfig *types.UpdateConfig) (*swarmapi.UpdateConfi
 	return converted, nil
 }
 
+func networkAttachmentSpecFromGRPC(attachment swarmapi.NetworkAttachmentSpec) *types.NetworkAttachmentSpec {
+	return &types.NetworkAttachmentSpec{
+		ContainerID: attachment.ContainerID,
+	}
+}
+
 func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 	taskNetworks := make([]types.NetworkAttachmentConfig, 0, len(taskSpec.Networks))
 	for _, n := range taskSpec.Networks {
@@ -607,6 +627,12 @@ func taskSpecFromGRPC(taskSpec swarmapi.TaskSpec) (types.TaskSpec, error) {
 				t.PluginSpec = &p
 			}
 		}
+	case *swarmapi.TaskSpec_Attachment:
+		a := taskSpec.GetAttachment()
+		if a != nil {
+			t.NetworkAttachmentSpec = networkAttachmentSpecFromGRPC(*a)
+		}
+		t.Runtime = types.RuntimeNetworkAttachment
 	}
 
 	return t, nil
