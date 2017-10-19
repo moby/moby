@@ -54,9 +54,10 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 		sa := windows.SecurityAttributes{
 			Length: 0,
 		}
-		ev, _ := windows.UTF16PtrFromString("Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid()))
+		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
+		ev, _ := windows.UTF16PtrFromString(event)
 		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", ev)
+			logrus.Debugf("Config reload - waiting signal at %s", event)
 			for {
 				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
