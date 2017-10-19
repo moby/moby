@@ -50,8 +50,8 @@ func setHeaderForSpecialDevice(hdr *tar.Header, name string, stat interface{}) (
 		// Currently go does not fill in the major/minors
 		if s.Mode&unix.S_IFBLK != 0 ||
 			s.Mode&unix.S_IFCHR != 0 {
-			hdr.Devmajor = int64(major(uint64(s.Rdev))) // nolint: unconvert
-			hdr.Devminor = int64(minor(uint64(s.Rdev))) // nolint: unconvert
+			hdr.Devmajor = int64(unix.Major(uint64(s.Rdev))) // nolint: unconvert
+			hdr.Devminor = int64(unix.Minor(uint64(s.Rdev))) // nolint: unconvert
 		}
 	}
 
@@ -75,14 +75,6 @@ func getFileUIDGID(stat interface{}) (idtools.IDPair, error) {
 		return idtools.IDPair{}, errors.New("cannot convert stat value to syscall.Stat_t")
 	}
 	return idtools.IDPair{UID: int(s.Uid), GID: int(s.Gid)}, nil
-}
-
-func major(device uint64) uint64 {
-	return (device >> 8) & 0xfff
-}
-
-func minor(device uint64) uint64 {
-	return (device & 0xff) | ((device >> 12) & 0xfff00)
 }
 
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by

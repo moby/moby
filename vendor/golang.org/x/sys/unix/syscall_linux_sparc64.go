@@ -6,11 +6,6 @@
 
 package unix
 
-import (
-	"sync/atomic"
-	"syscall"
-)
-
 //sys	EpollWait(epfd int, events []EpollEvent, msec int) (n int, err error)
 //sys	Dup2(oldfd int, newfd int) (err error)
 //sys	Fchown(fd int, uid int, gid int) (err error)
@@ -62,21 +57,6 @@ import (
 //sys	recvmsg(s int, msg *Msghdr, flags int) (n int, err error)
 //sys	sendmsg(s int, msg *Msghdr, flags int) (n int, err error)
 //sys	mmap(addr uintptr, length uintptr, prot int, flags int, fd int, offset int64) (xaddr uintptr, err error)
-
-func sysconf(name int) (n int64, err syscall.Errno)
-
-// pageSize caches the value of Getpagesize, since it can't change
-// once the system is booted.
-var pageSize int64 // accessed atomically
-
-func Getpagesize() int {
-	n := atomic.LoadInt64(&pageSize)
-	if n == 0 {
-		n, _ = sysconf(_SC_PAGESIZE)
-		atomic.StoreInt64(&pageSize, n)
-	}
-	return int(n)
-}
 
 func Ioperm(from int, num int, on int) (err error) {
 	return ENOSYS

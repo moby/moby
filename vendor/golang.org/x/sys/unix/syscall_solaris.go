@@ -13,7 +13,6 @@
 package unix
 
 import (
-	"sync/atomic"
 	"syscall"
 	"unsafe"
 )
@@ -515,6 +514,24 @@ func Acct(path string) (err error) {
 	return acct(pathp)
 }
 
+//sys	__makedev(version int, major uint, minor uint) (val uint64)
+
+func Mkdev(major, minor uint32) uint64 {
+	return __makedev(NEWDEV, uint(major), uint(minor))
+}
+
+//sys	__major(version int, dev uint64) (val uint)
+
+func Major(dev uint64) uint32 {
+	return uint32(__major(NEWDEV, dev))
+}
+
+//sys	__minor(version int, dev uint64) (val uint)
+
+func Minor(dev uint64) uint32 {
+	return uint32(__minor(NEWDEV, dev))
+}
+
 /*
  * Expose the ioctl function
  */
@@ -613,6 +630,7 @@ func IoctlGetTermio(fd int, req uint) (*Termio, error) {
 //sys	Mlock(b []byte) (err error)
 //sys	Mlockall(flags int) (err error)
 //sys	Mprotect(b []byte, prot int) (err error)
+//sys	Msync(b []byte, flags int) (err error)
 //sys	Munlock(b []byte) (err error)
 //sys	Munlockall() (err error)
 //sys	Nanosleep(time *Timespec, leftover *Timespec) (err error)
@@ -698,19 +716,4 @@ func Mmap(fd int, offset int64, length int, prot int, flags int) (data []byte, e
 
 func Munmap(b []byte) (err error) {
 	return mapper.Munmap(b)
-}
-
-//sys	sysconf(name int) (n int64, err error)
-
-// pageSize caches the value of Getpagesize, since it can't change
-// once the system is booted.
-var pageSize int64 // accessed atomically
-
-func Getpagesize() int {
-	n := atomic.LoadInt64(&pageSize)
-	if n == 0 {
-		n, _ = sysconf(_SC_PAGESIZE)
-		atomic.StoreInt64(&pageSize, n)
-	}
-	return int(n)
 }
