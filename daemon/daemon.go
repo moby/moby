@@ -667,7 +667,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		RegistryService:    registryService,
 		LiveRestoreEnabled: config.LiveRestoreEnabled,
 		LogPluginEvent:     d.LogPluginEvent, // todo: make private
-		AuthzMiddleware:    config.AuthzMiddleware,
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")

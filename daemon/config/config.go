@@ -12,9 +12,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/authorization"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"

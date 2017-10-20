@@ -17,7 +17,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pubsub"
@@ -61,7 +60,7 @@ type ManagerConfig struct {
 	Root               string
 	ExecRoot           string
 	CreateExecutor     ExecutorCreator
-	AuthzMiddleware    *authorization.Middleware
+	PluginChains       map[string]Chain
 }
 
 // ExecutorCreator is used in the manager config to pass in an `Executor`
@@ -116,7 +115,10 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 	if err := os.MkdirAll(manager.tmpDir(), 0700); err != nil {
 		return nil, errors.Wrapf(err, "failed to mkdir %v", manager.tmpDir())
 	}
-
+	chainsDir := filepath.Join(manager.config.Root, "chains")
+	if err := os.MkdirAll(chainsDir, 0700); err != nil {
+		return nil, errors.Wrapf(err, "failed to mkdir %v", chainsDir)
+	}
 	if err := setupRoot(manager.config.Root); err != nil {
 		return nil, err
 	}
@@ -132,6 +134,13 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 		return nil, err
 	}
 
+	if manager.config.PluginChains == nil {
+		manager.config.PluginChains = map[string]Chain{}
+	}
+	for pluginType, chain := range manager.config.PluginChains {
+		chain.SetSaveChain(manager.saveChain(pluginType))
+	}
+
 	manager.cMap = make(map[*v2.Plugin]*controller)
 	if err := manager.reload(); err != nil {
 		return nil, errors.Wrap(err, "failed to restore plugins")
@@ -143,6 +152,15 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 
 func (pm *Manager) tmpDir() string {
 	return filepath.Join(pm.config.Root, "tmp")
+}
+
+// AddPluginChain registers a plugin chain with the manager for chain
+// management and persistence
+func (pm *Manager) AddPluginChain(chain Chain) error {
+	pluginType := chain.Type()
+	pm.config.PluginChains[pluginType] = chain
+	chain.SetSaveChain(pm.saveChain(pluginType))
+	return pm.loadChain(chain)
 }
 
 // HandleExitEvent is called when the executor receives the exit event
@@ -281,7 +299,8 @@ func (pm *Manager) reload() error { // todo: restore
 		}(p)
 	}
 	wg.Wait()
-	return nil
+
+	return pm.loadChains()
 }
 
 // Get looks up the requested plugin in the store.
@@ -311,6 +330,51 @@ func (pm *Manager) save(p *v2.Plugin) error {
 		return errors.Wrap(err, "failed to write atomically plugin json")
 	}
 	return nil
+}
+
+func (pm *Manager) loadChains() error {
+	for _, chain := range pm.config.PluginChains {
+		if err := pm.loadChain(chain); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (pm *Manager) loadChain(chain Chain) error {
+	pluginType := chain.Type()
+	p := filepath.Join(pm.config.Root, "chains", pluginType+".json")
+	dt, err := ioutil.ReadFile(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			dt = []byte("[]")
+		} else {
+			return errors.Wrapf(err, "error reading %s", p)
+		}
+	}
+	var names []string
+	if err := json.Unmarshal(dt, &names); err != nil {
+		return errors.Wrapf(err, "error decoding %s", p)
+	}
+	err = chain.SetPlugins(names)
+	if err != nil {
+		return errors.Wrapf(err, "error setting plugins for %s chain", pluginType)
+	}
+	return nil
+}
+
+func (pm *Manager) saveChain(pluginType string) func([]string) error {
+	p := filepath.Join(pm.config.Root, "chains", pluginType+".json")
+	return func(names []string) error {
+		chainJSON, err := json.Marshal(names)
+		if err != nil {
+			return errors.Wrapf(err, "failed to marshal %s chain json", pluginType)
+		}
+		if err := ioutils.AtomicWriteFile(p, chainJSON, 0600); err != nil {
+			return errors.Wrapf(err, "failed to write atomically %s chain json", pluginType)
+		}
+		return nil
+	}
 }
 
 // GC cleans up unreferenced blobs. This is recommended to run in a goroutine
