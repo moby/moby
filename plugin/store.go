@@ -115,10 +115,15 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	if ps != nil {
 		p, err := ps.GetV2Plugin(name)
 		if err == nil {
-			p.AddRefCount(mode)
 			if p.IsEnabled() {
-				return p.FilterByCap(capability)
+				fp, err := p.FilterByCap(capability)
+				if err != nil {
+					return nil, err
+				}
+				p.AddRefCount(mode)
+				return fp, nil
 			}
+
 			// Plugin was found but it is disabled, so we should not fall back to legacy plugins
 			// but we should error out right away
 			return nil, errDisabled(name)
