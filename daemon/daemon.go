@@ -555,7 +555,17 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
-	os.Setenv("TMPDIR", realTmp)
+	if runtime.GOOS == "windows" {
+		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
+			if err := system.MkdirAll(realTmp, 0700, ""); err != nil {
+				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
+			}
+		}
+		os.Setenv("TEMP", realTmp)
+		os.Setenv("TMP", realTmp)
+	} else {
+		os.Setenv("TMPDIR", realTmp)
+	}
 
 	d := &Daemon{
 		configStore: config,
