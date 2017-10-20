@@ -257,7 +257,9 @@ func checkKernel() error {
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
-	if adjustCPUShares && hostConfig.CPUShares > 0 {
+	sysInfo := sysinfo.New(true)
+
+	if adjustCPUShares && hostConfig.CPUShares > 0 && sysInfo.CPUShares {
 		// Handle unsupported CPUShares
 		if hostConfig.CPUShares < linuxMinCPUShares {
 			logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
@@ -267,7 +269,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 			hostConfig.CPUShares = linuxMaxCPUShares
 		}
 	}
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 && sysInfo.SwapLimit {
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
@@ -294,7 +296,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		return err
 	}
 	hostConfig.SecurityOpt = append(hostConfig.SecurityOpt, opts...)
-	if hostConfig.OomKillDisable == nil {
+	if hostConfig.OomKillDisable == nil && sysInfo.OomKillDisable {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
 	}
@@ -344,12 +346,12 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		logrus.Warn("Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.Memory = 0
-		resources.MemorySwap = -1
+		resources.MemorySwap = 0
 	}
-	if resources.Memory > 0 && resources.MemorySwap != -1 && !sysInfo.SwapLimit {
+	if resources.Memory > 0 && resources.MemorySwap != 0 && !sysInfo.SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities or the cgroup is not mounted. Memory limited without swap.")
 		logrus.Warn("Your kernel does not support swap limit capabilities,or the cgroup is not mounted. Memory limited without swap.")
-		resources.MemorySwap = -1
+		resources.MemorySwap = 0
 	}
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage")

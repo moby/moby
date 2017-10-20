@@ -23,7 +23,7 @@ func toContainerdResources(resources container.Resources) libcontainerd.Resource
 	r.CpusetCpus = resources.CpusetCpus
 	r.CpusetMems = resources.CpusetMems
 	r.MemoryLimit = uint64(resources.Memory)
-	if resources.MemorySwap > 0 {
+	if resources.MemorySwap != 0 {
 		r.MemorySwap = uint64(resources.MemorySwap)
 	}
 	r.MemoryReservation = uint64(resources.MemoryReservation)

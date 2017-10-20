@@ -197,6 +197,16 @@ func (s *DockerSuite) TestUpdateSwapMemoryOnly(c *check.C) {
 	file := "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"
 	out, _ := dockerCmd(c, "exec", name, "cat", file)
 	c.Assert(strings.TrimSpace(out), checker.Equals, "629145600")
+
+	// Update swap memory to unlimited
+	dockerCmd(c, "update", "--memory-swap", "-1", name)
+
+	c.Assert(inspectField(c, name, "HostConfig.MemorySwap"), checker.Equals, "-1")
+	out, _ = dockerCmd(c, "exec", name, "cat", file)
+	// It is difficult to find out the long bit on the machine and check the
+	// unlimited value is 18446744073709551615 or 9223372036854771712 or other
+	// possible values, so just check it to be greater than the original value.
+	c.Assert(len(strings.TrimSpace(out)), checker.GreaterThan, len("629145600"))
 }
 
 func (s *DockerSuite) TestUpdateInvalidSwapMemory(c *check.C) {

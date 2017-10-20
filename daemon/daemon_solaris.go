@@ -112,7 +112,9 @@ func (daemon *Daemon) getCgroupDriver() string {
 }
 
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
-	if hostConfig.CPUShares < 0 {
+	sysInfo := sysinfo.New(true)
+
+	if hostConfig.CPUShares < 0 && sysinfo.CPUShares {
 		logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, solarisMinCPUShares)
 		hostConfig.CPUShares = solarisMinCPUShares
 	} else if hostConfig.CPUShares > solarisMaxCPUShares {
@@ -120,7 +122,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.CPUShares = solarisMaxCPUShares
 	}
 
-	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
+	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 && sysInfo.SwapLimit {
 		// By default, MemorySwap is set to twice the size of Memory.
 		hostConfig.MemorySwap = hostConfig.Memory * 2
 	}
@@ -128,7 +130,7 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	if hostConfig.ShmSize != 0 {
 		hostConfig.ShmSize = container.DefaultSHMSize
 	}
-	if hostConfig.OomKillDisable == nil {
+	if hostConfig.OomKillDisable == nil && sysInfo.OomKillDisable {
 		defaultOomKillDisable := false
 		hostConfig.OomKillDisable = &defaultOomKillDisable
 	}
@@ -153,12 +155,12 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities. Limitation discarded.")
 		logrus.Warnf("Your kernel does not support memory limit capabilities. Limitation discarded.")
 		hostConfig.Memory = 0
-		hostConfig.MemorySwap = -1
+		hostConfig.MemorySwap = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap != -1 && !sysInfo.SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities, memory limited without swap.")
 		logrus.Warnf("Your kernel does not support swap limit capabilities, memory limited without swap.")
-		hostConfig.MemorySwap = -1
+		hostConfig.MemorySwap = 0
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap > 0 && hostConfig.MemorySwap < hostConfig.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage.")
