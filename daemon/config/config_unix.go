@@ -25,19 +25,19 @@ type Config struct {
 	CommonUnixConfig
 
 	// Fields below here are platform specific.
-	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
-	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
-	RemappedRoot         string                   `json:"userns-remap,omitempty"`
-	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
-	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
-	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
-	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty"`
-	Init                 bool                     `json:"init,omitempty"`
-	InitPath             string                   `json:"init-path,omitempty"`
-	SeccompProfile       string                   `json:"seccomp-profile,omitempty"`
-	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty"`
-	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty"`
-	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
+	CgroupParent         string                   `json:"cgroup-parent,omitempty" toml:"cgroup-parent,omitempty"`
+	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty" toml:"selinux-enabled,omitempty"`
+	RemappedRoot         string                   `json:"userns-remap,omitempty" toml:"userns-remap,omitempty"`
+	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty" toml:"default-ulimits,omitempty"`
+	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty" toml:"cpu-rt-period,omitempty"`
+	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty" toml:"cpu-rt-runtime,omitempty"`
+	OOMScoreAdjust       int                      `json:"oom-score-adjust,omitempty" toml:"oom-score-adjust,omitempty"`
+	Init                 bool                     `json:"init,omitempty" toml:"init,omitempty"`
+	InitPath             string                   `json:"init-path,omitempty" toml:"init-path,omitempty"`
+	SeccompProfile       string                   `json:"seccomp-profile,omitempty" toml:"seccomp-profile,omitempty"`
+	ShmSize              opts.MemBytes            `json:"default-shm-size,omitempty" toml:"default-shm-size,omitempty"`
+	NoNewPrivileges      bool                     `json:"no-new-privileges,omitempty" toml:"no-new-privileges,omitempty"`
+	IpcMode              string                   `json:"default-ipc-mode,omitempty" toml:"default-ipc-mode,omitempty"`
 }
 
 // BridgeConfig stores all the bridge driver specific
@@ -49,13 +49,13 @@ type BridgeConfig struct {
 	commonUnixBridgeConfig
 
 	// Fields below here are platform specific.
-	EnableIPv6          bool   `json:"ipv6,omitempty"`
-	EnableIPTables      bool   `json:"iptables,omitempty"`
-	EnableIPForward     bool   `json:"ip-forward,omitempty"`
-	EnableIPMasq        bool   `json:"ip-masq,omitempty"`
-	EnableUserlandProxy bool   `json:"userland-proxy,omitempty"`
-	UserlandProxyPath   string `json:"userland-proxy-path,omitempty"`
-	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty"`
+	EnableIPv6          bool   `json:"ipv6,omitempty" toml:"ipv6,omitempty"`
+	EnableIPTables      bool   `json:"iptables,omitempty" toml:"iptables,omitempty"`
+	EnableIPForward     bool   `json:"ip-forward,omitempty" toml:"ip-forward,omitempty"`
+	EnableIPMasq        bool   `json:"ip-masq,omitempty" toml:"ip-masq,omitempty"`
+	EnableUserlandProxy bool   `json:"userland-proxy,omitempty" toml:"userland-proxy,omitempty"`
+	UserlandProxyPath   string `json:"userland-proxy-path,omitempty" toml:"userland-proxy-path,omitempty"`
+	FixedCIDRv6         string `json:"fixed-cidr-v6,omitempty" toml:"fixed-cidr-v6,omitempty"`
 }
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config

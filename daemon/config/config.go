@@ -7,11 +7,13 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"path/filepath"
 	"reflect"
 	"runtime"
 	"strings"
 	"sync"
 
+	"github.com/BurntSushi/toml"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -59,24 +61,24 @@ var flatOptions = map[string]bool{
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type LogConfig struct {
-	Type   string            `json:"log-driver,omitempty"`
-	Config map[string]string `json:"log-opts,omitempty"`
+	Type   string            `json:"log-driver,omitempty" toml:"log-driver,omitempty"`
+	Config map[string]string `json:"log-opts,omitempty" toml:"log-opts,omitempty"`
 }
 
 // commonBridgeConfig stores all the platform-common bridge driver specific
 // configuration.
 type commonBridgeConfig struct {
-	Iface     string `json:"bridge,omitempty"`
-	FixedCIDR string `json:"fixed-cidr,omitempty"`
+	Iface     string `json:"bridge,omitempty" toml:"bridge,omitempty"`
+	FixedCIDR string `json:"fixed-cidr,omitempty" toml:"fixed-cidr,omitempty"`
 }
 
 // CommonTLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonTLSOptions struct {
-	CAFile   string `json:"tlscacert,omitempty"`
-	CertFile string `json:"tlscert,omitempty"`
-	KeyFile  string `json:"tlskey,omitempty"`
+	CAFile   string `json:"tlscacert,omitempty" toml:"tlscacert,omitempty"`
+	CertFile string `json:"tlscert,omitempty" toml:"tlscert,omitempty"`
+	KeyFile  string `json:"tlskey,omitempty" toml:"tlskey,omitempty"`
 }
 
 // CommonConfig defines the configuration of a docker daemon which is
@@ -84,67 +86,67 @@ type CommonTLSOptions struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonConfig struct {
-	AuthzMiddleware      *authorization.Middleware `json:"-"`
-	AuthorizationPlugins []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool                      `json:"-"`
-	Context              map[string][]string       `json:"-"`
-	DisableBridge        bool                      `json:"-"`
-	DNS                  []string                  `json:"dns,omitempty"`
-	DNSOptions           []string                  `json:"dns-opts,omitempty"`
-	DNSSearch            []string                  `json:"dns-search,omitempty"`
-	ExecOptions          []string                  `json:"exec-opts,omitempty"`
-	GraphDriver          string                    `json:"storage-driver,omitempty"`
-	GraphOptions         []string                  `json:"storage-opts,omitempty"`
-	Labels               []string                  `json:"labels,omitempty"`
-	Mtu                  int                       `json:"mtu,omitempty"`
-	Pidfile              string                    `json:"pidfile,omitempty"`
-	RawLogs              bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated       string                    `json:"graph,omitempty"`
-	Root                 string                    `json:"data-root,omitempty"`
-	SocketGroup          string                    `json:"group,omitempty"`
-	CorsHeaders          string                    `json:"api-cors-header,omitempty"`
+	AuthzMiddleware      *authorization.Middleware `json:"-" toml:"-"`
+	AuthorizationPlugins []string                  `json:"authorization-plugins,omitempty" toml:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart          bool                      `json:"-" toml:"-"`
+	Context              map[string][]string       `json:"-" toml:"-"`
+	DisableBridge        bool                      `json:"-" toml:"-"`
+	DNS                  []string                  `json:"dns,omitempty" toml:"dns,omitempty"`
+	DNSOptions           []string                  `json:"dns-opts,omitempty" toml:"dns-opts,omitempty"`
+	DNSSearch            []string                  `json:"dns-search,omitempty" toml:"dns-search,omitempty"`
+	ExecOptions          []string                  `json:"exec-opts,omitempty" toml:"exec-opts,omitempty"`
+	GraphDriver          string                    `json:"storage-driver,omitempty" toml:"storage-driver,omitempty"`
+	GraphOptions         []string                  `json:"storage-opts,omitempty" toml:"storage-opts,omitempty"`
+	Labels               []string                  `json:"labels,omitempty" toml:"labels,omitempty"`
+	Mtu                  int                       `json:"mtu,omitempty" toml:"mtu,omitempty"`
+	Pidfile              string                    `json:"pidfile,omitempty" toml:"pidfile,omitempty"`
+	RawLogs              bool                      `json:"raw-logs,omitempty" toml:"raw-logs,omitempty"`
+	RootDeprecated       string                    `json:"graph,omitempty" toml:"graph,omitempty"`
+	Root                 string                    `json:"data-root,omitempty" toml:"data-root,omitempty"`
+	SocketGroup          string                    `json:"group,omitempty" toml:"group,omitempty"`
+	CorsHeaders          string                    `json:"api-cors-header,omitempty" toml:"api-cors-header,omitempty"`
 
 	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
 	// when pushing to a registry which does not support schema 2. This field is marked as
 	// deprecated because schema 1 manifests are deprecated in favor of schema 2 and the
 	// daemon ID will use a dedicated identifier not shared with exported signatures.
-	TrustKeyPath string `json:"deprecated-key-path,omitempty"`
+	TrustKeyPath string `json:"deprecated-key-path,omitempty" toml:"deprecated-key-path,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
-	LiveRestoreEnabled bool `json:"live-restore,omitempty"`
+	LiveRestoreEnabled bool `json:"live-restore,omitempty" toml:"live-restore,omitempty"`
 
 	// ClusterStore is the storage backend used for the cluster information. It is used by both
 	// multihost networking (to store networks and endpoints information) and by the node discovery
 	// mechanism.
-	ClusterStore string `json:"cluster-store,omitempty"`
+	ClusterStore string `json:"cluster-store,omitempty" toml:"cluster-store,omitempty"`
 
 	// ClusterOpts is used to pass options to the discovery package for tuning libkv settings, such
 	// as TLS configuration settings.
-	ClusterOpts map[string]string `json:"cluster-store-opts,omitempty"`
+	ClusterOpts map[string]string `json:"cluster-store-opts,omitempty" toml:"cluster-store-opts,omitempty"`
 
 	// ClusterAdvertise is the network endpoint that the Engine advertises for the purpose of node
 	// discovery. This should be a 'host:port' combination on which that daemon instance is
 	// reachable by other hosts.
-	ClusterAdvertise string `json:"cluster-advertise,omitempty"`
+	ClusterAdvertise string `json:"cluster-advertise,omitempty" toml:"cluster-advertise,omitempty"`
 
 	// MaxConcurrentDownloads is the maximum number of downloads that
 	// may take place at a time for each pull.
-	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty"`
+	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty" toml:"max-concurrent-downloads,omitempty"`
 
 	// MaxConcurrentUploads is the maximum number of uploads that
 	// may take place at a time for each push.
-	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
+	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty" toml:"max-concurrent-uploads,omitempty"`
 
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
-	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
+	ShutdownTimeout int `json:"shutdown-timeout,omitempty" toml:"shutdown-timeout,omitempty"`
 
-	Debug     bool     `json:"debug,omitempty"`
-	Hosts     []string `json:"hosts,omitempty"`
-	LogLevel  string   `json:"log-level,omitempty"`
-	TLS       bool     `json:"tls,omitempty"`
-	TLSVerify bool     `json:"tlsverify,omitempty"`
+	Debug     bool     `json:"debug,omitempty" toml:"debug,omitempty"`
+	Hosts     []string `json:"hosts,omitempty" toml:"hosts,omitempty"`
+	LogLevel  string   `json:"log-level,omitempty" toml:"log-level,omitempty"`
+	TLS       bool     `json:"tls,omitempty" toml:"tls,omitempty"`
+	TLSVerify bool     `json:"tlsverify,omitempty" toml:"tlsverify,omitempty"`
 
 	// Embedded structs that allow config
 	// deserialization without the full struct.
@@ -154,8 +156,8 @@ type CommonConfig struct {
 	// to use if a wildcard address is specified in the ListenAddr value
 	// given to the /swarm/init endpoint and no advertise address is
 	// specified.
-	SwarmDefaultAdvertiseAddr string `json:"swarm-default-advertise-addr"`
-	MetricsAddress            string `json:"metrics-addr"`
+	SwarmDefaultAdvertiseAddr string `json:"swarm-default-advertise-addr" toml:"swarm-default-advertise-addr"`
+	MetricsAddress            string `json:"metrics-addr" toml:"metrics-addr"`
 
 	LogConfig
 	BridgeConfig // bridgeConfig holds bridge network specific configuration.
@@ -166,12 +168,12 @@ type CommonConfig struct {
 	// It should probably be handled outside this package.
 	ValuesSet map[string]interface{}
 
-	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
+	Experimental bool `json:"experimental" toml:"experimental"` // Experimental indicates whether experimental features should be exposed or not
 
 	// Exposed node Generic Resources
-	NodeGenericResources string `json:"node-generic-resources,omitempty"`
+	NodeGenericResources string `json:"node-generic-resources,omitempty" toml:"node-generic-resources,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
-	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty" toml:"network-control-plane-mtu,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -306,6 +308,36 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	return fileConfig, nil
 }
 
+type decodeFunc func(io.Reader, interface{}) error
+
+var errConfigExtUnknown = errors.New("configuration file extension is unknown")
+
+func getDecoderByExtension(file string) (decodeFunc, error) {
+	var (
+		err     error
+		decoder decodeFunc
+	)
+	jsonDecoderFunc := decodeFunc(func(r io.Reader, v interface{}) error {
+		return json.NewDecoder(r).Decode(v)
+	})
+
+	switch filepath.Ext(file) {
+	case ".json":
+		decoder = jsonDecoderFunc
+	case ".toml":
+		decoder = decodeFunc(func(r io.Reader, v interface{}) error {
+			_, err := toml.DecodeReader(r, v)
+			return err
+		})
+	default:
+		// due to backward compatibility if the extension is none of the above use the JSON decoder anyway.
+		decoder = jsonDecoderFunc
+		// return an error telling that that it was impossible to determine the format from the extension.
+		err = errConfigExtUnknown
+	}
+	return decoder, err
+}
+
 // getConflictFreeConfiguration loads the configuration from a JSON file.
 // It compares that configuration with the one provided by the flags,
 // and returns an error if there are conflicts.
@@ -315,12 +347,22 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		return nil, err
 	}
 
+	decoder, err := getDecoderByExtension(configFile)
+	if err != nil {
+		switch err {
+		case errConfigExtUnknown:
+			logrus.Warnf("Assuming the configuration file is JSON: %s", err)
+		default:
+			return nil, err
+		}
+	}
+
 	var config Config
 	var reader io.Reader
 	if flags != nil {
 		var jsonConfig map[string]interface{}
 		reader = bytes.NewReader(b)
-		if err := json.NewDecoder(reader).Decode(&jsonConfig); err != nil {
+		if err := decoder(reader, &jsonConfig); err != nil {
 			return nil, err
 		}
 
@@ -364,7 +406,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 	}
 
 	reader = bytes.NewReader(b)
-	if err := json.NewDecoder(reader).Decode(&config); err != nil {
+	if err := decoder(reader, &config); err != nil {
 		return nil, err
 	}
 

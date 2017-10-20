@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -388,4 +390,64 @@ func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) 
 			ClusterOpts:      opts,
 		},
 	}
+}
+
+func TestGetDecoderByExtensionMap(t *testing.T) {
+	testCases := []struct {
+		file     string
+		data     string
+		expected map[string]interface{}
+	}{
+		{"/etc/docker/config.json", `{}`, map[string]interface{}{}},
+		{"/etc/docker/config.json", `{
+	"tls": {
+		"tlskey": "/etc/certs/docker.key"
+	}
+}`, map[string]interface{}{
+			"tls": map[string]interface{}{
+				"tlskey": "/etc/certs/docker.key",
+			},
+		},
+		},
+		{"/etc/docker/config.toml", `cgroup-parent="hello"`, map[string]interface{}{
+			"cgroup-parent": "hello",
+		}},
+	}
+	for _, tc := range testCases {
+		decoder, err := getDecoderByExtension(tc.file)
+		if err != nil {
+			t.Error(err)
+		}
+		var cfgMap map[string]interface{}
+		if err := decoder(bytes.NewBufferString(tc.data), &cfgMap); err != nil {
+			t.Error(err)
+		}
+		if !reflect.DeepEqual(tc.expected, cfgMap) {
+			t.Errorf("expected to get '%#v' but got '%#v'", tc.expected, cfgMap)
+		}
+	}
+}
+
+func TestGetDecoderByExtensionConfigTOML(t *testing.T) {
+	fileContent := `
+dns=["8.8.8.8","9.9.9.9"]
+labels=["docker","awesome"]
+debug=true
+log-level="info"
+tlsverify=true
+log-driver="gelf"
+[log-opts]
+	opt1="hello"
+	opt2="opt"
+`
+	expected := &Config{}
+	decoder, err := getDecoderByExtension("file.toml")
+	if err != nil {
+		t.Error(err)
+	}
+	var cfg Config
+	if err := decoder(bytes.NewBufferString(fileContent), &cfg); err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, &cfg, expected)
 }
