@@ -463,11 +463,18 @@ func (clnt *client) Restore(containerID string, attachStdio StdioCallback, optio
 	// events will do is change the state of the container to be
 	// exactly the same.
 	cont, err := clnt.getContainerdContainer(containerID)
-	// Get its last event
-	ev, eerr := clnt.getContainerLastEvent(containerID)
-	if err != nil || containerd_runtime_types.State(cont.Status) == containerd_runtime_types.Stopped {
-		if err != nil {
-			logrus.Warnf("libcontainerd: failed to retrieve container %s state: %v", containerID, err)
+	if err != nil {
+		logrus.Warnf("libcontainerd: failed to retrieve container %s state: %v", containerID, err)
+		return nil
+	}
+
+	var ev *containerd.Event
+	if containerd_runtime_types.State(cont.Status) == containerd_runtime_types.Stopped {
+		// Get its last event
+		ev, eerr := clnt.getContainerLastEvent(containerID)
+		if eerr != nil {
+			// if we don't have one exit status, indicate an error
+			return clnt.setExited(containerID, uint32(255))
 		}
 		if ev != nil && (ev.Pid != InitFriendlyName || ev.Type != StateExit) {
 			// Wait a while for the exit event
