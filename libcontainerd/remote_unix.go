@@ -32,7 +32,6 @@ import (
 )
 
 const (
-	maxConnectionRetryCount      = 3
 	containerdHealthCheckTimeout = 3 * time.Second
 	containerdShutdownTimeout    = 15 * time.Second
 	containerdBinary             = "docker-containerd"
@@ -97,6 +96,8 @@ func New(stateDir string, options ...RemoteOption) (_ Remote, err error) {
 	// don't output the grpc reconnect logging
 	grpclog.SetLogger(log.New(ioutil.Discard, "", log.LstdFlags))
 	dialOpts := []grpc.DialOption{
+		grpc.WithBlock(),
+		grpc.WithTimeout(10 * time.Second),
 		grpc.WithInsecure(),
 		grpc.WithBackoffMaxDelay(2 * time.Second),
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
@@ -138,8 +139,6 @@ func (r *remote) UpdateOptions(options ...RemoteOption) error {
 }
 
 func (r *remote) handleConnectionChange() {
-	var transientFailureCount = 0
-
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	healthClient := grpc_health_v1.NewHealthClient(r.rpcConn)
@@ -147,7 +146,7 @@ func (r *remote) handleConnectionChange() {
 	for {
 		<-ticker.C
 		ctx, cancel := context.WithTimeout(context.Background(), containerdHealthCheckTimeout)
-		_, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{})
+		_, err := healthClient.Check(ctx, &grpc_health_v1.HealthCheckRequest{}, grpc.FailFast(false))
 		cancel()
 		if err == nil {
 			continue
@@ -160,19 +159,14 @@ func (r *remote) handleConnectionChange() {
 				// Well, we asked for it to stop, just return
 				return
 			}
-			// all other errors are transient
-			// Reset state to be notified of next failure
-			transientFailureCount++
-			if transientFailureCount >= maxConnectionRetryCount {
-				transientFailureCount = 0
-				if system.IsProcessAlive(r.daemonPid) {
-					system.KillProcess(r.daemonPid)
-				}
-				<-r.daemonWaitCh
-				if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
-					logrus.Errorf("libcontainerd: error restarting containerd: %v", err)
-				}
-				continue
+
+			// Kill containerd if needed then restart it
+			if system.IsProcessAlive(r.daemonPid) {
+				system.KillProcess(r.daemonPid)
+			}
+			<-r.daemonWaitCh
+			if err := r.runContainerdDaemon(); err != nil { //FIXME: Handle error
+				logrus.Errorf("libcontainerd: error restarting containerd: %v", err)
 			}
 		}
 	}
