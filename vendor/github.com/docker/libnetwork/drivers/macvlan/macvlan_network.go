@@ -227,6 +227,8 @@ func (config *configuration) fromOptions(labels map[string]string) error {
 		case driverModeOpt:
 			// parse driver option '-o macvlan_mode'
 			config.MacvlanMode = value
+		case internal_gw:
+			config.InternalGw = value
 		}
 	}
 

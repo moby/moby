@@ -30,6 +30,7 @@ type configuration struct {
 	CreatedSlaveLink bool
 	Ipv4Subnets      []*ipv4Subnet
 	Ipv6Subnets      []*ipv6Subnet
+	InternalGw       string
 }
 
 type ipv4Subnet struct {
@@ -150,6 +151,11 @@ func (config *configuration) MarshalJSON() ([]byte, error) {
 	nMap["MacvlanMode"] = config.MacvlanMode
 	nMap["Internal"] = config.Internal
 	nMap["CreatedSubIface"] = config.CreatedSlaveLink
+
+	if len(config.InternalGw) > 0 {
+		nMap["InternalGw"] = config.InternalGw
+	}
+
 	if len(config.Ipv4Subnets) > 0 {
 		iis, err := json.Marshal(config.Ipv4Subnets)
 		if err != nil {
@@ -180,9 +186,16 @@ func (config *configuration) UnmarshalJSON(b []byte) error {
 	config.ID = nMap["ID"].(string)
 	config.Mtu = int(nMap["Mtu"].(float64))
 	config.Parent = nMap["Parent"].(string)
+	config.InternalGw = nMap["InternalGw"].(string)
 	config.MacvlanMode = nMap["MacvlanMode"].(string)
 	config.Internal = nMap["Internal"].(bool)
 	config.CreatedSlaveLink = nMap["CreatedSubIface"].(bool)
+
+	// Optional internal_gateway
+	if v, ok := nMap["InternalGw"]; ok {
+		config.InternalGw = v.(string)
+	}
+
 	if v, ok := nMap["Ipv4Subnets"]; ok {
 		if err := json.Unmarshal([]byte(v.(string)), &config.Ipv4Subnets); err != nil {
 			return err

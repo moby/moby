@@ -22,6 +22,7 @@ const (
 	modePassthru        = "passthru" // macvlan mode passthrough
 	parentOpt           = "parent"   // parent interface -o parent
 	modeOpt             = "_mode"    // macvlan mode ux opt suffix
+	internal_gw         = "internal_gateway" // gateway for 10.0.0.0/8 networks
 )
 
 var driverModeOpt = macvlanType + modeOpt // mode --option macvlan_mode
