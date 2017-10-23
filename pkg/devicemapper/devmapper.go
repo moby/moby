@@ -67,12 +67,14 @@ var (
 	ErrBusy                 = errors.New("Device is Busy")
 	ErrDeviceIDExists       = errors.New("Device Id Exists")
 	ErrEnxio                = errors.New("No such device or address")
+	ErrEnoData              = errors.New("No data available")
 )
 
 var (
-	dmSawBusy  bool
-	dmSawExist bool
-	dmSawEnxio bool // No Such Device or Address
+	dmSawBusy    bool
+	dmSawExist   bool
+	dmSawEnxio   bool // No Such Device or Address
+	dmSawEnoData bool // No data available
 )
 
 type (
@@ -708,9 +710,14 @@ func DeleteDevice(poolName string, deviceID int) error {
 	}
 
 	dmSawBusy = false
+	dmSawEnoData = false
 	if err := task.run(); err != nil {
 		if dmSawBusy {
 			return ErrBusy
+		}
+		if dmSawEnoData {
+			logrus.Debugf("devicemapper: Device(id: %d) from pool(%s) does not exist", deviceID, poolName)
+			return nil
 		}
 		return fmt.Errorf("devicemapper: Error running DeleteDevice %s", err)
 	}
