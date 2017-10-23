@@ -101,6 +101,7 @@ type CommonConfig struct {
 	RawLogs              bool                      `json:"raw-logs,omitempty"`
 	RootDeprecated       string                    `json:"graph,omitempty"`
 	Root                 string                    `json:"data-root,omitempty"`
+	ExecRoot             string                    `json:"exec-root,omitempty"`
 	SocketGroup          string                    `json:"group,omitempty"`
 	CorsHeaders          string                    `json:"api-cors-header,omitempty"`
 
@@ -172,6 +173,10 @@ type CommonConfig struct {
 	NodeGenericResources string `json:"node-generic-resources,omitempty"`
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+
+	// ContainerAddr is the address used to connect to containerd if we're
+	// not starting it ourselves
+	ContainerdAddr string `json:"containerd,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value

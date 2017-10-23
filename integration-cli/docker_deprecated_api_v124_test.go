@@ -206,8 +206,10 @@ func (s *DockerSuite) TestDeprecatedPostContainersStartWithLinksInHostConfigIdLi
 	testRequires(c, DaemonIsLinux)
 	name := "test-host-config-links"
 	out, _ := dockerCmd(c, "run", "--name", "link0", "-d", "busybox", "top")
+	defer dockerCmd(c, "stop", "link0")
 	id := strings.TrimSpace(out)
 	dockerCmd(c, "create", "--name", name, "--link", id, "busybox", "top")
+	defer dockerCmd(c, "stop", name)
 
 	hc := inspectFieldJSON(c, name, "HostConfig")
 	config := `{"HostConfig":` + hc + `}`

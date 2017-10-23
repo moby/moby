@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -532,7 +533,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 
 	// Obtain the stats from HCS via libcontainerd
-	stats, err := daemon.containerd.Stats(c.ID)
+	stats, err := daemon.containerd.Stats(context.Background(), c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)
@@ -542,49 +543,48 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 
 	// Start with an empty structure
 	s := &types.StatsJSON{}
-
-	// Populate the CPU/processor statistics
-	s.CPUStats = types.CPUStats{
-		CPUUsage: types.CPUUsage{
-			TotalUsage:        stats.Processor.TotalRuntime100ns,
-			UsageInKernelmode: stats.Processor.RuntimeKernel100ns,
-			UsageInUsermode:   stats.Processor.RuntimeKernel100ns,
-		},
-	}
-
-	// Populate the memory statistics
-	s.MemoryStats = types.MemoryStats{
-		Commit:            stats.Memory.UsageCommitBytes,
-		CommitPeak:        stats.Memory.UsageCommitPeakBytes,
-		PrivateWorkingSet: stats.Memory.UsagePrivateWorkingSetBytes,
-	}
-
-	// Populate the storage statistics
-	s.StorageStats = types.StorageStats{
-		ReadCountNormalized:  stats.Storage.ReadCountNormalized,
-		ReadSizeBytes:        stats.Storage.ReadSizeBytes,
-		WriteCountNormalized: stats.Storage.WriteCountNormalized,
-		WriteSizeBytes:       stats.Storage.WriteSizeBytes,
-	}
-
-	// Populate the network statistics
-	s.Networks = make(map[string]types.NetworkStats)
-
-	for _, nstats := range stats.Network {
-		s.Networks[nstats.EndpointId] = types.NetworkStats{
-			RxBytes:   nstats.BytesReceived,
-			RxPackets: nstats.PacketsReceived,
-			RxDropped: nstats.DroppedPacketsIncoming,
-			TxBytes:   nstats.BytesSent,
-			TxPackets: nstats.PacketsSent,
-			TxDropped: nstats.DroppedPacketsOutgoing,
-		}
-	}
-
-	// Set the timestamp
-	s.Stats.Read = stats.Timestamp
+	s.Stats.Read = stats.Read
 	s.Stats.NumProcs = platform.NumProcs()
 
+	if stats.HCSStats != nil {
+		hcss := stats.HCSStats
+		// Populate the CPU/processor statistics
+		s.CPUStats = types.CPUStats{
+			CPUUsage: types.CPUUsage{
+				TotalUsage:        hcss.Processor.TotalRuntime100ns,
+				UsageInKernelmode: hcss.Processor.RuntimeKernel100ns,
+				UsageInUsermode:   hcss.Processor.RuntimeKernel100ns,
+			},
+		}
+
+		// Populate the memory statistics
+		s.MemoryStats = types.MemoryStats{
+			Commit:            hcss.Memory.UsageCommitBytes,
+			CommitPeak:        hcss.Memory.UsageCommitPeakBytes,
+			PrivateWorkingSet: hcss.Memory.UsagePrivateWorkingSetBytes,
+		}
+
+		// Populate the storage statistics
+		s.StorageStats = types.StorageStats{
+			ReadCountNormalized:  hcss.Storage.ReadCountNormalized,
+			ReadSizeBytes:        hcss.Storage.ReadSizeBytes,
+			WriteCountNormalized: hcss.Storage.WriteCountNormalized,
+			WriteSizeBytes:       hcss.Storage.WriteSizeBytes,
+		}
+
+		// Populate the network statistics
+		s.Networks = make(map[string]types.NetworkStats)
+		for _, nstats := range hcss.Network {
+			s.Networks[nstats.EndpointId] = types.NetworkStats{
+				RxBytes:   nstats.BytesReceived,
+				RxPackets: nstats.PacketsReceived,
+				RxDropped: nstats.DroppedPacketsIncoming,
+				TxBytes:   nstats.BytesSent,
+				TxPackets: nstats.PacketsSent,
+				TxDropped: nstats.DroppedPacketsOutgoing,
+			}
+		}
+	}
 	return s, nil
 }
 
@@ -663,4 +663,12 @@ func getRealPath(path string) (string, error) {
 		return path, nil
 	}
 	return fileutils.ReadSymlinkedDirectory(path)
+}
+
+func (daemon *Daemon) loadRuntimes() error {
+	return nil
+}
+
+func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
+	return nil
 }

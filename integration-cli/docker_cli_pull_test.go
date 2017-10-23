@@ -244,6 +244,7 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	err = pullCmd.Start()
 	c.Assert(err, checker.IsNil)
+	go pullCmd.Wait()
 
 	// Cancel as soon as we get some output.
 	buf := make([]byte, 10)

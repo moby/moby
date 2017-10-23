@@ -8,14 +8,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 )
 
-// process keeps the state for both main container process and exec process.
-type process struct {
-	processCommon
-
-	// Platform specific fields are below here.
-	hcsProcess hcsshim.Process
-}
-
 type autoClosingReader struct {
 	io.ReadCloser
 	sync.Once
@@ -23,7 +15,7 @@ type autoClosingReader struct {
 
 func (r *autoClosingReader) Read(b []byte) (n int, err error) {
 	n, err = r.ReadCloser.Read(b)
-	if err == io.EOF {
+	if err != nil {
 		r.Once.Do(func() { r.ReadCloser.Close() })
 	}
 	return
@@ -45,4 +37,8 @@ func createStdInCloser(pipe io.WriteCloser, process hcsshim.Process) io.WriteClo
 
 		return nil
 	})
+}
+
+func (p *process) Cleanup() error {
+	return nil
 }

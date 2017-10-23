@@ -5,6 +5,7 @@ package daemon
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -16,6 +17,7 @@ import (
 	"strings"
 	"time"
 
+	containerd_cgroups "github.com/containerd/cgroups"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
@@ -26,6 +28,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -38,7 +41,6 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/options"
 	lntypes "github.com/docker/libnetwork/types"
-	"github.com/golang/protobuf/ptypes"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -50,6 +52,14 @@ import (
 )
 
 const (
+	// DefaultShimBinary is the default shim to be used by containerd if none
+	// is specified
+	DefaultShimBinary = "docker-containerd-shim"
+
+	// DefaultRuntimeBinary is the default runtime to be used by
+	// containerd if none is specified
+	DefaultRuntimeBinary = "docker-runc"
+
 	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
 	linuxMinCPUShares = 2
 	linuxMaxCPUShares = 262144
@@ -63,6 +73,10 @@ const (
 	// constant for cgroup drivers
 	cgroupFsDriver      = "cgroupfs"
 	cgroupSystemdDriver = "systemd"
+
+	// DefaultRuntimeName is the default runtime to be used by
+	// containerd if none is specified
+	DefaultRuntimeName = "docker-runc"
 )
 
 type containerGetter interface {
@@ -623,6 +637,54 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	return warnings, nil
 }
 
+func (daemon *Daemon) loadRuntimes() error {
+	return daemon.initRuntimes(daemon.configStore.Runtimes)
+}
+
+func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error) {
+	runtimeDir := filepath.Join(daemon.configStore.Root, "runtimes")
+	// Remove old temp directory if any
+	os.RemoveAll(runtimeDir + "-old")
+	tmpDir, err := ioutils.TempDir(daemon.configStore.Root, "gen-runtimes")
+	if err != nil {
+		return errors.Wrapf(err, "failed to get temp dir to generate runtime scripts")
+	}
+	defer func() {
+		if err != nil {
+			if err1 := os.RemoveAll(tmpDir); err1 != nil {
+				logrus.WithError(err1).WithField("dir", tmpDir).
+					Warnf("failed to remove tmp dir")
+			}
+			return
+		}
+
+		if err = os.Rename(runtimeDir, runtimeDir+"-old"); err != nil {
+			return
+		}
+		if err = os.Rename(tmpDir, runtimeDir); err != nil {
+			err = errors.Wrapf(err, "failed to setup runtimes dir, new containers may not start")
+			return
+		}
+		if err = os.RemoveAll(runtimeDir + "-old"); err != nil {
+			logrus.WithError(err).WithField("dir", tmpDir).
+				Warnf("failed to remove old runtimes dir")
+		}
+	}()
+
+	for name, rt := range runtimes {
+		if len(rt.Args) == 0 {
+			continue
+		}
+
+		script := filepath.Join(tmpDir, name)
+		content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
+		if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // reloadPlatform updates configuration with platform specific options
 // and updates the passed attributes
 func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]string) error {
@@ -631,9 +693,12 @@ func (daemon *Daemon) reloadPlatform(conf *config.Config, attributes map[string]
 	}
 
 	if conf.IsValueSet("runtimes") {
-		daemon.configStore.Runtimes = conf.Runtimes
 		// Always set the default one
-		daemon.configStore.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+		conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+		if err := daemon.initRuntimes(conf.Runtimes); err != nil {
+			return err
+		}
+		daemon.configStore.Runtimes = conf.Runtimes
 	}
 
 	if conf.DefaultRuntime != "" {
@@ -692,7 +757,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
+	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeName}
 
 	return nil
 }
@@ -1214,11 +1279,24 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
+func copyBlkioEntry(entries []*containerd_cgroups.BlkIOEntry) []types.BlkioStatEntry {
+	out := make([]types.BlkioStatEntry, len(entries))
+	for i, re := range entries {
+		out[i] = types.BlkioStatEntry{
+			Major: re.Major,
+			Minor: re.Minor,
+			Op:    re.Op,
+			Value: re.Value,
+		}
+	}
+	return out
+}
+
 func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	if !c.IsRunning() {
 		return nil, errNotRunning(c.ID)
 	}
-	stats, err := daemon.containerd.Stats(c.ID)
+	cs, err := daemon.containerd.Stats(context.Background(), c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)
@@ -1226,54 +1304,98 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		return nil, err
 	}
 	s := &types.StatsJSON{}
-	cgs := stats.CgroupStats
-	if cgs != nil {
+	s.Read = cs.Read
+	stats := cs.Metrics
+	if stats.Blkio != nil {
 		s.BlkioStats = types.BlkioStats{
-			IoServiceBytesRecursive: copyBlkioEntry(cgs.BlkioStats.IoServiceBytesRecursive),
-			IoServicedRecursive:     copyBlkioEntry(cgs.BlkioStats.IoServicedRecursive),
-			IoQueuedRecursive:       copyBlkioEntry(cgs.BlkioStats.IoQueuedRecursive),
-			IoServiceTimeRecursive:  copyBlkioEntry(cgs.BlkioStats.IoServiceTimeRecursive),
-			IoWaitTimeRecursive:     copyBlkioEntry(cgs.BlkioStats.IoWaitTimeRecursive),
-			IoMergedRecursive:       copyBlkioEntry(cgs.BlkioStats.IoMergedRecursive),
-			IoTimeRecursive:         copyBlkioEntry(cgs.BlkioStats.IoTimeRecursive),
-			SectorsRecursive:        copyBlkioEntry(cgs.BlkioStats.SectorsRecursive),
+			IoServiceBytesRecursive: copyBlkioEntry(stats.Blkio.IoServiceBytesRecursive),
+			IoServicedRecursive:     copyBlkioEntry(stats.Blkio.IoServicedRecursive),
+			IoQueuedRecursive:       copyBlkioEntry(stats.Blkio.IoQueuedRecursive),
+			IoServiceTimeRecursive:  copyBlkioEntry(stats.Blkio.IoServiceTimeRecursive),
+			IoWaitTimeRecursive:     copyBlkioEntry(stats.Blkio.IoWaitTimeRecursive),
+			IoMergedRecursive:       copyBlkioEntry(stats.Blkio.IoMergedRecursive),
+			IoTimeRecursive:         copyBlkioEntry(stats.Blkio.IoTimeRecursive),
+			SectorsRecursive:        copyBlkioEntry(stats.Blkio.SectorsRecursive),
 		}
-		cpu := cgs.CpuStats
+	}
+	if stats.CPU != nil {
 		s.CPUStats = types.CPUStats{
 			CPUUsage: types.CPUUsage{
-				TotalUsage:        cpu.CpuUsage.TotalUsage,
-				PercpuUsage:       cpu.CpuUsage.PercpuUsage,
-				UsageInKernelmode: cpu.CpuUsage.UsageInKernelmode,
-				UsageInUsermode:   cpu.CpuUsage.UsageInUsermode,
+				TotalUsage:        stats.CPU.Usage.Total,
+				PercpuUsage:       stats.CPU.Usage.PerCPU,
+				UsageInKernelmode: stats.CPU.Usage.Kernel,
+				UsageInUsermode:   stats.CPU.Usage.User,
 			},
 			ThrottlingData: types.ThrottlingData{
-				Periods:          cpu.ThrottlingData.Periods,
-				ThrottledPeriods: cpu.ThrottlingData.ThrottledPeriods,
-				ThrottledTime:    cpu.ThrottlingData.ThrottledTime,
+				Periods:          stats.CPU.Throttling.Periods,
+				ThrottledPeriods: stats.CPU.Throttling.ThrottledPeriods,
+				ThrottledTime:    stats.CPU.Throttling.ThrottledTime,
 			},
 		}
-		mem := cgs.MemoryStats.Usage
-		s.MemoryStats = types.MemoryStats{
-			Usage:    mem.Usage,
-			MaxUsage: mem.MaxUsage,
-			Stats:    cgs.MemoryStats.Stats,
-			Failcnt:  mem.Failcnt,
-			Limit:    mem.Limit,
-		}
-		// if the container does not set memory limit, use the machineMemory
-		if mem.Limit > daemon.machineMemory && daemon.machineMemory > 0 {
-			s.MemoryStats.Limit = daemon.machineMemory
-		}
-		if cgs.PidsStats != nil {
-			s.PidsStats = types.PidsStats{
-				Current: cgs.PidsStats.Current,
+	}
+
+	if stats.Memory != nil {
+		raw := make(map[string]uint64)
+		raw["cache"] = stats.Memory.Cache
+		raw["rss"] = stats.Memory.RSS
+		raw["rss_huge"] = stats.Memory.RSSHuge
+		raw["mapped_file"] = stats.Memory.MappedFile
+		raw["dirty"] = stats.Memory.Dirty
+		raw["writeback"] = stats.Memory.Writeback
+		raw["pgpgin"] = stats.Memory.PgPgIn
+		raw["pgpgout"] = stats.Memory.PgPgOut
+		raw["pgfault"] = stats.Memory.PgFault
+		raw["pgmajfault"] = stats.Memory.PgMajFault
+		raw["inactive_anon"] = stats.Memory.InactiveAnon
+		raw["active_anon"] = stats.Memory.ActiveAnon
+		raw["inactive_file"] = stats.Memory.InactiveFile
+		raw["active_file"] = stats.Memory.ActiveFile
+		raw["unevictable"] = stats.Memory.Unevictable
+		raw["hierarchical_memory_limit"] = stats.Memory.HierarchicalMemoryLimit
+		raw["hierarchical_memsw_limit"] = stats.Memory.HierarchicalSwapLimit
+		raw["total_cache"] = stats.Memory.TotalCache
+		raw["total_rss"] = stats.Memory.TotalRSS
+		raw["total_rss_huge"] = stats.Memory.TotalRSSHuge
+		raw["total_mapped_file"] = stats.Memory.TotalMappedFile
+		raw["total_dirty"] = stats.Memory.TotalDirty
+		raw["total_writeback"] = stats.Memory.TotalWriteback
+		raw["total_pgpgin"] = stats.Memory.TotalPgPgIn
+		raw["total_pgpgout"] = stats.Memory.TotalPgPgOut
+		raw["total_pgfault"] = stats.Memory.TotalPgFault
+		raw["total_pgmajfault"] = stats.Memory.TotalPgMajFault
+		raw["total_inactive_anon"] = stats.Memory.TotalInactiveAnon
+		raw["total_active_anon"] = stats.Memory.TotalActiveAnon
+		raw["total_inactive_file"] = stats.Memory.TotalInactiveFile
+		raw["total_active_file"] = stats.Memory.TotalActiveFile
+		raw["total_unevictable"] = stats.Memory.TotalUnevictable
+
+		if stats.Memory.Usage != nil {
+			s.MemoryStats = types.MemoryStats{
+				Stats:    raw,
+				Usage:    stats.Memory.Usage.Usage,
+				MaxUsage: stats.Memory.Usage.Max,
+				Limit:    stats.Memory.Usage.Limit,
+				Failcnt:  stats.Memory.Usage.Failcnt,
+			}
+		} else {
+			s.MemoryStats = types.MemoryStats{
+				Stats: raw,
 			}
 		}
+
+		// if the container does not set memory limit, use the machineMemory
+		if s.MemoryStats.Limit > daemon.machineMemory && daemon.machineMemory > 0 {
+			s.MemoryStats.Limit = daemon.machineMemory
+		}
 	}
-	s.Read, err = ptypes.Timestamp(stats.Timestamp)
-	if err != nil {
-		return nil, err
+
+	if stats.Pids != nil {
+		s.PidsStats = types.PidsStats{
+			Current: stats.Pids.Current,
+			Limit:   stats.Pids.Limit,
+		}
 	}
+
 	return s, nil
 }
 

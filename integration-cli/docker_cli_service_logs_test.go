@@ -172,6 +172,7 @@ func (s *DockerSwarmSuite) TestServiceLogsFollow(c *check.C) {
 	cmd.Stdout = w
 	cmd.Stderr = w
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 
 	// Make sure pipe is written to
 	ch := make(chan *logMessage)

@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -62,11 +62,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
-	DefaultRuntimeBinary = "docker-runc"
+// MainNamespace is the name of the namespace used for users containers
+const MainNamespace = "moby"
 
+var (
 	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 )
 
@@ -170,7 +169,7 @@ func (daemon *Daemon) restore() error {
 				continue
 			}
 			container.RWLayer = rwlayer
-			logrus.Debugf("Loaded container %v", container.ID)
+			logrus.Debugf("Loaded container %v, isRunning: %v", container.ID, container.IsRunning())
 
 			containers[container.ID] = container
 		} else {
@@ -209,8 +208,10 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	var wg sync.WaitGroup
-	var mapLock sync.Mutex
+	var (
+		wg      sync.WaitGroup
+		mapLock sync.Mutex
+	)
 	for _, c := range containers {
 		wg.Add(1)
 		go func(c *container.Container) {
@@ -221,11 +222,74 @@ func (daemon *Daemon) restore() error {
 			}
 
 			daemon.setStateCounter(c)
+
+			logrus.WithFields(logrus.Fields{
+				"container": c.ID,
+				"running":   c.IsRunning(),
+				"paused":    c.IsPaused(),
+			}).Debug("restoring container")
+
+			var (
+				err      error
+				alive    bool
+				ec       uint32
+				exitedAt time.Time
+			)
+
+			alive, _, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
+			if err != nil && !errdefs.IsNotFound(err) {
+				logrus.Errorf("Failed to restore container %s with containerd: %s", c.ID, err)
+				return
+			}
+			if !alive {
+				ec, exitedAt, err = daemon.containerd.DeleteTask(context.Background(), c.ID)
+				if err != nil && !errdefs.IsNotFound(err) {
+					logrus.WithError(err).Errorf("Failed to delete container %s from containerd", c.ID)
+					return
+				}
+			}
+
 			if c.IsRunning() || c.IsPaused() {
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
-				if err := daemon.containerd.Restore(c.ID, c.InitializeStdio); err != nil {
-					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
-					return
+
+				if c.IsPaused() && alive {
+					s, err := daemon.containerd.Status(context.Background(), c.ID)
+					if err != nil {
+						logrus.WithError(err).WithField("container", c.ID).
+							Errorf("Failed to get container status")
+					} else {
+						logrus.WithField("container", c.ID).WithField("state", s).
+							Info("restored container paused")
+						switch s {
+						case libcontainerd.StatusPaused, libcontainerd.StatusPausing:
+							// nothing to do
+						case libcontainerd.StatusStopped:
+							alive = false
+						case libcontainerd.StatusUnknown:
+							logrus.WithField("container", c.ID).
+								Error("Unknown status for container during restore")
+						default:
+							// running
+							c.Lock()
+							c.Paused = false
+							daemon.setStateCounter(c)
+							if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+								logrus.WithError(err).WithField("container", c.ID).
+									Error("Failed to update stopped container state")
+							}
+							c.Unlock()
+						}
+					}
+				}
+
+				if !alive {
+					c.Lock()
+					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
+					daemon.Cleanup(c)
+					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+						logrus.Errorf("Failed to update stopped container %s state: %v", c.ID, err)
+					}
+					c.Unlock()
 				}
 
 				// we call Mount and then Unmount to get BaseFs of the container
@@ -253,11 +317,9 @@ func (daemon *Daemon) restore() error {
 					activeSandboxes[c.NetworkSettings.SandboxID] = options
 					mapLock.Unlock()
 				}
+			} else {
+				// get list of containers we need to restart
 
-			}
-			// fixme: only if not running
-			// get list of containers we need to restart
-			if !c.IsRunning() && !c.IsPaused() {
 				// Do not autostart containers which
 				// has endpoints in a swarm scope
 				// network yet since the cluster is
@@ -289,7 +351,7 @@ func (daemon *Daemon) restore() error {
 				c.RemovalInProgress = false
 				c.Dead = true
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-					logrus.Errorf("Failed to update container %s state: %v", c.ID, err)
+					logrus.Errorf("Failed to update RemovalInProgress container %s state: %v", c.ID, err)
 				}
 			}
 			c.Unlock()
@@ -569,6 +631,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	d := &Daemon{
 		configStore: config,
+		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -616,6 +679,16 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
+	// Create the directory where we'll store the runtime scripts (i.e. in
+	// order to support runtimeArgs)
+	daemonRuntimes := filepath.Join(config.Root, "runtimes")
+	if err := system.MkdirAll(daemonRuntimes, 0700, ""); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	if err := d.loadRuntimes(); err != nil {
+		return nil, err
+	}
+
 	if runtime.GOOS == "windows" {
 		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0, ""); err != nil && !os.IsExist(err) {
 			return nil, err
@@ -645,7 +718,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	d.RegistryService = registryService
-	d.PluginStore = pluginStore
 	logger.RegisterPluginGetter(d.PluginStore)
 
 	metricsSockPath, err := d.listenMetricsSock()
@@ -655,7 +727,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
-		return pluginexec.New(containerdRemote, m)
+		return pluginexec.New(getPluginExecRoot(config.Root), containerdRemote, m)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -812,13 +884,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.idMappings = idMappings
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
+	d.containerdRemote = containerdRemote
 
 	d.linkIndex = newLinkIndex()
-	d.containerdRemote = containerdRemote
 
 	go d.execCommandGC()
 
-	d.containerd, err = containerdRemote.Client(d)
+	d.containerd, err = containerdRemote.NewClient(MainNamespace, d)
 	if err != nil {
 		return nil, err
 	}
@@ -1179,19 +1251,6 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 	options = append(options, nwconfig.OptionNetworkControlPlaneMTU(dconfig.NetworkControlPlaneMTU))
 
 	return options, nil
-}
-
-func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntry {
-	out := make([]types.BlkioStatEntry, len(entries))
-	for i, re := range entries {
-		out[i] = types.BlkioStatEntry{
-			Major: re.Major,
-			Minor: re.Minor,
-			Op:    re.Op,
-			Value: re.Value,
-		}
-	}
-	return out
 }
 
 // GetCluster returns the cluster

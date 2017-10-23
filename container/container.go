@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -60,6 +61,18 @@ var (
 	errInvalidEndpoint = errors.New("invalid endpoint while building port map info")
 	errInvalidNetwork  = errors.New("invalid network settings while building port map info")
 )
+
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
+
+	// Time at which the container died
+	ExitedAt time.Time
+}
 
 // Container holds the structure defining a container object.
 type Container struct {
@@ -996,10 +1009,10 @@ func (container *Container) CloseStreams() error {
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
+func (container *Container) InitializeStdio(iop *libcontainerd.IOPipe) (containerd.IO, error) {
 	if err := container.startLogging(); err != nil {
 		container.Reset(false)
-		return err
+		return nil, err
 	}
 
 	container.StreamConfig.CopyToPipe(iop)
@@ -1012,7 +1025,7 @@ func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
 		}
 	}
 
-	return nil
+	return &cio{IO: iop, sc: container.StreamConfig}, nil
 }
 
 // SecretMountPath returns the path of the secret mount for the container
@@ -1068,4 +1081,22 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// else.
 	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
+}
+
+type cio struct {
+	containerd.IO
+
+	sc *stream.Config
+}
+
+func (i *cio) Close() error {
+	i.IO.Close()
+
+	return i.sc.CloseStreams()
+}
+
+func (i *cio) Wait() {
+	i.sc.Wait()
+
+	i.IO.Wait()
 }

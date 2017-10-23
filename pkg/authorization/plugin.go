@@ -48,9 +48,10 @@ func GetPluginGetter() plugingetter.PluginGetter {
 
 // authorizationPlugin is an internal adapter to docker plugin system
 type authorizationPlugin struct {
-	plugin *plugins.Client
-	name   string
-	once   sync.Once
+	initErr error
+	plugin  *plugins.Client
+	name    string
+	once    sync.Once
 }
 
 func newAuthorizationPlugin(name string) Plugin {
@@ -95,7 +96,6 @@ func (a *authorizationPlugin) AuthZResponse(authReq *Request) (*Response, error)
 // initPlugin initializes the authorization plugin if needed
 func (a *authorizationPlugin) initPlugin() error {
 	// Lazy loading of plugins
-	var err error
 	a.once.Do(func() {
 		if a.plugin == nil {
 			var plugin plugingetter.CompatPlugin
@@ -108,11 +108,11 @@ func (a *authorizationPlugin) initPlugin() error {
 				plugin, e = plugins.Get(a.name, AuthZApiImplements)
 			}
 			if e != nil {
-				err = e
+				a.initErr = e
 				return
 			}
 			a.plugin = plugin.Client()
 		}
 	})
-	return err
+	return a.initErr
 }

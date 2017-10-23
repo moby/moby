@@ -18,12 +18,6 @@ const (
 	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
 )
 
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-}
-
 // UnmountIpcMount unmounts Ipc related mounts.
 // This is a NOOP on windows.
 func (container *Container) UnmountIpcMount(unmount func(pth string) error) error {

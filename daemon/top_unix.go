@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -50,16 +51,16 @@ func appendProcess2ProcList(procList *container.ContainerTopOKBody, fields []str
 	procList.Processes = append(procList.Processes, process)
 }
 
-func hasPid(pids []int, pid int) bool {
-	for _, i := range pids {
-		if i == pid {
+func hasPid(procs []uint32, pid int) bool {
+	for _, p := range procs {
+		if int(p) == pid {
 			return true
 		}
 	}
 	return false
 }
 
-func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, error) {
+func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody, error) {
 	procList := &container.ContainerTopOKBody{}
 
 	lines := strings.Split(string(output), "\n")
@@ -101,7 +102,7 @@ func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, er
 			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
-		if hasPid(pids, p) {
+		if hasPid(procs, p) {
 			preContainedPidFlag = true
 			appendProcess2ProcList(procList, fields)
 			continue
@@ -138,7 +139,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		return nil, errContainerIsRestarting(container.ID)
 	}
 
-	pids, err := daemon.containerd.GetPidsForContainer(container.ID)
+	procs, err := daemon.containerd.ListPids(context.Background(), container.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -147,7 +148,7 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	if err != nil {
 		return nil, fmt.Errorf("Error running ps: %v", err)
 	}
-	procList, err := parsePSOutput(output, pids)
+	procList, err := parsePSOutput(output, procs)
 	if err != nil {
 		return nil, err
 	}

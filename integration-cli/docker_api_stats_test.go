@@ -285,7 +285,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 	id2 := strings.TrimSpace(out2)
 	c.Assert(waitRun(id2), checker.IsNil)
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id2))
 		defer body.Close()

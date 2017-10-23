@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/docker/docker/api/types/container"
@@ -76,7 +77,7 @@ func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) erro
 	// If container is running (including paused), we need to update configs
 	// to the real world.
 	if container.IsRunning() && !container.IsRestarting() {
-		if err := daemon.containerd.UpdateResources(container.ID, toContainerdResources(hostConfig.Resources)); err != nil {
+		if err := daemon.containerd.UpdateResources(context.Background(), container.ID, toContainerdResources(hostConfig.Resources)); err != nil {
 			restoreConfig = true
 			// TODO: it would be nice if containerd responded with better errors here so we can classify this better.
 			return errCannotUpdate(container.ID, systemError{err})

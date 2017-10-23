@@ -90,6 +90,7 @@ func Send(message string, priority Priority, vars map[string]string) error {
 		if err != nil {
 			return journalError(err.Error())
 		}
+		defer file.Close()
 		_, err = io.Copy(file, data)
 		if err != nil {
 			return journalError(err.Error())
