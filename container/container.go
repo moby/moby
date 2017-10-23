@@ -52,11 +52,6 @@ import (
 
 const configFileName = "config.v2.json"
 
-const (
-	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
-	DefaultStopTimeout = 10
-)
-
 var (
 	errInvalidEndpoint = errors.New("invalid endpoint while building port map info")
 	errInvalidNetwork  = errors.New("invalid network settings while building port map info")
