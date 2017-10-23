@@ -4,6 +4,8 @@ import (
 	"net"
 	"testing"
 
+	"github.com/docker/libnetwork/resolvconf"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -42,4 +44,26 @@ func TestCleanupServiceDiscovery(t *testing.T) {
 	if len(c.(*controller).svcRecords) != 0 {
 		t.Fatalf("Service record not cleaned correctly:%v", c.(*controller).svcRecords)
 	}
+}
+
+func TestDNSOptions(t *testing.T) {
+	c, err := New()
+	require.NoError(t, err)
+
+	sb, err := c.(*controller).NewSandbox("cnt1", nil)
+	require.NoError(t, err)
+	defer sb.Delete()
+	sb.(*sandbox).startResolver(false)
+
+	sb.(*sandbox).config.dnsOptionsList = []string{"ndots:5"}
+	err = sb.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb.(*sandbox).rebuildDNS()
+	require.NoError(t, err)
+
+	currRC, err := resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
+	require.NoError(t, err)
+	dnsOptionsList := resolvconf.GetOptions(currRC.Content)
+	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
+	assert.Equal(t, "ndots:0", dnsOptionsList[0], "The option must be ndots:0 instead:", dnsOptionsList[0])
 }
