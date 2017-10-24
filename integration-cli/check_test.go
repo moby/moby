@@ -60,6 +60,12 @@ func init() {
 
 func TestMain(m *testing.M) {
 	dockerBinary = testEnv.DockerBinary()
+	err := ienv.EnsureFrozenImagesLinux(&testEnv.Execution)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	testEnv.Print()
 	os.Exit(m.Run())
 }
