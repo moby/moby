@@ -22,8 +22,8 @@ type -P ${BRCTL} > /dev/null || die "This tool requires brctl"
 type -P ${IPTABLES} > /dev/null || die "This tool requires iptables"
 
 echo "iptables configuration"
-${IPTABLES} -n -v -L -t filter
-${IPTABLES} -n -v -L -t nat
+${IPTABLES} -w1 -n -v -L -t filter
+${IPTABLES} -w1 -n -v -L -t nat
 echo ""
 
 echo "Overlay network configuration"
