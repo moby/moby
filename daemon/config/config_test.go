@@ -3,7 +3,6 @@ package config
 import (
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -38,9 +37,6 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 }
 
 func TestParseClusterAdvertiseSettings(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ClusterSettings not supported on Solaris\n")
-	}
 	_, err := ParseClusterAdvertiseSettings("something", "")
 	if err != discovery.ErrDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)

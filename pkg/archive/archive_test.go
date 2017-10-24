@@ -72,12 +72,7 @@ func TestIsArchivePathInvalidFile(t *testing.T) {
 }
 
 func TestIsArchivePathTar(t *testing.T) {
-	var whichTar string
-	if runtime.GOOS == "solaris" {
-		whichTar = "gtar"
-	} else {
-		whichTar = "tar"
-	}
+	whichTar := "tar"
 	cmdStr := fmt.Sprintf("touch /tmp/archivedata && %s -cf /tmp/archive /tmp/archivedata && gzip --stdout /tmp/archive > /tmp/archive.gz", whichTar)
 	cmd := exec.Command("sh", "-c", cmdStr)
 	output, err := cmd.CombinedOutput()

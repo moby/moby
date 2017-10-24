@@ -17,9 +17,6 @@ BUILDFLAGS=( -tags "netgo seccomp libdm_no_deferred_remove" )
 TESTDIRS="${TESTDIRS:-"./..."}"
 
 exclude_paths="/vendor/|/integration"
-if [ "$(go env GOHOSTOS)" = 'solaris' ]; then
-	exclude_paths="$exclude_paths|/daemon/graphdriver"
-fi
 pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
 go test -cover "${BUILDFLAGS[@]}" $TESTFLAGS $pkg_list

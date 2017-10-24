@@ -3,7 +3,6 @@ package daemon
 import (
 	"fmt"
 	"net"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -452,9 +451,6 @@ func (daemon *Daemon) UpdateContainerServiceConfig(containerName string, service
 // network. If either cannot be found, an err is returned. If the
 // network cannot be set up, an err is returned.
 func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error {
-	if runtime.GOOS == "solaris" {
-		return errors.New("docker network connect is unsupported on Solaris platform")
-	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		return err
@@ -465,9 +461,6 @@ func (daemon *Daemon) ConnectContainerToNetwork(containerName, networkName strin
 // DisconnectContainerFromNetwork disconnects the given container from
 // the given network. If either cannot be found, an err is returned.
 func (daemon *Daemon) DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error {
-	if runtime.GOOS == "solaris" {
-		return errors.New("docker network disconnect is unsupported on Solaris platform")
-	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
 		if force {

@@ -96,10 +96,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 			return nil, err
 		}
 		os = img.OS
-
-		if runtime.GOOS == "solaris" && img.OS != "solaris " {
-			return nil, errors.New("operating system on which parent image was created is not Solaris")
-		}
 		imgID = img.ID()
 
 		if runtime.GOOS == "windows" && img.OS == "linux" && !system.LCOWSupported() {

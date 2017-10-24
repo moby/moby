@@ -1,7 +1,5 @@
 // +build !solaris
 
-// TODO: Support Solaris
-
 package registry
 
 import (

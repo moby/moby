@@ -39,11 +39,8 @@ func DefaultSpec() specs.Spec {
 func DefaultOSSpec(osName string) specs.Spec {
 	if osName == "windows" {
 		return DefaultWindowsSpec()
-	} else if osName == "solaris" {
-		return DefaultSolarisSpec()
-	} else {
-		return DefaultLinuxSpec()
 	}
+	return DefaultLinuxSpec()
 }
 
 // DefaultWindowsSpec create a default spec for running Windows containers
@@ -54,15 +51,6 @@ func DefaultWindowsSpec() specs.Spec {
 		Process: &specs.Process{},
 		Root:    &specs.Root{},
 	}
-}
-
-// DefaultSolarisSpec create a default spec for running Solaris containers
-func DefaultSolarisSpec() specs.Spec {
-	s := specs.Spec{
-		Version: "0.6.0",
-	}
-	s.Solaris = &specs.Solaris{}
-	return s
 }
 
 // DefaultLinuxSpec create a default spec for running Linux containers
