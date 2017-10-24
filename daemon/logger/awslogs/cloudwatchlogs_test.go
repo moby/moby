@@ -3,7 +3,10 @@ package awslogs
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net/http"
+	"net/http/httptest"
+	"os"
 	"reflect"
 	"regexp"
 	"runtime"
@@ -1064,4 +1067,122 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 		res := unwrapEvents(events)
 		as.Len(res, maximumLogEventsPerPut)
 	}
+}
+
+func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
+	// required for the cloudwatchlogs client
+	os.Setenv("AWS_REGION", "us-west-2")
+	defer os.Unsetenv("AWS_REGION")
+
+	credsResp := `{
+		"AccessKeyId" :    "test-access-key-id",
+		"SecretAccessKey": "test-secret-access-key"
+		}`
+
+	expectedAccessKeyID := "test-access-key-id"
+	expectedSecretAccessKey := "test-secret-access-key"
+
+	testServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		fmt.Fprintln(w, credsResp)
+	}))
+	defer testServer.Close()
+
+	// set the SDKEndpoint in the driver
+	newSDKEndpoint = testServer.URL
+
+	info := logger.Info{
+		Config: map[string]string{},
+	}
+
+	info.Config["awslogs-credentials-endpoint"] = "/creds"
+
+	c, err := newAWSLogsClient(info)
+	assert.NoError(t, err)
+
+	client := c.(*cloudwatchlogs.CloudWatchLogs)
+
+	creds, err := client.Config.Credentials.Get()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
+	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
+}
+
+func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
+	// required for the cloudwatchlogs client
+	os.Setenv("AWS_REGION", "us-west-2")
+	defer os.Unsetenv("AWS_REGION")
+
+	expectedAccessKeyID := "test-access-key-id"
+	expectedSecretAccessKey := "test-secret-access-key"
+
+	os.Setenv("AWS_ACCESS_KEY_ID", expectedAccessKeyID)
+	defer os.Unsetenv("AWS_ACCESS_KEY_ID")
+
+	os.Setenv("AWS_SECRET_ACCESS_KEY", expectedSecretAccessKey)
+	defer os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+
+	info := logger.Info{
+		Config: map[string]string{},
+	}
+
+	c, err := newAWSLogsClient(info)
+	assert.NoError(t, err)
+
+	client := c.(*cloudwatchlogs.CloudWatchLogs)
+
+	creds, err := client.Config.Credentials.Get()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
+	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
+
+}
+
+func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
+	// required for the cloudwatchlogs client
+	os.Setenv("AWS_REGION", "us-west-2")
+	defer os.Unsetenv("AWS_REGION")
+
+	expectedAccessKeyID := "test-access-key-id"
+	expectedSecretAccessKey := "test-secret-access-key"
+
+	contentStr := `
+	[default]
+	aws_access_key_id = "test-access-key-id"
+	aws_secret_access_key =  "test-secret-access-key"
+	`
+	content := []byte(contentStr)
+
+	tmpfile, err := ioutil.TempFile("", "example")
+	defer os.Remove(tmpfile.Name()) // clean up
+	assert.NoError(t, err)
+
+	_, err = tmpfile.Write(content)
+	assert.NoError(t, err)
+
+	err = tmpfile.Close()
+	assert.NoError(t, err)
+
+	os.Unsetenv("AWS_ACCESS_KEY_ID")
+	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+
+	os.Setenv("AWS_SHARED_CREDENTIALS_FILE", tmpfile.Name())
+	defer os.Unsetenv("AWS_SHARED_CREDENTIALS_FILE")
+
+	info := logger.Info{
+		Config: map[string]string{},
+	}
+
+	c, err := newAWSLogsClient(info)
+	assert.NoError(t, err)
+
+	client := c.(*cloudwatchlogs.CloudWatchLogs)
+
+	creds, err := client.Config.Credentials.Get()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
+	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
 }
