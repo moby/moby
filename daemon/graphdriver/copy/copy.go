@@ -1,9 +1,18 @@
 // +build linux
 
-package overlay
+package copy
 
+/*
+#include <linux/fs.h>
+
+#ifndef FICLONE
+#define FICLONE		_IOW(0x94, 9, int)
+#endif
+*/
+import "C"
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"syscall"
@@ -15,26 +24,71 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-type copyFlags int
+// Mode indicates whether to use hardlink or copy content
+type Mode int
 
 const (
-	copyHardlink copyFlags = 1 << iota
+	// Content creates a new file, and copies the content of the file
+	Content Mode = iota
+	// Hardlink creates a new hardlink to the existing file
+	Hardlink
 )
 
-func copyRegular(srcPath, dstPath string, mode os.FileMode) error {
+func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRange, copyWithFileClone *bool) error {
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return err
 	}
 	defer srcFile.Close()
 
-	dstFile, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE, mode)
+	// If the destination file already exists, we shouldn't blow it away
+	dstFile, err := os.OpenFile(dstPath, os.O_WRONLY|os.O_CREATE|os.O_EXCL, fileinfo.Mode())
 	if err != nil {
 		return err
 	}
 	defer dstFile.Close()
 
-	_, err = pools.Copy(dstFile, srcFile)
+	if *copyWithFileClone {
+		_, _, err = unix.Syscall(unix.SYS_IOCTL, dstFile.Fd(), C.FICLONE, srcFile.Fd())
+		if err == nil {
+			return nil
+		}
+
+		*copyWithFileClone = false
+		if err == unix.EXDEV {
+			*copyWithFileRange = false
+		}
+	}
+	if *copyWithFileRange {
+		err = doCopyWithFileRange(srcFile, dstFile, fileinfo)
+		// Trying the file_clone may not have caught the exdev case
+		// as the ioctl may not have been available (therefore EINVAL)
+		if err == unix.EXDEV || err == unix.ENOSYS {
+			*copyWithFileRange = false
+		} else if err != nil {
+			return err
+		}
+	}
+	return legacyCopy(srcFile, dstFile)
+}
+
+func doCopyWithFileRange(srcFile, dstFile *os.File, fileinfo os.FileInfo) error {
+	amountLeftToCopy := fileinfo.Size()
+
+	for amountLeftToCopy > 0 {
+		n, err := unix.CopyFileRange(int(srcFile.Fd()), nil, int(dstFile.Fd()), nil, int(amountLeftToCopy), 0)
+		if err != nil {
+			return err
+		}
+
+		amountLeftToCopy = amountLeftToCopy - int64(n)
+	}
+
+	return nil
+}
+
+func legacyCopy(srcFile io.Reader, dstFile io.Writer) error {
+	_, err := pools.Copy(dstFile, srcFile)
 
 	return err
 }
@@ -52,7 +106,11 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
-func copyDir(srcDir, dstDir string, flags copyFlags) error {
+// DirCopy copies or hardlinks the contents of one directory to another,
+// properly handling xattrs, and soft links
+func DirCopy(srcDir, dstDir string, copyMode Mode) error {
+	copyWithFileRange := true
+	copyWithFileClone := true
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -78,14 +136,14 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
-			if flags&copyHardlink != 0 {
+			if copyMode == Hardlink {
 				isHardlink = true
-				if err := os.Link(srcPath, dstPath); err != nil {
-					return err
+				if err2 := os.Link(srcPath, dstPath); err2 != nil {
+					return err2
 				}
 			} else {
-				if err := copyRegular(srcPath, dstPath, f.Mode()); err != nil {
-					return err
+				if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
+					return err2
 				}
 			}
 
