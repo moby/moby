@@ -8,7 +8,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -224,9 +223,6 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 
 // TestTarUntarWithXattr is Unix as Lsetxattr is not supported on Windows
 func TestTarUntarWithXattr(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip()
-	}
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	require.NoError(t, err)
 	defer os.RemoveAll(origin)

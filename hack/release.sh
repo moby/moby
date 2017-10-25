@@ -207,10 +207,6 @@ release_build() {
 		linux)
 			s3Os=Linux
 			;;
-		solaris)
-			echo skipping solaris release
-			return 0
-			;;
 		windows)
 			# this is windows use the .zip and .exe extensions for the files.
 			s3Os=Windows
