@@ -38,7 +38,7 @@ func (p *v1Pusher) Push(ctx context.Context) error {
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was NoTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
+		registry.Headers(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
 	v1Endpoint := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)

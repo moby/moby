@@ -102,8 +102,8 @@ func ReadCertsDirectory(tlsConfig *tls.Config, directory string) error {
 	return nil
 }
 
-// DockerHeaders returns request modifiers with a User-Agent and metaHeaders
-func DockerHeaders(userAgent string, metaHeaders http.Header) []transport.RequestModifier {
+// Headers returns request modifiers with a User-Agent and metaHeaders
+func Headers(userAgent string, metaHeaders http.Header) []transport.RequestModifier {
 	modifiers := []transport.RequestModifier{}
 	if userAgent != "" {
 		modifiers = append(modifiers, transport.NewHeaderRequestModifier(http.Header{

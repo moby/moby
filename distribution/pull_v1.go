@@ -50,7 +50,7 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named, platform strin
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was ReceiveTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
+		registry.Headers(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
 	v1Endpoint := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
