@@ -83,12 +83,12 @@ func TestParseDockerDaemonHost(t *testing.T) {
 		"localhost:5555/path":     "tcp://localhost:5555/path",
 	}
 	for invalidAddr, expectedError := range invalids {
-		if addr, err := parseDockerDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
+		if addr, err := parseDaemonHost(invalidAddr); err == nil || err.Error() != expectedError {
 			t.Errorf("tcp %v address expected error %q return, got %q and addr %v", invalidAddr, expectedError, err, addr)
 		}
 	}
 	for validAddr, expectedAddr := range valids {
-		if addr, err := parseDockerDaemonHost(validAddr); err != nil || addr != expectedAddr {
+		if addr, err := parseDaemonHost(validAddr); err != nil || addr != expectedAddr {
 			t.Errorf("%v -> expected %v, got (%v) addr (%v)", validAddr, expectedAddr, err, addr)
 		}
 	}
