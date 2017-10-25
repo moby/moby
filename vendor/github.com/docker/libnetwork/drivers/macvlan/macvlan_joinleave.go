@@ -8,7 +8,18 @@ import (
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/osl"
+        "github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
+)
+
+type staticRoute struct {
+	Destination *net.IPNet
+	RouteType   int
+	NextHop     net.IP
+}
+
+const (
+	internalV4RouteCidr = "10.0.0.0/8"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -72,6 +83,21 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
 			ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 	}
+
+	if len(n.config.InternalGw) > 0 {
+		internalV4Route, err := setInternalGateway(internalV4RouteCidr, n.config.InternalGw)
+
+		if err != nil {
+			return err
+		}
+
+		if err := jinfo.AddStaticRoute(internalV4Route.Destination, internalV4Route.RouteType, internalV4Route.NextHop); err != nil {
+			return fmt.Errorf("failed to set an macvlan internal gateway: %v", err)
+		}
+		logrus.Debugf("Macvlan Endpoint Joined with Internal Gateway: %s",
+			n.config.InternalGw)
+	}
+
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix)
 	if err != nil {
@@ -99,6 +125,24 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	return nil
+}
+
+// Add Route to internal Gateway ipv4 if option internal_gateway is set
+func setInternalGateway(dfNet string, internal_gw string) (*staticRoute, error) {
+	_, dst, err := net.ParseCIDR(dfNet)
+	if err != nil {
+		return nil, fmt.Errorf("SetInternalGateway: unable to parse default route %v", err)
+	}
+
+	gateway_ip := net.ParseIP(internal_gw)
+
+	InternalGwRoute := &staticRoute{
+		Destination: dst,
+		RouteType:   types.NEXTHOP,
+		NextHop:     gateway_ip,
+	}
+
+	return InternalGwRoute, nil
 }
 
 // getSubnetforIP returns the ipv4 subnet to which the given IP belongs
