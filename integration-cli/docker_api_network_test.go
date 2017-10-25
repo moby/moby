@@ -35,7 +35,7 @@ func (s *DockerSuite) TestAPINetworkCreateDelete(c *check.C) {
 			CheckDuplicate: true,
 		},
 	}
-	id := createNetwork(c, config, true)
+	id := createNetwork(c, config, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
 
 	// delete the network and make sure it is deleted
@@ -60,14 +60,14 @@ func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
 	}
 
 	// Creating a new network first
-	createNetwork(c, configOnCheck, true)
+	createNetwork(c, configOnCheck, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
 
 	// Creating another network with same name and CheckDuplicate must fail
-	createNetwork(c, configOnCheck, false)
+	createNetwork(c, configOnCheck, http.StatusConflict)
 
 	// Creating another network with same name and not CheckDuplicate must succeed
-	createNetwork(c, configNotCheck, true)
+	createNetwork(c, configNotCheck, http.StatusCreated)
 }
 
 func (s *DockerSuite) TestAPINetworkFilter(c *check.C) {
@@ -116,7 +116,7 @@ func (s *DockerSuite) TestAPINetworkInspectUserDefinedNetwork(c *check.C) {
 			Options: map[string]string{"foo": "bar", "opts": "dopts"},
 		},
 	}
-	id0 := createNetwork(c, config, true)
+	id0 := createNetwork(c, config, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "br0"), checker.Equals, true)
 
 	nr := getNetworkResource(c, id0)
@@ -139,7 +139,7 @@ func (s *DockerSuite) TestAPINetworkConnectDisconnect(c *check.C) {
 	config := types.NetworkCreateRequest{
 		Name: name,
 	}
-	id := createNetwork(c, config, true)
+	id := createNetwork(c, config, http.StatusCreated)
 	nr := getNetworkResource(c, id)
 	c.Assert(nr.Name, checker.Equals, name)
 	c.Assert(nr.ID, checker.Equals, id)
@@ -187,7 +187,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 			IPAM:   ipam0,
 		},
 	}
-	id0 := createNetwork(c, config0, true)
+	id0 := createNetwork(c, config0, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test0"), checker.Equals, true)
 
 	ipam1 := &network.IPAM{
@@ -202,7 +202,7 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 			IPAM:   ipam1,
 		},
 	}
-	createNetwork(c, config1, false)
+	createNetwork(c, config1, http.StatusForbidden)
 	c.Assert(isNetworkAvailable(c, "test1"), checker.Equals, false)
 
 	ipam2 := &network.IPAM{
@@ -217,20 +217,20 @@ func (s *DockerSuite) TestAPINetworkIPAMMultipleBridgeNetworks(c *check.C) {
 			IPAM:   ipam2,
 		},
 	}
-	createNetwork(c, config2, true)
+	createNetwork(c, config2, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test2"), checker.Equals, true)
 
 	// remove test0 and retry to create test1
 	deleteNetwork(c, id0, true)
-	createNetwork(c, config1, true)
+	createNetwork(c, config1, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test1"), checker.Equals, true)
 
 	// for networks w/o ipam specified, docker will choose proper non-overlapping subnets
-	createNetwork(c, types.NetworkCreateRequest{Name: "test3"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test3"}, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test3"), checker.Equals, true)
-	createNetwork(c, types.NetworkCreateRequest{Name: "test4"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test4"}, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test4"), checker.Equals, true)
-	createNetwork(c, types.NetworkCreateRequest{Name: "test5"}, true)
+	createNetwork(c, types.NetworkCreateRequest{Name: "test5"}, http.StatusCreated)
 	c.Assert(isNetworkAvailable(c, "test5"), checker.Equals, true)
 
 	for i := 1; i < 6; i++ {
@@ -253,9 +253,8 @@ func createDeletePredefinedNetwork(c *check.C, name string) {
 			CheckDuplicate: true,
 		},
 	}
-	shouldSucceed := false
-	createNetwork(c, config, shouldSucceed)
-	deleteNetwork(c, name, shouldSucceed)
+	createNetwork(c, config, http.StatusForbidden)
+	deleteNetwork(c, name, false)
 }
 
 func isNetworkAvailable(c *check.C, name string) bool {
@@ -316,22 +315,22 @@ func getNetworkResource(c *check.C, id string) *types.NetworkResource {
 	return &nr
 }
 
-func createNetwork(c *check.C, config types.NetworkCreateRequest, shouldSucceed bool) string {
+func createNetwork(c *check.C, config types.NetworkCreateRequest, expectedStatusCode int) string {
 	resp, body, err := request.Post("/networks/create", request.JSONBody(config))
 	c.Assert(err, checker.IsNil)
 	defer resp.Body.Close()
-	if !shouldSucceed {
-		c.Assert(resp.StatusCode, checker.Not(checker.Equals), http.StatusCreated)
+
+	c.Assert(resp.StatusCode, checker.Equals, expectedStatusCode)
+
+	if expectedStatusCode == http.StatusCreated {
+		var nr types.NetworkCreateResponse
+		err = json.NewDecoder(body).Decode(&nr)
+		c.Assert(err, checker.IsNil)
+
+		return nr.ID
+	} else {
 		return ""
 	}
-
-	c.Assert(resp.StatusCode, checker.Equals, http.StatusCreated)
-
-	var nr types.NetworkCreateResponse
-	err = json.NewDecoder(body).Decode(&nr)
-	c.Assert(err, checker.IsNil)
-
-	return nr.ID
 }
 
 func connectNetwork(c *check.C, nid, cid string) {
