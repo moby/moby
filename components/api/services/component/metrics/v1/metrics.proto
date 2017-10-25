@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package moby.core.services.metrics.v1;
+
+option go_package = "metrics";
+
+import "github.com/prometheus/client_model/metrics.proto";
+
+// Metrics provides support for publishing prometheus style metrics on a GRPC endpoint.
+// This would be used by a client to collect metrics and expose to an external service.
+service Metrics {
+	rpc CollectMetrics(CollectMetricsRequest) returns (CollectMetricsResponse);
+}
+
+message CollectMetricsRequest {}
+
+message CollectMetricsResponse {
+	repeated io.prometheus.client.MetricFamily values = 1;
+}

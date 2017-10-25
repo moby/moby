@@ -1,0 +1,33 @@
+syntax = "proto3";
+
+package moby.core.v1.types;
+
+import "gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/any.proto";
+
+message ContainerSpec {
+	Annotations annotations = 3;
+	google.protobuf.Any spec = 4;
+}
+
+message Version {
+	uint64 index = 1;
+}
+
+message Meta {
+	Version version = 1 [(gogoproto.nullable) = false];
+	google.protobuf.Timestamp created_at = 2;
+	google.protobuf.Timestamp updated_at = 3;
+}
+
+message Annotations {
+	string Name = 1;
+	map<string,string> labels = 2;
+}
+
+message Container {
+	string id = 1;
+	ContainerSpec spec = 2;
+	Meta meta = 3;
+}

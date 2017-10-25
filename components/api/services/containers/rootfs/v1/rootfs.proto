@@ -1,0 +1,49 @@
+syntax = "proto3";
+
+package moby.core.services.containers.rootfs.v1;
+
+option go_package = "rootfs";
+
+import "github.com/moby/moby/components/api/types/container/container.proto";
+import "github.com/moby/moby/components/api/types/file.proto";
+
+service RootfsService {
+	rpc ExtractRootfsArchive (ExtractRootfsArchiveRequest) returns (ExtractRootfsArchiveResponse) {}
+	rpc FetchRootfs (FetchRootfsRequest) returns (FetchRootfsResponse) {}
+	rpc StatRootfs (StatRootfsRequest) returns (StatRootfsResponse) {}
+	rpc DiffRootfs (DiffRootfsRequest) returns (DiffRootfsResponse) {}
+}
+
+message ExtractRootfsArchiveRequest {
+  moby.core.v1.types.Container container = 1;
+  string target = 2;
+  // the archive ???
+}
+
+message ExtractRootfsArchiveResponse {}
+
+message FetchRootfsRequest {
+	moby.core.v1.types.Container container = 1;
+	string target = 2;
+}
+
+message FetchRootfsResponse {
+   // the archive ???
+}
+
+message StatRootfsRequest {
+	moby.core.v1.types.Container container = 1;
+	string target = 2;
+}
+
+message StatRootfsResponse {
+	moby.core.types.v1.FileInfo info = 1;
+}
+
+message DiffRootfsRequest {
+	moby.core.v1.types.Container container = 1;
+}
+
+message DiffRootfsResponse {
+
+}

@@ -1,0 +1,43 @@
+syntax = "proto3";
+
+package moby.core.services.containers.runtime.v1;
+
+option go_package = "runtime";
+
+import "github.com/moby/moby/components/api/types/container/container.proto";
+import "google/protobuf/duration.proto";
+
+service ContainerRuntimeService {
+	rpc StartContainer(StartContainerRequest) returns (StartContainerResponse) {}
+	rpc KillContainer(KillContainerRequest) returns (KillContainerResponse) {}
+	rpc PauseContainer(PauseContainerRequest) returns(PauseContainerResponse) {}
+	rpc ResumeContainer(ResumeContainerRequest) returns (ResumeContainerResponse) {}
+}
+
+message StartContainerRequest {
+	moby.core.v1.types.Container container = 1;
+}
+
+message StartContainerResponse {
+	int32 pid = 1;
+}
+
+message KillContainerRequest {
+	moby.core.v1.types.Container container = 1;
+	google.protobuf.Duration timeout = 2;
+	uint32 signal = 3;
+}
+
+message KillContainerResponse {}
+
+message PauseContainerRequest {
+	moby.core.v1.types.Container container = 1;
+}
+
+message PauseContainerResponse {}
+
+message ResumeContainerRequest{
+	moby.core.v1.types.Container container = 1;
+}
+
+message ResumeContainerResponse{}

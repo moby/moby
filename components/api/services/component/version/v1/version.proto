@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package moby.core.services.version.v1;
+
+option go_package = "version";
+
+import "google/protobuf/empty.proto";
+
+service Version {
+	rpc Version(google.protobuf.Empty) returns (VersionResponse);
+}
+
+message VersionResponse {
+	string version = 1;
+	string revision = 2;
+}
