@@ -9,14 +9,6 @@ cidocker = docker run ${dockerargs} ${ciargs} $$EXTRA_ARGS ${container_env} ${bu
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
 export PATH := $(CURDIR)/bin:$(PATH)
-hostOS = ${shell go env GOHOSTOS}
-ifeq (${hostOS}, solaris)
-	gnufind=gfind
-	gnutail=gtail
-else
-	gnufind=find
-	gnutail=tail
-endif
 
 all: ${build_image}.created build check integration-tests clean
 
@@ -71,41 +63,8 @@ check-format: fmt misspell
 run-tests:
 	@echo "🐳 Running tests... "
 	@echo "mode: count" > coverage.coverprofile
-	@for dir in $$( ${gnufind} . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -not -path './vendor/*' -type d); do \
-	    if [ ${hostOS} == solaris ]; then \
-	        case "$$dir" in \
-		    "./cmd/dnet" ) \
-		    ;& \
-		    "./cmd/ovrouter" ) \
-		    ;& \
-		    "./ns" ) \
-		    ;& \
-		    "./iptables" ) \
-		    ;& \
-		    "./ipvs" ) \
-		    ;& \
-		    "./drivers/bridge" ) \
-		    ;& \
-		    "./drivers/host" ) \
-		    ;& \
-		    "./drivers/ipvlan" ) \
-		    ;& \
-		    "./drivers/macvlan" ) \
-		    ;& \
-		    "./drivers/overlay" ) \
-		    ;& \
-		    "./drivers/remote" ) \
-		    ;& \
-		    "./drivers/windows" ) \
-			echo "Skipping $$dir on solaris host... "; \
-			continue; \
-			;; \
-		    * )\
-			echo "Entering $$dir ... "; \
-			;; \
-	        esac; \
-	    fi; \
-	    if ls $$dir/*.go &> /dev/null; then \
+	@for dir in $$( find . -maxdepth 10 -not -path './.git*' -not -path '*/_*' -not -path './vendor/*' -type d); do \
+	if ls $$dir/*.go &> /dev/null; then \
 		pushd . &> /dev/null ; \
 		cd $$dir ; \
 		go test ${INSIDECONTAINER} -test.parallel 5 -test.v -covermode=count -coverprofile=./profile.tmp ; \
@@ -113,7 +72,7 @@ run-tests:
 		if [ $$ret -ne 0 ]; then exit $$ret; fi ;\
 		popd &> /dev/null; \
 		if [ -f $$dir/profile.tmp ]; then \
-			cat $$dir/profile.tmp | ${gnutail} -n +2 >> coverage.coverprofile ; \
+			cat $$dir/profile.tmp | tail -n +2 >> coverage.coverprofile ; \
 				rm $$dir/profile.tmp ; \
 	    fi ; \
 	fi ; \
