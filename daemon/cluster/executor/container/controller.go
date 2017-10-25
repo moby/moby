@@ -155,6 +155,9 @@ func (r *controller) Prepare(ctx context.Context) error {
 			return exec.ErrTaskPrepared
 		}
 
+		if r.pullErr != nil {
+			return errors.Wrap(err, r.pullErr.Error())
+		}
 		return err
 	}
 
