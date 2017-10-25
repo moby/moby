@@ -22,11 +22,6 @@ const (
 	// a Semaphore acquisition.
 	DefaultSemaphoreWaitTime = 15 * time.Second
 
-	// DefaultSemaphoreRetryTime is how long we wait after a failed lock acquisition
-	// before attempting to do the lock again. This is so that once a lock-delay
-	// is in affect, we do not hot loop retrying the acquisition.
-	DefaultSemaphoreRetryTime = 5 * time.Second
-
 	// DefaultSemaphoreKey is the key used within the prefix to
 	// use for coordination between all the contenders.
 	DefaultSemaphoreKey = ".lock"

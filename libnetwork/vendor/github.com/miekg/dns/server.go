@@ -535,6 +535,9 @@ Redo:
 	h.ServeDNS(w, req) // Writes back to the client
 
 Exit:
+	if w.tcp == nil {
+		return
+	}
 	// TODO(miek): make this number configurable?
 	if q > maxTCPQueries { // close socket after this many queries
 		w.Close()

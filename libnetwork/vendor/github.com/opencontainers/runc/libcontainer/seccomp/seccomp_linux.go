@@ -3,20 +3,23 @@
 package seccomp
 
 import (
+	"bufio"
 	"fmt"
-	"log"
-	"syscall"
+	"os"
+	"strings"
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	libseccomp "github.com/seccomp/libseccomp-golang"
+
+	"golang.org/x/sys/unix"
 )
 
 var (
 	actAllow = libseccomp.ActAllow
 	actTrap  = libseccomp.ActTrap
 	actKill  = libseccomp.ActKill
-	actTrace = libseccomp.ActTrace.SetReturnCode(int16(syscall.EPERM))
-	actErrno = libseccomp.ActErrno.SetReturnCode(int16(syscall.EPERM))
+	actTrace = libseccomp.ActTrace.SetReturnCode(int16(unix.EPERM))
+	actErrno = libseccomp.ActErrno.SetReturnCode(int16(unix.EPERM))
 )
 
 // Filters given syscalls in a container, preventing them from being used
@@ -71,6 +74,24 @@ func InitSeccomp(config *configs.Seccomp) error {
 	}
 
 	return nil
+}
+
+// IsEnabled returns if the kernel has been configured to support seccomp.
+func IsEnabled() bool {
+	// Try to read from /proc/self/status for kernels > 3.8
+	s, err := parseStatusFile("/proc/self/status")
+	if err != nil {
+		// Check if Seccomp is supported, via CONFIG_SECCOMP.
+		if err := unix.Prctl(unix.PR_GET_SECCOMP, 0, 0, 0, 0); err != unix.EINVAL {
+			// Make sure the kernel has CONFIG_SECCOMP_FILTER.
+			if err := unix.Prctl(unix.PR_SET_SECCOMP, unix.SECCOMP_MODE_FILTER, 0, 0, 0); err != unix.EINVAL {
+				return true
+			}
+		}
+		return false
+	}
+	_, ok := s["Seccomp"]
+	return ok
 }
 
 // Convert Libcontainer Action to Libseccomp ScmpAction
@@ -143,7 +164,6 @@ func matchCall(filter *libseccomp.ScmpFilter, call *configs.Syscall) error {
 	// Ignore it, don't error out
 	callNum, err := libseccomp.GetSyscallFromName(call.Name)
 	if err != nil {
-		log.Printf("Error resolving syscall name %s: %s - ignoring syscall.", call.Name, err)
 		return nil
 	}
 
@@ -177,4 +197,31 @@ func matchCall(filter *libseccomp.ScmpFilter, call *configs.Syscall) error {
 	}
 
 	return nil
+}
+
+func parseStatusFile(path string) (map[string]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	s := bufio.NewScanner(f)
+	status := make(map[string]string)
+
+	for s.Scan() {
+		text := s.Text()
+		parts := strings.Split(text, ":")
+
+		if len(parts) <= 1 {
+			continue
+		}
+
+		status[parts[0]] = parts[1]
+	}
+	if err := s.Err(); err != nil {
+		return nil, err
+	}
+
+	return status, nil
 }

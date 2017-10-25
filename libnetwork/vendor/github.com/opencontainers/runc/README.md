@@ -1,433 +1,244 @@
-## runc
+# runc
 
-`runc` is a CLI tool for spawning and running containers according to the OCF specification.
+[![Build Status](https://travis-ci.org/opencontainers/runc.svg?branch=master)](https://travis-ci.org/opencontainers/runc)
+[![Go Report Card](https://goreportcard.com/badge/github.com/opencontainers/runc)](https://goreportcard.com/report/github.com/opencontainers/runc)
+[![GoDoc](https://godoc.org/github.com/opencontainers/runc?status.svg)](https://godoc.org/github.com/opencontainers/runc)
 
-## State of the project
+## Introduction
 
-Currently `runc` is an implementation of the OCI specification.  We are currently sprinting
-to have a v1 of the spec out. So the `runc` config format will be constantly changing until
-the spec is finalized. However, we encourage you to try out the tool and give feedback.
+`runc` is a CLI tool for spawning and running containers according to the OCI specification.
 
-### OCF
+## Releases
 
-How does `runc` integrate with the Open Container Initiative Specification?
-`runc` depends on the types specified in the
-[specs](https://github.com/opencontainers/specs) repository. Whenever the
-specification is updated and ready to be versioned `runc` will update its dependency
-on the specs repository and support the update spec.
+`runc` depends on and tracks the [runtime-spec](https://github.com/opencontainers/runtime-spec) repository.
+We will try to make sure that `runc` and the OCI specification major versions stay in lockstep.
+This means that `runc` 1.0.0 should implement the 1.0 version of the specification.
 
-### Building:
+You can find official releases of `runc` on the [release](https://github.com/opencontainers/runc/releases) page.
 
-At the time of writing, runc only builds on the Linux platform.
+### Security
+
+If you wish to report a security issue, please disclose the issue responsibly
+to security@opencontainers.org.
+
+## Building
+
+`runc` currently supports the Linux platform with various architecture support.
+It must be built with Go version 1.6 or higher in order for some features to function properly.
+
+In order to enable seccomp support you will need to install `libseccomp` on your platform.
+> e.g. `libseccomp-devel` for CentOS, or `libseccomp-dev` for Ubuntu
+
+Otherwise, if you do not want to build `runc` with seccomp support you can add `BUILDTAGS=""` when running make.
 
 ```bash
 # create a 'github.com/opencontainers' in your GOPATH/src
 cd github.com/opencontainers
 git clone https://github.com/opencontainers/runc
 cd runc
+
 make
 sudo make install
 ```
 
-In order to enable seccomp support you will need to install libseccomp on your platform.
-If you do not with to build `runc` with seccomp support you can add `BUILDTAGS=""` when running make.
+`runc` will be installed to `/usr/local/sbin/runc` on your system.
 
 #### Build Tags
 
-`runc` supports optional build tags for compiling in support for various features.
+`runc` supports optional build tags for compiling support of various features.
+To add build tags to the make option the `BUILDTAGS` variable must be set.
 
+```bash
+make BUILDTAGS='seccomp apparmor'
+```
 
 | Build Tag | Feature                            | Dependency  |
 |-----------|------------------------------------|-------------|
 | seccomp   | Syscall filtering                  | libseccomp  |
 | selinux   | selinux process and mount labeling | <none>      |
 | apparmor  | apparmor profile support           | libapparmor |
+| ambient   | ambient capability support         | kernel 4.3  |
 
-### Testing:
 
-You can run tests for runC by using command:
+### Running the test suite
+
+`runc` currently supports running its test suite via Docker.
+To run the suite just type `make test`.
 
 ```bash
-# make test
+make test
 ```
 
-Note that test cases are run in Docker container, so you need to install
-`docker` first. And test requires mounting cgroups inside container, it's
-done by docker now, so you need a docker version newer than 1.8.0-rc2.
+There are additional make targets for running the tests outside of a container but this is not recommended as the tests are written with the expectation that they can write and remove anywhere.
 
-You can also run specific test cases by:
+You can run a specific test case by setting the `TESTFLAGS` variable.
 
 ```bash
 # make test TESTFLAGS="-run=SomeTestFunction"
 ```
 
-### Using:
+### Dependencies Management
 
-To run a container, execute `runc start` in the bundle's root directory:
+`runc` uses [vndr](https://github.com/LK4D4/vndr) for dependencies management.
+Please refer to [vndr](https://github.com/LK4D4/vndr) for how to add or update
+new dependencies.
+
+## Using runc
+
+### Creating an OCI Bundle
+
+In order to use runc you must have your container in the format of an OCI bundle.
+If you have Docker installed you can use its `export` method to acquire a root filesystem from an existing Docker container.
+
 ```bash
-runc start
-/ $ ps
-PID   USER     COMMAND
-1     daemon   sh
-5     daemon   sh
-/ $
-```
+# create the top most bundle directory
+mkdir /mycontainer
+cd /mycontainer
 
-### OCI Container JSON Format:
-
-OCI container JSON format is based on OCI [specs](https://github.com/opencontainers/specs).
-You can generate JSON files by using `runc spec`, it'll generate `config.json`
-and `runtime.json`. It assumes that the file-system is found in a directory called
-`rootfs` and there is a user with uid and gid of `0` defined within that file-system.
-
-Below are sample `config.json` and `runtime.json` configuration files. Note that it
-could be outdated, please always create base JSON files by `runc spec`.
-
-`config.json`:
-```json
-{
-	"version": "0.2.0",
-	"platform": {
-		"os": "linux",
-		"arch": "amd64"
-	},
-	"process": {
-		"terminal": true,
-		"user": {
-			"uid": 0,
-			"gid": 0,
-			"additionalGids": null
-		},
-		"args": [
-			"sh"
-		],
-		"env": [
-			"PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
-			"TERM=xterm"
-		],
-		"cwd": ""
-	},
-	"root": {
-		"path": "rootfs",
-		"readonly": true
-	},
-	"hostname": "shell",
-	"mounts": [
-		{
-			"name": "proc",
-			"path": "/proc"
-		},
-		{
-			"name": "dev",
-			"path": "/dev"
-		},
-		{
-			"name": "devpts",
-			"path": "/dev/pts"
-		},
-		{
-			"name": "shm",
-			"path": "/dev/shm"
-		},
-		{
-			"name": "mqueue",
-			"path": "/dev/mqueue"
-		},
-		{
-			"name": "sysfs",
-			"path": "/sys"
-		},
-		{
-			"name": "cgroup",
-			"path": "/sys/fs/cgroup"
-		}
-	],
-	"linux": {
-		"capabilities": [
-			"CAP_AUDIT_WRITE",
-			"CAP_KILL",
-			"CAP_NET_BIND_SERVICE"
-		]
-	}
-}
-```
-
-`runtime.json`:
-```json
-{
-	"mounts": {
-		"cgroup": {
-			"type": "cgroup",
-			"source": "cgroup",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev",
-				"relatime",
-				"ro"
-			]
-		},
-		"dev": {
-			"type": "tmpfs",
-			"source": "tmpfs",
-			"options": [
-				"nosuid",
-				"strictatime",
-				"mode=755",
-				"size=65536k"
-			]
-		},
-		"devpts": {
-			"type": "devpts",
-			"source": "devpts",
-			"options": [
-				"nosuid",
-				"noexec",
-				"newinstance",
-				"ptmxmode=0666",
-				"mode=0620",
-				"gid=5"
-			]
-		},
-		"mqueue": {
-			"type": "mqueue",
-			"source": "mqueue",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev"
-			]
-		},
-		"proc": {
-			"type": "proc",
-			"source": "proc",
-			"options": null
-		},
-		"shm": {
-			"type": "tmpfs",
-			"source": "shm",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev",
-				"mode=1777",
-				"size=65536k"
-			]
-		},
-		"sysfs": {
-			"type": "sysfs",
-			"source": "sysfs",
-			"options": [
-				"nosuid",
-				"noexec",
-				"nodev"
-			]
-		}
-	},
-	"hooks": {
-		"prestart": null,
-		"poststart": null,
-		"poststop": null
-	},
-	"linux": {
-		"uidMappings": null,
-		"gidMappings": null,
-		"rlimits": [
-			{
-				"type": "RLIMIT_NOFILE",
-				"hard": 1024,
-				"soft": 1024
-			}
-		],
-		"sysctl": null,
-		"resources": {
-			"disableOOMKiller": false,
-			"memory": {
-				"limit": 0,
-				"reservation": 0,
-				"swap": 0,
-				"kernel": 0,
-				"swappiness": -1
-			},
-			"cpu": {
-				"shares": 0,
-				"quota": 0,
-				"period": 0,
-				"realtimeRuntime": 0,
-				"realtimePeriod": 0,
-				"cpus": "",
-				"mems": ""
-			},
-			"pids": {
-				"limit": 0
-			},
-			"blockIO": {
-				"blkioWeight": 0,
-				"blkioLeafWeight": 0,
-				"blkioWeightDevice": null,
-				"blkioThrottleReadBpsDevice": null,
-				"blkioThrottleWriteBpsDevice": null,
-				"blkioThrottleReadIOPSDevice": null,
-				"blkioThrottleWriteIOPSDevice": null
-			},
-			"hugepageLimits": null,
-			"network": {
-				"classId": "",
-				"priorities": null
-			}
-		},
-		"cgroupsPath": "",
-		"namespaces": [
-			{
-				"type": "pid",
-				"path": ""
-			},
-			{
-				"type": "network",
-				"path": ""
-			},
-			{
-				"type": "ipc",
-				"path": ""
-			},
-			{
-				"type": "uts",
-				"path": ""
-			},
-			{
-				"type": "mount",
-				"path": ""
-			}
-		],
-		"devices": [
-			{
-				"path": "/dev/null",
-				"type": 99,
-				"major": 1,
-				"minor": 3,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			},
-			{
-				"path": "/dev/random",
-				"type": 99,
-				"major": 1,
-				"minor": 8,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			},
-			{
-				"path": "/dev/full",
-				"type": 99,
-				"major": 1,
-				"minor": 7,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			},
-			{
-				"path": "/dev/tty",
-				"type": 99,
-				"major": 5,
-				"minor": 0,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			},
-			{
-				"path": "/dev/zero",
-				"type": 99,
-				"major": 1,
-				"minor": 5,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			},
-			{
-				"path": "/dev/urandom",
-				"type": 99,
-				"major": 1,
-				"minor": 9,
-				"permissions": "rwm",
-				"fileMode": 438,
-				"uid": 0,
-				"gid": 0
-			}
-		],
-		"apparmorProfile": "",
-		"selinuxProcessLabel": "",
-		"seccomp": {
-			"defaultAction": "SCMP_ACT_ALLOW",
-			"architectures": null,
-			"syscalls": []
-		},
-		"rootfsPropagation": ""
-	}
-}
-```
-
-### Examples:
-
-#### Using a Docker image (requires version 1.3 or later)
-
-To test using Docker's `busybox` image follow these steps:
-* Install `docker` and download the `busybox` image: `docker pull busybox`
-* Create a container from that image and export its contents to a tar file:
-`docker export $(docker create busybox) > busybox.tar`
-* Untar the contents to create your filesystem directory:
-```
+# create the rootfs directory
 mkdir rootfs
-tar -C rootfs -xf busybox.tar
-```
-* Create `config.json` and `runtime.json` by using `runc spec`.
-* Execute `runc start` and you should be placed into a shell where you can run `ps`:
-```
-$ runc start
-/ # ps
-PID   USER     COMMAND
-    1 root     sh
-    9 root     ps
+
+# export busybox via Docker into the rootfs directory
+docker export $(docker create busybox) | tar -C rootfs -xvf -
 ```
 
-#### Using runc with systemd
+After a root filesystem is populated you just generate a spec in the format of a `config.json` file inside your bundle.
+`runc` provides a `spec` command to generate a base template spec that you are then able to edit.
+To find features and documentation for fields in the spec please refer to the [specs](https://github.com/opencontainers/runtime-spec) repository.
 
-To use runc with systemd, you can create a unit file
-`/usr/lib/systemd/system/minecraft.service` as below (edit your
-own Description or WorkingDirectory or service name as you need).
+```bash
+runc spec
+```
 
-```service
+### Running Containers
+
+Assuming you have an OCI bundle from the previous step you can execute the container in two different ways.
+
+The first way is to use the convenience command `run` that will handle creating, starting, and deleting the container after it exits.
+
+```bash
+# run as root
+cd /mycontainer
+runc run mycontainerid
+```
+
+If you used the unmodified `runc spec` template this should give you a `sh` session inside the container.
+
+The second way to start a container is using the specs lifecycle operations.
+This gives you more power over how the container is created and managed while it is running.
+This will also launch the container in the background so you will have to edit the `config.json` to remove the `terminal` setting for the simple examples here.
+Your process field in the `config.json` should look like this below with `"terminal": false` and `"args": ["sleep", "5"]`.
+
+
+```json
+        "process": {
+                "terminal": false,
+                "user": {
+                        "uid": 0,
+                        "gid": 0
+                },
+                "args": [
+                        "sleep", "5"
+                ],
+                "env": [
+                        "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
+                        "TERM=xterm"
+                ],
+                "cwd": "/",
+                "capabilities": {
+                        "bounding": [
+                                "CAP_AUDIT_WRITE",
+                                "CAP_KILL",
+                                "CAP_NET_BIND_SERVICE"
+                        ],
+                        "effective": [
+                                "CAP_AUDIT_WRITE",
+                                "CAP_KILL",
+                                "CAP_NET_BIND_SERVICE"
+                        ],
+                        "inheritable": [
+                                "CAP_AUDIT_WRITE",
+                                "CAP_KILL",
+                                "CAP_NET_BIND_SERVICE"
+                        ],
+                        "permitted": [
+                                "CAP_AUDIT_WRITE",
+                                "CAP_KILL",
+                                "CAP_NET_BIND_SERVICE"
+                        ],
+                        "ambient": [
+                                "CAP_AUDIT_WRITE",
+                                "CAP_KILL",
+                                "CAP_NET_BIND_SERVICE"
+                        ]
+                },
+                "rlimits": [
+                        {
+                                "type": "RLIMIT_NOFILE",
+                                "hard": 1024,
+                                "soft": 1024
+                        }
+                ],
+                "noNewPrivileges": true
+        },
+```
+
+Now we can go through the lifecycle operations in your shell.
+
+
+```bash
+# run as root
+cd /mycontainer
+runc create mycontainerid
+
+# view the container is created and in the "created" state
+runc list
+
+# start the process inside the container
+runc start mycontainerid
+
+# after 5 seconds view that the container has exited and is now in the stopped state
+runc list
+
+# now delete the container
+runc delete mycontainerid
+```
+
+This adds more complexity but allows higher level systems to manage runc and provides points in the containers creation to setup various settings after the container has created and/or before it is deleted.
+This is commonly used to setup the container's network stack after `create` but before `start` where the user's defined process will be running.
+
+#### Rootless containers
+`runc` has the ability to run containers without root privileges. This is called `rootless`. You need to pass some parameters to `runc` in order to run rootless containers. See below and compare with the previous version. Run the following commands as an ordinary user:
+```bash
+# Same as the first example
+mkdir ~/mycontainer
+cd ~/mycontainer
+mkdir rootfs
+docker export $(docker create busybox) | tar -C rootfs -xvf -
+
+# The --rootless parameter instructs runc spec to generate a configuration for a rootless container, which will allow you to run the container as a non-root user.
+runc spec --rootless
+
+# The --root parameter tells runc where to store the container state. It must be writable by the user.
+runc --root /tmp/runc run mycontainerid
+```
+
+#### Supervisors
+
+`runc` can be used with process supervisors and init systems to ensure that containers are restarted when they exit.
+An example systemd unit file looks something like this.
+
+```systemd
 [Unit]
-Description=Minecraft Build Server
-Documentation=http://minecraft.net
-After=network.target
+Description=Start My Container
 
 [Service]
-CPUQuota=200%
-MemoryLimit=1536M
-ExecStart=/usr/local/bin/runc start
-Restart=on-failure
-WorkingDirectory=/containers/minecraftbuild
+Type=forking
+ExecStart=/usr/local/sbin/runc run -d --pid-file /run/mycontainerid.pid mycontainerid
+ExecStopPost=/usr/local/sbin/runc delete mycontainerid
+WorkingDirectory=/mycontainer
+PIDFile=/run/mycontainerid.pid
 
 [Install]
 WantedBy=multi-user.target
 ```
-
-Make sure you have the bundle's root directory and JSON configs in
-your WorkingDirectory, then use systemd commands to start the service:
-
-```bash
-systemctl daemon-reload
-systemctl start minecraft.service
-```
-
-Note that if you use JSON configs by `runc spec`, you need to modify
-`config.json` and change `process.terminal` to false so runc won't
-create tty, because we can't set terminal from the stdin when using
-systemd service.

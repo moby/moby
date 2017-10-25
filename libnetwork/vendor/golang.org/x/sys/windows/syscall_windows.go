@@ -93,7 +93,8 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	WriteFile(handle Handle, buf []byte, done *uint32, overlapped *Overlapped) (err error)
 //sys	SetFilePointer(handle Handle, lowoffset int32, highoffsetptr *int32, whence uint32) (newlowoffset uint32, err error) [failretval==0xffffffff]
 //sys	CloseHandle(handle Handle) (err error)
-//sys	GetStdHandle(stdhandle int) (handle Handle, err error) [failretval==InvalidHandle]
+//sys	GetStdHandle(stdhandle uint32) (handle Handle, err error) [failretval==InvalidHandle]
+//sys	SetStdHandle(stdhandle uint32, handle Handle) (err error)
 //sys	findFirstFile1(name *uint16, data *win32finddata1) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstFileW
 //sys	findNextFile1(handle Handle, data *win32finddata1) (err error) = FindNextFileW
 //sys	FindClose(handle Handle) (err error)
@@ -109,6 +110,7 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	GetComputerNameEx(nametype uint32, buf *uint16, n *uint32) (err error) = GetComputerNameExW
 //sys	SetEndOfFile(handle Handle) (err error)
 //sys	GetSystemTimeAsFileTime(time *Filetime)
+//sys	GetSystemTimePreciseAsFileTime(time *Filetime)
 //sys	GetTimeZoneInformation(tzi *Timezoneinformation) (rc uint32, err error) [failretval==0xffffffff]
 //sys	CreateIoCompletionPort(filehandle Handle, cphandle Handle, key uint32, threadcnt uint32) (handle Handle, err error)
 //sys	GetQueuedCompletionStatus(cphandle Handle, qty *uint32, key *uint32, overlapped **Overlapped, timeout uint32) (err error)
@@ -152,6 +154,9 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	FlushViewOfFile(addr uintptr, length uintptr) (err error)
 //sys	VirtualLock(addr uintptr, length uintptr) (err error)
 //sys	VirtualUnlock(addr uintptr, length uintptr) (err error)
+//sys	VirtualAlloc(address uintptr, size uintptr, alloctype uint32, protect uint32) (value uintptr, err error) = kernel32.VirtualAlloc
+//sys	VirtualFree(address uintptr, size uintptr, freetype uint32) (err error) = kernel32.VirtualFree
+//sys	VirtualProtect(address uintptr, size uintptr, newprotect uint32, oldprotect *uint32) (err error) = kernel32.VirtualProtect
 //sys	TransmitFile(s Handle, handle Handle, bytesToWrite uint32, bytsPerSend uint32, overlapped *Overlapped, transmitFileBuf *TransmitFileBuffers, flags uint32) (err error) = mswsock.TransmitFile
 //sys	ReadDirectoryChanges(handle Handle, buf *byte, buflen uint32, watchSubTree bool, mask uint32, retlen *uint32, overlapped *Overlapped, completionRoutine uintptr) (err error) = kernel32.ReadDirectoryChangesW
 //sys	CertOpenSystemStore(hprov Handle, name *uint16) (store Handle, err error) = crypt32.CertOpenSystemStoreW
@@ -171,6 +176,8 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	RegQueryValueEx(key Handle, name *uint16, reserved *uint32, valtype *uint32, buf *byte, buflen *uint32) (regerrno error) = advapi32.RegQueryValueExW
 //sys	getCurrentProcessId() (pid uint32) = kernel32.GetCurrentProcessId
 //sys	GetConsoleMode(console Handle, mode *uint32) (err error) = kernel32.GetConsoleMode
+//sys	SetConsoleMode(console Handle, mode uint32) (err error) = kernel32.SetConsoleMode
+//sys	GetConsoleScreenBufferInfo(console Handle, info *ConsoleScreenBufferInfo) (err error) = kernel32.GetConsoleScreenBufferInfo
 //sys	WriteConsole(console Handle, buf *uint16, towrite uint32, written *uint32, reserved *byte) (err error) = kernel32.WriteConsoleW
 //sys	ReadConsole(console Handle, buf *uint16, toread uint32, read *uint32, inputControl *byte) (err error) = kernel32.ReadConsoleW
 //sys	CreateToolhelp32Snapshot(flags uint32, processId uint32) (handle Handle, err error) [failretval==InvalidHandle] = kernel32.CreateToolhelp32Snapshot
@@ -181,8 +188,12 @@ func NewCallbackCDecl(fn interface{}) uintptr
 //sys	CreateSymbolicLink(symlinkfilename *uint16, targetfilename *uint16, flags uint32) (err error) [failretval&0xff==0] = CreateSymbolicLinkW
 //sys	CreateHardLink(filename *uint16, existingfilename *uint16, reserved uintptr) (err error) [failretval&0xff==0] = CreateHardLinkW
 //sys	GetCurrentThreadId() (id uint32)
-//sys	CreateEvent(eventAttrs *syscall.SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle Handle, err error) = kernel32.CreateEventW
+//sys	CreateEvent(eventAttrs *SecurityAttributes, manualReset uint32, initialState uint32, name *uint16) (handle Handle, err error) = kernel32.CreateEventW
+//sys	CreateEventEx(eventAttrs *SecurityAttributes, name *uint16, flags uint32, desiredAccess uint32) (handle Handle, err error) = kernel32.CreateEventExW
+//sys	OpenEvent(desiredAccess uint32, inheritHandle bool, name *uint16) (handle Handle, err error) = kernel32.OpenEventW
 //sys	SetEvent(event Handle) (err error) = kernel32.SetEvent
+//sys	ResetEvent(event Handle) (err error) = kernel32.ResetEvent
+//sys	PulseEvent(event Handle) (err error) = kernel32.PulseEvent
 
 // syscall interface implementation for other packages
 
@@ -311,8 +322,8 @@ var (
 	Stderr = getStdHandle(STD_ERROR_HANDLE)
 )
 
-func getStdHandle(h int) (fd Handle) {
-	r, _ := GetStdHandle(h)
+func getStdHandle(stdhandle uint32) (fd Handle) {
+	r, _ := GetStdHandle(stdhandle)
 	CloseOnExec(r)
 	return r
 }
@@ -482,6 +493,10 @@ func Chmod(path string, mode uint32) (err error) {
 		attrs |= FILE_ATTRIBUTE_READONLY
 	}
 	return SetFileAttributes(p, attrs)
+}
+
+func LoadGetSystemTimePreciseAsFileTime() error {
+	return procGetSystemTimePreciseAsFileTime.Find()
 }
 
 func LoadCancelIoEx() error {

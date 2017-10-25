@@ -1,18 +1,16 @@
 package kernel
 
-import (
-	"syscall"
-)
+import "golang.org/x/sys/unix"
 
 // Utsname represents the system name structure.
-// It is passthrough for syscall.Utsname in order to make it portable with
+// It is passthrough for unix.Utsname in order to make it portable with
 // other platforms where it is not available.
-type Utsname syscall.Utsname
+type Utsname unix.Utsname
 
-func uname() (*syscall.Utsname, error) {
-	uts := &syscall.Utsname{}
+func uname() (*unix.Utsname, error) {
+	uts := &unix.Utsname{}
 
-	if err := syscall.Uname(uts); err != nil {
+	if err := unix.Uname(uts); err != nil {
 		return nil, err
 	}
 	return uts, nil

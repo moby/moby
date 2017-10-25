@@ -2,9 +2,11 @@ package api
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
@@ -122,6 +124,52 @@ func DefaultConfig() *Config {
 
 	if addr := os.Getenv("CONSUL_HTTP_ADDR"); addr != "" {
 		config.Address = addr
+	}
+
+	if token := os.Getenv("CONSUL_HTTP_TOKEN"); token != "" {
+		config.Token = token
+	}
+
+	if auth := os.Getenv("CONSUL_HTTP_AUTH"); auth != "" {
+		var username, password string
+		if strings.Contains(auth, ":") {
+			split := strings.SplitN(auth, ":", 2)
+			username = split[0]
+			password = split[1]
+		} else {
+			username = auth
+		}
+
+		config.HttpAuth = &HttpBasicAuth{
+			Username: username,
+			Password: password,
+		}
+	}
+
+	if ssl := os.Getenv("CONSUL_HTTP_SSL"); ssl != "" {
+		enabled, err := strconv.ParseBool(ssl)
+		if err != nil {
+			log.Printf("[WARN] client: could not parse CONSUL_HTTP_SSL: %s", err)
+		}
+
+		if enabled {
+			config.Scheme = "https"
+		}
+	}
+
+	if verify := os.Getenv("CONSUL_HTTP_SSL_VERIFY"); verify != "" {
+		doVerify, err := strconv.ParseBool(verify)
+		if err != nil {
+			log.Printf("[WARN] client: could not parse CONSUL_HTTP_SSL_VERIFY: %s", err)
+		}
+
+		if !doVerify {
+			config.HttpClient.Transport = &http.Transport{
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+				},
+			}
+		}
 	}
 
 	return config
@@ -287,6 +335,49 @@ func (c *Client) doRequest(r *request) (time.Duration, *http.Response, error) {
 	resp, err := c.config.HttpClient.Do(req)
 	diff := time.Now().Sub(start)
 	return diff, resp, err
+}
+
+// Query is used to do a GET request against an endpoint
+// and deserialize the response into an interface using
+// standard Consul conventions.
+func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*QueryMeta, error) {
+	r := c.newRequest("GET", endpoint)
+	r.setQueryOptions(q)
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	qm := &QueryMeta{}
+	parseQueryMeta(resp, qm)
+	qm.RequestTime = rtt
+
+	if err := decodeBody(resp, out); err != nil {
+		return nil, err
+	}
+	return qm, nil
+}
+
+// write is used to do a PUT request against an endpoint
+// and serialize/deserialized using the standard Consul conventions.
+func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*WriteMeta, error) {
+	r := c.newRequest("PUT", endpoint)
+	r.setWriteOptions(q)
+	r.obj = in
+	rtt, resp, err := requireOK(c.doRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	wm := &WriteMeta{RequestTime: rtt}
+	if out != nil {
+		if err := decodeBody(resp, &out); err != nil {
+			return nil, err
+		}
+	}
+	return wm, nil
 }
 
 // parseQueryMeta is used to help parse query meta-data

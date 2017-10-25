@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -93,18 +94,9 @@ func (s *Session) Create(se *SessionEntry, q *WriteOptions) (string, *WriteMeta,
 }
 
 func (s *Session) create(obj interface{}, q *WriteOptions) (string, *WriteMeta, error) {
-	r := s.c.newRequest("PUT", "/v1/session/create")
-	r.setWriteOptions(q)
-	r.obj = obj
-	rtt, resp, err := requireOK(s.c.doRequest(r))
-	if err != nil {
-		return "", nil, err
-	}
-	defer resp.Body.Close()
-
-	wm := &WriteMeta{RequestTime: rtt}
 	var out struct{ ID string }
-	if err := decodeBody(resp, &out); err != nil {
+	wm, err := s.c.write("/v1/session/create", obj, &out, q)
+	if err != nil {
 		return "", nil, err
 	}
 	return out.ID, wm, nil
@@ -112,35 +104,20 @@ func (s *Session) create(obj interface{}, q *WriteOptions) (string, *WriteMeta, 
 
 // Destroy invalides a given session
 func (s *Session) Destroy(id string, q *WriteOptions) (*WriteMeta, error) {
-	r := s.c.newRequest("PUT", "/v1/session/destroy/"+id)
-	r.setWriteOptions(q)
-	rtt, resp, err := requireOK(s.c.doRequest(r))
+	wm, err := s.c.write("/v1/session/destroy/"+id, nil, nil, q)
 	if err != nil {
 		return nil, err
 	}
-	resp.Body.Close()
-
-	wm := &WriteMeta{RequestTime: rtt}
 	return wm, nil
 }
 
 // Renew renews the TTL on a given session
 func (s *Session) Renew(id string, q *WriteOptions) (*SessionEntry, *WriteMeta, error) {
-	r := s.c.newRequest("PUT", "/v1/session/renew/"+id)
-	r.setWriteOptions(q)
-	rtt, resp, err := requireOK(s.c.doRequest(r))
+	var entries []*SessionEntry
+	wm, err := s.c.write("/v1/session/renew/"+id, nil, &entries, q)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer resp.Body.Close()
-
-	wm := &WriteMeta{RequestTime: rtt}
-
-	var entries []*SessionEntry
-	if err := decodeBody(resp, &entries); err != nil {
-		return nil, wm, err
-	}
-
 	if len(entries) > 0 {
 		return entries[0], wm, nil
 	}
@@ -155,19 +132,32 @@ func (s *Session) RenewPeriodic(initialTTL string, id string, q *WriteOptions, d
 	if err != nil {
 		return err
 	}
+
+	waitDur := ttl / 2
+	lastRenewTime := time.Now()
+	var lastErr error
 	for {
+		if time.Since(lastRenewTime) > ttl {
+			return lastErr
+		}
 		select {
-		case <-time.After(ttl / 2):
+		case <-time.After(waitDur):
 			entry, _, err := s.Renew(id, q)
 			if err != nil {
-				return err
+				waitDur = time.Second
+				lastErr = err
+				continue
 			}
 			if entry == nil {
-				return nil
+				waitDur = time.Second
+				lastErr = fmt.Errorf("No SessionEntry returned")
+				continue
 			}
 
 			// Handle the server updating the TTL
 			ttl, _ = time.ParseDuration(entry.TTL)
+			waitDur = ttl / 2
+			lastRenewTime = time.Now()
 
 		case <-doneCh:
 			// Attempt a session destroy
@@ -179,23 +169,11 @@ func (s *Session) RenewPeriodic(initialTTL string, id string, q *WriteOptions, d
 
 // Info looks up a single session
 func (s *Session) Info(id string, q *QueryOptions) (*SessionEntry, *QueryMeta, error) {
-	r := s.c.newRequest("GET", "/v1/session/info/"+id)
-	r.setQueryOptions(q)
-	rtt, resp, err := requireOK(s.c.doRequest(r))
+	var entries []*SessionEntry
+	qm, err := s.c.query("/v1/session/info/"+id, &entries, q)
 	if err != nil {
 		return nil, nil, err
 	}
-	defer resp.Body.Close()
-
-	qm := &QueryMeta{}
-	parseQueryMeta(resp, qm)
-	qm.RequestTime = rtt
-
-	var entries []*SessionEntry
-	if err := decodeBody(resp, &entries); err != nil {
-		return nil, nil, err
-	}
-
 	if len(entries) > 0 {
 		return entries[0], qm, nil
 	}
@@ -204,20 +182,9 @@ func (s *Session) Info(id string, q *QueryOptions) (*SessionEntry, *QueryMeta, e
 
 // List gets sessions for a node
 func (s *Session) Node(node string, q *QueryOptions) ([]*SessionEntry, *QueryMeta, error) {
-	r := s.c.newRequest("GET", "/v1/session/node/"+node)
-	r.setQueryOptions(q)
-	rtt, resp, err := requireOK(s.c.doRequest(r))
-	if err != nil {
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-
-	qm := &QueryMeta{}
-	parseQueryMeta(resp, qm)
-	qm.RequestTime = rtt
-
 	var entries []*SessionEntry
-	if err := decodeBody(resp, &entries); err != nil {
+	qm, err := s.c.query("/v1/session/node/"+node, &entries, q)
+	if err != nil {
 		return nil, nil, err
 	}
 	return entries, qm, nil
@@ -225,20 +192,9 @@ func (s *Session) Node(node string, q *QueryOptions) ([]*SessionEntry, *QueryMet
 
 // List gets all active sessions
 func (s *Session) List(q *QueryOptions) ([]*SessionEntry, *QueryMeta, error) {
-	r := s.c.newRequest("GET", "/v1/session/list")
-	r.setQueryOptions(q)
-	rtt, resp, err := requireOK(s.c.doRequest(r))
-	if err != nil {
-		return nil, nil, err
-	}
-	defer resp.Body.Close()
-
-	qm := &QueryMeta{}
-	parseQueryMeta(resp, qm)
-	qm.RequestTime = rtt
-
 	var entries []*SessionEntry
-	if err := decodeBody(resp, &entries); err != nil {
+	qm, err := s.c.query("/v1/session/list", &entries, q)
+	if err != nil {
 		return nil, nil, err
 	}
 	return entries, qm, nil

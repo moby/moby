@@ -17,9 +17,12 @@ func Append(err error, errs ...error) *Error {
 		err.Errors = append(err.Errors, errs...)
 		return err
 	default:
-		newErrs := make([]error, len(errs)+1)
-		newErrs[0] = err
-		copy(newErrs[1:], errs)
+		newErrs := make([]error, 0, len(errs)+1)
+		if err != nil {
+			newErrs = append(newErrs, err)
+		}
+		newErrs = append(newErrs, errs...)
+
 		return &Error{
 			Errors: newErrs,
 		}
