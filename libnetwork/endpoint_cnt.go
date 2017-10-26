@@ -138,6 +138,15 @@ func (ec *endpointCnt) setCnt(cnt uint64) error {
 }
 
 func (ec *endpointCnt) atomicIncDecEpCnt(inc bool) error {
+	store := ec.n.getController().getStore(ec.DataScope())
+	if store == nil {
+		return fmt.Errorf("store not found for scope %s", ec.DataScope())
+	}
+
+	tmp := &endpointCnt{n: ec.n}
+	if err := store.GetObject(datastore.Key(ec.Key()...), tmp); err != nil {
+		return err
+	}
 retry:
 	ec.Lock()
 	if inc {
@@ -148,11 +157,6 @@ retry:
 		}
 	}
 	ec.Unlock()
-
-	store := ec.n.getController().getStore(ec.DataScope())
-	if store == nil {
-		return fmt.Errorf("store not found for scope %s", ec.DataScope())
-	}
 
 	if err := ec.n.getController().updateToStore(ec); err != nil {
 		if err == datastore.ErrKeyModified {
