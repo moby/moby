@@ -4,19 +4,13 @@
 
 FROM aarch64/ubuntu:xenial
 
-RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev pkg-config vim-common libsystemd-dev golang-go libseccomp-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y apparmor bash-completion btrfs-tools build-essential cmake curl ca-certificates debhelper dh-apparmor dh-systemd git libapparmor-dev libdevmapper-dev pkg-config vim-common libsystemd-dev libseccomp-dev --no-install-recommends && rm -rf /var/lib/apt/lists/*
 
-# Install Go
-# aarch64 doesn't have official go binaries, so use the version of go installed from
-# the image to build go from source.
-ENV GO_VERSION 1.8.4
-RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \
-	&& cd /usr/src/go/src \
-	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash
-
-ENV PATH /usr/src/go/bin:$PATH
+ENV GO_VERSION 1.8.5
+RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" | tar xzC /usr/local
+ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS apparmor selinux seccomp
-ENV RUNC_BUILDTAGS apparmor selinux seccomp
+ENV DOCKER_BUILDTAGS apparmor seccomp selinux
+ENV RUNC_BUILDTAGS apparmor seccomp selinux
