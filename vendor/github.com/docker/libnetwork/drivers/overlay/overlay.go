@@ -262,7 +262,7 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		d.Unlock()
 
 		// If containers are already running on this network update the
-		// advertiseaddress in the peerDB
+		// advertise address in the peerDB
 		d.localJoinOnce.Do(func() {
 			d.peerDBUpdateSelf()
 		})

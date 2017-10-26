@@ -1,7 +1,10 @@
 package fscache
 
 import (
+	"archive/tar"
+	"crypto/sha256"
 	"encoding/json"
+	"hash"
 	"os"
 	"path/filepath"
 	"sort"
@@ -11,8 +14,10 @@ import (
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/tarsum"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -212,7 +217,6 @@ func syncFrom(ctx context.Context, cs *cachedSourceRef, transport Transport, id 
 }
 
 type fsCacheStore struct {
-	root     string
 	mu       sync.Mutex
 	sources  map[string]*cachedSource
 	db       *bolt.DB
@@ -578,6 +582,10 @@ func (dc *detectChanges) MarkSupported(v bool) {
 	dc.supported = v
 }
 
+func (dc *detectChanges) ContentHasher() fsutil.ContentHasher {
+	return newTarsumHash
+}
+
 type wrappedContext struct {
 	builder.Source
 	closer func() error
@@ -606,4 +614,41 @@ func (s sortableCacheSources) Less(i, j int) bool {
 // Swap swaps the elements with indexes i and j.
 func (s sortableCacheSources) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
+}
+
+func newTarsumHash(stat *fsutil.Stat) (hash.Hash, error) {
+	fi := &fsutil.StatInfo{stat}
+	p := stat.Path
+	if fi.IsDir() {
+		p += string(os.PathSeparator)
+	}
+	h, err := archive.FileInfoHeader(p, fi, stat.Linkname)
+	if err != nil {
+		return nil, err
+	}
+	h.Name = p
+	h.Uid = int(stat.Uid)
+	h.Gid = int(stat.Gid)
+	h.Linkname = stat.Linkname
+	if stat.Xattrs != nil {
+		h.Xattrs = make(map[string]string)
+		for k, v := range stat.Xattrs {
+			h.Xattrs[k] = string(v)
+		}
+	}
+
+	tsh := &tarsumHash{h: h, Hash: sha256.New()}
+	tsh.Reset()
+	return tsh, nil
+}
+
+// Reset resets the Hash to its initial state.
+func (tsh *tarsumHash) Reset() {
+	tsh.Hash.Reset()
+	tarsum.WriteV1Header(tsh.h, tsh.Hash)
+}
+
+type tarsumHash struct {
+	hash.Hash
+	h *tar.Header
 }

@@ -1625,6 +1625,7 @@ func (s *DockerSuite) TestEmbeddedDNSInvalidInput(c *check.C) {
 func (s *DockerSuite) TestDockerNetworkConnectFailsNoInspectChange(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name=bb", "busybox", "top")
 	c.Assert(waitRun("bb"), check.IsNil)
+	defer dockerCmd(c, "stop", "bb")
 
 	ns0 := inspectField(c, "bb", "NetworkSettings.Networks.bridge")
 

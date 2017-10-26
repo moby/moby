@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/pkg/jsonlog"
 )
 
 // ErrReadLogsNotSupported is returned when the underlying log driver does not support reading
@@ -26,8 +25,6 @@ func (ErrReadLogsNotSupported) Error() string {
 func (ErrReadLogsNotSupported) NotImplemented() {}
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 

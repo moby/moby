@@ -199,7 +199,7 @@ func (s *DefaultService) Search(ctx context.Context, term string, limit int, aut
 			},
 		}
 
-		modifiers := DockerHeaders(userAgent, nil)
+		modifiers := Headers(userAgent, nil)
 		v2Client, foundV2, err := v2AuthHTTPClient(endpoint.URL, endpoint.client.Transport, modifiers, creds, scopes)
 		if err != nil {
 			if fErr, ok := err.(fallbackError); ok {

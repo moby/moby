@@ -143,7 +143,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 }
 
-// Github #33021
+// GitHub #33021
 func (s *DockerSuite) TestUnsetEnvVarHealthCheck(c *check.C) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 

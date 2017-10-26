@@ -108,7 +108,7 @@ func createLayer(ls Store, parent ChainID, layerFunc layerInit) (Layer, error) {
 	}
 	defer ts.Close()
 
-	layer, err := ls.Register(ts, parent, Platform(runtime.GOOS))
+	layer, err := ls.Register(ts, parent, OS(runtime.GOOS))
 	if err != nil {
 		return nil, err
 	}
@@ -501,7 +501,7 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "", Platform(runtime.GOOS))
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -520,7 +520,7 @@ func TestTarStreamStability(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID(), Platform(runtime.GOOS))
+	layer2, err := ls.Register(bytes.NewReader(tar2), layer1.ChainID(), OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -688,12 +688,12 @@ func TestRegisterExistingLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), Platform(runtime.GOOS))
+	layer2a, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), Platform(runtime.GOOS))
+	layer2b, err := ls.Register(bytes.NewReader(tar1), layer1.ChainID(), OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -728,12 +728,12 @@ func TestTarStreamVerification(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	layer1, err := ls.Register(bytes.NewReader(tar1), "", Platform(runtime.GOOS))
+	layer1, err := ls.Register(bytes.NewReader(tar1), "", OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	layer2, err := ls.Register(bytes.NewReader(tar2), "", Platform(runtime.GOOS))
+	layer2, err := ls.Register(bytes.NewReader(tar2), "", OS(runtime.GOOS))
 	if err != nil {
 		t.Fatal(err)
 	}

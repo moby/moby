@@ -37,7 +37,7 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 	}
 
 	filter := r.Form.Get("filters")
-	netFilters, err := filters.FromParam(filter)
+	netFilters, err := filters.FromJSON(filter)
 	if err != nil {
 		return err
 	}
@@ -99,6 +99,24 @@ func (e ambigousResultsError) Error() string {
 }
 
 func (ambigousResultsError) InvalidParameter() {}
+
+type conflictError struct {
+	cause error
+}
+
+func (e conflictError) Error() string {
+	return e.cause.Error()
+}
+
+func (e conflictError) Cause() error {
+	return e.cause
+}
+
+func (e conflictError) Conflict() {}
+
+func nameConflict(name string) error {
+	return conflictError{libnetwork.NetworkNameError(name)}
+}
 
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
@@ -225,7 +243,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 	}
 
 	if nws, err := n.cluster.GetNetworksByName(create.Name); err == nil && len(nws) > 0 {
-		return libnetwork.NetworkNameError(create.Name)
+		return nameConflict(create.Name)
 	}
 
 	nw, err := n.backend.CreateNetwork(create)
@@ -235,7 +253,7 @@ func (n *networkRouter) postNetworkCreate(ctx context.Context, w http.ResponseWr
 			// check if user defined CheckDuplicate, if set true, return err
 			// otherwise prepare a warning message
 			if create.CheckDuplicate {
-				return libnetwork.NetworkNameError(create.Name)
+				return nameConflict(create.Name)
 			}
 			warning = libnetwork.NetworkNameError(create.Name).Error()
 		}
@@ -489,7 +507,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 
-	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}

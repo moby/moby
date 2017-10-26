@@ -1,19 +1,18 @@
 package remotecontext
 
 import (
-	"fmt"
 	"os"
 	"sync"
 
-	iradix "github.com/hashicorp/go-immutable-radix"
-
 	"github.com/docker/docker/pkg/containerfs"
+	iradix "github.com/hashicorp/go-immutable-radix"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
 )
 
 type hashed interface {
-	Hash() string
+	Digest() digest.Digest
 }
 
 // CachableSource is a source that contains cache records for its contents
@@ -110,7 +109,7 @@ func (cs *CachableSource) HandleChange(kind fsutil.ChangeKind, p string, fi os.F
 	}
 
 	hfi := &fileInfo{
-		sum: h.Hash(),
+		sum: h.Digest().Hex(),
 	}
 	cs.txn.Insert([]byte(p), hfi)
 	cs.mu.Unlock()
@@ -131,19 +130,6 @@ func (cs *CachableSource) getRoot() *iradix.Node {
 // Close closes the source
 func (cs *CachableSource) Close() error {
 	return nil
-}
-
-func (cs *CachableSource) normalize(path string) (cleanpath, fullpath string, err error) {
-	cleanpath = cs.root.Clean(string(cs.root.Separator()) + path)[1:]
-	fullpath, err = cs.root.ResolveScopedPath(path, true)
-	if err != nil {
-		return "", "", fmt.Errorf("Forbidden path outside the context: %s (%s)", path, fullpath)
-	}
-	_, err = cs.root.Lstat(fullpath)
-	if err != nil {
-		return "", "", convertPathError(err, path)
-	}
-	return
 }
 
 // Hash returns a hash for a single file in the source

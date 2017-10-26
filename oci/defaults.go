@@ -39,11 +39,8 @@ func DefaultSpec() specs.Spec {
 func DefaultOSSpec(osName string) specs.Spec {
 	if osName == "windows" {
 		return DefaultWindowsSpec()
-	} else if osName == "solaris" {
-		return DefaultSolarisSpec()
-	} else {
-		return DefaultLinuxSpec()
 	}
+	return DefaultLinuxSpec()
 }
 
 // DefaultWindowsSpec create a default spec for running Windows containers
@@ -56,21 +53,18 @@ func DefaultWindowsSpec() specs.Spec {
 	}
 }
 
-// DefaultSolarisSpec create a default spec for running Solaris containers
-func DefaultSolarisSpec() specs.Spec {
-	s := specs.Spec{
-		Version: "0.6.0",
-	}
-	s.Solaris = &specs.Solaris{}
-	return s
-}
-
 // DefaultLinuxSpec create a default spec for running Linux containers
 func DefaultLinuxSpec() specs.Spec {
 	s := specs.Spec{
 		Version: specs.Version,
-		Process: &specs.Process{},
-		Root:    &specs.Root{},
+		Process: &specs.Process{
+			Capabilities: &specs.LinuxCapabilities{
+				Bounding:    defaultCapabilities(),
+				Permitted:   defaultCapabilities(),
+				Inheritable: defaultCapabilities(),
+				Effective:   defaultCapabilities(),
+			},
+		},
 	}
 	s.Mounts = []specs.Mount{
 		{
@@ -114,14 +108,6 @@ func DefaultLinuxSpec() specs.Spec {
 			Type:        "tmpfs",
 			Source:      "shm",
 			Options:     []string{"nosuid", "noexec", "nodev", "mode=1777"},
-		},
-	}
-	s.Process = &specs.Process{
-		Capabilities: &specs.LinuxCapabilities{
-			Bounding:    defaultCapabilities(),
-			Permitted:   defaultCapabilities(),
-			Inheritable: defaultCapabilities(),
-			Effective:   defaultCapabilities(),
 		},
 	}
 

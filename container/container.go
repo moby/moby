@@ -15,6 +15,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/containerd/containerd"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -51,15 +52,22 @@ import (
 
 const configFileName = "config.v2.json"
 
-const (
-	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
-	DefaultStopTimeout = 10
-)
-
 var (
 	errInvalidEndpoint = errors.New("invalid endpoint while building port map info")
 	errInvalidNetwork  = errors.New("invalid network settings while building port map info")
 )
+
+// ExitStatus provides exit reasons for a container.
+type ExitStatus struct {
+	// The exit code with which the container exited.
+	ExitCode int
+
+	// Whether the container encountered an OOM.
+	OOMKilled bool
+
+	// Time at which the container died
+	ExitedAt time.Time
+}
 
 // Container holds the structure defining a container object.
 type Container struct {
@@ -80,7 +88,7 @@ type Container struct {
 	LogPath         string
 	Name            string
 	Driver          string
-	Platform        string
+	OS              string
 	// MountLabel contains the options for the 'mount' command
 	MountLabel             string
 	ProcessLabel           string
@@ -147,11 +155,11 @@ func (container *Container) FromDisk() error {
 		return err
 	}
 
-	// Ensure the platform is set if blank. Assume it is the platform of the
-	// host OS if not, to ensure containers created before multiple-platform
+	// Ensure the operating system is set if blank. Assume it is the OS of the
+	// host OS if not, to ensure containers created before multiple-OS
 	// support are migrated
-	if container.Platform == "" {
-		container.Platform = runtime.GOOS
+	if container.OS == "" {
+		container.OS = runtime.GOOS
 	}
 
 	return container.readHostConfig()
@@ -264,7 +272,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error {
 	// TODO @jhowardmsft, @gupta-ak LCOW Support. This will need revisiting.
 	// We will need to do remote filesystem operations here.
-	if container.Platform != runtime.GOOS {
+	if container.OS != runtime.GOOS {
 		return nil
 	}
 
@@ -434,7 +442,7 @@ func (container *Container) ShouldRestart() bool {
 
 // AddMountPointWithVolume adds a new mount point configured with a volume to the container.
 func (container *Container) AddMountPointWithVolume(destination string, vol volume.Volume, rw bool) {
-	operatingSystem := container.Platform
+	operatingSystem := container.OS
 	if operatingSystem == "" {
 		operatingSystem = runtime.GOOS
 	}
@@ -996,10 +1004,10 @@ func (container *Container) CloseStreams() error {
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
+func (container *Container) InitializeStdio(iop *libcontainerd.IOPipe) (containerd.IO, error) {
 	if err := container.startLogging(); err != nil {
 		container.Reset(false)
-		return err
+		return nil, err
 	}
 
 	container.StreamConfig.CopyToPipe(iop)
@@ -1012,7 +1020,7 @@ func (container *Container) InitializeStdio(iop libcontainerd.IOPipe) error {
 		}
 	}
 
-	return nil
+	return &cio{IO: iop, sc: container.StreamConfig}, nil
 }
 
 // SecretMountPath returns the path of the secret mount for the container
@@ -1047,15 +1055,14 @@ func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference)
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
 func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string) []string {
 	// Setup environment
-	// TODO @jhowardmsft LCOW Support. This will need revisiting later.
-	platform := container.Platform
-	if platform == "" {
-		platform = runtime.GOOS
+	os := container.OS
+	if os == "" {
+		os = runtime.GOOS
 	}
 	env := []string{}
-	if runtime.GOOS != "windows" || (system.LCOWSupported() && platform == "linux") {
+	if runtime.GOOS != "windows" || (runtime.GOOS == "windows" && os == "linux") {
 		env = []string{
-			"PATH=" + system.DefaultPathEnv(platform),
+			"PATH=" + system.DefaultPathEnv(os),
 			"HOSTNAME=" + container.Config.Hostname,
 		}
 		if tty {
@@ -1069,4 +1076,22 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	// else.
 	env = ReplaceOrAppendEnvValues(env, container.Config.Env)
 	return env
+}
+
+type cio struct {
+	containerd.IO
+
+	sc *stream.Config
+}
+
+func (i *cio) Close() error {
+	i.IO.Close()
+
+	return i.sc.CloseStreams()
+}
+
+func (i *cio) Wait() {
+	i.sc.Wait()
+
+	i.IO.Wait()
 }

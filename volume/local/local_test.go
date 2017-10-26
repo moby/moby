@@ -181,7 +181,7 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestCreateWithOpts(t *testing.T) {
-	if runtime.GOOS == "windows" || runtime.GOOS == "solaris" {
+	if runtime.GOOS == "windows" {
 		t.Skip()
 	}
 	rootDir, err := ioutil.TempDir("", "local-volume-test")

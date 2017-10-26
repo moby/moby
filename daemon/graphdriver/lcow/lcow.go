@@ -226,7 +226,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 		// VM is in the process of terminating. Wait until it's done and and then try again
 		logrus.Debugf("%s: VM with current ID still in the process of terminating: %s", title, id)
 		if err := svm.getStopError(); err != nil {
-			logrus.Debugf("%s: VM %s did not stop succesfully: %s", title, id, err)
+			logrus.Debugf("%s: VM %s did not stop successfully: %s", title, id, err)
 			return nil, err
 		}
 		return d.startServiceVMIfNotRunning(id, mvdToAdd, context)

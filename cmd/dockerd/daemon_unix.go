@@ -10,9 +10,11 @@ import (
 	"path/filepath"
 	"strconv"
 
+	"github.com/containerd/containerd/linux"
 	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/portallocator"
 	"golang.org/x/sys/unix"
 )
@@ -35,6 +37,39 @@ func getDaemonConfDir(_ string) string {
 	return "/etc/docker"
 }
 
+func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
+	// On older kernel, letting putting the containerd-shim in its own
+	// namespace will effectively prevent operations such as unlink, rename
+	// and remove on mountpoints that were present at the time the shim
+	// namespace was created. This would led to a famous EBUSY will trying to
+	// remove shm mounts.
+	var noNewNS bool
+	if !kernel.CheckKernelVersion(3, 18, 0) {
+		noNewNS = true
+	}
+
+	opts := []libcontainerd.RemoteOption{
+		libcontainerd.WithOOMScore(cli.Config.OOMScoreAdjust),
+		libcontainerd.WithPlugin("linux", &linux.Config{
+			Shim:          daemon.DefaultShimBinary,
+			Runtime:       daemon.DefaultRuntimeBinary,
+			RuntimeRoot:   filepath.Join(cli.Config.Root, "runc"),
+			ShimDebug:     cli.Config.Debug,
+			ShimNoMountNS: noNewNS,
+		}),
+	}
+	if cli.Config.Debug {
+		opts = append(opts, libcontainerd.WithLogLevel("debug"))
+	}
+	if cli.Config.ContainerdAddr != "" {
+		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
+	} else {
+		opts = append(opts, libcontainerd.WithStartDaemon(true))
+	}
+
+	return opts, nil
+}
+
 // setupConfigReloadTrap configures the USR2 signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
@@ -44,33 +79,6 @@ func (cli *DaemonCli) setupConfigReloadTrap() {
 			cli.reloadConfig()
 		}
 	}()
-}
-
-func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
-	opts := []libcontainerd.RemoteOption{
-		libcontainerd.WithDebugLog(cli.Config.Debug),
-		libcontainerd.WithOOMScore(cli.Config.OOMScoreAdjust),
-	}
-	if cli.Config.ContainerdAddr != "" {
-		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
-	} else {
-		opts = append(opts, libcontainerd.WithStartDaemon(true))
-	}
-	if daemon.UsingSystemd(cli.Config) {
-		args := []string{"--systemd-cgroup=true"}
-		opts = append(opts, libcontainerd.WithRuntimeArgs(args))
-	}
-	if cli.Config.LiveRestoreEnabled {
-		opts = append(opts, libcontainerd.WithLiveRestore(true))
-	}
-	opts = append(opts, libcontainerd.WithRuntimePath(daemon.DefaultRuntimeBinary))
-	return opts
-}
-
-// getLibcontainerdRoot gets the root directory for libcontainerd/containerd to
-// store their state.
-func (cli *DaemonCli) getLibcontainerdRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "libcontainerd")
 }
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state

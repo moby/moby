@@ -86,6 +86,7 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 	// timeouts creating so many containers simultaneously. This is a due to
 	// a bug in the Windows platform. It will be fixed in a Windows Update.
 	numContainers := 17
+	eventPerContainer := 7 // create, attach, network connect, start, die, network disconnect, destroy
 	numConcurrentContainers := numContainers
 	if testEnv.DaemonPlatform() == "windows" {
 		numConcurrentContainers = 4
@@ -93,17 +94,19 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 	sem := make(chan bool, numConcurrentContainers)
 	errChan := make(chan error, numContainers)
 
+	startTime := daemonUnixTime(c)
+
 	args := []string{"run", "--rm", "busybox", "true"}
 	for i := 0; i < numContainers; i++ {
 		sem <- true
-		go func() {
+		go func(i int) {
 			defer func() { <-sem }()
 			out, err := exec.Command(dockerBinary, args...).CombinedOutput()
 			if err != nil {
 				err = fmt.Errorf("%v: %s", err, string(out))
 			}
 			errChan <- err
-		}()
+		}(i)
 	}
 
 	// Wait for all goroutines to finish
@@ -116,10 +119,10 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 		c.Assert(err, checker.IsNil, check.Commentf("%q failed with error", strings.Join(args, " ")))
 	}
 
-	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
+	out, _ := dockerCmd(c, "events", "--since="+startTime, "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
 	nEvents := len(events) - 1
-	c.Assert(nEvents, checker.Equals, 256, check.Commentf("events should be limited to 256, but received %d", nEvents))
+	c.Assert(nEvents, checker.Equals, numContainers*eventPerContainer, check.Commentf("events should be limited to 256, but received %d", nEvents))
 }
 
 func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
@@ -533,7 +536,10 @@ func (s *DockerSuite) TestEventsAttach(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer stdout.Close()
 	c.Assert(cmd.Start(), checker.IsNil)
-	defer cmd.Process.Kill()
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
 
 	// Make sure we're done attaching by writing/reading some stuff
 	_, err = stdin.Write([]byte("hello\n"))

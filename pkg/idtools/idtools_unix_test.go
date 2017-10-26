@@ -6,11 +6,18 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"os/user"
 	"path/filepath"
 	"testing"
 
+	"github.com/gotestyourself/gotestyourself/skip"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
+)
+
+const (
+	tempUser = "tempuser"
 )
 
 type node struct {
@@ -19,6 +26,7 @@ type node struct {
 }
 
 func TestMkdirAllAs(t *testing.T) {
+	RequiresRoot(t)
 	dirName, err := ioutil.TempDir("", "mkdirall")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -79,6 +87,7 @@ func TestMkdirAllAs(t *testing.T) {
 }
 
 func TestMkdirAllAndChownNew(t *testing.T) {
+	RequiresRoot(t)
 	dirName, err := ioutil.TempDir("", "mkdirnew")
 	require.NoError(t, err)
 	defer os.RemoveAll(dirName)
@@ -119,7 +128,7 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 }
 
 func TestMkdirAs(t *testing.T) {
-
+	RequiresRoot(t)
 	dirName, err := ioutil.TempDir("", "mkdir")
 	if err != nil {
 		t.Fatalf("Couldn't create temp dir: %v", err)
@@ -224,6 +233,11 @@ func compareTrees(left, right map[string]node) error {
 	return nil
 }
 
+func delUser(t *testing.T, name string) {
+	_, err := execCmd("userdel", name)
+	assert.NoError(t, err)
+}
+
 func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "parsesubid")
 	if err != nil {
@@ -250,4 +264,120 @@ dockremap:231072:65536`
 	if ranges[0].Length != 65536 {
 		t.Fatalf("wanted 65536, got %d instead", ranges[0].Length)
 	}
+}
+
+func TestGetRootUIDGID(t *testing.T) {
+	uidMap := []IDMap{
+		{
+			ContainerID: 0,
+			HostID:      os.Getuid(),
+			Size:        1,
+		},
+	}
+	gidMap := []IDMap{
+		{
+			ContainerID: 0,
+			HostID:      os.Getgid(),
+			Size:        1,
+		},
+	}
+
+	uid, gid, err := GetRootUIDGID(uidMap, gidMap)
+	assert.NoError(t, err)
+	assert.Equal(t, os.Getegid(), uid)
+	assert.Equal(t, os.Getegid(), gid)
+
+	uidMapError := []IDMap{
+		{
+			ContainerID: 1,
+			HostID:      os.Getuid(),
+			Size:        1,
+		},
+	}
+	_, _, err = GetRootUIDGID(uidMapError, gidMap)
+	assert.EqualError(t, err, "Container ID 0 cannot be mapped to a host ID")
+}
+
+func TestToContainer(t *testing.T) {
+	uidMap := []IDMap{
+		{
+			ContainerID: 2,
+			HostID:      2,
+			Size:        1,
+		},
+	}
+
+	containerID, err := toContainer(2, uidMap)
+	assert.NoError(t, err)
+	assert.Equal(t, uidMap[0].ContainerID, containerID)
+}
+
+func TestNewIDMappings(t *testing.T) {
+	RequiresRoot(t)
+	_, _, err := AddNamespaceRangesUser(tempUser)
+	assert.NoError(t, err)
+	defer delUser(t, tempUser)
+
+	tempUser, err := user.Lookup(tempUser)
+	assert.NoError(t, err)
+
+	gids, err := tempUser.GroupIds()
+	assert.NoError(t, err)
+	group, err := user.LookupGroupId(string(gids[0]))
+	assert.NoError(t, err)
+
+	idMappings, err := NewIDMappings(tempUser.Username, group.Name)
+	assert.NoError(t, err)
+
+	rootUID, rootGID, err := GetRootUIDGID(idMappings.UIDs(), idMappings.GIDs())
+	assert.NoError(t, err)
+
+	dirName, err := ioutil.TempDir("", "mkdirall")
+	assert.NoError(t, err, "Couldn't create temp directory")
+	defer os.RemoveAll(dirName)
+
+	err = MkdirAllAs(dirName, 0700, rootUID, rootGID)
+	assert.NoError(t, err, "Couldn't change ownership of file path. Got error")
+	assert.True(t, CanAccess(dirName, idMappings.RootPair()), fmt.Sprintf("Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID))
+}
+
+func TestLookupUserAndGroup(t *testing.T) {
+	RequiresRoot(t)
+	uid, gid, err := AddNamespaceRangesUser(tempUser)
+	assert.NoError(t, err)
+	defer delUser(t, tempUser)
+
+	fetchedUser, err := LookupUser(tempUser)
+	assert.NoError(t, err)
+
+	fetchedUserByID, err := LookupUID(uid)
+	assert.NoError(t, err)
+	assert.Equal(t, fetchedUserByID, fetchedUser)
+
+	fetchedGroup, err := LookupGroup(tempUser)
+	assert.NoError(t, err)
+
+	fetchedGroupByID, err := LookupGID(gid)
+	assert.NoError(t, err)
+	assert.Equal(t, fetchedGroupByID, fetchedGroup)
+}
+
+func TestLookupUserAndGroupThatDoesNotExist(t *testing.T) {
+	fakeUser := "fakeuser"
+	_, err := LookupUser(fakeUser)
+	assert.EqualError(t, err, "getent unable to find entry \""+fakeUser+"\" in passwd database")
+
+	_, err = LookupUID(-1)
+	assert.Error(t, err)
+
+	fakeGroup := "fakegroup"
+	_, err = LookupGroup(fakeGroup)
+	assert.EqualError(t, err, "getent unable to find entry \""+fakeGroup+"\" in group database")
+
+	_, err = LookupGID(-1)
+	assert.Error(t, err)
+}
+
+func RequiresRoot(t *testing.T) {
+	skip.IfCondition(t, os.Getuid() != 0, "skipping test that requires root")
 }

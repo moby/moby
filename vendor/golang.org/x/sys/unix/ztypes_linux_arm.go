@@ -429,7 +429,7 @@ const (
 	IFLA_LINKINFO       = 0x12
 	IFLA_NET_NS_PID     = 0x13
 	IFLA_IFALIAS        = 0x14
-	IFLA_MAX            = 0x2b
+	IFLA_MAX            = 0x2c
 	RT_SCOPE_UNIVERSE   = 0x0
 	RT_SCOPE_SITE       = 0xc8
 	RT_SCOPE_LINK       = 0xfd
@@ -662,8 +662,6 @@ const RNDGETENTCNT = 0x80045200
 
 const PERF_IOC_FLAG_GROUP = 0x1
 
-const _SC_PAGESIZE = 0x1e
-
 type Termios struct {
 	Iflag  uint32
 	Oflag  uint32
@@ -681,3 +679,104 @@ type Winsize struct {
 	Xpixel uint16
 	Ypixel uint16
 }
+
+type Taskstats struct {
+	Version                   uint16
+	Pad_cgo_0                 [2]byte
+	Ac_exitcode               uint32
+	Ac_flag                   uint8
+	Ac_nice                   uint8
+	Pad_cgo_1                 [6]byte
+	Cpu_count                 uint64
+	Cpu_delay_total           uint64
+	Blkio_count               uint64
+	Blkio_delay_total         uint64
+	Swapin_count              uint64
+	Swapin_delay_total        uint64
+	Cpu_run_real_total        uint64
+	Cpu_run_virtual_total     uint64
+	Ac_comm                   [32]uint8
+	Ac_sched                  uint8
+	Ac_pad                    [3]uint8
+	Pad_cgo_2                 [4]byte
+	Ac_uid                    uint32
+	Ac_gid                    uint32
+	Ac_pid                    uint32
+	Ac_ppid                   uint32
+	Ac_btime                  uint32
+	Pad_cgo_3                 [4]byte
+	Ac_etime                  uint64
+	Ac_utime                  uint64
+	Ac_stime                  uint64
+	Ac_minflt                 uint64
+	Ac_majflt                 uint64
+	Coremem                   uint64
+	Virtmem                   uint64
+	Hiwater_rss               uint64
+	Hiwater_vm                uint64
+	Read_char                 uint64
+	Write_char                uint64
+	Read_syscalls             uint64
+	Write_syscalls            uint64
+	Read_bytes                uint64
+	Write_bytes               uint64
+	Cancelled_write_bytes     uint64
+	Nvcsw                     uint64
+	Nivcsw                    uint64
+	Ac_utimescaled            uint64
+	Ac_stimescaled            uint64
+	Cpu_scaled_run_real_total uint64
+	Freepages_count           uint64
+	Freepages_delay_total     uint64
+}
+
+const (
+	TASKSTATS_CMD_UNSPEC                  = 0x0
+	TASKSTATS_CMD_GET                     = 0x1
+	TASKSTATS_CMD_NEW                     = 0x2
+	TASKSTATS_TYPE_UNSPEC                 = 0x0
+	TASKSTATS_TYPE_PID                    = 0x1
+	TASKSTATS_TYPE_TGID                   = 0x2
+	TASKSTATS_TYPE_STATS                  = 0x3
+	TASKSTATS_TYPE_AGGR_PID               = 0x4
+	TASKSTATS_TYPE_AGGR_TGID              = 0x5
+	TASKSTATS_TYPE_NULL                   = 0x6
+	TASKSTATS_CMD_ATTR_UNSPEC             = 0x0
+	TASKSTATS_CMD_ATTR_PID                = 0x1
+	TASKSTATS_CMD_ATTR_TGID               = 0x2
+	TASKSTATS_CMD_ATTR_REGISTER_CPUMASK   = 0x3
+	TASKSTATS_CMD_ATTR_DEREGISTER_CPUMASK = 0x4
+)
+
+type Genlmsghdr struct {
+	Cmd      uint8
+	Version  uint8
+	Reserved uint16
+}
+
+const (
+	CTRL_CMD_UNSPEC            = 0x0
+	CTRL_CMD_NEWFAMILY         = 0x1
+	CTRL_CMD_DELFAMILY         = 0x2
+	CTRL_CMD_GETFAMILY         = 0x3
+	CTRL_CMD_NEWOPS            = 0x4
+	CTRL_CMD_DELOPS            = 0x5
+	CTRL_CMD_GETOPS            = 0x6
+	CTRL_CMD_NEWMCAST_GRP      = 0x7
+	CTRL_CMD_DELMCAST_GRP      = 0x8
+	CTRL_CMD_GETMCAST_GRP      = 0x9
+	CTRL_ATTR_UNSPEC           = 0x0
+	CTRL_ATTR_FAMILY_ID        = 0x1
+	CTRL_ATTR_FAMILY_NAME      = 0x2
+	CTRL_ATTR_VERSION          = 0x3
+	CTRL_ATTR_HDRSIZE          = 0x4
+	CTRL_ATTR_MAXATTR          = 0x5
+	CTRL_ATTR_OPS              = 0x6
+	CTRL_ATTR_MCAST_GROUPS     = 0x7
+	CTRL_ATTR_OP_UNSPEC        = 0x0
+	CTRL_ATTR_OP_ID            = 0x1
+	CTRL_ATTR_OP_FLAGS         = 0x2
+	CTRL_ATTR_MCAST_GRP_UNSPEC = 0x0
+	CTRL_ATTR_MCAST_GRP_NAME   = 0x1
+	CTRL_ATTR_MCAST_GRP_ID     = 0x2
+)

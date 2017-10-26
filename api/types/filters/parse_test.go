@@ -42,14 +42,14 @@ func TestParseArgsEdgeCase(t *testing.T) {
 	}
 }
 
-func TestToParam(t *testing.T) {
+func TestToJSON(t *testing.T) {
 	fields := map[string]map[string]bool{
 		"created":    {"today": true},
 		"image.name": {"ubuntu*": true, "*untu": true},
 	}
 	a := Args{fields: fields}
 
-	_, err := ToParam(a)
+	_, err := ToJSON(a)
 	if err != nil {
 		t.Errorf("failed to marshal the filters: %s", err)
 	}
@@ -80,7 +80,7 @@ func TestToParamWithVersion(t *testing.T) {
 	}
 }
 
-func TestFromParam(t *testing.T) {
+func TestFromJSON(t *testing.T) {
 	invalids := []string{
 		"anything",
 		"['a','list']",
@@ -103,14 +103,14 @@ func TestFromParam(t *testing.T) {
 	}
 
 	for _, invalid := range invalids {
-		if _, err := FromParam(invalid); err == nil {
+		if _, err := FromJSON(invalid); err == nil {
 			t.Fatalf("Expected an error with %v, got nothing", invalid)
 		}
 	}
 
 	for expectedArgs, matchers := range valid {
 		for _, json := range matchers {
-			args, err := FromParam(json)
+			args, err := FromJSON(json)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -136,11 +136,11 @@ func TestFromParam(t *testing.T) {
 
 func TestEmpty(t *testing.T) {
 	a := Args{}
-	v, err := ToParam(a)
+	v, err := ToJSON(a)
 	if err != nil {
 		t.Errorf("failed to marshal the filters: %s", err)
 	}
-	v1, err := FromParam(v)
+	v1, err := FromJSON(v)
 	if err != nil {
 		t.Errorf("%s", err)
 	}
@@ -334,6 +334,17 @@ func TestOnlyOneExactMatch(t *testing.T) {
 	f.Add("status", "pause")
 	if f.UniqueExactMatch("status", "running") {
 		t.Fatal("Expected to not match only `running` with two filters, got true")
+	}
+}
+
+func TestContains(t *testing.T) {
+	f := NewArgs()
+	if f.Contains("status") {
+		t.Fatal("Expected to not contain a status key, got true")
+	}
+	f.Add("status", "running")
+	if !f.Contains("status") {
+		t.Fatal("Expected to contain a status key, got false")
 	}
 }
 

@@ -84,7 +84,7 @@ func (daemon *Daemon) getPidContainer(container *container.Container) (*containe
 	containerID := container.HostConfig.PidMode.Container()
 	container, err := daemon.GetContainer(containerID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", container.ID)
+		return nil, errors.Wrapf(err, "cannot join PID of a non running container: %s", containerID)
 	}
 	return container, daemon.checkContainer(container, containerIsRunning, containerIsNotRestarting)
 }

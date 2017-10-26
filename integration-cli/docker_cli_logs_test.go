@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 )
@@ -55,7 +55,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(jsonlog.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(jsonmessage.RFC3339NanoFixed+" ", ts.FindString(l))
 			c.Assert(err, checker.IsNil, check.Commentf("Failed to parse timestamp from %v", l))
 			// ensure we have padded 0's
 			c.Assert(l[29], checker.Equals, uint8('Z'))
@@ -230,6 +230,7 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	stdout, err := logCmd.StdoutPipe()
 	c.Assert(err, checker.IsNil)
 	c.Assert(logCmd.Start(), checker.IsNil)
+	defer func() { go logCmd.Wait() }()
 
 	// First read slowly
 	bytes1, err := ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
@@ -279,6 +280,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	r, w := io.Pipe()
 	cmd.Stdout = w
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 
 	// Make sure pipe is written to
 	chErr := make(chan error)
@@ -304,6 +306,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "logs", "-f", id)
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 	time.Sleep(200 * time.Millisecond)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
 	cmd.Wait()

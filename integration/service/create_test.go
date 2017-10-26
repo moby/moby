@@ -1,6 +1,7 @@
 package service
 
 import (
+	"runtime"
 	"testing"
 	"time"
 
@@ -42,8 +43,15 @@ func TestCreateWithLBSandbox(t *testing.T) {
 	})
 	require.NoError(t, err)
 
+	pollSettings := func(config *poll.Settings) {
+		if runtime.GOARCH == "arm" {
+			config.Timeout = 30 * time.Second
+			config.Delay = 100 * time.Millisecond
+		}
+	}
+
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances))
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), pollSettings)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	require.NoError(t, err)
@@ -55,7 +63,7 @@ func TestCreateWithLBSandbox(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID)
 	require.NoError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID))
+	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
 	err = client.NetworkRemove(context.Background(), overlayID)
 	require.NoError(t, err)
 

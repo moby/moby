@@ -17,6 +17,11 @@ func TestMain(m *testing.M) {
 		fmt.Println(err)
 		os.Exit(1)
 	}
+	err = environment.EnsureFrozenImagesLinux(testEnv)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 
 	testEnv.Print()
 	os.Exit(m.Run())

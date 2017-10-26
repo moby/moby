@@ -23,7 +23,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
 
-	searchFilters, err := filters.FromParam(filtersArgs)
+	searchFilters, err := filters.FromJSON(filtersArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -33,21 +33,21 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 
 	var isAutomated, isOfficial bool
 	var hasStarFilter = 0
-	if searchFilters.Include("is-automated") {
+	if searchFilters.Contains("is-automated") {
 		if searchFilters.UniqueExactMatch("is-automated", "true") {
 			isAutomated = true
 		} else if !searchFilters.UniqueExactMatch("is-automated", "false") {
 			return nil, invalidFilter{"is-automated", searchFilters.Get("is-automated")}
 		}
 	}
-	if searchFilters.Include("is-official") {
+	if searchFilters.Contains("is-official") {
 		if searchFilters.UniqueExactMatch("is-official", "true") {
 			isOfficial = true
 		} else if !searchFilters.UniqueExactMatch("is-official", "false") {
 			return nil, invalidFilter{"is-official", searchFilters.Get("is-official")}
 		}
 	}
-	if searchFilters.Include("stars") {
+	if searchFilters.Contains("stars") {
 		hasStars := searchFilters.Get("stars")
 		for _, hasStar := range hasStars {
 			iHasStar, err := strconv.Atoi(hasStar)
@@ -67,17 +67,17 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 
 	filteredResults := []registrytypes.SearchResult{}
 	for _, result := range unfilteredResult.Results {
-		if searchFilters.Include("is-automated") {
+		if searchFilters.Contains("is-automated") {
 			if isAutomated != result.IsAutomated {
 				continue
 			}
 		}
-		if searchFilters.Include("is-official") {
+		if searchFilters.Contains("is-official") {
 			if isOfficial != result.IsOfficial {
 				continue
 			}
 		}
-		if searchFilters.Include("stars") {
+		if searchFilters.Contains("stars") {
 			if result.StarCount < hasStarFilter {
 				continue
 			}

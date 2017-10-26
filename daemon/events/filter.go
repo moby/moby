@@ -27,6 +27,10 @@ func (ef *Filter) Include(ev events.Message) bool {
 		ef.matchVolume(ev) &&
 		ef.matchNetwork(ev) &&
 		ef.matchImage(ev) &&
+		ef.matchNode(ev) &&
+		ef.matchService(ev) &&
+		ef.matchSecret(ev) &&
+		ef.matchConfig(ev) &&
 		ef.matchLabels(ev.Actor.Attributes)
 }
 
@@ -49,14 +53,14 @@ func (ef *Filter) filterContains(field string, values map[string]struct{}) bool 
 }
 
 func (ef *Filter) matchScope(scope string) bool {
-	if !ef.filter.Include("scope") {
+	if !ef.filter.Contains("scope") {
 		return true
 	}
 	return ef.filter.ExactMatch("scope", scope)
 }
 
 func (ef *Filter) matchLabels(attributes map[string]string) bool {
-	if !ef.filter.Include("label") {
+	if !ef.filter.Contains("label") {
 		return true
 	}
 	return ef.filter.MatchKVList("label", attributes)

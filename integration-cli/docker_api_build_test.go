@@ -586,7 +586,9 @@ func testBuildWithSession(c *check.C, dir, dockerfile string) (outStr string) {
 	sess, err := session.NewSession("foo1", "foo")
 	assert.Nil(c, err)
 
-	fsProvider := filesync.NewFSSyncProvider(dir, nil)
+	fsProvider := filesync.NewFSSyncProvider([]filesync.SyncedDir{
+		{Dir: dir},
+	})
 	sess.Allow(fsProvider)
 
 	g, ctx := errgroup.WithContext(context.Background())
@@ -596,7 +598,7 @@ func testBuildWithSession(c *check.C, dir, dockerfile string) (outStr string) {
 	})
 
 	g.Go(func() error {
-		res, body, err := request.Post("/build?remote=client-session&session="+sess.UUID(), func(req *http.Request) error {
+		res, body, err := request.Post("/build?remote=client-session&session="+sess.ID(), func(req *http.Request) error {
 			req.Body = ioutil.NopCloser(strings.NewReader(dockerfile))
 			return nil
 		})

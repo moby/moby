@@ -197,8 +197,8 @@ func TestChrootTarUntarWithSymlink(t *testing.T) {
 
 func TestChrootCopyWithTar(t *testing.T) {
 	// TODO Windows: Figure out why this is failing
-	if runtime.GOOS == "windows" || runtime.GOOS == "solaris" {
-		t.Skip("Failing on Windows and Solaris")
+	if runtime.GOOS == "windows" {
+		t.Skip("Failing on Windows")
 	}
 	tmpdir, err := ioutil.TempDir("", "docker-TestChrootCopyWithTar")
 	if err != nil {

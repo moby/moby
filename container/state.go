@@ -276,6 +276,7 @@ func (s *State) SetExitCode(ec int) {
 // SetRunning sets the state of the container to "running".
 func (s *State) SetRunning(pid int, initial bool) {
 	s.ErrorMsg = ""
+	s.Paused = false
 	s.Running = true
 	s.Restarting = false
 	if initial {
@@ -294,9 +295,14 @@ func (s *State) SetStopped(exitStatus *ExitStatus) {
 	s.Paused = false
 	s.Restarting = false
 	s.Pid = 0
-	s.FinishedAt = time.Now().UTC()
-	s.setFromExitStatus(exitStatus)
-	close(s.waitStop) // Fire waiters for stop
+	if exitStatus.ExitedAt.IsZero() {
+		s.FinishedAt = time.Now().UTC()
+	} else {
+		s.FinishedAt = exitStatus.ExitedAt
+	}
+	s.ExitCodeValue = exitStatus.ExitCode
+	s.OOMKilled = exitStatus.OOMKilled
+	close(s.waitStop) // fire waiters for stop
 	s.waitStop = make(chan struct{})
 }
 
@@ -310,8 +316,9 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 	s.Paused = false
 	s.Pid = 0
 	s.FinishedAt = time.Now().UTC()
-	s.setFromExitStatus(exitStatus)
-	close(s.waitStop) // Fire waiters for stop
+	s.ExitCodeValue = exitStatus.ExitCode
+	s.OOMKilled = exitStatus.OOMKilled
+	close(s.waitStop) // fire waiters for stop
 	s.waitStop = make(chan struct{})
 }
 

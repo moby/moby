@@ -3,7 +3,6 @@ package config
 import (
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -38,9 +37,6 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 }
 
 func TestParseClusterAdvertiseSettings(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ClusterSettings not supported on Solaris\n")
-	}
 	_, err := ParseClusterAdvertiseSettings("something", "")
 	if err != discovery.ErrDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)
@@ -388,4 +384,50 @@ func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) 
 			ClusterOpts:      opts,
 		},
 	}
+}
+
+// TestReloadSetConfigFileNotExist tests that when `--config-file` is set
+// and it doesn't exist the `Reload` function returns an error.
+func TestReloadSetConfigFileNotExist(t *testing.T) {
+	configFile := "/tmp/blabla/not/exists/config.json"
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", "", "")
+	flags.Set("config-file", configFile)
+
+	err := Reload(configFile, flags, func(c *Config) {})
+	assert.Error(t, err)
+	testutil.ErrorContains(t, err, "unable to configure the Docker daemon with file")
+}
+
+// TestReloadDefaultConfigNotExist tests that if the default configuration file
+// doesn't exist the daemon still will be reloaded.
+func TestReloadDefaultConfigNotExist(t *testing.T) {
+	reloaded := false
+	configFile := "/etc/docker/daemon.json"
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
+	assert.Nil(t, err)
+	assert.True(t, reloaded)
+}
+
+// TestReloadBadDefaultConfig tests that when `--config-file` is not set
+// and the default configuration file exists and is bad return an error
+func TestReloadBadDefaultConfig(t *testing.T) {
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{wrong: "configuration"}`))
+	f.Close()
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	err = Reload(configFile, flags, func(c *Config) {})
+	assert.Error(t, err)
+	testutil.ErrorContains(t, err, "unable to configure the Docker daemon with file")
 }

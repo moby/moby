@@ -11,8 +11,6 @@ import (
 // CommonUnixConfig defines configuration of a docker daemon that is
 // common across Unix platforms.
 type CommonUnixConfig struct {
-	ExecRoot          string                   `json:"exec-root,omitempty"`
-	ContainerdAddr    string                   `json:"containerd,omitempty"`
 	Runtimes          map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime    string                   `json:"default-runtime,omitempty"`
 	DefaultInitBinary string                   `json:"default-init,omitempty"`

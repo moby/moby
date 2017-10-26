@@ -60,6 +60,12 @@ func init() {
 
 func TestMain(m *testing.M) {
 	dockerBinary = testEnv.DockerBinary()
+	err := ienv.EnsureFrozenImagesLinux(&testEnv.Execution)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+
 	testEnv.Print()
 	os.Exit(m.Run())
 }
@@ -333,7 +339,7 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemo
 	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"} // avoid networking conflicts
 	d.StartWithBusybox(c, args...)
 
-	if joinSwarm == true {
+	if joinSwarm {
 		if len(s.daemons) > 0 {
 			tokens := s.daemons[0].JoinTokens(c)
 			token := tokens.Worker

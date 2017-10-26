@@ -146,7 +146,7 @@ func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return s.config, nil
 }
 
-func (s *tempConfigStore) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, layer.Platform, error) {
+func (s *tempConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, layer.OS, error) {
 	return configToRootFS(c)
 }
 
@@ -365,7 +365,7 @@ func (pm *Manager) List(pluginFilters filters.Args) ([]types.Plugin, error) {
 
 	enabledOnly := false
 	disabledOnly := false
-	if pluginFilters.Include("enabled") {
+	if pluginFilters.Contains("enabled") {
 		if pluginFilters.ExactMatch("enabled", "true") {
 			enabledOnly = true
 		} else if pluginFilters.ExactMatch("enabled", "false") {
@@ -386,7 +386,7 @@ next:
 		if disabledOnly && p.PluginObj.Enabled {
 			continue
 		}
-		if pluginFilters.Include("capability") {
+		if pluginFilters.Contains("capability") {
 			for _, f := range p.GetTypes() {
 				if !pluginFilters.Match("capability", f.Capability) {
 					continue next
@@ -533,7 +533,7 @@ func (s *pluginConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return ioutil.ReadAll(rwc)
 }
 
-func (s *pluginConfigStore) RootFSAndPlatformFromConfig(c []byte) (*image.RootFS, layer.Platform, error) {
+func (s *pluginConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, layer.OS, error) {
 	return configToRootFS(c)
 }
 

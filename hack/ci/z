@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Entrypoint for jenkins s390x (z) CI build
+set -eu -o pipefail
+
+hack/test/unit
+hack/make.sh dynbinary test-integration

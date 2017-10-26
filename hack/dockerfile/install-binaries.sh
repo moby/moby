@@ -32,7 +32,10 @@ install_containerd() {
 	git clone https://github.com/containerd/containerd.git "$GOPATH/src/github.com/containerd/containerd"
 	cd "$GOPATH/src/github.com/containerd/containerd"
 	git checkout -q "$CONTAINERD_COMMIT"
-	make $1
+	(
+		export GOPATH
+		make $1
+	)
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim
 	cp bin/ctr /usr/local/bin/docker-containerd-ctr
@@ -103,7 +106,7 @@ do
 			;;
 
 		containerd)
-			install_containerd static
+			install_containerd
 			;;
 
 		containerd-dynamic)

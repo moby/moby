@@ -1,6 +1,7 @@
 package jsonfilelog
 
 import (
+	"bytes"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -11,7 +12,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/stretchr/testify/require"
 )
 
 func TestJSONFileLogger(t *testing.T) {
@@ -54,36 +57,38 @@ func TestJSONFileLogger(t *testing.T) {
 	}
 }
 
-func BenchmarkJSONFileLogger(b *testing.B) {
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	tmp, err := ioutil.TempDir("", "docker-logger-")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(tmp)
-	filename := filepath.Join(tmp, "container.log")
-	l, err := New(logger.Info{
-		ContainerID: cid,
-		LogPath:     filename,
-	})
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer l.Close()
+func BenchmarkJSONFileLoggerLog(b *testing.B) {
+	tmp := fs.NewDir(b, "bench-jsonfilelog")
+	defer tmp.Remove()
 
-	testLine := "Line that thinks that it is log line from docker\n"
-	msg := &logger.Message{Line: []byte(testLine), Source: "stderr", Timestamp: time.Now().UTC()}
-	jsonlog, err := (&jsonlog.JSONLog{Log: string(msg.Line) + "\n", Stream: msg.Source, Created: msg.Timestamp}).MarshalJSON()
-	if err != nil {
-		b.Fatal(err)
+	jsonlogger, err := New(logger.Info{
+		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
+		LogPath:     tmp.Join("container.log"),
+		Config: map[string]string{
+			"labels": "first,second",
+		},
+		ContainerLabels: map[string]string{
+			"first":  "label_value",
+			"second": "label_foo",
+		},
+	})
+	require.NoError(b, err)
+	defer jsonlogger.Close()
+
+	msg := &logger.Message{
+		Line:      []byte("Line that thinks that it is log line from docker\n"),
+		Source:    "stderr",
+		Timestamp: time.Now().UTC(),
 	}
-	b.SetBytes(int64(len(jsonlog)+1) * 30)
+
+	buf := bytes.NewBuffer(nil)
+	require.NoError(b, marshalMessage(msg, jsonlogger.(*JSONFileLogger).extra, buf))
+	b.SetBytes(int64(buf.Len()))
+
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		for j := 0; j < 30; j++ {
-			if err := l.Log(msg); err != nil {
-				b.Fatal(err)
-			}
+		if err := jsonlogger.Log(msg); err != nil {
+			b.Fatal(err)
 		}
 	}
 }
@@ -198,52 +203,5 @@ func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
 	}
 	if !reflect.DeepEqual(extra, expected) {
 		t.Fatalf("Wrong log attrs: %q, expected %q", extra, expected)
-	}
-}
-
-func BenchmarkJSONFileLoggerWithReader(b *testing.B) {
-	b.StopTimer()
-	b.ResetTimer()
-	cid := "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657"
-	dir, err := ioutil.TempDir("", "json-logger-bench")
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer os.RemoveAll(dir)
-
-	l, err := New(logger.Info{
-		ContainerID: cid,
-		LogPath:     filepath.Join(dir, "container.log"),
-	})
-	if err != nil {
-		b.Fatal(err)
-	}
-	defer l.Close()
-	msg := &logger.Message{Line: []byte("line"), Source: "src1"}
-	jsonlog, err := (&jsonlog.JSONLog{Log: string(msg.Line) + "\n", Stream: msg.Source, Created: msg.Timestamp}).MarshalJSON()
-	if err != nil {
-		b.Fatal(err)
-	}
-	b.SetBytes(int64(len(jsonlog)+1) * 30)
-
-	b.StartTimer()
-
-	go func() {
-		for i := 0; i < b.N; i++ {
-			for j := 0; j < 30; j++ {
-				l.Log(msg)
-			}
-		}
-		l.Close()
-	}()
-
-	lw := l.(logger.LogReader).ReadLogs(logger.ReadConfig{Follow: true})
-	watchClose := lw.WatchClose()
-	for {
-		select {
-		case <-lw.Msg:
-		case <-watchClose:
-			return
-		}
 	}
 }

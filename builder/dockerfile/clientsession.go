@@ -41,7 +41,6 @@ func (cst *ClientSessionTransport) Copy(ctx context.Context, id fscache.RemoteId
 type ClientSessionSourceIdentifier struct {
 	includePatterns []string
 	caller          session.Caller
-	sharedKey       string
 	uuid            string
 }
 

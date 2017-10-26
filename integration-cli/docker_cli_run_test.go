@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
@@ -2248,6 +2249,7 @@ func (s *DockerSuite) TestRunSlowStdoutConsumer(c *check.C) {
 	if err := cont.Start(); err != nil {
 		c.Fatal(err)
 	}
+	defer func() { go cont.Wait() }()
 	n, err := ConsumeWithSpeed(stdout, 10000, 5*time.Millisecond, nil)
 	if err != nil {
 		c.Fatal(err)
@@ -4010,6 +4012,20 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
+	// TODO @msabansal - https://github.com/moby/moby/issues/35023. Duplicate
+	// port mappings are not errored out on RS3 builds. Temporarily disabling
+	// this test pending further investigation. Note we parse kernel.GetKernelVersion
+	// rather than system.GetOSVersion as test binaries aren't manifested, so would
+	// otherwise report build 9200.
+	if runtime.GOOS == "windows" {
+		v, err := kernel.GetKernelVersion()
+		c.Assert(err, checker.IsNil)
+		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if build >= 16292 { // @jhowardmsft TODO - replace with final RS3 build and ==
+			c.Skip("Temporarily disabled on RS3 builds")
+		}
+	}
+
 	nroutines, err := getGoroutineNumber()
 	c.Assert(err, checker.IsNil)
 

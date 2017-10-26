@@ -62,5 +62,5 @@ type Backend interface {
 	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
 	PluginGetter() *plugin.Store
-	GetLBAttachmentStore() *networkSettings.LBAttachmentStore
+	GetAttachmentStore() *networkSettings.AttachmentStore
 }

@@ -65,7 +65,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	imgID, platform, err := daemon.GetImageIDAndPlatform(imageRef)
+	imgID, os, err := daemon.GetImageIDAndOS(imageRef)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +94,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			return nil, err
 		}
 
-		parsedRef, err = daemon.removeImageRef(platform, parsedRef)
+		parsedRef, err = daemon.removeImageRef(os, parsedRef)
 		if err != nil {
 			return nil, err
 		}
@@ -122,7 +122,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 				remainingRefs := []reference.Named{}
 				for _, repoRef := range repoRefs {
 					if _, repoRefIsCanonical := repoRef.(reference.Canonical); repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
-						if _, err := daemon.removeImageRef(platform, repoRef); err != nil {
+						if _, err := daemon.removeImageRef(os, repoRef); err != nil {
 							return records, err
 						}
 
@@ -152,12 +152,12 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 			if !force {
 				c |= conflictSoft &^ conflictActiveReference
 			}
-			if conflict := daemon.checkImageDeleteConflict(imgID, platform, c); conflict != nil {
+			if conflict := daemon.checkImageDeleteConflict(imgID, os, c); conflict != nil {
 				return nil, conflict
 			}
 
 			for _, repoRef := range repoRefs {
-				parsedRef, err := daemon.removeImageRef(platform, repoRef)
+				parsedRef, err := daemon.removeImageRef(os, repoRef)
 				if err != nil {
 					return nil, err
 				}
@@ -170,7 +170,7 @@ func (daemon *Daemon) ImageDelete(imageRef string, force, prune bool) ([]types.I
 		}
 	}
 
-	if err := daemon.imageDeleteHelper(imgID, platform, &records, force, prune, removedRepositoryRef); err != nil {
+	if err := daemon.imageDeleteHelper(imgID, os, &records, force, prune, removedRepositoryRef); err != nil {
 		return nil, err
 	}
 

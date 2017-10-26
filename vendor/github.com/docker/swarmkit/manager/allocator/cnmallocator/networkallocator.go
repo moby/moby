@@ -459,8 +459,8 @@ func (na *cnmNetworkAllocator) DeallocateTask(t *api.Task) error {
 	return na.releaseEndpoints(t.Networks)
 }
 
-// IsLBAttachmentAllocated returns if the passed node and network has resources allocated or not.
-func (na *cnmNetworkAllocator) IsLBAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
+// IsAttachmentAllocated returns if the passed node and network has resources allocated or not.
+func (na *cnmNetworkAllocator) IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool {
 	if node == nil {
 		return false
 	}
@@ -500,9 +500,9 @@ func (na *cnmNetworkAllocator) IsLBAttachmentAllocated(node *api.Node, networkAt
 	return true
 }
 
-// AllocateLBAttachment allocates the IP addresses for a LB in a network
+// AllocateAttachment allocates the IP addresses for a LB in a network
 // on a given node
-func (na *cnmNetworkAllocator) AllocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (na *cnmNetworkAllocator) AllocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
 
 	if err := na.allocateNetworkIPs(networkAttachment); err != nil {
 		return err
@@ -516,9 +516,9 @@ func (na *cnmNetworkAllocator) AllocateLBAttachment(node *api.Node, networkAttac
 	return nil
 }
 
-// DeallocateLBAttachment deallocates the IP addresses for a LB in a network to
+// DeallocateAttachment deallocates the IP addresses for a LB in a network to
 // which the node is attached.
-func (na *cnmNetworkAllocator) DeallocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
+func (na *cnmNetworkAllocator) DeallocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error {
 
 	delete(na.nodes[node.ID], networkAttachment.Network.ID)
 	if len(na.nodes[node.ID]) == 0 {
@@ -574,6 +574,7 @@ func (na *cnmNetworkAllocator) releaseEndpoints(networks []*api.NetworkAttachmen
 
 // allocate virtual IP for a single endpoint attachment of the service.
 func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
+	var opts map[string]string
 	localNet := na.getNetwork(vip.NetworkID)
 	if localNet == nil {
 		return errors.New("networkallocator: could not find local network state")
@@ -603,9 +604,13 @@ func (na *cnmNetworkAllocator) allocateVIP(vip *api.Endpoint_VirtualIP) error {
 			return err
 		}
 	}
+	if localNet.nw.IPAM != nil && localNet.nw.IPAM.Driver != nil {
+		// set ipam allocation method to serial
+		opts = setIPAMSerialAlloc(localNet.nw.IPAM.Driver.Options)
+	}
 
 	for _, poolID := range localNet.pools {
-		ip, _, err := ipam.RequestAddress(poolID, addr, nil)
+		ip, _, err := ipam.RequestAddress(poolID, addr, opts)
 		if err != nil && err != ipamapi.ErrNoAvailableIPs && err != ipamapi.ErrIPOutOfRange {
 			return errors.Wrap(err, "could not allocate VIP from IPAM")
 		}
@@ -657,6 +662,7 @@ func (na *cnmNetworkAllocator) deallocateVIP(vip *api.Endpoint_VirtualIP) error 
 // allocate the IP addresses for a single network attachment of the task.
 func (na *cnmNetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment) error {
 	var ip *net.IPNet
+	var opts map[string]string
 
 	ipam, _, _, err := na.resolveIPAM(nAttach.Network)
 	if err != nil {
@@ -686,11 +692,16 @@ func (na *cnmNetworkAllocator) allocateNetworkIPs(nAttach *api.NetworkAttachment
 				}
 			}
 		}
+		// Set the ipam options if the network has an ipam driver.
+		if localNet.nw.IPAM != nil && localNet.nw.IPAM.Driver != nil {
+			// set ipam allocation method to serial
+			opts = setIPAMSerialAlloc(localNet.nw.IPAM.Driver.Options)
+		}
 
 		for _, poolID := range localNet.pools {
 			var err error
 
-			ip, _, err = ipam.RequestAddress(poolID, addr, nil)
+			ip, _, err = ipam.RequestAddress(poolID, addr, opts)
 			if err != nil && err != ipamapi.ErrNoAvailableIPs && err != ipamapi.ErrIPOutOfRange {
 				return errors.Wrap(err, "could not allocate IP from IPAM")
 			}
@@ -918,8 +929,16 @@ func (na *cnmNetworkAllocator) allocatePools(n *api.Network) (map[string]string,
 			}
 			gwIP.IP = ip
 		}
+		if dOptions == nil {
+			dOptions = make(map[string]string)
+		}
+		dOptions[ipamapi.RequestAddressType] = netlabel.Gateway
+		// set ipam allocation method to serial
+		dOptions = setIPAMSerialAlloc(dOptions)
+		defer delete(dOptions, ipamapi.RequestAddressType)
+
 		if ic.Gateway != "" || gwIP == nil {
-			gwIP, _, err = ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), map[string]string{ipamapi.RequestAddressType: netlabel.Gateway})
+			gwIP, _, err = ipam.RequestAddress(poolID, net.ParseIP(ic.Gateway), dOptions)
 			if err != nil {
 				// Rollback by releasing all the resources allocated so far.
 				releasePools(ipam, ipamConfigs[:i], pools)
@@ -979,4 +998,15 @@ func IsBuiltInDriver(name string) bool {
 		}
 	}
 	return false
+}
+
+// setIPAMSerialAlloc sets the ipam allocation method to serial
+func setIPAMSerialAlloc(opts map[string]string) map[string]string {
+	if opts == nil {
+		opts = make(map[string]string)
+	}
+	if _, ok := opts[ipamapi.AllocSerialPrefix]; !ok {
+		opts[ipamapi.AllocSerialPrefix] = "true"
+	}
+	return opts
 }

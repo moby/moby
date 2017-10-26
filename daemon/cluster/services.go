@@ -74,7 +74,7 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 	services := make([]types.Service, 0, len(r.Services))
 
 	for _, service := range r.Services {
-		if options.Filters.Include("mode") {
+		if options.Filters.Contains("mode") {
 			var mode string
 			switch service.Spec.GetMode().(type) {
 			case *swarmapi.ServiceSpec_Global:

@@ -45,7 +45,7 @@ func TestCommandsAtLeastOneArgument(t *testing.T) {
 	}
 }
 
-func TestCommandsAtLeastTwoArgument(t *testing.T) {
+func TestCommandsNoDestinationArgument(t *testing.T) {
 	commands := []string{
 		"ADD",
 		"COPY",
@@ -55,7 +55,7 @@ func TestCommandsAtLeastTwoArgument(t *testing.T) {
 		ast, err := parser.Parse(strings.NewReader(command + " arg1"))
 		require.NoError(t, err)
 		_, err = ParseInstruction(ast.AST.Children[0])
-		assert.EqualError(t, err, errAtLeastTwoArguments(command).Error())
+		assert.EqualError(t, err, errNoDestinationArgument(command).Error())
 	}
 }
 
@@ -194,11 +194,7 @@ func TestErrorCases(t *testing.T) {
 		}
 		n := ast.AST.Children[0]
 		_, err = ParseInstruction(n)
-		if err != nil {
-			testutil.ErrorContains(t, err, c.expectedError)
-			return
-		}
-		t.Fatalf("No error when executing test %s", c.name)
+		testutil.ErrorContains(t, err, c.expectedError)
 	}
 
 }

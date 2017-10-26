@@ -81,14 +81,14 @@ type NetworkAllocator interface {
 	// networks that a task is attached to.
 	DeallocateTask(t *api.Task) error
 
-	// AllocateLBAttachment Allocates a load balancer endpoint for the node
-	AllocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
+	// AllocateAttachment Allocates a load balancer endpoint for the node
+	AllocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
 
-	// DeallocateLBAttachment Deallocates a load balancer endpoint for the node
-	DeallocateLBAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
+	// DeallocateAttachment Deallocates a load balancer endpoint for the node
+	DeallocateAttachment(node *api.Node, networkAttachment *api.NetworkAttachment) error
 
-	//IsLBAttachmentAllocated If lb endpoint is allocated on the node
-	IsLBAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
+	// IsAttachmentAllocated If lb endpoint is allocated on the node
+	IsAttachmentAllocated(node *api.Node, networkAttachment *api.NetworkAttachment) bool
 }
 
 // IsIngressNetwork check if the network is an ingress network

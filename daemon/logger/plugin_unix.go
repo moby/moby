@@ -6,8 +6,8 @@ import (
 	"context"
 	"io"
 
+	"github.com/containerd/fifo"
 	"github.com/pkg/errors"
-	"github.com/tonistiigi/fifo"
 	"golang.org/x/sys/unix"
 )
 

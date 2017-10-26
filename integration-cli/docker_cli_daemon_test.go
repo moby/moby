@@ -28,6 +28,7 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	moby_daemon "github.com/docker/docker/daemon"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
@@ -48,6 +49,7 @@ import (
 func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
 	cmd := exec.Command(dockerBinary, "daemon", "--storage-driver=vfs", "--debug")
 	err := cmd.Start()
+	go cmd.Wait()
 	c.Assert(err, checker.IsNil, check.Commentf("could not start daemon using 'docker daemon'"))
 
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
@@ -1448,7 +1450,8 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", id).Assert(c, icmd.Success)
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
 	d.Restart(c)
@@ -1987,7 +1990,6 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 
 // TestDaemonRestartWithKilledRunningContainer requires live restore of running containers
 func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
 	s.d.StartWithBusybox(t)
 
@@ -2008,7 +2010,8 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock", "containers", "kill", cid).Assert(t, icmd.Success)
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
@@ -2076,7 +2079,6 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonCrash(c *check.C) {
 
 // TestDaemonRestartWithUnpausedRunningContainer requires live restore of running containers.
 func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *check.C) {
-	// TODO(mlaventure): Not sure what would the exit code be on windows
 	testRequires(t, DaemonIsLinux)
 	s.d.StartWithBusybox(t, "--live-restore")
 
@@ -2103,8 +2105,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	// resume the container
 	result := icmd.RunCommand(
 		ctrBinary,
-		"--address", "unix:///var/run/docker/libcontainerd/docker-containerd.sock",
-		"containers", "resume", cid)
+		"--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--namespace", moby_daemon.MainNamespace,
+		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
@@ -2786,7 +2789,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *check.C) {
 	case <-time.After(5 * time.Second):
 	}
 
-	expectedMessage := `level=debug msg="start clean shutdown of all containers with a 3 seconds timeout..."`
+	expectedMessage := `level=debug msg="daemon configured with a 3 seconds minimum shutdown timeout"`
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(content), checker.Contains, expectedMessage)

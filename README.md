@@ -1,70 +1,38 @@
-### Docker users, see [Moby and Docker](https://mobyproject.org/#moby-and-docker) to clarify the relationship between the projects
-
-### Docker maintainers and contributors, see [Transitioning to Moby](#transitioning-to-moby) for more details
-
 The Moby Project
 ================
 
 ![Moby Project logo](docs/static_files/moby-project-logo.png "The Moby Project")
 
-Moby is an open-source project created by Docker to advance the software containerization movement.
-It provides a “Lego set” of dozens of components, the framework for assembling them into custom container-based systems, and a place for all container enthusiasts to experiment and exchange ideas.
+Moby is an open-source project created by Docker to enable and accelerate software containerization.
 
-# Moby
-
-## Overview
-
-At the core of Moby is a framework to assemble specialized container systems.
-It provides:
-
-- A library of containerized components for all vital aspects of a container system: OS, container runtime, orchestration, infrastructure management, networking, storage, security, build, image distribution, etc.
-- Tools to assemble the components into runnable artifacts for a variety of platforms and architectures: bare metal (both x86 and Arm); executables for Linux, Mac and Windows; VM images for popular cloud and virtualization providers.
-- A set of reference assemblies which can be used as-is, modified, or used as inspiration to create your own.
-
-All Moby components are containers, so creating new components is as easy as building a new OCI-compatible container.
+It provides a "Lego set" of toolkit components, the framework for assembling them into custom container-based systems, and a place for all container enthusiasts and professionals to experiment and exchange ideas.
+Components include container build tools, a container registry, orchestration tools, a runtime and more, and these can be used as building blocks in conjunction with other tools and projects.
 
 ## Principles
 
-Moby is an open project guided by strong principles, but modular, flexible and without too strong an opinion on user experience, so it is open to the community to help set its direction.
-The guiding principles are:
+Moby is an open project guided by strong principles, aiming to be modular, flexible and without too strong an opinion on user experience.
+It is open to the community to help set its direction.
 
+- Modular: the project includes lots of components that have well-defined functions and APIs that work together.
 - Batteries included but swappable: Moby includes enough components to build fully featured container system, but its modular architecture ensures that most of the components can be swapped by different implementations.
-- Usable security: Moby will provide secure defaults without compromising usability.
-- Container centric: Moby is built with containers, for running containers.
-
-With Moby, you should be able to describe all the components of your distributed application, from the high-level configuration files down to the kernel you would like to use and build and deploy it easily.
-
-Moby uses [containerd](https://github.com/containerd/containerd) as the default container runtime.
+- Usable security: Moby provides secure defaults without compromising usability.
+- Developer focused: The APIs are intended to be functional and useful to build powerful tools.
+They are not necessarily intended as end user tools but as components aimed at developers.
+Documentation and UX is aimed at developers not end users.
 
 ## Audience
 
-Moby is recommended for anyone who wants to assemble a container-based system. This includes:
+The Moby Project is intended for engineers, integrators and enthusiasts looking to modify, hack, fix, experiment, invent and build systems based on containers.
+It is not for people looking for a commercially supported system, but for people who want to work and learn with open source code.
 
-- Hackers who want to customize or patch their Docker build
-- System engineers or integrators building a container system
-- Infrastructure providers looking to adapt existing container systems to their environment
-- Container enthusiasts who want to experiment with the latest container tech
-- Open-source developers looking to test their project in a variety of different systems
-- Anyone curious about Docker internals and how it’s built
+## Relationship with Docker
 
-Moby is NOT recommended for:
+The components and tools in the Moby Project are initially the open source components that Docker and the community have built for the Docker Project.
+New projects can be added if they fit with the community goals. Docker is committed to using Moby as the upstream for the Docker Product.
+However, other projects are also encouraged to use Moby as an upstream, and to reuse the components in diverse ways, and all these uses will be treated in the same way. External maintainers and contributors are welcomed.
 
-- Application developers looking for an easy way to run their applications in containers. We recommend Docker CE instead.
-- Enterprise IT and development teams looking for a ready-to-use, commercially supported container platform. We recommend Docker EE instead.
-- Anyone curious about containers and looking for an easy way to learn. We recommend the [docker.com](https://www.docker.com/) website instead.
-
-# Transitioning to Moby
-
-Docker is transitioning all of its open source collaborations to the Moby project going forward.
-During the transition, all open source activity should continue as usual.
-
-We are proposing the following list of changes:
-
-- splitting up the engine into more open components
-- removing the docker UI, SDK etc to keep them in the Docker org
-- clarifying that the project is not limited to the engine, but to the assembly of all the individual components of the Docker platform
-- open-source new tools & components which we currently use to assemble the Docker product, but could benefit the community
-- defining an open, community-centric governance inspired by the Fedora project (a very successful example of balancing the needs of the community with the constraints of the primary corporate sponsor)
+The Moby project is not intended as a location for support or feature requests for Docker products, but as a place for contributors to work on open source code, fix bugs, and make the code more useful.
+The releases are supported by the maintainers, community and users, on a best efforts basis only, and are not intended for customers who want enterprise or commercial support; Docker EE is the appropriate product for these use cases.
 
 -----
 
@@ -81,7 +49,6 @@ It is your responsibility to ensure that your use and/or transfer does not
 violate applicable laws.
 
 For more information, please see https://www.bis.doc.gov
-
 
 Licensing
 =========

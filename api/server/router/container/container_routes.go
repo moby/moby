@@ -28,7 +28,7 @@ func (s *containerRouter) getContainersJSON(ctx context.Context, w http.Response
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	filter, err := filters.FromParam(r.Form.Get("filters"))
+	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
@@ -588,7 +588,7 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 		return err
 	}
 
-	pruneFilters, err := filters.FromParam(r.Form.Get("filters"))
+	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return validationError{err}
 	}

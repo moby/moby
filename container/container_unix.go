@@ -21,17 +21,11 @@ import (
 )
 
 const (
+	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
+	DefaultStopTimeout = 10
+
 	containerSecretMountPath = "/run/secrets"
 )
-
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-
-	// Whether the container encountered an OOM.
-	OOMKilled bool
-}
 
 // TrySetNetworkMount attempts to set the network mounts given a provided destination and
 // the path to use for it; return true if the given destination was a network mount file
@@ -66,7 +60,7 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) NetworkMounts() []Mount {
 	var mounts []Mount
 	shared := container.HostConfig.NetworkMode.IsContainer()
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
 			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
@@ -195,7 +189,7 @@ func (container *Container) UnmountIpcMount(unmount func(pth string) error) erro
 // IpcMounts returns the list of IPC mounts
 func (container *Container) IpcMounts() []Mount {
 	var mounts []Mount
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 
 	if container.HasMountFor("/dev/shm") {
 		return mounts
@@ -429,7 +423,7 @@ func copyOwnership(source, destination string) error {
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() ([]Mount, error) {
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 	var mounts []Mount
 	for dest, data := range container.HostConfig.Tmpfs {
 		mounts = append(mounts, Mount{

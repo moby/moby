@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.32"
+basePath: "/v1.34"
 info:
   title: "Docker Engine API"
-  version: "1.32"
+  version: "1.34"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -44,18 +44,22 @@ info:
 
     The API is usually changed in each release of Docker, so API calls are versioned to ensure that clients don't break.
 
-    For Docker Engine 17.07, the API version is 1.31. To lock to this version, you prefix the URL with `/v1.31`. For example, calling `/info` is the same as calling `/v1.31/info`.
+    For Docker Engine 17.10, the API version is 1.33. To lock to this version, you prefix the URL with `/v1.33`. For example, calling `/info` is the same as calling `/v1.33/info`.
 
     Engine releases in the near future should support this version of the API, so your client will continue to work even if it is talking to a newer Engine.
 
     In previous versions of Docker, it was possible to access the API without providing a version. This behaviour is now deprecated will be removed in a future version of Docker.
 
+    If the API version specified in the URL is not supported by the daemon, a HTTP `400 Bad Request` error message is returned.
+
     The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
 
-    This documentation is for version 1.32 of the API. Use this table to find documentation for previous versions of the API:
+    This documentation is for version 1.34 of the API. Use this table to find documentation for previous versions of the API:
 
     Docker version  | API version | Changes
     ----------------|-------------|---------
+    17.10.x | [1.33](https://docs.docker.com/engine/api/v1.33/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-33-api-changes)
+    17.09.x | [1.32](https://docs.docker.com/engine/api/v1.32/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-32-api-changes)
     17.07.x | [1.31](https://docs.docker.com/engine/api/v1.31/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-31-api-changes)
     17.06.x | [1.30](https://docs.docker.com/engine/api/v1.30/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-30-api-changes)
     17.05.x | [1.29](https://docs.docker.com/engine/api/v1.29/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-29-api-changes)
@@ -3040,6 +3044,24 @@ definitions:
       PublishedPort:
         description: "The port on the swarm hosts."
         type: "integer"
+      PublishMode:
+        description: |
+          The mode in which port is published.
+
+          <p><br /></p>
+
+          - "ingress" makes the target port accessible on on every node,
+            regardless of whether there is a task for the service running on
+            that node or not.
+          - "host" bypasses the routing mesh and publish the port directly on
+            the swarm node where that service is running.
+
+        type: "string"
+        enum:
+          - "ingress"
+          - "host"
+        default: "ingress"
+        example: "ingress"
 
   EndpointSpec:
     description: "Properties that can be configured to access and load balance a service."
@@ -6161,6 +6183,11 @@ paths:
 
             Only the registry domain name (and port if not the default 443) are required. However, for legacy reasons, the Docker Hub registry must be specified with both a `https://` prefix and a `/v1/` suffix even though Docker will prefer to use the v2 registry API.
           type: "string"
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
+          type: "string"
+          default: ""
       responses:
         200:
           description: "no error"
@@ -6242,6 +6269,11 @@ paths:
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"
           type: "string"
+        - name: "platform"
+          in: "query"
+          description: "Platform in the format os[/arch[/variant]]"
+          type: "string"
+          default: ""
       tags: ["Image"]
   /images/{name}/json:
     get:
@@ -6940,16 +6972,20 @@ paths:
           description: |
             A JSON encoded value of filters (a `map[string][]string`) to process on the event list. Available filters:
 
+            - `config=<string>` config name or ID
             - `container=<string>` container name or ID
             - `daemon=<string>` daemon name or ID
             - `event=<string>` event type
             - `image=<string>` image name or ID
             - `label=<string>` image or container label
             - `network=<string>` network name or ID
+            - `node=<string>` node ID
             - `plugin`=<string> plugin name or ID
             - `scope`＝<string> local or swarm
-            - `type=<string>` object to filter by, one of `container`, `image`, `volume`, `network`, `daemon`, `plugin`, `node`, `service` or `secret`
-            - `volume=<string>` volume name or ID
+            - `secret=<string>` secret name or ID
+            - `service=<string>` service name or ID
+            - `type=<string>` object to filter by, one of `container`, `image`, `volume`, `network`, `daemon`, `plugin`, `node`, `service`, `secret` or `config`
+            - `volume=<string>` volume name
           type: "string"
       tags: ["System"]
   /system/df:

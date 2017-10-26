@@ -54,7 +54,7 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 
 	serviceName := "testprunesvc"
 	replicas := 1
-	out, err := d.Cmd("service", "create", "--no-resolve-image",
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image",
 		"--name", serviceName,
 		"--replicas", strconv.Itoa(replicas),
 		"--network", "n3",

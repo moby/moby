@@ -23,7 +23,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
+func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) (err error) {
 	p.Rootfs = filepath.Join(pm.config.Root, p.PluginObj.ID, "rootfs")
 	if p.IsEnabled() && !force {
 		return errors.Wrap(enabledError(p.Name()), "plugin already enabled")
@@ -44,15 +44,15 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	if p.PropagatedMount != "" {
 		propRoot = filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 
-		if err := os.MkdirAll(propRoot, 0755); err != nil {
+		if err = os.MkdirAll(propRoot, 0755); err != nil {
 			logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 		}
 
-		if err := mount.MakeRShared(propRoot); err != nil {
+		if err = mount.MakeRShared(propRoot); err != nil {
 			return errors.Wrap(err, "error setting up propagated mount dir")
 		}
 
-		if err := mount.Mount(propRoot, p.PropagatedMount, "none", "rbind"); err != nil {
+		if err = mount.Mount(propRoot, p.PropagatedMount, "none", "rbind"); err != nil {
 			return errors.Wrap(err, "error creating mount for propagated mount")
 		}
 	}
@@ -72,7 +72,6 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 				logrus.Warnf("Could not unmount %s: %v", propRoot, err)
 			}
 		}
-		return errors.WithStack(err)
 	}
 
 	return pm.pluginPostStart(p, c)
@@ -158,6 +157,12 @@ func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 			logrus.Debug("Force shutdown plugin")
 			if err := executor.Signal(pluginID, int(unix.SIGKILL)); err != nil {
 				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
+			}
+			select {
+			case <-c.exitChan:
+				logrus.Debug("SIGKILL plugin shutdown")
+			case <-time.After(time.Second * 10):
+				logrus.Debug("Force shutdown plugin FAILED")
 			}
 		}
 	}

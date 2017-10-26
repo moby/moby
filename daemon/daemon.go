@@ -18,7 +18,7 @@ import (
 	"sync"
 	"time"
 
-	containerd "github.com/containerd/containerd/api/grpc/types"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -62,11 +62,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
-	DefaultRuntimeBinary = "docker-runc"
+// MainNamespace is the name of the namespace used for users containers
+const MainNamespace = "moby"
 
+var (
 	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 )
 
@@ -125,7 +124,7 @@ type Daemon struct {
 	hosts            map[string]bool // hosts stores the addresses the daemon is listening on
 	startupDone      chan struct{}
 
-	lbAttachmentStore network.LBAttachmentStore
+	attachmentStore network.AttachmentStore
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -140,10 +139,7 @@ func (daemon *Daemon) StoreHosts(hosts []string) {
 
 // HasExperimental returns whether the experimental features of the daemon are enabled or not
 func (daemon *Daemon) HasExperimental() bool {
-	if daemon.configStore != nil && daemon.configStore.Experimental {
-		return true
-	}
-	return false
+	return daemon.configStore != nil && daemon.configStore.Experimental
 }
 
 func (daemon *Daemon) restore() error {
@@ -165,15 +161,15 @@ func (daemon *Daemon) restore() error {
 		}
 
 		// Ignore the container if it does not support the current driver being used by the graph
-		currentDriverForContainerPlatform := daemon.stores[container.Platform].graphDriver
-		if (container.Driver == "" && currentDriverForContainerPlatform == "aufs") || container.Driver == currentDriverForContainerPlatform {
-			rwlayer, err := daemon.stores[container.Platform].layerStore.GetRWLayer(container.ID)
+		currentDriverForContainerOS := daemon.stores[container.OS].graphDriver
+		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
+			rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
 			if err != nil {
 				logrus.Errorf("Failed to load container mount %v: %v", id, err)
 				continue
 			}
 			container.RWLayer = rwlayer
-			logrus.Debugf("Loaded container %v", container.ID)
+			logrus.Debugf("Loaded container %v, isRunning: %v", container.ID, container.IsRunning())
 
 			containers[container.ID] = container
 		} else {
@@ -212,8 +208,10 @@ func (daemon *Daemon) restore() error {
 		}
 	}
 
-	var wg sync.WaitGroup
-	var mapLock sync.Mutex
+	var (
+		wg      sync.WaitGroup
+		mapLock sync.Mutex
+	)
 	for _, c := range containers {
 		wg.Add(1)
 		go func(c *container.Container) {
@@ -224,11 +222,74 @@ func (daemon *Daemon) restore() error {
 			}
 
 			daemon.setStateCounter(c)
+
+			logrus.WithFields(logrus.Fields{
+				"container": c.ID,
+				"running":   c.IsRunning(),
+				"paused":    c.IsPaused(),
+			}).Debug("restoring container")
+
+			var (
+				err      error
+				alive    bool
+				ec       uint32
+				exitedAt time.Time
+			)
+
+			alive, _, err = daemon.containerd.Restore(context.Background(), c.ID, c.InitializeStdio)
+			if err != nil && !errdefs.IsNotFound(err) {
+				logrus.Errorf("Failed to restore container %s with containerd: %s", c.ID, err)
+				return
+			}
+			if !alive {
+				ec, exitedAt, err = daemon.containerd.DeleteTask(context.Background(), c.ID)
+				if err != nil && !errdefs.IsNotFound(err) {
+					logrus.WithError(err).Errorf("Failed to delete container %s from containerd", c.ID)
+					return
+				}
+			}
+
 			if c.IsRunning() || c.IsPaused() {
 				c.RestartManager().Cancel() // manually start containers because some need to wait for swarm networking
-				if err := daemon.containerd.Restore(c.ID, c.InitializeStdio); err != nil {
-					logrus.Errorf("Failed to restore %s with containerd: %s", c.ID, err)
-					return
+
+				if c.IsPaused() && alive {
+					s, err := daemon.containerd.Status(context.Background(), c.ID)
+					if err != nil {
+						logrus.WithError(err).WithField("container", c.ID).
+							Errorf("Failed to get container status")
+					} else {
+						logrus.WithField("container", c.ID).WithField("state", s).
+							Info("restored container paused")
+						switch s {
+						case libcontainerd.StatusPaused, libcontainerd.StatusPausing:
+							// nothing to do
+						case libcontainerd.StatusStopped:
+							alive = false
+						case libcontainerd.StatusUnknown:
+							logrus.WithField("container", c.ID).
+								Error("Unknown status for container during restore")
+						default:
+							// running
+							c.Lock()
+							c.Paused = false
+							daemon.setStateCounter(c)
+							if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+								logrus.WithError(err).WithField("container", c.ID).
+									Error("Failed to update stopped container state")
+							}
+							c.Unlock()
+						}
+					}
+				}
+
+				if !alive {
+					c.Lock()
+					c.SetStopped(&container.ExitStatus{ExitCode: int(ec), ExitedAt: exitedAt})
+					daemon.Cleanup(c)
+					if err := c.CheckpointTo(daemon.containersReplica); err != nil {
+						logrus.Errorf("Failed to update stopped container %s state: %v", c.ID, err)
+					}
+					c.Unlock()
 				}
 
 				// we call Mount and then Unmount to get BaseFs of the container
@@ -256,11 +317,9 @@ func (daemon *Daemon) restore() error {
 					activeSandboxes[c.NetworkSettings.SandboxID] = options
 					mapLock.Unlock()
 				}
+			} else {
+				// get list of containers we need to restart
 
-			}
-			// fixme: only if not running
-			// get list of containers we need to restart
-			if !c.IsRunning() && !c.IsPaused() {
 				// Do not autostart containers which
 				// has endpoints in a swarm scope
 				// network yet since the cluster is
@@ -292,7 +351,7 @@ func (daemon *Daemon) restore() error {
 				c.RemovalInProgress = false
 				c.Dead = true
 				if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-					logrus.Errorf("Failed to update container %s state: %v", c.ID, err)
+					logrus.Errorf("Failed to update RemovalInProgress container %s state: %v", c.ID, err)
 				}
 			}
 			c.Unlock()
@@ -494,7 +553,7 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		logrus.Warnf("failed to initiate ingress network removal: %v", err)
 	}
 
-	daemon.lbAttachmentStore.ClearLBAttachments()
+	daemon.attachmentStore.ClearAttachments()
 }
 
 // setClusterProvider sets a component for querying the current cluster state.
@@ -558,10 +617,21 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	if err != nil {
 		return nil, fmt.Errorf("Unable to get the full path to the TempDir (%s): %s", tmp, err)
 	}
-	os.Setenv("TMPDIR", realTmp)
+	if runtime.GOOS == "windows" {
+		if _, err := os.Stat(realTmp); err != nil && os.IsNotExist(err) {
+			if err := system.MkdirAll(realTmp, 0700, ""); err != nil {
+				return nil, fmt.Errorf("Unable to create the TempDir (%s): %s", realTmp, err)
+			}
+		}
+		os.Setenv("TEMP", realTmp)
+		os.Setenv("TMP", realTmp)
+	} else {
+		os.Setenv("TMPDIR", realTmp)
+	}
 
 	d := &Daemon{
 		configStore: config,
+		PluginStore: pluginStore,
 		startupDone: make(chan struct{}),
 	}
 	// Ensure the daemon is properly shutdown if there is a failure during
@@ -609,6 +679,16 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
+	// Create the directory where we'll store the runtime scripts (i.e. in
+	// order to support runtimeArgs)
+	daemonRuntimes := filepath.Join(config.Root, "runtimes")
+	if err := system.MkdirAll(daemonRuntimes, 0700, ""); err != nil && !os.IsExist(err) {
+		return nil, err
+	}
+	if err := d.loadRuntimes(); err != nil {
+		return nil, err
+	}
+
 	if runtime.GOOS == "windows" {
 		if err := system.MkdirAll(filepath.Join(config.Root, "credentialspecs"), 0, ""); err != nil && !os.IsExist(err) {
 			return nil, err
@@ -638,7 +718,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	d.RegistryService = registryService
-	d.PluginStore = pluginStore
 	logger.RegisterPluginGetter(d.PluginStore)
 
 	metricsSockPath, err := d.listenMetricsSock()
@@ -648,7 +727,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
-		return pluginexec.New(containerdRemote, m)
+		return pluginexec.New(getPluginExecRoot(config.Root), containerdRemote, m)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -667,7 +746,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 
 	var graphDrivers []string
-	for platform, ds := range d.stores {
+	for operatingSystem, ds := range d.stores {
 		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			StorePath:                 config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
@@ -676,14 +755,14 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 			IDMappings:                idMappings,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
-			Platform:                  platform,
+			OS:                        operatingSystem,
 		})
 		if err != nil {
 			return nil, err
 		}
 		ds.graphDriver = ls.DriverName() // As layerstore may set the driver
 		ds.layerStore = ls
-		d.stores[platform] = ds
+		d.stores[operatingSystem] = ds
 		graphDrivers = append(graphDrivers, ls.DriverName())
 	}
 
@@ -694,13 +773,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
 	lsMap := make(map[string]layer.Store)
-	for platform, ds := range d.stores {
-		lsMap[platform] = ds.layerStore
+	for operatingSystem, ds := range d.stores {
+		lsMap[operatingSystem] = ds.layerStore
 	}
 	d.downloadManager = xfer.NewLayerDownloadManager(lsMap, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
 	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
-	for platform, ds := range d.stores {
+	for operatingSystem, ds := range d.stores {
 		imageRoot := filepath.Join(config.Root, "image", ds.graphDriver)
 		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
 		if err != nil {
@@ -708,13 +787,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		}
 
 		var is image.Store
-		is, err = image.NewImageStore(ifs, platform, ds.layerStore)
+		is, err = image.NewImageStore(ifs, operatingSystem, ds.layerStore)
 		if err != nil {
 			return nil, err
 		}
 		ds.imageRoot = imageRoot
 		ds.imageStore = is
-		d.stores[platform] = ds
+		d.stores[operatingSystem] = ds
 	}
 
 	// Configure the volumes driver
@@ -805,13 +884,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.idMappings = idMappings
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
+	d.containerdRemote = containerdRemote
 
 	d.linkIndex = newLinkIndex()
-	d.containerdRemote = containerdRemote
 
 	go d.execCommandGC()
 
-	d.containerd, err = containerdRemote.Client(d)
+	d.containerd, err = containerdRemote.NewClient(MainNamespace, d)
 	if err != nil {
 		return nil, err
 	}
@@ -914,7 +993,8 @@ func (daemon *Daemon) Shutdown() error {
 	}
 
 	if daemon.containers != nil {
-		logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.configStore.ShutdownTimeout)
+		logrus.Debugf("daemon configured with a %d seconds minimum shutdown timeout", daemon.configStore.ShutdownTimeout)
+		logrus.Debugf("start clean shutdown of all containers with a %d seconds timeout...", daemon.ShutdownTimeout())
 		daemon.containers.ApplyAll(func(c *container.Container) {
 			if !c.IsRunning() {
 				return
@@ -924,7 +1004,7 @@ func (daemon *Daemon) Shutdown() error {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
-			if mountid, err := daemon.stores[c.Platform].layerStore.GetMountID(c.ID); err == nil {
+			if mountid, err := daemon.stores[c.OS].layerStore.GetMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			logrus.Debugf("container stopped %s", c.ID)
@@ -984,7 +1064,7 @@ func (daemon *Daemon) Mount(container *container.Container) error {
 		if runtime.GOOS != "windows" {
 			daemon.Unmount(container)
 			return fmt.Errorf("Error: driver %s is returning inconsistent paths for container %s ('%s' then '%s')",
-				daemon.GraphDriverName(container.Platform), container.ID, container.BaseFS, dir)
+				daemon.GraphDriverName(container.OS), container.ID, container.BaseFS, dir)
 		}
 	}
 	container.BaseFS = dir // TODO: combine these fields
@@ -1044,7 +1124,7 @@ func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 					logrus.Warnf("failed to delete old tmp directory: %s", newName)
 				}
 			}()
-		} else {
+		} else if !os.IsNotExist(err) {
 			logrus.Warnf("failed to rename %s for background deletion: %s. Deleting synchronously", tmpDir, err)
 			if err := os.RemoveAll(tmpDir); err != nil {
 				logrus.Warnf("failed to delete old tmp directory: %s", tmpDir)
@@ -1174,19 +1254,6 @@ func (daemon *Daemon) networkOptions(dconfig *config.Config, pg plugingetter.Plu
 	return options, nil
 }
 
-func copyBlkioEntry(entries []*containerd.BlkioStatsEntry) []types.BlkioStatEntry {
-	out := make([]types.BlkioStatEntry, len(entries))
-	for i, re := range entries {
-		out[i] = types.BlkioStatEntry{
-			Major: re.Major,
-			Minor: re.Minor,
-			Op:    re.Op,
-			Value: re.Value,
-		}
-	}
-	return out
-}
-
 // GetCluster returns the cluster
 func (daemon *Daemon) GetCluster() Cluster {
 	return daemon.cluster
@@ -1254,7 +1321,7 @@ func fixMemorySwappiness(resources *containertypes.Resources) {
 	}
 }
 
-// GetLBAttachmentStore returns current load balancer store associated with the daemon
-func (daemon *Daemon) GetLBAttachmentStore() *network.LBAttachmentStore {
-	return &daemon.lbAttachmentStore
+// GetAttachmentStore returns current attachment store associated with the daemon
+func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
+	return &daemon.attachmentStore
 }

@@ -854,10 +854,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		appliesTo = msg.ResultsIn
 		msg.Type = assignmentType
 
-		if err := stream.Send(&msg); err != nil {
-			return err
-		}
-		return nil
+		return stream.Send(&msg)
 	}
 
 	// TODO(aaronl): Also send node secrets that should be exposed to

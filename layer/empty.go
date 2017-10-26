@@ -55,7 +55,7 @@ func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (el *emptyLayer) Platform() Platform {
+func (el *emptyLayer) OS() OS {
 	return ""
 }
 

@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -27,8 +28,10 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	blkiodev "github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/svc/mgr"
 )
 
 const (
@@ -235,9 +238,32 @@ func checkSystem() error {
 
 	vmcompute := windows.NewLazySystemDLL("vmcompute.dll")
 	if vmcompute.Load() != nil {
-		return fmt.Errorf("Failed to load vmcompute.dll. Ensure that the Containers role is installed.")
+		return fmt.Errorf("failed to load vmcompute.dll, ensure that the Containers feature is installed")
 	}
 
+	// Ensure that the required Host Network Service and vmcompute services
+	// are running. Docker will fail in unexpected ways if this is not present.
+	var requiredServices = []string{"hns", "vmcompute"}
+	if err := ensureServicesInstalled(requiredServices); err != nil {
+		return errors.Wrap(err, "a required service is not installed, ensure the Containers feature is installed")
+	}
+
+	return nil
+}
+
+func ensureServicesInstalled(services []string) error {
+	m, err := mgr.Connect()
+	if err != nil {
+		return err
+	}
+	defer m.Disconnect()
+	for _, service := range services {
+		s, err := m.OpenService(service)
+		if err != nil {
+			return errors.Wrapf(err, "failed to open service %s", service)
+		}
+		s.Close()
+	}
 	return nil
 }
 
@@ -468,12 +494,14 @@ func (daemon *Daemon) runAsHyperVContainer(hostConfig *containertypes.HostConfig
 // conditionalMountOnStart is a platform specific helper function during the
 // container start to call mount.
 func (daemon *Daemon) conditionalMountOnStart(container *container.Container) error {
-	// Bail out now for Linux containers
-	if system.LCOWSupported() && container.Platform != "windows" {
+	// Bail out now for Linux containers. We cannot mount the containers filesystem on the
+	// host as it is a non-Windows filesystem.
+	if system.LCOWSupported() && container.OS != "windows" {
 		return nil
 	}
 
-	// We do not mount if a Hyper-V container
+	// We do not mount if a Hyper-V container as it needs to be mounted inside the
+	// utility VM, not the host.
 	if !daemon.runAsHyperVContainer(container.HostConfig) {
 		return daemon.Mount(container)
 	}
@@ -484,7 +512,7 @@ func (daemon *Daemon) conditionalMountOnStart(container *container.Container) er
 // during the cleanup of a container to unmount.
 func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container) error {
 	// Bail out now for Linux containers
-	if system.LCOWSupported() && container.Platform != "windows" {
+	if system.LCOWSupported() && container.OS != "windows" {
 		return nil
 	}
 
@@ -505,7 +533,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 
 	// Obtain the stats from HCS via libcontainerd
-	stats, err := daemon.containerd.Stats(c.ID)
+	stats, err := daemon.containerd.Stats(context.Background(), c.ID)
 	if err != nil {
 		if strings.Contains(err.Error(), "container not found") {
 			return nil, containerNotFound(c.ID)
@@ -515,49 +543,48 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 
 	// Start with an empty structure
 	s := &types.StatsJSON{}
-
-	// Populate the CPU/processor statistics
-	s.CPUStats = types.CPUStats{
-		CPUUsage: types.CPUUsage{
-			TotalUsage:        stats.Processor.TotalRuntime100ns,
-			UsageInKernelmode: stats.Processor.RuntimeKernel100ns,
-			UsageInUsermode:   stats.Processor.RuntimeKernel100ns,
-		},
-	}
-
-	// Populate the memory statistics
-	s.MemoryStats = types.MemoryStats{
-		Commit:            stats.Memory.UsageCommitBytes,
-		CommitPeak:        stats.Memory.UsageCommitPeakBytes,
-		PrivateWorkingSet: stats.Memory.UsagePrivateWorkingSetBytes,
-	}
-
-	// Populate the storage statistics
-	s.StorageStats = types.StorageStats{
-		ReadCountNormalized:  stats.Storage.ReadCountNormalized,
-		ReadSizeBytes:        stats.Storage.ReadSizeBytes,
-		WriteCountNormalized: stats.Storage.WriteCountNormalized,
-		WriteSizeBytes:       stats.Storage.WriteSizeBytes,
-	}
-
-	// Populate the network statistics
-	s.Networks = make(map[string]types.NetworkStats)
-
-	for _, nstats := range stats.Network {
-		s.Networks[nstats.EndpointId] = types.NetworkStats{
-			RxBytes:   nstats.BytesReceived,
-			RxPackets: nstats.PacketsReceived,
-			RxDropped: nstats.DroppedPacketsIncoming,
-			TxBytes:   nstats.BytesSent,
-			TxPackets: nstats.PacketsSent,
-			TxDropped: nstats.DroppedPacketsOutgoing,
-		}
-	}
-
-	// Set the timestamp
-	s.Stats.Read = stats.Timestamp
+	s.Stats.Read = stats.Read
 	s.Stats.NumProcs = platform.NumProcs()
 
+	if stats.HCSStats != nil {
+		hcss := stats.HCSStats
+		// Populate the CPU/processor statistics
+		s.CPUStats = types.CPUStats{
+			CPUUsage: types.CPUUsage{
+				TotalUsage:        hcss.Processor.TotalRuntime100ns,
+				UsageInKernelmode: hcss.Processor.RuntimeKernel100ns,
+				UsageInUsermode:   hcss.Processor.RuntimeKernel100ns,
+			},
+		}
+
+		// Populate the memory statistics
+		s.MemoryStats = types.MemoryStats{
+			Commit:            hcss.Memory.UsageCommitBytes,
+			CommitPeak:        hcss.Memory.UsageCommitPeakBytes,
+			PrivateWorkingSet: hcss.Memory.UsagePrivateWorkingSetBytes,
+		}
+
+		// Populate the storage statistics
+		s.StorageStats = types.StorageStats{
+			ReadCountNormalized:  hcss.Storage.ReadCountNormalized,
+			ReadSizeBytes:        hcss.Storage.ReadSizeBytes,
+			WriteCountNormalized: hcss.Storage.WriteCountNormalized,
+			WriteSizeBytes:       hcss.Storage.WriteSizeBytes,
+		}
+
+		// Populate the network statistics
+		s.Networks = make(map[string]types.NetworkStats)
+		for _, nstats := range hcss.Network {
+			s.Networks[nstats.EndpointId] = types.NetworkStats{
+				RxBytes:   nstats.BytesReceived,
+				RxPackets: nstats.PacketsReceived,
+				RxDropped: nstats.DroppedPacketsIncoming,
+				TxBytes:   nstats.BytesSent,
+				TxPackets: nstats.PacketsSent,
+				TxDropped: nstats.DroppedPacketsOutgoing,
+			}
+		}
+	}
 	return s, nil
 }
 
@@ -636,4 +663,12 @@ func getRealPath(path string) (string, error) {
 		return path, nil
 	}
 	return fileutils.ReadSymlinkedDirectory(path)
+}
+
+func (daemon *Daemon) loadRuntimes() error {
+	return nil
+}
+
+func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
+	return nil
 }

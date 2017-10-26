@@ -75,7 +75,7 @@ func (m mounts) parts(i int) int {
 func (daemon *Daemon) registerMountPoints(container *container.Container, hostConfig *containertypes.HostConfig) (retErr error) {
 	binds := map[string]bool{}
 	mountPoints := map[string]*volume.MountPoint{}
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 	defer func() {
 		// clean up the container mountpoints once return with error
 		if retErr != nil {
@@ -256,7 +256,7 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 	container.Lock()
 	defer container.Unlock()
 
-	parser := volume.NewParser(container.Platform)
+	parser := volume.NewParser(container.OS)
 
 	maybeUpdate := make(map[string]bool)
 	for _, mp := range container.MountPoints {

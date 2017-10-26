@@ -32,7 +32,6 @@ func (c *containerManager) Create(runConfig *container.Config, hostConfig *conta
 	container, err := c.backend.ContainerCreate(types.ContainerCreateConfig{
 		Config:     runConfig,
 		HostConfig: hostConfig,
-		Platform:   platform,
 	})
 	if err != nil {
 		return container, err
@@ -103,7 +102,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 
 func logCancellationError(cancelErrCh chan error, msg string) {
 	if cancelErr := <-cancelErrCh; cancelErr != nil {
-		logrus.Debugf("Build cancelled (%v): ", cancelErr, msg)
+		logrus.Debugf("Build cancelled (%v): %s", cancelErr, msg)
 	}
 }
 
