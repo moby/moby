@@ -65,6 +65,7 @@ func DefaultLinuxSpec() specs.Spec {
 				Effective:   defaultCapabilities(),
 			},
 		},
+		Root: &specs.Root{},
 	}
 	s.Mounts = []specs.Mount{
 		{

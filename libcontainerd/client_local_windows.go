@@ -513,7 +513,7 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 	ctr := &container{
 		id:           id,
 		execs:        make(map[string]*process),
-		isWindows:    true,
+		isWindows:    false,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
 		status:       StatusCreated,
