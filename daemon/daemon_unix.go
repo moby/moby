@@ -113,9 +113,6 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 func getCPUResources(config containertypes.Resources) (*specs.LinuxCPU, error) {
 	cpu := specs.LinuxCPU{}
 
-	if config.CPUShares < 0 {
-		return nil, fmt.Errorf("shares: invalid argument")
-	}
 	if config.CPUShares >= 0 {
 		shares := uint64(config.CPUShares)
 		cpu.Shares = &shares
@@ -405,6 +402,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 		logrus.Warn("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
+	if resources.KernelMemory < 0 {
+		return warnings, fmt.Errorf("Invalid KernelMemory value. Must be nonnegative.")
+	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
 		// warning the caller if they already wanted the feature to be off
@@ -447,6 +447,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		logrus.Warn("Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")
 		resources.CPUShares = 0
 	}
+	if resources.CPUShares < 0 {
+		return warnings, fmt.Errorf("Invalid CPUShares value. Must be nonnegative.")
+	}
 	if resources.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period or the cgroup is not mounted. Period discarded.")
 		logrus.Warn("Your kernel does not support CPU cfs period or the cgroup is not mounted. Period discarded.")
@@ -462,6 +465,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
 		return warnings, fmt.Errorf("CPU cfs quota can not be less than 1ms (i.e. 1000)")
+	}
+	if resources.CPUQuota < 0 {
+		return warnings, fmt.Errorf("Invalid CPUQuota value. Must be nonnegative.")
 	}
 	if resources.CPUPercent > 0 {
 		warnings = append(warnings, fmt.Sprintf("%s does not support CPU percent. Percent discarded.", runtime.GOOS))
@@ -528,6 +534,9 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		warnings = append(warnings, "Your kernel does not support IOPS Block write limit or the cgroup is not mounted. Block I/O IOPS write limit discarded.")
 		logrus.Warn("Your kernel does not support IOPS Block I/O write limit or the cgroup is not mounted. Block I/O IOPS write limit discarded.")
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
+	}
+	if resources.CPURealtimeRuntime < 0 {
+		return warnings, fmt.Errorf("Invalid CPURealtimeRuntime value. Must be nonnegative.")
 	}
 
 	return warnings, nil
