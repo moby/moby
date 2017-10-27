@@ -38,7 +38,7 @@ for version in "${versions[@]}"; do
 
 	EOF
 
-	dockerBuildTags='apparmor selinux'
+	extraBuildTags='apparmor selinux'
 	runcBuildTags='apparmor selinux'
 
 	# this list is sorted alphabetically; please keep it that way
@@ -62,29 +62,20 @@ for version in "${versions[@]}"; do
 	case "$suite" in
 		trusty)
 			packages+=( libsystemd-journal-dev )
-			# aarch64 doesn't have an official downloadable binary for go.
-			# And gccgo for trusty only includes Go 1.2 implementation which
-			# is too old to build current go source, fortunately trusty has
-			# golang-1.6-go package can be used as bootstrap.
-			packages+=( golang-1.6-go )
 			;;
 		jessie)
 			packages+=( libsystemd-journal-dev )
-			# aarch64 doesn't have an official downloadable binary for go.
-			# And gccgo for jessie only includes Go 1.2 implementation which
-			# is too old to build current go source, fortunately jessie backports
-			# has golang-1.6-go package can be used as bootstrap.
-			packages+=( golang-1.6-go libseccomp-dev )
+			packages+=( libseccomp-dev )
 
-			dockerBuildTags="$dockerBuildTags seccomp"
-			runcBuildTags="$runcBuildTags seccomp"
+			extraBuildTags+=' seccomp'
+			runcBuildTags+=' seccomp'
 			;;
 		stretch|xenial)
 			packages+=( libsystemd-dev )
-			packages+=( golang-go libseccomp-dev )
+			packages+=( libseccomp-dev )
 
-			dockerBuildTags="$dockerBuildTags seccomp"
-			runcBuildTags="$runcBuildTags seccomp"
+			extraBuildTags+=' seccomp'
+			runcBuildTags+=' seccomp'
 			;;
 		*)
 			echo "Unsupported distro:" $distro:$suite
@@ -105,31 +96,17 @@ for version in "${versions[@]}"; do
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
-	case "$suite" in
-		jessie|trusty)
-			echo 'RUN update-alternatives --install /usr/bin/go go /usr/lib/go-1.6/bin/go 100' >> "$version/Dockerfile"
-			echo >> "$version/Dockerfile"
-			;;
-		*)
-			;;
-	esac
-
-	echo "# Install Go" >> "$version/Dockerfile"
-	echo "# aarch64 doesn't have official go binaries, so use the version of go installed from" >> "$version/Dockerfile"
-	echo "# the image to build go from source." >> "$version/Dockerfile"
-
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile.aarch64 >> "$version/Dockerfile"
-	echo 'RUN mkdir /usr/src/go && curl -fsSL https://golang.org/dl/go${GO_VERSION}.src.tar.gz | tar -v -C /usr/src/go -xz --strip-components=1 \' >> "$version/Dockerfile"
-	echo '	&& cd /usr/src/go/src \' >> "$version/Dockerfile"
-	echo '	&& GOOS=linux GOARCH=arm64 GOROOT_BOOTSTRAP="$(go env GOROOT)" ./make.bash' >> "$version/Dockerfile"
+	echo 'RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-arm64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
-	echo 'ENV PATH /usr/src/go/bin:$PATH' >> "$version/Dockerfile"
+	echo 'ENV AUTO_GOPATH 1' >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"
 
-	echo "ENV AUTO_GOPATH 1" >> "$version/Dockerfile"
-	echo >> "$version/Dockerfile"
-
-	echo "ENV DOCKER_BUILDTAGS $dockerBuildTags" >> "$version/Dockerfile"
+	# print build tags in alphabetical order
+	buildTags=$( echo "$extraBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
+	runcBuildTags=$( echo "$runcBuildTags" | xargs -n1 | sort -n | tr '\n' ' ' | sed -e 's/[[:space:]]*$//' )
+	echo "ENV DOCKER_BUILDTAGS $buildTags" >> "$version/Dockerfile"
 	echo "ENV RUNC_BUILDTAGS $runcBuildTags" >> "$version/Dockerfile"
 done
