@@ -495,22 +495,35 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		userMounts[m.Destination] = struct{}{}
 	}
 
-	// Filter out mounts from spec
-	noIpc := c.HostConfig.IpcMode.IsNone()
+	// Copy all mounts from spec to defaultMounts, except for
+	//  - mounts overriden by a user supplied mount;
+	//  - all mounts under /dev if a user supplied /dev is present;
+	//  - /dev/shm, in case IpcMode is none.
+	// While at it, also
+	//  - set size for /dev/shm from shmsize.
 	var defaultMounts []specs.Mount
 	_, mountDev := userMounts["/dev"]
 	for _, m := range s.Mounts {
-		// filter out /dev/shm mount if case IpcMode is none
-		if noIpc && m.Destination == "/dev/shm" {
+		if _, ok := userMounts[m.Destination]; ok {
+			// filter out mount overridden by a user supplied mount
 			continue
 		}
-		// filter out mount overridden by a user supplied mount
-		if _, ok := userMounts[m.Destination]; !ok {
-			if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+		if mountDev && strings.HasPrefix(m.Destination, "/dev/") {
+			// filter out everything under /dev if /dev is user-mounted
+			continue
+		}
+
+		if m.Destination == "/dev/shm" {
+			if c.HostConfig.IpcMode.IsNone() {
+				// filter out /dev/shm for "none" IpcMode
 				continue
 			}
-			defaultMounts = append(defaultMounts, m)
+			// set size for /dev/shm mount from spec
+			sizeOpt := "size=" + strconv.FormatInt(c.HostConfig.ShmSize, 10)
+			m.Options = append(m.Options, sizeOpt)
 		}
+
+		defaultMounts = append(defaultMounts, m)
 	}
 
 	s.Mounts = defaultMounts
@@ -602,14 +615,6 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		}
 		s.Linux.ReadonlyPaths = nil
 		s.Linux.MaskedPaths = nil
-	}
-
-	// Set size for /dev/shm mount that comes from spec (IpcMode: private only)
-	for i, m := range s.Mounts {
-		if m.Destination == "/dev/shm" {
-			sizeOpt := "size=" + strconv.FormatInt(c.HostConfig.ShmSize, 10)
-			s.Mounts[i].Options = append(s.Mounts[i].Options, sizeOpt)
-		}
 	}
 
 	// TODO: until a kernel/mount solution exists for handling remount in a user namespace,
