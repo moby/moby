@@ -1,10 +1,10 @@
 package omslogs
 
 import (
-	"testing"
-
 	"bytes"
 	"fmt"
+	"testing"
+
 	"github.com/docker/docker/daemon/logger"
 )
 

@@ -32,8 +32,8 @@ const (
 	envStreamChannelSize     = "OMS_LOGGING_DRIVER_CHANNEL_SIZE"
 
 	// Default option values
-	defaultTimeout               = time.Duration(5 * time.Second)
-	defaultPostMessagesFrequency = time.Duration(5 * time.Second)
+	defaultTimeout               = 5 * time.Second
+	defaultPostMessagesFrequency = 5 * time.Second
 	defaultPostMessagesBatchSize = 100
 	defaultBufferSize            = 10 * defaultPostMessagesBatchSize
 	defaultStreamChannelSize     = 4 * defaultPostMessagesBatchSize
