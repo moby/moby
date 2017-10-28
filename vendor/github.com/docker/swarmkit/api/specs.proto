@@ -314,6 +314,10 @@ message ContainerSpec {
 	// Isolation defines the isolation level for windows containers (default, process, hyperv).
 	// Runtimes that don't support it ignore that field
 	Isolation isolation = 24;
+
+	// PidsLimit prevents from OS resource damage by applications inside the container 
+	// using fork bomb attack.
+	int64 pidsLimit = 25;
 }
 
 // EndpointSpec defines the properties that can be configured to
