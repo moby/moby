@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/stringutils"
+	"github.com/docker/docker/internal/testutil"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
@@ -60,7 +60,7 @@ func RandomTmpDirPath(s string, platform string) string {
 	if platform == "windows" {
 		tmp = os.Getenv("TEMP")
 	}
-	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, stringutils.GenerateRandomAlphaOnlyString(10)))
+	path := filepath.Join(tmp, fmt.Sprintf("%s.%s", s, testutil.GenerateRandomAlphaOnlyString(10)))
 	if platform == "windows" {
 		return filepath.FromSlash(path) // Using \
 	}
