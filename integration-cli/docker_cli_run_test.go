@@ -26,10 +26,10 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork/resolvconf"
@@ -1828,7 +1828,7 @@ func testRunWriteSpecialFilesAndNotCommit(c *check.C, name, path string) {
 }
 
 func eqToBaseDiff(out string, c *check.C) bool {
-	name := "eqToBaseDiff" + stringutils.GenerateRandomAlphaOnlyString(32)
+	name := "eqToBaseDiff" + testutil.GenerateRandomAlphaOnlyString(32)
 	dockerCmd(c, "run", "--name", name, "busybox", "echo", "hello")
 	cID := getIDByName(c, name)
 	baseDiff, _ := dockerCmd(c, "diff", cID)

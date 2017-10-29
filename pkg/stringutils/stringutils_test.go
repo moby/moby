@@ -34,14 +34,6 @@ func isASCII(s string) bool {
 	return true
 }
 
-func TestGenerateRandomAlphaOnlyStringLength(t *testing.T) {
-	testLengthHelper(GenerateRandomAlphaOnlyString, t)
-}
-
-func TestGenerateRandomAlphaOnlyStringUniqueness(t *testing.T) {
-	testUniquenessHelper(GenerateRandomAlphaOnlyString, t)
-}
-
 func TestGenerateRandomAsciiStringLength(t *testing.T) {
 	testLengthHelper(GenerateRandomASCIIString, t)
 }
