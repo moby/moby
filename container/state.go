@@ -29,7 +29,7 @@ type State struct {
 	Dead              bool
 	Pid               int
 	ExitCodeValue     int    `json:"ExitCode"`
-	ErrorMsg          string `json:"Error"` // contains last known error when starting the container
+	ErrorMsg          string `json:"Error"` // contains last known error during container start or remove
 	StartedAt         time.Time
 	FinishedAt        time.Time
 	Health            *Health
@@ -326,7 +326,10 @@ func (s *State) SetRestarting(exitStatus *ExitStatus) {
 // know the error that occurred when container transits to another state
 // when inspecting it
 func (s *State) SetError(err error) {
-	s.ErrorMsg = err.Error()
+	s.ErrorMsg = ""
+	if err != nil {
+		s.ErrorMsg = err.Error()
+	}
 }
 
 // IsPaused returns whether the container is paused or not.
@@ -392,8 +395,18 @@ func (s *State) IsDead() bool {
 // closes the internal waitRemove channel to unblock callers waiting for a
 // container to be removed.
 func (s *State) SetRemoved() {
+	s.SetRemovalError(nil)
+}
+
+// SetRemovalError is to be called in case a container remove failed.
+// It sets an error and closes the internal waitRemove channel to unblock
+// callers waiting for the container to be removed.
+func (s *State) SetRemovalError(err error) {
+	s.SetError(err)
 	s.Lock()
 	close(s.waitRemove) // Unblock those waiting on remove.
+	// Recreate the channel so next ContainerWait will work
+	s.waitRemove = make(chan struct{})
 	s.Unlock()
 }
 

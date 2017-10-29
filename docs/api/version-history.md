@@ -17,12 +17,19 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.34](https://docs.docker.com/engine/api/v1.34/) documentation
 
+* `POST /containers/(name)/wait?condition=removed` now also also returns
+  in case of container removal failure. A pointer to a structure named
+  `Error` added to the response JSON in order to indicate a failure.
+  If `Error` is `null`, container removal has succeeded, otherwise
+  the test of an error message indicating why container removal has failed
+  is available from `Error.Message` field.
+
 ## v1.33 API changes
 
 [Docker Engine API v1.33](https://docs.docker.com/engine/api/v1.33/) documentation
 
 * `GET /events` now supports filtering 4 more kinds of events: `config`, `node`,
-`secret` and `service`. 
+`secret` and `service`.
 
 ## v1.32 API changes
 

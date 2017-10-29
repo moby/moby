@@ -5723,6 +5723,13 @@ paths:
                 description: "Exit code of the container"
                 type: "integer"
                 x-nullable: false
+              Error:
+                description: "container waiting error, if any"
+                type: "object"
+                properties:
+                  Message:
+                    description: "Details of an error"
+                    type: "string"
         404:
           description: "no such container"
           schema:

@@ -280,11 +280,12 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 	// Behavior changed in version 1.30 to handle wait condition and to
 	// return headers immediately.
 	version := httputils.VersionFromContext(ctx)
-	legacyBehavior := versions.LessThan(version, "1.30")
+	legacyBehaviorPre130 := versions.LessThan(version, "1.30")
+	legacyRemovalWaitPre134 := false
 
 	// The wait condition defaults to "not-running".
 	waitCondition := containerpkg.WaitConditionNotRunning
-	if !legacyBehavior {
+	if !legacyBehaviorPre130 {
 		if err := httputils.ParseForm(r); err != nil {
 			return err
 		}
@@ -293,6 +294,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 			waitCondition = containerpkg.WaitConditionNextExit
 		case container.WaitConditionRemoved:
 			waitCondition = containerpkg.WaitConditionRemoved
+			legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 		}
 	}
 
@@ -306,7 +308,7 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if !legacyBehavior {
+	if !legacyBehaviorPre130 {
 		// Write response header immediately.
 		w.WriteHeader(http.StatusOK)
 		if flusher, ok := w.(http.Flusher); ok {
@@ -317,8 +319,22 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 	// Block on the result of the wait operation.
 	status := <-waitC
 
+	// With API < 1.34, wait on WaitConditionRemoved did not return
+	// in case container removal failed. The only way to report an
+	// error back to the client is to not write anything (i.e. send
+	// an empty response which will be treated as an error).
+	if legacyRemovalWaitPre134 && status.Err() != nil {
+		return nil
+	}
+
+	var waitError *container.ContainerWaitOKBodyError
+	if status.Err() != nil {
+		waitError = &container.ContainerWaitOKBodyError{Message: status.Err().Error()}
+	}
+
 	return json.NewEncoder(w).Encode(&container.ContainerWaitOKBody{
 		StatusCode: int64(status.ExitCode()),
+		Error:      waitError,
 	})
 }
 

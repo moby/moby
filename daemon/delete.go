@@ -120,12 +120,16 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 		metadata, err := daemon.stores[container.OS].layerStore.ReleaseRWLayer(container.RWLayer)
 		layer.LogReleaseMetadata(metadata)
 		if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
-			return errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(container.OS), container.ID)
+			e := errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(container.OS), container.ID)
+			container.SetRemovalError(e)
+			return e
 		}
 	}
 
 	if err := system.EnsureRemoveAll(container.Root); err != nil {
-		return errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
+		e := errors.Wrapf(err, "unable to remove filesystem for %s", container.ID)
+		container.SetRemovalError(e)
+		return e
 	}
 
 	linkNames := daemon.linkIndex.delete(container)
