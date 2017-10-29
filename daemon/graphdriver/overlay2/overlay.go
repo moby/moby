@@ -200,16 +200,11 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	d.naiveDiff = graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps)
 
-	if backingFs == "xfs" {
-		// Try to enable project quota support over xfs.
-		if d.quotaCtl, err = quota.NewControl(home); err == nil {
-			projectQuotaSupported = true
-		} else if opts.quota.Size > 0 {
-			return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem does not support Project Quota: %v", err)
-		}
+	// Try to enable project quota.
+	if d.quotaCtl, err = quota.NewControl(home, backingFs); err == nil {
+		projectQuotaSupported = true
 	} else if opts.quota.Size > 0 {
-		// if xfs is not the backing fs then error out if the storage-opt overlay2.size is used.
-		return nil, fmt.Errorf("Storage Option overlay2.size only supported for backingFS XFS. Found %v", backingFs)
+		return nil, fmt.Errorf("Storage option overlay2.size not supported. Filesystem %s does not support Project Quota: %v", backingFs, err)
 	}
 
 	logrus.Debugf("backingFs=%s,  projectQuotaSupported=%v", backingFs, projectQuotaSupported)
@@ -325,7 +320,7 @@ func (d *Driver) Cleanup() error {
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
-		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
+		return fmt.Errorf("--storage-opt is not supported for overlay on your system, make sure your backingFs %s support quota or mounted with 'prjquota' option", backingFs)
 	}
 
 	if opts == nil {
