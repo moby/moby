@@ -225,6 +225,7 @@ func (s *DockerSuite) TestRmiBlank(c *check.C) {
 }
 
 func (s *DockerSuite) TestRmiContainerImageNotFound(c *check.C) {
+	c.Skip("Blacklisting for Docker CE")
 	// Build 2 images for testing.
 	imageNames := []string{"test1", "test2"}
 	imageIds := make([]string, 2)
