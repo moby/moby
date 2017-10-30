@@ -58,14 +58,9 @@ import (
 	"path/filepath"
 	"unsafe"
 
-	"errors"
-
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
-
-// ErrQuotaNotSupported indicates if were found the FS does not have projects quotas available
-var ErrQuotaNotSupported = errors.New("Filesystem does not support or has not enabled quotas")
 
 // Quota limit params - currently we only control blocks hard limit
 type Quota struct {
