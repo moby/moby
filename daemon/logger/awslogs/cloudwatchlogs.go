@@ -275,6 +275,10 @@ func (l *logStream) Name() string {
 	return name
 }
 
+func (l *logStream) BufSize() int {
+	return maximumBytesPerEvent
+}
+
 // Log submits messages for logging by an instance of the awslogs logging driver
 func (l *logStream) Log(msg *logger.Message) error {
 	l.lock.RLock()
