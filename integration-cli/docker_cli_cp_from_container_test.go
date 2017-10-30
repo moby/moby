@@ -53,6 +53,7 @@ func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
 // Test for error when SRC is a valid file or directory,
 // bu the DST parent directory does not exist.
 func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
+	c.Skip("Blacklisting for Docker CE")
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
 
