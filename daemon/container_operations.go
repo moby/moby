@@ -251,8 +251,8 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 		return runconfig.ErrConflictHostNetwork
 	}
 
-	for s := range container.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(s)
+	for s, v := range container.NetworkSettings.Networks {
+		sn, err := daemon.FindUniqueNetwork(getNetworkID(s, v.EndpointSettings))
 		if err != nil {
 			continue
 		}
@@ -308,8 +308,8 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 
 	// Find if container is connected to the default bridge network
 	var n libnetwork.Network
-	for name := range container.NetworkSettings.Networks {
-		sn, err := daemon.FindNetwork(name)
+	for name, v := range container.NetworkSettings.Networks {
+		sn, err := daemon.FindUniqueNetwork(getNetworkID(name, v.EndpointSettings))
 		if err != nil {
 			continue
 		}
@@ -339,7 +339,7 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 }
 
 func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (libnetwork.Network, *networktypes.NetworkingConfig, error) {
-	n, err := daemon.FindNetwork(idOrName)
+	n, err := daemon.FindUniqueNetwork(getNetworkID(idOrName, epConfig))
 	if err != nil {
 		// We should always be able to find the network for a
 		// managed container.
@@ -377,16 +377,16 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(idOrName, container.ID, addresses)
+			config, err = daemon.clusterProvider.AttachNetwork(getNetworkID(idOrName, epConfig), container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(idOrName)
+		n, err = daemon.FindUniqueNetwork(getNetworkID(idOrName, epConfig))
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(idOrName, container.ID); err != nil {
+				if err := daemon.clusterProvider.DetachNetwork(getNetworkID(idOrName, epConfig), container.ID); err != nil {
 					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
@@ -437,7 +437,7 @@ func (daemon *Daemon) updateContainerNetworkSettings(container *container.Contai
 	if mode.IsUserDefined() {
 		var err error
 
-		n, err = daemon.FindNetwork(networkName)
+		n, err = daemon.FindUniqueNetwork(networkName)
 		if err == nil {
 			networkName = n.Name()
 		}
@@ -797,7 +797,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 // ForceEndpointDelete deletes an endpoint from a network forcefully
 func (daemon *Daemon) ForceEndpointDelete(name string, networkName string) error {
-	n, err := daemon.FindNetwork(networkName)
+	n, err := daemon.FindUniqueNetwork(networkName)
 	if err != nil {
 		return err
 	}
@@ -949,7 +949,7 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 
 	var networks []libnetwork.Network
 	for n, epSettings := range settings {
-		if nw, err := daemon.FindNetwork(n); err == nil {
+		if nw, err := daemon.FindUniqueNetwork(getNetworkID(n, epSettings.EndpointSettings)); err == nil {
 			networks = append(networks, nw)
 		}
 
@@ -993,7 +993,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 			return errRemovalContainer(container.ID)
 		}
 
-		n, err := daemon.FindNetwork(idOrName)
+		n, err := daemon.FindUniqueNetwork(idOrName)
 		if err == nil && n != nil {
 			if err := daemon.updateNetworkConfig(container, n, endpointConfig, true); err != nil {
 				return err
@@ -1016,7 +1016,7 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 
 // DisconnectFromNetwork disconnects container from network n.
 func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, networkName string, force bool) error {
-	n, err := daemon.FindNetwork(networkName)
+	n, err := daemon.FindUniqueNetwork(networkName)
 	container.Lock()
 	defer container.Unlock()
 
@@ -1086,4 +1086,13 @@ func (daemon *Daemon) DeactivateContainerServiceBinding(containerName string) er
 		return nil
 	}
 	return sb.DisableService()
+}
+
+func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) string {
+	// We only want to prefer NetworkID for user defined networks.
+	// For systems like bridge, none, etc. the name is preferred (otherwise restart may cause issues)
+	if containertypes.NetworkMode(name).IsUserDefined() && endpointSettings != nil && endpointSettings.NetworkID != "" {
+		return endpointSettings.NetworkID
+	}
+	return name
 }

@@ -2137,3 +2137,76 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsConfig(c *check.C) {
 	// filtered by config
 	waitForEvent(c, d, t1, "-f type=config", "config remove "+id, defaultRetryCount)
 }
+
+func (s *DockerSwarmSuite) TestServiceCreateWithDuplicateNetworkNames(c *check.C) {
+	d := s.AddDaemon(c, true, true)
+
+	name := "foo"
+	networkCreateRequest := types.NetworkCreateRequest{
+		Name: name,
+		NetworkCreate: types.NetworkCreate{
+			CheckDuplicate: false,
+			Driver:         "bridge",
+		},
+	}
+
+	// Create networks with the same name, 2 in local scope and 1 in swarm scope
+	var n1 types.NetworkCreateResponse
+	status, body, err := d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n1), checker.IsNil)
+
+	var n2 types.NetworkCreateResponse
+	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n2), checker.IsNil)
+
+	var n3 types.NetworkCreateResponse
+	// Dupliates with name but with different driver
+	networkCreateRequest.NetworkCreate.Driver = "overlay"
+	status, body, err = d.SockRequest("POST", "/networks/create", networkCreateRequest)
+	c.Assert(err, checker.IsNil, check.Commentf(string(body)))
+	c.Assert(status, checker.Equals, http.StatusCreated, check.Commentf(string(body)))
+	c.Assert(json.Unmarshal(body, &n3), checker.IsNil)
+
+	// Create Service with the same name
+	d.CreateService(c, simpleTestService, func(s *swarm.Service) {
+		s.Spec.Name = "top"
+		s.Spec.TaskTemplate.Networks = []swarm.NetworkAttachmentConfig{
+			{Target: name},
+		}
+	})
+
+	// make sure task has been deployed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
+
+	result := icmd.RunCmd(d.Command("ps", "-a", "-q"))
+	result.Assert(c, icmd.Success)
+	containers := strings.Split(strings.TrimSpace(result.Stdout()), "\n")
+	c.Assert(len(containers), checker.Equals, 1)
+
+	result = icmd.RunCmd(d.Command("inspect", "--format", `{{.NetworkSettings.Networks.foo.NetworkID}}`, containers[0]))
+	result.Assert(c, icmd.Success)
+	c.Assert(strings.TrimSpace(result.Stdout()), checker.Equals, n3.ID)
+
+	// Remove Service
+	result = icmd.RunCmd(d.Command("service", "rm", "top"))
+	result.Assert(c, icmd.Success)
+
+	// make sure task has been destroyed.
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
+
+	result = icmd.RunCmd(d.Command("network", "rm", n1.ID))
+	result.Assert(c, icmd.Success)
+	c.Assert(strings.TrimSpace(result.Stdout()), checker.Equals, n1.ID)
+
+	result = icmd.RunCmd(d.Command("network", "rm", n2.ID))
+	result.Assert(c, icmd.Success)
+	c.Assert(strings.TrimSpace(result.Stdout()), checker.Equals, n2.ID)
+
+	result = icmd.RunCmd(d.Command("network", "rm", n3.ID))
+	result.Assert(c, icmd.Success)
+	c.Assert(strings.TrimSpace(result.Stdout()), checker.Equals, n3.ID)
+}

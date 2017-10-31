@@ -143,8 +143,8 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 }
 
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
-	for _, network := range c.container.networks() {
-		ncr, err := c.container.networkCreateRequest(network)
+	for name := range c.container.networksAttachments {
+		ncr, err := c.container.networkCreateRequest(name)
 		if err != nil {
 			return err
 		}
@@ -162,15 +162,15 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) removeNetworks(ctx context.Context) error {
-	for _, nid := range c.container.networks() {
-		if err := c.backend.DeleteManagedNetwork(nid); err != nil {
+	for name, v := range c.container.networksAttachments {
+		if err := c.backend.DeleteManagedNetwork(v.Network.ID); err != nil {
 			switch err.(type) {
 			case *libnetwork.ActiveEndpointsError:
 				continue
 			case libnetwork.ErrNoSuchNetwork:
 				continue
 			default:
-				log.G(ctx).Errorf("network %s remove failed: %v", nid, err)
+				log.G(ctx).Errorf("network %s remove failed: %v", name, err)
 				return err
 			}
 		}

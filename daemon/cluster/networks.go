@@ -292,7 +292,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 	for i, n := range networks {
 		apiNetwork, err := getNetwork(ctx, client, n.Target)
 		if err != nil {
-			ln, _ := c.config.Backend.FindNetwork(n.Target)
+			ln, _ := c.config.Backend.FindUniqueNetwork(n.Target)
 			if ln != nil && runconfig.IsPreDefinedNetwork(ln.Name()) {
 				// Need to retrieve the corresponding predefined swarm network
 				// and use its id for the request.

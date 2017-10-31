@@ -29,31 +29,36 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 	return daemon.netController != nil
 }
 
-// FindNetwork function finds a network for a given string that can represent network name or id
-func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
-	// 1. match by full ID.
-	n, err := daemon.GetNetworkByID(idName)
-	if err == nil || !isNoSuchNetworkError(err) {
-		return n, err
+// FindUniqueNetwork returns a network based on:
+// 1. Full ID
+// 2. Full Name
+// 3. Partial ID
+// as long as there is no ambiguity
+func (daemon *Daemon) FindUniqueNetwork(term string) (libnetwork.Network, error) {
+	listByFullName := []libnetwork.Network{}
+	listByPartialID := []libnetwork.Network{}
+	for _, nw := range daemon.GetNetworks() {
+		if nw.ID() == term {
+			return nw, nil
+		}
+		if nw.Name() == term {
+			listByFullName = append(listByFullName, nw)
+		}
+		if strings.HasPrefix(nw.ID(), term) {
+			listByPartialID = append(listByPartialID, nw)
+		}
 	}
-
-	// 2. match by full name
-	n, err = daemon.GetNetworkByName(idName)
-	if err == nil || !isNoSuchNetworkError(err) {
-		return n, err
+	switch {
+	case len(listByFullName) == 1:
+		return listByFullName[0], nil
+	case len(listByFullName) > 1:
+		return nil, fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+	case len(listByPartialID) == 1:
+		return listByPartialID[0], nil
+	case len(listByPartialID) > 1:
+		return nil, fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
 	}
-
-	// 3. match by ID prefix
-	list := daemon.GetNetworksByIDPrefix(idName)
-	if len(list) == 0 {
-		// Be very careful to change the error type here, the libnetwork.ErrNoSuchNetwork error is used by the controller
-		// to retry the creation of the network as managed through the swarm manager
-		return nil, errors.WithStack(notFound(libnetwork.ErrNoSuchNetwork(idName)))
-	}
-	if len(list) > 1 {
-		return nil, errors.WithStack(invalidIdentifier(idName))
-	}
-	return list[0], nil
+	return nil, libnetwork.ErrNoSuchNetwork(term)
 }
 
 func isNoSuchNetworkError(err error) bool {
@@ -274,7 +279,9 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		// check if user defined CheckDuplicate, if set true, return err
 		// otherwise prepare a warning message
 		if create.CheckDuplicate {
-			return nil, libnetwork.NetworkNameError(create.Name)
+			if !agent || nw.Info().Dynamic() {
+				return nil, libnetwork.NetworkNameError(create.Name)
+			}
 		}
 		warning = fmt.Sprintf("Network with name %s (id : %s) already exists", nw.Name(), nw.ID())
 	}
@@ -464,25 +471,56 @@ func (daemon *Daemon) GetNetworkDriverList() []string {
 }
 
 // DeleteManagedNetwork deletes an agent network.
+// The requirement of networkID is enforced.
 func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
-	return daemon.deleteNetwork(networkID, true)
+	n, err := daemon.GetNetworkByID(networkID)
+	if err != nil {
+		return err
+	}
+	return daemon.deleteNetwork(n, true)
 }
 
 // DeleteNetwork destroys a network unless it's one of docker's predefined networks.
 func (daemon *Daemon) DeleteNetwork(networkID string) error {
-	return daemon.deleteNetwork(networkID, false)
-}
-
-func (daemon *Daemon) deleteNetwork(networkID string, dynamic bool) error {
-	nw, err := daemon.FindNetwork(networkID)
+	n, err := daemon.GetNetworkByID(networkID)
 	if err != nil {
 		return err
 	}
+	return daemon.deleteNetwork(n, false)
+}
 
-	if nw.Info().Ingress() {
-		return nil
+func (daemon *Daemon) deleteLoadBalancerSandbox(n libnetwork.Network) {
+	controller := daemon.netController
+
+	//The only endpoint left should be the LB endpoint (nw.Name() + "-endpoint")
+	endpoints := n.Endpoints()
+	if len(endpoints) == 1 {
+		sandboxName := n.Name() + "-sbox"
+
+		info := endpoints[0].Info()
+		if info != nil {
+			sb := info.Sandbox()
+			if sb != nil {
+				if err := sb.DisableService(); err != nil {
+					logrus.Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
+					//Ignore error and attempt to delete the load balancer endpoint
+				}
+			}
+		}
+
+		if err := endpoints[0].Delete(true); err != nil {
+			logrus.Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoints[0].Name(), endpoints[0].ID(), sandboxName, err)
+			//Ignore error and attempt to delete the sandbox.
+		}
+
+		if err := controller.SandboxDestroy(sandboxName); err != nil {
+			logrus.Warnf("Failed to delete %s sandbox: %v", sandboxName, err)
+			//Ignore error and attempt to delete the network.
+		}
 	}
+}
 
+func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
 	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
 		return notAllowedError{err}

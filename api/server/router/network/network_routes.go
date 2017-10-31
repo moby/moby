@@ -2,6 +2,7 @@ package network
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -288,7 +289,12 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	return n.backend.ConnectContainerToNetwork(connect.Container, vars["id"], connect.EndpointConfig)
+	// Always make sure there is no ambiguity with respect to the network ID/name
+	nw, err := n.backend.FindUniqueNetwork(vars["id"])
+	if err != nil {
+		return err
+	}
+	return n.backend.ConnectContainerToNetwork(connect.Container, nw.ID(), connect.EndpointConfig)
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -312,15 +318,19 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-	if _, err := n.cluster.GetNetwork(vars["id"]); err == nil {
-		if err = n.cluster.RemoveNetwork(vars["id"]); err != nil {
+
+	nw, err := n.findUniqueNetwork(vars["id"])
+	if err != nil {
+		return err
+	}
+	if nw.Scope == "swarm" {
+		if err = n.cluster.RemoveNetwork(nw.ID); err != nil {
 			return err
 		}
-		w.WriteHeader(http.StatusNoContent)
-		return nil
-	}
-	if err := n.backend.DeleteNetwork(vars["id"]); err != nil {
-		return err
+	} else {
+		if err := n.backend.DeleteNetwork(nw.ID); err != nil {
+			return err
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
@@ -517,4 +527,80 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, pruneReport)
+}
+
+// findUniqueNetwork will search network across different scopes (both local and swarm).
+// NOTE: This findUniqueNetwork is differnt from FindUniqueNetwork from the daemon.
+// In case multiple networks have duplicate names, return error.
+// First find based on full ID, return immediately once one is found.
+// If a network appears both in swarm and local, assume it is in local first
+// For full name and partial ID, save the result first, and process later
+// in case multiple records was found based on the same term
+// TODO (yongtang): should we wrap with version here for backward compatibility?
+func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, error) {
+	listByFullName := map[string]types.NetworkResource{}
+	listByPartialID := map[string]types.NetworkResource{}
+
+	nw := n.backend.GetNetworks()
+	for _, network := range nw {
+		if network.ID() == term {
+			return *n.buildDetailedNetworkResources(network, false), nil
+
+		}
+		if network.Name() == term {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, false)
+		}
+		if strings.HasPrefix(network.ID(), term) {
+			// No need to check the ID collision here as we are still in
+			// local scope and the network ID is unique in this scope.
+			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, false)
+		}
+	}
+
+	nr, _ := n.cluster.GetNetworks()
+	for _, network := range nr {
+		if network.ID == term {
+			return network, nil
+		}
+		if network.Name == term {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByFullName) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByFullName[network.ID]; !ok {
+				listByFullName[network.ID] = network
+			}
+		}
+		if strings.HasPrefix(network.ID, term) {
+			// Check the ID collision as we are in swarm scope here, and
+			// the map (of the listByPartialID) may have already had a
+			// network with the same ID (from local scope previously)
+			if _, ok := listByPartialID[network.ID]; !ok {
+				listByPartialID[network.ID] = network
+			}
+		}
+	}
+
+	// Find based on full name, returns true only if no duplicates
+	if len(listByFullName) == 1 {
+		for _, v := range listByFullName {
+			return v, nil
+		}
+	}
+	if len(listByFullName) > 1 {
+		return types.NetworkResource{}, fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+	}
+
+	// Find based on partial ID, returns true only if no duplicates
+	if len(listByPartialID) == 1 {
+		for _, v := range listByPartialID {
+			return v, nil
+		}
+	}
+	if len(listByPartialID) > 1 {
+		return types.NetworkResource{}, fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+	}
+
+	return types.NetworkResource{}, libnetwork.ErrNoSuchNetwork(term)
 }
