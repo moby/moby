@@ -263,11 +263,11 @@ type FdSet struct {
 }
 
 type Utsname struct {
-	Sysname  [257]int8
-	Nodename [257]int8
-	Release  [257]int8
-	Version  [257]int8
-	Machine  [257]int8
+	Sysname  [257]byte
+	Nodename [257]byte
+	Release  [257]byte
+	Version  [257]byte
+	Machine  [257]byte
 }
 
 type Ustat_t struct {
@@ -438,3 +438,22 @@ type Winsize struct {
 	Xpixel uint16
 	Ypixel uint16
 }
+
+type PollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
+
+const (
+	POLLERR    = 0x8
+	POLLHUP    = 0x10
+	POLLIN     = 0x1
+	POLLNVAL   = 0x20
+	POLLOUT    = 0x4
+	POLLPRI    = 0x2
+	POLLRDBAND = 0x80
+	POLLRDNORM = 0x40
+	POLLWRBAND = 0x100
+	POLLWRNORM = 0x4
+)
