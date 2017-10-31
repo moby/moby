@@ -239,7 +239,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	// Everything worked so if -q was provided the output from the daemon
 	// should be just the image ID and we'll print that to stdout.
 	if buildOptions.SuppressOutput {
-		fmt.Fprintln(streamformatter.NewStdoutWriter(output), imgID)
+		fmt.Fprintln(streamformatter.NewStdoutWriter(output), *imgID)
 	}
 	return nil
 }
