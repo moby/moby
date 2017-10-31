@@ -480,7 +480,7 @@ autoextend the available space [100 = disabled]
 
 ##### dm.thinp_autoextend_percent
 
-Sets the value percentage value to increase the thin pool by when when `lvm`
+Sets the value percentage value to increase the thin pool by when `lvm`
 attempts to autoextend the available space [100 = disabled]
 
 ###### Example:
