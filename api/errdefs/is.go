@@ -25,7 +25,7 @@ func getImplementer(err error) error {
 	}
 }
 
-// IsNotFound returns if the passed in error is a ErrNotFound
+// IsNotFound returns if the passed in error is an ErrNotFound
 func IsNotFound(err error) bool {
 	_, ok := getImplementer(err).(ErrNotFound)
 	return ok
@@ -37,7 +37,7 @@ func IsInvalidParameter(err error) bool {
 	return ok
 }
 
-// IsConflict returns if the passed in error is a ErrConflict
+// IsConflict returns if the passed in error is an ErrConflict
 func IsConflict(err error) bool {
 	_, ok := getImplementer(err).(ErrConflict)
 	return ok
@@ -55,13 +55,13 @@ func IsUnavailable(err error) bool {
 	return ok
 }
 
-// IsForbidden returns if the passed in error is a ErrForbidden
+// IsForbidden returns if the passed in error is an ErrForbidden
 func IsForbidden(err error) bool {
 	_, ok := getImplementer(err).(ErrForbidden)
 	return ok
 }
 
-// IsSystem returns if the passed in error is a ErrSystem
+// IsSystem returns if the passed in error is an ErrSystem
 func IsSystem(err error) bool {
 	_, ok := getImplementer(err).(ErrSystem)
 	return ok
@@ -73,7 +73,7 @@ func IsNotModified(err error) bool {
 	return ok
 }
 
-// IsNotImplemented returns if the passed in error is a ErrNotImplemented
+// IsNotImplemented returns if the passed in error is an ErrNotImplemented
 func IsNotImplemented(err error) bool {
 	_, ok := getImplementer(err).(ErrNotImplemented)
 	return ok
