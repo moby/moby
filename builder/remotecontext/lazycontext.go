@@ -40,14 +40,16 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", err
 	}
 
-	fi, err := c.root.Lstat(fullPath)
-	if err != nil {
-		return "", errors.WithStack(err)
-	}
-
 	relPath, err := Rel(c.root, fullPath)
 	if err != nil {
 		return "", errors.WithStack(convertPathError(err, cleanPath))
+	}
+
+	fi, err := os.Lstat(fullPath)
+	if err != nil {
+		// Backwards compatibility: a missing file returns a path as hash.
+		// This is reached in the case of a broken symlink.
+		return relPath, nil
 	}
 
 	sum, ok := c.sums[relPath]

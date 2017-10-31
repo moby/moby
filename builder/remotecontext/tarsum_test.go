@@ -104,17 +104,6 @@ func TestHashSubdir(t *testing.T) {
 	}
 }
 
-func TestStatNotExisting(t *testing.T) {
-	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
-	defer cleanup()
-
-	src := makeTestArchiveContext(t, contextDir)
-	_, err := src.Hash("not-existing")
-	if !os.IsNotExist(errors.Cause(err)) {
-		t.Fatalf("This file should not exist: %s", err)
-	}
-}
-
 func TestRemoveDirectory(t *testing.T) {
 	contextDir, cleanup := createTestTempDir(t, "", "builder-tarsum-test")
 	defer cleanup()
@@ -129,17 +118,20 @@ func TestRemoveDirectory(t *testing.T) {
 
 	src := makeTestArchiveContext(t, contextDir)
 
-	tarSum := src.(modifiableContext)
+	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
+	if err != nil {
+		t.Fatalf("Statting %s shouldn't fail: %+v", relativePath, err)
+	}
 
+	tarSum := src.(modifiableContext)
 	err = tarSum.Remove(relativePath)
 	if err != nil {
 		t.Fatalf("Error when executing Remove: %s", err)
 	}
 
-	_, err = src.Hash(contextSubdir)
-
+	_, err = src.Root().Stat(src.Root().Join(src.Root().Path(), relativePath))
 	if !os.IsNotExist(errors.Cause(err)) {
-		t.Fatal("Directory should not exist at this point")
+		t.Fatalf("Directory should not exist at this point: %+v ", err)
 	}
 }
 
