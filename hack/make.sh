@@ -187,7 +187,6 @@ main() {
 		echo
 	fi
 	mkdir -p bundles
-	source "hack/make/.binary-setup"
 
 	# Windows and symlinks don't get along well
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then

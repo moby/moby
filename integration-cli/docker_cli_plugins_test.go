@@ -495,7 +495,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
 
 func (s *DockerSuite) TestPluginMetricsCollector(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network, SameHostDaemon, IsAmd64)
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{})
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{})
 	d.Start(c)
 	defer d.Stop(c)
 

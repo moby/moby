@@ -1333,7 +1333,7 @@ func (s *DockerDaemonSuite) TestHTTPSRun(c *check.C) {
 
 // TestTLSVerify verifies that --tlsverify=false turns on tls
 func (s *DockerDaemonSuite) TestTLSVerify(c *check.C) {
-	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
+	out, err := exec.Command(engineBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
 		c.Fatalf("Daemon should not have started due to missing certs: %v\n%s", err, string(out))
 	}
@@ -1433,7 +1433,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 // os.Kill should kill daemon ungracefully, leaving behind container mounts.
 // A subsequent daemon restart should clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.StartWithBusybox(c)
@@ -1450,7 +1450,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	c.Assert(strings.Contains(string(mountOut), id), check.Equals, true, comment)
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/moby-containerd.sock",
 		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
@@ -1467,7 +1467,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 
 // os.Interrupt should perform a graceful daemon shutdown and hence cleanup mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.StartWithBusybox(c)
@@ -1688,7 +1688,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	c.Assert(d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
@@ -1698,7 +1698,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	c.Assert(d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
@@ -2010,7 +2010,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/moby-containerd.sock",
 		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
@@ -2105,7 +2105,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	// resume the container
 	result := icmd.RunCommand(
 		ctrBinary,
-		"--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--address", "/var/run/docker/containerd/moby-containerd.sock",
 		"--namespace", moby_daemon.MainNamespace,
 		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
@@ -2632,7 +2632,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	// Make a container with both a non 0 exit code and an error message
 	// We explicitly disable `--init` for this test, because `--init` is enabled by default
 	// on "experimental". Enabling `--init` results in a different behavior; because the "init"
-	// process itself is PID1, the container does not fail on _startup_ (i.e., `docker-init` starting),
+	// process itself is PID1, the container does not fail on _startup_ (i.e., `moby-init` starting),
 	// but directly after. The exit code of the container is still 127, but the Error Message is not
 	// captured, so `.State.Error` is empty.
 	// See the discussion on https://github.com/docker/docker/pull/30227#issuecomment-274161426,
@@ -2747,12 +2747,12 @@ func (s *DockerDaemonSuite) TestDaemonBackcompatPre17Volumes(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonWithUserlandProxyPath(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	dockerProxyPath, err := exec.LookPath("docker-proxy")
+	dockerProxyPath, err := exec.LookPath("moby-libnetwork-proxy")
 	c.Assert(err, checker.IsNil)
-	tmpDir, err := ioutil.TempDir("", "test-docker-proxy")
+	tmpDir, err := ioutil.TempDir("", "test-moby-libnetwork-proxy")
 	c.Assert(err, checker.IsNil)
 
-	newProxyPath := filepath.Join(tmpDir, "docker-proxy")
+	newProxyPath := filepath.Join(tmpDir, "moby-libnetwork-proxy")
 	cmd := exec.Command("cp", dockerProxyPath, newProxyPath)
 	c.Assert(cmd.Run(), checker.IsNil)
 
@@ -3067,7 +3067,7 @@ func (s *DockerDaemonSuite) TestDaemonIpcModeShareableFromConfig(c *check.C) {
 }
 
 func testDaemonStartIpcMode(c *check.C, from, mode string, valid bool) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	c.Logf("Checking IpcMode %s set from %s\n", mode, from)
@@ -3170,7 +3170,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartIpcMode(c *check.C) {
 // the daemon from starting
 func (s *DockerDaemonSuite) TestFailedPluginRemove(c *check.C) {
 	testRequires(c, DaemonIsLinux, IsAmd64, SameHostDaemon)
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{})
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{})
 	d.Start(c)
 	cli, err := client.NewClient(d.Sock(), api.DefaultVersion, nil, nil)
 	c.Assert(err, checker.IsNil)

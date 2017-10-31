@@ -82,7 +82,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		base.Dial = proxyDialer.Dial
 	}
 
-	modifiers := registry.Headers(autoversion.DockerUserAgent(ctx), metaHeaders)
+	modifiers := registry.Headers(autoversion.UserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
 	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)

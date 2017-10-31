@@ -2,8 +2,6 @@
 set -e
 
 (
-	export BINARY_SHORT_NAME="$DAEMON_BINARY_NAME"
-	export GO_PACKAGE='github.com/docker/docker/cmd/server'
 	export IAMSTATIC='false'
 	export LDFLAGS_STATIC_DOCKER=''
 	export BUILDFLAGS=( "${BUILDFLAGS[@]/netgo /}" ) # disable netgo, since we don't need it for a dynamic binary

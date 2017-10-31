@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+source "${MAKEDIR}/.binary-setup"
+
 copy_binaries() {
 	local dir="$1"
 	local hash="$2"
@@ -23,7 +25,5 @@ copy_binaries() {
 }
 
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
-export BINARY_SHORT_NAME="$DAEMON_BINARY_NAME"
-export GO_PACKAGE='github.com/docker/docker/cmd/server'
 source "${MAKEDIR}/.binary"
 copy_binaries "$DEST" 'hash'

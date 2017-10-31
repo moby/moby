@@ -9,17 +9,16 @@ import (
 )
 
 var (
-	// DefaultHTTPPort Default HTTP Port used if only the protocol is provided to -H flag e.g. dockerd -H tcp://
-	// These are the IANA registered port numbers for use with Docker
+	// defaultHTTPPort IANA registered port numbers for use with Docker
 	// see http://www.iana.org/assignments/service-names-port-numbers/service-names-port-numbers.xhtml?search=docker
-	DefaultHTTPPort = 2375 // Default HTTP Port
+	defaultHTTPPort = 2375 // Default HTTP Port
 	// DefaultTLSHTTPPort Default HTTP Port used when TLS enabled
 	DefaultTLSHTTPPort = 2376 // Default TLS encrypted HTTP Port
 	// DefaultUnixSocket Path for the unix socket.
 	// Docker daemon by default always listens on the default unix socket
 	DefaultUnixSocket = "/var/run/docker.sock"
 	// DefaultTCPHost constant defines the default host string used by docker on Windows
-	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultHTTPPort)
+	DefaultTCPHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, defaultHTTPPort)
 	// DefaultTLSHost constant defines the default host string used by docker for TLS sockets
 	DefaultTLSHost = fmt.Sprintf("tcp://%s:%d", DefaultHTTPHost, DefaultTLSHTTPPort)
 	// DefaultNamedPipe defines the default named pipe used by docker on Windows

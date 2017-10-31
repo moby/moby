@@ -4,7 +4,7 @@
   "Sort": ["linter", "severity", "path"],
   "Exclude": [
     ".*\\.pb\\.go",
-    "dockerversion/version_autogen.go",
+    "autoversion/version_autogen.go",
     "api/types/container/container_.*",
     "integration-cli/"
   ],

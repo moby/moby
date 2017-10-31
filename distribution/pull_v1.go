@@ -50,10 +50,10 @@ func (p *v1Puller) Pull(ctx context.Context, ref reference.Named, platform strin
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was ReceiveTimeout
 		registry.NewTransport(tlsConfig),
-		registry.Headers(autoversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
+		registry.Headers(autoversion.UserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint := p.endpoint.ToV1Endpoint(autoversion.DockerUserAgent(ctx), p.config.MetaHeaders)
+	v1Endpoint := p.endpoint.ToV1Endpoint(autoversion.UserAgent(ctx), p.config.MetaHeaders)
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback

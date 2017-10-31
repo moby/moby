@@ -19,7 +19,7 @@ func newDaemonCommand() *cobra.Command {
 	opts := newDaemonOptions(config.New())
 
 	cmd := &cobra.Command{
-		Use:           "dockerd [OPTIONS]",
+		Use:           autoversion.EngineName + " [OPTIONS]",
 		Short:         "A self-sufficient runtime for containers.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -81,7 +81,7 @@ func runDaemon(opts *daemonOptions) error {
 }
 
 func showVersion() {
-	fmt.Printf("Docker version %s, build %s\n", autoversion.Version, autoversion.GitCommit)
+	fmt.Printf("%s version %s, build %s\n", autoversion.EngineName, autoversion.Version, autoversion.GitCommit)
 }
 
 func main() {

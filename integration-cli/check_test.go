@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
@@ -36,7 +37,7 @@ const (
 	ctrBinary = "moby-containerd-ctr"
 
 	// the daemon binary to use
-	engineBinary = "moby-engine"
+	engineBinary = autoversion.EngineName
 )
 
 var (

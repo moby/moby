@@ -12,10 +12,11 @@ import (
 // UAStringKey is used as key type for user-agent string in net/context struct
 const UAStringKey = "upstream-user-agent"
 
-// DockerUserAgent is the User-Agent the Docker client uses to identify itself.
+// UserAgent builds and returns a User-Agent string which identifies the engine
+// and the client connecting to the engine.
 // In accordance with RFC 7231 (5.5.3) is of the form:
 //    [docker client's UA] UpstreamClient([upstream client's UA])
-func DockerUserAgent(ctx context.Context) string {
+func UserAgent(ctx context.Context) string {
 	httpVersion := make([]useragent.VersionInfo, 0, 6)
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "docker", Version: Version})
 	httpVersion = append(httpVersion, useragent.VersionInfo{Name: "go", Version: runtime.Version()})

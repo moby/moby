@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+source "${MAKEDIR}/.binary-setup"
+
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary-daemon/${DAEMON_BINARY_NAME}-$VERSION" ]; then
 	arch=$(go env GOHOSTARCH)

@@ -391,7 +391,7 @@ Try {
         if (-not (Test-Path ".\bundles")) { New-Item ".\bundles" -ItemType Directory | Out-Null }
 
         # Perform the actual build
-        if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
+        if ($Daemon) { Execute-Build "daemon" "daemon" "engine" }
         if ($Client) {
             # Get the Docker channel and version from the environment, or use the defaults.
             if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "edge" }

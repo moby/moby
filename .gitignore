@@ -12,13 +12,9 @@ test.main
 .editorconfig
 .gopath/
 .go-pkg-cache/
-autogen/
 bundles/
-cmd/server/server
 contrib/builder/rpm/*/changelog
 autoversion/version_autogen.go
 autoversion/version_autogen_unix.go
-daemon/runtime_autogen.go
-libcontainerd/binaries_autogen_unix.go
 vendor/pkg/
 hack/integration-cli-on-swarm/integration-cli-on-swarm

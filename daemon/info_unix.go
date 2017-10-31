@@ -48,7 +48,7 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		v.RuncCommit.ID = "N/A"
 	}
 
-	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
+	v.ContainerdCommit.Expected = autoversion.ContainerdCommitID
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
 		v.ContainerdCommit.ID = rv.Revision
 	} else {

@@ -66,7 +66,7 @@ type Daemon struct {
 	execRoot       string
 	experimental   bool
 	dockerBinary   string
-	dockerdBinary  string
+	engineBinary   string
 	log            logT
 }
 
@@ -84,7 +84,7 @@ type clientConfig struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, dockerBinary string, dockerdBinary string, config Config) *Daemon {
+func New(t testingT, dockerBinary string, engineBinary string, config Config) *Daemon {
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
@@ -124,7 +124,7 @@ func New(t testingT, dockerBinary string, dockerdBinary string, config Config) *
 		userlandProxy: userlandProxy,
 		execRoot:      filepath.Join(os.TempDir(), "docker-execroot", id),
 		dockerBinary:  dockerBinary,
-		dockerdBinary: dockerdBinary,
+		engineBinary:  engineBinary,
 		experimental:  config.Experimental,
 		log:           t,
 	}
@@ -217,12 +217,12 @@ func (d *Daemon) StartWithError(args ...string) error {
 
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
-	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
+	engineBinary, err := exec.LookPath(d.engineBinary)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
 	}
 	args := append(d.GlobalFlags,
-		"--containerd", "/var/run/docker/containerd/docker-containerd.sock",
+		"--containerd", "/var/run/docker/containerd/moby-containerd.sock",
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.Folder),
@@ -258,7 +258,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 
 	args = append(args, providedArgs...)
-	d.cmd = exec.Command(dockerdBinary, args...)
+	d.cmd = exec.Command(engineBinary, args...)
 	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out

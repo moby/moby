@@ -125,8 +125,8 @@ type Version struct {
 // Commit holds the Git-commit (SHA1) that a binary was built from, as reported
 // in the version-string of external tools, such as containerd, or runC.
 type Commit struct {
-	ID       string // ID is the actual commit ID of external tool.
-	Expected string // Expected is the commit ID of external tool expected by cmd/server as set at build time.
+	ID       string // ID is the actual commit ID of the binary
+	Expected string // Expected commit ID the binary
 }
 
 // Info contains response of Engine API:

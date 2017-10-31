@@ -60,7 +60,7 @@ func (daemon *Daemon) SearchRegistryForImages(ctx context.Context, filtersArgs s
 		}
 	}
 
-	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, limit, authConfig, autoversion.DockerUserAgent(ctx), headers)
+	unfilteredResult, err := daemon.RegistryService.Search(ctx, term, limit, authConfig, autoversion.UserAgent(ctx), headers)
 	if err != nil {
 		return nil, err
 	}
