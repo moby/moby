@@ -14,6 +14,7 @@ BINARY_NAME="$BINARY_SHORT_NAME-$VERSION"
 BINARY_EXTENSION="$(binary_extension)"
 BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 
+source hack/dockerfile/binaries-commits
 source "${MAKEDIR}/.go-autogen"
 source "${MAKEDIR}/.binary-setup"
 
@@ -59,6 +60,13 @@ go build \
 		$LDFLAGS
 		$LDFLAGS_STATIC_DOCKER
         -X github.com/docker/docker/vendor/github.com/docker/libnetwork/portmapper.userlandProxyCommandName=$PROXY_BINARY_NAME \
+        -X github.com/docker/docker/autoversion.GitCommit=$GITCOMMIT \
+        -X github.com/docker/docker/autoversion.Version=$VERSION \
+        -X github.com/docker/docker/autoversion.BuildTime=$BUILDTIME \
+        -X github.com/docker/docker/autoversion.IAmStatic=${IAMSTATIC:-true} \
+        -X github.com/docker/docker/autoversion.ContainerdCommitID=$CONTAINERD_COMMIT \
+        -X github.com/docker/docker/autoversion.RuncCommitID=$RUNC_COMMIT \
+        -X github.com/docker/docker/autoversion.InitCommitID=$TINI_COMMIT \
 	" \
 	$GO_PACKAGE
 )

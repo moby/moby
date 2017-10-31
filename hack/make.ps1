@@ -176,13 +176,20 @@ Function Execute-Build($type, $directory, $binary) {
     # https://github.com/golang/go/issues/14319#issuecomment-189576638
     Write-Host "INFO: Building $type..."
     Push-Location $root\cmd\$directory; $global:pushed=$True
+
+    $buildDateTime=$(Get-Date).ToUniversalTime()
+    $xversions = "" + `
+        " -X github.com/docker/docker/autoversion.GitCommit=" + $gitCommit + `
+        " -X github.com/docker/docker/autoversion.Version=" + $dockerVersion + `
+        " -X github.com/docker/docker/autoversion.BuildTime=" + $buildDateTime
+
     $buildCommand = "go build" + `
                     $raceParm + `
                     $verboseParm + `
                     $allParm + `
                     $optParm + `
                     " -tags """ + $buildTags + """" + `
-                    " -ldflags """ + "-linkmode=internal" + """" + `
+                    " -ldflags """ + "-linkmode=internal" + $xversions + """" + `
                     " -o $root\bundles\"+$binary
     Invoke-Expression $buildCommand
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile $type" }

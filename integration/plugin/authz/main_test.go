@@ -25,8 +25,6 @@ var (
 	server  *httptest.Server
 )
 
-const engineBinary = autoversion.EngineName
-
 func TestMain(m *testing.M) {
 	var err error
 	testEnv, err = environment.New()
@@ -51,7 +49,7 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) func() {
 	environment.ProtectAll(t, testEnv)
 
-	d = daemon.New(t, "", engineBinary, daemon.Config{
+	d = daemon.New(t, "", autoversion.EngineName, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 

@@ -35,9 +35,6 @@ const (
 
 	// path to containerd's ctr binary
 	ctrBinary = "moby-containerd-ctr"
-
-	// the daemon binary to use
-	engineBinary = autoversion.EngineName
 )
 
 var (
@@ -45,6 +42,9 @@ var (
 
 	// the docker client binary to use
 	dockerBinary = ""
+
+	// the daemon binary to use
+	engineBinary = autoversion.EngineName
 )
 
 func init() {
