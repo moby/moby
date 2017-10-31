@@ -50,33 +50,6 @@ func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
 	c.Assert(isCpNotDir(err), checker.True, check.Commentf("expected IsNotDir error, but got %T: %s", err, err))
 }
 
-// Test for error when SRC is a valid file or directory,
-// bu the DST parent directory does not exist.
-func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-from-err-dst-parent-not-exists")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	// Try with a file source.
-	srcPath := containerCpPath(containerID, "/file1")
-	dstPath := cpPath(tmpDir, "notExists", "file1")
-	_, dstStatErr := os.Lstat(filepath.Dir(dstPath))
-	c.Assert(os.IsNotExist(dstStatErr), checker.True)
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err.Error(), checker.Contains, dstStatErr.Error())
-
-	// Try with a directory source.
-	srcPath = containerCpPath(containerID, "/dir1")
-
-	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err.Error(), checker.Contains, dstStatErr.Error())
-}
-
 // Test for error when DST ends in a trailing
 // path separator but exists as a file.
 func (s *DockerSuite) TestCpFromErrDstNotDir(c *check.C) {
