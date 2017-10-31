@@ -509,7 +509,20 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 	return daemon.linkIndex.parents(c)
 }
 
+func validateAlias(alias string, c *container.Container) error {
+	if !validContainerNamePattern.MatchString(alias) {
+		return fmt.Errorf("Invalid alias name (%s), only %s are allowed", alias, validContainerNameChars)
+	}
+	if alias == c.Config.Hostname {
+		return fmt.Errorf("Invalid alias name (%s), alias is the same to current container's hostname", alias)
+	}
+	return nil
+}
+
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
+	if err := validateAlias(alias, parent); err != nil {
+		return err
+	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if err == container.ErrNameReserved {
