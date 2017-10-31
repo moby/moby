@@ -61,11 +61,6 @@ func (daemon *Daemon) FindUniqueNetwork(term string) (libnetwork.Network, error)
 	return nil, libnetwork.ErrNoSuchNetwork(term)
 }
 
-func isNoSuchNetworkError(err error) bool {
-	_, ok := err.(libnetwork.ErrNoSuchNetwork)
-	return ok
-}
-
 // GetNetworkByID function returns a network whose ID matches the given ID.
 // It fails with an error if no matching network is found.
 func (daemon *Daemon) GetNetworkByID(id string) (libnetwork.Network, error) {
@@ -109,7 +104,11 @@ func (daemon *Daemon) GetNetworksByIDPrefix(partialID string) []libnetwork.Netwo
 
 // getAllNetworks returns a list containing all networks
 func (daemon *Daemon) getAllNetworks() []libnetwork.Network {
-	return daemon.netController.Networks()
+	c := daemon.netController
+	if c == nil {
+		return nil
+	}
+	return c.Networks()
 }
 
 type ingressJob struct {

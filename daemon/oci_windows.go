@@ -159,7 +159,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	gwHNSID := ""
 	if c.NetworkSettings != nil {
 		for n := range c.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
+			sn, err := daemon.FindUniqueNetwork(n)
 			if err != nil {
 				continue
 			}
