@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.34"
+basePath: "/v1.35"
 info:
   title: "Docker Engine API"
-  version: "1.34"
+  version: "1.35"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -42,22 +42,32 @@ info:
 
     # Versioning
 
-    The API is usually changed in each release of Docker, so API calls are versioned to ensure that clients don't break.
+    The API is usually changed in each release, so API calls are versioned to
+    ensure that clients don't break. To lock to a specific version of the API,
+    you prefix the URL with its version, for example, call `/v1.30/info` to use
+    the v1.30 version of the `/info` endpoint. If the API version specified in
+    the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
+    is returned.
 
-    For Docker Engine 17.10, the API version is 1.33. To lock to this version, you prefix the URL with `/v1.33`. For example, calling `/info` is the same as calling `/v1.33/info`.
+    If you omit the version-prefix, the current version of the API (v1.35) is used.
+    For example, calling `/info` is the same as calling `/v1.35/info`. Using the
+    API without a version-prefix is deprecated and will be removed in a future release.
 
-    Engine releases in the near future should support this version of the API, so your client will continue to work even if it is talking to a newer Engine.
+    Engine releases in the near future should support this version of the API,
+    so your client will continue to work even if it is talking to a newer Engine.
 
-    In previous versions of Docker, it was possible to access the API without providing a version. This behaviour is now deprecated will be removed in a future version of Docker.
+    The API uses an open schema model, which means server may add extra properties
+    to responses. Likewise, the server will ignore any extra query parameters and
+    request body properties. When you write clients, you need to ignore additional
+    properties in responses to ensure they do not break when talking to newer
+    daemons.
 
-    If the API version specified in the URL is not supported by the daemon, a HTTP `400 Bad Request` error message is returned.
-
-    The API uses an open schema model, which means server may add extra properties to responses. Likewise, the server will ignore any extra query parameters and request body properties. When you write clients, you need to ignore additional properties in responses to ensure they do not break when talking to newer Docker daemons.
-
-    This documentation is for version 1.34 of the API. Use this table to find documentation for previous versions of the API:
+    This documentation is for version v1.35 of the API. Use this table to find
+    documentation for previous versions of the API:
 
     Docker version  | API version | Changes
     ----------------|-------------|---------
+    17.11.x | [1.34](https://docs.docker.com/engine/api/v1.34/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-34-api-changes)
     17.10.x | [1.33](https://docs.docker.com/engine/api/v1.33/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-33-api-changes)
     17.09.x | [1.32](https://docs.docker.com/engine/api/v1.32/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-32-api-changes)
     17.07.x | [1.31](https://docs.docker.com/engine/api/v1.31/) | [API changes](https://docs.docker.com/engine/api/version-history/#v1-31-api-changes)
