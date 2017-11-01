@@ -1277,7 +1277,7 @@ const (
 	RLIMIT_RTTIME                        = 0xf
 	RLIMIT_SIGPENDING                    = 0xb
 	RLIMIT_STACK                         = 0x3
-	RLIM_INFINITY                        = -0x1
+	RLIM_INFINITY                        = 0xffffffffffffffff
 	RTAX_ADVMSS                          = 0x8
 	RTAX_CC_ALGO                         = 0x10
 	RTAX_CWND                            = 0x7
@@ -1842,6 +1842,8 @@ const (
 	TUNSETVNETHDRSZ                      = 0x400454d8
 	TUNSETVNETLE                         = 0x400454dc
 	UMOUNT_NOFOLLOW                      = 0x8
+	UTIME_NOW                            = 0x3fffffff
+	UTIME_OMIT                           = 0x3ffffffe
 	VDISCARD                             = 0xd
 	VEOF                                 = 0x4
 	VEOL                                 = 0xb
@@ -1871,6 +1873,17 @@ const (
 	WALL                                 = 0x40000000
 	WCLONE                               = 0x80000000
 	WCONTINUED                           = 0x8
+	WDIOC_GETBOOTSTATUS                  = 0x80045702
+	WDIOC_GETPRETIMEOUT                  = 0x80045709
+	WDIOC_GETSTATUS                      = 0x80045701
+	WDIOC_GETSUPPORT                     = 0x80285700
+	WDIOC_GETTEMP                        = 0x80045703
+	WDIOC_GETTIMELEFT                    = 0x8004570a
+	WDIOC_GETTIMEOUT                     = 0x80045707
+	WDIOC_KEEPALIVE                      = 0x80045705
+	WDIOC_SETOPTIONS                     = 0x80045704
+	WDIOC_SETPRETIMEOUT                  = 0xc0045708
+	WDIOC_SETTIMEOUT                     = 0xc0045706
 	WEXITED                              = 0x4
 	WNOHANG                              = 0x1
 	WNOTHREAD                            = 0x20000000

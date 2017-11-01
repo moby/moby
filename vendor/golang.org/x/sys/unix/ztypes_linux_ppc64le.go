@@ -625,12 +625,12 @@ type Sysinfo_t struct {
 }
 
 type Utsname struct {
-	Sysname    [65]uint8
-	Nodename   [65]uint8
-	Release    [65]uint8
-	Version    [65]uint8
-	Machine    [65]uint8
-	Domainname [65]uint8
+	Sysname    [65]byte
+	Nodename   [65]byte
+	Release    [65]byte
+	Version    [65]byte
+	Machine    [65]byte
+	Domainname [65]byte
 }
 
 type Ustat_t struct {

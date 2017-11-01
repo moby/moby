@@ -29,6 +29,7 @@ import (
 //go:cgo_import_dynamic libc___major __major "libc.so"
 //go:cgo_import_dynamic libc___minor __minor "libc.so"
 //go:cgo_import_dynamic libc_ioctl ioctl "libc.so"
+//go:cgo_import_dynamic libc_poll poll "libc.so"
 //go:cgo_import_dynamic libc_access access "libc.so"
 //go:cgo_import_dynamic libc_adjtime adjtime "libc.so"
 //go:cgo_import_dynamic libc_chdir chdir "libc.so"
@@ -153,6 +154,7 @@ import (
 //go:linkname proc__major libc___major
 //go:linkname proc__minor libc___minor
 //go:linkname procioctl libc_ioctl
+//go:linkname procpoll libc_poll
 //go:linkname procAccess libc_access
 //go:linkname procAdjtime libc_adjtime
 //go:linkname procChdir libc_chdir
@@ -278,6 +280,7 @@ var (
 	proc__major,
 	proc__minor,
 	procioctl,
+	procpoll,
 	procAccess,
 	procAdjtime,
 	procChdir,
@@ -551,6 +554,15 @@ func __minor(version int, dev uint64) (val uint) {
 
 func ioctl(fd int, req uint, arg uintptr) (err error) {
 	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procioctl)), 3, uintptr(fd), uintptr(req), uintptr(arg), 0, 0, 0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
+func poll(fds *PollFd, nfds int, timeout int) (n int, err error) {
+	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procpoll)), 3, uintptr(unsafe.Pointer(fds)), uintptr(nfds), uintptr(timeout), 0, 0, 0)
+	n = int(r0)
 	if e1 != 0 {
 		err = e1
 	}
