@@ -124,6 +124,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	out, err = s.d.Cmd("run", "-d", "--name", "top2", "--restart", "unless-stopped", "busybox:latest", "top")
 	c.Assert(err, check.IsNil, check.Commentf("run top2: %v", out))
 
+	out, err = s.d.Cmd("run", "-d", "--name", "exit", "--restart", "unless-stopped", "busybox:latest", "false")
+	c.Assert(err, check.IsNil, check.Commentf("run exit: %v", out))
+
 	testRun := func(m map[string]bool, prefix string) {
 		var format string
 		for name, shouldRun := range m {
@@ -139,7 +142,10 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	}
 
 	// both running
-	testRun(map[string]bool{"top1": true, "top2": true}, "")
+	testRun(map[string]bool{"top1": true, "top2": true, "exit": true}, "")
+
+	out, err = s.d.Cmd("stop", "exit")
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	out, err = s.d.Cmd("stop", "top1")
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
@@ -148,20 +154,23 @@ func (s *DockerDaemonSuite) TestDaemonRestartUnlessStopped(c *check.C) {
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
 
 	// both stopped
-	testRun(map[string]bool{"top1": false, "top2": false}, "")
+	testRun(map[string]bool{"top1": false, "top2": false, "exit": false}, "")
 
 	s.d.Restart(c)
 
 	// restart=always running
-	testRun(map[string]bool{"top1": true, "top2": false}, "After daemon restart: ")
+	testRun(map[string]bool{"top1": true, "top2": false, "exit": false}, "After daemon restart: ")
 
 	out, err = s.d.Cmd("start", "top2")
 	c.Assert(err, check.IsNil, check.Commentf("start top2: %v", out))
 
+	out, err = s.d.Cmd("start", "exit")
+	c.Assert(err, check.IsNil, check.Commentf("start exit: %v", out))
+
 	s.d.Restart(c)
 
 	// both running
-	testRun(map[string]bool{"top1": true, "top2": true}, "After second daemon restart: ")
+	testRun(map[string]bool{"top1": true, "top2": true, "exit": true}, "After second daemon restart: ")
 
 }
 
