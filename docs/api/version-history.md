@@ -15,6 +15,13 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.35 API changes
 
+[Docker Engine API v1.35](https://docs.docker.com/engine/api/v1.35/) documentation
+
+* `POST /services/create` and `POST /services/(id)/update` now accepts an
+  `Isolation` field on container spec to set the Isolation technology of the
+  containers running the service (`default`, `process`, or `hyperv`). This
+  configuration is only used for Windows containers.
+
 
 ## v1.34 API changes
 
@@ -26,7 +33,6 @@ keywords: "API, Docker, rcli, REST, documentation"
   If `Error` is `null`, container removal has succeeded, otherwise
   the test of an error message indicating why container removal has failed
   is available from `Error.Message` field.
-* `POST /services/create` and `POST /services/(id)/update` now accept an `Isolation` field on container spec
 
 ## v1.33 API changes
 
