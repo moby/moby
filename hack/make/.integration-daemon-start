@@ -3,7 +3,7 @@
 # see test-integration for example usage of this script
 
 base="$ABS_DEST/.."
-export PATH="$base/binary-daemon:$base/dynbinary-daemon:$PATH"
+export PATH="$base/binary-engine:$base/dynbinary-engine:$PATH"
 
 export TEST_CLIENT_BINARY=docker
 
@@ -35,7 +35,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 fi
 
 if ! command -v dockerd &> /dev/null; then
-	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
+	echo >&2 'error: binary-engine or dynbinary-engine must be run before .integration-daemon-start'
 	false
 fi
 

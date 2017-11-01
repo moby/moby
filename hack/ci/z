@@ -3,4 +3,4 @@
 set -eu -o pipefail
 
 hack/test/unit
-hack/make.sh dynbinary test-integration
+hack/make.sh dynbinary-engine test-integration

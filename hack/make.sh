@@ -56,13 +56,11 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	binary-daemon
-	dynbinary
-
+	binary-engine
+	dynbinary-engine
 	test-integration
 	test-docker-py
-
-	cross
+	cross-engine
 )
 
 VERSION=${VERSION:-dev}

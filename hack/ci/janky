@@ -10,8 +10,8 @@ bash <(curl -s https://codecov.io/bash) \
     echo 'Codecov failed to upload'
 
 hack/make.sh \
-	binary-daemon \
-	dynbinary \
-	test-docker-py \
+	binary-engine \
+	dynbinary-engine \
 	test-integration \
-	cross
+	test-docker-py \
+	cross-engine

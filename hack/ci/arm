@@ -5,6 +5,6 @@ set -eu -o pipefail
 hack/test/unit
 
 hack/make.sh \
-	binary-daemon \
-	dynbinary \
+	binary-engine \
+	dynbinary-engine \
 	test-integration
