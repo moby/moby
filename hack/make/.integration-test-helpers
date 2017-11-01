@@ -5,8 +5,10 @@
 #
 #     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
-
-source "$SCRIPTDIR/make/.go-autogen"
+if [ -z $MAKEDIR ]; then
+	export MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+fi
+source "$MAKEDIR/.go-autogen"
 
 # Set defaults
 : ${TEST_REPEAT:=1}
