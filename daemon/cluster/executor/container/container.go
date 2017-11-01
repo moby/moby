@@ -168,6 +168,10 @@ func (c *containerConfig) portBindings() nat.PortMap {
 	return portBindings
 }
 
+func (c *containerConfig) isolation() enginecontainer.Isolation {
+	return convert.IsolationFromGRPC(c.spec().Isolation)
+}
+
 func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 	exposedPorts := make(map[nat.Port]struct{})
 	if c.task.Endpoint == nil {
@@ -350,6 +354,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		PortBindings:   c.portBindings(),
 		Mounts:         c.mounts(),
 		ReadonlyRootfs: c.spec().ReadOnly,
+		Isolation:      c.isolation(),
 	}
 
 	if c.spec().DNSConfig != nil {

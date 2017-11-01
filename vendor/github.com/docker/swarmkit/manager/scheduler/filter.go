@@ -169,7 +169,7 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 		}
 	}
 
-	if f.t.Spec.LogDriver != nil {
+	if f.t.Spec.LogDriver != nil && f.t.Spec.LogDriver.Name != "none" {
 		// If there are no log driver types in the list at all, most likely this is
 		// an older daemon that did not report this information. In this case don't filter
 		if typeFound, exists := f.pluginExistsOnNode("Log", f.t.Spec.LogDriver.Name, nodePlugins); !exists && typeFound {

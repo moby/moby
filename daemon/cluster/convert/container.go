@@ -34,6 +34,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesFromGRPC(c.Secrets),
 		Configs:    configReferencesFromGRPC(c.Configs),
+		Isolation:  IsolationFromGRPC(c.Isolation),
 	}
 
 	if c.DNSConfig != nil {
@@ -232,6 +233,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesToGRPC(c.Secrets),
 		Configs:    configReferencesToGRPC(c.Configs),
+		Isolation:  isolationToGRPC(c.Isolation),
 	}
 
 	if c.DNSConfig != nil {
@@ -353,4 +355,27 @@ func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 		Retries:     int32(h.Retries),
 		StartPeriod: gogotypes.DurationProto(h.StartPeriod),
 	}
+}
+
+// IsolationFromGRPC converts a swarm api container isolation to a moby isolation representation
+func IsolationFromGRPC(i swarmapi.ContainerSpec_Isolation) container.Isolation {
+	switch i {
+	case swarmapi.ContainerIsolationHyperV:
+		return container.IsolationHyperV
+	case swarmapi.ContainerIsolationProcess:
+		return container.IsolationProcess
+	case swarmapi.ContainerIsolationDefault:
+		return container.IsolationDefault
+	}
+	return container.IsolationEmpty
+}
+
+func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
+	if i.IsHyperV() {
+		return swarmapi.ContainerIsolationHyperV
+	}
+	if i.IsProcess() {
+		return swarmapi.ContainerIsolationProcess
+	}
+	return swarmapi.ContainerIsolationDefault
 }
