@@ -232,6 +232,11 @@ func (c *containerConfig) labels() map[string]string {
 		labels = make(map[string]string)
 	)
 
+	if c.task.Slot > 0 {
+		// Tasks for services in "global" mode do not use slots as part of their name
+		system["task.slot"] = strconv.FormatUint(c.task.Slot, 10)
+	}
+
 	// base labels are those defined in the spec.
 	for k, v := range c.spec().Labels {
 		labels[k] = v
