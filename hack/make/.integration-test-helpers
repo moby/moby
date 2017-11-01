@@ -10,6 +10,12 @@ if [ -z $MAKEDIR ]; then
 fi
 source "$MAKEDIR/.go-autogen"
 
+. hack/make/lib/buildtags
+# FIXME: lib/buildtags sets -u, but this script and others sourced after this
+# script do not properly handled unset variables by using a default. For now
+# continue to use `set +u` until this is fixed.
+set +u
+
 # Set defaults
 : ${TEST_REPEAT:=1}
 : ${TESTFLAGS:=}

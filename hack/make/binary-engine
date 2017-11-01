@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+. hack/make/lib/buildtags
+
 copy_binaries() {
 	local dir="$1"
 	local hash="$2"
@@ -22,6 +24,7 @@ copy_binaries() {
 	done
 }
 
-[ -z "$KEEPDEST" ] && rm -rf "$DEST"
+[ -z "${KEEPDEST-}" ] && rm -rf "$DEST"
+export IAMSTATIC='true'
 source "${MAKEDIR}/.binary"
 copy_binaries "$DEST" 'hash'
