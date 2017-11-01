@@ -60,9 +60,6 @@ case "$PACKAGE_ARCH" in
 			windows)
 				DOCKERFILE='Dockerfile.windows'
 				;;
-			solaris)
-				DOCKERFILE='Dockerfile.solaris'
-				;;
 		esac
 		;;
 	*)
