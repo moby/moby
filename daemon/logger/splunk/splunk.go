@@ -19,9 +19,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/urlutil"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/loggerutils"
+	"github.com/moby/moby/pkg/urlutil"
 	"github.com/sirupsen/logrus"
 )
 

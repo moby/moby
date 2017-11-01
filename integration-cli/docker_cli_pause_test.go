@@ -4,9 +4,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
 )
 
 func (s *DockerSuite) TestPause(c *check.C) {

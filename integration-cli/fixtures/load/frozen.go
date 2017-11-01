@@ -11,10 +11,10 @@ import (
 
 	"context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/term"
 	"github.com/pkg/errors"
 )
 

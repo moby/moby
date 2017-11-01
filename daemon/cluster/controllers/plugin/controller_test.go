@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	enginetypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/swarm/runtime"
-	"github.com/docker/docker/pkg/pubsub"
-	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/plugin/v2"
+	enginetypes "github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/swarm/runtime"
+	"github.com/moby/moby/pkg/pubsub"
+	"github.com/moby/moby/plugin"
+	"github.com/moby/moby/plugin/v2"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )

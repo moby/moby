@@ -4,5 +4,5 @@ package register
 
 import (
 	// register the aufs graphdriver
-	_ "github.com/docker/docker/daemon/graphdriver/aufs"
+	_ "github.com/moby/moby/daemon/graphdriver/aufs"
 )

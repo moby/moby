@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/api/types/versions"
+	"github.com/moby/moby/api/types/versions"
 )
 
 // Args stores a mapping of keys to a set of multiple values.

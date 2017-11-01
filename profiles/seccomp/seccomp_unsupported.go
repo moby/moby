@@ -3,7 +3,7 @@
 package seccomp
 
 import (
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 // DefaultProfile returns a nil pointer on unsupported systems.

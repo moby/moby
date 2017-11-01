@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/restartmanager"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/libcontainerd"
+	"github.com/moby/moby/restartmanager"
 	"github.com/sirupsen/logrus"
 )
 

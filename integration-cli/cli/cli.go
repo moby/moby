@@ -6,9 +6,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/integration-cli/environment"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/integration-cli/daemon"
+	"github.com/moby/moby/integration-cli/environment"
 	"github.com/pkg/errors"
 )
 

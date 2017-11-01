@@ -12,12 +12,12 @@ import (
 	"sync"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/cli/config"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/cli/config"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
 )
 
 // Pushing an image to a private registry.

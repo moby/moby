@@ -14,8 +14,8 @@ import (
 	"io"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/containerfs"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

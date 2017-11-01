@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/api/types/swarm/runtime"
-	"github.com/docker/docker/pkg/namesgenerator"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/gogo/protobuf/proto"
 	gogotypes "github.com/gogo/protobuf/types"
+	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/api/types/swarm/runtime"
+	"github.com/moby/moby/pkg/namesgenerator"
 	"github.com/pkg/errors"
 )
 

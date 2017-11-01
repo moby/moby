@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/docker/docker/libcontainerd"
+	"github.com/moby/moby/libcontainerd"
 )
 
 // ContainerResize changes the size of the TTY of the process running

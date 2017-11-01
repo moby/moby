@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/volume"
 )
 
 func TestParseVolumesFrom(t *testing.T) {

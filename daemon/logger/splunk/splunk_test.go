@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/daemon/logger"
 	"github.com/stretchr/testify/require"
 )
 

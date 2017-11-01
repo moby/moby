@@ -1,6 +1,6 @@
 package router
 
-import "github.com/docker/docker/api/server/httputils"
+import "github.com/moby/moby/api/server/httputils"
 
 // Router defines an interface to specify a group of routes to add to the docker server.
 type Router interface {

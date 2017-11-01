@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/pkg/containerfs"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/pkg/containerfs"
 	"github.com/stretchr/testify/assert"
 )
 

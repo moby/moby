@@ -5,9 +5,9 @@ package config
 import (
 	"fmt"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/opts"
 )
 
 const (

@@ -13,10 +13,10 @@ import (
 	"github.com/docker/distribution/manifest"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"github.com/opencontainers/go-digest"
 )
 

@@ -3,8 +3,8 @@ package backend
 import (
 	"io"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/streamformatter"
 )
 
 // PullOption defines different modes for accessing images

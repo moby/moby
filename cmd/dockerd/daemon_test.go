@@ -3,9 +3,9 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/internal/testutil"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"

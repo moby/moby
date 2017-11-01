@@ -45,7 +45,7 @@
 #
 # 1. Clone the sources from github.com:
 #
-#    >>   git clone https://github.com/docker/docker.git C:\go\src\github.com\docker\docker
+#    >>   git clone https://github.com/moby/moby.git C:\go\src\github.com\docker\docker
 #    >>   Cloning into 'C:\go\src\github.com\docker\docker'...
 #    >>   remote: Counting objects: 186216, done.
 #    >>   remote: Compressing objects: 100% (21/21), done.

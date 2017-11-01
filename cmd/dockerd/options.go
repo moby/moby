@@ -5,10 +5,10 @@ import (
 	"os"
 	"path/filepath"
 
-	cliconfig "github.com/docker/docker/cli/config"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/opts"
 	"github.com/docker/go-connections/tlsconfig"
+	cliconfig "github.com/moby/moby/cli/config"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/opts"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )

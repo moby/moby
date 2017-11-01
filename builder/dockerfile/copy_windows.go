@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/pkg/idtools"
 )
 
 var pathBlacklist = map[string]bool{

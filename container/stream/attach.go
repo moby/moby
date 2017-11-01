@@ -6,8 +6,8 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/moby/pkg/pools"
+	"github.com/moby/moby/pkg/term"
 	"github.com/sirupsen/logrus"
 )
 

@@ -6,11 +6,11 @@ import (
 	"io"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugins"
 )
 
 type graphDriverProxy struct {

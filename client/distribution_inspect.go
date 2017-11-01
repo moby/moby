@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"net/url"
 
-	registrytypes "github.com/docker/docker/api/types/registry"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"golang.org/x/net/context"
 )
 

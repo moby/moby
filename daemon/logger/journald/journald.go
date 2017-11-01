@@ -10,8 +10,8 @@ import (
 	"unicode"
 
 	"github.com/coreos/go-systemd/journal"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/loggerutils"
 	"github.com/sirupsen/logrus"
 )
 

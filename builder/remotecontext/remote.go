@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/docker/docker/builder"
+	"github.com/moby/moby/builder"
 	"github.com/pkg/errors"
 )
 

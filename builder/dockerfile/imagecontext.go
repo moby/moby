@@ -1,11 +1,11 @@
 package dockerfile
 
 import (
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/remotecontext"
-	dockerimage "github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/builder/remotecontext"
+	dockerimage "github.com/moby/moby/image"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"

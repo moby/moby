@@ -6,8 +6,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

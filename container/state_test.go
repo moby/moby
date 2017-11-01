@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 func TestIsValidHealthString(t *testing.T) {

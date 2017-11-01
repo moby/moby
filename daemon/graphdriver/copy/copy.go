@@ -18,8 +18,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/pools"
+	"github.com/moby/moby/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )

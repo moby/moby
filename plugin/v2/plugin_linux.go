@@ -8,9 +8,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/oci"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/oci"
+	"github.com/moby/moby/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )

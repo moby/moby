@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/pkg/homedir"
 )
 
 var (

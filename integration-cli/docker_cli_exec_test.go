@@ -14,12 +14,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"golang.org/x/net/context"
 )
 

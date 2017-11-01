@@ -4,7 +4,7 @@ import (
 	"net"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 

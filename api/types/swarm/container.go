@@ -3,8 +3,8 @@ package swarm
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/mount"
 )
 
 // DNSConfig specifies DNS related configurations in resolver configuration file (resolv.conf)

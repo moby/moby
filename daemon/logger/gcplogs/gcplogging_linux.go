@@ -5,8 +5,8 @@ package gcplogs
 import (
 	"os"
 
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/homedir"
+	"github.com/moby/moby/dockerversion"
+	"github.com/moby/moby/pkg/homedir"
 	"github.com/sirupsen/logrus"
 )
 

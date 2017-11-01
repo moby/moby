@@ -6,8 +6,8 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/moby/moby/pkg/progress"
+	"github.com/moby/moby/pkg/streamformatter"
 	"github.com/sirupsen/logrus"
 )
 

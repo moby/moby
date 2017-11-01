@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
-	"github.com/docker/docker/daemon/logger/loggerutils"
 	units "github.com/docker/go-units"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/moby/moby/daemon/logger/loggerutils"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

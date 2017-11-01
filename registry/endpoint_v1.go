@@ -10,7 +10,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/registry/client/transport"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/sirupsen/logrus"
 )
 

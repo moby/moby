@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/internal/test/environment"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/plugins"
+	"github.com/moby/moby/integration-cli/daemon"
+	"github.com/moby/moby/internal/test/environment"
+	"github.com/moby/moby/pkg/authorization"
+	"github.com/moby/moby/pkg/plugins"
 )
 
 var (

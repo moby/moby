@@ -159,7 +159,7 @@ Function Get-HeadCommit() {
 
 # Utility function to get the commit for upstream
 Function Get-UpstreamCommit() {
-    Invoke-Expression "git fetch -q https://github.com/docker/docker.git refs/heads/master"
+    Invoke-Expression "git fetch -q https://github.com/moby/moby.git refs/heads/master"
     if ($LASTEXITCODE -ne 0) { Throw "Failed fetching" }
 
     $upstream = Invoke-Expression "git rev-parse --verify FETCH_HEAD"
@@ -239,7 +239,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
         $badCommits | %{ $e+=" - $_`n"}
         $e += "`nPlease amend each commit to include a properly formatted DCO marker.`n`n"
         $e += "Visit the following URL for information about the Docker DCO:`n"
-        $e += "https://github.com/docker/docker/blob/master/CONTRIBUTING.md#sign-your-work`n"
+        $e += "https://github.com/moby/moby/blob/master/CONTRIBUTING.md#sign-your-work`n"
         Throw $e
     }
 }
@@ -257,9 +257,9 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
         $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique
         # Filter out what we are looking for
-        $imports = $imports -NotMatch "^github.com/docker/docker/pkg/" `
-                            -NotMatch "^github.com/docker/docker/vendor" `
-                            -Match "^github.com/docker/docker" `
+        $imports = $imports -NotMatch "^github.com/moby/moby/pkg/" `
+                            -NotMatch "^github.com/moby/moby/vendor" `
+                            -Match "^github.com/moby/moby" `
                             -Replace "`n", ""
         $imports | % { $badFiles+="$file imports $_`n" }
     }
@@ -313,13 +313,13 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
 Function Run-UnitTests() {
     Write-Host "INFO: Running unit tests..."
     $testPath="./..."
-    $goListCommand = "go list -e -f '{{if ne .Name """ + '\"github.com/docker/docker\"' + """}}{{.ImportPath}}{{end}}' $testPath"
+    $goListCommand = "go list -e -f '{{if ne .Name """ + '\"github.com/moby/moby\"' + """}}{{.ImportPath}}{{end}}' $testPath"
     $pkgList = $(Invoke-Expression $goListCommand)
     if ($LASTEXITCODE -ne 0) { Throw "go list for unit tests failed" }
-    $pkgList = $pkgList | Select-String -Pattern "github.com/docker/docker"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/vendor"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
+    $pkgList = $pkgList | Select-String -Pattern "github.com/moby/moby"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/vendor"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/man"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/moby/moby/integration"
     $pkgList = $pkgList -replace "`r`n", " "
     $goTestCommand = "go test" + $raceParm + " -cover -ldflags -w -tags """ + "autogen daemon" + """ -a """ + "-test.timeout=10m" + """ $pkgList"
     Invoke-Expression $goTestCommand

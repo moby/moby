@@ -8,7 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd"
-	"github.com/docker/docker/pkg/idtools"
+	"github.com/moby/moby/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 

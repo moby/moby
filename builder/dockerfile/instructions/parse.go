@@ -8,10 +8,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/builder/dockerfile/command"
-	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/strslice"
+	"github.com/moby/moby/builder/dockerfile/command"
+	"github.com/moby/moby/builder/dockerfile/parser"
 	"github.com/pkg/errors"
 )
 

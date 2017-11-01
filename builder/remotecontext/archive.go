@@ -5,12 +5,12 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/chrootarchive"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/tarsum"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/chrootarchive"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/tarsum"
 	"github.com/pkg/errors"
 )
 

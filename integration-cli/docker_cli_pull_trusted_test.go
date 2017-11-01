@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
 )
 
 func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {

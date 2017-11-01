@@ -7,8 +7,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/stringutils"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/stringutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/docker/docker/daemon/config"
+	"github.com/moby/moby/daemon/config"
 	"github.com/spf13/pflag"
 )
 

@@ -9,9 +9,9 @@ import (
 	"strconv"
 	"strings"
 
-	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	eventstestutils "github.com/moby/moby/daemon/events/testutils"
+	"github.com/moby/moby/integration-cli/checker"
 	"github.com/sirupsen/logrus"
 )
 

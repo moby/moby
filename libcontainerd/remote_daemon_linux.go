@@ -6,7 +6,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 )
 
 const (

@@ -12,9 +12,9 @@ import (
 	"testing"
 	"unsafe"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-units"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"

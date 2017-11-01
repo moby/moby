@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/jsonmessage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

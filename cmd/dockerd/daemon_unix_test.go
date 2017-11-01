@@ -5,8 +5,8 @@ package main
 import (
 	"testing"
 
-	"github.com/docker/docker/daemon/config"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/daemon/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

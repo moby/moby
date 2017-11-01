@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/volume"
-	volumestore "github.com/docker/docker/volume/store"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/system"
+	"github.com/moby/moby/volume"
+	volumestore "github.com/moby/moby/volume/store"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

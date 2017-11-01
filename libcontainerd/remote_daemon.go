@@ -19,7 +19,7 @@ import (
 	"github.com/BurntSushi/toml"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/server"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

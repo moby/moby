@@ -70,12 +70,12 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/opengcs/client"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 

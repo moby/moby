@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/moby/moby/api/server/httputils"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )

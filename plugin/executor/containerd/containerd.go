@@ -8,8 +8,8 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/linux/runcopts"
-	"github.com/docker/docker/api/errdefs"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/moby/moby/api/errdefs"
+	"github.com/moby/moby/libcontainerd"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

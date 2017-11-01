@@ -8,7 +8,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
 

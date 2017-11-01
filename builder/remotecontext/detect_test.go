@@ -8,8 +8,8 @@ import (
 	"sort"
 	"testing"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/pkg/containerfs"
 )
 
 const (

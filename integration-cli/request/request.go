@@ -17,12 +17,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api"
-	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/api"
+	dclient "github.com/moby/moby/client"
+	"github.com/moby/moby/opts"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 

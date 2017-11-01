@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/internal/testutil"
+	"github.com/moby/moby/internal/testutil"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )

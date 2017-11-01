@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/plugins/logdriver"
 	protoio "github.com/gogo/protobuf/io"
+	"github.com/moby/moby/api/types/plugins/logdriver"
 	"github.com/stretchr/testify/assert"
 )
 

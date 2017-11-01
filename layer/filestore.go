@@ -14,7 +14,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

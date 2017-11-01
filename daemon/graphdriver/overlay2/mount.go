@@ -10,7 +10,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/pkg/reexec"
 	"golang.org/x/sys/unix"
 )
 

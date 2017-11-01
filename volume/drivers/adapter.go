@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/volume"
 	"github.com/sirupsen/logrus"
 )
 

@@ -4,6 +4,6 @@ package register
 
 import (
 	// register the overlay graphdriver
-	_ "github.com/docker/docker/daemon/graphdriver/overlay"
-	_ "github.com/docker/docker/daemon/graphdriver/overlay2"
+	_ "github.com/moby/moby/daemon/graphdriver/overlay"
+	_ "github.com/moby/moby/daemon/graphdriver/overlay2"
 )

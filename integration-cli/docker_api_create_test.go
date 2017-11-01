@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/request"
 )
 
 func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {

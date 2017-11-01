@@ -5,7 +5,7 @@ package graphdriver
 import (
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/moby/pkg/mount"
 	"golang.org/x/sys/unix"
 )
 

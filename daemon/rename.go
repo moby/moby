@@ -3,8 +3,8 @@ package daemon
 import (
 	"strings"
 
-	dockercontainer "github.com/docker/docker/container"
 	"github.com/docker/libnetwork"
+	dockercontainer "github.com/moby/moby/container"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

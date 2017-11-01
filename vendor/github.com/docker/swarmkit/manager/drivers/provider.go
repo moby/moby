@@ -3,8 +3,8 @@ package drivers
 import (
 	"fmt"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/swarmkit/api"
+	"github.com/moby/moby/pkg/plugingetter"
 )
 
 // DriverProvider provides external drivers

@@ -6,11 +6,11 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
+	"github.com/moby/moby/pkg/discovery"
 	"github.com/sirupsen/logrus"
 
 	// Register the libkv backends for discovery.
-	_ "github.com/docker/docker/pkg/discovery/kv"
+	_ "github.com/moby/moby/pkg/discovery/kv"
 )
 
 const (

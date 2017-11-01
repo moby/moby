@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/moby/pkg/term"
 	"github.com/stretchr/testify/assert"
 )
 

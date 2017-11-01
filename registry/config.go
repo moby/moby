@@ -9,7 +9,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
+	registrytypes "github.com/moby/moby/api/types/registry"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

@@ -3,12 +3,12 @@ package cluster
 import (
 	"fmt"
 
-	apitypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/network"
-	types "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/daemon/cluster/convert"
-	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
+	apitypes "github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/network"
+	types "github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/daemon/cluster/convert"
+	"github.com/moby/moby/runconfig"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"

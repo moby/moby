@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/Microsoft/opengcs/client"
-	"github.com/docker/docker/container"
+	"github.com/moby/moby/container"
 )
 
 func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (interface{}, error) {

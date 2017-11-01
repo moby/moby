@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 func validatePSArgs(psArgs string) error {

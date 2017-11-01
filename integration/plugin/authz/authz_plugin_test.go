@@ -18,15 +18,15 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	eventtypes "github.com/docker/docker/api/types/events"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/util/request"
-	"github.com/docker/docker/internal/test/environment"
-	"github.com/docker/docker/pkg/authorization"
 	"github.com/gotestyourself/gotestyourself/skip"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
+	eventtypes "github.com/moby/moby/api/types/events"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration/util/request"
+	"github.com/moby/moby/internal/test/environment"
+	"github.com/moby/moby/pkg/authorization"
 	"github.com/stretchr/testify/require"
 )
 

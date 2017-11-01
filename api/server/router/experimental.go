@@ -5,7 +5,7 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/server/httputils"
+	"github.com/moby/moby/api/server/httputils"
 )
 
 // ExperimentalRoute defines an experimental API route that can be enabled or disabled.

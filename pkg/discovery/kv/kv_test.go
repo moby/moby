@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/libkv"
 	"github.com/docker/libkv/store"
 	"github.com/go-check/check"
+	"github.com/moby/moby/pkg/discovery"
 )
 
 // Hook up gocheck into the "go test" runner.

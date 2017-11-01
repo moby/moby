@@ -9,10 +9,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/registry"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/plugin"
+	"github.com/moby/moby/registry"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

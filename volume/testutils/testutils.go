@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/volume"
 )
 
 // NoopVolume is a volume that doesn't perform any operation

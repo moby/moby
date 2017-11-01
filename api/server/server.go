@@ -6,12 +6,12 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/api/server/middleware"
-	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/debug"
-	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/api/server/middleware"
+	"github.com/moby/moby/api/server/router"
+	"github.com/moby/moby/api/server/router/debug"
+	"github.com/moby/moby/dockerversion"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )

@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"unsafe"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 	"golang.org/x/sys/unix"
 )
 

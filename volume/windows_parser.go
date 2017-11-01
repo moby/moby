@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/pkg/stringid"
 )
 
 type windowsParser struct {

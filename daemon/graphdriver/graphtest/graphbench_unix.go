@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	contdriver "github.com/containerd/continuity/driver"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/stretchr/testify/require"
 )
 

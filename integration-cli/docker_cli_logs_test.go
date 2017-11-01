@@ -8,11 +8,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/pkg/jsonmessage"
 )
 
 // This used to work, it test a log of PageSize-1 (gh#4851)

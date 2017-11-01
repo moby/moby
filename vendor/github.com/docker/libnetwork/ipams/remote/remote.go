@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/moby/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 

@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/fixtures/load"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/fixtures/load"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

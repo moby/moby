@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/client"
 	"github.com/stretchr/testify/require"
 )
 

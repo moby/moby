@@ -7,9 +7,9 @@ import (
 	"sort"
 	"sync"
 
-	"github.com/docker/docker/pkg/locker"
-	getter "github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/pkg/locker"
+	getter "github.com/moby/moby/pkg/plugingetter"
+	"github.com/moby/moby/volume"
 	"github.com/pkg/errors"
 )
 

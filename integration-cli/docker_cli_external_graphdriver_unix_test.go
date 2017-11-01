@@ -12,12 +12,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/daemon/graphdriver/vfs"
-	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/daemon/graphdriver/vfs"
+	"github.com/moby/moby/integration-cli/daemon"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/plugins"
 )
 
 func init() {

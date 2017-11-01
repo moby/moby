@@ -11,14 +11,14 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/devicemapper"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/locker"
-	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/containerfs"
+	"github.com/moby/moby/pkg/devicemapper"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/locker"
+	"github.com/moby/moby/pkg/mount"
+	"github.com/moby/moby/pkg/system"
 )
 
 func init() {

@@ -10,11 +10,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/exec"
+	"github.com/moby/moby/api/types"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/strslice"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/exec"
 	"github.com/sirupsen/logrus"
 )
 

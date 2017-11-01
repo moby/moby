@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 )
 
 // PIDFile is a file used to store the process ID of a running process.

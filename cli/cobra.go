@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/moby/pkg/term"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )

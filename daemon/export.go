@@ -5,9 +5,9 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/ioutils"
 )
 
 // ContainerExport writes the contents of the container to the given

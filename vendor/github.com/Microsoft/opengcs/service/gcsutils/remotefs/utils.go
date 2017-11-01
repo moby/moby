@@ -9,7 +9,7 @@ import (
 	"os"
 	"syscall"
 
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/moby/pkg/archive"
 )
 
 // ReadError is an utility function that reads a serialized error from the given reader

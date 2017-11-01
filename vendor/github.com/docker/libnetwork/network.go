@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
@@ -20,6 +19,7 @@ import (
 	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
 

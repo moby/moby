@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"golang.org/x/sys/unix"
 )

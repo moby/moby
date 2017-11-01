@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/system"
 )
 
 func collectFileInfoForChanges(oldDir, newDir string) (*FileInfo, *FileInfo, error) {

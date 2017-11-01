@@ -9,14 +9,14 @@ import (
 	"path/filepath"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/volume"
+	"github.com/moby/moby/volume/drivers"
+	"github.com/moby/moby/volume/local"
+	"github.com/moby/moby/volume/store"
 	"github.com/stretchr/testify/require"
 )
 

@@ -5,8 +5,8 @@ import (
 
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/strslice"
 )
 
 // KeyValuePair represent an arbitrary named value (useful in slice insted of map[string] string to preserve ordering)

@@ -3,7 +3,7 @@ package zfs
 import (
 	"fmt"
 
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/moby/moby/daemon/graphdriver"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )

@@ -6,10 +6,10 @@ import (
 	"reflect"
 	"strings"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/dockerversion"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
 	"github.com/pkg/errors"
 )
 

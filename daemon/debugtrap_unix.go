@@ -6,7 +6,7 @@ import (
 	"os"
 	"os/signal"
 
-	stackdump "github.com/docker/docker/pkg/signal"
+	stackdump "github.com/moby/moby/pkg/signal"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )

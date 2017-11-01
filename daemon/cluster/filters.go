@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/api/types/filters"
-	runconfigopts "github.com/docker/docker/runconfig/opts"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/moby/moby/api/types/filters"
+	runconfigopts "github.com/moby/moby/runconfig/opts"
 )
 
 func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filters, error) {

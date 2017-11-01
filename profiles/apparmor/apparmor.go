@@ -11,7 +11,7 @@ import (
 	"strings"
 	"text/template"
 
-	"github.com/docker/docker/pkg/aaparser"
+	"github.com/moby/moby/pkg/aaparser"
 )
 
 var (

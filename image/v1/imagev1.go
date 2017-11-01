@@ -5,10 +5,10 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

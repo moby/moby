@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"testing"
 
-	"github.com/docker/docker/oci"
+	"github.com/moby/moby/oci"
 )
 
 func TestLoadProfile(t *testing.T) {

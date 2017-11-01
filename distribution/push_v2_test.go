@@ -9,9 +9,9 @@ import (
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/distribution/metadata"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/progress"
 	"github.com/opencontainers/go-digest"
 )
 

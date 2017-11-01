@@ -3,10 +3,10 @@ package dockerfile
 import (
 	"time"
 
-	"github.com/docker/docker/builder/fscache"
-	"github.com/docker/docker/builder/remotecontext"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
+	"github.com/moby/moby/builder/fscache"
+	"github.com/moby/moby/builder/remotecontext"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

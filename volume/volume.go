@@ -7,9 +7,9 @@ import (
 	"syscall"
 	"time"
 
-	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/stringid"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 )
@@ -95,7 +95,7 @@ type MountPoint struct {
 	Name string
 	// Driver is the volume driver used to create the volume (if it is a volume)
 	Driver string
-	// Type of mount to use, see `Type<foo>` definitions in github.com/docker/docker/api/types/mount
+	// Type of mount to use, see `Type<foo>` definitions in github.com/moby/moby/api/types/mount
 	Type mounttypes.Type `json:",omitempty"`
 	// Volume is the volume providing data to this mountpoint.
 	// This is nil unless `Type` is set to `TypeVolume`

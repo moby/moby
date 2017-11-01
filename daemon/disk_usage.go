@@ -6,11 +6,11 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/directory"
+	"github.com/moby/moby/volume"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

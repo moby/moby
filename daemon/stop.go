@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	containerpkg "github.com/docker/docker/container"
+	containerpkg "github.com/moby/moby/container"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

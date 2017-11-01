@@ -1,9 +1,9 @@
 package daemon
 
 import (
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/caps"
-	"github.com/docker/docker/daemon/exec"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/caps"
+	"github.com/moby/moby/daemon/exec"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )

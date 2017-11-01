@@ -10,12 +10,12 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/system"
 )
 
 var acceptedImageFilterTags = map[string]bool{

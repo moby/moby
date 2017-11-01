@@ -1,9 +1,9 @@
 package swarm
 
 import (
-	basictypes "github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	types "github.com/docker/docker/api/types/swarm"
+	basictypes "github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	types "github.com/moby/moby/api/types/swarm"
 	"golang.org/x/net/context"
 )
 

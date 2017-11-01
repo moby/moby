@@ -14,7 +14,6 @@ import (
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	gmetrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
@@ -44,6 +43,7 @@ import (
 	"github.com/docker/swarmkit/xnet"
 	gogotypes "github.com/gogo/protobuf/types"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"

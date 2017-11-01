@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/builder/dockerfile/command"
-	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/moby/moby/builder/dockerfile/command"
+	"github.com/moby/moby/builder/dockerfile/parser"
+	"github.com/moby/moby/internal/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

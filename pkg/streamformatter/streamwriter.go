@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io"
 
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/moby/moby/pkg/jsonmessage"
 )
 
 type streamWriter struct {

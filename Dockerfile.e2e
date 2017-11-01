@@ -9,8 +9,8 @@ RUN apk add --update \
     jq \
     && rm -rf /var/cache/apk/*
 
-RUN mkdir -p /go/src/github.com/docker/docker/
-WORKDIR /go/src/github.com/docker/docker/
+RUN mkdir -p /go/src/github.com/moby/moby/
+WORKDIR /go/src/github.com/moby/moby/
 
 # Generate frozen images
 COPY contrib/download-frozen-image-v2.sh contrib/download-frozen-image-v2.sh
@@ -30,7 +30,7 @@ ENV DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT
 ADD . .
 
 # Build DockerSuite.TestBuild* dependency
-RUN CGO_ENABLED=0 go build -o /output/httpserver github.com/docker/docker/contrib/httpserver
+RUN CGO_ENABLED=0 go build -o /output/httpserver github.com/moby/moby/contrib/httpserver
 
 # Build the integration tests and copy the resulting binaries to /output/tests
 RUN hack/make.sh build-integration-test-binary

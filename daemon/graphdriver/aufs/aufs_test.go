@@ -13,10 +13,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

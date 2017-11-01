@@ -5,7 +5,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/docker/docker/internal/test/environment"
+	"github.com/moby/moby/internal/test/environment"
 )
 
 var testEnv *environment.Execution

@@ -7,10 +7,10 @@ import (
 	"os"
 	"path/filepath"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/stringid"
+	containertypes "github.com/moby/moby/api/types/container"
+	mounttypes "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 )

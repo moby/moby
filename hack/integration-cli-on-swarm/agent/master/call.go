@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/bfirsh/funker-go"
-	"github.com/docker/docker/hack/integration-cli-on-swarm/agent/types"
+	"github.com/moby/moby/hack/integration-cli-on-swarm/agent/types"
 )
 
 const (

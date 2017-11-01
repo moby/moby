@@ -4,7 +4,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types/filters"
 )
 
 var headerRegexp = regexp.MustCompile(`\ADocker/.+\s\((.+)\)\z`)

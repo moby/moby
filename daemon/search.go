@@ -5,10 +5,10 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	registrytypes "github.com/docker/docker/api/types/registry"
-	"github.com/docker/docker/dockerversion"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	registrytypes "github.com/moby/moby/api/types/registry"
+	"github.com/moby/moby/dockerversion"
 )
 
 var acceptedSearchFilterTags = map[string]bool{

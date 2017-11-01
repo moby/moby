@@ -9,14 +9,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build/fakecontext"
+	"github.com/moby/moby/pkg/stringid"
 )
 
 // Make sure we can create a simple container with some args

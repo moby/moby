@@ -13,10 +13,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/daemon/names"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/daemon/names"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/mount"
+	"github.com/moby/moby/volume"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
