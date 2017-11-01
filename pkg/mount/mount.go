@@ -13,7 +13,7 @@ func GetMounts() ([]*Info, error) {
 }
 
 // Mounted determines if a specified mountpoint has been mounted.
-// On Linux it looks at /proc/self/mountinfo and on Solaris at mnttab.
+// On Linux it looks at /proc/self/mountinfo.
 func Mounted(mountpoint string) (bool, error) {
 	entries, err := parseMountTable()
 	if err != nil {

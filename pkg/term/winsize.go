@@ -1,4 +1,4 @@
-// +build !solaris,!windows
+// +build !windows
 
 package term
 

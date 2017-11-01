@@ -1,4 +1,4 @@
-// +build linux,!solaris freebsd,!solaris
+// +build linux freebsd
 
 package main
 

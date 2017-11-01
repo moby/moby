@@ -1,4 +1,4 @@
-// +build freebsd solaris darwin
+// +build freebsd darwin
 
 package reexec
 

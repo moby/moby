@@ -1,4 +1,4 @@
-// +build !linux,!solaris,!freebsd
+// +build !linux,!freebsd
 
 package logger
 
