@@ -755,7 +755,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
 	}
-	s.Process.OOMScoreAdj = &c.HostConfig.OomScoreAdj
 	s.Linux.Sysctl = c.HostConfig.Sysctls
 
 	p := s.Linux.CgroupsPath
