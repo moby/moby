@@ -135,7 +135,7 @@ Function Nuke-Everything {
         }
 
         # Kill any spurious daemons. The '-' is IMPORTANT otherwise will kill the control daemon!
-        $pids=$(get-process | where-object {$_.ProcessName -like 'dockerd-*'}).id
+        $pids=$(get-process | where-object {$_.ProcessName -like 'moby-engine-*'}).id
         foreach ($p in $pids) {
             Write-Host "INFO: Killing daemon with PID $p"
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
@@ -459,15 +459,15 @@ Try {
         if (-not($LastExitCode -eq 0)) {
             Throw "ERROR: Failed to docker cp the client binary (docker.exe) to $env:TEMP\binary"
         }
-        docker cp "$contPath\dockerd.exe" $env:TEMP\binary\
+        docker cp "$contPath\moby-engine.exe" $env:TEMP\binary\
         if (-not($LastExitCode -eq 0)) {
-            Throw "ERROR: Failed to docker cp the daemon binary (dockerd.exe) to $env:TEMP\binary"
+            Throw "ERROR: Failed to docker cp the daemon binary (moby-engine.exe) to $env:TEMP\binary"
         }
         $ErrorActionPreference = "Stop"
 
-        # Copy the built dockerd.exe to dockerd-$COMMITHASH.exe so that easily spotted in task manager.
-        Write-Host -ForegroundColor Green "INFO: Copying the built daemon binary to $env:TEMP\binary\dockerd-$COMMITHASH.exe..."
-        Copy-Item $env:TEMP\binary\dockerd.exe $env:TEMP\binary\dockerd-$COMMITHASH.exe -Force -ErrorAction SilentlyContinue
+        # Copy the built moby-engine.exe to moby-engine-$COMMITHASH.exe so that easily spotted in task manager.
+        Write-Host -ForegroundColor Green "INFO: Copying the built daemon binary to $env:TEMP\binary\moby-engine-$COMMITHASH.exe..."
+        Copy-Item $env:TEMP\binary\moby-engine.exe $env:TEMP\binary\moby-engine-$COMMITHASH.exe -Force -ErrorAction SilentlyContinue
 
         # Copy the built docker.exe to docker-$COMMITHASH.exe
         Write-Host -ForegroundColor Green "INFO: Copying the built client binary to $env:TEMP\binary\docker-$COMMITHASH.exe..."
@@ -477,11 +477,11 @@ Try {
         Write-Host -ForegroundColor Magenta "WARN: Skipping building the binaries"
     }
 
-    Write-Host -ForegroundColor Green "INFO: Copying dockerversion from the container..."
+    Write-Host -ForegroundColor Green "INFO: Copying autoversion from the container..."
     $ErrorActionPreference = "SilentlyContinue"
-    docker cp "$contPath\..\dockerversion\version_autogen.go" "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\dockerversion"
+    docker cp "$contPath\..\autoversion\version_autogen.go" "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\autoversion"
     if (-not($LastExitCode -eq 0)) {
-         Throw "ERROR: Failed to docker cp the generated version_autogen.go to $env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\dockerversion"
+         Throw "ERROR: Failed to docker cp the generated version_autogen.go to $env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\autoversion"
     }
     $ErrorActionPreference = "Stop"
 
@@ -547,7 +547,7 @@ Try {
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
 
     # Cannot fathom why, but always writes to stderr....
-    Start-Process "$env:TEMP\binary\dockerd-$COMMITHASH" `
+    Start-Process "$env:TEMP\binary\moby-engine-$COMMITHASH" `
                   -ArgumentList $dutArgs `
                   -RedirectStandardOutput "$env:TEMP\dut.out" `
                   -RedirectStandardError "$env:TEMP\dut.err"

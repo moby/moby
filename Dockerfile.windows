@@ -80,7 +80,7 @@
 #    folder on the host system where you want the binaries to be located.
 #
 #    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\docker.exe C:\HostPath\docker.exe
-#    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\dockerd.exe C:\HostPath\dockerd.exe
+#    >>   docker cp binaries:C:\go\src\github.com\docker\docker\bundles\moby-engine.exe C:\HostPath\moby-engine.exe
 #
 #
 # 6. (Optional) Remove the interim container holding the built executable binaries:
