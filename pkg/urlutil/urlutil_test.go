@@ -6,11 +6,14 @@ var (
 	gitUrls = []string{
 		"git://github.com/docker/docker",
 		"git@github.com:docker/docker.git",
-		"git@bitbucket.org:atlassianlabs/atlassian-docker.git",
+		"git@bitbucket.org:atlassianlabs/atlassian-docker",
 		"https://github.com/docker/docker.git",
 		"http://github.com/docker/docker.git",
 		"http://github.com/docker/docker.git#branch",
 		"http://github.com/docker/docker.git#:dir",
+		"git+ssh://github.com/docker/docker",
+		"git+ssh://github.com/docker/docker.git#branch",
+		"git+ssh://github.com/docker/docker.git#:dir",
 	}
 	incompleteGitUrls = []string{
 		"github.com/docker/docker",
