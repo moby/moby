@@ -1,5 +1,3 @@
-// +build linux solaris
-
 package libcontainerd
 
 import (

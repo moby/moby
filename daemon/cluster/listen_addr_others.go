@@ -1,4 +1,4 @@
-// +build !linux,!solaris
+// +build !linux
 
 package cluster
 

@@ -1,5 +1,3 @@
-// +build !solaris
-
 package daemon
 
 import (

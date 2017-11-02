@@ -1,4 +1,4 @@
-// +build linux freebsd darwin solaris
+// +build linux freebsd darwin
 
 package volume
 

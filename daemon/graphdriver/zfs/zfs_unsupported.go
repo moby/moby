@@ -1,4 +1,4 @@
-// +build !linux,!freebsd,!solaris
+// +build !linux,!freebsd
 
 package zfs
 

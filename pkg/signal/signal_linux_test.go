@@ -1,4 +1,4 @@
-// +build darwin linux solaris
+// +build darwin linux
 
 package signal
 

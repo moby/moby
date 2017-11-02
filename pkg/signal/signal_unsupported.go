@@ -1,4 +1,4 @@
-// +build !linux,!darwin,!freebsd,!windows,!solaris
+// +build !linux,!darwin,!freebsd,!windows
 
 package signal
 

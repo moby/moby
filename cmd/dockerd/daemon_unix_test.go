@@ -1,7 +1,4 @@
-// +build !windows,!solaris
-
-// TODO: Create new file for Solaris which tests config parameters
-// as described in daemon/config_solaris.go
+// +build !windows
 
 package main
 

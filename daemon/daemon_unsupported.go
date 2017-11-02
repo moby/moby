@@ -1,4 +1,4 @@
-// +build !linux,!freebsd,!windows,!solaris
+// +build !linux,!freebsd,!windows
 
 package daemon
 
