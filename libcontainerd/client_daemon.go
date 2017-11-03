@@ -60,6 +60,10 @@ type client struct {
 	containers map[string]*container
 }
 
+func (c *client) Version(ctx context.Context) (containerd.Version, error) {
+	return c.remote.Version(ctx)
+}
+
 func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallback) (alive bool, pid int, err error) {
 	c.Lock()
 	defer c.Unlock()

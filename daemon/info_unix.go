@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 
@@ -48,20 +49,10 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 
 	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
-	if rv, err := exec.Command("docker-containerd", "--version").Output(); err == nil {
-		parts := strings.Split(strings.TrimSpace(string(rv)), " ")
-		if len(parts) == 3 {
-			v.ContainerdCommit.ID = parts[2]
-		}
-		switch {
-		case v.ContainerdCommit.ID == "":
-			logrus.Warnf("failed to retrieve docker-containerd version: unknown format", string(rv))
-			v.ContainerdCommit.ID = "N/A"
-		case strings.HasSuffix(v.ContainerdCommit.ID, "-g"+v.ContainerdCommit.ID[len(v.ContainerdCommit.ID)-7:]):
-			v.ContainerdCommit.ID = v.ContainerdCommit.Expected
-		}
+	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
+		v.ContainerdCommit.ID = rv.Revision
 	} else {
-		logrus.Warnf("failed to retrieve docker-containerd version: %v", err)
+		logrus.Warnf("failed to retrieve containerd version: %v", err)
 		v.ContainerdCommit.ID = "N/A"
 	}
 

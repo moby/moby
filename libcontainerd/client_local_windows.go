@@ -17,6 +17,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	opengcs "github.com/Microsoft/opengcs/client"
+	"github.com/containerd/containerd"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -69,6 +70,10 @@ const (
 // container creator management stacks. We hard code "docker" in the case
 // of docker.
 const defaultOwner = "docker"
+
+func (c *client) Version(ctx context.Context) (containerd.Version, error) {
+	return containerd.Version{}, errors.New("not implemented on Windows")
+}
 
 // Create is the entrypoint to create a container from a spec.
 // Table below shows the fields required for HCS JSON calling parameters,
