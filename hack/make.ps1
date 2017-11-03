@@ -164,8 +164,6 @@ Function Get-UpstreamCommit() {
 
 # Build a binary (client or daemon)
 Function Execute-Build($type, $directory, $binary) {
-    # Generate the build flags
-    $buildTags = "autogen"
     if ($Noisy)                     { $verboseParm=" -v" }
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
@@ -181,16 +179,16 @@ Function Execute-Build($type, $directory, $binary) {
     $xversions = "" + `
         " -X github.com/docker/docker/autoversion.GitCommit=" + $gitCommit + `
         " -X github.com/docker/docker/autoversion.Version=" + $dockerVersion + `
-        " -X github.com/docker/docker/autoversion.BuildTime=" + $buildDateTime
+        " -X github.com/docker/docker/autoversion.BuildTime='" + $buildDateTime + "'"
 
     $buildCommand = "go build" + `
                     $raceParm + `
                     $verboseParm + `
                     $allParm + `
                     $optParm + `
-                    " -tags """ + $buildTags + """" + `
-                    " -ldflags """ + "-linkmode=internal" + $xversions + """" + `
+                    " -ldflags """ + "-linkmode=internal $xversions" + """" + `
                     " -o $root\bundles\"+$binary
+    Write-Host "Command: $buildCommand"
     Invoke-Expression $buildCommand
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile $type" }
     Pop-Location; $global:pushed=$False
