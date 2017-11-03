@@ -49,8 +49,8 @@ func TestGetTimestamp(t *testing.T) {
 		{"1.5h", fmt.Sprintf("%d", now.Add(-90*time.Minute).Unix()), false},
 		{"1h30m", fmt.Sprintf("%d", now.Add(-90*time.Minute).Unix()), false},
 
-		// String fallback
-		{"invalid", "invalid", false},
+		{"invalid", "", true},
+		{"", "", true},
 	}
 
 	for _, c := range cases {

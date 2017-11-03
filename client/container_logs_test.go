@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,10 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"context"
-
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {
@@ -33,17 +33,15 @@ func TestContainerLogsError(t *testing.T) {
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
-	}
+	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})
-	testutil.ErrorContains(t, err, `parsing time "2006-01-02TZ"`)
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Until: "2006-01-02TZ",
 	})
-	testutil.ErrorContains(t, err, `parsing time "2006-01-02TZ"`)
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 }
 
 func TestContainerLogs(t *testing.T) {
@@ -51,6 +49,7 @@ func TestContainerLogs(t *testing.T) {
 	cases := []struct {
 		options             types.ContainerLogsOptions
 		expectedQueryParams map[string]string
+		expectedError       string
 	}{
 		{
 			expectedQueryParams: map[string]string{
@@ -84,32 +83,44 @@ func TestContainerLogs(t *testing.T) {
 		},
 		{
 			options: types.ContainerLogsOptions{
-				// An complete invalid date, timestamp or go duration will be
-				// passed as is
-				Since: "invalid but valid",
+				// timestamp will be passed as is
+				Since: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
 				"tail":  "",
-				"since": "invalid but valid",
+				"since": "1136073600.000000001",
 			},
 		},
 		{
 			options: types.ContainerLogsOptions{
-				// An complete invalid date, timestamp or go duration will be
-				// passed as is
-				Until: "invalid but valid",
+				// timestamp will be passed as is
+				Until: "1136073600.000000001",
 			},
 			expectedQueryParams: map[string]string{
 				"tail":  "",
-				"until": "invalid but valid",
+				"until": "1136073600.000000001",
 			},
+		},
+		{
+			options: types.ContainerLogsOptions{
+				// An complete invalid date will not be passed
+				Since: "invalid value",
+			},
+			expectedError: `invalid value for "since": failed to parse value as time or duration: "invalid value"`,
+		},
+		{
+			options: types.ContainerLogsOptions{
+				// An complete invalid date will not be passed
+				Until: "invalid value",
+			},
+			expectedError: `invalid value for "until": failed to parse value as time or duration: "invalid value"`,
 		},
 	}
 	for _, logCase := range cases {
 		client := &Client{
 			client: newMockClient(func(r *http.Request) (*http.Response, error) {
 				if !strings.HasPrefix(r.URL.Path, expectedURL) {
-					return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, r.URL)
+					return nil, fmt.Errorf("expected URL '%s', got '%s'", expectedURL, r.URL)
 				}
 				// Check query parameters
 				query := r.URL.Query()
@@ -126,17 +137,15 @@ func TestContainerLogs(t *testing.T) {
 			}),
 		}
 		body, err := client.ContainerLogs(context.Background(), "container_id", logCase.options)
-		if err != nil {
-			t.Fatal(err)
+		if logCase.expectedError != "" {
+			assert.Check(t, is.Error(err, logCase.expectedError))
+			continue
 		}
+		assert.NilError(t, err)
 		defer body.Close()
 		content, err := ioutil.ReadAll(body)
-		if err != nil {
-			t.Fatal(err)
-		}
-		if string(content) != "response" {
-			t.Fatalf("expected response to contain 'response', got %s", string(content))
-		}
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(string(content), "response"))
 	}
 }
 
