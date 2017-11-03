@@ -8,6 +8,6 @@ hack/test/unit
 hack/make.sh \
 	binary-daemon \
 	dynbinary \
-	test-integration \
 	test-docker-py \
+	test-integration \
 	cross
