@@ -1,8 +1,8 @@
-# Contributing to Docker
+# Contribute to the Moby Project
 
-Want to hack on Docker? Awesome!  We have a contributor's guide that explains
-[setting up a Docker development environment and the contribution
-process](https://docs.docker.com/opensource/project/who-written-for/). 
+Want to hack on the Moby Project? Awesome! We have a contributor's guide that explains
+[setting up a development environment and the contribution
+process](docs/contributing/). 
 
 [![Contributors guide](docs/static_files/contributors.png)](https://docs.docker.com/opensource/project/who-written-for/)
 
@@ -21,14 +21,14 @@ start participating.
 
 ## Reporting security issues
 
-The Docker maintainers take security seriously. If you discover a security
+The Moby maintainers take security seriously. If you discover a security
 issue, please bring it to their attention right away!
 
 Please **DO NOT** file a public issue, instead send your report privately to
 [security@docker.com](mailto:security@docker.com).
 
 Security reports are greatly appreciated and we will publicly thank you for it.
-We also like to send gifts&mdash;if you're into Docker schwag, make sure to let
+We also like to send gifts&mdash;if you're into schwag, make sure to let
 us know. We currently do not offer a paid security bounty program, but are not
 ruling it out in the future.
 
@@ -83,11 +83,7 @@ contributions, see [the advanced contribution
 section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
 the contributors guide.
 
-We try hard to keep Docker lean and focused. Docker can't do everything for
-everybody. This means that we might decide against incorporating a new feature.
-However, there might be a way to implement that feature *on top of* Docker.
-
-### Talking to other Docker users and contributors
+### Connect with other Moby Project contributors
 
 <table class="tg">
   <col width="45%">
@@ -96,50 +92,27 @@ However, there might be a way to implement that feature *on top of* Docker.
     <td>Forums</td>
     <td>
       A public forum for users to discuss questions and explore current design patterns and
-      best practices about Docker and related projects in the Docker Ecosystem. To participate,
-      just log in with your Docker Hub account on <a href="https://forums.docker.com" target="_blank">https://forums.docker.com</a>.
+      best practices about all the Moby projects. To participate, log in with your Github
+      account or create an account at <a href="https://forums.mobyproject.org" target="_blank">https://forums.mobyproject.org</a>.
     </td>
   </tr>
   <tr>
-    <td>Internet&nbsp;Relay&nbsp;Chat&nbsp;(IRC)</td>
+    <td>Slack</td>
     <td>
       <p>
-        IRC a direct line to our most knowledgeable Docker users; we have
-        both the  <code>#docker</code> and <code>#docker-dev</code> group on
-        <strong>irc.freenode.net</strong>.
-        IRC is a rich chat protocol but it can overwhelm new users. You can search
-        <a href="https://botbot.me/freenode/docker/#" target="_blank">our chat archives</a>.
+        Register for the Docker Community Slack at
+	<a href="https://community.docker.com/registrations/groups/4316" target="_blank">https://community.docker.com/registrations/groups/4316</a>.
+        We use the #moby-project channel for general discussion, and there are seperate channels for other Moby projects such as #containerd.
+	Archives are available at <a href="https://dockercommunity.slackarchive.io/" target="_blank">https://dockercommunity.slackarchive.io/</a>.
       </p>
-      <p>
-        Read our <a href="https://docs.docker.com/opensource/get-help/#irc-quickstart" target="_blank">IRC quickstart guide</a>
-        for an easy way to get started.
-      </p>
-    </td>
-  </tr>
-  <tr>
-    <td>Google Group</td>
-    <td>
-      The <a href="https://groups.google.com/forum/#!forum/docker-dev" target="_blank">docker-dev</a>
-      group is for contributors and other people contributing to the Docker project.
-      You can join them without a google account by sending an email to 
-      <a href="mailto:docker-dev+subscribe@googlegroups.com">docker-dev+subscribe@googlegroups.com</a>.
-      After receiving the join-request message, you can simply reply to that to confirm the subscription.
     </td>
   </tr>
   <tr>
     <td>Twitter</td>
     <td>
-      You can follow <a href="https://twitter.com/docker/" target="_blank">Docker's Twitter feed</a>
+      You can follow <a href="https://twitter.com/moby/" target="_blank">Moby Project Twitter feed</a>
       to get updates on our products. You can also tweet us questions or just
       share blogs or stories.
-    </td>
-  </tr>
-  <tr>
-    <td>Stack Overflow</td>
-    <td>
-      Stack Overflow has thousands of Docker questions listed. We regularly
-      monitor <a href="https://stackoverflow.com/search?tab=newest&q=docker" target="_blank">Docker questions</a>
-      and so do many other knowledgeable Docker users.
     </td>
   </tr>
 </table>
@@ -159,7 +132,7 @@ Submit tests for your changes. See [TESTING.md](./TESTING.md) for details.
 
 If your changes need integration tests, write them against the API. The `cli`
 integration tests are slowly either migrated to API tests or moved away as unit
-tests in `docker/cli` and end-to-end tests for docker.
+tests in `docker/cli` and end-to-end tests for Docker.
 
 Update the documentation when creating or modifying features. Test your
 documentation changes for clarity, concision, and correctness, as well as a
@@ -266,15 +239,11 @@ Please see the [Coding Style](#coding-style) for further guidelines.
 
 ### Merge approval
 
-Docker maintainers use LGTM (Looks Good To Me) in comments on the code review to
-indicate acceptance.
+Moby maintainers use LGTM (Looks Good To Me) in comments on the code review to
+indicate acceptance, or use the Github review approval feature.
 
-A change requires LGTMs from an absolute majority of the maintainers of each
-component affected. For example, if a change affects `docs/` and `registry/`, it
-needs an absolute majority from the maintainers of `docs/` AND, separately, an
-absolute majority of the maintainers of `registry/`.
-
-For more details, see the [MAINTAINERS](MAINTAINERS) page.
+For an explanation of the review and approval process see the
+[REVIEWING](project/REVIEWING.md) page.
 
 ### Sign your work
 
@@ -342,9 +311,9 @@ Don't forget: being a maintainer is a time investment. Make sure you
 will have time to make yourself available. You don't have to be a
 maintainer to make a difference on the project!
 
-## Docker community guidelines
+## Moby community guidelines
 
-We want to keep the Docker community awesome, growing and collaborative. We need
+We want to keep the Moby community awesome, growing and collaborative. We need
 your help to keep it that way. To help with this we've come up with some general
 guidelines for the community as a whole:
 
