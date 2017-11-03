@@ -72,7 +72,10 @@ const (
 	TaskStateShutdown  TaskState = 640
 	TaskStateFailed    TaskState = 704
 	TaskStateRejected  TaskState = 768
-	TaskStateOrphaned  TaskState = 832
+	// The main purpose of this state is to free up resources associated with service tasks on
+	// unresponsive nodes without having to delete those tasks. This state is directly assigned
+	// to the task by the orchestrator.
+	TaskStateOrphaned TaskState = 832
 )
 
 var TaskState_name = map[int32]string{
