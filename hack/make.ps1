@@ -114,12 +114,6 @@ Function Get-GitCommit() {
     return $gitCommit
 }
 
-# Utility function to get get the current build version of docker
-Function Get-DockerVersion() {
-    if (-not (Test-Path ".\VERSION")) { Throw "VERSION file not found. Is this running from the root of a docker repository?" }
-    return $(Get-Content ".\VERSION" -raw).ToString().Replace("`n","").Trim()
-}
-
 # Utility function to determine if we are running in a container or not.
 # In Windows, we get this through an environment variable set in `Dockerfile.Windows`
 Function Check-InContainer() {
@@ -356,7 +350,7 @@ Try {
     if ($CommitSuffix -ne "") { $gitCommit += "-"+$CommitSuffix -Replace ' ', '' }
 
     # Get the version of docker (eg 17.04.0-dev)
-    $dockerVersion=Get-DockerVersion
+    $dockerVersion="0.0.0-dev"
 
     # Give a warning if we are not running in a container and are building binaries or running unit tests.
     # Not relevant for validation tests as these are fine to run outside of a container.
