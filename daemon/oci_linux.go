@@ -628,7 +628,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	if s.Root.Readonly {
 		for i, m := range s.Mounts {
 			switch m.Destination {
-			case "/proc", "/dev/pts", "/dev/mqueue": // /dev is remounted by runc
+			case "/proc", "/dev/pts", "/dev/mqueue", "/dev":
 				continue
 			}
 			if _, ok := userMounts[m.Destination]; !ok {
