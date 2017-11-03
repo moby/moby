@@ -2,8 +2,12 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -11,6 +15,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
 )
@@ -84,4 +89,126 @@ func (s *DockerSuite) TestLogsAPIContainerNotFound(c *check.C) {
 	resp, _, err := request.Get(fmt.Sprintf("/containers/%s/logs?follow=1&stdout=1&stderr=1&tail=all", name))
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
+}
+
+func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+
+	name := "logsuntilfuturefollow"
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", "while true; do date +%s; sleep 1; done")
+	c.Assert(waitRun(name), checker.IsNil)
+
+	untilSecs := 5
+	untilDur, err := time.ParseDuration(fmt.Sprintf("%ds", untilSecs))
+	c.Assert(err, checker.IsNil)
+	until := daemonTime(c).Add(untilDur)
+
+	client, err := request.NewClient()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	cfg := types.ContainerLogsOptions{Until: until.Format(time.RFC3339Nano), Follow: true, ShowStdout: true, Timestamps: true}
+	reader, err := client.ContainerLogs(context.Background(), name, cfg)
+	c.Assert(err, checker.IsNil)
+
+	type logOut struct {
+		out string
+		err error
+	}
+
+	chLog := make(chan logOut)
+
+	go func() {
+		bufReader := bufio.NewReader(reader)
+		defer reader.Close()
+		for i := 0; i < untilSecs; i++ {
+			out, _, err := bufReader.ReadLine()
+			if err != nil {
+				if err == io.EOF {
+					return
+				}
+				chLog <- logOut{"", err}
+				return
+			}
+
+			chLog <- logOut{strings.TrimSpace(string(out)), err}
+		}
+	}()
+
+	for i := 0; i < untilSecs; i++ {
+		select {
+		case l := <-chLog:
+			c.Assert(l.err, checker.IsNil)
+			i, err := strconv.ParseInt(strings.Split(l.out, " ")[1], 10, 64)
+			c.Assert(err, checker.IsNil)
+			c.Assert(time.Unix(i, 0).UnixNano(), checker.LessOrEqualThan, until.UnixNano())
+		case <-time.After(20 * time.Second):
+			c.Fatal("timeout waiting for logs to exit")
+		}
+	}
+}
+
+func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
+	name := "logsuntil"
+	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 0.5; done")
+
+	client, err := request.NewClient()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	extractBody := func(c *check.C, cfg types.ContainerLogsOptions) []string {
+		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		c.Assert(err, checker.IsNil)
+
+		actualStdout := new(bytes.Buffer)
+		actualStderr := ioutil.Discard
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		c.Assert(err, checker.IsNil)
+
+		return strings.Split(actualStdout.String(), "\n")
+	}
+
+	// Get timestamp of second log line
+	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
+	c.Assert(err, checker.IsNil)
+	until := t.Format(time.RFC3339Nano)
+
+	// Get logs until the timestamp of second line, i.e. first two lines
+	logs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: until})
+
+	// Ensure log lines after cut-off are excluded
+	logsString := strings.Join(logs, "\n")
+	c.Assert(logsString, checker.Not(checker.Contains), "log3", check.Commentf("unexpected log message returned, until=%v", until))
+}
+
+func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *check.C) {
+	name := "logsuntildefaultval"
+	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
+
+	client, err := request.NewClient()
+	if err != nil {
+		c.Fatal(err)
+	}
+
+	extractBody := func(c *check.C, cfg types.ContainerLogsOptions) []string {
+		reader, err := client.ContainerLogs(context.Background(), name, cfg)
+		c.Assert(err, checker.IsNil)
+
+		actualStdout := new(bytes.Buffer)
+		actualStderr := ioutil.Discard
+		_, err = stdcopy.StdCopy(actualStdout, actualStderr, reader)
+		c.Assert(err, checker.IsNil)
+
+		return strings.Split(actualStdout.String(), "\n")
+	}
+
+	// Get timestamp of second log line
+	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+
+	// Test with default value specified and parameter omitted
+	defaultLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true, Until: "0"})
+	c.Assert(defaultLogs, checker.DeepEquals, allLogs)
 }

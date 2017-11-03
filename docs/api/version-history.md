@@ -33,6 +33,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   If `Error` is `null`, container removal has succeeded, otherwise
   the test of an error message indicating why container removal has failed
   is available from `Error.Message` field.
+* `GET /containers/(name)/logs` now supports an additional query parameter: `until`, which returns log lines that occurred before the specified timestamp.
 
 ## v1.33 API changes
 
@@ -103,7 +104,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
 * `POST /swarm/init` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
 * `POST /swarm/join` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
-* `GET /events` now supports service, node and secret events which are emitted when users create, update and remove service, node and secret 
+* `GET /events` now supports service, node and secret events which are emitted when users create, update and remove service, node and secret
 * `GET /events` now supports network remove event which is emitted when users remove a swarm scoped network
 * `GET /events` now supports a filter type `scope` in which supported value could be swarm and local
 

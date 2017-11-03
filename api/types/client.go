@@ -74,6 +74,7 @@ type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
 	Since      string
+	Until      string
 	Timestamps bool
 	Follow     bool
 	Tail       string

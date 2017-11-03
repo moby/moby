@@ -88,6 +88,7 @@ type SizedLogger interface {
 // ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
 	Since  time.Time
+	Until  time.Time
 	Tail   int
 	Follow bool
 }

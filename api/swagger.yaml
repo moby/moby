@@ -4957,6 +4957,11 @@ paths:
           description: "Only return logs since this time, as a UNIX timestamp"
           type: "integer"
           default: 0
+        - name: "until"
+          in: "query"
+          description: "Only return logs before this time, as a UNIX timestamp"
+          type: "integer"
+          default: 0
         - name: "timestamps"
           in: "query"
           description: "Add timestamps to every log line"
