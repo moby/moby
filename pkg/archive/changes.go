@@ -13,9 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/pools"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/pools"
+	"github.com/moby/moby/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 

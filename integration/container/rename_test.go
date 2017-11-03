@@ -4,12 +4,12 @@ import (
 	"context"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/util/request"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/strslice"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration/util/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

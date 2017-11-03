@@ -10,14 +10,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/filters"
-	networktypes "github.com/docker/docker/api/types/network"
-	volumetypes "github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/util/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/filters"
+	networktypes "github.com/moby/moby/api/types/network"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration/util/requirement"
 	"github.com/stretchr/testify/require"
 )
 

@@ -5,7 +5,7 @@ package ioutils
 import (
 	"io/ioutil"
 
-	"github.com/docker/docker/pkg/longpath"
+	"github.com/moby/moby/pkg/longpath"
 )
 
 // TempDir is the equivalent of ioutil.TempDir, except that the result is in Windows longpath format.

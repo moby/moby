@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/docker/docker/plugin/v2"
+	"github.com/moby/moby/pkg/plugingetter"
+	"github.com/moby/moby/plugin/v2"
 )
 
 func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {

@@ -5,8 +5,8 @@ package daemon
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/libcontainerd"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 

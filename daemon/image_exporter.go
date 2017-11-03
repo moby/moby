@@ -4,8 +4,8 @@ import (
 	"io"
 	"runtime"
 
-	"github.com/docker/docker/image/tarexport"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/image/tarexport"
+	"github.com/moby/moby/pkg/system"
 )
 
 // ExportImage exports a list of images to the given output stream. The

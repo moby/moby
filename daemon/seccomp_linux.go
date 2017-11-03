@@ -5,8 +5,8 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/profiles/seccomp"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/profiles/seccomp"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )

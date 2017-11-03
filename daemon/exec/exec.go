@@ -5,9 +5,9 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd"
-	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/container/stream"
+	"github.com/moby/moby/libcontainerd"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
 

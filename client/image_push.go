@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/moby/moby/api/types"
 )
 
 // ImagePush requests the docker host to push an image to a remote registry.

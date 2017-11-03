@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )

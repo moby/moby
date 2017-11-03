@@ -17,8 +17,8 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	opengcs "github.com/Microsoft/opengcs/client"
-	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/docker/docker/pkg/system"
+	"github.com/moby/moby/pkg/sysinfo"
+	"github.com/moby/moby/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"github.com/moby/moby/integration-cli/checker"
 )
 
 // regression test for #12546

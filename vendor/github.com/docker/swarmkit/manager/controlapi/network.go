@@ -3,7 +3,6 @@ package controlapi
 import (
 	"net"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/swarmkit/api"
@@ -11,6 +10,7 @@ import (
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/moby/moby/pkg/plugingetter"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

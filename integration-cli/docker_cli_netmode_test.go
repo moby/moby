@@ -3,9 +3,9 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/runconfig"
 )
 
 // GH14530. Validates combinations of --net= with other options

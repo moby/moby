@@ -1,7 +1,7 @@
 package daemon
 
 import (
-	"github.com/docker/docker/container"
+	"github.com/moby/moby/container"
 	"golang.org/x/net/context"
 )
 

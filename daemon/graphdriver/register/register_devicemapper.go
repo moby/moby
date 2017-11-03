@@ -4,5 +4,5 @@ package register
 
 import (
 	// register the devmapper graphdriver
-	_ "github.com/docker/docker/daemon/graphdriver/devmapper"
+	_ "github.com/moby/moby/daemon/graphdriver/devmapper"
 )

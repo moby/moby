@@ -7,8 +7,8 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/docker/docker/integration-cli/registry"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/registry"
 )
 
 // unescapeBackslashSemicolonParens unescapes \;()

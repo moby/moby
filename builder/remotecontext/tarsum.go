@@ -4,8 +4,8 @@ import (
 	"os"
 	"sync"
 
-	"github.com/docker/docker/pkg/containerfs"
 	iradix "github.com/hashicorp/go-immutable-radix"
+	"github.com/moby/moby/pkg/containerfs"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"

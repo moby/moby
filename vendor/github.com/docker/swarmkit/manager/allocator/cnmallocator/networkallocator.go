@@ -5,7 +5,6 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )

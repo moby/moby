@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/moby/moby/pkg/plugins/transport"
 	"github.com/sirupsen/logrus"
 )
 

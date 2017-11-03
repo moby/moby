@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 )
 

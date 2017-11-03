@@ -6,10 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/pkg/discovery"
-	_ "github.com/docker/docker/pkg/discovery/memory"
-	"github.com/docker/docker/registry"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/pkg/discovery"
+	_ "github.com/moby/moby/pkg/discovery/memory"
+	"github.com/moby/moby/registry"
 	"github.com/stretchr/testify/assert"
 )
 

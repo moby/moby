@@ -2,7 +2,7 @@ package daemon
 
 import (
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
+	"github.com/moby/moby/image"
 )
 
 // TagImage creates the tag specified by newTag, pointing to the image named

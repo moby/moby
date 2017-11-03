@@ -3,9 +3,9 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/checker"
 	"golang.org/x/net/context"
 )
 

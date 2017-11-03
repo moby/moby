@@ -11,8 +11,8 @@ import (
 	"path/filepath"
 	"strconv"
 
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/symlink"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/symlink"
 	"golang.org/x/sys/unix"
 )
 

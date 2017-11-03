@@ -3,8 +3,8 @@ package memory
 import (
 	"testing"
 
-	"github.com/docker/docker/pkg/discovery"
 	"github.com/go-check/check"
+	"github.com/moby/moby/pkg/discovery"
 )
 
 // Hook up gocheck into the "go test" runner.

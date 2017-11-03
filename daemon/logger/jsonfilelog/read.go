@@ -11,12 +11,12 @@ import (
 	"github.com/fsnotify/fsnotify"
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
-	"github.com/docker/docker/daemon/logger/jsonfilelog/multireader"
-	"github.com/docker/docker/pkg/filenotify"
-	"github.com/docker/docker/pkg/tailfile"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/daemon/logger"
+	"github.com/moby/moby/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/moby/moby/daemon/logger/jsonfilelog/multireader"
+	"github.com/moby/moby/pkg/filenotify"
+	"github.com/moby/moby/pkg/tailfile"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

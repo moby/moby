@@ -6,7 +6,7 @@
 # docker build -t docker -f Dockerfile.armhf .
 #
 # # Mount your source in an interactive container for quick testing:
-# docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
+# docker run -v `pwd`:/go/src/github.com/moby/moby --privileged -i -t docker bash
 #
 # # Run the test suite:
 # docker run --privileged docker hack/make.sh test-unit test-integration test-docker-py
@@ -119,7 +119,7 @@ RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
 
 VOLUME /var/lib/docker
-WORKDIR /go/src/github.com/docker/docker
+WORKDIR /go/src/github.com/moby/moby
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 
 # Let us use a .bashrc file
@@ -129,7 +129,7 @@ RUN ln -sfv $PWD/.bashrc ~/.bashrc
 RUN ln -sv $PWD/contrib/completion/bash/docker /etc/bash_completion.d/docker
 
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
-COPY contrib/download-frozen-image-v2.sh /go/src/github.com/docker/docker/contrib/
+COPY contrib/download-frozen-image-v2.sh /go/src/github.com/moby/moby/contrib/
 RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	armhf/buildpack-deps:jessie@sha256:eb2dad77ef53e88d94c3c83862d315c806ea1ca49b6e74f4db362381365ce489 \
 	armhf/busybox:latest@sha256:016a1e149d2acc2a3789a160dfa60ce870794eea27ad5e96f7a101970e5e1689 \
@@ -147,7 +147,7 @@ ENV PATH=/usr/local/cli:$PATH
 ENTRYPOINT ["hack/dind"]
 
 # Upload docker source
-COPY . /go/src/github.com/docker/docker
+COPY . /go/src/github.com/moby/moby
 
 # Options for hack/validate/gometalinter
 ENV GOMETALINTER_OPTS="--deadline 10m -j2"

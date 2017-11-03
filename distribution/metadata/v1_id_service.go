@@ -1,8 +1,8 @@
 package metadata
 
 import (
-	"github.com/docker/docker/image/v1"
-	"github.com/docker/docker/layer"
+	"github.com/moby/moby/image/v1"
+	"github.com/moby/moby/layer"
 	"github.com/pkg/errors"
 )
 

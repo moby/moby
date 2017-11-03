@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/docker/docker/integration-cli/registry"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/registry"
 )
 
 func makefile(path string, contents string) (string, error) {

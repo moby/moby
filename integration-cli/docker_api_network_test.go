@@ -8,12 +8,12 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/request"
 )
 
 func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {

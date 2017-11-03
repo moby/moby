@@ -17,17 +17,17 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/parsers"
-	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/kr/pty"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/pkg/homedir"
+	"github.com/moby/moby/pkg/mount"
+	"github.com/moby/moby/pkg/parsers"
+	"github.com/moby/moby/pkg/sysinfo"
 )
 
 // #6509

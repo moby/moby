@@ -7,10 +7,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/broadcaster"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/pools"
+	"github.com/moby/moby/libcontainerd"
+	"github.com/moby/moby/pkg/broadcaster"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/pools"
 	"github.com/sirupsen/logrus"
 )
 

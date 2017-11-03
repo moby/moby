@@ -13,10 +13,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/cli/build"
 	"golang.org/x/sys/unix"
 )
 

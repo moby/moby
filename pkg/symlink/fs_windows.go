@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/pkg/longpath"
+	"github.com/moby/moby/pkg/longpath"
 	"golang.org/x/sys/windows"
 )
 

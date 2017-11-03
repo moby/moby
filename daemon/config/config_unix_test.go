@@ -5,9 +5,9 @@ package config
 import (
 	"testing"
 
-	"github.com/docker/docker/opts"
 	units "github.com/docker/go-units"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/opts"
 	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

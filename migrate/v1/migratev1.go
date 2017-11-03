@@ -14,12 +14,12 @@ import (
 	"encoding/json"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/image"
-	imagev1 "github.com/docker/docker/image/v1"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
-	refstore "github.com/docker/docker/reference"
+	"github.com/moby/moby/distribution/metadata"
+	"github.com/moby/moby/image"
+	imagev1 "github.com/moby/moby/image/v1"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/ioutils"
+	refstore "github.com/moby/moby/reference"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )

@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/pkg/fileutils"
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/moby/pkg/fileutils"
+	"github.com/moby/moby/pkg/mount"
 	"github.com/sirupsen/logrus"
 )
 

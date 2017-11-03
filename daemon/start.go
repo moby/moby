@@ -5,9 +5,9 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
+	"github.com/moby/moby/api/types"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

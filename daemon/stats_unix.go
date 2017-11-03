@@ -3,8 +3,8 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/container"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/container"
 	"github.com/pkg/errors"
 )
 

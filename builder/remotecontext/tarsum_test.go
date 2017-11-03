@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/reexec"
 	"github.com/pkg/errors"
 )
 

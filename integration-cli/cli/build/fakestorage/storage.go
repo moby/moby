@@ -9,12 +9,12 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/internal/test/environment"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/moby/moby/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli/build"
+	"github.com/moby/moby/integration-cli/cli/build/fakecontext"
+	"github.com/moby/moby/integration-cli/request"
+	"github.com/moby/moby/internal/test/environment"
+	"github.com/moby/moby/internal/testutil"
 	"github.com/stretchr/testify/require"
 )
 

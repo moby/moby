@@ -8,8 +8,8 @@ import (
 	"net/http"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/filters"
 	"golang.org/x/net/context"
 )
 

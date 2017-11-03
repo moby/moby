@@ -5,8 +5,8 @@ import (
 	"runtime"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/pkg/stringid"
 )
 
 // errImageDoesNotExist is error returned when no image can be found for a reference.

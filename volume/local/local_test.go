@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/mount"
 )
 
 func TestGetAddress(t *testing.T) {

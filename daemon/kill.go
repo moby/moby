@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/signal"
+	containerpkg "github.com/moby/moby/container"
+	"github.com/moby/moby/libcontainerd"
+	"github.com/moby/moby/pkg/signal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

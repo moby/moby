@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/layer"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/dockerversion"
+	"github.com/moby/moby/layer"
 	"github.com/opencontainers/go-digest"
 )
 

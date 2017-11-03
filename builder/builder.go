@@ -7,12 +7,12 @@ package builder
 import (
 	"io"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/container"
-	containerpkg "github.com/docker/docker/container"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	"github.com/moby/moby/api/types/container"
+	containerpkg "github.com/moby/moby/container"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/containerfs"
 	"golang.org/x/net/context"
 )
 

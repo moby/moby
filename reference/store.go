@@ -9,7 +9,7 @@ import (
 	"sync"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )

@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"github.com/moby/moby/api"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/request"
 )
 
 func (s *DockerSuite) TestAPIOptionsRoute(c *check.C) {

@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
-	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gorilla/mux"
+	registrytypes "github.com/moby/moby/api/types/registry"
 
 	"github.com/sirupsen/logrus"
 )

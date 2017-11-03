@@ -3,11 +3,11 @@ package dockerfile
 import (
 	"testing"
 
-	"github.com/docker/docker/builder/dockerfile/instructions"
-	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/internal/testutil"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/reexec"
+	"github.com/moby/moby/builder/dockerfile/instructions"
+	"github.com/moby/moby/builder/remotecontext"
+	"github.com/moby/moby/internal/testutil"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/reexec"
 )
 
 type dispatchTestCase struct {

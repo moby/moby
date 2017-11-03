@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"path"
 
-	"github.com/docker/docker/api/types/mount"
+	"github.com/moby/moby/api/types/mount"
 )
 
 var lcowSpecificValidators mountValidator = func(m *mount.Mount) error {

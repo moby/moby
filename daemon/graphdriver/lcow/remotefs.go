@@ -12,8 +12,8 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/opengcs/service/gcsutils/remotefs"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/containerfs"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/containerfs"
 	"github.com/sirupsen/logrus"
 )
 

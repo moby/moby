@@ -1,6 +1,6 @@
 package distribution
 
-import "github.com/docker/docker/api/server/router"
+import "github.com/moby/moby/api/server/router"
 
 // distributionRouter is a router to talk with the registry
 type distributionRouter struct {

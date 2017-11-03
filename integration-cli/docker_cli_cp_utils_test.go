@@ -10,9 +10,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/pkg/archive"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/pkg/archive"
 )
 
 type fileType uint32

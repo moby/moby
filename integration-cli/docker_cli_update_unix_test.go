@@ -10,13 +10,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/client"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/request"
+	"github.com/moby/moby/pkg/parsers/kernel"
 )
 
 func (s *DockerSuite) TestUpdateRunningContainer(c *check.C) {

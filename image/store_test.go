@@ -4,8 +4,8 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/internal/testutil"
-	"github.com/docker/docker/layer"
+	"github.com/moby/moby/internal/testutil"
+	"github.com/moby/moby/layer"
 	"github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 )

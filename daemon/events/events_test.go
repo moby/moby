@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/events"
-	timetypes "github.com/docker/docker/api/types/time"
-	eventstestutils "github.com/docker/docker/daemon/events/testutils"
+	"github.com/moby/moby/api/types/events"
+	timetypes "github.com/moby/moby/api/types/time"
+	eventstestutils "github.com/moby/moby/daemon/events/testutils"
 )
 
 func TestEventsLog(t *testing.T) {

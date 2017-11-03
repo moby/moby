@@ -5,9 +5,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/daemon"
 )
 
 func init() {

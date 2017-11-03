@@ -5,9 +5,9 @@ package main
 import (
 	"encoding/json"
 
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/integration-cli/checker"
 )
 
 func (s *DockerSwarmSuite) TestConfigInspect(c *check.C) {

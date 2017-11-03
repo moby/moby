@@ -11,16 +11,6 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
-	enginecontainer "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/events"
-	"github.com/docker/docker/api/types/filters"
-	enginemount "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/api/types/network"
-	volumetypes "github.com/docker/docker/api/types/volume"
-	"github.com/docker/docker/daemon/cluster/convert"
-	executorpkg "github.com/docker/docker/daemon/cluster/executor"
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
@@ -28,6 +18,16 @@ import (
 	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/moby/moby/api/types"
+	enginecontainer "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/events"
+	"github.com/moby/moby/api/types/filters"
+	enginemount "github.com/moby/moby/api/types/mount"
+	"github.com/moby/moby/api/types/network"
+	volumetypes "github.com/moby/moby/api/types/volume"
+	"github.com/moby/moby/daemon/cluster/convert"
+	executorpkg "github.com/moby/moby/daemon/cluster/executor"
+	clustertypes "github.com/moby/moby/daemon/cluster/provider"
 )
 
 const (

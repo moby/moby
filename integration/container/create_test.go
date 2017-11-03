@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration/util/request"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/integration/util/request"
+	"github.com/moby/moby/internal/testutil"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {

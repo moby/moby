@@ -7,12 +7,12 @@ import (
 
 	"golang.org/x/net/context"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	containertypes "github.com/docker/docker/api/types/container"
-	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/logger"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	containertypes "github.com/moby/moby/api/types/container"
+	timetypes "github.com/moby/moby/api/types/time"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/logger"
 	"github.com/sirupsen/logrus"
 )
 

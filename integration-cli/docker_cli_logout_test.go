@@ -8,8 +8,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
 )
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C) {

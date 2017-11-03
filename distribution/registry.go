@@ -12,10 +12,10 @@ import (
 	"github.com/docker/distribution/registry/client"
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/dockerversion"
+	"github.com/moby/moby/registry"
 	"golang.org/x/net/context"
 )
 

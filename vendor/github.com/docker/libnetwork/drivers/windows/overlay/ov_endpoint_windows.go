@@ -6,11 +6,11 @@ import (
 	"net"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/windows"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/moby/pkg/system"
 	"github.com/sirupsen/logrus"
 )
 

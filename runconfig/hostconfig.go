@@ -5,7 +5,7 @@ import (
 	"io"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
+	"github.com/moby/moby/api/types/container"
 )
 
 // DecodeHostConfig creates a HostConfig based on the specified Reader.

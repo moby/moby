@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/names"
-	"github.com/docker/docker/pkg/namesgenerator"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/names"
+	"github.com/moby/moby/pkg/namesgenerator"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

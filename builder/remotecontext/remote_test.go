@@ -9,9 +9,9 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/internal/testutil"
-	"github.com/docker/docker/pkg/archive"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/internal/testutil"
+	"github.com/moby/moby/pkg/archive"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

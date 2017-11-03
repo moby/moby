@@ -3,9 +3,9 @@ package network
 import (
 	"net"
 
-	networktypes "github.com/docker/docker/api/types/network"
-	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
+	networktypes "github.com/moby/moby/api/types/network"
+	clustertypes "github.com/moby/moby/daemon/cluster/provider"
 	"github.com/pkg/errors"
 )
 

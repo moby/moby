@@ -7,13 +7,13 @@ import (
 	"github.com/sirupsen/logrus"
 
 	mapset "github.com/deckarep/golang-set"
-	"github.com/docker/docker/pkg/discovery"
+	"github.com/moby/moby/pkg/discovery"
 	// Including KV
-	_ "github.com/docker/docker/pkg/discovery/kv"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libkv/store/etcd"
 	"github.com/docker/libkv/store/zookeeper"
 	"github.com/docker/libnetwork/types"
+	_ "github.com/moby/moby/pkg/discovery/kv"
 )
 
 type hostDiscovery struct {

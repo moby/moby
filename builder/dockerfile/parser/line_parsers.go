@@ -15,7 +15,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/docker/docker/builder/dockerfile/command"
+	"github.com/moby/moby/builder/dockerfile/command"
 )
 
 var (

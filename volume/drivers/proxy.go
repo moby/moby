@@ -5,7 +5,7 @@ package volumedrivers
 import (
 	"errors"
 
-	"github.com/docker/docker/volume"
+	"github.com/moby/moby/volume"
 )
 
 type client interface {

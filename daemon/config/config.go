@@ -13,12 +13,12 @@ import (
 	"strings"
 	"sync"
 
-	daemondiscovery "github.com/docker/docker/daemon/discovery"
-	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/authorization"
-	"github.com/docker/docker/pkg/discovery"
-	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
+	daemondiscovery "github.com/moby/moby/daemon/discovery"
+	"github.com/moby/moby/opts"
+	"github.com/moby/moby/pkg/authorization"
+	"github.com/moby/moby/pkg/discovery"
+	"github.com/moby/moby/registry"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )

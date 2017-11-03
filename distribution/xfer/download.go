@@ -8,11 +8,11 @@ import (
 	"time"
 
 	"github.com/docker/distribution"
-	"github.com/docker/docker/image"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/progress"
+	"github.com/moby/moby/image"
+	"github.com/moby/moby/layer"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/ioutils"
+	"github.com/moby/moby/pkg/progress"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )

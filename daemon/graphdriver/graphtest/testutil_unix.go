@@ -8,7 +8,7 @@ import (
 	"testing"
 
 	contdriver "github.com/containerd/continuity/driver"
-	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/moby/moby/daemon/graphdriver"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"

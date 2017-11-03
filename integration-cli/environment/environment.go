@@ -5,7 +5,7 @@ import (
 
 	"os/exec"
 
-	"github.com/docker/docker/internal/test/environment"
+	"github.com/moby/moby/internal/test/environment"
 )
 
 var (

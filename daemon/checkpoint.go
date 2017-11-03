@@ -8,8 +8,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/names"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/daemon/names"
 )
 
 var (

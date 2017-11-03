@@ -4,15 +4,15 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
-	networktypes "github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/api/types/versions/v1p20"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/network"
-	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/backend"
+	networktypes "github.com/moby/moby/api/types/network"
+	"github.com/moby/moby/api/types/versions"
+	"github.com/moby/moby/api/types/versions/v1p20"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/daemon/network"
+	volumestore "github.com/moby/moby/volume/store"
 )
 
 // ContainerInspect returns low-level information about a

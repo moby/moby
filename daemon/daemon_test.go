@@ -6,16 +6,16 @@ import (
 	"path/filepath"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
-	_ "github.com/docker/docker/pkg/discovery/memory"
-	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/truncindex"
-	"github.com/docker/docker/volume"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
+	_ "github.com/moby/moby/pkg/discovery/memory"
+	"github.com/moby/moby/pkg/idtools"
+	"github.com/moby/moby/pkg/truncindex"
+	"github.com/moby/moby/volume"
+	volumedrivers "github.com/moby/moby/volume/drivers"
+	"github.com/moby/moby/volume/local"
+	"github.com/moby/moby/volume/store"
 )
 
 //

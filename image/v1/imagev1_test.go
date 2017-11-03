@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/docker/docker/image"
+	"github.com/moby/moby/image"
 )
 
 func TestMakeV1ConfigFromConfig(t *testing.T) {

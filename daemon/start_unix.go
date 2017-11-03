@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/linux/runcopts"
-	"github.com/docker/docker/container"
+	"github.com/moby/moby/container"
 	"github.com/pkg/errors"
 )
 

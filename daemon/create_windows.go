@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"runtime"
 
-	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/volume"
+	containertypes "github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/pkg/stringid"
+	"github.com/moby/moby/volume"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality

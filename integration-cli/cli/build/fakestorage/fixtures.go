@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/moby/moby/integration-cli/cli"
 )
 
 var ensureHTTPServerOnce sync.Once
@@ -50,7 +50,7 @@ func ensureHTTPServerImage(t testingT) {
 			t.Fatalf("could not build http server: %v", lookErr)
 		}
 
-		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/docker/docker/contrib/httpserver")
+		cmd := exec.Command(goCmd, "build", "-o", filepath.Join(tmp, "httpserver"), "github.com/moby/moby/contrib/httpserver")
 		cmd.Env = append(os.Environ(), []string{
 			"CGO_ENABLED=0",
 			"GOOS=" + goos,

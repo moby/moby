@@ -11,9 +11,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/docker/docker/pkg/stringid"
+	"github.com/moby/moby/daemon/graphdriver"
+	"github.com/moby/moby/pkg/archive"
+	"github.com/moby/moby/pkg/stringid"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )

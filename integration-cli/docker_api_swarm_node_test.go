@@ -5,10 +5,10 @@ package main
 import (
 	"time"
 
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"github.com/moby/moby/api/types/swarm"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/daemon"
 )
 
 func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *check.C) {

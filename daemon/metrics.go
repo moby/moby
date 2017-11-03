@@ -4,9 +4,9 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/pkg/plugingetter"
 	metrics "github.com/docker/go-metrics"
+	"github.com/moby/moby/pkg/mount"
+	"github.com/moby/moby/pkg/plugingetter"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"

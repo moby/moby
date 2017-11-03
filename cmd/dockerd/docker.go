@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/docker/docker/cli"
-	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/pkg/reexec"
-	"github.com/docker/docker/pkg/term"
+	"github.com/moby/moby/cli"
+	"github.com/moby/moby/daemon/config"
+	"github.com/moby/moby/dockerversion"
+	"github.com/moby/moby/pkg/reexec"
+	"github.com/moby/moby/pkg/term"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )

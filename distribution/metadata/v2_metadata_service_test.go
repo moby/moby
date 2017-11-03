@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/docker/docker/layer"
+	"github.com/moby/moby/layer"
 	"github.com/opencontainers/go-digest"
 )
 

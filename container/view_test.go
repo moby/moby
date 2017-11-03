@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	containertypes "github.com/docker/docker/api/types/container"
+	containertypes "github.com/moby/moby/api/types/container"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
 )

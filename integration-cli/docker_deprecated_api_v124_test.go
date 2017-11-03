@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"github.com/moby/moby/integration-cli/checker"
+	"github.com/moby/moby/integration-cli/request"
 )
 
 func formatV123StartAPIURL(url string) string {

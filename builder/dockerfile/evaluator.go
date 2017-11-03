@@ -24,11 +24,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/dockerfile/instructions"
-	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/runconfig/opts"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/builder"
+	"github.com/moby/moby/builder/dockerfile/instructions"
+	"github.com/moby/moby/pkg/system"
+	"github.com/moby/moby/runconfig/opts"
 	"github.com/pkg/errors"
 )
 

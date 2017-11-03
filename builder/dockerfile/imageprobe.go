@@ -1,8 +1,8 @@
 package dockerfile
 
 import (
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/builder"
+	"github.com/moby/moby/api/types/container"
+	"github.com/moby/moby/builder"
 	"github.com/sirupsen/logrus"
 )
 

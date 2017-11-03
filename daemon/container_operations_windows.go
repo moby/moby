@@ -5,9 +5,9 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

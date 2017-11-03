@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/daemon/logger"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/moby/moby/daemon/logger"
 	"github.com/stretchr/testify/require"
 )
 

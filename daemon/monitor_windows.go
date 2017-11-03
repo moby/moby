@@ -3,8 +3,8 @@ package daemon
 import (
 	"context"
 
-	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/moby/moby/container"
+	"github.com/moby/moby/libcontainerd"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

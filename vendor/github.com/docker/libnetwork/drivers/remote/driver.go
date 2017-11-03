@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+	"github.com/moby/moby/pkg/plugins"
 	"github.com/sirupsen/logrus"
 )
 

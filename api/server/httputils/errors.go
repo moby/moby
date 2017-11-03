@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/api/errdefs"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
 	"github.com/gorilla/mux"
+	"github.com/moby/moby/api/errdefs"
+	"github.com/moby/moby/api/types"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"

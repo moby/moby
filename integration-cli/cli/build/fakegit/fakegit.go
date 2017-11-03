@@ -9,8 +9,8 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
+	"github.com/moby/moby/integration-cli/cli/build/fakecontext"
+	"github.com/moby/moby/integration-cli/cli/build/fakestorage"
 	"github.com/stretchr/testify/require"
 )
 

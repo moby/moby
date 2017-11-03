@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/docker/docker/api/server/httputils"
-	"github.com/docker/docker/pkg/ioutils"
+	"github.com/moby/moby/api/server/httputils"
+	"github.com/moby/moby/pkg/ioutils"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
