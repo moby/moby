@@ -131,10 +131,10 @@ func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func
 	}
 	logrus.Debug("client is session enabled")
 
-	ctx, cancelCtx := context.WithTimeout(ctx, sessionConnectTimeout)
+	connectCtx, cancelCtx := context.WithTimeout(ctx, sessionConnectTimeout)
 	defer cancelCtx()
 
-	c, err := bm.sg.Get(ctx, options.SessionID)
+	c, err := bm.sg.Get(connectCtx, options.SessionID)
 	if err != nil {
 		return nil, err
 	}
