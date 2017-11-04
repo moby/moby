@@ -82,7 +82,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 	}
 
 	buf := bytes.NewBuffer(nil)
-	require.NoError(b, marshalMessage(msg, jsonlogger.(*JSONFileLogger).extra, buf))
+	require.NoError(b, marshalMessage(msg, nil, buf))
 	b.SetBytes(int64(buf.Len()))
 
 	b.ResetTimer()

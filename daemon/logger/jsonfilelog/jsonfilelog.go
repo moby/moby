@@ -7,7 +7,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"io"
 	"strconv"
 	"sync"
 
@@ -24,12 +23,9 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	extra []byte // json-encoded extra attributes
-
-	mu      sync.RWMutex
-	buf     *bytes.Buffer // avoids allocating a new buffer on each call to `Log()`
+	mu      sync.Mutex
 	closed  bool
-	writer  *loggerutils.RotateFileWriter
+	writer  *loggerutils.LogFile
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
 }
 
@@ -65,11 +61,6 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles)
-	if err != nil {
-		return nil, err
-	}
-
 	var extra []byte
 	attrs, err := info.ExtraAttributes(nil)
 	if err != nil {
@@ -83,31 +74,33 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	buf := bytes.NewBuffer(nil)
+	marshalFunc := func(msg *logger.Message) ([]byte, error) {
+		if err := marshalMessage(msg, extra, buf); err != nil {
+			return nil, err
+		}
+		b := buf.Bytes()
+		buf.Reset()
+		return b, nil
+	}
+
+	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, marshalFunc, decodeFunc)
+	if err != nil {
+		return nil, err
+	}
+
 	return &JSONFileLogger{
-		buf:     bytes.NewBuffer(nil),
 		writer:  writer,
 		readers: make(map[*logger.LogWatcher]struct{}),
-		extra:   extra,
 	}, nil
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	l.mu.Lock()
-	err := writeMessageBuf(l.writer, msg, l.extra, l.buf)
-	l.buf.Reset()
+	err := l.writer.WriteLogEntry(msg)
 	l.mu.Unlock()
 	return err
-}
-
-func writeMessageBuf(w io.Writer, m *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
-	if err := marshalMessage(m, extra, buf); err != nil {
-		logger.PutMessage(m)
-		return err
-	}
-	logger.PutMessage(m)
-	_, err := w.Write(buf.Bytes())
-	return errors.Wrap(err, "error writing log entry")
 }
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
