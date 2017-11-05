@@ -34,7 +34,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	fi
 fi
 
-if ! command -v dockerd &> /dev/null; then
+if ! command -v "moby-engine" &> /dev/null; then
 	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before .integration-daemon-start'
 	false
 fi
@@ -82,10 +82,10 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	# "pwd" tricks to make sure $DEST is an absolute path, not a relative one
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
 	(
-		echo "Starting dockerd"
+		echo "Starting moby-engine"
 		[ -n "$TESTDEBUG" ] && set -x
 		exec \
-			dockerd --debug \
+			moby-engine --debug \
 			--host "$DOCKER_HOST" \
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \

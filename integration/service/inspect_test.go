@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/request"
@@ -114,7 +115,7 @@ const defaultSwarmPort = 2477
 
 func newSwarm(t *testing.T) *daemon.Swarm {
 	d := &daemon.Swarm{
-		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
+		Daemon: daemon.New(t, "", autoversion.EngineName, daemon.Config{
 			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 		}),
 		// TODO: better method of finding an unused port

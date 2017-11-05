@@ -21,7 +21,7 @@ func TestParseHost(t *testing.T) {
 		"  ":                       DefaultHost,
 		"fd://":                    "fd://",
 		"fd://something":           "fd://something",
-		"tcp://host:":              fmt.Sprintf("tcp://host:%d", DefaultHTTPPort),
+		"tcp://host:":              fmt.Sprintf("tcp://host:%d", defaultHTTPPort),
 		"tcp://":                   DefaultTCPHost,
 		"tcp://:2375":              fmt.Sprintf("tcp://%s:2375", DefaultHTTPHost),
 		"tcp://:2376":              fmt.Sprintf("tcp://%s:2376", DefaultHTTPHost),

@@ -71,7 +71,7 @@ func (s *DockerSuite) TestInfoFormat(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -90,7 +90,7 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -109,7 +109,7 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	testRequires(c, SameHostDaemon, Network, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
@@ -182,7 +182,7 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.Start(c, "--debug")
@@ -205,7 +205,7 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	registryCIDR := "192.168.1.0/24"
 	registryHost := "insecurehost.com:5000"
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	d := daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	d.Start(c, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)

@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+source "${MAKEDIR}/.binary-setup"
+
 copy_binaries() {
 	local dir="$1"
 	local hash="$2"
@@ -10,14 +12,14 @@ copy_binaries() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		return
 	fi
-	if [ ! -x /usr/local/bin/docker-runc ]; then
+	if [ ! -x /usr/local/bin/${RUNC_BINARY_NAME} ]; then
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim containerd-ctr runc init proxy; do
-		cp -f `which "docker-$file"` "$dir/"
+	for file in ${RUNC_BINARY_NAME} ${CONTAINERD_BINARY_NAME} ${CONTAINERD_CTR_BINARY_NAME} ${CONTAINERD_SHIM_BINARY_NAME} ${PROXY_BINARY_NAME} ${INIT_BINARY_NAME}; do
+		cp -f `which "$file"` "$dir/"
 		if [ "$hash" == "hash" ]; then
-			hash_files "$dir/docker-$file"
+			hash_files "$dir/$file"
 		fi
 	done
 }

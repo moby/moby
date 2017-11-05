@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/remotecontext"
-	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -99,7 +99,7 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
 		V1Image: image.V1Image{
-			DockerVersion: dockerversion.Version,
+			DockerVersion: autoversion.Version,
 			Config:        config,
 			Architecture:  runtime.GOARCH,
 			OS:            os,

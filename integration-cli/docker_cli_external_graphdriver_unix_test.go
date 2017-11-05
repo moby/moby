@@ -52,7 +52,7 @@ type graphEventsCounter struct {
 }
 
 func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 }

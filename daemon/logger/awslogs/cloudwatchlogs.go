@@ -19,9 +19,9 @@ import (
 	"github.com/aws/aws-sdk-go/aws/request"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/cloudwatchlogs"
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/dockerversion"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -264,7 +264,7 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 			currentAgent := r.HTTPRequest.Header.Get(userAgentHeader)
 			r.HTTPRequest.Header.Set(userAgentHeader,
 				fmt.Sprintf("Docker %s (%s) %s",
-					dockerversion.Version, runtime.GOOS, currentAgent))
+					autoversion.Version, runtime.GOOS, currentAgent))
 		},
 	})
 	return client, nil

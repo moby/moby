@@ -29,8 +29,8 @@ const (
 	healthCheckTimeout      = 3 * time.Second
 	shutdownTimeout         = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "docker-containerd"
-	pidFile                 = "docker-containerd.pid"
+	binaryName              = "moby-containerd"
+	pidFile                 = "moby-containerd.pid"
 )
 
 type pluginConfigs struct {
@@ -222,7 +222,7 @@ func (r *remote) startContainerd() error {
 
 	args := []string{"--config", configFile}
 	cmd := exec.Command(binaryName, args...)
-	// redirect containerd logs to docker logs
+	// redirect containerd logs to engine logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	cmd.SysProcAttr = containerdSysProcAttr()

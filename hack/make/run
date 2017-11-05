@@ -3,7 +3,7 @@
 set -e
 rm -rf "$DEST"
 
-if ! command -v dockerd &> /dev/null; then
+if ! command -v moby-engine &> /dev/null; then
 	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before run'
 	false
 fi
@@ -40,5 +40,5 @@ args="--debug \
 	$storage_params \
 	$extra_params"
 
-echo dockerd $args
-exec dockerd $args
+echo moby-engine $args
+exec moby-engine $args

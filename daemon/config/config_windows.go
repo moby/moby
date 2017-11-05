@@ -26,7 +26,7 @@ func (conf *Config) GetRuntime(name string) *types.Runtime {
 	return nil
 }
 
-// GetInitPath returns the configure docker-init path
+// GetInitPath returns the path to the binary used as the init process
 func (conf *Config) GetInitPath() string {
 	return ""
 }

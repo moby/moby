@@ -12,6 +12,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/autoversion"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/authorization"
@@ -23,8 +24,6 @@ var (
 	d       *daemon.Daemon
 	server  *httptest.Server
 )
-
-const dockerdBinary = "dockerd"
 
 func TestMain(m *testing.M) {
 	var err error
@@ -50,7 +49,7 @@ func TestMain(m *testing.M) {
 func setupTest(t *testing.T) func() {
 	environment.ProtectAll(t, testEnv)
 
-	d = daemon.New(t, "", dockerdBinary, daemon.Config{
+	d = daemon.New(t, "", autoversion.EngineName, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 

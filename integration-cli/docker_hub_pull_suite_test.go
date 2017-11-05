@@ -40,7 +40,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+	s.d = daemon.New(c, dockerBinary, engineBinary, daemon.Config{
 		Experimental: testEnv.ExperimentalDaemon(),
 	})
 	s.d.Start(c)

@@ -163,28 +163,32 @@ Function Get-UpstreamCommit() {
 }
 
 # Build a binary (client or daemon)
-Function Execute-Build($type, $additionalBuildTags, $directory) {
-    # Generate the build flags
-    $buildTags = "autogen"
+Function Execute-Build($type, $directory, $binary) {
     if ($Noisy)                     { $verboseParm=" -v" }
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
     if ($NoOpt)                     { $optParm=" -gcflags "+""""+"-N -l"+"""" }
-    if ($additionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
 
     # Do the go build in the appropriate directory
     # Note -linkmode=internal is required to be able to debug on Windows.
     # https://github.com/golang/go/issues/14319#issuecomment-189576638
     Write-Host "INFO: Building $type..."
     Push-Location $root\cmd\$directory; $global:pushed=$True
+
+    $buildDateTime=$(Get-Date).ToUniversalTime()
+    $xversions = "" + `
+        " -X github.com/docker/docker/autoversion.GitCommit=" + $gitCommit + `
+        " -X github.com/docker/docker/autoversion.Version=" + $dockerVersion + `
+        " -X github.com/docker/docker/autoversion.BuildTime='" + $buildDateTime + "'"
+
     $buildCommand = "go build" + `
                     $raceParm + `
                     $verboseParm + `
                     $allParm + `
                     $optParm + `
-                    " -tags """ + $buildTags + """" + `
-                    " -ldflags """ + "-linkmode=internal" + """" + `
-                    " -o $root\bundles\"+$directory+".exe"
+                    " -ldflags """ + "-linkmode=internal $xversions" + """" + `
+                    " -o $root\bundles\"+$binary
+    Write-Host "Command: $buildCommand"
     Invoke-Expression $buildCommand
     if ($LASTEXITCODE -ne 0) { Throw "Failed to compile $type" }
     Pop-Location; $global:pushed=$False
@@ -391,7 +395,7 @@ Try {
         if (-not (Test-Path ".\bundles")) { New-Item ".\bundles" -ItemType Directory | Out-Null }
 
         # Perform the actual build
-        if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
+        if ($Daemon) { Execute-Build "daemon" "engine" "moby-engine.exe" }
         if ($Client) {
             # Get the Docker channel and version from the environment, or use the defaults.
             if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "edge" }

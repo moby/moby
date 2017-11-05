@@ -52,14 +52,6 @@ import (
 )
 
 const (
-	// DefaultShimBinary is the default shim to be used by containerd if none
-	// is specified
-	DefaultShimBinary = "docker-containerd-shim"
-
-	// DefaultRuntimeBinary is the default runtime to be used by
-	// containerd if none is specified
-	DefaultRuntimeBinary = "docker-runc"
-
 	// See https://git.kernel.org/cgit/linux/kernel/git/tip/tip.git/tree/kernel/sched/sched.h?id=8cd9234c64c584432f6992fe944ca9e46ca8ea76#n269
 	linuxMinCPUShares = 2
 	linuxMaxCPUShares = 262144
@@ -74,9 +66,13 @@ const (
 	cgroupFsDriver      = "cgroupfs"
 	cgroupSystemdDriver = "systemd"
 
-	// DefaultRuntimeName is the default runtime to be used by
+	// DefaultRuntimeBinary is the default runtime to be used by
 	// containerd if none is specified
-	DefaultRuntimeName = "docker-runc"
+	DefaultRuntimeBinary = "moby-runc"
+
+	// DefaultShimBinary is the default shim to be used by containerd if none
+	// is specified
+	DefaultShimBinary = "moby-containerd-shim"
 )
 
 type containerGetter interface {
@@ -757,7 +753,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 	if conf.Runtimes == nil {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
-	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeName}
+	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeBinary}
 
 	return nil
 }
