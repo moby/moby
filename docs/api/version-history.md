@@ -21,7 +21,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   `Isolation` field on container spec to set the Isolation technology of the
   containers running the service (`default`, `process`, or `hyperv`). This
   configuration is only used for Windows containers.
-
+* `GET /containers/(name)/logs` now supports an additional query parameter: `until`,
+  which returns log lines that occurred before the specified timestamp.
 
 ## v1.34 API changes
 
@@ -33,7 +34,6 @@ keywords: "API, Docker, rcli, REST, documentation"
   If `Error` is `null`, container removal has succeeded, otherwise
   the test of an error message indicating why container removal has failed
   is available from `Error.Message` field.
-* `GET /containers/(name)/logs` now supports an additional query parameter: `until`, which returns log lines that occurred before the specified timestamp.
 
 ## v1.33 API changes
 
