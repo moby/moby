@@ -135,13 +135,14 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	// including r.TransferEncoding
 	// allow a nil body for backwards compatibility
 
-	version := httputils.VersionFromContext(ctx)
+	//version := httputils.VersionFromContext(ctx)
 	var hostConfig *container.HostConfig
 	// A non-nil json object is at least 7 characters.
 	if r.ContentLength > 7 || r.ContentLength == -1 {
-		if versions.GreaterThanOrEqualTo(version, "1.24") {
-			return bodyOnStartError{}
-		}
+		// we must comment 3 lines to change port with start option
+		//if versions.GreaterThanOrEqualTo(version, "1.24") {
+		//	return bodyOnStartError{}
+		//}
 
 		if err := httputils.CheckForJSON(r); err != nil {
 			return err
@@ -152,6 +153,11 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 			return err
 		}
 		hostConfig = c
+		// to start container without changing ports
+		if len(hostConfig.PortBindings) == 0{
+	        hostConfig = nil
+		}
+
 	}
 
 	if err := httputils.ParseForm(r); err != nil {

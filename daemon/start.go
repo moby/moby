@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/docker/go-connections/nat"
 )
 
 // ContainerStart starts a container.
@@ -21,6 +22,19 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
+	}
+
+	// if hostConfig existed, we would create new portmap
+	if hostConfig != nil {
+		if container.Config.ExposedPorts != nil{
+			for cport := range container.Config.ExposedPorts {
+				delete(container.Config.ExposedPorts, cport)
+			}
+		}
+		container.Config.ExposedPorts = make(map[nat.Port]struct{})
+		for cport := range hostConfig.PortBindings {
+			container.Config.ExposedPorts[cport] = struct{}{}
+		}
 	}
 
 	validateState := func() error {
