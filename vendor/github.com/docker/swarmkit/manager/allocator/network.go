@@ -1284,9 +1284,11 @@ func PredefinedNetworks() []networkallocator.PredefinedNetworkData {
 
 // updateTaskStatus sets TaskStatus and updates timestamp.
 func updateTaskStatus(t *api.Task, newStatus api.TaskState, message string) {
-	t.Status.State = newStatus
-	t.Status.Message = message
-	t.Status.Timestamp = ptypes.MustTimestampProto(time.Now())
+	t.Status = api.TaskStatus{
+		State:     newStatus,
+		Message:   message,
+		Timestamp: ptypes.MustTimestampProto(time.Now()),
+	}
 }
 
 // IsIngressNetwork returns whether the passed network is an ingress network.

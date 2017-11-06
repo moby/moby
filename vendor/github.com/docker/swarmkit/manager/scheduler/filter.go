@@ -169,7 +169,7 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 		}
 	}
 
-	if f.t.Spec.LogDriver != nil {
+	if f.t.Spec.LogDriver != nil && f.t.Spec.LogDriver.Name != "none" {
 		// If there are no log driver types in the list at all, most likely this is
 		// an older daemon that did not report this information. In this case don't filter
 		if typeFound, exists := f.pluginExistsOnNode("Log", f.t.Spec.LogDriver.Name, nodePlugins); !exists && typeFound {
@@ -292,6 +292,14 @@ func (f *PlatformFilter) platformEqual(imgPlatform, nodePlatform api.Platform) b
 	}
 	if nodePlatform.Architecture == "x86_64" {
 		nodePlatform.Architecture = "amd64"
+	}
+
+	// normalize "aarch64" architectures to "arm64"
+	if imgPlatform.Architecture == "aarch64" {
+		imgPlatform.Architecture = "arm64"
+	}
+	if nodePlatform.Architecture == "aarch64" {
+		nodePlatform.Architecture = "arm64"
 	}
 
 	if (imgPlatform.Architecture == "" || imgPlatform.Architecture == nodePlatform.Architecture) && (imgPlatform.OS == "" || imgPlatform.OS == nodePlatform.OS) {

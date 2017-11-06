@@ -6,6 +6,7 @@ import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -215,6 +216,9 @@ message ContainerSpec {
 	// Privileges specifies security configuration/permissions.
 	Privileges privileges = 22;
 
+	// Init declares that a custom init will be running inside the container, if null, use the daemon's configured settings
+	google.protobuf.BoolValue init = 23;
+
 	// TTY declares that a TTY should be attached to the standard streams,
 	// including stdin if it is still open.
 	bool tty = 13 [(gogoproto.customname) = "TTY"];
@@ -293,6 +297,27 @@ message ContainerSpec {
 	// task will exit and a new task will be rescheduled elsewhere. A container
 	// is considered unhealthy after `Retries` number of consecutive failures.
 	HealthConfig healthcheck = 16;
+
+	enum Isolation {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// ISOLATION_DEFAULT uses whatever default value from the container runtime
+		ISOLATION_DEFAULT = 0 [(gogoproto.enumvalue_customname) = "ContainerIsolationDefault"];
+
+		// ISOLATION_PROCESS forces windows container isolation
+		ISOLATION_PROCESS = 1 [(gogoproto.enumvalue_customname) = "ContainerIsolationProcess"];
+
+		// ISOLATION_HYPERV forces Hyper-V isolation
+		ISOLATION_HYPERV = 2 [(gogoproto.enumvalue_customname) = "ContainerIsolationHyperV"];
+	}
+
+	// Isolation defines the isolation level for windows containers (default, process, hyperv).
+	// Runtimes that don't support it ignore that field
+	Isolation isolation = 24;
+
+	// PidsLimit prevents from OS resource damage by applications inside the container 
+	// using fork bomb attack.
+	int64 pidsLimit = 25;
 }
 
 // EndpointSpec defines the properties that can be configured to

@@ -1085,11 +1085,16 @@ type TaskStatus struct {
 	// because the task is prepared, we would put "already prepared" in this
 	// field.
 	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
-	// Err is set if the task is in an error state.
+	// Err is set if the task is in an error state, or is unable to
+	// progress from an earlier state because a precondition is
+	// unsatisfied.
 	//
 	// The following states should report a companion error:
 	//
 	// 	FAILED, REJECTED
+	//
+	// In general, messages that should be surfaced to users belong in the
+	// Err field, and notes on routine state transitions belong in Message.
 	//
 	// TODO(stevvooe) Integrate this field with the error interface.
 	Err string `protobuf:"bytes,4,opt,name=err,proto3" json:"err,omitempty"`

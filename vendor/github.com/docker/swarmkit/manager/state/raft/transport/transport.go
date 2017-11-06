@@ -3,6 +3,7 @@
 package transport
 
 import (
+	"net"
 	"sync"
 	"time"
 
@@ -35,6 +36,7 @@ type Raft interface {
 type Config struct {
 	HeartbeatInterval time.Duration
 	SendTimeout       time.Duration
+	LargeSendTimeout  time.Duration
 	Credentials       credentials.TransportCredentials
 	RaftID            string
 
@@ -346,6 +348,13 @@ func (t *Transport) dial(addr string) (*grpc.ClientConn, error) {
 	if t.config.SendTimeout > 0 {
 		grpcOptions = append(grpcOptions, grpc.WithTimeout(t.config.SendTimeout))
 	}
+
+	// gRPC dialer connects to proxy first. Provide a custom dialer here avoid that.
+	// TODO(anshul) Add an option to configure this.
+	grpcOptions = append(grpcOptions,
+		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout("tcp", addr, timeout)
+		}))
 
 	cc, err := grpc.Dial(addr, grpcOptions...)
 	if err != nil {
