@@ -198,6 +198,23 @@ func (d *Swarm) CheckServiceTasksInState(service string, state swarm.TaskState, 
 	}
 }
 
+// CheckServiceTasksInStateWithError returns the number of tasks with a matching state,
+// and optional message substring.
+func (d *Swarm) CheckServiceTasksInStateWithError(service string, state swarm.TaskState, errorMessage string) func(*check.C) (interface{}, check.CommentInterface) {
+	return func(c *check.C) (interface{}, check.CommentInterface) {
+		tasks := d.GetServiceTasks(c, service)
+		var count int
+		for _, task := range tasks {
+			if task.Status.State == state {
+				if errorMessage == "" || strings.Contains(task.Status.Err, errorMessage) {
+					count++
+				}
+			}
+		}
+		return count, nil
+	}
+}
+
 // CheckServiceRunningTasks returns the number of running tasks for the specified service
 func (d *Swarm) CheckServiceRunningTasks(service string) func(*check.C) (interface{}, check.CommentInterface) {
 	return d.CheckServiceTasksInState(service, swarm.TaskStateRunning, "")

@@ -19,7 +19,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// Make sure task stays pending before plugin is available
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInState("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
 
 	plugin := newVolumePlugin(c, "customvolumedriver")
 	defer plugin.Close()
