@@ -1,12 +1,14 @@
 package parser
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -158,4 +160,15 @@ RUN indented \
 	assert.Contains(t, warnings[0], "RUN something     following     more")
 	assert.Contains(t, warnings[1], "RUN another     thing")
 	assert.Contains(t, warnings[2], "will become errors in a future release")
+}
+
+func TestParseReturnsScannerErrors(t *testing.T) {
+	label := strings.Repeat("a", bufio.MaxScanTokenSize)
+
+	dockerfile := strings.NewReader(fmt.Sprintf(`
+		FROM image
+		LABEL test=%s
+`, label))
+	_, err := Parse(dockerfile)
+	assert.EqualError(t, err, "dockerfile line greater than max allowed size of 65535")
 }
