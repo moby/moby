@@ -1,4 +1,4 @@
-// +build !linux,!windows,!freebsd,!solaris
+// +build !linux,!windows,!freebsd
 
 package osl
 
