@@ -259,6 +259,20 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=bar", "foo=1"},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		err := Validate(tc.config)
@@ -313,6 +327,20 @@ func TestValidateConfiguration(t *testing.T) {
 					ValuesSet: map[string]interface{}{
 						"max-concurrent-uploads": -1,
 					},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=bar", "foo=baz"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=1"},
 				},
 			},
 		},

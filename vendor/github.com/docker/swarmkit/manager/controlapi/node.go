@@ -248,6 +248,29 @@ func (s *Server) UpdateNode(ctx context.Context, request *api.UpdateNodeRequest)
 	}, nil
 }
 
+func removeNodeAttachments(tx store.Tx, nodeID string) error {
+	// orphan the node's attached containers. if we don't do this, the
+	// network these attachments are connected to will never be removeable
+	tasks, err := store.FindTasks(tx, store.ByNodeID(nodeID))
+	if err != nil {
+		return err
+	}
+	for _, task := range tasks {
+		// if the task is an attachment, then we just delete it. the allocator
+		// will do the heavy lifting. basically, GetAttachment will return the
+		// attachment if that's the kind of runtime, or nil if it's not.
+		if task.Spec.GetAttachment() != nil {
+			// don't delete the task. instead, update it to `ORPHANED` so that
+			// the taskreaper will clean it up.
+			task.Status.State = api.TaskStateOrphaned
+			if err := store.UpdateTask(tx, task); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
 // RemoveNode removes a Node referenced by NodeID with the given NodeSpec.
 // - Returns NotFound if the Node is not found.
 // - Returns FailedPrecondition if the Node has manager role (and is part of the memberlist) or is not shut down.
@@ -310,6 +333,10 @@ func (s *Server) RemoveNode(ctx context.Context, request *api.RemoveNodeRequest)
 		expireBlacklistedCerts(cluster)
 
 		if err := store.UpdateCluster(tx, cluster); err != nil {
+			return err
+		}
+
+		if err := removeNodeAttachments(tx, request.NodeID); err != nil {
 			return err
 		}
 
