@@ -6,6 +6,7 @@ package journald
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"unicode"
 
@@ -114,6 +115,11 @@ func (s *journald) Log(msg *logger.Message) error {
 	line := string(msg.Line)
 	source := msg.Source
 	logger.PutMessage(msg)
+
+	// when Tty is enabled on a container "\r" is appended to each line
+	// and is causing journald message to show blob data instead
+	// of the string message.
+	line = strings.Replace(line, "\r", "\\r", -1)
 
 	if source == "stderr" {
 		return journal.Send(line, journal.PriErr, vars)
