@@ -70,8 +70,15 @@ func (daemon *Daemon) containerStop(container *containerpkg.Container, seconds i
 	}
 
 	// 2. Wait for the process to exit on its own
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
-	defer cancel()
+	var (
+		ctx    context.Context = context.Context
+	)
+
+	if seconds >= 0 {
+		cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(context.Background(), time.Duration(seconds)*time.Second)
+		defer cancel
+	}
 
 	if status := <-container.Wait(ctx, containerpkg.WaitConditionNotRunning); status.Err() != nil {
 		logrus.Infof("Container %v failed to exit within %d seconds of signal %d - using the force", container.ID, seconds, stopSignal)
