@@ -2092,10 +2092,7 @@ func (n *network) createLoadBalancerSandbox() error {
 	if err := ep.Join(sb, nil); err != nil {
 		return err
 	}
-	if err := sb.EnableService(); err != nil {
-		return err
-	}
-	return nil
+	return sb.EnableService()
 }
 
 func (n *network) deleteLoadBalancerSandbox() {
