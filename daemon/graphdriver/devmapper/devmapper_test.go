@@ -5,12 +5,15 @@ package devmapper
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"syscall"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -148,5 +151,55 @@ func TestDevmapperLockReleasedDeviceDeletion(t *testing.T) {
 		driver.DeviceSet.Unlock()
 		t.Fatal("Could not acquire devices lock after call to cleanupDeletedDevices()")
 	case <-doneChan:
+	}
+}
+
+// Ensure that mounts aren't leakedriver. It's non-trivial for us to test the full
+// reproducer of #34573 in a unit test, but we can at least make sure that a
+// simple command run in a new namespace doesn't break things horribly.
+func TestDevmapperMountLeaks(t *testing.T) {
+	if !kernel.CheckKernelVersion(3, 18, 0) {
+		t.Skipf("kernel version <3.18.0 and so is missing torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe.")
+	}
+
+	driver := graphtest.GetDriver(t, "devicemapper", "dm.use_deferred_removal=false", "dm.use_deferred_deletion=false").(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
+	defer graphtest.PutDriver(t)
+
+	// We need to create a new (dummy) device.
+	if err := driver.Create("some-layer", "", nil); err != nil {
+		t.Fatalf("setting up some-layer: %v", err)
+	}
+
+	// Mount the device.
+	_, err := driver.Get("some-layer", "")
+	if err != nil {
+		t.Fatalf("mounting some-layer: %v", err)
+	}
+
+	// Create a new subprocess which will inherit our mountpoint, then
+	// intentionally leak it and stick around. We can't do this entirely within
+	// Go because forking and namespaces in Go are really not handled well at
+	// all.
+	cmd := exec.Cmd{
+		Path: "/bin/sh",
+		Args: []string{
+			"/bin/sh", "-c",
+			"mount --make-rprivate / && sleep 1000s",
+		},
+		SysProcAttr: &syscall.SysProcAttr{
+			Unshareflags: syscall.CLONE_NEWNS,
+		},
+	}
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("starting sub-command: %v", err)
+	}
+	defer func() {
+		unix.Kill(cmd.Process.Pid, unix.SIGKILL)
+		cmd.Wait()
+	}()
+
+	// Now try to "drop" the device.
+	if err := driver.Put("some-layer"); err != nil {
+		t.Fatalf("unmounting some-layer: %v", err)
 	}
 }
