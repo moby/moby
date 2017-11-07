@@ -6995,7 +6995,7 @@ paths:
             - `network=<string>` network name or ID
             - `node=<string>` node ID
             - `plugin`=<string> plugin name or ID
-            - `scope`＝<string> local or swarm
+            - `scope`=<string> local or swarm
             - `secret=<string>` secret name or ID
             - `service=<string>` service name or ID
             - `type=<string>` object to filter by, one of `container`, `image`, `volume`, `network`, `daemon`, `plugin`, `node`, `service`, `secret` or `config`
