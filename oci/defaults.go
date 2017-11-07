@@ -119,6 +119,7 @@ func DefaultLinuxSpec() specs.Spec {
 			"/proc/timer_list",
 			"/proc/timer_stats",
 			"/proc/sched_debug",
+			"/sys/firmware",
 			"/proc/scsi",
 		},
 		ReadonlyPaths: []string{
