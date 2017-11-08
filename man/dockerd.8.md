@@ -56,6 +56,7 @@ dockerd - Enable daemon mode
 [**--mtu**[=*0*]]
 [**--max-concurrent-downloads**[=*3*]]
 [**--max-concurrent-uploads**[=*5*]]
+[**--node-generic-resources**[=*[]*]]
 [**-p**|**--pidfile**[=*/var/run/docker.pid*]]
 [**--raw-logs**]
 [**--registry-mirror**[=*[]*]]
@@ -325,6 +326,15 @@ unix://[/path/to/socket] to use.
 
 **--max-concurrent-uploads**=*5*
   Set the max concurrent uploads for each push. Default is `5`.
+
+**--node-generic-resources**=*[]*
+  Advertise user-defined resource. Default is `[]`.
+  Use this if your swarm cluster has some nodes with custom
+  resources (e.g: NVIDIA GPU, SSD, ...) and you need your services to land on
+  nodes advertising these resources.
+  Usage example: `--node-generic-resources "NVIDIA-GPU=UUID1"
+  --node-generic-resources "NVIDIA-GPU=UUID2"`
+
 
 **-p**, **--pidfile**=""
   Path to use for daemon PID file. Default is `/var/run/docker.pid`
