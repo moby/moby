@@ -97,26 +97,23 @@ func newGitRemote(gitURL string, dockerfilePath string) (builder.Source, *parser
 }
 
 func newURLRemote(url string, dockerfilePath string, progressReader func(in io.ReadCloser) io.ReadCloser) (builder.Source, *parser.Result, error) {
-	var dockerfile io.ReadCloser
-	dockerfileFoundErr := errors.New("found-dockerfile")
-	c, err := MakeRemoteContext(url, map[string]func(io.ReadCloser) (io.ReadCloser, error){
-		mimeTypes.TextPlain: func(rc io.ReadCloser) (io.ReadCloser, error) {
-			dockerfile = rc
-			return nil, dockerfileFoundErr
-		},
-		// fallback handler (tar context)
-		"": func(rc io.ReadCloser) (io.ReadCloser, error) {
-			return progressReader(rc), nil
-		},
-	})
-	switch {
-	case err == dockerfileFoundErr:
-		res, err := parser.Parse(dockerfile)
-		return nil, res, err
-	case err != nil:
+	contentType, content, err := downloadRemote(url)
+	if err != nil {
 		return nil, nil, err
 	}
-	return withDockerfileFromContext(c.(modifiableContext), dockerfilePath)
+	defer content.Close()
+
+	switch contentType {
+	case mimeTypes.TextPlain:
+		res, err := parser.Parse(progressReader(content))
+		return nil, res, err
+	default:
+		source, err := FromArchive(progressReader(content))
+		if err != nil {
+			return nil, nil, err
+		}
+		return withDockerfileFromContext(source.(modifiableContext), dockerfilePath)
+	}
 }
 
 func removeDockerfile(c modifiableContext, filesToRemove ...string) error {
