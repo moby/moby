@@ -189,8 +189,9 @@ RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
 
+# Options for hack/validate/gometalinter
+ENV GOMETALINTER_OPTS="--deadline 2m"
+
 # Upload docker source
 COPY . /go/src/github.com/docker/docker
 
-# Options for hack/validate/gometalinter
-ENV GOMETALINTER_OPTS="--deadline 2m"
