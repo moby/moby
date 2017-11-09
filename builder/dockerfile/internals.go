@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/go-connections/nat"
 	lcUser "github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )
@@ -385,14 +386,6 @@ func hashStringSlice(prefix string, slice []string) string {
 
 type runConfigModifier func(*container.Config)
 
-func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
-	copy := *runConfig
-	for _, modifier := range modifiers {
-		modifier(&copy)
-	}
-	return &copy
-}
-
 func withCmd(cmd []string) runConfigModifier {
 	return func(runConfig *container.Config) {
 		runConfig.Cmd = cmd
@@ -436,6 +429,48 @@ func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier
 			runConfig.Entrypoint = entrypoint
 		}
 	}
+}
+
+func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
+	copy := *runConfig
+	copy.Cmd = copyStringSlice(runConfig.Cmd)
+	copy.Env = copyStringSlice(runConfig.Env)
+	copy.Entrypoint = copyStringSlice(runConfig.Entrypoint)
+	copy.OnBuild = copyStringSlice(runConfig.OnBuild)
+	copy.Shell = copyStringSlice(runConfig.Shell)
+
+	if copy.Volumes != nil {
+		copy.Volumes = make(map[string]struct{}, len(runConfig.Volumes))
+		for k, v := range runConfig.Volumes {
+			copy.Volumes[k] = v
+		}
+	}
+
+	if copy.ExposedPorts != nil {
+		copy.ExposedPorts = make(nat.PortSet, len(runConfig.ExposedPorts))
+		for k, v := range runConfig.ExposedPorts {
+			copy.ExposedPorts[k] = v
+		}
+	}
+
+	if copy.Labels != nil {
+		copy.Labels = make(map[string]string, len(runConfig.Labels))
+		for k, v := range runConfig.Labels {
+			copy.Labels[k] = v
+		}
+	}
+
+	for _, modifier := range modifiers {
+		modifier(&copy)
+	}
+	return &copy
+}
+
+func copyStringSlice(orig []string) []string {
+	if orig == nil {
+		return nil
+	}
+	return append([]string{}, orig...)
 }
 
 // getShell is a helper function which gets the right shell for prefixing the

@@ -6,13 +6,16 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/integration/util/request"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -128,4 +131,41 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 			filter.Add("id", strings.TrimSpace(m.Stream[ix+len(intermediateContainerPrefix):]))
 		}
 	}
+}
+
+func TestBuildMultiStageParentConfig(t *testing.T) {
+	dockerfile := `
+		FROM busybox AS stage0
+		ENV WHO=parent
+		WORKDIR /foo
+
+		FROM stage0
+		ENV WHO=sibling1
+		WORKDIR sub1
+
+		FROM stage0
+		WORKDIR sub2
+	`
+	ctx := context.Background()
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{"build1"},
+		})
+	require.NoError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+
+	image, _, err := apiclient.ImageInspectWithRaw(ctx, "build1")
+	require.NoError(t, err)
+
+	assert.Equal(t, "/foo/sub2", image.Config.WorkingDir)
+	assert.Contains(t, image.Config.Env, "WHO=parent")
 }
