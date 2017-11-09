@@ -181,6 +181,13 @@ type Config struct {
 	// be able to increase this to get more content into each gossip packet.
 	PacketBufferSize int
 
+	// reapEntryInterval duration of a deleted entry before being garbage collected
+	reapEntryInterval time.Duration
+
+	// reapNetworkInterval duration of a delted network before being garbage collected
+	// NOTE this MUST always be higher than reapEntryInterval
+	reapNetworkInterval time.Duration
+
 	// StatsPrintPeriod the period to use to print queue stats
 	// Default is 5min
 	StatsPrintPeriod time.Duration
@@ -220,12 +227,18 @@ func DefaultConfig() *Config {
 		PacketBufferSize:  1400,
 		StatsPrintPeriod:  5 * time.Minute,
 		HealthPrintPeriod: 1 * time.Minute,
+		reapEntryInterval: 30 * time.Minute,
 	}
 }
 
 // New creates a new instance of NetworkDB using the Config passed by
 // the caller.
 func New(c *Config) (*NetworkDB, error) {
+	// The garbage collection logic for entries leverage the presence of the network.
+	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
+	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
+	c.reapNetworkInterval = c.reapEntryInterval + 5*reapPeriod
+
 	nDB := &NetworkDB{
 		config:         c,
 		indexes:        make(map[int]*radix.Tree),
@@ -241,7 +254,7 @@ func New(c *Config) (*NetworkDB, error) {
 	nDB.indexes[byTable] = radix.New()
 	nDB.indexes[byNetwork] = radix.New()
 
-	logrus.Debugf("New memberlist node - Node:%v will use memberlist nodeID:%v", c.Hostname, c.NodeID)
+	logrus.Infof("New memberlist node - Node:%v will use memberlist nodeID:%v with config:%+v", c.Hostname, c.NodeID, c)
 	if err := nDB.clusterInit(); err != nil {
 		return nil, err
 	}
@@ -414,7 +427,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 		node:     nDB.config.NodeID,
 		value:    value,
 		deleting: true,
-		reapTime: reapEntryInterval,
+		reapTime: nDB.config.reapEntryInterval,
 	}
 
 	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
@@ -487,7 +500,7 @@ func (nDB *NetworkDB) deleteNodeNetworkEntries(nid, node string) {
 				node:     oldEntry.node,
 				value:    oldEntry.value,
 				deleting: true,
-				reapTime: reapEntryInterval,
+				reapTime: nDB.config.reapEntryInterval,
 			}
 
 			// we arrived at this point in 2 cases:
@@ -635,7 +648,7 @@ func (nDB *NetworkDB) LeaveNetwork(nid string) error {
 
 	logrus.Debugf("%v(%v): leaving network %s", nDB.config.Hostname, nDB.config.NodeID, nid)
 	n.ltime = ltime
-	n.reapTime = reapNetworkInterval
+	n.reapTime = nDB.config.reapNetworkInterval
 	n.leaving = true
 	return nil
 }

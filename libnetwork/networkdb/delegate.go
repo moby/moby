@@ -93,14 +93,14 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 		nDB.nodes[n.Name] = n
 		nDB.Unlock()
 		if !found {
-			logrus.Infof("Node join event for %s/%s", n.Name, n.Addr)
+			logrus.Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
 		return true
 	case NodeEventTypeLeave:
 		nDB.Lock()
 		nDB.leftNodes[n.Name] = n
 		nDB.Unlock()
-		logrus.Infof("Node leave event for %s/%s", n.Name, n.Addr)
+		logrus.Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		return true
 	}
 
@@ -140,7 +140,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		n.ltime = nEvent.LTime
 		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
-			n.reapTime = reapNetworkInterval
+			n.reapTime = nDB.config.reapNetworkInterval
 
 			// The remote node is leaving the network, but not the gossip cluster.
 			// Mark all its entries in deleted state, this will guarantee that
@@ -216,8 +216,9 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// This case can happen if the cluster is running different versions of the engine where the old version does not have the
 	// field. If that is not the case, this can be a BUG
 	if e.deleting && e.reapTime == 0 {
-		logrus.Warnf("handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?", tEvent)
-		e.reapTime = reapEntryInterval
+		logrus.Warnf("%v(%v) handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?",
+			nDB.config.Hostname, nDB.config.NodeID, tEvent)
+		e.reapTime = nDB.config.reapEntryInterval
 	}
 
 	nDB.Lock()
@@ -229,7 +230,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
 		// This also avoids that deletion of entries close to their garbage collection ends up circuling around forever
-		return e.reapTime > reapEntryInterval/6
+		return e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
 	var op opType

@@ -17,15 +17,10 @@ import (
 )
 
 const (
-	// The garbage collection logic for entries leverage the presence of the network.
-	// For this reason the expiration time of the network is put slightly higher than the entry expiration so that
-	// there is at least 5 extra cycle to make sure that all the entries are properly deleted before deleting the network.
-	reapEntryInterval   = 30 * time.Minute
-	reapNetworkInterval = reapEntryInterval + 5*reapPeriod
-	reapPeriod          = 5 * time.Second
-	retryInterval       = 1 * time.Second
-	nodeReapInterval    = 24 * time.Hour
-	nodeReapPeriod      = 2 * time.Hour
+	reapPeriod       = 5 * time.Second
+	retryInterval    = 1 * time.Second
+	nodeReapInterval = 24 * time.Hour
+	nodeReapPeriod   = 2 * time.Hour
 )
 
 type logWriter struct{}
