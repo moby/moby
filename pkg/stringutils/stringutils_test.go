@@ -77,23 +77,6 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestInSlice(t *testing.T) {
-	slice := []string{"t🐳st", "in", "slice"}
-
-	test := InSlice(slice, "t🐳st")
-	if !test {
-		t.Fatalf("Expected string t🐳st to be in slice")
-	}
-	test = InSlice(slice, "SLICE")
-	if !test {
-		t.Fatalf("Expected string SLICE to be in slice")
-	}
-	test = InSlice(slice, "notinslice")
-	if test {
-		t.Fatalf("Expected string notinslice not to be in slice")
-	}
-}
-
 func TestShellQuoteArgumentsEmpty(t *testing.T) {
 	actual := ShellQuoteArguments([]string{})
 	expected := ""

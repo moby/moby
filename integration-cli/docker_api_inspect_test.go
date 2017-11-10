@@ -10,8 +10,8 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
+	"github.com/stretchr/testify/assert"
 )
 
 func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
@@ -115,8 +115,8 @@ func (s *DockerSuite) TestInspectAPIImageResponse(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(imageJSON.RepoTags, checker.HasLen, 2)
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:latest"), checker.Equals, true)
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:mytag"), checker.Equals, true)
+	assert.Contains(c, imageJSON.RepoTags, "busybox:latest")
+	assert.Contains(c, imageJSON.RepoTags, "busybox:mytag")
 }
 
 // #17131, #17139, #17173

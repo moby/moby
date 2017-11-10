@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -403,7 +403,7 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(imageJSON, checker.HasLen, 1)
 	c.Assert(imageJSON[0].RepoDigests, checker.HasLen, 1)
-	c.Assert(stringutils.InSlice(imageJSON[0].RepoDigests, imageReference), checker.Equals, true)
+	assert.Contains(c, imageJSON[0].RepoDigests, imageReference)
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {
