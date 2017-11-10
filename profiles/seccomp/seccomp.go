@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/stringutils"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -30,13 +31,57 @@ func LoadProfile(body string, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
 }
 
 var nativeToSeccomp = map[string]types.Arch{
+	"x86":         types.ArchX86,
 	"amd64":       types.ArchX86_64,
+	"x32":         types.ArchX32,
+	"arm":         types.ArchARM,
 	"arm64":       types.ArchAARCH64,
+	"mips":        types.ArchMIPS,
 	"mips64":      types.ArchMIPS64,
 	"mips64n32":   types.ArchMIPS64N32,
+	"mipsel":      types.ArchMIPSEL,
 	"mipsel64":    types.ArchMIPSEL64,
 	"mipsel64n32": types.ArchMIPSEL64N32,
+	"ppc":         types.ArchPPC,
+	"ppc64":       types.ArchPPC64,
+	"ppc64le":     types.ArchPPC64LE,
+	"s390":        types.ArchS390,
 	"s390x":       types.ArchS390X,
+}
+
+// Returns the architecture C libseccomp was compiled for
+func getSeccompArch() (types.Arch, error) {
+	if n, err := libseccomp.GetNativeArch(); err != nil {
+		return "", fmt.Errorf("libseccomp internal error: %v", err)
+	} else if seccompArch, ok := nativeToSeccomp[n.String()]; !ok {
+		return "", fmt.Errorf("unknown architecture %q returned by libseccomp", n)
+	} else {
+		return seccompArch, nil
+	}
+}
+
+// Converts { "amd64", "s390", "foobar" } into
+// { "SCMP_ARCH_X86_64", "SCMP_ARCH_S390", "foobar" } etc.
+// When no conversion was performed, the input slice itself is returned
+func supportLegacyArchID(arr []string) []string {
+	ret := &arr
+	var allocated []string
+	for i, inp := range arr {
+		if a, ok := nativeToSeccomp[inp]; ok {
+			if ret == &arr {
+				allocated = make([]string, i, len(arr))
+				copy(allocated, arr)
+				ret = &allocated
+			}
+			sa := string(a)
+			logrus.Warnf("seccomp: legacy arch ID %q should be replaced with %q",
+				inp, sa)
+			*ret = append(*ret, sa)
+		} else if ret != &arr {
+			*ret = append(*ret, inp)
+		}
+	}
+	return *ret
 }
 
 func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, error) {
@@ -51,34 +96,32 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	newConfig := &specs.LinuxSeccomp{}
 
-	var arch string
-	var native, err = libseccomp.GetNativeArch()
-	if err == nil {
-		arch = native.String()
+	seccompArch, err := getSeccompArch()
+	if err != nil {
+		return nil, err
 	}
 
-	if len(config.Architectures) != 0 && len(config.ArchMap) != 0 {
-		return nil, errors.New("'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
+	registerArch := func(a types.Arch) {
+		newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
 	}
 
-	// if config.Architectures == 0 then libseccomp will figure out the architecture to use
 	if len(config.Architectures) != 0 {
-		for _, a := range config.Architectures {
-			newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a))
+		if len(config.ArchMap) != 0 {
+			return nil, errors.New("either one (not both) of 'architectures' or 'archMap' must be specified in the seccomp profile")
 		}
-	}
 
-	if len(config.ArchMap) != 0 {
+		for _, a := range config.Architectures {
+			registerArch(a)
+		}
+	} else {
+		// libseccomp will figure out the architecture to use
 		for _, a := range config.ArchMap {
-			seccompArch, ok := nativeToSeccomp[arch]
-			if ok {
-				if a.Arch == seccompArch {
-					newConfig.Architectures = append(newConfig.Architectures, specs.Arch(a.Arch))
-					for _, sa := range a.SubArches {
-						newConfig.Architectures = append(newConfig.Architectures, specs.Arch(sa))
-					}
-					break
+			if a.Arch == seccompArch {
+				registerArch(a.Arch)
+				for _, sa := range a.SubArches {
+					registerArch(sa)
 				}
+				break
 			}
 		}
 	}
@@ -88,8 +131,12 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
+		registerSyscall := func(name string) {
+			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(name, call.Action, call.Args))
+		}
+
 		if len(call.Excludes.Arches) > 0 {
-			if stringutils.InSlice(call.Excludes.Arches, arch) {
+			if stringutils.InSlice(supportLegacyArchID(call.Excludes.Arches), string(seccompArch)) {
 				continue Loop
 			}
 		}
@@ -101,7 +148,7 @@ Loop:
 			}
 		}
 		if len(call.Includes.Arches) > 0 {
-			if !stringutils.InSlice(call.Includes.Arches, arch) {
+			if !stringutils.InSlice(supportLegacyArchID(call.Includes.Arches), string(seccompArch)) {
 				continue Loop
 			}
 		}
@@ -113,17 +160,21 @@ Loop:
 			}
 		}
 
-		if call.Name != "" && len(call.Names) != 0 {
-			return nil, errors.New("'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
-		}
-
 		if call.Name != "" {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Name, call.Action, call.Args))
+			if len(call.Names) == 0 {
+				registerSyscall(call.Name)
+				continue Loop
+			}
+		} else {
+			if len(call.Names) != 0 {
+				for _, n := range call.Names {
+					registerSyscall(n)
+				}
+				continue Loop
+			}
 		}
 
-		for _, n := range call.Names {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(n, call.Action, call.Args))
-		}
+		return nil, fmt.Errorf("either one (not both) of 'name' or 'names' must be specified in the seccomp profile: %v", call)
 	}
 
 	return newConfig, nil

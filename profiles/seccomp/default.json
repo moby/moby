@@ -460,7 +460,7 @@
 			"comment": "",
 			"includes": {
 				"arches": [
-					"ppc64le"
+					"SCMP_ARCH_PPC64LE"
 				]
 			},
 			"excludes": {}
@@ -479,8 +479,8 @@
 			"comment": "",
 			"includes": {
 				"arches": [
-					"arm",
-					"arm64"
+					"SCMP_ARCH_ARM",
+					"SCMP_ARCH_AARCH64"
 				]
 			},
 			"excludes": {}
@@ -494,8 +494,8 @@
 			"comment": "",
 			"includes": {
 				"arches": [
-					"amd64",
-					"x32"
+					"SCMP_ARCH_X86_64",
+					"SCMP_ARCH_X32"
 				]
 			},
 			"excludes": {}
@@ -509,9 +509,9 @@
 			"comment": "",
 			"includes": {
 				"arches": [
-					"amd64",
-					"x32",
-					"x86"
+					"SCMP_ARCH_X86_64",
+					"SCMP_ARCH_X32",
+					"SCMP_ARCH_X86"
 				]
 			},
 			"excludes": {}
@@ -527,8 +527,8 @@
 			"comment": "",
 			"includes": {
 				"arches": [
-					"s390",
-					"s390x"
+					"SCMP_ARCH_S390",
+					"SCMP_ARCH_S390X"
 				]
 			},
 			"excludes": {}
@@ -594,8 +594,8 @@
 					"CAP_SYS_ADMIN"
 				],
 				"arches": [
-					"s390",
-					"s390x"
+					"SCMP_ARCH_S390",
+					"SCMP_ARCH_S390X"
 				]
 			}
 		},
@@ -615,8 +615,8 @@
 			"comment": "s390 parameter ordering for clone is different",
 			"includes": {
 				"arches": [
-					"s390",
-					"s390x"
+					"SCMP_ARCH_S390",
+					"SCMP_ARCH_S390X"
 				]
 			},
 			"excludes": {

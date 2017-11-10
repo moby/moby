@@ -1487,7 +1487,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
 	c.Assert(err, check.NotNil)
-	c.Assert(out, checker.Contains, "'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
+	c.Assert(out, checker.Contains, "either one (not both) of 'name' or 'names' must be specified in the seccomp profile: ")
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
@@ -1524,7 +1524,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
 	c.Assert(err, check.NotNil)
-	c.Assert(out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
+	c.Assert(out, checker.Contains, "either one (not both) of 'architectures' or 'archMap' must be specified in the seccomp profile")
 }
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
