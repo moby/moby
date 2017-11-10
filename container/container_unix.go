@@ -157,7 +157,18 @@ func (container *Container) ShmResourcePath() (string, error) {
 // HasMountFor checks if path is a mountpoint
 func (container *Container) HasMountFor(path string) bool {
 	_, exists := container.MountPoints[path]
-	return exists
+	if exists {
+		return true
+	}
+
+	// Also search among the tmpfs mounts
+	for dest := range container.HostConfig.Tmpfs {
+		if dest == path {
+			return true
+		}
+	}
+
+	return false
 }
 
 // UnmountIpcMount uses the provided unmount function to unmount shm if it was mounted
