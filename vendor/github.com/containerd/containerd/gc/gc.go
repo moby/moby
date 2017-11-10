@@ -10,7 +10,7 @@ import (
 	"sync"
 )
 
-// Resourcetype represents type of resource at a node
+// ResourceType represents type of resource at a node
 type ResourceType uint8
 
 // Node presents a resource which has a type and key,
@@ -145,10 +145,10 @@ func ConcurrentMark(ctx context.Context, root <-chan Node, refs func(context.Con
 
 // Sweep removes all nodes returned through the channel which are not in
 // the reachable set by calling the provided remove function.
-func Sweep(reachable map[Node]struct{}, all <-chan Node, remove func(Node) error) error {
+func Sweep(reachable map[Node]struct{}, all []Node, remove func(Node) error) error {
 	// All black objects are now reachable, and all white objects are
 	// unreachable. Free those that are white!
-	for node := range all {
+	for _, node := range all {
 		if _, ok := reachable[node]; !ok {
 			if err := remove(node); err != nil {
 				return err

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -27,6 +28,19 @@ var (
 	}
 )
 
+// LabelStore is used to store mutable labels for digests
+type LabelStore interface {
+	// Get returns all the labels for the given digest
+	Get(digest.Digest) (map[string]string, error)
+
+	// Set sets all the labels for a given digest
+	Set(digest.Digest, map[string]string) error
+
+	// Update replaces the given labels for a digest,
+	// a key with an empty value removes a label.
+	Update(digest.Digest, map[string]string) (map[string]string, error)
+}
+
 // Store is digest-keyed store for content. All data written into the store is
 // stored under a verifiable digest.
 //
@@ -34,16 +48,27 @@ var (
 // including resumable ingest.
 type store struct {
 	root string
+	ls   LabelStore
 }
 
 // NewStore returns a local content store
 func NewStore(root string) (content.Store, error) {
+	return NewLabeledStore(root, nil)
+}
+
+// NewLabeledStore returns a new content store using the provided label store
+//
+// Note: content stores which are used underneath a metadata store may not
+// require labels and should use `NewStore`. `NewLabeledStore` is primarily
+// useful for tests or standalone implementations.
+func NewLabeledStore(root string, ls LabelStore) (content.Store, error) {
 	if err := os.MkdirAll(filepath.Join(root, "ingest"), 0777); err != nil && !os.IsExist(err) {
 		return nil, err
 	}
 
 	return &store{
 		root: root,
+		ls:   ls,
 	}, nil
 }
 
@@ -57,16 +82,23 @@ func (s *store) Info(ctx context.Context, dgst digest.Digest) (content.Info, err
 
 		return content.Info{}, err
 	}
-
-	return s.info(dgst, fi), nil
+	var labels map[string]string
+	if s.ls != nil {
+		labels, err = s.ls.Get(dgst)
+		if err != nil {
+			return content.Info{}, err
+		}
+	}
+	return s.info(dgst, fi, labels), nil
 }
 
-func (s *store) info(dgst digest.Digest, fi os.FileInfo) content.Info {
+func (s *store) info(dgst digest.Digest, fi os.FileInfo, labels map[string]string) content.Info {
 	return content.Info{
 		Digest:    dgst,
 		Size:      fi.Size(),
 		CreatedAt: fi.ModTime(),
-		UpdatedAt: fi.ModTime(),
+		UpdatedAt: getATime(fi),
+		Labels:    labels,
 	}
 }
 
@@ -111,8 +143,66 @@ func (s *store) Delete(ctx context.Context, dgst digest.Digest) error {
 }
 
 func (s *store) Update(ctx context.Context, info content.Info, fieldpaths ...string) (content.Info, error) {
-	// TODO: Support persisting and updating mutable content data
-	return content.Info{}, errors.Wrapf(errdefs.ErrFailedPrecondition, "update not supported on immutable content store")
+	if s.ls == nil {
+		return content.Info{}, errors.Wrapf(errdefs.ErrFailedPrecondition, "update not supported on immutable content store")
+	}
+
+	p := s.blobPath(info.Digest)
+	fi, err := os.Stat(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = errors.Wrapf(errdefs.ErrNotFound, "content %v", info.Digest)
+		}
+
+		return content.Info{}, err
+	}
+
+	var (
+		all    bool
+		labels map[string]string
+	)
+	if len(fieldpaths) > 0 {
+		for _, path := range fieldpaths {
+			if strings.HasPrefix(path, "labels.") {
+				if labels == nil {
+					labels = map[string]string{}
+				}
+
+				key := strings.TrimPrefix(path, "labels.")
+				labels[key] = info.Labels[key]
+				continue
+			}
+
+			switch path {
+			case "labels":
+				all = true
+				labels = info.Labels
+			default:
+				return content.Info{}, errors.Wrapf(errdefs.ErrInvalidArgument, "cannot update %q field on content info %q", path, info.Digest)
+			}
+		}
+	} else {
+		all = true
+		labels = info.Labels
+	}
+
+	if all {
+		err = s.ls.Set(info.Digest, labels)
+	} else {
+		labels, err = s.ls.Update(info.Digest, labels)
+	}
+	if err != nil {
+		return content.Info{}, err
+	}
+
+	info = s.info(info.Digest, fi, labels)
+	info.UpdatedAt = time.Now()
+
+	if err := os.Chtimes(p, info.UpdatedAt, info.CreatedAt); err != nil {
+		log.G(ctx).WithError(err).Warnf("could not change access time for %s", info.Digest)
+	}
+
+	return info, nil
 }
 
 func (s *store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string) error {
@@ -154,7 +244,14 @@ func (s *store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string
 			// store or extra paths not expected previously.
 		}
 
-		return fn(s.info(dgst, fi))
+		var labels map[string]string
+		if s.ls != nil {
+			labels, err = s.ls.Get(dgst)
+			if err != nil {
+				return err
+			}
+		}
+		return fn(s.info(dgst, fi, labels))
 	})
 }
 

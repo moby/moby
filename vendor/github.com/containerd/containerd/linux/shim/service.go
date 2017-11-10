@@ -32,6 +32,16 @@ var empty = &google_protobuf.Empty{}
 // RuncRoot is the path to the root runc state directory
 const RuncRoot = "/run/containerd/runc"
 
+// Config contains shim specific configuration
+type Config struct {
+	Path          string
+	Namespace     string
+	WorkDir       string
+	Criu          string
+	RuntimeRoot   string
+	SystemdCgroup bool
+}
+
 // NewService returns a new shim service that can be used via GRPC
 func NewService(config Config, publisher events.Publisher) (*Service, error) {
 	if config.Namespace == "" {

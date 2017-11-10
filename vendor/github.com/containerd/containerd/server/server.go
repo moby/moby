@@ -16,13 +16,14 @@ import (
 	eventsapi "github.com/containerd/containerd/api/services/events/v1"
 	images "github.com/containerd/containerd/api/services/images/v1"
 	introspection "github.com/containerd/containerd/api/services/introspection/v1"
+	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	namespaces "github.com/containerd/containerd/api/services/namespaces/v1"
 	snapshotapi "github.com/containerd/containerd/api/services/snapshot/v1"
 	tasks "github.com/containerd/containerd/api/services/tasks/v1"
 	version "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
-	"github.com/containerd/containerd/events"
+	"github.com/containerd/containerd/events/exchange"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/plugin"
@@ -65,7 +66,7 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 		services []plugin.Service
 		s        = &Server{
 			rpc:    rpc,
-			events: events.NewExchange(),
+			events: exchange.NewExchange(),
 		}
 		initialized = plugin.NewPluginSet()
 	)
@@ -122,7 +123,7 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 // Server is the containerd main daemon
 type Server struct {
 	rpc    *grpc.Server
-	events *events.Exchange
+	events *exchange.Exchange
 }
 
 // ServeGRPC provides the containerd grpc APIs on the provided listener
@@ -255,6 +256,8 @@ func interceptor(
 		ctx = log.WithModule(ctx, "events")
 	case introspection.IntrospectionServer:
 		ctx = log.WithModule(ctx, "introspection")
+	case leasesapi.LeasesServer:
+		ctx = log.WithModule(ctx, "leases")
 	default:
 		log.G(ctx).Warnf("unknown GRPC server type: %#v\n", info.Server)
 	}

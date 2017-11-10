@@ -15,6 +15,7 @@ type remoteStore struct {
 	client contentapi.ContentClient
 }
 
+// NewStoreFromClient returns a new content store
 func NewStoreFromClient(client contentapi.ContentClient) content.Store {
 	return &remoteStore{
 		client: client,

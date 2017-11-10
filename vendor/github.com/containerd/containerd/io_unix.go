@@ -16,7 +16,7 @@ import (
 
 // NewFifos returns a new set of fifos for the task
 func NewFifos(id string) (*FIFOSet, error) {
-	root := filepath.Join(os.TempDir(), "containerd")
+	root := "/run/containerd/fifo"
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}

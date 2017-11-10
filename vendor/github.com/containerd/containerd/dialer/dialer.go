@@ -1,4 +1,4 @@
-package containerd
+package dialer
 
 import (
 	"net"

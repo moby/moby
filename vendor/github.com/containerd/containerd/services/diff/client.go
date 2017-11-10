@@ -9,7 +9,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-// NewApplierFromClient returns a new Applier which communicates
+// NewDiffServiceFromClient returns a new diff service which communicates
 // over a GRPC connection.
 func NewDiffServiceFromClient(client diffapi.DiffClient) diff.Differ {
 	return &remote{

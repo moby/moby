@@ -9,21 +9,26 @@ import (
 )
 
 var (
-	ErrTaskNotExists     = errors.New("task does not exist")
+	// ErrTaskNotExists is returned when a task does not exist
+	ErrTaskNotExists = errors.New("task does not exist")
+	// ErrTaskAlreadyExists is returned when a task already exists
 	ErrTaskAlreadyExists = errors.New("task already exists")
 )
 
+// NewTaskList returns a new TaskList
 func NewTaskList() *TaskList {
 	return &TaskList{
 		tasks: make(map[string]map[string]Task),
 	}
 }
 
+// TaskList holds and provides locking around tasks
 type TaskList struct {
 	mu    sync.Mutex
 	tasks map[string]map[string]Task
 }
 
+// Get a task
 func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -42,6 +47,7 @@ func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 	return t, nil
 }
 
+// GetAll tasks under a namespace
 func (l *TaskList) GetAll(ctx context.Context) ([]Task, error) {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
@@ -58,6 +64,7 @@ func (l *TaskList) GetAll(ctx context.Context) ([]Task, error) {
 	return o, nil
 }
 
+// Add a task
 func (l *TaskList) Add(ctx context.Context, t Task) error {
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
@@ -66,6 +73,7 @@ func (l *TaskList) Add(ctx context.Context, t Task) error {
 	return l.AddWithNamespace(namespace, t)
 }
 
+// AddWithNamespace adds a task with the provided namespace
 func (l *TaskList) AddWithNamespace(namespace string, t Task) error {
 	l.mu.Lock()
 	defer l.mu.Unlock()
@@ -81,6 +89,7 @@ func (l *TaskList) AddWithNamespace(namespace string, t Task) error {
 	return nil
 }
 
+// Delete a task
 func (l *TaskList) Delete(ctx context.Context, t Task) {
 	l.mu.Lock()
 	defer l.mu.Unlock()

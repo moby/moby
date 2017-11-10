@@ -1,4 +1,4 @@
-package containerd
+package dialer
 
 import (
 	"net"
@@ -24,6 +24,7 @@ func dialer(address string, timeout time.Duration) (net.Conn, error) {
 	return winio.DialPipe(address, &timeout)
 }
 
+// DialAddress returns the dial address
 func DialAddress(address string) string {
 	return address
 }

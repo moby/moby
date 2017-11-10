@@ -326,6 +326,10 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 			return err
 		}
 
+		if err := addSnapshotLease(ctx, tx, s.name, key); err != nil {
+			return err
+		}
+
 		// TODO: Consider doing this outside of transaction to lessen
 		// metadata lock time
 		if readonly {

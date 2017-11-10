@@ -34,24 +34,25 @@ func init() {
 	})
 }
 
-type Service struct {
+type service struct {
 	db        *metadata.DB
 	publisher events.Publisher
 }
 
+// NewService returns the GRPC image server
 func NewService(db *metadata.DB, publisher events.Publisher) imagesapi.ImagesServer {
-	return &Service{
+	return &service{
 		db:        db,
 		publisher: publisher,
 	}
 }
 
-func (s *Service) Register(server *grpc.Server) error {
+func (s *service) Register(server *grpc.Server) error {
 	imagesapi.RegisterImagesServer(server, s)
 	return nil
 }
 
-func (s *Service) Get(ctx context.Context, req *imagesapi.GetImageRequest) (*imagesapi.GetImageResponse, error) {
+func (s *service) Get(ctx context.Context, req *imagesapi.GetImageRequest) (*imagesapi.GetImageResponse, error) {
 	var resp imagesapi.GetImageResponse
 
 	return &resp, errdefs.ToGRPC(s.withStoreView(ctx, func(ctx context.Context, store images.Store) error {
@@ -65,7 +66,7 @@ func (s *Service) Get(ctx context.Context, req *imagesapi.GetImageRequest) (*ima
 	}))
 }
 
-func (s *Service) List(ctx context.Context, req *imagesapi.ListImagesRequest) (*imagesapi.ListImagesResponse, error) {
+func (s *service) List(ctx context.Context, req *imagesapi.ListImagesRequest) (*imagesapi.ListImagesResponse, error) {
 	var resp imagesapi.ListImagesResponse
 
 	return &resp, errdefs.ToGRPC(s.withStoreView(ctx, func(ctx context.Context, store images.Store) error {
@@ -79,7 +80,7 @@ func (s *Service) List(ctx context.Context, req *imagesapi.ListImagesRequest) (*
 	}))
 }
 
-func (s *Service) Create(ctx context.Context, req *imagesapi.CreateImageRequest) (*imagesapi.CreateImageResponse, error) {
+func (s *service) Create(ctx context.Context, req *imagesapi.CreateImageRequest) (*imagesapi.CreateImageResponse, error) {
 	if req.Image.Name == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Image.Name required")
 	}
@@ -111,7 +112,7 @@ func (s *Service) Create(ctx context.Context, req *imagesapi.CreateImageRequest)
 
 }
 
-func (s *Service) Update(ctx context.Context, req *imagesapi.UpdateImageRequest) (*imagesapi.UpdateImageResponse, error) {
+func (s *service) Update(ctx context.Context, req *imagesapi.UpdateImageRequest) (*imagesapi.UpdateImageResponse, error) {
 	if req.Image.Name == "" {
 		return nil, status.Errorf(codes.InvalidArgument, "Image.Name required")
 	}
@@ -149,7 +150,7 @@ func (s *Service) Update(ctx context.Context, req *imagesapi.UpdateImageRequest)
 	return &resp, nil
 }
 
-func (s *Service) Delete(ctx context.Context, req *imagesapi.DeleteImageRequest) (*empty.Empty, error) {
+func (s *service) Delete(ctx context.Context, req *imagesapi.DeleteImageRequest) (*empty.Empty, error) {
 	if err := s.withStoreUpdate(ctx, func(ctx context.Context, store images.Store) error {
 		return errdefs.ToGRPC(store.Delete(ctx, req.Name))
 	}); err != nil {
@@ -169,14 +170,14 @@ func (s *Service) Delete(ctx context.Context, req *imagesapi.DeleteImageRequest)
 	return &empty.Empty{}, nil
 }
 
-func (s *Service) withStore(ctx context.Context, fn func(ctx context.Context, store images.Store) error) func(tx *bolt.Tx) error {
+func (s *service) withStore(ctx context.Context, fn func(ctx context.Context, store images.Store) error) func(tx *bolt.Tx) error {
 	return func(tx *bolt.Tx) error { return fn(ctx, metadata.NewImageStore(tx)) }
 }
 
-func (s *Service) withStoreView(ctx context.Context, fn func(ctx context.Context, store images.Store) error) error {
+func (s *service) withStoreView(ctx context.Context, fn func(ctx context.Context, store images.Store) error) error {
 	return s.db.View(s.withStore(ctx, fn))
 }
 
-func (s *Service) withStoreUpdate(ctx context.Context, fn func(ctx context.Context, store images.Store) error) error {
+func (s *service) withStoreUpdate(ctx context.Context, fn func(ctx context.Context, store images.Store) error) error {
 	return s.db.Update(s.withStore(ctx, fn))
 }

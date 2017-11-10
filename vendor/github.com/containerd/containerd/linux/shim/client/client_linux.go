@@ -1,6 +1,6 @@
 // +build linux
 
-package shim
+package client
 
 import (
 	"os/exec"

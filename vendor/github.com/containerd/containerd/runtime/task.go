@@ -7,6 +7,7 @@ import (
 	"github.com/gogo/protobuf/types"
 )
 
+// TaskInfo provides task specific information
 type TaskInfo struct {
 	ID        string
 	Runtime   string
@@ -14,6 +15,7 @@ type TaskInfo struct {
 	Namespace string
 }
 
+// Process is a runtime object for an executing process inside a container
 type Process interface {
 	ID() string
 	// State returns the process state
@@ -30,6 +32,7 @@ type Process interface {
 	Wait(context.Context) (*Exit, error)
 }
 
+// Task is the runtime object for an executing container
 type Task interface {
 	Process
 
@@ -55,27 +58,37 @@ type Task interface {
 	Metrics(context.Context) (interface{}, error)
 }
 
+// ExecOpts provides additional options for additional processes running in a task
 type ExecOpts struct {
 	Spec *types.Any
 	IO   IO
 }
 
+// ConsoleSize of a pty or windows terminal
 type ConsoleSize struct {
 	Width  uint32
 	Height uint32
 }
 
+// Status is the runtime status of a task and/or process
 type Status int
 
 const (
+	// CreatedStatus when a process has been created
 	CreatedStatus Status = iota + 1
+	// RunningStatus when a process is running
 	RunningStatus
+	// StoppedStatus when a process has stopped
 	StoppedStatus
+	// DeletedStatus when a process has been deleted
 	DeletedStatus
+	// PausedStatus when a process is paused
 	PausedStatus
+	// PausingStatus when a process is currently pausing
 	PausingStatus
 )
 
+// State information for a process
 type State struct {
 	// Status is the current status of the container
 	Status Status
@@ -93,6 +106,7 @@ type State struct {
 	Terminal bool
 }
 
+// ProcessInfo holds platform specific process information
 type ProcessInfo struct {
 	// Pid is the process ID
 	Pid uint32

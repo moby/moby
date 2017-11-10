@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/cgroups"
 	"github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
-	client "github.com/containerd/containerd/linux/shim"
+	"github.com/containerd/containerd/linux/shim/client"
 	shim "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/runtime"
 	"github.com/gogo/protobuf/types"

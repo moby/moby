@@ -20,6 +20,9 @@ const (
 	KindCommitted
 )
 
+// ParseKind parses the provided string into a Kind
+//
+// If the string cannot be parsed KindUnknown is returned
 func ParseKind(s string) Kind {
 	s = strings.ToLower(s)
 	switch s {
@@ -34,6 +37,7 @@ func ParseKind(s string) Kind {
 	return KindUnknown
 }
 
+// String returns the string representation of the Kind
 func (k Kind) String() string {
 	switch k {
 	case KindView:
@@ -47,10 +51,12 @@ func (k Kind) String() string {
 	return "Unknown"
 }
 
+// MarshalJSON the Kind to JSON
 func (k Kind) MarshalJSON() ([]byte, error) {
 	return json.Marshal(k.String())
 }
 
+// UnmarshalJSON the Kind from JSON
 func (k *Kind) UnmarshalJSON(b []byte) error {
 	var s string
 	if err := json.Unmarshal(b, &s); err != nil {
@@ -81,6 +87,7 @@ type Usage struct {
 	Size   int64 // provides usage, in bytes, of snapshot
 }
 
+// Add the provided usage to the current usage
 func (u *Usage) Add(other Usage) {
 	u.Size += other.Size
 

@@ -44,6 +44,6 @@ func (ra *remoteReaderAt) ReadAt(p []byte, off int64) (n int, err error) {
 	return n, nil
 }
 
-func (rr *remoteReaderAt) Close() error {
+func (ra *remoteReaderAt) Close() error {
 	return nil
 }
