@@ -41,17 +41,6 @@ func Truncate(s string, maxlen int) string {
 	return string(r[:maxlen])
 }
 
-// InSlice tests whether a string is contained in a slice of strings or not.
-// Comparison is case insensitive
-func InSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if strings.ToLower(s) == strings.ToLower(ss) {
-			return true
-		}
-	}
-	return false
-}
-
 func quote(word string, buf *bytes.Buffer) {
 	// Bail out early for "simple" strings
 	if word != "" && !strings.ContainsAny(word, "\\'\"`${[|&;<>()~*?! \t\n") {
