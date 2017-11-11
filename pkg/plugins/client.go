@@ -132,8 +132,13 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 	var retries int
 	start := time.Now()
 
+	reqBody, err := ioutil.ReadAll(data)
+	if err != nil {
+		return nil, err
+	}
+
 	for {
-		req, err := c.requestFactory.NewRequest(serviceMethod, data)
+		req, err := c.requestFactory.NewRequest(serviceMethod, bytes.NewReader(reqBody))
 		if err != nil {
 			return nil, err
 		}

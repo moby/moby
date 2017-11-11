@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -45,16 +46,27 @@ func TestFailOnce(t *testing.T) {
 	addr := setupRemotePluginServer()
 	defer teardownRemotePluginServer()
 
+	msg := "test-body-content"
 	failed := false
 	mux.HandleFunc("/Test.FailOnce", func(w http.ResponseWriter, r *http.Request) {
+		// Make sure to read the full request body before crashing.
+		body, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+
 		if !failed {
 			failed = true
 			panic("Plugin not ready")
 		}
+
+		if msg != string(body) {
+			t.Fatalf("Request body: expected \"%s\", got \"%s\"\n", msg, string(body))
+		}
 	})
 
 	c, _ := NewClient(addr, &tlsconfig.Options{InsecureSkipVerify: true})
-	b := strings.NewReader("body")
+	b := strings.NewReader(msg)
 	_, err := c.callWithRetry("Test.FailOnce", b, true)
 	if err != nil {
 		t.Fatal(err)
