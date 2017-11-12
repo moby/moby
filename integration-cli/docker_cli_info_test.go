@@ -233,17 +233,6 @@ func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
 	c.Assert(out, checker.Contains, fmt.Sprintf(" %s", registryMirror2))
 }
 
-// Test case for #24392
-func (s *DockerDaemonSuite) TestInfoLabels(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
-
-	s.d.Start(c, "--label", `test.empty=`, "--label", `test.empty=`, "--label", `test.label="1"`, "--label", `test.label="2"`)
-
-	out, err := s.d.Cmd("info")
-	c.Assert(err, checker.IsNil)
-	c.Assert(out, checker.Contains, "WARNING: labels with duplicate keys and conflicting values have been deprecated")
-}
-
 func existingContainerStates(c *check.C) map[string]int {
 	out, _ := dockerCmd(c, "info", "--format", "{{json .}}")
 	var m map[string]interface{}

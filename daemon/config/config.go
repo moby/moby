@@ -258,22 +258,12 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 		return fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
-	// Labels of the docker engine used to allow multiple values associated with the same key.
-	// This is deprecated in 1.13, and, be removed after 3 release cycles.
-	// The following will check the conflict of labels, and report a warning for deprecation.
-	//
-	// TODO: After 3 release cycles (17.12) an error will be returned, and labels will be
-	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
-	//
-	// newLabels, err := GetConflictFreeLabels(newConfig.Labels)
-	// if err != nil {
-	//      return err
-	// }
-	// newConfig.Labels = newLabels
-	//
-	if _, err := GetConflictFreeLabels(newConfig.Labels); err != nil {
-		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
+	// Check if duplicate label-keys with different values are found
+	newLabels, err := GetConflictFreeLabels(newConfig.Labels)
+	if err != nil {
+		return err
 	}
+	newConfig.Labels = newLabels
 
 	reload(newConfig)
 	return nil
