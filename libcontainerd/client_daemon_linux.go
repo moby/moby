@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 func summaryFromInterface(i interface{}) (*Summary, error) {
@@ -93,4 +94,14 @@ func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTermina
 	}
 
 	return fifos
+}
+
+func rmFIFOSet(fset *containerd.FIFOSet) {
+	for _, fn := range []string{fset.Out, fset.In, fset.Err} {
+		if fn != "" {
+			if err := os.RemoveAll(fn); err != nil {
+				logrus.Warnf("libcontainerd: failed to remove fifo %v: %v", fn, err)
+			}
+		}
+	}
 }

@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -196,6 +198,45 @@ func (s *DockerSuite) TestExecAPIStartInvalidCommand(c *check.C) {
 	inspectContainer(c, name, &inspectJSON)
 
 	c.Assert(inspectJSON.ExecIDs, checker.IsNil)
+}
+
+func (s *DockerSuite) TestExecStateCleanup(c *check.C) {
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
+
+	// This test checks accidental regressions. Not part of stable API.
+
+	name := "exec_cleanup"
+	cid, _ := dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
+	cid = strings.TrimSpace(cid)
+
+	stateDir := "/var/run/docker/containerd/" + cid
+
+	checkReadDir := func(c *check.C) (interface{}, check.CommentInterface) {
+		fi, err := ioutil.ReadDir(stateDir)
+		c.Assert(err, checker.IsNil)
+		return len(fi), nil
+	}
+
+	fi, err := ioutil.ReadDir(stateDir)
+	c.Assert(err, checker.IsNil)
+	c.Assert(len(fi), checker.GreaterThan, 1)
+
+	id := createExecCmd(c, name, "ls")
+	startExec(c, id, http.StatusOK)
+	waitForExec(c, id)
+
+	waitAndAssert(c, 5*time.Second, checkReadDir, checker.Equals, len(fi))
+
+	id = createExecCmd(c, name, "invalid")
+	startExec(c, id, http.StatusBadRequest)
+	waitForExec(c, id)
+
+	waitAndAssert(c, 5*time.Second, checkReadDir, checker.Equals, len(fi))
+
+	dockerCmd(c, "stop", name)
+	_, err = os.Stat(stateDir)
+	c.Assert(err, checker.NotNil)
+	c.Assert(os.IsNotExist(err), checker.True)
 }
 
 func createExec(c *check.C, name string) string {
