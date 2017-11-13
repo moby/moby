@@ -1,7 +1,6 @@
 package registry
 
 import (
-	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
@@ -20,51 +19,6 @@ const (
 	// AuthClientID is used the ClientID used for the token server
 	AuthClientID = "docker"
 )
-
-// loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
-	registryEndpoint := apiEndpoint.ToV1Endpoint(userAgent, nil)
-	serverAddress := registryEndpoint.String()
-
-	logrus.Debugf("attempting v1 login to registry endpoint %s", serverAddress)
-
-	if serverAddress == "" {
-		return "", "", systemError{errors.New("server Error: Server Address not set")}
-	}
-
-	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
-	if err != nil {
-		return "", "", err
-	}
-	req.SetBasicAuth(authConfig.Username, authConfig.Password)
-	resp, err := registryEndpoint.client.Do(req)
-	if err != nil {
-		// fallback when request could not be completed
-		return "", "", fallbackError{
-			err: err,
-		}
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return "", "", systemError{err}
-	}
-
-	switch resp.StatusCode {
-	case http.StatusOK:
-		return "Login Succeeded", "", nil
-	case http.StatusUnauthorized:
-		return "", "", unauthorizedError{errors.New("Wrong login/password, please try again")}
-	case http.StatusForbidden:
-		// *TODO: Use registry configuration to determine what this says, if anything?
-		return "", "", notActivatedError{errors.Errorf("Login: Account is not active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)}
-	case http.StatusInternalServerError:
-		logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
-		return "", "", systemError{errors.New("Internal Server Error")}
-	}
-	return "", "", systemError{errors.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-		resp.StatusCode, resp.Header)}
-}
 
 type loginCredentialStore struct {
 	authConfig *types.AuthConfig

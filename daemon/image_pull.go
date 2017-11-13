@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"golang.org/x/net/context"
 )
@@ -113,10 +112,6 @@ func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.Named, au
 	)
 
 	for _, endpoint := range endpoints {
-		if endpoint.Version == registry.APIVersion1 {
-			continue
-		}
-
 		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
 		if lastError == nil && confirmedV2 {
 			break

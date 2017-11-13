@@ -126,12 +126,7 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 
 	for _, endpoint := range endpoints {
-		login := loginV2
-		if endpoint.Version == APIVersion1 {
-			login = loginV1
-		}
-
-		status, token, err = login(authConfig, endpoint, userAgent)
+		status, token, err = loginV2(authConfig, endpoint, userAgent)
 		if err == nil {
 			return
 		}
@@ -258,11 +253,6 @@ type APIEndpoint struct {
 	TLSConfig                      *tls.Config
 }
 
-// ToV1Endpoint returns a V1 API endpoint based on the APIEndpoint
-func (e APIEndpoint) ToV1Endpoint(userAgent string, metaHeaders http.Header) *V1Endpoint {
-	return newV1Endpoint(*e.URL, e.TLSConfig, userAgent, metaHeaders)
-}
-
 // TLSConfig constructs a client TLS configuration based on server defaults
 func (s *DefaultService) TLSConfig(hostname string) (*tls.Config, error) {
 	s.mu.Lock()
@@ -281,48 +271,28 @@ func (s *DefaultService) tlsConfigForMirror(mirrorURL *url.URL) (*tls.Config, er
 }
 
 // LookupPullEndpoints creates a list of endpoints to try to pull from, in order of preference.
-// It gives preference to v2 endpoints over v1, mirrors over the actual
-// registry, and HTTPS over plain HTTP.
+// It gives preference to mirrors over the actual registry, and HTTPS over plain HTTP.
 func (s *DefaultService) LookupPullEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	return s.lookupEndpoints(hostname)
+	return s.lookupV2Endpoints(hostname)
 }
 
 // LookupPushEndpoints creates a list of endpoints to try to push to, in order of preference.
-// It gives preference to v2 endpoints over v1, and HTTPS over plain HTTP.
-// Mirrors are not included.
+// It gives preference to HTTPS over plain HTTP. Mirrors are not included.
 func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	allEndpoints, err := s.lookupEndpoints(hostname)
-	if err == nil {
-		for _, endpoint := range allEndpoints {
-			if !endpoint.Mirror {
-				endpoints = append(endpoints, endpoint)
-			}
+	allEndpoints, err := s.lookupV2Endpoints(hostname)
+	if err != nil {
+		return endpoints, err
+	}
+	for _, endpoint := range allEndpoints {
+		if !endpoint.Mirror {
+			endpoints = append(endpoints, endpoint)
 		}
 	}
 	return endpoints, err
-}
-
-func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	endpoints, err = s.lookupV2Endpoints(hostname)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.config.V2Only {
-		return endpoints, nil
-	}
-
-	legacyEndpoints, err := s.lookupV1Endpoints(hostname)
-	if err != nil {
-		return nil, err
-	}
-	endpoints = append(endpoints, legacyEndpoints...)
-
-	return endpoints, nil
 }

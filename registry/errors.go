@@ -56,20 +56,6 @@ func (e systemError) Cause() error {
 	return e.cause
 }
 
-type notActivatedError struct {
-	cause error
-}
-
-func (e notActivatedError) Error() string {
-	return e.cause.Error()
-}
-
-func (e notActivatedError) Forbidden() {}
-
-func (e notActivatedError) Cause() error {
-	return e.cause
-}
-
 func translateV2AuthError(err error) error {
 	switch e := err.(type) {
 	case *url.Error:
