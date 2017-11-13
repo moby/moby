@@ -30,8 +30,8 @@ func DeviceFromPath(path, permissions string) (*configs.Device, error) {
 	}
 
 	var (
-		devNumber = int(stat.Rdev)
-		major     = Major(devNumber)
+		devNumber = stat.Rdev
+		major     = unix.Major(devNumber)
 	)
 	if major == 0 {
 		return nil, ErrNotADevice
@@ -50,8 +50,8 @@ func DeviceFromPath(path, permissions string) (*configs.Device, error) {
 	return &configs.Device{
 		Type:        devType,
 		Path:        path,
-		Major:       major,
-		Minor:       Minor(devNumber),
+		Major:       int64(major),
+		Minor:       int64(unix.Minor(devNumber)),
 		Permissions: permissions,
 		FileMode:    os.FileMode(mode),
 		Uid:         stat.Uid,
