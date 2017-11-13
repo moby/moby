@@ -61,6 +61,28 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	testutil.ErrorContains(t, err, "as a flag and in the configuration file: labels")
 }
 
+func TestLoadDaemonCliWithConflictingLabels(t *testing.T) {
+	opts := defaultOptions("")
+	flags := opts.flags
+
+	assert.NoError(t, flags.Set("label", "foo=bar"))
+	assert.NoError(t, flags.Set("label", "foo=baz"))
+
+	_, err := loadDaemonCliConfig(opts)
+	assert.EqualError(t, err, "conflict labels for foo=baz and foo=bar")
+}
+
+func TestLoadDaemonCliWithDuplicateLabels(t *testing.T) {
+	opts := defaultOptions("")
+	flags := opts.flags
+
+	assert.NoError(t, flags.Set("label", "foo=the-same"))
+	assert.NoError(t, flags.Set("label", "foo=the-same"))
+
+	_, err := loadDaemonCliConfig(opts)
+	assert.NoError(t, err)
+}
+
 func TestLoadDaemonCliConfigWithTLSVerify(t *testing.T) {
 	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"tlsverify": true}`))
 	defer tempFile.Remove()

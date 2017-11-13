@@ -480,22 +480,12 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		logrus.Warnf(`The "-g / --graph" flag is deprecated. Please use "--data-root" instead`)
 	}
 
-	// Labels of the docker engine used to allow multiple values associated with the same key.
-	// This is deprecated in 1.13, and, be removed after 3 release cycles.
-	// The following will check the conflict of labels, and report a warning for deprecation.
-	//
-	// TODO: After 3 release cycles (17.12) an error will be returned, and labels will be
-	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
-	//
-	// newLabels, err := daemon.GetConflictFreeLabels(config.Labels)
-	// if err != nil {
-	//	return nil, err
-	// }
-	// config.Labels = newLabels
-	//
-	if _, err := config.GetConflictFreeLabels(conf.Labels); err != nil {
-		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
+	// Check if duplicate label-keys with different values are found
+	newLabels, err := config.GetConflictFreeLabels(conf.Labels)
+	if err != nil {
+		return nil, err
 	}
+	conf.Labels = newLabels
 
 	// Regardless of whether the user sets it to true or false, if they
 	// specify TLSVerify at all then we need to turn on TLS
