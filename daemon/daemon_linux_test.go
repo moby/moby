@@ -5,6 +5,13 @@ package daemon
 import (
 	"strings"
 	"testing"
+
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/oci"
+	"github.com/docker/docker/pkg/idtools"
+
+	"github.com/stretchr/testify/assert"
 )
 
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio
@@ -100,5 +107,53 @@ func TestNotCleanupMounts(t *testing.T) {
 	d.cleanupMountsFromReaderByID(strings.NewReader(mountInfo), "", unmount)
 	if unmounted {
 		t.Fatal("Expected not to clean up /dev/shm")
+	}
+}
+
+// TestTmpfsDevShmSizeOverride checks that user-specified /dev/tmpfs mount
+// size is not overriden by the default shmsize (that should only be used
+// for default /dev/shm (as in "shareable" and "private" ipc modes).
+// https://github.com/moby/moby/issues/35271
+func TestTmpfsDevShmSizeOverride(t *testing.T) {
+	size := "777m"
+	mnt := "/dev/shm"
+
+	d := Daemon{
+		idMappings: &idtools.IDMappings{},
+	}
+	c := &container.Container{
+		HostConfig: &containertypes.HostConfig{
+			ShmSize: 48 * 1024, // size we should NOT end up with
+		},
+	}
+	ms := []container.Mount{
+		{
+			Source:      "tmpfs",
+			Destination: mnt,
+			Data:        "size=" + size,
+		},
+	}
+
+	// convert ms to spec
+	spec := oci.DefaultSpec()
+	err := setMounts(&d, &spec, c, ms)
+	assert.NoError(t, err)
+
+	// Check the resulting spec for the correct size
+	found := false
+	for _, m := range spec.Mounts {
+		if m.Destination == mnt {
+			for _, o := range m.Options {
+				if !strings.HasPrefix(o, "size=") {
+					continue
+				}
+				t.Logf("%+v\n", m.Options)
+				assert.Equal(t, "size="+size, o)
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("/dev/shm not found in spec, or size option missing")
 	}
 }
