@@ -88,7 +88,18 @@ func (tm *taskManager) run(ctx context.Context) {
 		errs     = make(chan error)
 		shutdown = tm.shutdown
 		updated  bool // true if the task was updated.
+		t        *time.Timer
 	)
+
+	defer func() {
+		if t != nil {
+			t.Stop()
+		}
+		select {
+		case <-errs:
+		default:
+		}
+	}()
 
 	defer func() {
 		// closure  picks up current value of cancel.
@@ -169,7 +180,7 @@ func (tm *taskManager) run(ctx context.Context) {
 				// TODO(stevvooe): Add exponential backoff with random jitter
 				// here. For now, this backoff is enough to keep the task
 				// manager from running away with the CPU.
-				time.AfterFunc(time.Second, func() {
+				t = time.AfterFunc(time.Second, func() {
 					errs <- nil // repump this branch, with no err
 				})
 				continue
@@ -227,6 +238,14 @@ func (tm *taskManager) run(ctx context.Context) {
 				// back around and try shutdown again.
 				shutdown = nil // turn off this branch until op proceeds
 				continue       // wait until operation actually exits.
+			}
+
+			if t != nil {
+				t.Stop()
+			}
+			select {
+			case <-errs:
+			default:
 			}
 
 			// disable everything, and prepare for closing.

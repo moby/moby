@@ -343,6 +343,7 @@ func (c *controller) clusterAgentInit() {
 			c.agentClose()
 			c.cleanupServiceBindings("")
 
+			c.agentInitComplete()
 			c.agentStopComplete()
 
 			return

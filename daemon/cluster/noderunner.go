@@ -281,6 +281,9 @@ func (n *nodeRunner) Stop() error {
 	defer cancel()
 	n.mu.Unlock()
 	if err := n.swarmNode.Stop(ctx); err != nil && !strings.Contains(err.Error(), "context canceled") {
+		logrus.WithError(err).Error("n.swarmNode.Stop timeout !")
+		n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
+		<-n.done
 		return err
 	}
 	n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
