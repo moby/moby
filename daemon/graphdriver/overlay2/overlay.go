@@ -151,7 +151,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	// check if they are running over btrfs, aufs, zfs, overlay, or ecryptfs
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs:
 		logrus.Errorf("'overlay2' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicBtrfs:
