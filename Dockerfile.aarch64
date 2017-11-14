@@ -105,7 +105,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT ca7a6132a418c32df6bb11ba9b2a8b9b2727227a
+ENV DOCKER_PY_COMMIT 1d6b5b203222ba5df7dedfcd1ee061a452f99c8a
 # To run integration tests docker-pycreds is required.
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
