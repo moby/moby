@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/events"
+	"github.com/containerd/containerd/events/exchange"
 	"github.com/containerd/containerd/log"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -18,15 +18,15 @@ type InitContext struct {
 	State   string
 	Config  interface{}
 	Address string
-	Events  *events.Exchange
+	Events  *exchange.Exchange
 
 	Meta *Meta // plugins can fill in metadata at init.
 
-	plugins *PluginSet
+	plugins *Set
 }
 
 // NewContext returns a new plugin InitContext
-func NewContext(ctx context.Context, r *Registration, plugins *PluginSet, root, state string) *InitContext {
+func NewContext(ctx context.Context, r *Registration, plugins *Set, root, state string) *InitContext {
 	return &InitContext{
 		Context: log.WithModule(ctx, r.URI()),
 		Root:    filepath.Join(root, r.URI()),
@@ -61,32 +61,37 @@ type Plugin struct {
 	err      error // will be set if there was an error initializing the plugin
 }
 
+// Err returns the errors during initialization.
+// returns nil if not error was encountered
 func (p *Plugin) Err() error {
 	return p.err
 }
 
+// Instance returns the instance and any initialization error of the plugin
 func (p *Plugin) Instance() (interface{}, error) {
 	return p.instance, p.err
 }
 
-// PluginSet defines a plugin collection, used with InitContext.
+// Set defines a plugin collection, used with InitContext.
 //
 // This maintains ordering and unique indexing over the set.
 //
 // After iteratively instantiating plugins, this set should represent, the
 // ordered, initialization set of plugins for a containerd instance.
-type PluginSet struct {
+type Set struct {
 	ordered     []*Plugin // order of initialization
 	byTypeAndID map[Type]map[string]*Plugin
 }
 
-func NewPluginSet() *PluginSet {
-	return &PluginSet{
+// NewPluginSet returns an initialized plugin set
+func NewPluginSet() *Set {
+	return &Set{
 		byTypeAndID: make(map[Type]map[string]*Plugin),
 	}
 }
 
-func (ps *PluginSet) Add(p *Plugin) error {
+// Add a plugin to the set
+func (ps *Set) Add(p *Plugin) error {
 	if byID, typeok := ps.byTypeAndID[p.Registration.Type]; !typeok {
 		ps.byTypeAndID[p.Registration.Type] = map[string]*Plugin{
 			p.Registration.ID: p,
@@ -102,13 +107,14 @@ func (ps *PluginSet) Add(p *Plugin) error {
 }
 
 // Get returns the first plugin by its type
-func (ps *PluginSet) Get(t Type) (interface{}, error) {
+func (ps *Set) Get(t Type) (interface{}, error) {
 	for _, v := range ps.byTypeAndID[t] {
 		return v.Instance()
 	}
 	return nil, errors.Wrapf(errdefs.ErrNotFound, "no plugins registered for %s", t)
 }
 
+// GetAll plugins in the set
 func (i *InitContext) GetAll() []*Plugin {
 	return i.plugins.ordered
 }

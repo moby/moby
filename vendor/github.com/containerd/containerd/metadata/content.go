@@ -391,27 +391,31 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 				return err
 			}
 		}
-		return nw.commit(ctx, tx, size, expected, opts...)
+		dgst, err := nw.commit(ctx, tx, size, expected, opts...)
+		if err != nil {
+			return err
+		}
+		return addContentLease(ctx, tx, dgst)
 	})
 }
 
-func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64, expected digest.Digest, opts ...content.Opt) error {
+func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64, expected digest.Digest, opts ...content.Opt) (digest.Digest, error) {
 	var base content.Info
 	for _, opt := range opts {
 		if err := opt(&base); err != nil {
-			return err
+			return "", err
 		}
 	}
 	if err := validateInfo(&base); err != nil {
-		return err
+		return "", err
 	}
 
 	status, err := nw.Writer.Status()
 	if err != nil {
-		return err
+		return "", err
 	}
 	if size != 0 && size != status.Offset {
-		return errors.Errorf("%q failed size validation: %v != %v", nw.ref, status.Offset, size)
+		return "", errors.Errorf("%q failed size validation: %v != %v", nw.ref, status.Offset, size)
 	}
 	size = status.Offset
 
@@ -419,32 +423,32 @@ func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64,
 
 	if err := nw.Writer.Commit(ctx, size, expected); err != nil {
 		if !errdefs.IsAlreadyExists(err) {
-			return err
+			return "", err
 		}
 		if getBlobBucket(tx, nw.namespace, actual) != nil {
-			return errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", actual)
+			return "", errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", actual)
 		}
 	}
 
 	bkt, err := createBlobBucket(tx, nw.namespace, actual)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	commitTime := time.Now().UTC()
 
 	sizeEncoded, err := encodeInt(size)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if err := boltutil.WriteTimestamps(bkt, commitTime, commitTime); err != nil {
-		return err
+		return "", err
 	}
 	if err := boltutil.WriteLabels(bkt, base.Labels); err != nil {
-		return err
+		return "", err
 	}
-	return bkt.Put(bucketKeySize, sizeEncoded)
+	return actual, bkt.Put(bucketKeySize, sizeEncoded)
 }
 
 func (nw *namespacedWriter) Status() (content.Status, error) {
@@ -566,7 +570,7 @@ func (cs *contentStore) garbageCollect(ctx context.Context) error {
 		return err
 	}
 
-	if err := cs.Store.Walk(ctx, func(info content.Info) error {
+	return cs.Store.Walk(ctx, func(info content.Info) error {
 		if _, ok := seen[info.Digest.String()]; !ok {
 			if err := cs.Store.Delete(ctx, info.Digest); err != nil {
 				return err
@@ -574,9 +578,5 @@ func (cs *contentStore) garbageCollect(ctx context.Context) error {
 			log.G(ctx).WithField("digest", info.Digest).Debug("removed content")
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-
-	return nil
+	})
 }

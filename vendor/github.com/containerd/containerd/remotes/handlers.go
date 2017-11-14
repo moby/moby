@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math/rand"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -44,7 +45,7 @@ func MakeRefKey(ctx context.Context, desc ocispec.Descriptor) string {
 // FetchHandler returns a handler that will fetch all content into the ingester
 // discovered in a call to Dispatch. Use with ChildrenHandler to do a full
 // recursive fetch.
-func FetchHandler(ingester content.Ingester, fetcher Fetcher, root ocispec.Descriptor) images.HandlerFunc {
+func FetchHandler(ingester content.Ingester, fetcher Fetcher) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) (subdescs []ocispec.Descriptor, err error) {
 		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
 			"digest":    desc.Digest,
@@ -56,13 +57,13 @@ func FetchHandler(ingester content.Ingester, fetcher Fetcher, root ocispec.Descr
 		case images.MediaTypeDockerSchema1Manifest:
 			return nil, fmt.Errorf("%v not supported", desc.MediaType)
 		default:
-			err := fetch(ctx, ingester, fetcher, desc, desc.Digest == root.Digest)
+			err := fetch(ctx, ingester, fetcher, desc)
 			return nil, err
 		}
 	}
 }
 
-func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc ocispec.Descriptor, root bool) error {
+func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc ocispec.Descriptor) error {
 	log.G(ctx).Debug("fetch")
 
 	var (
@@ -84,7 +85,7 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 			// of writer and abort if not updated recently.
 
 			select {
-			case <-time.After(time.Millisecond * time.Duration(retry)):
+			case <-time.After(time.Millisecond * time.Duration(rand.Intn(retry))):
 				if retry < 2048 {
 					retry = retry << 1
 				}
@@ -104,13 +105,13 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 	}
 	defer rc.Close()
 
-	r, opts := commitOpts(desc, rc, root)
+	r, opts := commitOpts(desc, rc)
 	return content.Copy(ctx, cw, r, desc.Size, desc.Digest, opts...)
 }
 
 // commitOpts gets the appropriate content options to alter
 // the content info on commit based on media type.
-func commitOpts(desc ocispec.Descriptor, r io.Reader, root bool) (io.Reader, []content.Opt) {
+func commitOpts(desc ocispec.Descriptor, r io.Reader) (io.Reader, []content.Opt) {
 	var childrenF func(r io.Reader) ([]ocispec.Descriptor, error)
 
 	switch desc.MediaType {
@@ -162,12 +163,9 @@ func commitOpts(desc ocispec.Descriptor, r io.Reader, root bool) (io.Reader, []c
 			return errors.Wrap(err, "unable to get commit labels")
 		}
 
-		if len(children) > 0 || root {
+		if len(children) > 0 {
 			if info.Labels == nil {
 				info.Labels = map[string]string{}
-			}
-			if root {
-				info.Labels["containerd.io/gc.root"] = time.Now().UTC().Format(time.RFC3339)
 			}
 			for i, ch := range children {
 				info.Labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = ch.Digest.String()

@@ -98,12 +98,16 @@ func (s *Service) newInitProcess(context context.Context, r *shimapi.CreateTaskR
 			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
 		}
 	}
+	root := s.config.RuntimeRoot
+	if root == "" {
+		root = RuncRoot
+	}
 	runtime := &runc.Runc{
 		Command:       r.Runtime,
 		Log:           filepath.Join(s.config.Path, "log.json"),
 		LogFormat:     runc.JSON,
 		PdeathSignal:  syscall.SIGKILL,
-		Root:          filepath.Join(s.config.RuntimeRoot, s.config.Namespace),
+		Root:          filepath.Join(root, s.config.Namespace),
 		Criu:          s.config.Criu,
 		SystemdCgroup: s.config.SystemdCgroup,
 	}

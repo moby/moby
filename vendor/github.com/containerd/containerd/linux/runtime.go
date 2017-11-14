@@ -15,7 +15,7 @@ import (
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/events"
+	"github.com/containerd/containerd/events/exchange"
 	"github.com/containerd/containerd/identifiers"
 	"github.com/containerd/containerd/linux/runcopts"
 	client "github.com/containerd/containerd/linux/shim"
@@ -143,7 +143,7 @@ type Runtime struct {
 	monitor runtime.TaskMonitor
 	tasks   *runtime.TaskList
 	db      *metadata.DB
-	events  *events.Exchange
+	events  *exchange.Exchange
 
 	config *Config
 }

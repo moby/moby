@@ -1,6 +1,6 @@
 // +build !windows
 
-package shim
+package client
 
 import (
 	"context"
@@ -20,19 +20,23 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/containerd/containerd/events"
-	shim "github.com/containerd/containerd/linux/shim/v1"
+	"github.com/containerd/containerd/linux/shim"
+	shimapi "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/reaper"
 	"github.com/containerd/containerd/sys"
+	google_protobuf "github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 )
 
-// ClientOpt is an option for a shim client configuration
-type ClientOpt func(context.Context, Config) (shim.ShimClient, io.Closer, error)
+var empty = &google_protobuf.Empty{}
+
+// Opt is an option for a shim client configuration
+type Opt func(context.Context, shim.Config) (shimapi.ShimClient, io.Closer, error)
 
 // WithStart executes a new shim process
-func WithStart(binary, address, daemonAddress, cgroup string, nonewns, debug bool, exitHandler func()) ClientOpt {
-	return func(ctx context.Context, config Config) (_ shim.ShimClient, _ io.Closer, err error) {
+func WithStart(binary, address, daemonAddress, cgroup string, nonewns, debug bool, exitHandler func()) Opt {
+	return func(ctx context.Context, config shim.Config) (_ shimapi.ShimClient, _ io.Closer, err error) {
 		socket, err := newSocket(address)
 		if err != nil {
 			return nil, nil, err
@@ -84,24 +88,24 @@ func WithStart(binary, address, daemonAddress, cgroup string, nonewns, debug boo
 	}
 }
 
-func newCommand(binary, daemonAddress string, nonewns, debug bool, config Config, socket *os.File) *exec.Cmd {
+func newCommand(binary, daemonAddress string, nonewns, debug bool, config shim.Config, socket *os.File) *exec.Cmd {
 	args := []string{
-		"--namespace", config.Namespace,
-		"--workdir", config.WorkDir,
-		"--address", daemonAddress,
+		"-namespace", config.Namespace,
+		"-workdir", config.WorkDir,
+		"-address", daemonAddress,
 	}
 
 	if config.Criu != "" {
-		args = append(args, "--criu-path", config.Criu)
+		args = append(args, "-criu-path", config.Criu)
 	}
 	if config.RuntimeRoot != "" {
-		args = append(args, "--runtime-root", config.RuntimeRoot)
+		args = append(args, "-runtime-root", config.RuntimeRoot)
 	}
 	if config.SystemdCgroup {
-		args = append(args, "--systemd-cgroup")
+		args = append(args, "-systemd-cgroup")
 	}
 	if debug {
-		args = append(args, "--debug")
+		args = append(args, "-debug")
 	}
 
 	cmd := exec.Command(binary, args...)
@@ -160,39 +164,29 @@ func dialAddress(address string) string {
 }
 
 // WithConnect connects to an existing shim
-func WithConnect(address string) ClientOpt {
-	return func(ctx context.Context, config Config) (shim.ShimClient, io.Closer, error) {
+func WithConnect(address string) Opt {
+	return func(ctx context.Context, config shim.Config) (shimapi.ShimClient, io.Closer, error) {
 		conn, err := connect(address, annonDialer)
 		if err != nil {
 			return nil, nil, err
 		}
-		return shim.NewShimClient(conn), conn, nil
+		return shimapi.NewShimClient(conn), conn, nil
 	}
 }
 
 // WithLocal uses an in process shim
-func WithLocal(publisher events.Publisher) func(context.Context, Config) (shim.ShimClient, io.Closer, error) {
-	return func(ctx context.Context, config Config) (shim.ShimClient, io.Closer, error) {
-		service, err := NewService(config, publisher)
+func WithLocal(publisher events.Publisher) func(context.Context, shim.Config) (shimapi.ShimClient, io.Closer, error) {
+	return func(ctx context.Context, config shim.Config) (shimapi.ShimClient, io.Closer, error) {
+		service, err := shim.NewService(config, publisher)
 		if err != nil {
 			return nil, nil, err
 		}
-		return NewLocal(service), nil, nil
+		return shim.NewLocal(service), nil, nil
 	}
 }
 
-// Config contains shim specific configuration
-type Config struct {
-	Path          string
-	Namespace     string
-	WorkDir       string
-	Criu          string
-	RuntimeRoot   string
-	SystemdCgroup bool
-}
-
 // New returns a new shim client
-func New(ctx context.Context, config Config, opt ClientOpt) (*Client, error) {
+func New(ctx context.Context, config shim.Config, opt Opt) (*Client, error) {
 	s, c, err := opt(ctx, config)
 	if err != nil {
 		return nil, err
@@ -206,7 +200,7 @@ func New(ctx context.Context, config Config, opt ClientOpt) (*Client, error) {
 
 // Client is a shim client containing the connection to a shim
 type Client struct {
-	shim.ShimClient
+	shimapi.ShimClient
 
 	c        io.Closer
 	exitCh   chan struct{}

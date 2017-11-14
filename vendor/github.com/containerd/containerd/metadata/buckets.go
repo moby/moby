@@ -38,6 +38,7 @@ var (
 	bucketKeyObjectContent    = []byte("content")    // stores content references
 	bucketKeyObjectBlob       = []byte("blob")       // stores content links
 	bucketKeyObjectIngest     = []byte("ingest")     // stores ingest links
+	bucketKeyObjectLeases     = []byte("leases")     // stores leases
 
 	bucketKeyDigest      = []byte("digest")
 	bucketKeyMediaType   = []byte("mediatype")
@@ -53,6 +54,7 @@ var (
 	bucketKeySnapshotter = []byte("snapshotter")
 	bucketKeyTarget      = []byte("target")
 	bucketKeyExtensions  = []byte("extensions")
+	bucketKeyCreatedAt   = []byte("createdat")
 )
 
 func getBucket(tx *bolt.Tx, keys ...[]byte) *bolt.Bucket {

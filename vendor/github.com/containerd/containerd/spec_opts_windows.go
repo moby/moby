@@ -15,6 +15,7 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
+// WithImageConfig configures the spec to from the configuration of an Image
 func WithImageConfig(i Image) SpecOpts {
 	return func(ctx context.Context, client *Client, _ *containers.Container, s *specs.Spec) error {
 		var (
@@ -51,6 +52,8 @@ func WithImageConfig(i Image) SpecOpts {
 	}
 }
 
+// WithTTY sets the information on the spec as well as the environment variables for
+// using a TTY
 func WithTTY(width, height int) SpecOpts {
 	return func(_ context.Context, _ *Client, _ *containers.Container, s *specs.Spec) error {
 		s.Process.Terminal = true
@@ -63,6 +66,7 @@ func WithTTY(width, height int) SpecOpts {
 	}
 }
 
+// WithResources sets the provided resources on the spec for task updates
 func WithResources(resources *specs.WindowsResources) UpdateTaskOpts {
 	return func(ctx context.Context, client *Client, r *UpdateTaskInfo) error {
 		r.Resources = resources

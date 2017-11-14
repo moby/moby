@@ -13,6 +13,7 @@ type remoteStore struct {
 	client imagesapi.ImagesClient
 }
 
+// NewStoreFromClient returns a new image store client
 func NewStoreFromClient(client imagesapi.ImagesClient) images.Store {
 	return &remoteStore{
 		client: client,
