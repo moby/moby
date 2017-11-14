@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 
 	"github.com/containerd/containerd"
 	eventsapi "github.com/containerd/containerd/api/services/events/v1"
@@ -687,7 +689,10 @@ func (c *client) processEventStream(ctx context.Context) {
 	for {
 		ev, err = eventStream.Recv()
 		if err != nil {
-			c.logger.WithError(err).Error("failed to get event")
+			errStatus, ok := status.FromError(err)
+			if !ok || errStatus.Code() != codes.Canceled {
+				c.logger.WithError(err).Error("failed to get event")
+			}
 			return
 		}
 
