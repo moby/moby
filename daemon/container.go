@@ -329,6 +329,10 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		return nil, errors.Errorf("invalid restart policy '%s'", p.Name)
 	}
 
+	if !hostConfig.Isolation.IsValid() {
+		return nil, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+	}
+
 	// Now do platform-specific verification
 	return verifyPlatformContainerSettings(daemon, hostConfig, config, update)
 }

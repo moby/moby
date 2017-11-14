@@ -157,3 +157,10 @@ func TestTmpfsDevShmSizeOverride(t *testing.T) {
 		t.Fatal("/dev/shm not found in spec, or size option missing")
 	}
 }
+
+func TestValidateContainerIsolationLinux(t *testing.T) {
+	d := Daemon{}
+
+	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
+	assert.EqualError(t, err, "invalid isolation 'hyperv' on linux")
+}
