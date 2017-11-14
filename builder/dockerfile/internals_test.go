@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/go-connections/nat"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -131,6 +132,44 @@ func TestCopyRunConfig(t *testing.T) {
 		assert.NotEqual(t, runConfig, runConfigCopy, testcase.doc)
 	}
 
+}
+
+func fullMutableRunConfig() *container.Config {
+	return &container.Config{
+		Cmd: []string{"command", "arg1"},
+		Env: []string{"env1=foo", "env2=bar"},
+		ExposedPorts: nat.PortSet{
+			"1000/tcp": {},
+			"1001/tcp": {},
+		},
+		Volumes: map[string]struct{}{
+			"one": {},
+			"two": {},
+		},
+		Entrypoint: []string{"entry", "arg1"},
+		OnBuild:    []string{"first", "next"},
+		Labels: map[string]string{
+			"label1": "value1",
+			"label2": "value2",
+		},
+		Shell: []string{"shell", "-c"},
+	}
+}
+
+func TestDeepCopyRunConfig(t *testing.T) {
+	runConfig := fullMutableRunConfig()
+	copy := copyRunConfig(runConfig)
+	assert.Equal(t, fullMutableRunConfig(), copy)
+
+	copy.Cmd[1] = "arg2"
+	copy.Env[1] = "env2=new"
+	copy.ExposedPorts["10002"] = struct{}{}
+	copy.Volumes["three"] = struct{}{}
+	copy.Entrypoint[1] = "arg2"
+	copy.OnBuild[0] = "start"
+	copy.Labels["label3"] = "value3"
+	copy.Shell[0] = "sh"
+	assert.Equal(t, fullMutableRunConfig(), runConfig)
 }
 
 func TestChownFlagParsing(t *testing.T) {
