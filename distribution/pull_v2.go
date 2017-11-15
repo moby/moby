@@ -74,7 +74,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform strin
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
-		if continueOnError(err) {
+		if continueOnError(err, p.endpoint.Mirror) {
 			return fallbackError{
 				err:         err,
 				confirmedV2: p.confirmedV2,

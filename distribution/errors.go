@@ -126,21 +126,25 @@ func TranslatePullError(err error, ref reference.Named) error {
 
 // continueOnError returns true if we should fallback to the next endpoint
 // as a result of this error.
-func continueOnError(err error) bool {
+func continueOnError(err error, mirrorEndpoint bool) bool {
 	switch v := err.(type) {
 	case errcode.Errors:
 		if len(v) == 0 {
 			return true
 		}
-		return continueOnError(v[0])
+		return continueOnError(v[0], mirrorEndpoint)
 	case ErrNoSupport:
-		return continueOnError(v.Err)
+		return continueOnError(v.Err, mirrorEndpoint)
 	case errcode.Error:
-		return shouldV2Fallback(v)
+		return mirrorEndpoint || shouldV2Fallback(v)
 	case *client.UnexpectedHTTPResponseError:
 		return true
 	case ImageConfigPullError:
-		return false
+		// ImageConfigPullError only happens with v2 images, v1 fallback is
+		// unnecessary.
+		// Failures from a mirror endpoint should result in fallback to the
+		// canonical repo.
+		return mirrorEndpoint
 	case error:
 		return !strings.Contains(err.Error(), strings.ToLower(syscall.ESRCH.Error()))
 	}
