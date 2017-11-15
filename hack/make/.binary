@@ -57,6 +57,7 @@ go build \
 	-ldflags "
 		$LDFLAGS
 		$LDFLAGS_STATIC_DOCKER
+		$DOCKER_LDFLAGS
 	" \
 	$GO_PACKAGE
 )
