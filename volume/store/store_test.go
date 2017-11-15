@@ -2,7 +2,9 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"strings"
 	"testing"
@@ -264,5 +266,57 @@ func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
 		}
 	default:
 		t.Fatalf("got unexpected type: %T", v)
+	}
+}
+
+func TestDefererencePluginOnCreateError(t *testing.T) {
+	var (
+		l   net.Listener
+		err error
+	)
+
+	for i := 32768; l == nil && i < 40000; i++ {
+		l, err = net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", i))
+	}
+	if l == nil {
+		t.Fatalf("could not create listener: %v", err)
+	}
+	defer l.Close()
+
+	d := volumetestutils.NewFakeDriver("TestDefererencePluginOnCreateError")
+	p, err := volumetestutils.MakeFakePlugin(d, l)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	pg := volumetestutils.NewFakePluginGetter(p)
+	volumedrivers.RegisterPluginGetter(pg)
+
+	dir, err := ioutil.TempDir("", "test-plugin-deref-err")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(dir)
+
+	s, err := New(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// create a good volume so we have a plugin reference
+	_, err = s.Create("fake1", d.Name(), nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Now create another one expecting an error
+	_, err = s.Create("fake2", d.Name(), map[string]string{"error": "some error"}, nil)
+	if err == nil || !strings.Contains(err.Error(), "some error") {
+		t.Fatalf("expected an error on create: %v", err)
+	}
+
+	// There should be only 1 plugin reference
+	if refs := volumetestutils.FakeRefs(p); refs != 1 {
+		t.Fatalf("expected 1 plugin reference, got: %d", refs)
 	}
 }
