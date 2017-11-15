@@ -64,6 +64,8 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	container.Lock()
 	defer container.Unlock()
 
+	daemon.stopHealthchecks(container)
+
 	if !container.Running {
 		return errNotRunning(container.ID)
 	}
