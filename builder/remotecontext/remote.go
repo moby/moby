@@ -10,7 +10,7 @@ import (
 	"net/url"
 	"regexp"
 
-	"github.com/docker/docker/builder"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
 
@@ -22,50 +22,23 @@ const acceptableRemoteMIME = `(?:application/(?:(?:x\-)?tar|octet\-stream|((?:x\
 
 var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
 
-// MakeRemoteContext downloads a context from remoteURL and returns it.
-//
-// If contentTypeHandlers is non-nil, then the Content-Type header is read along with a maximum of
-// maxPreambleLength bytes from the body to help detecting the MIME type.
-// Look at acceptableRemoteMIME for more details.
-//
-// If a match is found, then the body is sent to the contentType handler and a (potentially compressed) tar stream is expected
-// to be returned. If no match is found, it is assumed the body is a tar stream (compressed or not).
-// In either case, an (assumed) tar stream is passed to FromArchive whose result is returned.
-func MakeRemoteContext(remoteURL string, contentTypeHandlers map[string]func(io.ReadCloser) (io.ReadCloser, error)) (builder.Source, error) {
-	f, err := GetWithStatusError(remoteURL)
+// downloadRemote context from a url and returns it, along with the parsed content type
+func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
+	response, err := GetWithStatusError(remoteURL)
 	if err != nil {
-		return nil, fmt.Errorf("error downloading remote context %s: %v", remoteURL, err)
-	}
-	defer f.Body.Close()
-
-	var contextReader io.ReadCloser
-	if contentTypeHandlers != nil {
-		contentType := f.Header.Get("Content-Type")
-		clen := f.ContentLength
-
-		contentType, contextReader, err = inspectResponse(contentType, f.Body, clen)
-		if err != nil {
-			return nil, fmt.Errorf("error detecting content type for remote %s: %v", remoteURL, err)
-		}
-		defer contextReader.Close()
-
-		// This loop tries to find a content-type handler for the detected content-type.
-		// If it could not find one from the caller-supplied map, it tries the empty content-type `""`
-		// which is interpreted as a fallback handler (usually used for raw tar contexts).
-		for _, ct := range []string{contentType, ""} {
-			if fn, ok := contentTypeHandlers[ct]; ok {
-				defer contextReader.Close()
-				if contextReader, err = fn(contextReader); err != nil {
-					return nil, err
-				}
-				break
-			}
-		}
+		return "", nil, fmt.Errorf("error downloading remote context %s: %v", remoteURL, err)
 	}
 
-	// Pass through - this is a pre-packaged context, presumably
-	// with a Dockerfile with the right name inside it.
-	return FromArchive(contextReader)
+	contentType, contextReader, err := inspectResponse(
+		response.Header.Get("Content-Type"),
+		response.Body,
+		response.ContentLength)
+	if err != nil {
+		response.Body.Close()
+		return "", nil, fmt.Errorf("error detecting content type for remote %s: %v", remoteURL, err)
+	}
+
+	return contentType, ioutils.NewReadCloserWrapper(contextReader, response.Body.Close), nil
 }
 
 // GetWithStatusError does an http.Get() and returns an error if the
@@ -110,7 +83,7 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 //    - an io.Reader for the response body
 //    - an error value which will be non-nil either when something goes wrong while
 //      reading bytes from r or when the detected content-type is not acceptable.
-func inspectResponse(ct string, r io.Reader, clen int64) (string, io.ReadCloser, error) {
+func inspectResponse(ct string, r io.Reader, clen int64) (string, io.Reader, error) {
 	plen := clen
 	if plen <= 0 || plen > maxPreambleLength {
 		plen = maxPreambleLength
@@ -119,14 +92,14 @@ func inspectResponse(ct string, r io.Reader, clen int64) (string, io.ReadCloser,
 	preamble := make([]byte, plen)
 	rlen, err := r.Read(preamble)
 	if rlen == 0 {
-		return ct, ioutil.NopCloser(r), errors.New("empty response")
+		return ct, r, errors.New("empty response")
 	}
 	if err != nil && err != io.EOF {
-		return ct, ioutil.NopCloser(r), err
+		return ct, r, err
 	}
 
 	preambleR := bytes.NewReader(preamble[:rlen])
-	bodyReader := ioutil.NopCloser(io.MultiReader(preambleR, r))
+	bodyReader := io.MultiReader(preambleR, r)
 	// Some web servers will use application/octet-stream as the default
 	// content type for files without an extension (e.g. 'Dockerfile')
 	// so if we receive this value we better check for text content

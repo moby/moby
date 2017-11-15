@@ -79,7 +79,6 @@ func FromArchive(tarStream io.Reader) (builder.Source, error) {
 	}
 
 	tsc.sums = sum.GetSums()
-
 	return tsc, nil
 }
 
