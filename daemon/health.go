@@ -253,6 +253,8 @@ func getProbe(c *container.Container) probe {
 		return &cmdProbe{shell: false}
 	case "CMD-SHELL":
 		return &cmdProbe{shell: true}
+	case "NONE":
+		return nil
 	default:
 		logrus.Warnf("Unknown healthcheck type '%s' (expected 'CMD') in container %s", config.Test[0], c.ID)
 		return nil
