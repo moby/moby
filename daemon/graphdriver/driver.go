@@ -283,8 +283,27 @@ func scanPriorDrivers(root string) map[string]bool {
 	for driver := range drivers {
 		p := filepath.Join(root, driver)
 		if _, err := os.Stat(p); err == nil && driver != "vfs" {
-			driversMap[driver] = true
+			if !isEmptyDir(p) {
+				driversMap[driver] = true
+			}
 		}
 	}
 	return driversMap
+}
+
+// isEmptyDir checks if a directory is empty. It is used to check if prior
+// storage-driver directories exist. If an error occurs, it also assumes the
+// directory is not empty (which preserves the behavior _before_ this check
+// was added)
+func isEmptyDir(name string) bool {
+	f, err := os.Open(name)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	if _, err = f.Readdirnames(1); err == io.EOF {
+		return true
+	}
+	return false
 }
