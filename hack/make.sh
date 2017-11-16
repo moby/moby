@@ -103,6 +103,12 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
+# Adds $1_$2 to DOCKER_BUILDTAGS unless it already
+# contains a word starting from $1_
+add_buildtag() {
+	[[ " $DOCKER_BUILDTAGS" == *" $1_"* ]] || DOCKER_BUILDTAGS+=" $1_$2"
+}
+
 if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"
 elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
@@ -118,12 +124,14 @@ if \
 fi
 
 # test whether "libdevmapper.h" is new enough to support deferred remove
-# functionality.
+# functionality. We favour libdm_dlsym_deferred_remove over
+# libdm_no_deferred_remove in dynamic cases because the binary could be shipped
+# with a newer libdevmapper than the one it was built wih.
 if \
 	command -v gcc &> /dev/null \
 	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null ) \
 ; then
-	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
+	add_buildtag libdm dlsym_deferred_remove
 fi
 
 # Use these flags when compiling the tests and final binary
