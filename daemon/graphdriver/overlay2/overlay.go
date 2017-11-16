@@ -16,8 +16,6 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/sirupsen/logrus"
-
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
 	"github.com/docker/docker/daemon/graphdriver/quota"
@@ -32,9 +30,9 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
-	units "github.com/docker/go-units"
-
+	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -134,12 +132,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	if err != nil {
 		return nil, err
 	}
-	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 0, Minor: 0}) < 0 {
-		if !opts.overrideKernelCheck {
-			return nil, graphdriver.ErrNotSupported
-		}
-		logrus.Warn("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
-	}
 
 	fsMagic, err := graphdriver.GetFSMagic(home)
 	if err != nil {
@@ -163,6 +155,17 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 				return nil, graphdriver.ErrIncompatibleFS
 			}
 			logrus.Warn("Using pre-4.7.0 kernel for overlay2 on btrfs, may require kernel update")
+		}
+	}
+
+	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 0, Minor: 0}) < 0 {
+		if opts.overrideKernelCheck {
+			logrus.Warn("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
+		} else {
+			if err := supportsMultipleLowerDir(filepath.Dir(home)); err != nil {
+				logrus.Debugf("Multiple lower dirs not supported: %v", err)
+				return nil, graphdriver.ErrNotSupported
+			}
 		}
 	}
 
