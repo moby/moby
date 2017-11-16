@@ -8,9 +8,10 @@ package header
 
 import (
 	"net/http"
-	"reflect"
 	"testing"
 	"time"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 var getHeaderListTests = []struct {
@@ -31,7 +32,7 @@ var getHeaderListTests = []struct {
 func TestGetHeaderList(t *testing.T) {
 	for _, tt := range getHeaderListTests {
 		header := http.Header{"Foo": {tt.s}}
-		if l := ParseList(header, "foo"); !reflect.DeepEqual(tt.l, l) {
+		if l := ParseList(header, "foo"); !cmp.Equal(tt.l, l) {
 			t.Errorf("ParseList for %q = %q, want %q", tt.s, l, tt.l)
 		}
 	}
@@ -68,7 +69,7 @@ func TestParseValueAndParams(t *testing.T) {
 		if value != tt.value {
 			t.Errorf("%q, value=%q, want %q", tt.s, value, tt.value)
 		}
-		if !reflect.DeepEqual(params, tt.params) {
+		if !cmp.Equal(params, tt.params) {
 			t.Errorf("%q, param=%#v, want %#v", tt.s, params, tt.params)
 		}
 	}
@@ -131,7 +132,7 @@ func TestParseAccept(t *testing.T) {
 	for _, tt := range parseAcceptTests {
 		header := http.Header{"Accept": {tt.s}}
 		actual := ParseAccept(header, "Accept")
-		if !reflect.DeepEqual(actual, tt.expected) {
+		if !cmp.Equal(actual, tt.expected) {
 			t.Errorf("ParseAccept(h, %q)=%v, want %v", tt.s, actual, tt.expected)
 		}
 	}
