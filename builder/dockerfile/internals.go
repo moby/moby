@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
@@ -523,15 +525,21 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 
 func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConfig {
 	resources := container.Resources{
-		CgroupParent: options.CgroupParent,
-		CPUShares:    options.CPUShares,
-		CPUPeriod:    options.CPUPeriod,
-		CPUQuota:     options.CPUQuota,
-		CpusetCpus:   options.CPUSetCPUs,
-		CpusetMems:   options.CPUSetMems,
-		Memory:       options.Memory,
-		MemorySwap:   options.MemorySwap,
-		Ulimits:      options.Ulimits,
+		CgroupParent:         options.CgroupParent,
+		CPUShares:            options.CPUShares,
+		CPUPeriod:            options.CPUPeriod,
+		CPUQuota:             options.CPUQuota,
+		CpusetCpus:           options.CPUSetCPUs,
+		CpusetMems:           options.CPUSetMems,
+		BlkioDeviceReadBps:   throttleDeviceFromOptionWithSize(options.BlkioDeviceReadBps),
+		BlkioDeviceWriteBps:  throttleDeviceFromOptionWithSize(options.BlkioDeviceWriteBps),
+		BlkioDeviceReadIOps:  throttleDeviceFromOptions(options.BlkioDeviceReadIOps),
+		BlkioDeviceWriteIOps: throttleDeviceFromOptions(options.BlkioDeviceWriteIOps),
+		IOMaximumIOps:        options.IOMaximumIOps,
+		IOMaximumBandwidth:   options.IOMaximumBandwidth,
+		Memory:               options.Memory,
+		MemorySwap:           options.MemorySwap,
+		Ulimits:              options.Ulimits,
 	}
 
 	return &container.HostConfig{
@@ -544,6 +552,62 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: options.ExtraHosts,
 	}
+}
+
+func throttleDeviceFromOptionWithSize(option string) []*blkiodev.ThrottleDevice {
+	configuration := strings.Split(option, ":")
+	if len(configuration) != 2 {
+		return nil
+	}
+	var rate int
+	var err error
+	if strings.HasSuffix(configuration[1], "kb") {
+		configuration[1] = strings.TrimSuffix(configuration[1], "kb")
+		rate, err = strconv.Atoi(configuration[1])
+		if err != nil {
+			return nil
+		}
+		rate *= 1024
+	} else if strings.HasSuffix(configuration[1], "mb") {
+		configuration[1] = strings.TrimSuffix(configuration[1], "mb")
+		rate, err = strconv.Atoi(configuration[1])
+		if err != nil {
+			return nil
+		}
+		rate *= int(math.Pow(1024, 2.0))
+	} else if strings.HasSuffix(configuration[1], "gb") {
+		configuration[1] = strings.TrimSuffix(configuration[1], "gb")
+		rate, err = strconv.Atoi(configuration[1])
+		if err != nil {
+			return nil
+		}
+		rate *= int(math.Pow(1024, 3.0))
+	}
+	device := make([]*blkiodev.ThrottleDevice, 1)
+	device[1] = &blkiodev.ThrottleDevice{
+		Path: configuration[0],
+		Rate: uint64(rate),
+	}
+	return device
+}
+
+func throttleDeviceFromOptions(option string) []*blkiodev.ThrottleDevice {
+	configuration := strings.Split(option, ":")
+	if len(configuration) != 2 {
+		return nil
+	}
+	var rate int
+	var err error
+	rate, err = strconv.Atoi(configuration[1])
+	if err != nil {
+		return nil
+	}
+	device := make([]*blkiodev.ThrottleDevice, 1)
+	device[1] = &blkiodev.ThrottleDevice{
+		Path: configuration[0],
+		Rate: uint64(rate),
+	}
+	return device
 }
 
 // fromSlash works like filepath.FromSlash but with a given OS platform field
