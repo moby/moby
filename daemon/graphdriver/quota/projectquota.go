@@ -58,6 +58,7 @@ import (
 	"path/filepath"
 	"unsafe"
 
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -98,6 +99,14 @@ type Control struct {
 // project ids.
 //
 func NewControl(basePath string) (*Control, error) {
+	//
+	// If we are running in a user namespace quota won't be supported for
+	// now since makeBackingFsDev() will try to mknod().
+	//
+	if rsystem.RunningInUserNS() {
+		return nil, ErrQuotaNotSupported
+	}
+
 	//
 	// create backing filesystem device node
 	//
