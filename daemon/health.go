@@ -129,7 +129,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 	}
 
 	h := c.State.Health
-	oldStatus := h.Status
+	oldStatus := h.Status()
 
 	if len(h.Log) >= maxLogEntries {
 		h.Log = append(h.Log[len(h.Log)+1-maxLogEntries:], result)
@@ -139,14 +139,14 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 
 	if result.ExitCode == exitStatusHealthy {
 		h.FailingStreak = 0
-		h.Status = types.Healthy
+		h.SetStatus(types.Healthy)
 	} else { // Failure (including invalid exit code)
 		shouldIncrementStreak := true
 
 		// If the container is starting (i.e. we never had a successful health check)
 		// then we check if we are within the start period of the container in which
 		// case we do not increment the failure streak.
-		if h.Status == types.Starting {
+		if h.Status() == types.Starting {
 			startPeriod := timeoutWithDefault(c.Config.Healthcheck.StartPeriod, defaultStartPeriod)
 			timeSinceStart := result.Start.Sub(c.State.StartedAt)
 
@@ -160,7 +160,7 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 			h.FailingStreak++
 
 			if h.FailingStreak >= retries {
-				h.Status = types.Unhealthy
+				h.SetStatus(types.Unhealthy)
 			}
 		}
 		// Else we're starting or healthy. Stay in that state.
@@ -173,8 +173,9 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 		logrus.Errorf("Error replicating health state for container %s: %v", c.ID, err)
 	}
 
-	if oldStatus != h.Status {
-		d.LogContainerEvent(c, "health_status: "+h.Status)
+	current := h.Status()
+	if oldStatus != current {
+		d.LogContainerEvent(c, "health_status: "+current)
 	}
 }
 
@@ -293,11 +294,11 @@ func (d *Daemon) initHealthMonitor(c *container.Container) {
 	d.stopHealthchecks(c)
 
 	if h := c.State.Health; h != nil {
-		h.Status = types.Starting
+		h.SetStatus(types.Starting)
 		h.FailingStreak = 0
 	} else {
 		h := &container.Health{}
-		h.Status = types.Starting
+		h.SetStatus(types.Starting)
 		c.State.Health = h
 	}
 

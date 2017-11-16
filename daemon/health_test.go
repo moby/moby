@@ -14,7 +14,7 @@ import (
 func reset(c *container.Container) {
 	c.State = &container.State{}
 	c.State.Health = &container.Health{}
-	c.State.Health.Status = types.Starting
+	c.State.Health.SetStatus(types.Starting)
 }
 
 func TestNoneHealthcheck(t *testing.T) {
@@ -111,8 +111,8 @@ func TestHealthStates(t *testing.T) {
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
 	handleResult(c.State.StartedAt.Add(40*time.Second), 1)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 2 {
 		t.Errorf("Expecting FailingStreak=2, but got %d\n", c.State.Health.FailingStreak)
@@ -133,15 +133,15 @@ func TestHealthStates(t *testing.T) {
 	c.Config.Healthcheck.StartPeriod = 30 * time.Second
 
 	handleResult(c.State.StartedAt.Add(20*time.Second), 1)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 0 {
 		t.Errorf("Expecting FailingStreak=0, but got %d\n", c.State.Health.FailingStreak)
 	}
 	handleResult(c.State.StartedAt.Add(50*time.Second), 1)
-	if c.State.Health.Status != types.Starting {
-		t.Errorf("Expecting starting, but got %#v\n", c.State.Health.Status)
+	if status := c.State.Health.Status(); status != types.Starting {
+		t.Errorf("Expecting starting, but got %#v\n", status)
 	}
 	if c.State.Health.FailingStreak != 1 {
 		t.Errorf("Expecting FailingStreak=1, but got %d\n", c.State.Health.FailingStreak)

@@ -139,7 +139,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	var containerHealth *types.Health
 	if container.State.Health != nil {
 		containerHealth = &types.Health{
-			Status:        container.State.Health.Status,
+			Status:        container.State.Health.Status(),
 			FailingStreak: container.State.Health.FailingStreak,
 			Log:           append([]*types.HealthcheckResult{}, container.State.Health.Log...),
 		}

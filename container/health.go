@@ -16,17 +16,40 @@ type Health struct {
 
 // String returns a human-readable description of the health-check state
 func (s *Health) String() string {
-	// This happens when the monitor has yet to be setup.
-	if s.Status == "" {
-		return types.Unhealthy
-	}
+	status := s.Status()
 
-	switch s.Status {
+	switch status {
 	case types.Starting:
 		return "health: starting"
 	default: // Healthy and Unhealthy are clear on their own
-		return s.Status
+		return s.Health.Status
 	}
+}
+
+// Status returns the current health status.
+//
+// Note that this takes a lock and the value may change after being read.
+func (s *Health) Status() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	// This happens when the monitor has yet to be setup.
+	if s.Health.Status == "" {
+		return types.Unhealthy
+	}
+
+	return s.Health.Status
+}
+
+// SetStatus writes the current status to the underlying health structure,
+// obeying the locking semantics.
+//
+// Status may be set directly if another lock is used.
+func (s *Health) SetStatus(new string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.Health.Status = new
 }
 
 // OpenMonitorChannel creates and returns a new monitor channel. If there
@@ -53,7 +76,7 @@ func (s *Health) CloseMonitorChannel() {
 		close(s.stop)
 		s.stop = nil
 		// unhealthy when the monitor has stopped for compatibility reasons
-		s.Status = types.Unhealthy
+		s.Health.Status = types.Unhealthy
 		logrus.Debug("CloseMonitorChannel done")
 	}
 }
