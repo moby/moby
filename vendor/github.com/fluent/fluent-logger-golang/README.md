@@ -21,7 +21,7 @@ import "github.com/fluent/fluent-logger-golang/fluent"
 
 GoDoc: http://godoc.org/github.com/fluent/fluent-logger-golang/fluent
 
-##Example
+## Example
 
 ```go
 package main
@@ -44,20 +44,25 @@ func main() {
     "hoge": "hoge",
   }
   error := logger.Post(tag, data)
-  // error := logger.Post(tag, time.Time.Now(), data)
+  // error := logger.PostWithTime(tag, time.Now(), data)
   if error != nil {
     panic(error)
   }
 }
 ```
 
-`data` must be a value like `map[string]literal`, `map[string]interface{}` or `struct`. Logger refers tags `msg` or `codec` of each fields of structs.
+`data` must be a value like `map[string]literal`, `map[string]interface{}`, `struct` or [`msgp.Marshaler`](http://godoc.org/github.com/tinylib/msgp/msgp#Marshaler). Logger refers tags `msg` or `codec` of each fields of structs.
 
 ## Setting config values
 
 ```go
 f := fluent.New(fluent.Config{FluentPort: 80, FluentHost: "example.com"})
 ```
+
+### WriteTimeout
+
+Sets the timeout for Write call of logger.Post.
+Since the default is zero value, Write will not time out.
 
 ## Tests
 ```

@@ -48,11 +48,12 @@ const (
 	defaultRetryWait  = 1000
 	defaultMaxRetries = math.MaxInt32
 
-	addressKey      = "fluentd-address"
-	bufferLimitKey  = "fluentd-buffer-limit"
-	retryWaitKey    = "fluentd-retry-wait"
-	maxRetriesKey   = "fluentd-max-retries"
-	asyncConnectKey = "fluentd-async-connect"
+	addressKey            = "fluentd-address"
+	bufferLimitKey        = "fluentd-buffer-limit"
+	retryWaitKey          = "fluentd-retry-wait"
+	maxRetriesKey         = "fluentd-max-retries"
+	asyncConnectKey       = "fluentd-async-connect"
+	subSecondPrecisionKey = "fluentd-sub-second-precision"
 )
 
 func init() {
@@ -117,15 +118,23 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	subSecondPrecision := false
+	if info.Config[subSecondPrecisionKey] != "" {
+		if subSecondPrecision, err = strconv.ParseBool(info.Config[subSecondPrecisionKey]); err != nil {
+			return nil, err
+		}
+	}
+
 	fluentConfig := fluent.Config{
-		FluentPort:       loc.port,
-		FluentHost:       loc.host,
-		FluentNetwork:    loc.protocol,
-		FluentSocketPath: loc.path,
-		BufferLimit:      bufferLimit,
-		RetryWait:        retryWait,
-		MaxRetry:         maxRetries,
-		AsyncConnect:     asyncConnect,
+		FluentPort:         loc.port,
+		FluentHost:         loc.host,
+		FluentNetwork:      loc.protocol,
+		FluentSocketPath:   loc.path,
+		BufferLimit:        bufferLimit,
+		RetryWait:          retryWait,
+		MaxRetry:           maxRetries,
+		AsyncConnect:       asyncConnect,
+		SubSecondPrecision: subSecondPrecision,
 	}
 
 	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
@@ -183,6 +192,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case retryWaitKey:
 		case maxRetriesKey:
 		case asyncConnectKey:
+		case subSecondPrecisionKey:
 			// Accepted
 		default:
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
