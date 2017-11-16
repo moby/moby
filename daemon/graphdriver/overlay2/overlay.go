@@ -153,9 +153,8 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		backingFs = fsName
 	}
 
-	// check if they are running over btrfs, aufs, zfs, overlay, or ecryptfs
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicZfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
 		logrus.Errorf("'overlay2' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	case graphdriver.FsMagicBtrfs:
@@ -174,11 +173,18 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		if opts.overrideKernelCheck {
 			logrus.Warn("Using pre-4.0.0 kernel for overlay2, mount failures may require kernel update")
 		} else {
-			if err := supportsMultipleLowerDir(filepath.Dir(home)); err != nil {
+			if err := supportsMultipleLowerDir(testdir); err != nil {
 				logrus.Debugf("Multiple lower dirs not supported: %v", err)
 				return nil, graphdriver.ErrNotSupported
 			}
 		}
+	}
+	supportsDType, err := fsutils.SupportsDType(testdir)
+	if err != nil {
+		return nil, err
+	}
+	if !supportsDType {
+		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -192,15 +198,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
-	}
-
-	supportsDType, err := fsutils.SupportsDType(home)
-	if err != nil {
-		return nil, err
-	}
-	if !supportsDType {
-		// not a fatal error until v17.12 (#27443)
-		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
 	d := &Driver{

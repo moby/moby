@@ -138,9 +138,17 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
 		logrus.Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
+	}
+
+	supportsDType, err := fsutils.SupportsDType(testdir)
+	if err != nil {
+		return nil, err
+	}
+	if !supportsDType {
+		return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -154,15 +162,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
-	}
-
-	supportsDType, err := fsutils.SupportsDType(home)
-	if err != nil {
-		return nil, err
-	}
-	if !supportsDType {
-		// not a fatal error until v17.12 (#27443)
-		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
 	d := &Driver{
