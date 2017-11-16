@@ -254,7 +254,7 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 }
 
 // SetupWorkingDirectory sets up the container's working directory as set in container.Config.WorkingDir
-func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error {
+func (container *Container) SetupWorkingDirectory(rootIdentity idtools.Identity) error {
 	// TODO @jhowardmsft, @gupta-ak LCOW Support. This will need revisiting.
 	// We will need to do remote filesystem operations here.
 	if container.OS != runtime.GOOS {
@@ -271,7 +271,7 @@ func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error 
 		return err
 	}
 
-	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChownNew(pth, 0755, rootIdentity); err != nil {
 		pthInfo, err2 := os.Stat(pth)
 		if err2 == nil && pthInfo != nil && !pthInfo.IsDir() {
 			return errors.Errorf("Cannot mkdir: %s is not a directory", container.Config.WorkingDir)

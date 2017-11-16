@@ -25,7 +25,7 @@ func TestLocalVolumeSize(t *testing.T) {
 	assert.Assert(t, err)
 	defer os.RemoveAll(dir)
 
-	l, err := local.New(dir, idtools.IDPair{UID: os.Getuid(), GID: os.Getegid()})
+	l, err := local.New(dir, idtools.Identity{UID: os.Getuid(), GID: os.Getegid()})
 	assert.Assert(t, err)
 	assert.Assert(t, ds.Register(l, volume.DefaultDriverName))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("fake"), "fake"))

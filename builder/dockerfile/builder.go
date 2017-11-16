@@ -56,21 +56,21 @@ type SessionGetter interface {
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	idMappings *idtools.IDMappings
-	backend    builder.Backend
-	pathCache  pathCache // TODO: make this persistent
-	sg         SessionGetter
-	fsCache    *fscache.FSCache
+	idMapping *idtools.IdentityMapping
+	backend   builder.Backend
+	pathCache pathCache // TODO: make this persistent
+	sg        SessionGetter
+	fsCache   *fscache.FSCache
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, sg SessionGetter, fsCache *fscache.FSCache, idMappings *idtools.IDMappings) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, sg SessionGetter, fsCache *fscache.FSCache, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
 	bm := &BuildManager{
-		backend:    b,
-		pathCache:  &syncmap.Map{},
-		sg:         sg,
-		idMappings: idMappings,
-		fsCache:    fsCache,
+		backend:   b,
+		pathCache: &syncmap.Map{},
+		sg:        sg,
+		idMapping: identityMapping,
+		fsCache:   fsCache,
 	}
 	if err := fsCache.RegisterTransport(remotecontext.ClientSessionRemote, NewClientSessionTransport()); err != nil {
 		return nil, err
@@ -111,7 +111,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		ProgressWriter: config.ProgressWriter,
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
-		IDMappings:     bm.idMappings,
+		IDMapping:      bm.idMapping,
 	}
 	b, err := newBuilder(ctx, builderOptions)
 	if err != nil {
@@ -159,7 +159,7 @@ type builderOptions struct {
 	Backend        builder.Backend
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
-	IDMappings     *idtools.IDMappings
+	IDMapping      *idtools.IdentityMapping
 }
 
 // Builder is a Dockerfile builder
@@ -175,7 +175,7 @@ type Builder struct {
 	docker    builder.Backend
 	clientCtx context.Context
 
-	idMappings       *idtools.IDMappings
+	idMapping        *idtools.IdentityMapping
 	disableCommit    bool
 	imageSources     *imageSources
 	pathCache        pathCache
@@ -199,7 +199,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
-		idMappings:       options.IDMappings,
+		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
 		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),

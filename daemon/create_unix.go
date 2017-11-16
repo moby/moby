@@ -25,7 +25,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	}
 	defer daemon.Unmount(container)
 
-	rootIDs := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMapping.RootPair()
 	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
 		return err
 	}

@@ -17,7 +17,7 @@ import (
 //
 // This extra layer is used by all containers as the top-most ro layer. It protects
 // the container from unwanted side-effects on the rw layer.
-func Setup(initLayerFs containerfs.ContainerFS, rootIDs idtools.IDPair) error {
+func Setup(initLayerFs containerfs.ContainerFS, rootIdentity idtools.Identity) error {
 	// Since all paths are local to the container, we can just extract initLayerFs.Path()
 	initLayer := initLayerFs.Path()
 
@@ -42,12 +42,12 @@ func Setup(initLayerFs containerfs.ContainerFS, rootIDs idtools.IDPair) error {
 
 		if _, err := os.Stat(filepath.Join(initLayer, pth)); err != nil {
 			if os.IsNotExist(err) {
-				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootIDs); err != nil {
+				if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, filepath.Dir(pth)), 0755, rootIdentity); err != nil {
 					return err
 				}
 				switch typ {
 				case "dir":
-					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0755, rootIDs); err != nil {
+					if err := idtools.MkdirAllAndChownNew(filepath.Join(initLayer, pth), 0755, rootIdentity); err != nil {
 						return err
 					}
 				case "file":
@@ -55,7 +55,7 @@ func Setup(initLayerFs containerfs.ContainerFS, rootIDs idtools.IDPair) error {
 					if err != nil {
 						return err
 					}
-					f.Chown(rootIDs.UID, rootIDs.GID)
+					f.Chown(rootIdentity.UID, rootIdentity.GID)
 					f.Close()
 				default:
 					if err := os.Symlink(typ, filepath.Join(initLayer, pth)); err != nil {

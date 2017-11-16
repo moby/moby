@@ -124,7 +124,7 @@ func TestTmpfsDevShmSizeOverride(t *testing.T) {
 	mnt := "/dev/shm"
 
 	d := Daemon{
-		idMappings: &idtools.IDMappings{},
+		idMapping: &idtools.IdentityMapping{},
 	}
 	c := &container.Container{
 		HostConfig: &containertypes.HostConfig{

@@ -22,11 +22,11 @@ type UntarFunc func(io.Reader, string, *archive.TarOptions) error
 
 // Archiver provides a similar implementation of the archive.Archiver package with the rootfs abstraction
 type Archiver struct {
-	SrcDriver     Driver
-	DstDriver     Driver
-	Tar           TarFunc
-	Untar         UntarFunc
-	IDMappingsVar *idtools.IDMappings
+	SrcDriver Driver
+	DstDriver Driver
+	Tar       TarFunc
+	Untar     UntarFunc
+	IDMapping *idtools.IdentityMapping
 }
 
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
@@ -39,8 +39,8 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 	}
 	defer tarArchive.Close()
 	options := &archive.TarOptions{
-		UIDMaps: archiver.IDMappingsVar.UIDs(),
-		GIDMaps: archiver.IDMappingsVar.GIDs(),
+		UIDMaps: archiver.IDMapping.UIDs(),
+		GIDMaps: archiver.IDMapping.GIDs(),
 	}
 	return archiver.Untar(tarArchive, dst, options)
 }
@@ -53,8 +53,8 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 	}
 	defer tarArchive.Close()
 	options := &archive.TarOptions{
-		UIDMaps: archiver.IDMappingsVar.UIDs(),
-		GIDMaps: archiver.IDMappingsVar.GIDs(),
+		UIDMaps: archiver.IDMapping.UIDs(),
+		GIDMaps: archiver.IDMapping.GIDs(),
 	}
 	return archiver.Untar(tarArchive, dst, options)
 }
@@ -75,9 +75,11 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 	// if this archiver is set up with ID mapping we need to create
 	// the new destination directory with the remapped root UID/GID pair
 	// as owner
-	rootIDs := archiver.IDMappingsVar.RootPair()
+
+	identity := idtools.Identity{UID: archiver.IDMapping.RootPair().UID, GID: archiver.IDMapping.RootPair().GID}
+
 	// Create dst, copy src's content into it
-	if err := idtools.MkdirAllAndChownNew(dst, 0755, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChownNew(dst, 0755, identity); err != nil {
 		return err
 	}
 	logrus.Debugf("Calling TarUntar(%s, %s)", src, dst)
@@ -150,7 +152,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 				hdr.Mode = int64(os.FileMode(hdr.Mode))
 			}
 
-			if err := remapIDs(archiver.IDMappingsVar, hdr); err != nil {
+			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
 				return err
 			}
 
@@ -178,13 +180,13 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 	return err
 }
 
-// IDMappings returns the IDMappings of the archiver.
-func (archiver *Archiver) IDMappings() *idtools.IDMappings {
-	return archiver.IDMappingsVar
+// IdentityMapping returns the IdentityMapping of the archiver.
+func (archiver *Archiver) IdentityMapping() *idtools.IdentityMapping {
+	return archiver.IDMapping
 }
 
-func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
-	ids, err := idMappings.ToHost(idtools.IDPair{UID: hdr.Uid, GID: hdr.Gid})
+func remapIDs(idMapping *idtools.IdentityMapping, hdr *tar.Header) error {
+	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	hdr.Uid, hdr.Gid = ids.UID, ids.GID
 	return err
 }

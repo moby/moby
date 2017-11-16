@@ -21,7 +21,7 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 	d := Daemon{
 		// some empty structs to avoid getting a panic
 		// caused by a null pointer dereference
-		idMappings:  &idtools.IDMappings{},
+		idMapping:   &idtools.IdentityMapping{},
 		configStore: &config.Config{},
 	}
 	c := &container.Container{
@@ -58,7 +58,7 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 	d := Daemon{
 		// some empty structs to avoid getting a panic
 		// caused by a null pointer dereference
-		idMappings:  &idtools.IDMappings{},
+		idMapping:   &idtools.IdentityMapping{},
 		configStore: &config.Config{},
 	}
 	c := &container.Container{

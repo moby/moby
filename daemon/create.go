@@ -155,13 +155,14 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
 	// Set RWLayer for container after mount labels have been set
-	rwLayer, err := daemon.imageService.CreateLayer(container, setupInitLayer(daemon.idMappings))
+	rwLayer, err := daemon.imageService.CreateLayer(container, setupInitLayer(daemon.idMapping))
 	if err != nil {
 		return nil, errdefs.System(err)
 	}
 	container.RWLayer = rwLayer
 
-	rootIDs := daemon.idMappings.RootPair()
+	rootIDs := daemon.idMapping.RootPair()
+
 	if err := idtools.MkdirAndChown(container.Root, 0700, rootIDs); err != nil {
 		return nil, err
 	}
