@@ -310,6 +310,10 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 				Name: node.Name,
 				IP:   node.Addr.String(),
 			})
+		} else {
+			// Added for testing purposes, this condition should never happen else mean that the network list
+			// is out of sync with the node list
+			peers = append(peers, PeerInfo{})
 		}
 	}
 	return peers
@@ -593,6 +597,9 @@ func (nDB *NetworkDB) JoinNetwork(nid string) error {
 	nodeNetworks[nid] = &network{id: nid, ltime: ltime, entriesNumber: entries}
 	nodeNetworks[nid].tableBroadcasts = &memberlist.TransmitLimitedQueue{
 		NumNodes: func() int {
+			//TODO fcrisciani this can be optimized maybe avoiding the lock?
+			// this call is done each GetBroadcasts call to evaluate the number of
+			// replicas for the message
 			nDB.RLock()
 			defer nDB.RUnlock()
 			return len(nDB.networkNodes[nid])
