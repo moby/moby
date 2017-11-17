@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 
 	"github.com/sirupsen/logrus"
@@ -81,7 +82,7 @@ func (n *Server) EnableDebug(ip string, port int) {
 	// go func() {
 	// 	http.Serve(n.sk, n.mux)
 	// }()
-	http.ListenAndServe(":8000", n.mux)
+	http.ListenAndServe(":"+strconv.Itoa(port), n.mux)
 }
 
 // DisableDebug stop the dubug and closes the tcp socket

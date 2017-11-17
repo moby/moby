@@ -5,7 +5,9 @@ import (
 	"net/http"
 	"strings"
 
+	stackdump "github.com/docker/docker/pkg/signal"
 	"github.com/docker/libnetwork/diagnose"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -24,6 +26,7 @@ var NetDbPaths2Func = map[string]diagnose.HTTPHandlerFunc{
 	"/deleteentry":  dbDeleteEntry,
 	"/getentry":     dbGetEntry,
 	"/gettable":     dbGetTable,
+	"/dump":         dbStackTrace,
 }
 
 func dbJoin(ctx interface{}, w http.ResponseWriter, r *http.Request) {
@@ -238,5 +241,14 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 			fmt.Fprintf(w, "%d) k:`%s` -> v:`%s`\n", i, k, string(v.([]byte)))
 			i++
 		}
+	}
+}
+
+func dbStackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+	path, err := stackdump.DumpStacks("/tmp/")
+	if err != nil {
+		logrus.WithError(err).Error("failed to write goroutines dump")
+	} else {
+		fmt.Fprintf(w, "goroutine stacks written to %s", path)
 	}
 }
