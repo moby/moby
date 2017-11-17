@@ -16,6 +16,13 @@ export DOCKER_GITCOMMIT
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
 # `project/PACKAGERS.md` have some limited documentation of some of these
+#
+# DOCKER_LDFLAGS can be used to pass additional parameters to -ldflags
+# option of "go build". For example, a built-in graphdriver priority list
+# can be changed during build time like this:
+#
+# make DOCKER_LDFLAGS="-X github.com/docker/docker/daemon/graphdriver.priority=overlay2,devicemapper" dynbinary
+#
 DOCKER_ENVS := \
 	-e DOCKER_CROSSPLATFORMS \
 	-e BUILD_APT_MIRROR \
@@ -31,6 +38,7 @@ DOCKER_ENVS := \
 	-e DOCKER_GITCOMMIT \
 	-e DOCKER_GRAPHDRIVER \
 	-e DOCKER_INCREMENTAL_BINARY \
+	-e DOCKER_LDFLAGS \
 	-e DOCKER_PORT \
 	-e DOCKER_REMAP_ROOT \
 	-e DOCKER_STORAGE_OPTS \

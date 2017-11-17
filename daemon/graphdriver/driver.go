@@ -208,7 +208,9 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 
 	// Guess for prior driver
 	driversMap := scanPriorDrivers(config.Root)
-	for _, name := range priority {
+	list := strings.Split(priority, ",")
+	logrus.Debugf("[graphdriver] priority list: %v", list)
+	for _, name := range list {
 		if name == "vfs" {
 			// don't use vfs even if there is state present.
 			continue
@@ -243,7 +245,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	}
 
 	// Check for priority drivers first
-	for _, name := range priority {
+	for _, name := range list {
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if isDriverNotSupported(err) {
