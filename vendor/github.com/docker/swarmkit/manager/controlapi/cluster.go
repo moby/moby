@@ -58,6 +58,10 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 		}
 	}
 
+	if spec.Annotations.Name != store.DefaultClusterName {
+		return grpc.Errorf(codes.InvalidArgument, "modification of cluster name is not allowed")
+	}
+
 	return nil
 }
 

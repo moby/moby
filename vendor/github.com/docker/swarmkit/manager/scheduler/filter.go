@@ -169,7 +169,10 @@ func (f *PluginFilter) Check(n *NodeInfo) bool {
 		}
 	}
 
-	if f.t.Spec.LogDriver != nil {
+	// It's possible that the LogDriver object does not carry a name, just some
+	// configuration options. In that case, the plugin filter shouldn't fail to
+	// schedule the task
+	if f.t.Spec.LogDriver != nil && f.t.Spec.LogDriver.Name != "none" && f.t.Spec.LogDriver.Name != "" {
 		// If there are no log driver types in the list at all, most likely this is
 		// an older daemon that did not report this information. In this case don't filter
 		if typeFound, exists := f.pluginExistsOnNode("Log", f.t.Spec.LogDriver.Name, nodePlugins); !exists && typeFound {

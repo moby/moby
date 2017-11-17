@@ -17,7 +17,7 @@ import (
 // responds to changes in individual tasks (or nodes which run them).
 
 func (r *Orchestrator) initCluster(readTx store.ReadTx) error {
-	clusters, err := store.FindClusters(readTx, store.ByName("default"))
+	clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 	if err != nil {
 		return err
 	}

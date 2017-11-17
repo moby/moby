@@ -404,7 +404,7 @@ func (m *Manager) Run(parent context.Context) error {
 		)
 
 		m.raftNode.MemoryStore().View(func(readTx store.ReadTx) {
-			clusters, err = store.FindClusters(readTx, store.ByName("default"))
+			clusters, err = store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 
 		})
 
