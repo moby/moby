@@ -26,17 +26,18 @@ const (
 )
 
 type Config struct {
-	FluentPort       int           `json:"fluent_port"`
-	FluentHost       string        `json:"fluent_host"`
-	FluentNetwork    string        `json:"fluent_network"`
-	FluentSocketPath string        `json:"fluent_socket_path"`
-	Timeout          time.Duration `json:"timeout"`
-	BufferLimit      int           `json:"buffer_limit"`
-	RetryWait        int           `json:"retry_wait"`
-	MaxRetry         int           `json:"max_retry"`
-	TagPrefix        string        `json:"tag_prefix"`
-	AsyncConnect     bool          `json:"async_connect"`
-	MarshalAsJSON    bool          `json:"marshal_as_json"`
+	FluentPort             int           `json:"fluent_port"`
+	FluentHost             string        `json:"fluent_host"`
+	FluentNetwork          string        `json:"fluent_network"`
+	FluentSocketPath       string        `json:"fluent_socket_path"`
+	Timeout                time.Duration `json:"timeout"`
+	BufferLimit            int           `json:"buffer_limit"`
+	RetryWait              int           `json:"retry_wait"`
+	MaxRetry               int           `json:"max_retry"`
+	TagPrefix              string        `json:"tag_prefix"`
+	AsyncConnect           bool          `json:"async_connect"`
+	SubSecondPrecision     bool          `json:"sub_second_precision"`
+	MarshalAsJSON          bool          `json:"marshal_as_json"`
 }
 
 type Fluent struct {
@@ -82,6 +83,9 @@ func New(config Config) (f *Fluent, err error) {
 	} else {
 		f = &Fluent{Config: config, reconnecting: false}
 		err = f.connect()
+	}
+	if !config.SubSecondPrecision {
+		config.SubSecondPrecision = false
 	}
 	return
 }
