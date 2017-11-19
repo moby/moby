@@ -205,13 +205,18 @@ type tags struct {
 func (t *tags) All(ctx context.Context) ([]string, error) {
 	var tags []string
 
-	u, err := t.ub.BuildTagsURL(t.name)
+	listURLStr, err := t.ub.BuildTagsURL(t.name)
+	if err != nil {
+		return tags, err
+	}
+
+	listURL, err := url.Parse(listURLStr)
 	if err != nil {
 		return tags, err
 	}
 
 	for {
-		resp, err := t.client.Get(u)
+		resp, err := t.client.Get(listURL.String())
 		if err != nil {
 			return tags, err
 		}
@@ -231,7 +236,13 @@ func (t *tags) All(ctx context.Context) ([]string, error) {
 			}
 			tags = append(tags, tagsResponse.Tags...)
 			if link := resp.Header.Get("Link"); link != "" {
-				u = strings.Trim(strings.Split(link, ";")[0], "<>")
+				linkURLStr := strings.Trim(strings.Split(link, ";")[0], "<>")
+				linkURL, err := url.Parse(linkURLStr)
+				if err != nil {
+					return tags, err
+				}
+
+				listURL = listURL.ResolveReference(linkURL)
 			} else {
 				return tags, nil
 			}
