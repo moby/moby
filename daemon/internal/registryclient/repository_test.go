@@ -1136,13 +1136,27 @@ func TestManifestTagsPaginated(t *testing.T) {
 			queryParams["n"] = []string{"1"}
 			queryParams["last"] = []string{tagsList[i-1]}
 		}
+
+		// Test both relative and absolute links.
+		relativeLink := "/v2/" + repo.Name() + "/tags/list?n=1&last=" + tagsList[i]
+		var link string
+		switch i {
+		case 0:
+			link = relativeLink
+		case len(tagsList) - 1:
+			link = ""
+		default:
+			link = s.URL + relativeLink
+		}
+
 		headers := http.Header(map[string][]string{
 			"Content-Length": {fmt.Sprint(len(body))},
 			"Last-Modified":  {time.Now().Add(-1 * time.Second).Format(time.ANSIC)},
 		})
-		if i < 2 {
-			headers.Set("Link", "<"+s.URL+"/v2/"+repo.Name()+"/tags/list?n=1&last="+tagsList[i]+`>; rel="next"`)
+		if link != "" {
+			headers.Set("Link", fmt.Sprintf(`<%s>; rel="next"`, link))
 		}
+
 		m = append(m, testutil.RequestResponseMapping{
 			Request: testutil.Request{
 				Method:      "GET",
