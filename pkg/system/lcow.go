@@ -62,7 +62,7 @@ func IsOSSupported(os string) bool {
 	if runtime.GOOS == os {
 		return true
 	}
-	if LCOWSupported() && runtime.GOOS == "windows" && os == "linux" {
+	if LCOWSupported() && os == "linux" {
 		return true
 	}
 	return false

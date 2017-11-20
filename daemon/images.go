@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/system"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -111,6 +112,13 @@ func (daemon *Daemon) Images(imageFilters filters.Args, all bool, withExtraAttrs
 			if !imageFilters.MatchKVList("label", img.Config.Labels) {
 				continue
 			}
+		}
+
+		// Skip any images with an unsupported operating system to avoid a potential
+		// panic when indexing through the layerstore. Don't error as we want to list
+		// the other images. This should never happen, but here as a safety precaution.
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			continue
 		}
 
 		layerID := img.RootFS.ChainID()

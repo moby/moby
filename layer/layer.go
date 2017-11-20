@@ -216,7 +216,7 @@ type MetadataTransaction interface {
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
 	SetDescriptor(distribution.Descriptor) error
-	SetOS(string) error
+	setOS(string) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -237,7 +237,7 @@ type MetadataStore interface {
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
 	GetDescriptor(ChainID) (distribution.Descriptor, error)
-	GetOS(ChainID) (string, error)
+	getOS(ChainID) (string, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error

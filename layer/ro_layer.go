@@ -146,7 +146,7 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 			return err
 		}
 	}
-	if err := tx.SetOS(layer.layerStore.os); err != nil {
+	if err := tx.setOS(layer.layerStore.os); err != nil {
 		return err
 	}
 

@@ -7,16 +7,16 @@ import (
 	"strings"
 )
 
-// SetOS writes the "os" file to the layer filestore
-func (fm *fileMetadataTransaction) SetOS(os string) error {
+// setOS writes the "os" file to the layer filestore
+func (fm *fileMetadataTransaction) setOS(os string) error {
 	if os == "" {
 		return nil
 	}
 	return fm.ws.WriteFile("os", []byte(os), 0644)
 }
 
-// GetOS reads the "os" file from the layer filestore
-func (fms *fileMetadataStore) GetOS(layer ChainID) (string, error) {
+// getOS reads the "os" file from the layer filestore
+func (fms *fileMetadataStore) getOS(layer ChainID) (string, error) {
 	contentBytes, err := ioutil.ReadFile(fms.getLayerFilename(layer, "os"))
 	if err != nil {
 		// For backwards compatibility, the os file may not exist. Default to "windows" if missing.

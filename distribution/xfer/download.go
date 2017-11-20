@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
@@ -105,9 +106,13 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 		downloadsByKey = make(map[string]*downloadTransfer)
 	)
 
-	// Assume that the operating system is the host OS if blank
+	// Assume that the operating system is the host OS if blank, and validate it
+	// to ensure we don't cause a panic by an invalid index into the layerstores.
 	if os == "" {
 		os = runtime.GOOS
+	}
+	if !system.IsOSSupported(os) {
+		return image.RootFS{}, nil, system.ErrNotSupportedOperatingSystem
 	}
 
 	rootFS := initialRootFS

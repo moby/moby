@@ -155,7 +155,10 @@ func (daemon *Daemon) restore() error {
 			logrus.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
-
+		if !system.IsOSSupported(container.OS) {
+			logrus.Errorf("Failed to load container %v: %s (%q)", id, system.ErrNotSupportedOperatingSystem, container.OS)
+			continue
+		}
 		// Ignore the container if it does not support the current driver being used by the graph
 		currentDriverForContainerOS := daemon.graphDrivers[container.OS]
 		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {

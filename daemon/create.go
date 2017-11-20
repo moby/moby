@@ -270,6 +270,8 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
+	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
+	// caller), and guaranteed non-nil
 	rwLayer, err := daemon.layerStores[container.OS].CreateRWLayer(container.ID, layerID, rwLayerOpts)
 	if err != nil {
 		return err

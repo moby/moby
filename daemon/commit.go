@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -149,6 +150,9 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
+	if !system.IsOSSupported(container.OS) {
+		return "", system.ErrNotSupportedOperatingSystem
+	}
 
 	if c.MergeConfigs && c.Config == nil {
 		c.Config = container.Config
@@ -251,6 +255,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 }
 
 func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
+	// Note: Indexing by OS is safe as only called from `Commit` which has already performed validation
 	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err

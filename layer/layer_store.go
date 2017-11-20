@@ -150,7 +150,7 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
 	}
 
-	os, err := ls.store.GetOS(layer)
+	os, err := ls.store.getOS(layer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
 	}

@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
@@ -210,6 +211,9 @@ func (p *v1Pusher) imageListForTag(imgID image.ID, dependenciesSeen map[layer.Ch
 
 	topLayerID := img.RootFS.ChainID()
 
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, system.ErrNotSupportedOperatingSystem
+	}
 	pl, err := p.config.LayerStores[img.OperatingSystem()].Get(topLayerID)
 	*referencedLayers = append(*referencedLayers, pl)
 	if err != nil {

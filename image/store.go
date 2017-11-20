@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -73,6 +74,9 @@ func (is *store) restore() error {
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
+			if !system.IsOSSupported(img.OperatingSystem()) {
+				return system.ErrNotSupportedOperatingSystem
+			}
 			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {
 				return err
@@ -148,6 +152,9 @@ func (is *store) Create(config []byte) (ID, error) {
 
 	var l layer.Layer
 	if layerID != "" {
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return "", system.ErrNotSupportedOperatingSystem
+		}
 		l, err = is.lss[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get layer %s", layerID)

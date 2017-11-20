@@ -156,7 +156,9 @@ func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 		return err
 	}
 	state := d.state
-	state.beginStage(cmd.Name, image)
+	if err := state.beginStage(cmd.Name, image); err != nil {
+		return err
+	}
 	if len(state.runConfig.OnBuild) > 0 {
 		triggers := state.runConfig.OnBuild
 		state.runConfig.OnBuild = nil
@@ -309,7 +311,9 @@ func resolveCmdLine(cmd instructions.ShellDependantCmdLine, runConfig *container
 // RUN [ "echo", "hi" ] # echo hi
 //
 func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
-
+	if !system.IsOSSupported(d.state.operatingSystem) {
+		return system.ErrNotSupportedOperatingSystem
+	}
 	stateRunConfig := d.state.runConfig
 	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem)
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)

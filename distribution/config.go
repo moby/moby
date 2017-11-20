@@ -158,6 +158,9 @@ func (s *imageConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, strin
 	if os == "" {
 		os = runtime.GOOS
 	}
+	if !system.IsOSSupported(os) {
+		return nil, "", system.ErrNotSupportedOperatingSystem
+	}
 	return unmarshalledConfig.RootFS, os, nil
 }
 

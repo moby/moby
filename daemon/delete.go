@@ -94,6 +94,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
 		}
 	}
+	if !system.IsOSSupported(container.OS) {
+		return fmt.Errorf("cannot remove %s: %s ", container.ID, system.ErrNotSupportedOperatingSystem)
+	}
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.

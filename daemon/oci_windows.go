@@ -138,6 +138,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	max := len(img.RootFS.DiffIDs)
 	for i := 1; i <= max; i++ {
 		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return nil, fmt.Errorf("cannot get layerpath for ImageID %s: %s ", img.RootFS.ChainID(), system.ErrNotSupportedOperatingSystem)
+		}
 		layerPath, err := layer.GetLayerPath(daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
 		if err != nil {
 			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID(), err)
