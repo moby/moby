@@ -42,8 +42,12 @@ var validCommitCommands = map[string]bool{
 }
 
 const (
-	stepFormat = "Step %d/%d : %v"
+	stepFormat   = "Step %d/%d : %v"
+	timingFormat = " ---> completed in: %s"
 )
+
+// time tracking variable
+var starttime = time.Now()
 
 // SessionGetter is object used to get access to a session by uuid
 type SessionGetter interface {
@@ -269,8 +273,12 @@ func processMetaArg(meta instructions.ArgCommand, shlex *ShellLex, args *buildAr
 }
 
 func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd interface{}) int {
+	exectime := time.Now()
 	fmt.Fprintf(out, stepFormat, currentCommandIndex, totalCommands, cmd)
 	fmt.Fprintln(out)
+	fmt.Fprintf(out, timingFormat, exectime.Sub(starttime)/time.Millisecond)
+	fmt.Fprintln(out)
+	starttime = time.Now()
 	return currentCommandIndex + 1
 }
 
