@@ -7891,7 +7891,7 @@ paths:
       summary: "Connect a container to a network"
       operationId: "NetworkConnect"
       consumes:
-        - "application/octet-stream"
+        - "application/json"
       responses:
         200:
           description: "No error"
