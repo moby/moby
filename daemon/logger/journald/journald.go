@@ -75,6 +75,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		"CONTAINER_ID_FULL": info.ContainerID,
 		"CONTAINER_NAME":    info.Name(),
 		"CONTAINER_TAG":     tag,
+		"SYSLOG_IDENTIFIER": tag,
 	}
 	extraAttrs, err := info.ExtraAttributes(sanitizeKeyMod)
 	if err != nil {
