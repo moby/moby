@@ -350,6 +350,9 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 
 		controller.WalkNetworks(s)
+
+		drvOptions := make(map[string]string)
+
 		if n != nil {
 			// global networks should not be deleted by local HNS
 			if n.Info().Scope() == datastore.GlobalScope {
@@ -358,12 +361,21 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 			v.Name = n.Name()
 			// This will not cause network delete from HNS as the network
 			// is not yet populated in the libnetwork windows driver
+
+			// restore option if it existed before
+			drvOptions = n.Info().DriverOptions()
 			n.Delete()
 		}
-
 		netOption := map[string]string{
 			winlibnetwork.NetworkName: v.Name,
 			winlibnetwork.HNSID:       v.Id,
+		}
+
+		// add persisted driver options
+		for k, v := range drvOptions {
+			if k != winlibnetwork.NetworkName && k != winlibnetwork.HNSID {
+				netOption[k] = v
+			}
 		}
 
 		v4Conf := []*libnetwork.IpamConf{}
