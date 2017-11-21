@@ -106,11 +106,19 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
+type fileID struct {
+	dev uint64
+	ino uint64
+}
+
 // DirCopy copies or hardlinks the contents of one directory to another,
 // properly handling xattrs, and soft links
 func DirCopy(srcDir, dstDir string, copyMode Mode) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
+	// This is a map of source file inodes to dst file paths
+	copiedFiles := make(map[fileID]string)
+
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -136,15 +144,21 @@ func DirCopy(srcDir, dstDir string, copyMode Mode) error {
 
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
+			id := fileID{dev: stat.Dev, ino: stat.Ino}
 			if copyMode == Hardlink {
 				isHardlink = true
 				if err2 := os.Link(srcPath, dstPath); err2 != nil {
+					return err2
+				}
+			} else if hardLinkDstPath, ok := copiedFiles[id]; ok {
+				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
 					return err2
 				}
 			} else {
 				if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
 					return err2
 				}
+				copiedFiles[id] = dstPath
 			}
 
 		case os.ModeDir:

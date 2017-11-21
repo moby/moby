@@ -9,6 +9,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -64,4 +66,33 @@ func doCopyTest(t *testing.T, copyWithFileRange, copyWithFileClone *bool) {
 	readBuf, err := ioutil.ReadFile(dstFilename)
 	require.NoError(t, err)
 	assert.Equal(t, buf, readBuf)
+}
+
+func TestCopyHardlink(t *testing.T) {
+	var srcFile1FileInfo, srcFile2FileInfo, dstFile1FileInfo, dstFile2FileInfo unix.Stat_t
+
+	srcDir, err := ioutil.TempDir("", "srcDir")
+	require.NoError(t, err)
+	defer os.RemoveAll(srcDir)
+
+	dstDir, err := ioutil.TempDir("", "dstDir")
+	require.NoError(t, err)
+	defer os.RemoveAll(dstDir)
+
+	srcFile1 := filepath.Join(srcDir, "file1")
+	srcFile2 := filepath.Join(srcDir, "file2")
+	dstFile1 := filepath.Join(dstDir, "file1")
+	dstFile2 := filepath.Join(dstDir, "file2")
+	require.NoError(t, ioutil.WriteFile(srcFile1, []byte{}, 0777))
+	require.NoError(t, os.Link(srcFile1, srcFile2))
+
+	assert.NoError(t, DirCopy(srcDir, dstDir, Content))
+
+	require.NoError(t, unix.Stat(srcFile1, &srcFile1FileInfo))
+	require.NoError(t, unix.Stat(srcFile2, &srcFile2FileInfo))
+	require.Equal(t, srcFile1FileInfo.Ino, srcFile2FileInfo.Ino)
+
+	require.NoError(t, unix.Stat(dstFile1, &dstFile1FileInfo))
+	require.NoError(t, unix.Stat(dstFile2, &dstFile2FileInfo))
+	assert.Equal(t, dstFile1FileInfo.Ino, dstFile2FileInfo.Ino)
 }
