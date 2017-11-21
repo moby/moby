@@ -86,7 +86,7 @@ func TestCopyHardlink(t *testing.T) {
 	require.NoError(t, ioutil.WriteFile(srcFile1, []byte{}, 0777))
 	require.NoError(t, os.Link(srcFile1, srcFile2))
 
-	assert.NoError(t, DirCopy(srcDir, dstDir, Content))
+	assert.NoError(t, DirCopy(srcDir, dstDir, Content, false))
 
 	require.NoError(t, unix.Stat(srcFile1, &srcFile1FileInfo))
 	require.NoError(t, unix.Stat(srcFile2, &srcFile2FileInfo))

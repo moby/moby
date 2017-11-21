@@ -330,7 +330,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	return copy.DirCopy(parentUpperDir, upperDir, copy.Content)
+	return copy.DirCopy(parentUpperDir, upperDir, copy.Content, true)
 }
 
 func (d *Driver) dir(id string) string {
@@ -446,7 +446,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		}
 	}()
 
-	if err = copy.DirCopy(parentRootDir, tmpRootDir, copy.Hardlink); err != nil {
+	if err = copy.DirCopy(parentRootDir, tmpRootDir, copy.Hardlink, true); err != nil {
 		return 0, err
 	}
 

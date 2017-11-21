@@ -113,7 +113,9 @@ type fileID struct {
 
 // DirCopy copies or hardlinks the contents of one directory to another,
 // properly handling xattrs, and soft links
-func DirCopy(srcDir, dstDir string, copyMode Mode) error {
+//
+// Copying xattrs can be opted out of by passing false for copyXattrs.
+func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 	// This is a map of source file inodes to dst file paths
@@ -206,16 +208,10 @@ func DirCopy(srcDir, dstDir string, copyMode Mode) error {
 			return err
 		}
 
-		if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
-			return err
-		}
-
-		// We need to copy this attribute if it appears in an overlay upper layer, as
-		// this function is used to copy those. It is set by overlay if a directory
-		// is removed and then re-created and should not inherit anything from the
-		// same dir in the lower dir.
-		if err := copyXattr(srcPath, dstPath, "trusted.overlay.opaque"); err != nil {
-			return err
+		if copyXattrs {
+			if err := doCopyXattrs(srcPath, dstPath); err != nil {
+				return err
+			}
 		}
 
 		isSymlink := f.Mode()&os.ModeSymlink != 0
@@ -245,4 +241,19 @@ func DirCopy(srcDir, dstDir string, copyMode Mode) error {
 		return nil
 	})
 	return err
+}
+
+func doCopyXattrs(srcPath, dstPath string) error {
+	if err := copyXattr(srcPath, dstPath, "security.capability"); err != nil {
+		return err
+	}
+
+	// We need to copy this attribute if it appears in an overlay upper layer, as
+	// this function is used to copy those. It is set by overlay if a directory
+	// is removed and then re-created and should not inherit anything from the
+	// same dir in the lower dir.
+	if err := copyXattr(srcPath, dstPath, "trusted.overlay.opaque"); err != nil {
+		return err
+	}
+	return nil
 }
