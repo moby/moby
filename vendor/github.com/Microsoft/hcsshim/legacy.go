@@ -472,15 +472,21 @@ func cloneTree(srcPath, destPath string, mutatedFiles map[string]bool) error {
 		}
 		destFilePath := filepath.Join(destPath, relPath)
 
+		fileAttributes := info.Sys().(*syscall.Win32FileAttributeData).FileAttributes
 		// Directories, reparse points, and files that will be mutated during
 		// utility VM import must be copied. All other files can be hard linked.
-		isReparsePoint := info.Sys().(*syscall.Win32FileAttributeData).FileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0
-		if info.IsDir() || isReparsePoint || mutatedFiles[relPath] {
-			fi, err := copyFileWithMetadata(srcFilePath, destFilePath, info.IsDir())
+		isReparsePoint := fileAttributes&syscall.FILE_ATTRIBUTE_REPARSE_POINT != 0
+		// In go1.9, FileInfo.IsDir() returns false if the directory is also a symlink.
+		// See: https://github.com/golang/go/commit/1989921aef60c83e6f9127a8448fb5ede10e9acc
+		// Fixes the problem by checking syscall.FILE_ATTRIBUTE_DIRECTORY directly
+		isDir := fileAttributes&syscall.FILE_ATTRIBUTE_DIRECTORY != 0
+
+		if isDir || isReparsePoint || mutatedFiles[relPath] {
+			fi, err := copyFileWithMetadata(srcFilePath, destFilePath, isDir)
 			if err != nil {
 				return err
 			}
-			if info.IsDir() && !isReparsePoint {
+			if isDir && !isReparsePoint {
 				di = append(di, dirInfo{path: destFilePath, fileInfo: *fi})
 			}
 		} else {
@@ -490,8 +496,9 @@ func cloneTree(srcPath, destPath string, mutatedFiles map[string]bool) error {
 			}
 		}
 
-		// Don't recurse on reparse points.
-		if info.IsDir() && isReparsePoint {
+		// Don't recurse on reparse points in go1.8 and older. Filepath.Walk
+		// handles this in go1.9 and newer.
+		if isDir && isReparsePoint && shouldSkipDirectoryReparse {
 			return filepath.SkipDir
 		}
 
