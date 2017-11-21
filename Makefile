@@ -158,8 +158,8 @@ run: build ## run the docker daemon in a container
 shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
-test: build ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-unit test-integration test-docker-py
+test: build test-unit ## run the unit, integration and docker-py tests
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-integration test-docker-py
 
 test-docker-py: build ## run the docker-py tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
