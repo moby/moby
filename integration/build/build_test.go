@@ -169,3 +169,31 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	assert.Equal(t, "/foo/sub2", image.Config.WorkingDir)
 	assert.Contains(t, image.Config.Env, "WHO=parent")
 }
+
+func TestBuildWithEmptyLayers(t *testing.T) {
+	dockerfile := `
+		FROM    busybox
+		COPY    1/ /target/
+		COPY    2/ /target/
+		COPY    3/ /target/
+	`
+	ctx := context.Background()
+	source := fakecontext.New(t, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("1/a", "asdf"),
+		fakecontext.WithFile("2/a", "asdf"),
+		fakecontext.WithFile("3/a", "asdf"))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+		})
+	require.NoError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+}

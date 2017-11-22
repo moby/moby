@@ -71,11 +71,7 @@ func (rl *releaseableLayer) Commit(os string) (builder.ReleaseableLayer, error) 
 	if err != nil {
 		return nil, err
 	}
-
-	if layer.IsEmpty(newLayer.DiffID()) {
-		_, err := rl.layerStore.Release(newLayer)
-		return &releaseableLayer{layerStore: rl.layerStore}, err
-	}
+	// TODO: An optimization woudld be to handle empty layers before returning
 	return &releaseableLayer{layerStore: rl.layerStore, roLayer: newLayer}, nil
 }
 
