@@ -125,7 +125,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	// Create the root aufs driver dir and return
 	// if it already exists
 	// If not populate the dir structure
-	if err := idtools.MkdirAllAs(root, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(root, 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 		if os.IsExist(err) {
 			return a, nil
 		}
@@ -138,7 +138,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	// Populate the dir structure
 	for _, p := range paths {
-		if err := idtools.MkdirAllAs(path.Join(root, p), 0700, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(root, p), 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 			return nil, err
 		}
 	}
@@ -290,7 +290,7 @@ func (a *Driver) createDirsFor(id string) error {
 	// The path of directories are <aufs_root_path>/mnt/<image_id>
 	// and <aufs_root_path>/diff/<image_id>
 	for _, p := range paths {
-		if err := idtools.MkdirAllAs(path.Join(a.rootPath(), p, id), 0755, rootUID, rootGID); err != nil {
+		if err := idtools.MkdirAllAndChown(path.Join(a.rootPath(), p, id), 0755, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 			return err
 		}
 	}
