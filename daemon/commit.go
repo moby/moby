@@ -149,6 +149,10 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		defer daemon.containerUnpause(container)
 	}
 
+	if c.MergeConfigs && c.Config == nil {
+		c.Config = container.Config
+	}
+
 	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes)
 	if err != nil {
 		return "", err

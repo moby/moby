@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
@@ -45,9 +44,6 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 	c, _, _, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil && err != io.EOF { //Do not fail if body is empty.
 		return err
-	}
-	if c == nil {
-		c = &container.Config{}
 	}
 
 	commitCfg := &backend.ContainerCommitConfig{
