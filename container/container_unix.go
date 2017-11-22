@@ -332,6 +332,12 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	if resources.KernelMemory != 0 {
 		cResources.KernelMemory = resources.KernelMemory
 	}
+	if resources.CPURealtimePeriod != 0 {
+		cResources.CPURealtimePeriod = resources.CPURealtimePeriod
+	}
+	if resources.CPURealtimeRuntime != 0 {
+		cResources.CPURealtimeRuntime = resources.CPURealtimeRuntime
+	}
 
 	// update HostConfig of container
 	if hostConfig.RestartPolicy.Name != "" {
