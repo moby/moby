@@ -65,7 +65,7 @@ func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRang
 		// as the ioctl may not have been available (therefore EINVAL)
 		if err == unix.EXDEV || err == unix.ENOSYS {
 			*copyWithFileRange = false
-		} else if err != nil {
+		} else {
 			return err
 		}
 	}
