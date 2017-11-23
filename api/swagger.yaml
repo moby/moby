@@ -332,6 +332,7 @@ definitions:
       Memory:
         description: "Memory limit in bytes."
         type: "integer"
+        format: "int64"
         default: 0
       # Applicable to UNIX platforms
       CgroupParent:
