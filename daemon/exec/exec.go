@@ -119,6 +119,15 @@ func (e *Store) Add(id string, Config *Config) {
 	e.Unlock()
 }
 
+// SetPid adds an association between a Pid and a config.
+func (e *Store) SetPid(id string, pid int) {
+	e.Lock()
+	if config, ok := e.byID[id]; ok {
+		e.byPid[pid] = config
+	}
+	e.Unlock()
+}
+
 // SetPidUnlocked adds an association between a Pid and a config, it does not
 // synchronized with other operations.
 func (e *Store) SetPidUnlocked(id string, pid int) {
