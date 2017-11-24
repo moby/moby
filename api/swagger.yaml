@@ -7367,6 +7367,10 @@ paths:
           schema:
             type: "object"
             properties:
+              CanRemove:
+                type: "boolean"
+              DetachKeys:
+                type: "string"
               ID:
                 type: "string"
               Running:
