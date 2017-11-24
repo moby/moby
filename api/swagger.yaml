@@ -9512,13 +9512,7 @@ paths:
         201:
           description: "no error"
           schema:
-            type: "object"
-            properties:
-              ID:
-                description: "The ID of the created secret."
-                type: "string"
-            example:
-              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+            $ref: "#/definitions/IdResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
@@ -9717,13 +9711,7 @@ paths:
         201:
           description: "no error"
           schema:
-            type: "object"
-            properties:
-              ID:
-                description: "The ID of the created config."
-                type: "string"
-            example:
-              ID: "ktnbjxoalbkvbvedmg1urrz8h"
+            $ref: "#/definitions/IdResponse"
         409:
           description: "name conflicts with an existing object"
           schema:
