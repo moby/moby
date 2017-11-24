@@ -11,6 +11,7 @@ package copy
 */
 import "C"
 import (
+	"container/list"
 	"fmt"
 	"io"
 	"os"
@@ -111,6 +112,11 @@ type fileID struct {
 	ino uint64
 }
 
+type dirMtimeInfo struct {
+	dstPath *string
+	stat    *syscall.Stat_t
+}
+
 // DirCopy copies or hardlinks the contents of one directory to another,
 // properly handling xattrs, and soft links
 //
@@ -118,9 +124,11 @@ type fileID struct {
 func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
+
 	// This is a map of source file inodes to dst file paths
 	copiedFiles := make(map[fileID]string)
 
+	dirsToSetMtimes := list.New()
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -226,7 +234,9 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 
 		// system.Chtimes doesn't support a NOFOLLOW flag atm
 		// nolint: unconvert
-		if !isSymlink {
+		if f.IsDir() {
+			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
+		} else if !isSymlink {
 			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
 			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
 			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
@@ -240,7 +250,18 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		}
 		return nil
 	})
-	return err
+	if err != nil {
+		return err
+	}
+	for e := dirsToSetMtimes.Front(); e != nil; e = e.Next() {
+		mtimeInfo := e.Value.(*dirMtimeInfo)
+		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}
+		if err := system.LUtimesNano(*mtimeInfo.dstPath, ts); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func doCopyXattrs(srcPath, dstPath string) error {
