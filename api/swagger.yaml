@@ -4501,6 +4501,8 @@ paths:
           description: "Container created successfully"
           schema:
             type: "object"
+            title: "ContainerCreateResponse"
+            description: "OK response to ContainerCreate operation"
             required: [Id, Warnings]
             properties:
               Id:
@@ -4549,6 +4551,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "ContainerInspectResponse"
             properties:
               Id:
                 description: "The ID of the container"
@@ -4833,6 +4836,8 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "ContainerTopResponse"
+            description: "OK response to ContainerTop operation"
             properties:
               Titles:
                 description: "The ps column titles"
@@ -4993,6 +4998,8 @@ paths:
             items:
               type: "object"
               x-go-name: "ContainerChangeResponseItem"
+              title: "ContainerChangeResponseItem"
+              description: "change item in response to ContainerChanges operation"
               required: [Path, Kind]
               properties:
                 Path:
@@ -5371,6 +5378,8 @@ paths:
           description: "The container has been updated."
           schema:
             type: "object"
+            title: "ContainerUpdateResponse"
+            description: "OK response to ContainerUpdate operation"
             properties:
               Warnings:
                 type: "array"
@@ -5724,6 +5733,8 @@ paths:
           description: "The container has exit."
           schema:
             type: "object"
+            title: "ContainerWaitResponse"
+            description: "OK response to ContainerWait operation"
             required: [StatusCode]
             properties:
               StatusCode:
@@ -5969,6 +5980,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "ContainerPruneResponse"
             properties:
               ContainersDeleted:
                 description: "Container IDs that were deleted"
@@ -6225,6 +6237,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "BuildPruneResponse"
             properties:
               SpaceReclaimed:
                 description: "Disk space reclaimed in bytes"
@@ -6410,6 +6423,8 @@ paths:
             items:
               type: "object"
               x-go-name: HistoryResponseItem
+              title: "HistoryResponseItem"
+              description: "individual image layer information in response to ImageHistory operation"
               required: [Id, Created, CreatedBy, Tags, Size, Comment]
               properties:
                 Id:
@@ -6616,6 +6631,7 @@ paths:
             type: "array"
             items:
               type: "object"
+              title: "ImageSearchResponseItem"
               properties:
                 description:
                   type: "string"
@@ -6691,6 +6707,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "ImagePruneResponse"
             properties:
               ImagesDeleted:
                 description: "Images that were deleted"
@@ -6718,6 +6735,7 @@ paths:
           description: "An identity token was generated successfully."
           schema:
             type: "object"
+            title: "SystemAuthResponse"
             required: [Status]
             properties:
               Status:
@@ -6772,6 +6790,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "SystemVersionResponse"
             properties:
               Version:
                 type: "string"
@@ -6928,6 +6947,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "SystemEventsResponse"
             properties:
               Type:
                 description: "The type of object emitting the event"
@@ -7011,6 +7031,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "SystemDataUsageResponse"
             properties:
               LayersSize:
                 type: "integer"
@@ -7366,6 +7387,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "ExecInspectResponse"
             properties:
               CanRemove:
                 type: "boolean"
@@ -7436,6 +7458,7 @@ paths:
           description: "Summary volume data that matches the query"
           schema:
             type: "object"
+            title: "VolumeListResponse"
             required: [Volumes, Warnings]
             properties:
               Volumes:
@@ -7617,6 +7640,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "VolumePruneResponse"
             properties:
               VolumesDeleted:
                 description: "Volumes that were deleted"
@@ -7795,6 +7819,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "NetworkCreateResponse"
             properties:
               Id:
                 description: "The ID of the created network."
@@ -7997,6 +8022,7 @@ paths:
           description: "No error"
           schema:
             type: "object"
+            title: "NetworkPruneResponse"
             properties:
               NetworksDeleted:
                 description: "Networks that were deleted"
@@ -8048,6 +8074,7 @@ paths:
             items:
               description: "Describes a permission the user has to accept upon installing the plugin."
               type: "object"
+              title: "PluginPrivilegeItem"
               properties:
                 Name:
                   type: "string"
@@ -8750,6 +8777,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "UnlockKeyResponse"
             properties:
               UnlockKey:
                 description: "The swarm's unlock key."
@@ -8841,6 +8869,7 @@ paths:
           description: "no error"
           schema:
             type: "object"
+            title: "ServiceCreateResponse"
             properties:
               ID:
                 description: "The ID of the created service."
@@ -9857,6 +9886,7 @@ paths:
           schema:
             type: "object"
             x-go-name: DistributionInspect
+            title: "DistributionInspectResponse"
             required: [Descriptor, Platforms]
             properties:
               Descriptor:

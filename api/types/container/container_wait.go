@@ -15,7 +15,7 @@ type ContainerWaitOKBodyError struct {
 	Message string `json:"Message,omitempty"`
 }
 
-// ContainerWaitOKBody container wait o k body
+// ContainerWaitOKBody OK response to ContainerWait operation
 // swagger:model ContainerWaitOKBody
 type ContainerWaitOKBody struct {
 
