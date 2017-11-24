@@ -12,16 +12,20 @@ package copy
 import "C"
 import (
 	"container/list"
+	"context"
 	"fmt"
+	"hash/fnv"
 	"io"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
 
@@ -35,7 +39,17 @@ const (
 	Hardlink
 )
 
-func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRange, copyWithFileClone *bool) error {
+const (
+	concurrentFileCopies = 8
+	fileCopyChannelDepth = 10000
+)
+
+var (
+	copyRegular = copyRegularNorm
+)
+
+func copyRegularNorm(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRange, copyWithFileClone *bool, dstFileLock *dstFilePathWithLock) error {
+	defer dstFileLock.done()
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return err
@@ -48,6 +62,7 @@ func copyRegular(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRang
 		return err
 	}
 	defer dstFile.Close()
+	dstFileLock.done()
 
 	if *copyWithFileClone {
 		_, _, err = unix.Syscall(unix.SYS_IOCTL, dstFile.Fd(), C.FICLONE, srcFile.Fd())
@@ -107,6 +122,76 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
+func concurrentCopyHelperDoCopy(dstFileLock *dstFilePathWithLock, fileToCopy fileCopyInfo, copyXattrs bool, copyWithFileRange, copyWithFileClone *bool) error {
+	if err := copyRegular(fileToCopy.srcPath, fileToCopy.dstPath, fileToCopy.fileInfo, copyWithFileRange, copyWithFileClone, dstFileLock); err != nil {
+		return err
+	}
+
+	if err := os.Lchown(fileToCopy.dstPath, int(fileToCopy.stat.Uid), int(fileToCopy.stat.Gid)); err != nil {
+		return err
+	}
+
+	if copyXattrs {
+		if err := doCopyXattrs(fileToCopy.srcPath, fileToCopy.dstPath); err != nil {
+			return err
+		}
+	}
+
+	if err := os.Chmod(fileToCopy.dstPath, fileToCopy.fileInfo.Mode()); err != nil {
+		return err
+	}
+
+	aTime := time.Unix(fileToCopy.stat.Atim.Sec, fileToCopy.stat.Atim.Nsec)
+	mTime := time.Unix(fileToCopy.stat.Mtim.Sec, fileToCopy.stat.Mtim.Nsec)
+	if err := system.Chtimes(fileToCopy.dstPath, aTime, mTime); err != nil {
+		return err
+	}
+	return nil
+
+}
+
+func concurrentCopyHelper(copiedFiles *copiedFilesMap, fileToCopy fileCopyInfo, copyXattrs bool, copyWithFileRange, copyWithFileClone *bool) error {
+	id := fileID{dev: fileToCopy.stat.Dev, ino: fileToCopy.stat.Ino}
+
+	copiedFile, existing := copiedFiles.getCopiedFileOrNew(id, fileToCopy.dstPath)
+	if existing {
+		// Wait for the dst file path to be created
+		copiedFile.waitForCopy()
+		// Make the hardlink, and return
+		// it could potentially fail, if the other dstFile
+		// had issues copying
+		return os.Link(copiedFile.path, fileToCopy.dstPath)
+	}
+	defer copiedFile.done()
+
+	return concurrentCopyHelperDoCopy(copiedFile, fileToCopy, copyXattrs, copyWithFileRange, copyWithFileClone)
+}
+
+func concurrentFileCopier(ctx context.Context, copiedFiles *copiedFilesMap, filesToCopy chan fileCopyInfo, copyXattrs bool) error {
+	copyWithFileRange := true
+	copyWithFileClone := true
+	for {
+		select {
+		case <-ctx.Done():
+			return nil
+		case fileToCopy, ok := <-filesToCopy:
+			if !ok {
+				return nil
+			}
+			if err := concurrentCopyHelper(copiedFiles, fileToCopy, copyXattrs, &copyWithFileRange, &copyWithFileClone); err != nil {
+				return err
+			}
+		}
+	}
+}
+
+type fileCopyInfo struct {
+	fileInfo os.FileInfo
+	stat     *syscall.Stat_t
+	srcPath  string
+	dstPath  string
+}
+
 type fileID struct {
 	dev uint64
 	ino uint64
@@ -117,21 +202,79 @@ type dirMtimeInfo struct {
 	stat    *syscall.Stat_t
 }
 
+type dstFilePathWithLock struct {
+	lock sync.Mutex
+	once int
+	path string
+}
+
+func newDstFilePathWithLock(path string) *dstFilePathWithLock {
+	ret := &dstFilePathWithLock{
+		path: path,
+	}
+	ret.lock.Lock()
+	return ret
+}
+
+// Not concurrency safe, but done should only be called either if you instantiate
+// the object
+func (d *dstFilePathWithLock) done() {
+	if d.once == 0 {
+		d.lock.Unlock()
+		d.once++
+	}
+}
+
+func (d *dstFilePathWithLock) waitForCopy() {
+	d.lock.Lock()
+	d.lock.Unlock()
+}
+
+type copiedFilesMap struct {
+	copiedFilesMap sync.Map
+}
+
+func (c *copiedFilesMap) getCopiedFileOrNew(id fileID, path string) (*dstFilePathWithLock, bool) {
+	tmpNew := newDstFilePathWithLock(path)
+	val, loaded := c.copiedFilesMap.LoadOrStore(id, tmpNew)
+	return val.(*dstFilePathWithLock), loaded
+}
+
 // DirCopy copies or hardlinks the contents of one directory to another,
 // properly handling xattrs, and soft links
 //
 // Copying xattrs can be opted out of by passing false for copyXattrs.
 func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
-	copyWithFileRange := true
-	copyWithFileClone := true
 
 	// This is a map of source file inodes to dst file paths
-	copiedFiles := make(map[fileID]string)
+	copiedFiles := &copiedFilesMap{}
 
 	dirsToSetMtimes := list.New()
+	concurrentFileCopiers := make([]chan fileCopyInfo, concurrentFileCopies)
+
+	// This is a wait-group + cancellation pipeline
+	ctx, cancel := context.WithCancel(context.Background())
+	errGroup, childCtx := errgroup.WithContext(ctx)
+	// Do not return until all of the subroutines are completed
+	defer errGroup.Wait()
+	// defer cancel, so if early return occurs, errGroup is cancelled before return
+	defer cancel()
+
+	for i := range concurrentFileCopiers {
+		concurrentFileCopyChan := make(chan fileCopyInfo, fileCopyChannelDepth)
+		concurrentFileCopiers[i] = concurrentFileCopyChan
+		errGroup.Go(func() error {
+			return concurrentFileCopier(childCtx, copiedFiles, concurrentFileCopyChan, copyXattrs)
+		})
+	}
+
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		// Check if the subroutines exited, if so, return their error
+		if childCtx.Err() != nil {
+			return errGroup.Wait()
 		}
 
 		// Rebase path
@@ -154,23 +297,24 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
-			id := fileID{dev: stat.Dev, ino: stat.Ino}
 			if copyMode == Hardlink {
 				isHardlink = true
 				if err2 := os.Link(srcPath, dstPath); err2 != nil {
 					return err2
 				}
-			} else if hardLinkDstPath, ok := copiedFiles[id]; ok {
-				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
-					return err2
-				}
 			} else {
-				if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
+				hash := fnv.New32a()
+				if _, err2 := hash.Write([]byte(filepath.Dir(dstPath))); err2 != nil {
 					return err2
 				}
-				copiedFiles[id] = dstPath
+				idx := int(hash.Sum32()) % len(concurrentFileCopiers)
+				select {
+				case concurrentFileCopiers[idx] <- fileCopyInfo{srcPath: srcPath, dstPath: dstPath, fileInfo: f, stat: stat}:
+				case <-childCtx.Done():
+					return errGroup.Wait()
+				}
+				return nil
 			}
-
 		case os.ModeDir:
 			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
 				return err
@@ -250,9 +394,20 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		}
 		return nil
 	})
+
 	if err != nil {
 		return err
 	}
+
+	for i := range concurrentFileCopiers {
+		close(concurrentFileCopiers[i])
+	}
+
+	err = errGroup.Wait()
+	if err != nil {
+		return err
+	}
+
 	for e := dirsToSetMtimes.Front(); e != nil; e = e.Next() {
 		mtimeInfo := e.Value.(*dirMtimeInfo)
 		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}

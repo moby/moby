@@ -3,6 +3,7 @@
 package copy
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -143,7 +144,7 @@ func doCopyTest(t *testing.T, copyWithFileRange, copyWithFileClone *bool) {
 	fileinfo, err := os.Stat(srcFilename)
 	require.NoError(t, err)
 
-	require.NoError(t, copyRegular(srcFilename, dstFilename, fileinfo, copyWithFileRange, copyWithFileClone))
+	require.NoError(t, copyRegular(srcFilename, dstFilename, fileinfo, copyWithFileRange, copyWithFileClone, newDstFilePathWithLock("")))
 	readBuf, err := ioutil.ReadFile(dstFilename)
 	require.NoError(t, err)
 	assert.Equal(t, buf, readBuf)
@@ -176,4 +177,24 @@ func TestCopyHardlink(t *testing.T) {
 	require.NoError(t, unix.Stat(dstFile1, &dstFile1FileInfo))
 	require.NoError(t, unix.Stat(dstFile2, &dstFile2FileInfo))
 	assert.Equal(t, dstFile1FileInfo.Ino, dstFile2FileInfo.Ino)
+}
+
+func TestCopyDirToFullDir(t *testing.T) {
+	fakeErr := errors.New("Synthetic error")
+	srcDir, err := ioutil.TempDir("", "srcDir")
+	require.NoError(t, err)
+	populateSrcDir(t, srcDir, 2)
+	dstDir, err := ioutil.TempDir("", "testDst")
+	require.NoError(t, err)
+	copyRegular = func(srcPath, dstPath string, fileinfo os.FileInfo, copyWithFileRange, copyWithFileClone *bool, dstFileLock *dstFilePathWithLock) error {
+		return fakeErr
+	}
+	defer func() {
+		copyRegular = copyRegularNorm
+	}()
+
+	err = DirCopy(srcDir, dstDir, Content, false)
+	if assert.Error(t, err) {
+		assert.Equal(t, fakeErr, err)
+	}
 }
