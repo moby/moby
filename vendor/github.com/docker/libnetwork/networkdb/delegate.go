@@ -16,9 +16,12 @@ func (d *delegate) NodeMeta(limit int) []byte {
 	return []byte{}
 }
 
-func (nDB *NetworkDB) getNode(nEvent *NodeEvent) *node {
-	nDB.Lock()
-	defer nDB.Unlock()
+// getNode searches the node inside the tables
+// returns true if the node was respectively in the active list, explicit node leave list or failed list
+func (nDB *NetworkDB) getNode(nEvent *NodeEvent, extract bool) (bool, bool, bool, *node) {
+	var active bool
+	var left bool
+	var failed bool
 
 	for _, nodes := range []map[string]*node{
 		nDB.failedNodes,
@@ -26,35 +29,19 @@ func (nDB *NetworkDB) getNode(nEvent *NodeEvent) *node {
 		nDB.nodes,
 	} {
 		if n, ok := nodes[nEvent.NodeName]; ok {
+			active = &nodes == &nDB.nodes
+			left = &nodes == &nDB.leftNodes
+			failed = &nodes == &nDB.failedNodes
 			if n.ltime >= nEvent.LTime {
-				return nil
+				return active, left, failed, nil
 			}
-			return n
+			if extract {
+				delete(nodes, n.Name)
+			}
+			return active, left, failed, n
 		}
 	}
-	return nil
-}
-
-func (nDB *NetworkDB) checkAndGetNode(nEvent *NodeEvent) *node {
-	nDB.Lock()
-	defer nDB.Unlock()
-
-	for _, nodes := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-		nDB.nodes,
-	} {
-		if n, ok := nodes[nEvent.NodeName]; ok {
-			if n.ltime >= nEvent.LTime {
-				return nil
-			}
-
-			delete(nodes, n.Name)
-			return n
-		}
-	}
-
-	return nil
+	return active, left, failed, nil
 }
 
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
@@ -62,11 +49,14 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
 
-	n := nDB.getNode(nEvent)
+	nDB.RLock()
+	active, left, _, n := nDB.getNode(nEvent, false)
 	if n == nil {
+		nDB.RUnlock()
 		return false
 	}
-	// If its a node leave event for a manager and this is the only manager we
+	nDB.RUnlock()
+	// If it is a node leave event for a manager and this is the only manager we
 	// know of we want the reconnect logic to kick in. In a single manager
 	// cluster manager's gossip can't be bootstrapped unless some other node
 	// connects to it.
@@ -79,28 +69,38 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 		}
 	}
 
-	n = nDB.checkAndGetNode(nEvent)
-	if n == nil {
-		return false
-	}
-
 	n.ltime = nEvent.LTime
 
 	switch nEvent.Type {
 	case NodeEventTypeJoin:
-		nDB.Lock()
-		_, found := nDB.nodes[n.Name]
-		nDB.nodes[n.Name] = n
-		nDB.Unlock()
-		if !found {
-			logrus.Infof("Node join event for %s/%s", n.Name, n.Addr)
+		if active {
+			// the node is already marked as active nothing to do
+			return false
 		}
+		nDB.Lock()
+		// Because the lock got released on the previous check we have to do it again and re verify the status of the node
+		// All of this is to avoid a big lock on the function
+		if active, _, _, n = nDB.getNode(nEvent, true); !active && n != nil {
+			n.reapTime = 0
+			nDB.nodes[n.Name] = n
+			logrus.Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
+		}
+		nDB.Unlock()
 		return true
 	case NodeEventTypeLeave:
+		if left {
+			// the node is already marked as left nothing to do.
+			return false
+		}
 		nDB.Lock()
-		nDB.leftNodes[n.Name] = n
+		// Because the lock got released on the previous check we have to do it again and re verify the status of the node
+		// All of this is to avoid a big lock on the function
+		if _, left, _, n = nDB.getNode(nEvent, true); !left && n != nil {
+			n.reapTime = nodeReapInterval
+			nDB.leftNodes[n.Name] = n
+			logrus.Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
+		}
 		nDB.Unlock()
-		logrus.Infof("Node leave event for %s/%s", n.Name, n.Addr)
 		return true
 	}
 
@@ -140,7 +140,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 		n.ltime = nEvent.LTime
 		n.leaving = nEvent.Type == NetworkEventTypeLeave
 		if n.leaving {
-			n.reapTime = reapNetworkInterval
+			n.reapTime = nDB.config.reapNetworkInterval
 
 			// The remote node is leaving the network, but not the gossip cluster.
 			// Mark all its entries in deleted state, this will guarantee that
@@ -159,6 +159,12 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	}
 
 	if nEvent.Type == NetworkEventTypeLeave {
+		return false
+	}
+
+	// If the node is not known from memberlist we cannot process save any state of it else if it actually
+	// dies we won't receive any notification and we will remain stuck with it
+	if _, ok := nDB.nodes[nEvent.NodeName]; !ok {
 		return false
 	}
 
@@ -216,8 +222,9 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	// This case can happen if the cluster is running different versions of the engine where the old version does not have the
 	// field. If that is not the case, this can be a BUG
 	if e.deleting && e.reapTime == 0 {
-		logrus.Warnf("handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?", tEvent)
-		e.reapTime = reapEntryInterval
+		logrus.Warnf("%v(%v) handleTableEvent object %+v has a 0 reapTime, is the cluster running the same docker engine version?",
+			nDB.config.Hostname, nDB.config.NodeID, tEvent)
+		e.reapTime = nDB.config.reapEntryInterval
 	}
 
 	nDB.Lock()
@@ -229,7 +236,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
 		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
 		// This also avoids that deletion of entries close to their garbage collection ends up circuling around forever
-		return e.reapTime > reapEntryInterval/6
+		return e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
 	var op opType
@@ -465,7 +472,7 @@ func (d *delegate) MergeRemoteState(buf []byte, isJoin bool) {
 	var gMsg GossipMessage
 	err := proto.Unmarshal(buf, &gMsg)
 	if err != nil {
-		logrus.Errorf("Error unmarshalling push pull messsage: %v", err)
+		logrus.Errorf("Error unmarshalling push pull message: %v", err)
 		return
 	}
 

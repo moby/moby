@@ -256,6 +256,7 @@ retry:
 			if err := cs.GetObject(datastore.Key(kvObject.Key()...), kvObject); err != nil {
 				return fmt.Errorf("could not update the kvobject to latest when trying to delete: %v", err)
 			}
+			logrus.Errorf("Error (%v) deleting object %v, retrying....", err, kvObject.Key())
 			goto retry
 		}
 		return err
