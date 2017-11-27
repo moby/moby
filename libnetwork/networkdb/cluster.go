@@ -255,13 +255,18 @@ func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, sto
 func (nDB *NetworkDB) reapDeadNode() {
 	nDB.Lock()
 	defer nDB.Unlock()
-	for id, n := range nDB.failedNodes {
-		if n.reapTime > 0 {
-			n.reapTime -= nodeReapPeriod
-			continue
+	for _, nodeMap := range []map[string]*node{
+		nDB.failedNodes,
+		nDB.leftNodes,
+	} {
+		for id, n := range nodeMap {
+			if n.reapTime > nodeReapPeriod {
+				n.reapTime -= nodeReapPeriod
+				continue
+			}
+			logrus.Debugf("Garbage collect node %v", n.Name)
+			delete(nodeMap, id)
 		}
-		logrus.Debugf("Removing failed node %v from gossip cluster", n.Name)
-		delete(nDB.failedNodes, id)
 	}
 }
 
@@ -374,7 +379,6 @@ func (nDB *NetworkDB) gossip() {
 	thisNodeNetworks := nDB.networks[nDB.config.NodeID]
 	for nid := range thisNodeNetworks {
 		networkNodes[nid] = nDB.networkNodes[nid]
-
 	}
 	printStats := time.Since(nDB.lastStatsTimestamp) >= nDB.config.StatsPrintPeriod
 	printHealth := time.Since(nDB.lastHealthTimestamp) >= nDB.config.HealthPrintPeriod

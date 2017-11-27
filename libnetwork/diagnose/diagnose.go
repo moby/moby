@@ -81,7 +81,7 @@ func (n *Server) EnableDebug(ip string, port int) {
 	// go func() {
 	// 	http.Serve(n.sk, n.mux)
 	// }()
-	http.ListenAndServe(":8000", n.mux)
+	http.ListenAndServe(fmt.Sprintf(":%d", port), n.mux)
 }
 
 // DisableDebug stop the dubug and closes the tcp socket
