@@ -76,7 +76,7 @@ func (f *logentries) Log(msg *logger.Message) error {
 		logger.PutMessage(msg)
 		f.writer.Println(f.tag, ts, data)
 	} else {
-		line := msg.Line
+		line := string(msg.Line)
 		logger.PutMessage(msg)
 		f.writer.Println(line)
 	}
