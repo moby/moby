@@ -88,16 +88,14 @@ func (c *Config) SetExitCode(code int) {
 
 // Store keeps track of the exec configurations.
 type Store struct {
-	byID  map[string]*Config
-	byPid map[int]*Config
+	byID map[string]*Config
 	sync.RWMutex
 }
 
 // NewStore initializes a new exec store.
 func NewStore() *Store {
 	return &Store{
-		byID:  make(map[string]*Config),
-		byPid: make(map[int]*Config),
+		byID: make(map[string]*Config),
 	}
 }
 
@@ -119,14 +117,6 @@ func (e *Store) Add(id string, Config *Config) {
 	e.Unlock()
 }
 
-// SetPidUnlocked adds an association between a Pid and a config, it does not
-// synchronized with other operations.
-func (e *Store) SetPidUnlocked(id string, pid int) {
-	if config, ok := e.byID[id]; ok {
-		e.byPid[pid] = config
-	}
-}
-
 // Get returns an exec configuration by its id.
 func (e *Store) Get(id string) *Config {
 	e.RLock()
@@ -135,18 +125,9 @@ func (e *Store) Get(id string) *Config {
 	return res
 }
 
-// ByPid returns an exec configuration by its pid.
-func (e *Store) ByPid(pid int) *Config {
-	e.RLock()
-	res := e.byPid[pid]
-	e.RUnlock()
-	return res
-}
-
 // Delete removes an exec configuration from the store.
 func (e *Store) Delete(id string, pid int) {
 	e.Lock()
-	delete(e.byPid, pid)
 	delete(e.byID, id)
 	e.Unlock()
 }
