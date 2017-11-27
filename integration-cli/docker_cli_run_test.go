@@ -4284,6 +4284,17 @@ func (s *DockerSuite) TestRunCredentialSpecWellFormed(c *check.C) {
 func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
 	testRequires(c, DaemonIsWindows, SameHostDaemon)
 
+	// This functionality does not exist in post-RS3 builds.
+	// Note we get the version number from the full build string, as Windows
+	// reports Windows 8 version 6.2 build 9200 from non-manifested binaries.
+	// Ref: https://msdn.microsoft.com/en-us/library/windows/desktop/ms724451(v=vs.85).aspx
+	v, err := kernel.GetKernelVersion()
+	c.Assert(err, checker.IsNil)
+	build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+	if build > 16299 {
+		c.Skip("Disabled on post-RS3 builds")
+	}
+
 	out := cli.DockerCmd(c, "run", "-d", testEnv.MinimalBaseImage(), "cmd", "/c", "mkdir c:\\programdata\\Microsoft\\Windows\\ContainerUpdates\\000_000_d99f45d0-ffc8-4af7-bd9c-ea6a62e035c9_200 && sc control cexecsvc 255").Combined()
 	containerID := strings.TrimSpace(out)
 	cli.WaitExited(c, containerID, 60*time.Second)
