@@ -61,6 +61,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/create` now takes a `Capabilities` field to set the list of
   kernel capabilities to be available for the container (this overrides the default
   set).
+* `POST /containers/create` on Linux now creates a container with `HostConfig.IpcMode=private`
+  by default, if IpcMode is not explicitly specified. The per-daemon default can be changed
+  back to `shareable` by using `DefaultIpcMode` daemon configuration parameter.
 * `POST /containers/{id}/update` now accepts a `PidsLimit` field to tune a container's
   PID limit. Set `0` or `-1` for unlimited. Leave `null` to not change the current value.
 

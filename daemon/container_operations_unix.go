@@ -72,7 +72,7 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	// Check the container ipc is shareable
 	if st, err := os.Stat(container.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
-			return nil, errors.New(errMsg + ": non-shareable IPC")
+			return nil, errors.New(errMsg + ": non-shareable IPC (hint: use IpcMode:shareable for the donor container)")
 		}
 		// stat() failed?
 		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+container.ShmPath)
