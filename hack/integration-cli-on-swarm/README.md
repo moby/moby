@@ -12,7 +12,7 @@ IT on Swarm allows you to execute integration test in parallel across a Docker S
 ### Worker service
 
   - Works as a funker callee
-  - Executes an equivalent of `TESTFLAGS=-check.f TestFoo|TestBar|TestBaz ... make test-integration-cli` using the bind-mounted API socket (`docker.sock`)
+  - Executes an equivalent of `TESTFLAGS=-check.f TestFoo|TestBar|TestBaz ... make test-integration` using the bind-mounted API socket (`docker.sock`)
 
 ### Client
 
