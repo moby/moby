@@ -51,7 +51,10 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 	var lineOnly bool
 	if lineOnly, err = strconv.ParseBool(info.Config[lineonly]); err != nil {
-		return nil, errors.Wrap(err, "error parsing lineonly option")
+		logrus.WithField("container", info.ContainerID).
+			WithField("token", info.Config[token]).
+			WithField("line-only", info.Config[lineonly]).
+			Warn("error parsing lineonly option")
 	}
 	return &logentries{
 		containerID:   info.ContainerID,
