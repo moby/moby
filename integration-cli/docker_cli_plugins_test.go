@@ -168,8 +168,19 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 	defer cancel()
 
 	initialValue := "0"
+	mntSrc := "foo"
+	devPath := "/dev/bar"
+
 	err = plugin.Create(ctx, client, name, func(cfg *plugin.Config) {
 		cfg.Env = []types.PluginEnv{{Name: "DEBUG", Value: &initialValue, Settable: []string{"value"}}}
+		cfg.Mounts = []types.PluginMount{
+			{Name: "pmount1", Settable: []string{"source"}, Type: "none", Source: &mntSrc},
+			{Name: "pmount2", Settable: []string{"source"}, Type: "none"}, // Mount without source is invalid.
+		}
+		cfg.Linux.Devices = []types.PluginDevice{
+			{Name: "pdev1", Path: &devPath, Settable: []string{"path"}},
+			{Name: "pdev2", Settable: []string{"path"}}, // Device without Path is invalid.
+		}
 	})
 	c.Assert(err, checker.IsNil, check.Commentf("failed to create test plugin"))
 
@@ -180,6 +191,23 @@ func (ps *DockerPluginSuite) TestPluginSet(c *check.C) {
 
 	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{.Settings.Env}}", name)
 	c.Assert(strings.TrimSpace(env), checker.Equals, "[DEBUG=1]")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name)
+	c.Assert(strings.TrimSpace(env), checker.Contains, mntSrc)
+
+	dockerCmd(c, "plugin", "set", name, "pmount1.source=bar")
+
+	env, _ = dockerCmd(c, "plugin", "inspect", "-f", "{{with $mount := index .Settings.Mounts 0}}{{$mount.Source}}{{end}}", name)
+	c.Assert(strings.TrimSpace(env), checker.Contains, "bar")
+
+	out, _, err := dockerCmdWithError("plugin", "set", name, "pmount2.source=bar2")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Plugin config has no mount source")
+
+	out, _, err = dockerCmdWithError("plugin", "set", name, "pdev2.path=/dev/bar2")
+	c.Assert(err, checker.NotNil)
+	c.Assert(out, checker.Contains, "Plugin config has no device path")
+
 }
 
 func (ps *DockerPluginSuite) TestPluginInstallArgs(c *check.C) {
