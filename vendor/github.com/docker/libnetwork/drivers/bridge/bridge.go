@@ -763,11 +763,7 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
-	if err = bridgeSetup.apply(); err != nil {
-		return err
-	}
-
-	return nil
+	return bridgeSetup.apply()
 }
 
 func (d *driver) DeleteNetwork(nid string) error {

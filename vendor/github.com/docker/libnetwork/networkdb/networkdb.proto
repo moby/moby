@@ -109,7 +109,7 @@ message NetworkEntry {
 	// network event was recorded.
 	uint64 l_time = 2 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
 	// Source node name where this network attachment happened.
-	string node_name = 3;
+	string node_name = 3 [(gogoproto.customname) = "NodeName"];
 	// Indicates if a leave from this network is in progress.
 	bool leaving = 4;
 }
@@ -119,6 +119,8 @@ message NetworkPushPull {
 	// Lamport time when this push pull was initiated.
 	uint64 l_time = 1 [(gogoproto.customtype) = "github.com/hashicorp/serf/serf.LamportTime", (gogoproto.nullable) = false];
 	repeated NetworkEntry networks = 2;
+	// Name of the node sending this push pull payload.
+	string node_name = 3 [(gogoproto.customname) = "NodeName"];
 }
 
 // TableEvent message payload definition.
@@ -152,6 +154,8 @@ message TableEvent {
 	string key = 6;
 	// Entry value.
 	bytes value = 7;
+	// Residual reap time for the entry before getting deleted in seconds
+	int32 residual_reap_time = 8 [(gogoproto.customname) = "ResidualReapTime"];;
 }
 
 // BulkSync message payload definition.

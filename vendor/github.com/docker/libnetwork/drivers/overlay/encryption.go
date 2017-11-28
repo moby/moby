@@ -21,7 +21,6 @@ import (
 
 const (
 	r            = 0xD0C4E3
-	timeout      = 30
 	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 

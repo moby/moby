@@ -141,7 +141,7 @@ func (d *driver) restoreEndpoints() error {
 		Ifaces := make(map[string][]osl.IfaceOption)
 		vethIfaceOption := make([]osl.IfaceOption, 1)
 		vethIfaceOption = append(vethIfaceOption, n.sbox.InterfaceOptions().Master(s.brName))
-		Ifaces[fmt.Sprintf("%s+%s", "veth", "veth")] = vethIfaceOption
+		Ifaces["veth+veth"] = vethIfaceOption
 
 		err := n.sbox.Restore(Ifaces, nil, nil, nil)
 		if err != nil {
@@ -234,7 +234,7 @@ func (d *driver) nodeJoin(advertiseAddress, bindAddress string, self bool) {
 		// If there is no cluster store there is no need to start serf.
 		if d.store != nil {
 			if err := validateSelf(advertiseAddress); err != nil {
-				logrus.Warnf("%s", err.Error())
+				logrus.Warn(err.Error())
 			}
 			err := d.serfInit()
 			if err != nil {

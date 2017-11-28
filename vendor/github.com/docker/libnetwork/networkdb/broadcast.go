@@ -134,6 +134,8 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		TableName: tname,
 		Key:       key,
 		Value:     entry.value,
+		// The duration in second is a float that below would be truncated
+		ResidualReapTime: int32(entry.reapTime.Seconds()),
 	}
 
 	raw, err := encodeMessage(MessageTypeTableEvent, &tEvent)

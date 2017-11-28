@@ -199,11 +199,7 @@ func (ep *endpoint) Info() EndpointInfo {
 		return ep
 	}
 
-	if epi := sb.getEndpoint(ep.ID()); epi != nil {
-		return epi
-	}
-
-	return nil
+	return sb.getEndpoint(ep.ID())
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {

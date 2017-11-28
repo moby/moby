@@ -129,11 +129,11 @@ func (p *PortBinding) GetCopy() PortBinding {
 func (p *PortBinding) String() string {
 	ret := fmt.Sprintf("%s/", p.Proto)
 	if p.IP != nil {
-		ret = fmt.Sprintf("%s%s", ret, p.IP.String())
+		ret += p.IP.String()
 	}
 	ret = fmt.Sprintf("%s:%d/", ret, p.Port)
 	if p.HostIP != nil {
-		ret = fmt.Sprintf("%s%s", ret, p.HostIP.String())
+		ret += p.HostIP.String()
 	}
 	ret = fmt.Sprintf("%s:%d", ret, p.HostPort)
 	return ret

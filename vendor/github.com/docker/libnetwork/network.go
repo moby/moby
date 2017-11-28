@@ -995,6 +995,10 @@ func (n *network) delete(force bool) error {
 		logrus.Errorf("Failed leaving network %s from the agent cluster: %v", n.Name(), err)
 	}
 
+	// Cleanup the service discovery for this network
+	c.cleanupServiceDiscovery(n.ID())
+
+	// Cleanup the load balancer
 	c.cleanupServiceBindings(n.ID())
 
 removeFromStore:
