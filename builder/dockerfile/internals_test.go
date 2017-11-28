@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/blkiodev"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/remotecontext"
@@ -132,6 +133,40 @@ func TestCopyRunConfig(t *testing.T) {
 		assert.NotEqual(t, runConfig, runConfigCopy, testcase.doc)
 	}
 
+}
+
+func TestThrottleDeviceFromOptionsWithSize(t *testing.T) {
+	opt := "/dev/sda:20kb"
+	expectedThrottleDevice := blkiodev.ThrottleDevice{
+		Path: "/dev/sda",
+		Rate: 20480,
+	}
+	throttleDevice := throttleDeviceFromOptionsWithSize(opt)
+	assert.Equal(t, expectedThrottleDevice, *throttleDevice[0], "correctly get throttleDevice from options with size")
+
+	// test for invalid option
+	opt = "/no/rate:kb"
+	nilDevice := []*blkiodev.ThrottleDevice([]*blkiodev.ThrottleDevice(nil))
+	throttleDevice = throttleDeviceFromOptionsWithSize(opt)
+	assert.Equal(t, nilDevice, throttleDevice, "return nil for invalid options")
+	assert.Equal(t, 0, len(throttleDevice), "length of invalid device should be zero")
+}
+
+func TestThrottleDeviceFromOptions(t *testing.T) {
+	opt := "/dev/sda:500"
+	expectedThrottleDevice := blkiodev.ThrottleDevice{
+		Path: "/dev/sda",
+		Rate: 500,
+	}
+	throttleDevice := throttleDeviceFromOptions(opt)
+	assert.Equal(t, expectedThrottleDevice, *throttleDevice[0], "correctly get throttleDevice from options")
+
+	// test for invalid option
+	opt = "/no/rate"
+	nilDevice := []*blkiodev.ThrottleDevice([]*blkiodev.ThrottleDevice(nil))
+	throttleDevice = throttleDeviceFromOptions(opt)
+	assert.Equal(t, nilDevice, throttleDevice, "return nil for invalid options")
+	assert.Equal(t, 0, len(throttleDevice), "length of invalid device should be zero")
 }
 
 func fullMutableRunConfig() *container.Config {

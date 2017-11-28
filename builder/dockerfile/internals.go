@@ -531,10 +531,10 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		CPUQuota:             options.CPUQuota,
 		CpusetCpus:           options.CPUSetCPUs,
 		CpusetMems:           options.CPUSetMems,
-		BlkioDeviceReadBps:   throttleDeviceFromOptionWithSize(options.BlkioDeviceReadBps),
-		BlkioDeviceWriteBps:  throttleDeviceFromOptionWithSize(options.BlkioDeviceWriteBps),
-		BlkioDeviceReadIOps:  throttleDeviceFromOptions(options.BlkioDeviceReadIOps),
-		BlkioDeviceWriteIOps: throttleDeviceFromOptions(options.BlkioDeviceWriteIOps),
+		BlkioDeviceReadBps:   throttleDeviceFromOptionsWithSize(options.BlkioReadBpsDevice),
+		BlkioDeviceWriteBps:  throttleDeviceFromOptionsWithSize(options.BlkioWriteBpsDevice),
+		BlkioDeviceReadIOps:  throttleDeviceFromOptions(options.BlkioReadIOpsDevice),
+		BlkioDeviceWriteIOps: throttleDeviceFromOptions(options.BlkioWriteIOpsDevice),
 		IOMaximumIOps:        options.IOMaximumIOps,
 		IOMaximumBandwidth:   options.IOMaximumBandwidth,
 		Memory:               options.Memory,
@@ -554,7 +554,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 	}
 }
 
-func throttleDeviceFromOptionWithSize(option string) []*blkiodev.ThrottleDevice {
+func throttleDeviceFromOptionsWithSize(option string) []*blkiodev.ThrottleDevice {
 	configuration := strings.Split(option, ":")
 	if len(configuration) != 2 {
 		return nil
@@ -584,7 +584,7 @@ func throttleDeviceFromOptionWithSize(option string) []*blkiodev.ThrottleDevice 
 		rate *= int(math.Pow(1024, 3.0))
 	}
 	device := make([]*blkiodev.ThrottleDevice, 1)
-	device[1] = &blkiodev.ThrottleDevice{
+	device[0] = &blkiodev.ThrottleDevice{
 		Path: configuration[0],
 		Rate: uint64(rate),
 	}
@@ -603,7 +603,7 @@ func throttleDeviceFromOptions(option string) []*blkiodev.ThrottleDevice {
 		return nil
 	}
 	device := make([]*blkiodev.ThrottleDevice, 1)
-	device[1] = &blkiodev.ThrottleDevice{
+	device[0] = &blkiodev.ThrottleDevice{
 		Path: configuration[0],
 		Rate: uint64(rate),
 	}
