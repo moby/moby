@@ -195,7 +195,7 @@ func TestBridge(t *testing.T) {
 	if !ok {
 		t.Fatalf("Unexpected format for port mapping in endpoint operational data")
 	}
-	if len(pm) != 5 {
+	if len(pm) != 10 {
 		t.Fatalf("Incomplete data for port mapping in endpoint operational data: %d", len(pm))
 	}
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 
 	"github.com/docker/libnetwork/types"
 	"github.com/ishidawataru/sctp"
@@ -12,7 +13,8 @@ import (
 )
 
 var (
-	defaultBindingIP = net.IPv4(0, 0, 0, 0)
+	defaultBindingIP   = net.IPv4(0, 0, 0, 0)
+	defaultBindingIPV6 = net.ParseIP("::")
 )
 
 func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
@@ -25,11 +27,23 @@ func (n *bridgeNetwork) allocatePorts(ep *bridgeEndpoint, reqDefBindIP net.IP, u
 		defHostIP = reqDefBindIP
 	}
 
-	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled)
+	var pb []types.PortBinding
+
+	if ep.addrv6 != nil {
+		pb, _ = n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addrv6.IP, defaultBindingIPV6, ulPxyEnabled, nil)
+	}
+
+	return n.allocatePortsInternal(ep.extConnConfig.PortBindings, ep.addr.IP, defHostIP, ulPxyEnabled, pb)
 }
 
-func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool) ([]types.PortBinding, error) {
-	bs := make([]types.PortBinding, 0, len(bindings))
+func (n *bridgeNetwork) allocatePortsInternal(bindings []types.PortBinding, containerIP, defHostIP net.IP, ulPxyEnabled bool, existingPortBindings []types.PortBinding) ([]types.PortBinding, error) {
+
+	bs := existingPortBindings
+
+	if existingPortBindings == nil {
+		bs = make([]types.PortBinding, 0, len(bindings))
+	}
+
 	for _, c := range bindings {
 		b := c.GetCopy()
 		if err := n.allocatePort(&b, containerIP, defHostIP, ulPxyEnabled); err != nil {
@@ -69,9 +83,15 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHos
 		return err
 	}
 
+	portmapper := n.portMapper
+
+	if containerIP.To4() == nil {
+		portmapper = n.portMapperV6
+	}
+
 	// Try up to maxAllocatePortAttempts times to get a port that's not already allocated.
 	for i := 0; i < maxAllocatePortAttempts; i++ {
-		if host, err = n.portMapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled); err == nil {
+		if host, err = portmapper.MapRange(container, bnd.HostIP, int(bnd.HostPort), int(bnd.HostPortEnd), ulPxyEnabled); err == nil {
 			break
 		}
 		// There is no point in immediately retrying to map an explicitly chosen port.
@@ -128,5 +148,12 @@ func (n *bridgeNetwork) releasePort(bnd types.PortBinding) error {
 	if err != nil {
 		return err
 	}
-	return n.portMapper.Unmap(host)
+
+	portmapper := n.portMapper
+
+	if strings.ContainsAny(host.String(), "]") == true {
+		portmapper = n.portMapperV6
+	}
+
+	return portmapper.Unmap(host)
 }
