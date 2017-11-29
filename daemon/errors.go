@@ -21,10 +21,6 @@ func volumeNotFound(id string) error {
 	return objNotFoundError{"volume", id}
 }
 
-func networkNotFound(id string) error {
-	return objNotFoundError{"network", id}
-}
-
 type objNotFoundError struct {
 	object string
 	id     string
@@ -213,4 +209,21 @@ func translateContainerdStartErr(cmd string, setExitCode func(int), err error) e
 
 	// TODO: it would be nice to get some better errors from containerd so we can return better errors here
 	return retErr
+}
+
+// TODO: cpuguy83 take care of it once the new library is ready
+type errNotFound struct{ error }
+
+func (errNotFound) NotFound() {}
+
+func (e errNotFound) Cause() error {
+	return e.error
+}
+
+// notFound is a helper to create an error of the class with the same name from any error type
+func notFound(err error) error {
+	if err == nil {
+		return nil
+	}
+	return errNotFound{err}
 }

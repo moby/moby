@@ -56,7 +56,9 @@ func (daemon *Daemon) GetNetworkByID(partialID string) (libnetwork.Network, erro
 	list := daemon.GetNetworksByID(partialID)
 
 	if len(list) == 0 {
-		return nil, errors.WithStack(networkNotFound(partialID))
+		// Be very careful to change the error type here, the libnetwork.ErrNoSuchNetwork error is used by the controller
+		// to retry the creation of the network as managed through the swarm manager
+		return nil, errors.WithStack(notFound(libnetwork.ErrNoSuchNetwork(partialID)))
 	}
 	if len(list) > 1 {
 		return nil, errors.WithStack(invalidIdentifier(partialID))

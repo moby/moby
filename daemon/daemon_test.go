@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/api/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	_ "github.com/docker/docker/pkg/discovery/memory"
@@ -18,6 +19,9 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
+	"github.com/docker/libnetwork"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 )
 
 //
@@ -302,5 +306,14 @@ func TestMerge(t *testing.T) {
 		if portSpecs.Port() != "0" && portSpecs.Port() != "1111" && portSpecs.Port() != "2222" && portSpecs.Port() != "3333" {
 			t.Fatalf("Expected %q or %q or %q or %q, found %s", 0, 1111, 2222, 3333, portSpecs)
 		}
+	}
+}
+
+func TestFindNetworkErrorType(t *testing.T) {
+	d := Daemon{}
+	_, err := d.FindNetwork("fakeNet")
+	_, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork)
+	if !errdefs.IsNotFound(err) || !ok {
+		assert.Fail(t, "The FindNetwork method MUST always return an error that implements the NotFound interface and is ErrNoSuchNetwork")
 	}
 }
