@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.services.content.v1;
 
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/empty.proto";

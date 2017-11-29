@@ -32,6 +32,8 @@ type Image interface {
 	Config(ctx context.Context) (ocispec.Descriptor, error)
 	// IsUnpacked returns whether or not an image is unpacked.
 	IsUnpacked(context.Context, string) (bool, error)
+	// ContentStore provides a content store which contains image blob data
+	ContentStore() content.Store
 }
 
 var _ = (Image)(&image{})
@@ -86,6 +88,12 @@ func (i *image) IsUnpacked(ctx context.Context, snapshotterName string) (bool, e
 }
 
 func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
+	ctx, done, err := i.client.WithLease(ctx)
+	if err != nil {
+		return err
+	}
+	defer done()
+
 	layers, err := i.getLayers(ctx, platforms.Default())
 	if err != nil {
 		return err
@@ -159,4 +167,8 @@ func (i *image) getLayers(ctx context.Context, platform string) ([]rootfs.Layer,
 		layers[i].Blob = manifest.Layers[i]
 	}
 	return layers, nil
+}
+
+func (i *image) ContentStore() content.Store {
+	return i.client.ContentStore()
 }

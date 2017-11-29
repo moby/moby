@@ -8,7 +8,6 @@ import (
 )
 
 // Handles locking references
-// TODO: use boltdb for lock status
 
 var (
 	// locks lets us lock in process

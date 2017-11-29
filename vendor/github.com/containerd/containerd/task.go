@@ -8,12 +8,12 @@ import (
 	"io"
 	goruntime "runtime"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/api/types"
+	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
@@ -123,7 +123,7 @@ type Task interface {
 	// Resume the execution of the task
 	Resume(context.Context) error
 	// Exec creates a new process inside the task
-	Exec(context.Context, string, *specs.Process, IOCreation) (Process, error)
+	Exec(context.Context, string, *specs.Process, cio.Creation) (Process, error)
 	// Pids returns a list of system specific process ids inside the task
 	Pids(context.Context) ([]ProcessInfo, error)
 	// Checkpoint serializes the runtime and memory information of a task into an
@@ -134,7 +134,7 @@ type Task interface {
 	// Update modifies executing tasks with updated settings
 	Update(context.Context, ...UpdateTaskOpts) error
 	// LoadProcess loads a previously created exec'd process
-	LoadProcess(context.Context, string, IOAttach) (Process, error)
+	LoadProcess(context.Context, string, cio.Attach) (Process, error)
 	// Metrics returns task metrics for runtime specific metrics
 	//
 	// The metric types are generic to containerd and change depending on the runtime
@@ -148,11 +148,9 @@ var _ = (Task)(&task{})
 type task struct {
 	client *Client
 
-	io  IO
+	io  cio.IO
 	id  string
 	pid uint32
-
-	mu sync.Mutex
 }
 
 // Pid returns the pid or process id for the task
@@ -175,13 +173,14 @@ func (t *task) Start(ctx context.Context) error {
 func (t *task) Kill(ctx context.Context, s syscall.Signal, opts ...KillOpts) error {
 	var i KillInfo
 	for _, o := range opts {
-		if err := o(ctx, t, &i); err != nil {
+		if err := o(ctx, &i); err != nil {
 			return err
 		}
 	}
 	_, err := t.client.TaskService().Kill(ctx, &tasks.KillRequest{
 		Signal:      uint32(s),
 		ContainerID: t.id,
+		ExecID:      i.ExecID,
 		All:         i.All,
 	})
 	if err != nil {
@@ -278,7 +277,7 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 	return &ExitStatus{code: r.ExitStatus, exitedAt: r.ExitedAt}, nil
 }
 
-func (t *task) Exec(ctx context.Context, id string, spec *specs.Process, ioCreate IOCreation) (Process, error) {
+func (t *task) Exec(ctx context.Context, id string, spec *specs.Process, ioCreate cio.Creation) (Process, error) {
 	if id == "" {
 		return nil, errors.Wrapf(errdefs.ErrInvalidArgument, "exec id must not be empty")
 	}
@@ -343,7 +342,7 @@ func (t *task) CloseIO(ctx context.Context, opts ...IOCloserOpts) error {
 	return errdefs.FromGRPC(err)
 }
 
-func (t *task) IO() IO {
+func (t *task) IO() cio.IO {
 	return t.io
 }
 
@@ -357,7 +356,7 @@ func (t *task) Resize(ctx context.Context, w, h uint32) error {
 }
 
 func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Image, error) {
-	ctx, done, err := t.client.withLease(ctx)
+	ctx, done, err := t.client.WithLease(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -460,7 +459,7 @@ func (t *task) Update(ctx context.Context, opts ...UpdateTaskOpts) error {
 	return errdefs.FromGRPC(err)
 }
 
-func (t *task) LoadProcess(ctx context.Context, id string, ioAttach IOAttach) (Process, error) {
+func (t *task) LoadProcess(ctx context.Context, id string, ioAttach cio.Attach) (Process, error) {
 	response, err := t.client.TaskService().Get(ctx, &tasks.GetRequest{
 		ContainerID: t.id,
 		ExecID:      id,
@@ -472,7 +471,7 @@ func (t *task) LoadProcess(ctx context.Context, id string, ioAttach IOAttach) (P
 		}
 		return nil, err
 	}
-	var i IO
+	var i cio.IO
 	if ioAttach != nil {
 		if i, err = attachExistingIO(response, ioAttach); err != nil {
 			return nil, err

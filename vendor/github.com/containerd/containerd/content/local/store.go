@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -20,13 +21,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	bufPool = sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 1<<20)
-		},
-	}
-)
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		buffer := make([]byte, 1<<20)
+		return &buffer
+	},
+}
 
 // LabelStore is used to store mutable labels for digests
 type LabelStore interface {
@@ -219,7 +219,7 @@ func (s *store) Walk(ctx context.Context, fn content.WalkFunc, filters ...string
 
 		// TODO(stevvooe): There are few more cases with subdirs that should be
 		// handled in case the layout gets corrupted. This isn't strict enough
-		// an may spew bad data.
+		// and may spew bad data.
 
 		if path == root {
 			return nil
@@ -324,12 +324,28 @@ func (s *store) status(ingestPath string) (content.Status, error) {
 		return content.Status{}, err
 	}
 
+	startedAt, err := readFileTimestamp(filepath.Join(ingestPath, "startedat"))
+	if err != nil {
+		return content.Status{}, errors.Wrapf(err, "could not read startedat")
+	}
+
+	updatedAt, err := readFileTimestamp(filepath.Join(ingestPath, "updatedat"))
+	if err != nil {
+		return content.Status{}, errors.Wrapf(err, "could not read updatedat")
+	}
+
+	// because we don't write updatedat on every write, the mod time may
+	// actually be more up to date.
+	if fi.ModTime().After(updatedAt) {
+		updatedAt = fi.ModTime()
+	}
+
 	return content.Status{
 		Ref:       ref,
 		Offset:    fi.Size(),
 		Total:     s.total(ingestPath),
-		UpdatedAt: fi.ModTime(),
-		StartedAt: getStartTime(fi),
+		UpdatedAt: updatedAt,
+		StartedAt: startedAt,
 	}, nil
 }
 
@@ -369,6 +385,37 @@ func (s *store) total(ingestPath string) int64 {
 //
 // The argument `ref` is used to uniquely identify a long-lived writer transaction.
 func (s *store) Writer(ctx context.Context, ref string, total int64, expected digest.Digest) (content.Writer, error) {
+	var lockErr error
+	for count := uint64(0); count < 10; count++ {
+		time.Sleep(time.Millisecond * time.Duration(rand.Intn(1<<count)))
+		if err := tryLock(ref); err != nil {
+			if !errdefs.IsUnavailable(err) {
+				return nil, err
+			}
+
+			lockErr = err
+		} else {
+			lockErr = nil
+			break
+		}
+	}
+
+	if lockErr != nil {
+		return nil, lockErr
+	}
+
+	w, err := s.writer(ctx, ref, total, expected)
+	if err != nil {
+		unlock(ref)
+		return nil, err
+	}
+
+	return w, nil // lock is now held by w.
+}
+
+// writer provides the main implementation of the Writer method. The caller
+// must hold the lock correctly and release on error if there is a problem.
+func (s *store) writer(ctx context.Context, ref string, total int64, expected digest.Digest) (content.Writer, error) {
 	// TODO(stevvooe): Need to actually store expected here. We have
 	// code in the service that shouldn't be dealing with this.
 	if expected != "" {
@@ -379,10 +426,6 @@ func (s *store) Writer(ctx context.Context, ref string, total int64, expected di
 	}
 
 	path, refp, data := s.ingestPaths(ref)
-
-	if err := tryLock(ref); err != nil {
-		return nil, errors.Wrapf(err, "locking ref %v failed", ref)
-	}
 
 	var (
 		digester  = digest.Canonical.Digester()
@@ -412,17 +455,17 @@ func (s *store) Writer(ctx context.Context, ref string, total int64, expected di
 			return nil, errors.Errorf("provided total differs from status: %v != %v", total, status.Total)
 		}
 
-		// slow slow slow!!, send to goroutine or use resumable hashes
+		// TODO(stevvooe): slow slow slow!!, send to goroutine or use resumable hashes
 		fp, err := os.Open(data)
 		if err != nil {
 			return nil, err
 		}
 		defer fp.Close()
 
-		p := bufPool.Get().([]byte)
+		p := bufPool.Get().(*[]byte)
 		defer bufPool.Put(p)
 
-		offset, err = io.CopyBuffer(digester.Hash(), fp, p)
+		offset, err = io.CopyBuffer(digester.Hash(), fp, *p)
 		if err != nil {
 			return nil, err
 		}
@@ -431,9 +474,20 @@ func (s *store) Writer(ctx context.Context, ref string, total int64, expected di
 		startedAt = status.StartedAt
 		total = status.Total
 	} else {
+		startedAt = time.Now()
+		updatedAt = startedAt
+
 		// the ingest is new, we need to setup the target location.
 		// write the ref to a file for later use
 		if err := ioutil.WriteFile(refp, []byte(ref), 0666); err != nil {
+			return nil, err
+		}
+
+		if writeTimestampFile(filepath.Join(path, "startedat"), startedAt); err != nil {
+			return nil, err
+		}
+
+		if writeTimestampFile(filepath.Join(path, "updatedat"), startedAt); err != nil {
 			return nil, err
 		}
 
@@ -442,14 +496,15 @@ func (s *store) Writer(ctx context.Context, ref string, total int64, expected di
 				return nil, err
 			}
 		}
-
-		startedAt = time.Now()
-		updatedAt = startedAt
 	}
 
 	fp, err := os.OpenFile(data, os.O_WRONLY|os.O_CREATE, 0666)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open data file")
+	}
+
+	if _, err := fp.Seek(offset, io.SeekStart); err != nil {
+		return nil, errors.Wrap(err, "could not seek to current write offset")
 	}
 
 	return &writer{
@@ -508,4 +563,31 @@ func (s *store) ingestPaths(ref string) (string, string, string) {
 func readFileString(path string) (string, error) {
 	p, err := ioutil.ReadFile(path)
 	return string(p), err
+}
+
+// readFileTimestamp reads a file with just a timestamp present.
+func readFileTimestamp(p string) (time.Time, error) {
+	b, err := ioutil.ReadFile(p)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = errors.Wrap(errdefs.ErrNotFound, err.Error())
+		}
+		return time.Time{}, err
+	}
+
+	var t time.Time
+	if err := t.UnmarshalText(b); err != nil {
+		return time.Time{}, errors.Wrapf(err, "could not parse timestamp file %v", p)
+	}
+
+	return t, nil
+}
+
+func writeTimestampFile(p string, t time.Time) error {
+	b, err := t.MarshalText()
+	if err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(p, b, 0666)
 }

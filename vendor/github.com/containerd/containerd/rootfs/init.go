@@ -69,12 +69,12 @@ func createInitLayer(ctx context.Context, parent, initName string, initFn func(s
 	if err != nil {
 		return "", err
 	}
+
 	defer func() {
 		if err != nil {
-			// TODO: once implemented uncomment
-			//if rerr := snapshotter.Remove(ctx, td); rerr != nil {
-			//	log.G(ctx).Errorf("Failed to remove snapshot %s: %v", td, merr)
-			//}
+			if rerr := snapshotter.Remove(ctx, td); rerr != nil {
+				log.G(ctx).Errorf("Failed to remove snapshot %s: %v", td, rerr)
+			}
 		}
 	}()
 

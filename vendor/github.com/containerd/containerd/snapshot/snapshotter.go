@@ -280,9 +280,7 @@ type Snapshotter interface {
 	// A committed snapshot will be created under name with the parent of the
 	// active snapshot.
 	//
-	// Commit may be called multiple times on the same key. Snapshots created
-	// in this manner will all reference the parent used to start the
-	// transaction.
+	// After commit, the snapshot identified by key is removed.
 	Commit(ctx context.Context, name, key string, opts ...Opt) error
 
 	// Remove the committed or active snapshot by the provided key.
@@ -296,6 +294,14 @@ type Snapshotter interface {
 	// Walk all snapshots in the snapshotter. For each snapshot in the
 	// snapshotter, the function will be called.
 	Walk(ctx context.Context, fn func(context.Context, Info) error) error
+
+	// Close releases the internal resources.
+	//
+	// Close is expected to be called on the end of the lifecycle of the snapshotter,
+	// but not mandatory.
+	//
+	// Close returns nil when it is already closed.
+	Close() error
 }
 
 // Opt allows setting mutable snapshot properties on creation

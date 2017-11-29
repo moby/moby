@@ -1,4 +1,4 @@
-// +build !go1.8 windows !amd64
+// +build !go1.8 windows !amd64 static_build
 
 package plugin
 

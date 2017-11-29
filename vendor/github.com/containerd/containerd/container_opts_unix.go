@@ -6,12 +6,17 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"syscall"
 
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
 	"github.com/gogo/protobuf/proto"
 	protobuf "github.com/gogo/protobuf/types"
@@ -19,6 +24,7 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 // WithCheckpoint allows a container to be created from the checkpointed information
@@ -121,4 +127,92 @@ func decodeIndex(ctx context.Context, store content.Store, id digest.Digest) (*v
 	}
 
 	return &index, nil
+}
+
+// WithRemappedSnapshot creates a new snapshot and remaps the uid/gid for the
+// filesystem to be used by a container with user namespaces
+func WithRemappedSnapshot(id string, i Image, uid, gid uint32) NewContainerOpts {
+	return withRemappedSnapshotBase(id, i, uid, gid, false)
+}
+
+// WithRemappedSnapshotView is similar to WithRemappedSnapshot but rootfs is mounted as read-only.
+func WithRemappedSnapshotView(id string, i Image, uid, gid uint32) NewContainerOpts {
+	return withRemappedSnapshotBase(id, i, uid, gid, true)
+}
+
+func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool) NewContainerOpts {
+	return func(ctx context.Context, client *Client, c *containers.Container) error {
+		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
+		if err != nil {
+			return err
+		}
+
+		setSnapshotterIfEmpty(c)
+
+		var (
+			snapshotter = client.SnapshotService(c.Snapshotter)
+			parent      = identity.ChainID(diffIDs).String()
+			usernsID    = fmt.Sprintf("%s-%d-%d", parent, uid, gid)
+		)
+		if _, err := snapshotter.Stat(ctx, usernsID); err == nil {
+			if _, err := snapshotter.Prepare(ctx, id, usernsID); err == nil {
+				c.SnapshotKey = id
+				c.Image = i.Name()
+				return nil
+			} else if !errdefs.IsNotFound(err) {
+				return err
+			}
+		}
+		mounts, err := snapshotter.Prepare(ctx, usernsID+"-remap", parent)
+		if err != nil {
+			return err
+		}
+		if err := remapRootFS(mounts, uid, gid); err != nil {
+			snapshotter.Remove(ctx, usernsID)
+			return err
+		}
+		if err := snapshotter.Commit(ctx, usernsID, usernsID+"-remap"); err != nil {
+			return err
+		}
+		if readonly {
+			_, err = snapshotter.View(ctx, id, usernsID)
+		} else {
+			_, err = snapshotter.Prepare(ctx, id, usernsID)
+		}
+		if err != nil {
+			return err
+		}
+		c.SnapshotKey = id
+		c.Image = i.Name()
+		return nil
+	}
+}
+
+func remapRootFS(mounts []mount.Mount, uid, gid uint32) error {
+	root, err := ioutil.TempDir("", "ctd-remap")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(root)
+	for _, m := range mounts {
+		if err := m.Mount(root); err != nil {
+			return err
+		}
+	}
+	defer unix.Unmount(root, 0)
+	return filepath.Walk(root, incrementFS(root, uid, gid))
+}
+
+func incrementFS(root string, uidInc, gidInc uint32) filepath.WalkFunc {
+	return func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		var (
+			stat = info.Sys().(*syscall.Stat_t)
+			u, g = int(stat.Uid + uidInc), int(stat.Gid + gidInc)
+		)
+		// be sure the lchown the path as to not de-reference the symlink to a host file
+		return os.Lchown(path, u, g)
+	}
 }

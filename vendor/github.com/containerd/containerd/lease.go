@@ -51,7 +51,8 @@ func (c *Client) ListLeases(ctx context.Context) ([]Lease, error) {
 	return leases, nil
 }
 
-func (c *Client) withLease(ctx context.Context) (context.Context, func() error, error) {
+// WithLease attaches a lease on the context
+func (c *Client) WithLease(ctx context.Context) (context.Context, func() error, error) {
 	_, ok := leases.Lease(ctx)
 	if ok {
 		return ctx, func() error {

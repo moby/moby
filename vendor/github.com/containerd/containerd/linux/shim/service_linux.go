@@ -1,6 +1,7 @@
 package shim
 
 import (
+	"context"
 	"io"
 	"sync"
 	"syscall"
@@ -8,14 +9,13 @@ import (
 	"github.com/containerd/console"
 	"github.com/containerd/fifo"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 type linuxPlatform struct {
 	epoller *console.Epoller
 }
 
-func (p *linuxPlatform) copyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string, wg, cwg *sync.WaitGroup) (console.Console, error) {
+func (p *linuxPlatform) CopyConsole(ctx context.Context, console console.Console, stdin, stdout, stderr string, wg, cwg *sync.WaitGroup) (console.Console, error) {
 	if p.epoller == nil {
 		return nil, errors.New("uninitialized epoller")
 	}
@@ -58,7 +58,7 @@ func (p *linuxPlatform) copyConsole(ctx context.Context, console console.Console
 	return epollConsole, nil
 }
 
-func (p *linuxPlatform) shutdownConsole(ctx context.Context, cons console.Console) error {
+func (p *linuxPlatform) ShutdownConsole(ctx context.Context, cons console.Console) error {
 	if p.epoller == nil {
 		return errors.New("uninitialized epoller")
 	}
@@ -69,7 +69,7 @@ func (p *linuxPlatform) shutdownConsole(ctx context.Context, cons console.Consol
 	return epollConsole.Shutdown(p.epoller.CloseConsole)
 }
 
-func (p *linuxPlatform) close() error {
+func (p *linuxPlatform) Close() error {
 	return p.epoller.Close()
 }
 

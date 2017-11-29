@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.services.images.v1;
 
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
@@ -115,4 +115,10 @@ message ListImagesResponse {
 
 message DeleteImageRequest {
 	string name = 1;
+
+	// Sync indicates that the delete and cleanup should be done
+	// synchronously before returning to the caller
+	//
+	// Default is false
+	bool sync = 2;
 }

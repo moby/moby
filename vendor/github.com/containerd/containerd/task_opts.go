@@ -5,7 +5,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/linux/runcopts"
+	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/containerd/mount"
 )
 
@@ -22,7 +22,7 @@ func WithRootFS(mounts []mount.Mount) NewTaskOpts {
 
 // WithExit causes the task to exit after a successful checkpoint
 func WithExit(r *CheckpointTaskInfo) error {
-	r.Options = &runcopts.CheckpointOptions{
+	r.Options = &runctypes.CheckpointOptions{
 		Exit: true,
 	}
 	return nil
@@ -65,13 +65,23 @@ type KillInfo struct {
 	// All kills all processes inside the task
 	// only valid on tasks, ignored on processes
 	All bool
+	// ExecID is the ID of a process to kill
+	ExecID string
 }
 
 // KillOpts allows options to be set for the killing of a process
-type KillOpts func(context.Context, Process, *KillInfo) error
+type KillOpts func(context.Context, *KillInfo) error
 
 // WithKillAll kills all processes for a task
-func WithKillAll(ctx context.Context, p Process, i *KillInfo) error {
+func WithKillAll(ctx context.Context, i *KillInfo) error {
 	i.All = true
 	return nil
+}
+
+// WithKillExecID specifies the process ID
+func WithKillExecID(execID string) KillOpts {
+	return func(ctx context.Context, i *KillInfo) error {
+		i.ExecID = execID
+		return nil
+	}
 }

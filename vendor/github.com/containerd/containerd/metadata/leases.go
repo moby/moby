@@ -55,7 +55,7 @@ func (lm *LeaseManager) Create(ctx context.Context, lid string, labels map[strin
 		if err == bolt.ErrBucketExists {
 			err = errdefs.ErrAlreadyExists
 		}
-		return Lease{}, err
+		return Lease{}, errors.Wrapf(err, "lease %q", lid)
 	}
 
 	t := time.Now().UTC()
@@ -155,7 +155,7 @@ func addSnapshotLease(ctx context.Context, tx *bolt.Tx, snapshotter, key string)
 
 	namespace, ok := namespaces.Namespace(ctx)
 	if !ok {
-		panic("namespace must already be required")
+		panic("namespace must already be checked")
 	}
 
 	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid))
@@ -174,6 +174,26 @@ func addSnapshotLease(ctx context.Context, tx *bolt.Tx, snapshotter, key string)
 	}
 
 	return bkt.Put([]byte(key), nil)
+}
+
+func removeSnapshotLease(ctx context.Context, tx *bolt.Tx, snapshotter, key string) error {
+	lid, ok := leases.Lease(ctx)
+	if !ok {
+		return nil
+	}
+
+	namespace, ok := namespaces.Namespace(ctx)
+	if !ok {
+		panic("namespace must already be checked")
+	}
+
+	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid), bucketKeyObjectSnapshots, []byte(snapshotter))
+	if bkt == nil {
+		// Key does not exist so we return nil
+		return nil
+	}
+
+	return bkt.Delete([]byte(key))
 }
 
 func addContentLease(ctx context.Context, tx *bolt.Tx, dgst digest.Digest) error {
@@ -198,4 +218,24 @@ func addContentLease(ctx context.Context, tx *bolt.Tx, dgst digest.Digest) error
 	}
 
 	return bkt.Put([]byte(dgst.String()), nil)
+}
+
+func removeContentLease(ctx context.Context, tx *bolt.Tx, dgst digest.Digest) error {
+	lid, ok := leases.Lease(ctx)
+	if !ok {
+		return nil
+	}
+
+	namespace, ok := namespaces.Namespace(ctx)
+	if !ok {
+		panic("namespace must already be checked")
+	}
+
+	bkt := getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectLeases, []byte(lid), bucketKeyObjectContent)
+	if bkt == nil {
+		// Key does not exist so we return nil
+		return nil
+	}
+
+	return bkt.Delete([]byte(dgst.String()))
 }

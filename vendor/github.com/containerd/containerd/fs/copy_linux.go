@@ -43,8 +43,8 @@ func copyFileContent(dst, src *os.File) error {
 			return errors.Wrap(err, "copy file range failed")
 		}
 
-		buf := bufferPool.Get().([]byte)
-		_, err = io.CopyBuffer(dst, src, buf)
+		buf := bufferPool.Get().(*[]byte)
+		_, err = io.CopyBuffer(dst, src, *buf)
 		bufferPool.Put(buf)
 		return err
 	}

@@ -74,11 +74,14 @@ func sameFile(f1, f2 *currentPath) (bool, error) {
 		// If the timestamp may have been truncated in one of the
 		// files, check content of file to determine difference
 		if t1.Nanosecond() == 0 || t2.Nanosecond() == 0 {
-			if f1.f.Size() > 0 {
-				eq, err := compareFileContent(f1.fullPath, f2.fullPath)
-				if err != nil || !eq {
-					return eq, err
-				}
+			var eq bool
+			if (f1.f.Mode() & os.ModeSymlink) == os.ModeSymlink {
+				eq, err = compareSymlinkTarget(f1.fullPath, f2.fullPath)
+			} else if f1.f.Size() > 0 {
+				eq, err = compareFileContent(f1.fullPath, f2.fullPath)
+			}
+			if err != nil || !eq {
+				return eq, err
 			}
 		} else if t1.Nanosecond() != t2.Nanosecond() {
 			return false, nil
@@ -86,6 +89,18 @@ func sameFile(f1, f2 *currentPath) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func compareSymlinkTarget(p1, p2 string) (bool, error) {
+	t1, err := os.Readlink(p1)
+	if err != nil {
+		return false, err
+	}
+	t2, err := os.Readlink(p2)
+	if err != nil {
+		return false, err
+	}
+	return t1 == t2, nil
 }
 
 const compareChuckSize = 32 * 1024

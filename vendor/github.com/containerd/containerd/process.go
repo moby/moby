@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/api/services/tasks/v1"
+	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
 )
@@ -28,7 +29,7 @@ type Process interface {
 	// Resize changes the width and heigh of the process's terminal
 	Resize(ctx context.Context, w, h uint32) error
 	// IO returns the io set for the process
-	IO() IO
+	IO() cio.IO
 	// Status returns the executing status of the process
 	Status(context.Context) (Status, error)
 }
@@ -72,7 +73,7 @@ type process struct {
 	id   string
 	task *task
 	pid  uint32
-	io   IO
+	io   cio.IO
 }
 
 func (p *process) ID() string {
@@ -104,7 +105,7 @@ func (p *process) Start(ctx context.Context) error {
 func (p *process) Kill(ctx context.Context, s syscall.Signal, opts ...KillOpts) error {
 	var i KillInfo
 	for _, o := range opts {
-		if err := o(ctx, p, &i); err != nil {
+		if err := o(ctx, &i); err != nil {
 			return err
 		}
 	}
@@ -154,7 +155,7 @@ func (p *process) CloseIO(ctx context.Context, opts ...IOCloserOpts) error {
 	return errdefs.FromGRPC(err)
 }
 
-func (p *process) IO() IO {
+func (p *process) IO() cio.IO {
 	return p.io
 }
 

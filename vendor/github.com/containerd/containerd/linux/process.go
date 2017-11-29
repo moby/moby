@@ -5,6 +5,7 @@ package linux
 import (
 	"context"
 
+	eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
 	shim "github.com/containerd/containerd/linux/shim/v1"
@@ -96,12 +97,17 @@ func (p *Process) CloseIO(ctx context.Context) error {
 
 // Start the process
 func (p *Process) Start(ctx context.Context) error {
-	_, err := p.t.shim.Start(ctx, &shim.StartRequest{
+	r, err := p.t.shim.Start(ctx, &shim.StartRequest{
 		ID: p.id,
 	})
 	if err != nil {
 		return errdefs.FromGRPC(err)
 	}
+	p.t.events.Publish(ctx, runtime.TaskExecStartedEventTopic, &eventstypes.TaskExecStarted{
+		ContainerID: p.t.id,
+		Pid:         r.Pid,
+		ExecID:      p.id,
+	})
 	return nil
 }
 

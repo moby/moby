@@ -39,14 +39,6 @@ func createKey(id uint64, namespace, key string) string {
 	return fmt.Sprintf("%s/%d/%s", namespace, id, key)
 }
 
-func trimKey(key string) string {
-	parts := strings.SplitN(key, "/", 3)
-	if len(parts) < 3 {
-		return ""
-	}
-	return parts[2]
-}
-
 func getKey(tx *bolt.Tx, ns, name, key string) string {
 	bkt := getSnapshotterBucket(tx, ns, name)
 	if bkt == nil {
@@ -284,10 +276,14 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		bbkt, err := bkt.CreateBucket([]byte(key))
 		if err != nil {
 			if err == bolt.ErrBucketExists {
-				err = errors.Wrapf(errdefs.ErrAlreadyExists, "snapshot %v already exists", key)
+				err = errors.Wrapf(errdefs.ErrAlreadyExists, "snapshot %q", key)
 			}
 			return err
 		}
+		if err := addSnapshotLease(ctx, tx, s.name, key); err != nil {
+			return err
+		}
+
 		var bparent string
 		if parent != "" {
 			pbkt := bkt.Bucket([]byte(parent))
@@ -323,10 +319,6 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 			return err
 		}
 		if err := boltutil.WriteLabels(bbkt, base.Labels); err != nil {
-			return err
-		}
-
-		if err := addSnapshotLease(ctx, tx, s.name, key); err != nil {
 			return err
 		}
 
@@ -373,8 +365,11 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		bbkt, err := bkt.CreateBucket([]byte(name))
 		if err != nil {
 			if err == bolt.ErrBucketExists {
-				err = errors.Wrapf(errdefs.ErrAlreadyExists, "snapshot %v already exists", name)
+				err = errors.Wrapf(errdefs.ErrAlreadyExists, "snapshot %q", name)
 			}
+			return err
+		}
+		if err := addSnapshotLease(ctx, tx, s.name, name); err != nil {
 			return err
 		}
 
@@ -425,7 +420,11 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		if err := boltutil.WriteLabels(bbkt, base.Labels); err != nil {
 			return err
 		}
+
 		if err := bkt.DeleteBucket([]byte(key)); err != nil {
+			return err
+		}
+		if err := removeSnapshotLease(ctx, tx, s.name, key); err != nil {
 			return err
 		}
 
@@ -477,6 +476,9 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		}
 
 		if err := bkt.DeleteBucket([]byte(key)); err != nil {
+			return err
+		}
+		if err := removeSnapshotLease(ctx, tx, s.name, key); err != nil {
 			return err
 		}
 
@@ -594,13 +596,14 @@ func validateSnapshot(info *snapshot.Info) error {
 	return nil
 }
 
-func (s *snapshotter) garbageCollect(ctx context.Context) error {
-	logger := log.G(ctx).WithField("snapshotter", s.name)
-	lt1 := time.Now()
+func (s *snapshotter) garbageCollect(ctx context.Context) (d time.Duration, err error) {
 	s.l.Lock()
+	t1 := time.Now()
 	defer func() {
+		if err == nil {
+			d = time.Now().Sub(t1)
+		}
 		s.l.Unlock()
-		logger.WithField("t", time.Now().Sub(lt1)).Debugf("garbage collected")
 	}()
 
 	seen := map[string]struct{}{}
@@ -644,23 +647,26 @@ func (s *snapshotter) garbageCollect(ctx context.Context) error {
 
 		return nil
 	}); err != nil {
-		return err
+		return 0, err
 	}
 
 	roots, err := s.walkTree(ctx, seen)
 	if err != nil {
-		return err
+		return 0, err
 	}
 
-	// TODO: Unlock before prune (once nodes are fully unavailable)
+	// TODO: Unlock before removal (once nodes are fully unavailable).
+	// This could be achieved through doing prune inside the lock
+	// and having a cleanup method which actually performs the
+	// deletions on the snapshotters which support it.
 
 	for _, node := range roots {
 		if err := s.pruneBranch(ctx, node); err != nil {
-			return err
+			return 0, err
 		}
 	}
 
-	return nil
+	return
 }
 
 type treeNode struct {
@@ -723,4 +729,9 @@ func (s *snapshotter) pruneBranch(ctx context.Context, node *treeNode) error {
 	}
 
 	return nil
+}
+
+// Close closes s.Snapshotter but not db
+func (s *snapshotter) Close() error {
+	return s.Snapshotter.Close()
 }

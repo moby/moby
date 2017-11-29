@@ -5,7 +5,6 @@ import (
 	"strings"
 	"time"
 
-	v1 "github.com/containerd/containerd/api/services/events/v1"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/filters"
@@ -31,11 +30,15 @@ func NewExchange() *Exchange {
 	}
 }
 
+var _ events.Publisher = &Exchange{}
+var _ events.Forwarder = &Exchange{}
+var _ events.Subscriber = &Exchange{}
+
 // Forward accepts an envelope to be direcly distributed on the exchange.
 //
 // This is useful when an event is forwaded on behalf of another namespace or
 // when the event is propagated on behalf of another publisher.
-func (e *Exchange) Forward(ctx context.Context, envelope *v1.Envelope) (err error) {
+func (e *Exchange) Forward(ctx context.Context, envelope *events.Envelope) (err error) {
 	if err := validateEnvelope(envelope); err != nil {
 		return err
 	}
@@ -64,7 +67,7 @@ func (e *Exchange) Publish(ctx context.Context, topic string, event events.Event
 	var (
 		namespace string
 		encoded   *types.Any
-		envelope  v1.Envelope
+		envelope  events.Envelope
 	)
 
 	namespace, err = namespaces.NamespaceRequired(ctx)
@@ -109,9 +112,9 @@ func (e *Exchange) Publish(ctx context.Context, topic string, event events.Event
 // Zero or more filters may be provided as strings. Only events that match
 // *any* of the provided filters will be sent on the channel. The filters use
 // the standard containerd filters package syntax.
-func (e *Exchange) Subscribe(ctx context.Context, fs ...string) (ch <-chan *v1.Envelope, errs <-chan error) {
+func (e *Exchange) Subscribe(ctx context.Context, fs ...string) (ch <-chan *events.Envelope, errs <-chan error) {
 	var (
-		evch                  = make(chan *v1.Envelope)
+		evch                  = make(chan *events.Envelope)
 		errq                  = make(chan error, 1)
 		channel               = goevents.NewChannel(0)
 		queue                 = goevents.NewQueue(channel)
@@ -151,7 +154,7 @@ func (e *Exchange) Subscribe(ctx context.Context, fs ...string) (ch <-chan *v1.E
 		for {
 			select {
 			case ev := <-channel.C:
-				env, ok := ev.(*v1.Envelope)
+				env, ok := ev.(*events.Envelope)
 				if !ok {
 					// TODO(stevvooe): For the most part, we are well protected
 					// from this condition. Both Forward and Publish protect
@@ -205,7 +208,7 @@ func validateTopic(topic string) error {
 	return nil
 }
 
-func validateEnvelope(envelope *v1.Envelope) error {
+func validateEnvelope(envelope *events.Envelope) error {
 	if err := namespaces.Validate(envelope.Namespace); err != nil {
 		return errors.Wrapf(err, "event envelope has invalid namespace")
 	}

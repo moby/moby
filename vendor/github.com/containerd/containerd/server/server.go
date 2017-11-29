@@ -39,12 +39,15 @@ import (
 
 // New creates and initializes a new containerd server
 func New(ctx context.Context, config *Config) (*Server, error) {
-	if config.Root == "" {
+	switch {
+	case config.Root == "":
 		return nil, errors.New("root must be specified")
-	}
-	if config.State == "" {
+	case config.State == "":
 		return nil, errors.New("state must be specified")
+	case config.Root == config.State:
+		return nil, errors.New("root and state must be different paths")
 	}
+
 	if err := os.MkdirAll(config.Root, 0711); err != nil {
 		return nil, err
 	}

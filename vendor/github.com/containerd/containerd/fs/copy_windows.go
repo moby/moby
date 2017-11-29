@@ -18,8 +18,8 @@ func copyFileInfo(fi os.FileInfo, name string) error {
 }
 
 func copyFileContent(dst, src *os.File) error {
-	buf := bufferPool.Get().([]byte)
-	_, err := io.CopyBuffer(dst, src, buf)
+	buf := bufferPool.Get().(*[]byte)
+	_, err := io.CopyBuffer(dst, src, *buf)
 	bufferPool.Put(buf)
 	return err
 }

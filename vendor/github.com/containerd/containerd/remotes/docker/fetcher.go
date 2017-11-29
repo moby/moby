@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"path"
@@ -37,32 +38,60 @@ func (r dockerFetcher) Fetch(ctx context.Context, desc ocispec.Descriptor) (io.R
 		return nil, err
 	}
 
-	for _, u := range urls {
-		req, err := http.NewRequest(http.MethodGet, u, nil)
-		if err != nil {
-			return nil, err
-		}
+	return newHTTPReadSeeker(desc.Size, func(offset int64) (io.ReadCloser, error) {
+		for _, u := range urls {
+			rc, err := r.open(ctx, u, desc.MediaType, offset)
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					continue // try one of the other urls.
+				}
 
-		req.Header.Set("Accept", strings.Join([]string{desc.MediaType, `*`}, ", "))
-		resp, err := r.doRequestWithRetries(ctx, req, nil)
-		if err != nil {
-			return nil, err
-		}
-
-		if resp.StatusCode > 299 {
-			resp.Body.Close()
-			if resp.StatusCode == http.StatusNotFound {
-				continue // try one of the other urls.
+				return nil, err
 			}
-			return nil, errors.Errorf("unexpected status code %v: %v", u, resp.Status)
+
+			return rc, nil
 		}
 
-		return resp.Body, nil
+		return nil, errors.Wrapf(errdefs.ErrNotFound,
+			"could not fetch content descriptor %v (%v) from remote",
+			desc.Digest, desc.MediaType)
+
+	})
+}
+
+func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int64) (io.ReadCloser, error) {
+	req, err := http.NewRequest(http.MethodGet, u, nil)
+	if err != nil {
+		return nil, err
 	}
 
-	return nil, errors.Wrapf(errdefs.ErrNotFound,
-		"could not fetch content descriptor %v (%v) from remote",
-		desc.Digest, desc.MediaType)
+	req.Header.Set("Accept", strings.Join([]string{mediatype, `*`}, ", "))
+
+	if offset > 0 {
+		// TODO(stevvooe): Only set this header in response to the
+		// "Accept-Ranges: bytes" header.
+		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", offset))
+	}
+
+	resp, err := r.doRequestWithRetries(ctx, req, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode > 299 {
+		// TODO(stevvooe): When doing a offset specific request, we should
+		// really distinguish between a 206 and a 200. In the case of 200, we
+		// can discard the bytes, hiding the seek behavior from the
+		// implementation.
+
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusNotFound {
+			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", u)
+		}
+		return nil, errors.Errorf("unexpected status code %v: %v", u, resp.Status)
+	}
+
+	return resp.Body, nil
 }
 
 // getV2URLPaths generates the candidate urls paths for the object based on the

@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.windows.hcsshim;
 
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -23,4 +23,5 @@ message ProcessDetails {
 	uint64 memory_working_set_shared_bytes = 6;
 	uint32 process_id = 7;
 	uint64 user_time_100_ns = 8;
+	string exec_id = 9;
 }

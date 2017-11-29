@@ -36,7 +36,7 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 	status, err := p.tracker.GetStatus(ref)
 	if err == nil {
 		if status.Offset == status.Total {
-			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "ref %v already exists", ref)
+			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "ref %v", ref)
 		}
 		// TODO: Handle incomplete status
 	} else if !errdefs.IsNotFound(err) {
@@ -52,7 +52,11 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 	case images.MediaTypeDockerSchema2Manifest, images.MediaTypeDockerSchema2ManifestList,
 		ocispec.MediaTypeImageManifest, ocispec.MediaTypeImageIndex:
 		isManifest = true
-		existCheck = path.Join("manifests", desc.Digest.String())
+		if p.tag == "" {
+			existCheck = path.Join("manifests", desc.Digest.String())
+		} else {
+			existCheck = path.Join("manifests", p.tag)
+		}
 	default:
 		existCheck = path.Join("blobs", desc.Digest.String())
 	}
@@ -71,15 +75,26 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 		log.G(ctx).WithError(err).Debugf("Unable to check existence, continuing with push")
 	} else {
 		if resp.StatusCode == http.StatusOK {
-			p.tracker.SetStatus(ref, Status{
-				Status: content.Status{
-					Ref: ref,
-					// TODO: Set updated time?
-				},
-			})
-			return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
-		}
-		if resp.StatusCode != http.StatusNotFound {
+			var exists bool
+			if isManifest && p.tag != "" {
+				dgstHeader := digest.Digest(resp.Header.Get("Docker-Content-Digest"))
+				if dgstHeader == desc.Digest {
+					exists = true
+				}
+			} else {
+				exists = true
+			}
+
+			if exists {
+				p.tracker.SetStatus(ref, Status{
+					Status: content.Status{
+						Ref: ref,
+						// TODO: Set updated time?
+					},
+				})
+				return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v on remote", desc.Digest)
+			}
+		} else if resp.StatusCode != http.StatusNotFound {
 			// TODO: log error
 			return nil, errors.Errorf("unexpected response: %s", resp.Status)
 		}

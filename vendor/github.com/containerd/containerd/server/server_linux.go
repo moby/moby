@@ -12,7 +12,7 @@ import (
 
 // apply sets config settings on the server process
 func apply(ctx context.Context, config *Config) error {
-	if config.Subreaper {
+	if !config.NoSubreaper {
 		log.G(ctx).Info("setting subreaper...")
 		if err := sys.SetSubreaper(1); err != nil {
 			return err

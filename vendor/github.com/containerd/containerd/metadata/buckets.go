@@ -31,7 +31,6 @@ var (
 	bucketKeyVersion          = []byte(schemaVersion)
 	bucketKeyDBVersion        = []byte("version")    // stores the version of the schema
 	bucketKeyObjectLabels     = []byte("labels")     // stores the labels for a namespace.
-	bucketKeyObjectIndexes    = []byte("indexes")    // reserved
 	bucketKeyObjectImages     = []byte("images")     // stores image objects
 	bucketKeyObjectContainers = []byte("containers") // stores container objects
 	bucketKeyObjectSnapshots  = []byte("snapshots")  // stores snapshot references

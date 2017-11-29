@@ -78,7 +78,7 @@ containerd fully supports the OCI runtime specification for running containers. 
 You can specify options when creating a container about how to modify the specification.
 
 ```go
-redis, err := client.NewContainer(context, "redis-master", containerd.WithNewSpec(containerd.WithImageConfig(image)))
+redis, err := client.NewContainer(context, "redis-master", containerd.WithNewSpec(oci.WithImageConfig(image)))
 ```
 
 ### Root Filesystems
@@ -92,7 +92,7 @@ image, err := client.Pull(context, "docker.io/library/redis:latest", containerd.
 // allocate a new RW root filesystem for a container based on the image
 redis, err := client.NewContainer(context, "redis-master",
 	containerd.WithNewSnapshot("redis-rootfs", image),
-	containerd.WithNewSpec(containerd.WithImageConfig(image)),
+	containerd.WithNewSpec(oci.WithImageConfig(image)),
 
 )
 
@@ -101,7 +101,7 @@ for i := 0; i < 10; i++ {
 	id := fmt.Sprintf("id-%s", i)
 	container, err := client.NewContainer(ctx, id,
 		containerd.WithNewSnapshotView(id, image),
-		containerd.WithNewSpec(containerd.WithImageConfig(image)),
+		containerd.WithNewSpec(oci.WithImageConfig(image)),
 	)
 }
 ```
@@ -158,11 +158,11 @@ To build the daemon and `ctr` simple test client, the following build system dep
 * Protoc 3.x compiler and headers (download at the [Google protobuf releases page](https://github.com/google/protobuf/releases))
 * Btrfs headers and libraries for your distribution. Note that building the btrfs driver can be disabled via build tag removing this dependency.
 
-For proper results, install the `protoc` release into `/usr/local` on your build system. For example, the following commands will download and install the 3.1.0 release for a 64-bit Linux host:
+For proper results, install the `protoc` release into `/usr/local` on your build system. For example, the following commands will download and install the 3.5.0 release for a 64-bit Linux host:
 
 ```
-$ wget -c https://github.com/google/protobuf/releases/download/v3.1.0/protoc-3.1.0-linux-x86_64.zip
-$ sudo unzip protoc-3.1.0-linux-x86_64.zip -d /usr/local
+$ wget -c https://github.com/google/protobuf/releases/download/v3.5.0/protoc-3.5.0-linux-x86_64.zip
+$ sudo unzip protoc-3.5.0-linux-x86_64.zip -d /usr/local
 ```
 
 With the required dependencies installed, the `Makefile` target named **binaries** will compile the `ctr` and `containerd` binaries and place them in the `bin/` directory. Using `sudo make install` will place the binaries in `/usr/local/bin`. When making any changes to the gRPC API, `make generate` will use the installed `protoc` compiler to regenerate the API generated code packages.

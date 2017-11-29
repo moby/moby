@@ -9,13 +9,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-var (
-	bufferPool = &sync.Pool{
-		New: func() interface{} {
-			return make([]byte, 32*1024)
-		},
-	}
-)
+var bufferPool = &sync.Pool{
+	New: func() interface{} {
+		buffer := make([]byte, 32*1024)
+		return &buffer
+	},
+}
 
 // CopyDir copies the directory from src to dst.
 // Most efficient copy of files is attempted.
