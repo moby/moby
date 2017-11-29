@@ -183,7 +183,7 @@ func (r *controller) Start(ctx context.Context) error {
 
 	for {
 		if err := r.adapter.start(ctx); err != nil {
-			if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+			if _, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork); ok {
 				// Retry network creation again if we
 				// failed because some of the networks
 				// were not found.
