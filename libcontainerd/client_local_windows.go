@@ -934,7 +934,7 @@ func (c *client) ResizeTerminal(_ context.Context, containerID, processID string
 		"width":     width,
 		"pid":       p.pid,
 	}).Debug("resizing")
-	return p.hcsProcess.ResizeConsole(uint16(height), uint16(width))
+	return p.hcsProcess.ResizeConsole(uint16(width), uint16(height))
 }
 
 func (c *client) CloseStdin(_ context.Context, containerID, processID string) error {
