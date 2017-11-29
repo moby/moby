@@ -837,8 +837,22 @@ addToStore:
 	if err = c.updateToStore(network); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			if e := c.deleteFromStore(network); e != nil {
+				logrus.Warnf("could not rollback from store, network %v on failure (%v): %v", network, err, e)
+			}
+		}
+	}()
+
 	if network.configOnly {
 		return network, nil
+	}
+
+	if len(network.loadBalancerIP) != 0 {
+		if err = network.createLoadBalancerSandbox(); err != nil {
+			return nil, err
+		}
 	}
 
 	joinCluster(network)
