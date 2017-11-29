@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/errdefs"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
@@ -298,7 +299,7 @@ func (c *Cluster) populateNetworkID(ctx context.Context, client swarmapi.Control
 				// and use its id for the request.
 				apiNetwork, err = getNetwork(ctx, client, ln.Name())
 				if err != nil {
-					return errors.Wrap(notFoundError{err}, "could not find the corresponding predefined swarm network")
+					return errors.Wrap(errdefs.NotFound(err), "could not find the corresponding predefined swarm network")
 				}
 				goto setid
 			}

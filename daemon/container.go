@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/errdefs"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -54,7 +55,7 @@ func (daemon *Daemon) GetContainer(prefixOrName string) (*container.Container, e
 		if indexError == truncindex.ErrNotExist {
 			return nil, containerNotFound(prefixOrName)
 		}
-		return nil, systemError{indexError}
+		return nil, errdefs.System(indexError)
 	}
 	return daemon.containers.Get(containerID), nil
 }
@@ -139,7 +140,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 		if config.Hostname == "" {
 			config.Hostname, err = os.Hostname()
 			if err != nil {
-				return nil, systemError{err}
+				return nil, errdefs.System(err)
 			}
 		}
 	} else {

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -136,12 +137,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	if container.IsDead() {
 		err := fmt.Errorf("You cannot commit container %s which is Dead", container.ID)
-		return "", stateConflictError{err}
+		return "", errdefs.Conflict(err)
 	}
 
 	if container.IsRemovalInProgress() {
 		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
-		return "", stateConflictError{err}
+		return "", errdefs.Conflict(err)
 	}
 
 	if c.Pause && !container.IsPaused() {

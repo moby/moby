@@ -7,6 +7,7 @@ import (
 
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
@@ -26,7 +27,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	if tag != "" {
@@ -39,7 +40,7 @@ func (daemon *Daemon) PullImage(ctx context.Context, image, tag, platform string
 			ref, err = reference.WithTag(ref, tag)
 		}
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 	}
 
@@ -96,7 +97,7 @@ func (daemon *Daemon) GetRepository(ctx context.Context, ref reference.Named, au
 	}
 	// makes sure name is not empty or `scratch`
 	if err := distribution.ValidateRepoName(repoInfo.Name); err != nil {
-		return nil, false, validationError{err}
+		return nil, false, errdefs.InvalidParameter(err)
 	}
 
 	// get endpoints

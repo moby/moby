@@ -3,6 +3,7 @@
 package daemon
 
 import (
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
 )
 
@@ -14,7 +15,7 @@ func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {
 	}
 
 	if err := parseSecurityOpt(container, container.HostConfig); err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	if !container.HostConfig.Privileged {

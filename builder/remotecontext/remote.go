@@ -10,6 +10,7 @@ import (
 	"net/url"
 	"regexp"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/pkg/errors"
 )
@@ -26,7 +27,7 @@ var mimeRe = regexp.MustCompile(acceptableRemoteMIME)
 func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 	response, err := GetWithStatusError(remoteURL)
 	if err != nil {
-		return "", nil, fmt.Errorf("error downloading remote context %s: %v", remoteURL, err)
+		return "", nil, errors.Wrapf(err, "error downloading remote context %s", remoteURL)
 	}
 
 	contentType, contextReader, err := inspectResponse(
@@ -35,7 +36,7 @@ func downloadRemote(remoteURL string) (string, io.ReadCloser, error) {
 		response.ContentLength)
 	if err != nil {
 		response.Body.Close()
-		return "", nil, fmt.Errorf("error detecting content type for remote %s: %v", remoteURL, err)
+		return "", nil, errors.Wrapf(err, "error detecting content type for remote %s", remoteURL)
 	}
 
 	return contentType, ioutils.NewReadCloserWrapper(contextReader, response.Body.Close), nil
@@ -47,10 +48,10 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 	if resp, err = http.Get(address); err != nil {
 		if uerr, ok := err.(*url.Error); ok {
 			if derr, ok := uerr.Err.(*net.DNSError); ok && !derr.IsTimeout {
-				return nil, dnsError{err}
+				return nil, errdefs.NotFound(err)
 			}
 		}
-		return nil, systemError{err}
+		return nil, errdefs.System(err)
 	}
 	if resp.StatusCode < 400 {
 		return resp, nil
@@ -59,21 +60,21 @@ func GetWithStatusError(address string) (resp *http.Response, err error) {
 	body, err := ioutil.ReadAll(resp.Body)
 	resp.Body.Close()
 	if err != nil {
-		return nil, errors.Wrap(systemError{err}, msg+": error reading body")
+		return nil, errdefs.System(errors.New(msg + ": error reading body"))
 	}
 
 	msg += ": " + string(bytes.TrimSpace(body))
 	switch resp.StatusCode {
 	case http.StatusNotFound:
-		return nil, notFoundError(msg)
+		return nil, errdefs.NotFound(errors.New(msg))
 	case http.StatusBadRequest:
-		return nil, requestError(msg)
+		return nil, errdefs.InvalidParameter(errors.New(msg))
 	case http.StatusUnauthorized:
-		return nil, unauthorizedError(msg)
+		return nil, errdefs.Unauthorized(errors.New(msg))
 	case http.StatusForbidden:
-		return nil, forbiddenError(msg)
+		return nil, errdefs.Forbidden(errors.New(msg))
 	}
-	return nil, unknownError{errors.New(msg)}
+	return nil, errdefs.Unknown(errors.New(msg))
 }
 
 // inspectResponse looks into the http response data at r to determine whether its

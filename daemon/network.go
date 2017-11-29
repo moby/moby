@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -52,13 +53,17 @@ func (daemon *Daemon) FindUniqueNetwork(term string) (libnetwork.Network, error)
 	case len(listByFullName) == 1:
 		return listByFullName[0], nil
 	case len(listByFullName) > 1:
-		return nil, fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+		return nil, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found on name)", term, len(listByFullName)))
 	case len(listByPartialID) == 1:
 		return listByPartialID[0], nil
 	case len(listByPartialID) > 1:
-		return nil, fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+		return nil, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
-	return nil, libnetwork.ErrNoSuchNetwork(term)
+
+	// Be very careful to change the error type here, the
+	// libnetwork.ErrNoSuchNetwork error is used by the controller
+	// to retry the creation of the network as managed through the swarm manager
+	return nil, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
 }
 
 // GetNetworkByID function returns a network whose ID matches the given ID.
@@ -264,7 +269,7 @@ func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.N
 func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
 	if runconfig.IsPreDefinedNetwork(create.Name) && !agent {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
-		return nil, notAllowedError{err}
+		return nil, errdefs.Forbidden(err)
 	}
 
 	var warning string
@@ -522,7 +527,7 @@ func (daemon *Daemon) deleteLoadBalancerSandbox(n libnetwork.Network) {
 func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
 	if runconfig.IsPreDefinedNetwork(nw.Name()) && !dynamic {
 		err := fmt.Errorf("%s is a pre-defined network and cannot be removed", nw.Name())
-		return notAllowedError{err}
+		return errdefs.Forbidden(err)
 	}
 
 	if dynamic && !nw.Info().Dynamic() {
@@ -532,7 +537,7 @@ func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
 			return nil
 		}
 		err := fmt.Errorf("%s is not a dynamic network", nw.Name())
-		return notAllowedError{err}
+		return errdefs.Forbidden(err)
 	}
 
 	if err := nw.Delete(); err != nil {

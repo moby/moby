@@ -88,7 +88,7 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 	// with the appropriate status code.
 	stdout, stderr := httputils.BoolValue(r, "stdout"), httputils.BoolValue(r, "stderr")
 	if !(stdout || stderr) {
-		return validationError{errors.New("Bad parameters: you must choose at least one stream")}
+		return errdefs.InvalidParameter(errors.New("Bad parameters: you must choose at least one stream"))
 	}
 
 	containerName := vars["name"]
@@ -203,7 +203,7 @@ func (s *containerRouter) postContainersKill(ctx context.Context, w http.Respons
 	if sigStr := r.Form.Get("signal"); sigStr != "" {
 		var err error
 		if sig, err = signal.ParseSignal(sigStr); err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 	}
 
@@ -468,11 +468,11 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 	width, err := strconv.Atoi(r.Form.Get("w"))
 	if err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	return s.backend.ContainerResize(vars["name"], height, width)
@@ -490,7 +490,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 
 	hijacker, ok := w.(http.Hijacker)
 	if !ok {
-		return validationError{errors.Errorf("error attaching to container %s, hijack connection missing", containerName)}
+		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
 	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
@@ -611,7 +611,7 @@ func (s *containerRouter) postContainersPrune(ctx context.Context, w http.Respon
 
 	pruneFilters, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	pruneReport, err := s.backend.ContainersPrune(ctx, pruneFilters)

@@ -1,6 +1,7 @@
 package cluster
 
 import (
+	"github.com/docker/docker/api/errdefs"
 	apitypes "github.com/docker/docker/api/types"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
@@ -64,7 +65,7 @@ func (c *Cluster) UpdateNode(input string, version uint64, spec types.NodeSpec) 
 	return c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
 		nodeSpec, err := convert.NodeSpecToGRPC(spec)
 		if err != nil {
-			return convertError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		ctx, cancel := c.getRequestContext()

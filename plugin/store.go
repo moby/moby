@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
@@ -144,7 +145,7 @@ func (ps *Store) Get(name, capability string, mode int) (plugingetter.CompatPlug
 	if errors.Cause(err) == plugins.ErrNotFound {
 		return nil, errNotFound(name)
 	}
-	return nil, errors.Wrap(systemError{err}, "legacy plugin")
+	return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
 }
 
 // GetAllManagedPluginsByCap returns a list of managed plugins matching the given capability.
@@ -172,7 +173,7 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 	if allowV1PluginsFallback {
 		pl, err := plugins.GetAll(capability)
 		if err != nil {
-			return nil, errors.Wrap(systemError{err}, "legacy plugin")
+			return nil, errors.Wrap(errdefs.System(err), "legacy plugin")
 		}
 		for _, p := range pl {
 			result = append(result, p)

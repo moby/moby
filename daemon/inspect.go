@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -188,7 +189,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	// could have been removed, it will cause error if we try to get the metadata,
 	// we can ignore the error if the container is dead.
 	if err != nil && !container.Dead {
-		return nil, systemError{err}
+		return nil, errdefs.System(err)
 	}
 	contJSONBase.GraphDriver.Data = graphDriverData
 
@@ -232,7 +233,7 @@ func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
 		if volumestore.IsNotExist(err) {
 			return nil, volumeNotFound(name)
 		}
-		return nil, systemError{err}
+		return nil, errdefs.System(err)
 	}
 	apiV := volumeToAPIType(v)
 	apiV.Mountpoint = v.Path()

@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/pkg/errors"
@@ -117,12 +118,12 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	}
 	u, err := url.Parse(serverAddress)
 	if err != nil {
-		return "", "", validationError{errors.Errorf("unable to parse server address: %v", err)}
+		return "", "", errdefs.InvalidParameter(errors.Errorf("unable to parse server address: %v", err))
 	}
 
 	endpoints, err := s.LookupPushEndpoints(u.Host)
 	if err != nil {
-		return "", "", validationError{err}
+		return "", "", errdefs.InvalidParameter(err)
 	}
 
 	for _, endpoint := range endpoints {

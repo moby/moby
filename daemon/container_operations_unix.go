@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
 	"github.com/docker/docker/pkg/idtools"
@@ -91,7 +92,7 @@ func (daemon *Daemon) getPidContainer(container *container.Container) (*containe
 
 func containerIsRunning(c *container.Container) error {
 	if !c.IsRunning() {
-		return stateConflictError{errors.Errorf("container %s is not running", c.ID)}
+		return errdefs.Conflict(errors.Errorf("container %s is not running", c.ID))
 	}
 	return nil
 }

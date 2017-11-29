@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
@@ -22,7 +23,7 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	if c.DetachKeys != "" {
 		keys, err = term.ToBytes(c.DetachKeys)
 		if err != nil {
-			return validationError{errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys)}
+			return errdefs.InvalidParameter(errors.Errorf("Invalid detach keys (%s) provided", c.DetachKeys))
 		}
 	}
 
@@ -32,11 +33,11 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 	}
 	if container.IsPaused() {
 		err := fmt.Errorf("container %s is paused, unpause the container before attach", prefixOrName)
-		return stateConflictError{err}
+		return errdefs.Conflict(err)
 	}
 	if container.IsRestarting() {
 		err := fmt.Errorf("container %s is restarting, wait until the container is running", prefixOrName)
-		return stateConflictError{err}
+		return errdefs.Conflict(err)
 	}
 
 	cfg := stream.AttachConfig{

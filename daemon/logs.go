@@ -7,6 +7,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -30,7 +31,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	})
 
 	if !(config.ShowStdout || config.ShowStderr) {
-		return nil, false, validationError{errors.New("You must choose at least one stream")}
+		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
 	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
@@ -38,7 +39,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return nil, false, stateConflictError{errors.New("can not get logs from container which is dead or marked for removal")}
+		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
 	}
 
 	if container.HostConfig.LogConfig.Type == "none" {

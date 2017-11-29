@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
@@ -175,7 +176,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, cfg := range hostConfig.Mounts {
 		mp, err := parser.ParseMountSpec(cfg)
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		if binds[mp.Destination] {

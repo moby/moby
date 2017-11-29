@@ -15,7 +15,11 @@ func getImplementer(err error) error {
 		ErrForbidden,
 		ErrSystem,
 		ErrNotModified,
+		ErrAlreadyExists,
 		ErrNotImplemented,
+		ErrCancelled,
+		ErrDeadline,
+		ErrDataLoss,
 		ErrUnknown:
 		return e
 	case causer:
@@ -73,6 +77,12 @@ func IsNotModified(err error) bool {
 	return ok
 }
 
+// IsAlreadyExists returns if the passed in error is a AlreadyExists error
+func IsAlreadyExists(err error) bool {
+	_, ok := getImplementer(err).(ErrAlreadyExists)
+	return ok
+}
+
 // IsNotImplemented returns if the passed in error is an ErrNotImplemented
 func IsNotImplemented(err error) bool {
 	_, ok := getImplementer(err).(ErrNotImplemented)
@@ -82,5 +92,23 @@ func IsNotImplemented(err error) bool {
 // IsUnknown returns if the passed in error is an ErrUnknown
 func IsUnknown(err error) bool {
 	_, ok := getImplementer(err).(ErrUnknown)
+	return ok
+}
+
+// IsCancelled returns if the passed in error is an ErrCancelled
+func IsCancelled(err error) bool {
+	_, ok := getImplementer(err).(ErrCancelled)
+	return ok
+}
+
+// IsDeadline returns if the passed in error is an ErrDeadline
+func IsDeadline(err error) bool {
+	_, ok := getImplementer(err).(ErrDeadline)
+	return ok
+}
+
+// IsDataLoss returns if the passed in error is an ErrDataLoss
+func IsDataLoss(err error) bool {
+	_, ok := getImplementer(err).(ErrDataLoss)
 	return ok
 }

@@ -24,6 +24,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/instructions"
@@ -37,7 +38,7 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 		optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
 		err := c.CheckPlatform(optionsOS)
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 	}
 	runConfigEnv := d.state.runConfig.Env
@@ -48,7 +49,7 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 			return d.shlex.ProcessWord(word, envs)
 		})
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 	}
 

@@ -5,6 +5,7 @@ import (
 	"runtime"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/image"
 )
 
@@ -28,7 +29,7 @@ func (e errImageDoesNotExist) NotFound() {}
 func (daemon *Daemon) GetImageIDAndOS(refOrID string) (image.ID, string, error) {
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return "", "", validationError{err}
+		return "", "", errdefs.InvalidParameter(err)
 	}
 	namedRef, ok := ref.(reference.Named)
 	if !ok {

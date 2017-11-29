@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/net/context"
 
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
@@ -161,12 +162,12 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	if ec.ExitCode != nil {
 		ec.Unlock()
 		err := fmt.Errorf("Error: Exec command %s has already run", ec.ID)
-		return stateConflictError{err}
+		return errdefs.Conflict(err)
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return stateConflictError{fmt.Errorf("Error: Exec command %s is already running", ec.ID)}
+		return errdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -267,7 +268,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {
-				return errors.Wrap(systemError{err}, "exec attach failed")
+				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
 			d.LogContainerEvent(c, "exec_detach")
 		}

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/linux/runctypes"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
 )
@@ -16,7 +17,7 @@ func (daemon *Daemon) getRuntimeScript(container *container.Container) (string, 
 	name := container.HostConfig.Runtime
 	rt := daemon.configStore.GetRuntime(name)
 	if rt == nil {
-		return "", validationError{errors.Errorf("no such runtime '%s'", name)}
+		return "", errdefs.InvalidParameter(errors.Errorf("no such runtime '%s'", name))
 	}
 
 	if len(rt.Args) > 0 {

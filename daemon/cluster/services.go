@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	types "github.com/docker/docker/api/types/swarm"
@@ -128,7 +129,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 
 		serviceSpec, err := convert.ServiceSpecToGRPC(s)
 		if err != nil {
-			return convertError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		resp = &apitypes.ServiceCreateResponse{}
@@ -232,7 +233,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 		serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 		if err != nil {
-			return convertError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		currentService, err := getService(ctx, state.controlClient, serviceIDOrName, false)

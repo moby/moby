@@ -14,6 +14,7 @@ import (
 
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/distribution"
@@ -233,7 +234,7 @@ func (pm *Manager) Privileges(ctx context.Context, ref reference.Named, metaHead
 	}
 	var config types.PluginConfig
 	if err := json.Unmarshal(cs.config, &config); err != nil {
-		return nil, systemError{err}
+		return nil, errdefs.System(err)
 	}
 
 	return computePrivileges(config), nil
@@ -255,12 +256,12 @@ func (pm *Manager) Upgrade(ctx context.Context, ref reference.Named, name string
 
 	// revalidate because Pull is public
 	if _, err := reference.ParseNormalizedNamed(name); err != nil {
-		return errors.Wrapf(validationError{err}, "failed to parse %q", name)
+		return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse %q", name)
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return errors.Wrap(systemError{err}, "error preparing upgrade")
+		return errors.Wrap(errdefs.System(err), "error preparing upgrade")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 
@@ -302,17 +303,17 @@ func (pm *Manager) Pull(ctx context.Context, ref reference.Named, name string, m
 	// revalidate because Pull is public
 	nameref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
-		return errors.Wrapf(validationError{err}, "failed to parse %q", name)
+		return errors.Wrapf(errdefs.InvalidParameter(err), "failed to parse %q", name)
 	}
 	name = reference.FamiliarString(reference.TagNameOnly(nameref))
 
 	if err := pm.config.Store.validateName(name); err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	tmpRootFSDir, err := ioutil.TempDir(pm.tmpDir(), ".rootfs")
 	if err != nil {
-		return errors.Wrap(systemError{err}, "error preparing pull")
+		return errors.Wrap(errdefs.System(err), "error preparing pull")
 	}
 	defer os.RemoveAll(tmpRootFSDir)
 

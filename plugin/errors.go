@@ -26,34 +26,6 @@ func (name errDisabled) Error() string {
 
 func (name errDisabled) Conflict() {}
 
-type validationError struct {
-	cause error
-}
-
-func (e validationError) Error() string {
-	return e.cause.Error()
-}
-
-func (validationError) Conflict() {}
-
-func (e validationError) Cause() error {
-	return e.cause
-}
-
-type systemError struct {
-	cause error
-}
-
-func (e systemError) Error() string {
-	return e.cause.Error()
-}
-
-func (systemError) SystemError() {}
-
-func (e systemError) Cause() error {
-	return e.cause
-}
-
 type invalidFilter struct {
 	filter string
 	value  []string
