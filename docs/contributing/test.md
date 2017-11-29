@@ -47,7 +47,7 @@ testing:
 | ---------------------- | ---------------------------------------------- |
 | `test`                 | Run the unit, integration, and docker-py tests |
 | `test-unit`            | Run just the unit tests                        |
-| `test-integration-cli` | Run the integration tests for the CLI          |
+| `test-integration`     | Run the integration tests                      |
 | `test-docker-py`       | Run the tests for the Docker API client        |
 
 Running the entire test suite on your current repository can take over half an
@@ -113,7 +113,7 @@ Try this now.
 3.  Run the tests using the `hack/make.sh` script.
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary cross test-unit test-integration-cli test-docker-py
+    root@5f8630b873fe:/go/src/github.com/moby/moby# hack/make.sh dynbinary binary cross test-unit test-integration test-docker-py
     ```
 
     The tests run just as they did within your local host.
@@ -164,13 +164,13 @@ flag's value is passed as arguments to the `go test` command. For example, from
 your local host you can run the `TestBuild` test with this command:
 
 ```bash
-$ TESTFLAGS='-check.f DockerSuite.TestBuild*' make test-integration-cli
+$ TESTFLAGS='-check.f DockerSuite.TestBuild*' make test-integration
 ```
 
 To run the same test inside your Docker development container, you do this:
 
 ```bash
-root@5f8630b873fe:/go/src/github.com/moby/moby# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration-cli
+root@5f8630b873fe:/go/src/github.com/moby/moby# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration
 ```
 
 ## Test the Windows binary against a Linux daemon
@@ -207,14 +207,14 @@ run a Bash terminal on Windows.
 5.  Make the binary and run the tests:
 
     ```bash
-    $ hack/make.sh binary test-integration-cli
+    $ hack/make.sh binary test-integration
     ```
     Some tests are skipped on Windows for various reasons. You can see which
     tests were skipped by re-running the make and passing in the
    `TESTFLAGS='-test.v'` value. For example
 
     ```bash
-    $ TESTFLAGS='-test.v' hack/make.sh binary test-integration-cli
+    $ TESTFLAGS='-test.v' hack/make.sh binary test-integration
     ```
 
     Should you wish to run a single test such as one with the name
@@ -222,7 +222,7 @@ run a Bash terminal on Windows.
     example
 
     ```bash
-    $ TESTFLAGS='-check.f TestExample' hack/make.sh binary test-integration-cli
+    $ TESTFLAGS='-check.f TestExample' hack/make.sh binary test-integration
     ```
 
 You can now choose to make changes to the Moby source or the tests. If you
