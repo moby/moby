@@ -77,7 +77,7 @@ const (
 	maxDepth   = 128
 
 	// idLength represents the number of random characters
-	// which can be used to create the unique link identifer
+	// which can be used to create the unique link identifier
 	// for every layer. If this value is too long then the
 	// page size limit for the mount command may be exceeded.
 	// The idLength should be selected such that following equation
@@ -91,7 +91,8 @@ type overlayOptions struct {
 	quota               quota.Quota
 }
 
-// Driver contains information about the home directory and the list of active mounts that are created using this driver.
+// Driver contains information about the home directory and the list of active
+// mounts that are created using this driver.
 type Driver struct {
 	home          string
 	uidMaps       []idtools.IDMap
@@ -116,9 +117,11 @@ func init() {
 	graphdriver.Register(driverName, Init)
 }
 
-// Init returns the a native diff driver for overlay filesystem.
-// If overlay filesystem is not supported on the host, graphdriver.ErrNotSupported is returned as error.
-// If an overlay filesystem is not supported over an existing filesystem then error graphdriver.ErrIncompatibleFS is returned.
+// Init returns the native diff driver for overlay filesystem.
+// If overlay filesystem is not supported on the host, the error
+// graphdriver.ErrNotSupported is returned.
+// If an overlay filesystem is not supported over an existing filesystem then
+// the error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
 	opts, err := parseOptions(options)
 	if err != nil {
@@ -289,8 +292,8 @@ func (d *Driver) Status() [][2]string {
 	}
 }
 
-// GetMetadata returns meta data about the overlay driver such as
-// LowerDir, UpperDir, WorkDir and MergeDir used to store data.
+// GetMetadata returns metadata about the overlay driver such as the LowerDir,
+// UpperDir, WorkDir, and MergeDir used to store data.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 	dir := d.dir(id)
 	if _, err := os.Stat(dir); err != nil {
@@ -412,9 +415,6 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 
 	if err := idtools.MkdirAndChown(path.Join(dir, "work"), 0700, root); err != nil {
-		return err
-	}
-	if err := idtools.MkdirAndChown(path.Join(dir, "merged"), 0700, root); err != nil {
 		return err
 	}
 
@@ -545,6 +545,10 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
 					logrus.Errorf("error unmounting %v: %v", mergedDir, mntErr)
 				}
+				// Cleanup the created merged directory; see the comment in Put's rmdir
+				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
+					logrus.Debugf("Failed to remove %s: %v: %v", id, rmErr, err)
+				}
 			}
 		}
 	}()
@@ -559,6 +563,14 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	mountData := label.FormatMountLabel(opts, mountLabel)
 	mount := unix.Mount
 	mountTarget := mergedDir
+
+	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
+	if err != nil {
+		return nil, err
+	}
+	if err := idtools.MkdirAndChown(mergedDir, 0700, idtools.IDPair{rootUID, rootGID}); err != nil {
+		return nil, err
+	}
 
 	pageSize := unix.Getpagesize()
 
@@ -594,11 +606,6 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	// chown "workdir/work" to the remapped root UID/GID. Overlay fs inside a
 	// user namespace requires this to move a directory from lower to upper.
-	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := os.Chown(path.Join(workDir, "work"), rootUID, rootGID); err != nil {
 		return nil, err
 	}
@@ -607,6 +614,8 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 }
 
 // Put unmounts the mount path created for the give id.
+// It also removes the 'merged' directory to force the kernel to unmount the
+// overlay mount in other namespaces.
 func (d *Driver) Put(id string) error {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
@@ -627,6 +636,16 @@ func (d *Driver) Put(id string) error {
 	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
 		logrus.Debugf("Failed to unmount %s overlay: %s - %v", id, mountpoint, err)
 	}
+	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
+	// will cause all other instances of this mount in other mount namespaces
+	// to be unmounted. This is necessary to avoid cases where an overlay mount
+	// that is present in another namespace will cause subsequent mounts
+	// operations to fail with ebusy.  We ignore any errors here because this may
+	// fail on older kernels which don't have
+	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
+	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
+		logrus.Debugf("Failed to remove %s overlay: %v", id, err)
+	}
 	return nil
 }
 
@@ -636,7 +655,8 @@ func (d *Driver) Exists(id string) bool {
 	return err == nil
 }
 
-// isParent returns if the passed in parent is the direct parent of the passed in layer
+// isParent determines whether the given parent is the direct parent of the
+// given layer id
 func (d *Driver) isParent(id, parent string) bool {
 	lowers, err := d.getLowerDirs(id)
 	if err != nil {
@@ -711,8 +731,8 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	})
 }
 
-// Changes produces a list of changes between the specified layer
-// and its parent layer. If parent is "", then all changes will be ADD changes.
+// Changes produces a list of changes between the specified layer and its
+// parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.Changes(id, parent)
