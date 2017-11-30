@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/pkg/idtools"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
@@ -79,8 +80,8 @@ func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
 	return p, nil
 }
 
-func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *containerd.FIFOSet {
-	fifos := &containerd.FIFOSet{
+func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+	fifos := &cio.FIFOSet{
 		Terminal: withTerminal,
 		Out:      filepath.Join(bundleDir, processID+"-stdout"),
 	}
@@ -96,7 +97,7 @@ func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTermina
 	return fifos
 }
 
-func rmFIFOSet(fset *containerd.FIFOSet) {
+func rmFIFOSet(fset *cio.FIFOSet) {
 	for _, fn := range []string{fset.Out, fset.In, fset.Err} {
 		if fn != "" {
 			if err := os.RemoveAll(fn); err != nil {

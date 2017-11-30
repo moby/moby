@@ -7,12 +7,12 @@ import (
 	"io"
 	"syscall"
 
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/containerd/fifo"
 	"github.com/pkg/errors"
 )
 
-func newIOPipe(fifos *containerd.FIFOSet) (*IOPipe, error) {
+func newIOPipe(fifos *cio.FIFOSet) (*IOPipe, error) {
 	var (
 		err         error
 		ctx, cancel = context.WithCancel(context.Background())
@@ -20,7 +20,7 @@ func newIOPipe(fifos *containerd.FIFOSet) (*IOPipe, error) {
 		iop         = &IOPipe{
 			Terminal: fifos.Terminal,
 			cancel:   cancel,
-			config: containerd.IOConfig{
+			config: cio.Config{
 				Terminal: fifos.Terminal,
 				Stdin:    fifos.In,
 				Stdout:   fifos.Out,

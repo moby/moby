@@ -1,9 +1,9 @@
 package libcontainerd
 
-import "github.com/containerd/containerd"
+import "github.com/containerd/containerd/cio"
 
 // Config returns the containerd.IOConfig of this pipe set
-func (p *IOPipe) Config() containerd.IOConfig {
+func (p *IOPipe) Config() cio.Config {
 	return p.config
 }
 

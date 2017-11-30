@@ -3,7 +3,7 @@ package libcontainerd
 import (
 	"fmt"
 
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/windows/hcsshimtypes"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -35,8 +35,8 @@ func pipeName(containerID, processID, name string) string {
 	return fmt.Sprintf(`\\.\pipe\containerd-%s-%s-%s`, containerID, processID, name)
 }
 
-func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *containerd.FIFOSet {
-	fifos := &containerd.FIFOSet{
+func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+	fifos := &cio.FIFOSet{
 		Terminal: withTerminal,
 		Out:      pipeName(containerID, processID, "stdout"),
 	}
