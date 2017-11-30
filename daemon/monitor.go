@@ -39,10 +39,14 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 		if runtime.GOOS == "windows" {
 			return errors.New("received StateOOM from libcontainerd on Windows. This should never happen")
 		}
+
+		c.Lock()
+		defer c.Unlock()
 		daemon.updateHealthMonitor(c)
 		if err := c.CheckpointTo(daemon.containersReplica); err != nil {
 			return err
 		}
+
 		daemon.LogContainerEvent(c, "oom")
 	case libcontainerd.EventExit:
 		if int(ei.Pid) == c.Pid {
