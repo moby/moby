@@ -36,7 +36,7 @@ func (d *Daemon) registerExecPidUnlocked(container *container.Container, config 
 	// Storing execs in container in order to kill them gracefully whenever the container is stopped or removed.
 	container.ExecCommands.SetPidUnlocked(config.ID, config.Pid)
 	// Storing execs in daemon for easy access via Engine API.
-	d.execCommands.SetPidUnlocked(config.ID, config.Pid)
+	d.execCommands.SetPid(config.ID, config.Pid)
 }
 
 // ExecExists looks up the exec instance and returns a bool if it exists or not.
