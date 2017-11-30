@@ -5,6 +5,7 @@ package splunk
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/json"
@@ -62,6 +63,8 @@ const (
 	envVarBufferMaximum         = "SPLUNK_LOGGING_DRIVER_BUFFER_MAX"
 	envVarStreamChannelSize     = "SPLUNK_LOGGING_DRIVER_CHANNEL_SIZE"
 )
+
+var batchSendTimeout = 30 * time.Second
 
 type splunkLoggerInterface interface {
 	logger.Logger
@@ -416,13 +419,18 @@ func (l *splunkLogger) worker() {
 
 func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) []*splunkMessage {
 	messagesLen := len(messages)
+
+	ctx, cancel := context.WithTimeout(context.Background(), batchSendTimeout)
+	defer cancel()
+
 	for i := 0; i < messagesLen; i += l.postMessagesBatchSize {
 		upperBound := i + l.postMessagesBatchSize
 		if upperBound > messagesLen {
 			upperBound = messagesLen
 		}
-		if err := l.tryPostMessages(messages[i:upperBound]); err != nil {
-			logrus.Error(err)
+
+		if err := l.tryPostMessages(ctx, messages[i:upperBound]); err != nil {
+			logrus.WithError(err).WithField("module", "logger/splunk").Warn("Error while sending logs")
 			if messagesLen-i >= l.bufferMaximum || lastChance {
 				// If this is last chance - print them all to the daemon log
 				if lastChance {
@@ -447,7 +455,7 @@ func (l *splunkLogger) postMessages(messages []*splunkMessage, lastChance bool) 
 	return messages[:0]
 }
 
-func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
+func (l *splunkLogger) tryPostMessages(ctx context.Context, messages []*splunkMessage) error {
 	if len(messages) == 0 {
 		return nil
 	}
@@ -486,6 +494,7 @@ func (l *splunkLogger) tryPostMessages(messages []*splunkMessage) error {
 	if err != nil {
 		return err
 	}
+	req = req.WithContext(ctx)
 	req.Header.Set("Authorization", l.auth)
 	// Tell if we are sending gzip compressed body
 	if l.gzipCompression {
