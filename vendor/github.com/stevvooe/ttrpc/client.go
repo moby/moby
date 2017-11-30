@@ -4,19 +4,18 @@ import (
 	"context"
 	"net"
 	"sync"
-	"sync/atomic"
 
+	"github.com/containerd/containerd/log"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc/status"
 )
 
 type Client struct {
-	codec        codec
-	channel      *channel
-	requestID    uint32
-	sendRequests chan sendRequest
-	recvRequests chan recvRequest
+	codec   codec
+	conn    net.Conn
+	channel *channel
+	calls   chan *callRequest
 
 	closed    chan struct{}
 	closeOnce sync.Once
@@ -26,17 +25,23 @@ type Client struct {
 
 func NewClient(conn net.Conn) *Client {
 	c := &Client{
-		codec:        codec{},
-		requestID:    1,
-		channel:      newChannel(conn, conn),
-		sendRequests: make(chan sendRequest),
-		recvRequests: make(chan recvRequest),
-		closed:       make(chan struct{}),
-		done:         make(chan struct{}),
+		codec:   codec{},
+		conn:    conn,
+		channel: newChannel(conn, conn),
+		calls:   make(chan *callRequest),
+		closed:  make(chan struct{}),
+		done:    make(chan struct{}),
 	}
 
 	go c.run()
 	return c
+}
+
+type callRequest struct {
+	ctx  context.Context
+	req  *Request
+	resp *Response  // response will be written back here
+	errs chan error // error written here on completion
 }
 
 func (c *Client) Call(ctx context.Context, service, method string, req, resp interface{}) error {
@@ -45,31 +50,51 @@ func (c *Client) Call(ctx context.Context, service, method string, req, resp int
 		return err
 	}
 
-	requestID := atomic.AddUint32(&c.requestID, 2)
-	request := Request{
-		Service: service,
-		Method:  method,
-		Payload: payload,
-	}
+	var (
+		creq = &Request{
+			Service: service,
+			Method:  method,
+			Payload: payload,
+		}
 
-	if err := c.send(ctx, requestID, &request); err != nil {
+		cresp = &Response{}
+	)
+
+	if err := c.dispatch(ctx, creq, cresp); err != nil {
 		return err
 	}
 
-	var response Response
-	if err := c.recv(ctx, requestID, &response); err != nil {
+	if err := c.codec.Unmarshal(cresp.Payload, resp); err != nil {
 		return err
 	}
 
-	if err := c.codec.Unmarshal(response.Payload, resp); err != nil {
-		return err
-	}
-
-	if response.Status == nil {
+	if cresp.Status == nil {
 		return errors.New("no status provided on response")
 	}
 
-	return status.ErrorProto(response.Status)
+	return status.ErrorProto(cresp.Status)
+}
+
+func (c *Client) dispatch(ctx context.Context, req *Request, resp *Response) error {
+	errs := make(chan error, 1)
+	call := &callRequest{
+		req:  req,
+		resp: resp,
+		errs: errs,
+	}
+
+	select {
+	case c.calls <- call:
+	case <-c.done:
+		return c.err
+	}
+
+	select {
+	case err := <-errs:
+		return err
+	case <-c.done:
+		return c.err
+	}
 }
 
 func (c *Client) Close() error {
@@ -80,92 +105,42 @@ func (c *Client) Close() error {
 	return nil
 }
 
-type sendRequest struct {
-	ctx context.Context
-	id  uint32
-	msg interface{}
-	err chan error
-}
-
-func (c *Client) send(ctx context.Context, id uint32, msg interface{}) error {
-	errs := make(chan error, 1)
-	select {
-	case c.sendRequests <- sendRequest{
-		ctx: ctx,
-		id:  id,
-		msg: msg,
-		err: errs,
-	}:
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-c.done:
-		return c.err
-	}
-
-	select {
-	case err := <-errs:
-		return err
-	case <-ctx.Done():
-		return ctx.Err()
-	case <-c.done:
-		return c.err
-	}
-}
-
-type recvRequest struct {
-	id  uint32
-	msg interface{}
-	err chan error
-}
-
-func (c *Client) recv(ctx context.Context, id uint32, msg interface{}) error {
-	errs := make(chan error, 1)
-	select {
-	case c.recvRequests <- recvRequest{
-		id:  id,
-		msg: msg,
-		err: errs,
-	}:
-	case <-c.done:
-		return c.err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-
-	select {
-	case err := <-errs:
-		return err
-	case <-c.done:
-		return c.err
-	case <-ctx.Done():
-		return ctx.Err()
-	}
-}
-
-type received struct {
-	mh  messageHeader
+type message struct {
+	messageHeader
 	p   []byte
 	err error
 }
 
 func (c *Client) run() {
-	defer close(c.done)
 	var (
-		waiters  = map[uint32]recvRequest{}
-		queued   = map[uint32]received{} // messages unmatched by waiter
-		incoming = make(chan received)
+		streamID    uint32 = 1
+		waiters            = make(map[uint32]*callRequest)
+		calls              = c.calls
+		incoming           = make(chan *message)
+		shutdown           = make(chan struct{})
+		shutdownErr error
 	)
 
 	go func() {
+		defer close(shutdown)
+
 		// start one more goroutine to recv messages without blocking.
 		for {
-			var p [messageLengthMax]byte
-			mh, err := c.channel.recv(context.TODO(), p[:])
+			mh, p, err := c.channel.recv(context.TODO())
+			if err != nil {
+				_, ok := status.FromError(err)
+				if !ok {
+					// treat all errors that are not an rpc status as terminal.
+					// all others poison the connection.
+					shutdownErr = err
+					return
+				}
+			}
 			select {
-			case incoming <- received{
-				mh:  mh,
-				p:   p[:mh.Length],
-				err: err,
+			case incoming <- &message{
+				messageHeader: mh,
+				p:             p[:mh.Length],
+				err:           err,
 			}:
 			case <-c.done:
 				return
@@ -173,32 +148,64 @@ func (c *Client) run() {
 		}
 	}()
 
+	defer c.conn.Close()
+	defer close(c.done)
+
 	for {
 		select {
-		case req := <-c.sendRequests:
-			if p, err := proto.Marshal(req.msg.(proto.Message)); err != nil {
-				req.err <- err
-			} else {
-				req.err <- c.channel.send(req.ctx, req.id, messageTypeRequest, p)
-			}
-		case req := <-c.recvRequests:
-			if r, ok := queued[req.id]; ok {
-				req.err <- proto.Unmarshal(r.p, req.msg.(proto.Message))
-			}
-			waiters[req.id] = req
-		case r := <-incoming:
-			if r.err != nil {
-				c.err = r.err
-				return
+		case call := <-calls:
+			if err := c.send(call.ctx, streamID, messageTypeRequest, call.req); err != nil {
+				call.errs <- err
+				continue
 			}
 
-			if waiter, ok := waiters[r.mh.StreamID]; ok {
-				waiter.err <- proto.Unmarshal(r.p, waiter.msg.(proto.Message))
-			} else {
-				queued[r.mh.StreamID] = r
+			waiters[streamID] = call
+			streamID += 2 // enforce odd client initiated request ids
+		case msg := <-incoming:
+			call, ok := waiters[msg.StreamID]
+			if !ok {
+				log.L.Errorf("ttrpc: received message for unknown channel %v", msg.StreamID)
+				continue
 			}
+
+			call.errs <- c.recv(call.resp, msg)
+			delete(waiters, msg.StreamID)
+		case <-shutdown:
+			shutdownErr = errors.Wrapf(shutdownErr, "ttrpc: client shutting down")
+			c.err = shutdownErr
+			for _, waiter := range waiters {
+				waiter.errs <- shutdownErr
+			}
+			c.Close()
+			return
 		case <-c.closed:
+			// broadcast the shutdown error to the remaining waiters.
+			for _, waiter := range waiters {
+				waiter.errs <- shutdownErr
+			}
 			return
 		}
 	}
+}
+
+func (c *Client) send(ctx context.Context, streamID uint32, mtype messageType, msg interface{}) error {
+	p, err := c.codec.Marshal(msg)
+	if err != nil {
+		return err
+	}
+
+	return c.channel.send(ctx, streamID, mtype, p)
+}
+
+func (c *Client) recv(resp *Response, msg *message) error {
+	if msg.err != nil {
+		return msg.err
+	}
+
+	if msg.Type != messageTypeResponse {
+		return errors.New("unkown message type received")
+	}
+
+	defer c.channel.putmbuf(msg.p)
+	return proto.Unmarshal(msg.p, resp)
 }

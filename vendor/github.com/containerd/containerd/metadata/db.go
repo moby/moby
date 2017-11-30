@@ -11,7 +11,7 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/gc"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/pkg/errors"
 )
 
@@ -60,7 +60,7 @@ type DB struct {
 
 // NewDB creates a new metadata database using the provided
 // bolt database, content store, and snapshotters.
-func NewDB(db *bolt.DB, cs content.Store, ss map[string]snapshot.Snapshotter) *DB {
+func NewDB(db *bolt.DB, cs content.Store, ss map[string]snapshots.Snapshotter) *DB {
 	m := &DB{
 		db:      db,
 		ss:      make(map[string]*snapshotter, len(ss)),
@@ -171,7 +171,7 @@ func (m *DB) ContentStore() content.Store {
 
 // Snapshotter returns a namespaced content store for
 // the requested snapshotter name proxied to a snapshotter.
-func (m *DB) Snapshotter(name string) snapshot.Snapshotter {
+func (m *DB) Snapshotter(name string) snapshots.Snapshotter {
 	sn, ok := m.ss[name]
 	if !ok {
 		return nil

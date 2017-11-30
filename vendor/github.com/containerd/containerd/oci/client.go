@@ -4,13 +4,13 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // Client interface used by SpecOpt
 type Client interface {
-	SnapshotService(snapshotterName string) snapshot.Snapshotter
+	SnapshotService(snapshotterName string) snapshots.Snapshotter
 }
 
 // Image interface used by some SpecOpt to query image configuration

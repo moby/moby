@@ -14,12 +14,12 @@ import (
 	"github.com/containerd/containerd/metadata/boltutil"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/pkg/errors"
 )
 
 type snapshotter struct {
-	snapshot.Snapshotter
+	snapshots.Snapshotter
 	name string
 	db   *DB
 	l    sync.RWMutex
@@ -27,7 +27,7 @@ type snapshotter struct {
 
 // newSnapshotter returns a new Snapshotter which namespaces the given snapshot
 // using the provided name and database.
-func newSnapshotter(db *DB, name string, sn snapshot.Snapshotter) *snapshotter {
+func newSnapshotter(db *DB, name string, sn snapshots.Snapshotter) *snapshotter {
 	return &snapshotter{
 		Snapshotter: sn,
 		name:        name,
@@ -75,15 +75,15 @@ func (s *snapshotter) resolveKey(ctx context.Context, key string) (string, error
 	return id, nil
 }
 
-func (s *snapshotter) Stat(ctx context.Context, key string) (snapshot.Info, error) {
+func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, error) {
 	ns, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	var (
 		bkey  string
-		local = snapshot.Info{
+		local = snapshots.Info{
 			Name: key,
 		}
 	)
@@ -108,33 +108,33 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshot.Info, erro
 
 		return nil
 	}); err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	info, err := s.Snapshotter.Stat(ctx, bkey)
 	if err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	return overlayInfo(info, local), nil
 }
 
-func (s *snapshotter) Update(ctx context.Context, info snapshot.Info, fieldpaths ...string) (snapshot.Info, error) {
+func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpaths ...string) (snapshots.Info, error) {
 	s.l.RLock()
 	defer s.l.RUnlock()
 
 	ns, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	if info.Name == "" {
-		return snapshot.Info{}, errors.Wrap(errdefs.ErrInvalidArgument, "")
+		return snapshots.Info{}, errors.Wrap(errdefs.ErrInvalidArgument, "")
 	}
 
 	var (
 		bkey  string
-		local = snapshot.Info{
+		local = snapshots.Info{
 			Name: info.Name,
 		}
 	)
@@ -195,18 +195,18 @@ func (s *snapshotter) Update(ctx context.Context, info snapshot.Info, fieldpaths
 
 		return nil
 	}); err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	info, err = s.Snapshotter.Stat(ctx, bkey)
 	if err != nil {
-		return snapshot.Info{}, err
+		return snapshots.Info{}, err
 	}
 
 	return overlayInfo(info, local), nil
 }
 
-func overlayInfo(info, overlay snapshot.Info) snapshot.Info {
+func overlayInfo(info, overlay snapshots.Info) snapshots.Info {
 	// Merge info
 	info.Name = overlay.Name
 	info.Created = overlay.Created
@@ -222,10 +222,10 @@ func overlayInfo(info, overlay snapshot.Info) snapshot.Info {
 	return info
 }
 
-func (s *snapshotter) Usage(ctx context.Context, key string) (snapshot.Usage, error) {
+func (s *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
 	bkey, err := s.resolveKey(ctx, key)
 	if err != nil {
-		return snapshot.Usage{}, err
+		return snapshots.Usage{}, err
 	}
 	return s.Snapshotter.Usage(ctx, bkey)
 }
@@ -238,15 +238,15 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) ([]mount.Mount, er
 	return s.Snapshotter.Mounts(ctx, bkey)
 }
 
-func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshot.Opt) ([]mount.Mount, error) {
+func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
 	return s.createSnapshot(ctx, key, parent, false, opts)
 }
 
-func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshot.Opt) ([]mount.Mount, error) {
+func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) ([]mount.Mount, error) {
 	return s.createSnapshot(ctx, key, parent, true, opts)
 }
 
-func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, readonly bool, opts []snapshot.Opt) ([]mount.Mount, error) {
+func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, readonly bool, opts []snapshots.Opt) ([]mount.Mount, error) {
 	s.l.RLock()
 	defer s.l.RUnlock()
 
@@ -255,7 +255,7 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 		return nil, err
 	}
 
-	var base snapshot.Info
+	var base snapshots.Info
 	for _, opt := range opts {
 		if err := opt(&base); err != nil {
 			return nil, err
@@ -336,7 +336,7 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 	return m, nil
 }
 
-func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshot.Opt) error {
+func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error {
 	s.l.RLock()
 	defer s.l.RUnlock()
 
@@ -345,7 +345,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		return err
 	}
 
-	var base snapshot.Info
+	var base snapshots.Info
 	for _, opt := range opts {
 		if err := opt(&base); err != nil {
 			return err
@@ -493,10 +493,10 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 
 type infoPair struct {
 	bkey string
-	info snapshot.Info
+	info snapshots.Info
 }
 
-func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapshot.Info) error) error {
+func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapshots.Info) error) error {
 	ns, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return err
@@ -533,7 +533,7 @@ func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapsho
 
 					pair := infoPair{
 						bkey: string(sbkt.Get(bucketKeyName)),
-						info: snapshot.Info{
+						info: snapshots.Info{
 							Name:   string(k),
 							Parent: string(sbkt.Get(bucketKeyParent)),
 						},
@@ -586,7 +586,7 @@ func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapsho
 	return nil
 }
 
-func validateSnapshot(info *snapshot.Info) error {
+func validateSnapshot(info *snapshots.Info) error {
 	for k, v := range info.Labels {
 		if err := labels.Validate(k, v); err != nil {
 			return errors.Wrapf(err, "info.Labels")
@@ -670,7 +670,7 @@ func (s *snapshotter) garbageCollect(ctx context.Context) (d time.Duration, err 
 }
 
 type treeNode struct {
-	info     snapshot.Info
+	info     snapshots.Info
 	remove   bool
 	children []*treeNode
 }
@@ -679,7 +679,7 @@ func (s *snapshotter) walkTree(ctx context.Context, seen map[string]struct{}) ([
 	roots := []*treeNode{}
 	nodes := map[string]*treeNode{}
 
-	if err := s.Snapshotter.Walk(ctx, func(ctx context.Context, info snapshot.Info) error {
+	if err := s.Snapshotter.Walk(ctx, func(ctx context.Context, info snapshots.Info) error {
 		_, isSeen := seen[info.Name]
 		node, ok := nodes[info.Name]
 		if !ok {

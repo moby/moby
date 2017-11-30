@@ -18,7 +18,7 @@ import (
 	introspection "github.com/containerd/containerd/api/services/introspection/v1"
 	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	namespaces "github.com/containerd/containerd/api/services/namespaces/v1"
-	snapshotapi "github.com/containerd/containerd/api/services/snapshot/v1"
+	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	tasks "github.com/containerd/containerd/api/services/tasks/v1"
 	version "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/content"
@@ -27,7 +27,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/metadata"
 	"github.com/containerd/containerd/plugin"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	metrics "github.com/docker/go-metrics"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
@@ -199,7 +199,7 @@ func loadPlugins(config *Config) ([]*plugin.Registration, error) {
 				return nil, err
 			}
 
-			snapshotters := make(map[string]snapshot.Snapshotter)
+			snapshotters := make(map[string]snapshots.Snapshotter)
 			for name, sn := range snapshottersRaw {
 				sn, err := sn.Instance()
 				if err != nil {
@@ -207,7 +207,7 @@ func loadPlugins(config *Config) ([]*plugin.Registration, error) {
 						Warnf("could not use snapshotter %v in metadata plugin", name)
 					continue
 				}
-				snapshotters[name] = sn.(snapshot.Snapshotter)
+				snapshotters[name] = sn.(snapshots.Snapshotter)
 			}
 
 			path := filepath.Join(ic.Root, "meta.db")
@@ -249,7 +249,7 @@ func interceptor(
 		// No need to change the context
 	case version.VersionServer:
 		ctx = log.WithModule(ctx, "version")
-	case snapshotapi.SnapshotsServer:
+	case snapshotsapi.SnapshotsServer:
 		ctx = log.WithModule(ctx, "snapshot")
 	case diff.DiffServer:
 		ctx = log.WithModule(ctx, "diff")

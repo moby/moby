@@ -310,7 +310,8 @@ func (c *cgroup) Thaw() error {
 }
 
 // OOMEventFD returns the memory cgroup's out of memory event fd that triggers
-// when processes inside the cgroup receive an oom event
+// when processes inside the cgroup receive an oom event. Returns
+// ErrMemoryNotSupported if memory cgroups is not supported.
 func (c *cgroup) OOMEventFD() (uintptr, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()

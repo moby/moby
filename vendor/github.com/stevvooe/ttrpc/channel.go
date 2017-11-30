@@ -5,13 +5,16 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"sync"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
 	messageHeaderLength = 10
-	messageLengthMax    = 8 << 10
+	messageLengthMax    = 4 << 20
 )
 
 type messageType uint8
@@ -54,6 +57,8 @@ func writeMessageHeader(w io.Writer, p []byte, mh messageHeader) error {
 	return err
 }
 
+var buffers sync.Pool
+
 type channel struct {
 	bw    *bufio.Writer
 	br    *bufio.Reader
@@ -68,21 +73,32 @@ func newChannel(w io.Writer, r io.Reader) *channel {
 	}
 }
 
-func (ch *channel) recv(ctx context.Context, p []byte) (messageHeader, error) {
+// recv a message from the channel. The returned buffer contains the message.
+//
+// If a valid grpc status is returned, the message header
+// returned will be valid and caller should send that along to
+// the correct consumer. The bytes on the underlying channel
+// will be discarded.
+func (ch *channel) recv(ctx context.Context) (messageHeader, []byte, error) {
 	mh, err := readMessageHeader(ch.hrbuf[:], ch.br)
 	if err != nil {
-		return messageHeader{}, err
+		return messageHeader{}, nil, err
 	}
 
-	if mh.Length > uint32(len(p)) {
-		return messageHeader{}, errors.Wrapf(io.ErrShortBuffer, "message length %v over buffer size %v", mh.Length, len(p))
+	if mh.Length > uint32(messageLengthMax) {
+		if _, err := ch.br.Discard(int(mh.Length)); err != nil {
+			return mh, nil, errors.Wrapf(err, "failed to discard after receiving oversized message")
+		}
+
+		return mh, nil, status.Errorf(codes.ResourceExhausted, "message length %v exceed maximum message size of %v", mh.Length, messageLengthMax)
 	}
 
-	if _, err := io.ReadFull(ch.br, p[:mh.Length]); err != nil {
-		return messageHeader{}, errors.Wrapf(err, "failed reading message")
+	p := ch.getmbuf(int(mh.Length))
+	if _, err := io.ReadFull(ch.br, p); err != nil {
+		return messageHeader{}, nil, errors.Wrapf(err, "failed reading message")
 	}
 
-	return mh, nil
+	return mh, p, nil
 }
 
 func (ch *channel) send(ctx context.Context, streamID uint32, t messageType, p []byte) error {
@@ -96,4 +112,24 @@ func (ch *channel) send(ctx context.Context, streamID uint32, t messageType, p [
 	}
 
 	return ch.bw.Flush()
+}
+
+func (ch *channel) getmbuf(size int) []byte {
+	// we can't use the standard New method on pool because we want to allocate
+	// based on size.
+	b, ok := buffers.Get().(*[]byte)
+	if !ok || cap(*b) < size {
+		// TODO(stevvooe): It may be better to allocate these in fixed length
+		// buckets to reduce fragmentation but its not clear that would help
+		// with performance. An ilogb approach or similar would work well.
+		bb := make([]byte, size)
+		b = &bb
+	} else {
+		*b = (*b)[:size]
+	}
+	return *b
+}
+
+func (ch *channel) putmbuf(p []byte) {
+	buffers.Put(&p)
 }

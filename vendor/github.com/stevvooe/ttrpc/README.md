@@ -1,5 +1,7 @@
 # ttrpc
 
+[![Build Status](https://travis-ci.org/stevvooe/ttrpc.svg?branch=master)](https://travis-ci.org/stevvooe/ttrpc)
+
 GRPC for low-memory environments.
 
 The existing grpc-go project requires a lot of memory overhead for importing

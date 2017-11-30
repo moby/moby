@@ -17,7 +17,7 @@ import (
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
 	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
-	snapshotapi "github.com/containerd/containerd/api/services/snapshot/v1"
+	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/containers"
@@ -33,7 +33,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -435,8 +435,8 @@ func (c *Client) ContentStore() content.Store {
 }
 
 // SnapshotService returns the underlying snapshotter for the provided snapshotter name
-func (c *Client) SnapshotService(snapshotterName string) snapshot.Snapshotter {
-	return NewSnapshotterFromClient(snapshotapi.NewSnapshotsClient(c.conn), snapshotterName)
+func (c *Client) SnapshotService(snapshotterName string) snapshots.Snapshotter {
+	return NewSnapshotterFromClient(snapshotsapi.NewSnapshotsClient(c.conn), snapshotterName)
 }
 
 // TaskService returns the underlying TasksClient

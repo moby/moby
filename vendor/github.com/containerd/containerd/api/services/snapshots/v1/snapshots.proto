@@ -8,7 +8,7 @@ import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
 
-option go_package = "github.com/containerd/containerd/api/services/snapshot/v1;snapshot";
+option go_package = "github.com/containerd/containerd/api/services/snapshots/v1;snapshots";
 
 // Snapshot service manages snapshots
 service Snapshots {
