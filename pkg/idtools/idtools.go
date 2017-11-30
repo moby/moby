@@ -42,7 +42,9 @@ func MkdirAllAndChown(path string, mode os.FileMode, owner IDPair) error {
 }
 
 // MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
-// If the directory already exists, this function still changes ownership
+// If the directory already exists, this function still changes ownership.
+// Note that unlike os.Mkdir(), this function does not return IsExist error
+// in case path already exists.
 func MkdirAndChown(path string, mode os.FileMode, owner IDPair) error {
 	return mkdirAs(path, mode, owner.UID, owner.GID, false, true)
 }

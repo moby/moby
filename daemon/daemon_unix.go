@@ -1514,7 +1514,7 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 
 func maybeCreateCPURealTimeFile(sysinfoPresent bool, configValue int64, file string, path string) error {
 	if sysinfoPresent && configValue != 0 {
-		if err := os.MkdirAll(path, 0755); err != nil && !os.IsExist(err) {
+		if err := os.MkdirAll(path, 0755); err != nil {
 			return err
 		}
 		if err := ioutil.WriteFile(filepath.Join(path, file), []byte(strconv.FormatInt(configValue, 10)), 0700); err != nil {

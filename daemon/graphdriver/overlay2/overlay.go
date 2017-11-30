@@ -177,7 +177,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	// Create the driver home dir
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, idtools.IDPair{rootUID, rootGID}); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, idtools.IDPair{rootUID, rootGID}); err != nil {
 		return nil, err
 	}
 

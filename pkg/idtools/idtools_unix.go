@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runc/libcontainer/user"
@@ -29,6 +30,9 @@ func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll, chown
 
 	stat, err := system.Stat(path)
 	if err == nil {
+		if !stat.IsDir() {
+			return &os.PathError{Op: "mkdir", Path: path, Err: syscall.ENOTDIR}
+		}
 		if !chownExisting {
 			return nil
 		}
@@ -54,7 +58,7 @@ func mkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int, mkAll, chown
 				paths = append(paths, dirPath)
 			}
 		}
-		if err := system.MkdirAll(path, mode, ""); err != nil && !os.IsExist(err) {
+		if err := system.MkdirAll(path, mode, ""); err != nil {
 			return err
 		}
 	} else {

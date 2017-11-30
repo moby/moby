@@ -139,16 +139,6 @@ func (r *Root) Name() string {
 	return volume.DefaultDriverName
 }
 
-type alreadyExistsError struct {
-	path string
-}
-
-func (e alreadyExistsError) Error() string {
-	return "local volume already exists under " + e.path
-}
-
-func (e alreadyExistsError) Conflict() {}
-
 type systemError struct {
 	err error
 }
@@ -181,9 +171,6 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 
 	path := r.DataPath(name)
 	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIDs); err != nil {
-		if os.IsExist(err) {
-			return nil, alreadyExistsError{filepath.Dir(path)}
-		}
 		return nil, errors.Wrapf(systemError{err}, "error while creating volume path '%s'", path)
 	}
 

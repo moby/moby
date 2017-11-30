@@ -34,9 +34,6 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 			err2 = fmt.Errorf("checkpoint with name %s already exists for container %s", checkpointID, ctrName)
 		case err != nil && os.IsNotExist(err):
 			err2 = os.MkdirAll(checkpointAbsDir, 0700)
-			if os.IsExist(err2) {
-				err2 = nil
-			}
 		case err != nil:
 			err2 = err
 		case err == nil:
