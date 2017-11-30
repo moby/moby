@@ -112,7 +112,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			return daemon.postRunProcessing(c, ei)
 		}
 
-		if execConfig := c.ExecCommands.ByPid(int(ei.Pid)); execConfig != nil {
+		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
@@ -129,6 +129,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 		} else {
 			logrus.WithFields(logrus.Fields{
 				"container": c.ID,
+				"exec-id":   ei.ProcessID,
 				"exec-pid":  ei.Pid,
 			}).Warnf("Ignoring Exit Event, no such exec command found")
 		}
