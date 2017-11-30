@@ -45,7 +45,9 @@ func (daemon *Daemon) FindNetwork(idName string) (libnetwork.Network, error) {
 	// 3. match by ID prefix
 	list := daemon.GetNetworksByIDPrefix(idName)
 	if len(list) == 0 {
-		return nil, errors.WithStack(networkNotFound(idName))
+		// Be very careful to change the error type here, the libnetwork.ErrNoSuchNetwork error is used by the controller
+		// to retry the creation of the network as managed through the swarm manager
+		return nil, errors.WithStack(notFound(libnetwork.ErrNoSuchNetwork(idName)))
 	}
 	if len(list) > 1 {
 		return nil, errors.WithStack(invalidIdentifier(idName))
