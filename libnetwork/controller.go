@@ -849,13 +849,22 @@ addToStore:
 		return network, nil
 	}
 
+	joinCluster(network)
+	defer func() {
+		if err != nil {
+			network.cancelDriverWatches()
+			if e := network.leaveCluster(); e != nil {
+				logrus.Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", network.name, err, e)
+			}
+		}
+	}()
+
 	if len(network.loadBalancerIP) != 0 {
 		if err = network.createLoadBalancerSandbox(); err != nil {
 			return nil, err
 		}
 	}
 
-	joinCluster(network)
 	if !c.isDistributedControl() {
 		c.Lock()
 		arrangeIngressFilterRule()
