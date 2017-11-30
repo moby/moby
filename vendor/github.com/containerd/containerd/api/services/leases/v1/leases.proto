@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.services.leases.v1;
 
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 import "google/protobuf/empty.proto";
 import "google/protobuf/timestamp.proto";
 
@@ -19,7 +19,7 @@ service Leases {
 	// or retained by other resources during the lease.
 	rpc Delete(DeleteRequest) returns (google.protobuf.Empty);
 
-	// ListTransactions lists all active leases, returning the full list of
+	// List lists all active leases, returning the full list of
 	// leases and optionally including the referenced resources.
 	rpc List(ListRequest) returns (ListResponse);
 }

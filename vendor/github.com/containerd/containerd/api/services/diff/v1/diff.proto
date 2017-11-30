@@ -2,7 +2,7 @@ syntax = "proto3";
 
 package containerd.services.diff.v1;
 
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 import "github.com/containerd/containerd/api/types/mount.proto";
 import "github.com/containerd/containerd/api/types/descriptor.proto";
 

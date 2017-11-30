@@ -184,6 +184,9 @@ func (cs *contentStore) Delete(ctx context.Context, dgst digest.Digest) error {
 		if err := getBlobsBucket(tx, ns).DeleteBucket([]byte(dgst.String())); err != nil {
 			return err
 		}
+		if err := removeContentLease(ctx, tx, dgst); err != nil {
+			return err
+		}
 
 		// Mark content store as dirty for triggering garbage collection
 		cs.db.dirtyL.Lock()
@@ -527,12 +530,14 @@ func writeInfo(info *content.Info, bkt *bolt.Bucket) error {
 	return bkt.Put(bucketKeySize, sizeEncoded)
 }
 
-func (cs *contentStore) garbageCollect(ctx context.Context) error {
-	lt1 := time.Now()
+func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, err error) {
 	cs.l.Lock()
+	t1 := time.Now()
 	defer func() {
+		if err == nil {
+			d = time.Now().Sub(t1)
+		}
 		cs.l.Unlock()
-		log.G(ctx).WithField("t", time.Now().Sub(lt1)).Debugf("content garbage collected")
 	}()
 
 	seen := map[string]struct{}{}
@@ -567,10 +572,10 @@ func (cs *contentStore) garbageCollect(ctx context.Context) error {
 
 		return nil
 	}); err != nil {
-		return err
+		return 0, err
 	}
 
-	return cs.Store.Walk(ctx, func(info content.Info) error {
+	err = cs.Store.Walk(ctx, func(info content.Info) error {
 		if _, ok := seen[info.Digest.String()]; !ok {
 			if err := cs.Store.Delete(ctx, info.Digest); err != nil {
 				return err
@@ -579,4 +584,5 @@ func (cs *contentStore) garbageCollect(ctx context.Context) error {
 		}
 		return nil
 	})
+	return
 }

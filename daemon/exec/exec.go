@@ -4,7 +4,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/stringid"
@@ -43,26 +43,26 @@ func NewConfig() *Config {
 	}
 }
 
-type cio struct {
-	containerd.IO
+type rio struct {
+	cio.IO
 
 	sc *stream.Config
 }
 
-func (i *cio) Close() error {
+func (i *rio) Close() error {
 	i.IO.Close()
 
 	return i.sc.CloseStreams()
 }
 
-func (i *cio) Wait() {
+func (i *rio) Wait() {
 	i.sc.Wait()
 
 	i.IO.Wait()
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (c *Config) InitializeStdio(iop *libcontainerd.IOPipe) (containerd.IO, error) {
+func (c *Config) InitializeStdio(iop *libcontainerd.IOPipe) (cio.IO, error) {
 	c.StreamConfig.CopyToPipe(iop)
 
 	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
@@ -73,7 +73,7 @@ func (c *Config) InitializeStdio(iop *libcontainerd.IOPipe) (containerd.IO, erro
 		}
 	}
 
-	return &cio{IO: iop, sc: c.StreamConfig}, nil
+	return &rio{IO: iop, sc: c.StreamConfig}, nil
 }
 
 // CloseStreams closes the stdio streams for the exec

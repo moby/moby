@@ -36,7 +36,7 @@ func Tricolor(roots []Node, refs func(ref Node) ([]Node, error)) (map[Node]struc
 	var (
 		grays     []Node                // maintain a gray "stack"
 		seen      = map[Node]struct{}{} // or not "white", basically "seen"
-		reachable = map[Node]struct{}{} // or "block", in tri-color parlance
+		reachable = map[Node]struct{}{} // or "black", in tri-color parlance
 	)
 
 	grays = append(grays, roots...)

@@ -152,6 +152,7 @@ func (w *writer) Close() (err error) {
 	if w.fp != nil {
 		w.fp.Sync()
 		err = w.fp.Close()
+		writeTimestampFile(filepath.Join(w.path, "updatedat"), w.updatedAt)
 		w.fp = nil
 		unlock(w.ref)
 		return

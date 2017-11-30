@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/containerd/containerd/linux/runcopts"
+	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/docker/docker/container"
 	"github.com/pkg/errors"
 )
@@ -42,7 +42,7 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 	if err != nil {
 		return nil, err
 	}
-	opts := &runcopts.RuncOptions{
+	opts := &runctypes.RuncOptions{
 		Runtime: path,
 		RuntimeRoot: filepath.Join(daemon.configStore.ExecRoot,
 			fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),

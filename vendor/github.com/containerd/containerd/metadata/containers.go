@@ -105,7 +105,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 	cbkt, err := bkt.CreateBucket([]byte(container.ID))
 	if err != nil {
 		if err == bolt.ErrBucketExists {
-			err = errors.Wrapf(errdefs.ErrAlreadyExists, "content %q", container.ID)
+			err = errors.Wrapf(errdefs.ErrAlreadyExists, "container %q", container.ID)
 		}
 		return containers.Container{}, err
 	}

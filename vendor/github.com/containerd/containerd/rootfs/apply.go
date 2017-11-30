@@ -9,7 +9,7 @@ import (
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -30,7 +30,7 @@ type Layer struct {
 // The returned result is a chain id digest representing all the applied layers.
 // Layers are applied in order they are given, making the first layer the
 // bottom-most layer in the layer chain.
-func ApplyLayers(ctx context.Context, layers []Layer, sn snapshot.Snapshotter, a diff.Differ) (digest.Digest, error) {
+func ApplyLayers(ctx context.Context, layers []Layer, sn snapshots.Snapshotter, a diff.Differ) (digest.Digest, error) {
 	var chain []digest.Digest
 	for _, layer := range layers {
 		if _, err := ApplyLayer(ctx, layer, chain, sn, a); err != nil {
@@ -46,7 +46,7 @@ func ApplyLayers(ctx context.Context, layers []Layer, sn snapshot.Snapshotter, a
 // ApplyLayer applies a single layer on top of the given provided layer chain,
 // using the provided snapshotter and applier. If the layer was unpacked true
 // is returned, if the layer already exists false is returned.
-func ApplyLayer(ctx context.Context, layer Layer, chain []digest.Digest, sn snapshot.Snapshotter, a diff.Differ, opts ...snapshot.Opt) (bool, error) {
+func ApplyLayer(ctx context.Context, layer Layer, chain []digest.Digest, sn snapshots.Snapshotter, a diff.Differ, opts ...snapshots.Opt) (bool, error) {
 	var (
 		parent  = identity.ChainID(chain)
 		chainID = identity.ChainID(append(chain, layer.Diff.Digest))

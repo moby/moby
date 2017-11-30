@@ -38,6 +38,23 @@ type Image struct {
 	CreatedAt, UpdatedAt time.Time
 }
 
+// DeleteOptions provide options on image delete
+type DeleteOptions struct {
+	Synchronous bool
+}
+
+// DeleteOpt allows configuring a delete operation
+type DeleteOpt func(context.Context, *DeleteOptions) error
+
+// SynchronousDelete is used to indicate that an image deletion and removal of
+// the image resources should occur synchronously before returning a result.
+func SynchronousDelete() DeleteOpt {
+	return func(ctx context.Context, o *DeleteOptions) error {
+		o.Synchronous = true
+		return nil
+	}
+}
+
 // Store and interact with images
 type Store interface {
 	Get(ctx context.Context, name string) (Image, error)
@@ -48,7 +65,7 @@ type Store interface {
 	// one or more fieldpaths are provided, only those fields will be updated.
 	Update(ctx context.Context, image Image, fieldpaths ...string) (Image, error)
 
-	Delete(ctx context.Context, name string) error
+	Delete(ctx context.Context, name string, opts ...DeleteOpt) error
 }
 
 // TODO(stevvooe): Many of these functions make strong platform assumptions,

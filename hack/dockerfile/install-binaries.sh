@@ -48,7 +48,7 @@ install_containerd_static() {
 	git checkout -q "$CONTAINERD_COMMIT"
 	(
 		export GOPATH
-		make EXTRA_FLAGS="-buildmode pie" EXTRA_LDFLAGS="-extldflags \\\"-fno-PIC -static\\\""
+		make BUILDTAGS='static_build' EXTRA_FLAGS="-buildmode pie" EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
 	)
 	cp bin/containerd /usr/local/bin/docker-containerd
 	cp bin/containerd-shim /usr/local/bin/docker-containerd-shim

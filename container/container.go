@@ -15,7 +15,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -1004,7 +1004,7 @@ func (container *Container) CloseStreams() error {
 }
 
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (container *Container) InitializeStdio(iop *libcontainerd.IOPipe) (containerd.IO, error) {
+func (container *Container) InitializeStdio(iop *libcontainerd.IOPipe) (cio.IO, error) {
 	if err := container.startLogging(); err != nil {
 		container.Reset(false)
 		return nil, err
@@ -1020,7 +1020,7 @@ func (container *Container) InitializeStdio(iop *libcontainerd.IOPipe) (containe
 		}
 	}
 
-	return &cio{IO: iop, sc: container.StreamConfig}, nil
+	return &rio{IO: iop, sc: container.StreamConfig}, nil
 }
 
 // SecretMountPath returns the path of the secret mount for the container
@@ -1078,19 +1078,19 @@ func (container *Container) CreateDaemonEnvironment(tty bool, linkedEnv []string
 	return env
 }
 
-type cio struct {
-	containerd.IO
+type rio struct {
+	cio.IO
 
 	sc *stream.Config
 }
 
-func (i *cio) Close() error {
+func (i *rio) Close() error {
 	i.IO.Close()
 
 	return i.sc.CloseStreams()
 }
 
-func (i *cio) Wait() {
+func (i *rio) Wait() {
 	i.sc.Wait()
 
 	i.IO.Wait()

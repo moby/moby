@@ -17,7 +17,7 @@ import (
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
 	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
-	snapshotapi "github.com/containerd/containerd/api/services/snapshot/v1"
+	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/containers"
@@ -33,14 +33,9 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
-	contentservice "github.com/containerd/containerd/services/content"
-	diffservice "github.com/containerd/containerd/services/diff"
-	imagesservice "github.com/containerd/containerd/services/images"
-	namespacesservice "github.com/containerd/containerd/services/namespaces"
-	snapshotservice "github.com/containerd/containerd/services/snapshot"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/typeurl"
-	pempty "github.com/golang/protobuf/ptypes/empty"
+	ptypes "github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -138,7 +133,7 @@ func (c *Client) Containers(ctx context.Context, filters ...string) ([]Container
 // NewContainer will create a new container in container with the provided id
 // the id must be unique within the namespace
 func (c *Client) NewContainer(ctx context.Context, id string, opts ...NewContainerOpts) (Container, error) {
-	ctx, done, err := c.withLease(ctx)
+	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -219,7 +214,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	}
 	store := c.ContentStore()
 
-	ctx, done, err := c.withLease(ctx)
+	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -426,7 +421,7 @@ func (c *Client) Close() error {
 
 // NamespaceService returns the underlying Namespaces Store
 func (c *Client) NamespaceService() namespaces.Store {
-	return namespacesservice.NewStoreFromClient(namespacesapi.NewNamespacesClient(c.conn))
+	return NewNamespaceStoreFromClient(namespacesapi.NewNamespacesClient(c.conn))
 }
 
 // ContainerService returns the underlying container Store
@@ -436,12 +431,12 @@ func (c *Client) ContainerService() containers.Store {
 
 // ContentStore returns the underlying content Store
 func (c *Client) ContentStore() content.Store {
-	return contentservice.NewStoreFromClient(contentapi.NewContentClient(c.conn))
+	return NewContentStoreFromClient(contentapi.NewContentClient(c.conn))
 }
 
 // SnapshotService returns the underlying snapshotter for the provided snapshotter name
-func (c *Client) SnapshotService(snapshotterName string) snapshot.Snapshotter {
-	return snapshotservice.NewSnapshotterFromClient(snapshotapi.NewSnapshotsClient(c.conn), snapshotterName)
+func (c *Client) SnapshotService(snapshotterName string) snapshots.Snapshotter {
+	return NewSnapshotterFromClient(snapshotsapi.NewSnapshotsClient(c.conn), snapshotterName)
 }
 
 // TaskService returns the underlying TasksClient
@@ -451,12 +446,12 @@ func (c *Client) TaskService() tasks.TasksClient {
 
 // ImageService returns the underlying image Store
 func (c *Client) ImageService() images.Store {
-	return imagesservice.NewStoreFromClient(imagesapi.NewImagesClient(c.conn))
+	return NewImageStoreFromClient(imagesapi.NewImagesClient(c.conn))
 }
 
 // DiffService returns the underlying Differ
 func (c *Client) DiffService() diff.Differ {
-	return diffservice.NewDiffServiceFromClient(diffapi.NewDiffClient(c.conn))
+	return NewDiffServiceFromClient(diffapi.NewDiffClient(c.conn))
 }
 
 // IntrospectionService returns the underlying Introspection Client
@@ -489,7 +484,7 @@ type Version struct {
 
 // Version returns the version of containerd that the client is connected to
 func (c *Client) Version(ctx context.Context) (Version, error) {
-	response, err := c.VersionService().Version(ctx, &pempty.Empty{})
+	response, err := c.VersionService().Version(ctx, &ptypes.Empty{})
 	if err != nil {
 		return Version{}, err
 	}
@@ -592,7 +587,7 @@ func (c *Client) Import(ctx context.Context, ref string, reader io.Reader, opts 
 		return nil, err
 	}
 
-	ctx, done, err := c.withLease(ctx)
+	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
 		return nil, err
 	}

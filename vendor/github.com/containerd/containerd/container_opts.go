@@ -5,10 +5,12 @@ import (
 
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
@@ -162,5 +164,31 @@ func WithContainerExtension(name string, extension interface{}) NewContainerOpts
 		}
 		c.Extensions[name] = *any
 		return nil
+	}
+}
+
+// WithNewSpec generates a new spec for a new container
+func WithNewSpec(opts ...oci.SpecOpts) NewContainerOpts {
+	return func(ctx context.Context, client *Client, c *containers.Container) error {
+		s, err := oci.GenerateSpec(ctx, client, c, opts...)
+		if err != nil {
+			return err
+		}
+		c.Spec, err = typeurl.MarshalAny(s)
+		return err
+	}
+}
+
+// WithSpec sets the provided spec on the container
+func WithSpec(s *specs.Spec, opts ...oci.SpecOpts) NewContainerOpts {
+	return func(ctx context.Context, client *Client, c *containers.Container) error {
+		for _, o := range opts {
+			if err := o(ctx, client, c, s); err != nil {
+				return err
+			}
+		}
+		var err error
+		c.Spec, err = typeurl.MarshalAny(s)
+		return err
 	}
 }

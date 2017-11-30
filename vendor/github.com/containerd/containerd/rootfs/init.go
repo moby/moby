@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/snapshot"
+	"github.com/containerd/containerd/snapshots"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
@@ -26,7 +26,7 @@ type Mounter interface {
 }
 
 // InitRootFS initializes the snapshot for use as a rootfs
-func InitRootFS(ctx context.Context, name string, parent digest.Digest, readonly bool, snapshotter snapshot.Snapshotter, mounter Mounter) ([]mount.Mount, error) {
+func InitRootFS(ctx context.Context, name string, parent digest.Digest, readonly bool, snapshotter snapshots.Snapshotter, mounter Mounter) ([]mount.Mount, error) {
 	_, err := snapshotter.Stat(ctx, name)
 	if err == nil {
 		return nil, errors.Errorf("rootfs already exists")
@@ -51,7 +51,7 @@ func InitRootFS(ctx context.Context, name string, parent digest.Digest, readonly
 	return snapshotter.Prepare(ctx, name, parentS)
 }
 
-func createInitLayer(ctx context.Context, parent, initName string, initFn func(string) error, snapshotter snapshot.Snapshotter, mounter Mounter) (string, error) {
+func createInitLayer(ctx context.Context, parent, initName string, initFn func(string) error, snapshotter snapshots.Snapshotter, mounter Mounter) (string, error) {
 	initS := fmt.Sprintf("%s %s", parent, initName)
 	if _, err := snapshotter.Stat(ctx, initS); err == nil {
 		return initS, nil
@@ -69,12 +69,12 @@ func createInitLayer(ctx context.Context, parent, initName string, initFn func(s
 	if err != nil {
 		return "", err
 	}
+
 	defer func() {
 		if err != nil {
-			// TODO: once implemented uncomment
-			//if rerr := snapshotter.Remove(ctx, td); rerr != nil {
-			//	log.G(ctx).Errorf("Failed to remove snapshot %s: %v", td, merr)
-			//}
+			if rerr := snapshotter.Remove(ctx, td); rerr != nil {
+				log.G(ctx).Errorf("Failed to remove snapshot %s: %v", td, rerr)
+			}
 		}
 	}()
 

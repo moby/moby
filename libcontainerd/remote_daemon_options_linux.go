@@ -27,7 +27,7 @@ type subreaper bool
 
 func (s subreaper) Apply(r Remote) error {
 	if remote, ok := r.(*remote); ok {
-		remote.Subreaper = bool(s)
+		remote.NoSubreaper = !bool(s)
 		return nil
 	}
 	return fmt.Errorf("WithSubreaper option not supported for this remote")

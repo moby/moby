@@ -4,7 +4,7 @@ package containerd.services.introspection.v1;
 
 import "github.com/containerd/containerd/api/types/platform.proto";
 import "google/rpc/status.proto";
-import "gogoproto/gogo.proto";
+import weak "gogoproto/gogo.proto";
 
 option go_package = "github.com/containerd/containerd/api/services/introspection/v1;introspection";
 
