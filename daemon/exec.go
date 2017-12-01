@@ -122,6 +122,7 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	execConfig.Tty = config.Tty
 	execConfig.Privileged = config.Privileged
 	execConfig.User = config.User
+	execConfig.WorkingDir = config.WorkingDir
 
 	linkedEnv, err := d.setupLinkedContainers(cntr)
 	if err != nil {
@@ -130,6 +131,9 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 	execConfig.Env = container.ReplaceOrAppendEnvValues(cntr.CreateDaemonEnvironment(config.Tty, linkedEnv), config.Env)
 	if len(execConfig.User) == 0 {
 		execConfig.User = cntr.Config.User
+	}
+	if len(execConfig.WorkingDir) == 0 {
+		execConfig.WorkingDir = cntr.Config.WorkingDir
 	}
 
 	d.registerExecCommand(cntr, execConfig)
@@ -211,7 +215,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		Args:     append([]string{ec.Entrypoint}, ec.Args...),
 		Env:      ec.Env,
 		Terminal: ec.Tty,
-		Cwd:      c.Config.WorkingDir,
+		Cwd:      ec.WorkingDir,
 	}
 	if p.Cwd == "" {
 		p.Cwd = "/"
