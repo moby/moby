@@ -607,17 +607,7 @@ definitions:
             description: "Network mode to use for this container. Supported standard values are: `bridge`, `host`, `none`, and `container:<name|id>`. Any other value is taken
               as a custom network's name to which this container should connect to."
           PortBindings:
-            type: "object"
-            description: "A map of exposed container ports and the host port they should map to."
-            additionalProperties:
-              type: "object"
-              properties:
-                HostIp:
-                  type: "string"
-                  description: "The host IP address"
-                HostPort:
-                  type: "string"
-                  description: "The host port number, as a string"
+            $ref: "#/definitions/PortMap"
           RestartPolicy:
             $ref: "#/definitions/RestartPolicy"
           AutoRemove:
