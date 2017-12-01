@@ -696,6 +696,12 @@ func (n *network) initSandbox(restore bool) error {
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
+		if err != nil {
+			return
+		}
+		// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
+		tv := syscall.NsecToTimeval(soTimeout.Nanoseconds())
+		err = nlSock.SetReceiveTimeout(&tv)
 	})
 	n.setNetlinkSocket(nlSock)
 
@@ -720,6 +726,11 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 			if nlFd == -1 {
 				// The netlink socket got closed, simply exit to not leak this goroutine
 				return
+			}
+			// When the receive timeout expires the receive will return EAGAIN
+			if err == syscall.EAGAIN {
+				// we continue here to avoid spam for timeouts
+				continue
 			}
 			logrus.Errorf("Failed to receive from netlink: %v ", err)
 			continue
