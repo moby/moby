@@ -32,7 +32,8 @@ func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		diagnose.HTTPReply(w, rsp, &diagnose.JSONOutput{})
 		return
 	}
 
@@ -56,7 +57,8 @@ func watchTableEntries(ctx interface{}, w http.ResponseWriter, r *http.Request) 
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		diagnose.HTTPReply(w, rsp, &diagnose.JSONOutput{})
 		return
 	}
 

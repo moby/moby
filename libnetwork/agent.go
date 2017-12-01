@@ -293,10 +293,12 @@ func (c *controller) agentInit(listenAddr, bindAddrOrInterface, advertiseAddr, d
 			c.Config().Daemon.NetworkControlPlaneMTU, netDBConf.PacketBufferSize)
 	}
 	nDB, err := networkdb.New(netDBConf)
-
 	if err != nil {
 		return err
 	}
+
+	// Register the diagnose handlers
+	c.DiagnoseServer.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
 
 	var cancelList []func()
 	ch, cancel := nDB.Watch(libnetworkEPTable, "", "")
@@ -436,7 +438,7 @@ func (n *network) Services() map[string]ServiceInfo {
 	for eid, value := range entries {
 		var epRec EndpointRecord
 		nid := n.ID()
-		if err := proto.Unmarshal(value.([]byte), &epRec); err != nil {
+		if err := proto.Unmarshal(value.Value, &epRec); err != nil {
 			logrus.Errorf("Unmarshal of libnetworkEPTable failed for endpoint %s in network %s, %v", eid, nid, err)
 			continue
 		}
@@ -461,7 +463,7 @@ func (n *network) Services() map[string]ServiceInfo {
 		}
 		entries := agent.networkDB.GetTableByNetwork(table.name, n.id)
 		for key, value := range entries {
-			epID, info := d.DecodeTableEntry(table.name, key, value.([]byte))
+			epID, info := d.DecodeTableEntry(table.name, key, value.Value)
 			if ep, ok := eps[epID]; !ok {
 				logrus.Errorf("Inconsistent driver and libnetwork state for endpoint %s", epID)
 			} else {

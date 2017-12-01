@@ -60,6 +60,7 @@ import (
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/diagnose"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
@@ -133,6 +134,13 @@ type NetworkController interface {
 
 	// SetKeys configures the encryption key for gossip and overlay data path
 	SetKeys(keys []*types.EncryptionKey) error
+
+	// StartDiagnose start the network diagnose mode
+	StartDiagnose(port int)
+	// StopDiagnose start the network diagnose mode
+	StopDiagnose()
+	// IsDiagnoseEnabled returns true if the diagnose is enabled
+	IsDiagnoseEnabled() bool
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -167,6 +175,7 @@ type controller struct {
 	agentStopDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
+	DiagnoseServer         *diagnose.Server
 	sync.Mutex
 }
 
@@ -185,7 +194,9 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		serviceBindings: make(map[serviceKey]*service),
 		agentInitDone:   make(chan struct{}),
 		networkLocker:   locker.New(),
+		DiagnoseServer:  diagnose.New(),
 	}
+	c.DiagnoseServer.Init()
 
 	if err := c.initStores(); err != nil {
 		return nil, err
@@ -1290,4 +1301,30 @@ func (c *controller) Stop() {
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
+}
+
+// StartDiagnose start the network diagnose mode
+func (c *controller) StartDiagnose(port int) {
+	c.Lock()
+	defer c.Unlock()
+	if !c.DiagnoseServer.IsDebugEnable() {
+		logrus.Errorf("StartDiagnose received the port %d", port)
+		c.DiagnoseServer.EnableDebug("127.0.0.1", port)
+	}
+}
+
+// StopDiagnose start the network diagnose mode
+func (c *controller) StopDiagnose() {
+	c.Lock()
+	defer c.Unlock()
+	if c.DiagnoseServer.IsDebugEnable() {
+		c.DiagnoseServer.DisableDebug()
+	}
+}
+
+// IsDiagnoseEnabled returns true if the diagnose is enabled
+func (c *controller) IsDiagnoseEnabled() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.DiagnoseServer.IsDebugEnable()
 }
