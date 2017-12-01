@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
+	"github.com/docker/libnetwork"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -478,4 +479,72 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 	case e := <-errCh:
 		t.Fatal(e)
 	}
+}
+
+func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
+	daemon := &Daemon{}
+	daemon.configStore = &config.Config{}
+
+	valuesSet := make(map[string]interface{})
+	valuesSet["network-diagnostic-port"] = 2000
+	enableConfig := &config.Config{
+		CommonConfig: config.CommonConfig{
+			NetworkDiagnosticPort: 2000,
+			ValuesSet:             valuesSet,
+		},
+	}
+	disableConfig := &config.Config{
+		CommonConfig: config.CommonConfig{},
+	}
+
+	netOptions, err := daemon.networkOptions(enableConfig, nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	controller, err := libnetwork.New(netOptions...)
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemon.netController = controller
+
+	// Enable/Disable the server for some iterations
+	for i := 0; i < 10; i++ {
+		enableConfig.CommonConfig.NetworkDiagnosticPort++
+		if err := daemon.Reload(enableConfig); err != nil {
+			t.Fatal(err)
+		}
+		// Check that the diagnose is enabled
+		if !daemon.netController.IsDiagnoseEnabled() {
+			t.Fatalf("diagnosed should be enable")
+		}
+
+		// Reload
+		if err := daemon.Reload(disableConfig); err != nil {
+			t.Fatal(err)
+		}
+		// Check that the diagnose is disabled
+		if daemon.netController.IsDiagnoseEnabled() {
+			t.Fatalf("diagnosed should be disable")
+		}
+	}
+
+	enableConfig.CommonConfig.NetworkDiagnosticPort++
+	// 2 times the enable should not create problems
+	if err := daemon.Reload(enableConfig); err != nil {
+		t.Fatal(err)
+	}
+	// Check that the diagnose is enabled
+	if !daemon.netController.IsDiagnoseEnabled() {
+		t.Fatalf("diagnosed should be enable")
+	}
+
+	// Check that another reload does not cause issues
+	if err := daemon.Reload(enableConfig); err != nil {
+		t.Fatal(err)
+	}
+	// Check that the diagnose is enable
+	if !daemon.netController.IsDiagnoseEnabled() {
+		t.Fatalf("diagnosed should be enable")
+	}
+
 }
