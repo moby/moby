@@ -451,7 +451,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	return nil
 }
 
-func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
+func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
 	for nid, nodes := range nDB.networkNodes {
 		updatedNodes := make([]string, 0, len(nodes))
 		for _, node := range nodes {
@@ -553,7 +553,9 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 
 		nDB.deleteEntry(nid, tname, key)
 
-		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+		if !oldEntry.deleting {
+			nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+		}
 		return false
 	})
 }

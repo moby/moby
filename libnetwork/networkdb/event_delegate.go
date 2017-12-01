@@ -72,7 +72,7 @@ func (e *eventDelegate) NotifyLeave(mn *memberlist.Node) {
 	// If the node instead left because was going down, then it makes sense to just delete all its state
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
-	e.nDB.deleteNetworkEntriesForNode(mn.Name)
+	e.nDB.deleteNodeFromNetworks(mn.Name)
 	e.nDB.deleteNodeTableEntries(mn.Name)
 	if n, ok := e.nDB.nodes[mn.Name]; ok {
 		delete(e.nDB.nodes, mn.Name)
