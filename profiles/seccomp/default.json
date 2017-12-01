@@ -62,7 +62,6 @@
 				"capget",
 				"capset",
 				"chdir",
-				"chmod",
 				"chown",
 				"chown32",
 				"clock_getres",
@@ -94,8 +93,6 @@
 				"fallocate",
 				"fanotify_mark",
 				"fchdir",
-				"fchmod",
-				"fchmodat",
 				"fchown",
 				"fchown32",
 				"fchownat",
@@ -550,8 +547,11 @@
 		{
 			"names": [
 				"bpf",
+				"chmod",
 				"clone",
 				"fanotify_init",
+				"fchmod",
+				"fchmodat",
 				"lookup_dcookie",
 				"mount",
 				"name_to_handle_at",
@@ -745,6 +745,49 @@
 				]
 			},
 			"excludes": {}
+		},
+		{
+			"names": [
+				"chmod",
+				"fchmod"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 1,
+					"value": 2048,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
+		},
+		{
+			"names": [
+				"fchmodat"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": [
+				{
+					"index": 2,
+					"value": 2048,
+					"valueTwo": 0,
+					"op": "SCMP_CMP_MASKED_EQ"
+				}
+			],
+			"comment": "",
+			"includes": {},
+			"excludes": {
+				"caps": [
+					"CAP_SYS_ADMIN"
+				]
+			}
 		}
 	]
 }

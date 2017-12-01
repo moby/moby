@@ -55,7 +55,6 @@ func DefaultProfile() *types.Seccomp {
 				"capget",
 				"capset",
 				"chdir",
-				"chmod",
 				"chown",
 				"chown32",
 				"clock_getres",
@@ -87,8 +86,6 @@ func DefaultProfile() *types.Seccomp {
 				"fallocate",
 				"fanotify_mark",
 				"fchdir",
-				"fchmod",
-				"fchmodat",
 				"fchown",
 				"fchown32",
 				"fchownat",
@@ -481,8 +478,11 @@ func DefaultProfile() *types.Seccomp {
 		{
 			Names: []string{
 				"bpf",
+				"chmod",
 				"clone",
 				"fanotify_init",
+				"fchmod",
+				"fchmodat",
 				"lookup_dcookie",
 				"mount",
 				"name_to_handle_at",
@@ -627,6 +627,41 @@ func DefaultProfile() *types.Seccomp {
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
 				Caps: []string{"CAP_SYS_TTY_CONFIG"},
+			},
+		},
+		{
+			Names: []string{
+				"chmod",
+				"fchmod",
+			},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index:    1,
+					Value:    unix.S_ISUID,
+					ValueTwo: 0,
+					Op:       types.OpMaskedEqual,
+				},
+			},
+			Excludes: types.Filter{
+				Caps: []string{"CAP_SYS_ADMIN"},
+			},
+		},
+		{
+			Names: []string{
+				"fchmodat",
+			},
+			Action: types.ActAllow,
+			Args: []*types.Arg{
+				{
+					Index:    2,
+					Value:    unix.S_ISUID,
+					ValueTwo: 0,
+					Op:       types.OpMaskedEqual,
+				},
+			},
+			Excludes: types.Filter{
+				Caps: []string{"CAP_SYS_ADMIN"},
 			},
 		},
 	}
