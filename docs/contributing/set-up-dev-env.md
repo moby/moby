@@ -186,12 +186,64 @@ can take over 15 minutes to complete.
    hack/make.sh binary install-binary run
    ```
 
-9. Inside your container, check your Docker version.
+9. Inside your container, check your Docker versions:
 
    ```none
-   root@5f8630b873fe:/go/src/github.com/docker/docker# docker --version
-   Docker version 1.12.0-dev, build 6e728fb
+   # docker version
+   Client:
+    Version:      17.06.0-ce
+    API version:  1.30
+    Go version:   go1.8.3
+    Git commit:   02c1d87
+    Built:        Fri Jun 23 21:15:15 2017
+    OS/Arch:      linux/amd64
+
+   Server:
+    Version:      dev
+    API version:  1.35 (minimum version 1.12)
+    Go version:   go1.9.2
+    Git commit:   4aa6362da
+    Built:        Sat Dec  2 05:22:42 2017
+    OS/Arch:      linux/amd64
+    Experimental: false
    ```
+
+   Notice the split versions between client and server, which might be
+   unexpected. In more recent times the Docker CLI component (which provides the
+   `docker` command) has split out from the Moby project and is now maintained in:
+   
+   * [docker/cli](https://github.com/docker/cli) - The Docker CLI source-code;
+   * [docker/docker-ce](https://github.com/docker/docker-ce) - The Docker CE
+     edition project, which assembles engine, CLI and other components.
+   
+   The Moby project now defaults to a [fixed
+   version](https://github.com/docker/docker-ce/commits/v17.06.0-ce) of the
+   `docker` CLI for integration tests.
+
+   You may have noticed the following message when starting the container with the `shell` command:
+   
+   ```none
+   Makefile:123: The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:
+   DOCKER_CLI_PATH=/host/path/to/cli/binary make shell
+   then change the cli and compile into a binary at the same location.
+   ```
+
+   By setting `DOCKER_CLI_PATH` you can supply a newer `docker` CLI to the
+   server development container for testing and for `integration-cli`
+   test-execution:
+
+   ```none
+   make DOCKER_CLI_PATH=/home/ubuntu/git/docker-ce/components/packaging/static/build/linux/docker/docker BIND_DIR=. shell
+   ...
+   # which docker
+   /usr/local/cli/docker
+   # docker --version
+   Docker version 17.09.0-dev, build 
+   ```
+
+    This Docker CLI should be built from the [docker-ce
+    project](https://github.com/docker/docker-ce) and needs to be a Linux
+    binary.
 
    Inside the container you are running a development version. This is the version
    on the current branch. It reflects the value of the `VERSION` file at the
