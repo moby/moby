@@ -6,10 +6,12 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) tarCopyOptions(container *container.Container, noOverwriteDirNonDir bool) (*archive.TarOptions, error) {
 	if container.Config.User == "" {
+		logrus.Debug("container.Config.User is empty, using defaultTarCopyOptions.")
 		return daemon.defaultTarCopyOptions(noOverwriteDirNonDir), nil
 	}
 
