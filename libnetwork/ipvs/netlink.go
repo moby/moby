@@ -203,10 +203,6 @@ func newGenlRequest(familyID int, cmd uint8) *nl.NetlinkRequest {
 }
 
 func execute(s *nl.NetlinkSocket, req *nl.NetlinkRequest, resType uint16) ([][]byte, error) {
-	var (
-		err error
-	)
-
 	if err := s.Send(req); err != nil {
 		return nil, err
 	}
@@ -222,6 +218,13 @@ done:
 	for {
 		msgs, err := s.Receive()
 		if err != nil {
+			if s.GetFd() == -1 {
+				return nil, fmt.Errorf("Socket got closed on receive")
+			}
+			if err == syscall.EAGAIN {
+				// timeout fired
+				continue
+			}
 			return nil, err
 		}
 		for _, m := range msgs {
