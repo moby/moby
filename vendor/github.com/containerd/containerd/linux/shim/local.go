@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 
 	shimapi "github.com/containerd/containerd/linux/shim/v1"
+	"github.com/containerd/containerd/mount"
 	ptypes "github.com/gogo/protobuf/types"
-	"golang.org/x/sys/unix"
 )
 
 // NewLocal returns a shim client implementation for issue commands to a shim
@@ -32,7 +32,7 @@ func (c *local) Start(ctx context.Context, in *shimapi.StartRequest) (*shimapi.S
 
 func (c *local) Delete(ctx context.Context, in *ptypes.Empty) (*shimapi.DeleteResponse, error) {
 	// make sure we unmount the containers rootfs for this local
-	if err := unix.Unmount(filepath.Join(c.s.config.Path, "rootfs"), 0); err != nil {
+	if err := mount.Unmount(filepath.Join(c.s.config.Path, "rootfs"), 0); err != nil {
 		return nil, err
 	}
 	return c.s.Delete(ctx, in)

@@ -60,3 +60,11 @@ func WithTTY(width, height int) SpecOpts {
 		return nil
 	}
 }
+
+// WithUsername sets the username on the process
+func WithUsername(username string) SpecOpts {
+	return func(ctx context.Context, client Client, c *containers.Container, s *specs.Spec) error {
+		s.Process.User.Username = username
+		return nil
+	}
+}

@@ -138,7 +138,7 @@ func (m *DB) Init(ctx context.Context) error {
 				if err := m.migrate(tx); err != nil {
 					return errors.Wrapf(err, "failed to migrate to %s.%d", m.schema, m.version)
 				}
-				log.G(ctx).WithField("d", time.Now().Sub(t0)).Debugf("database migration to %s.%d finished", m.schema, m.version)
+				log.G(ctx).WithField("d", time.Now().Sub(t0)).Debugf("finished database migration to %s.%d", m.schema, m.version)
 			}
 		}
 
@@ -269,7 +269,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (stats GCStats, err error) {
 		stats.SnapshotD = map[string]time.Duration{}
 		wg.Add(len(m.dirtySS))
 		for snapshotterName := range m.dirtySS {
-			log.G(ctx).WithField("snapshotter", snapshotterName).Debug("scheduling snapshotter cleanup")
+			log.G(ctx).WithField("snapshotter", snapshotterName).Debug("schedule snapshotter cleanup")
 			go func(snapshotterName string) {
 				st1 := time.Now()
 				m.cleanupSnapshotter(snapshotterName)
@@ -286,7 +286,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (stats GCStats, err error) {
 
 	if m.dirtyCS {
 		wg.Add(1)
-		log.G(ctx).Debug("scheduling content cleanup")
+		log.G(ctx).Debug("schedule content cleanup")
 		go func() {
 			ct1 := time.Now()
 			m.cleanupContent()

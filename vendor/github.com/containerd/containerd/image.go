@@ -147,7 +147,7 @@ func (i *image) getLayers(ctx context.Context, platform string) ([]rootfs.Layer,
 
 	manifest, err := images.Manifest(ctx, cs, i.i.Target, platform)
 	if err != nil {
-		return nil, errors.Wrap(err, "")
+		return nil, err
 	}
 
 	diffIDs, err := i.i.RootFS(ctx, cs, platform)

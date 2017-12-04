@@ -7,7 +7,7 @@ import (
 	"syscall"
 )
 
-func getSysProcAttr(nonewns bool) *syscall.SysProcAttr {
+func getSysProcAttr() *syscall.SysProcAttr {
 	return &syscall.SysProcAttr{
 		Setpgid: true,
 	}

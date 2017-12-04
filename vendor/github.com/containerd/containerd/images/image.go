@@ -187,13 +187,13 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 			return descs, nil
 
 		}
-		return nil, errors.Wrap(errdefs.ErrNotFound, "could not resolve manifest")
+		return nil, errors.Wrapf(errdefs.ErrNotFound, "unexpected media type %v for %v", desc.MediaType, desc.Digest)
 	}), image); err != nil {
 		return ocispec.Manifest{}, err
 	}
 
 	if m == nil {
-		return ocispec.Manifest{}, errors.Wrap(errdefs.ErrNotFound, "manifest not found")
+		return ocispec.Manifest{}, errors.Wrapf(errdefs.ErrNotFound, "manifest %v", image.Digest)
 	}
 
 	return *m, nil
@@ -257,7 +257,7 @@ func Check(ctx context.Context, provider content.Provider, image ocispec.Descrip
 			return false, []ocispec.Descriptor{image}, nil, []ocispec.Descriptor{image}, nil
 		}
 
-		return false, nil, nil, nil, errors.Wrap(err, "image check failed")
+		return false, nil, nil, nil, errors.Wrapf(err, "failed to check image %v", image.Digest)
 	}
 
 	// TODO(stevvooe): It is possible that referenced conponents could have
@@ -272,7 +272,7 @@ func Check(ctx context.Context, provider content.Provider, image ocispec.Descrip
 				missing = append(missing, desc)
 				continue
 			} else {
-				return false, nil, nil, nil, err
+				return false, nil, nil, nil, errors.Wrapf(err, "failed to check image %v", desc.Digest)
 			}
 		}
 		ra.Close()

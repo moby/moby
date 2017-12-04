@@ -14,7 +14,6 @@ import (
 	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/libnetwork/portallocator"
 	"golang.org/x/sys/unix"
 )
@@ -38,24 +37,13 @@ func getDaemonConfDir(_ string) string {
 }
 
 func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
-	// On older kernel, letting putting the containerd-shim in its own
-	// namespace will effectively prevent operations such as unlink, rename
-	// and remove on mountpoints that were present at the time the shim
-	// namespace was created. This would led to a famous EBUSY will trying to
-	// remove shm mounts.
-	var noNewNS bool
-	if !kernel.CheckKernelVersion(3, 18, 0) {
-		noNewNS = true
-	}
-
 	opts := []libcontainerd.RemoteOption{
 		libcontainerd.WithOOMScore(cli.Config.OOMScoreAdjust),
 		libcontainerd.WithPlugin("linux", &linux.Config{
-			Shim:          daemon.DefaultShimBinary,
-			Runtime:       daemon.DefaultRuntimeBinary,
-			RuntimeRoot:   filepath.Join(cli.Config.Root, "runc"),
-			ShimDebug:     cli.Config.Debug,
-			ShimNoMountNS: noNewNS,
+			Shim:        daemon.DefaultShimBinary,
+			Runtime:     daemon.DefaultRuntimeBinary,
+			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
+			ShimDebug:   cli.Config.Debug,
 		}),
 	}
 	if cli.Config.Debug {
