@@ -75,26 +75,12 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		// error is the ones from v2 endpoints not v1.
 		discardNoSupportErrors bool
 
-		// confirmedV2 is set to true if a pull attempt managed to
-		// confirm that it was talking to a v2 registry. This will
-		// prevent fallback to the v1 protocol.
-		confirmedV2 bool
-
 		// confirmedTLSRegistries is a map indicating which registries
 		// are known to be using TLS. There should never be a plaintext
 		// retry for any of these.
 		confirmedTLSRegistries = make(map[string]struct{})
 	)
 	for _, endpoint := range endpoints {
-		if imagePullConfig.RequireSchema2 && endpoint.Version == registry.APIVersion1 {
-			continue
-		}
-
-		if confirmedV2 && endpoint.Version == registry.APIVersion1 {
-			logrus.Debugf("Skipping v1 endpoint %s because v2 registry was detected", endpoint.URL)
-			continue
-		}
-
 		if endpoint.URL.Scheme != "https" {
 			if _, confirmedTLS := confirmedTLSRegistries[endpoint.URL.Host]; confirmedTLS {
 				logrus.Debugf("Skipping non-TLS endpoint %s for host/port that appears to use TLS", endpoint.URL)
@@ -124,7 +110,6 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			default:
 				if fallbackErr, ok := err.(fallbackError); ok {
 					fallback = true
-					confirmedV2 = confirmedV2 || fallbackErr.confirmedV2
 					if fallbackErr.transportOK && endpoint.URL.Scheme == "https" {
 						confirmedTLSRegistries[endpoint.URL.Host] = struct{}{}
 					}
