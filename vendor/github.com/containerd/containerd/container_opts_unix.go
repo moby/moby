@@ -24,7 +24,6 @@ import (
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/sys/unix"
 )
 
 // WithCheckpoint allows a container to be created from the checkpointed information
@@ -193,14 +192,17 @@ func remapRootFS(mounts []mount.Mount, uid, gid uint32) error {
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(root)
+	defer os.Remove(root)
 	for _, m := range mounts {
 		if err := m.Mount(root); err != nil {
 			return err
 		}
 	}
-	defer unix.Unmount(root, 0)
-	return filepath.Walk(root, incrementFS(root, uid, gid))
+	err = filepath.Walk(root, incrementFS(root, uid, gid))
+	if uerr := mount.Unmount(root, 0); err == nil {
+		err = uerr
+	}
+	return err
 }
 
 func incrementFS(root string, uidInc, gidInc uint32) filepath.WalkFunc {

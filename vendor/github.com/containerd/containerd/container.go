@@ -162,11 +162,17 @@ func (c *container) Image(ctx context.Context) (Image, error) {
 	}, nil
 }
 
-func (c *container) NewTask(ctx context.Context, ioCreate cio.Creation, opts ...NewTaskOpts) (Task, error) {
+func (c *container) NewTask(ctx context.Context, ioCreate cio.Creation, opts ...NewTaskOpts) (_ Task, err error) {
 	i, err := ioCreate(c.id)
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil && i != nil {
+			i.Cancel()
+			i.Close()
+		}
+	}()
 	cfg := i.Config()
 	request := &tasks.CreateTaskRequest{
 		ContainerID: c.id,

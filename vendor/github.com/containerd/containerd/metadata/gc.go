@@ -301,7 +301,7 @@ func remove(ctx context.Context, tx *bolt.Tx, node gc.Node) error {
 			cbkt = cbkt.Bucket(bucketKeyObjectBlob)
 		}
 		if cbkt != nil {
-			log.G(ctx).WithField("key", node.Key).Debug("delete content")
+			log.G(ctx).WithField("key", node.Key).Debug("remove content")
 			return cbkt.DeleteBucket([]byte(node.Key))
 		}
 	case ResourceSnapshot:
@@ -313,7 +313,7 @@ func remove(ctx context.Context, tx *bolt.Tx, node gc.Node) error {
 			}
 			ssbkt := sbkt.Bucket([]byte(parts[0]))
 			if ssbkt != nil {
-				log.G(ctx).WithField("key", parts[1]).WithField("snapshotter", parts[0]).Debug("delete snapshot")
+				log.G(ctx).WithField("key", parts[1]).WithField("snapshotter", parts[0]).Debug("remove snapshot")
 				return ssbkt.DeleteBucket([]byte(parts[1]))
 			}
 		}

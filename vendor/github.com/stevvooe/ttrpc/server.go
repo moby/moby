@@ -2,6 +2,7 @@ package ttrpc
 
 import (
 	"context"
+	"io"
 	"math/rand"
 	"net"
 	"sync"
@@ -19,6 +20,7 @@ var (
 )
 
 type Server struct {
+	config   *serverConfig
 	services *serviceSet
 	codec    codec
 
@@ -28,13 +30,21 @@ type Server struct {
 	done        chan struct{}            // marks point at which we stop serving requests
 }
 
-func NewServer() *Server {
+func NewServer(opts ...ServerOpt) (*Server, error) {
+	config := &serverConfig{}
+	for _, opt := range opts {
+		if err := opt(config); err != nil {
+			return nil, err
+		}
+	}
+
 	return &Server{
+		config:      config,
 		services:    newServiceSet(),
 		done:        make(chan struct{}),
 		listeners:   make(map[net.Listener]struct{}),
 		connections: make(map[*serverConn]struct{}),
-	}
+	}, nil
 }
 
 func (s *Server) Register(name string, methods map[string]Method) {
@@ -46,9 +56,14 @@ func (s *Server) Serve(l net.Listener) error {
 	defer s.closeListener(l)
 
 	var (
-		ctx     = context.Background()
-		backoff time.Duration
+		ctx        = context.Background()
+		backoff    time.Duration
+		handshaker = s.config.handshaker
 	)
+
+	if handshaker == nil {
+		handshaker = handshakerFunc(noopHandshake)
+	}
 
 	for {
 		conn, err := l.Accept()
@@ -82,7 +97,15 @@ func (s *Server) Serve(l net.Listener) error {
 		}
 
 		backoff = 0
-		sc := s.newConn(conn)
+
+		approved, handshake, err := handshaker.Handshake(ctx, conn)
+		if err != nil {
+			log.L.WithError(err).Errorf("ttrpc: refusing connection after handshake")
+			conn.Close()
+			continue
+		}
+
+		sc := s.newConn(approved, handshake)
 		go sc.run(ctx)
 	}
 }
@@ -205,11 +228,12 @@ func (cs connState) String() string {
 	}
 }
 
-func (s *Server) newConn(conn net.Conn) *serverConn {
+func (s *Server) newConn(conn net.Conn, handshake interface{}) *serverConn {
 	c := &serverConn{
-		server:   s,
-		conn:     conn,
-		shutdown: make(chan struct{}),
+		server:    s,
+		conn:      conn,
+		handshake: handshake,
+		shutdown:  make(chan struct{}),
 	}
 	c.setState(connStateIdle)
 	s.addConnection(c)
@@ -217,9 +241,10 @@ func (s *Server) newConn(conn net.Conn) *serverConn {
 }
 
 type serverConn struct {
-	server *Server
-	conn   net.Conn
-	state  atomic.Value
+	server    *Server
+	conn      net.Conn
+	handshake interface{} // data from handshake, not used for now
+	state     atomic.Value
 
 	shutdownOnce sync.Once
 	shutdown     chan struct{} // forced shutdown, used by close
@@ -406,7 +431,7 @@ func (c *serverConn) run(sctx context.Context) {
 			// branch. Basically, it means that we are no longer receiving
 			// requests due to a terminal error.
 			recvErr = nil // connection is now "closing"
-			if err != nil {
+			if err != nil && err != io.EOF {
 				log.L.WithError(err).Error("error receiving message")
 			}
 		case <-shutdown:

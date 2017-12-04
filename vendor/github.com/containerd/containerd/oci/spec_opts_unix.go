@@ -12,12 +12,11 @@ import (
 	"strconv"
 	"strings"
 
-	"golang.org/x/sys/unix"
-
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/fs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/user"
@@ -101,7 +100,7 @@ func WithImageConfig(image Image) SpecOpts {
 			parts := strings.Split(config.User, ":")
 			switch len(parts) {
 			case 1:
-				v, err := strconv.ParseUint(parts[0], 0, 10)
+				v, err := strconv.Atoi(parts[0])
 				if err != nil {
 					// if we cannot parse as a uint they try to see if it is a username
 					if err := WithUsername(config.User)(ctx, client, c, s); err != nil {
@@ -113,13 +112,13 @@ func WithImageConfig(image Image) SpecOpts {
 					return err
 				}
 			case 2:
-				v, err := strconv.ParseUint(parts[0], 0, 10)
+				v, err := strconv.Atoi(parts[0])
 				if err != nil {
-					return err
+					return errors.Wrapf(err, "parse uid %s", parts[0])
 				}
 				uid := uint32(v)
-				if v, err = strconv.ParseUint(parts[1], 0, 10); err != nil {
-					return err
+				if v, err = strconv.Atoi(parts[1]); err != nil {
+					return errors.Wrapf(err, "parse gid %s", parts[1])
 				}
 				gid := uint32(v)
 				s.Process.User.UID, s.Process.User.GID = uid, gid
@@ -260,7 +259,7 @@ func WithUIDGID(uid, gid uint32) SpecOpts {
 // or uid is not found in /etc/passwd, it sets gid to be the same with
 // uid, and not returns error.
 func WithUserID(uid uint32) SpecOpts {
-	return func(ctx context.Context, client Client, c *containers.Container, s *specs.Spec) error {
+	return func(ctx context.Context, client Client, c *containers.Container, s *specs.Spec) (err error) {
 		if c.Snapshotter == "" {
 			return errors.Errorf("no snapshotter set for container")
 		}
@@ -276,13 +275,19 @@ func WithUserID(uid uint32) SpecOpts {
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(root)
+		defer os.Remove(root)
 		for _, m := range mounts {
 			if err := m.Mount(root); err != nil {
 				return err
 			}
 		}
-		defer unix.Unmount(root, 0)
+		defer func() {
+			if uerr := mount.Unmount(root, 0); uerr != nil {
+				if err == nil {
+					err = uerr
+				}
+			}
+		}()
 		ppath, err := fs.RootPath(root, "/etc/passwd")
 		if err != nil {
 			return err
@@ -317,7 +322,7 @@ func WithUserID(uid uint32) SpecOpts {
 // does not exist, or the username is not found in /etc/passwd,
 // it returns error.
 func WithUsername(username string) SpecOpts {
-	return func(ctx context.Context, client Client, c *containers.Container, s *specs.Spec) error {
+	return func(ctx context.Context, client Client, c *containers.Container, s *specs.Spec) (err error) {
 		if c.Snapshotter == "" {
 			return errors.Errorf("no snapshotter set for container")
 		}
@@ -333,13 +338,19 @@ func WithUsername(username string) SpecOpts {
 		if err != nil {
 			return err
 		}
-		defer os.RemoveAll(root)
+		defer os.Remove(root)
 		for _, m := range mounts {
 			if err := m.Mount(root); err != nil {
 				return err
 			}
 		}
-		defer unix.Unmount(root, 0)
+		defer func() {
+			if uerr := mount.Unmount(root, 0); uerr != nil {
+				if err == nil {
+					err = uerr
+				}
+			}
+		}()
 		ppath, err := fs.RootPath(root, "/etc/passwd")
 		if err != nil {
 			return err

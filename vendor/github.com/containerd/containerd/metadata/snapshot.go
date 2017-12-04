@@ -359,7 +359,8 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 	return update(ctx, s.db, func(tx *bolt.Tx) error {
 		bkt := getSnapshotterBucket(tx, ns, s.name)
 		if bkt == nil {
-			return errors.Wrapf(errdefs.ErrNotFound, "snapshot %v does not exist", key)
+			return errors.Wrapf(errdefs.ErrNotFound,
+				"can not find snapshotter %q", s.name)
 		}
 
 		bbkt, err := bkt.CreateBucket([]byte(name))
@@ -722,7 +723,7 @@ func (s *snapshotter) pruneBranch(ctx context.Context, node *treeNode) error {
 			if !errdefs.IsFailedPrecondition(err) {
 				return err
 			}
-			logger.WithError(err).WithField("key", node.info.Name).Warnf("snapshot removal failed")
+			logger.WithError(err).WithField("key", node.info.Name).Warnf("failed to remove snapshot")
 		} else {
 			logger.WithField("key", node.info.Name).Debug("removed snapshot")
 		}

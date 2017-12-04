@@ -15,6 +15,28 @@ containerd is designed to be embedded into a larger system, rather than being us
 
 If you are interested in trying out containerd please see our [Getting Started Guide](docs/getting-started.md).
 
+## Runtime Requirements
+
+Runtime requirements for containerd are very minimal. Most interactions with
+the Linux and Windows container feature sets are handled via [runc](https://github.com/opencontainers/runc) and/or
+OS-specific libraries (e.g. [hcsshim](https://github.com/Microsoft/hcsshim) for Microsoft). There are specific features
+used by containerd core code and snapshotters that will require a minimum kernel
+version on Linux. With the understood caveat of distro kernel versioning, a
+reasonable starting point for Linux is a minimum 4.x kernel version.
+
+The overlay filesystem snapshotter, used by default, uses features that were
+finalized in the 4.x kernel series. If you choose to use btrfs, there may
+be more flexibility in kernel version (minimum recommended is 3.18), but will
+require the btrfs kernel module and btrfs tools to be installed on your Linux
+distribution.
+
+To use Linux checkpoint and restore features, you will need `criu` installed on
+your system. See more details in [Checkpoint and Restore](#checkpoint-and-restore).
+
+The current required version of runc is always listed in [RUNC.md](/RUNC.md).
+
+Build requirements for developers are listed in the [Developer Quick-Start](#developer-quick-start) section.
+
 ## Features
 
 ### Client
@@ -93,7 +115,6 @@ image, err := client.Pull(context, "docker.io/library/redis:latest", containerd.
 redis, err := client.NewContainer(context, "redis-master",
 	containerd.WithNewSnapshot("redis-rootfs", image),
 	containerd.WithNewSpec(oci.WithImageConfig(image)),
-
 )
 
 // use a readonly filesystem with multiple containers
@@ -150,7 +171,7 @@ defer task.Delete(context)
 err := task.Start(context)
 ```
 
-## Developer Quick-Start
+## Developer Quick Start
 
 To build the daemon and `ctr` simple test client, the following build system dependencies are required:
 

@@ -2,7 +2,9 @@ package mount
 
 import (
 	"strings"
+	"time"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -42,8 +44,27 @@ func (m *Mount) Mount(target string) error {
 }
 
 // Unmount the provided mount path with the flags
-func Unmount(mount string, flags int) error {
-	return unix.Unmount(mount, flags)
+func Unmount(target string, flags int) error {
+	if err := unmount(target, flags); err != nil && err != unix.EINVAL {
+		return err
+	}
+	return nil
+}
+
+func unmount(target string, flags int) error {
+	for i := 0; i < 50; i++ {
+		if err := unix.Unmount(target, flags); err != nil {
+			switch err {
+			case unix.EBUSY:
+				time.Sleep(50 * time.Millisecond)
+				continue
+			default:
+				return err
+			}
+		}
+		return nil
+	}
+	return errors.Wrapf(unix.EBUSY, "failed to unmount target %s", target)
 }
 
 // UnmountAll repeatedly unmounts the given mount point until there
@@ -51,7 +72,7 @@ func Unmount(mount string, flags int) error {
 // useful for undoing a stack of mounts on the same mount point.
 func UnmountAll(mount string, flags int) error {
 	for {
-		if err := Unmount(mount, flags); err != nil {
+		if err := unmount(mount, flags); err != nil {
 			// EINVAL is returned if the target is not a
 			// mount point, indicating that we are
 			// done. It can also indicate a few other

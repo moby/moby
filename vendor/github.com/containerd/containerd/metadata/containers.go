@@ -37,12 +37,12 @@ func (s *containerStore) Get(ctx context.Context, id string) (containers.Contain
 
 	bkt := getContainerBucket(s.tx, namespace, id)
 	if bkt == nil {
-		return containers.Container{}, errors.Wrapf(errdefs.ErrNotFound, "bucket name %q:%q", namespace, id)
+		return containers.Container{}, errors.Wrapf(errdefs.ErrNotFound, "container %q in namespace %q", id, namespace)
 	}
 
 	container := containers.Container{ID: id}
 	if err := readContainer(&container, bkt); err != nil {
-		return containers.Container{}, errors.Wrapf(err, "failed to read container %v", id)
+		return containers.Container{}, errors.Wrapf(err, "failed to read container %q", id)
 	}
 
 	return container, nil
@@ -61,7 +61,7 @@ func (s *containerStore) List(ctx context.Context, fs ...string) ([]containers.C
 
 	bkt := getContainersBucket(s.tx, namespace)
 	if bkt == nil {
-		return nil, nil
+		return nil, nil // empty store
 	}
 
 	var m []containers.Container
@@ -73,7 +73,7 @@ func (s *containerStore) List(ctx context.Context, fs ...string) ([]containers.C
 		container := containers.Container{ID: string(k)}
 
 		if err := readContainer(&container, cbkt); err != nil {
-			return errors.Wrap(err, "failed to read container")
+			return errors.Wrapf(err, "failed to read container %q", string(k))
 		}
 
 		if filter.Match(adaptContainer(container)) {
@@ -113,7 +113,7 @@ func (s *containerStore) Create(ctx context.Context, container containers.Contai
 	container.CreatedAt = time.Now().UTC()
 	container.UpdatedAt = container.CreatedAt
 	if err := writeContainer(cbkt, &container); err != nil {
-		return containers.Container{}, errors.Wrap(err, "failed to write container")
+		return containers.Container{}, errors.Wrapf(err, "failed to write container %q", container.ID)
 	}
 
 	return container, nil
@@ -131,7 +131,7 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 
 	bkt := getContainersBucket(s.tx, namespace)
 	if bkt == nil {
-		return containers.Container{}, errors.Wrapf(errdefs.ErrNotFound, "container %q", container.ID)
+		return containers.Container{}, errors.Wrapf(errdefs.ErrNotFound, "cannot update container %q in namespace %q", container.ID, namespace)
 	}
 
 	cbkt := bkt.Bucket([]byte(container.ID))
@@ -141,7 +141,7 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 
 	var updated containers.Container
 	if err := readContainer(&updated, cbkt); err != nil {
-		return updated, errors.Wrapf(err, "failed to read container from bucket")
+		return updated, errors.Wrapf(err, "failed to read container %q", container.ID)
 	}
 	createdat := updated.CreatedAt
 	updated.ID = container.ID
@@ -211,7 +211,7 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 	updated.CreatedAt = createdat
 	updated.UpdatedAt = time.Now().UTC()
 	if err := writeContainer(cbkt, &updated); err != nil {
-		return containers.Container{}, errors.Wrap(err, "failed to write container")
+		return containers.Container{}, errors.Wrapf(err, "failed to write container %q", container.ID)
 	}
 
 	return updated, nil
@@ -225,7 +225,7 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 
 	bkt := getContainersBucket(s.tx, namespace)
 	if bkt == nil {
-		return errors.Wrapf(errdefs.ErrNotFound, "cannot delete container %v, bucket not present", id)
+		return errors.Wrapf(errdefs.ErrNotFound, "cannot delete container %q in namespace %q", id, namespace)
 	}
 
 	if err := bkt.DeleteBucket([]byte(id)); err == bolt.ErrBucketNotFound {
@@ -236,7 +236,7 @@ func (s *containerStore) Delete(ctx context.Context, id string) error {
 
 func validateContainer(container *containers.Container) error {
 	if err := identifiers.Validate(container.ID); err != nil {
-		return errors.Wrapf(err, "container.ID validation error")
+		return errors.Wrap(err, "container.ID")
 	}
 
 	for k := range container.Extensions {

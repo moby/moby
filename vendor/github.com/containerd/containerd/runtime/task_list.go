@@ -49,6 +49,8 @@ func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 
 // GetAll tasks under a namespace
 func (l *TaskList) GetAll(ctx context.Context) ([]Task, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
