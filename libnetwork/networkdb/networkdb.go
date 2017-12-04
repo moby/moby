@@ -401,17 +401,23 @@ func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 	return nil
 }
 
+// TableElem elem
+type TableElem struct {
+	Value []byte
+	owner string
+}
+
 // GetTableByNetwork walks the networkdb by the give table and network id and
 // returns a map of keys and values
-func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]interface{} {
-	entries := make(map[string]interface{})
+func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem {
+	entries := make(map[string]*TableElem)
 	nDB.indexes[byTable].WalkPrefix(fmt.Sprintf("/%s/%s", tname, nid), func(k string, v interface{}) bool {
 		entry := v.(*entry)
 		if entry.deleting {
 			return false
 		}
 		key := k[strings.LastIndex(k, "/")+1:]
-		entries[key] = entry.value
+		entries[key] = &TableElem{Value: entry.value, owner: entry.node}
 		return false
 	})
 	return entries
@@ -445,7 +451,7 @@ func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
 	return nil
 }
 
-func (nDB *NetworkDB) deleteNetworkEntriesForNode(deletedNode string) {
+func (nDB *NetworkDB) deleteNodeFromNetworks(deletedNode string) {
 	for nid, nodes := range nDB.networkNodes {
 		updatedNodes := make([]string, 0, len(nodes))
 		for _, node := range nodes {
@@ -547,7 +553,9 @@ func (nDB *NetworkDB) deleteNodeTableEntries(node string) {
 
 		nDB.deleteEntry(nid, tname, key)
 
-		nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+		if !oldEntry.deleting {
+			nDB.broadcaster.Write(makeEvent(opDelete, tname, nid, key, oldEntry.value))
+		}
 		return false
 	})
 }

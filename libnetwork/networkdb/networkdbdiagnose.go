@@ -1,17 +1,19 @@
 package networkdb
 
 import (
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"strings"
 
-	stackdump "github.com/docker/docker/pkg/signal"
+	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/diagnose"
 	"github.com/sirupsen/logrus"
 )
 
 const (
 	missingParameter = "missing parameter"
+	dbNotAvailable   = "database not available"
 )
 
 // NetDbPaths2Func TODO
@@ -26,14 +28,21 @@ var NetDbPaths2Func = map[string]diagnose.HTTPHandlerFunc{
 	"/deleteentry":  dbDeleteEntry,
 	"/getentry":     dbGetEntry,
 	"/gettable":     dbGetTable,
-	"/dump":         dbStackTrace,
 }
 
 func dbJoin(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("join cluster")
+
 	if len(r.Form["members"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?members=ip1,ip2,...", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?members=ip1,ip2,...", r.URL.Path))
+		log.Error("join cluster failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -41,51 +50,88 @@ func dbJoin(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	if ok {
 		err := nDB.Join(strings.Split(r.Form["members"][0], ","))
 		if err != nil {
-			fmt.Fprintf(w, "%s error in the DB join %s\n", r.URL.Path, err)
+			rsp := diagnose.FailCommand(fmt.Errorf("%s error in the DB join %s", r.URL.Path, err))
+			log.WithError(err).Error("join cluster failed")
+			diagnose.HTTPReply(w, rsp, json)
 			return
 		}
 
-		fmt.Fprintf(w, "OK\n")
+		log.Info("join cluster done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("network peers")
+
 	if len(r.Form["nid"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?nid=test", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=test", r.URL.Path))
+		log.Error("network peers failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
 		peers := nDB.Peers(r.Form["nid"][0])
-		fmt.Fprintf(w, "Network:%s Total peers: %d\n", r.Form["nid"], len(peers))
+		rsp := &diagnose.TableObj{Length: len(peers)}
 		for i, peerInfo := range peers {
-			fmt.Fprintf(w, "%d) %s -> %s\n", i, peerInfo.Name, peerInfo.IP)
+			rsp.Elements = append(rsp.Elements, &diagnose.PeerEntryObj{Index: i, Name: peerInfo.Name, IP: peerInfo.IP})
 		}
+		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("network peers done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(rsp), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbClusterPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
+	r.ParseForm()
+	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("cluster peers")
+
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
 		peers := nDB.ClusterPeers()
-		fmt.Fprintf(w, "Total peers: %d\n", len(peers))
+		rsp := &diagnose.TableObj{Length: len(peers)}
 		for i, peerInfo := range peers {
-			fmt.Fprintf(w, "%d) %s -> %s\n", i, peerInfo.Name, peerInfo.IP)
+			rsp.Elements = append(rsp.Elements, &diagnose.PeerEntryObj{Index: i, Name: peerInfo.Name, IP: peerInfo.IP})
 		}
+		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("cluster peers done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(rsp), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbCreateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	unsafe, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("create entry")
+
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 ||
 		len(r.Form["value"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		log.Error("create entry failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -93,25 +139,48 @@ func dbCreateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	nid := r.Form["nid"][0]
 	key := r.Form["key"][0]
 	value := r.Form["value"][0]
+	decodedValue := []byte(value)
+	if !unsafe {
+		var err error
+		decodedValue, err = base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			log.WithError(err).Error("create entry failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
+			return
+		}
+	}
 
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
-		if err := nDB.CreateEntry(tname, nid, key, []byte(value)); err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+		if err := nDB.CreateEntry(tname, nid, key, decodedValue); err != nil {
+			rsp := diagnose.FailCommand(err)
+			diagnose.HTTPReply(w, rsp, json)
+			log.WithError(err).Error("create entry failed")
 			return
 		}
-		fmt.Fprintf(w, "OK\n")
+		log.Info("create entry done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbUpdateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	unsafe, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("update entry")
+
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 ||
 		len(r.Form["value"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k&value=v", r.URL.Path))
+		log.Error("update entry failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -119,24 +188,46 @@ func dbUpdateEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	nid := r.Form["nid"][0]
 	key := r.Form["key"][0]
 	value := r.Form["value"][0]
+	decodedValue := []byte(value)
+	if !unsafe {
+		var err error
+		decodedValue, err = base64.StdEncoding.DecodeString(value)
+		if err != nil {
+			log.WithError(err).Error("update entry failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
+			return
+		}
+	}
 
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
-		if err := nDB.UpdateEntry(tname, nid, key, []byte(value)); err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+		if err := nDB.UpdateEntry(tname, nid, key, decodedValue); err != nil {
+			log.WithError(err).Error("update entry failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
 			return
 		}
-		fmt.Fprintf(w, "OK\n")
+		log.Info("update entry done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbDeleteEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("delete entry")
+
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		log.Error("delete entry failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -148,20 +239,32 @@ func dbDeleteEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	if ok {
 		err := nDB.DeleteEntry(tname, nid, key)
 		if err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+			log.WithError(err).Error("delete entry failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
 			return
 		}
-		fmt.Fprintf(w, "OK\n")
+		log.Info("delete entry done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbGetEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	unsafe, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("get entry")
+
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 ||
 		len(r.Form["key"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id&key=k", r.URL.Path))
+		log.Error("get entry failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -173,18 +276,39 @@ func dbGetEntry(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	if ok {
 		value, err := nDB.GetEntry(tname, nid, key)
 		if err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+			log.WithError(err).Error("get entry failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
 			return
 		}
-		fmt.Fprintf(w, "key:`%s` value:`%s`\n", key, string(value))
+
+		var encodedValue string
+		if unsafe {
+			encodedValue = string(value)
+		} else {
+			encodedValue = base64.StdEncoding.EncodeToString(value)
+		}
+
+		rsp := &diagnose.TableEntryObj{Key: key, Value: encodedValue}
+		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("update entry done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(rsp), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbJoinNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("join network")
+
 	if len(r.Form["nid"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		log.Error("join network failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -193,18 +317,30 @@ func dbJoinNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
 		if err := nDB.JoinNetwork(nid); err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+			log.WithError(err).Error("join network failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
 			return
 		}
-		fmt.Fprintf(w, "OK\n")
+		log.Info("join network done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbLeaveNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	_, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("leave network")
+
 	if len(r.Form["nid"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?nid=network_id", r.URL.Path))
+		log.Error("leave network failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -213,19 +349,31 @@ func dbLeaveNetwork(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
 		if err := nDB.LeaveNetwork(nid); err != nil {
-			diagnose.HTTPReplyError(w, err.Error(), "")
+			log.WithError(err).Error("leave network failed")
+			diagnose.HTTPReply(w, diagnose.FailCommand(err), json)
 			return
 		}
-		fmt.Fprintf(w, "OK\n")
+		log.Info("leave network done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(nil), json)
+		return
 	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
 
 func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
 	diagnose.DebugHTTPForm(r)
+	unsafe, json := diagnose.ParseHTTPFormOptions(r)
+
+	// audit logs
+	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log.Info("get table")
+
 	if len(r.Form["tname"]) < 1 ||
 		len(r.Form["nid"]) < 1 {
-		diagnose.HTTPReplyError(w, missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id", r.URL.Path))
+		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name&nid=network_id", r.URL.Path))
+		log.Error("get table failed, wrong input")
+		diagnose.HTTPReply(w, rsp, json)
 		return
 	}
 
@@ -235,20 +383,26 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	nDB, ok := ctx.(*NetworkDB)
 	if ok {
 		table := nDB.GetTableByNetwork(tname, nid)
-		fmt.Fprintf(w, "total elements: %d\n", len(table))
-		i := 0
+		rsp := &diagnose.TableObj{Length: len(table)}
+		var i = 0
 		for k, v := range table {
-			fmt.Fprintf(w, "%d) k:`%s` -> v:`%s`\n", i, k, string(v.([]byte)))
-			i++
+			var encodedValue string
+			if unsafe {
+				encodedValue = string(v.Value)
+			} else {
+				encodedValue = base64.StdEncoding.EncodeToString(v.Value)
+			}
+			rsp.Elements = append(rsp.Elements,
+				&diagnose.TableEntryObj{
+					Index: i,
+					Key:   k,
+					Value: encodedValue,
+					Owner: v.owner,
+				})
 		}
+		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("get table done")
+		diagnose.HTTPReply(w, diagnose.CommandSucceed(rsp), json)
+		return
 	}
-}
-
-func dbStackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
-	path, err := stackdump.DumpStacks("/tmp/")
-	if err != nil {
-		logrus.WithError(err).Error("failed to write goroutines dump")
-	} else {
-		fmt.Fprintf(w, "goroutine stacks written to %s", path)
-	}
+	diagnose.HTTPReply(w, diagnose.FailCommand(fmt.Errorf("%s", dbNotAvailable)), json)
 }
