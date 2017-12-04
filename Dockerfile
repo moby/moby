@@ -97,7 +97,7 @@ ENV GOPATH /go
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
 RUN mkdir -p /usr/src/criu \
-	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
+	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
 	&& make install-criu
