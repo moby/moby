@@ -119,6 +119,7 @@ type Container struct {
 	// Fields here are specific to Windows
 	NetworkSharedContainerID string   `json:"-"`
 	SharedEndpointList       []string `json:"-"`
+	NewPath				 string           // in case modify container path
 }
 
 // NewBaseContainer creates a new container with its

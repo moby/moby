@@ -418,7 +418,8 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 
 	name := r.Form.Get("name")
-
+	// in case we set new path to store container
+	containerPath := r.Form.Get("containerPath")
 	config, hostConfig, networkingConfig, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil {
 		return err
@@ -437,6 +438,7 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkingConfig,
 		AdjustCPUShares:  adjustCPUShares,
+		ContainerPath:	  containerPath,
 	})
 	if err != nil {
 		return err

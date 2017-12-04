@@ -149,6 +149,13 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		}
 	}
 
+	// add Storage Option and NewPath to Container
+	if runtime.GOOS == "linux"{
+		container.HostConfig.StorageOpt = params.HostConfig.StorageOpt
+		container.NewPath = params.ContainerPath
+
+	}
+
 	// Set RWLayer for container after mount labels have been set
 	if err := daemon.setRWLayer(container); err != nil {
 		return nil, systemError{err}
@@ -260,6 +267,12 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		MountLabel: container.MountLabel,
 		InitFunc:   daemon.getLayerInit(),
 		StorageOpt: container.HostConfig.StorageOpt,
+	}
+	
+	// parse NewPath of Container to ReadWriteLayerStoreOption
+	if container.NewPath != ""{
+		rwLayerOpts.StorageOpt = make(map[string]string)
+		rwLayerOpts.StorageOpt["ContainerNewPath"] = container.NewPath
 	}
 
 	rwLayer, err := daemon.stores[container.OS].layerStore.CreateRWLayer(container.ID, layerID, rwLayerOpts)

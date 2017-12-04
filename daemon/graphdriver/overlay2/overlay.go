@@ -102,6 +102,7 @@ type Driver struct {
 	naiveDiff     graphdriver.DiffDriver
 	supportsDType bool
 	locker        *locker.Locker
+	ContainerPath string				// Driver save the ContainerPath which we setup
 }
 
 var (
@@ -292,7 +293,7 @@ func (d *Driver) Status() [][2]string {
 // GetMetadata returns meta data about the overlay driver such as
 // LowerDir, UpperDir, WorkDir and MergeDir used to store data.
 func (d *Driver) GetMetadata(id string) (map[string]string, error) {
-	dir := d.dir(id)
+	dir := d.change_dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return nil, err
 	}
@@ -324,6 +325,10 @@ func (d *Driver) Cleanup() error {
 // CreateReadWrite creates a layer that is writable for use as a container
 // file system.
 func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts) error {
+	// Save Storageoption of Container in Driver
+	d.ContainerPath = opts.StorageOpt["ContainerNewPath"]
+	opts.StorageOpt = nil
+
 	if opts != nil && len(opts.StorageOpt) != 0 && !projectQuotaSupported {
 		return fmt.Errorf("--storage-opt is supported only for overlay over xfs with 'pquota' mount option")
 	}
@@ -356,7 +361,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 }
 
 func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr error) {
-	dir := d.dir(id)
+	dir := d.change_dir(id)
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
@@ -395,7 +400,7 @@ func (d *Driver) create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 	}
 
 	lid := generateID(idLength)
-	if err := os.Symlink(path.Join("..", id, "diff"), path.Join(d.home, linkDir, lid)); err != nil {
+	if err := os.Symlink(path.Join(dir, "diff"), path.Join(d.home, linkDir, lid)); err != nil {
 		return err
 	}
 
@@ -451,7 +456,9 @@ func (d *Driver) parseStorageOpt(storageOpt map[string]string, driver *Driver) e
 
 func (d *Driver) getLower(parent string) (string, error) {
 	parentDir := d.dir(parent)
-
+	if strings.Contains(parent, "init") {
+		parentDir = d.change_dir(parent)
+	}
 	// Ensure parent exists
 	if _, err := os.Lstat(parentDir); err != nil {
 		return "", err
@@ -477,6 +484,13 @@ func (d *Driver) getLower(parent string) (string, error) {
 
 func (d *Driver) dir(id string) string {
 	return path.Join(d.home, id)
+}
+
+func (d *Driver) change_dir(id string) string {
+	if len(d.ContainerPath) != 0{
+		return path.Join(d.ContainerPath, id)
+	}
+	return d.dir(id)
 }
 
 func (d *Driver) getLowerDirs(id string) ([]string, error) {
@@ -518,7 +532,7 @@ func (d *Driver) Remove(id string) error {
 func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
-	dir := d.dir(id)
+	dir := d.change_dir(id)
 	if _, err := os.Stat(dir); err != nil {
 		return nil, err
 	}
@@ -608,7 +622,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 func (d *Driver) Put(id string) error {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
-	dir := d.dir(id)
+	dir := d.change_dir(id)
 	_, err := ioutil.ReadFile(path.Join(dir, lowerFile))
 	if err != nil {
 		// If no lower, no mount happened and just return directly
