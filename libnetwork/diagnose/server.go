@@ -52,72 +52,74 @@ func New() *Server {
 }
 
 // Init initialize the mux for the http handling and register the base hooks
-func (n *Server) Init() {
-	n.mux = http.NewServeMux()
+func (s *Server) Init() {
+	s.mux = http.NewServeMux()
 
 	// Register local handlers
-	n.RegisterHandler(n, diagPaths2Func)
+	s.RegisterHandler(s, diagPaths2Func)
 }
 
 // RegisterHandler allows to register new handlers to the mux and to a specific path
-func (n *Server) RegisterHandler(ctx interface{}, hdlrs map[string]HTTPHandlerFunc) {
-	n.Lock()
-	defer n.Unlock()
+func (s *Server) RegisterHandler(ctx interface{}, hdlrs map[string]HTTPHandlerFunc) {
+	s.Lock()
+	defer s.Unlock()
 	for path, fun := range hdlrs {
-		if _, ok := n.registeredHanders[path]; ok {
+		if _, ok := s.registeredHanders[path]; ok {
 			continue
 		}
-		n.mux.Handle(path, httpHandlerCustom{ctx, fun})
-		n.registeredHanders[path] = true
+		s.mux.Handle(path, httpHandlerCustom{ctx, fun})
+		s.registeredHanders[path] = true
 	}
 }
 
-func (n *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	n.mux.ServeHTTP(w, r)
+// ServeHTTP this is the method called bu the ListenAndServe, and is needed to allow us to
+// use our custom mux
+func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	s.mux.ServeHTTP(w, r)
 }
 
 // EnableDebug opens a TCP socket to debug the passed network DB
-func (n *Server) EnableDebug(ip string, port int) {
-	n.Lock()
-	defer n.Unlock()
+func (s *Server) EnableDebug(ip string, port int) {
+	s.Lock()
+	defer s.Unlock()
 
-	n.port = port
+	s.port = port
 
-	if n.enable == 1 {
+	if s.enable == 1 {
 		logrus.Info("The server is already up and running")
 		return
 	}
 
 	logrus.Infof("Starting the diagnose server listening on %d for commands", port)
-	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: n}
-	n.srv = srv
-	n.enable = 1
+	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: s}
+	s.srv = srv
+	s.enable = 1
 	go func(n *Server) {
 		// Ingore ErrServerClosed that is returned on the Shutdown call
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logrus.Errorf("ListenAndServe error: %s", err)
 			atomic.SwapInt32(&n.enable, 0)
 		}
-	}(n)
+	}(s)
 
 }
 
 // DisableDebug stop the dubug and closes the tcp socket
-func (n *Server) DisableDebug() {
-	n.Lock()
-	defer n.Unlock()
+func (s *Server) DisableDebug() {
+	s.Lock()
+	defer s.Unlock()
 
-	n.srv.Shutdown(context.Background())
-	n.srv = nil
-	n.enable = 0
+	s.srv.Shutdown(context.Background())
+	s.srv = nil
+	s.enable = 0
 	logrus.Info("Disabling the diagnose server")
 }
 
 // IsDebugEnable returns true when the debug is enabled
-func (n *Server) IsDebugEnable() bool {
-	n.Lock()
-	defer n.Unlock()
-	return n.enable == 1
+func (s *Server) IsDebugEnable() bool {
+	s.Lock()
+	defer s.Unlock()
+	return s.enable == 1
 }
 
 func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
