@@ -1308,7 +1308,6 @@ func (c *controller) StartDiagnose(port int) {
 	c.Lock()
 	defer c.Unlock()
 	if !c.DiagnoseServer.IsDebugEnable() {
-		logrus.Errorf("StartDiagnose received the port %d", port)
 		c.DiagnoseServer.EnableDebug("127.0.0.1", port)
 	}
 }
