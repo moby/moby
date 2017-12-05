@@ -1306,19 +1306,19 @@ func (c *controller) Stop() {
 // StartDiagnose start the network diagnose mode
 func (c *controller) StartDiagnose(port int) {
 	c.Lock()
-	defer c.Unlock()
 	if !c.DiagnoseServer.IsDebugEnable() {
 		c.DiagnoseServer.EnableDebug("127.0.0.1", port)
 	}
+	c.Unlock()
 }
 
 // StopDiagnose start the network diagnose mode
 func (c *controller) StopDiagnose() {
 	c.Lock()
-	defer c.Unlock()
 	if c.DiagnoseServer.IsDebugEnable() {
 		c.DiagnoseServer.DisableDebug()
 	}
+	c.Unlock()
 }
 
 // IsDiagnoseEnabled returns true if the diagnose is enabled
