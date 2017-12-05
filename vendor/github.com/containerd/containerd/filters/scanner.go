@@ -87,7 +87,7 @@ func (s *scanner) peek() rune {
 	return ch
 }
 
-func (s *scanner) scan() (int, token, string) {
+func (s *scanner) scan() (nextp int, tk token, text string) {
 	var (
 		ch  = s.next()
 		pos = s.pos
@@ -101,6 +101,7 @@ chomp:
 		s.scanQuoted(ch)
 		return pos, tokenQuoted, s.input[pos:s.ppos]
 	case isSeparatorRune(ch):
+		s.value = false
 		return pos, tokenSeparator, s.input[pos:s.ppos]
 	case isOperatorRune(ch):
 		s.scanOperator()
@@ -241,7 +242,7 @@ func isOperatorRune(r rune) bool {
 
 func isQuoteRune(r rune) bool {
 	switch r {
-	case '"': // maybe add single quoting?
+	case '/', '|', '"': // maybe add single quoting?
 		return true
 	}
 

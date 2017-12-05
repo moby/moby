@@ -114,6 +114,7 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 func commitOpts(desc ocispec.Descriptor, r io.Reader) (io.Reader, []content.Opt) {
 	var childrenF func(r io.Reader) ([]ocispec.Descriptor, error)
 
+	// TODO(AkihiroSuda): use images/oci.GetChildrenDescriptors?
 	switch desc.MediaType {
 	case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
 		childrenF = func(r io.Reader) ([]ocispec.Descriptor, error) {
