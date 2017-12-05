@@ -52,6 +52,7 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libcap-dev \
 	libdevmapper-dev \
+	libnet-dev \
 	libnl-3-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
@@ -94,11 +95,9 @@ ENV PATH /go/bin:/usr/local/go/bin:$PATH
 ENV GOPATH /go
 
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 2.12.1
-# Install dependancy packages specific to criu
-RUN apt-get install libnet-dev -y && \
-	mkdir -p /usr/src/criu \
-	&& curl -sSL https://github.com/xemul/criu/archive/v${CRIU_VERSION}.tar.gz | tar -v -C /usr/src/criu/ -xz --strip-components=1 \
+ENV CRIU_VERSION 3.6
+RUN mkdir -p /usr/src/criu \
+	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
 	&& make install-criu
