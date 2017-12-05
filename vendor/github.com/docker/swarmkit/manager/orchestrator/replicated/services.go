@@ -17,7 +17,7 @@ import (
 // responds to changes in individual tasks (or nodes which run them).
 
 func (r *Orchestrator) initCluster(readTx store.ReadTx) error {
-	clusters, err := store.FindClusters(readTx, store.ByName("default"))
+	clusters, err := store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 	if err != nil {
 		return err
 	}
@@ -50,7 +50,7 @@ func (r *Orchestrator) handleServiceEvent(ctx context.Context, event events.Even
 		if !orchestrator.IsReplicatedService(v.Service) {
 			return
 		}
-		orchestrator.DeleteServiceTasks(ctx, r.store, v.Service)
+		orchestrator.SetServiceTasksRemove(ctx, r.store, v.Service)
 		r.restarts.ClearServiceHistory(v.Service.ID)
 		delete(r.reconcileServices, v.Service.ID)
 	case api.EventCreateService:
@@ -86,6 +86,12 @@ func (r *Orchestrator) resolveService(ctx context.Context, task *api.Task) *api.
 	return service
 }
 
+// reconcile decides what actions must be taken depending on the number of
+// specificed slots and actual running slots. If the actual running slots are
+// fewer than what is requested, it creates new tasks. If the actual running
+// slots are more than requested, then it decides which slots must be removed
+// and sets desired state of those tasks to REMOVE (the actual removal is handled
+// by the task reaper, after the agent shuts the tasks down).
 func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 	runningSlots, deadSlots, err := r.updatableAndDeadSlots(ctx, service)
 	if err != nil {
@@ -157,7 +163,11 @@ func (r *Orchestrator) reconcile(ctx context.Context, service *api.Service) {
 		r.updater.Update(ctx, r.cluster, service, sortedSlots[:specifiedSlots])
 		err = r.store.Batch(func(batch *store.Batch) error {
 			r.deleteTasksMap(ctx, batch, deadSlots)
-			r.deleteTasks(ctx, batch, sortedSlots[specifiedSlots:])
+			// for all slots that we are removing, we set the desired state of those tasks
+			// to REMOVE. Then, the agent is responsible for shutting them down, and the
+			// task reaper is responsible for actually removing them from the store after
+			// shutdown.
+			r.setTasksDesiredState(ctx, batch, sortedSlots[specifiedSlots:], api.TaskStateRemove)
 			return nil
 		})
 		if err != nil {
@@ -198,10 +208,34 @@ func (r *Orchestrator) addTasks(ctx context.Context, batch *store.Batch, service
 	}
 }
 
-func (r *Orchestrator) deleteTasks(ctx context.Context, batch *store.Batch, slots []orchestrator.Slot) {
+// setTasksDesiredState sets the desired state for all tasks for the given slots to the
+// requested state
+func (r *Orchestrator) setTasksDesiredState(ctx context.Context, batch *store.Batch, slots []orchestrator.Slot, newDesiredState api.TaskState) {
 	for _, slot := range slots {
 		for _, t := range slot {
-			r.deleteTask(ctx, batch, t)
+			err := batch.Update(func(tx store.Tx) error {
+				// time travel is not allowed. if the current desired state is
+				// above the one we're trying to go to we can't go backwards.
+				// we have nothing to do and we should skip to the next task
+				if t.DesiredState > newDesiredState {
+					// log a warning, though. we shouln't be trying to rewrite
+					// a state to an earlier state
+					log.G(ctx).Warnf(
+						"cannot update task %v in desired state %v to an earlier desired state %v",
+						t.ID, t.DesiredState, newDesiredState,
+					)
+					return nil
+				}
+				// update desired state
+				t.DesiredState = newDesiredState
+
+				return store.UpdateTask(tx, t)
+			})
+
+			// log an error if we get one
+			if err != nil {
+				log.G(ctx).WithError(err).Errorf("failed to update task to %v", newDesiredState.String())
+			}
 		}
 	}
 }

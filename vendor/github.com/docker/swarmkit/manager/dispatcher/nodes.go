@@ -4,12 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/dispatcher/heartbeat"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const rateLimitCount = 3
@@ -36,7 +35,7 @@ func (rn *registeredNode) checkSessionID(sessionID string) error {
 	// changed. If it has, we will the stream and make the node
 	// re-register.
 	if sessionID == "" || rn.SessionID != sessionID {
-		return grpc.Errorf(codes.InvalidArgument, ErrSessionInvalid.Error())
+		return status.Errorf(codes.InvalidArgument, ErrSessionInvalid.Error())
 	}
 
 	return nil
@@ -97,7 +96,7 @@ func (s *nodeStore) CheckRateLimit(id string) error {
 		}
 		existRn.Attempts++
 		if existRn.Attempts > rateLimitCount {
-			return grpc.Errorf(codes.Unavailable, "node %s exceeded rate limit count of registrations", id)
+			return status.Errorf(codes.Unavailable, "node %s exceeded rate limit count of registrations", id)
 		}
 		existRn.Registered = time.Now()
 	}
@@ -136,7 +135,7 @@ func (s *nodeStore) Get(id string) (*registeredNode, error) {
 	rn, ok := s.nodes[id]
 	s.mu.RUnlock()
 	if !ok {
-		return nil, grpc.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
+		return nil, status.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
 	}
 	return rn, nil
 }
@@ -146,7 +145,7 @@ func (s *nodeStore) GetWithSession(id, sid string) (*registeredNode, error) {
 	rn, ok := s.nodes[id]
 	s.mu.RUnlock()
 	if !ok {
-		return nil, grpc.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
+		return nil, status.Errorf(codes.NotFound, ErrNodeNotRegistered.Error())
 	}
 	return rn, rn.checkSessionID(sid)
 }

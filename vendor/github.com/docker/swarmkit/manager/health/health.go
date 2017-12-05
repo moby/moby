@@ -12,8 +12,8 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // Server represents a Health Check server to check
@@ -46,7 +46,7 @@ func (s *Server) Check(ctx context.Context, in *api.HealthCheckRequest) (*api.He
 			Status: status,
 		}, nil
 	}
-	return nil, grpc.Errorf(codes.NotFound, "unknown service")
+	return nil, status.Errorf(codes.NotFound, "unknown service")
 }
 
 // SetServingStatus is called when need to reset the serving status of a service

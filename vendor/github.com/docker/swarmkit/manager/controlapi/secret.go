@@ -11,8 +11,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // assumes spec is not nil
@@ -30,7 +30,7 @@ func secretFromSecretSpec(spec *api.SecretSpec) *api.Secret {
 // - Returns an error if getting fails.
 func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (*api.GetSecretResponse, error) {
 	if request.SecretID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "secret ID must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "secret ID must be provided")
 	}
 
 	var secret *api.Secret
@@ -39,7 +39,7 @@ func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (
 	})
 
 	if secret == nil {
-		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	}
 
 	secret.Spec.Data = nil // clean the actual secret data so it's never returned
@@ -52,20 +52,20 @@ func (s *Server) GetSecret(ctx context.Context, request *api.GetSecretRequest) (
 // - Returns an error if the update fails.
 func (s *Server) UpdateSecret(ctx context.Context, request *api.UpdateSecretRequest) (*api.UpdateSecretResponse, error) {
 	if request.SecretID == "" || request.SecretVersion == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	var secret *api.Secret
 	err := s.store.Update(func(tx store.Tx) error {
 		secret = store.GetSecret(tx, request.SecretID)
 		if secret == nil {
-			return grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+			return status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 		}
 
 		// Check if the Name is different than the current name, or the secret is non-nil and different
 		// than the current secret
 		if secret.Spec.Annotations.Name != request.Spec.Annotations.Name ||
 			(request.Spec.Data != nil && subtle.ConstantTimeCompare(request.Spec.Data, secret.Spec.Data) == 0) {
-			return grpc.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
+			return status.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
 		}
 
 		// We only allow updating Labels
@@ -171,7 +171,7 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 
 	switch err {
 	case store.ErrNameConflict:
-		return nil, grpc.Errorf(codes.AlreadyExists, "secret %s already exists", request.Spec.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "secret %s already exists", request.Spec.Annotations.Name)
 	case nil:
 		secret.Spec.Data = nil // clean the actual secret data so it's never returned
 		log.G(ctx).WithFields(logrus.Fields{
@@ -192,20 +192,20 @@ func (s *Server) CreateSecret(ctx context.Context, request *api.CreateSecretRequ
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequest) (*api.RemoveSecretResponse, error) {
 	if request.SecretID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "secret ID must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "secret ID must be provided")
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
 		// Check if the secret exists
 		secret := store.GetSecret(tx, request.SecretID)
 		if secret == nil {
-			return grpc.Errorf(codes.NotFound, "could not find secret %s", request.SecretID)
+			return status.Errorf(codes.NotFound, "could not find secret %s", request.SecretID)
 		}
 
 		// Check if any services currently reference this secret, return error if so
 		services, err := store.FindServices(tx, store.ByReferencedSecretID(request.SecretID))
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "could not find services using secret %s: %v", request.SecretID, err)
+			return status.Errorf(codes.Internal, "could not find services using secret %s: %v", request.SecretID, err)
 		}
 
 		if len(services) != 0 {
@@ -221,14 +221,14 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 				serviceStr = "service"
 			}
 
-			return grpc.Errorf(codes.InvalidArgument, "secret '%s' is in use by the following %s: %v", secretName, serviceStr, serviceNameStr)
+			return status.Errorf(codes.InvalidArgument, "secret '%s' is in use by the following %s: %v", secretName, serviceStr, serviceNameStr)
 		}
 
 		return store.DeleteSecret(tx, request.SecretID)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, grpc.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
+		return nil, status.Errorf(codes.NotFound, "secret %s not found", request.SecretID)
 	case nil:
 		log.G(ctx).WithFields(logrus.Fields{
 			"secret.ID": request.SecretID,
@@ -243,7 +243,7 @@ func (s *Server) RemoveSecret(ctx context.Context, request *api.RemoveSecretRequ
 
 func validateSecretSpec(spec *api.SecretSpec) error {
 	if spec == nil {
-		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err
@@ -252,12 +252,12 @@ func validateSecretSpec(spec *api.SecretSpec) error {
 	if spec.Driver != nil {
 		// Ensure secret driver has a name
 		if spec.Driver.Name == "" {
-			return grpc.Errorf(codes.InvalidArgument, "secret driver must have a name")
+			return status.Errorf(codes.InvalidArgument, "secret driver must have a name")
 		}
 		return nil
 	}
 	if err := validation.ValidateSecretPayload(spec.Data); err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "%s", err.Error())
+		return status.Errorf(codes.InvalidArgument, "%s", err.Error())
 	}
 	return nil
 }

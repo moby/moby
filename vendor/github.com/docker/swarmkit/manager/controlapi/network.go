@@ -12,39 +12,39 @@ import (
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 func validateIPAMConfiguration(ipamConf *api.IPAMConfig) error {
 	if ipamConf == nil {
-		return grpc.Errorf(codes.InvalidArgument, "ipam configuration: cannot be empty")
+		return status.Errorf(codes.InvalidArgument, "ipam configuration: cannot be empty")
 	}
 
 	_, subnet, err := net.ParseCIDR(ipamConf.Subnet)
 	if err != nil {
-		return grpc.Errorf(codes.InvalidArgument, "ipam configuration: invalid subnet %s", ipamConf.Subnet)
+		return status.Errorf(codes.InvalidArgument, "ipam configuration: invalid subnet %s", ipamConf.Subnet)
 	}
 
 	if ipamConf.Range != "" {
 		ip, _, err := net.ParseCIDR(ipamConf.Range)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, "ipam configuration: invalid range %s", ipamConf.Range)
+			return status.Errorf(codes.InvalidArgument, "ipam configuration: invalid range %s", ipamConf.Range)
 		}
 
 		if !subnet.Contains(ip) {
-			return grpc.Errorf(codes.InvalidArgument, "ipam configuration: subnet %s does not contain range %s", ipamConf.Subnet, ipamConf.Range)
+			return status.Errorf(codes.InvalidArgument, "ipam configuration: subnet %s does not contain range %s", ipamConf.Subnet, ipamConf.Range)
 		}
 	}
 
 	if ipamConf.Gateway != "" {
 		ip := net.ParseIP(ipamConf.Gateway)
 		if ip == nil {
-			return grpc.Errorf(codes.InvalidArgument, "ipam configuration: invalid gateway %s", ipamConf.Gateway)
+			return status.Errorf(codes.InvalidArgument, "ipam configuration: invalid gateway %s", ipamConf.Gateway)
 		}
 
 		if !subnet.Contains(ip) {
-			return grpc.Errorf(codes.InvalidArgument, "ipam configuration: subnet %s does not contain gateway %s", ipamConf.Subnet, ipamConf.Gateway)
+			return status.Errorf(codes.InvalidArgument, "ipam configuration: subnet %s does not contain gateway %s", ipamConf.Subnet, ipamConf.Gateway)
 		}
 	}
 
@@ -73,15 +73,15 @@ func validateIPAM(ipam *api.IPAMOptions, pg plugingetter.PluginGetter) error {
 
 func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) error {
 	if spec == nil {
-		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	if spec.Ingress && spec.DriverConfig != nil && spec.DriverConfig.Name != "overlay" {
-		return grpc.Errorf(codes.Unimplemented, "only overlay driver is currently supported for ingress network")
+		return status.Errorf(codes.Unimplemented, "only overlay driver is currently supported for ingress network")
 	}
 
 	if spec.Attachable && spec.Ingress {
-		return grpc.Errorf(codes.InvalidArgument, "ingress network cannot be attachable")
+		return status.Errorf(codes.InvalidArgument, "ingress network cannot be attachable")
 	}
 
 	if err := validateAnnotations(spec.Annotations); err != nil {
@@ -89,7 +89,7 @@ func validateNetworkSpec(spec *api.NetworkSpec, pg plugingetter.PluginGetter) er
 	}
 
 	if _, ok := spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok {
-		return grpc.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
+		return status.Errorf(codes.PermissionDenied, "label %s is for internally created predefined networks and cannot be applied by users",
 			networkallocator.PredefinedLabel)
 	}
 	if err := validateDriver(spec.DriverConfig, pg, driverapi.NetworkPluginEndpointType); err != nil {
@@ -117,9 +117,9 @@ func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRe
 	err := s.store.Update(func(tx store.Tx) error {
 		if request.Spec.Ingress {
 			if n, err := allocator.GetIngressNetwork(s.store); err == nil {
-				return grpc.Errorf(codes.AlreadyExists, "ingress network (%s) is already present", n.ID)
+				return status.Errorf(codes.AlreadyExists, "ingress network (%s) is already present", n.ID)
 			} else if err != allocator.ErrNoIngress {
-				return grpc.Errorf(codes.Internal, "failed ingress network presence check: %v", err)
+				return status.Errorf(codes.Internal, "failed ingress network presence check: %v", err)
 			}
 		}
 		return store.CreateNetwork(tx, n)
@@ -138,7 +138,7 @@ func (s *Server) CreateNetwork(ctx context.Context, request *api.CreateNetworkRe
 // - Returns `NotFound` if the Network is not found.
 func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest) (*api.GetNetworkResponse, error) {
 	if request.NetworkID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var n *api.Network
@@ -146,7 +146,7 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 		n = store.GetNetwork(tx, request.NetworkID)
 	})
 	if n == nil {
-		return nil, grpc.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
 	}
 	return &api.GetNetworkResponse{
 		Network: n,
@@ -159,7 +159,7 @@ func (s *Server) GetNetwork(ctx context.Context, request *api.GetNetworkRequest)
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRequest) (*api.RemoveNetworkResponse, error) {
 	if request.NetworkID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var (
@@ -171,7 +171,7 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 		n = store.GetNetwork(tx, request.NetworkID)
 	})
 	if n == nil {
-		return nil, grpc.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+		return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
 	}
 
 	if allocator.IsIngressNetwork(n) {
@@ -179,13 +179,13 @@ func (s *Server) RemoveNetwork(ctx context.Context, request *api.RemoveNetworkRe
 	}
 
 	if v, ok := n.Spec.Annotations.Labels[networkallocator.PredefinedLabel]; ok && v == "true" {
-		return nil, grpc.Errorf(codes.FailedPrecondition, "network %s (%s) is a swarm predefined network and cannot be removed",
+		return nil, status.Errorf(codes.FailedPrecondition, "network %s (%s) is a swarm predefined network and cannot be removed",
 			request.NetworkID, n.Spec.Annotations.Name)
 	}
 
 	if err := rm(n.ID); err != nil {
 		if err == store.ErrNotExist {
-			return nil, grpc.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
+			return nil, status.Errorf(codes.NotFound, "network %s not found", request.NetworkID)
 		}
 		return nil, err
 	}
@@ -196,21 +196,21 @@ func (s *Server) removeNetwork(id string) error {
 	return s.store.Update(func(tx store.Tx) error {
 		services, err := store.FindServices(tx, store.ByReferencedNetworkID(id))
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "could not find services using network %s: %v", id, err)
+			return status.Errorf(codes.Internal, "could not find services using network %s: %v", id, err)
 		}
 
 		if len(services) != 0 {
-			return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by service %s", id, services[0].ID)
+			return status.Errorf(codes.FailedPrecondition, "network %s is in use by service %s", id, services[0].ID)
 		}
 
 		tasks, err := store.FindTasks(tx, store.ByReferencedNetworkID(id))
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "could not find tasks using network %s: %v", id, err)
+			return status.Errorf(codes.Internal, "could not find tasks using network %s: %v", id, err)
 		}
 
 		for _, t := range tasks {
 			if t.DesiredState <= api.TaskStateRunning && t.Status.State <= api.TaskStateRunning {
-				return grpc.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", id, t.ID)
+				return status.Errorf(codes.FailedPrecondition, "network %s is in use by task %s", id, t.ID)
 			}
 		}
 
@@ -222,11 +222,11 @@ func (s *Server) removeIngressNetwork(id string) error {
 	return s.store.Update(func(tx store.Tx) error {
 		services, err := store.FindServices(tx, store.All)
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "could not find services using network %s: %v", id, err)
+			return status.Errorf(codes.Internal, "could not find services using network %s: %v", id, err)
 		}
 		for _, srv := range services {
 			if allocator.IsIngressNetworkNeeded(srv) {
-				return grpc.Errorf(codes.FailedPrecondition, "ingress network cannot be removed because service %s depends on it", srv.ID)
+				return status.Errorf(codes.FailedPrecondition, "ingress network cannot be removed because service %s depends on it", srv.ID)
 			}
 		}
 		return store.DeleteNetwork(tx, id)
