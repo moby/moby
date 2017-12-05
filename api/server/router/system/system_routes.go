@@ -152,6 +152,8 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 		return nil
 	}
 
+	notify := w.(http.CloseNotifier).CloseNotify()
+
 	for {
 		select {
 		case ev := <-l:
@@ -167,6 +169,9 @@ func (s *systemRouter) getEvents(ctx context.Context, w http.ResponseWriter, r *
 			return nil
 		case <-ctx.Done():
 			logrus.Debug("Client context cancelled, stop sending events")
+			return nil
+		case <-notify:
+			logrus.Debug("Client exited")
 			return nil
 		}
 	}
