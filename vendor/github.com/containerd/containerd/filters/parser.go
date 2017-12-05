@@ -3,7 +3,6 @@ package filters
 import (
 	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
@@ -134,7 +133,12 @@ func (p *parser) selector() (selector, error) {
 		return selector{}, err
 	}
 
-	value, err := p.value()
+	var allowAltQuotes bool
+	if op == operatorMatches {
+		allowAltQuotes = true
+	}
+
+	value, err := p.value(allowAltQuotes)
 	if err != nil {
 		if err == io.EOF {
 			return selector{}, io.ErrUnexpectedEOF
@@ -188,7 +192,7 @@ func (p *parser) field() (string, error) {
 	case tokenField:
 		return s, nil
 	case tokenQuoted:
-		return p.unquote(pos, s)
+		return p.unquote(pos, s, false)
 	}
 
 	return "", p.mkerr(pos, "expected field or quoted")
@@ -213,21 +217,25 @@ func (p *parser) operator() (operator, error) {
 	return 0, p.mkerr(pos, `expected an operator ("=="|"!="|"~=")`)
 }
 
-func (p *parser) value() (string, error) {
+func (p *parser) value(allowAltQuotes bool) (string, error) {
 	pos, tok, s := p.scanner.scan()
 
 	switch tok {
 	case tokenValue, tokenField:
 		return s, nil
 	case tokenQuoted:
-		return p.unquote(pos, s)
+		return p.unquote(pos, s, allowAltQuotes)
 	}
 
 	return "", p.mkerr(pos, "expected value or quoted")
 }
 
-func (p *parser) unquote(pos int, s string) (string, error) {
-	uq, err := strconv.Unquote(s)
+func (p *parser) unquote(pos int, s string, allowAlts bool) (string, error) {
+	if !allowAlts && s[0] != '\'' && s[0] != '"' {
+		return "", p.mkerr(pos, "invalid quote encountered")
+	}
+
+	uq, err := unquote(s)
 	if err != nil {
 		return "", p.mkerr(pos, "unquoting failed: %v", err)
 	}
