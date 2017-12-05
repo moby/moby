@@ -39,12 +39,12 @@ const (
 	credentialsEndpointKey = "awslogs-credentials-endpoint"
 	batchPublishFrequency  = 5 * time.Second
 
-	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+	// See: https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	perEventBytes          = 26
 	maximumBytesPerPut     = 1048576
 	maximumLogEventsPerPut = 10000
 
-	// See: http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_limits.html
+	// See: https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/cloudwatch_limits.html
 	maximumBytesPerEvent = 262144 - perEventBytes
 
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
@@ -488,7 +488,7 @@ func (l *logStream) publishBatch(events []wrappedEvent) {
 	}
 
 	// events in a batch must be sorted by timestamp
-	// see http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
+	// see https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	sort.Sort(byTimestamp(events))
 	cwEvents := unwrapEvents(events)
 
