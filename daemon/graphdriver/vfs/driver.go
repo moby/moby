@@ -7,7 +7,6 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/quota"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
@@ -16,8 +15,8 @@ import (
 )
 
 var (
-	// CopyWithTar defines the copy method to use.
-	CopyWithTar = chrootarchive.NewArchiver(nil).CopyWithTar
+	// CopyDir defines the copy method to use.
+	CopyDir = dirCopy
 )
 
 func init() {
@@ -133,7 +132,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyWithTar(parentDir.Path(), dir)
+	return CopyDir(parentDir.Path(), dir)
 }
 
 func (d *Driver) dir(id string) string {
