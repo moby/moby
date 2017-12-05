@@ -661,6 +661,6 @@ const (
 	// NoReason is the default value when GoAway frame is received.
 	NoReason GoAwayReason = 1
 	// TooManyPings indicates that a GoAway frame with ErrCodeEnhanceYourCalm
-	// was recieved and that the debug data said "too_many_pings".
+	// was received and that the debug data said "too_many_pings".
 	TooManyPings GoAwayReason = 2
 )
