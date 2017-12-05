@@ -10,8 +10,7 @@ Moby's development environment is itself, ultimately a Docker container.
 You use the `moby/moby` repository and its `Dockerfile` to create a Docker image,
 run a Docker container, and develop code in the container.
 
-If you followed the procedures that <a href="/opensource/project/set-up-git/" target="_blank">
-set up Git for contributing</a>, you should have a fork of the `moby/moby`
+If you followed the procedures that [set up Git for contributing](./set-up-git.md), you should have a fork of the `moby/moby`
 repository. You also created a branch called `dry-run-test`. In this section,
 you continue working with your fork on this branch.
 
@@ -106,8 +105,7 @@ can take over 15 minutes to complete.
    ```
 
    If you are following along with this guide, you created a `dry-run-test`
-   branch when you <a href="/opensource/project/set-up-git/" target="_blank">
-   set up Git for contributing</a>.
+   branch when you [set up Git for contributing](./set-up-git.md).
 
 3. Ensure you are on your `dry-run-test` branch.
 
