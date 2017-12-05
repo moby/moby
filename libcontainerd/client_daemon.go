@@ -681,7 +681,10 @@ func (c *client) processEventStream(ctx context.Context) {
 	}()
 
 	eventStream, err = c.remote.EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
-		Filters: []string{"namespace==" + c.namespace + ",topic~=/tasks/.+"},
+		Filters: []string{
+			"namespace==" + c.namespace,
+			"topic~=/tasks/",
+		},
 	}, grpc.FailFast(false))
 	if err != nil {
 		return
