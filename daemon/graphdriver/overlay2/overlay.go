@@ -184,7 +184,11 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	if !supportsDType {
-		return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
+		if !graphdriver.IsInitialized(home) {
+			return nil, overlayutils.ErrDTypeNotSupported("overlay2", backingFs)
+		}
+		// allow running without d_type only for existing setups (#27443)
+		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay2", backingFs))
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
