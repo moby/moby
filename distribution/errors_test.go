@@ -11,7 +11,7 @@ import (
 	"github.com/docker/distribution/registry/client"
 )
 
-var always_continue = []error{
+var alwaysContinue = []error{
 	&client.UnexpectedHTTPResponseError{},
 
 	// Some errcode.Errors that don't disprove the existence of a V1 image
@@ -22,25 +22,25 @@ var always_continue = []error{
 	errors.New("some totally unexpected error"),
 }
 
-var continue_from_mirror_endpoint = []error{
+var continueFromMirrorEndpoint = []error{
 	ImageConfigPullError{},
 
 	// Some other errcode.Error that doesn't indicate we should search for a V1 image.
 	errcode.Error{Code: errcode.ErrorCodeTooManyRequests},
 }
 
-var never_continue = []error{
+var neverContinue = []error{
 	errors.New(strings.ToLower(syscall.ESRCH.Error())), // No such process
 }
 
 func TestContinueOnError_NonMirrorEndpoint(t *testing.T) {
-	for _, err := range always_continue {
+	for _, err := range alwaysContinue {
 		if !continueOnError(err, false) {
 			t.Errorf("Should continue from non-mirror endpoint: %T: '%s'", err, err.Error())
 		}
 	}
 
-	for _, err := range continue_from_mirror_endpoint {
+	for _, err := range continueFromMirrorEndpoint {
 		if continueOnError(err, false) {
 			t.Errorf("Should only continue from mirror endpoint: %T: '%s'", err, err.Error())
 		}
@@ -49,8 +49,8 @@ func TestContinueOnError_NonMirrorEndpoint(t *testing.T) {
 
 func TestContinueOnError_MirrorEndpoint(t *testing.T) {
 	errs := []error{}
-	errs = append(errs, always_continue...)
-	errs = append(errs, continue_from_mirror_endpoint...)
+	errs = append(errs, alwaysContinue...)
+	errs = append(errs, continueFromMirrorEndpoint...)
 	for _, err := range errs {
 		if !continueOnError(err, true) {
 			t.Errorf("Should continue from mirror endpoint: %T: '%s'", err, err.Error())
@@ -59,9 +59,9 @@ func TestContinueOnError_MirrorEndpoint(t *testing.T) {
 }
 
 func TestContinueOnError_NeverContinue(t *testing.T) {
-	for _, is_mirror_endpoint := range []bool{true, false} {
-		for _, err := range never_continue {
-			if continueOnError(err, is_mirror_endpoint) {
+	for _, isMirrorEndpoint := range []bool{true, false} {
+		for _, err := range neverContinue {
+			if continueOnError(err, isMirrorEndpoint) {
 				t.Errorf("Should never continue: %T: '%s'", err, err.Error())
 			}
 		}
