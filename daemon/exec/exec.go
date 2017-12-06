@@ -31,6 +31,7 @@ type Config struct {
 	Tty          bool
 	Privileged   bool
 	User         string
+	WorkingDir   string
 	Env          []string
 	Pid          int
 }

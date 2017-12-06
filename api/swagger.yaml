@@ -7259,6 +7259,9 @@ paths:
               User:
                 type: "string"
                 description: "The user, and optionally, group to run the exec process inside the container. Format is one of: `user`, `user:group`, `uid`, or `uid:gid`."
+              WorkingDir:
+                type: "string"
+                description: "The working directory for the exec process inside the container."
             example:
               AttachStdin: false
               AttachStdout: true
