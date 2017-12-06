@@ -1156,6 +1156,18 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 			ep.releaseAddress()
 		}
 	}()
+	// Moving updateToSTore before calling addEndpoint so that we shall clean up VETH interfaces in case
+	// DockerD get killed between addEndpoint and updateSTore call
+	if err = n.getController().updateToStore(ep); err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			if e := n.getController().deleteFromStore(ep); e != nil {
+				logrus.Warnf("error rolling back endpoint %s from store: %v", name, e)
+			}
+		}
+	}()
 
 	if err = n.addEndpoint(ep); err != nil {
 		return nil, err
@@ -1171,17 +1183,6 @@ func (n *network) createEndpoint(name string, options ...EndpointOption) (Endpoi
 	if err = ep.assignAddress(ipam, false, n.enableIPv6 && n.postIPv6); err != nil {
 		return nil, err
 	}
-
-	if err = n.getController().updateToStore(ep); err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err != nil {
-			if e := n.getController().deleteFromStore(ep); e != nil {
-				logrus.Warnf("error rolling back endpoint %s from store: %v", name, e)
-			}
-		}
-	}()
 
 	// Watch for service records
 	n.getController().watchSvcRecord(ep)
