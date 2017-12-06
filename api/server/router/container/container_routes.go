@@ -481,6 +481,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.Capabilities = nil
 	}
 
+	// When using API older than 1.32, the client expects a new container
+	// to be created with "shareable" IPC mode, if mode is unset (empty value).
+	// Force set it to "shareable" (rather than daemon's default).
+	if hostConfig != nil && hostConfig.IpcMode.IsEmpty() && versions.LessThan(version, "1.32") {
+		hostConfig.IpcMode = container.IpcMode("shareable")
+	}
+
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,

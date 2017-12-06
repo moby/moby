@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
 	"gotest.tools/assert"
@@ -291,4 +292,36 @@ func TestDaemonIpcModeShareableFromConfig(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 
 	testDaemonIpcFromConfig(t, "shareable", true)
+}
+
+// TestIpcModeOlderClient checks that older client gets shareable IPC mode
+// by default, even when the daemon default is private.
+func TestIpcModeOlderClient(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	t.Parallel()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t, "--iptables=false", "--default-ipc-mode=private")
+	defer d.Stop(t)
+
+	c, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithHost(d.Sock()),
+		client.WithVersion("1.21"),
+	)
+	assert.NilError(t, err)
+
+	ctx := context.Background()
+	cID := container.Create(t, ctx, c, container.WithAutoRemove)
+
+	inspect, err := c.ContainerInspect(ctx, cID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "shareable"))
+
+	// same check with the normal client (e.g. current API version)
+	c = d.NewClientT(t)
+	cID = container.Create(t, ctx, c, container.WithAutoRemove)
+	inspect, err = c.ContainerInspect(ctx, cID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
 }
