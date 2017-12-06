@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"os"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -444,6 +445,12 @@ func TestNetworkDBCRUDMediumCluster(t *testing.T) {
 
 	for i := 1; i < n; i++ {
 		dbs[i].verifyEntryExistence(t, "test_table", "network1", "test_key", "", false)
+	}
+
+	for i := 1; i < n; i++ {
+		_, err = dbs[i].GetEntry("test_table", "network1", "test_key")
+		assert.Error(t, err)
+		assert.True(t, strings.Contains(err.Error(), "deleted and pending garbage collection"))
 	}
 
 	closeNetworkDBInstances(dbs)

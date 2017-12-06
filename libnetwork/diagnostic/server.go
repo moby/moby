@@ -1,4 +1,4 @@
-package diagnose
+package diagnostic
 
 import (
 	"context"
@@ -44,7 +44,7 @@ type Server struct {
 	sync.Mutex
 }
 
-// New creates a new diagnose server
+// New creates a new diagnostic server
 func New() *Server {
 	return &Server{
 		registeredHanders: make(map[string]bool),
@@ -78,8 +78,8 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	s.mux.ServeHTTP(w, r)
 }
 
-// EnableDebug opens a TCP socket to debug the passed network DB
-func (s *Server) EnableDebug(ip string, port int) {
+// EnableDiagnostic opens a TCP socket to debug the passed network DB
+func (s *Server) EnableDiagnostic(ip string, port int) {
 	s.Lock()
 	defer s.Unlock()
 
@@ -90,7 +90,7 @@ func (s *Server) EnableDebug(ip string, port int) {
 		return
 	}
 
-	logrus.Infof("Starting the diagnose server listening on %d for commands", port)
+	logrus.Infof("Starting the diagnostic server listening on %d for commands", port)
 	srv := &http.Server{Addr: fmt.Sprintf("%s:%d", ip, port), Handler: s}
 	s.srv = srv
 	s.enable = 1
@@ -103,19 +103,19 @@ func (s *Server) EnableDebug(ip string, port int) {
 	}(s)
 }
 
-// DisableDebug stop the dubug and closes the tcp socket
-func (s *Server) DisableDebug() {
+// DisableDiagnostic stop the dubug and closes the tcp socket
+func (s *Server) DisableDiagnostic() {
 	s.Lock()
 	defer s.Unlock()
 
 	s.srv.Shutdown(context.Background())
 	s.srv = nil
 	s.enable = 0
-	logrus.Info("Disabling the diagnose server")
+	logrus.Info("Disabling the diagnostic server")
 }
 
-// IsDebugEnable returns true when the debug is enabled
-func (s *Server) IsDebugEnable() bool {
+// IsDiagnosticEnabled returns true when the debug is enabled
+func (s *Server) IsDiagnosticEnabled() bool {
 	s.Lock()
 	defer s.Unlock()
 	return s.enable == 1
@@ -127,7 +127,7 @@ func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
 	log.Info("command not implemented done")
 
 	HTTPReply(w, rsp, json)
@@ -138,7 +138,7 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
 	log.Info("help done")
 
 	n, ok := ctx.(*Server)
@@ -156,7 +156,7 @@ func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
 	log.Info("ready done")
 	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json)
 }
@@ -166,7 +166,7 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnose", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
 	log.Info("stack trace")
 
 	path, err := stackdump.DumpStacks("/tmp/")

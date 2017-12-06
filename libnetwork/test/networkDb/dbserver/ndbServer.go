@@ -9,17 +9,17 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/docker/libnetwork/diagnose"
+	"github.com/docker/libnetwork/diagnostic"
 	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/test/networkDb/dummyclient"
 	"github.com/sirupsen/logrus"
 )
 
 var nDB *networkdb.NetworkDB
-var server *diagnose.Server
+var server *diagnostic.Server
 var ipAddr string
 
-var testerPaths2Func = map[string]diagnose.HTTPHandlerFunc{
+var testerPaths2Func = map[string]diagnostic.HTTPHandlerFunc{
 	"/myip": ipaddress,
 }
 
@@ -49,7 +49,7 @@ func Server(args []string) {
 	ipAddr = ip
 	logrus.Infof("%s uses IP %s\n", localNodeName, ipAddr)
 
-	server = diagnose.New()
+	server = diagnostic.New()
 	server.Init()
 	conf := networkdb.DefaultConfig()
 	conf.Hostname = localNodeName
@@ -65,7 +65,7 @@ func Server(args []string) {
 	server.RegisterHandler(nDB, networkdb.NetDbPaths2Func)
 	server.RegisterHandler(nil, testerPaths2Func)
 	server.RegisterHandler(nDB, dummyclient.DummyClientPaths2Func)
-	server.EnableDebug("", port)
+	server.EnableDiagnostic("", port)
 	// block here
 	select {}
 }
