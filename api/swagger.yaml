@@ -254,6 +254,7 @@ definitions:
         properties:
           Propagation:
             description: "A propagation mode with the value `[r]private`, `[r]shared`, or `[r]slave`."
+            type: "string"
             enum:
               - "private"
               - "rprivate"
