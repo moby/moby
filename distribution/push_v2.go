@@ -67,7 +67,7 @@ func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
-		if continueOnError(err) {
+		if continueOnError(err, p.endpoint.Mirror) {
 			return fallbackError{
 				err:         err,
 				confirmedV2: p.pushState.confirmedV2,
