@@ -23,6 +23,18 @@ keywords: "API, Docker, rcli, REST, documentation"
   configuration is only used for Windows containers.
 * `GET /containers/(name)/logs` now supports an additional query parameter: `until`,
   which returns log lines that occurred before the specified timestamp.
+* `POST /containers/{id}/exec` now accepts a `WorkingDir` property to set the
+  work-dir for the exec process, independent of the container's work-dir.
+* `Get /version` now returns a `Platform.Name` field, which can be used by products
+  using Moby as a foundation to return information about the platform.
+* `Get /version` now returns a `Components` field, which can be used to return
+  information about the components used. Information about the engine itself is
+  now included as a "Component" version, and contains all information from the
+  top-level `Version`, `GitCommit`, `APIVersion`, `MinAPIVersion`, `GoVersion`,
+  `Os`, `Arch`, `BuildTime`, `KernelVersion`, and `Experimental` fields. Going
+  forward, the information from the `Components` section is preferred over their
+  top-level counterparts.
+
 
 ## v1.34 API changes
 
