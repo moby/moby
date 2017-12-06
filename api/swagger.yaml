@@ -823,9 +823,7 @@ definitions:
           type: "string"
       Cmd:
         description: "Command to run specified as a string or an array of strings."
-        type:
-          - "array"
-          - "string"
+        type: "array"
         items:
           type: "string"
       Healthcheck:
@@ -853,9 +851,7 @@ definitions:
           The entry point for the container as a string or an array of strings.
 
           If the array consists of exactly one empty string (`[""]`) then the entry point is reset to system default (i.e., the entry point used by docker when there is no `ENTRYPOINT` instruction in the `Dockerfile`).
-        type:
-          - "array"
-          - "string"
+        type: "array"
         items:
           type: "string"
       NetworkDisabled:
