@@ -20,8 +20,8 @@ var DevZero io.Reader = devZero{}
 type devZero struct{}
 
 func (d devZero) Read(p []byte) (n int, err error) {
-	for i := 0; i < len(p); i++ {
-		p[i] = '\x00'
+	for i := range p {
+		p[i] = 0
 	}
 	return len(p), nil
 }
