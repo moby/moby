@@ -42,7 +42,7 @@ func newDriver(t testing.TB, name string, options []string) *Driver {
 	d, err := graphdriver.GetDriver(name, nil, graphdriver.Options{DriverOptions: options, Root: root})
 	if err != nil {
 		t.Logf("graphdriver: %v\n", err)
-		if err == graphdriver.ErrNotSupported || err == graphdriver.ErrPrerequisites || err == graphdriver.ErrIncompatibleFS {
+		if graphdriver.IsDriverNotSupported(err) {
 			t.Skipf("Driver %s not supported", name)
 		}
 		t.Fatal(err)

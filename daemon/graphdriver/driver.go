@@ -1,7 +1,6 @@
 package graphdriver
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -28,13 +27,6 @@ const (
 var (
 	// All registered drivers
 	drivers map[string]InitFunc
-
-	// ErrNotSupported returned when driver is not supported.
-	ErrNotSupported = errors.New("driver not supported")
-	// ErrPrerequisites returned when driver does not meet prerequisites.
-	ErrPrerequisites = errors.New("prerequisites for driver not satisfied (wrong filesystem?)")
-	// ErrIncompatibleFS returned when file system is not supported.
-	ErrIncompatibleFS = fmt.Errorf("backing file system is unsupported for this graph driver")
 )
 
 //CreateOpts contains optional arguments for Create() and CreateReadWrite()
@@ -248,7 +240,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	for _, name := range list {
 		driver, err := getBuiltinDriver(name, config.Root, config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
-			if isDriverNotSupported(err) {
+			if IsDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
@@ -260,7 +252,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 	for name, initFunc := range drivers {
 		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
-			if isDriverNotSupported(err) {
+			if IsDriverNotSupported(err) {
 				continue
 			}
 			return nil, err
@@ -268,12 +260,6 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
-}
-
-// isDriverNotSupported returns true if the error initializing
-// the graph driver is a non-supported error.
-func isDriverNotSupported(err error) bool {
-	return err == ErrNotSupported || err == ErrPrerequisites || err == ErrIncompatibleFS
 }
 
 // scanPriorDrivers returns an un-ordered scan of directories of prior storage drivers
@@ -289,6 +275,18 @@ func scanPriorDrivers(root string) map[string]bool {
 		}
 	}
 	return driversMap
+}
+
+// IsInitialized checks if the driver's home-directory exists and is non-empty.
+func IsInitialized(driverHome string) bool {
+	_, err := os.Stat(driverHome)
+	if os.IsNotExist(err) {
+		return false
+	}
+	if err != nil {
+		logrus.Warnf("graphdriver.IsInitialized: stat failed: %v", err)
+	}
+	return !isEmptyDir(driverHome)
 }
 
 // isEmptyDir checks if a directory is empty. It is used to check if prior

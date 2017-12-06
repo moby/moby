@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"strconv"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -119,7 +120,16 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, graphdriver.ErrNotSupported
 	}
 
-	fsMagic, err := graphdriver.GetFSMagic(home)
+	// Perform feature detection on /var/lib/docker/overlay if it's an existing directory.
+	// This covers situations where /var/lib/docker/overlay is a mount, and on a different
+	// filesystem than /var/lib/docker.
+	// If the path does not exist, fall back to using /var/lib/docker for feature detection.
+	testdir := home
+	if _, err := os.Stat(testdir); os.IsNotExist(err) {
+		testdir = filepath.Dir(testdir)
+	}
+
+	fsMagic, err := graphdriver.GetFSMagic(testdir)
 	if err != nil {
 		return nil, err
 	}
@@ -128,9 +138,21 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	}
 
 	switch fsMagic {
-	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs:
+	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
 		logrus.Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
+	}
+
+	supportsDType, err := fsutils.SupportsDType(testdir)
+	if err != nil {
+		return nil, err
+	}
+	if !supportsDType {
+		if !graphdriver.IsInitialized(home) {
+			return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
+		}
+		// allow running without d_type only for existing setups (#27443)
+		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -144,15 +166,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	if err := mount.MakePrivate(home); err != nil {
 		return nil, err
-	}
-
-	supportsDType, err := fsutils.SupportsDType(home)
-	if err != nil {
-		return nil, err
-	}
-	if !supportsDType {
-		// not a fatal error until v17.12 (#27443)
-		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
 	d := &Driver{
