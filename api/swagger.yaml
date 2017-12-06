@@ -6764,6 +6764,28 @@ paths:
           schema:
             type: "object"
             properties:
+              Platform:
+                type: "object"
+                required: [Name]
+                properties:
+                  Name:
+                    type: "string"
+              Components:
+                type: "array"
+                items:
+                  type: "object"
+                  x-go-name: ComponentVersion
+                  required: [Name, Version]
+                  properties:
+                    Name:
+                      type: "string"
+                    Version:
+                      type: "string"
+                      x-nullable: false
+                    Details:
+                      type: "object"
+                      x-nullable: true
+
               Version:
                 type: "string"
               ApiVersion:
