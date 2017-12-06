@@ -824,7 +824,7 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 		return 0, fmt.Errorf("lcowdriver: applydiff: svm failed to boot: %s", err)
 	}
 
-	// TODO @jhowardmsft - the retries are temporary to overcome platform reliablity issues.
+	// TODO @jhowardmsft - the retries are temporary to overcome platform reliability issues.
 	// Obviously this will be removed as platform bugs are fixed.
 	retries := 0
 	for {
