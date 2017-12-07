@@ -10,8 +10,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // MaxConfigSize is the maximum byte length of the `Config.Spec.Data` field.
@@ -32,7 +32,7 @@ func configFromConfigSpec(spec *api.ConfigSpec) *api.Config {
 // - Returns an error if getting fails.
 func (s *Server) GetConfig(ctx context.Context, request *api.GetConfigRequest) (*api.GetConfigResponse, error) {
 	if request.ConfigID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "config ID must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "config ID must be provided")
 	}
 
 	var config *api.Config
@@ -41,7 +41,7 @@ func (s *Server) GetConfig(ctx context.Context, request *api.GetConfigRequest) (
 	})
 
 	if config == nil {
-		return nil, grpc.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
 	}
 
 	return &api.GetConfigResponse{Config: config}, nil
@@ -53,21 +53,21 @@ func (s *Server) GetConfig(ctx context.Context, request *api.GetConfigRequest) (
 // - Returns an error if the update fails.
 func (s *Server) UpdateConfig(ctx context.Context, request *api.UpdateConfigRequest) (*api.UpdateConfigResponse, error) {
 	if request.ConfigID == "" || request.ConfigVersion == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var config *api.Config
 	err := s.store.Update(func(tx store.Tx) error {
 		config = store.GetConfig(tx, request.ConfigID)
 		if config == nil {
-			return grpc.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+			return status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
 		}
 
 		// Check if the Name is different than the current name, or the config is non-nil and different
 		// than the current config
 		if config.Spec.Annotations.Name != request.Spec.Annotations.Name ||
 			(request.Spec.Data != nil && !bytes.Equal(request.Spec.Data, config.Spec.Data)) {
-			return grpc.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
+			return status.Errorf(codes.InvalidArgument, "only updates to Labels are allowed")
 		}
 
 		// We only allow updating Labels
@@ -164,7 +164,7 @@ func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequ
 
 	switch err {
 	case store.ErrNameConflict:
-		return nil, grpc.Errorf(codes.AlreadyExists, "config %s already exists", request.Spec.Annotations.Name)
+		return nil, status.Errorf(codes.AlreadyExists, "config %s already exists", request.Spec.Annotations.Name)
 	case nil:
 		log.G(ctx).WithFields(logrus.Fields{
 			"config.Name": request.Spec.Annotations.Name,
@@ -184,20 +184,20 @@ func (s *Server) CreateConfig(ctx context.Context, request *api.CreateConfigRequ
 // - Returns an error if the deletion fails.
 func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequest) (*api.RemoveConfigResponse, error) {
 	if request.ConfigID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, "config ID must be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "config ID must be provided")
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
 		// Check if the config exists
 		config := store.GetConfig(tx, request.ConfigID)
 		if config == nil {
-			return grpc.Errorf(codes.NotFound, "could not find config %s", request.ConfigID)
+			return status.Errorf(codes.NotFound, "could not find config %s", request.ConfigID)
 		}
 
 		// Check if any services currently reference this config, return error if so
 		services, err := store.FindServices(tx, store.ByReferencedConfigID(request.ConfigID))
 		if err != nil {
-			return grpc.Errorf(codes.Internal, "could not find services using config %s: %v", request.ConfigID, err)
+			return status.Errorf(codes.Internal, "could not find services using config %s: %v", request.ConfigID, err)
 		}
 
 		if len(services) != 0 {
@@ -213,14 +213,14 @@ func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequ
 				serviceStr = "service"
 			}
 
-			return grpc.Errorf(codes.InvalidArgument, "config '%s' is in use by the following %s: %v", configName, serviceStr, serviceNameStr)
+			return status.Errorf(codes.InvalidArgument, "config '%s' is in use by the following %s: %v", configName, serviceStr, serviceNameStr)
 		}
 
 		return store.DeleteConfig(tx, request.ConfigID)
 	})
 	switch err {
 	case store.ErrNotExist:
-		return nil, grpc.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
+		return nil, status.Errorf(codes.NotFound, "config %s not found", request.ConfigID)
 	case nil:
 		log.G(ctx).WithFields(logrus.Fields{
 			"config.ID": request.ConfigID,
@@ -235,14 +235,14 @@ func (s *Server) RemoveConfig(ctx context.Context, request *api.RemoveConfigRequ
 
 func validateConfigSpec(spec *api.ConfigSpec) error {
 	if spec == nil {
-		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateConfigOrSecretAnnotations(spec.Annotations); err != nil {
 		return err
 	}
 
 	if len(spec.Data) >= MaxConfigSize || len(spec.Data) < 1 {
-		return grpc.Errorf(codes.InvalidArgument, "config data must be larger than 0 and less than %d bytes", MaxConfigSize)
+		return status.Errorf(codes.InvalidArgument, "config data must be larger than 0 and less than %d bytes", MaxConfigSize)
 	}
 	return nil
 }

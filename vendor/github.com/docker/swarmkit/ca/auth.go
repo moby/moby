@@ -10,10 +10,10 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"
+	"google.golang.org/grpc/status"
 )
 
 type localRequestKeyType struct{}
@@ -52,13 +52,13 @@ func LogTLSState(ctx context.Context, tlsState *tls.ConnectionState) {
 // getCertificateSubject extracts the subject from a verified client certificate
 func getCertificateSubject(tlsState *tls.ConnectionState) (pkix.Name, error) {
 	if tlsState == nil {
-		return pkix.Name{}, grpc.Errorf(codes.PermissionDenied, "request is not using TLS")
+		return pkix.Name{}, status.Errorf(codes.PermissionDenied, "request is not using TLS")
 	}
 	if len(tlsState.PeerCertificates) == 0 {
-		return pkix.Name{}, grpc.Errorf(codes.PermissionDenied, "no client certificates in request")
+		return pkix.Name{}, status.Errorf(codes.PermissionDenied, "no client certificates in request")
 	}
 	if len(tlsState.VerifiedChains) == 0 {
-		return pkix.Name{}, grpc.Errorf(codes.PermissionDenied, "no verified chains for remote certificate")
+		return pkix.Name{}, status.Errorf(codes.PermissionDenied, "no verified chains for remote certificate")
 	}
 
 	return tlsState.VerifiedChains[0][0].Subject, nil
@@ -67,11 +67,11 @@ func getCertificateSubject(tlsState *tls.ConnectionState) (pkix.Name, error) {
 func tlsConnStateFromContext(ctx context.Context) (*tls.ConnectionState, error) {
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		return nil, grpc.Errorf(codes.PermissionDenied, "Permission denied: no peer info")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied: no peer info")
 	}
 	tlsInfo, ok := peer.AuthInfo.(credentials.TLSInfo)
 	if !ok {
-		return nil, grpc.Errorf(codes.PermissionDenied, "Permission denied: peer didn't not present valid peer certificate")
+		return nil, status.Errorf(codes.PermissionDenied, "Permission denied: peer didn't not present valid peer certificate")
 	}
 	return &tlsInfo.State, nil
 }
@@ -98,21 +98,21 @@ func AuthorizeOrgAndRole(ctx context.Context, org string, blacklistedCerts map[s
 		return authorizeOrg(certSubj, org, blacklistedCerts)
 	}
 
-	return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: remote certificate not part of OUs: %v", ou)
+	return "", status.Errorf(codes.PermissionDenied, "Permission denied: remote certificate not part of OUs: %v", ou)
 }
 
 // authorizeOrg takes in a certificate subject and an organization, and returns
 // the Node ID of the node.
 func authorizeOrg(certSubj pkix.Name, org string, blacklistedCerts map[string]*api.BlacklistedCertificate) (string, error) {
 	if _, ok := blacklistedCerts[certSubj.CommonName]; ok {
-		return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: node %s was removed from swarm", certSubj.CommonName)
+		return "", status.Errorf(codes.PermissionDenied, "Permission denied: node %s was removed from swarm", certSubj.CommonName)
 	}
 
 	if len(certSubj.Organization) > 0 && certSubj.Organization[0] == org {
 		return certSubj.CommonName, nil
 	}
 
-	return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: remote certificate not part of organization: %s", org)
+	return "", status.Errorf(codes.PermissionDenied, "Permission denied: remote certificate not part of organization: %s", org)
 }
 
 // AuthorizeForwardedRoleAndOrg checks for proper roles and organization of caller. The RPC may have
@@ -123,7 +123,7 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 	if isForwardedRequest(ctx) {
 		_, err := AuthorizeOrgAndRole(ctx, org, blacklistedCerts, forwarderRoles...)
 		if err != nil {
-			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: unauthorized forwarder role: %v", err)
+			return "", status.Errorf(codes.PermissionDenied, "Permission denied: unauthorized forwarder role: %v", err)
 		}
 
 		// This was a forwarded request. Authorize the forwarder, and
@@ -132,15 +132,15 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 		_, forwardedID, forwardedOrg, forwardedOUs := forwardedTLSInfoFromContext(ctx)
 
 		if len(forwardedOUs) == 0 || forwardedID == "" || forwardedOrg == "" {
-			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
+			return "", status.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
 		}
 
 		if !intersectArrays(forwardedOUs, authorizedRoles) {
-			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: unauthorized forwarded role, expecting: %v", authorizedRoles)
+			return "", status.Errorf(codes.PermissionDenied, "Permission denied: unauthorized forwarded role, expecting: %v", authorizedRoles)
 		}
 
 		if forwardedOrg != org {
-			return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: organization mismatch, expecting: %s", org)
+			return "", status.Errorf(codes.PermissionDenied, "Permission denied: organization mismatch, expecting: %s", org)
 		}
 
 		return forwardedID, nil
@@ -152,7 +152,7 @@ func AuthorizeForwardedRoleAndOrg(ctx context.Context, authorizedRoles, forwarde
 		return nodeID, nil
 	}
 
-	return "", grpc.Errorf(codes.PermissionDenied, "Permission denied: unauthorized peer role: %v", err)
+	return "", status.Errorf(codes.PermissionDenied, "Permission denied: unauthorized peer role: %v", err)
 }
 
 // intersectArrays returns true when there is at least one element in common
@@ -219,7 +219,7 @@ func RemoteNode(ctx context.Context) (RemoteNodeInfo, error) {
 
 	peer, ok := peer.FromContext(ctx)
 	if !ok {
-		return RemoteNodeInfo{}, grpc.Errorf(codes.PermissionDenied, "Permission denied: no peer info")
+		return RemoteNodeInfo{}, status.Errorf(codes.PermissionDenied, "Permission denied: no peer info")
 	}
 
 	directInfo := RemoteNodeInfo{
@@ -232,7 +232,7 @@ func RemoteNode(ctx context.Context) (RemoteNodeInfo, error) {
 	if isForwardedRequest(ctx) {
 		remoteAddr, cn, org, ous := forwardedTLSInfoFromContext(ctx)
 		if len(ous) == 0 || cn == "" || org == "" {
-			return RemoteNodeInfo{}, grpc.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
+			return RemoteNodeInfo{}, status.Errorf(codes.PermissionDenied, "Permission denied: missing information in forwarded request")
 		}
 		return RemoteNodeInfo{
 			Roles:        ous,

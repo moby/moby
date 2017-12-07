@@ -6,9 +6,6 @@ import (
 	"io"
 	"sync"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -18,6 +15,8 @@ import (
 	"github.com/docker/swarmkit/watch"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -93,11 +92,11 @@ func (lb *LogBroker) Stop() error {
 
 func validateSelector(selector *api.LogSelector) error {
 	if selector == nil {
-		return grpc.Errorf(codes.InvalidArgument, "log selector must be provided")
+		return status.Errorf(codes.InvalidArgument, "log selector must be provided")
 	}
 
 	if len(selector.ServiceIDs) == 0 && len(selector.TaskIDs) == 0 && len(selector.NodeIDs) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "log selector must not be empty")
+		return status.Errorf(codes.InvalidArgument, "log selector must not be empty")
 	}
 
 	return nil
@@ -401,17 +400,17 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 		}
 
 		if logMsg.SubscriptionID == "" {
-			return grpc.Errorf(codes.InvalidArgument, "missing subscription ID")
+			return status.Errorf(codes.InvalidArgument, "missing subscription ID")
 		}
 
 		if currentSubscription == nil {
 			currentSubscription = lb.getSubscription(logMsg.SubscriptionID)
 			if currentSubscription == nil {
-				return grpc.Errorf(codes.NotFound, "unknown subscription ID")
+				return status.Errorf(codes.NotFound, "unknown subscription ID")
 			}
 		} else {
 			if logMsg.SubscriptionID != currentSubscription.message.ID {
-				return grpc.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
+				return status.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
 			}
 		}
 
@@ -427,7 +426,7 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 		// Make sure logs are emitted using the right Node ID to avoid impersonation.
 		for _, msg := range logMsg.Messages {
 			if msg.Context.NodeID != remote.NodeID {
-				return grpc.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
+				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
 			}
 		}
 

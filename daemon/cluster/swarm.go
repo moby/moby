@@ -228,6 +228,13 @@ func (c *Cluster) Update(version uint64, spec types.Spec, flags types.UpdateFlag
 			return err
 		}
 
+		// Validate spec name.
+		if spec.Annotations.Name == "" {
+			spec.Annotations.Name = "default"
+		} else if spec.Annotations.Name != "default" {
+			return validationError{errors.New(`swarm spec must be named "default"`)}
+		}
+
 		// In update, client should provide the complete spec of the swarm, including
 		// Name and Labels. If a field is specified with 0 or nil, then the default value
 		// will be used to swarmkit.

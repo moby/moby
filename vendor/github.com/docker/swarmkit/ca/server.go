@@ -16,8 +16,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -149,7 +149,7 @@ func (s *Server) GetUnlockKey(ctx context.Context, request *api.GetUnlockKeyRequ
 // NodeCertificateStatus returns the current issuance status of an issuance request identified by the nodeID
 func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCertificateStatusRequest) (*api.NodeCertificateStatusResponse, error) {
 	if request.NodeID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
+		return nil, status.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
 	serverCtx, err := s.isRunningLocked()
@@ -180,7 +180,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 
 	// This node ID doesn't exist
 	if node == nil {
-		return nil, grpc.Errorf(codes.NotFound, codes.NotFound.String())
+		return nil, status.Errorf(codes.NotFound, codes.NotFound.String())
 	}
 
 	log.G(ctx).WithFields(logrus.Fields{
@@ -236,7 +236,7 @@ func (s *Server) NodeCertificateStatus(ctx context.Context, request *api.NodeCer
 func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNodeCertificateRequest) (*api.IssueNodeCertificateResponse, error) {
 	// First, let's see if the remote node is presenting a non-empty CSR
 	if len(request.CSR) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
+		return nil, status.Errorf(codes.InvalidArgument, codes.InvalidArgument.String())
 	}
 
 	if err := s.isReadyLocked(); err != nil {
@@ -295,7 +295,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 	s.mu.Unlock()
 
 	if role < 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "A valid join token is necessary to join this cluster")
+		return nil, status.Errorf(codes.InvalidArgument, "A valid join token is necessary to join this cluster")
 	}
 
 	// Max number of collisions of ID or CN to tolerate before giving up
@@ -369,7 +369,7 @@ func (s *Server) issueRenewCertificate(ctx context.Context, nodeID string, csr [
 				"method":  "issueRenewCertificate",
 			}).Warnf("node does not exist")
 			// If this node doesn't exist, we shouldn't be renewing a certificate for it
-			return grpc.Errorf(codes.NotFound, "node %s not found when attempting to renew certificate", nodeID)
+			return status.Errorf(codes.NotFound, "node %s not found when attempting to renew certificate", nodeID)
 		}
 
 		// Create a new Certificate entry for this node with the new CSR and a RENEW state
@@ -594,7 +594,7 @@ func (s *Server) isRunningLocked() (context.Context, error) {
 	s.mu.Lock()
 	if !s.isRunning() {
 		s.mu.Unlock()
-		return nil, grpc.Errorf(codes.Aborted, "CA signer is stopped")
+		return nil, status.Errorf(codes.Aborted, "CA signer is stopped")
 	}
 	ctx := s.ctx
 	s.mu.Unlock()
@@ -605,10 +605,10 @@ func (s *Server) isReadyLocked() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.isRunning() {
-		return grpc.Errorf(codes.Aborted, "CA signer is stopped")
+		return status.Errorf(codes.Aborted, "CA signer is stopped")
 	}
 	if s.joinTokens == nil {
-		return grpc.Errorf(codes.Aborted, "CA signer is still starting")
+		return status.Errorf(codes.Aborted, "CA signer is still starting")
 	}
 	return nil
 }

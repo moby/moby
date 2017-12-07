@@ -131,6 +131,8 @@
 		LeaveResponse
 		ProcessRaftMessageRequest
 		ProcessRaftMessageResponse
+		StreamRaftMessageRequest
+		StreamRaftMessageResponse
 		ResolveAddressRequest
 		ResolveAddressResponse
 		InternalRaftRequest
@@ -235,6 +237,7 @@ import (
 
 import raftselector "github.com/docker/swarmkit/manager/raftselector"
 import codes "google.golang.org/grpc/codes"
+import status "google.golang.org/grpc/status"
 import metadata "google.golang.org/grpc/metadata"
 import transport "google.golang.org/grpc/transport"
 import rafttime "time"
@@ -984,12 +987,12 @@ func NewRaftProxyCAServer(local CAServer, connSelector raftselector.ConnProvider
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
-			return ctx, grpc.Errorf(codes.InvalidArgument, "remote addr is not found in context")
+			return ctx, status.Errorf(codes.InvalidArgument, "remote addr is not found in context")
 		}
 		addr := s.ServerTransport().RemoteAddr().String()
 		md, ok := metadata.FromContext(ctx)
 		if ok && len(md["redirect"]) != 0 {
-			return ctx, grpc.Errorf(codes.ResourceExhausted, "more than one redirect to leader from: %s", md["redirect"])
+			return ctx, status.Errorf(codes.ResourceExhausted, "more than one redirect to leader from: %s", md["redirect"])
 		}
 		if !ok {
 			md = metadata.New(map[string]string{})
@@ -1126,12 +1129,12 @@ func NewRaftProxyNodeCAServer(local NodeCAServer, connSelector raftselector.Conn
 	redirectChecker := func(ctx context.Context) (context.Context, error) {
 		s, ok := transport.StreamFromContext(ctx)
 		if !ok {
-			return ctx, grpc.Errorf(codes.InvalidArgument, "remote addr is not found in context")
+			return ctx, status.Errorf(codes.InvalidArgument, "remote addr is not found in context")
 		}
 		addr := s.ServerTransport().RemoteAddr().String()
 		md, ok := metadata.FromContext(ctx)
 		if ok && len(md["redirect"]) != 0 {
-			return ctx, grpc.Errorf(codes.ResourceExhausted, "more than one redirect to leader from: %s", md["redirect"])
+			return ctx, status.Errorf(codes.ResourceExhausted, "more than one redirect to leader from: %s", md["redirect"])
 		}
 		if !ok {
 			md = metadata.New(map[string]string{})

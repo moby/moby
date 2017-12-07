@@ -10,13 +10,12 @@ import (
 	"net/url"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var minRootExpiration = 1 * helpers.OneYear
@@ -60,7 +59,7 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 			crossSignedCert, err = oldRootCA.CrossSignCACertificate(rootCert)
 		}
 	case !newRootHasSigner: // the original CA and the new CA both require external CAs
-		return nil, grpc.Errorf(codes.InvalidArgument, "rotating from one external CA to a different external CA is not supported")
+		return nil, status.Errorf(codes.InvalidArgument, "rotating from one external CA to a different external CA is not supported")
 	default:
 		// We need the same credentials but to connect to the original URLs (in case we are in the middle of a root rotation already)
 		var urls []string
@@ -70,7 +69,7 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 			}
 		}
 		if len(urls) == 0 {
-			return nil, grpc.Errorf(codes.InvalidArgument,
+			return nil, status.Errorf(codes.InvalidArgument,
 				"must provide an external CA for the current external root CA to generate a cross-signed certificate")
 		}
 		rootPool := x509.NewCertPool()
@@ -83,7 +82,7 @@ func newRootRotationObject(ctx context.Context, securityConfig *ca.SecurityConfi
 
 	if err != nil {
 		log.G(ctx).WithError(err).Error("unable to generate a cross-signed certificate for root rotation")
-		return nil, grpc.Errorf(codes.Internal, "unable to generate a cross-signed certificate for root rotation")
+		return nil, status.Errorf(codes.Internal, "unable to generate a cross-signed certificate for root rotation")
 	}
 
 	copied := apiRootCA.Copy()
@@ -146,7 +145,7 @@ func validateHasAtLeastOneExternalCA(ctx context.Context, externalCAs map[string
 			}
 		}
 	}
-	return nil, grpc.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the %s CA certificate", desc)
+	return nil, status.Errorf(codes.InvalidArgument, "there must be at least one valid, reachable external CA corresponding to the %s CA certificate", desc)
 }
 
 // validates that the list of external CAs have valid certs associated with them, and produce a mapping of subject/pubkey:external
@@ -193,7 +192,7 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 	newConfig.SigningCACert = ca.NormalizePEMs(newConfig.SigningCACert) // ensure this is normalized before we use it
 
 	if len(newConfig.SigningCAKey) > 0 && len(newConfig.SigningCACert) == 0 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "if a signing CA key is provided, the signing CA cert must also be provided")
+		return nil, status.Errorf(codes.InvalidArgument, "if a signing CA key is provided, the signing CA cert must also be provided")
 	}
 
 	normalizedRootCA := ca.NormalizePEMs(cluster.RootCA.CACert)
@@ -216,7 +215,7 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 		if cluster.RootCA.LastForcedRotation != newConfig.ForceRotate {
 			newRootCA, err := ca.CreateRootCA(ca.DefaultRootCN)
 			if err != nil {
-				return nil, grpc.Errorf(codes.Internal, err.Error())
+				return nil, status.Errorf(codes.Internal, err.Error())
 			}
 			return newRootRotationObject(ctx, securityConfig, &cluster.RootCA, newRootCA, oldCertExtCAs, newConfig.ForceRotate)
 		}
@@ -240,21 +239,21 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 	}
 	newRootCA, err := ca.NewRootCA(newConfig.SigningCACert, signingCert, newConfig.SigningCAKey, ca.DefaultNodeCertExpiration, nil)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 
 	if len(newRootCA.Pool.Subjects()) != 1 {
-		return nil, grpc.Errorf(codes.InvalidArgument, "the desired CA certificate cannot contain multiple certificates")
+		return nil, status.Errorf(codes.InvalidArgument, "the desired CA certificate cannot contain multiple certificates")
 	}
 
 	parsedCert, err := helpers.ParseCertificatePEM(newConfig.SigningCACert)
 	if err != nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, "could not parse the desired CA certificate")
+		return nil, status.Errorf(codes.InvalidArgument, "could not parse the desired CA certificate")
 	}
 
 	// The new certificate's expiry must be at least one year away
 	if parsedCert.NotAfter.Before(time.Now().Add(minRootExpiration)) {
-		return nil, grpc.Errorf(codes.InvalidArgument, "CA certificate expires too soon")
+		return nil, status.Errorf(codes.InvalidArgument, "CA certificate expires too soon")
 	}
 
 	if !hasSigningKey(newConfig) {

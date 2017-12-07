@@ -849,7 +849,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
 	// We need to get the container id.
-	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
+	out, err = d.Cmd("ps", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
@@ -872,7 +872,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
 	// We need to get the container id.
-	out, err = d.Cmd("ps", "-a", "-q", "--no-trunc")
+	out, err = d.Cmd("ps", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	id = strings.TrimSpace(out)
 

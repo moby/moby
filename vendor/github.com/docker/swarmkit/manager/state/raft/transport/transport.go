@@ -36,7 +36,6 @@ type Raft interface {
 type Config struct {
 	HeartbeatInterval time.Duration
 	SendTimeout       time.Duration
-	LargeSendTimeout  time.Duration
 	Credentials       credentials.TransportCredentials
 	RaftID            string
 

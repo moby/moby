@@ -16,6 +16,15 @@ service Raft {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
 
+	// StreamRaftMessage accepts a stream of raft messages of type StreamRaftMessageRequest
+	// to be processed on a raft member, returning a StreamRaftMessageResponse 
+	// when processing of the streamed messages is complete. A single stream corresponds 
+	// to a single raft message, which may be disassembled and streamed as individual messages.
+	// It is called from the Raft leader, which uses it to stream messages to a raft member.
+	rpc StreamRaftMessage(stream StreamRaftMessageRequest) returns (StreamRaftMessageResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	};
+
 	// ResolveAddress returns the address where the node with the given ID can be reached.
 	rpc ResolveAddress(ResolveAddressRequest) returns (ResolveAddressResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
@@ -81,6 +90,15 @@ message ProcessRaftMessageRequest {
 }
 
 message ProcessRaftMessageResponse {}
+
+// Raft message streaming request.
+message StreamRaftMessageRequest {
+	option (docker.protobuf.plugin.deepcopy) = false;
+	raftpb.Message message = 1;
+}
+
+// Raft message streaming response.
+message StreamRaftMessageResponse {}
 
 message ResolveAddressRequest {
 	// raft_id is the ID to resolve to an address.

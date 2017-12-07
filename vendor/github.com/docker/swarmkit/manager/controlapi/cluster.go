@@ -11,8 +11,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -23,17 +23,17 @@ const (
 
 func validateClusterSpec(spec *api.ClusterSpec) error {
 	if spec == nil {
-		return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	// Validate that expiry time being provided is valid, and over our minimum
 	if spec.CAConfig.NodeCertExpiry != nil {
 		expiry, err := gogotypes.DurationFromProto(spec.CAConfig.NodeCertExpiry)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+			return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
 		if expiry < ca.MinNodeCertExpiration {
-			return grpc.Errorf(codes.InvalidArgument, "minimum certificate expiry time is: %s", ca.MinNodeCertExpiration)
+			return status.Errorf(codes.InvalidArgument, "minimum certificate expiry time is: %s", ca.MinNodeCertExpiration)
 		}
 	}
 
@@ -42,7 +42,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	if len(spec.AcceptancePolicy.Policies) > 0 {
 		for _, policy := range spec.AcceptancePolicy.Policies {
 			if policy.Secret != nil && strings.ToLower(policy.Secret.Alg) != "bcrypt" {
-				return grpc.Errorf(codes.InvalidArgument, "hashing algorithm is not supported: %s", policy.Secret.Alg)
+				return status.Errorf(codes.InvalidArgument, "hashing algorithm is not supported: %s", policy.Secret.Alg)
 			}
 		}
 	}
@@ -51,11 +51,15 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 	if spec.Dispatcher.HeartbeatPeriod != nil {
 		heartbeatPeriod, err := gogotypes.DurationFromProto(spec.Dispatcher.HeartbeatPeriod)
 		if err != nil {
-			return grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+			return status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 		}
 		if heartbeatPeriod < 0 {
-			return grpc.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
+			return status.Errorf(codes.InvalidArgument, "heartbeat time period cannot be a negative duration")
 		}
+	}
+
+	if spec.Annotations.Name != store.DefaultClusterName {
+		return status.Errorf(codes.InvalidArgument, "modification of cluster name is not allowed")
 	}
 
 	return nil
@@ -66,7 +70,7 @@ func validateClusterSpec(spec *api.ClusterSpec) error {
 // - Returns `NotFound` if the Cluster is not found.
 func (s *Server) GetCluster(ctx context.Context, request *api.GetClusterRequest) (*api.GetClusterResponse, error) {
 	if request.ClusterID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	var cluster *api.Cluster
@@ -74,7 +78,7 @@ func (s *Server) GetCluster(ctx context.Context, request *api.GetClusterRequest)
 		cluster = store.GetCluster(tx, request.ClusterID)
 	})
 	if cluster == nil {
-		return nil, grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+		return nil, status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 	}
 
 	redactedClusters := redactClusters([]*api.Cluster{cluster})
@@ -92,7 +96,7 @@ func (s *Server) GetCluster(ctx context.Context, request *api.GetClusterRequest)
 // - Returns an error if the update fails.
 func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRequest) (*api.UpdateClusterResponse, error) {
 	if request.ClusterID == "" || request.ClusterVersion == nil {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateClusterSpec(request.Spec); err != nil {
 		return nil, err
@@ -102,7 +106,7 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 	err := s.store.Update(func(tx store.Tx) error {
 		cluster = store.GetCluster(tx, request.ClusterID)
 		if cluster == nil {
-			return grpc.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
+			return status.Errorf(codes.NotFound, "cluster %s not found", request.ClusterID)
 		}
 		// This ensures that we have the current rootCA with which to generate tokens (expiration doesn't matter
 		// for generating the tokens)
@@ -110,7 +114,7 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		if err != nil {
 			log.G(ctx).WithField(
 				"method", "(*controlapi.Server).UpdateCluster").WithError(err).Error("invalid cluster root CA")
-			return grpc.Errorf(codes.Internal, "error loading cluster rootCA for update")
+			return status.Errorf(codes.Internal, "error loading cluster rootCA for update")
 		}
 
 		cluster.Meta.Version = *request.ClusterVersion

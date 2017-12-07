@@ -38,6 +38,7 @@ import (
 	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
+	"github.com/docker/swarmkit/manager/state/raft/transport"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/manager/watchapi"
 	"github.com/docker/swarmkit/remotes"
@@ -54,9 +55,6 @@ import (
 const (
 	// defaultTaskHistoryRetentionLimit is the number of tasks to keep.
 	defaultTaskHistoryRetentionLimit = 5
-
-	// Default value for grpc max message size.
-	grpcMaxMessageSize = 128 << 20
 )
 
 // RemoteAddrs provides a listening address and an optional advertise address
@@ -234,7 +232,7 @@ func New(config *Config) (*Manager, error) {
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
-		grpc.MaxMsgSize(grpcMaxMessageSize),
+		grpc.MaxMsgSize(transport.GRPCMaxMsgSize),
 	}
 
 	m := &Manager{
@@ -404,7 +402,7 @@ func (m *Manager) Run(parent context.Context) error {
 		)
 
 		m.raftNode.MemoryStore().View(func(readTx store.ReadTx) {
-			clusters, err = store.FindClusters(readTx, store.ByName("default"))
+			clusters, err = store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 
 		})
 
@@ -954,13 +952,18 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		// store. Don't check the error because
 		// we expect this to fail unless this
 		// is a brand new cluster.
-		store.CreateCluster(tx, defaultClusterObject(
+		err := store.CreateCluster(tx, defaultClusterObject(
 			clusterID,
 			initialCAConfig,
 			raftCfg,
 			api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
 			unlockKeys,
 			rootCA))
+
+		if err != nil && err != store.ErrExist {
+			log.G(ctx).WithError(err).Errorf("error creating cluster object")
+		}
+
 		// Add Node entry for ourself, if one
 		// doesn't exist already.
 		freshCluster := nil == store.CreateNode(tx, managerNode(nodeID, m.config.Availability))
