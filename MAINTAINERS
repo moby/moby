@@ -368,7 +368,7 @@
 
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
-	Email = "mickael.laventure@docker.com"
+	Email = "mickael.laventure@gmail.com"
 	GitHub = "mlaventure"
 
 	[people.moxiegirl]
@@ -465,4 +465,3 @@
 	Name = "Yong Tang"
 	Email = "yong.tang.github@outlook.com"
 	GitHub = "yongtang"
-
