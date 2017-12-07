@@ -113,6 +113,12 @@ type splunkLoggerRaw struct {
 	prefix []byte
 }
 
+type splunkLoggerFlat struct {
+	*splunkLogger
+
+	nullEvent *splunkMessageEvent
+}
+
 type splunkMessage struct {
 	Event      interface{} `json:"event"`
 	Time       string      `json:"time"`
@@ -133,6 +139,7 @@ const (
 	splunkFormatRaw    = "raw"
 	splunkFormatJSON   = "json"
 	splunkFormatInline = "inline"
+	splunkFormatFlat   = "flat"
 )
 
 func init() {
@@ -207,7 +214,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 		gzipCompressionLevel = int(gzipCompressionLevel64)
 		if gzipCompressionLevel < gzip.DefaultCompression || gzipCompressionLevel > gzip.BestCompression {
-			err := fmt.Errorf("not supported level '%s' for %s (supported values between %d and %d)",
+			err := fmt.Errorf("Not supported level '%s' for %s (supported values between %d and %d).",
 				gzipCompressionLevelStr, splunkGzipCompressionLevelKey, gzip.DefaultCompression, gzip.BestCompression)
 			return nil, err
 		}
@@ -288,8 +295,9 @@ func New(info logger.Info) (logger.Logger, error) {
 		case splunkFormatInline:
 		case splunkFormatJSON:
 		case splunkFormatRaw:
+		case splunkFormatFlat:
 		default:
-			return nil, fmt.Errorf("Unknown format specified %s, supported formats are inline, json and raw", splunkFormat)
+			return nil, fmt.Errorf("Unknown format specified %s, supported formats are inline, json, raw, and flat", splunkFormat)
 		}
 		splunkFormat = splunkFormatParsed
 	} else {
@@ -313,6 +321,13 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 
 		loggerWrapper = &splunkLoggerJSON{&splunkLoggerInline{logger, nullEvent}}
+	case splunkFormatFlat:
+		nullEvent := &splunkMessageEvent{
+			Tag:   tag,
+			Attrs: attrs,
+		}
+
+		loggerWrapper = &splunkLoggerFlat{logger, nullEvent}
 	case splunkFormatRaw:
 		var prefix bytes.Buffer
 		if tag != "" {
@@ -362,6 +377,17 @@ func (l *splunkLoggerJSON) Log(msg *logger.Message) error {
 	event.Source = msg.Source
 
 	message.Event = &event
+	logger.PutMessage(msg)
+	return l.queueMessageAsync(message)
+}
+
+func (l *splunkLoggerFlat) Log(msg *logger.Message) error {
+	message := l.createSplunkMessage(msg)
+	event := *l.nullEvent
+
+	message.Event = string(msg.Line)
+	message.Source = string(event.Tag)
+
 	logger.PutMessage(msg)
 	return l.queueMessageAsync(message)
 }
