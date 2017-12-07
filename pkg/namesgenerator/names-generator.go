@@ -502,7 +502,10 @@ var (
 
 		// Rosalind Franklin - British biophysicist and X-ray crystallographer whose research was critical to the understanding of DNA - https://en.wikipedia.org/wiki/Rosalind_Franklin
 		"rosalind",
-
+		
+		//Ernest Rutherford, 1st Baron Rutherford of Nelson, OM, FRS (30 August 1871 – 19 October 1937) was a New Zealand-born British physicist who came to be known as the father of nuclear physics.  Encyclopædia Britannica considers him to be the greatest experimentalist since Michael Faraday 
+		"rutherford",
+		
 		// Meghnad Saha - Indian astrophysicist best known for his development of the Saha equation, used to describe chemical and physical conditions in stars - https://en.wikipedia.org/wiki/Meghnad_Saha
 		"saha",
 
@@ -523,6 +526,9 @@ var (
 
 		// Betty Snyder - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Betty_Holberton
 		"snyder",
+		
+		//Mary Fairfax Somerville was a Scottish science writer and polymath. She studied mathematics and astronomy, and was nominated to be jointly the first female member of the Royal Astronomical Society at the same time as Caroline Herschel. https://en.wikipedia.org/wiki/Mary_Somerville
+		"somerville",
 
 		// Frances Spence - one of the original programmers of the ENIAC. https://en.wikipedia.org/wiki/ENIAC - https://en.wikipedia.org/wiki/Frances_Spence
 		"spence",
