@@ -121,7 +121,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	c.Lock()
 	defer c.Unlock()
 
-	var rio *cio.DirectIO
+	var rio cio.IO
 	defer func() {
 		err = wrapError(err)
 	}()
@@ -139,12 +139,13 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	}()
 
 	t, err := ctr.Task(ctx, func(fifos *cio.FIFOSet) (cio.IO, error) {
-		rio, err = cio.NewDirectIO(ctx, fifos)
+		io, err := cio.NewDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err
 		}
 
-		return attachStdio(rio)
+		rio, err = attachStdio(io)
+		return rio, err
 	})
 	if err != nil && !errdefs.IsNotFound(errors.Cause(err)) {
 		return false, -1, err
@@ -322,7 +323,6 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 				rio.Cancel()
 				rio.Close()
 			}
-			rmFIFOSet(fifos)
 		}
 	}()
 
@@ -332,10 +332,6 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	})
 	if err != nil {
 		close(stdinCloseSync)
-		if rio != nil {
-			rio.Cancel()
-			rio.Close()
-		}
 		return -1, err
 	}
 
@@ -686,7 +682,7 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 					"container": ei.ContainerID,
 				}).Error("failed to find container")
 			} else {
-				rmFIFOSet(newFIFOSet(ctr.bundleDir, ei.ProcessID, true, false))
+				newFIFOSet(ctr.bundleDir, ei.ProcessID, true, false).Close()
 			}
 		}
 	})

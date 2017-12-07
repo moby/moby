@@ -2,6 +2,7 @@ package libcontainerd
 
 import (
 	"fmt"
+	"path/filepath"
 
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/windows/hcsshimtypes"
@@ -35,19 +36,20 @@ func pipeName(containerID, processID, name string) string {
 	return fmt.Sprintf(`\\.\pipe\containerd-%s-%s-%s`, containerID, processID, name)
 }
 
-func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
-	fifos := &cio.FIFOSet{
+func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+	containerID := filepath.Base(bundleDir)
+	config := cio.Config{
 		Terminal: withTerminal,
-		Out:      pipeName(containerID, processID, "stdout"),
+		Stdout:   pipeName(containerID, processID, "stdout"),
 	}
 
 	if withStdin {
-		fifos.In = pipeName(containerID, processID, "stdin")
+		config.Stdin = pipeName(containerID, processID, "stdin")
 	}
 
-	if !fifos.Terminal {
-		fifos.Err = pipeName(containerID, processID, "stderr")
+	if !config.Terminal {
+		config.Stderr = pipeName(containerID, processID, "stderr")
 	}
 
-	return fifos
+	return cio.NewFIFOSet(config, nil)
 }

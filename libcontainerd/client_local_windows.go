@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"path"
@@ -671,7 +670,7 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 		return p.pid, nil
 	}
 
-	dio, err := newIOFromProcess(newProcess)
+	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return -1, err
@@ -712,16 +711,14 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	return p.pid, nil
 }
 
-func newIOFromProcess(newProcess process) (*cio.DirectIO, error) {
+func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO, error) {
 	stdin, stdout, stderr, err := newProcess.Stdio()
 	if err != nil {
 		return nil, err
 	}
 
-	dio := cio.DirectIO{
-		Terminal: ctr.ociSpec.Process.Terminal,
-		Stdin:    createStdInCloser(stdin, newProcess),
-	}
+	dio := cio.NewDirectIO(createStdInCloser(stdin, newProcess), nil, nil, terminal)
+
 	// Convert io.ReadClosers to io.Readers
 	if stdout != nil {
 		dio.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
@@ -786,10 +783,6 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
 	// Start the command running in the container.
-	var (
-		stdout, stderr io.ReadCloser
-		stdin          io.WriteCloser
-	)
 	newProcess, err := ctr.hcsContainer.CreateProcess(&createProcessParms)
 	if err != nil {
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
@@ -812,12 +805,11 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 		}
 	}()
 
-	dio, err := newIOFromProcess(newProcess)
+	dio, err := newIOFromProcess(newProcess, spec.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return -1, err
 	}
-	dio.Termainl = spec.Terminal
 	// Tell the engine to attach streams back to the client
 	_, err = attachStdio(dio)
 	if err != nil {
