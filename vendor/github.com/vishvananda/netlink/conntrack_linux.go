@@ -22,7 +22,11 @@ const (
 	// https://github.com/torvalds/linux/blob/master/include/uapi/linux/netfilter/nfnetlink.h -> #define NFNL_SUBSYS_CTNETLINK_EXP 2
 	ConntrackExpectTable = 2
 )
-
+const (
+	// For Parsing Mark
+	TCP_PROTO = 6
+	UDP_PROTO = 17
+)
 const (
 	// backward compatibility with golang 1.6 which does not have io.SeekCurrent
 	seekCurrent = 1
@@ -56,7 +60,7 @@ func ConntrackTableFlush(table ConntrackTableType) error {
 
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter
 // conntrack -D [table] parameters         Delete conntrack or expectation
-func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter *ConntrackFilter) (uint, error) {
+func ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	return pkgHandle.ConntrackDeleteFilter(table, family, filter)
 }
 
@@ -88,7 +92,7 @@ func (h *Handle) ConntrackTableFlush(table ConntrackTableType) error {
 
 // ConntrackDeleteFilter deletes entries on the specified table on the base of the filter using the netlink handle passed
 // conntrack -D [table] parameters         Delete conntrack or expectation
-func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter *ConntrackFilter) (uint, error) {
+func (h *Handle) ConntrackDeleteFilter(table ConntrackTableType, family InetFamily, filter CustomConntrackFilter) (uint, error) {
 	res, err := h.dumpConntrackTable(table, family)
 	if err != nil {
 		return 0, err
@@ -142,15 +146,16 @@ type ConntrackFlow struct {
 	FamilyType uint8
 	Forward    ipTuple
 	Reverse    ipTuple
+	Mark       uint32
 }
 
 func (s *ConntrackFlow) String() string {
 	// conntrack cmd output:
-	// udp      17 src=127.0.0.1 dst=127.0.0.1 sport=4001 dport=1234 [UNREPLIED] src=127.0.0.1 dst=127.0.0.1 sport=1234 dport=4001
-	return fmt.Sprintf("%s\t%d src=%s dst=%s sport=%d dport=%d\tsrc=%s dst=%s sport=%d dport=%d",
+	// udp      17 src=127.0.0.1 dst=127.0.0.1 sport=4001 dport=1234 [UNREPLIED] src=127.0.0.1 dst=127.0.0.1 sport=1234 dport=4001 mark=0
+	return fmt.Sprintf("%s\t%d src=%s dst=%s sport=%d dport=%d\tsrc=%s dst=%s sport=%d dport=%d mark=%d",
 		nl.L4ProtoMap[s.Forward.Protocol], s.Forward.Protocol,
 		s.Forward.SrcIP.String(), s.Forward.DstIP.String(), s.Forward.SrcPort, s.Forward.DstPort,
-		s.Reverse.SrcIP.String(), s.Reverse.DstIP.String(), s.Reverse.SrcPort, s.Reverse.DstPort)
+		s.Reverse.SrcIP.String(), s.Reverse.DstIP.String(), s.Reverse.SrcPort, s.Reverse.DstPort, s.Mark)
 }
 
 // This method parse the ip tuple structure
@@ -160,7 +165,7 @@ func (s *ConntrackFlow) String() string {
 // <len, NLA_F_NESTED|nl.CTA_TUPLE_PROTO, 1 byte for the protocol, 3 bytes of padding>
 // <len, CTA_PROTO_SRC_PORT, 2 bytes for the source port, 2 bytes of padding>
 // <len, CTA_PROTO_DST_PORT, 2 bytes for the source port, 2 bytes of padding>
-func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) {
+func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) uint8 {
 	for i := 0; i < 2; i++ {
 		_, t, _, v := parseNfAttrTLV(reader)
 		switch t {
@@ -189,6 +194,7 @@ func parseIpTuple(reader *bytes.Reader, tpl *ipTuple) {
 		// Skip some padding 2 byte
 		reader.Seek(2, seekCurrent)
 	}
+	return tpl.Protocol
 }
 
 func parseNfAttrTLV(r *bytes.Reader) (isNested bool, attrType, len uint16, value []byte) {
@@ -216,6 +222,7 @@ func parseBERaw16(r *bytes.Reader, v *uint16) {
 
 func parseRawData(data []byte) *ConntrackFlow {
 	s := &ConntrackFlow{}
+	var proto uint8
 	// First there is the Nfgenmsg header
 	// consume only the family field
 	reader := bytes.NewReader(data)
@@ -234,7 +241,7 @@ func parseRawData(data []byte) *ConntrackFlow {
 		nested, t, l := parseNfAttrTL(reader)
 		if nested && t == nl.CTA_TUPLE_ORIG {
 			if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
-				parseIpTuple(reader, &s.Forward)
+				proto = parseIpTuple(reader, &s.Forward)
 			}
 		} else if nested && t == nl.CTA_TUPLE_REPLY {
 			if nested, t, _ = parseNfAttrTL(reader); nested && t == nl.CTA_TUPLE_IP {
@@ -248,7 +255,19 @@ func parseRawData(data []byte) *ConntrackFlow {
 			}
 		}
 	}
-
+	if proto == TCP_PROTO {
+		reader.Seek(64, seekCurrent)
+		_, t, _, v := parseNfAttrTLV(reader)
+		if t == nl.CTA_MARK {
+			s.Mark = uint32(v[3])
+		}
+	} else if proto == UDP_PROTO {
+		reader.Seek(16, seekCurrent)
+		_, t, _, v := parseNfAttrTLV(reader)
+		if t == nl.CTA_MARK {
+			s.Mark = uint32(v[3])
+		}
+	}
 	return s
 }
 
@@ -289,6 +308,12 @@ const (
 	ConntrackNatDstIP         // -dst-nat ip    Destination NAT ip
 	ConntrackNatAnyIP         // -any-nat ip    Source or destination NAT ip
 )
+
+type CustomConntrackFilter interface {
+	// MatchConntrackFlow applies the filter to the flow and returns true if the flow matches
+	// the filter or false otherwise
+	MatchConntrackFlow(flow *ConntrackFlow) bool
+}
 
 type ConntrackFilter struct {
 	ipFilter map[ConntrackFilterType]net.IP
@@ -342,3 +367,5 @@ func (f *ConntrackFilter) MatchConntrackFlow(flow *ConntrackFlow) bool {
 
 	return match
 }
+
+var _ CustomConntrackFilter = (*ConntrackFilter)(nil)

@@ -38,15 +38,18 @@ Add a new bridge and add eth1 into it:
 package main
 
 import (
-    "net"
+    "fmt"
     "github.com/vishvananda/netlink"
 )
 
 func main() {
     la := netlink.NewLinkAttrs()
     la.Name = "foo"
-    mybridge := &netlink.Bridge{la}}
-    _ := netlink.LinkAdd(mybridge)
+    mybridge := &netlink.Bridge{LinkAttrs: la}
+    err := netlink.LinkAdd(mybridge)
+    if err != nil  {
+        fmt.Printf("could not add %s: %v\n", la.Name, err)
+    }
     eth1, _ := netlink.LinkByName("eth1")
     netlink.LinkSetMaster(eth1, mybridge)
 }
@@ -63,7 +66,6 @@ Add a new ip address to loopback:
 package main
 
 import (
-    "net"
     "github.com/vishvananda/netlink"
 )
 
