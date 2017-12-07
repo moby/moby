@@ -432,6 +432,101 @@ func TestJsonFormat(t *testing.T) {
 	}
 }
 
+// Verify flat format
+func TestFlatFormat(t *testing.T) {
+	hec := NewHTTPEventCollectorMock(t)
+
+	go hec.Serve()
+
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:    hec.URL(),
+			splunkTokenKey:  hec.token,
+			splunkFormatKey: splunkFormatFlat,
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	hostname, err := info.Hostname()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	loggerDriver, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if !hec.connectionVerified {
+		t.Fatal("By default connection should be verified")
+	}
+
+	splunkLoggerDriver, ok := loggerDriver.(*splunkLoggerFlat)
+	if !ok {
+		t.Fatal("Unexpected Splunk Logging Driver type")
+	}
+
+	if splunkLoggerDriver.url != hec.URL()+"/services/collector/event/1.0" ||
+		splunkLoggerDriver.auth != "Splunk "+hec.token ||
+		splunkLoggerDriver.nullMessage.Host != hostname ||
+		splunkLoggerDriver.nullMessage.Source != "" ||
+		splunkLoggerDriver.nullMessage.SourceType != "" ||
+		splunkLoggerDriver.nullMessage.Index != "" ||
+		splunkLoggerDriver.gzipCompression != false ||
+		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
+		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
+		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
+		cap(splunkLoggerDriver.stream) != defaultStreamChannelSize {
+		t.Fatal("Values do not match configuration.")
+	}
+
+	message1Time := time.Now()
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("{\"a\":\"b\"}"), Source: "stdout", Timestamp: message1Time}); err != nil {
+		t.Fatal(err)
+	}
+	message2Time := time.Now()
+	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
+		t.Fatal(err)
+	}
+
+	err = loggerDriver.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(hec.messages) != 2 {
+		t.Fatal("Expected two messages")
+	}
+
+	message1 := hec.messages[0]
+	if message1.Time != fmt.Sprintf("%f", float64(message1Time.UnixNano())/float64(time.Second)) ||
+		message1.Host != hostname {
+		t.Fatalf("Unexpected values of message 1 %v", message1)
+	}
+
+	if event, err := message1.EventAsString(); err != nil {
+		t.Fatal(err)
+	} else {
+		if event != "{\"a\":\"b\"}" {
+			t.Fatalf("Unexpected event in message 1 %v", event)
+		}
+	}
+
+	message2 := hec.messages[1]
+	if message2.Time != fmt.Sprintf("%f", float64(message2Time.UnixNano())/float64(time.Second)) ||
+		message2.Host != hostname {
+		t.Fatalf("Unexpected values of message 2 %v", message2)
+	}
+
+	err = hec.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // Verify raw format
 func TestRawFormat(t *testing.T) {
 	hec := NewHTTPEventCollectorMock(t)
