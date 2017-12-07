@@ -142,6 +142,15 @@ const (
 	splunkFormatFlat   = "flat"
 )
 
+func init() {
+	if err := logger.RegisterLogDriver(driverName, New); err != nil {
+		logrus.Fatal(err)
+	}
+	if err := logger.RegisterLogOptValidator(driverName, ValidateLogOpt); err != nil {
+		logrus.Fatal(err)
+	}
+}
+
 // New creates splunk logger driver using configuration passed in context
 func New(info logger.Info) (logger.Logger, error) {
 	hostname, err := info.Hostname()
@@ -384,6 +393,11 @@ func (l *splunkLoggerFlat) Log(msg *logger.Message) error {
 }
 
 func (l *splunkLoggerRaw) Log(msg *logger.Message) error {
+	// empty or whitespace-only messages are not accepted by HEC
+	if strings.TrimSpace(string(msg.Line)) == "" {
+		return nil
+	}
+
 	message := l.createSplunkMessage(msg)
 
 	message.Event = string(append(l.prefix, msg.Line...))
