@@ -2,6 +2,7 @@ package local
 
 import (
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -167,5 +168,8 @@ func (w *writer) Truncate(size int64) error {
 	}
 	w.offset = 0
 	w.digester.Hash().Reset()
+	if _, err := w.fp.Seek(0, io.SeekStart); err != nil {
+		return err
+	}
 	return w.fp.Truncate(0)
 }

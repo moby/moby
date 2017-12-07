@@ -51,7 +51,7 @@ Find more [FAQ on the OCI site](https://www.opencontainers.org/faq).
 
 ## Roadmap
 
-The [GitHub milestones](https://github.com/opencontainers/image-spec/milestones) lay out the path to the OCI v1.0.0 release in late 2016.
+The [GitHub milestones](https://github.com/opencontainers/image-spec/milestones) lay out the path to the future improvements.
 
 # Contributing
 

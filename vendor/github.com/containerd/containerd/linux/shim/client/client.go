@@ -47,7 +47,10 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		}
 		defer f.Close()
 
-		cmd := newCommand(binary, daemonAddress, debug, config, f)
+		cmd, err := newCommand(binary, daemonAddress, debug, config, f)
+		if err != nil {
+			return nil, nil, err
+		}
 		ec, err := reaper.Default.Start(cmd)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to start shim")
@@ -87,10 +90,10 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 	}
 }
 
-func newCommand(binary, daemonAddress string, debug bool, config shim.Config, socket *os.File) *exec.Cmd {
+func newCommand(binary, daemonAddress string, debug bool, config shim.Config, socket *os.File) (*exec.Cmd, error) {
 	selfExe, err := os.Executable()
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	args := []string{
 		"-namespace", config.Namespace,
@@ -123,7 +126,7 @@ func newCommand(binary, daemonAddress string, debug bool, config shim.Config, so
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	}
-	return cmd
+	return cmd, nil
 }
 
 func newSocket(address string) (*net.UnixListener, error) {

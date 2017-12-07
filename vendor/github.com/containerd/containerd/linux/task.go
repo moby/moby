@@ -282,11 +282,14 @@ func (t *Task) Update(ctx context.Context, resources *types.Any) error {
 
 // Process returns a specific process inside the task by the process id
 func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) {
-	// TODO: verify process exists for container
-	return &Process{
+	p := &Process{
 		id: id,
 		t:  t,
-	}, nil
+	}
+	if _, err := p.State(ctx); err != nil {
+		return nil, err
+	}
+	return p, nil
 }
 
 // Metrics returns runtime specific system level metric information for the task
