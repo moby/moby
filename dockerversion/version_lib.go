@@ -13,4 +13,5 @@ const (
 	ContainerdCommitID string = "library-import"
 	RuncCommitID       string = "library-import"
 	InitCommitID       string = "library-import"
+	PlatformName       string = ""
 )
