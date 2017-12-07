@@ -18,6 +18,7 @@ import (
 	"github.com/Microsoft/hcsshim"
 	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -670,28 +671,12 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 		return p.pid, nil
 	}
 
-	var (
-		stdout, stderr io.ReadCloser
-		stdin          io.WriteCloser
-	)
-	stdin, stdout, stderr, err = newProcess.Stdio()
+	dio, err := newIOFromProcess(newProcess)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return -1, err
 	}
-
-	iopipe := &IOPipe{Terminal: ctr.ociSpec.Process.Terminal}
-	iopipe.Stdin = createStdInCloser(stdin, newProcess)
-
-	// Convert io.ReadClosers to io.Readers
-	if stdout != nil {
-		iopipe.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
-	}
-	if stderr != nil {
-		iopipe.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
-	}
-
-	_, err = attachStdio(iopipe)
+	_, err = attachStdio(dio)
 	if err != nil {
 		logger.WithError(err).Error("failed to attache stdio")
 		return -1, err
@@ -725,6 +710,26 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	})
 	logger.Debug("start() completed")
 	return p.pid, nil
+}
+
+func newIOFromProcess(newProcess process) (*cio.DirectIO, error) {
+	stdin, stdout, stderr, err := newProcess.Stdio()
+	if err != nil {
+		return nil, err
+	}
+
+	dio := cio.DirectIO{
+		Terminal: ctr.ociSpec.Process.Terminal,
+		Stdin:    createStdInCloser(stdin, newProcess),
+	}
+	// Convert io.ReadClosers to io.Readers
+	if stdout != nil {
+		dio.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
+	}
+	if stderr != nil {
+		dio.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
+	}
+	return dio, nil
 }
 
 // Exec adds a process in an running container
@@ -807,25 +812,14 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 		}
 	}()
 
-	stdin, stdout, stderr, err = newProcess.Stdio()
+	dio, err := newIOFromProcess(newProcess)
 	if err != nil {
-		logger.WithError(err).Error("getting std pipes failed")
+		logger.WithError(err).Error("failed to get stdio pipes")
 		return -1, err
 	}
-
-	iopipe := &IOPipe{Terminal: spec.Terminal}
-	iopipe.Stdin = createStdInCloser(stdin, newProcess)
-
-	// Convert io.ReadClosers to io.Readers
-	if stdout != nil {
-		iopipe.Stdout = ioutil.NopCloser(&autoClosingReader{ReadCloser: stdout})
-	}
-	if stderr != nil {
-		iopipe.Stderr = ioutil.NopCloser(&autoClosingReader{ReadCloser: stderr})
-	}
-
+	dio.Termainl = spec.Terminal
 	// Tell the engine to attach streams back to the client
-	_, err = attachStdio(iopipe)
+	_, err = attachStdio(dio)
 	if err != nil {
 		return -1, err
 	}

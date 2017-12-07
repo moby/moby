@@ -121,7 +121,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	c.Lock()
 	defer c.Unlock()
 
-	var rio cio.IO
+	var rio *cio.DirectIO
 	defer func() {
 		err = wrapError(err)
 	}()
@@ -139,13 +139,12 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	}()
 
 	t, err := ctr.Task(ctx, func(fifos *cio.FIFOSet) (cio.IO, error) {
-		io, err := newIOPipe(fifos)
+		rio, err = cio.NewDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err
 		}
 
-		rio, err = attachStdio(io)
-		return rio, err
+		return attachStdio(rio)
 	})
 	if err != nil && !errdefs.IsNotFound(errors.Cause(err)) {
 		return false, -1, err
@@ -255,7 +254,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	uid, gid := getSpecUser(spec)
 	t, err = ctr.ctr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
-			fifos := newFIFOSet(ctr.bundleDir, id, InitProcessName, withStdin, spec.Process.Terminal)
+			fifos := newFIFOSet(ctr.bundleDir, InitProcessName, withStdin, spec.Process.Terminal)
 			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
 			return rio, err
 		},
@@ -315,7 +314,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 		stdinCloseSync = make(chan struct{})
 	)
 
-	fifos := newFIFOSet(ctr.bundleDir, containerID, processID, withStdin, spec.Terminal)
+	fifos := newFIFOSet(ctr.bundleDir, processID, withStdin, spec.Terminal)
 
 	defer func() {
 		if err != nil {
@@ -612,7 +611,7 @@ func (c *client) getProcess(containerID, processID string) (containerd.Process, 
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
 func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (cio.IO, error) {
-	io, err := newIOPipe(fifos)
+	io, err := cio.NewDirectIO(context.Background(), fifos)
 	if err != nil {
 		return nil, err
 	}
@@ -687,7 +686,7 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 					"container": ei.ContainerID,
 				}).Error("failed to find container")
 			} else {
-				rmFIFOSet(newFIFOSet(ctr.bundleDir, ei.ContainerID, ei.ProcessID, true, false))
+				rmFIFOSet(newFIFOSet(ctr.bundleDir, ei.ProcessID, true, false))
 			}
 		}
 	})

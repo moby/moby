@@ -80,25 +80,27 @@ func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
 	return p, nil
 }
 
-func newFIFOSet(bundleDir, containerID, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
+func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
 	fifos := &cio.FIFOSet{
-		Terminal: withTerminal,
-		Out:      filepath.Join(bundleDir, processID+"-stdout"),
+		Config: cio.Config{
+			Terminal: withTerminal,
+			Stdout:   filepath.Join(bundleDir, processID+"-stdout"),
+		},
 	}
 
 	if withStdin {
-		fifos.In = filepath.Join(bundleDir, processID+"-stdin")
+		fifos.Stdin = filepath.Join(bundleDir, processID+"-stdin")
 	}
 
 	if !fifos.Terminal {
-		fifos.Err = filepath.Join(bundleDir, processID+"-stderr")
+		fifos.Stderr = filepath.Join(bundleDir, processID+"-stderr")
 	}
 
 	return fifos
 }
 
 func rmFIFOSet(fset *cio.FIFOSet) {
-	for _, fn := range []string{fset.Out, fset.In, fset.Err} {
+	for _, fn := range []string{fset.Stdout, fset.Stdin, fset.Stderr} {
 		if fn != "" {
 			if err := os.RemoveAll(fn); err != nil {
 				logrus.Warnf("libcontainerd: failed to remove fifo %v: %v", fn, err)
