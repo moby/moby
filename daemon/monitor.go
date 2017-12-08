@@ -128,6 +128,11 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			// remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected.
 			c.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
+			attributes := map[string]string{
+				"execID":   execConfig.ID,
+				"exitCode": strconv.Itoa(ec),
+			}
+			daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
 		} else {
 			logrus.WithFields(logrus.Fields{
 				"container": c.ID,
