@@ -234,17 +234,17 @@ func TestCheckoutGit(t *testing.T) {
 		if c.fail {
 			assert.Error(t, err)
 			continue
-		} else {
+		}
+		require.NoError(t, err)
+		defer os.RemoveAll(r)
+		if c.submodule {
+			b, err := ioutil.ReadFile(filepath.Join(r, "sub/subfile"))
 			require.NoError(t, err)
-			if c.submodule {
-				b, err := ioutil.ReadFile(filepath.Join(r, "sub/subfile"))
-				require.NoError(t, err)
-				assert.Equal(t, "subcontents", string(b))
-			} else {
-				_, err := os.Stat(filepath.Join(r, "sub/subfile"))
-				require.Error(t, err)
-				require.True(t, os.IsNotExist(err))
-			}
+			assert.Equal(t, "subcontents", string(b))
+		} else {
+			_, err := os.Stat(filepath.Join(r, "sub/subfile"))
+			require.Error(t, err)
+			require.True(t, os.IsNotExist(err))
 		}
 
 		b, err := ioutil.ReadFile(filepath.Join(r, "Dockerfile"))
