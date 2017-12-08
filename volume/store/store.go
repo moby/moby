@@ -145,8 +145,9 @@ func (s *VolumeStore) Purge(name string) {
 	s.globalLock.Lock()
 	v, exists := s.names[name]
 	if exists {
-		if _, err := volumedrivers.ReleaseDriver(v.DriverName()); err != nil {
-			logrus.Errorf("Error dereferencing volume driver: %v", err)
+		driverName := v.DriverName()
+		if _, err := volumedrivers.ReleaseDriver(driverName); err != nil {
+			logrus.WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
 		}
 	}
 	if err := s.removeMeta(name); err != nil {
