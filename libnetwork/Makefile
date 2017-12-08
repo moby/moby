@@ -28,6 +28,7 @@ build-local:
 	@mkdir -p "bin"
 	go build -tags experimental -o "bin/dnet" ./cmd/dnet
 	go build -o "bin/docker-proxy" ./cmd/proxy
+	GOOS=linux go build -o "./cmd/diagnostic/diagnosticClient" ./cmd/diagnostic
 
 clean:
 	@echo "🐳 $@"
