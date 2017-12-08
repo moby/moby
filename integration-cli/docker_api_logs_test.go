@@ -151,7 +151,7 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
 
 func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
 	name := "logsuntil"
-	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 0.5; done")
+	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
 	client, err := request.NewClient()
 	if err != nil {
