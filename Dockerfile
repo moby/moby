@@ -145,9 +145,12 @@ RUN pip install yamllint==1.5.0
 
 # Install go-swagger for validating swagger.yaml
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
-RUN git clone https://github.com/go-swagger/go-swagger.git /go/src/github.com/go-swagger/go-swagger \
-	&& (cd /go/src/github.com/go-swagger/go-swagger && git checkout -q $GO_SWAGGER_COMMIT) \
-	&& go install -v github.com/go-swagger/go-swagger/cmd/swagger
+RUN set -x \
+	&& export GOPATH="$(mktemp -d)" \
+	&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
+	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
+	&& go build -o /usr/local/bin/swagger github.com/go-swagger/go-swagger/cmd/swagger \
+	&& rm -rf "$GOPATH"
 
 # Set user.email so crosbymichael's in-container merge commits go smoothly
 RUN git config --global user.email 'docker-dummy@example.com'
