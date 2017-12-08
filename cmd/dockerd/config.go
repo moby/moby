@@ -92,6 +92,8 @@ func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
 
 	if runtime.GOOS != "windows" {
+		// TODO: Remove this flag after 3 release cycles (18.03)
 		flags.BoolVar(&options.V2Only, "disable-legacy-registry", true, "Disable contacting legacy registries")
+		flags.MarkHidden("disable-legacy-registry")
 	}
 }
