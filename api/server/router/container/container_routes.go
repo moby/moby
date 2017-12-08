@@ -593,7 +593,11 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 	close(done)
 	select {
 	case <-started:
-		logrus.Errorf("Error attaching websocket: %s", err)
+		if err != nil {
+			logrus.Errorf("Error attaching websocket: %s", err)
+		} else {
+			logrus.Debug("websocket connection was closed by client")
+		}
 		return nil
 	default:
 	}
