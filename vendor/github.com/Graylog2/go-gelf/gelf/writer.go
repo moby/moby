@@ -27,5 +27,8 @@ type GelfWriter struct {
 
 // Close connection and interrupt blocked Read or Write operations
 func (w *GelfWriter) Close() error {
+	if w.conn == nil {
+		return nil
+	}
 	return w.conn.Close()
 }
