@@ -75,12 +75,17 @@ func (w *TCPWriter) Write(p []byte) (n int, err error) {
 
 func (w *TCPWriter) writeToSocketWithReconnectAttempts(zBytes []byte) (n int, err error) {
 	var errConn error
+	var i int
 
 	w.mu.Lock()
-	for i := 0; n <= w.MaxReconnect; i++ {
+	for i = 0; i <= w.MaxReconnect; i++ {
 		errConn = nil
 
-		n, err = w.conn.Write(zBytes)
+		if w.conn != nil {
+			n, err = w.conn.Write(zBytes)
+		} else {
+			err = fmt.Errorf("Connection was nil, will attempt reconnect")
+		}
 		if err != nil {
 			time.Sleep(w.ReconnectDelay * time.Second)
 			w.conn, errConn = net.Dial("tcp", w.addr)
@@ -90,6 +95,9 @@ func (w *TCPWriter) writeToSocketWithReconnectAttempts(zBytes []byte) (n int, er
 	}
 	w.mu.Unlock()
 
+	if i > w.MaxReconnect {
+		return 0, fmt.Errorf("Maximum reconnection attempts was reached; giving up")
+	}
 	if errConn != nil {
 		return 0, fmt.Errorf("Write Failed: %s\nReconnection failed: %s", err, errConn)
 	}
