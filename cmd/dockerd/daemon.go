@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -472,8 +473,15 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
-	if !conf.V2Only {
-		logrus.Warnf(`The "disable-legacy-registry" option is deprecated and wil be removed in Docker v17.12. Interacting with legacy (v1) registries will no longer be supported in Docker v17.12"`)
+	if runtime.GOOS != "windows" {
+		if flags.Changed("disable-legacy-registry") {
+			// TODO: Remove this error after 3 release cycles (18.03)
+			return nil, errors.New("ERROR: The '--disable-legacy-registry' flag has been removed. Interacting with legacy (v1) registries is no longer supported")
+		}
+		if !conf.V2Only {
+			// TODO: Remove this error after 3 release cycles (18.03)
+			return nil, errors.New("ERROR: The 'disable-legacy-registry' configuration option has been removed. Interacting with legacy (v1) registries is no longer supported")
+		}
 	}
 
 	if flags.Changed("graph") {
