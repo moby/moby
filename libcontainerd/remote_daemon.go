@@ -278,7 +278,7 @@ func (r *remote) monitorConnection(client *containerd.Client) {
 
 		select {
 		case <-r.shutdownContext.Done():
-			r.logger.Info("stopping healtcheck following graceful shutdown")
+			r.logger.Info("stopping healthcheck following graceful shutdown")
 			client.Close()
 			return
 		default:
