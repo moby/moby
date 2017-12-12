@@ -1,12 +1,14 @@
 # Moby maintainers file
 #
-# This file describes who runs the docker/docker project and how.
-# This is a living document - if you see something out of date or missing, speak up!
+# This file describes the maintainer groups within the moby/moby project.
+# More detail on Moby project governance is available in the
+# project/GOVERNANCE.md file found in this repository.
 #
 # It is structured to be consumable by both humans and programs.
 # To extract its contents programmatically, use any TOML-compliant
 # parser.
 #
+# TODO(estesp): This file should not necessarily depend on docker/opensource
 # This file is compiled into the MAINTAINERS file in docker/opensource.
 #
 [Org]
