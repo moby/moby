@@ -8,7 +8,6 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
-	"math"
 	"os"
 	"path"
 	"path/filepath"
@@ -28,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
+	units "github.com/docker/go-units"
 	lcUser "github.com/opencontainers/runc/libcontainer/user"
 	"github.com/pkg/errors"
 )
@@ -531,10 +531,10 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		CPUQuota:             options.CPUQuota,
 		CpusetCpus:           options.CPUSetCPUs,
 		CpusetMems:           options.CPUSetMems,
-		BlkioDeviceReadBps:   throttleDeviceFromOptionsWithSize(options.BlkioReadBpsDevice),
-		BlkioDeviceWriteBps:  throttleDeviceFromOptionsWithSize(options.BlkioWriteBpsDevice),
-		BlkioDeviceReadIOps:  throttleDeviceFromOptions(options.BlkioReadIOpsDevice),
-		BlkioDeviceWriteIOps: throttleDeviceFromOptions(options.BlkioWriteIOpsDevice),
+		BlkioDeviceReadBps:   throttleDeviceFromOptionsWithSize(options.BlkioReadBps),
+		BlkioDeviceWriteBps:  throttleDeviceFromOptionsWithSize(options.BlkioWriteBps),
+		BlkioDeviceReadIOps:  throttleDeviceFromOptions(options.BlkioReadIOps),
+		BlkioDeviceWriteIOps: throttleDeviceFromOptions(options.BlkioWriteIOps),
 		IOMaximumIOps:        options.IOMaximumIOps,
 		IOMaximumBandwidth:   options.IOMaximumBandwidth,
 		Memory:               options.Memory,
@@ -559,29 +559,9 @@ func throttleDeviceFromOptionsWithSize(option string) []*blkiodev.ThrottleDevice
 	if len(configuration) != 2 {
 		return nil
 	}
-	var rate int
-	var err error
-	if strings.HasSuffix(configuration[1], "kb") {
-		configuration[1] = strings.TrimSuffix(configuration[1], "kb")
-		rate, err = strconv.Atoi(configuration[1])
-		if err != nil {
-			return nil
-		}
-		rate *= 1024
-	} else if strings.HasSuffix(configuration[1], "mb") {
-		configuration[1] = strings.TrimSuffix(configuration[1], "mb")
-		rate, err = strconv.Atoi(configuration[1])
-		if err != nil {
-			return nil
-		}
-		rate *= int(math.Pow(1024, 2.0))
-	} else if strings.HasSuffix(configuration[1], "gb") {
-		configuration[1] = strings.TrimSuffix(configuration[1], "gb")
-		rate, err = strconv.Atoi(configuration[1])
-		if err != nil {
-			return nil
-		}
-		rate *= int(math.Pow(1024, 3.0))
+	rate, err := units.FromHumanSize(configuration[1])
+	if err != nil {
+		return nil
 	}
 	device := make([]*blkiodev.ThrottleDevice, 1)
 	device[0] = &blkiodev.ThrottleDevice{

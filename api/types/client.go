@@ -141,32 +141,32 @@ func (h *HijackedResponse) CloseWrite() error {
 // ImageBuildOptions holds the information
 // necessary to build images.
 type ImageBuildOptions struct {
-	Tags                 []string
-	SuppressOutput       bool
-	RemoteContext        string
-	NoCache              bool
-	Remove               bool
-	ForceRemove          bool
-	PullParent           bool
-	Isolation            container.Isolation
-	CPUSetCPUs           string
-	CPUSetMems           string
-	CPUShares            int64
-	CPUQuota             int64
-	CPUPeriod            int64
-	BlkioReadBpsDevice   string
-	BlkioWriteBpsDevice  string
-	BlkioReadIOpsDevice  string
-	BlkioWriteIOpsDevice string
-	IOMaximumIOps        uint64 // Windows only
-	IOMaximumBandwidth   uint64 // Windows only
-	Memory               int64
-	MemorySwap           int64
-	CgroupParent         string
-	NetworkMode          string
-	ShmSize              int64
-	Dockerfile           string
-	Ulimits              []*units.Ulimit
+	Tags               []string
+	SuppressOutput     bool
+	RemoteContext      string
+	NoCache            bool
+	Remove             bool
+	ForceRemove        bool
+	PullParent         bool
+	Isolation          container.Isolation
+	CPUSetCPUs         string
+	CPUSetMems         string
+	CPUShares          int64
+	CPUQuota           int64
+	CPUPeriod          int64
+	BlkioReadBps       string
+	BlkioWriteBps      string
+	BlkioReadIOps      string
+	BlkioWriteIOps     string
+	IOMaximumIOps      uint64 // Windows only
+	IOMaximumBandwidth uint64 // Windows only
+	Memory             int64
+	MemorySwap         int64
+	CgroupParent       string
+	NetworkMode        string
+	ShmSize            int64
+	Dockerfile         string
+	Ulimits            []*units.Ulimit
 	// BuildArgs needs to be a *string instead of just a string so that
 	// we can tell the difference between "" (empty string) and no value
 	// at all (nil). See the parsing of buildArgs in
