@@ -66,6 +66,8 @@ func Server(args []string) {
 	server.RegisterHandler(nil, testerPaths2Func)
 	server.RegisterHandler(nDB, dummyclient.DummyClientPaths2Func)
 	server.EnableDebug("", port)
+	// block here
+	select {}
 }
 
 func getIPInterface(name string) (string, error) {

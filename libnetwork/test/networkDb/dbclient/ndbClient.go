@@ -74,7 +74,7 @@ func leaveNetwork(ip, port, network string, doneCh chan resultTuple) {
 }
 
 func writeTableKey(ip, port, networkName, tableName, key string) {
-	createPath := "/createentry?nid=" + networkName + "&tname=" + tableName + "&value=v&key="
+	createPath := "/createentry?unsafe&nid=" + networkName + "&tname=" + tableName + "&value=v&key="
 	httpGetFatalError(ip, port, createPath+key)
 }
 
@@ -91,7 +91,7 @@ func clusterPeersNumber(ip, port string, doneCh chan resultTuple) {
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	peersRegexp := regexp.MustCompile(`Total peers: ([0-9]+)`)
+	peersRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
 	peersNum, _ := strconv.Atoi(peersRegexp.FindStringSubmatch(string(body))[1])
 
 	doneCh <- resultTuple{id: ip, result: peersNum}
@@ -105,7 +105,7 @@ func networkPeersNumber(ip, port, networkName string, doneCh chan resultTuple) {
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	peersRegexp := regexp.MustCompile(`Total peers: ([0-9]+)`)
+	peersRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
 	peersNum, _ := strconv.Atoi(peersRegexp.FindStringSubmatch(string(body))[1])
 
 	doneCh <- resultTuple{id: ip, result: peersNum}
@@ -119,7 +119,7 @@ func dbTableEntriesNumber(ip, port, networkName, tableName string, doneCh chan r
 		doneCh <- resultTuple{id: ip, result: -1}
 		return
 	}
-	elementsRegexp := regexp.MustCompile(`total elements: ([0-9]+)`)
+	elementsRegexp := regexp.MustCompile(`total entries: ([0-9]+)`)
 	entriesNum, _ := strconv.Atoi(elementsRegexp.FindStringSubmatch(string(body))[1])
 	doneCh <- resultTuple{id: ip, result: entriesNum}
 }
