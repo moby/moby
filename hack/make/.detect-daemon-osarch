@@ -64,7 +64,9 @@ case "$PACKAGE_ARCH" in
 		;;
 	*)
 		DOCKERFILE="Dockerfile.$PACKAGE_ARCH"
-		TEST_IMAGE_NAMESPACE="$PACKAGE_ARCH"
+		if [ "$PACKAGE_ARCH" != "aarch64" ]; then
+			TEST_IMAGE_NAMESPACE="$PACKAGE_ARCH"
+		fi
 		;;
 esac
 export DOCKERFILE TEST_IMAGE_NAMESPACE
