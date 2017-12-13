@@ -1,13 +1,10 @@
 package main
 
 import (
-	"fmt"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 )
 
@@ -139,30 +136,4 @@ func (s *DockerSuite) TestTagInvalidRepoName(c *check.C) {
 	if err == nil {
 		c.Fatal("tagging with image named \"sha256\" should have failed")
 	}
-}
-
-// ensure tags cannot create ambiguity with image ids
-func (s *DockerSuite) TestTagTruncationAmbiguity(c *check.C) {
-	buildImageSuccessfully(c, "notbusybox:latest", build.WithDockerfile(`FROM busybox
-		MAINTAINER dockerio`))
-	imageID := getIDByName(c, "notbusybox:latest")
-	truncatedImageID := stringid.TruncateID(imageID)
-	truncatedTag := fmt.Sprintf("notbusybox:%s", truncatedImageID)
-
-	id := inspectField(c, truncatedTag, "Id")
-
-	// Ensure inspect by image id returns image for image id
-	c.Assert(id, checker.Equals, imageID)
-	c.Logf("Built image: %s", imageID)
-
-	// test setting tag fails
-	_, _, err := dockerCmdWithError("tag", "busybox:latest", truncatedTag)
-	if err != nil {
-		c.Fatalf("Error tagging with an image id: %s", err)
-	}
-
-	id = inspectField(c, truncatedTag, "Id")
-
-	// Ensure id is imageID and not busybox:latest
-	c.Assert(id, checker.Not(checker.Equals), imageID)
 }

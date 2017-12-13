@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/pkg/stringid"
 )
 
 // errImageDoesNotExist is error returned when no image can be found for a reference.
@@ -57,21 +56,6 @@ func (daemon *Daemon) GetImageIDAndOS(refOrID string) (image.ID, string, error) 
 			}
 		}
 		return id, imageOS, nil
-	}
-
-	// deprecated: repo:shortid https://github.com/docker/docker/pull/799
-	if tagged, ok := namedRef.(reference.Tagged); ok {
-		if tag := tagged.Tag(); stringid.IsShortID(stringid.TruncateID(tag)) {
-			for platform := range daemon.stores {
-				if id, err := daemon.stores[platform].imageStore.Search(tag); err == nil {
-					for _, storeRef := range daemon.referenceStore.References(id.Digest()) {
-						if storeRef.Name() == namedRef.Name() {
-							return id, platform, nil
-						}
-					}
-				}
-			}
-		}
 	}
 
 	// Search based on ID
