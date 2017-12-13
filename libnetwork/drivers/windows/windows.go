@@ -44,6 +44,7 @@ type networkConfiguration struct {
 	NetworkAdapterName string
 	dbIndex            uint64
 	dbExists           bool
+	DisableGatewayDNS  bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -177,6 +178,12 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.DNSSuffix = value
 		case DNSServers:
 			config.DNSServers = value
+		case DisableGatewayDNS:
+			b, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, err
+			}
+			config.DisableGatewayDNS = b
 		case MacPool:
 			config.MacPools = make([]hcsshim.MacPool, 0)
 			s := strings.Split(value, ",")
@@ -589,7 +596,14 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	endpointStruct.DNSServerList = strings.Join(epOption.DNSServers, ",")
 
+	// overwrite the ep DisableDNS option if DisableGatewayDNS was set to true during the network creation option
+	if n.config.DisableGatewayDNS {
+		logrus.Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
+		epOption.DisableDNS = n.config.DisableGatewayDNS
+	}
+
 	if n.driver.name == "nat" && !epOption.DisableDNS {
+		logrus.Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 		endpointStruct.EnableInternalDNS = true
 	}
 
