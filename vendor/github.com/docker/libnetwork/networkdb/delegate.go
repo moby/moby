@@ -16,46 +16,28 @@ func (d *delegate) NodeMeta(limit int) []byte {
 	return []byte{}
 }
 
-// getNode searches the node inside the tables
-// returns true if the node was respectively in the active list, explicit node leave list or failed list
-func (nDB *NetworkDB) getNode(nEvent *NodeEvent, extract bool) (bool, bool, bool, *node) {
-	var active bool
-	var left bool
-	var failed bool
-
-	for _, nodes := range []map[string]*node{
-		nDB.failedNodes,
-		nDB.leftNodes,
-		nDB.nodes,
-	} {
-		if n, ok := nodes[nEvent.NodeName]; ok {
-			active = &nodes == &nDB.nodes
-			left = &nodes == &nDB.leftNodes
-			failed = &nodes == &nDB.failedNodes
-			if n.ltime >= nEvent.LTime {
-				return active, left, failed, nil
-			}
-			if extract {
-				delete(nodes, n.Name)
-			}
-			return active, left, failed, n
-		}
-	}
-	return active, left, failed, nil
-}
-
 func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// Update our local clock if the received messages has newer
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
 
 	nDB.RLock()
-	active, left, _, n := nDB.getNode(nEvent, false)
+	defer nDB.RUnlock()
+
+	// check if the node exists
+	n, _, _ := nDB.findNode(nEvent.NodeName)
 	if n == nil {
-		nDB.RUnlock()
 		return false
 	}
-	nDB.RUnlock()
+
+	// check if the event is fresh
+	if n.ltime >= nEvent.LTime {
+		return false
+	}
+
+	// If we are here means that the event is fresher and the node is known. Update the laport time
+	n.ltime = nEvent.LTime
+
 	// If it is a node leave event for a manager and this is the only manager we
 	// know of we want the reconnect logic to kick in. In a single manager
 	// cluster manager's gossip can't be bootstrapped unless some other node
@@ -63,45 +45,32 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	if len(nDB.bootStrapIP) == 1 && nEvent.Type == NodeEventTypeLeave {
 		for _, ip := range nDB.bootStrapIP {
 			if ip.Equal(n.Addr) {
-				n.ltime = nEvent.LTime
 				return true
 			}
 		}
 	}
 
-	n.ltime = nEvent.LTime
-
 	switch nEvent.Type {
 	case NodeEventTypeJoin:
-		if active {
-			// the node is already marked as active nothing to do
+		moved, err := nDB.changeNodeState(n.Name, nodeActiveState)
+		if err != nil {
+			logrus.WithError(err).Error("unable to find the node to move")
 			return false
 		}
-		nDB.Lock()
-		// Because the lock got released on the previous check we have to do it again and re verify the status of the node
-		// All of this is to avoid a big lock on the function
-		if active, _, _, n = nDB.getNode(nEvent, true); !active && n != nil {
-			n.reapTime = 0
-			nDB.nodes[n.Name] = n
+		if moved {
 			logrus.Infof("%v(%v): Node join event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
-		nDB.Unlock()
-		return true
+		return moved
 	case NodeEventTypeLeave:
-		if left {
-			// the node is already marked as left nothing to do.
+		moved, err := nDB.changeNodeState(n.Name, nodeLeftState)
+		if err != nil {
+			logrus.WithError(err).Error("unable to find the node to move")
 			return false
 		}
-		nDB.Lock()
-		// Because the lock got released on the previous check we have to do it again and re verify the status of the node
-		// All of this is to avoid a big lock on the function
-		if _, left, _, n = nDB.getNode(nEvent, true); !left && n != nil {
-			n.reapTime = nodeReapInterval
-			nDB.leftNodes[n.Name] = n
+		if moved {
 			logrus.Infof("%v(%v): Node leave event for %s/%s", nDB.config.Hostname, nDB.config.NodeID, n.Name, n.Addr)
 		}
-		nDB.Unlock()
-		return true
+		return moved
 	}
 
 	return false
