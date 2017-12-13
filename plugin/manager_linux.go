@@ -159,13 +159,6 @@ func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 	}
 }
 
-func setupRoot(root string) error {
-	if err := mount.MakePrivate(root); err != nil {
-		return errors.Wrap(err, "error setting plugin manager root to private")
-	}
-	return nil
-}
-
 func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
 	if !p.IsEnabled() {
 		return errors.Wrap(errDisabled(p.Name()), "plugin is already disabled")
@@ -194,7 +187,6 @@ func (pm *Manager) Shutdown() {
 			shutdownPlugin(p, c, pm.executor)
 		}
 	}
-	mount.Unmount(pm.config.Root)
 }
 
 func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {

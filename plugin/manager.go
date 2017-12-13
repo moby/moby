@@ -111,11 +111,6 @@ func NewManager(config ManagerConfig) (*Manager, error) {
 			return nil, errors.Wrapf(err, "failed to mkdir %v", dirName)
 		}
 	}
-
-	if err := setupRoot(manager.config.Root); err != nil {
-		return nil, err
-	}
-
 	var err error
 	manager.executor, err = config.CreateExecutor(manager)
 	if err != nil {
