@@ -26,7 +26,6 @@ dockerd - Enable daemon mode
 [**--default-ipc-mode**=*MODE*]
 [**--default-shm-size**[=*64MiB*]]
 [**--default-ulimit**[=*[]*]]
-[**--disable-legacy-registry**]
 [**--dns**[=*[]*]]
 [**--dns-opt**[=*[]*]]
 [**--dns-search**[=*[]*]]
@@ -196,9 +195,6 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **--default-ulimit**=[]
   Default ulimits for containers.
-
-**--disable-legacy-registry**=*true*|*false*
-  Disable contacting legacy registries. Default is `true`.
 
 **--dns**=""
   Force Docker to use specific DNS servers
