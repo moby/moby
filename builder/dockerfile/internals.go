@@ -536,6 +536,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 
 	return &container.HostConfig{
 		SecurityOpt: options.SecurityOpt,
+		StorageOpt:  options.StorageOpt,
 		Isolation:   options.Isolation,
 		ShmSize:     options.ShmSize,
 		Resources:   resources,

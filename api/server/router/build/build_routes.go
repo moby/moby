@@ -146,6 +146,15 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.Labels = labels
 	}
 
+	storageOptJSON := r.FormValue("storageopt")
+	if storageOptJSON != "" {
+		var storageOpt = map[string]string{}
+		if err := json.Unmarshal([]byte(storageOptJSON), &storageOpt); err != nil {
+			return nil, errors.Wrap(validationError{err}, "error reading storage options")
+		}
+		options.StorageOpt = storageOpt
+	}
+
 	cacheFromJSON := r.FormValue("cachefrom")
 	if cacheFromJSON != "" {
 		var cacheFrom = []string{}
