@@ -152,7 +152,7 @@ func (p *Plugin) activated() bool {
 }
 
 func (p *Plugin) activateWithLock() error {
-	c, err := NewClient(p.Addr, p.TLSConfig)
+	c, err := NewClientWithTimeout(p.Addr, p.TLSConfig, 30*time.Second)
 	if err != nil {
 		return err
 	}
