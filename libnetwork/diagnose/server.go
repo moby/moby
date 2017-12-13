@@ -91,7 +91,7 @@ func (s *Server) EnableDebug(ip string, port int) {
 	}
 
 	logrus.Infof("Starting the diagnose server listening on %d for commands", port)
-	srv := &http.Server{Addr: fmt.Sprintf("127.0.0.1:%d", port), Handler: s}
+	srv := &http.Server{Addr: fmt.Sprintf("%s:%d", ip, port), Handler: s}
 	s.srv = srv
 	s.enable = 1
 	go func(n *Server) {
@@ -101,7 +101,6 @@ func (s *Server) EnableDebug(ip string, port int) {
 			atomic.SwapInt32(&n.enable, 0)
 		}
 	}(s)
-
 }
 
 // DisableDebug stop the dubug and closes the tcp socket

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 	"sync/atomic"
 	"testing"
@@ -12,6 +13,7 @@ import (
 
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-events"
+	"github.com/hashicorp/memberlist"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -577,6 +579,159 @@ func TestNetworkDBGarbageCollection(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		assert.Equal(t, 0, dbs[i].networks[dbs[i].config.NodeID]["network1"].entriesNumber, "entries should had been garbage collected")
 	}
+
+	closeNetworkDBInstances(dbs)
+}
+
+func TestFindNode(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+
+	dbs[0].nodes["active"] = &node{Node: memberlist.Node{Name: "active"}}
+	dbs[0].failedNodes["failed"] = &node{Node: memberlist.Node{Name: "failed"}}
+	dbs[0].leftNodes["left"] = &node{Node: memberlist.Node{Name: "left"}}
+
+	// active nodes is 2 because the testing node is in the list
+	assert.Equal(t, 2, len(dbs[0].nodes))
+	assert.Equal(t, 1, len(dbs[0].failedNodes))
+	assert.Equal(t, 1, len(dbs[0].leftNodes))
+
+	n, currState, m := dbs[0].findNode("active")
+	assert.NotNil(t, n)
+	assert.Equal(t, "active", n.Name)
+	assert.Equal(t, nodeActiveState, currState)
+	assert.NotNil(t, m)
+	// delete the entry manually
+	delete(m, "active")
+
+	// test if can be still find
+	n, currState, m = dbs[0].findNode("active")
+	assert.Nil(t, n)
+	assert.Equal(t, nodeNotFound, currState)
+	assert.Nil(t, m)
+
+	n, currState, m = dbs[0].findNode("failed")
+	assert.NotNil(t, n)
+	assert.Equal(t, "failed", n.Name)
+	assert.Equal(t, nodeFailedState, currState)
+	assert.NotNil(t, m)
+
+	// find and remove
+	n, currState, m = dbs[0].findNode("left")
+	assert.NotNil(t, n)
+	assert.Equal(t, "left", n.Name)
+	assert.Equal(t, nodeLeftState, currState)
+	assert.NotNil(t, m)
+	delete(m, "left")
+
+	n, currState, m = dbs[0].findNode("left")
+	assert.Nil(t, n)
+	assert.Equal(t, nodeNotFound, currState)
+	assert.Nil(t, m)
+
+	closeNetworkDBInstances(dbs)
+}
+
+func TestChangeNodeState(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+
+	dbs[0].nodes["node1"] = &node{Node: memberlist.Node{Name: "node1"}}
+	dbs[0].nodes["node2"] = &node{Node: memberlist.Node{Name: "node2"}}
+	dbs[0].nodes["node3"] = &node{Node: memberlist.Node{Name: "node3"}}
+
+	// active nodes is 4 because the testing node is in the list
+	assert.Equal(t, 4, len(dbs[0].nodes))
+
+	n, currState, m := dbs[0].findNode("node1")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeActiveState, currState)
+	assert.Equal(t, "node1", n.Name)
+	assert.NotNil(t, m)
+
+	// node1 to failed
+	dbs[0].changeNodeState("node1", nodeFailedState)
+
+	n, currState, m = dbs[0].findNode("node1")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeFailedState, currState)
+	assert.Equal(t, "node1", n.Name)
+	assert.NotNil(t, m)
+	assert.NotEqual(t, time.Duration(0), n.reapTime)
+
+	// node1 back to active
+	dbs[0].changeNodeState("node1", nodeActiveState)
+
+	n, currState, m = dbs[0].findNode("node1")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeActiveState, currState)
+	assert.Equal(t, "node1", n.Name)
+	assert.NotNil(t, m)
+	assert.Equal(t, time.Duration(0), n.reapTime)
+
+	// node1 to left
+	dbs[0].changeNodeState("node1", nodeLeftState)
+	dbs[0].changeNodeState("node2", nodeLeftState)
+	dbs[0].changeNodeState("node3", nodeLeftState)
+
+	n, currState, m = dbs[0].findNode("node1")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeLeftState, currState)
+	assert.Equal(t, "node1", n.Name)
+	assert.NotNil(t, m)
+	assert.NotEqual(t, time.Duration(0), n.reapTime)
+
+	n, currState, m = dbs[0].findNode("node2")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeLeftState, currState)
+	assert.Equal(t, "node2", n.Name)
+	assert.NotNil(t, m)
+	assert.NotEqual(t, time.Duration(0), n.reapTime)
+
+	n, currState, m = dbs[0].findNode("node3")
+	assert.NotNil(t, n)
+	assert.Equal(t, nodeLeftState, currState)
+	assert.Equal(t, "node3", n.Name)
+	assert.NotNil(t, m)
+	assert.NotEqual(t, time.Duration(0), n.reapTime)
+
+	// active nodes is 1 because the testing node is in the list
+	assert.Equal(t, 1, len(dbs[0].nodes))
+	assert.Equal(t, 0, len(dbs[0].failedNodes))
+	assert.Equal(t, 3, len(dbs[0].leftNodes))
+
+	closeNetworkDBInstances(dbs)
+}
+
+func TestNodeReincarnation(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+
+	dbs[0].nodes["node1"] = &node{Node: memberlist.Node{Name: "node1", Addr: net.ParseIP("192.168.1.1")}}
+	dbs[0].leftNodes["node2"] = &node{Node: memberlist.Node{Name: "node2", Addr: net.ParseIP("192.168.1.2")}}
+	dbs[0].failedNodes["node3"] = &node{Node: memberlist.Node{Name: "node3", Addr: net.ParseIP("192.168.1.3")}}
+
+	// active nodes is 2 because the testing node is in the list
+	assert.Equal(t, 2, len(dbs[0].nodes))
+	assert.Equal(t, 1, len(dbs[0].failedNodes))
+	assert.Equal(t, 1, len(dbs[0].leftNodes))
+
+	b := dbs[0].purgeReincarnation(&memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")})
+	assert.True(t, b)
+	dbs[0].nodes["node4"] = &node{Node: memberlist.Node{Name: "node4", Addr: net.ParseIP("192.168.1.1")}}
+
+	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node5", Addr: net.ParseIP("192.168.1.2")})
+	assert.True(t, b)
+	dbs[0].nodes["node5"] = &node{Node: memberlist.Node{Name: "node5", Addr: net.ParseIP("192.168.1.1")}}
+
+	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.3")})
+	assert.True(t, b)
+	dbs[0].nodes["node6"] = &node{Node: memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.1")}}
+
+	b = dbs[0].purgeReincarnation(&memberlist.Node{Name: "node6", Addr: net.ParseIP("192.168.1.10")})
+	assert.False(t, b)
+
+	// active nodes is 1 because the testing node is in the list
+	assert.Equal(t, 4, len(dbs[0].nodes))
+	assert.Equal(t, 0, len(dbs[0].failedNodes))
+	assert.Equal(t, 3, len(dbs[0].leftNodes))
 
 	closeNetworkDBInstances(dbs)
 }
