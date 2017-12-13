@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Plugin represents an individual plugin.
@@ -22,6 +23,8 @@ type Plugin struct {
 
 	Config   digest.Digest
 	Blobsums []digest.Digest
+
+	modifyRuntimeSpec func(*specs.Spec)
 
 	SwarmServiceID string
 }
@@ -249,4 +252,12 @@ func (p *Plugin) Acquire() {
 // via `Acquire()` or getter.Get("name", "type", plugingetter.Acquire)
 func (p *Plugin) Release() {
 	p.AddRefCount(plugingetter.Release)
+}
+
+// SetSpecOptModifier sets the function to use to modify the the generated
+// runtime spec.
+func (p *Plugin) SetSpecOptModifier(f func(*specs.Spec)) {
+	p.mu.Lock()
+	p.modifyRuntimeSpec = f
+	p.mu.Unlock()
 }

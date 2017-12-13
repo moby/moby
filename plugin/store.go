@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -64,6 +65,10 @@ func (ps *Store) GetAll() map[string]*v2.Plugin {
 func (ps *Store) SetAll(plugins map[string]*v2.Plugin) {
 	ps.Lock()
 	defer ps.Unlock()
+
+	for _, p := range plugins {
+		ps.setSpecOpts(p)
+	}
 	ps.plugins = plugins
 }
 
@@ -90,6 +95,22 @@ func (ps *Store) SetState(p *v2.Plugin, state bool) {
 	p.PluginObj.Enabled = state
 }
 
+func (ps *Store) setSpecOpts(p *v2.Plugin) {
+	var specOpts []SpecOpt
+	for _, typ := range p.GetTypes() {
+		opts, ok := ps.specOpts[typ.String()]
+		if ok {
+			specOpts = append(specOpts, opts...)
+		}
+	}
+
+	p.SetSpecOptModifier(func(s *specs.Spec) {
+		for _, o := range specOpts {
+			o(s)
+		}
+	})
+}
+
 // Add adds a plugin to memory and plugindb.
 // An error will be returned if there is a collision.
 func (ps *Store) Add(p *v2.Plugin) error {
@@ -99,6 +120,9 @@ func (ps *Store) Add(p *v2.Plugin) error {
 	if v, exist := ps.plugins[p.GetID()]; exist {
 		return fmt.Errorf("plugin %q has the same ID %s as %q", p.Name(), p.GetID(), v.Name())
 	}
+
+	ps.setSpecOpts(p)
+
 	ps.plugins[p.GetID()] = p
 	return nil
 }
@@ -182,26 +206,39 @@ func (ps *Store) GetAllByCap(capability string) ([]plugingetter.CompatPlugin, er
 	return result, nil
 }
 
+func pluginType(cap string) string {
+	return fmt.Sprintf("docker.%s/%s", strings.ToLower(cap), defaultAPIVersion)
+}
+
 // Handle sets a callback for a given capability. It is only used by network
 // and ipam drivers during plugin registration. The callback registers the
 // driver with the subsystem (network, ipam).
 func (ps *Store) Handle(capability string, callback func(string, *plugins.Client)) {
-	pluginType := fmt.Sprintf("docker.%s/%s", strings.ToLower(capability), defaultAPIVersion)
+	typ := pluginType(capability)
 
 	// Register callback with new plugin model.
 	ps.Lock()
-	handlers, ok := ps.handlers[pluginType]
+	handlers, ok := ps.handlers[typ]
 	if !ok {
 		handlers = []func(string, *plugins.Client){}
 	}
 	handlers = append(handlers, callback)
-	ps.handlers[pluginType] = handlers
+	ps.handlers[typ] = handlers
 	ps.Unlock()
 
 	// Register callback with legacy plugin model.
 	if allowV1PluginsFallback {
 		plugins.Handle(capability, callback)
 	}
+}
+
+// RegisterRuntimeOpt stores a list of SpecOpts for the provided capability.
+// These options are applied to the runtime spec before a plugin is started for the specified capability.
+func (ps *Store) RegisterRuntimeOpt(cap string, opts ...SpecOpt) {
+	ps.Lock()
+	defer ps.Unlock()
+	typ := pluginType(cap)
+	ps.specOpts[typ] = append(ps.specOpts[typ], opts...)
 }
 
 // CallHandler calls the registered callback. It is invoked during plugin enable.
