@@ -65,7 +65,6 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 			}
 		}
 	}
-
 	return pm.pluginPostStart(p, c)
 }
 

@@ -2,6 +2,7 @@ package v2
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -39,10 +40,13 @@ func (e ErrInadequateCapability) Error() string {
 	return fmt.Sprintf("plugin does not provide %q capability", e.cap)
 }
 
-// BasePath returns the path to which all paths returned by the plugin are relative to.
-// For Plugin objects this returns the host path of the plugin container's rootfs.
-func (p *Plugin) BasePath() string {
-	return p.Rootfs
+// ScopedPath returns the path scoped to the plugin rootfs
+func (p *Plugin) ScopedPath(s string) string {
+	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(s, p.PluginObj.Config.PropagatedMount) {
+		// re-scope to the propagated mount path on the host
+		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+	}
+	return filepath.Join(p.Rootfs, s)
 }
 
 // Client returns the plugin client.
