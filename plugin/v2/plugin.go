@@ -14,12 +14,11 @@ import (
 
 // Plugin represents an individual plugin.
 type Plugin struct {
-	mu              sync.RWMutex
-	PluginObj       types.Plugin `json:"plugin"` // todo: embed struct
-	pClient         *plugins.Client
-	refCount        int
-	PropagatedMount string // TODO: make private
-	Rootfs          string // TODO: make private
+	mu        sync.RWMutex
+	PluginObj types.Plugin `json:"plugin"` // todo: embed struct
+	pClient   *plugins.Client
+	refCount  int
+	Rootfs    string // TODO: make private
 
 	Config   digest.Digest
 	Blobsums []digest.Digest

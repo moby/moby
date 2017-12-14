@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
@@ -151,16 +150,6 @@ func (pm *Manager) HandleExitEvent(id string) error {
 
 	os.RemoveAll(filepath.Join(pm.config.ExecRoot, id))
 
-	if p.PropagatedMount != "" {
-		if err := mount.Unmount(p.PropagatedMount); err != nil {
-			logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
-		}
-		propRoot := filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
-		if err := mount.Unmount(propRoot); err != nil {
-			logrus.Warn("Could not unmount %s: %v", propRoot, err)
-		}
-	}
-
 	pm.mu.RLock()
 	c := pm.cMap[p]
 	if c.exitChan != nil {
@@ -239,27 +228,16 @@ func (pm *Manager) reload() error { // todo: restore
 						// check if we need to migrate an older propagated mount from before
 						// these mounts were stored outside the plugin rootfs
 						if _, err := os.Stat(propRoot); os.IsNotExist(err) {
-							if _, err := os.Stat(p.PropagatedMount); err == nil {
-								// make sure nothing is mounted here
-								// don't care about errors
-								mount.Unmount(p.PropagatedMount)
-								if err := os.Rename(p.PropagatedMount, propRoot); err != nil {
+							rootfsProp := filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
+							if _, err := os.Stat(rootfsProp); err == nil {
+								if err := os.Rename(rootfsProp, propRoot); err != nil {
 									logrus.WithError(err).WithField("dir", propRoot).Error("error migrating propagated mount storage")
-								}
-								if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
-									logrus.WithError(err).WithField("dir", p.PropagatedMount).Error("error migrating propagated mount storage")
 								}
 							}
 						}
 
 						if err := os.MkdirAll(propRoot, 0755); err != nil {
 							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
-						}
-						// TODO: sanitize PropagatedMount and prevent breakout
-						p.PropagatedMount = filepath.Join(p.Rootfs, p.PluginObj.Config.PropagatedMount)
-						if err := os.MkdirAll(p.PropagatedMount, 0755); err != nil {
-							logrus.Errorf("failed to create PropagatedMount directory at %s: %v", p.PropagatedMount, err)
-							return
 						}
 					}
 				}
