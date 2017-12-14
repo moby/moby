@@ -1511,6 +1511,8 @@ definitions:
   CreateImageInfo:
     type: "object"
     properties:
+      id:
+        type: "string"
       error:
         type: "string"
       status:
