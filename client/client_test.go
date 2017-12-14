@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/MovieStoreGuy/moby/internal/testutil"
+	"github.com/moby/moby/internal/testutil"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/stretchr/testify/assert"
