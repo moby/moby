@@ -268,7 +268,6 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 
 	dockerCmd(c, "create", imageID)
 	dockerCmd(c, "create", truncatedImageID)
-	dockerCmd(c, "create", fmt.Sprintf("%s:%s", imageName, truncatedImageID))
 
 	// Ensure this fails
 	out, exit, _ := dockerCmdWithError("create", fmt.Sprintf("%s:%s", imageName, imageID))
@@ -280,7 +279,10 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
 
-	out, exit, _ = dockerCmdWithError("create", fmt.Sprintf("%s:%s", "wrongimage", truncatedImageID))
+	if i := strings.IndexRune(imageID, ':'); i >= 0 {
+		imageID = imageID[i+1:]
+	}
+	out, exit, _ = dockerCmdWithError("create", fmt.Sprintf("%s:%s", "wrongimage", imageID))
 	if exit == 0 {
 		c.Fatalf("expected non-zero exit code; received %d", exit)
 	}
