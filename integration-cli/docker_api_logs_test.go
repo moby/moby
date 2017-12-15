@@ -172,6 +172,8 @@ func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
 
 	// Get timestamp of second log line
 	allLogs := extractBody(c, types.ContainerLogsOptions{Timestamps: true, ShowStdout: true})
+	c.Assert(len(allLogs), checker.GreaterOrEqualThan, 3)
+
 	t, err := time.Parse(time.RFC3339Nano, strings.Split(allLogs[1], " ")[0])
 	c.Assert(err, checker.IsNil)
 	until := t.Format(time.RFC3339Nano)
