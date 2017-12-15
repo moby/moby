@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 )
@@ -75,15 +74,11 @@ func (a *allocator) RequestAddress(poolID string, prefAddress net.IP, opts map[s
 		return nil, nil, err
 	}
 
-	// TODO Windows: Remove this once the bug in docker daemon is fixed
-	// that causes it to throw an exception on nil gateway
 	if prefAddress != nil {
 		return &net.IPNet{IP: prefAddress, Mask: ipNet.Mask}, nil, nil
-	} else if opts[ipamapi.RequestAddressType] == netlabel.Gateway {
-		return ipNet, nil, nil
-	} else {
-		return nil, nil, nil
 	}
+
+	return nil, nil, nil
 }
 
 // ReleaseAddress releases the address - always succeeds
