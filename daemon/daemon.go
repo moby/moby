@@ -62,8 +62,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// MainNamespace is the name of the namespace used for users containers
-const MainNamespace = "moby"
+// ContainersNamespace is the name of the namespace used for users containers
+const ContainersNamespace = "moby"
 
 var (
 	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
@@ -895,7 +895,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	go d.execCommandGC()
 
-	d.containerd, err = containerdRemote.NewClient(MainNamespace, d)
+	d.containerd, err = containerdRemote.NewClient(ContainersNamespace, d)
 	if err != nil {
 		return nil, err
 	}

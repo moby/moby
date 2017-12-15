@@ -1451,7 +1451,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
-		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
+		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
 	d.Restart(c)
@@ -2011,7 +2011,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 
 	// kill the container
 	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
-		"--namespace", moby_daemon.MainNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
+		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
 	// the exit event might be received after we do the inspect
@@ -2106,7 +2106,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	result := icmd.RunCommand(
 		ctrBinary,
 		"--address", "/var/run/docker/containerd/docker-containerd.sock",
-		"--namespace", moby_daemon.MainNamespace,
+		"--namespace", moby_daemon.ContainersNamespace,
 		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
 
