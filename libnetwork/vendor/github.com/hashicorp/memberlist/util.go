@@ -217,20 +217,6 @@ func decodeCompoundMessage(buf []byte) (trunc int, parts [][]byte, err error) {
 	return
 }
 
-// Given a string of the form "host", "host:port",
-// "ipv6::addr" or "[ipv6::address]:port",
-// return true if the string includes a port.
-func hasPort(s string) bool {
-	last := strings.LastIndex(s, ":")
-	if last == -1 {
-		return false
-	}
-	if s[0] == '[' {
-		return s[last-1] == ']'
-	}
-	return strings.Index(s, ":") == last
-}
-
 // compressPayload takes an opaque input buffer, compresses it
 // and wraps it in a compress{} message that is encoded.
 func compressPayload(inp []byte) (*bytes.Buffer, error) {
@@ -293,4 +279,32 @@ func decompressBuffer(c *compress) ([]byte, error) {
 // transport.
 func joinHostPort(host string, port uint16) string {
 	return net.JoinHostPort(host, strconv.Itoa(int(port)))
+}
+
+// hasPort is given a string of the form "host", "host:port", "ipv6::address",
+// or "[ipv6::address]:port", and returns true if the string includes a port.
+func hasPort(s string) bool {
+	// IPv6 address in brackets.
+	if strings.LastIndex(s, "[") == 0 {
+		return strings.LastIndex(s, ":") > strings.LastIndex(s, "]")
+	}
+
+	// Otherwise the presence of a single colon determines if there's a port
+	// since IPv6 addresses outside of brackets (count > 1) can't have a
+	// port.
+	return strings.Count(s, ":") == 1
+}
+
+// ensurePort makes sure the given string has a port number on it, otherwise it
+// appends the given port as a default.
+func ensurePort(s string, port int) string {
+	if hasPort(s) {
+		return s
+	}
+
+	// If this is an IPv6 address, the join call will add another set of
+	// brackets, so we have to trim before we add the default port.
+	s = strings.Trim(s, "[]")
+	s = net.JoinHostPort(s, strconv.Itoa(port))
+	return s
 }
