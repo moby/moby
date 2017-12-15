@@ -27,6 +27,7 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/typeurl"
@@ -317,7 +318,7 @@ func (c *client) SignalProcess(ctx context.Context, containerID, processID strin
 	if err != nil {
 		return err
 	}
-	return p.Kill(ctx, syscall.Signal(signal))
+	return wrapError(p.Kill(ctx, syscall.Signal(signal)))
 }
 
 func (c *client) ResizeTerminal(ctx context.Context, containerID, processID string, width, height int) error {
@@ -816,12 +817,19 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 }
 
 func wrapError(err error) error {
-	if err != nil {
-		msg := err.Error()
-		for _, s := range []string{"container does not exist", "not found", "no such container"} {
-			if strings.Contains(msg, s) {
-				return wrapNotFoundError(err)
-			}
+	if err == nil {
+		return nil
+	}
+
+	switch {
+	case errdefs.IsNotFound(err):
+		return wrapNotFoundError(err)
+	}
+
+	msg := err.Error()
+	for _, s := range []string{"container does not exist", "not found", "no such container"} {
+		if strings.Contains(msg, s) {
+			return wrapNotFoundError(err)
 		}
 	}
 	return err
