@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 	"runtime"
-	"strings"
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/errdefs"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/signal"
@@ -97,15 +97,11 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	}
 
 	if err := daemon.kill(container, sig); err != nil {
-		err = errors.Wrapf(err, "Cannot kill container %s", container.ID)
-		// if container or process not exists, ignore the error
-		// TODO: we shouldn't have to parse error strings from containerd
-		if strings.Contains(err.Error(), "container not found") ||
-			strings.Contains(err.Error(), "no such process") {
-			logrus.Warnf("container kill failed because of 'container not found' or 'no such process': %s", err.Error())
+		if errdefs.IsNotFound(err) {
 			unpause = false
+			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
 		} else {
-			return err
+			return errors.Wrapf(err, "Cannot kill container %s", container.ID)
 		}
 	}
 
@@ -171,7 +167,7 @@ func (daemon *Daemon) Kill(container *containerpkg.Container) error {
 // killPossibleDeadProcess is a wrapper around killSig() suppressing "no such process" error.
 func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container, sig int) error {
 	err := daemon.killWithSignal(container, sig)
-	if err == syscall.ESRCH {
+	if errdefs.IsNotFound(err) {
 		e := errNoSuchProcess{container.GetPID(), sig}
 		logrus.Debug(e)
 		return e
