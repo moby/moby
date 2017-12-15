@@ -12,6 +12,8 @@ type slotsByRunningState []orchestrator.Slot
 func (is slotsByRunningState) Len() int      { return len(is) }
 func (is slotsByRunningState) Swap(i, j int) { is[i], is[j] = is[j], is[i] }
 
+// Less returns true if the first task should be preferred over the second task,
+// all other things being equal in terms of node balance.
 func (is slotsByRunningState) Less(i, j int) bool {
 	iRunning := false
 	jRunning := false
@@ -29,7 +31,19 @@ func (is slotsByRunningState) Less(i, j int) bool {
 		}
 	}
 
-	return iRunning && !jRunning
+	if iRunning && !jRunning {
+		return true
+	}
+
+	if !iRunning && jRunning {
+		return false
+	}
+
+	// Use Slot number as a tie-breaker to prefer to remove tasks in reverse
+	// order of Slot number. This would help us avoid unnecessary master
+	// migration when scaling down a stateful service because the master
+	// task of a stateful service is usually in a low numbered Slot.
+	return is[i][0].Slot < is[j][0].Slot
 }
 
 type slotWithIndex struct {
