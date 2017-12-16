@@ -92,8 +92,8 @@ func imageDigestAndPlatforms(ctx context.Context, cli DistributionAPIClient, ima
 	if err != nil {
 		return "", nil, err
 	}
-
-	imageWithDigest := imageWithDigestString(image, distributionInspect.Descriptor.Digest)
+	// Type casting fixes issue of not being able to download
+	imageWithDigest := imageWithDigestString(image, digest.Digest(distributionInspect.Descriptor.Digest))
 
 	if len(distributionInspect.Platforms) > 0 {
 		platforms = make([]swarm.Platform, 0, len(distributionInspect.Platforms))
