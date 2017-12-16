@@ -534,6 +534,10 @@ func (l *splunkLogger) Name() string {
 	return driverName
 }
 
+func (l *splunkLogger) BufSize() int {
+	return 80 * 1024
+}
+
 func (l *splunkLogger) createSplunkMessage(msg *logger.Message) *splunkMessage {
 	message := *l.nullMessage
 	message.Time = fmt.Sprintf("%f", float64(msg.Timestamp.UnixNano())/float64(time.Second))
