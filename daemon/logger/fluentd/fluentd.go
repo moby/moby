@@ -48,8 +48,8 @@ const (
 	defaultRetryWait  = 1000
 	defaultMaxRetries = math.MaxInt32
 
-	// Write() will not time out
-	defaultWriteTimeout = time.Duration(0)
+	// Write() will time out after 20s
+	defaultWriteTimeout = time.Duration(20 * time.Second)
 
 	addressKey            = "fluentd-address"
 	writeTimeoutKey       = "fluentd-write-timeout"
@@ -89,12 +89,15 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	writeTimeout := defaultWriteTimeout
-	if info.Config[writeTimeoutKey] != "" {
+	i, _ := strconv.Atoi(info.Config[writeTimeoutKey])
+	if info.Config[writeTimeoutKey] != "" && i >= 0 {
 		wtd, err := time.ParseDuration(info.Config[writeTimeoutKey])
 		if err != nil {
 			return nil, err
 		}
 		writeTimeout = wtd
+	} else if i < 0 {
+		return nil, fmt.Errorf("Invalid Parameter: write-timeout must be a positive integer")
 	}
 
 	bufferLimit := defaultBufferLimit
