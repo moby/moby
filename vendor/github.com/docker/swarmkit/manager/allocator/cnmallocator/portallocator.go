@@ -324,9 +324,18 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	}
 
 	portStates := allocatedPorts{}
+	hostTargetPorts := map[uint32]struct{}{}
 	for _, portState := range s.Endpoint.Ports {
-		if portState.PublishMode == api.PublishModeIngress {
+		switch portState.PublishMode {
+		case api.PublishModeIngress:
 			portStates.addState(portState)
+		case api.PublishModeHost:
+			// build a map of host mode ports we've seen. if in the spec we get
+			// a host port that's not in the service, then we need to do
+			// allocation. if we get the same target port but something else
+			// has changed, then HostPublishPortsNeedUpdate will cover that
+			// case. see docker/swarmkit#2376
+			hostTargetPorts[portState.TargetPort] = struct{}{}
 		}
 	}
 
@@ -344,18 +353,28 @@ func (pa *portAllocator) isPortsAllocatedOnInit(s *api.Service, onInit bool) boo
 	// Iterate portConfigs with PublishedPort == 0 (low priority)
 	for _, portConfig := range s.Spec.Endpoint.Ports {
 		// Ignore ports which are not PublishModeIngress
-		if portConfig.PublishMode != api.PublishModeIngress {
-			continue
-		}
-		if portConfig.PublishedPort == 0 && portStates.delState(portConfig) == nil {
-			return false
-		}
+		switch portConfig.PublishMode {
+		case api.PublishModeIngress:
+			if portConfig.PublishedPort == 0 && portStates.delState(portConfig) == nil {
+				return false
+			}
 
-		// If SwarmPort was not defined by user and the func
-		// is called during allocator initialization state then
-		// we are not allocated.
-		if portConfig.PublishedPort == 0 && onInit {
-			return false
+			// If SwarmPort was not defined by user and the func
+			// is called during allocator initialization state then
+			// we are not allocated.
+			if portConfig.PublishedPort == 0 && onInit {
+				return false
+			}
+		case api.PublishModeHost:
+			// check if the target port is already in the port config. if it
+			// isn't, then it's our problem.
+			if _, ok := hostTargetPorts[portConfig.TargetPort]; !ok {
+				return false
+			}
+			// NOTE(dperny) there could be a further case where we check if
+			// there are host ports in the config that aren't in the spec, but
+			// that's only possible if there's a mismatch in the number of
+			// ports, which is handled by a length check earlier in the code
 		}
 	}
 
