@@ -31,6 +31,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
@@ -704,6 +705,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		UIDMaps:        d.uidMaps,
 		GIDMaps:        d.gidMaps,
 		WhiteoutFormat: archive.OverlayWhiteoutFormat,
+		InUserNS:       rsystem.RunningInUserNS(),
 	}); err != nil {
 		return 0, err
 	}
