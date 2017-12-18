@@ -12,6 +12,4 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	// Then install flags common to unix platforms
 	installUnixConfigFlags(conf, flags)
-
-	attachExperimentalFlags(conf, flags)
 }

@@ -574,11 +574,6 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	var warnings []string
 	sysInfo := sysinfo.New(true)
 
-	warnings, err := daemon.verifyExperimentalContainerSettings(hostConfig, config)
-	if err != nil {
-		return warnings, err
-	}
-
 	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
 
 	// no matter err is nil or not, w could have data in itself.
