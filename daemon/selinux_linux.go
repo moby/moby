@@ -1,5 +1,3 @@
-// +build linux
-
 package daemon
 
 import "github.com/opencontainers/selinux/go-selinux"

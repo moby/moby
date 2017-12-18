@@ -1,5 +1,3 @@
-// +build linux
-
 package reexec
 
 import (

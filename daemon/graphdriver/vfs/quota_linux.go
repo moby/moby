@@ -1,5 +1,3 @@
-// +build linux
-
 package vfs
 
 import "github.com/docker/docker/daemon/graphdriver/quota"
