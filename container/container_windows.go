@@ -54,22 +54,30 @@ func (container *Container) CreateSecretSymlinks() error {
 // SecretMounts returns the mount for the secret path.
 // All secrets are stored in a single mount on Windows. Target symlinks are
 // created for each secret, pointing to the files in this mount.
-func (container *Container) SecretMounts() []Mount {
+func (container *Container) SecretMounts() ([]Mount, error) {
 	var mounts []Mount
 	if len(container.SecretReferences) > 0 {
+		src, err := container.SecretMountPath()
+		if err != nil {
+			return nil, err
+		}
 		mounts = append(mounts, Mount{
-			Source:      container.SecretMountPath(),
+			Source:      src,
 			Destination: containerInternalSecretMountPath,
 			Writable:    false,
 		})
 	}
 
-	return mounts
+	return mounts, nil
 }
 
 // UnmountSecrets unmounts the fs for secrets
 func (container *Container) UnmountSecrets() error {
-	return os.RemoveAll(container.SecretMountPath())
+	p, err := container.SecretMountPath()
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(p)
 }
 
 // CreateConfigSymlinks creates symlinks to files in the config mount.
@@ -96,17 +104,21 @@ func (container *Container) CreateConfigSymlinks() error {
 // ConfigMounts returns the mount for configs.
 // All configs are stored in a single mount on Windows. Target symlinks are
 // created for each config, pointing to the files in this mount.
-func (container *Container) ConfigMounts() []Mount {
+func (container *Container) ConfigMounts() ([]Mount, error) {
 	var mounts []Mount
 	if len(container.ConfigReferences) > 0 {
+		src, err := container.ConfigsDirPath()
+		if err != nil {
+			return nil, err
+		}
 		mounts = append(mounts, Mount{
-			Source:      container.ConfigsDirPath(),
+			Source:      src,
 			Destination: containerInternalConfigsDirPath,
 			Writable:    false,
 		})
 	}
 
-	return mounts
+	return mounts, nil
 }
 
 // DetachAndUnmount unmounts all volumes.

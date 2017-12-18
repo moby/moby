@@ -165,7 +165,10 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		return nil
 	}
 
-	localMountPath := c.SecretMountPath()
+	localMountPath, err := c.SecretMountPath()
+	if err != nil {
+		return errors.Wrap(err, "error getting secrets mount dir")
+	}
 	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
 
 	// retrieve possible remapped range start for root UID, GID
@@ -204,7 +207,10 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 
 		// secrets are created in the SecretMountPath on the host, at a
 		// single level
-		fPath := c.SecretFilePath(*s)
+		fPath, err := c.SecretFilePath(*s)
+		if err != nil {
+			return errors.Wrap(err, "error getting secret file path")
+		}
 		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
 			return errors.Wrap(err, "error creating secret mount path")
 		}
@@ -250,7 +256,10 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 		return nil
 	}
 
-	localPath := c.ConfigsDirPath()
+	localPath, err := c.ConfigsDirPath()
+	if err != nil {
+		return err
+	}
 	logrus.Debugf("configs: setting up config dir: %s", localPath)
 
 	// retrieve possible remapped range start for root UID, GID
@@ -279,7 +288,10 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 			continue
 		}
 
-		fPath := c.ConfigFilePath(*configRef)
+		fPath, err := c.ConfigFilePath(*configRef)
+		if err != nil {
+			return err
+		}
 
 		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
 
@@ -377,5 +389,24 @@ func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, 
 	container.HostnamePath = nc.HostnamePath
 	container.HostsPath = nc.HostsPath
 	container.ResolvConfPath = nc.ResolvConfPath
+	return nil
+}
+
+func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
+	// get the root mount path so we can make it unbindable
+	p, err := c.MountsResourcePath("")
+	if err != nil {
+		return err
+	}
+
+	if err := idtools.MkdirAllAndChown(p, 0700, daemon.idMappings.RootPair()); err != nil {
+		return err
+	}
+
+	if err := mount.MakeUnbindable(p); err != nil {
+		// Setting unbindable is a precaution and is not neccessary for correct operation.
+		// Do not error out if this fails.
+		logrus.WithError(err).WithField("resource", p).WithField("container", c.ID).Warn("Error setting container resource mounts to unbindable, this may cause mount leakages, preventing removal of this container.")
+	}
 	return nil
 }
