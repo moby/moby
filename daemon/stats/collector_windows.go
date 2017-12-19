@@ -1,5 +1,3 @@
-// +build windows
-
 package stats
 
 // platformNewStatsCollector performs platform specific initialisation of the
