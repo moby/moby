@@ -258,6 +258,141 @@ func TestCopierWithSized(t *testing.T) {
 	}
 }
 
+func checkIdentical(t *testing.T, msg Message, expectedID string, expectedTS time.Time) {
+	if msg.PLogMetaData.ID != expectedID {
+		t.Fatalf("IDs are not he same across partials. Expected: %s Received: %s",
+			expectedID, msg.PLogMetaData.ID)
+	}
+	if msg.Timestamp != expectedTS {
+		t.Fatalf("Timestamps are not the same across partials. Expected: %v Received: %v",
+			expectedTS.Format(time.UnixDate), msg.Timestamp.Format(time.UnixDate))
+	}
+}
+
+// Have long lines and make sure that it comes out with PartialMetaData
+func TestCopierWithPartial(t *testing.T) {
+	stdoutLongLine := strings.Repeat("a", defaultBufSize)
+	stderrLongLine := strings.Repeat("b", defaultBufSize)
+	stdoutTrailingLine := "stdout trailing line"
+	stderrTrailingLine := "stderr trailing line"
+	normalStr := "This is an impartial message :)"
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	var normalMsg bytes.Buffer
+
+	for i := 0; i < 3; i++ {
+		if _, err := stdout.WriteString(stdoutLongLine); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := stderr.WriteString(stderrLongLine); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	if _, err := stdout.WriteString(stdoutTrailingLine + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := stderr.WriteString(stderrTrailingLine + "\n"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := normalMsg.WriteString(normalStr + "\n"); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonBuf bytes.Buffer
+
+	jsonLog := &TestLoggerJSON{Encoder: json.NewEncoder(&jsonBuf)}
+
+	c := NewCopier(
+		map[string]io.Reader{
+			"stdout": &stdout,
+			"normal": &normalMsg,
+			"stderr": &stderr,
+		},
+		jsonLog)
+	c.Run()
+	wait := make(chan struct{})
+	go func() {
+		c.Wait()
+		close(wait)
+	}()
+	select {
+	case <-time.After(1 * time.Second):
+		t.Fatal("Copier failed to do its work in 1 second")
+	case <-wait:
+	}
+
+	dec := json.NewDecoder(&jsonBuf)
+	expectedMsgs := 9
+	recvMsgs := 0
+	var expectedPartID1, expectedPartID2 string
+	var expectedTS1, expectedTS2 time.Time
+
+	for {
+		var msg Message
+
+		if err := dec.Decode(&msg); err != nil {
+			if err == io.EOF {
+				break
+			}
+			t.Fatal(err)
+		}
+		if msg.Source != "stdout" && msg.Source != "stderr" && msg.Source != "normal" {
+			t.Fatalf("Wrong Source: %q, should be %q or %q or %q", msg.Source, "stdout", "stderr", "normal")
+		}
+
+		if msg.Source == "stdout" {
+			if string(msg.Line) != stdoutLongLine && string(msg.Line) != stdoutTrailingLine {
+				t.Fatalf("Wrong Line: %q, expected 'stdoutLongLine' or 'stdoutTrailingLine'", msg.Line)
+			}
+
+			if msg.PLogMetaData.ID == "" {
+				t.Fatalf("Expected partial metadata. Got nothing")
+			}
+
+			if msg.PLogMetaData.Ordinal == 1 {
+				expectedPartID1 = msg.PLogMetaData.ID
+				expectedTS1 = msg.Timestamp
+			} else {
+				checkIdentical(t, msg, expectedPartID1, expectedTS1)
+			}
+			if msg.PLogMetaData.Ordinal == 4 && !msg.PLogMetaData.Last {
+				t.Fatalf("Last is not set for last chunk")
+			}
+		}
+
+		if msg.Source == "stderr" {
+			if string(msg.Line) != stderrLongLine && string(msg.Line) != stderrTrailingLine {
+				t.Fatalf("Wrong Line: %q, expected 'stderrLongLine' or 'stderrTrailingLine'", msg.Line)
+			}
+
+			if msg.PLogMetaData.ID == "" {
+				t.Fatalf("Expected partial metadata. Got nothing")
+			}
+
+			if msg.PLogMetaData.Ordinal == 1 {
+				expectedPartID2 = msg.PLogMetaData.ID
+				expectedTS2 = msg.Timestamp
+			} else {
+				checkIdentical(t, msg, expectedPartID2, expectedTS2)
+			}
+			if msg.PLogMetaData.Ordinal == 4 && !msg.PLogMetaData.Last {
+				t.Fatalf("Last is not set for last chunk")
+			}
+		}
+
+		if msg.Source == "normal" && msg.PLogMetaData != nil {
+			t.Fatalf("Normal messages should not have PartialLogMetaData")
+		}
+		recvMsgs++
+	}
+
+	if expectedMsgs != recvMsgs {
+		t.Fatalf("Expected msgs: %d Recv msgs: %d", expectedMsgs, recvMsgs)
+	}
+}
+
 type BenchmarkLoggerDummy struct {
 }
 

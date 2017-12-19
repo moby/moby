@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	types "github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
 )
 
@@ -58,6 +60,11 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 
 	n := 0
 	eof := false
+	var partialid string
+	var partialTS time.Time
+	var ordinal int
+	firstPartial := true
+	hasMorePartial := false
 
 	for {
 		select {
@@ -87,6 +94,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 			}
 			// Break up the data that we've buffered up into lines, and log each in turn.
 			p := 0
+
 			for q := bytes.IndexByte(buf[p:n], '\n'); q >= 0; q = bytes.IndexByte(buf[p:n], '\n') {
 				select {
 				case <-c.closed:
@@ -94,8 +102,22 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				default:
 					msg := NewMessage()
 					msg.Source = name
-					msg.Timestamp = time.Now().UTC()
 					msg.Line = append(msg.Line, buf[p:p+q]...)
+
+					if hasMorePartial {
+						msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: true}
+
+						// reset
+						partialid = ""
+						ordinal = 0
+						firstPartial = true
+						hasMorePartial = false
+					}
+					if msg.PLogMetaData == nil {
+						msg.Timestamp = time.Now().UTC()
+					} else {
+						msg.Timestamp = partialTS
+					}
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
@@ -110,9 +132,23 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				if p < n {
 					msg := NewMessage()
 					msg.Source = name
-					msg.Timestamp = time.Now().UTC()
 					msg.Line = append(msg.Line, buf[p:n]...)
-					msg.Partial = true
+
+					// Generate unique partialID for first partial. Use it across partials.
+					// Record timestamp for first partial. Use it across partials.
+					// Initialize Ordinal for first partial. Increment it across partials.
+					if firstPartial {
+						msg.Timestamp = time.Now().UTC()
+						partialTS = msg.Timestamp
+						partialid = stringid.GenerateRandomID()
+						ordinal = 1
+						firstPartial = false
+					} else {
+						msg.Timestamp = partialTS
+					}
+					msg.PLogMetaData = &types.PartialLogMetaData{ID: partialid, Ordinal: ordinal, Last: false}
+					ordinal++
+					hasMorePartial = true
 
 					if logErr := c.dst.Log(msg); logErr != nil {
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)

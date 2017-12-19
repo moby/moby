@@ -132,7 +132,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 
 func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
 	logLine := msg.Line
-	if !msg.Partial {
+	if msg.PLogMetaData == nil || (msg.PLogMetaData != nil && msg.PLogMetaData.Last) {
 		logLine = append(msg.Line, '\n')
 	}
 	err := (&jsonlog.JSONLogs{
