@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/runconfig"
+	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -291,6 +292,14 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return nil, errors.Errorf("can't create 'AutoRemove' container with restart policy")
+	}
+
+	// Validate mounts; check if host directories still exist
+	parser := volume.NewParser(platform)
+	for _, cfg := range hostConfig.Mounts {
+		if err := parser.ValidateMountConfig(&cfg); err != nil {
+			return nil, err
+		}
 	}
 
 	for _, extraHost := range hostConfig.ExtraHosts {
