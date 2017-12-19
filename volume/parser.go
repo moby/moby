@@ -26,8 +26,7 @@ type Parser interface {
 	IsBackwardCompatible(m *MountPoint) bool
 	HasResource(m *MountPoint, absPath string) bool
 	ValidateTmpfsMountDestination(dest string) error
-
-	validateMountConfig(mt *mount.Mount) error
+	ValidateMountConfig(mt *mount.Mount) error
 }
 
 // NewParser creates a parser for a given container OS, depending on the current host OS (linux on a windows host will resolve to an lcowParser)

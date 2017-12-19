@@ -31,13 +31,9 @@ func TestValidateMount(t *testing.T) {
 
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, nil},
 		{mount.Mount{Type: "invalid", Target: testDestinationPath}, errors.New("mount type unknown")},
+		{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, errBindNotExist},
 	}
-	if runtime.GOOS == "windows" {
-		cases = append(cases, struct {
-			input    mount.Mount
-			expected error
-		}{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, errBindNotExist}) // bind source existance is not checked on linux
-	}
+
 	lcowCases := []struct {
 		input    mount.Mount
 		expected error
@@ -54,7 +50,7 @@ func TestValidateMount(t *testing.T) {
 	}
 	parser := NewParser(runtime.GOOS)
 	for i, x := range cases {
-		err := parser.validateMountConfig(&x.input)
+		err := parser.ValidateMountConfig(&x.input)
 		if err == nil && x.expected == nil {
 			continue
 		}
@@ -65,7 +61,7 @@ func TestValidateMount(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		parser = &lcowParser{}
 		for i, x := range lcowCases {
-			err := parser.validateMountConfig(&x.input)
+			err := parser.ValidateMountConfig(&x.input)
 			if err == nil && x.expected == nil {
 				continue
 			}

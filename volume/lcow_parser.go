@@ -22,7 +22,7 @@ type lcowParser struct {
 	windowsParser
 }
 
-func (p *lcowParser) validateMountConfig(mnt *mount.Mount) error {
+func (p *lcowParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, rxLCOWDestination, lcowSpecificValidators)
 }
 
