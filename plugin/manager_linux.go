@@ -187,6 +187,9 @@ func (pm *Manager) Shutdown() {
 			shutdownPlugin(p, c, pm.executor)
 		}
 	}
+	if err := mount.RecursiveUnmount(pm.config.Root); err != nil {
+		logrus.WithError(err).Warn("error cleaning up plugin mounts")
+	}
 }
 
 func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {
