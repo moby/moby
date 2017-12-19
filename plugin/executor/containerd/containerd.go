@@ -16,7 +16,7 @@ import (
 )
 
 // PluginNamespace is the name used for the plugins namespace
-var PluginNamespace = "moby-plugins"
+var PluginNamespace = "plugins.moby"
 
 // ExitHandler represents an object that is called when the exit event is received from containerd
 type ExitHandler interface {
