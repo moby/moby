@@ -35,9 +35,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := setupDriverQuota(d); err != nil {
-		return nil, err
-	}
+	setupDriverQuota(d)
 
 	return graphdriver.NewNaiveDiffDriver(d, uidMaps, gidMaps), nil
 }
