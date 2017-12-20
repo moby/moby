@@ -28,7 +28,7 @@ func New() *Events {
 	}
 }
 
-// Subscribe adds new listener to events, returns slice of 64 stored
+// Subscribe adds new listener to events, returns slice of 256 stored
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion), and a function to call
 // to stop the stream of events.
@@ -46,7 +46,7 @@ func (e *Events) Subscribe() ([]eventtypes.Message, chan interface{}, func()) {
 	return current, l, cancel
 }
 
-// SubscribeTopic adds new listener to events, returns slice of 64 stored
+// SubscribeTopic adds new listener to events, returns slice of 256 stored
 // last events, a channel in which you can expect new events (in form
 // of interface{}, so you need type assertion).
 func (e *Events) SubscribeTopic(since, until time.Time, ef *Filter) ([]eventtypes.Message, chan interface{}) {
