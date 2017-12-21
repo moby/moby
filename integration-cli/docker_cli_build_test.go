@@ -4860,7 +4860,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgDefinitionWithNoEnvInjection(c *check
 	}
 }
 
-func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageArg(c *check.C) {
 	imgName := "multifrombldargtest"
 	dockerfile := `FROM busybox
     ARG foo=abc
@@ -4884,7 +4884,7 @@ func (s *DockerSuite) TestBuildBuildTimeArgMultipleFrom(c *check.C) {
 	c.Assert(result.Stdout(), checker.Contains, "bar=def")
 }
 
-func (s *DockerSuite) TestBuildBuildTimeFromArgMultipleFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageGlobalArg(c *check.C) {
 	imgName := "multifrombldargtest"
 	dockerfile := `ARG tag=nosuchtag
      FROM busybox:${tag}
@@ -4909,7 +4909,7 @@ func (s *DockerSuite) TestBuildBuildTimeFromArgMultipleFrom(c *check.C) {
 	c.Assert(result.Stdout(), checker.Contains, "tag=latest")
 }
 
-func (s *DockerSuite) TestBuildBuildTimeUnusedArgMultipleFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageUnusedArg(c *check.C) {
 	imgName := "multifromunusedarg"
 	dockerfile := `FROM busybox
     ARG foo
@@ -5727,7 +5727,7 @@ func (s *DockerSuite) TestBuildCacheFrom(c *check.C) {
 	c.Assert(layers1[len(layers1)-1], checker.Not(checker.Equals), layers2[len(layers1)-1])
 }
 
-func (s *DockerSuite) TestBuildCacheMultipleFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageCache(c *check.C) {
 	testRequires(c, DaemonIsLinux) // All tests that do save are skipped in windows
 	dockerfile := `
 		FROM busybox
@@ -5888,7 +5888,7 @@ func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	c.Assert(result.Combined(), checker.Contains, "Step 2/2 : RUN echo hi \\\\\n")
 }
 
-func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageCopyFromSyntax(c *check.C) {
 	dockerfile := `
 		FROM busybox AS first
 		COPY foo bar
@@ -5946,7 +5946,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFS(c *check.C) {
 	cli.DockerCmd(c, "run", "build4", "cat", "baz").Assert(c, icmd.Expected{Out: "pqr"})
 }
 
-func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageCopyFromErrors(c *check.C) {
 	testCases := []struct {
 		dockerfile    string
 		expectedError string
@@ -5993,7 +5993,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousRootFSErrors(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageMultipleBuilds(c *check.C) {
 	dockerfile := `
 		FROM busybox
 		COPY foo bar`
@@ -6026,7 +6026,7 @@ func (s *DockerSuite) TestBuildCopyFromPreviousFrom(c *check.C) {
 	c.Assert(strings.TrimSpace(out), check.Equals, "def")
 }
 
-func (s *DockerSuite) TestBuildCopyFromImplicitFrom(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageImplicitFrom(c *check.C) {
 	dockerfile := `
 		FROM busybox
 		COPY --from=busybox /etc/passwd /mypasswd
@@ -6053,7 +6053,7 @@ func (s *DockerSuite) TestBuildCopyFromImplicitFrom(c *check.C) {
 	}
 }
 
-func (s *DockerRegistrySuite) TestBuildCopyFromImplicitPullingFrom(c *check.C) {
+func (s *DockerRegistrySuite) TestBuildMultiStageImplicitPull(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/testf", privateRegistryURL)
 
 	dockerfile := `
@@ -6083,7 +6083,7 @@ func (s *DockerRegistrySuite) TestBuildCopyFromImplicitPullingFrom(c *check.C) {
 	cli.Docker(cli.Args("run", "build1", "cat", "baz")).Assert(c, icmd.Expected{Out: "abc"})
 }
 
-func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageNameVariants(c *check.C) {
 	dockerfile := `
 		FROM busybox as foo
 		COPY foo /
@@ -6094,7 +6094,7 @@ func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
 		FROM foo
 		COPY --from=foo1 foo f1
 		COPY --from=FOo2 foo f2
-		` // foo2 case also tests that names are canse insensitive
+		` // foo2 case also tests that names are case insensitive
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFiles(map[string]string{
@@ -6108,7 +6108,7 @@ func (s *DockerSuite) TestBuildFromPreviousBlock(c *check.C) {
 	cli.Docker(cli.Args("run", "build1", "cat", "f2")).Assert(c, icmd.Expected{Out: "bar2"})
 }
 
-func (s *DockerTrustSuite) TestCopyFromTrustedBuild(c *check.C) {
+func (s *DockerTrustSuite) TestBuildMultiStageTrusted(c *check.C) {
 	img1 := s.setupTrustedImage(c, "trusted-build1")
 	img2 := s.setupTrustedImage(c, "trusted-build2")
 	dockerFile := fmt.Sprintf(`
@@ -6130,7 +6130,7 @@ func (s *DockerTrustSuite) TestCopyFromTrustedBuild(c *check.C) {
 	dockerCmdWithResult("run", name, "cat", "bar").Assert(c, icmd.Expected{Out: "ok"})
 }
 
-func (s *DockerSuite) TestBuildCopyFromPreviousFromWindows(c *check.C) {
+func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
 		FROM ` + testEnv.MinimalBaseImage() + `
@@ -6218,7 +6218,7 @@ func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 }
 
 // #33176
-func (s *DockerSuite) TestBuildCopyFromResetScratch(c *check.C) {
+func (s *DockerSuite) TestBuildMulitStageResetScratch(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
 	dockerfile := `
