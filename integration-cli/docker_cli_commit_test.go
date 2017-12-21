@@ -121,11 +121,19 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
+	// The ordering here is due to `PATH` being overridden from the container's
+	// ENV.  On windows, the container doesn't have a `PATH` ENV variable so
+	// the ordering is the same as the cli.
+	expectedEnv := "[PATH=/foo DEBUG=true test=1]"
+	if testEnv.DaemonPlatform() == "windows" {
+		expectedEnv = "[DEBUG=true test=1 PATH=/foo]"
+	}
+
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	prefix = strings.ToUpper(prefix) // Force C: as that's how WORKDIR is normalized on Windows
 	expected := map[string]string{
 		"Config.ExposedPorts": "map[8080/tcp:{}]",
-		"Config.Env":          "[DEBUG=true test=1 PATH=/foo]",
+		"Config.Env":          expectedEnv,
 		"Config.Labels":       "map[foo:bar]",
 		"Config.Cmd":          "[/bin/sh]",
 		"Config.WorkingDir":   prefix + slash + "opt",
