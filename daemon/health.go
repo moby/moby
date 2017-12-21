@@ -80,6 +80,7 @@ func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container
 	execConfig.Tty = false
 	execConfig.Privileged = false
 	execConfig.User = cntr.Config.User
+	execConfig.WorkingDir = cntr.Config.WorkingDir
 
 	linkedEnv, err := d.setupLinkedContainers(cntr)
 	if err != nil {
