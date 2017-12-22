@@ -197,3 +197,73 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 	resp.Body.Close()
 	require.NoError(t, err)
 }
+
+// TestBuildMultiStageOnBuild checks that ONBUILD commands are applied to
+// multiple subsequent stages
+// #35652
+func TestBuildMultiStageOnBuild(t *testing.T) {
+	defer setupTest(t)()
+	// test both metadata and layer based commands as they may be implemented differently
+	dockerfile := `FROM busybox AS stage1
+ONBUILD RUN echo 'foo' >somefile
+ONBUILD ENV bar=baz
+
+FROM stage1
+RUN cat somefile # fails if ONBUILD RUN fails
+
+FROM stage1
+RUN cat somefile`
+
+	ctx := context.Background()
+	source := fakecontext.New(t, "",
+		fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+		})
+
+	out := bytes.NewBuffer(nil)
+	require.NoError(t, err)
+	_, err = io.Copy(out, resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "Successfully built")
+
+	imageIDs, err := getImageIDsFromBuild(out.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, 3, len(imageIDs))
+
+	image, _, err := apiclient.ImageInspectWithRaw(context.Background(), imageIDs[2])
+	require.NoError(t, err)
+	assert.Contains(t, image.Config.Env, "bar=baz")
+}
+
+type buildLine struct {
+	Stream string
+	Aux    struct {
+		ID string
+	}
+}
+
+func getImageIDsFromBuild(output []byte) ([]string, error) {
+	ids := []string{}
+	for _, line := range bytes.Split(output, []byte("\n")) {
+		if len(line) == 0 {
+			continue
+		}
+		entry := buildLine{}
+		if err := json.Unmarshal(line, &entry); err != nil {
+			return nil, err
+		}
+		if entry.Aux.ID != "" {
+			ids = append(ids, entry.Aux.ID)
+		}
+	}
+	return ids, nil
+}
