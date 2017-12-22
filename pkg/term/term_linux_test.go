@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
@@ -35,15 +36,16 @@ func TestGetWinsize(t *testing.T) {
 	winSize, err := GetWinsize(tty.Fd())
 	assert.NilError(t, err)
 	assert.Assert(t, winSize != nil)
-	assert.Assert(t, winSize.Height != nil)
-	assert.Assert(t, winSize.Width != nil)
+
 	newSize := Winsize{Width: 200, Height: 200, x: winSize.x, y: winSize.y}
 	err = SetWinsize(tty.Fd(), &newSize)
 	assert.NilError(t, err)
 	winSize, err = GetWinsize(tty.Fd())
 	assert.NilError(t, err)
-	assert.DeepEqual(t, *winSize, newSize)
+	assert.DeepEqual(t, *winSize, newSize, cmpWinsize)
 }
+
+var cmpWinsize = cmp.AllowUnexported(Winsize{})
 
 func TestSetWinsize(t *testing.T) {
 	tty, err := newTtyForTest(t)
@@ -57,7 +59,7 @@ func TestSetWinsize(t *testing.T) {
 	assert.NilError(t, err)
 	winSize, err = GetWinsize(tty.Fd())
 	assert.NilError(t, err)
-	assert.DeepEqual(t, *winSize, newSize)
+	assert.DeepEqual(t, *winSize, newSize, cmpWinsize)
 }
 
 func TestGetFdInfo(t *testing.T) {

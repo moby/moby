@@ -13,6 +13,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -20,34 +21,30 @@ import (
 func TestParseRemoteURL(t *testing.T) {
 	dir, err := parseRemoteURL("git://github.com/user/repo.git")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"git://github.com/user/repo.git", "master", ""}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"git://github.com/user/repo.git", "master", ""}, dir, cmpGitRepoOpt))
 
 	dir, err = parseRemoteURL("git://github.com/user/repo.git#mybranch:mydir/mysubdir/")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"git://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"git://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir, cmpGitRepoOpt))
 
 	dir, err = parseRemoteURL("https://github.com/user/repo.git")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"https://github.com/user/repo.git", "master", ""}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"https://github.com/user/repo.git", "master", ""}, dir, cmpGitRepoOpt))
 
 	dir, err = parseRemoteURL("https://github.com/user/repo.git#mybranch:mydir/mysubdir/")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"https://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"https://github.com/user/repo.git", "mybranch", "mydir/mysubdir/"}, dir, cmpGitRepoOpt))
 
 	dir, err = parseRemoteURL("git@github.com:user/repo.git")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"git@github.com:user/repo.git", "master", ""}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"git@github.com:user/repo.git", "master", ""}, dir, cmpGitRepoOpt))
 
 	dir, err = parseRemoteURL("git@github.com:user/repo.git#mybranch:mydir/mysubdir/")
 	assert.NilError(t, err)
-	assert.Check(t, len(dir) != 0)
-	assert.Check(t, is.DeepEqual(gitRepo{"git@github.com:user/repo.git", "mybranch", "mydir/mysubdir/"}, dir))
+	assert.Check(t, is.DeepEqual(gitRepo{"git@github.com:user/repo.git", "mybranch", "mydir/mysubdir/"}, dir, cmpGitRepoOpt))
 }
+
+var cmpGitRepoOpt = cmp.AllowUnexported(gitRepo{})
 
 func TestCloneArgsSmartHttp(t *testing.T) {
 	mux := http.NewServeMux()

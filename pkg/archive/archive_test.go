@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"strings"
 	"testing"
@@ -1338,7 +1339,7 @@ func TestDisablePigz(t *testing.T) {
 	// For the context canceller
 	contextReaderCloserWrapper := outsideReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
 
-	assert.IsType(t, &gzip.Reader{}, contextReaderCloserWrapper.Reader)
+	assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
 }
 
 func TestPigz(t *testing.T) {
@@ -1351,9 +1352,9 @@ func TestPigz(t *testing.T) {
 	_, err := exec.LookPath("unpigz")
 	if err == nil {
 		t.Log("Tested whether Pigz is used, as it installed")
-		assert.IsType(t, &io.PipeReader{}, contextReaderCloserWrapper.Reader)
+		assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&io.PipeReader{}))
 	} else {
 		t.Log("Tested whether Pigz is not used, as it not installed")
-		assert.IsType(t, &gzip.Reader{}, contextReaderCloserWrapper.Reader)
+		assert.Equal(t, reflect.TypeOf(contextReaderCloserWrapper.Reader), reflect.TypeOf(&gzip.Reader{}))
 	}
 }

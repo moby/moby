@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 )
 
@@ -39,5 +38,5 @@ func TestDiff(t *testing.T) {
 
 	items, err := client.ContainerDiff(ctx, cID)
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(expected, items))
+	assert.DeepEqual(t, expected, items)
 }

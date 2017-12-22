@@ -15,9 +15,9 @@ func TestVersion(t *testing.T) {
 	version, err := client.ServerVersion(context.Background())
 	assert.NilError(t, err)
 
-	assert.Check(t, version.APIVersion != nil)
-	assert.Check(t, version.Version != nil)
-	assert.Check(t, version.MinAPIVersion != nil)
+	assert.Check(t, version.APIVersion != "")
+	assert.Check(t, version.Version != "")
+	assert.Check(t, version.MinAPIVersion != "")
 	assert.Check(t, is.Equal(testEnv.DaemonInfo.ExperimentalBuild, version.Experimental))
 	assert.Check(t, is.Equal(testEnv.OSType, version.Os))
 }
