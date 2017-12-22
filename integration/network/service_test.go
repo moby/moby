@@ -46,10 +46,10 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), pollSettings)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ServiceRemove(context.Background(), serviceID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
 	poll.WaitOn(t, noTasks(client), pollSettings)
@@ -64,7 +64,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	defer d.Stop(t)
 
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	pollSettings := func(config *poll.Settings) {
 		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
@@ -95,7 +95,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	serviceID := serviceResp.ID
 	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), pollSettings)
@@ -115,11 +115,11 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 		Verbose: true,
 		Scope:   "swarm",
 	})
-	require.NoError(t, err, "Ingress network was removed after removing service!")
-	require.NotZero(t, len(netInfo.Containers), "No load balancing endpoints in ingress network")
-	require.NotZero(t, len(netInfo.Peers), "No peers (including self) in ingress network")
+	assert.NilError(t, err, "Ingress network was removed after removing service!")
+	assert.Assert(t, len(netInfo.Containers) != 0, "No load balancing endpoints in ingress network")
+	assert.Assert(t, len(netInfo.Peers) != 0, "No peers (including self) in ingress network")
 	_, ok := netInfo.Containers["ingress-sbox"]
-	require.True(t, ok, "ingress-sbox not present in ingress network")
+	assert.Assert(t, ok, "ingress-sbox not present in ingress network")
 }
 
 func serviceRunningCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {

@@ -4,14 +4,20 @@ import (
 	"io"
 
 	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
+
+type helperT interface {
+	Helper()
+}
 
 // ErrorContains checks that the error is not nil, and contains the expected
 // substring.
+// Deprecated: use assert.Assert(t, cmp.ErrorContains(err, expected))
 func ErrorContains(t assert.TestingT, err error, expectedError string, msgAndArgs ...interface{}) {
-	assert.Assert(t, is.ErrorContains(err, ""), msgAndArgs)
-	assert.Check(t, is.Contains(err.Error(), expectedError), msgAndArgs)
+	if ht, ok := t.(helperT); ok {
+		ht.Helper()
+	}
+	assert.ErrorContains(t, err, expectedError, msgAndArgs...)
 }
 
 // DevZero acts like /dev/zero but in an OS-independent fashion.

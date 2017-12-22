@@ -298,7 +298,7 @@ COPY bar /`
 	_, err = io.Copy(out, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-	require.NotContains(t, out.String(), "Using cache")
+	assert.Assert(t, !strings.Contains(out.String(), "Using cache"))
 }
 
 // docker/for-linux#135

@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumetestutils "github.com/docker/docker/volume/testutils"
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -359,7 +360,7 @@ func TestGet(t *testing.T) {
 
 	v2, err := s.Get("test")
 	assert.NilError(t, err)
-	assert.DeepEqual(t, v1, v2)
+	assert.DeepEqual(t, v1, v2, cmpVolume)
 
 	dv := v2.(volume.DetailedVolume)
 	assert.Equal(t, "1", dv.Labels()["a"])
@@ -383,7 +384,7 @@ func TestGetWithRef(t *testing.T) {
 
 	v2, err := s.GetWithRef("test", driverName, "test-ref")
 	assert.NilError(t, err)
-	assert.DeepEqual(t, v1, v2)
+	assert.DeepEqual(t, v1, v2, cmpVolume)
 
 	err = s.Remove(v2)
 	assert.Assert(t, is.ErrorContains(err, ""))
@@ -393,6 +394,8 @@ func TestGetWithRef(t *testing.T) {
 	err = s.Remove(v2)
 	assert.NilError(t, err)
 }
+
+var cmpVolume = cmp.AllowUnexported(volumetestutils.FakeVolume{}, volumeWrapper{})
 
 func setupTest(t *testing.T, name string) (*VolumeStore, func(*testing.T)) {
 	t.Helper()

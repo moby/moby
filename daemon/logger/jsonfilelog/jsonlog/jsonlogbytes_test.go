@@ -3,6 +3,7 @@ package jsonlog // import "github.com/docker/docker/daemon/logger/jsonfilelog/js
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"regexp"
 	"testing"
 	"time"
@@ -35,7 +36,16 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 		var buf bytes.Buffer
 		err := jsonLog.MarshalJSONBuf(&buf)
 		assert.NilError(t, err)
-		assert.Regexp(t, regexp.MustCompile(expression), buf.String())
-		assert.Check(t, json.Unmarshal(buf.Bytes(), &map[string]interface{}{}))
+
+		assert.Assert(t, regexP(buf.String(), expression))
+		assert.NilError(t, json.Unmarshal(buf.Bytes(), &map[string]interface{}{}))
+	}
+}
+
+func regexP(value string, pattern string) func() (bool, string) {
+	return func() (bool, string) {
+		re := regexp.MustCompile(pattern)
+		msg := fmt.Sprintf("%q did not match pattern %q", value, pattern)
+		return re.MatchString(value), msg
 	}
 }

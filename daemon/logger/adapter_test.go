@@ -121,7 +121,7 @@ func TestAdapterReadLogs(t *testing.T) {
 	}
 
 	lr, ok := l.(LogReader)
-	assert.Check(t, ok != nil)
+	assert.Check(t, ok, "Logger does not implement LogReader")
 
 	lw := lr.ReadLogs(ReadConfig{})
 
@@ -158,7 +158,7 @@ func TestAdapterReadLogs(t *testing.T) {
 
 	select {
 	case msg, ok := <-lw.Msg:
-		assert.Check(t, ok != nil, "message channel unexpectedly closed")
+		assert.Check(t, ok, "message channel unexpectedly closed")
 		testMessageEqual(t, &x, msg)
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout reading logs")

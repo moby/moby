@@ -148,5 +148,5 @@ func testRetrieveQuota(t *testing.T, ctrl *Control, homeDir, testDir, testSubDir
 
 	var q Quota
 	assert.NilError(t, ctrl.GetQuota(testSubDir, &q))
-	assert.Check(t, is.Equal(testQuotaSize, q.Size))
+	assert.Check(t, is.Equal(uint64(testQuotaSize), q.Size))
 }

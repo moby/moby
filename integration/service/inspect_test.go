@@ -10,6 +10,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -18,14 +19,14 @@ import (
 )
 
 func TestInspect(t *testing.T) {
-	skip.IfCondition(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	assert.NilError(t, err)
 
-	var before = time.Now()
+	var now = time.Now()
 	var instances uint64 = 2
 	serviceSpec := fullSwarmServiceSpec("test-service-inspect", instances)
 
@@ -40,11 +41,36 @@ func TestInspect(t *testing.T) {
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(serviceSpec, service.Spec))
-	assert.Check(t, is.Equal(uint64(11), service.Meta.Version.Index))
-	assert.Check(t, is.Equal(id, service.ID))
-	assert.WithinDuration(t, before, service.CreatedAt, 30*time.Second)
-	assert.WithinDuration(t, before, service.UpdatedAt, 30*time.Second)
+
+	expected := swarmtypes.Service{
+		ID:   id,
+		Spec: serviceSpec,
+		Meta: swarmtypes.Meta{
+			Version:   swarmtypes.Version{Index: uint64(11)},
+			CreatedAt: now,
+			UpdatedAt: now,
+		},
+	}
+	assert.Check(t, is.DeepEqual(service, expected, cmpServiceOpts()))
+}
+
+// TODO: use helpers from gotestyourself/assert/opt when available
+func cmpServiceOpts() cmp.Option {
+	const threshold = 20 * time.Second
+
+	metaTimeFields := func(path cmp.Path) bool {
+		switch path.String() {
+		case "Meta.CreatedAt", "Meta.UpdatedAt":
+			return true
+		}
+		return false
+	}
+	withinThreshold := cmp.Comparer(func(x, y time.Time) bool {
+		delta := x.Sub(y)
+		return delta < threshold && delta > -threshold
+	})
+
+	return cmp.FilterPath(metaTimeFields, withinThreshold)
 }
 
 func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {

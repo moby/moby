@@ -3,6 +3,7 @@ package parser // import "github.com/docker/docker/builder/dockerfile/parser"
 import (
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -16,8 +17,10 @@ func TestParseNameValOldFormat(t *testing.T) {
 		Value: "foo",
 		Next:  &Node{Value: "bar"},
 	}
-	assert.Check(t, is.DeepEqual(expected, node))
+	assert.DeepEqual(t, expected, node, cmpNodeOpt)
 }
+
+var cmpNodeOpt = cmp.AllowUnexported(Node{})
 
 func TestParseNameValNewFormat(t *testing.T) {
 	directive := Directive{}
@@ -36,7 +39,7 @@ func TestParseNameValNewFormat(t *testing.T) {
 			},
 		},
 	}
-	assert.Check(t, is.DeepEqual(expected, node))
+	assert.DeepEqual(t, expected, node, cmpNodeOpt)
 }
 
 func TestNodeFromLabels(t *testing.T) {
@@ -62,8 +65,7 @@ func TestNodeFromLabels(t *testing.T) {
 	}
 
 	node := NodeFromLabels(labels)
-	assert.Check(t, is.DeepEqual(expected, node))
-
+	assert.DeepEqual(t, expected, node, cmpNodeOpt)
 }
 
 func TestParseNameValWithoutVal(t *testing.T) {

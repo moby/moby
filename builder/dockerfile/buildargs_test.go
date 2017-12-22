@@ -2,6 +2,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -78,9 +79,9 @@ func TestWarnOnUnusedBuildArgs(t *testing.T) {
 	buffer := new(bytes.Buffer)
 	buildArgs.WarnOnUnusedBuildArgs(buffer)
 	out := buffer.String()
-	assert.NotContains(t, out, "ThisArgIsUsed")
-	assert.NotContains(t, out, "HTTPS_PROXY")
-	assert.NotContains(t, out, "HTTP_PROXY")
+	assert.Assert(t, !strings.Contains(out, "ThisArgIsUsed"), out)
+	assert.Assert(t, !strings.Contains(out, "HTTPS_PROXY"), out)
+	assert.Assert(t, !strings.Contains(out, "HTTP_PROXY"), out)
 	assert.Check(t, is.Contains(out, "ThisArgIsNotUsed"))
 }
 

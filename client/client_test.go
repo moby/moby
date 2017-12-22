@@ -89,8 +89,7 @@ func TestNewEnvClient(t *testing.T) {
 		env.PatchAll(t, c.envs)
 		apiclient, err := NewEnvClient()
 		if c.expectedError != "" {
-			assert.Check(t, is.ErrorContains(err, ""), c.doc)
-			assert.Check(t, is.Equal(c.expectedError, err.Error()), c.doc)
+			assert.Check(t, is.Error(err, c.expectedError), c.doc)
 		} else {
 			assert.Check(t, err, c.doc)
 			version := apiclient.ClientVersion()
@@ -100,7 +99,7 @@ func TestNewEnvClient(t *testing.T) {
 		if c.envs["DOCKER_TLS_VERIFY"] != "" {
 			// pedantic checking that this is handled correctly
 			tr := apiclient.client.Transport.(*http.Transport)
-			assert.Check(t, tr.TLSClientConfig != nil, c.doc)
+			assert.Assert(t, tr.TLSClientConfig != nil, c.doc)
 			assert.Check(t, is.Equal(tr.TLSClientConfig.InsecureSkipVerify, false), c.doc)
 		}
 	}
@@ -298,7 +297,7 @@ func TestClientRedirect(t *testing.T) {
 
 	cases := []struct {
 		httpMethod  string
-		expectedErr error
+		expectedErr *url.Error
 		statusCode  int
 	}{
 		{http.MethodGet, nil, 301},
@@ -311,7 +310,13 @@ func TestClientRedirect(t *testing.T) {
 		req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
 		assert.Check(t, err)
 		resp, err := client.Do(req)
-		assert.Check(t, is.DeepEqual(tc.expectedErr, err))
 		assert.Check(t, is.Equal(tc.statusCode, resp.StatusCode))
+		if tc.expectedErr == nil {
+			assert.Check(t, is.Nil(err))
+		} else {
+			urlError, ok := err.(*url.Error)
+			assert.Assert(t, ok, "%T is not *url.Error", err)
+			assert.Check(t, is.Equal(*tc.expectedErr, *urlError))
+		}
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/layer"
+	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -119,6 +120,6 @@ func TestNewChildImageFromImageWithRootFS(t *testing.T) {
 	assert.Check(t, is.Len(newImage.History, 2))
 	assert.Check(t, is.Equal(childConfig.Comment, newImage.History[1].Comment))
 
-	// RootFS should be copied not mutated
-	assert.Check(t, parent.RootFS.DiffIDs != newImage.RootFS.DiffIDs)
+	assert.Check(t, !cmp.Equal(parent.RootFS.DiffIDs, newImage.RootFS.DiffIDs),
+		"RootFS should be copied not mutated")
 }
