@@ -106,9 +106,9 @@ func (r Result) Similar() bool {
 // Difference reports whether two lists of lengths nx and ny are equal
 // given the definition of equality provided as f.
 //
-// This function may return a edit-script, which is a sequence of operations
-// needed to convert one list into the other. If non-nil, the following
-// invariants for the edit-script are maintained:
+// This function returns an edit-script, which is a sequence of operations
+// needed to convert one list into the other. The following invariants for
+// the edit-script are maintained:
 //	• eq == (es.Dist()==0)
 //	• nx == es.LenX()
 //	• ny == es.LenY()
@@ -117,17 +117,7 @@ func (r Result) Similar() bool {
 // produces an edit-script with a minimal Levenshtein distance). This algorithm
 // favors performance over optimality. The exact output is not guaranteed to
 // be stable and may change over time.
-func Difference(nx, ny int, f EqualFunc) (eq bool, es EditScript) {
-	es = searchGraph(nx, ny, f)
-	st := es.stats()
-	eq = len(es) == st.NI
-	if !eq && st.NI < (nx+ny)/4 {
-		return eq, nil // Edit-script more distracting than helpful
-	}
-	return eq, es
-}
-
-func searchGraph(nx, ny int, f EqualFunc) EditScript {
+func Difference(nx, ny int, f EqualFunc) (es EditScript) {
 	// This algorithm is based on traversing what is known as an "edit-graph".
 	// See Figure 1 from "An O(ND) Difference Algorithm and Its Variations"
 	// by Eugene W. Myers. Since D can be as large as N itself, this is

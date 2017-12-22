@@ -24,7 +24,7 @@ func SortKeys(vs []reflect.Value) []reflect.Value {
 	// Deduplicate keys (fails for NaNs).
 	vs2 := vs[:1]
 	for _, v := range vs[1:] {
-		if v.Interface() != vs2[len(vs2)-1].Interface() {
+		if isLess(vs2[len(vs2)-1], v) {
 			vs2 = append(vs2, v)
 		}
 	}
