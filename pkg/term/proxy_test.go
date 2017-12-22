@@ -3,9 +3,9 @@ package term // import "github.com/docker/docker/pkg/term"
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -25,7 +25,8 @@ func TestEscapeProxyRead(t *testing.T) {
 	nr, err = reader.Read(buf)
 	require.Error(t, err, "Should throw error when no keys are to read")
 	require.EqualValues(t, nr, 0, "nr should be zero")
-	require.Condition(t, func() (success bool) { return len(keys) == 0 && len(buf) == 0 }, "keys & the read buffer size should be zero")
+	assert.Len(t, keys, 0)
+	assert.Len(t, buf, 0)
 
 	escapeKeys, _ = ToBytes("ctrl-x,ctrl-@")
 	keys, _ = ToBytes("DEL")
@@ -41,9 +42,7 @@ func TestEscapeProxyRead(t *testing.T) {
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.Condition(t, func() (success bool) {
-		return reflect.TypeOf(err).Name() == "EscapeError"
-	}, err)
+	require.EqualError(t, err, "read escape sequence")
 	require.EqualValues(t, nr, 0, "nr should be equal to 0")
 	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
 
@@ -56,9 +55,7 @@ func TestEscapeProxyRead(t *testing.T) {
 	require.EqualValues(t, nr, 0, "nr should be equal to 0")
 	require.Equal(t, keys[0:1], buf, "keys & the read buffer should be equal")
 	nr, err = reader.Read(buf)
-	require.Condition(t, func() (success bool) {
-		return reflect.TypeOf(err).Name() == "EscapeError"
-	}, err)
+	require.EqualError(t, err, "read escape sequence")
 	require.EqualValues(t, nr, 0, "nr should be equal to 0")
 	require.Equal(t, keys[1:], buf, "keys & the read buffer should be equal")
 
