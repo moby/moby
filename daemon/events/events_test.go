@@ -135,21 +135,28 @@ func TestLogEvents(t *testing.T) {
 		t.Fatalf("Must be %d events, got %d", eventsLimit, len(current))
 	}
 	first := current[0]
-	if first.Status != "action_16" {
-		t.Fatalf("First action is %s, must be action_16", first.Status)
+
+	// TODO remove this once we removed the deprecated `ID`, `Status`, and `From` fields
+	if first.Action != first.Status {
+		// Verify that the (deprecated) Status is set to the expected value
+		t.Fatalf("Action (%s) does not match Status (%s)", first.Action, first.Status)
+	}
+
+	if first.Action != "action_16" {
+		t.Fatalf("First action is %s, must be action_16", first.Action)
 	}
 	last := current[len(current)-1]
-	if last.Status != "action_271" {
-		t.Fatalf("Last action is %s, must be action_271", last.Status)
+	if last.Action != "action_271" {
+		t.Fatalf("Last action is %s, must be action_271", last.Action)
 	}
 
 	firstC := msgs[0]
-	if firstC.Status != "action_272" {
-		t.Fatalf("First action is %s, must be action_272", firstC.Status)
+	if firstC.Action != "action_272" {
+		t.Fatalf("First action is %s, must be action_272", firstC.Action)
 	}
 	lastC := msgs[len(msgs)-1]
-	if lastC.Status != "action_281" {
-		t.Fatalf("Last action is %s, must be action_281", lastC.Status)
+	if lastC.Action != "action_281" {
+		t.Fatalf("Last action is %s, must be action_281", lastC.Action)
 	}
 }
 
