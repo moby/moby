@@ -10,53 +10,113 @@ import (
 	"github.com/pmezard/go-difflib/difflib"
 )
 
-// Compare two complex values using https://godoc.org/github.com/google/go-cmp/cmp
+// Comparison is a function which compares values and returns ResultSuccess if
+// the actual value matches the expected value. If the values do not match the
+// Result will contain a message about why it failed.
+type Comparison func() Result
+
+// DeepEqual compares two values using https://godoc.org/github.com/google/go-cmp/cmp
 // and succeeds if the values are equal.
 //
 // The comparison can be customized using comparison Options.
-func Compare(x, y interface{}, opts ...cmp.Option) func() (bool, string) {
-	return func() (bool, string) {
+func DeepEqual(x, y interface{}, opts ...cmp.Option) Comparison {
+	return func() (result Result) {
+		defer func() {
+			if panicmsg, handled := handleCmpPanic(recover()); handled {
+				result = ResultFailure(panicmsg)
+			}
+		}()
 		diff := cmp.Diff(x, y, opts...)
-		return diff == "", "\n" + diff
+		return toResult(diff == "", "\n"+diff)
 	}
+}
+
+func handleCmpPanic(r interface{}) (string, bool) {
+	if r == nil {
+		return "", false
+	}
+	panicmsg, ok := r.(string)
+	if !ok {
+		panic(r)
+	}
+	switch {
+	case strings.HasPrefix(panicmsg, "cannot handle unexported field"):
+		return panicmsg, true
+	}
+	panic(r)
+}
+
+func toResult(success bool, msg string) Result {
+	if success {
+		return ResultSuccess
+	}
+	return ResultFailure(msg)
 }
 
 // Equal succeeds if x == y.
-func Equal(x, y interface{}) func() (success bool, message string) {
-	return func() (bool, string) {
-		return x == y, fmt.Sprintf("%v (%T) != %v (%T)", x, x, y, y)
+func Equal(x, y interface{}) Comparison {
+	return func() Result {
+		switch {
+		case x == y:
+			return ResultSuccess
+		case isMultiLineStringCompare(x, y):
+			return multiLineStringDiffResult(x.(string), y.(string))
+		}
+		return ResultFailureTemplate(`
+			{{- .Data.x}} (
+				{{- with callArg 0 }}{{ formatNode . }} {{end -}}
+				{{- printf "%T" .Data.x -}}
+			) != {{ .Data.y}} (
+				{{- with callArg 1 }}{{ formatNode . }} {{end -}}
+				{{- printf "%T" .Data.y -}}
+			)`,
+			map[string]interface{}{"x": x, "y": y})
 	}
 }
 
+func isMultiLineStringCompare(x, y interface{}) bool {
+	strX, ok := x.(string)
+	if !ok {
+		return false
+	}
+	strY, ok := y.(string)
+	if !ok {
+		return false
+	}
+	return strings.Contains(strX, "\n") || strings.Contains(strY, "\n")
+}
+
+func multiLineStringDiffResult(x, y string) Result {
+	diff, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
+		A:       difflib.SplitLines(x),
+		B:       difflib.SplitLines(y),
+		Context: 3,
+	})
+	if err != nil {
+		return ResultFailure(fmt.Sprintf("failed to diff: %s", err))
+	}
+	return ResultFailureTemplate(`
+--- {{ with callArg 0 }}{{ formatNode . }}{{else}}←{{end}}
++++ {{ with callArg 1 }}{{ formatNode . }}{{else}}→{{end}}
+{{ .Data.diff }}`,
+		map[string]interface{}{"diff": diff})
+}
+
 // Len succeeds if the sequence has the expected length.
-func Len(seq interface{}, expected int) func() (bool, string) {
-	return func() (success bool, message string) {
+func Len(seq interface{}, expected int) Comparison {
+	return func() (result Result) {
 		defer func() {
 			if e := recover(); e != nil {
-				success = false
-				message = fmt.Sprintf("type %T does not have a length", seq)
+				result = ResultFailure(fmt.Sprintf("type %T does not have a length", seq))
 			}
 		}()
 		value := reflect.ValueOf(seq)
 		length := value.Len()
 		if length == expected {
-			return true, ""
+			return ResultSuccess
 		}
 		msg := fmt.Sprintf("expected %s (length %d) to have length %d", seq, length, expected)
-		return false, msg
-	}
-}
-
-// NilError succeeds if the last argument is a nil error.
-func NilError(arg interface{}, args ...interface{}) func() (bool, string) {
-	return func() (bool, string) {
-		msgFunc := func(value reflect.Value) string {
-			return fmt.Sprintf("error is not nil: %s", value.Interface().(error).Error())
-		}
-		if len(args) == 0 {
-			return isNil(arg, msgFunc)()
-		}
-		return isNil(args[len(args)-1], msgFunc)()
+		return ResultFailure(msg)
 	}
 }
 
@@ -68,11 +128,11 @@ func NilError(arg interface{}, args ...interface{}) func() (bool, string) {
 // If collection is a Map, contains will succeed if item is a key in the map.
 // If collection is a slice or array, item is compared to each item in the
 // sequence using reflect.DeepEqual().
-func Contains(collection interface{}, item interface{}) func() (bool, string) {
-	return func() (bool, string) {
+func Contains(collection interface{}, item interface{}) Comparison {
+	return func() Result {
 		colValue := reflect.ValueOf(collection)
 		if !colValue.IsValid() {
-			return false, fmt.Sprintf("nil does not contain items")
+			return ResultFailure(fmt.Sprintf("nil does not contain items"))
 		}
 		msg := fmt.Sprintf("%v does not contain %v", collection, item)
 
@@ -80,94 +140,72 @@ func Contains(collection interface{}, item interface{}) func() (bool, string) {
 		switch colValue.Type().Kind() {
 		case reflect.String:
 			if itemValue.Type().Kind() != reflect.String {
-				return false, "string may only contain strings"
+				return ResultFailure("string may only contain strings")
 			}
-			success := strings.Contains(colValue.String(), itemValue.String())
-			return success, fmt.Sprintf("string %q does not contain %q", collection, item)
+			return toResult(
+				strings.Contains(colValue.String(), itemValue.String()),
+				fmt.Sprintf("string %q does not contain %q", collection, item))
 
 		case reflect.Map:
 			if itemValue.Type() != colValue.Type().Key() {
-				return false, fmt.Sprintf(
-					"%v can not contain a %v key", colValue.Type(), itemValue.Type())
+				return ResultFailure(fmt.Sprintf(
+					"%v can not contain a %v key", colValue.Type(), itemValue.Type()))
 			}
-			index := colValue.MapIndex(itemValue)
-			return index.IsValid(), msg
+			return toResult(colValue.MapIndex(itemValue).IsValid(), msg)
 
 		case reflect.Slice, reflect.Array:
 			for i := 0; i < colValue.Len(); i++ {
 				if reflect.DeepEqual(colValue.Index(i).Interface(), item) {
-					return true, ""
+					return ResultSuccess
 				}
 			}
-			return false, msg
+			return ResultFailure(msg)
 		default:
-			return false, fmt.Sprintf("type %T does not contain items", collection)
+			return ResultFailure(fmt.Sprintf("type %T does not contain items", collection))
 		}
 	}
 }
 
 // Panics succeeds if f() panics.
-func Panics(f func()) func() (bool, string) {
-	return func() (success bool, message string) {
+func Panics(f func()) Comparison {
+	return func() (result Result) {
 		defer func() {
 			if err := recover(); err != nil {
-				success = true
+				result = ResultSuccess
 			}
 		}()
 		f()
-		return false, "did not panic"
-	}
-}
-
-// EqualMultiLine succeeds if the two strings are equal. If they are not equal
-// the failure message will be the difference between the two strings.
-func EqualMultiLine(x, y string) func() (bool, string) {
-	return func() (bool, string) {
-		if x == y {
-			return true, ""
-		}
-
-		diff, err := difflib.GetUnifiedDiffString(difflib.UnifiedDiff{
-			A:        difflib.SplitLines(x),
-			B:        difflib.SplitLines(y),
-			FromFile: "left",
-			ToFile:   "right",
-			Context:  3,
-		})
-		if err != nil {
-			return false, fmt.Sprintf("failed to produce diff: %s", err)
-		}
-		return false, "\n" + diff
+		return ResultFailure("did not panic")
 	}
 }
 
 // Error succeeds if err is a non-nil error, and the error message equals the
 // expected message.
-func Error(err error, message string) func() (bool, string) {
-	return func() (bool, string) {
+func Error(err error, message string) Comparison {
+	return func() Result {
 		switch {
 		case err == nil:
-			return false, "expected an error, got nil"
+			return ResultFailure("expected an error, got nil")
 		case err.Error() != message:
-			return false, fmt.Sprintf(
-				"expected error message %q, got %q", message, err.Error())
+			return ResultFailure(fmt.Sprintf(
+				"expected error %q, got %+v", message, err))
 		}
-		return true, ""
+		return ResultSuccess
 	}
 }
 
 // ErrorContains succeeds if err is a non-nil error, and the error message contains
 // the expected substring.
-func ErrorContains(err error, substring string) func() (bool, string) {
-	return func() (bool, string) {
+func ErrorContains(err error, substring string) Comparison {
+	return func() Result {
 		switch {
 		case err == nil:
-			return false, "expected an error, got nil"
+			return ResultFailure("expected an error, got nil")
 		case !strings.Contains(err.Error(), substring):
-			return false, fmt.Sprintf(
-				"expected error message to contain %q, got %q", substring, err.Error())
+			return ResultFailure(fmt.Sprintf(
+				"expected error to contain %q, got %+v", substring, err))
 		}
-		return true, ""
+		return ResultSuccess
 	}
 }
 
@@ -175,27 +213,98 @@ func ErrorContains(err error, substring string) func() (bool, string) {
 //
 // Use NilError() for comparing errors. Use Len(obj, 0) for comparing slices,
 // maps, and channels.
-func Nil(obj interface{}) func() (bool, string) {
+func Nil(obj interface{}) Comparison {
 	msgFunc := func(value reflect.Value) string {
 		return fmt.Sprintf("%v (type %s) is not nil", reflect.Indirect(value), value.Type())
 	}
 	return isNil(obj, msgFunc)
 }
 
-func isNil(obj interface{}, msgFunc func(reflect.Value) string) func() (bool, string) {
-	return func() (bool, string) {
+func isNil(obj interface{}, msgFunc func(reflect.Value) string) Comparison {
+	return func() Result {
 		if obj == nil {
-			return true, ""
+			return ResultSuccess
 		}
 		value := reflect.ValueOf(obj)
 		kind := value.Type().Kind()
 		if kind >= reflect.Chan && kind <= reflect.Slice {
 			if value.IsNil() {
-				return true, ""
+				return ResultSuccess
 			}
-			return false, msgFunc(value)
+			return ResultFailure(msgFunc(value))
 		}
 
-		return false, fmt.Sprintf("%v (type %s) can not be nil", value, value.Type())
+		return ResultFailure(fmt.Sprintf("%v (type %s) can not be nil", value, value.Type()))
 	}
+}
+
+// ErrorType succeeds if err is not nil and is of the expected type.
+//
+// Expected can be one of:
+// a func(error) bool which returns true if the error is the expected type,
+// an instance of a struct of the expected type,
+// a pointer to an interface the error is expected to implement,
+// a reflect.Type of the expected struct or interface.
+func ErrorType(err error, expected interface{}) Comparison {
+	return func() Result {
+		switch expectedType := expected.(type) {
+		case func(error) bool:
+			return cmpErrorTypeFunc(err, expectedType)
+		case reflect.Type:
+			if expectedType.Kind() == reflect.Interface {
+				return cmpErrorTypeImplementsType(err, expectedType)
+			}
+			return cmpErrorTypeEqualType(err, expectedType)
+		case nil:
+			return ResultFailure(fmt.Sprintf("invalid type for expected: nil"))
+		}
+
+		expectedType := reflect.TypeOf(expected)
+		switch {
+		case expectedType.Kind() == reflect.Struct:
+			return cmpErrorTypeEqualType(err, expectedType)
+		case isPtrToInterface(expectedType):
+			return cmpErrorTypeImplementsType(err, expectedType.Elem())
+		}
+		return ResultFailure(fmt.Sprintf("invalid type for expected: %T", expected))
+	}
+}
+
+func cmpErrorTypeFunc(err error, f func(error) bool) Result {
+	if f(err) {
+		return ResultSuccess
+	}
+	actual := "nil"
+	if err != nil {
+		actual = fmt.Sprintf("%s (%T)", err, err)
+	}
+	return ResultFailureTemplate(`error is {{ .Data.actual }}
+		{{- with callArg 1 }}, not {{ formatNode . }}{{end -}}`,
+		map[string]interface{}{"actual": actual})
+}
+
+func cmpErrorTypeEqualType(err error, expectedType reflect.Type) Result {
+	if err == nil {
+		return ResultFailure(fmt.Sprintf("error is nil, not %s", expectedType))
+	}
+	errValue := reflect.ValueOf(err)
+	if errValue.Type() == expectedType {
+		return ResultSuccess
+	}
+	return ResultFailure(fmt.Sprintf("error is %s (%T), not %s", err, err, expectedType))
+}
+
+func cmpErrorTypeImplementsType(err error, expectedType reflect.Type) Result {
+	if err == nil {
+		return ResultFailure(fmt.Sprintf("error is nil, not %s", expectedType))
+	}
+	errValue := reflect.ValueOf(err)
+	if errValue.Type().Implements(expectedType) {
+		return ResultSuccess
+	}
+	return ResultFailure(fmt.Sprintf("error is %s (%T), not %s", err, err, expectedType))
+}
+
+func isPtrToInterface(typ reflect.Type) bool {
+	return typ.Kind() == reflect.Ptr && typ.Elem().Kind() == reflect.Interface
 }

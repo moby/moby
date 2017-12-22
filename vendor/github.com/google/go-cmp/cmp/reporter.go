@@ -30,12 +30,12 @@ func (r *defaultReporter) Report(x, y reflect.Value, eq bool, p Path) {
 	const maxLines = 256
 	r.ndiffs++
 	if r.nbytes < maxBytes && r.nlines < maxLines {
-		sx := value.Format(x, true)
-		sy := value.Format(y, true)
+		sx := value.Format(x, value.FormatConfig{UseStringer: true})
+		sy := value.Format(y, value.FormatConfig{UseStringer: true})
 		if sx == sy {
-			// Stringer is not helpful, so rely on more exact formatting.
-			sx = value.Format(x, false)
-			sy = value.Format(y, false)
+			// Unhelpful output, so use more exact formatting.
+			sx = value.Format(x, value.FormatConfig{PrintPrimitiveType: true})
+			sy = value.Format(y, value.FormatConfig{PrintPrimitiveType: true})
 		}
 		s := fmt.Sprintf("%#v:\n\t-: %s\n\t+: %s\n", p, sx, sy)
 		r.diffs = append(r.diffs, s)
@@ -49,5 +49,5 @@ func (r *defaultReporter) String() string {
 	if r.ndiffs == len(r.diffs) {
 		return s
 	}
-	return fmt.Sprintf("%s... %d more differences ...", s, len(r.diffs)-r.ndiffs)
+	return fmt.Sprintf("%s... %d more differences ...", s, r.ndiffs-len(r.diffs))
 }

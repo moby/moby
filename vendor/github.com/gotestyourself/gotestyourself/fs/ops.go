@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 )
 
 // PathOp is a function which accepts a Path to perform some operation
@@ -124,4 +125,34 @@ func copyFile(source, dest string) error {
 		return err
 	}
 	return ioutil.WriteFile(dest, content, 0644)
+}
+
+// WithSymlink creates a symlink in the directory which links to target.
+// Target must be a path relative to the directory.
+//
+// Note: the argument order is the inverse of os.Symlink to be consistent with
+// the other functions in this package.
+func WithSymlink(path, target string) PathOp {
+	return func(root Path) error {
+		return os.Symlink(filepath.Join(root.Path(), target), filepath.Join(root.Path(), path))
+	}
+}
+
+// WithHardlink creates a link in the directory which links to target.
+// Target must be a path relative to the directory.
+//
+// Note: the argument order is the inverse of os.Link to be consistent with
+// the other functions in this package.
+func WithHardlink(path, target string) PathOp {
+	return func(root Path) error {
+		return os.Link(filepath.Join(root.Path(), target), filepath.Join(root.Path(), path))
+	}
+}
+
+// WithTimestamps sets the access and modification times of the file system object
+// at path.
+func WithTimestamps(atime, mtime time.Time) PathOp {
+	return func(root Path) error {
+		return os.Chtimes(root.Path(), atime, mtime)
+	}
 }

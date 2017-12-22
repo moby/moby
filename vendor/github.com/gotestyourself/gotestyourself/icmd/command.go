@@ -10,11 +10,10 @@ import (
 	"strings"
 	"sync"
 	"time"
-)
 
-type testingT interface {
-	Fatalf(string, ...interface{})
-}
+	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/assert/cmp"
+)
 
 type helperT interface {
 	Helper()
@@ -53,23 +52,32 @@ type Result struct {
 
 // Assert compares the Result against the Expected struct, and fails the test if
 // any of the expectations are not met.
-// TODO: deprecate and replace with assert.CompareFunc
-func (r *Result) Assert(t testingT, exp Expected) *Result {
+//
+// This function is equivalent to assert.Assert(t, result.Equal(exp)).
+func (r *Result) Assert(t assert.TestingT, exp Expected) *Result {
 	if ht, ok := t.(helperT); ok {
 		ht.Helper()
 	}
-	err := r.Compare(exp)
-	if err == nil {
-		return r
-	}
-	t.Fatalf(err.Error() + "\n")
-	return nil
+	assert.Assert(t, r.Equal(exp))
+	return r
 }
 
-// Compare returns a formatted error with the command, stdout, stderr, exit
-// code, and any failed expectations
-// nolint: gocyclo
+// Equal compares the result to Expected. If the result doesn't match expected
+// returns a formatted failure message with the command, stdout, stderr, exit code,
+// and any failed expectations.
+func (r *Result) Equal(exp Expected) cmp.Comparison {
+	return func() cmp.Result {
+		return cmp.ResultFromError(r.match(exp))
+	}
+}
+
+// Compare the result to Expected and return an error if they do not match.
 func (r *Result) Compare(exp Expected) error {
+	return r.match(exp)
+}
+
+// nolint: gocyclo
+func (r *Result) match(exp Expected) error {
 	errors := []string{}
 	add := func(format string, args ...interface{}) {
 		errors = append(errors, fmt.Sprintf(format, args...))

@@ -45,7 +45,7 @@ func PatchAll(t assert.TestingT, env map[string]string) func() {
 	os.Clearenv()
 
 	for key, value := range env {
-		assert.NilError(t, os.Setenv(key, value))
+		assert.NilError(t, os.Setenv(key, value), "setenv %s=%s", key, value)
 	}
 	return func() {
 		if ht, ok := t.(helperT); ok {
@@ -53,7 +53,7 @@ func PatchAll(t assert.TestingT, env map[string]string) func() {
 		}
 		os.Clearenv()
 		for key, oldVal := range ToMap(oldEnv) {
-			assert.NilError(t, os.Setenv(key, oldVal))
+			assert.NilError(t, os.Setenv(key, oldVal), "setenv %s=%s", key, oldVal)
 		}
 	}
 }
@@ -63,15 +63,21 @@ func PatchAll(t assert.TestingT, env map[string]string) func() {
 func ToMap(env []string) map[string]string {
 	result := map[string]string{}
 	for _, raw := range env {
-		parts := strings.SplitN(raw, "=", 2)
-		switch len(parts) {
-		case 1:
-			result[raw] = ""
-		case 2:
-			result[parts[0]] = parts[1]
-		}
+		key, value := getParts(raw)
+		result[key] = value
 	}
 	return result
+}
+
+func getParts(raw string) (string, string) {
+	// Environment variables on windows can begin with =
+	// http://blogs.msdn.com/b/oldnewthing/archive/2010/05/06/10008132.aspx
+	parts := strings.SplitN(raw[1:], "=", 2)
+	key := raw[:1] + parts[0]
+	if len(parts) == 1 {
+		return key, ""
+	}
+	return key, parts[1]
 }
 
 // ChangeWorkingDir to the directory, and return a function which restores the
