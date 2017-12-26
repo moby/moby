@@ -28,6 +28,9 @@ func executeInCompartment(compartmentID uint32, x func()) {
 }
 
 func (n *network) startResolver() {
+	if n.networkType == "ics" {
+		return
+	}
 	n.resolverOnce.Do(func() {
 		logrus.Debugf("Launching DNS server for network %q", n.Name())
 		options := n.Info().DriverOptions()

@@ -399,6 +399,7 @@ func dbGetTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 					Value: encodedValue,
 					Owner: v.owner,
 				})
+			i++
 		}
 		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("get table done")
 		diagnose.HTTPReply(w, diagnose.CommandSucceed(rsp), json)
