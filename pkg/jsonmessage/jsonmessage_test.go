@@ -15,84 +15,102 @@ import (
 
 func TestError(t *testing.T) {
 	je := JSONError{404, "Not found"}
-	if je.Error() != "Not found" {
-		t.Fatalf("Expected 'Not found' got '%s'", je.Error())
-	}
+	assert.Assert(t, is.Error(&je, "Not found"))
 }
 
-func TestProgress(t *testing.T) {
-	termsz, err := term.GetWinsize(0)
-	if err != nil {
-		// we can safely ignore the err here
-		termsz = nil
-	}
-	jp := JSONProgress{}
-	if jp.String() != "" {
-		t.Fatalf("Expected empty string, got '%s'", jp.String())
+func TestProgressString(t *testing.T) {
+	type expected struct {
+		short string
+		long  string
 	}
 
-	expected := "      1B"
-	jp2 := JSONProgress{Current: 1}
-	if jp2.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp2.String())
+	shortAndLong := func(short, long string) expected {
+		return expected{short: short, long: long}
 	}
 
-	expectedStart := "[==========>                                        ]      20B/100B"
-	if termsz != nil && termsz.Width <= 110 {
-		expectedStart = "    20B/100B"
-	}
-	jp3 := JSONProgress{Current: 20, Total: 100, Start: time.Now().Unix()}
-	// Just look at the start of the string
-	// (the remaining time is really hard to test -_-)
-	if jp3.String()[:len(expectedStart)] != expectedStart {
-		t.Fatalf("Expected to start with %q, got %q", expectedStart, jp3.String())
+	start := time.Date(2017, 12, 3, 15, 10, 1, 0, time.UTC)
+	timeAfter := func(delta time.Duration) func() time.Time {
+		return func() time.Time {
+			return start.Add(delta)
+		}
 	}
 
-	expected = "[=========================>                         ]      50B/100B"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50B/100B"
-	}
-	jp4 := JSONProgress{Current: 50, Total: 100}
-	if jp4.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp4.String())
+	var testcases = []struct {
+		name     string
+		progress JSONProgress
+		expected expected
+	}{
+		{
+			name: "no progress",
+		},
+		{
+			name:     "progress 1",
+			progress: JSONProgress{Current: 1},
+			expected: shortAndLong("      1B", "      1B"),
+		},
+		{
+			name: "some progress with a start time",
+			progress: JSONProgress{
+				Current: 20,
+				Total:   100,
+				Start:   start.Unix(),
+				nowFunc: timeAfter(time.Second),
+			},
+			expected: shortAndLong(
+				"     20B/100B 4s",
+				"[==========>                                        ]      20B/100B 4s",
+			),
+		},
+		{
+			name:     "some progress without a start time",
+			progress: JSONProgress{Current: 50, Total: 100},
+			expected: shortAndLong(
+				"     50B/100B",
+				"[=========================>                         ]      50B/100B",
+			),
+		},
+		{
+			name:     "current more than total is not negative gh#7136",
+			progress: JSONProgress{Current: 50, Total: 40},
+			expected: shortAndLong(
+				"     50B",
+				"[==================================================>]      50B",
+			),
+		},
+		{
+			name:     "with units",
+			progress: JSONProgress{Current: 50, Total: 100, Units: "units"},
+			expected: shortAndLong(
+				"50/100 units",
+				"[=========================>                         ] 50/100 units",
+			),
+		},
+		{
+			name:     "current more than total with units is not negative ",
+			progress: JSONProgress{Current: 50, Total: 40, Units: "units"},
+			expected: shortAndLong(
+				"50 units",
+				"[==================================================>] 50 units",
+			),
+		},
+		{
+			name:     "hide counts",
+			progress: JSONProgress{Current: 50, Total: 100, HideCounts: true},
+			expected: shortAndLong(
+				"",
+				"[=========================>                         ] ",
+			),
+		},
 	}
 
-	// this number can't be negative gh#7136
-	expected = "[==================================================>]      50B"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50B"
-	}
-	jp5 := JSONProgress{Current: 50, Total: 40}
-	if jp5.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp5.String())
-	}
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			testcase.progress.winSize = 100
+			assert.Equal(t, testcase.progress.String(), testcase.expected.short)
 
-	expected = "[=========================>                         ] 50/100 units"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50/100 units"
-	}
-	jp6 := JSONProgress{Current: 50, Total: 100, Units: "units"}
-	if jp6.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp6.String())
-	}
-
-	// this number can't be negative
-	expected = "[==================================================>] 50 units"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50 units"
-	}
-	jp7 := JSONProgress{Current: 50, Total: 40, Units: "units"}
-	if jp7.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp7.String())
-	}
-
-	expected = "[=========================>                         ] "
-	if termsz != nil && termsz.Width <= 110 {
-		expected = ""
-	}
-	jp8 := JSONProgress{Current: 50, Total: 100, HideCounts: true}
-	if jp8.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp8.String())
+			testcase.progress.winSize = 200
+			assert.Equal(t, testcase.progress.String(), testcase.expected.long)
+		})
 	}
 }
 
