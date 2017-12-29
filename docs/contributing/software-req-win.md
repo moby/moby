@@ -109,7 +109,7 @@ To test it, stop the system Docker daemon and start the one you just built:
     .\dockerd.exe -D
 
 The other make targets work too, to run unit tests try:
-`docker run --rm docker-builder sh -c 'cd /c/go/src/github.com/moby/moby; hack/make.sh test-unit'`.
+`docker run --rm docker-builder sh -c 'cd /c/go/src/github.com/docker/docker; hack/make.sh test-unit'`.
 
 ### 6. Remove the interim binaries container
 
