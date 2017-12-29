@@ -29,7 +29,10 @@ Depending on your contribution, you may need to add _integration tests_. These
 are tests that combine two or more work units into one component. These work
 units each have unit tests and then, together, integration tests that test the
 interface between the components. The `integration` and `integration-cli`
-directories in the Docker repository contain integration test code.
+directories in the Docker repository contain integration test code.  Note that
+`integration-cli` tests are now deprecated in the Moby project, and new tests
+cannot be added to this suite - add `integration` tests instead using the API
+client.
 
 Testing is its own specialty. If you aren't familiar with testing techniques,
 there is a lot of information available to you on the Web. For now, you should
@@ -93,7 +96,8 @@ hour. To run the test suite, do the following:
 ## Run targets inside a development container
 
 If you are working inside a development container, you use the
-`hack/make.sh` script to run tests. The `hack/make.sh` script doesn't
+`hack/test/unit` script to run unit-tests, and `hack/make.sh` script to run
+integration and other tests. The `hack/make.sh` script doesn't
 have a single target that runs all the tests. Instead, you provide a single
 command line with multiple targets that does the same thing.
 
@@ -110,19 +114,25 @@ Try this now.
     $ docker run --privileged --rm -ti -v `pwd`:/go/src/github.com/docker/docker dry-run-test /bin/bash
     ```
 
-3.  Run the tests using the `hack/make.sh` script.
+3.  Run the unit tests using the `hack/test/unit` script.
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit test-integration test-docker-py
+    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/test/unit
+    ```
+
+4.  Run the tests using the `hack/make.sh` script.
+
+    ```bash
+    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-integration test-docker-py
     ```
 
     The tests run just as they did within your local host.
 
     Of course, you can also run a subset of these targets too. For example, to run
-    just the unit tests:
+    just the integration tests:
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-unit
+    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-integration
     ```
 
     Most test targets require that you build these precursor targets first:
