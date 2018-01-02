@@ -3532,7 +3532,17 @@ func (s *DockerSuite) TestBuildNotVerboseFailureRemote(c *check.C) {
 	result.Assert(c, icmd.Expected{
 		ExitCode: 1,
 	})
-	if strings.TrimSpace(quietResult.Stderr()) != strings.TrimSpace(result.Combined()) {
+
+	// An error message should contain name server IP and port, like this:
+	//  "dial tcp: lookup something.invalid on 172.29.128.11:53: no such host"
+	// The IP:port need to be removed in order to not trigger a test failur
+	// when more than one nameserver is configured.
+	// While at it, also strip excessive newlines.
+	normalize := func(msg string) string {
+		return strings.TrimSpace(regexp.MustCompile("[1-9][0-9.]+:[0-9]+").ReplaceAllLiteralString(msg, "<ip:port>"))
+	}
+
+	if normalize(quietResult.Stderr()) != normalize(result.Combined()) {
 		c.Fatal(fmt.Errorf("Test[%s] expected that quiet stderr and verbose stdout are equal; quiet [%v], verbose [%v]", name, quietResult.Stderr(), result.Combined()))
 	}
 }
