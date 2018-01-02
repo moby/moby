@@ -715,8 +715,9 @@ func (c *client) processEventStream(ctx context.Context) {
 
 	eventStream, err = c.remote.EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
 		Filters: []string{
-			"namespace==" + c.namespace,
-			"topic~=/tasks/",
+			// Filter on both namespace *and* topic. To create an "and" filter,
+			// this must be a single, comma-separated string
+			"namespace==" + c.namespace + ",topic~=|^/tasks/|",
 		},
 	}, grpc.FailFast(false))
 	if err != nil {
