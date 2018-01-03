@@ -11,6 +11,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -534,7 +535,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		Ulimits:      options.Ulimits,
 	}
 
-	return &container.HostConfig{
+	hc := &container.HostConfig{
 		SecurityOpt: options.SecurityOpt,
 		Isolation:   options.Isolation,
 		ShmSize:     options.ShmSize,
@@ -544,6 +545,17 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 		LogConfig:  defaultLogConfig,
 		ExtraHosts: options.ExtraHosts,
 	}
+
+	// For WCOW, the default of 20GB hard-coded in the platform
+	// is too small for builder scenarios where many users are
+	// using RUN statements to install large amounts of data.
+	// Use 127GB as that's the default size of a VHD in Hyper-V.
+	if runtime.GOOS == "windows" && options.Platform == "windows" {
+		hc.StorageOpt = make(map[string]string)
+		hc.StorageOpt["size"] = "127GB"
+	}
+
+	return hc
 }
 
 // fromSlash works like filepath.FromSlash but with a given OS platform field
