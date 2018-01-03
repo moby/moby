@@ -121,6 +121,16 @@ func (r *legacyLayerReader) walkUntilCancelled() error {
 		if err != nil {
 			return err
 		}
+
+		// Indirect fix for https://github.com/moby/moby/issues/32838#issuecomment-343610048.
+		// Handle failure from what may be a golang bug in the conversion of
+		// UTF16 to UTF8 in files which are left in the recycle bin. Os.Lstat
+		// which is called by filepath.Walk will fail when a filename contains
+		// unicode characters. Skip the recycle bin regardless which is goodness.
+		if strings.HasPrefix(path, filepath.Join(r.root, `Files\$Recycle.Bin`)) {
+			return filepath.SkipDir
+		}
+
 		if path == r.root || path == filepath.Join(r.root, "tombstones.txt") || strings.HasSuffix(path, ".$wcidirs$") {
 			return nil
 		}
