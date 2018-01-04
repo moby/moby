@@ -33,49 +33,60 @@ func applyLayer() {
 		err     error
 		options *archive.TarOptions
 	)
+	fmt.Println("1")
 	runtime.LockOSThread()
 	flag.Parse()
 
+	fmt.Println("2")
 	inUserns := rsystem.RunningInUserNS()
 	if err := chroot(flag.Arg(0)); err != nil {
+		fmt.Println("e1")
 		fatal(err)
 	}
-
+	fmt.Println("3")
 	// We need to be able to set any perms
 	oldmask, err := system.Umask(0)
 	defer system.Umask(oldmask)
 	if err != nil {
+		fmt.Println("e2")
 		fatal(err)
 	}
-
+	fmt.Println("4")
 	if err := json.Unmarshal([]byte(os.Getenv("OPT")), &options); err != nil {
+		fmt.Println("e3")
 		fatal(err)
 	}
 
 	if inUserns {
 		options.InUserNS = true
 	}
-
+	fmt.Println("5")
 	if tmpDir, err = ioutil.TempDir("/", "temp-docker-extract"); err != nil {
+		fmt.Println("e4")
 		fatal(err)
 	}
-
+	fmt.Println("6")
 	os.Setenv("TMPDIR", tmpDir)
 	size, err := archive.UnpackLayer("/", os.Stdin, options)
+	fmt.Println("7")
 	os.RemoveAll(tmpDir)
 	if err != nil {
+		fmt.Println("e5")
 		fatal(err)
 	}
-
+	fmt.Println("8")
 	encoder := json.NewEncoder(os.Stdout)
 	if err := encoder.Encode(applyLayerResponse{size}); err != nil {
+		fmt.Println("e6")
 		fatal(fmt.Errorf("unable to encode layerSize JSON: %s", err))
 	}
 
+	fmt.Println("9")
 	if _, err := flush(os.Stdin); err != nil {
+		fmt.Println("e7")
 		fatal(err)
 	}
-
+	fmt.Println("10, exit 0")
 	os.Exit(0)
 }
 

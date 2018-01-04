@@ -2,9 +2,9 @@
 # Entrypoint for jenkins arm CI build
 set -eu -o pipefail
 
-hack/test/unit
+#hack/test/unit
 
-hack/make.sh \
-	binary-daemon \
-	dynbinary \
-	test-integration
+#hack/make.sh \
+#	binary-daemon \
+#	dynbinary \
+#	test-integration
