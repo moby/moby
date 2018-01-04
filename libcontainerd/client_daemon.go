@@ -121,8 +121,12 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	c.Lock()
 	defer c.Unlock()
 
-	var rio cio.IO
+	var dio *cio.DirectIO
 	defer func() {
+		if err != nil && dio != nil {
+			dio.Cancel()
+			dio.Close()
+		}
 		err = wrapError(err)
 	}()
 
@@ -131,22 +135,16 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 		return false, -1, errors.WithStack(err)
 	}
 
-	defer func() {
-		if err != nil && rio != nil {
-			rio.Cancel()
-			rio.Close()
-		}
-	}()
-
-	t, err := ctr.Task(ctx, func(fifos *cio.FIFOSet) (cio.IO, error) {
-		io, err := cio.NewDirectIO(ctx, fifos)
+	attachIO := func(fifos *cio.FIFOSet) (cio.IO, error) {
+		// dio must be assigned to the previously defined dio for the defer above
+		// to handle cleanup
+		dio, err = cio.NewDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err
 		}
-
-		rio, err = attachStdio(io)
-		return rio, err
-	})
+		return attachStdio(dio)
+	}
+	t, err := ctr.Task(ctx, attachIO)
 	if err != nil && !errdefs.IsNotFound(errors.Cause(err)) {
 		return false, -1, err
 	}
@@ -846,11 +844,9 @@ func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.R
 }
 
 func wrapError(err error) error {
-	if err == nil {
-		return nil
-	}
-
 	switch {
+	case err == nil:
+		return nil
 	case errdefs.IsNotFound(err):
 		return wrapNotFoundError(err)
 	}
