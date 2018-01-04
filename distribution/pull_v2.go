@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/url"
 	"os"
+	"path"
 	"runtime"
 	"strings"
 
@@ -137,6 +138,7 @@ type v2LayerDescriptor struct {
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
 	V2MetadataService metadata.V2MetadataService
+	cacheDir          string
 	tmpFile           *os.File
 	verifier          digest.Verifier
 	src               distribution.Descriptor
@@ -165,8 +167,23 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 		offset int64
 	)
 
+	if ld.cacheDir != nil {
+		p := path.Join(ld.cacheDir, ld.DiffID())
+		st, err := os.Stat(p)
+		if err == nil {
+			f, err := os.Open(p)
+			if err == nil {
+				offset, err = f.Seek(0, os.SEEK_END)
+				f.Seek(0, os.SEEK_END)
+				return ioutils.NewReadCloserWrapper(f, func() error {
+					return f.Close()
+				}), st.Size(), nil
+			}
+		}
+	}
+
 	if ld.tmpFile == nil {
-		ld.tmpFile, err = createDownloadFile()
+		ld.tmpFile, err = createDownloadFile(ld.cacheDir)
 		if err != nil {
 			return nil, 0, xfer.DoNotRetry{Err: err}
 		}
@@ -180,7 +197,7 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 			if err := os.Remove(ld.tmpFile.Name()); err != nil {
 				logrus.Errorf("Failed to remove temp file: %s", ld.tmpFile.Name())
 			}
-			ld.tmpFile, err = createDownloadFile()
+			ld.tmpFile, err = createDownloadFile(ld.cacheDir)
 			if err != nil {
 				return nil, 0, xfer.DoNotRetry{Err: err}
 			}
@@ -285,11 +302,23 @@ func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progre
 	// be closed once
 	ld.tmpFile = nil
 
+	// rename the downloaded images for future access
+	shouldRemove := true
+	if ld.cacheDir != "" {
+		p := path.Join(ld.cachdDir, ld.DiffID())
+		err := os.Rename(tmpFile.Name(), p)
+		if err == nil {
+			shouldRemove = false
+		}
+	}
+
 	return ioutils.NewReadCloserWrapper(tmpFile, func() error {
-		tmpFile.Close()
-		err := os.RemoveAll(tmpFile.Name())
-		if err != nil {
-			logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+		err = tmpFile.Close()
+		if shouldRemove {
+			err = os.RemoveAll(tmpFile.Name())
+			if err != nil {
+				logrus.Errorf("Failed to remove temp file: %s", tmpFile.Name())
+			}
 		}
 		return err
 	}), size, nil
@@ -483,6 +512,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 			repoInfo:          p.repoInfo,
 			repo:              p.repo,
 			V2MetadataService: p.V2MetadataService,
+			cacheDir:          p.config.DownloadDir,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)
@@ -559,6 +589,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 			repoInfo:          p.repoInfo,
 			V2MetadataService: p.V2MetadataService,
 			src:               d,
+			cacheDir:          p.config.DownloadDir,
 		}
 
 		descriptors = append(descriptors, layerDescriptor)
@@ -925,6 +956,6 @@ func fixManifestLayers(m *schema1.Manifest) error {
 	return nil
 }
 
-func createDownloadFile() (*os.File, error) {
-	return ioutil.TempFile("", "GetImageBlob")
+func createDownloadFile(dir string) (*os.File, error) {
+	return ioutil.TempFile(dir, "GetImageBlob")
 }

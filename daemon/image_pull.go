@@ -79,6 +79,7 @@ func (daemon *Daemon) pullImageWithReference(ctx context.Context, ref reference.
 		DownloadManager: daemon.downloadManager,
 		Schema2Types:    distribution.ImageTypes,
 		Platform:        platform,
+		DownloadDir:        daemon.configStore.DownloadDir,
 	}
 
 	err := distribution.Pull(ctx, ref, imagePullConfig)

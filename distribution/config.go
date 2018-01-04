@@ -62,6 +62,8 @@ type ImagePullConfig struct {
 	// Platform is the requested platform of the image being pulled to ensure it can be validated
 	// when the host platform supports multiple image operating systems.
 	Platform string
+	// DownloadDir is a directory to cache downloaded images.
+	DownloadDir string
 }
 
 // ImagePushConfig stores push configuration.
