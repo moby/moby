@@ -135,6 +135,9 @@ type CommonConfig struct {
 	// may take place at a time for each pull.
 	MaxConcurrentDownloads *int `json:"max-concurrent-downloads,omitempty"`
 
+	// DownloadDir is a directory to cache downloaded images
+	DownloadDir *string `json:"download-dir,omitempty"`
+
 	// MaxConcurrentUploads is the maximum number of uploads that
 	// may take place at a time for each push.
 	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
