@@ -55,6 +55,54 @@ fetch_blob() {
 	local targetFile="$1"; shift
 	local curlArgs=( "$@" )
 
+if [ $targetFile == "/docker-frozen-images/51db079e057f40eb2c275ad9e25b9078473288f4984419331d9b26fa22d70954/layer.tar" ]; then
+	for (( i=0; i < 100; i++))
+ 	do
+
+	local curlHeaders="$(
+                curl -S "${curlArgs[@]}" \
+                        -H "Authorization: Bearer $token" \
+                        "$registryBase/v2/$image/blobs/$digest" \
+                        -o "$targetFile" \
+                        -D-
+        )"
+        curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
+#       if echo "$curlHeaders" | grep -E "^HTTP/[0-9].[0-9] 3"; then
+       if grep -qE "^HTTP/[0-9].[0-9] 3" <<<"$curlHeaders"; then
+                rm -f "$targetFile"
+#                echo "in loop deleted file"
+
+                local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
+                if [ -z "$blobRedirect" ]; then
+                        echo >&2 "error: failed fetching '$image' blob '$digest'"
+                        echo "$curlHeaders" | head -1 >&2
+                        return 1
+                fi
+
+                curl -fSL "${curlArgs[@]}" \
+                         "$blobRedirect" \
+                         -o "$targetFile"
+
+		rm -f "$targetFile"
+        else
+                echo
+                echo "loop didn't trigger"
+                echo
+                echo curlHeaders are: $curlHeaders
+                v1=$(echo "$curlHeaders" | grep -E "^HTTP/[0-9].[0-9] 3")
+                echo "v1 was $v1"
+                echo $(ls -l $targetFile)
+                echo
+		rm -f "$targetFile"
+        fi
+	done
+
+else
+
+
+
+
+
 	local curlHeaders="$(
 		curl -S "${curlArgs[@]}" \
 			-H "Authorization: Bearer $token" \
@@ -62,9 +110,12 @@ fetch_blob() {
 			-o "$targetFile" \
 			-D-
 	)"
+#	grep --version
 	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
-	if echo "$curlHeaders" | grep -qE "^HTTP/[0-9].[0-9] 3"; then
+#	if echo "$curlHeaders" | grep -qE "^HTTP/[0-9].[0-9] 3"; then
+	if grep -qE "^HTTP/[0-9].[0-9] 3" <<<"$curlHeaders"; then
 		rm -f "$targetFile"
+		echo "in loop deleted file"
 
 		local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
 		if [ -z "$blobRedirect" ]; then
@@ -76,7 +127,19 @@ fetch_blob() {
 		curl -fSL "${curlArgs[@]}" \
 			"$blobRedirect" \
 			-o "$targetFile"
+	else
+		echo
+		echo "loop didn't trigger"
+		echo
+		echo -n "$curlHeaders" | hexdump
+		echo
+		echo curlHeaders are: $curlHeaders
+		v1=$(echo "$curlHeaders" | grep -E "^HTTP/[0-9].[0-9] 3")
+		echo "v1 was $v1"
+		echo $(ls -l $targetFile)
+		echo
 	fi
+fi
 }
 
 # handle 'application/vnd.docker.distribution.manifest.v2+json' manifest
@@ -156,6 +219,9 @@ handle_single_manifest_v2() {
 				fi
 				local token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
 				fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress
+		#		echo "------- $dir/$layerTar --------"
+		#		echo $(ls -l $dir/$layerTar)
+		#		echo
 				;;
 
 			*)

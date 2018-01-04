@@ -24,6 +24,7 @@ RUN apt-get update && apt-get install -y \
 	aufs-tools \
 	automake \
 	bash-completion \
+	bsdmainutils \
 	btrfs-tools \
 	build-essential \
 	cmake \
