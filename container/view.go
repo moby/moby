@@ -295,6 +295,10 @@ func (v *memdbView) GetAllNames() map[string][]string {
 // transform maps a (deep) copied Container object to what queries need.
 // A lock on the Container is not held because these are immutable deep copies.
 func (v *memdbView) transform(container *Container) *Snapshot {
+	health := types.NoHealthcheck
+	if container.Health != nil {
+		health = container.Health.Status()
+	}
 	snapshot := &Snapshot{
 		Container: types.Container{
 			ID:      container.ID,
@@ -313,7 +317,7 @@ func (v *memdbView) transform(container *Container) *Snapshot {
 		Managed:      container.Managed,
 		ExposedPorts: make(nat.PortSet),
 		PortBindings: make(nat.PortSet),
-		Health:       container.HealthString(),
+		Health:       health,
 		Running:      container.Running,
 		Paused:       container.Paused,
 		ExitCode:     container.ExitCode(),
