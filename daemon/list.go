@@ -302,7 +302,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	var beforeContFilter, sinceContFilter *container.Snapshot
 
 	err = psFilters.WalkValues("before", func(value string) error {
-		beforeContFilter, err = view.Get(value)
+		beforeContFilter, err = idOrNameFilter(view, value)
 		return err
 	})
 	if err != nil {
@@ -310,7 +310,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	}
 
 	err = psFilters.WalkValues("since", func(value string) error {
-		sinceContFilter, err = view.Get(value)
+		sinceContFilter, err = idOrNameFilter(view, value)
 		return err
 	})
 	if err != nil {
@@ -364,6 +364,30 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 		names:                view.GetAllNames(),
 	}, nil
 }
+
+func idOrNameFilter(view container.View, value string) (*container.Snapshot, error) {
+	filter, err := view.Get(value)
+	switch err.(type) {
+	case container.NoSuchContainerError:
+		// Try name search instead
+		found := ""
+		for id, idNames := range view.GetAllNames() {
+			for _, eachName := range idNames {
+				if strings.TrimPrefix(value, "/") == strings.TrimPrefix(eachName, "/") {
+					if found != "" && found != id {
+						return nil, err
+					}
+					found = id
+				}
+			}
+		}
+		if found != "" {
+			filter, err = view.Get(found)
+		}
+	}
+	return filter, err
+}
+
 func portOp(key string, filter map[nat.Port]bool) func(value string) error {
 	return func(value string) error {
 		if strings.Contains(value, ":") {
