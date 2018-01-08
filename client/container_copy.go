@@ -30,7 +30,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 }
 
 // CopyToContainer copies content into the container filesystem.
-// Note that `content` must be a Reader for a TAR
+// Note that `content` must be a Reader for a TAR archive
 func (cli *Client) CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
@@ -59,7 +59,7 @@ func (cli *Client) CopyToContainer(ctx context.Context, container, path string, 
 }
 
 // CopyFromContainer gets the content from the container and returns it as a Reader
-// to manipulate it in the host. It's up to the caller to close the reader.
+// for a TAR archive to manipulate it in the host. It's up to the caller to close the reader.
 func (cli *Client) CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error) {
 	query := make(url.Values, 1)
 	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
