@@ -1496,10 +1496,23 @@ definitions:
         type: "string"
       progressDetail:
         $ref: "#/definitions/ProgressDetail"
+      aux:
+        $ref: "#/definitions/ImageID"
+
+  ImageID:
+    type: "object"
+    description: "Image ID or Digest"
+    properties:
+      ID:
+        type: "string"
+    example:
+      ID: "sha256:85f05633ddc1c50679be2b16a0479ab6f7637f8884e0cfe0f4d20e1ebb3d6e7c"
 
   CreateImageInfo:
     type: "object"
     properties:
+      id:
+        type: "string"
       error:
         type: "string"
       status:
@@ -1532,9 +1545,9 @@ definitions:
   ProgressDetail:
     type: "object"
     properties:
-      code:
+      current:
         type: "integer"
-      message:
+      total:
         type: "integer"
 
   ErrorResponse:
