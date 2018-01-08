@@ -418,6 +418,13 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 		}
 		configuration.NetworkSharedContainerName = spec.Windows.Network.NetworkSharedContainerName
 	}
+	
+	// Add memory limit (if omittet the memory will be limited to default (1GB) in Hyper-V isolation)
+	if spec.Windows.Resources.Memory != nil {
+		if spec.Windows.Resources.Memory.Limit != nil {
+			configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
+		}
+	}
 
 	// Add the mounts (volumes, bind mounts etc) to the structure. We have to do
 	// some translation for both the mapped directories passed into HCS and in
