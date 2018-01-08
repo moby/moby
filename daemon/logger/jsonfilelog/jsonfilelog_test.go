@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -90,14 +91,11 @@ func TestJSONFileLoggerWithTags(t *testing.T) {
 	res, err := ioutil.ReadFile(filename)
 	require.NoError(t, err)
 
-	expected := `{"log":"line1\n","stream":"src1","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
-{"log":"line2\n","stream":"src2","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
-{"log":"line3\n","stream":"src3","tag":"a7317399f3f8/test-container","time":"0001-01-01T00:00:00Z"}
+	expected := `{"log":"line1\n","stream":"src1","attrs":{"tag":"a7317399f3f8/test-container"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line2\n","stream":"src2","attrs":{"tag":"a7317399f3f8/test-container"},"time":"0001-01-01T00:00:00Z"}
+{"log":"line3\n","stream":"src3","attrs":{"tag":"a7317399f3f8/test-container"},"time":"0001-01-01T00:00:00Z"}
 `
-
-	if string(res) != expected {
-		t.Fatalf("Wrong log content: %q, expected %q", res, expected)
-	}
+	assert.Equal(t, expected, string(res))
 }
 
 func BenchmarkJSONFileLoggerLog(b *testing.B) {
@@ -125,7 +123,7 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 	}
 
 	buf := bytes.NewBuffer(nil)
-	require.NoError(b, marshalMessage(msg, nil, buf, ""))
+	require.NoError(b, marshalMessage(msg, nil, buf))
 	b.SetBytes(int64(buf.Len()))
 
 	b.ResetTimer()

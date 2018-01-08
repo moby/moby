@@ -14,8 +14,6 @@ type JSONLog struct {
 	Created time.Time `json:"time"`
 	// Attrs is the list of extra attributes provided by the user
 	Attrs map[string]string `json:"attrs,omitempty"`
-	// Tags requested the operator
-	Tag string `json:"tag,omitempty"`
 }
 
 // Reset all fields to their zero value.
@@ -24,5 +22,4 @@ func (jl *JSONLog) Reset() {
 	jl.Stream = ""
 	jl.Created = time.Time{}
 	jl.Attrs = make(map[string]string)
-	jl.Tag = ""
 }

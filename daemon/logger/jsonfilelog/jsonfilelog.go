@@ -62,17 +62,21 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	attrs, err := info.ExtraAttributes(nil)
+	if err != nil {
+		return nil, err
+	}
+
 	// no default template. only use a tag if the user asked for it
 	tag, err := loggerutils.ParseLogTag(info, "")
 	if err != nil {
 		return nil, err
 	}
+	if tag != "" {
+		attrs["tag"] = tag
+	}
 
 	var extra []byte
-	attrs, err := info.ExtraAttributes(nil)
-	if err != nil {
-		return nil, err
-	}
 	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
@@ -83,7 +87,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	buf := bytes.NewBuffer(nil)
 	marshalFunc := func(msg *logger.Message) ([]byte, error) {
-		if err := marshalMessage(msg, extra, buf, tag); err != nil {
+		if err := marshalMessage(msg, extra, buf); err != nil {
 			return nil, err
 		}
 		b := buf.Bytes()
@@ -111,7 +115,7 @@ func (l *JSONFileLogger) Log(msg *logger.Message) error {
 	return err
 }
 
-func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer, tag string) error {
+func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
 	logLine := msg.Line
 	if !msg.Partial {
 		logLine = append(msg.Line, '\n')
@@ -121,7 +125,6 @@ func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffe
 		Stream:   msg.Source,
 		Created:  msg.Timestamp,
 		RawAttrs: extra,
-		Tag:      tag,
 	}).MarshalJSONBuf(buf)
 	if err != nil {
 		return errors.Wrap(err, "error writing log message to buffer")
