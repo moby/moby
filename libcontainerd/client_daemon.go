@@ -147,7 +147,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 		rio, err = attachStdio(io)
 		return rio, err
 	})
-	if err != nil && !strings.Contains(err.Error(), "no running task found") {
+	if err != nil && !errdefs.IsNotFound(errors.Cause(err)) {
 		return false, -1, err
 	}
 
