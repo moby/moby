@@ -275,8 +275,9 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			info.Checkpoint = cp
 			info.Options = &runctypes.CreateOptions{
-				IoUid: uint32(uid),
-				IoGid: uint32(gid),
+				IoUid:       uint32(uid),
+				IoGid:       uint32(gid),
+				NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
 			}
 			return nil
 		})
