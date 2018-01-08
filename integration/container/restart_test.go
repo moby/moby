@@ -51,8 +51,6 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					liveRestoreEnabled := liveRestoreEnabled
 					stopDaemon := stopDaemon
 
-					t.Parallel()
-
 					d := daemon.New(t, "", "dockerd", daemon.Config{})
 					client, err := d.NewClient()
 					if err != nil {
