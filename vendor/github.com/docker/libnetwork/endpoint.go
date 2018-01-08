@@ -311,16 +311,25 @@ func (ep *endpoint) isAnonymous() bool {
 	return ep.anonymous
 }
 
-// enableService sets ep's serviceEnabled to the passed value if it's not in the
-// current state and returns true; false otherwise.
-func (ep *endpoint) enableService(state bool) bool {
+// isServiceEnabled check if service is enabled on the endpoint
+func (ep *endpoint) isServiceEnabled() bool {
 	ep.Lock()
 	defer ep.Unlock()
-	if ep.serviceEnabled != state {
-		ep.serviceEnabled = state
-		return true
-	}
-	return false
+	return ep.serviceEnabled
+}
+
+// enableService sets service enabled on the endpoint
+func (ep *endpoint) enableService() {
+	ep.Lock()
+	defer ep.Unlock()
+	ep.serviceEnabled = true
+}
+
+// disableService disables service on the endpoint
+func (ep *endpoint) disableService() {
+	ep.Lock()
+	defer ep.Unlock()
+	ep.serviceEnabled = false
 }
 
 func (ep *endpoint) needResolver() bool {
@@ -757,10 +766,6 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 	// detach but after store has been updated.
 	if err := n.getController().updateToStore(ep); err != nil {
 		return err
-	}
-
-	if e := ep.deleteServiceInfoFromCluster(sb, "sbLeave"); e != nil {
-		logrus.Errorf("Could not delete service state for endpoint %s from cluster: %v", ep.Name(), e)
 	}
 
 	if e := ep.deleteDriverInfoFromCluster(); e != nil {
