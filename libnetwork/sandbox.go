@@ -674,24 +674,41 @@ func (sb *sandbox) SetKey(basePath string) error {
 	return nil
 }
 
-func (sb *sandbox) EnableService() error {
+func (sb *sandbox) EnableService() (err error) {
 	logrus.Debugf("EnableService %s START", sb.containerID)
+	defer func() {
+		if err != nil {
+			sb.DisableService()
+		}
+	}()
 	for _, ep := range sb.getConnectedEndpoints() {
-		if ep.enableService(true) {
+		if !ep.isServiceEnabled() {
 			if err := ep.addServiceInfoToCluster(sb); err != nil {
-				ep.enableService(false)
 				return fmt.Errorf("could not update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
+			ep.enableService()
 		}
 	}
 	logrus.Debugf("EnableService %s DONE", sb.containerID)
 	return nil
 }
 
-func (sb *sandbox) DisableService() error {
+func (sb *sandbox) DisableService() (err error) {
 	logrus.Debugf("DisableService %s START", sb.containerID)
+	failedEps := []string{}
+	defer func() {
+		if len(failedEps) > 0 {
+			err = fmt.Errorf("failed to disable service on sandbox:%s, for endpoints %s", sb.ID(), strings.Join(failedEps, ","))
+		}
+	}()
 	for _, ep := range sb.getConnectedEndpoints() {
-		ep.enableService(false)
+		if ep.isServiceEnabled() {
+			if err := ep.deleteServiceInfoFromCluster(sb, "DisableService"); err != nil {
+				failedEps = append(failedEps, ep.Name())
+				logrus.Warnf("failed update state for endpoint %s into cluster: %v", ep.Name(), err)
+			}
+			ep.disableService()
+		}
 	}
 	logrus.Debugf("DisableService %s DONE", sb.containerID)
 	return nil
