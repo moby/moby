@@ -275,12 +275,11 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 		return err
 	}
 
-	// Always make sure there is no ambiguity with respect to the network ID/name
-	nw, err := n.backend.FindNetwork(vars["id"])
-	if err != nil {
-		return err
-	}
-	return n.backend.ConnectContainerToNetwork(connect.Container, nw.ID(), connect.EndpointConfig)
+	// Unlike other operations, we does not check ambiguity of the name/ID here.
+	// The reason is that, In case of attachable network in swarm scope, the actual local network
+	// may not be available at the time. At the same time, inside daemon `ConnectContainerToNetwork`
+	// does the ambiguity check anyway. Therefore, passing the name to daemon would be enough.
+	return n.backend.ConnectContainerToNetwork(connect.Container, vars["id"], connect.EndpointConfig)
 }
 
 func (n *networkRouter) postNetworkDisconnect(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
