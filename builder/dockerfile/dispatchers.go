@@ -348,11 +348,15 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 	if err := d.builder.containerManager.Run(d.builder.clientCtx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
 			// TODO: change error type, because jsonmessage.JSONError assumes HTTP
+			msg := fmt.Sprintf(
+				"The command '%s' returned a non-zero code: %d",
+				strings.Join(runConfig.Cmd, " "), err.StatusCode())
+			if err.Error() != "" {
+				msg = fmt.Sprintf("%s: %s", msg, err.Error())
+			}
 			return &jsonmessage.JSONError{
-				Message: fmt.Sprintf(
-					"The command '%s' returned a non-zero code: %d",
-					strings.Join(runConfig.Cmd, " "), err.StatusCode()),
-				Code: err.StatusCode(),
+				Message: msg,
+				Code:    err.StatusCode(),
 			}
 		}
 		return err

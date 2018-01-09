@@ -93,7 +93,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 		close(finished)
 		logCancellationError(cancelErrCh,
 			fmt.Sprintf("a non-zero code from ContainerWait: %d", status.ExitCode()))
-		return &statusCodeError{code: status.ExitCode(), err: err}
+		return &statusCodeError{code: status.ExitCode(), err: status.Err()}
 	}
 
 	close(finished)
@@ -112,6 +112,9 @@ type statusCodeError struct {
 }
 
 func (e *statusCodeError) Error() string {
+	if e.err == nil {
+		return ""
+	}
 	return e.err.Error()
 }
 

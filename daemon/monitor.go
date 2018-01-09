@@ -69,6 +69,9 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 				c.RestartCount++
 				c.SetRestarting(&exitStatus)
 			} else {
+				if ei.Error != nil {
+					c.SetError(ei.Error)
+				}
 				c.SetStopped(&exitStatus)
 				defer daemon.autoRemove(c)
 			}
