@@ -77,7 +77,7 @@ func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected dige
 		r, err = seekReader(r, ws.Offset, size)
 		if err != nil {
 			if !isUnseekable(err) {
-				return errors.Wrapf(err, "unabled to resume write to %v", ws.Ref)
+				return errors.Wrapf(err, "unable to resume write to %v", ws.Ref)
 			}
 
 			// reader is unseekable, try to move the writer back to the start.

@@ -4,6 +4,10 @@ TOMLV_COMMIT=9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
 RUNC_COMMIT=b2567b37d7b75eb4cf325b77297b140ea686ce8f
+
+# containerd is also pinned in vendor.conf. When updating the binary
+# version you may also need to update the vendor version to pick up bug
+# fixes or new APIs.
 CONTAINERD_COMMIT=89623f28b87a6004d4b785663257362d1658a729 # v1.0.0
 TINI_COMMIT=949e6facb77383876aeff8a6944dde66b3089574
 LIBNETWORK_COMMIT=7b2b1feb1de4817d522cc372af149ff48d25028e
