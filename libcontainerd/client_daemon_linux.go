@@ -6,10 +6,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/mount"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
@@ -105,4 +107,38 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 	}
 
 	return cio.NewFIFOSet(config, closer)
+}
+
+func isInitramfs() bool {
+	const (
+		// from linux/magic.h
+		ramfsMagic = 0x858458f6
+		tmpfsMagic = 0x01021994
+	)
+
+	buf := &syscall.Statfs_t{}
+
+	if err := syscall.Statfs("/", buf); err != nil {
+		logrus.Warnf("libcontainerd: failed to get root filesystem type: %v", err)
+		return false
+	}
+
+	if buf.Type != ramfsMagic && buf.Type != tmpfsMagic {
+		return false
+	}
+
+	mounts, err := mount.GetMounts()
+	if err != nil {
+		logrus.Warnf("libcontainerd: failed to lookup mounts: %v", err)
+		return false
+	}
+
+	// only initramfs has root filesystem labeled as "rootfs"
+	for _, mount := range mounts {
+		if mount.Fstype == "rootfs" {
+			return true
+		}
+	}
+
+	return false
 }

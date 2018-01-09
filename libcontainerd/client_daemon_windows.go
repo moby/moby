@@ -53,3 +53,7 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 
 	return cio.NewFIFOSet(config, nil)
 }
+
+func isInitramfs() bool {
+	return false
+}
