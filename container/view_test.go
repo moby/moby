@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/pborman/uuid"
 	"github.com/stretchr/testify/assert"
@@ -158,4 +159,27 @@ func TestNames(t *testing.T) {
 	assert.NoError(t, db.ReserveName("name1", "containerid4"))
 	view = db.Snapshot()
 	assert.Equal(t, map[string][]string{"containerid4": {"name1", "name2"}}, view.GetAllNames())
+}
+
+// Test case for GitHub issue 35920
+func TestViewWithHealthCheck(t *testing.T) {
+	var (
+		db, _ = NewViewDB()
+		one   = newContainer(t)
+	)
+	one.Health = &Health{
+		Health: types.Health{
+			Status: "starting",
+		},
+	}
+	if err := one.CheckpointTo(db); err != nil {
+		t.Fatal(err)
+	}
+	s, err := db.Snapshot().Get(one.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s == nil || s.Health != "starting" {
+		t.Fatalf("expected Health=starting. Got: %+v", s)
+	}
 }
