@@ -71,7 +71,7 @@ func (rl *releaseableLayer) Commit(os string) (builder.ReleaseableLayer, error) 
 	if err != nil {
 		return nil, err
 	}
-	// TODO: An optimization woudld be to handle empty layers before returning
+	// TODO: An optimization would be to handle empty layers before returning
 	return &releaseableLayer{layerStore: rl.layerStore, roLayer: newLayer}, nil
 }
 
