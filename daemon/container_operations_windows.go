@@ -170,7 +170,7 @@ func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, 
 
 	if nc.NetworkSettings != nil {
 		for n := range nc.NetworkSettings.Networks {
-			sn, err := daemon.FindNetwork(n)
+			sn, err := daemon.FindUniqueNetwork(n)
 			if err != nil {
 				continue
 			}

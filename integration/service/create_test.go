@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/gotestyourself/gotestyourself/poll"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
@@ -78,6 +79,68 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	require.NoError(t, err)
 
 	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+}
+
+func TestCreateWithDuplicateNetworkNames(t *testing.T) {
+	defer setupTest(t)()
+	d := newSwarm(t)
+	defer d.Stop(t)
+	client, err := request.NewClientForHost(d.Sock())
+	require.NoError(t, err)
+
+	name := "foo"
+	networkCreate := types.NetworkCreate{
+		CheckDuplicate: false,
+		Driver:         "bridge",
+	}
+
+	n1, err := client.NetworkCreate(context.Background(), name, networkCreate)
+	require.NoError(t, err)
+
+	n2, err := client.NetworkCreate(context.Background(), name, networkCreate)
+	require.NoError(t, err)
+
+	// Dupliates with name but with different driver
+	networkCreate.Driver = "overlay"
+	n3, err := client.NetworkCreate(context.Background(), name, networkCreate)
+	require.NoError(t, err)
+
+	// Create Service with the same name
+	var instances uint64 = 1
+	serviceSpec := swarmServiceSpec("top", instances)
+
+	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{Target: name})
+
+	service, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{})
+	require.NoError(t, err)
+
+	poll.WaitOn(t, serviceRunningTasksCount(client, service.ID, instances))
+
+	resp, _, err := client.ServiceInspectWithRaw(context.Background(), service.ID, types.ServiceInspectOptions{})
+	require.NoError(t, err)
+	assert.Equal(t, n3.ID, resp.Spec.TaskTemplate.Networks[0].Target)
+
+	// Remove Service
+	err = client.ServiceRemove(context.Background(), service.ID)
+	require.NoError(t, err)
+
+	// Make sure task has been destroyed.
+	poll.WaitOn(t, serviceIsRemoved(client, service.ID))
+
+	// Remove networks
+	err = client.NetworkRemove(context.Background(), n3.ID)
+	require.NoError(t, err)
+
+	err = client.NetworkRemove(context.Background(), n2.ID)
+	require.NoError(t, err)
+
+	err = client.NetworkRemove(context.Background(), n1.ID)
+	require.NoError(t, err)
+
+	// Make sure networks have been destroyed.
+	poll.WaitOn(t, networkIsRemoved(client, n3.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, n2.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, n1.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
