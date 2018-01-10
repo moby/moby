@@ -13,7 +13,6 @@ import (
 	"strings"
 	"sync"
 	"syscall"
-	"time"
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/datastore"
@@ -693,6 +692,12 @@ func (n *network) initSandbox(restore bool) error {
 		n.driver.initSandboxPeerDB(n.id)
 	}
 
+	// If we are in swarm mode, we don't need anymore the watchMiss routine.
+	// This will save 1 thread and 1 netlink socket per network
+	if !n.driver.isSerfAlive() {
+		return nil
+	}
+
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
@@ -716,7 +721,6 @@ func (n *network) initSandbox(restore bool) error {
 }
 
 func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
-	t := time.Now()
 	for {
 		msgs, err := nlSock.Receive()
 		if err != nil {
@@ -772,30 +776,13 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if n.driver.isSerfAlive() {
-				logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
-				mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
-				if err != nil {
-					logrus.Errorf("could not resolve peer %q: %v", ip, err)
-					continue
-				}
-				n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
-			} else if l3Miss && time.Since(t) > time.Second {
-				// All the local peers will trigger a miss notification but this one is expected and the local container will reply
-				// autonomously to the ARP request
-				// In case the gc_thresh3 values is low kernel might reject new entries during peerAdd. This will trigger the following
-				// extra logs that will inform of the possible issue.
-				// Entries created would not be deleted see documentation http://man7.org/linux/man-pages/man7/arp.7.html:
-				// Entries which are marked as permanent are never deleted by the garbage-collector.
-				// The time limit here is to guarantee that the dbSearch is not
-				// done too frequently causing a stall of the peerDB operations.
-				pKey, pEntry, err := n.driver.peerDbSearch(n.id, ip)
-				if err == nil && !pEntry.isLocal {
-					t = time.Now()
-					logrus.Warnf("miss notification for peer:%+v l3Miss:%t l2Miss:%t, if the problem persist check the gc_thresh on the host pKey:%+v pEntry:%+v err:%v",
-						neigh, l3Miss, l2Miss, *pKey, *pEntry, err)
-				}
+			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
+			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
+			if err != nil {
+				logrus.Errorf("could not resolve peer %q: %v", ip, err)
+				continue
 			}
+			n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
 		}
 	}
 }

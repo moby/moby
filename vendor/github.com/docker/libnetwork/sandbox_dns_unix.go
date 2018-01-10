@@ -362,7 +362,7 @@ func (sb *sandbox) rebuildDNS() error {
 dnsOpt:
 	for _, resOpt := range resOptions {
 		if strings.Contains(resOpt, "ndots") {
-			for _, option := range dnsOptionsList {
+			for i, option := range dnsOptionsList {
 				if strings.Contains(option, "ndots") {
 					parts := strings.Split(option, ":")
 					if len(parts) != 2 {
@@ -371,7 +371,10 @@ dnsOpt:
 					if num, err := strconv.Atoi(parts[1]); err != nil {
 						return fmt.Errorf("invalid number for ndots option %v", option)
 					} else if num > 0 {
+						// if the user sets ndots, we mark it as set but we remove the option to guarantee
+						// that into the container land only ndots:0
 						sb.ndotsSet = true
+						dnsOptionsList = append(dnsOptionsList[:i], dnsOptionsList[i+1:]...)
 						break dnsOpt
 					}
 				}
