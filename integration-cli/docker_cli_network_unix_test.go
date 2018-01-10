@@ -1262,6 +1262,15 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectDisconnectToStoppedContaine
 	testRequires(c, SameHostDaemon)
 	dockerCmd(c, "network", "create", "test")
 	dockerCmd(c, "create", "--name=foo", "busybox", "top")
+
+	// connect a non-running container to a non-existing network
+	out, _, err := dockerCmdWithError("network", "connect", "non-existing-network", "test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+
+	// disconnect a non-running container from a non-existing network
+	out, _, err = dockerCmdWithError("network", "disconnect", "non-existing-network", "test")
+	c.Assert(err, checker.NotNil, check.Commentf(out))
+
 	dockerCmd(c, "network", "connect", "test", "foo")
 	networks := inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Contains, "test", check.Commentf("Should contain 'test' network"))
@@ -1303,6 +1312,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkDisconnectContainerNonexistingNetw
 	dockerCmd(c, "network", "rm", "test")
 
 	// Test disconnecting stopped container from nonexisting network
+	// this stopped container's networking config has this network details
 	dockerCmd(c, "network", "disconnect", "-f", "test", "foo")
 	networks = inspectField(c, "foo", "NetworkSettings.Networks")
 	c.Assert(networks, checker.Not(checker.Contains), "test", check.Commentf("Should not contain 'test' network"))
