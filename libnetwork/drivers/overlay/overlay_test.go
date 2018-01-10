@@ -2,7 +2,9 @@ package overlay
 
 import (
 	"context"
+	"fmt"
 	"net"
+	"os"
 	"syscall"
 	"testing"
 	"time"
@@ -158,7 +160,7 @@ func TestNetlinkSocket(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	go func() {
-		n.watchMiss(nlSock)
+		n.watchMiss(nlSock, fmt.Sprintf("/proc/%d/task/%d/ns/net", os.Getpid(), syscall.Gettid()))
 		ch <- nil
 	}()
 	time.Sleep(5 * time.Second)

@@ -711,7 +711,7 @@ func (n *network) initSandbox(restore bool) error {
 	n.setNetlinkSocket(nlSock)
 
 	if err == nil {
-		go n.watchMiss(nlSock)
+		go n.watchMiss(nlSock, key)
 	} else {
 		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
 			n.id, sbox.Key(), err)
@@ -720,7 +720,23 @@ func (n *network) initSandbox(restore bool) error {
 	return nil
 }
 
-func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
+func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
+	// With the new version of the netlink library the deserialize function makes
+	// requests about the interface of the netlink message. This can succeed only
+	// if this go routine is in the target namespace. For this reason following we
+	// lock the thread on that namespace
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	newNs, err := netns.GetFromPath(nsPath)
+	if err != nil {
+		logrus.WithError(err).Errorf("failed to get the namespace %s", nsPath)
+		return
+	}
+	defer newNs.Close()
+	if err = netns.Set(newNs); err != nil {
+		logrus.WithError(err).Errorf("failed to enter the namespace %s", nsPath)
+		return
+	}
 	for {
 		msgs, err := nlSock.Receive()
 		if err != nil {
