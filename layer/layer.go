@@ -156,6 +156,12 @@ type RWLayer interface {
 
 	// Metadata returns the low level metadata for the mutable layer
 	Metadata() (map[string]string, error)
+
+	//GetMountID directly from mountedLayer
+	GetMountIDdirect() (string)
+
+	// Set mounId using in mountedLayer
+	SetMountID_Path(string) ()
 }
 
 // Metadata holds information about a

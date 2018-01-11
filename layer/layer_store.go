@@ -475,6 +475,11 @@ func (ls *layerStore) Release(l Layer) ([]Metadata, error) {
 	return ls.releaseLayer(layer)
 }
 
+func AppendPathToId(id string, path string) string{
+	raw :=path + "$" + id
+	return raw
+}
+
 func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWLayerOpts) (RWLayer, error) {
 	var (
 		storageOpt map[string]string
@@ -524,24 +529,36 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 	}
 
 	if initFunc != nil {
-		pid, err = ls.initMount(m.mountID, pid, mountLabel, initFunc, storageOpt)
+		pid, err = ls.initMount(AppendPathToId(m.mountID, storageOpt["ContainerNewPath"]), pid, mountLabel, initFunc, storageOpt)
 		if err != nil {
 			return nil, err
 		}
-		m.initID = pid
+		//pid is not original initID
+		// return original init-ID
+		for i:= range pid {
+			if string(pid[i]) == "$" {
+				m.initID = pid[i + 1:len(pid)]
+			}
+		}
 	}
 
 	createOpts := &graphdriver.CreateOpts{
 		StorageOpt: storageOpt,
 	}
 
-	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
+	if err = ls.driver.CreateReadWrite(AppendPathToId(m.mountID, storageOpt["ContainerNewPath"]), pid, createOpts); err != nil {
 		return nil, err
 	}
+
+	/*
+	saveMount will save mountedLayer with exactly mount-id so cannot assign m.mountID with path at first
+	*/
+
 	if err = ls.saveMount(m); err != nil {
 		return nil, err
 	}
 
+	m.mountID = AppendPathToId(m.mountID, storageOpt["ContainerNewPath"])
 	return m.getReference(), nil
 }
 

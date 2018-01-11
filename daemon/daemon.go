@@ -169,6 +169,8 @@ func (daemon *Daemon) restore() error {
 				continue
 			}
 			container.RWLayer = rwlayer
+			// To start container we must read mounid_path from startPath and set it as mountid
+			container.RWLayer.SetMountID_Path(container.ID)
 			logrus.Debugf("Loaded container %v, isRunning: %v", container.ID, container.IsRunning())
 
 			containers[container.ID] = container

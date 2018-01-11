@@ -21,6 +21,9 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/sirupsen/logrus"
+	"os"
+	"path"
+	"bufio"
 )
 
 // CreateManagedContainer creates a container that is managed by a Service
@@ -153,7 +156,6 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	if runtime.GOOS == "linux"{
 		container.HostConfig.StorageOpt = params.HostConfig.StorageOpt
 		container.NewPath = params.ContainerPath
-
 	}
 
 	// Set RWLayer for container after mount labels have been set
@@ -191,7 +193,29 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 	stateCtr.set(container.ID, "stopped")
 	daemon.LogContainerEvent(container, "create")
+
+	/* Until the last step of create container is completed, we will write the path to file startPath */
+	WritePathAndMountIdToFile(container.ID, container.RWLayer.GetMountIDdirect())
 	return container, nil
+}
+
+// append path to mountid in a note in /var/lib/docker/containers/container-id
+func WritePathAndMountIdToFile(container_id string, mount_id_and_path string) {
+	os.Create(path.Join("/var/lib/docker/containers", container_id, "startPath"))
+	f, err := os.OpenFile(path.Join("/var/lib/docker/containers", container_id, "startPath"), os.O_WRONLY|os.O_APPEND, 0660)
+	check(err)
+	defer f.Close()
+	f.Sync()
+	w := bufio.NewWriter(f)
+	w.WriteString(mount_id_and_path)
+	w.Flush()
+	return
+}
+
+func check(e error) {
+	if e != nil {
+		panic(e)
+	}
 }
 
 func toHostConfigSelinuxLabels(labels []string) []string {
@@ -268,7 +292,7 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 		InitFunc:   daemon.getLayerInit(),
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
-	
+
 	// parse NewPath of Container to ReadWriteLayerStoreOption
 	if container.NewPath != ""{
 		rwLayerOpts.StorageOpt = make(map[string]string)

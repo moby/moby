@@ -5,6 +5,10 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
+	"os"
+	"path"
+	"bufio"
+	"github.com/sirupsen/logrus"
 )
 
 type mountedLayer struct {
@@ -16,6 +20,34 @@ type mountedLayer struct {
 	layerStore *layerStore
 
 	references map[RWLayer]*referencedRWLayer
+}
+
+// get mount-id directly from mountedLayer
+func (ml *mountedLayer) GetMountIDdirect() string{
+	if ml.mountID != "" {
+		return ml.mountID
+	}
+	return ""
+}
+
+// read mount_id and path from the startPath file we saved
+func (ml *mountedLayer) SetMountID_Path(containerid string) {
+	if ml.mountID != ""{
+		ml.mountID = readpathfromdepository(containerid)
+	}
+	return
+}
+
+func readpathfromdepository (containerid string) string{
+	file, _ := os.Open(path.Join("/var/lib/docker/containers", containerid, "startPath"))
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+	var mountid_path string
+	for scanner.Scan() {
+		logrus.Debugf(scanner.Text())
+		mountid_path = scanner.Text()
+	}
+	return mountid_path
 }
 
 func (ml *mountedLayer) cacheParent() string {
