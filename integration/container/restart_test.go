@@ -59,9 +59,9 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						t.Fatal(err)
 					}
 
-					var args []string
+					args := []string{"--iptables=false"}
 					if liveRestoreEnabled {
-						args = []string{"--live-restore"}
+						args = append(args, "--live-restore")
 					}
 
 					d.StartWithBusybox(t, args...)
