@@ -3339,17 +3339,12 @@ definitions:
         description: "Name of the secrets driver used to fetch the secret's value from an external secret store"
         $ref: "#/definitions/Driver"
       Templating:
-        description: "Templating driver, if applicable"
-        type: "object"
-        properties:
-          Name:
-            description: "Name of the templating driver (i.e. 'golang')"
-            type: "string"
-          Options:
-            description: "key/value map of driver specific options."
-            type: "object"
-            additionalProperties:
-              type: "string"
+        description: |
+          Templating driver, if applicable
+
+          Templating controls whether and how to evaluate the config payload as
+          a template. If no driver is set, no templating is used.
+        $ref: "#/definitions/Driver"
 
   Secret:
     type: "object"
@@ -3387,17 +3382,12 @@ definitions:
           config data.
         type: "string"
       Templating:
-        description: "Templating driver, if applicable"
-        type: "object"
-        properties:
-          Name:
-            description: "Name of the templating driver (i.e. 'golang')"
-            type: "string"
-          Options:
-            description: "key/value map of driver specific options."
-            type: "object"
-            additionalProperties:
-              type: "string"
+        description: |
+          Templating driver, if applicable
+
+          Templating controls whether and how to evaluate the config payload as
+          a template. If no driver is set, no templating is used.
+        $ref: "#/definitions/Driver"
 
   Config:
     type: "object"

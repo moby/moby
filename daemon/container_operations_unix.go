@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/libnetwork"
-	"github.com/docker/swarmkit/template"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -161,17 +160,23 @@ func (daemon *Daemon) setupIpcDirs(c *container.Container) error {
 	return nil
 }
 
-func (daemon *Daemon) setupSecretDir(c *container.Container, hasSecretDir *bool) (setupErr error) {
+func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	if len(c.SecretReferences) == 0 {
 		return nil
 	}
 
-	if !*hasSecretDir {
-		if err := daemon.createSecretDir(c); err != nil {
-			return err
-		}
-		*hasSecretDir = true
+	localMountPath, err := c.SecretMountPath()
+	if err != nil {
+		return errors.Wrap(err, "error getting secrets mount path for container")
 	}
+	if err := daemon.createSecretsDir(localMountPath); err != nil {
+		return err
+	}
+	defer func() {
+		if setupErr != nil {
+			daemon.cleanupSecretDir(localMountPath)
+		}
+	}()
 
 	if c.DependencyStore == nil {
 		return fmt.Errorf("secret store is not initialized")
@@ -226,64 +231,52 @@ func (daemon *Daemon) setupSecretDir(c *container.Container, hasSecretDir *bool)
 		}
 	}
 
-	return nil
+	return daemon.remountSecretDir(c.MountLabel, localMountPath)
 }
 
-func (daemon *Daemon) createSecretDir(c *container.Container) error {
-	localMountPath, err := c.SecretMountPath()
-	if err != nil {
-		return err
-	}
-	logrus.Debugf("secrets: setting up secret dir: %s", localMountPath)
-
+// createSecretsDir is used to create a dir suitable for storing container secrets.
+// In practice this is using a tmpfs mount and is used for both "configs" and "secrets"
+func (daemon *Daemon) createSecretsDir(dir string) error {
 	// retrieve possible remapped range start for root UID, GID
 	rootIDs := daemon.idMappings.RootPair()
 	// create tmpfs
-	if err := idtools.MkdirAllAndChown(localMountPath, 0700, rootIDs); err != nil {
+	if err := idtools.MkdirAllAndChown(dir, 0700, rootIDs); err != nil {
 		return errors.Wrap(err, "error creating secret local mount path")
 	}
 
 	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
+	if err := mount.Mount("tmpfs", dir, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
 
 	return nil
 }
 
-func (daemon *Daemon) remountSecretDir(c *container.Container) error {
-	localMountPath, err := c.SecretMountPath()
-	if err != nil {
-		return err
+func (daemon *Daemon) remountSecretDir(mountLabel, dir string) error {
+	if err := label.Relabel(dir, mountLabel, false); err != nil {
+		logrus.WithError(err).WithField("dir", dir).Warn("Error while attempting to set selinux label")
 	}
-
-	label.Relabel(localMountPath, c.MountLabel, false)
-
 	rootIDs := daemon.idMappings.RootPair()
 	tmpfsOwnership := fmt.Sprintf("uid=%d,gid=%d", rootIDs.UID, rootIDs.GID)
 
 	// remount secrets ro
-	if err := mount.Mount("tmpfs", localMountPath, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
-		return errors.Wrap(err, "unable to remount secret dir as readonly")
+	if err := mount.Mount("tmpfs", dir, "tmpfs", "remount,ro,"+tmpfsOwnership); err != nil {
+		return errors.Wrap(err, "unable to remount dir as readonly")
 	}
 
 	return nil
 }
 
-func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
-	localMountPath, err := c.SecretMountPath()
-	if err != nil {
-		logrus.WithError(err).WithField("container", c.ID).Errorf("error getting secrets mounth path for cleanup")
+func (daemon *Daemon) cleanupSecretDir(dir string) {
+	if err := mount.RecursiveUnmount(dir); err != nil {
+		logrus.WithField("dir", dir).WithError(err).Warn("Error while attmepting to unmount dir, this may prevent removal of container.")
 	}
-
-	detachMounted(localMountPath)
-
-	if err := os.RemoveAll(localMountPath); err != nil {
-		logrus.Errorf("error cleaning up secret mount: %s", err)
+	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
+		logrus.WithField("dir", dir).WithError(err).Error("Error removing dir.")
 	}
 }
 
-func (daemon *Daemon) setupConfigDir(c *container.Container, hasSecretDir *bool) (setupErr error) {
+func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	if len(c.ConfigReferences) == 0 {
 		return nil
 	}
@@ -293,73 +286,55 @@ func (daemon *Daemon) setupConfigDir(c *container.Container, hasSecretDir *bool)
 		return err
 	}
 	logrus.Debugf("configs: setting up config dir: %s", localPath)
-
-	// retrieve possible remapped range start for root UID, GID
-	rootIDs := daemon.idMappings.RootPair()
-	// create tmpfs
-	if err := idtools.MkdirAllAndChown(localPath, 0700, rootIDs); err != nil {
-		return errors.Wrap(err, "error creating config dir")
+	if err := daemon.createSecretsDir(localPath); err != nil {
+		return err
 	}
-
 	defer func() {
 		if setupErr != nil {
-			if err := os.RemoveAll(localPath); err != nil {
-				logrus.Errorf("error cleaning up config dir: %s", err)
-			}
+			daemon.cleanupSecretDir(localPath)
 		}
 	}()
 
 	if c.DependencyStore == nil {
-		return fmt.Errorf("config store is not initialized")
+		return errors.New("config store is not initialized")
 	}
 
-	for _, configRef := range c.ConfigReferences {
+	// retrieve possible remapped range start for root UID, GID
+	rootIDs := daemon.idMappings.RootPair()
+
+	for _, ref := range c.ConfigReferences {
 		// TODO (ehazlett): use type switch when more are supported
-		if configRef.File == nil {
+		if ref.File == nil {
 			logrus.Error("config target type is not a file target")
 			continue
 		}
-
-		getter := c.DependencyStore.Configs().(template.TemplatedConfigGetter)
-		config, sensitive, err := getter.GetAndFlagSecretData(configRef.ConfigID)
-		if err != nil {
-			return errors.Wrap(err, "unable to get config from config store")
-		}
-
-		var fPath string
-		if sensitive {
-			configRef.Sensitive = true
-			fPath, err = c.SensitiveConfigFilePath(*configRef.ConfigReference)
-			if !*hasSecretDir {
-				if err := daemon.createSecretDir(c); err != nil {
-					return err
-				}
-				*hasSecretDir = true
-			}
-		} else {
-			fPath, err = c.ConfigFilePath(*configRef.ConfigReference)
-		}
-		if err != nil {
-			return errors.Wrap(err, "error getting config file path")
-		}
-
-		log := logrus.WithFields(logrus.Fields{"name": configRef.File.Name, "path": fPath})
-
-		log.Debug("injecting config")
-
-		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
-			return errors.Wrap(err, "error creating config path")
-		}
-
-		if err := ioutil.WriteFile(fPath, config.Spec.Data, configRef.File.Mode); err != nil {
-			return errors.Wrap(err, "error injecting config")
-		}
-
-		uid, err := strconv.Atoi(configRef.File.UID)
+		// configs are created in the ConfigsDirPath on the host, at a
+		// single level
+		fPath, err := c.ConfigFilePath(*ref.ConfigReference)
 		if err != nil {
 			return err
 		}
-		gid, err := strconv.Atoi(configRef.File.GID)
+		if err := idtools.MkdirAllAndChown(filepath.Dir(fPath), 0700, rootIDs); err != nil {
+			return errors.Wrap(err, "error creating config mount path")
+		}
+
+		logrus.WithFields(logrus.Fields{
+			"name": ref.File.Name,
+			"path": fPath,
+		}).Debug("injecting config")
+		config, err := c.DependencyStore.Configs().Get(ref.ConfigID)
+		if err != nil {
+			return errors.Wrap(err, "unable to get config from config store")
+		}
+		if err := ioutil.WriteFile(fPath, config.Spec.Data, ref.File.Mode); err != nil {
+			return errors.Wrap(err, "error injecting config")
+		}
+
+		uid, err := strconv.Atoi(ref.File.UID)
+		if err != nil {
+			return err
+		}
+		gid, err := strconv.Atoi(ref.File.GID)
 		if err != nil {
 			return err
 		}
@@ -374,7 +349,7 @@ func (daemon *Daemon) setupConfigDir(c *container.Container, hasSecretDir *bool)
 		label.Relabel(fPath, c.MountLabel, false)
 	}
 
-	return nil
+	return daemon.remountSecretDir(c.MountLabel, localPath)
 }
 
 func killProcessDirectly(cntr *container.Container) error {
