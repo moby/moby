@@ -224,6 +224,22 @@ func createRespMsg(query *dns.Msg) *dns.Msg {
 	return resp
 }
 
+func (r *resolver) handleMXQuery(name string, query *dns.Msg) (*dns.Msg, error) {
+	addrv4, _ := r.backend.ResolveName(name, types.IPv4)
+	addrv6, _ := r.backend.ResolveName(name, types.IPv6)
+
+	if addrv4 == nil && addrv6 == nil {
+		return nil, nil
+	}
+
+	// We were able to resolve the name. Respond with an empty list with
+	// RcodeSuccess/NOERROR so that email clients can treat it as "implicit MX"
+	// [RFC 5321 Section-5.1] and issue a Type A/AAAA query for the name.
+
+	resp := createRespMsg(query)
+	return resp, nil
+}
+
 func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.Msg, error) {
 	var addr []net.IP
 	var ipv6Miss bool
@@ -357,6 +373,8 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 		resp, err = r.handleIPQuery(name, query, types.IPv4)
 	case dns.TypeAAAA:
 		resp, err = r.handleIPQuery(name, query, types.IPv6)
+	case dns.TypeMX:
+		resp, err = r.handleMXQuery(name, query)
 	case dns.TypePTR:
 		resp, err = r.handlePTRQuery(name, query)
 	case dns.TypeSRV:
