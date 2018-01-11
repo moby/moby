@@ -56,7 +56,7 @@ make BUILDTAGS='seccomp apparmor'
 |-----------|------------------------------------|-------------|
 | seccomp   | Syscall filtering                  | libseccomp  |
 | selinux   | selinux process and mount labeling | <none>      |
-| apparmor  | apparmor profile support           | libapparmor |
+| apparmor  | apparmor profile support           | <none>      |
 | ambient   | ambient capability support         | kernel 4.3  |
 
 
