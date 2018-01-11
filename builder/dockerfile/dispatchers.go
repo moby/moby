@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/instructions"
@@ -26,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -499,9 +501,34 @@ func dispatchVolume(d dispatchRequest, c *instructions.VolumeCommand) error {
 	if d.state.runConfig.Volumes == nil {
 		d.state.runConfig.Volumes = map[string]struct{}{}
 	}
+	rootPath := "/"
+	baseImageOS := system.ParsePlatform(d.state.operatingSystem).OS
+	switch {
+	case d.state.runConfig.WorkingDir != "":
+		rootPath = d.state.runConfig.WorkingDir
+	case baseImageOS == "windows":
+		rootPath = `C:\`
+	}
 	for _, v := range c.Volumes {
 		if v == "" {
 			return errors.New("VOLUME specified can not be an empty string")
+		}
+		if _, ok := d.state.runConfig.Volumes[v]; ok {
+			return fmt.Errorf("VOLUME '%s' was specified more than once", v)
+		}
+		if baseImageOS != "" {
+			vol, err := normalizeWorkdir(baseImageOS, rootPath, v)
+			if err != nil {
+				return err
+			}
+			m := mount.Mount{
+				Type:   mount.TypeVolume,
+				Target: vol,
+			}
+			p := volume.NewParser(baseImageOS)
+			if err := p.ValidateMountConfig(&m); err != nil {
+				return err
+			}
 		}
 		d.state.runConfig.Volumes[v] = struct{}{}
 	}
