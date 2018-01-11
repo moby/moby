@@ -37,6 +37,8 @@ func NewVolumeDriver(name string, baseHostPath string, c client) volume.Driver {
 type volumeDriver interface {
 	// Create a volume with the given name
 	Create(name string, opts map[string]string) (err error)
+	// Rename a volume.
+	Rename(name, newName string) (err error)
 	// Remove the volume with the given name
 	Remove(name string) (err error)
 	// Get the mountpoint of the given volume

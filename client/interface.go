@@ -171,6 +171,7 @@ type VolumeAPIClient interface {
 	VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error)
 	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumesListOKBody, error)
+	VolumeRename(ctx context.Context, volume string, newVolume string) error
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
 }

@@ -31,6 +31,8 @@ type Driver interface {
 	Name() string
 	// Create makes a new volume with the given name.
 	Create(name string, opts map[string]string) (Volume, error)
+	// Rename a volume.
+	Rename(name string, newName string) (err error)
 	// Remove deletes the volume.
 	Remove(vol Volume) (err error)
 	// List lists all the volumes the driver has

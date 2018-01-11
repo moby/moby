@@ -34,6 +34,18 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 	return httputils.WriteJSON(w, http.StatusOK, volume)
 }
 
+func (v *volumeRouter) postVolumeRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+
+	if err := v.backend.VolumeRename(r.Form.Get("name"), r.Form.Get("newName")); err != nil {
+		return err
+	}
+	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
 func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
