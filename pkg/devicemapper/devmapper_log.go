@@ -55,6 +55,9 @@ func DevmapperLogCallback(level C.int, file *C.char, line, dmErrnoOrClass C.int,
 		if strings.Contains(msg, "No such device or address") {
 			dmSawEnxio = true
 		}
+		if strings.Contains(msg, "No data available") {
+			dmSawEnoData = true
+		}
 	}
 
 	if dmLogger != nil {
