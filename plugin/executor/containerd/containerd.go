@@ -8,7 +8,7 @@ import (
 
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/linux/runctypes"
-	"github.com/docker/docker/api/errdefs"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"

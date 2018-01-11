@@ -3,7 +3,7 @@ package cluster
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/errdefs"
+	"github.com/docker/docker/errdefs"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"

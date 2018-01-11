@@ -3,8 +3,8 @@
 package daemon
 
 import (
-	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 )
 
 func (daemon *Daemon) saveApparmorConfig(container *container.Container) error {

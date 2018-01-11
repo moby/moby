@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/linux/runctypes"
-	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 

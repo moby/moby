@@ -3,11 +3,11 @@ package cluster
 import (
 	"fmt"
 
-	"github.com/docker/docker/api/errdefs"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/runconfig"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/pkg/errors"

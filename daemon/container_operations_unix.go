@@ -11,9 +11,9 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"

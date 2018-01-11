@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/docker/docker/api/errdefs"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

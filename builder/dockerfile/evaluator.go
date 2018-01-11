@@ -24,10 +24,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/instructions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/pkg/errors"
