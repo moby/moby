@@ -2,5 +2,5 @@
 # Entrypoint for jenkins powerpc CI build
 set -eu -o pipefail
 
-hack/test/unit
-hack/make.sh dynbinary test-integration
+#hack/test/unit
+#hack/make.sh dynbinary test-integration
