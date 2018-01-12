@@ -2,5 +2,5 @@
 
 package libnetwork
 
-func arrangeUserFilterRule() {
+func (c *controller) arrangeUserFilterRule() {
 }
