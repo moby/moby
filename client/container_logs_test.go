@@ -18,6 +18,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+func TestContainerLogsNotFoundError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Not found")),
+	}
+	_, err := client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{})
+	if !IsErrNotFound(err) {
+		t.Fatalf("expected a not found error, got %v", err)
+	}
+}
+
 func TestContainerLogsError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
