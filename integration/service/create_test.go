@@ -43,7 +43,8 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	require.NoError(t, err)
 
 	pollSettings := func(config *poll.Settings) {
-		if runtime.GOARCH == "arm" {
+		// It takes about ~25s to finish the multi services creation in this case per the pratical observation on arm64/arm platform
+		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
 			config.Timeout = 30 * time.Second
 			config.Delay = 100 * time.Millisecond
 		}
