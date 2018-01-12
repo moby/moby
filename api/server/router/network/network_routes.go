@@ -177,6 +177,13 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		// return the network. Skipped using isMatchingScope because it is true if the scope
 		// is not set which would be case if the client API v1.30
 		if strings.HasPrefix(nwk.ID, term) || (netconst.SwarmScope == scope) {
+			// If we have a previous match "backend", return it, we need verbose when enabled
+			// ex: overlay/partial_ID or name/swarm_scope
+			if nwv, ok := listByPartialID[nwk.ID]; ok {
+				nwk = nwv
+			} else if nwv, ok := listByFullName[nwk.ID]; ok {
+				nwk = nwv
+			}
 			return httputils.WriteJSON(w, http.StatusOK, nwk)
 		}
 	}
