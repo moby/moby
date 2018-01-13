@@ -1031,7 +1031,7 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *check.C) {
 	v := url.Values{}
 	v.Set("scope", "local")
 
-	status, body, err = d.SockRequest("GET", "/networks/"+name+"?"+v.Encode(), nil)
+	status, _, err = d.SockRequest("GET", "/networks/"+name+"?"+v.Encode(), nil)
 	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	c.Assert(status, checker.Equals, http.StatusNotFound, check.Commentf(string(out)))
 }
