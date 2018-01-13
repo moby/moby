@@ -36,7 +36,6 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
-	libcontainerUser "github.com/opencontainers/runc/libcontainer/user"
 	"golang.org/x/net/context"
 )
 
@@ -751,7 +750,7 @@ func (s *DockerSuite) TestRunUserByIDBig(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
+	if !strings.Contains(strings.ToLower(out), "uids and gids must be in range") {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
@@ -764,7 +763,7 @@ func (s *DockerSuite) TestRunUserByIDNegative(c *check.C) {
 	if err == nil {
 		c.Fatal("No error, but must be.", out)
 	}
-	if !strings.Contains(strings.ToUpper(out), strings.ToUpper(libcontainerUser.ErrRange.Error())) {
+	if !strings.Contains(strings.ToLower(out), "uids and gids must be in range") {
 		c.Fatalf("expected error about uids range, got %s", out)
 	}
 }
