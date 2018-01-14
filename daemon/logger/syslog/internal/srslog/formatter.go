@@ -42,6 +42,9 @@ func RFC5424Formatter(p Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
 	appName := os.Args[0]
+	if (len(appName) > appNameMax) {
+		appName = appName[len(appName)-appNameMax:] // limit to appNameMax chars as per RFC5424
+	}
 	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, appName, pid, tag, content)
 	return msg
