@@ -11,8 +11,10 @@ import (
 	"golang.org/x/net/context"
 )
 
+type contextKey string
+
 // APIVersionKey is the client's requested API version.
-const APIVersionKey = "api-version"
+const APIVersionKey contextKey = "api-version"
 
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
