@@ -348,11 +348,7 @@ func (d *Daemon) Kill() error {
 		return err
 	}
 
-	if err := os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder)); err != nil {
-		return err
-	}
-
-	return nil
+	return os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder))
 }
 
 // Pid returns the pid of the daemon
@@ -459,11 +455,7 @@ out2:
 
 	d.cmd.Wait()
 
-	if err := os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder)); err != nil {
-		return err
-	}
-
-	return nil
+	return os.Remove(fmt.Sprintf("%s/docker.pid", d.Folder))
 }
 
 // Restart will restart the daemon by first stopping it and the starting it.

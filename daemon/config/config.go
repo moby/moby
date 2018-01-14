@@ -511,11 +511,7 @@ func Validate(config *Config) error {
 	}
 
 	// validate platform-specific settings
-	if err := config.ValidatePlatformConfig(); err != nil {
-		return err
-	}
-
-	return nil
+	return config.ValidatePlatformConfig()
 }
 
 // ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.

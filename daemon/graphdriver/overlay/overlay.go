@@ -309,10 +309,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		if err := idtools.MkdirAndChown(path.Join(dir, "work"), 0700, root); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0666); err != nil {
-			return err
-		}
-		return nil
+		return ioutil.WriteFile(path.Join(dir, "lower-id"), []byte(parent), 0666)
 	}
 
 	// Otherwise, copy the upper and the lower-id from the parent

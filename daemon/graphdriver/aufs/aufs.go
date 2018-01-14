@@ -579,10 +579,7 @@ func (a *Driver) unmount(mountPath string) error {
 	if mounted, err := a.mounted(mountPath); err != nil || !mounted {
 		return err
 	}
-	if err := Unmount(mountPath); err != nil {
-		return err
-	}
-	return nil
+	return Unmount(mountPath)
 }
 
 func (a *Driver) mounted(mountpoint string) (bool, error) {

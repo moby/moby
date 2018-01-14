@@ -355,10 +355,7 @@ func (devices *DeviceSet) saveMetadata(info *devInfo) error {
 	if err != nil {
 		return fmt.Errorf("devmapper: Error encoding metadata to json: %s", err)
 	}
-	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
-		return err
-	}
-	return nil
+	return devices.writeMetaFile(jsonData, devices.metadataFile(info))
 }
 
 func (devices *DeviceSet) markDeviceIDUsed(deviceID int) {
@@ -889,11 +886,7 @@ func (devices *DeviceSet) takeSnapshot(hash string, baseInfo *devInfo, size uint
 		defer devicemapper.ResumeDevice(baseInfo.Name())
 	}
 
-	if err = devices.createRegisterSnapDevice(hash, baseInfo, size); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.createRegisterSnapDevice(hash, baseInfo, size)
 }
 
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInfo, size uint64) error {
@@ -1233,12 +1226,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 			if err := devices.setupVerifyBaseImageUUIDFS(oldInfo); err != nil {
 				return err
 			}
-
-			if err := devices.checkGrowBaseDeviceFS(oldInfo); err != nil {
-				return err
-			}
-
-			return nil
+			return devices.checkGrowBaseDeviceFS(oldInfo)
 		}
 
 		logrus.Debug("devmapper: Removing uninitialized base image")
@@ -1259,11 +1247,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	// Create new base image device
-	if err := devices.createBaseImage(); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.createBaseImage()
 }
 
 func setCloseOnExec(name string) {
@@ -2082,11 +2066,7 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 		return err
 	}
 
-	if err := devices.deleteTransaction(info, syncDelete); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.deleteTransaction(info, syncDelete)
 }
 
 // DeleteDevice will return success if device has been marked for deferred

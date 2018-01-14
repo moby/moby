@@ -485,10 +485,7 @@ func (s *fsCacheStore) delete(id string) error {
 	}); err != nil {
 		return err
 	}
-	if err := s.fs.Remove(src.BackendID); err != nil {
-		return err
-	}
-	return nil
+	return s.fs.Remove(src.BackendID)
 }
 
 type sourceMeta struct {

@@ -323,10 +323,7 @@ func addContainer(dest, jsonConfig string) error {
 	if err := os.MkdirAll(contDir, 0700); err != nil {
 		return err
 	}
-	if err := ioutil.WriteFile(filepath.Join(contDir, "config.json"), []byte(jsonConfig), 0600); err != nil {
-		return err
-	}
-	return nil
+	return ioutil.WriteFile(filepath.Join(contDir, "config.json"), []byte(jsonConfig), 0600)
 }
 
 type mockTagAdder struct {

@@ -90,11 +90,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 			return validationError{err}
 		}
 	}
-
-	if err := daemon.containerStart(container, checkpoint, checkpointDir, true); err != nil {
-		return err
-	}
-	return nil
+	return daemon.containerStart(container, checkpoint, checkpointDir, true)
 }
 
 // containerStart prepares the container to run by setting up everything the

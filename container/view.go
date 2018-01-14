@@ -14,9 +14,8 @@ import (
 )
 
 const (
-	memdbContainersTable = "containers"
-	memdbNamesTable      = "names"
-
+	memdbContainersTable  = "containers"
+	memdbNamesTable       = "names"
 	memdbIDIndex          = "id"
 	memdbContainerIDIndex = "containerid"
 )
@@ -191,11 +190,7 @@ func (db *memDB) ReserveName(name, containerID string) error {
 			}
 			return nil
 		}
-
-		if err := txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID}); err != nil {
-			return err
-		}
-		return nil
+		return txn.Insert(memdbNamesTable, nameAssociation{name: name, containerID: containerID})
 	})
 }
 

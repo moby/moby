@@ -153,10 +153,7 @@ func (tf *testFile) ApplyFile(root containerfs.ContainerFS) error {
 			return err
 		}
 	}
-	if err := driver.WriteFile(root, fullPath, tf.content, tf.permission); err != nil {
-		return err
-	}
-	return nil
+	return driver.WriteFile(root, fullPath, tf.content, tf.permission)
 }
 
 func initWithFiles(files ...FileApplier) layerInit {

@@ -598,16 +598,10 @@ func (d *Driver) setStorageSize(dir string, driver *Driver) error {
 	if d.options.minSpace > 0 && driver.options.size < d.options.minSpace {
 		return fmt.Errorf("btrfs: storage size cannot be less than %s", units.HumanSize(float64(d.options.minSpace)))
 	}
-
 	if err := d.subvolEnableQuota(); err != nil {
 		return err
 	}
-
-	if err := subvolLimitQgroup(dir, driver.options.size); err != nil {
-		return err
-	}
-
-	return nil
+	return subvolLimitQgroup(dir, driver.options.size)
 }
 
 // Remove the filesystem with given id.
@@ -634,10 +628,7 @@ func (d *Driver) Remove(id string) error {
 	if err := system.EnsureRemoveAll(dir); err != nil {
 		return err
 	}
-	if err := d.subvolRescanQuota(); err != nil {
-		return err
-	}
-	return nil
+	return d.subvolRescanQuota()
 }
 
 // Get the requested filesystem id.
