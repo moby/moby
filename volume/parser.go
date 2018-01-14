@@ -1,6 +1,7 @@
 package volume
 
 import (
+	"errors"
 	"runtime"
 
 	"github.com/docker/docker/api/types/mount"
@@ -12,6 +13,10 @@ const (
 	// OSWindows is the same as runtime.GOOS on windows
 	OSWindows = "windows"
 )
+
+// ErrVolumeTargetIsRoot is returned when the target destination is root.
+// It's used by both LCOW and Linux parsers.
+var ErrVolumeTargetIsRoot = errors.New("invalid specification: destination can't be '/'")
 
 // Parser represents a platform specific parser for mount expressions
 type Parser interface {
