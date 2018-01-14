@@ -5,6 +5,7 @@ import (
 	"os"
 	"testing"
 	"time"
+	"strings"
 )
 
 func TestDefaultFormatter(t *testing.T) {
@@ -37,8 +38,20 @@ func TestRFC3164Formatter(t *testing.T) {
 func TestRFC5424Formatter(t *testing.T) {
 	out := RFC5424Formatter(LOG_ERR, "hostname", "tag", "content")
 	expected := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
-		LOG_ERR, 1, time.Now().Format(time.RFC3339), "hostname", os.Args[0], os.Getpid(), "tag", "content")
+		LOG_ERR, 1, time.Now().Format(time.RFC3339), "hostname", TruncateStartStr(os.Args[0], appNameMax),
+			os.Getpid(), "tag", "content")
 	if out != expected {
 		t.Errorf("expected %v got %v", expected, out)
+	}
+}
+
+func TestTruncateStartStr(t *testing.T) {
+	out := TruncateStartStr("abcde", 3)
+	if strings.Compare(out, "cde" ) != 0 {
+		t.Errorf("expected \"cde\" got %v", out)
+	}
+	out = TruncateStartStr("abcde", 5)
+	if strings.Compare(out, "abcde" ) != 0 {
+		t.Errorf("expected \"abcde\" got %v", out)
 	}
 }

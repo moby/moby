@@ -37,14 +37,19 @@ func RFC3164Formatter(p Priority, hostname, tag, content string) string {
 	return msg
 }
 
+// if string's length is greater than max, then use the last part
+func TruncateStartStr(s string, max int) string {
+	if (len(s) > max) {
+		return s[len(s) - max:]
+	}
+	return s
+}
+
 // RFC5424Formatter provides an RFC 5424 compliant message.
 func RFC5424Formatter(p Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
-	appName := os.Args[0]
-	if (len(appName) > appNameMax) {
-		appName = appName[len(appName)-appNameMax:] // limit to appNameMax chars as per RFC5424
-	}
+	appName := TruncateStartStr(os.Args[0], appNameMax)
 	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, appName, pid, tag, content)
 	return msg
