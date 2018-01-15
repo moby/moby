@@ -603,7 +603,7 @@ RUN [ $(cat "/test dir/test_file6") = 'test6' ]`, command, command, command, com
 
 func (s *DockerSuite) TestBuildCopyFileWithWhitespaceOnWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows)
-	dockerfile := `FROM ` + testEnv.MinimalBaseImage() + `
+	dockerfile := `FROM ` + testEnv.PlatformDefaults.BaseImage + `
 RUN mkdir "C:/test dir"
 RUN mkdir "C:/test_dir"
 COPY [ "test file1", "/test_file1" ]
@@ -5148,7 +5148,7 @@ func (s *DockerSuite) TestBuildWorkdirWindowsPath(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildworkdirwindowspath"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`
-	FROM `+testEnv.MinimalBaseImage()+`
+	FROM `+testEnv.PlatformDefaults.BaseImage+`
 	RUN mkdir C:\\work
 	WORKDIR C:\\work
 	RUN if "%CD%" NEQ "C:\work" exit -1
@@ -6143,7 +6143,7 @@ func (s *DockerTrustSuite) TestBuildMultiStageTrusted(c *check.C) {
 func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY foo c:\\bar`
 	ctx := fakecontext.New(c, "",
 		fakecontext.WithDockerfile(dockerfile),
@@ -6156,7 +6156,7 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *check.C) {
 
 	dockerfile = `
 		FROM build1:latest
-    	FROM ` + testEnv.MinimalBaseImage() + `
+    	FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY --from=0 c:\\bar /
 		COPY foo /`
 	ctx = fakecontext.New(c, "",
@@ -6177,8 +6177,8 @@ func (s *DockerSuite) TestBuildMultiStageMultipleBuildsWindows(c *check.C) {
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `
-		FROM ` + testEnv.MinimalBaseImage() + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY --from=0 %s c:\\oscopy
 		`
 	exp := icmd.Expected{
@@ -6194,8 +6194,8 @@ func (s *DockerSuite) TestBuildCopyFromForbidWindowsSystemPaths(c *check.C) {
 func (s *DockerSuite) TestBuildCopyFromForbidWindowsRelativePaths(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `
-		FROM ` + testEnv.MinimalBaseImage() + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY --from=0 %s c:\\oscopy
 		`
 	exp := icmd.Expected{
@@ -6212,9 +6212,9 @@ func (s *DockerSuite) TestBuildCopyFromForbidWindowsRelativePaths(c *check.C) {
 func (s *DockerSuite) TestBuildCopyFromWindowsIsCaseInsensitive(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	dockerfile := `
-		FROM ` + testEnv.MinimalBaseImage() + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY foo /
-		FROM ` + testEnv.MinimalBaseImage() + `
+		FROM ` + testEnv.PlatformDefaults.BaseImage + `
 		COPY --from=0 c:\\fOo c:\\copied
 		RUN type c:\\copied
 		`
@@ -6294,7 +6294,7 @@ func (s *DockerSuite) TestBuildOpaqueDirectory(c *check.C) {
 func (s *DockerSuite) TestBuildWindowsUser(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildwindowsuser"
-	buildImage(name, build.WithDockerfile(`FROM `+testEnv.MinimalBaseImage()+`
+	buildImage(name, build.WithDockerfile(`FROM `+testEnv.PlatformDefaults.BaseImage+`
 		RUN net user user /add
 		USER user
 		RUN set username
@@ -6325,7 +6325,7 @@ func (s *DockerSuite) TestBuildWindowsEnvCaseInsensitive(c *check.C) {
 	testRequires(c, DaemonIsWindows)
 	name := "testbuildwindowsenvcaseinsensitive"
 	buildImageSuccessfully(c, name, build.WithDockerfile(`
-		FROM `+testEnv.MinimalBaseImage()+`
+		FROM `+testEnv.PlatformDefaults.BaseImage+`
 		ENV FOO=bar foo=baz
   `))
 	res := inspectFieldJSON(c, name, "Config.Env")

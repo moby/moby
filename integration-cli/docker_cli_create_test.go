@@ -225,7 +225,7 @@ func (s *DockerSuite) TestCreateHostnameWithNumber(c *check.C) {
 	image := "busybox"
 	// Busybox on Windows does not implement hostname command
 	if testEnv.DaemonPlatform() == "windows" {
-		image = testEnv.MinimalBaseImage()
+		image = testEnv.PlatformDefaults.BaseImage
 	}
 	out, _ := dockerCmd(c, "run", "-h", "web.0", image, "hostname")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "web.0", check.Commentf("hostname not set, expected `web.0`, got: %s", out))

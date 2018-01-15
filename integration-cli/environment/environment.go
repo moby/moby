@@ -57,9 +57,3 @@ func New() (*Execution, error) {
 func (e *Execution) DaemonPlatform() string {
 	return e.OSType
 }
-
-// MinimalBaseImage is the image used for minimal builds (it depends on the platform)
-// Deprecated: use Execution.PlatformDefaults.BaseImage
-func (e *Execution) MinimalBaseImage() string {
-	return e.PlatformDefaults.BaseImage
-}

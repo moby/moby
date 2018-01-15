@@ -75,7 +75,7 @@ func (s *DockerSuite) TestRunLookupGoogleDNS(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
 		// nslookup isn't present in Windows busybox. Is built-in. Further,
 		// nslookup isn't present in nanoserver. Hence just use PowerShell...
-		dockerCmd(c, "run", testEnv.MinimalBaseImage(), "powershell", "Resolve-DNSName", "google.com")
+		dockerCmd(c, "run", testEnv.PlatformDefaults.BaseImage, "powershell", "Resolve-DNSName", "google.com")
 	} else {
 		dockerCmd(c, "run", "busybox", "nslookup", "google.com")
 	}
@@ -162,7 +162,7 @@ func (s *DockerSuite) TestRunWithoutNetworking(c *check.C) {
 	image := "busybox"
 	if testEnv.DaemonPlatform() == "windows" {
 		count = "-n"
-		image = testEnv.MinimalBaseImage()
+		image = testEnv.PlatformDefaults.BaseImage
 	}
 
 	// First using the long form --net
@@ -355,7 +355,7 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 
 	// Create a file in a volume
 	if testEnv.DaemonPlatform() == "windows" {
-		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, testEnv.MinimalBaseImage(), "cmd", "/c", `echo hello > c:\some\dir\file`)
+		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", `c:\some\dir`, testEnv.PlatformDefaults.BaseImage, "cmd", "/c", `echo hello > c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--name", "test-data", "--volume", "/some/dir", "busybox", "touch", "/some/dir/file")
 	}
@@ -365,7 +365,7 @@ func (s *DockerSuite) TestRunWithVolumesFromExited(c *check.C) {
 
 	// Read the file from another container using --volumes-from to access the volume in the second container
 	if testEnv.DaemonPlatform() == "windows" {
-		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", testEnv.MinimalBaseImage(), "cmd", "/c", `type c:\some\dir\file`)
+		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", testEnv.PlatformDefaults.BaseImage, "cmd", "/c", `type c:\some\dir\file`)
 	} else {
 		out, exitCode = dockerCmd(c, "run", "--volumes-from", "test-data", "busybox", "cat", "/some/dir/file")
 	}
@@ -407,7 +407,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir(c *check.C) {
 	f.Close()
 
 	if testEnv.DaemonPlatform() == "windows" {
-		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir %s\nRUN mklink /D c:\\test %s", testEnv.MinimalBaseImage(), dir, dir)
+		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir %s\nRUN mklink /D c:\\test %s", testEnv.PlatformDefaults.BaseImage, dir, dir)
 		containerPath = `c:\test\test`
 		cmd = "tasklist"
 	} else {
@@ -432,7 +432,7 @@ func (s *DockerSuite) TestRunCreateVolumesInSymlinkDir2(c *check.C) {
 	name := "test-volume-symlink2"
 
 	if testEnv.DaemonPlatform() == "windows" {
-		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir c:\\%s\nRUN mklink /D c:\\test c:\\%s", testEnv.MinimalBaseImage(), name, name)
+		dockerFile = fmt.Sprintf("FROM %s\nRUN mkdir c:\\%s\nRUN mklink /D c:\\test c:\\%s", testEnv.PlatformDefaults.BaseImage, name, name)
 		containerPath = `c:\test\test`
 		cmd = "tasklist"
 	} else {
@@ -670,7 +670,7 @@ func (s *DockerSuite) TestRunVolumesFromSymlinkPath(c *check.C) {
 
 	if testEnv.DaemonPlatform() == "windows" {
 		prefix = `c:`
-		dfContents = `FROM ` + testEnv.MinimalBaseImage() + `
+		dfContents = `FROM ` + testEnv.PlatformDefaults.BaseImage + `
 	    RUN mkdir c:\home
 		RUN mklink /D c:\foo c:\home
 		VOLUME ["c:/foo/bar"]
@@ -922,7 +922,7 @@ func (s *DockerSuite) TestRunEnvironmentOverride(c *check.C) {
 func (s *DockerSuite) TestRunContainerNetwork(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
 		// Windows busybox does not have ping. Use built in ping instead.
-		dockerCmd(c, "run", testEnv.MinimalBaseImage(), "ping", "-n", "1", "127.0.0.1")
+		dockerCmd(c, "run", testEnv.PlatformDefaults.BaseImage, "ping", "-n", "1", "127.0.0.1")
 	} else {
 		dockerCmd(c, "run", "busybox", "ping", "-c", "1", "127.0.0.1")
 	}
@@ -1231,7 +1231,7 @@ func (s *DockerSuite) TestRunRootWorkdir(c *check.C) {
 func (s *DockerSuite) TestRunAllowBindMountingRoot(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
 		// Windows busybox will fail with Permission Denied on items such as pagefile.sys
-		dockerCmd(c, "run", "-v", `c:\:c:\host`, testEnv.MinimalBaseImage(), "cmd", "-c", "dir", `c:\host`)
+		dockerCmd(c, "run", "-v", `c:\:c:\host`, testEnv.PlatformDefaults.BaseImage, "cmd", "-c", "dir", `c:\host`)
 	} else {
 		dockerCmd(c, "run", "-v", "/:/host", "busybox", "ls", "/host")
 	}
@@ -1705,14 +1705,14 @@ func (s *DockerSuite) TestRunCleanupCmdOnEntrypoint(c *check.C) {
 	out = strings.TrimSpace(out)
 	expected := "root"
 	if testEnv.DaemonPlatform() == "windows" {
-		if strings.Contains(testEnv.MinimalBaseImage(), "windowsservercore") {
+		if strings.Contains(testEnv.PlatformDefaults.BaseImage, "windowsservercore") {
 			expected = `user manager\containeradministrator`
 		} else {
 			expected = `ContainerAdministrator` // nanoserver
 		}
 	}
 	if out != expected {
-		c.Fatalf("Expected output %s, got %q. %s", expected, out, testEnv.MinimalBaseImage())
+		c.Fatalf("Expected output %s, got %q. %s", expected, out, testEnv.PlatformDefaults.BaseImage)
 	}
 }
 
@@ -1944,7 +1944,7 @@ func (s *DockerSuite) TestRunCidFileCleanupIfEmpty(c *check.C) {
 	image := "emptyfs"
 	if testEnv.DaemonPlatform() == "windows" {
 		// Windows can't support an emptyfs image. Just use the regular Windows image
-		image = testEnv.MinimalBaseImage()
+		image = testEnv.PlatformDefaults.BaseImage
 	}
 	out, _, err := dockerCmdWithError("run", "--cidfile", tmpCidFile, image)
 	if err == nil {
@@ -2561,7 +2561,7 @@ func (s *DockerSuite) TestRunNonLocalMacAddress(c *check.C) {
 	if testEnv.DaemonPlatform() != "windows" {
 		args = append(args, "busybox", "ifconfig")
 	} else {
-		args = append(args, testEnv.MinimalBaseImage(), "ipconfig", "/all")
+		args = append(args, testEnv.PlatformDefaults.BaseImage, "ipconfig", "/all")
 		expected = strings.Replace(strings.ToUpper(addr), ":", "-", -1)
 	}
 
@@ -3483,7 +3483,7 @@ func (s *DockerSuite) TestRunLoopbackOnlyExistsWhenNetworkingDisabled(c *check.C
 // Issue #4681
 func (s *DockerSuite) TestRunLoopbackWhenNetworkDisabled(c *check.C) {
 	if testEnv.DaemonPlatform() == "windows" {
-		dockerCmd(c, "run", "--net=none", testEnv.MinimalBaseImage(), "ping", "-n", "1", "127.0.0.1")
+		dockerCmd(c, "run", "--net=none", testEnv.PlatformDefaults.BaseImage, "ping", "-n", "1", "127.0.0.1")
 	} else {
 		dockerCmd(c, "run", "--net=none", "busybox", "ping", "-c", "1", "127.0.0.1")
 	}
@@ -4253,7 +4253,7 @@ func (s *DockerSuite) TestRunServicingContainer(c *check.C) {
 		c.Skip("Disabled on post-RS3 builds")
 	}
 
-	out := cli.DockerCmd(c, "run", "-d", testEnv.MinimalBaseImage(), "cmd", "/c", "mkdir c:\\programdata\\Microsoft\\Windows\\ContainerUpdates\\000_000_d99f45d0-ffc8-4af7-bd9c-ea6a62e035c9_200 && sc control cexecsvc 255").Combined()
+	out := cli.DockerCmd(c, "run", "-d", testEnv.PlatformDefaults.BaseImage, "cmd", "/c", "mkdir c:\\programdata\\Microsoft\\Windows\\ContainerUpdates\\000_000_d99f45d0-ffc8-4af7-bd9c-ea6a62e035c9_200 && sc control cexecsvc 255").Combined()
 	containerID := strings.TrimSpace(out)
 	cli.WaitExited(c, containerID, 60*time.Second)
 
