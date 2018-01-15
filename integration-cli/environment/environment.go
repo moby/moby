@@ -49,13 +49,6 @@ func New() (*Execution, error) {
 	}, nil
 }
 
-// ExperimentalDaemon tell whether the main daemon has
-// experimental features enabled or not
-// Deprecated: use DaemonInfo.ExperimentalBuild
-func (e *Execution) ExperimentalDaemon() bool {
-	return e.DaemonInfo.ExperimentalBuild
-}
-
 // DaemonPlatform is held globally so that tests can make intelligent
 // decisions on how to configure themselves according to the platform
 // of the daemon. This is initialized in docker_utils by sending

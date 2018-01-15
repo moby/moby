@@ -129,7 +129,7 @@ func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 }
 
@@ -163,7 +163,7 @@ func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64, SameHostDaemon)
 	s.reg = setupRegistry(c, true, "", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 }
 
@@ -197,7 +197,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.reg = setupRegistry(c, false, "htpasswd", "")
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 }
 
@@ -232,7 +232,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 }
 
@@ -273,7 +273,7 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.ExperimentalDaemon(),
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 }
 
@@ -331,7 +331,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
 	d := &daemon.Swarm{
 		Daemon: daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-			Experimental: testEnv.ExperimentalDaemon(),
+			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 		}),
 		Port: defaultSwarmPort + s.portIndex,
 	}
