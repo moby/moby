@@ -29,7 +29,7 @@ func linuxSplitRawSpec(raw string) ([]string, error) {
 func linuxValidateNotRoot(p string) error {
 	p = path.Clean(strings.Replace(p, `\`, `/`, -1))
 	if p == "/" {
-		return fmt.Errorf("invalid specification: destination can't be '/'")
+		return ErrVolumeTargetIsRoot
 	}
 	return nil
 }
