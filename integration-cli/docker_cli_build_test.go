@@ -400,20 +400,27 @@ func (s *DockerSuite) TestBuildLastModified(c *check.C) {
 	defer server.Close()
 
 	var out, out2 string
+	var args []string
+	// Temopray workaround for #35963. Will remove this when that issue fixed
+	if runtime.GOARCH == "amd64" {
+		args = []string{"run", name, "ls", "-le", "/file"}
+	} else {
+		args = []string{"run", name, "ls", "-l", "--full-time", "/file"}
+	}
 
 	dFmt := `FROM busybox
 ADD %s/file /`
 	dockerfile := fmt.Sprintf(dFmt, server.URL())
 
 	cli.BuildCmd(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
-	out = cli.DockerCmd(c, "run", name, "ls", "-le", "/file").Combined()
+	out = cli.DockerCmd(c, args...).Combined()
 
 	// Build it again and make sure the mtime of the file didn't change.
 	// Wait a few seconds to make sure the time changed enough to notice
 	time.Sleep(2 * time.Second)
 
 	cli.BuildCmd(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
-	out2 = cli.DockerCmd(c, "run", name, "ls", "-le", "/file").Combined()
+	out2 = cli.DockerCmd(c, args...).Combined()
 
 	if out != out2 {
 		c.Fatalf("MTime changed:\nOrigin:%s\nNew:%s", out, out2)
@@ -428,7 +435,7 @@ ADD %s/file /`
 
 	dockerfile = fmt.Sprintf(dFmt, server.URL())
 	cli.BuildCmd(c, name, build.WithoutCache, build.WithDockerfile(dockerfile))
-	out2 = cli.DockerCmd(c, "run", name, "ls", "-le", "/file").Combined()
+	out2 = cli.DockerCmd(c, args...).Combined()
 
 	if out == out2 {
 		c.Fatalf("MTime didn't change:\nOrigin:%s\nNew:%s", out, out2)

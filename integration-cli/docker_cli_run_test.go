@@ -2239,7 +2239,16 @@ func (s *DockerSuite) TestRunSlowStdoutConsumer(c *check.C) {
 	// TODO Windows: This should be able to run on Windows if can find an
 	// alternate to /dev/zero and /dev/stdout.
 	testRequires(c, DaemonIsLinux)
-	cont := exec.Command(dockerBinary, "run", "--rm", "busybox", "/bin/sh", "-c", "dd if=/dev/zero of=/dev/stdout bs=1024 count=2000 | catv")
+
+	// TODO will remove this if issue #35963 fixed
+	var args []string
+	if runtime.GOARCH == "amd64" {
+		args = []string{"run", "--rm", "busybox", "/bin/sh", "-c", "dd if=/dev/zero of=/dev/stdout bs=1024 count=2000 | catv"}
+	} else {
+		args = []string{"run", "--rm", "busybox", "/bin/sh", "-c", "dd if=/dev/zero of=/dev/stdout bs=1024 count=2000 | cat -v"}
+	}
+
+	cont := exec.Command(dockerBinary, args...)
 
 	stdout, err := cont.StdoutPipe()
 	if err != nil {
