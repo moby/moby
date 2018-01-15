@@ -4232,7 +4232,7 @@ func (s *DockerSuite) TestRunCredentialSpecFailures(c *check.C) {
 func (s *DockerSuite) TestRunCredentialSpecWellFormed(c *check.C) {
 	testRequires(c, DaemonIsWindows, SameHostDaemon)
 	validCS := readFile(`fixtures\credentialspecs\valid.json`, c)
-	writeFile(filepath.Join(testEnv.DockerBasePath(), `credentialspecs\valid.json`), validCS, c)
+	writeFile(filepath.Join(testEnv.DaemonInfo.DockerRootDir, `credentialspecs\valid.json`), validCS, c)
 	dockerCmd(c, "run", `--security-opt=credentialspec=file://valid.json`, "busybox", "true")
 }
 
