@@ -467,9 +467,8 @@ func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("Could not run container: %s, %v", out, err))
 
 	out, err = s.d.Cmd("exec", "hostcnt", "ip", "-6", "addr", "show", "docker0")
-	out = strings.Trim(out, " \r\n'")
-
-	c.Assert(out, checker.Contains, "2001:db8:2::1")
+	c.Assert(err, checker.IsNil)
+	c.Assert(strings.Trim(out, " \r\n'"), checker.Contains, "2001:db8:2::1")
 }
 
 func (s *DockerDaemonSuite) TestDaemonLogLevelWrong(c *check.C) {

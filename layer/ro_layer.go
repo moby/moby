@@ -143,11 +143,7 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 			return err
 		}
 	}
-	if err := tx.SetOS(layer.os); err != nil {
-		return err
-	}
-
-	return nil
+	return tx.SetOS(layer.os)
 }
 
 func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {

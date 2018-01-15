@@ -27,9 +27,5 @@ func Chtimes(name string, atime time.Time, mtime time.Time) error {
 	}
 
 	// Take platform specific action for setting create time.
-	if err := setCTime(name, mtime); err != nil {
-		return err
-	}
-
-	return nil
+	return setCTime(name, mtime)
 }

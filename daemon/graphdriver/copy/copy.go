@@ -273,8 +273,5 @@ func doCopyXattrs(srcPath, dstPath string) error {
 	// this function is used to copy those. It is set by overlay if a directory
 	// is removed and then re-created and should not inherit anything from the
 	// same dir in the lower dir.
-	if err := copyXattr(srcPath, dstPath, "trusted.overlay.opaque"); err != nil {
-		return err
-	}
-	return nil
+	return copyXattr(srcPath, dstPath, "trusted.overlay.opaque")
 }

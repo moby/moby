@@ -1046,11 +1046,7 @@ func (daemon *Daemon) Shutdown() error {
 		daemon.netController.Stop()
 	}
 
-	if err := daemon.cleanupMounts(); err != nil {
-		return err
-	}
-
-	return nil
+	return daemon.cleanupMounts()
 }
 
 // Mount sets container.BaseFS

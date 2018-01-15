@@ -14,12 +14,7 @@ func (daemon *Daemon) ContainerPause(name string) error {
 	if err != nil {
 		return err
 	}
-
-	if err := daemon.containerPause(container); err != nil {
-		return err
-	}
-
-	return nil
+	return daemon.containerPause(container)
 }
 
 // containerPause pauses the container execution without stopping the process.

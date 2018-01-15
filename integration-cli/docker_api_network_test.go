@@ -328,9 +328,8 @@ func createNetwork(c *check.C, config types.NetworkCreateRequest, expectedStatus
 		c.Assert(err, checker.IsNil)
 
 		return nr.ID
-	} else {
-		return ""
 	}
+	return ""
 }
 
 func connectNetwork(c *check.C, nid, cid string) {

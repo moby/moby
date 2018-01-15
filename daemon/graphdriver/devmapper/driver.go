@@ -146,12 +146,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if opts != nil {
 		storageOpt = opts.StorageOpt
 	}
-
-	if err := d.DeviceSet.AddDevice(id, parent, storageOpt); err != nil {
-		return err
-	}
-
-	return nil
+	return d.DeviceSet.AddDevice(id, parent, storageOpt)
 }
 
 // Remove removes a device with a given id, unmounts the filesystem.
