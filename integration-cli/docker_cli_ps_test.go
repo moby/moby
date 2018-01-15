@@ -216,7 +216,7 @@ func (s *DockerSuite) TestPsListContainersFilterStatus(c *check.C) {
 	})
 
 	// Windows doesn't support pausing of containers
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		// pause running container
 		out = cli.DockerCmd(c, "run", "-itd", "busybox").Combined()
 		pausedID := strings.TrimSpace(out)

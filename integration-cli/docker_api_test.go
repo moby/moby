@@ -33,7 +33,7 @@ func (s *DockerSuite) TestAPIGetEnabledCORS(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIClientVersionOldNotSupported(c *check.C) {
-	if testEnv.DaemonPlatform() != runtime.GOOS {
+	if testEnv.OSType != runtime.GOOS {
 		c.Skip("Daemon platform doesn't match test platform")
 	}
 	if api.MinVersion == api.DefaultVersion {

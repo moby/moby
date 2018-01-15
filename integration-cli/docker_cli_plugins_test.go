@@ -55,7 +55,7 @@ func (ps *DockerPluginSuite) TestPluginBasicOps(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, plugin)
 
-	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id))
+	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id))
 	if !os.IsNotExist(err) {
 		c.Fatal(err)
 	}
@@ -506,14 +506,14 @@ func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
 	id := strings.TrimSpace(out)
 
 	// make sure "v2" does not exists
-	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
 	c.Assert(os.IsNotExist(err), checker.True, check.Commentf(out))
 
 	dockerCmd(c, "plugin", "disable", "-f", plugin)
 	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)
 
 	// make sure "v2" file exists
-	_, err = os.Stat(filepath.Join(testEnv.DockerBasePath(), "plugins", id, "rootfs", "v2"))
+	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
 	c.Assert(err, checker.IsNil)
 
 	dockerCmd(c, "plugin", "enable", plugin)

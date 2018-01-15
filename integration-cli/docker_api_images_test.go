@@ -80,7 +80,7 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-delete"
@@ -104,7 +104,7 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		testRequires(c, Network)
 	}
 	name := "test-api-images-history"

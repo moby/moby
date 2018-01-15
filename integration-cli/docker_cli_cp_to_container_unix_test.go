@@ -64,7 +64,7 @@ func (s *DockerSuite) TestCpCheckDestOwnership(c *check.C) {
 }
 
 func getRootUIDGID() (int, int, error) {
-	uidgid := strings.Split(filepath.Base(testEnv.DockerBasePath()), ".")
+	uidgid := strings.Split(filepath.Base(testEnv.DaemonInfo.DockerRootDir), ".")
 	if len(uidgid) == 1 {
 		//user namespace remapping is not turned on; return 0
 		return 0, 0, nil

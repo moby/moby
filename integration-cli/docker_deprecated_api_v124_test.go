@@ -36,7 +36,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
 	// TODO Windows CI: Investigate further why this fails on Windows to Windows CI.
 	testRequires(c, DaemonIsLinux)
 	path := "/foo"
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		path = `c:\foo`
 	}
 	name := "testing"
@@ -49,7 +49,7 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 
-	bindPath := RandomTmpDirPath("test", testEnv.DaemonPlatform())
+	bindPath := RandomTmpDirPath("test", testEnv.OSType)
 	config = map[string]interface{}{
 		"Binds": []string{bindPath + ":" + path},
 	}
@@ -76,8 +76,8 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
 
-	bindPath1 := RandomTmpDirPath("test1", testEnv.DaemonPlatform())
-	bindPath2 := RandomTmpDirPath("test2", testEnv.DaemonPlatform())
+	bindPath1 := RandomTmpDirPath("test1", testEnv.OSType)
+	bindPath2 := RandomTmpDirPath("test2", testEnv.OSType)
 
 	config = map[string]interface{}{
 		"Binds": []string{bindPath1 + ":/tmp", bindPath2 + ":/tmp"},

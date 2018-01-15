@@ -399,7 +399,7 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 // minimalBaseImage returns the name of the minimal base image for the current
 // daemon platform.
 func minimalBaseImage() string {
-	return testEnv.MinimalBaseImage()
+	return testEnv.PlatformDefaults.BaseImage
 }
 
 func getGoroutineNumber() (int, error) {
