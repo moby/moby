@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
@@ -36,7 +37,7 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (conta
 func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
 	if params.Config == nil {
-		return containertypes.ContainerCreateCreatedBody{}, validationError{errors.New("Config cannot be empty in order to create a container")}
+		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
 	os := runtime.GOOS
@@ -55,12 +56,12 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 
 	warnings, err := daemon.verifyContainerSettings(os, params.HostConfig, params.Config, false)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	err = verifyNetworkingConfig(params.NetworkingConfig)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	if params.HostConfig == nil {
@@ -68,7 +69,7 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 	}
 	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
 	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, validationError{err}
+		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	container, err := daemon.create(params, managed)
@@ -115,11 +116,11 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	}
 
 	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
-		return nil, validationError{err}
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.mergeAndVerifyLogConfig(&params.HostConfig.LogConfig); err != nil {
-		return nil, validationError{err}
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	if container, err = daemon.newContainer(params.Name, os, params.Config, params.HostConfig, imgID, managed); err != nil {
@@ -158,7 +159,7 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 
 	// Set RWLayer for container after mount labels have been set
 	if err := daemon.setRWLayer(container); err != nil {
-		return nil, systemError{err}
+		return nil, errdefs.System(err)
 	}
 
 	rootIDs := daemon.idMappings.RootPair()

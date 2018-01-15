@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/libnetwork"
 	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/networkdb"
@@ -101,22 +101,8 @@ func (e ambigousResultsError) Error() string {
 
 func (ambigousResultsError) InvalidParameter() {}
 
-type conflictError struct {
-	cause error
-}
-
-func (e conflictError) Error() string {
-	return e.cause.Error()
-}
-
-func (e conflictError) Cause() error {
-	return e.cause
-}
-
-func (e conflictError) Conflict() {}
-
 func nameConflict(name string) error {
-	return conflictError{libnetwork.NetworkNameError(name)}
+	return errdefs.Conflict(libnetwork.NetworkNameError(name))
 }
 
 func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -589,7 +575,7 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByFullName) > 1 {
-		return types.NetworkResource{}, fmt.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName))
+		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on name)", term, len(listByFullName)))
 	}
 
 	// Find based on partial ID, returns true only if no duplicates
@@ -599,8 +585,8 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 		}
 	}
 	if len(listByPartialID) > 1 {
-		return types.NetworkResource{}, fmt.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID))
+		return types.NetworkResource{}, errdefs.InvalidParameter(errors.Errorf("network %s is ambiguous (%d matches found based on ID prefix)", term, len(listByPartialID)))
 	}
 
-	return types.NetworkResource{}, libnetwork.ErrNoSuchNetwork(term)
+	return types.NetworkResource{}, errdefs.NotFound(libnetwork.ErrNoSuchNetwork(term))
 }

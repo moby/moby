@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/docker/docker/api/errdefs"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc"
@@ -35,7 +35,7 @@ func GetHTTPErrorStatusCode(err error) int {
 		statusCode = http.StatusNotFound
 	case errdefs.IsInvalidParameter(err):
 		statusCode = http.StatusBadRequest
-	case errdefs.IsConflict(err):
+	case errdefs.IsConflict(err) || errdefs.IsAlreadyExists(err):
 		statusCode = http.StatusConflict
 	case errdefs.IsUnauthorized(err):
 		statusCode = http.StatusUnauthorized
@@ -47,7 +47,7 @@ func GetHTTPErrorStatusCode(err error) int {
 		statusCode = http.StatusNotModified
 	case errdefs.IsNotImplemented(err):
 		statusCode = http.StatusNotImplemented
-	case errdefs.IsSystem(err) || errdefs.IsUnknown(err):
+	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
 		statusCode = http.StatusInternalServerError
 	default:
 		statusCode = statusCodeFromGRPCError(err)

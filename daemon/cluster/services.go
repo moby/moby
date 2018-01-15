@@ -16,6 +16,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/daemon/cluster/convert"
+	"github.com/docker/docker/errdefs"
 	runconfigopts "github.com/docker/docker/runconfig/opts"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
@@ -128,7 +129,7 @@ func (c *Cluster) CreateService(s types.ServiceSpec, encodedAuth string, queryRe
 
 		serviceSpec, err := convert.ServiceSpecToGRPC(s)
 		if err != nil {
-			return convertError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		resp = &apitypes.ServiceCreateResponse{}
@@ -232,7 +233,7 @@ func (c *Cluster) UpdateService(serviceIDOrName string, version uint64, spec typ
 
 		serviceSpec, err := convert.ServiceSpecToGRPC(spec)
 		if err != nil {
-			return convertError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		currentService, err := getService(ctx, state.controlClient, serviceIDOrName, false)

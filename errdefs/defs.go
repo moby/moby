@@ -43,6 +43,11 @@ type ErrNotModified interface {
 	NotModified()
 }
 
+// ErrAlreadyExists is a special case of ErrConflict which signals that the desired object already exists
+type ErrAlreadyExists interface {
+	AlreadyExists()
+}
+
 // ErrNotImplemented signals that the requested action/feature is not implemented on the system as configured.
 type ErrNotImplemented interface {
 	NotImplemented()
@@ -51,4 +56,19 @@ type ErrNotImplemented interface {
 // ErrUnknown signals that the kind of error that occurred is not known.
 type ErrUnknown interface {
 	Unknown()
+}
+
+// ErrCancelled signals that the action was cancelled.
+type ErrCancelled interface {
+	Cancelled()
+}
+
+// ErrDeadline signals that the deadline was reached before the action completed.
+type ErrDeadline interface {
+	DeadlineExceeded()
+}
+
+// ErrDataLoss indicates that data was lost or there is data corruption.
+type ErrDataLoss interface {
+	DataLoss()
 }

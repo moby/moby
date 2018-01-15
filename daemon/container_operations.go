@@ -14,6 +14,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/runconfig"
@@ -922,7 +923,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 	}
 	if !nc.IsRunning() {
 		err := fmt.Errorf("cannot join network of a non running container: %s", connectedContainerID)
-		return nil, stateConflictError{err}
+		return nil, errdefs.Conflict(err)
 	}
 	if nc.IsRestarting() {
 		return nil, errContainerIsRestarting(connectedContainerID)

@@ -5,6 +5,7 @@ import (
 	"time"
 
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +29,7 @@ func (daemon *Daemon) ContainerStop(name string, seconds *int) error {
 		seconds = &stopTimeout
 	}
 	if err := daemon.containerStop(container, *seconds); err != nil {
-		return errors.Wrapf(systemError{err}, "cannot stop container: %s", name)
+		return errdefs.System(errors.Wrapf(err, "cannot stop container: %s", name))
 	}
 	return nil
 }

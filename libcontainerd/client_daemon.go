@@ -27,10 +27,11 @@ import (
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/typeurl"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -181,7 +182,7 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	bdir, err := prepareBundleDir(filepath.Join(c.stateDir, id), ociSpec)
 	if err != nil {
-		return wrapSystemError(errors.Wrap(err, "prepare bundle dir failed"))
+		return errdefs.System(errors.Wrap(err, "prepare bundle dir failed"))
 	}
 
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
@@ -536,11 +537,11 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 
 	b, err := content.ReadBlob(ctx, c.remote.ContentStore(), img.Target().Digest)
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to retrieve checkpoint data"))
+		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
 	var index v1.Index
 	if err := json.Unmarshal(b, &index); err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to decode checkpoint data"))
+		return errdefs.System(errors.Wrapf(err, "failed to decode checkpoint data"))
 	}
 
 	var cpDesc *v1.Descriptor
@@ -551,17 +552,17 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		}
 	}
 	if cpDesc == nil {
-		return wrapSystemError(errors.Wrapf(err, "invalid checkpoint"))
+		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
 	rat, err := c.remote.ContentStore().ReaderAt(ctx, cpDesc.Digest)
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to get checkpoint reader"))
+		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
 	defer rat.Close()
 	_, err = archive.Apply(ctx, checkpointDir, content.NewReader(rat))
 	if err != nil {
-		return wrapSystemError(errors.Wrapf(err, "failed to read checkpoint reader"))
+		return errdefs.System(errors.Wrapf(err, "failed to read checkpoint reader"))
 	}
 
 	return err
@@ -847,14 +848,14 @@ func wrapError(err error) error {
 	switch {
 	case err == nil:
 		return nil
-	case errdefs.IsNotFound(err):
-		return wrapNotFoundError(err)
+	case containerderrors.IsNotFound(err):
+		return errdefs.NotFound(err)
 	}
 
 	msg := err.Error()
 	for _, s := range []string{"container does not exist", "not found", "no such container"} {
 		if strings.Contains(msg, s) {
-			return wrapNotFoundError(err)
+			return errdefs.NotFound(err)
 		}
 	}
 	return err

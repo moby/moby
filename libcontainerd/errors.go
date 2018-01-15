@@ -1,46 +1,13 @@
 package libcontainerd
 
-import "errors"
+import (
+	"errors"
 
-type liberr struct {
-	err error
-}
+	"github.com/docker/docker/errdefs"
+)
 
-func (e liberr) Error() string {
-	return e.err.Error()
-}
+func newNotFoundError(err string) error { return errdefs.NotFound(errors.New(err)) }
 
-func (e liberr) Cause() error {
-	return e.err
-}
+func newInvalidParameterError(err string) error { return errdefs.InvalidParameter(errors.New(err)) }
 
-type notFoundErr struct {
-	liberr
-}
-
-func (notFoundErr) NotFound() {}
-
-func newNotFoundError(err string) error { return notFoundErr{liberr{errors.New(err)}} }
-func wrapNotFoundError(err error) error { return notFoundErr{liberr{err}} }
-
-type invalidParamErr struct {
-	liberr
-}
-
-func (invalidParamErr) InvalidParameter() {}
-
-func newInvalidParameterError(err string) error { return invalidParamErr{liberr{errors.New(err)}} }
-
-type conflictErr struct {
-	liberr
-}
-
-func (conflictErr) ConflictErr() {}
-
-func newConflictError(err string) error { return conflictErr{liberr{errors.New(err)}} }
-
-type sysErr struct {
-	liberr
-}
-
-func wrapSystemError(err error) error { return sysErr{liberr{err}} }
+func newConflictError(err string) error { return errdefs.Conflict(errors.New(err)) }

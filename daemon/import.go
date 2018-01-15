@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/archive"
@@ -42,16 +43,16 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		var err error
 		newRef, err = reference.ParseNormalizedNamed(repository)
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 		if _, isCanonical := newRef.(reference.Canonical); isCanonical {
-			return validationError{errors.New("cannot import digest reference")}
+			return errdefs.InvalidParameter(errors.New("cannot import digest reference"))
 		}
 
 		if tag != "" {
 			newRef, err = reference.WithTag(newRef, tag)
 			if err != nil {
-				return validationError{err}
+				return errdefs.InvalidParameter(err)
 			}
 		}
 	}
@@ -69,7 +70,7 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		}
 		u, err := url.Parse(src)
 		if err != nil {
-			return validationError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		resp, err = remotecontext.GetWithStatusError(u.String())

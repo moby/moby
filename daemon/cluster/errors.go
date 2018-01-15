@@ -20,48 +20,6 @@ const (
 	errSwarmNotManager notAvailableError = "This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager."
 )
 
-type notFoundError struct {
-	cause error
-}
-
-func (e notFoundError) Error() string {
-	return e.cause.Error()
-}
-
-func (e notFoundError) NotFound() {}
-
-func (e notFoundError) Cause() error {
-	return e.cause
-}
-
-type ambiguousResultsError struct {
-	cause error
-}
-
-func (e ambiguousResultsError) Error() string {
-	return e.cause.Error()
-}
-
-func (e ambiguousResultsError) InvalidParameter() {}
-
-func (e ambiguousResultsError) Cause() error {
-	return e.cause
-}
-
-type convertError struct {
-	cause error
-}
-
-func (e convertError) Error() string {
-	return e.cause.Error()
-}
-
-func (e convertError) InvalidParameter() {}
-
-func (e convertError) Cause() error {
-	return e.cause
-}
-
 type notAllowedError string
 
 func (e notAllowedError) Error() string {
@@ -69,20 +27,6 @@ func (e notAllowedError) Error() string {
 }
 
 func (e notAllowedError) Forbidden() {}
-
-type validationError struct {
-	cause error
-}
-
-func (e validationError) Error() string {
-	return e.cause.Error()
-}
-
-func (e validationError) InvalidParameter() {}
-
-func (e validationError) Cause() error {
-	return e.cause
-}
 
 type notAvailableError string
 

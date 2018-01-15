@@ -13,6 +13,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 )
 
@@ -30,7 +31,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	})
 
 	if !(config.ShowStdout || config.ShowStderr) {
-		return nil, false, validationError{errors.New("You must choose at least one stream")}
+		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
 	}
 	container, err := daemon.GetContainer(containerName)
 	if err != nil {
@@ -38,7 +39,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 	}
 
 	if container.RemovalInProgress || container.Dead {
-		return nil, false, stateConflictError{errors.New("can not get logs from container which is dead or marked for removal")}
+		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
 	}
 
 	if container.HostConfig.LogConfig.Type == "none" {

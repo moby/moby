@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/instructions"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/signal"
@@ -510,7 +511,7 @@ func dispatchStopSignal(d dispatchRequest, c *instructions.StopSignalCommand) er
 
 	_, err := signal.ParseSignal(c.Signal)
 	if err != nil {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 	d.state.runConfig.StopSignal = c.Signal
 	return d.builder.commit(d.state, fmt.Sprintf("STOPSIGNAL %v", c.Signal))

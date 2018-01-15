@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -45,20 +46,6 @@ func CloseStreams(streams ...interface{}) {
 	}
 }
 
-type validationError struct {
-	cause error
-}
-
-func (e validationError) Error() string {
-	return e.cause.Error()
-}
-
-func (e validationError) Cause() error {
-	return e.cause
-}
-
-func (e validationError) InvalidParameter() {}
-
 // CheckForJSON makes sure that the request's Content-Type is application/json.
 func CheckForJSON(r *http.Request) error {
 	ct := r.Header.Get("Content-Type")
@@ -74,7 +61,7 @@ func CheckForJSON(r *http.Request) error {
 	if matchesContentType(ct, "application/json") {
 		return nil
 	}
-	return validationError{errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct)}
+	return errdefs.InvalidParameter(errors.Errorf("Content-Type specified (%s) must be 'application/json'", ct))
 }
 
 // ParseForm ensures the request form is parsed even with invalid content types.
@@ -84,7 +71,7 @@ func ParseForm(r *http.Request) error {
 		return nil
 	}
 	if err := r.ParseForm(); err != nil && !strings.HasPrefix(err.Error(), "mime:") {
-		return validationError{err}
+		return errdefs.InvalidParameter(err)
 	}
 	return nil
 }

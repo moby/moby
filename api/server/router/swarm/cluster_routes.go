@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -57,20 +58,6 @@ func (sr *swarmRouter) inspectCluster(ctx context.Context, w http.ResponseWriter
 	return httputils.WriteJSON(w, http.StatusOK, swarm)
 }
 
-type invalidRequestError struct {
-	err error
-}
-
-func (e invalidRequestError) Error() string {
-	return e.err.Error()
-}
-
-func (e invalidRequestError) Cause() error {
-	return e.err
-}
-
-func (e invalidRequestError) InvalidParameter() {}
-
 func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var swarm types.Spec
 	if err := json.NewDecoder(r.Body).Decode(&swarm); err != nil {
@@ -81,7 +68,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid swarm version '%s': %v", rawVersion, err)
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	var flags types.UpdateFlags
@@ -90,7 +77,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateWorkerToken: %s", value)
-			return invalidRequestError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		flags.RotateWorkerToken = rot
@@ -100,7 +87,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for rotateManagerToken: %s", value)
-			return invalidRequestError{err}
+			return errdefs.InvalidParameter(err)
 		}
 
 		flags.RotateManagerToken = rot
@@ -109,7 +96,7 @@ func (sr *swarmRouter) updateCluster(ctx context.Context, w http.ResponseWriter,
 	if value := r.URL.Query().Get("rotateManagerUnlockKey"); value != "" {
 		rot, err := strconv.ParseBool(value)
 		if err != nil {
-			return invalidRequestError{fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value)}
+			return errdefs.InvalidParameter(fmt.Errorf("invalid value for rotateManagerUnlockKey: %s", value))
 		}
 
 		flags.RotateManagerUnlockKey = rot
@@ -153,7 +140,7 @@ func (sr *swarmRouter) getServices(ctx context.Context, w http.ResponseWriter, r
 	}
 	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	services, err := sr.backend.GetServices(basictypes.ServiceListOptions{Filters: filter})
@@ -172,7 +159,7 @@ func (sr *swarmRouter) getService(ctx context.Context, w http.ResponseWriter, r 
 		insertDefaults, err = strconv.ParseBool(value)
 		if err != nil {
 			err := fmt.Errorf("invalid value for insertDefaults: %s", value)
-			return errors.Wrapf(invalidRequestError{err}, "invalid value for insertDefaults: %s", value)
+			return errors.Wrapf(errdefs.InvalidParameter(err), "invalid value for insertDefaults: %s", value)
 		}
 	}
 
@@ -218,7 +205,7 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid service version '%s': %v", rawVersion, err)
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	var flags basictypes.ServiceUpdateOptions
@@ -311,7 +298,7 @@ func (sr *swarmRouter) updateNode(ctx context.Context, w http.ResponseWriter, r 
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
 		err := fmt.Errorf("invalid node version '%s': %v", rawVersion, err)
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	if err := sr.backend.UpdateNode(vars["id"], version, node); err != nil {
@@ -417,13 +404,13 @@ func (sr *swarmRouter) getSecret(ctx context.Context, w http.ResponseWriter, r *
 func (sr *swarmRouter) updateSecret(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var secret types.SecretSpec
 	if err := json.NewDecoder(r.Body).Decode(&secret); err != nil {
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return invalidRequestError{fmt.Errorf("invalid secret version")}
+		return errdefs.InvalidParameter(fmt.Errorf("invalid secret version"))
 	}
 
 	id := vars["id"]
@@ -484,13 +471,13 @@ func (sr *swarmRouter) getConfig(ctx context.Context, w http.ResponseWriter, r *
 func (sr *swarmRouter) updateConfig(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var config types.ConfigSpec
 	if err := json.NewDecoder(r.Body).Decode(&config); err != nil {
-		return invalidRequestError{err}
+		return errdefs.InvalidParameter(err)
 	}
 
 	rawVersion := r.URL.Query().Get("version")
 	version, err := strconv.ParseUint(rawVersion, 10, 64)
 	if err != nil {
-		return invalidRequestError{fmt.Errorf("invalid config version")}
+		return errdefs.InvalidParameter(fmt.Errorf("invalid config version"))
 	}
 
 	id := vars["id"]

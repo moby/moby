@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/stringid"
@@ -225,7 +226,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		if instructions.IsUnknownInstruction(err) {
 			buildsFailed.WithValues(metricsUnknownInstructionError).Inc()
 		}
-		return nil, validationError{err}
+		return nil, errdefs.InvalidParameter(err)
 	}
 	if b.options.Target != "" {
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
@@ -363,7 +364,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 
 	dockerfile, err := parser.Parse(bytes.NewBufferString(strings.Join(changes, "\n")))
 	if err != nil {
-		return nil, validationError{err}
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	os := runtime.GOOS
@@ -378,7 +379,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
 		if !validCommitCommands[n.Value] {
-			return nil, validationError{errors.Errorf("%s is not a valid change command", n.Value)}
+			return nil, errdefs.InvalidParameter(errors.Errorf("%s is not a valid change command", n.Value))
 		}
 	}
 
@@ -390,7 +391,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	for _, n := range dockerfile.AST.Children {
 		cmd, err := instructions.ParseCommand(n)
 		if err != nil {
-			return nil, validationError{err}
+			return nil, errdefs.InvalidParameter(err)
 		}
 		commands = append(commands, cmd)
 	}
@@ -402,7 +403,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	for _, cmd := range commands {
 		err := dispatch(dispatchRequest, cmd)
 		if err != nil {
-			return nil, validationError{err}
+			return nil, errdefs.InvalidParameter(err)
 		}
 		dispatchRequest.state.updateRunConfig()
 	}

@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -136,12 +137,12 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 
 	if container.IsDead() {
 		err := fmt.Errorf("You cannot commit container %s which is Dead", container.ID)
-		return "", stateConflictError{err}
+		return "", errdefs.Conflict(err)
 	}
 
 	if container.IsRemovalInProgress() {
 		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
-		return "", stateConflictError{err}
+		return "", errdefs.Conflict(err)
 	}
 
 	if c.Pause && !container.IsPaused() {

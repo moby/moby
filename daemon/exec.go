@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
@@ -161,12 +162,12 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	if ec.ExitCode != nil {
 		ec.Unlock()
 		err := fmt.Errorf("Error: Exec command %s has already run", ec.ID)
-		return stateConflictError{err}
+		return errdefs.Conflict(err)
 	}
 
 	if ec.Running {
 		ec.Unlock()
-		return stateConflictError{fmt.Errorf("Error: Exec command %s is already running", ec.ID)}
+		return errdefs.Conflict(fmt.Errorf("Error: Exec command %s is already running", ec.ID))
 	}
 	ec.Running = true
 	ec.Unlock()
@@ -267,7 +268,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {
-				return errors.Wrap(systemError{err}, "exec attach failed")
+				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
 			d.LogContainerEvent(c, "exec_detach")
 		}

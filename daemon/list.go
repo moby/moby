@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
@@ -290,7 +291,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 
 	err = psFilters.WalkValues("health", func(value string) error {
 		if !container.IsValidHealthString(value) {
-			return validationError{errors.Errorf("Unrecognised filter value for health: %s", value)}
+			return errdefs.InvalidParameter(errors.Errorf("Unrecognised filter value for health: %s", value))
 		}
 
 		return nil

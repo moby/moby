@@ -1,6 +1,6 @@
 package quota
 
-import "github.com/docker/docker/api/errdefs"
+import "github.com/docker/docker/errdefs"
 
 var (
 	_ errdefs.ErrNotImplemented = (*errQuotaNotSupported)(nil)

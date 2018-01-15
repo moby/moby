@@ -3,6 +3,7 @@ package cluster
 import (
 	"fmt"
 
+	"github.com/docker/docker/errdefs"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
@@ -48,11 +49,11 @@ func getNode(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 
 	if len(rl.Nodes) == 0 {
 		err := fmt.Errorf("node %s not found", input)
-		return nil, notFoundError{err}
+		return nil, errdefs.NotFound(err)
 	}
 
 	if l := len(rl.Nodes); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("node %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("node %s is ambiguous (%d matches found)", input, l))
 	}
 
 	return rl.Nodes[0], nil
@@ -84,11 +85,11 @@ func getService(ctx context.Context, c swarmapi.ControlClient, input string, ins
 
 	if len(rl.Services) == 0 {
 		err := fmt.Errorf("service %s not found", input)
-		return nil, notFoundError{err}
+		return nil, errdefs.NotFound(err)
 	}
 
 	if l := len(rl.Services); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("service %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("service %s is ambiguous (%d matches found)", input, l))
 	}
 
 	if !insertDefaults {
@@ -128,11 +129,11 @@ func getTask(ctx context.Context, c swarmapi.ControlClient, input string) (*swar
 
 	if len(rl.Tasks) == 0 {
 		err := fmt.Errorf("task %s not found", input)
-		return nil, notFoundError{err}
+		return nil, errdefs.NotFound(err)
 	}
 
 	if l := len(rl.Tasks); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("task %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("task %s is ambiguous (%d matches found)", input, l))
 	}
 
 	return rl.Tasks[0], nil
@@ -164,11 +165,11 @@ func getSecret(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 
 	if len(rl.Secrets) == 0 {
 		err := fmt.Errorf("secret %s not found", input)
-		return nil, notFoundError{err}
+		return nil, errdefs.NotFound(err)
 	}
 
 	if l := len(rl.Secrets); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("secret %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("secret %s is ambiguous (%d matches found)", input, l))
 	}
 
 	return rl.Secrets[0], nil
@@ -200,11 +201,11 @@ func getConfig(ctx context.Context, c swarmapi.ControlClient, input string) (*sw
 
 	if len(rl.Configs) == 0 {
 		err := fmt.Errorf("config %s not found", input)
-		return nil, notFoundError{err}
+		return nil, errdefs.NotFound(err)
 	}
 
 	if l := len(rl.Configs); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("config %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("config %s is ambiguous (%d matches found)", input, l))
 	}
 
 	return rl.Configs[0], nil
@@ -238,7 +239,7 @@ func getNetwork(ctx context.Context, c swarmapi.ControlClient, input string) (*s
 	}
 
 	if l := len(rl.Networks); l > 1 {
-		return nil, ambiguousResultsError{fmt.Errorf("network %s is ambiguous (%d matches found)", input, l)}
+		return nil, errdefs.InvalidParameter(fmt.Errorf("network %s is ambiguous (%d matches found)", input, l))
 	}
 
 	return rl.Networks[0], nil

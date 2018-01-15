@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
@@ -144,20 +145,6 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	return nil
 }
 
-type validationError struct {
-	cause error
-}
-
-func (e validationError) Error() string {
-	return e.cause.Error()
-}
-
-func (e validationError) Cause() error {
-	return e.cause
-}
-
-func (validationError) InvalidParameter() {}
-
 func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	metaHeaders := map[string][]string{}
 	for k, v := range r.Header {
@@ -181,7 +168,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 	} else {
 		// the old format is supported for compatibility if there was no authConfig header
 		if err := json.NewDecoder(r.Body).Decode(authConfig); err != nil {
-			return errors.Wrap(validationError{err}, "Bad parameters and missing X-Registry-Auth")
+			return errors.Wrap(errdefs.InvalidParameter(err), "Bad parameters and missing X-Registry-Auth")
 		}
 	}
 
