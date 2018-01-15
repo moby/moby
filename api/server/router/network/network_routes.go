@@ -290,7 +290,7 @@ func (n *networkRouter) postNetworkConnect(ctx context.Context, w http.ResponseW
 	}
 
 	// Always make sure there is no ambiguity with respect to the network ID/name
-	nw, err := n.backend.FindUniqueNetwork(vars["id"])
+	nw, err := n.backend.FindNetwork(vars["id"])
 	if err != nil {
 		return err
 	}
@@ -530,7 +530,7 @@ func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWr
 }
 
 // findUniqueNetwork will search network across different scopes (both local and swarm).
-// NOTE: This findUniqueNetwork is different from FindUniqueNetwork in the daemon.
+// NOTE: This findUniqueNetwork is different from FindNetwork in the daemon.
 // In case multiple networks have duplicate names, return error.
 // First find based on full ID, return immediately once one is found.
 // If a network appears both in swarm and local, assume it is in local first

@@ -507,7 +507,7 @@ func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *networ
 		DriverOpts: na.DriverAttachmentOpts,
 	}
 	if v, ok := na.Network.Spec.Annotations.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
-		if ln, err := b.FindUniqueNetwork(na.Network.Spec.Annotations.Name); err == nil {
+		if ln, err := b.FindNetwork(na.Network.Spec.Annotations.Name); err == nil {
 			n.NetworkID = ln.ID()
 		}
 	}
