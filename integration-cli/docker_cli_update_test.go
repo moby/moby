@@ -13,7 +13,7 @@ import (
 func (s *DockerSuite) TestUpdateRestartPolicy(c *check.C) {
 	out := cli.DockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "sh", "-c", "sleep 1 && false").Combined()
 	timeout := 60 * time.Second
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		timeout = 180 * time.Second
 	}
 

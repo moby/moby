@@ -28,7 +28,7 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
 
 	var cases []acase
 
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}

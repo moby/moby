@@ -125,7 +125,7 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 	// ENV.  On windows, the container doesn't have a `PATH` ENV variable so
 	// the ordering is the same as the cli.
 	expectedEnv := "[PATH=/foo DEBUG=true test=1]"
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		expectedEnv = "[DEBUG=true test=1 PATH=/foo]"
 	}
 

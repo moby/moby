@@ -30,7 +30,7 @@ func (s *DockerSuite) TestBuildAPIDockerFileRemote(c *check.C) {
 	testRequires(c, NotUserNamespace)
 
 	var testD string
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		testD = `FROM busybox
 RUN find / -name ba*
 RUN find /tmp/`

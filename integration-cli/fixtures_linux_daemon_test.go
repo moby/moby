@@ -38,7 +38,7 @@ func ensureSyscallTest(c *check.C) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.DaemonPlatform() != runtime.GOOS {
+	if testEnv.OSType != runtime.GOOS {
 		ensureSyscallTestBuild(c)
 		return
 	}
@@ -93,7 +93,7 @@ func ensureSyscallTestBuild(c *check.C) {
 
 func ensureNNPTest(c *check.C) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
-	if testEnv.DaemonPlatform() != runtime.GOOS {
+	if testEnv.OSType != runtime.GOOS {
 		ensureNNPTestBuild(c)
 		return
 	}

@@ -68,7 +68,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 
@@ -109,7 +109,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 

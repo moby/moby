@@ -48,12 +48,3 @@ func New() (*Execution, error) {
 		dockerBinary: dockerBinary,
 	}, nil
 }
-
-// DaemonPlatform is held globally so that tests can make intelligent
-// decisions on how to configure themselves according to the platform
-// of the daemon. This is initialized in docker_utils by sending
-// a version call to the daemon and examining the response header.
-// Deprecated: use Execution.OSType
-func (e *Execution) DaemonPlatform() string {
-	return e.OSType
-}
