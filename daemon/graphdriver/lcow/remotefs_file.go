@@ -33,7 +33,7 @@ func (l *lcowfs) OpenFile(path string, flag int, perm os.FileMode) (_ driver.Fil
 	flagStr := strconv.FormatInt(int64(flag), 10)
 	permStr := strconv.FormatUint(uint64(perm), 8)
 
-	commandLine := fmt.Sprintf("%s %s %s %s", remotefs.RemotefsCmd, remotefs.OpenFileCmd, flagStr, permStr)
+	commandLine := fmt.Sprintf("%s %s %s %s %s", remotefs.RemotefsCmd, remotefs.OpenFileCmd, path, flagStr, permStr)
 	env := make(map[string]string)
 	env["PATH"] = "/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:"
 	processConfig := &hcsshim.ProcessConfig{
