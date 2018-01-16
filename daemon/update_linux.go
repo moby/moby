@@ -30,6 +30,13 @@ func toContainerdResources(resources container.Resources) *libcontainerd.Resourc
 		period = uint64(100 * time.Millisecond / time.Microsecond)
 		quota = resources.NanoCPUs * int64(period) / 1e9
 	}
+	if quota == 0 && resources.CPUQuota != 0 {
+		quota = resources.CPUQuota
+	}
+	if period == 0 && resources.CPUPeriod != 0 {
+		period = uint64(resources.CPUPeriod)
+	}
+
 	r.CPU.Period = &period
 	r.CPU.Quota = &quota
 
