@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -192,6 +193,13 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
 // TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
 // results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
+	// The manifest of the `dockercore/engine-pull-all-test-fixture` image doesn't support `arm64` yet,
+	// refer to `https://hub.docker.com/r/dockercore/engine-pull-all-test-fixture/`, skip it now and
+	// will trigger the rest of this test in the future after `arm64` has been squashed into the manifest
+	if runtime.GOARCH == "arm64" {
+		c.Skip("The testing image doesn't support arm64 yet")
+	}
+
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
 	outImageCmd := s.Cmd(c, "images", "dockercore/engine-pull-all-test-fixture")
