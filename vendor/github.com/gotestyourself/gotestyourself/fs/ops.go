@@ -31,14 +31,17 @@ func AsUser(uid, gid int) PathOp {
 }
 
 // WithFile creates a file in the directory at path with content
-func WithFile(filename, content string) PathOp {
+func WithFile(filename, content string, ops ...PathOp) PathOp {
 	return func(path Path) error {
-		return createFile(path.Path(), filename, content)
+		fullpath := filepath.Join(path.Path(), filepath.FromSlash(filename))
+		if err := createFile(fullpath, content); err != nil {
+			return err
+		}
+		return applyPathOps(&File{path: fullpath}, ops)
 	}
 }
 
-func createFile(dir, filename, content string) error {
-	fullpath := filepath.Join(dir, filepath.FromSlash(filename))
+func createFile(fullpath string, content string) error {
 	return ioutil.WriteFile(fullpath, []byte(content), 0644)
 }
 
@@ -46,7 +49,8 @@ func createFile(dir, filename, content string) error {
 func WithFiles(files map[string]string) PathOp {
 	return func(path Path) error {
 		for filename, content := range files {
-			if err := createFile(path.Path(), filename, content); err != nil {
+			fullpath := filepath.Join(path.Path(), filepath.FromSlash(filename))
+			if err := createFile(fullpath, content); err != nil {
 				return err
 			}
 		}
@@ -58,6 +62,35 @@ func WithFiles(files map[string]string) PathOp {
 func FromDir(source string) PathOp {
 	return func(path Path) error {
 		return copyDirectory(source, path.Path())
+	}
+}
+
+// WithDir creates a subdirectory in the directory at path. Additional PathOp
+// can be used to modify the subdirectory
+func WithDir(name string, ops ...PathOp) PathOp {
+	return func(path Path) error {
+		fullpath := filepath.Join(path.Path(), filepath.FromSlash(name))
+		err := os.MkdirAll(fullpath, 0755)
+		if err != nil {
+			return err
+		}
+		return applyPathOps(&Dir{path: fullpath}, ops)
+	}
+}
+
+func applyPathOps(path Path, ops []PathOp) error {
+	for _, op := range ops {
+		if err := op(path); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WithMode sets the file mode on the directory or file at path
+func WithMode(mode os.FileMode) PathOp {
+	return func(path Path) error {
+		return os.Chmod(path.Path(), mode)
 	}
 }
 

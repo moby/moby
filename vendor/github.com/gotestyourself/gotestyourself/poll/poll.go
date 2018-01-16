@@ -19,6 +19,10 @@ type LogT interface {
 	Logf(format string, args ...interface{})
 }
 
+type helperT interface {
+	Helper()
+}
+
 // Settings are used to configure the behaviour of WaitOn
 type Settings struct {
 	// Timeout is the maximum time to wait for the condition. Defaults to 10s
@@ -101,6 +105,9 @@ func Error(err error) Result {
 // check returns a done Result. To fail a test and exit polling with an error
 // return a error result.
 func WaitOn(t TestingT, check func(t LogT) Result, pollOps ...SettingOp) {
+	if ht, ok := t.(helperT); ok {
+		ht.Helper()
+	}
 	config := defaultConfig()
 	for _, pollOp := range pollOps {
 		pollOp(config)
