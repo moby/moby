@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
-	"path/filepath"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -18,8 +16,12 @@ type testingT interface {
 	Fatalf(string, ...interface{})
 }
 
+type helperT interface {
+	Helper()
+}
+
 // None is a token to inform Result.Assert that the output should be empty
-const None string = "[NOTHING]"
+const None = "[NOTHING]"
 
 type lockedBuffer struct {
 	m   sync.RWMutex
@@ -51,17 +53,16 @@ type Result struct {
 
 // Assert compares the Result against the Expected struct, and fails the test if
 // any of the expectations are not met.
+// TODO: deprecate and replace with assert.CompareFunc
 func (r *Result) Assert(t testingT, exp Expected) *Result {
+	if ht, ok := t.(helperT); ok {
+		ht.Helper()
+	}
 	err := r.Compare(exp)
 	if err == nil {
 		return r
 	}
-	_, file, line, ok := runtime.Caller(1)
-	if ok {
-		t.Fatalf("at %s:%d - %s\n", filepath.Base(file), line, err.Error())
-	} else {
-		t.Fatalf("(no file/line info) - %s", err.Error())
-	}
+	t.Fatalf(err.Error() + "\n")
 	return nil
 }
 
