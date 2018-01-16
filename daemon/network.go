@@ -30,12 +30,12 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 	return daemon.netController != nil
 }
 
-// FindUniqueNetwork returns a network based on:
+// FindNetwork returns a network based on:
 // 1. Full ID
 // 2. Full Name
 // 3. Partial ID
 // as long as there is no ambiguity
-func (daemon *Daemon) FindUniqueNetwork(term string) (libnetwork.Network, error) {
+func (daemon *Daemon) FindNetwork(term string) (libnetwork.Network, error) {
 	listByFullName := []libnetwork.Network{}
 	listByPartialID := []libnetwork.Network{}
 	for _, nw := range daemon.GetNetworks() {
