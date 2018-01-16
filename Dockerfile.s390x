@@ -42,6 +42,7 @@ RUN apt-get update && apt-get install -y \
 	libtool \
 	libudev-dev \
 	mercurial \
+	pigz \
 	pkg-config \
 	python-backports.ssl-match-hostname \
 	python-dev \

@@ -62,6 +62,7 @@ RUN apt-get update && apt-get install -y \
 	libudev-dev \
 	mercurial \
 	net-tools \
+	pigz \
 	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \

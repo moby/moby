@@ -47,6 +47,7 @@ RUN apk add --update \
     g++ \
     git \
     iptables \
+    pigz \
     tar \
     xz \
     && rm -rf /var/cache/apk/*

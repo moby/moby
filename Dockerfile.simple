@@ -28,6 +28,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		e2fsprogs \
 		iptables \
 		pkg-config \
+		pigz \
 		procps \
 		xfsprogs \
 		xz-utils \
