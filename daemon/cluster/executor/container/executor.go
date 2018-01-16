@@ -123,7 +123,7 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 		Resources: &api.Resources{
 			NanoCPUs:    int64(info.NCPU) * 1e9,
 			MemoryBytes: info.MemTotal,
-			Generic:     convert.GenericResourcesToGRPC(info.GenericResources),
+			Generic:     convert.GenericResourcesToGRPC(info.NodeGenericResources),
 		},
 	}
 
