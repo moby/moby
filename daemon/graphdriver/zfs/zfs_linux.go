@@ -15,7 +15,7 @@ func checkRootdirFs(rootdir string) error {
 	}
 
 	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
-		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
+		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s', found '%s' filesystem", rootdir, buf.Type)
 		return graphdriver.ErrPrerequisites
 	}
 
