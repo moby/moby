@@ -842,26 +842,13 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		return nil, err
 	}
 
-	secretMountPath, err := c.SecretMountPath()
-	if err != nil {
-		return nil, err
-	}
-	configsMountPath, err := c.ConfigsDirPath()
-	if err != nil {
-		return nil, err
-	}
 	defer func() {
 		if err != nil {
-			daemon.cleanupSecretDir(secretMountPath)
-			daemon.cleanupSecretDir(configsMountPath)
+			daemon.cleanupSecretDir(c)
 		}
 	}()
 
 	if err := daemon.setupSecretDir(c); err != nil {
-		return nil, err
-	}
-
-	if err := daemon.setupConfigDir(c); err != nil {
 		return nil, err
 	}
 
@@ -885,12 +872,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		return nil, err
 	}
 	ms = append(ms, secretMounts...)
-
-	configMounts, err := c.ConfigMounts()
-	if err != nil {
-		return nil, err
-	}
-	ms = append(ms, configMounts...)
 
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {

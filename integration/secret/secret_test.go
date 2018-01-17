@@ -336,15 +336,24 @@ func TestTemplatedSecret(t *testing.T) {
 		AttachStderr: true,
 	})
 
-	buf := bytes.NewBuffer(nil)
-	_, err = stdcopy.StdCopy(buf, buf, attach.Reader)
-	require.NoError(t, err)
-
 	expect := "SERVICE_NAME=svc\n" +
 		"this is a secret\n" +
 		"this is a config\n"
+	assertAttachedStream(t, attach, expect)
 
-	assert.Equal(t, expect, buf.String())
+	attach = swarm.ExecTask(t, d, task, types.ExecConfig{
+		Cmd:          []string{"mount"},
+		AttachStdout: true,
+		AttachStderr: true,
+	})
+	assertAttachedStream(t, attach, "tmpfs on /run/secrets/templated_secret type tmpfs")
+}
+
+func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
+	buf := bytes.NewBuffer(nil)
+	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), expect)
 }
 
 func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {
