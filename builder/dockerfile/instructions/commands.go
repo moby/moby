@@ -96,6 +96,7 @@ func expandSliceInPlace(values []string, expander SingleWordExpander) error {
 type EnvCommand struct {
 	withNameAndCode
 	Env KeyValuePairs // kvp slice instead of map to preserve ordering
+	Old bool          // `ENV <key> <value>` or `ENV <key>=<value>`
 }
 
 // Expand variables

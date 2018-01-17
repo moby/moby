@@ -46,7 +46,10 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 
 	if ex, ok := cmd.(instructions.SupportsSingleWordExpansion); ok {
 		err := ex.Expand(func(word string) (string, error) {
-			return d.shlex.ProcessWord(word, envs)
+			if e, ok := cmd.(*instructions.EnvCommand); ok && e.Old {
+				return d.shlex.ProcessWord(word, envs, true)
+			}
+			return d.shlex.ProcessWord(word, envs, false)
 		})
 		if err != nil {
 			return errdefs.InvalidParameter(err)

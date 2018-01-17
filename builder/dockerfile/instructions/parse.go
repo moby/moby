@@ -188,7 +188,6 @@ func parseKvps(args []string, cmdName string) (KeyValuePairs, error) {
 }
 
 func parseEnv(req parseRequest) (*EnvCommand, error) {
-
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -196,9 +195,16 @@ func parseEnv(req parseRequest) (*EnvCommand, error) {
 	if err != nil {
 		return nil, err
 	}
+	old := false
+	if req.attributes != nil {
+		if v, ok := req.attributes["old"]; ok {
+			old = v
+		}
+	}
 	return &EnvCommand{
 		Env:             envs,
 		withNameAndCode: newWithNameAndCode(req),
+		Old:             old,
 	}, nil
 }
 

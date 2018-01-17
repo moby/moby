@@ -201,7 +201,7 @@ func (d *dispatchRequest) getExpandedImageName(shlex *ShellLex, name string) (st
 		substitutionArgs = append(substitutionArgs, key+"="+value)
 	}
 
-	name, err := shlex.ProcessWord(name, substitutionArgs)
+	name, err := shlex.ProcessWord(name, substitutionArgs, false)
 	if err != nil {
 		return "", err
 	}

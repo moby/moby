@@ -27,8 +27,8 @@ func NewShellLex(escapeToken rune) *ShellLex {
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func (s *ShellLex) ProcessWord(word string, env []string) (string, error) {
-	word, _, err := s.process(word, env)
+func (s *ShellLex) ProcessWord(word string, env []string, old bool) (string, error) {
+	word, _, err := s.process(word, env, old)
 	return word, err
 }
 
@@ -40,14 +40,15 @@ func (s *ShellLex) ProcessWord(word string, env []string) (string, error) {
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
 func (s *ShellLex) ProcessWords(word string, env []string) ([]string, error) {
-	_, words, err := s.process(word, env)
+	_, words, err := s.process(word, env, false)
 	return words, err
 }
 
-func (s *ShellLex) process(word string, env []string) (string, []string, error) {
+func (s *ShellLex) process(word string, env []string, old bool) (string, []string, error) {
 	sw := &shellWord{
 		envs:        env,
 		escapeToken: s.escapeToken,
+		old:         old,
 	}
 	sw.scanner.Init(strings.NewReader(word))
 	return sw.process(word)
@@ -57,6 +58,7 @@ type shellWord struct {
 	scanner     scanner.Scanner
 	envs        []string
 	escapeToken rune
+	old         bool
 }
 
 func (sw *shellWord) process(source string) (string, []string, error) {
@@ -139,7 +141,14 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			if err != nil {
 				return "", []string{}, err
 			}
+			// Process `ENV <key> <value>`
+			if ch != rune('$') && sw.old {
+				result.WriteRune(ch)
+			}
 			result.WriteString(tmp)
+			if ch != rune('$') && sw.old {
+				result.WriteRune(ch)
+			}
 
 			if ch == rune('$') {
 				words.addString(tmp)
