@@ -3,6 +3,7 @@ package archive
 import (
 	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,6 +16,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -87,7 +89,7 @@ func TestIsArchivePathTar(t *testing.T) {
 	}
 }
 
-func testDecompressStream(t *testing.T, ext, compressCommand string) {
+func testDecompressStream(t *testing.T, ext, compressCommand string) io.Reader {
 	cmd := exec.Command("sh", "-c",
 		fmt.Sprintf("touch /tmp/archive && %s /tmp/archive", compressCommand))
 	output, err := cmd.CombinedOutput()
@@ -111,6 +113,8 @@ func testDecompressStream(t *testing.T, ext, compressCommand string) {
 	if err = r.Close(); err != nil {
 		t.Fatalf("Failed to close the decompressed stream: %v ", err)
 	}
+
+	return r
 }
 
 func TestDecompressStreamGzip(t *testing.T) {
@@ -206,7 +210,7 @@ func TestExtensionXz(t *testing.T) {
 
 func TestCmdStreamLargeStderr(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "dd if=/dev/zero bs=1k count=1000 of=/dev/stderr; echo hello")
-	out, _, err := cmdStream(cmd, nil)
+	out, err := cmdStream(cmd, nil)
 	if err != nil {
 		t.Fatalf("Failed to start command: %s", err)
 	}
@@ -231,7 +235,7 @@ func TestCmdStreamBad(t *testing.T) {
 		t.Skip("Failing on Windows CI machines")
 	}
 	badCmd := exec.Command("sh", "-c", "echo hello; echo >&2 error couldn\\'t reverse the phase pulser; exit 1")
-	out, _, err := cmdStream(badCmd, nil)
+	out, err := cmdStream(badCmd, nil)
 	if err != nil {
 		t.Fatalf("Failed to start command: %s", err)
 	}
@@ -246,7 +250,7 @@ func TestCmdStreamBad(t *testing.T) {
 
 func TestCmdStreamGood(t *testing.T) {
 	cmd := exec.Command("sh", "-c", "echo hello; exit 0")
-	out, _, err := cmdStream(cmd, nil)
+	out, err := cmdStream(cmd, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1317,4 +1321,39 @@ func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expec
 	content, err := ioutil.ReadFile(filepath.Join(destDir, name))
 	assert.NoError(t, err)
 	return string(content)
+}
+
+func TestDisablePigz(t *testing.T) {
+	_, err := exec.LookPath("unpigz")
+	if err != nil {
+		t.Log("Test will not check full path when Pigz not installed")
+	}
+
+	os.Setenv("MOBY_DISABLE_PIGZ", "true")
+	defer os.Unsetenv("MOBY_DISABLE_PIGZ")
+
+	r := testDecompressStream(t, "gz", "gzip -f")
+	// For the bufio pool
+	outsideReaderCloserWrapper := r.(*ioutils.ReadCloserWrapper)
+	// For the context canceller
+	contextReaderCloserWrapper := outsideReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
+
+	assert.IsType(t, &gzip.Reader{}, contextReaderCloserWrapper.Reader)
+}
+
+func TestPigz(t *testing.T) {
+	r := testDecompressStream(t, "gz", "gzip -f")
+	// For the bufio pool
+	outsideReaderCloserWrapper := r.(*ioutils.ReadCloserWrapper)
+	// For the context canceller
+	contextReaderCloserWrapper := outsideReaderCloserWrapper.Reader.(*ioutils.ReadCloserWrapper)
+
+	_, err := exec.LookPath("unpigz")
+	if err == nil {
+		t.Log("Tested whether Pigz is used, as it installed")
+		assert.IsType(t, &io.PipeReader{}, contextReaderCloserWrapper.Reader)
+	} else {
+		t.Log("Tested whether Pigz is not used, as it not installed")
+		assert.IsType(t, &gzip.Reader{}, contextReaderCloserWrapper.Reader)
+	}
 }

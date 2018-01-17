@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"compress/bzip2"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +14,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"strings"
 	"syscall"
 
@@ -23,6 +25,17 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
+
+var unpigzPath string
+
+func init() {
+	if path, err := exec.LookPath("unpigz"); err != nil {
+		logrus.Debug("unpigz binary not found in PATH, falling back to go gzip library")
+	} else {
+		logrus.Debugf("Using unpigz binary found at path %s", path)
+		unpigzPath = path
+	}
+}
 
 type (
 	// Compression is the state represents if compressed or not.
@@ -136,10 +149,34 @@ func DetectCompression(source []byte) Compression {
 	return Uncompressed
 }
 
-func xzDecompress(archive io.Reader) (io.ReadCloser, <-chan struct{}, error) {
+func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
 
-	return cmdStream(exec.Command(args[0], args[1:]...), archive)
+	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
+}
+
+func gzDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
+	if unpigzPath == "" {
+		return gzip.NewReader(buf)
+	}
+
+	disablePigzEnv := os.Getenv("MOBY_DISABLE_PIGZ")
+	if disablePigzEnv != "" {
+		if disablePigz, err := strconv.ParseBool(disablePigzEnv); err != nil {
+			return nil, err
+		} else if disablePigz {
+			return gzip.NewReader(buf)
+		}
+	}
+
+	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
+}
+
+func wrapReadCloser(readBuf io.ReadCloser, cancel context.CancelFunc) io.ReadCloser {
+	return ioutils.NewReadCloserWrapper(readBuf, func() error {
+		cancel()
+		return readBuf.Close()
+	})
 }
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
@@ -163,26 +200,29 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		readBufWrapper := p.NewReadCloserWrapper(buf, buf)
 		return readBufWrapper, nil
 	case Gzip:
-		gzReader, err := gzip.NewReader(buf)
+		ctx, cancel := context.WithCancel(context.Background())
+
+		gzReader, err := gzDecompress(ctx, buf)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, gzReader)
-		return readBufWrapper, nil
+		return wrapReadCloser(readBufWrapper, cancel), nil
 	case Bzip2:
 		bz2Reader := bzip2.NewReader(buf)
 		readBufWrapper := p.NewReadCloserWrapper(buf, bz2Reader)
 		return readBufWrapper, nil
 	case Xz:
-		xzReader, chdone, err := xzDecompress(buf)
+		ctx, cancel := context.WithCancel(context.Background())
+
+		xzReader, err := xzDecompress(ctx, buf)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
-		return ioutils.NewReadCloserWrapper(readBufWrapper, func() error {
-			<-chdone
-			return readBufWrapper.Close()
-		}), nil
+		return wrapReadCloser(readBufWrapper, cancel), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -1163,8 +1203,7 @@ func remapIDs(idMappings *idtools.IDMappings, hdr *tar.Header) error {
 // cmdStream executes a command, and returns its stdout as a stream.
 // If the command fails to run or doesn't complete successfully, an error
 // will be returned, including anything written on stderr.
-func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, error) {
-	chdone := make(chan struct{})
+func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, error) {
 	cmd.Stdin = input
 	pipeR, pipeW := io.Pipe()
 	cmd.Stdout = pipeW
@@ -1173,7 +1212,7 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, 
 
 	// Run the command and return the pipe
 	if err := cmd.Start(); err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 
 	// Copy stdout to the returned pipe
@@ -1183,10 +1222,9 @@ func cmdStream(cmd *exec.Cmd, input io.Reader) (io.ReadCloser, <-chan struct{}, 
 		} else {
 			pipeW.Close()
 		}
-		close(chdone)
 	}()
 
-	return pipeR, chdone, nil
+	return pipeR, nil
 }
 
 // NewTempArchive reads the content of src into a temporary file, and returns the contents
