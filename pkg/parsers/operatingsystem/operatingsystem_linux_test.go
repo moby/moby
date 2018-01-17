@@ -215,6 +215,9 @@ func TestIsContainerized(t *testing.T) {
 3:cpuacct:/docker/3cef1b53c50b0fa357d994f8a1a8cd783c76bbf4f5dd08b226e38a8bd331338d
 2:cpu:/docker/3cef1b53c50b0fa357d994f8a1a8cd783c76bbf4f5dd08b226e38a8bd331338d
 1:cpuset:/`)
+		nonContainerizedProc1CgroupNotSystemd = []byte(`9:memory:/not/init.scope
+	1:name=not_systemd:/not.init.scope
+`)
 	)
 
 	dir := os.TempDir()
@@ -245,6 +248,17 @@ func TestIsContainerized(t *testing.T) {
 	}
 	if inContainer {
 		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
+	}
+
+	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0600); err != nil {
+		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+	}
+	inContainer, err = IsContainerized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inContainer {
+		t.Fatal("Wrongly assuming non-containerized")
 	}
 
 	if err := ioutil.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
