@@ -50,7 +50,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 
 		if ((platform == "W" || platform == "A") && runtime.GOOS == "windows") ||
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
-			newWord, err := shlex.ProcessWord(source, envs)
+			newWord, err := shlex.ProcessWord(source, envs, false)
 			if expected == "error" {
 				assert.Error(t, err)
 			} else {

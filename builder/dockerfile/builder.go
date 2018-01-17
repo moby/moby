@@ -260,7 +260,7 @@ func processMetaArg(meta instructions.ArgCommand, shlex *ShellLex, args *buildAr
 	// ShellLex currently only support the concatenated string format
 	envs := convertMapToEnvList(args.GetAllAllowed())
 	if err := meta.Expand(func(word string) (string, error) {
-		return shlex.ProcessWord(word, envs)
+		return shlex.ProcessWord(word, envs, false)
 	}); err != nil {
 		return err
 	}

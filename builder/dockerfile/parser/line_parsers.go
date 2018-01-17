@@ -140,7 +140,7 @@ func parseWords(rest string, d *Directive) []string {
 
 // parse environment like statements. Note that this does *not* handle
 // variable interpolation, which will be handled in the evaluator.
-func parseNameVal(rest string, key string, d *Directive) (*Node, error) {
+func parseNameVal(rest string, key string, d *Directive) (*Node, bool, error) {
 	// This is kind of tricky because we need to support the old
 	// variant:   KEY name value
 	// as well as the new one:    KEY name=value ...
@@ -149,23 +149,23 @@ func parseNameVal(rest string, key string, d *Directive) (*Node, error) {
 
 	words := parseWords(rest, d)
 	if len(words) == 0 {
-		return nil, nil
+		return nil, false, nil
 	}
 
 	// Old format (KEY name value)
 	if !strings.Contains(words[0], "=") {
 		parts := tokenWhitespace.Split(rest, 2)
 		if len(parts) < 2 {
-			return nil, fmt.Errorf(key + " must have two arguments")
+			return nil, false, fmt.Errorf(key + " must have two arguments")
 		}
-		return newKeyValueNode(parts[0], parts[1]), nil
+		return newKeyValueNode(parts[0], parts[1]), true, nil
 	}
 
 	var rootNode *Node
 	var prevNode *Node
 	for _, word := range words {
 		if !strings.Contains(word, "=") {
-			return nil, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
+			return nil, false, fmt.Errorf("Syntax error - can't find = in %q. Must be of the form: name=value", word)
 		}
 
 		parts := strings.SplitN(word, "=", 2)
@@ -173,7 +173,7 @@ func parseNameVal(rest string, key string, d *Directive) (*Node, error) {
 		rootNode, prevNode = appendKeyValueNode(node, rootNode, prevNode)
 	}
 
-	return rootNode, nil
+	return rootNode, false, nil
 }
 
 func newKeyValueNode(key, value string) *Node {
@@ -196,12 +196,12 @@ func appendKeyValueNode(node, rootNode, prevNode *Node) (*Node, *Node) {
 }
 
 func parseEnv(rest string, d *Directive) (*Node, map[string]bool, error) {
-	node, err := parseNameVal(rest, "ENV", d)
-	return node, nil, err
+	node, old, err := parseNameVal(rest, "ENV", d)
+	return node, map[string]bool{"old": old}, err
 }
 
 func parseLabel(rest string, d *Directive) (*Node, map[string]bool, error) {
-	node, err := parseNameVal(rest, commandLabel, d)
+	node, _, err := parseNameVal(rest, commandLabel, d)
 	return node, nil, err
 }
 
