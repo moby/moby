@@ -150,6 +150,9 @@ func TestIsContainerized(t *testing.T) {
 2:perf_event:/
 1:name=systemd:/init.scope
 `)
+		nonContainerizedProc1CgroupNotSystemd = []byte(`9:memory:/not/init.scope
+1:name=not_systemd:/not.init.scope
+`)
 		nonContainerizedProc1Cgroup = []byte(`14:name=systemd:/
 13:hugetlb:/
 12:net_prio:/
@@ -203,6 +206,17 @@ func TestIsContainerized(t *testing.T) {
 	}
 	if inContainer {
 		t.Fatal("Wrongly assuming containerized for systemd /init.scope cgroup layout")
+	}
+
+	if err := ioutil.WriteFile(proc1Cgroup, nonContainerizedProc1CgroupNotSystemd, 0600); err != nil {
+		t.Fatalf("failed to write to %s: %v", proc1Cgroup, err)
+	}
+	inContainer, err = IsContainerized()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !inContainer {
+		t.Fatal("Wrongly assuming non-containerized")
 	}
 
 	if err := ioutil.WriteFile(proc1Cgroup, containerizedProc1Cgroup, 0600); err != nil {
