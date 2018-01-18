@@ -432,10 +432,6 @@ func (l *mockLayer) DiffSize() (int64, error) {
 	return 0, nil
 }
 
-func (l *mockLayer) OS() string {
-	return ""
-}
-
 func (l *mockLayer) Metadata() (map[string]string, error) {
 	return nil, nil
 }

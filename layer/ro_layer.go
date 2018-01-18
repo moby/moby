@@ -69,10 +69,6 @@ func (rl *roLayer) Parent() Layer {
 	return rl.parent
 }
 
-func (rl *roLayer) OS() string {
-	return rl.layerStore.os
-}
-
 func (rl *roLayer) Size() (size int64, err error) {
 	if rl.parent != nil {
 		size, err = rl.parent.Size()

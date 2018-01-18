@@ -43,10 +43,6 @@ func (el *emptyLayer) Parent() Layer {
 	return nil
 }
 
-func (el *emptyLayer) OS() string {
-	return ""
-}
-
 func (el *emptyLayer) Size() (size int64, err error) {
 	return 0, nil
 }

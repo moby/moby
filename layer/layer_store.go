@@ -725,10 +725,6 @@ func (ls *layerStore) DriverName() string {
 	return ls.driver.String()
 }
 
-func (ls *layerStore) OS() string {
-	return ls.os
-}
-
 type naiveDiffPathDriver struct {
 	graphdriver.Driver
 }

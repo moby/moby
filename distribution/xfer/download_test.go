@@ -57,10 +57,6 @@ func (ml *mockLayer) DiffSize() (size int64, err error) {
 	return 0, nil
 }
 
-func (ml *mockLayer) OS() string {
-	return ml.os
-}
-
 func (ml *mockLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
 }
@@ -156,10 +152,6 @@ func (ls *mockLayerStore) DriverStatus() [][2]string {
 
 func (ls *mockLayerStore) DriverName() string {
 	return "mock"
-}
-
-func (ls *mockLayerStore) OS() string {
-	return runtime.GOOS
 }
 
 type mockDownloadDescriptor struct {

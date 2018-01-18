@@ -46,10 +46,6 @@ func (ml *mountedLayer) Parent() Layer {
 	return nil
 }
 
-func (ml *mountedLayer) OS() string {
-	return ml.layerStore.os
-}
-
 func (ml *mountedLayer) Size() (int64, error) {
 	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
 }

@@ -100,9 +100,6 @@ type Layer interface {
 	// Parent returns the next layer in the layer chain.
 	Parent() Layer
 
-	// OS returns the operating system of the layer
-	OS() string
-
 	// Size returns the size of the entire layer chain. The size
 	// is calculated from the total size of all files in the layers.
 	Size() (int64, error)
@@ -148,9 +145,6 @@ type RWLayer interface {
 
 	// Metadata returns the low level metadata for the mutable layer
 	Metadata() (map[string]string, error)
-
-	// OS returns the operating system of the writable layer
-	OS() string
 }
 
 // Metadata holds information about a
@@ -199,7 +193,6 @@ type Store interface {
 	Cleanup() error
 	DriverStatus() [][2]string
 	DriverName() string
-	OS() string
 }
 
 // DescribableStore represents a layer store capable of storing
