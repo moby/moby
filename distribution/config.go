@@ -73,6 +73,8 @@ type ImagePushConfig struct {
 	ConfigMediaType string
 	// LayerStore manages layers.
 	LayerStore PushLayerProvider
+	// LayerCompressor manages compression of layers prior of uploading.
+	LayerCompressor Compressor
 	// TrustKey is the private key for legacy signatures. This is typically
 	// an ephemeral key, since these signatures are no longer verified.
 	TrustKey libtrust.PrivateKey
