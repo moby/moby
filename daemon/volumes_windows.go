@@ -5,6 +5,7 @@ package daemon
 import (
 	"sort"
 
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
@@ -45,4 +46,8 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 // Windows.
 func setBindModeIfNull(bind *volume.MountPoint) {
 	return
+}
+
+func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
+	return false, nil
 }
