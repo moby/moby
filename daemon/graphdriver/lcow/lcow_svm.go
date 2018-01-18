@@ -299,7 +299,10 @@ func (svm *serviceVM) createUnionMount(mountName string, mvds ...hcsshim.MappedV
 	}
 
 	var cmd string
-	if mvds[0].ReadOnly {
+	if len(mvds) == 1 {
+		// `FROM SCRATCH` case and the only layer. No overlay required.
+		cmd = fmt.Sprintf("mount %s %s", mvds[0].ContainerPath, mountName)
+	} else if mvds[0].ReadOnly {
 		// Readonly overlay
 		cmd = fmt.Sprintf("mount -t overlay overlay -olowerdir=%s %s",
 			strings.Join(lowerLayers, ","),
