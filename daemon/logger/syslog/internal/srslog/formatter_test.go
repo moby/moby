@@ -38,7 +38,7 @@ func TestRFC3164Formatter(t *testing.T) {
 func TestRFC5424Formatter(t *testing.T) {
 	out := RFC5424Formatter(LOG_ERR, "hostname", "tag", "content")
 	expected := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
-		LOG_ERR, 1, time.Now().Format(time.RFC3339), "hostname", TruncateStartStr(os.Args[0], appNameMax),
+		LOG_ERR, 1, time.Now().Format(time.RFC3339), "hostname", truncateStartStr(os.Args[0], appNameMaxLength),
 			os.Getpid(), "tag", "content")
 	if out != expected {
 		t.Errorf("expected %v got %v", expected, out)
@@ -46,11 +46,11 @@ func TestRFC5424Formatter(t *testing.T) {
 }
 
 func TestTruncateStartStr(t *testing.T) {
-	out := TruncateStartStr("abcde", 3)
+	out := truncateStartStr("abcde", 3)
 	if strings.Compare(out, "cde" ) != 0 {
 		t.Errorf("expected \"cde\" got %v", out)
 	}
-	out = TruncateStartStr("abcde", 5)
+	out = truncateStartStr("abcde", 5)
 	if strings.Compare(out, "abcde" ) != 0 {
 		t.Errorf("expected \"abcde\" got %v", out)
 	}

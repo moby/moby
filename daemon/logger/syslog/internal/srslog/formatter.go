@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+const appNameMaxLength = 48 // limit to 48 chars as per RFC5424
+
 // Formatter is a type of function that takes the consituent parts of a
 // syslog message and returns a formatted string. A different Formatter is
 // defined for each different syslog protocol we support.
@@ -38,7 +40,7 @@ func RFC3164Formatter(p Priority, hostname, tag, content string) string {
 }
 
 // if string's length is greater than max, then use the last part
-func TruncateStartStr(s string, max int) string {
+func truncateStartStr(s string, max int) string {
 	if (len(s) > max) {
 		return s[len(s) - max:]
 	}
@@ -49,7 +51,7 @@ func TruncateStartStr(s string, max int) string {
 func RFC5424Formatter(p Priority, hostname, tag, content string) string {
 	timestamp := time.Now().Format(time.RFC3339)
 	pid := os.Getpid()
-	appName := TruncateStartStr(os.Args[0], appNameMax)
+	appName := truncateStartStr(os.Args[0], appNameMaxLength)
 	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, appName, pid, tag, content)
 	return msg

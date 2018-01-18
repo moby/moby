@@ -12,7 +12,6 @@ type Priority int
 
 const severityMask = 0x07
 const facilityMask = 0xf8
-const appNameMax = 48 // limit to 48 chars as per RFC5424
 
 const (
 	// Severity.
