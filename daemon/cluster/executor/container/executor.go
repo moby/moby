@@ -146,6 +146,11 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 		attachments[na.Network.ID] = na.Addresses[0]
 	}
 
+	if (ingressNA == nil) && (node.Attachment != nil) {
+		ingressNA = node.Attachment
+		attachments[ingressNA.Network.ID] = ingressNA.Addresses[0]
+	}
+
 	if ingressNA == nil {
 		e.backend.ReleaseIngress()
 		return e.backend.GetAttachmentStore().ResetAttachments(attachments)
