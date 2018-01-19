@@ -276,7 +276,9 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		return -1, err
 	}
 
+	c.Lock()
 	ctr.setTask(t)
+	c.Unlock()
 
 	// Signal c.createIO that it can call CloseIO
 	close(stdinCloseSync)
@@ -286,7 +288,9 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 			c.logger.WithError(err).WithField("container", id).
 				Error("failed to delete task after fail start")
 		}
+		c.Lock()
 		ctr.setTask(nil)
+		c.Unlock()
 		return -1, err
 	}
 
@@ -467,9 +471,11 @@ func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, ti
 		return 255, time.Now(), nil
 	}
 
-	if ctr := c.getContainer(containerID); ctr != nil {
+	c.Lock()
+	if ctr, ok := c.containers[containerID]; ok {
 		ctr.setTask(nil)
 	}
+	c.Unlock()
 	return status.ExitCode(), status.ExitTime(), nil
 }
 
@@ -673,7 +679,10 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 					"process":   ei.ProcessID,
 				}).Warn("failed to delete process")
 			}
+
+			c.Lock()
 			ctr.deleteProcess(ei.ProcessID)
+			c.Unlock()
 
 			ctr := c.getContainer(ei.ContainerID)
 			if ctr == nil {
