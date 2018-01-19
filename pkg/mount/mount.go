@@ -3,7 +3,6 @@ package mount // import "github.com/docker/docker/pkg/mount"
 import (
 	"sort"
 	"strings"
-
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -90,10 +89,12 @@ func ForceMount(device, target, mType, options string) error {
 // Unmount lazily unmounts a filesystem on supported platforms, otherwise
 // does a normal unmount.
 func Unmount(target string) error {
-	if mounted, err := Mounted(target); err != nil || !mounted {
-		return err
+	err := unmount(target, mntDetach)
+	if err == syscall.EINVAL {
+		// ignore "not mounted" error
+		err = nil
 	}
-	return unmount(target, mntDetach)
+	return err
 }
 
 // RecursiveUnmount unmounts the target and all mounts underneath, starting with
