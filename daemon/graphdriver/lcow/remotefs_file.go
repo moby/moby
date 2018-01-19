@@ -86,7 +86,7 @@ func (l *lcowfile) Read(b []byte) (int, error) {
 
 	buf, err := l.getResponse()
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	n := copy(b, buf)
@@ -105,7 +105,7 @@ func (l *lcowfile) Write(b []byte) (int, error) {
 
 	_, err := l.getResponse()
 	if err != nil {
-		return 0, nil
+		return 0, err
 	}
 
 	return len(b), nil
@@ -168,7 +168,7 @@ func (l *lcowfile) Readdir(n int) ([]os.FileInfo, error) {
 
 	var info []remotefs.FileInfo
 	if err := json.Unmarshal(buf.Bytes(), &info); err != nil {
-		return nil, nil
+		return nil, err
 	}
 
 	osInfo := make([]os.FileInfo, len(info))
