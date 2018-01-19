@@ -130,13 +130,17 @@ func (config *Config) DebugGCS() {
 	cmd := os.Getenv("OPENGCS_DEBUG_COMMAND")
 	if cmd == "" {
 		cmd = `sh -c "`
+		cmd += debugCommand("kill -10 `pidof gcs`") // SIGUSR1 for stackdump
 		cmd += debugCommand("ls -l /tmp")
 		cmd += debugCommand("cat /tmp/gcs.log")
+		cmd += debugCommand("cat /tmp/gcs/gcs-stacks*")
+		cmd += debugCommand("cat /tmp/gcs/paniclog*")
 		cmd += debugCommand("ls -l /tmp/gcs")
 		cmd += debugCommand("ls -l /tmp/gcs/*")
 		cmd += debugCommand("cat /tmp/gcs/*/config.json")
 		cmd += debugCommand("ls -lR /var/run/gcsrunc")
-		cmd += debugCommand("cat /var/run/gcsrunc/log.log")
+		cmd += debugCommand("cat /tmp/gcs/global-runc.log")
+		cmd += debugCommand("cat /tmp/gcs/*/runc.log")
 		cmd += debugCommand("ps -ef")
 		cmd += `"`
 	}
@@ -153,5 +157,5 @@ func (config *Config) DebugGCS() {
 	if proc != nil {
 		proc.WaitTimeout(time.Duration(int(time.Second) * 30))
 	}
-	logrus.Debugf("GCS Debugging:\n%s\n\nEnd GCS Debugging\n", strings.TrimSpace(out.String()))
+	logrus.Debugf("GCS Debugging:\n%s\n\nEnd GCS Debugging", strings.TrimSpace(out.String()))
 }

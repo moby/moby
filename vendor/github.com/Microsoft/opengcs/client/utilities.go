@@ -3,6 +3,8 @@
 package client
 
 import (
+	"bytes"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"os"
@@ -40,7 +42,28 @@ func copyWithTimeout(dst io.Writer, src io.Reader, size int64, timeoutSeconds in
 	done := make(chan resultType, 1)
 	go func() {
 		result := resultType{}
-		result.bytes, result.err = io.Copy(dst, src)
+		if logrus.GetLevel() < logrus.DebugLevel || logDataFromUVM == 0 {
+			result.bytes, result.err = io.Copy(dst, src)
+		} else {
+			// In advanced debug mode where we log (hexdump format) what is copied
+			// up to the number of bytes defined by environment variable
+			// OPENGCS_LOG_DATA_FROM_UVM
+			var buf bytes.Buffer
+			tee := io.TeeReader(src, &buf)
+			result.bytes, result.err = io.Copy(dst, tee)
+			if result.err == nil {
+				size := result.bytes
+				if size > logDataFromUVM {
+					size = logDataFromUVM
+				}
+				if size > 0 {
+					bytes := make([]byte, size)
+					if _, err := buf.Read(bytes); err == nil {
+						logrus.Debugf(fmt.Sprintf("opengcs: copyWithTimeout\n%s", hex.Dump(bytes)))
+					}
+				}
+			}
+		}
 		done <- result
 	}()
 
