@@ -17,6 +17,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
 
+* `Get /events` now return `exec_die` event when an exec process terminates.  
+
 
 ## v1.35 API changes
 

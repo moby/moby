@@ -139,7 +139,10 @@ func (d *Daemon) ContainerExecCreate(name string, config *types.ExecConfig) (str
 
 	d.registerExecCommand(cntr, execConfig)
 
-	d.LogContainerEvent(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "))
+	attributes := map[string]string{
+		"execID": execConfig.ID,
+	}
+	d.LogContainerEventWithAttributes(cntr, "exec_create: "+execConfig.Entrypoint+" "+strings.Join(execConfig.Args, " "), attributes)
 
 	return execConfig.ID, nil
 }
@@ -174,7 +177,10 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 
 	c := d.containers.Get(ec.ContainerID)
 	logrus.Debugf("starting exec command %s in container %s", ec.ID, c.ID)
-	d.LogContainerEvent(c, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "))
+	attributes := map[string]string{
+		"execID": ec.ID,
+	}
+	d.LogContainerEventWithAttributes(c, "exec_start: "+ec.Entrypoint+" "+strings.Join(ec.Args, " "), attributes)
 
 	defer func() {
 		if err != nil {
@@ -270,7 +276,10 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 			if _, ok := err.(term.EscapeError); !ok {
 				return errdefs.System(errors.Wrap(err, "exec attach failed"))
 			}
-			d.LogContainerEvent(c, "exec_detach")
+			attributes := map[string]string{
+				"execID": ec.ID,
+			}
+			d.LogContainerEventWithAttributes(c, "exec_detach", attributes)
 		}
 	}
 	return nil
