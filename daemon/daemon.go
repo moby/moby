@@ -69,50 +69,46 @@ var (
 	errSystemNotSupported = errors.New("the Docker daemon is not supported on this platform")
 )
 
-type daemonStore struct {
-	graphDriver               string
-	imageRoot                 string
-	imageStore                image.Store
-	layerStore                layer.Store
-	distributionMetadataStore dmetadata.Store
-}
-
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
-	ID                    string
-	repository            string
-	containers            container.Store
-	containersReplica     container.ViewDB
-	execCommands          *exec.Store
-	downloadManager       *xfer.LayerDownloadManager
-	uploadManager         *xfer.LayerUploadManager
-	trustKey              libtrust.PrivateKey
-	idIndex               *truncindex.TruncIndex
-	configStore           *config.Config
-	statsCollector        *stats.Collector
-	defaultLogConfig      containertypes.LogConfig
-	RegistryService       registry.Service
-	EventsService         *events.Events
-	netController         libnetwork.NetworkController
-	volumes               *store.VolumeStore
-	discoveryWatcher      discovery.Reloader
-	root                  string
-	seccompEnabled        bool
-	apparmorEnabled       bool
-	shutdown              bool
-	idMappings            *idtools.IDMappings
-	stores                map[string]daemonStore // By container target platform
-	referenceStore        refstore.Store
-	PluginStore           *plugin.Store // todo: remove
-	pluginManager         *plugin.Manager
-	linkIndex             *linkIndex
-	containerd            libcontainerd.Client
-	containerdRemote      libcontainerd.Remote
-	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
-	clusterProvider       cluster.Provider
-	cluster               Cluster
-	genericResources      []swarm.GenericResource
-	metricsPluginListener net.Listener
+	ID                        string
+	repository                string
+	containers                container.Store
+	containersReplica         container.ViewDB
+	execCommands              *exec.Store
+	downloadManager           *xfer.LayerDownloadManager
+	uploadManager             *xfer.LayerUploadManager
+	trustKey                  libtrust.PrivateKey
+	idIndex                   *truncindex.TruncIndex
+	configStore               *config.Config
+	statsCollector            *stats.Collector
+	defaultLogConfig          containertypes.LogConfig
+	RegistryService           registry.Service
+	EventsService             *events.Events
+	netController             libnetwork.NetworkController
+	volumes                   *store.VolumeStore
+	discoveryWatcher          discovery.Reloader
+	root                      string
+	seccompEnabled            bool
+	apparmorEnabled           bool
+	shutdown                  bool
+	idMappings                *idtools.IDMappings
+	graphDrivers              map[string]string // By operating system
+	referenceStore            refstore.Store
+	imageStore                image.Store
+	imageRoot                 string
+	layerStores               map[string]layer.Store // By operating system
+	distributionMetadataStore dmetadata.Store
+	PluginStore               *plugin.Store // todo: remove
+	pluginManager             *plugin.Manager
+	linkIndex                 *linkIndex
+	containerd                libcontainerd.Client
+	containerdRemote          libcontainerd.Remote
+	defaultIsolation          containertypes.Isolation // Default isolation mode on Windows
+	clusterProvider           cluster.Provider
+	cluster                   Cluster
+	genericResources          []swarm.GenericResource
+	metricsPluginListener     net.Listener
 
 	machineMemory uint64
 
@@ -159,11 +155,14 @@ func (daemon *Daemon) restore() error {
 			logrus.Errorf("Failed to load container %v: %v", id, err)
 			continue
 		}
-
+		if !system.IsOSSupported(container.OS) {
+			logrus.Errorf("Failed to load container %v: %s (%q)", id, system.ErrNotSupportedOperatingSystem, container.OS)
+			continue
+		}
 		// Ignore the container if it does not support the current driver being used by the graph
-		currentDriverForContainerOS := daemon.stores[container.OS].graphDriver
+		currentDriverForContainerOS := daemon.graphDrivers[container.OS]
 		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
-			rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
+			rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 			if err != nil {
 				logrus.Errorf("Failed to load container mount %v: %v", id, err)
 				continue
@@ -706,11 +705,12 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	// lcow. Unix platforms however run a single graphdriver for all containers, and it can
 	// be set through an environment variable, a daemon start parameter, or chosen through
 	// initialization of the layerstore through driver priority order for example.
-	d.stores = make(map[string]daemonStore)
+	d.graphDrivers = make(map[string]string)
+	d.layerStores = make(map[string]layer.Store)
 	if runtime.GOOS == "windows" {
-		d.stores["windows"] = daemonStore{graphDriver: "windowsfilter"}
+		d.graphDrivers[runtime.GOOS] = "windowsfilter"
 		if system.LCOWSupported() {
-			d.stores["linux"] = daemonStore{graphDriver: "lcow"}
+			d.graphDrivers["linux"] = "lcow"
 		}
 	} else {
 		driverName := os.Getenv("DOCKER_DRIVER")
@@ -719,7 +719,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		} else {
 			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
 		}
-		d.stores[runtime.GOOS] = daemonStore{graphDriver: driverName} // May still be empty. Layerstore init determines instead.
+		d.graphDrivers[runtime.GOOS] = driverName // May still be empty. Layerstore init determines instead.
 	}
 
 	d.RegistryService = registryService
@@ -750,12 +750,11 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
 	}
 
-	var graphDrivers []string
-	for operatingSystem, ds := range d.stores {
-		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			StorePath:                 config.Root,
+	for operatingSystem, gd := range d.graphDrivers {
+		d.layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
+			Root: config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-			GraphDriver:               ds.graphDriver,
+			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
 			IDMappings:                idMappings,
 			PluginGetter:              d.PluginStore,
@@ -765,40 +764,37 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		if err != nil {
 			return nil, err
 		}
-		ds.graphDriver = ls.DriverName() // As layerstore may set the driver
-		ds.layerStore = ls
-		d.stores[operatingSystem] = ds
-		graphDrivers = append(graphDrivers, ls.DriverName())
 	}
 
-	// Configure and validate the kernels security support
-	if err := configureKernelSecuritySupport(config, graphDrivers); err != nil {
+	// As layerstore initialization may set the driver
+	for os := range d.graphDrivers {
+		d.graphDrivers[os] = d.layerStores[os].DriverName()
+	}
+
+	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
+	// operation only, so it is safe to pass *just* the runtime OS graphdriver.
+	if err := configureKernelSecuritySupport(config, d.graphDrivers[runtime.GOOS]); err != nil {
 		return nil, err
 	}
 
 	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
-	lsMap := make(map[string]layer.Store)
-	for operatingSystem, ds := range d.stores {
-		lsMap[operatingSystem] = ds.layerStore
-	}
-	d.downloadManager = xfer.NewLayerDownloadManager(lsMap, *config.MaxConcurrentDownloads)
+	d.downloadManager = xfer.NewLayerDownloadManager(d.layerStores, *config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
 	d.uploadManager = xfer.NewLayerUploadManager(*config.MaxConcurrentUploads)
-	for operatingSystem, ds := range d.stores {
-		imageRoot := filepath.Join(config.Root, "image", ds.graphDriver)
-		ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
-		if err != nil {
-			return nil, err
-		}
 
-		var is image.Store
-		is, err = image.NewImageStore(ifs, operatingSystem, ds.layerStore)
-		if err != nil {
-			return nil, err
-		}
-		ds.imageRoot = imageRoot
-		ds.imageStore = is
-		d.stores[operatingSystem] = ds
+	d.imageRoot = filepath.Join(config.Root, "image", d.graphDrivers[runtime.GOOS])
+	ifs, err := image.NewFSStoreBackend(filepath.Join(d.imageRoot, "imagedb"))
+	if err != nil {
+		return nil, err
+	}
+
+	lgrMap := make(map[string]image.LayerGetReleaser)
+	for os, ls := range d.layerStores {
+		lgrMap[os] = ls
+	}
+	d.imageStore, err = image.NewImageStore(ifs, lgrMap)
+	if err != nil {
+		return nil, err
 	}
 
 	// Configure the volumes driver
@@ -830,30 +826,25 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	// operating systems, the list of graphdrivers available isn't user configurable.
 	// For backwards compatibility, we just put it under the windowsfilter
 	// directory regardless.
-	refStoreLocation := filepath.Join(d.stores[runtime.GOOS].imageRoot, `repositories.json`)
+	refStoreLocation := filepath.Join(d.imageRoot, `repositories.json`)
 	rs, err := refstore.NewReferenceStore(refStoreLocation)
 	if err != nil {
 		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
 	}
 	d.referenceStore = rs
 
-	for platform, ds := range d.stores {
-		dms, err := dmetadata.NewFSMetadataStore(filepath.Join(ds.imageRoot, "distribution"), platform)
-		if err != nil {
-			return nil, err
-		}
+	d.distributionMetadataStore, err = dmetadata.NewFSMetadataStore(filepath.Join(d.imageRoot, "distribution"))
+	if err != nil {
+		return nil, err
+	}
 
-		ds.distributionMetadataStore = dms
-		d.stores[platform] = ds
-
-		// No content-addressability migration on Windows as it never supported pre-CA
-		if runtime.GOOS != "windows" {
-			migrationStart := time.Now()
-			if err := v1.Migrate(config.Root, ds.graphDriver, ds.layerStore, ds.imageStore, rs, dms); err != nil {
-				logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
-			}
-			logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
+	// No content-addressability migration on Windows as it never supported pre-CA
+	if runtime.GOOS != "windows" {
+		migrationStart := time.Now()
+		if err := v1.Migrate(config.Root, d.graphDrivers[runtime.GOOS], d.layerStores[runtime.GOOS], d.imageStore, rs, d.distributionMetadataStore); err != nil {
+			logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
 		}
+		logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 	}
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
@@ -922,13 +913,13 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	engineMemory.Set(float64(info.MemTotal))
 
 	gd := ""
-	for platform, ds := range d.stores {
+	for os, driver := range d.graphDrivers {
 		if len(gd) > 0 {
 			gd += ", "
 		}
-		gd += ds.graphDriver
-		if len(d.stores) > 1 {
-			gd = fmt.Sprintf("%s (%s)", gd, platform)
+		gd += driver
+		if len(d.graphDrivers) > 1 {
+			gd = fmt.Sprintf("%s (%s)", gd, os)
 		}
 	}
 	logrus.WithFields(logrus.Fields{
@@ -1009,7 +1000,7 @@ func (daemon *Daemon) Shutdown() error {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
-			if mountid, err := daemon.stores[c.OS].layerStore.GetMountID(c.ID); err == nil {
+			if mountid, err := daemon.layerStores[c.OS].GetMountID(c.ID); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			logrus.Debugf("container stopped %s", c.ID)
@@ -1022,10 +1013,10 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
-	for platform, ds := range daemon.stores {
-		if ds.layerStore != nil {
-			if err := ds.layerStore.Cleanup(); err != nil {
-				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, platform)
+	for os, ls := range daemon.layerStores {
+		if ls != nil {
+			if err := ls.Cleanup(); err != nil {
+				logrus.Errorf("Error during layer Store.Cleanup(): %v %s", err, os)
 			}
 		}
 	}
@@ -1107,8 +1098,8 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 }
 
 // GraphDriverName returns the name of the graph driver used by the layer.Store
-func (daemon *Daemon) GraphDriverName(platform string) string {
-	return daemon.stores[platform].layerStore.DriverName()
+func (daemon *Daemon) GraphDriverName(os string) string {
+	return daemon.layerStores[os].DriverName()
 }
 
 // prepareTempDir prepares and returns the default directory to use

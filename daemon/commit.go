@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -149,12 +150,15 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
+	if !system.IsOSSupported(container.OS) {
+		return "", system.ErrNotSupportedOperatingSystem
+	}
 
 	if c.MergeConfigs && c.Config == nil {
 		c.Config = container.Config
 	}
 
-	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes)
+	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
@@ -180,17 +184,17 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = daemon.stores[container.OS].imageStore.Get(container.ImageID)
+		parent, err = daemon.imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
 	}
 
-	l, err := daemon.stores[container.OS].layerStore.Register(rwTar, parent.RootFS.ChainID(), layer.OS(container.OS))
+	l, err := daemon.layerStores[container.OS].Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.stores[container.OS].layerStore, l)
+	defer layer.ReleaseAndLog(daemon.layerStores[container.OS], l)
 
 	containerConfig := c.ContainerConfig
 	if containerConfig == nil {
@@ -209,13 +213,13 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	id, err := daemon.stores[container.OS].imageStore.Create(config)
+	id, err := daemon.imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if container.ImageID != "" {
-		if err := daemon.stores[container.OS].imageStore.SetParent(id, container.ImageID); err != nil {
+		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
 			return "", err
 		}
 	}
@@ -234,7 +238,7 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 				return "", err
 			}
 		}
-		if err := daemon.TagImageWithReference(id, container.OS, newTag); err != nil {
+		if err := daemon.TagImageWithReference(id, newTag); err != nil {
 			return "", err
 		}
 		imageRef = reference.FamiliarString(newTag)
@@ -251,13 +255,14 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 }
 
 func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
-	rwlayer, err := daemon.stores[container.OS].layerStore.GetRWLayer(container.ID)
+	// Note: Indexing by OS is safe as only called from `Commit` which has already performed validation
+	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -278,7 +283,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
 			err = rwlayer.Unmount()
-			daemon.stores[container.OS].layerStore.ReleaseRWLayer(rwlayer)
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
 			return err
 		}),
 		nil

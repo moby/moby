@@ -123,7 +123,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		PathCache:      bm.pathCache,
 		IDMappings:     bm.idMappings,
 	}
-	return newBuilder(ctx, builderOptions, os).build(source, dockerfile)
+	return newBuilder(ctx, builderOptions).build(source, dockerfile)
 }
 
 func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) (builder.Source, error) {
@@ -190,7 +190,7 @@ type Builder struct {
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
-func newBuilder(clientCtx context.Context, options builderOptions, os string) *Builder {
+func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 	config := options.Options
 	if config == nil {
 		config = new(types.ImageBuildOptions)
@@ -207,7 +207,7 @@ func newBuilder(clientCtx context.Context, options builderOptions, os string) *B
 		idMappings:       options.IDMappings,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,
-		imageProber:      newImageProber(options.Backend, config.CacheFrom, os, config.NoCache),
+		imageProber:      newImageProber(options.Backend, config.CacheFrom, config.NoCache),
 		containerManager: newContainerManager(options.Backend),
 	}
 
@@ -357,7 +357,10 @@ func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
 // coming from the query parameter of the same name.
 //
 // TODO: Remove?
-func BuildFromConfig(config *container.Config, changes []string) (*container.Config, error) {
+func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
+	if !system.IsOSSupported(os) {
+		return nil, errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
+	}
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -367,14 +370,9 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	os := runtime.GOOS
-	if dockerfile.OS != "" {
-		os = dockerfile.OS
-	}
-
 	b := newBuilder(context.Background(), builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
-	}, os)
+	})
 
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
@@ -400,6 +398,7 @@ func BuildFromConfig(config *container.Config, changes []string) (*container.Con
 	// We make mutations to the configuration, ensure we have a copy
 	dispatchRequest.state.runConfig = copyRunConfig(config)
 	dispatchRequest.state.imageID = config.Image
+	dispatchRequest.state.operatingSystem = os
 	for _, cmd := range commands {
 		err := dispatch(dispatchRequest, cmd)
 		if err != nil {

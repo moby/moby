@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"strings"
 	"sync"
 
 	"github.com/docker/distribution"
@@ -28,23 +27,21 @@ import (
 const maxLayerDepth = 125
 
 type layerStore struct {
-	store  MetadataStore
-	driver graphdriver.Driver
+	store       MetadataStore
+	driver      graphdriver.Driver
+	useTarSplit bool
 
 	layerMap map[ChainID]*roLayer
 	layerL   sync.Mutex
 
 	mounts map[string]*mountedLayer
 	mountL sync.Mutex
-
-	useTarSplit bool
-
-	os string
+	os     string
 }
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	StorePath                 string
+	Root                      string
 	MetadataStorePathTemplate string
 	GraphDriver               string
 	GraphDriverOptions        []string
@@ -57,7 +54,7 @@ type StoreOptions struct {
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
-		Root:                options.StorePath,
+		Root:                options.Root,
 		DriverOptions:       options.GraphDriverOptions,
 		UIDMaps:             options.IDMappings.UIDs(),
 		GIDMaps:             options.IDMappings.GIDs(),
@@ -66,7 +63,7 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
-	logrus.Debugf("Using graph driver %s", driver)
+	logrus.Debugf("Initialized graph driver %s", driver)
 
 	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
 	if err != nil {
@@ -80,6 +77,9 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
 func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os string) (Store, error) {
+	if !system.IsOSSupported(os) {
+		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
+	}
 	caps := graphdriver.Capabilities{}
 	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
 		caps = capDriver.Capabilities()
@@ -150,9 +150,13 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
 	}
 
-	os, err := ls.store.GetOS(layer)
+	os, err := ls.store.getOS(layer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
+	}
+
+	if os != ls.os {
+		return nil, fmt.Errorf("failed to load layer with os %s into layerstore for %s", os, ls.os)
 	}
 
 	cl = &roLayer{
@@ -163,7 +167,6 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 		layerStore: ls,
 		references: map[Layer]struct{}{},
 		descriptor: descriptor,
-		os:         os,
 	}
 
 	if parent != "" {
@@ -259,24 +262,17 @@ func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent stri
 	return nil
 }
 
-func (ls *layerStore) Register(ts io.Reader, parent ChainID, os OS) (Layer, error) {
-	return ls.registerWithDescriptor(ts, parent, os, distribution.Descriptor{})
+func (ls *layerStore) Register(ts io.Reader, parent ChainID) (Layer, error) {
+	return ls.registerWithDescriptor(ts, parent, distribution.Descriptor{})
 }
 
-func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS, descriptor distribution.Descriptor) (Layer, error) {
+func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descriptor distribution.Descriptor) (Layer, error) {
 	// err is used to hold the error which will always trigger
 	// cleanup of creates sources but may not be an error returned
 	// to the caller (already exists).
 	var err error
 	var pid string
 	var p *roLayer
-
-	// Integrity check - ensure we are creating something for the correct operating system
-	if system.LCOWSupported() {
-		if strings.ToLower(ls.os) != strings.ToLower(string(os)) {
-			return nil, fmt.Errorf("cannot create entry for operating system %q in layer store for operating system %q", os, ls.os)
-		}
-	}
 
 	if string(parent) != "" {
 		p = ls.get(parent)
@@ -306,7 +302,6 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, os OS
 		layerStore:     ls,
 		references:     map[Layer]struct{}{},
 		descriptor:     descriptor,
-		os:             os,
 	}
 
 	if err = ls.driver.Create(layer.cacheID, pid, nil); err != nil {

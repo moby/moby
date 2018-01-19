@@ -2,7 +2,9 @@
 
 package layer
 
-import "testing"
+import (
+	"testing"
+)
 
 func graphDiffSize(ls Store, l Layer) (int64, error) {
 	cl := getCachedLayer(l)

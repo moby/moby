@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/docker/distribution/manifest/schema2"
@@ -145,7 +146,7 @@ func (s *tempConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return s.config, nil
 }
 
-func (s *tempConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, layer.OS, error) {
+func (s *tempConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, string, error) {
 	return configToRootFS(c)
 }
 
@@ -440,7 +441,8 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 		pm:     pm,
 		plugin: p,
 	}
-	ls := &pluginLayerProvider{
+	lss := make(map[string]distribution.PushLayerProvider)
+	lss[runtime.GOOS] = &pluginLayerProvider{
 		pm:     pm,
 		plugin: p,
 	}
@@ -463,7 +465,7 @@ func (pm *Manager) Push(ctx context.Context, name string, metaHeader http.Header
 			RequireSchema2:   true,
 		},
 		ConfigMediaType: schema2.MediaTypePluginConfig,
-		LayerStore:      ls,
+		LayerStores:     lss,
 		UploadManager:   uploadManager,
 	}
 
@@ -532,7 +534,7 @@ func (s *pluginConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return ioutil.ReadAll(rwc)
 }
 
-func (s *pluginConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, layer.OS, error) {
+func (s *pluginConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, string, error) {
 	return configToRootFS(c)
 }
 

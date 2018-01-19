@@ -21,6 +21,7 @@ package dockerfile
 
 import (
 	"reflect"
+	"runtime"
 	"strconv"
 	"strings"
 
@@ -104,13 +105,14 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 
 // dispatchState is a data object which is modified by dispatchers
 type dispatchState struct {
-	runConfig  *container.Config
-	maintainer string
-	cmdSet     bool
-	imageID    string
-	baseImage  builder.Image
-	stageName  string
-	buildArgs  *buildArgs
+	runConfig       *container.Config
+	maintainer      string
+	cmdSet          bool
+	imageID         string
+	baseImage       builder.Image
+	stageName       string
+	buildArgs       *buildArgs
+	operatingSystem string
 }
 
 func newDispatchState(baseArgs *buildArgs) *dispatchState {
@@ -210,9 +212,16 @@ func (s *dispatchState) hasFromImage() bool {
 	return s.imageID != "" || (s.baseImage != nil && s.baseImage.ImageID() == "")
 }
 
-func (s *dispatchState) beginStage(stageName string, image builder.Image) {
+func (s *dispatchState) beginStage(stageName string, image builder.Image) error {
 	s.stageName = stageName
 	s.imageID = image.ImageID()
+	s.operatingSystem = image.OperatingSystem()
+	if s.operatingSystem == "" { // In case it isn't set
+		s.operatingSystem = runtime.GOOS
+	}
+	if !system.IsOSSupported(s.operatingSystem) {
+		return system.ErrNotSupportedOperatingSystem
+	}
 
 	if image.RunConfig() != nil {
 		// copy avoids referencing the same instance when 2 stages have the same base
@@ -224,12 +233,13 @@ func (s *dispatchState) beginStage(stageName string, image builder.Image) {
 	s.setDefaultPath()
 	s.runConfig.OpenStdin = false
 	s.runConfig.StdinOnce = false
+	return nil
 }
 
 // Add the default PATH to runConfig.ENV if one exists for the operating system and there
 // is no PATH set. Note that Windows containers on Windows won't have one as it's set by HCS
 func (s *dispatchState) setDefaultPath() {
-	defaultPath := system.DefaultPathEnv(s.baseImage.OperatingSystem())
+	defaultPath := system.DefaultPathEnv(s.operatingSystem)
 	if defaultPath == "" {
 		return
 	}

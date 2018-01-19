@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/docker/distribution"
@@ -153,7 +154,11 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 	if topLayerID == "" {
 		return nil
 	}
-	layer, err := l.ls.Get(topLayerID)
+	os := img.OS
+	if os == "" {
+		os = runtime.GOOS
+	}
+	layer, err := l.lss[os].Get(topLayerID)
 	if err != nil {
 		return err
 	}
@@ -165,7 +170,11 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 func (l *tarexporter) releaseLayerReferences(imgDescr map[image.ID]*imageDescriptor) error {
 	for _, descr := range imgDescr {
 		if descr.layerRef != nil {
-			l.ls.Release(descr.layerRef)
+			os := descr.image.OS
+			if os == "" {
+				os = runtime.GOOS
+			}
+			l.lss[os].Release(descr.layerRef)
 		}
 	}
 	return nil
@@ -356,11 +365,15 @@ func (s *saveSession) saveLayer(id layer.ChainID, legacyImg image.V1Image, creat
 
 	// serialize filesystem
 	layerPath := filepath.Join(outDir, legacyLayerFileName)
-	l, err := s.ls.Get(id)
+	operatingSystem := legacyImg.OS
+	if operatingSystem == "" {
+		operatingSystem = runtime.GOOS
+	}
+	l, err := s.lss[operatingSystem].Get(id)
 	if err != nil {
 		return distribution.Descriptor{}, err
 	}
-	defer layer.ReleaseAndLog(s.ls, l)
+	defer layer.ReleaseAndLog(s.lss[operatingSystem], l)
 
 	if oldPath, exists := s.diffIDPaths[l.DiffID()]; exists {
 		relPath, err := filepath.Rel(outDir, oldPath)

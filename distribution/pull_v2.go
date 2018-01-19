@@ -62,7 +62,7 @@ type v2Puller struct {
 	confirmedV2 bool
 }
 
-func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform string) (err error) {
+func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, os string) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
 	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
@@ -70,7 +70,7 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform strin
 		return err
 	}
 
-	if err = p.pullV2Repository(ctx, ref, platform); err != nil {
+	if err = p.pullV2Repository(ctx, ref, os); err != nil {
 		if _, ok := err.(fallbackError); ok {
 			return err
 		}
@@ -85,10 +85,10 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform strin
 	return err
 }
 
-func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, platform string) (err error) {
+func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, os string) (err error) {
 	var layersDownloaded bool
 	if !reference.IsNameOnly(ref) {
-		layersDownloaded, err = p.pullV2Tag(ctx, ref, platform)
+		layersDownloaded, err = p.pullV2Tag(ctx, ref, os)
 		if err != nil {
 			return err
 		}
@@ -110,7 +110,7 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, pl
 			if err != nil {
 				return err
 			}
-			pulledNew, err := p.pullV2Tag(ctx, tagRef, platform)
+			pulledNew, err := p.pullV2Tag(ctx, tagRef, os)
 			if err != nil {
 				// Since this is the pull-all-tags case, don't
 				// allow an error pulling a particular tag to
@@ -488,9 +488,9 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		descriptors = append(descriptors, layerDescriptor)
 	}
 
-	// The v1 manifest itself doesn't directly contain a platform. However,
+	// The v1 manifest itself doesn't directly contain an OS. However,
 	// the history does, but unfortunately that's a string, so search through
-	// all the history until hopefully we find one which indicates the os.
+	// all the history until hopefully we find one which indicates the OS.
 	// supertest2014/nyan is an example of a registry image with schemav1.
 	configOS := runtime.GOOS
 	if system.LCOWSupported() {
@@ -514,7 +514,7 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
 	}
 
-	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, layer.OS(configOS), descriptors, p.config.ProgressOutput)
+	resultRootFS, release, err := p.config.DownloadManager.Download(ctx, *rootFS, configOS, descriptors, p.config.ProgressOutput)
 	if err != nil {
 		return "", "", err
 	}
@@ -588,7 +588,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 		downloadedRootFS *image.RootFS // rootFS from registered layers
 		configRootFS     *image.RootFS // rootFS from configuration
 		release          func()        // release resources from rootFS download
-		configOS         layer.OS      // for LCOW when registering downloaded layers
+		configOS         string        // for LCOW when registering downloaded layers
 	)
 
 	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
@@ -615,7 +615,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		// Early bath if the requested OS doesn't match that of the configuration.
 		// This avoids doing the download, only to potentially fail later.
-		if !strings.EqualFold(string(configOS), requestedOS) {
+		if !strings.EqualFold(configOS, requestedOS) {
 			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
 		}
 
@@ -633,7 +633,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 				rootFS image.RootFS
 			)
 			downloadRootFS := *image.NewRootFS()
-			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, layer.OS(requestedOS), descriptors, p.config.ProgressOutput)
+			rootFS, release, err = p.config.DownloadManager.Download(ctx, downloadRootFS, requestedOS, descriptors, p.config.ProgressOutput)
 			if err != nil {
 				// Intentionally do not cancel the config download here
 				// as the error from config download (if there is one)
@@ -698,7 +698,7 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	return imageID, manifestDigest, nil
 }
 
-func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, layer.OS, error) {
+func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, string, error) {
 	select {
 	case configJSON := <-configChan:
 		rootfs, os, err := s.RootFSAndOSFromConfig(configJSON)

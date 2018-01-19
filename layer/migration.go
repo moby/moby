@@ -16,7 +16,7 @@ import (
 // CreateRWLayerByGraphID creates a RWLayer in the layer store using
 // the provided name with the given graphID. To get the RWLayer
 // after migration the layer may be retrieved by the given name.
-func (ls *layerStore) CreateRWLayerByGraphID(name string, graphID string, parent ChainID) (err error) {
+func (ls *layerStore) CreateRWLayerByGraphID(name, graphID string, parent ChainID) (err error) {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
 	m, ok := ls.mounts[name]

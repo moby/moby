@@ -323,7 +323,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			id, os, err := daemon.GetImageIDAndOS(ancestor)
+			id, _, err := daemon.GetImageIDAndOS(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -333,7 +333,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, id, daemon.stores[os].imageStore.Children)
+			populateImageFilterByParents(imagesFilter, id, daemon.imageStore.Children)
 			return nil
 		})
 	}

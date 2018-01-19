@@ -55,10 +55,6 @@ func (el *emptyLayer) Metadata() (map[string]string, error) {
 	return make(map[string]string), nil
 }
 
-func (el *emptyLayer) OS() OS {
-	return ""
-}
-
 // IsEmpty returns true if the layer is an EmptyLayer
 func IsEmpty(diffID DiffID) bool {
 	return diffID == DigestSHA256EmptyTar

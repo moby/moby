@@ -2,7 +2,6 @@ package daemon
 
 import (
 	"io"
-	"runtime"
 
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
@@ -10,7 +9,6 @@ import (
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
-	"github.com/docker/docker/pkg/system"
 	"golang.org/x/net/context"
 )
 
@@ -41,12 +39,6 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 		close(writesDone)
 	}()
 
-	// TODO @jhowardmsft LCOW Support. This will require revisiting. For now, hard-code.
-	platform := runtime.GOOS
-	if system.LCOWSupported() {
-		platform = "linux"
-	}
-
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
 			MetaHeaders:      metaHeaders,
@@ -54,12 +46,12 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			ProgressOutput:   progress.ChanOutput(progressChan),
 			RegistryService:  daemon.RegistryService,
 			ImageEventLogger: daemon.LogImageEvent,
-			MetadataStore:    daemon.stores[platform].distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.stores[platform].imageStore),
+			MetadataStore:    daemon.distributionMetadataStore,
+			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.imageStore),
 			ReferenceStore:   daemon.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStore:      distribution.NewLayerProviderFromStore(daemon.stores[platform].layerStore),
+		LayerStores:     distribution.NewLayerProvidersFromStores(daemon.layerStores),
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}

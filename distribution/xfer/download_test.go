@@ -26,7 +26,7 @@ type mockLayer struct {
 	diffID    layer.DiffID
 	chainID   layer.ChainID
 	parent    layer.Layer
-	os        layer.OS
+	os        string
 }
 
 func (ml *mockLayer) TarStream() (io.ReadCloser, error) {
@@ -55,10 +55,6 @@ func (ml *mockLayer) Size() (size int64, err error) {
 
 func (ml *mockLayer) DiffSize() (size int64, err error) {
 	return 0, nil
-}
-
-func (ml *mockLayer) OS() layer.OS {
-	return ml.os
 }
 
 func (ml *mockLayer) Metadata() (map[string]string, error) {
@@ -91,7 +87,7 @@ func (ls *mockLayerStore) Map() map[layer.ChainID]layer.Layer {
 	return layers
 }
 
-func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID, os layer.OS) (layer.Layer, error) {
+func (ls *mockLayerStore) Register(reader io.Reader, parentID layer.ChainID) (layer.Layer, error) {
 	return ls.RegisterWithDescriptor(reader, parentID, distribution.Descriptor{})
 }
 
@@ -293,13 +289,13 @@ func TestSuccessfulDownload(t *testing.T) {
 	firstDescriptor := descriptors[0].(*mockDownloadDescriptor)
 
 	// Pre-register the first layer to simulate an already-existing layer
-	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "", layer.OS(runtime.GOOS))
+	l, err := layerStore.Register(firstDescriptor.mockTarStream(), "")
 	if err != nil {
 		t.Fatal(err)
 	}
 	firstDescriptor.diffID = l.DiffID()
 
-	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), layer.OS(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
+	rootFS, releaseFunc, err := ldm.Download(context.Background(), *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
 	if err != nil {
 		t.Fatalf("download error: %v", err)
 	}
@@ -339,7 +335,6 @@ func TestCancelledDownload(t *testing.T) {
 	lsMap := make(map[string]layer.Store)
 	lsMap[runtime.GOOS] = layerStore
 	ldm := NewLayerDownloadManager(lsMap, maxDownloadConcurrency, func(m *LayerDownloadManager) { m.waitDuration = time.Millisecond })
-
 	progressChan := make(chan progress.Progress)
 	progressDone := make(chan struct{})
 
@@ -357,7 +352,7 @@ func TestCancelledDownload(t *testing.T) {
 	}()
 
 	descriptors := downloadDescriptors(nil)
-	_, _, err := ldm.Download(ctx, *image.NewRootFS(), layer.OS(runtime.GOOS), descriptors, progress.ChanOutput(progressChan))
+	_, _, err := ldm.Download(ctx, *image.NewRootFS(), runtime.GOOS, descriptors, progress.ChanOutput(progressChan))
 	if err != context.Canceled {
 		t.Fatal("expected download to be cancelled")
 	}

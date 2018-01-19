@@ -7,12 +7,12 @@ import (
 )
 
 // MakeImageCache creates a stateful image cache.
-func (daemon *Daemon) MakeImageCache(sourceRefs []string, platform string) builder.ImageCache {
+func (daemon *Daemon) MakeImageCache(sourceRefs []string) builder.ImageCache {
 	if len(sourceRefs) == 0 {
-		return cache.NewLocal(daemon.stores[platform].imageStore)
+		return cache.NewLocal(daemon.imageStore)
 	}
 
-	cache := cache.New(daemon.stores[platform].imageStore)
+	cache := cache.New(daemon.imageStore)
 
 	for _, ref := range sourceRefs {
 		img, err := daemon.GetImage(ref)

@@ -16,7 +16,6 @@ type roLayer struct {
 	size       int64
 	layerStore *layerStore
 	descriptor distribution.Descriptor
-	os         OS
 
 	referenceCount int
 	references     map[Layer]struct{}
@@ -143,7 +142,11 @@ func storeLayer(tx MetadataTransaction, layer *roLayer) error {
 			return err
 		}
 	}
-	return tx.SetOS(layer.os)
+	if err := tx.setOS(layer.layerStore.os); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func newVerifiedReadCloser(rc io.ReadCloser, dgst digest.Digest) (io.ReadCloser, error) {

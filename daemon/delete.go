@@ -94,6 +94,9 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			return fmt.Errorf("Could not kill running container %s, cannot remove - %v", container.ID, err)
 		}
 	}
+	if !system.IsOSSupported(container.OS) {
+		return fmt.Errorf("cannot remove %s: %s ", container.ID, system.ErrNotSupportedOperatingSystem)
+	}
 
 	// stop collection of stats for the container regardless
 	// if stats are currently getting collected.
@@ -118,7 +121,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
 	if container.RWLayer != nil {
-		metadata, err := daemon.stores[container.OS].layerStore.ReleaseRWLayer(container.RWLayer)
+		metadata, err := daemon.layerStores[container.OS].ReleaseRWLayer(container.RWLayer)
 		layer.LogReleaseMetadata(metadata)
 		if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
 			e := errors.Wrapf(err, "driver %q failed to remove root filesystem for %s", daemon.GraphDriverName(container.OS), container.ID)

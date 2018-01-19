@@ -138,9 +138,12 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	max := len(img.RootFS.DiffIDs)
 	for i := 1; i <= max; i++ {
 		img.RootFS.DiffIDs = img.RootFS.DiffIDs[:i]
-		layerPath, err := layer.GetLayerPath(daemon.stores[c.OS].layerStore, img.RootFS.ChainID())
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return nil, fmt.Errorf("cannot get layerpath for ImageID %s: %s ", img.RootFS.ChainID(), system.ErrNotSupportedOperatingSystem)
+		}
+		layerPath, err := layer.GetLayerPath(daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.stores[c.OS].layerStore, img.RootFS.ChainID(), err)
+			return nil, fmt.Errorf("failed to get layer path from graphdriver %s for ImageID %s - %s", daemon.layerStores[img.OperatingSystem()], img.RootFS.ChainID(), err)
 		}
 		// Reverse order, expecting parent most first
 		s.Windows.LayerFolders = append([]string{layerPath}, s.Windows.LayerFolders...)
@@ -210,15 +213,18 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		NetworkSharedContainerName: networkSharedContainerID,
 	}
 
-	if img.OS == "windows" {
+	switch img.OS {
+	case "windows":
 		if err := daemon.createSpecWindowsFields(c, &s, isHyperV); err != nil {
 			return nil, err
 		}
-	} else {
-		// TODO @jhowardmsft LCOW Support. Modify this check when running in dual-mode
-		if system.LCOWSupported() && img.OS == "linux" {
-			daemon.createSpecLinuxFields(c, &s)
+	case "linux":
+		if !system.LCOWSupported() {
+			return nil, fmt.Errorf("Linux containers on Windows are not supported")
 		}
+		daemon.createSpecLinuxFields(c, &s)
+	default:
+		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
 	}
 
 	return (*specs.Spec)(&s), nil

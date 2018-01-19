@@ -31,7 +31,7 @@ func newBuilderWithMockBackend() *Builder {
 			Options: &types.ImageBuildOptions{Platform: runtime.GOOS},
 			Backend: mockBackend,
 		}),
-		imageProber:      newImageProber(mockBackend, nil, runtime.GOOS, false),
+		imageProber:      newImageProber(mockBackend, nil, false),
 		containerManager: newContainerManager(mockBackend),
 	}
 	return b
@@ -427,10 +427,10 @@ func TestRunWithBuildArgs(t *testing.T) {
 	}
 
 	mockBackend := b.docker.(*MockBackend)
-	mockBackend.makeImageCacheFunc = func(_ []string, _ string) builder.ImageCache {
+	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
 		return imageCache
 	}
-	b.imageProber = newImageProber(mockBackend, nil, runtime.GOOS, false)
+	b.imageProber = newImageProber(mockBackend, nil, false)
 	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
 		return &mockImage{
 			id:     "abcdef",

@@ -3,7 +3,6 @@ package image
 import (
 	"encoding/json"
 	"fmt"
-	"strings"
 	"sync"
 	"time"
 
@@ -43,21 +42,19 @@ type imageMeta struct {
 
 type store struct {
 	sync.RWMutex
-	ls        LayerGetReleaser
+	lss       map[string]LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
 	digestSet *digestset.Set
-	os        string
 }
 
-// NewImageStore returns new store object for given layer store
-func NewImageStore(fs StoreBackend, os string, ls LayerGetReleaser) (Store, error) {
+// NewImageStore returns new store object for given set of layer stores
+func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, error) {
 	is := &store{
-		ls:        ls,
+		lss:       lss,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
-		os:        os,
 	}
 
 	// load all current images and retain layers
@@ -77,7 +74,10 @@ func (is *store) restore() error {
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
-			l, err = is.ls.Get(chainID)
+			if !system.IsOSSupported(img.OperatingSystem()) {
+				return system.ErrNotSupportedOperatingSystem
+			}
+			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {
 				return err
 			}
@@ -118,14 +118,6 @@ func (is *store) Create(config []byte) (ID, error) {
 		return "", err
 	}
 
-	// TODO @jhowardmsft - LCOW Support. This will need revisiting when coalescing the image stores.
-	// Integrity check - ensure we are creating something for the correct platform
-	if system.LCOWSupported() {
-		if strings.ToLower(img.OperatingSystem()) != strings.ToLower(is.os) {
-			return "", fmt.Errorf("cannot create entry for operating system %q in image store for operating system %q", img.OperatingSystem(), is.os)
-		}
-	}
-
 	// Must reject any config that references diffIDs from the history
 	// which aren't among the rootfs layers.
 	rootFSLayers := make(map[layer.DiffID]struct{})
@@ -160,7 +152,10 @@ func (is *store) Create(config []byte) (ID, error) {
 
 	var l layer.Layer
 	if layerID != "" {
-		l, err = is.ls.Get(layerID)
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return "", system.ErrNotSupportedOperatingSystem
+		}
+		l, err = is.lss[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
 		}
@@ -229,6 +224,13 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
+	img, err := is.Get(id)
+	if err != nil {
+		return nil, fmt.Errorf("unrecognized image %s, %v", id.String(), err)
+	}
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, fmt.Errorf("unsupported image operating system %q", img.OperatingSystem())
+	}
 	for id := range imageMeta.children {
 		is.fs.DeleteMetadata(id.Digest(), "parent")
 	}
@@ -243,7 +245,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	is.fs.Delete(id.Digest())
 
 	if imageMeta.layer != nil {
-		return is.ls.Release(imageMeta.layer)
+		return is.lss[img.OperatingSystem()].Release(imageMeta.layer)
 	}
 	return nil, nil
 }
