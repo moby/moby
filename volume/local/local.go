@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.
@@ -66,11 +65,6 @@ func New(scope string, rootIDs idtools.IDPair) (*Root, error) {
 		return nil, err
 	}
 
-	mountInfos, err := mount.GetMounts(nil)
-	if err != nil {
-		logrus.Debugf("error looking up mounts for local volume cleanup: %v", err)
-	}
-
 	for _, d := range dirs {
 		if !d.IsDir() {
 			continue
@@ -96,12 +90,7 @@ func New(scope string, rootIDs idtools.IDPair) (*Root, error) {
 			}
 
 			// unmount anything that may still be mounted (for example, from an unclean shutdown)
-			for _, info := range mountInfos {
-				if info.Mountpoint == v.path {
-					mount.Unmount(v.path)
-					break
-				}
-			}
+			mount.Unmount(v.path)
 		}
 	}
 
