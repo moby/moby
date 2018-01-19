@@ -145,7 +145,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 	}
 	wantedDev := stat.Dev
 
-	mounts, err := mount.GetMounts()
+	mounts, err := mount.GetMounts(nil)
 	if err != nil {
 		return "", err
 	}

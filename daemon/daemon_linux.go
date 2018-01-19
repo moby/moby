@@ -74,7 +74,7 @@ func (daemon *Daemon) cleanupMounts() error {
 		return err
 	}
 
-	infos, err := mount.GetMounts()
+	infos, err := mount.GetMounts(nil)
 	if err != nil {
 		return errors.Wrap(err, "error reading mount table for cleanup")
 	}

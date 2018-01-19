@@ -66,7 +66,7 @@ func New(scope string, rootIDs idtools.IDPair) (*Root, error) {
 		return nil, err
 	}
 
-	mountInfos, err := mount.GetMounts()
+	mountInfos, err := mount.GetMounts(nil)
 	if err != nil {
 		logrus.Debugf("error looking up mounts for local volume cleanup: %v", err)
 	}

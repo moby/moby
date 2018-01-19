@@ -28,17 +28,17 @@ const (
 
 // Parse /proc/self/mountinfo because comparing Dev and ino does not work from
 // bind mounts
-func parseMountTable() ([]*Info, error) {
+func parseMountTable(filter FilterFunc) ([]*Info, error) {
 	f, err := os.Open("/proc/self/mountinfo")
 	if err != nil {
 		return nil, err
 	}
 	defer f.Close()
 
-	return parseInfoFile(f)
+	return parseInfoFile(f, filter)
 }
 
-func parseInfoFile(r io.Reader) ([]*Info, error) {
+func parseInfoFile(r io.Reader, filter FilterFunc) ([]*Info, error) {
 	var (
 		s   = bufio.NewScanner(r)
 		out = []*Info{}
@@ -53,12 +53,20 @@ func parseInfoFile(r io.Reader) ([]*Info, error) {
 			p              = &Info{}
 			text           = s.Text()
 			optionalFields string
+			skip, stop     bool
 		)
 
 		if _, err := fmt.Sscanf(text, mountinfoFormat,
 			&p.ID, &p.Parent, &p.Major, &p.Minor,
 			&p.Root, &p.Mountpoint, &p.Opts, &optionalFields); err != nil {
 			return nil, fmt.Errorf("Scanning '%s' failed: %s", text, err)
+		}
+		if filter != nil {
+			// filter out entries we're not interested in
+			skip, stop = filter(p)
+			if skip {
+				continue
+			}
 		}
 		// Safe as mountinfo encodes mountpoints with spaces as \040.
 		index := strings.Index(text, " - ")
@@ -75,6 +83,9 @@ func parseInfoFile(r io.Reader) ([]*Info, error) {
 		p.Source = postSeparatorFields[1]
 		p.VfsOpts = strings.Join(postSeparatorFields[2:], " ")
 		out = append(out, p)
+		if stop {
+			break
+		}
 	}
 	return out, nil
 }
@@ -89,5 +100,5 @@ func PidMountInfo(pid int) ([]*Info, error) {
 	}
 	defer f.Close()
 
-	return parseInfoFile(f)
+	return parseInfoFile(f, nil)
 }

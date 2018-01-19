@@ -215,7 +215,7 @@ func TestCreateWithOpts(t *testing.T) {
 		}
 	}()
 
-	mountInfos, err := mount.GetMounts()
+	mountInfos, err := mount.GetMounts(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

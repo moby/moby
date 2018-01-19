@@ -5,6 +5,8 @@ package mount // import "github.com/docker/docker/pkg/mount"
 import (
 	"bytes"
 	"testing"
+
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 const (
@@ -424,7 +426,7 @@ const (
 
 func TestParseFedoraMountinfo(t *testing.T) {
 	r := bytes.NewBuffer([]byte(fedoraMountinfo))
-	_, err := parseInfoFile(r)
+	_, err := parseInfoFile(r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -432,7 +434,7 @@ func TestParseFedoraMountinfo(t *testing.T) {
 
 func TestParseUbuntuMountinfo(t *testing.T) {
 	r := bytes.NewBuffer([]byte(ubuntuMountInfo))
-	_, err := parseInfoFile(r)
+	_, err := parseInfoFile(r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -440,7 +442,7 @@ func TestParseUbuntuMountinfo(t *testing.T) {
 
 func TestParseGentooMountinfo(t *testing.T) {
 	r := bytes.NewBuffer([]byte(gentooMountinfo))
-	_, err := parseInfoFile(r)
+	_, err := parseInfoFile(r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -448,7 +450,7 @@ func TestParseGentooMountinfo(t *testing.T) {
 
 func TestParseFedoraMountinfoFields(t *testing.T) {
 	r := bytes.NewBuffer([]byte(fedoraMountinfo))
-	infos, err := parseInfoFile(r)
+	infos, err := parseInfoFile(r, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -473,4 +475,28 @@ func TestParseFedoraMountinfoFields(t *testing.T) {
 	if *infos[0] != mi {
 		t.Fatalf("expected %#v, got %#v", mi, infos[0])
 	}
+}
+
+func TestParseMountinfoFilters(t *testing.T) {
+	r := bytes.NewReader([]byte(fedoraMountinfo))
+
+	infos, err := parseInfoFile(r, SingleEntryFilter("/sys/fs/cgroup"))
+	assert.NilError(t, err)
+	assert.Equal(t, 1, len(infos))
+
+	r.Reset([]byte(fedoraMountinfo))
+	infos, err = parseInfoFile(r, SingleEntryFilter("nonexistent"))
+	assert.NilError(t, err)
+	assert.Equal(t, 0, len(infos))
+
+	r.Reset([]byte(fedoraMountinfo))
+	infos, err = parseInfoFile(r, PrefixFilter("/sys"))
+	assert.NilError(t, err)
+	// there are 18 entries starting with /sys in fedoraMountinfo
+	assert.Equal(t, 18, len(infos))
+
+	r.Reset([]byte(fedoraMountinfo))
+	infos, err = parseInfoFile(r, PrefixFilter("nonexistent"))
+	assert.NilError(t, err)
+	assert.Equal(t, 0, len(infos))
 }

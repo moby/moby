@@ -398,7 +398,7 @@ func getSourceMount(source string) (string, string, error) {
 		return "", "", err
 	}
 
-	mountinfos, err := mount.GetMounts()
+	mountinfos, err := mount.GetMounts(nil)
 	if err != nil {
 		return "", "", err
 	}
