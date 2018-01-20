@@ -151,7 +151,7 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 
 // ShmResourcePath returns path to shm
 func (container *Container) ShmResourcePath() (string, error) {
-	return container.GetRootResourcePath("shm")
+	return container.MountsResourcePath("shm")
 }
 
 // HasMountFor checks if path is a mountpoint
@@ -218,49 +218,61 @@ func (container *Container) IpcMounts() []Mount {
 }
 
 // SecretMounts returns the mounts for the secret path.
-func (container *Container) SecretMounts() []Mount {
+func (container *Container) SecretMounts() ([]Mount, error) {
 	var mounts []Mount
 	for _, r := range container.SecretReferences {
 		if r.File == nil {
 			continue
 		}
+		src, err := container.SecretFilePath(*r)
+		if err != nil {
+			return nil, err
+		}
 		mounts = append(mounts, Mount{
-			Source:      container.SecretFilePath(*r),
+			Source:      src,
 			Destination: getSecretTargetPath(r),
 			Writable:    false,
 		})
 	}
 
-	return mounts
+	return mounts, nil
 }
 
 // UnmountSecrets unmounts the local tmpfs for secrets
 func (container *Container) UnmountSecrets() error {
-	if _, err := os.Stat(container.SecretMountPath()); err != nil {
+	p, err := container.SecretMountPath()
+	if err != nil {
+		return err
+	}
+	if _, err := os.Stat(p); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}
 		return err
 	}
 
-	return detachMounted(container.SecretMountPath())
+	return mount.RecursiveUnmount(p)
 }
 
 // ConfigMounts returns the mounts for configs.
-func (container *Container) ConfigMounts() []Mount {
+func (container *Container) ConfigMounts() ([]Mount, error) {
 	var mounts []Mount
 	for _, configRef := range container.ConfigReferences {
 		if configRef.File == nil {
 			continue
 		}
+		src, err := container.ConfigFilePath(*configRef)
+		if err != nil {
+			return nil, err
+		}
 		mounts = append(mounts, Mount{
-			Source:      container.ConfigFilePath(*configRef),
+			Source:      src,
 			Destination: configRef.File.Name,
 			Writable:    false,
 		})
 	}
 
-	return mounts
+	return mounts, nil
 }
 
 type conflictingUpdateOptions string

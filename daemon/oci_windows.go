@@ -93,12 +93,20 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 	}
 
-	if m := c.SecretMounts(); m != nil {
-		mounts = append(mounts, m...)
+	secretMounts, err := c.SecretMounts()
+	if err != nil {
+		return nil, err
+	}
+	if secretMounts != nil {
+		mounts = append(mounts, secretMounts...)
 	}
 
-	if m := c.ConfigMounts(); m != nil {
-		mounts = append(mounts, m...)
+	configMounts, err := c.ConfigMounts()
+	if err != nil {
+		return nil, err
+	}
+	if configMounts != nil {
+		mounts = append(mounts, configMounts...)
 	}
 
 	for _, mount := range mounts {

@@ -1022,14 +1022,23 @@ func (container *Container) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	return &rio{IO: iop, sc: container.StreamConfig}, nil
 }
 
+// MountsResourcePath returns the path where mounts are stored for the given mount
+func (container *Container) MountsResourcePath(mount string) (string, error) {
+	return container.GetRootResourcePath(filepath.Join("mounts", mount))
+}
+
 // SecretMountPath returns the path of the secret mount for the container
-func (container *Container) SecretMountPath() string {
-	return filepath.Join(container.Root, "secrets")
+func (container *Container) SecretMountPath() (string, error) {
+	return container.MountsResourcePath("secrets")
 }
 
 // SecretFilePath returns the path to the location of a secret on the host.
-func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) string {
-	return filepath.Join(container.SecretMountPath(), secretRef.SecretID)
+func (container *Container) SecretFilePath(secretRef swarmtypes.SecretReference) (string, error) {
+	secrets, err := container.SecretMountPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(secrets, secretRef.SecretID), nil
 }
 
 func getSecretTargetPath(r *swarmtypes.SecretReference) string {
@@ -1042,13 +1051,17 @@ func getSecretTargetPath(r *swarmtypes.SecretReference) string {
 
 // ConfigsDirPath returns the path to the directory where configs are stored on
 // disk.
-func (container *Container) ConfigsDirPath() string {
-	return filepath.Join(container.Root, "configs")
+func (container *Container) ConfigsDirPath() (string, error) {
+	return container.GetRootResourcePath("configs")
 }
 
 // ConfigFilePath returns the path to the on-disk location of a config.
-func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
-	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) (string, error) {
+	configs, err := container.ConfigsDirPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configs, configRef.ConfigID), nil
 }
 
 // CreateDaemonEnvironment creates a new environment variable slice for this container.
