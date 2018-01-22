@@ -27,6 +27,7 @@ type JSONFileLogger struct {
 	closed  bool
 	writer  *loggerutils.LogFile
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
+	tag     string                          // tag values requested by the user to log
 }
 
 func init() {
@@ -61,11 +62,21 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	var extra []byte
 	attrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
+
+	// no default template. only use a tag if the user asked for it
+	tag, err := loggerutils.ParseLogTag(info, "")
+	if err != nil {
+		return nil, err
+	}
+	if tag != "" {
+		attrs["tag"] = tag
+	}
+
+	var extra []byte
 	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
@@ -92,6 +103,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	return &JSONFileLogger{
 		writer:  writer,
 		readers: make(map[*logger.LogWatcher]struct{}),
+		tag:     tag,
 	}, nil
 }
 
@@ -130,6 +142,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "env":
 		case "env-regex":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}
