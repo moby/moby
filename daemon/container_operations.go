@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
+	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/types"
@@ -259,6 +260,13 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 		}
 
 		if sn.Name() == n.Name() {
+			// If the network scope is swarm, then this
+			// is an attachable network, which may not
+			// be locally available previously.
+			// So always update.
+			if n.Info().Scope() == netconst.SwarmScope {
+				continue
+			}
 			// Avoid duplicate config
 			return nil
 		}
@@ -272,10 +280,8 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 		}
 	}
 
-	if _, ok := container.NetworkSettings.Networks[n.Name()]; !ok {
-		container.NetworkSettings.Networks[n.Name()] = &network.EndpointSettings{
-			EndpointSettings: endpointConfig,
-		}
+	container.NetworkSettings.Networks[n.Name()] = &network.EndpointSettings{
+		EndpointSettings: endpointConfig,
 	}
 
 	return nil
