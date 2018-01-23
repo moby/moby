@@ -43,6 +43,8 @@ func ExportedToError(ee *ExportedError) error {
 		return os.ErrExist
 	} else if ee.Error() == os.ErrPermission.Error() {
 		return os.ErrPermission
+	} else if ee.Error() == io.EOF.Error() {
+		return io.EOF
 	}
 	return ee
 }
