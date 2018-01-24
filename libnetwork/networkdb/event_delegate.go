@@ -26,13 +26,10 @@ func (e *eventDelegate) NotifyJoin(mn *memberlist.Node) {
 	e.broadcastNodeEvent(mn.Addr, opCreate)
 	e.nDB.Lock()
 	defer e.nDB.Unlock()
+
 	// In case the node is rejoining after a failure or leave,
-	// wait until an explicit join message arrives before adding
-	// it to the nodes just to make sure this is not a stale
-	// join. If you don't know about this node add it immediately.
-	_, fOk := e.nDB.failedNodes[mn.Name]
-	_, lOk := e.nDB.leftNodes[mn.Name]
-	if fOk || lOk {
+	// just add the node back to active
+	if moved, _ := e.nDB.changeNodeState(mn.Name, nodeActiveState); moved {
 		return
 	}
 

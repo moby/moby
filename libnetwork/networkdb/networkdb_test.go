@@ -735,3 +735,64 @@ func TestNodeReincarnation(t *testing.T) {
 
 	closeNetworkDBInstances(dbs)
 }
+
+func TestParallelCreate(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+
+	startCh := make(chan int)
+	doneCh := make(chan error)
+	var success int32
+	for i := 0; i < 20; i++ {
+		go func() {
+			<-startCh
+			err := dbs[0].CreateEntry("testTable", "testNetwork", "key", []byte("value"))
+			if err == nil {
+				atomic.AddInt32(&success, 1)
+			}
+			doneCh <- err
+		}()
+	}
+
+	close(startCh)
+
+	for i := 0; i < 20; i++ {
+		<-doneCh
+	}
+	close(doneCh)
+	// Only 1 write should have succeeded
+	assert.Equal(t, int32(1), success)
+
+	closeNetworkDBInstances(dbs)
+}
+
+func TestParallelDelete(t *testing.T) {
+	dbs := createNetworkDBInstances(t, 1, "node", DefaultConfig())
+
+	err := dbs[0].CreateEntry("testTable", "testNetwork", "key", []byte("value"))
+	assert.NoError(t, err)
+
+	startCh := make(chan int)
+	doneCh := make(chan error)
+	var success int32
+	for i := 0; i < 20; i++ {
+		go func() {
+			<-startCh
+			err := dbs[0].DeleteEntry("testTable", "testNetwork", "key")
+			if err == nil {
+				atomic.AddInt32(&success, 1)
+			}
+			doneCh <- err
+		}()
+	}
+
+	close(startCh)
+
+	for i := 0; i < 20; i++ {
+		<-doneCh
+	}
+	close(doneCh)
+	// Only 1 write should have succeeded
+	assert.Equal(t, int32(1), success)
+
+	closeNetworkDBInstances(dbs)
+}

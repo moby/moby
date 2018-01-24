@@ -117,7 +117,7 @@ func (s *suspicion) Confirm(from string) bool {
 	// stop the timer then we will call the timeout function directly from
 	// here.
 	n := atomic.AddInt32(&s.n, 1)
-	elapsed := time.Now().Sub(s.start)
+	elapsed := time.Since(s.start)
 	remaining := remainingSuspicionTime(n, s.k, elapsed, s.min, s.max)
 	if s.timer.Stop() {
 		if remaining > 0 {

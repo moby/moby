@@ -17,7 +17,7 @@ type Packet struct {
 
 	// Timestamp is the time when the packet was received. This should be
 	// taken as close as possible to the actual receipt time to help make an
-	// accurate RTT measurements during probes.
+	// accurate RTT measurement during probes.
 	Timestamp time.Time
 }
 
