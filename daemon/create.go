@@ -322,8 +322,11 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 		return nil
 	}
 	if len(nwConfig.EndpointsConfig) == 1 {
-		for _, v := range nwConfig.EndpointsConfig {
-			if v != nil && v.IPAMConfig != nil {
+		for k, v := range nwConfig.EndpointsConfig {
+			if v == nil {
+				return errdefs.InvalidParameter(errors.Errorf("no EndpointSettings for %s", k))
+			}
+			if v.IPAMConfig != nil {
 				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
 					return errors.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
 				}
