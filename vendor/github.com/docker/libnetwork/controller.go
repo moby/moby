@@ -48,6 +48,7 @@ import (
 	"fmt"
 	"net"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -1074,10 +1075,15 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	}
 	c.Unlock()
 
+	sandboxID := stringid.GenerateRandomID()
+	if runtime.GOOS == "windows" {
+		sandboxID = containerID
+	}
+
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
 		sb = &sandbox{
-			id:                 stringid.GenerateRandomID(),
+			id:                 sandboxID,
 			containerID:        containerID,
 			endpoints:          epHeap{},
 			epPriority:         map[string]int{},
