@@ -882,9 +882,7 @@ addToStore:
 		c.Unlock()
 	}
 
-	c.Lock()
-	arrangeUserFilterRule()
-	c.Unlock()
+	c.arrangeUserFilterRule()
 
 	return network, nil
 }
