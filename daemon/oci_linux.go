@@ -24,6 +24,7 @@ import (
 	"github.com/opencontainers/runc/libcontainer/devices"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -419,52 +420,46 @@ func getSourceMount(source string) (string, string, error) {
 	return "", "", fmt.Errorf("Could not find source mount of %s", source)
 }
 
+const (
+	sharedPropagationOption = "shared:"
+	slavePropagationOption  = "master:"
+)
+
+// hasMountinfoOption checks if any of the passed any of the given option values
+// are set in the passed in option string.
+func hasMountinfoOption(opts string, vals ...string) bool {
+	for _, opt := range strings.Split(opts, " ") {
+		for _, val := range vals {
+			if strings.HasPrefix(opt, val) {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 // Ensure mount point on which path is mounted, is shared.
 func ensureShared(path string) error {
-	sharedMount := false
-
 	sourceMount, optionalOpts, err := getSourceMount(path)
 	if err != nil {
 		return err
 	}
 	// Make sure source mount point is shared.
-	optsSplit := strings.Split(optionalOpts, " ")
-	for _, opt := range optsSplit {
-		if strings.HasPrefix(opt, "shared:") {
-			sharedMount = true
-			break
-		}
-	}
-
-	if !sharedMount {
-		return fmt.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
+	if !hasMountinfoOption(optionalOpts, sharedPropagationOption) {
+		return errors.Errorf("path %s is mounted on %s but it is not a shared mount", path, sourceMount)
 	}
 	return nil
 }
 
 // Ensure mount point on which path is mounted, is either shared or slave.
 func ensureSharedOrSlave(path string) error {
-	sharedMount := false
-	slaveMount := false
-
 	sourceMount, optionalOpts, err := getSourceMount(path)
 	if err != nil {
 		return err
 	}
-	// Make sure source mount point is shared.
-	optsSplit := strings.Split(optionalOpts, " ")
-	for _, opt := range optsSplit {
-		if strings.HasPrefix(opt, "shared:") {
-			sharedMount = true
-			break
-		} else if strings.HasPrefix(opt, "master:") {
-			slaveMount = true
-			break
-		}
-	}
 
-	if !sharedMount && !slaveMount {
-		return fmt.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
+	if !hasMountinfoOption(optionalOpts, sharedPropagationOption, slavePropagationOption) {
+		return errors.Errorf("path %s is mounted on %s but it is not a shared or slave mount", path, sourceMount)
 	}
 	return nil
 }

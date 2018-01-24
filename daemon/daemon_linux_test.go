@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/mount"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -163,4 +164,67 @@ func TestValidateContainerIsolationLinux(t *testing.T) {
 
 	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
 	assert.EqualError(t, err, "invalid isolation 'hyperv' on linux")
+}
+
+func TestShouldUnmountRoot(t *testing.T) {
+	for _, test := range []struct {
+		desc   string
+		root   string
+		info   *mount.Info
+		expect bool
+	}{
+		{
+			desc:   "root is at /",
+			root:   "/docker",
+			info:   &mount.Info{Root: "/docker", Mountpoint: "/docker"},
+			expect: true,
+		},
+		{
+			desc:   "not a mountpoint",
+			root:   "/docker",
+			info:   nil,
+			expect: false,
+		},
+		{
+			desc:   "root is at in a submount from `/`",
+			root:   "/foo/docker",
+			info:   &mount.Info{Root: "/docker", Mountpoint: "/foo/docker"},
+			expect: true,
+		},
+		{
+			desc:   "root is mounted in from a parent mount namespace same root dir", // dind is an example of this
+			root:   "/docker",
+			info:   &mount.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/docker"},
+			expect: false,
+		},
+		{
+			desc:   "root is mounted in from a parent mount namespace different root dir",
+			root:   "/foo/bar",
+			info:   &mount.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/foo/bar"},
+			expect: false,
+		},
+	} {
+		t.Run(test.desc, func(t *testing.T) {
+			for _, options := range []struct {
+				desc     string
+				Optional string
+				expect   bool
+			}{
+				{desc: "shared", Optional: "shared:", expect: true},
+				{desc: "slave", Optional: "slave:", expect: false},
+				{desc: "private", Optional: "private:", expect: false},
+			} {
+				t.Run(options.desc, func(t *testing.T) {
+					expect := options.expect
+					if expect {
+						expect = test.expect
+					}
+					if test.info != nil {
+						test.info.Optional = options.Optional
+					}
+					assert.Equal(t, expect, shouldUnmountRoot(test.root, test.info))
+				})
+			}
+		})
+	}
 }
