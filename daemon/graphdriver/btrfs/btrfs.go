@@ -191,33 +191,7 @@ func getDirFd(dir *C.DIR) uintptr {
 	return uintptr(C.dirfd(dir))
 }
 
-func subvolCreate(path, name string) error {
-	dir, err := openDir(path)
-	if err != nil {
-		return err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_vol_args
-	for i, c := range []byte(name) {
-		args.name[i] = C.char(c)
-	}
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_CREATE,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
-	}
-	return nil
-}
-
 func subvolSnapshot(src, dest, name string) error {
-	srcDir, err := openDir(src)
-	if err != nil {
-		return err
-	}
-	defer closeDir(srcDir)
-
 	destDir, err := openDir(dest)
 	if err != nil {
 		return err
@@ -225,17 +199,45 @@ func subvolSnapshot(src, dest, name string) error {
 	defer closeDir(destDir)
 
 	var args C.struct_btrfs_ioctl_vol_args_v2
-	args.fd = C.__s64(getDirFd(srcDir))
+	// always create readonly subvols
+	args.flags |= C.BTRFS_SUBVOL_RDONLY
+
+	var cmd uintptr = C.BTRFS_IOC_SUBVOL_CREATE_V2
+	if src != "" {
+		cmd = C.BTRFS_IOC_SNAP_CREATE_V2
+
+		srcDir, err := openDir(src)
+		if err != nil {
+			return err
+		}
+		defer closeDir(srcDir)
+
+		args.fd = C.__s64(getDirFd(srcDir))
+	}
 
 	var cs = C.CString(name)
 	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
 	C.free(unsafe.Pointer(cs))
 
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), C.BTRFS_IOC_SNAP_CREATE_V2,
-		uintptr(unsafe.Pointer(&args)))
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), cmd, uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to create btrfs snapshot: %v", errno.Error())
+		return fmt.Errorf("Failed to create btrfs subvolume: %v", errno.Error())
 	}
+
+	// SUBVOL_CREATE ignore BTRFS_SUBVOL_RDONLY flag so reapply it
+	if cmd == C.BTRFS_IOC_SUBVOL_CREATE_V2 {
+		subDir, err := openDir(path.Join(dest, name))
+		if err != nil {
+			return err
+		}
+		defer closeDir(subDir)
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(subDir), C.BTRFS_IOC_SUBVOL_SETFLAGS,
+			uintptr(unsafe.Pointer(&args.flags)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to set btrfs subvolume flags for %s: %v", name, errno.Error())
+		}
+	}
+
 	return nil
 }
 
@@ -256,6 +258,11 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 	}
 	defer closeDir(dir)
 	fullPath := path.Join(dirpath, name)
+
+	// Makes subvolume writable
+	if err := subvolSetPropRO(fullPath, false); err != nil {
+		return err
+	}
 
 	var args C.struct_btrfs_ioctl_vol_args
 
@@ -284,7 +291,7 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 		}
 		return nil
 	}
-	if err := filepath.Walk(path.Join(dirpath, name), walkSubvolumes); err != nil {
+	if err := filepath.Walk(fullPath, walkSubvolumes); err != nil {
 		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
 	}
 
@@ -312,6 +319,36 @@ func subvolDelete(dirpath, name string, quotaEnabled bool) error {
 		uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
+	}
+	return nil
+}
+
+func subvolSetPropRO(path string, isReadOnly bool) error {
+	dir, err := openDir(path)
+	if err != nil {
+		return err
+	}
+	defer closeDir(dir)
+
+	var oldflags, newflags C.__u64
+	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_GETFLAGS,
+		uintptr(unsafe.Pointer(&oldflags)))
+	if errno != 0 {
+		return fmt.Errorf("Failed to get btrfs subvolume flags for %s: %v", path, errno.Error())
+	}
+
+	if isReadOnly {
+		newflags = oldflags | C.BTRFS_SUBVOL_RDONLY
+	} else {
+		newflags = oldflags &^ C.BTRFS_SUBVOL_RDONLY
+	}
+
+	if newflags != oldflags {
+		_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_SETFLAGS,
+			uintptr(unsafe.Pointer(&newflags)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to set btrfs subvolume flags for %s: %v", path, errno.Error())
+		}
 	}
 	return nil
 }
@@ -501,8 +538,8 @@ func (d *Driver) CreateReadWrite(id, parent string, opts *graphdriver.CreateOpts
 
 // Create the filesystem with given id.
 func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
-	quotas := path.Join(d.home, "quotas")
-	subvolumes := path.Join(d.home, "subvolumes")
+	quotas := d.quotasDir()
+	subvolumes := d.subvolumesDir()
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
 		return err
@@ -510,12 +547,9 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	if err := idtools.MkdirAllAndChown(subvolumes, 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 		return err
 	}
-	if parent == "" {
-		if err := subvolCreate(subvolumes, id); err != nil {
-			return err
-		}
-	} else {
-		parentDir := d.subvolumesDirID(parent)
+	parentDir := ""
+	if parent != "" {
+		parentDir = d.subvolumesDirID(parent)
 		st, err := os.Stat(parentDir)
 		if err != nil {
 			return err
@@ -523,9 +557,9 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		if !st.IsDir() {
 			return fmt.Errorf("%s: not a directory", parentDir)
 		}
-		if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
-			return err
-		}
+	}
+	if err := subvolSnapshot(parentDir, subvolumes, id); err != nil {
+		return err
 	}
 
 	var storageOpt map[string]string
@@ -533,19 +567,20 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		storageOpt = opts.StorageOpt
 	}
 
+	subvolumeDir := d.subvolumesDirID(id)
 	if _, ok := storageOpt["size"]; ok {
 		driver := &Driver{}
 		if err := d.parseStorageOpt(storageOpt, driver); err != nil {
 			return err
 		}
 
-		if err := d.setStorageSize(path.Join(subvolumes, id), driver); err != nil {
+		if err := d.setStorageSize(subvolumeDir, driver); err != nil {
 			return err
 		}
 		if err := idtools.MkdirAllAndChown(quotas, 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 			return err
 		}
-		if err := ioutil.WriteFile(path.Join(quotas, id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
+		if err := ioutil.WriteFile(d.quotasDirID(id), []byte(fmt.Sprint(driver.options.size)), 0644); err != nil {
 			return err
 		}
 	}
@@ -553,7 +588,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 	// if we have a remapped root (user namespaces enabled), change the created snapshot
 	// dir ownership to match
 	if rootUID != 0 || rootGID != 0 {
-		if err := os.Chown(path.Join(subvolumes, id), rootUID, rootGID); err != nil {
+		if err := os.Chown(subvolumeDir, rootUID, rootGID); err != nil {
 			return err
 		}
 	}
@@ -563,7 +598,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) error {
 		mountLabel = opts.MountLabel
 	}
 
-	return label.Relabel(path.Join(subvolumes, id), mountLabel, false)
+	return label.Relabel(subvolumeDir, mountLabel, false)
 }
 
 // Parse btrfs storage options
@@ -639,6 +674,11 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 		return nil, fmt.Errorf("%s: not a directory", dir)
 	}
 
+	// Makes subvolume writable
+	if err := subvolSetPropRO(dir, false); err != nil {
+		return nil, err
+	}
+
 	if quota, err := ioutil.ReadFile(d.quotasDirID(id)); err == nil {
 		if size, err := strconv.ParseUint(string(quota), 10, 64); err == nil && size >= d.options.minSpace {
 			if err := d.subvolEnableQuota(); err != nil {
@@ -653,11 +693,9 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	return containerfs.NewLocalContainerFS(dir), nil
 }
 
-// Put is not implemented for BTRFS as there is no cleanup required for the id.
+// Put is return BTRFS subvolume to readonly state.
 func (d *Driver) Put(id string) error {
-	// Get() creates no runtime resources (like e.g. mounts)
-	// so this doesn't need to do anything.
-	return nil
+	return subvolSetPropRO(d.subvolumesDirID(id), true)
 }
 
 // Exists checks if the id exists in the filesystem.
