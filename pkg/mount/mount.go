@@ -72,7 +72,9 @@ func RecursiveUnmount(target string) error {
 	}
 
 	// Make the deepest mount be first
-	sort.Sort(sort.Reverse(byMountpoint(mounts)))
+	sort.Slice(mounts, func(i, j int) bool {
+		return len(mounts[i].Mountpoint) > len(mounts[j].Mountpoint)
+	})
 
 	for i, m := range mounts {
 		if !strings.HasPrefix(m.Mountpoint, target) {
