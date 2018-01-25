@@ -42,7 +42,7 @@ func TestBtrfsSubvolDelete(t *testing.T) {
 	}
 	defer d.Put("test")
 
-	if err := subvolCreate(dir, "subvoltest"); err != nil {
+	if err := subvolSnapshot("", dir, "subvoltest"); err != nil {
 		t.Fatal(err)
 	}
 
