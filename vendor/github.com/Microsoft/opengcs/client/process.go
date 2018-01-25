@@ -84,8 +84,11 @@ func (config *Config) RunProcess(commandLine string, stdin io.Reader, stdout io.
 		}
 
 		// Don't need stdin now we've sent everything. This signals GCS that we are finished sending data.
-		if err := process.Process.CloseStdin(); err != nil {
-			return nil, err
+		if err := process.Process.CloseStdin(); err != nil && !hcsshim.IsNotExist(err) && !hcsshim.IsAlreadyClosed(err) {
+			// This error will occur if the compute system is currently shutting down
+			if perr, ok := err.(*hcsshim.ProcessError); ok && perr.Err != hcsshim.ErrVmcomputeOperationInvalidState {
+				return nil, err
+			}
 		}
 	}
 
