@@ -862,14 +862,10 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	for _, ns := range s.Linux.Namespaces {
 		if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
-			target, err := os.Readlink(filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe"))
-			if err != nil {
-				return nil, err
-			}
-
+			target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
 			s.Hooks = &specs.Hooks{
 				Prestart: []specs.Hook{{
-					Path: target, // FIXME: cross-platform
+					Path: target,
 					Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},
 				}},
 			}
