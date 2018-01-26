@@ -97,7 +97,63 @@ func TestScan(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(pluginNamesNotEmpty) != 1 {
+		t.Fatalf("expected 1 plugin entry: %v", pluginNamesNotEmpty)
+	}
 	if p.Name() != pluginNamesNotEmpty[0] {
 		t.Fatalf("Unable to scan plugin with name %s", p.name)
+	}
+}
+
+func TestScanNotPlugins(t *testing.T) {
+	tmpdir, unregister := Setup(t)
+	defer unregister()
+
+	// not that `Setup()` above sets the sockets path and spec path dirs, which
+	// `Scan()` uses to find plugins to the returned `tmpdir`
+
+	notPlugin := filepath.Join(tmpdir, "not-a-plugin")
+	if err := os.MkdirAll(notPlugin, 0700); err != nil {
+		t.Fatal(err)
+	}
+
+	// this is named differently than the dir it's in, so the scanner should ignore it
+	l, err := net.Listen("unix", filepath.Join(notPlugin, "foo.sock"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+
+	// same let's test a spec path
+	f, err := os.Create(filepath.Join(notPlugin, "foo.spec"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	names, err := Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 0 {
+		t.Fatalf("expected no plugins, got %v", names)
+	}
+
+	// Just as a sanity check, let's make an entry that the scanner should read
+	f, err = os.Create(filepath.Join(notPlugin, "not-a-plugin.spec"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer f.Close()
+
+	names, err = Scan()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(names) != 1 {
+		t.Fatalf("expected 1 entry in result: %v", names)
+	}
+	if names[0] != "not-a-plugin" {
+		t.Fatalf("expected plugin named `not-a-plugin`, got: %s", names[0])
 	}
 }
