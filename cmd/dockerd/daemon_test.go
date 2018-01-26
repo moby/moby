@@ -61,6 +61,22 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	testutil.ErrorContains(t, err, "as a flag and in the configuration file: labels")
 }
 
+func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"node-generic-resources": ["foo=bar", "bar=baz"]}`))
+	defer tempFile.Remove()
+	configFile := tempFile.Path()
+
+	opts := defaultOptions(configFile)
+	flags := opts.flags
+
+	assert.NoError(t, flags.Set("config-file", configFile))
+	assert.NoError(t, flags.Set("node-generic-resource", "r1=bar"))
+	assert.NoError(t, flags.Set("node-generic-resource", "r2=baz"))
+
+	_, err := loadDaemonCliConfig(opts)
+	testutil.ErrorContains(t, err, "as a flag and in the configuration file: node-generic-resources")
+}
+
 func TestLoadDaemonCliWithConflictingLabels(t *testing.T) {
 	opts := defaultOptions("")
 	flags := opts.flags
