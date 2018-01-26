@@ -36,6 +36,17 @@ func SingleEntryFilter(mp string) FilterFunc {
 	}
 }
 
+// ParentsFilter returns all entries whose mount points
+// can be parents of a path specified, discarding others.
+// For example, given `/var/lib/docker/something`, entries
+// like `/var/lib/docker`, `/var` and `/` are returned.
+func ParentsFilter(path string) FilterFunc {
+	return func(m *Info) (bool, bool) {
+		skip := !strings.HasPrefix(path, m.Mountpoint)
+		return skip, false
+	}
+}
+
 // GetMounts retrieves a list of mounts for the current running process,
 // with an optional filter applied (use nil for no filter).
 func GetMounts(f FilterFunc) ([]*Info, error) {

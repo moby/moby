@@ -380,15 +380,6 @@ func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
 	return ids
 }
 
-func getMountInfo(mountinfo []*mount.Info, dir string) *mount.Info {
-	for _, m := range mountinfo {
-		if m.Mountpoint == dir {
-			return m
-		}
-	}
-	return nil
-}
-
 // Get the source mount point of directory passed in as argument. Also return
 // optional fields.
 func getSourceMount(source string) (string, string, error) {
@@ -398,28 +389,25 @@ func getSourceMount(source string) (string, string, error) {
 		return "", "", err
 	}
 
-	mountinfos, err := mount.GetMounts(nil)
+	mi, err := mount.GetMounts(mount.ParentsFilter(sourcePath))
 	if err != nil {
 		return "", "", err
 	}
-
-	mountinfo := getMountInfo(mountinfos, sourcePath)
-	if mountinfo != nil {
-		return sourcePath, mountinfo.Optional, nil
+	if len(mi) < 1 {
+		return "", "", fmt.Errorf("Can't find mount point of %s", source)
 	}
 
-	path := sourcePath
-	for {
-		path = filepath.Dir(path)
-
-		mountinfo = getMountInfo(mountinfos, path)
-		if mountinfo != nil {
-			return path, mountinfo.Optional, nil
+	// find the longest mount point
+	var idx, maxlen int
+	for i := range mi {
+		if len(mi[i].Mountpoint) > maxlen {
+			maxlen = len(mi[i].Mountpoint)
+			idx = i
 		}
-
-		if path == "/" {
-			break
-		}
+	}
+	// and return it unless it's "/"
+	if mi[idx].Mountpoint != "/" {
+		return mi[idx].Mountpoint, mi[idx].Optional, nil
 	}
 
 	// If we are here, we did not find parent mount. Something is wrong.

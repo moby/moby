@@ -499,4 +499,10 @@ func TestParseMountinfoFilters(t *testing.T) {
 	infos, err = parseInfoFile(r, PrefixFilter("nonexistent"))
 	assert.NilError(t, err)
 	assert.Equal(t, 0, len(infos))
+
+	r.Reset([]byte(fedoraMountinfo))
+	infos, err = parseInfoFile(r, ParentsFilter("/sys/fs/cgroup/cpu,cpuacct"))
+	assert.NilError(t, err)
+	// there should be 4 results returned: /sys/fs/cgroup/cpu,cpuacct /sys/fs/cgroup /sys /
+	assert.Equal(t, 4, len(infos))
 }
