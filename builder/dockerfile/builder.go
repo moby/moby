@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/ioutil"
 	"runtime"
-   "strconv"
 	"strings"
 	"time"
 
@@ -43,7 +42,8 @@ var validCommitCommands = map[string]bool{
 }
 
 const (
-	stepFormat = "%s Step %d/%d : %v"
+	stepFormat   = "Step %d/%d : %v"
+	timingFormat = " ---> completed in: %s"
 )
 
 // time tracking variable
@@ -273,10 +273,12 @@ func processMetaArg(meta instructions.ArgCommand, shlex *ShellLex, args *buildAr
 }
 
 func printCommand(out io.Writer, currentCommandIndex int, totalCommands int, cmd interface{}) int {
-   exectime := time.Now()
-   fmt.Fprintf(out, stepFormat, strconv.FormatInt(int64(exectime.Sub(starttime)/time.Millisecond),10),currentCommandIndex, totalCommands, cmd)
+	exectime := time.Now()
+	fmt.Fprintf(out, stepFormat, currentCommandIndex, totalCommands, cmd)
 	fmt.Fprintln(out)
-   starttime = time.Now()
+	fmt.Fprintf(out, timingFormat, exectime.Sub(starttime)/time.Millisecond)
+	fmt.Fprintln(out)
+	starttime = time.Now()
 	return currentCommandIndex + 1
 }
 
