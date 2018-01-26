@@ -42,10 +42,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := mount.MakePrivate(home); err != nil {
-		return nil, err
-	}
-
 	d := &Driver{
 		DeviceSet: deviceSet,
 		home:      home,
@@ -127,7 +123,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 func (d *Driver) Cleanup() error {
 	err := d.DeviceSet.Shutdown(d.home)
 
-	if err2 := mount.Unmount(d.home); err == nil {
+	if err2 := mount.RecursiveUnmount(d.home); err == nil {
 		err = err2
 	}
 

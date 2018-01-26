@@ -164,10 +164,6 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 
-	if err := mount.MakePrivate(home); err != nil {
-		return nil, err
-	}
-
 	d := &Driver{
 		home:          home,
 		uidMaps:       uidMaps,
@@ -248,7 +244,7 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 // is being shutdown. For now, we just have to unmount the bind mounted
 // we had created.
 func (d *Driver) Cleanup() error {
-	return mount.Unmount(d.home)
+	return mount.RecursiveUnmount(d.home)
 }
 
 // CreateReadWrite creates a layer that is writable for use as a container
