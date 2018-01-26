@@ -13,7 +13,7 @@ var pathBlacklist = map[string]bool{
 	"c:\\windows": true,
 }
 
-func fixPermissions(source, destination string, rootIDs idtools.IDPair, overrideSkip bool) error {
+func fixPermissions(source, destination string, rootIDs idtools.IDPair, mod uint16, overrideSkip bool) error {
 	// chown is not supported on Windows
 	return nil
 }

@@ -163,11 +163,16 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error {
 	srcHash := getSourceHashFromInfos(inst.infos)
 
-	var chownComment string
+	var chownComment, chmodComment string
+
+	if inst.chmodStr != "" {
+		chmodComment = fmt.Sprintf("--chmod=%s", inst.chmodStr)
+	}
+
 	if inst.chownStr != "" {
 		chownComment = fmt.Sprintf("--chown=%s", inst.chownStr)
 	}
-	commentStr := fmt.Sprintf("%s %s%s in %s ", inst.cmdName, chownComment, srcHash, inst.dest)
+	commentStr := fmt.Sprintf("%s %s %s%s in %s ", inst.cmdName, chownComment, chmodComment, srcHash, inst.dest)
 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	optionsPlatform := system.ParsePlatform(b.options.Platform)
@@ -190,6 +195,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	}
 
 	chownPair := b.idMappings.RootPair()
+	var chmodVal uint16
 	// if a chown was requested, perform the steps to get the uid, gid
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
@@ -200,11 +206,19 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		}
 	}
 
+	if inst.chmodStr != "" {
+		chmodVal, err = parseChmodFlag(inst.chmodStr)
+		if err != nil {
+			return errors.Wrapf(err, "unable to parse chmod value")
+		}
+	}
+
 	for _, info := range inst.infos {
 		opts := copyFileOptions{
 			decompress: inst.allowLocalDecompression,
 			archiver:   b.getArchiver(info.root, destInfo.root),
 			chownPair:  chownPair,
+			chmodVal:   chmodVal,
 		}
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")

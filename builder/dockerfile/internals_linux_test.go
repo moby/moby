@@ -136,3 +136,42 @@ othergrp:x:6666:
 		})
 	}
 }
+
+func TestChmodFlagParsing(t *testing.T) {
+	// positive tests
+	for _, testcase := range []struct {
+		name     string
+		chmodStr string
+		expected uint16
+	}{
+		{
+			name:     "CorrectFlag",
+			chmodStr: "777",
+			expected: 0777,
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			parsedFlag, err := parseChmodFlag(testcase.chmodStr)
+			require.NoError(t, err, "Failed to parse chmod flag: %q", testcase.chmodStr)
+			assert.Equal(t, testcase.expected, parsedFlag, "chmod flag parsing failure")
+		})
+	}
+
+	// error tests
+	for _, testcase := range []struct {
+		name     string
+		chmodStr string
+		descr    string
+	}{
+		{
+			name:     "WrongFlag",
+			chmodStr: "688",
+			descr:    "invalid chmod flag 688",
+		},
+	} {
+		t.Run(testcase.name, func(t *testing.T) {
+			_, err := parseChmodFlag(testcase.chmodStr)
+			assert.EqualError(t, err, testcase.descr, "Expected error string doesn't match")
+		})
+	}
+}

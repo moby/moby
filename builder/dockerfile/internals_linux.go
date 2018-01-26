@@ -49,6 +49,15 @@ func parseChownFlag(chown, ctrRootPath string, idMappings *idtools.IDMappings) (
 	return chownPair, nil
 }
 
+func parseChmodFlag(chmodStr string) (uint16, error) {
+	parsedVal, err := strconv.ParseUint(chmodStr, 8, 64)
+	if err != nil {
+		return 0, errors.New("invalid chmod flag " + chmodStr)
+	}
+
+	return uint16(parsedVal), nil
+}
+
 func lookupUser(userStr, filepath string) (int, error) {
 	// if the string is actually a uid integer, parse to int and return
 	// as we don't need to translate with the help of files
