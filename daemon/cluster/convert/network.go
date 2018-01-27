@@ -168,6 +168,7 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		Ingress:    IsIngressNetwork(&n),
 		Labels:     n.Spec.Annotations.Labels,
 	}
+	nr.Created, _ = gogotypes.TimestampFromProto(n.Meta.CreatedAt)
 
 	if n.Spec.GetNetwork() != "" {
 		nr.ConfigFrom = networktypes.ConfigReference{
