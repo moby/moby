@@ -1,6 +1,7 @@
 package service
 
 import (
+	"io/ioutil"
 	"runtime"
 	"testing"
 	"time"
@@ -142,6 +143,168 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	poll.WaitOn(t, networkIsRemoved(client, n3.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 	poll.WaitOn(t, networkIsRemoved(client, n2.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 	poll.WaitOn(t, networkIsRemoved(client, n1.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+}
+
+func TestCreateServiceSecretFileMode(t *testing.T) {
+	defer setupTest(t)()
+	d := newSwarm(t)
+	defer d.Stop(t)
+	client, err := request.NewClientForHost(d.Sock())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	secretResp, err := client.SecretCreate(ctx, swarm.SecretSpec{
+		Annotations: swarm.Annotations{
+			Name: "TestSecret",
+		},
+		Data: []byte("TESTSECRET"),
+	})
+	require.NoError(t, err)
+
+	var instances uint64 = 1
+	serviceSpec := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Name: "TestService",
+		},
+		TaskTemplate: swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image:   "busybox:latest",
+				Command: []string{"/bin/sh", "-c", "ls -l /etc/secret || /bin/top"},
+				Secrets: []*swarm.SecretReference{
+					{
+						File: &swarm.SecretReferenceFileTarget{
+							Name: "/etc/secret",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0777,
+						},
+						SecretID:   secretResp.ID,
+						SecretName: "TestSecret",
+					},
+				},
+			},
+		},
+		Mode: swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: &instances,
+			},
+		},
+	}
+
+	serviceResp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
+		QueryRegistry: false,
+	})
+	require.NoError(t, err)
+
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances))
+
+	filter := filters.NewArgs()
+	filter.Add("service", serviceResp.ID)
+	tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		Filters: filter,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, len(tasks), 1)
+
+	body, err := client.ContainerLogs(ctx, tasks[0].Status.ContainerStatus.ContainerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+	})
+	require.NoError(t, err)
+	defer body.Close()
+
+	content, err := ioutil.ReadAll(body)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "-rwxrwxrwx")
+
+	err = client.ServiceRemove(ctx, serviceResp.ID)
+	require.NoError(t, err)
+
+	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID))
+	poll.WaitOn(t, noTasks(client))
+
+	err = client.SecretRemove(ctx, "TestSecret")
+	require.NoError(t, err)
+}
+
+func TestCreateServiceConfigFileMode(t *testing.T) {
+	defer setupTest(t)()
+	d := newSwarm(t)
+	defer d.Stop(t)
+	client, err := request.NewClientForHost(d.Sock())
+	require.NoError(t, err)
+
+	ctx := context.Background()
+	configResp, err := client.ConfigCreate(ctx, swarm.ConfigSpec{
+		Annotations: swarm.Annotations{
+			Name: "TestConfig",
+		},
+		Data: []byte("TESTCONFIG"),
+	})
+	require.NoError(t, err)
+
+	var instances uint64 = 1
+	serviceSpec := swarm.ServiceSpec{
+		Annotations: swarm.Annotations{
+			Name: "TestService",
+		},
+		TaskTemplate: swarm.TaskSpec{
+			ContainerSpec: &swarm.ContainerSpec{
+				Image:   "busybox:latest",
+				Command: []string{"/bin/sh", "-c", "ls -l /etc/config || /bin/top"},
+				Configs: []*swarm.ConfigReference{
+					{
+						File: &swarm.ConfigReferenceFileTarget{
+							Name: "/etc/config",
+							UID:  "0",
+							GID:  "0",
+							Mode: 0777,
+						},
+						ConfigID:   configResp.ID,
+						ConfigName: "TestConfig",
+					},
+				},
+			},
+		},
+		Mode: swarm.ServiceMode{
+			Replicated: &swarm.ReplicatedService{
+				Replicas: &instances,
+			},
+		},
+	}
+
+	serviceResp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
+		QueryRegistry: false,
+	})
+	require.NoError(t, err)
+
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances))
+
+	filter := filters.NewArgs()
+	filter.Add("service", serviceResp.ID)
+	tasks, err := client.TaskList(ctx, types.TaskListOptions{
+		Filters: filter,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, len(tasks), 1)
+
+	body, err := client.ContainerLogs(ctx, tasks[0].Status.ContainerStatus.ContainerID, types.ContainerLogsOptions{
+		ShowStdout: true,
+	})
+	require.NoError(t, err)
+	defer body.Close()
+
+	content, err := ioutil.ReadAll(body)
+	require.NoError(t, err)
+	assert.Contains(t, string(content), "-rwxrwxrwx")
+
+	err = client.ServiceRemove(ctx, serviceResp.ID)
+	require.NoError(t, err)
+
+	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID))
+	poll.WaitOn(t, noTasks(client))
+
+	err = client.ConfigRemove(ctx, "TestConfig")
+	require.NoError(t, err)
 }
 
 func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
