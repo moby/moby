@@ -33,7 +33,7 @@ type logMessage struct {
 // LogBroker coordinates log subscriptions to services and tasks. Clients can
 // publish and subscribe to logs channels.
 //
-// Log subscriptions are pushed to the work nodes by creating log subscsription
+// Log subscriptions are pushed to the work nodes by creating log subscription
 // tasks. As such, the LogBroker also acts as an orchestrator of these tasks.
 type LogBroker struct {
 	mu                sync.RWMutex

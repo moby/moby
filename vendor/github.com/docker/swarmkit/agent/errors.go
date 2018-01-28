@@ -13,7 +13,7 @@ var (
 	errAgentStarted    = errors.New("agent: already started")
 	errAgentNotStarted = errors.New("agent: not started")
 
-	errTaskNoContoller          = errors.New("agent: no task controller")
+	errTaskNoController         = errors.New("agent: no task controller")
 	errTaskNotAssigned          = errors.New("agent: task not assigned")
 	errTaskStatusUpdateNoChange = errors.New("agent: no change in task status")
 	errTaskUnknown              = errors.New("agent: task unknown")

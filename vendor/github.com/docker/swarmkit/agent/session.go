@@ -65,10 +65,14 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 		grpc.WithTransportCredentials(agent.config.Credentials),
 		grpc.WithTimeout(dispatcherRPCTimeout),
 	)
+
 	if err != nil {
 		s.errs <- err
 		return s
 	}
+
+	log.G(ctx).Infof("manager selected by agent for new session: %v", cc.Peer())
+
 	s.conn = cc
 
 	go s.run(sessionCtx, delay, description)
@@ -77,6 +81,7 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 
 func (s *session) run(ctx context.Context, delay time.Duration, description *api.NodeDescription) {
 	timer := time.NewTimer(delay) // delay before registering.
+	log.G(ctx).Infof("waiting %v before registering session", delay)
 	defer timer.Stop()
 	select {
 	case <-timer.C:
@@ -166,21 +171,31 @@ func (s *session) heartbeat(ctx context.Context) error {
 	heartbeat := time.NewTimer(1) // send out a heartbeat right away
 	defer heartbeat.Stop()
 
+	fields := logrus.Fields{
+		"sessionID": s.sessionID,
+		"method":    "(*session).heartbeat",
+	}
+
 	for {
 		select {
 		case <-heartbeat.C:
 			heartbeatCtx, cancel := context.WithTimeout(ctx, dispatcherRPCTimeout)
+			// TODO(anshul) log manager info in all logs in this function.
+			log.G(ctx).WithFields(fields).Debugf("sending heartbeat to manager %v with timeout %v", s.conn.Peer(), dispatcherRPCTimeout)
 			resp, err := client.Heartbeat(heartbeatCtx, &api.HeartbeatRequest{
 				SessionID: s.sessionID,
 			})
 			cancel()
 			if err != nil {
+				log.G(ctx).WithFields(fields).WithError(err).Errorf("heartbeat to manager %v failed", s.conn.Peer())
 				if grpc.Code(err) == codes.NotFound {
 					err = errNodeNotRegistered
 				}
 
 				return err
 			}
+
+			log.G(ctx).WithFields(fields).Debugf("heartbeat successful to manager %v, next heartbeat period: %v", s.conn.Peer(), resp.Period)
 
 			heartbeat.Reset(resp.Period)
 		case <-s.closed:
@@ -408,7 +423,7 @@ func (s *session) sendError(err error) {
 	}
 }
 
-// close closing session. It should be called only in <-session.errs branch
+// close the given session. It should be called only in <-session.errs branch
 // of event loop, or when cleaning up the agent.
 func (s *session) close() error {
 	s.closeOnce.Do(func() {
