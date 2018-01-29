@@ -6,13 +6,13 @@ import (
 	"net/http"
 
 	events "github.com/docker/go-events"
-	"github.com/docker/libnetwork/diagnose"
+	"github.com/docker/libnetwork/diagnostic"
 	"github.com/docker/libnetwork/networkdb"
 	"github.com/sirupsen/logrus"
 )
 
 // DummyClientPaths2Func exported paths for the client
-var DummyClientPaths2Func = map[string]diagnose.HTTPHandlerFunc{
+var DummyClientPaths2Func = map[string]diagnostic.HTTPHandlerFunc{
 	"/watchtable":          watchTable,
 	"/watchedtableentries": watchTableEntries,
 }
@@ -30,10 +30,10 @@ var clientWatchTable = map[string]tableHandler{}
 
 func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	diagnose.DebugHTTPForm(r)
+	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
-		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
-		diagnose.HTTPReply(w, rsp, &diagnose.JSONOutput{})
+		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{})
 		return
 	}
 
@@ -55,10 +55,10 @@ func watchTable(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 
 func watchTableEntries(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	r.ParseForm()
-	diagnose.DebugHTTPForm(r)
+	diagnostic.DebugHTTPForm(r)
 	if len(r.Form["tname"]) < 1 {
-		rsp := diagnose.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
-		diagnose.HTTPReply(w, rsp, &diagnose.JSONOutput{})
+		rsp := diagnostic.WrongCommand(missingParameter, fmt.Sprintf("%s?tname=table_name", r.URL.Path))
+		diagnostic.HTTPReply(w, rsp, &diagnostic.JSONOutput{})
 		return
 	}
 

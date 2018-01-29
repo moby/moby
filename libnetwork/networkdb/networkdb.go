@@ -328,6 +328,9 @@ func (nDB *NetworkDB) GetEntry(tname, nid, key string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if entry != nil && entry.deleting {
+		return nil, types.NotFoundErrorf("entry in table %s network id %s and key %s deleted and pending garbage collection", tname, nid, key)
+	}
 
 	return entry.value, nil
 }

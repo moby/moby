@@ -1,4 +1,4 @@
-package diagnose
+package diagnostic
 
 import "fmt"
 
@@ -31,7 +31,7 @@ func WrongCommand(message, usage string) *HTTPResult {
 	}
 }
 
-// HTTPResult Diagnose Server HTTP result operation
+// HTTPResult Diagnostic Server HTTP result operation
 type HTTPResult struct {
 	Message string          `json:"message"`
 	Details StringInterface `json:"details"`
