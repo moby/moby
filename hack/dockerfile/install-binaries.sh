@@ -60,7 +60,7 @@ install_proxy() {
 	git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
 	cd "$GOPATH/src/github.com/docker/libnetwork"
 	git checkout -q "$LIBNETWORK_COMMIT"
-	go build -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
+	go build -buildmode=pie -ldflags="$PROXY_LDFLAGS" -o /usr/local/bin/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
 install_dockercli() {
@@ -89,7 +89,7 @@ build_dockercli() {
 	git checkout -q "v$DOCKERCLI_VERSION"
 	mkdir -p "$GOPATH/src/github.com/docker"
 	mv components/cli "$GOPATH/src/github.com/docker/cli"
-	go build -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
+	go build -buildmode=pie -o /usr/local/bin/docker github.com/docker/cli/cmd/docker
 }
 
 install_gometalinter() {
@@ -97,7 +97,7 @@ install_gometalinter() {
 	go get -d github.com/alecthomas/gometalinter
 	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
 	git checkout -q "$GOMETALINTER_COMMIT"
-	go build -o /usr/local/bin/gometalinter github.com/alecthomas/gometalinter
+	go build -buildmode=pie -o /usr/local/bin/gometalinter github.com/alecthomas/gometalinter
 	GOBIN=/usr/local/bin gometalinter --install
 }
 
@@ -108,7 +108,7 @@ do
 			echo "Install tomlv version $TOMLV_COMMIT"
 			git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml"
 			cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT"
-			go build -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv
+			go build -buildmode=pie -v -o /usr/local/bin/tomlv github.com/BurntSushi/toml/cmd/tomlv
 			;;
 
 		runc)
@@ -157,7 +157,7 @@ do
 			git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
 			cd "$GOPATH/src/github.com/LK4D4/vndr"
 			git checkout -q "$VNDR_COMMIT"
-			go build -v -o /usr/local/bin/vndr .
+			go build -buildmode=pie -v -o /usr/local/bin/vndr .
 			;;
 
 		dockercli)

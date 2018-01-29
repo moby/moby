@@ -31,7 +31,7 @@ ENV DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT
 ADD . .
 
 # Build DockerSuite.TestBuild* dependency
-RUN CGO_ENABLED=0 go build -o /output/httpserver github.com/docker/docker/contrib/httpserver
+RUN CGO_ENABLED=0 go build -buildmode=pie -o /output/httpserver github.com/docker/docker/contrib/httpserver
 
 # Build the integration tests and copy the resulting binaries to /output/tests
 RUN hack/make.sh build-integration-test-binary
