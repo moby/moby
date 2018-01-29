@@ -239,6 +239,7 @@ func (p *peer) sendProcessMessage(ctx context.Context, m raftpb.Message) error {
 
 	// Try doing a regular rpc if the receiver doesn't support streaming.
 	if grpc.Code(err) == codes.Unimplemented {
+		log.G(ctx).Info("sending message to raft peer using ProcessRaftMessage()")
 		_, err = api.NewRaftClient(p.conn()).ProcessRaftMessage(ctx, &api.ProcessRaftMessageRequest{Message: &m})
 	}
 

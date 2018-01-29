@@ -333,11 +333,11 @@ func (a *Agent) run(ctx context.Context) {
 					a.config.SessionTracker.SessionError(err)
 				}
 
-				log.G(ctx).WithError(err).Error("agent: session failed")
 				backoff = initialSessionFailureBackoff + 2*backoff
 				if backoff > maxSessionFailureBackoff {
 					backoff = maxSessionFailureBackoff
 				}
+				log.G(ctx).WithError(err).WithField("backoff", backoff).Errorf("agent: session failed")
 			}
 
 			if err := session.close(); err != nil {

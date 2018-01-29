@@ -58,6 +58,7 @@ func (b *Broker) Select(dialOpts ...grpc.DialOption) (*Conn, error) {
 // connection.
 func (b *Broker) SelectRemote(dialOpts ...grpc.DialOption) (*Conn, error) {
 	peer, err := b.remotes.Select()
+
 	if err != nil {
 		return nil, err
 	}
@@ -96,6 +97,11 @@ type Conn struct {
 	isLocal bool
 	remotes remotes.Remotes
 	peer    api.Peer
+}
+
+// Peer returns the peer for this Conn.
+func (c *Conn) Peer() api.Peer {
+	return c.peer
 }
 
 // Close closes the client connection if it is a remote connection. It also
