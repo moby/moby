@@ -239,6 +239,9 @@ func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for secret")
 		}
+		if err := os.Chmod(fPath, s.File.Mode); err != nil {
+			return errors.Wrap(err, "error setting file mode for secret")
+		}
 	}
 
 	label.Relabel(localMountPath, c.MountLabel, false)
@@ -319,6 +322,9 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 
 		if err := os.Chown(fPath, rootIDs.UID+uid, rootIDs.GID+gid); err != nil {
 			return errors.Wrap(err, "error setting ownership for config")
+		}
+		if err := os.Chmod(fPath, configRef.File.Mode); err != nil {
+			return errors.Wrap(err, "error setting file mode for config")
 		}
 
 		label.Relabel(fPath, c.MountLabel, false)
