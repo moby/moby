@@ -208,7 +208,7 @@ func (svm *serviceVM) hotAddVHDsAtStart(mvds ...hcsshim.MappedVirtualDisk) error
 		}
 
 		if err := svm.config.HotAddVhd(mvd.HostPath, mvd.ContainerPath, mvd.ReadOnly, !mvd.AttachOnly); err != nil {
-			svm.hotRemoveVHDsAtStart(mvds[:i]...)
+			svm.hotRemoveVHDsNoLock(mvds[:i]...)
 			return err
 		}
 		svm.attachedVHDs[mvd.HostPath] = 1
@@ -217,17 +217,19 @@ func (svm *serviceVM) hotAddVHDsAtStart(mvds ...hcsshim.MappedVirtualDisk) error
 }
 
 // hotRemoveVHDs waits for the service vm to start and then removes the vhds.
+// The service VM must not be locked when calling this function.
 func (svm *serviceVM) hotRemoveVHDs(mvds ...hcsshim.MappedVirtualDisk) error {
 	if err := svm.getStartError(); err != nil {
 		return err
 	}
-	return svm.hotRemoveVHDsAtStart(mvds...)
-}
-
-// hotRemoveVHDsAtStart works the same way as hotRemoveVHDs but does not wait for the VM to start.
-func (svm *serviceVM) hotRemoveVHDsAtStart(mvds ...hcsshim.MappedVirtualDisk) error {
 	svm.Lock()
 	defer svm.Unlock()
+	return svm.hotRemoveVHDsNoLock(mvds...)
+}
+
+// hotRemoveVHDsNoLock removes VHDs from a service VM. When calling this function,
+// the contract is the service VM lock must be held.
+func (svm *serviceVM) hotRemoveVHDsNoLock(mvds ...hcsshim.MappedVirtualDisk) error {
 	var retErr error
 	for _, mvd := range mvds {
 		if _, ok := svm.attachedVHDs[mvd.HostPath]; !ok {
