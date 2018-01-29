@@ -513,18 +513,18 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 		if err := daemon.Reload(enableConfig); err != nil {
 			t.Fatal(err)
 		}
-		// Check that the diagnose is enabled
-		if !daemon.netController.IsDiagnoseEnabled() {
-			t.Fatalf("diagnosed should be enable")
+		// Check that the diagnostic is enabled
+		if !daemon.netController.IsDiagnosticEnabled() {
+			t.Fatalf("diagnostic should be enable")
 		}
 
 		// Reload
 		if err := daemon.Reload(disableConfig); err != nil {
 			t.Fatal(err)
 		}
-		// Check that the diagnose is disabled
-		if daemon.netController.IsDiagnoseEnabled() {
-			t.Fatalf("diagnosed should be disable")
+		// Check that the diagnostic is disabled
+		if daemon.netController.IsDiagnosticEnabled() {
+			t.Fatalf("diagnostic should be disable")
 		}
 	}
 
@@ -533,18 +533,18 @@ func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	if err := daemon.Reload(enableConfig); err != nil {
 		t.Fatal(err)
 	}
-	// Check that the diagnose is enabled
-	if !daemon.netController.IsDiagnoseEnabled() {
-		t.Fatalf("diagnosed should be enable")
+	// Check that the diagnostic is enabled
+	if !daemon.netController.IsDiagnosticEnabled() {
+		t.Fatalf("diagnostic should be enable")
 	}
 
 	// Check that another reload does not cause issues
 	if err := daemon.Reload(enableConfig); err != nil {
 		t.Fatal(err)
 	}
-	// Check that the diagnose is enable
-	if !daemon.netController.IsDiagnoseEnabled() {
-		t.Fatalf("diagnosed should be enable")
+	// Check that the diagnostic is enable
+	if !daemon.netController.IsDiagnosticEnabled() {
+		t.Fatalf("diagnostic should be enable")
 	}
 
 }

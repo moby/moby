@@ -141,6 +141,16 @@ type Config struct {
 	GossipNodes         int
 	GossipToTheDeadTime time.Duration
 
+	// GossipVerifyIncoming controls whether to enforce encryption for incoming
+	// gossip. It is used for upshifting from unencrypted to encrypted gossip on
+	// a running cluster.
+	GossipVerifyIncoming bool
+
+	// GossipVerifyOutgoing controls whether to enforce encryption for outgoing
+	// gossip. It is used for upshifting from unencrypted to encrypted gossip on
+	// a running cluster.
+	GossipVerifyOutgoing bool
+
 	// EnableCompression is used to control message compression. This can
 	// be used to reduce bandwidth usage at the cost of slightly more CPU
 	// utilization. This is only available starting at protocol version 1.
@@ -225,7 +235,7 @@ func DefaultLANConfig() *Config {
 		TCPTimeout:              10 * time.Second,       // Timeout after 10 seconds
 		IndirectChecks:          3,                      // Use 3 nodes for the indirect ping
 		RetransmitMult:          4,                      // Retransmit a message 4 * log(N+1) nodes
-		SuspicionMult:           5,                      // Suspect a node for 5 * log(N+1) * Interval
+		SuspicionMult:           4,                      // Suspect a node for 4 * log(N+1) * Interval
 		SuspicionMaxTimeoutMult: 6,                      // For 10k nodes this will give a max timeout of 120 seconds
 		PushPullInterval:        30 * time.Second,       // Low frequency
 		ProbeTimeout:            500 * time.Millisecond, // Reasonable RTT time for LAN
@@ -233,9 +243,11 @@ func DefaultLANConfig() *Config {
 		DisableTcpPings:         false,                  // TCP pings are safe, even with mixed versions
 		AwarenessMaxMultiplier:  8,                      // Probe interval backs off to 8 seconds
 
-		GossipNodes:         3,                      // Gossip to 3 nodes
-		GossipInterval:      200 * time.Millisecond, // Gossip more rapidly
-		GossipToTheDeadTime: 30 * time.Second,       // Same as push/pull
+		GossipNodes:          3,                      // Gossip to 3 nodes
+		GossipInterval:       200 * time.Millisecond, // Gossip more rapidly
+		GossipToTheDeadTime:  30 * time.Second,       // Same as push/pull
+		GossipVerifyIncoming: true,
+		GossipVerifyOutgoing: true,
 
 		EnableCompression: true, // Enable compression by default
 

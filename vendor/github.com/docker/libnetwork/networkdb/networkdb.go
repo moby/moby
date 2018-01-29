@@ -322,18 +322,20 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 // GetEntry retrieves the value of a table entry in a given (network,
 // table, key) tuple
 func (nDB *NetworkDB) GetEntry(tname, nid, key string) ([]byte, error) {
+	nDB.RLock()
+	defer nDB.RUnlock()
 	entry, err := nDB.getEntry(tname, nid, key)
 	if err != nil {
 		return nil, err
+	}
+	if entry != nil && entry.deleting {
+		return nil, types.NotFoundErrorf("entry in table %s network id %s and key %s deleted and pending garbage collection", tname, nid, key)
 	}
 
 	return entry.value, nil
 }
 
 func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
-	nDB.RLock()
-	defer nDB.RUnlock()
-
 	e, ok := nDB.indexes[byTable].Get(fmt.Sprintf("/%s/%s/%s", tname, nid, key))
 	if !ok {
 		return nil, types.NotFoundErrorf("could not get entry in table %s with network id %s and key %s", tname, nid, key)
@@ -348,13 +350,10 @@ func (nDB *NetworkDB) getEntry(tname, nid, key string) (*entry, error) {
 // entry for the same tuple for which there is already an existing
 // entry unless the current entry is deleting state.
 func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
+	nDB.Lock()
 	oldEntry, err := nDB.getEntry(tname, nid, key)
-	if err != nil {
-		if _, ok := err.(types.NotFoundError); !ok {
-			return fmt.Errorf("cannot create entry in table %s with network id %s and key %s: %v", tname, nid, key, err)
-		}
-	}
-	if oldEntry != nil && !oldEntry.deleting {
+	if err == nil || (oldEntry != nil && !oldEntry.deleting) {
+		nDB.Unlock()
 		return fmt.Errorf("cannot create entry in table %s with network id %s and key %s, already exists", tname, nid, key)
 	}
 
@@ -364,13 +363,12 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 		value: value,
 	}
 
+	nDB.createOrUpdateEntry(nid, tname, key, entry)
+	nDB.Unlock()
+
 	if err := nDB.sendTableEvent(TableEventTypeCreate, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send create event for table %s, %v", tname, err)
 	}
-
-	nDB.Lock()
-	nDB.createOrUpdateEntry(nid, tname, key, entry)
-	nDB.Unlock()
 
 	return nil
 }
@@ -380,7 +378,9 @@ func (nDB *NetworkDB) CreateEntry(tname, nid, key string, value []byte) error {
 // propagates this event to the cluster. It is an error to update a
 // non-existent entry.
 func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
-	if _, err := nDB.GetEntry(tname, nid, key); err != nil {
+	nDB.Lock()
+	if _, err := nDB.getEntry(tname, nid, key); err != nil {
+		nDB.Unlock()
 		return fmt.Errorf("cannot update entry as the entry in table %s with network id %s and key %s does not exist", tname, nid, key)
 	}
 
@@ -390,13 +390,12 @@ func (nDB *NetworkDB) UpdateEntry(tname, nid, key string, value []byte) error {
 		value: value,
 	}
 
+	nDB.createOrUpdateEntry(nid, tname, key, entry)
+	nDB.Unlock()
+
 	if err := nDB.sendTableEvent(TableEventTypeUpdate, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table update event: %v", err)
 	}
-
-	nDB.Lock()
-	nDB.createOrUpdateEntry(nid, tname, key, entry)
-	nDB.Unlock()
 
 	return nil
 }
@@ -427,26 +426,28 @@ func (nDB *NetworkDB) GetTableByNetwork(tname, nid string) map[string]*TableElem
 // table, key) tuple and if the NetworkDB is part of the cluster
 // propagates this event to the cluster.
 func (nDB *NetworkDB) DeleteEntry(tname, nid, key string) error {
-	value, err := nDB.GetEntry(tname, nid, key)
-	if err != nil {
-		return fmt.Errorf("cannot delete entry as the entry in table %s with network id %s and key %s does not exist", tname, nid, key)
+	nDB.Lock()
+	oldEntry, err := nDB.getEntry(tname, nid, key)
+	if err != nil || oldEntry == nil || oldEntry.deleting {
+		nDB.Unlock()
+		return fmt.Errorf("cannot delete entry %s with network id %s and key %s "+
+			"does not exist or is already being deleted", tname, nid, key)
 	}
 
 	entry := &entry{
 		ltime:    nDB.tableClock.Increment(),
 		node:     nDB.config.NodeID,
-		value:    value,
+		value:    oldEntry.value,
 		deleting: true,
 		reapTime: nDB.config.reapEntryInterval,
 	}
 
+	nDB.createOrUpdateEntry(nid, tname, key, entry)
+	nDB.Unlock()
+
 	if err := nDB.sendTableEvent(TableEventTypeDelete, nid, tname, key, entry); err != nil {
 		return fmt.Errorf("cannot send table delete event: %v", err)
 	}
-
-	nDB.Lock()
-	nDB.createOrUpdateEntry(nid, tname, key, entry)
-	nDB.Unlock()
 
 	return nil
 }
