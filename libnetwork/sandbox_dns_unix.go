@@ -362,7 +362,7 @@ func (sb *sandbox) rebuildDNS() error {
 dnsOpt:
 	for _, resOpt := range resOptions {
 		if strings.Contains(resOpt, "ndots") {
-			for i, option := range dnsOptionsList {
+			for _, option := range dnsOptionsList {
 				if strings.Contains(option, "ndots") {
 					parts := strings.Split(option, ":")
 					if len(parts) != 2 {
@@ -371,10 +371,8 @@ dnsOpt:
 					if num, err := strconv.Atoi(parts[1]); err != nil {
 						return fmt.Errorf("invalid number for ndots option %v", option)
 					} else if num > 0 {
-						// if the user sets ndots, we mark it as set but we remove the option to guarantee
-						// that into the container land only ndots:0
+						// if the user sets ndots, use the user setting
 						sb.ndotsSet = true
-						dnsOptionsList = append(dnsOptionsList[:i], dnsOptionsList[i+1:]...)
 						break dnsOpt
 					}
 				}
@@ -382,7 +380,11 @@ dnsOpt:
 		}
 	}
 
-	dnsOptionsList = append(dnsOptionsList, resOptions...)
+	if !sb.ndotsSet {
+		// if the user did not set the ndots, set it to 0 to prioritize the service name resolution
+		// Ref: https://linux.die.net/man/5/resolv.conf
+		dnsOptionsList = append(dnsOptionsList, resOptions...)
+	}
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err
