@@ -842,12 +842,11 @@ definitions:
       Volumes:
         description: "An object mapping mount point paths inside the container to empty objects."
         type: "object"
-        properties:
-          additionalProperties:
-            type: "object"
-            enum:
-              - {}
-            default: {}
+        additionalProperties:
+          type: "object"
+          enum:
+            - {}
+          default: {}
       WorkingDir:
         description: "The working directory for commands to run in."
         type: "string"
