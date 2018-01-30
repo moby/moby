@@ -163,6 +163,9 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	for k, v := range f.extra {
 		data[k] = v
 	}
+	if msg.Partial {
+		data["partial_message"] = "true"
+	}
 
 	ts := msg.Timestamp
 	logger.PutMessage(msg)
