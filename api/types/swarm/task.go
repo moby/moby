@@ -36,6 +36,10 @@ const (
 	TaskStateFailed TaskState = "failed"
 	// TaskStateRejected REJECTED
 	TaskStateRejected TaskState = "rejected"
+	// TaskStateRemove REMOVE
+	TaskStateRemove TaskState = "remove"
+	// TaskStateOrphaned ORPHANED
+	TaskStateOrphaned TaskState = "orphaned"
 )
 
 // Task represents a task.
