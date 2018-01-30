@@ -15,8 +15,11 @@ type WaitCondition string
 // or is removed.
 //
 // WaitConditionRemoved is used to wait for the container to be removed.
+//
+// WaitConditionRunning is used to wait for the container to be running.
 const (
 	WaitConditionNotRunning WaitCondition = "not-running"
 	WaitConditionNextExit   WaitCondition = "next-exit"
 	WaitConditionRemoved    WaitCondition = "removed"
+	WaitConditionRunning    WaitCondition = "running"
 )

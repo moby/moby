@@ -2,8 +2,10 @@ package client
 
 import (
 	"encoding/json"
+	"net/url"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/exec"
 	"golang.org/x/net/context"
 )
 
@@ -51,4 +53,36 @@ func (cli *Client) ContainerExecInspect(ctx context.Context, execID string) (typ
 	err = json.NewDecoder(resp.body).Decode(&response)
 	ensureReaderClosed(resp)
 	return response, err
+}
+
+// ContainerExecWait waits until the specified exec is in a certain state
+// indicated by the given condition, either "running" (default) or "exit".
+func (cli *Client) ContainerExecWait(ctx context.Context, execID string, cond exec.WaitCondition) (<-chan exec.ExecWaitOKBody, <-chan error) {
+	var (
+		resultC = make(chan exec.ExecWaitOKBody)
+		errC    = make(chan error, 1)
+		query   = url.Values{}
+	)
+
+	query.Set("condition", string(cond))
+
+	resp, err := cli.post(ctx, "/exec/"+execID+"/wait", query, nil, nil)
+	if err != nil {
+		defer ensureReaderClosed(resp)
+		errC <- err
+		return resultC, errC
+	}
+
+	go func() {
+		defer ensureReaderClosed(resp)
+		var res exec.ExecWaitOKBody
+		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
+			errC <- err
+			return
+		}
+
+		resultC <- res
+	}()
+
+	return resultC, errC
 }

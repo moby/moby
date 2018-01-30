@@ -320,3 +320,20 @@ func (d *Daemon) containerExecIds() map[string]struct{} {
 	}
 	return ids
 }
+
+// ContainerExecWait waits until the given exec is in a certain state
+// indicated by the given condition. If the exec is not found, a nil channel
+// and non-nil error is returned immediately.If it is found, a status result
+// will be sent on the returned channel once the wait condition is met or if
+// an error occurs waiting for the exec (e.g. context timeout or cancellation)
+// . On a successful wait, the exit code of the exec is returned if the exec
+// exited. If the condition was waiting for it to be running the value should
+// be ignored.
+func (d *Daemon) ContainerExecWait(ctx context.Context, name string, condition exec.WaitCondition) (<-chan exec.Status, error) {
+	ec, err := d.getExecConfig(name)
+	if err != nil {
+		return nil, errExecNotFound(name)
+	}
+
+	return ec.Wait(ctx, condition), nil
+}

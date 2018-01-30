@@ -118,8 +118,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
 			defer execConfig.Unlock()
-			execConfig.ExitCode = &ec
-			execConfig.Running = false
+			execConfig.SetExitCode(ec)
 			execConfig.StreamConfig.Wait()
 			if err := execConfig.CloseStreams(); err != nil {
 				logrus.Errorf("failed to cleanup exec %s streams: %s", c.ID, err)
@@ -158,7 +157,16 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			}
 			daemon.LogContainerEvent(c, "start")
 		}
-
+	case libcontainerd.EventExecStarted:
+		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
+			execConfig.SetStarted()
+		} else {
+			logrus.WithFields(logrus.Fields{
+				"container": c.ID,
+				"exec-id":   ei.ProcessID,
+				"exec-pid":  ei.Pid,
+			}).Warnf("Ignoring Exec Start Event, no such exec command found")
+		}
 	case libcontainerd.EventPaused:
 		c.Lock()
 		defer c.Unlock()

@@ -5730,12 +5730,12 @@ paths:
   /containers/{id}/wait:
     post:
       summary: "Wait for a container"
-      description: "Block until a container stops, then returns the exit code."
+      description: "Block until a container reach a given condition, then returns the exit code."
       operationId: "ContainerWait"
       produces: ["application/json"]
       responses:
         200:
-          description: "The container has exit."
+          description: "The condition was reached."
           schema:
             type: "object"
             title: "ContainerWaitResponse"
@@ -7377,6 +7377,55 @@ paths:
           description: "Exec instance ID"
           required: true
           type: "string"
+      tags: ["Exec"]
+  /exec/{id}/wait:
+    post:
+      summary: "Wait for an exec"
+      description: "Block until an exec reach a given condition, then returns the exit code."
+      operationId: "ExecWait"
+      produces: ["application/json"]
+      responses:
+        200:
+          description: "The condition was reached."
+          schema:
+            type: "object"
+            title: "ExecWaitResponse"
+            description: "OK response to ExecWait operation"
+            required: [StatusCode]
+            properties:
+              StatusCode:
+                description: "Exit code of the Exec"
+                type: "integer"
+                x-nullable: false
+              Error:
+                description: "exec waiting error, if any"
+                type: "object"
+                properties:
+                  Message:
+                    description: "Details of an error"
+                    type: "string"
+        404:
+          description: "no such exec"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+          examples:
+            application/json:
+              message: "No such exec: c2ada9df5af8"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      parameters:
+        - name: "id"
+          in: "path"
+          required: true
+          description: "ID or name of the exec"
+          type: "string"
+        - name: "condition"
+          in: "query"
+          description: "Wait until an exec state reaches the given condition, either 'running' (default) or 'exit'."
+          type: "string"
+          default: "running"
       tags: ["Exec"]
   /exec/{id}/resize:
     post:

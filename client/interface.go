@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/exec"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -50,6 +51,7 @@ type ContainerAPIClient interface {
 	ContainerExecInspect(ctx context.Context, execID string) (types.ContainerExecInspect, error)
 	ContainerExecResize(ctx context.Context, execID string, options types.ResizeOptions) error
 	ContainerExecStart(ctx context.Context, execID string, config types.ExecStartCheck) error
+	ContainerExecWait(ctx context.Context, execID string, cond exec.WaitCondition) (<-chan exec.ExecWaitOKBody, <-chan error)
 	ContainerExport(ctx context.Context, container string) (io.ReadCloser, error)
 	ContainerInspect(ctx context.Context, container string) (types.ContainerJSON, error)
 	ContainerInspectWithRaw(ctx context.Context, container string, getSize bool) (types.ContainerJSON, []byte, error)

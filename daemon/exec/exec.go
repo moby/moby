@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"context"
 	"runtime"
 	"sync"
 
@@ -8,6 +9,19 @@ import (
 	"github.com/docker/docker/container/stream"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/sirupsen/logrus"
+)
+
+// WaitCondition is an enum type for different exec states to wait for.
+type WaitCondition int
+
+// Possible WaitCondition Values.
+//
+// WaitConditionRunning is used to wait for the exec to be running.
+//
+// WaitConditionExited is used to wait for the exec to exit.
+const (
+	WaitConditionRunning WaitCondition = iota
+	WaitConditionExited
 )
 
 // Config holds the configurations for execs. The Daemon keeps
@@ -33,6 +47,27 @@ type Config struct {
 	WorkingDir   string
 	Env          []string
 	Pid          int
+
+	waitRunning chan struct{}
+	waitExited  chan struct{}
+}
+
+// Status is used to return an exec wait results.
+// Implements exec.ExitCode interface.
+type Status struct {
+	exitCode int
+	err      error
+}
+
+// ExitCode returns current exitcode for the exec.
+func (s Status) ExitCode() int {
+	return s.exitCode
+}
+
+// Err returns current error for the state. Returns nil if the exec had exited
+// on its own.
+func (s Status) Err() error {
+	return s.err
 }
 
 // NewConfig initializes the a new exec configuration
@@ -40,6 +75,8 @@ func NewConfig() *Config {
 	return &Config{
 		ID:           stringid.GenerateNonCryptoID(),
 		StreamConfig: stream.NewConfig(),
+		waitRunning:  make(chan struct{}),
+		waitExited:   make(chan struct{}),
 	}
 }
 
@@ -84,6 +121,51 @@ func (c *Config) CloseStreams() error {
 // SetExitCode sets the exec config's exit code
 func (c *Config) SetExitCode(code int) {
 	c.ExitCode = &code
+	c.Running = false
+	close(c.waitExited)
+}
+
+// SetStarted trigger the WaitConditionRunning as used with Wait()
+func (c *Config) SetStarted() {
+	c.Lock()
+	close(c.waitRunning)
+	c.Unlock()
+}
+
+// Wait return a channel that can be used to check that the given condition
+// came to pass
+func (c *Config) Wait(ctx context.Context, cond WaitCondition) <-chan Status {
+	statusCh := make(chan Status, 1)
+	var waitCh chan struct{}
+
+	if cond == WaitConditionRunning {
+		waitCh = c.waitRunning
+	} else {
+		waitCh = c.waitExited
+	}
+
+	go func() {
+		select {
+		case <-ctx.Done():
+			statusCh <- Status{
+				exitCode: -1,
+				err:      ctx.Err(),
+			}
+		case <-waitCh:
+			c.Lock()
+			ec := -1
+			if c.ExitCode != nil {
+				ec = *c.ExitCode
+			}
+			statusCh <- Status{
+				exitCode: ec,
+				err:      nil,
+			}
+			c.Unlock()
+		}
+	}()
+
+	return statusCh
 }
 
 // Store keeps track of the exec configurations.

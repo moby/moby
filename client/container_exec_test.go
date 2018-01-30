@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/exec"
 )
 
 func TestContainerExecCreateError(t *testing.T) {
@@ -154,4 +155,51 @@ func TestContainerExecInspect(t *testing.T) {
 	if inspect.ContainerID != "container_id" {
 		t.Fatalf("expected ContainerID `container_id`, got %s", inspect.ContainerID)
 	}
+}
+
+func TestContainerExecWaitError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+	resultC, errC := client.ContainerExecWait(context.Background(), "nothing", "")
+	select {
+	case result := <-resultC:
+		t.Fatalf("expected to not get a wait result, got %d", result.StatusCode)
+	case err := <-errC:
+		if err.Error() != "Error response from daemon: Server error" {
+			t.Fatalf("expected a Server Error, got %v", err)
+		}
+	}
+}
+
+func TestContainerExecWait(t *testing.T) {
+	expectedURL := "/exec/exec_id/wait"
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			b, err := json.Marshal(exec.ExecWaitOKBody{
+				StatusCode: 15,
+			})
+			if err != nil {
+				return nil, err
+			}
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       ioutil.NopCloser(bytes.NewReader(b)),
+			}, nil
+		}),
+	}
+
+	resultC, errC := client.ContainerExecWait(context.Background(), "exec_id", "")
+	select {
+	case err := <-errC:
+		t.Fatal(err)
+	case result := <-resultC:
+		if result.StatusCode != 15 {
+			t.Fatalf("expected a status code equal to '15', got %d", result.StatusCode)
+		}
+	}
+
 }
