@@ -124,6 +124,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 			container.SetRemovalError(e)
 			return e
 		}
+		container.RWLayer = nil
 	}
 
 	if err := system.EnsureRemoveAll(container.Root); err != nil {
