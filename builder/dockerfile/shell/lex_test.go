@@ -1,4 +1,4 @@
-package dockerfile
+package shell
 
 import (
 	"bufio"
@@ -18,7 +18,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 	assert.NoError(t, err)
 	defer file.Close()
 
-	shlex := NewShellLex('\\')
+	shlex := NewLex('\\')
 	scanner := bufio.NewScanner(file)
 	envs := []string{"PWD=/home", "SHELL=bash", "KOREAN=한국어"}
 	for scanner.Scan() {
@@ -70,7 +70,7 @@ func TestShellParser4Words(t *testing.T) {
 	}
 	defer file.Close()
 
-	shlex := NewShellLex('\\')
+	shlex := NewLex('\\')
 	envs := []string{}
 	scanner := bufio.NewScanner(file)
 	lineNum := 0

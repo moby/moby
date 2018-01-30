@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerfile/instructions"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/builder/dockerfile/shell"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/errdefs"
@@ -256,8 +257,8 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 	return aux.Emit(types.BuildResult{ID: state.imageID})
 }
 
-func processMetaArg(meta instructions.ArgCommand, shlex *ShellLex, args *buildArgs) error {
-	// ShellLex currently only support the concatenated string format
+func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *buildArgs) error {
+	// shell.Lex currently only support the concatenated string format
 	envs := convertMapToEnvList(args.GetAllAllowed())
 	if err := meta.Expand(func(word string) (string, error) {
 		return shlex.ProcessWord(word, envs)
@@ -283,7 +284,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 	for _, stage := range parseResult {
 		totalCommands += len(stage.Commands)
 	}
-	shlex := NewShellLex(escapeToken)
+	shlex := shell.NewLex(escapeToken)
 	for _, meta := range metaArgs {
 		currentCommandIndex = printCommand(b.Stdout, currentCommandIndex, totalCommands, &meta)
 
