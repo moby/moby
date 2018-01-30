@@ -18,6 +18,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+
+	names := []string{"verifyRestart1", "verifyRestart2"}
+	for _, name := range names {
+		resp, err := client.ContainerCreate(ctx,
+			&container.Config{
+				Cmd:   []string{"false"},
+				Image: "busybox",
+			},
+			&container.HostConfig{
+				RestartPolicy: container.RestartPolicy{
+					Name: "always",
+				},
+			},
+			&network.NetworkingConfig{},
+			name,
+		)
+		require.NoError(t, err)
+
+		err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+		require.NoError(t, err)
+	}
+
+	for _, name := range names {
+		poll.WaitOn(t, containerIsInState(ctx, client, name, "running", "restarting"), poll.WithDelay(100*time.Millisecond))
+	}
+
+	for _, name := range names {
+		err := client.ContainerStop(ctx, name, nil)
+		require.NoError(t, err)
+	}
+
+	for _, name := range names {
+		poll.WaitOn(t, containerIsStopped(ctx, client, name), poll.WithDelay(100*time.Millisecond))
+	}
+}
+
 func TestDeleteDevicemapper(t *testing.T) {
 	skip.IfCondition(t, testEnv.DaemonInfo.Driver != "devicemapper")
 
@@ -70,5 +110,20 @@ func containerIsStopped(ctx context.Context, client client.APIClient, containerI
 		default:
 			return poll.Continue("waiting for container to be stopped")
 		}
+	}
+}
+
+func containerIsInState(ctx context.Context, client client.APIClient, containerID string, state ...string) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		inspect, err := client.ContainerInspect(ctx, containerID)
+		if err != nil {
+			return poll.Error(err)
+		}
+		for _, v := range state {
+			if inspect.State.Status == v {
+				return poll.Success()
+			}
+		}
+		return poll.Continue("waiting for container to be running, currently %s", inspect.State.Status)
 	}
 }
