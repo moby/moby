@@ -14,6 +14,9 @@ func (cli *Client) SecretInspectWithRaw(ctx context.Context, id string) (swarm.S
 	if err := cli.NewVersionError("1.25", "secret inspect"); err != nil {
 		return swarm.Secret{}, nil, err
 	}
+	if id == "" {
+		return swarm.Secret{}, nil, objectNotFoundError{object: "secret", id: id}
+	}
 	resp, err := cli.get(ctx, "/secrets/"+id, nil, nil)
 	if err != nil {
 		return swarm.Secret{}, nil, wrapResponseError(err, resp, "secret", id)
