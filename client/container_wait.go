@@ -12,7 +12,7 @@ import (
 
 // ContainerWait waits until the specified container is in a certain state
 // indicated by the given condition, either "not-running" (default),
-// "next-exit", or "removed".
+// "next-exit", "removed" or "running".
 //
 // If this client's API version is before 1.30, condition is ignored and
 // ContainerWait will return immediately with the two channels, as the server
