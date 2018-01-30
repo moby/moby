@@ -162,19 +162,19 @@ const (
 
 // TaskStatus represents the status of a task.
 type TaskStatus struct {
-	Timestamp       time.Time       `json:",omitempty"`
-	State           TaskState       `json:",omitempty"`
-	Message         string          `json:",omitempty"`
-	Err             string          `json:",omitempty"`
-	ContainerStatus ContainerStatus `json:",omitempty"`
-	PortStatus      PortStatus      `json:",omitempty"`
+	Timestamp       time.Time        `json:",omitempty"`
+	State           TaskState        `json:",omitempty"`
+	Message         string           `json:",omitempty"`
+	Err             string           `json:",omitempty"`
+	ContainerStatus *ContainerStatus `json:",omitempty"`
+	PortStatus      PortStatus       `json:",omitempty"`
 }
 
 // ContainerStatus represents the status of a container.
 type ContainerStatus struct {
-	ContainerID string `json:",omitempty"`
-	PID         int    `json:",omitempty"`
-	ExitCode    int    `json:",omitempty"`
+	ContainerID string
+	PID         int
+	ExitCode    int
 }
 
 // PortStatus represents the port status of a task's host ports whose
