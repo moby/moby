@@ -366,6 +366,9 @@ func (d *Driver) dir(id string) string {
 
 // Remove cleans the directories that are created for this id.
 func (d *Driver) Remove(id string) error {
+	if id == "" {
+		return fmt.Errorf("refusing to remove the directories: id is empty")
+	}
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
 	return system.EnsureRemoveAll(d.dir(id))
