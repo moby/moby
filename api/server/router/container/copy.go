@@ -1,6 +1,8 @@
 package container // import "github.com/docker/docker/api/server/router/container"
 
 import (
+	"compress/flate"
+	"compress/gzip"
 	"encoding/base64"
 	"encoding/json"
 	"io"
@@ -9,6 +11,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	gddohttputil "github.com/golang/gddo/httputil"
 	"golang.org/x/net/context"
 )
 
@@ -81,6 +84,29 @@ func (s *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 	return setContainerPathStatHeader(stat, w.Header())
 }
 
+func writeCompressedResponse(w http.ResponseWriter, r *http.Request, body io.Reader) error {
+	var cw io.Writer
+	switch gddohttputil.NegotiateContentEncoding(r, []string{"gzip", "deflate"}) {
+	case "gzip":
+		gw := gzip.NewWriter(w)
+		defer gw.Close()
+		cw = gw
+		w.Header().Set("Content-Encoding", "gzip")
+	case "deflate":
+		fw, err := flate.NewWriter(w, flate.DefaultCompression)
+		if err != nil {
+			return err
+		}
+		defer fw.Close()
+		cw = fw
+		w.Header().Set("Content-Encoding", "deflate")
+	default:
+		cw = w
+	}
+	_, err := io.Copy(cw, body)
+	return err
+}
+
 func (s *containerRouter) getContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
@@ -98,9 +124,7 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 	}
 
 	w.Header().Set("Content-Type", "application/x-tar")
-	_, err = io.Copy(w, tarArchive)
-
-	return err
+	return writeCompressedResponse(w, r, tarArchive)
 }
 
 func (s *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
