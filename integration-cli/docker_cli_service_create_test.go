@@ -29,10 +29,10 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	// check container mount config
@@ -143,10 +143,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *check
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	for testName, testTarget := range testPaths {
@@ -193,10 +193,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
@@ -290,10 +290,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *check
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	for testName, testTarget := range testPaths {
@@ -340,10 +340,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
@@ -372,10 +372,10 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	// check container mount config
@@ -428,10 +428,10 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *check.C) {
 
 	task := tasks[0]
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		if task.NodeID == "" || task.Status.ContainerStatus.ContainerID == "" {
+		if task.NodeID == "" || task.Status.ContainerStatus == nil {
 			task = d.GetTask(c, task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus.ContainerID != "", nil
+		return task.NodeID != "" && task.Status.ContainerStatus != nil, nil
 	}, checker.Equals, true)
 
 	// check container alias config
