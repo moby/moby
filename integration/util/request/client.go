@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/client"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -14,8 +13,9 @@ import (
 )
 
 // NewAPIClient returns a docker API client configured from environment variables
-func NewAPIClient(t *testing.T) client.APIClient {
-	clt, err := client.NewEnvClient()
+func NewAPIClient(t *testing.T, ops ...func(*client.Client) error) client.APIClient {
+	ops = append([]func(*client.Client) error{client.FromEnv}, ops...)
+	clt, err := client.NewClientWithOpts(ops...)
 	require.NoError(t, err)
 	return clt
 }
@@ -47,7 +47,5 @@ func NewTLSAPIClient(t *testing.T, host, cacertPath, certPath, keyPath string) (
 		Transport:     tr,
 		CheckRedirect: client.CheckRedirect,
 	}
-	verStr := api.DefaultVersion
-	customHeaders := map[string]string{}
-	return client.NewClient(host, verStr, httpClient, customHeaders)
+	return client.NewClientWithOpts(client.WithHost(host), client.WithHTTPClient(httpClient))
 }
