@@ -21,9 +21,3 @@ func normalizeWorkdir(_ string, current string, requested string) (string, error
 	}
 	return requested, nil
 }
-
-// equalEnvKeys compare two strings and returns true if they are equal. On
-// Windows this comparison is case insensitive.
-func equalEnvKeys(from, to string) bool {
-	return from == to
-}

@@ -1,4 +1,4 @@
-package dockerfile
+package shell
 
 import (
 	"bytes"
@@ -9,25 +9,25 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ShellLex performs shell word splitting and variable expansion.
+// Lex performs shell word splitting and variable expansion.
 //
-// ShellLex takes a string and an array of env variables and
+// Lex takes a string and an array of env variables and
 // process all quotes (" and ') as well as $xxx and ${xxx} env variable
 // tokens.  Tries to mimic bash shell process.
 // It doesn't support all flavors of ${xx:...} formats but new ones can
 // be added by adding code to the "special ${} format processing" section
-type ShellLex struct {
+type Lex struct {
 	escapeToken rune
 }
 
-// NewShellLex creates a new ShellLex which uses escapeToken to escape quotes.
-func NewShellLex(escapeToken rune) *ShellLex {
-	return &ShellLex{escapeToken: escapeToken}
+// NewLex creates a new Lex which uses escapeToken to escape quotes.
+func NewLex(escapeToken rune) *Lex {
+	return &Lex{escapeToken: escapeToken}
 }
 
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
-func (s *ShellLex) ProcessWord(word string, env []string) (string, error) {
+func (s *Lex) ProcessWord(word string, env []string) (string, error) {
 	word, _, err := s.process(word, env)
 	return word, err
 }
@@ -39,12 +39,12 @@ func (s *ShellLex) ProcessWord(word string, env []string) (string, error) {
 // this splitting is done **after** the env var substitutions are done.
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
-func (s *ShellLex) ProcessWords(word string, env []string) ([]string, error) {
+func (s *Lex) ProcessWords(word string, env []string) ([]string, error) {
 	_, words, err := s.process(word, env)
 	return words, err
 }
 
-func (s *ShellLex) process(word string, env []string) (string, []string, error) {
+func (s *Lex) process(word string, env []string) (string, []string, error) {
 	sw := &shellWord{
 		envs:        env,
 		escapeToken: s.escapeToken,
@@ -327,7 +327,7 @@ func (sw *shellWord) getEnv(name string) string {
 	for _, env := range sw.envs {
 		i := strings.Index(env, "=")
 		if i < 0 {
-			if equalEnvKeys(name, env) {
+			if EqualEnvKeys(name, env) {
 				// Should probably never get here, but just in case treat
 				// it like "var" and "var=" are the same
 				return ""
@@ -335,7 +335,7 @@ func (sw *shellWord) getEnv(name string) string {
 			continue
 		}
 		compareName := env[:i]
-		if !equalEnvKeys(name, compareName) {
+		if !EqualEnvKeys(name, compareName) {
 			continue
 		}
 		return env[i+1:]
