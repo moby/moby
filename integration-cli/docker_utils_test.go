@@ -372,7 +372,7 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 }
 
 func getInspectBody(c *check.C, version, id string) []byte {
-	cli, err := request.NewEnvClientWithVersion(version)
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	c.Assert(err, check.IsNil)
 	defer cli.Close()
 	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)

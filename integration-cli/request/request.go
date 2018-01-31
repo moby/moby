@@ -17,7 +17,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
@@ -169,16 +168,7 @@ func NewHTTPClient(host string) (*http.Client, error) {
 
 // NewClient returns a new Docker API client
 func NewClient() (dclient.APIClient, error) {
-	return NewClientForHost(DaemonHost())
-}
-
-// NewClientForHost returns a Docker API client for the host
-func NewClientForHost(host string) (dclient.APIClient, error) {
-	httpClient, err := NewHTTPClient(host)
-	if err != nil {
-		return nil, err
-	}
-	return dclient.NewClient(host, api.DefaultVersion, httpClient, nil)
+	return dclient.NewClientWithOpts(dclient.WithHost(DaemonHost()))
 }
 
 // FIXME(vdemeester) httputil.ClientConn is deprecated, use http.Client instead (closer to actual client)
@@ -322,36 +312,4 @@ func DaemonHost() string {
 		daemonURLStr = daemonHostVar
 	}
 	return daemonURLStr
-}
-
-// NewEnvClientWithVersion returns a docker client with a specified version.
-// See: github.com/docker/docker/client `NewEnvClient()`
-func NewEnvClientWithVersion(version string) (*dclient.Client, error) {
-	if version == "" {
-		return nil, errors.New("version not specified")
-	}
-
-	var httpClient *http.Client
-	if os.Getenv("DOCKER_CERT_PATH") != "" {
-		tlsConfig, err := getTLSConfig()
-		if err != nil {
-			return nil, err
-		}
-		httpClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsConfig,
-			},
-		}
-	}
-
-	host := os.Getenv("DOCKER_HOST")
-	if host == "" {
-		host = dclient.DefaultDockerHost
-	}
-
-	cli, err := dclient.NewClient(host, version, httpClient, nil)
-	if err != nil {
-		return cli, err
-	}
-	return cli, nil
 }

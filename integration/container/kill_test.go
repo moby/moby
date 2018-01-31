@@ -19,7 +19,6 @@ import (
 func TestKillContainerInvalidSignal(t *testing.T) {
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
-	t.Parallel()
 	ctx := context.Background()
 	c, err := client.ContainerCreate(ctx,
 		&container.Config{
@@ -71,7 +70,6 @@ func TestKillContainer(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			ctx := context.Background()
 			c, err := client.ContainerCreate(ctx,
 				&container.Config{
@@ -117,7 +115,6 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
-			t.Parallel()
 			ctx := context.Background()
 			c, err := client.ContainerCreate(ctx,
 				&container.Config{
@@ -145,7 +142,6 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 func TestKillStoppedContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType != "linux") // Windows only supports 1.25 or later
 	defer setupTest(t)()
-	t.Parallel()
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 	c, err := client.ContainerCreate(ctx,
@@ -165,7 +161,6 @@ func TestKillStoppedContainer(t *testing.T) {
 func TestKillStoppedContainerAPIPre120(t *testing.T) {
 	skip.If(t, testEnv.OSType != "linux") // Windows only supports 1.25 or later
 	defer setupTest(t)()
-	t.Parallel()
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 	c, err := client.ContainerCreate(ctx,

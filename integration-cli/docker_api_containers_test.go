@@ -1372,7 +1372,8 @@ func (s *DockerSuite) TestContainerAPICreateNoHostConfig118(c *check.C) {
 		Image: "busybox",
 	}
 
-	cli, err := request.NewEnvClientWithVersion("v1.18")
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.18"))
+	c.Assert(err, checker.IsNil)
 
 	_, err = cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
 	c.Assert(err, checker.IsNil)

@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
@@ -24,7 +23,7 @@ func TestInspectNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := newSwarm(t)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 
 	overlayName := "overlay1"

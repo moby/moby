@@ -566,7 +566,7 @@ func (d *Daemon) WaitRun(contID string) error {
 
 // Info returns the info struct for this daemon
 func (d *Daemon) Info(t require.TestingT) types.Info {
-	apiclient, err := request.NewClientForHost(d.Sock())
+	apiclient, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 	info, err := apiclient.Info(context.Background())
 	require.NoError(t, err)

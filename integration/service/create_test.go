@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/integration/util/swarm"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +21,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 
 	overlayName := "overlay1"
@@ -88,7 +87,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 
 	name := "foo"
@@ -150,7 +149,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 
 	ctx := context.Background()
@@ -231,7 +230,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 
 	ctx := context.Background()
