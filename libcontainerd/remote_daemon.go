@@ -260,7 +260,7 @@ func (r *remote) startContainerd() error {
 	return nil
 }
 
-func (r *remote) monitorConnection(client *containerd.Client) {
+func (r *remote) monitorConnection(monitor *containerd.Client) {
 	var transientFailureCount = 0
 
 	ticker := time.NewTicker(500 * time.Millisecond)
@@ -269,7 +269,7 @@ func (r *remote) monitorConnection(client *containerd.Client) {
 	for {
 		<-ticker.C
 		ctx, cancel := context.WithTimeout(r.shutdownContext, healthCheckTimeout)
-		_, err := client.IsServing(ctx)
+		_, err := monitor.IsServing(ctx)
 		cancel()
 		if err == nil {
 			transientFailureCount = 0
@@ -279,39 +279,69 @@ func (r *remote) monitorConnection(client *containerd.Client) {
 		select {
 		case <-r.shutdownContext.Done():
 			r.logger.Info("stopping healthcheck following graceful shutdown")
-			client.Close()
+			monitor.Close()
 			return
 		default:
 		}
 
 		r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
 
-		if r.daemonPid != -1 {
-			transientFailureCount++
-			if transientFailureCount >= maxConnectionRetryCount || !system.IsProcessAlive(r.daemonPid) {
-				transientFailureCount = 0
-				if system.IsProcessAlive(r.daemonPid) {
-					r.logger.WithField("pid", r.daemonPid).Info("killing and restarting containerd")
-					// Try to get a stack trace
-					syscall.Kill(r.daemonPid, syscall.SIGUSR1)
-					<-time.After(100 * time.Millisecond)
-					system.KillProcess(r.daemonPid)
+		if r.daemonPid == -1 {
+			continue
+		}
+
+		transientFailureCount++
+		if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
+			continue
+		}
+
+		transientFailureCount = 0
+		if system.IsProcessAlive(r.daemonPid) {
+			r.logger.WithField("pid", r.daemonPid).Info("killing and restarting containerd")
+			// Try to get a stack trace
+			syscall.Kill(r.daemonPid, syscall.SIGUSR1)
+			<-time.After(100 * time.Millisecond)
+			system.KillProcess(r.daemonPid)
+		}
+		<-r.daemonWaitCh
+
+		monitor.Close()
+		os.Remove(r.GRPC.Address)
+		if err := r.startContainerd(); err != nil {
+			r.logger.WithError(err).Error("failed restarting containerd")
+			continue
+		}
+
+		newMonitor, err := containerd.New(r.GRPC.Address)
+		if err != nil {
+			r.logger.WithError(err).Error("failed connect to containerd")
+			continue
+		}
+
+		monitor = newMonitor
+		var wg sync.WaitGroup
+
+		for _, c := range r.clients {
+			wg.Add(1)
+
+			go func(c *client) {
+				defer wg.Done()
+				c.logger.WithField("namespace", c.namespace).Debug("creating new containerd remote client")
+				c.remote.Close()
+
+				remote, err := containerd.New(r.GRPC.Address, containerd.WithDefaultNamespace(c.namespace))
+				if err != nil {
+					r.logger.WithError(err).Error("failed to connect to containerd")
+					// TODO: Better way to handle this?
+					// This *shouldn't* happen, but this could wind up where the daemon
+					// is not able to communicate with an eventually up containerd
+					return
 				}
-				<-r.daemonWaitCh
-				var err error
-				client.Close()
-				os.Remove(r.GRPC.Address)
-				if err = r.startContainerd(); err != nil {
-					r.logger.WithError(err).Error("failed restarting containerd")
-				} else {
-					newClient, err := containerd.New(r.GRPC.Address)
-					if err != nil {
-						r.logger.WithError(err).Error("failed connect to containerd")
-					} else {
-						client = newClient
-					}
-				}
-			}
+
+				c.setRemote(remote)
+			}(c)
+
+			wg.Wait()
 		}
 	}
 }
