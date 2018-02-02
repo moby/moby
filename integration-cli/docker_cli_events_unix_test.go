@@ -79,7 +79,7 @@ func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableTrue(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, swapMemorySupport)
+	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, NotArm, NotArm64, swapMemorySupport)
 
 	errChan := make(chan error)
 	observer, err := newEventObserver(c)
