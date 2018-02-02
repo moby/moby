@@ -346,7 +346,9 @@ func (daemon *Daemon) updateNetwork(container *container.Container) error {
 }
 
 func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrName string, epConfig *networktypes.EndpointSettings) (libnetwork.Network, *networktypes.NetworkingConfig, error) {
-	n, err := daemon.FindNetwork(getNetworkID(idOrName, epConfig))
+	id := getNetworkID(idOrName, epConfig)
+
+	n, err := daemon.FindNetwork(id)
 	if err != nil {
 		// We should always be able to find the network for a
 		// managed container.
@@ -379,21 +381,26 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		retryCount int
 	)
 
+	if n == nil && daemon.attachableNetworkLock != nil {
+		daemon.attachableNetworkLock.Lock(id)
+		defer daemon.attachableNetworkLock.Unlock(id)
+	}
+
 	for {
 		// In all other cases, attempt to attach to the network to
 		// trigger attachment in the swarm cluster manager.
 		if daemon.clusterProvider != nil {
 			var err error
-			config, err = daemon.clusterProvider.AttachNetwork(getNetworkID(idOrName, epConfig), container.ID, addresses)
+			config, err = daemon.clusterProvider.AttachNetwork(id, container.ID, addresses)
 			if err != nil {
 				return nil, nil, err
 			}
 		}
 
-		n, err = daemon.FindNetwork(getNetworkID(idOrName, epConfig))
+		n, err = daemon.FindNetwork(id)
 		if err != nil {
 			if daemon.clusterProvider != nil {
-				if err := daemon.clusterProvider.DetachNetwork(getNetworkID(idOrName, epConfig), container.ID); err != nil {
+				if err := daemon.clusterProvider.DetachNetwork(id, container.ID); err != nil {
 					logrus.Warnf("Could not rollback attachment for container %s to network %s: %v", container.ID, idOrName, err)
 				}
 			}
