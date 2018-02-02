@@ -8,9 +8,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/integration/util/swarm"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,7 +20,7 @@ import (
 
 func TestCreateServiceMultipleTimes(t *testing.T) {
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
 	require.NoError(t, err)
@@ -36,7 +37,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 
 	var instances uint64 = 4
 	serviceSpec := swarmServiceSpec("TestService", instances)
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{Target: overlayName})
+	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: overlayName})
 
 	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
@@ -85,7 +86,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
 	require.NoError(t, err)
@@ -111,7 +112,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	var instances uint64 = 1
 	serviceSpec := swarmServiceSpec("top", instances)
 
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{Target: name})
+	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: name})
 
 	service, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{})
 	require.NoError(t, err)
@@ -147,14 +148,14 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 
 func TestCreateServiceSecretFileMode(t *testing.T) {
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	secretResp, err := client.SecretCreate(ctx, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
+	secretResp, err := client.SecretCreate(ctx, swarmtypes.SecretSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: "TestSecret",
 		},
 		Data: []byte("TESTSECRET"),
@@ -162,17 +163,17 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances uint64 = 1
-	serviceSpec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
+	serviceSpec := swarmtypes.ServiceSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: "TestService",
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/sh", "-c", "ls -l /etc/secret || /bin/top"},
-				Secrets: []*swarm.SecretReference{
+				Secrets: []*swarmtypes.SecretReference{
 					{
-						File: &swarm.SecretReferenceFileTarget{
+						File: &swarmtypes.SecretReferenceFileTarget{
 							Name: "/etc/secret",
 							UID:  "0",
 							GID:  "0",
@@ -184,8 +185,8 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 				},
 			},
 		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
+		Mode: swarmtypes.ServiceMode{
+			Replicated: &swarmtypes.ReplicatedService{
 				Replicas: &instances,
 			},
 		},
@@ -228,14 +229,14 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
 	require.NoError(t, err)
 
 	ctx := context.Background()
-	configResp, err := client.ConfigCreate(ctx, swarm.ConfigSpec{
-		Annotations: swarm.Annotations{
+	configResp, err := client.ConfigCreate(ctx, swarmtypes.ConfigSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: "TestConfig",
 		},
 		Data: []byte("TESTCONFIG"),
@@ -243,17 +244,17 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	require.NoError(t, err)
 
 	var instances uint64 = 1
-	serviceSpec := swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
+	serviceSpec := swarmtypes.ServiceSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: "TestService",
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/sh", "-c", "ls -l /etc/config || /bin/top"},
-				Configs: []*swarm.ConfigReference{
+				Configs: []*swarmtypes.ConfigReference{
 					{
-						File: &swarm.ConfigReferenceFileTarget{
+						File: &swarmtypes.ConfigReferenceFileTarget{
 							Name: "/etc/config",
 							UID:  "0",
 							GID:  "0",
@@ -265,8 +266,8 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 				},
 			},
 		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
+		Mode: swarmtypes.ServiceMode{
+			Replicated: &swarmtypes.ReplicatedService{
 				Replicas: &instances,
 			},
 		},
@@ -307,19 +308,19 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
-	return swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
+func swarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
+	return swarmtypes.ServiceSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: name,
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
 			},
 		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
+		Mode: swarmtypes.ServiceMode{
+			Replicated: &swarmtypes.ReplicatedService{
 				Replicas: &replicas,
 			},
 		},
@@ -338,7 +339,7 @@ func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, 
 			return poll.Error(err)
 		case len(tasks) == int(instances):
 			for _, task := range tasks {
-				if task.Status.State != swarm.TaskStateRunning {
+				if task.Status.State != swarmtypes.TaskStateRunning {
 					return poll.Continue("waiting for tasks to enter run state")
 				}
 			}

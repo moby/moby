@@ -15,6 +15,7 @@ const (
 	defaultSwarmPort = 2477
 )
 
+// NewSwarm creates a swarm daemon for testing
 func NewSwarm(t *testing.T, testEnv *environment.Execution) *daemon.Swarm {
 	d := &daemon.Swarm{
 		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
