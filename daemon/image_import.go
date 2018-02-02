@@ -27,7 +27,7 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (daemon *Daemon) ImportImage(src string, repository, os string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (i *imageService) ImportImage(src string, repository, os string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
 		rc     io.ReadCloser
 		resp   *http.Response
@@ -91,11 +91,11 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 	if err != nil {
 		return err
 	}
-	l, err := daemon.layerStores[os].Register(inflatedLayerData, "")
+	l, err := i.layerStores[os].Register(inflatedLayerData, "")
 	if err != nil {
 		return err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStores[os], l)
+	defer layer.ReleaseAndLog(i.layerStores[os], l)
 
 	created := time.Now().UTC()
 	imgConfig, err := json.Marshal(&image.Image{
@@ -120,19 +120,19 @@ func (daemon *Daemon) ImportImage(src string, repository, os string, tag string,
 		return err
 	}
 
-	id, err := daemon.imageStore.Create(imgConfig)
+	id, err := i.imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
 	if newRef != nil {
-		if err := daemon.TagImageWithReference(id, newRef); err != nil {
+		if err := i.TagImageWithReference(id, newRef); err != nil {
 			return err
 		}
 	}
 
-	daemon.LogImageEvent(id.String(), id.String(), "import")
+	i.LogImageEvent(id.String(), id.String(), "import")
 	outStream.Write(streamformatter.FormatStatus("", id.String()))
 	return nil
 }

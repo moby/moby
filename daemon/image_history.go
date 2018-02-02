@@ -11,9 +11,9 @@ import (
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
+func (i *imageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	img, err := daemon.GetImage(name)
+	img, err := i.GetImage(name)
 	if err != nil {
 		return nil, err
 	}
@@ -33,12 +33,12 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 			}
 
 			rootFS.Append(img.RootFS.DiffIDs[layerCounter])
-			l, err := daemon.layerStores[img.OperatingSystem()].Get(rootFS.ChainID())
+			l, err := i.layerStores[img.OperatingSystem()].Get(rootFS.ChainID())
 			if err != nil {
 				return nil, err
 			}
 			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
+			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
 			if err != nil {
 				return nil, err
 			}
@@ -62,7 +62,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		h.ID = id.String()
 
 		var tags []string
-		for _, r := range daemon.referenceStore.References(id.Digest()) {
+		for _, r := range i.referenceStore.References(id.Digest()) {
 			if _, ok := r.(reference.NamedTagged); ok {
 				tags = append(tags, reference.FamiliarString(r))
 			}
@@ -74,7 +74,7 @@ func (daemon *Daemon) ImageHistory(name string) ([]*image.HistoryResponseItem, e
 		if id == "" {
 			break
 		}
-		histImg, err = daemon.GetImage(id.String())
+		histImg, err = i.GetImage(id.String())
 		if err != nil {
 			break
 		}

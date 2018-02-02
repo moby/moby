@@ -80,8 +80,9 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	var ds [][2]string
 	drivers := ""
+	statuses := daemon.imageService.GraphDriverStatuses()
 	for os, gd := range daemon.graphDrivers {
-		ds = append(ds, daemon.layerStores[os].DriverStatus()...)
+		ds = append(ds, statuses[os]...)
 		drivers += gd
 		if len(daemon.graphDrivers) > 1 {
 			drivers += fmt.Sprintf(" (%s) ", os)
@@ -95,7 +96,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		ContainersRunning:  cRunning,
 		ContainersPaused:   cPaused,
 		ContainersStopped:  cStopped,
-		Images:             len(daemon.imageStore.Map()),
+		Images:             daemon.imageService.CountImages(),
 		Driver:             drivers,
 		DriverStatus:       ds,
 		Plugins:            daemon.showPluginsInfo(),

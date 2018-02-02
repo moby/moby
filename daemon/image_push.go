@@ -13,7 +13,7 @@ import (
 )
 
 // PushImage initiates a push operation on the repository named localName.
-func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *imageService) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return err
@@ -44,16 +44,16 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			MetaHeaders:      metaHeaders,
 			AuthConfig:       authConfig,
 			ProgressOutput:   progress.ChanOutput(progressChan),
-			RegistryService:  daemon.RegistryService,
-			ImageEventLogger: daemon.LogImageEvent,
-			MetadataStore:    daemon.distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(daemon.imageStore),
-			ReferenceStore:   daemon.referenceStore,
+			RegistryService:  i.registryService,
+			ImageEventLogger: i.LogImageEvent,
+			MetadataStore:    i.distributionMetadataStore,
+			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
+			ReferenceStore:   i.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStores:     distribution.NewLayerProvidersFromStores(daemon.layerStores),
-		TrustKey:        daemon.trustKey,
-		UploadManager:   daemon.uploadManager,
+		LayerStores:     distribution.NewLayerProvidersFromStores(i.layerStores),
+		TrustKey:        i.trustKey,
+		UploadManager:   i.uploadManager,
 	}
 
 	err = distribution.Push(ctx, ref, imagePushConfig)

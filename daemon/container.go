@@ -158,7 +158,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.ImageID = imgID
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	base.Driver = daemon.GraphDriverName(operatingSystem)
+	base.Driver = daemon.imageService.GraphDriverForOS(operatingSystem)
 	base.OS = operatingSystem
 	return base, err
 }

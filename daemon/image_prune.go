@@ -22,11 +22,11 @@ var imagesAcceptedFilters = map[string]bool{
 }
 
 // ImagesPrune removes unused images
-func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+func (i *imageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
-	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+	defer atomic.StoreInt32(&i.pruneRunning, 0)
 
 	// make sure that only accepted filters have been received
 	err := pruneFilters.Validate(imagesAcceptedFilters)
@@ -52,14 +52,14 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 
 	var allImages map[image.ID]*image.Image
 	if danglingOnly {
-		allImages = daemon.imageStore.Heads()
+		allImages = i.imageStore.Heads()
 	} else {
-		allImages = daemon.imageStore.Map()
+		allImages = i.imageStore.Map()
 	}
 
 	// Filter intermediary images and get their unique size
 	allLayers := make(map[layer.ChainID]layer.Layer)
-	for _, ls := range daemon.layerStores {
+	for _, ls := range i.layerStores {
 		for k, v := range ls.Map() {
 			allLayers[k] = v
 		}
@@ -71,7 +71,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 			return nil, ctx.Err()
 		default:
 			dgst := digest.Digest(id)
-			if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
+			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
 				continue
 			}
 			if !until.IsZero() && img.Created.After(until) {
@@ -96,7 +96,7 @@ deleteImagesLoop:
 		}
 
 		deletedImages := []types.ImageDeleteResponseItem{}
-		refs := daemon.referenceStore.References(id.Digest())
+		refs := i.referenceStore.References(dgst)
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
 			if !shouldDelete {
@@ -114,7 +114,7 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := daemon.ImageDelete(ref.String(), false, true)
+					imgDel, err := i.ImageDelete(ref.String(), false, true)
 					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
@@ -123,7 +123,7 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Hex()
-			imgDel, err := daemon.ImageDelete(hex, false, true)
+			imgDel, err := i.ImageDelete(hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
 			}

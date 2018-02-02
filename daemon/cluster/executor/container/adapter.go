@@ -36,11 +36,12 @@ import (
 // containerConfig.
 type containerAdapter struct {
 	backend      executorpkg.Backend
+	imageBackend executorpkg.ImageBackend
 	container    *containerConfig
 	dependencies exec.DependencyGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
+func newContainerAdapter(b executorpkg.Backend, i executorpkg.ImageBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
 	ctnr, err := newContainerConfig(task, node)
 	if err != nil {
 		return nil, err
@@ -49,6 +50,7 @@ func newContainerAdapter(b executorpkg.Backend, task *api.Task, node *api.NodeDe
 	return &containerAdapter{
 		container:    ctnr,
 		backend:      b,
+		imageBackend: i,
 		dependencies: dependencies,
 	}, nil
 }
@@ -66,7 +68,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.backend.LookupImage(spec.Image)
+			_, err := c.imageBackend.LookupImage(spec.Image)
 			if err == nil {
 				return nil
 			}
@@ -92,7 +94,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 		// TODO @jhowardmsft LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
 		platform := runtime.GOOS
-		err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
+		err := c.imageBackend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 

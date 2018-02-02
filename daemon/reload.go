@@ -90,8 +90,8 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config
 		daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
 	}
 	logrus.Debugf("Reset Max Concurrent Downloads: %d", *daemon.configStore.MaxConcurrentDownloads)
-	if daemon.downloadManager != nil {
-		daemon.downloadManager.SetConcurrency(*daemon.configStore.MaxConcurrentDownloads)
+	if daemon.imageService.downloadManager != nil {
+		daemon.imageService.downloadManager.SetConcurrency(*daemon.configStore.MaxConcurrentDownloads)
 	}
 
 	// prepare reload event attributes with updatable configurations
@@ -106,8 +106,8 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config
 		daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
 	}
 	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
-	if daemon.uploadManager != nil {
-		daemon.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
+	if daemon.imageService.uploadManager != nil {
+		daemon.imageService.uploadManager.SetConcurrency(*daemon.configStore.MaxConcurrentUploads)
 	}
 
 	// prepare reload event attributes with updatable configurations

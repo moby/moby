@@ -13,15 +13,15 @@ import (
 
 // LookupImage looks up an image by name and returns it as an ImageInspect
 // structure.
-func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
-	img, err := daemon.GetImage(name)
+func (i *imageService) LookupImage(name string) (*types.ImageInspect, error) {
+	img, err := i.GetImage(name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
 	}
 	if !system.IsOSSupported(img.OperatingSystem()) {
 		return nil, system.ErrNotSupportedOperatingSystem
 	}
-	refs := daemon.referenceStore.References(img.ID().Digest())
+	refs := i.referenceStore.References(img.ID().Digest())
 	repoTags := []string{}
 	repoDigests := []string{}
 	for _, ref := range refs {
@@ -37,11 +37,11 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	var layerMetadata map[string]string
 	layerID := img.RootFS.ChainID()
 	if layerID != "" {
-		l, err := daemon.layerStores[img.OperatingSystem()].Get(layerID)
+		l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return nil, err
 		}
-		defer layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
+		defer layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
 		size, err = l.Size()
 		if err != nil {
 			return nil, err
@@ -58,7 +58,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		comment = img.History[len(img.History)-1].Comment
 	}
 
-	lastUpdated, err := daemon.imageStore.GetLastUpdated(img.ID())
+	lastUpdated, err := i.imageStore.GetLastUpdated(img.ID())
 	if err != nil {
 		return nil, err
 	}
@@ -86,7 +86,7 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		},
 	}
 
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName(img.OperatingSystem())
+	imageInspect.GraphDriver.Name = i.GraphDriverForOS(img.OperatingSystem())
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

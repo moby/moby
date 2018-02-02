@@ -239,7 +239,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 
 	// release lock because size calculation is slow
 	if ctx.Size {
-		sizeRw, sizeRootFs := daemon.getSize(newC.ID)
+		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(newC.ID)
 		newC.SizeRw = sizeRw
 		newC.SizeRootFs = sizeRootFs
 	}
@@ -323,7 +323,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			id, _, err := daemon.GetImageIDAndOS(ancestor)
+			id, _, err := daemon.imageService.GetImageIDAndOS(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -333,7 +333,7 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, id, daemon.imageStore.Children)
+			populateImageFilterByParents(imagesFilter, id, daemon.imageService.Children)
 			return nil
 		})
 	}
@@ -591,7 +591,7 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	c := s.Container
 	image := s.Image // keep the original ref if still valid (hasn't changed)
 	if image != s.ImageID {
-		id, _, err := daemon.GetImageIDAndOS(image)
+		id, _, err := daemon.imageService.GetImageIDAndOS(image)
 		if _, isDNE := err.(errImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
