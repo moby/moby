@@ -16,7 +16,7 @@ TINI_COMMIT=949e6facb77383876aeff8a6944dde66b3089574
 # LIBNETWORK_COMMIT is used to build the docker-userland-proxy binary. When
 # updating the binary version, consider updating github.com/docker/libnetwork
 # in vendor.conf accordingly
-LIBNETWORK_COMMIT=20dd462e0a0e883437a274bd61df4bc4de980830
+LIBNETWORK_COMMIT=ed2130d117c11c542327b4d5216a5db36770bc65
 VNDR_COMMIT=a6e196d8b4b0cbbdc29aebdb20c59ac6926bb384
 
 # Linting
