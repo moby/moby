@@ -312,17 +312,19 @@ func (daemon *Daemon) reloadLiveRestore(conf *config.Config, attributes map[stri
 	return nil
 }
 
-// reloadNetworkDiagnosticPort updates the network controller starting the diagnose mode if the config is valid
+// reloadNetworkDiagnosticPort updates the network controller starting the diagnostic if the config is valid
 func (daemon *Daemon) reloadNetworkDiagnosticPort(conf *config.Config, attributes map[string]string) error {
-	if conf == nil || daemon.netController == nil {
+	if conf == nil || daemon.netController == nil || !conf.IsValueSet("network-diagnostic-port") ||
+		conf.NetworkDiagnosticPort < 1 || conf.NetworkDiagnosticPort > 65535 {
+		// If there is no config make sure that the diagnostic is off
+		if daemon.netController != nil {
+			daemon.netController.StopDiagnostic()
+		}
 		return nil
 	}
-	// Enable the network diagnose if the flag is set with a valid port withing the range
-	if conf.IsValueSet("network-diagnostic-port") && conf.NetworkDiagnosticPort > 0 && conf.NetworkDiagnosticPort < 65536 {
-		logrus.Warnf("Calling the diagnostic start with %d", conf.NetworkDiagnosticPort)
-		daemon.netController.StartDiagnose(conf.NetworkDiagnosticPort)
-	} else {
-		daemon.netController.StopDiagnose()
-	}
+	// Enable the network diagnostic if the flag is set with a valid port withing the range
+	logrus.WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
+	daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
+
 	return nil
 }

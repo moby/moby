@@ -165,16 +165,19 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 		}
 	}
 	nDB.RUnlock()
+
 	if !ok || network.leaving || !nodePresent {
 		// I'm out of the network OR the event owner is not anymore part of the network so do not propagate
 		return false
 	}
 
+	nDB.Lock()
 	e, err := nDB.getEntry(tEvent.TableName, tEvent.NetworkID, tEvent.Key)
 	if err == nil {
 		// We have the latest state. Ignore the event
 		// since it is stale.
 		if e.ltime >= tEvent.LTime {
+			nDB.Unlock()
 			return false
 		}
 	}
@@ -195,8 +198,6 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 			nDB.config.Hostname, nDB.config.NodeID, tEvent)
 		e.reapTime = nDB.config.reapEntryInterval
 	}
-
-	nDB.Lock()
 	nDB.createOrUpdateEntry(tEvent.NetworkID, tEvent.TableName, tEvent.Key, e)
 	nDB.Unlock()
 

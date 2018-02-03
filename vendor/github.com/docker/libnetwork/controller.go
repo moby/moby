@@ -61,7 +61,7 @@ import (
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/diagnose"
+	"github.com/docker/libnetwork/diagnostic"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
@@ -136,12 +136,12 @@ type NetworkController interface {
 	// SetKeys configures the encryption key for gossip and overlay data path
 	SetKeys(keys []*types.EncryptionKey) error
 
-	// StartDiagnose start the network diagnose mode
-	StartDiagnose(port int)
-	// StopDiagnose start the network diagnose mode
-	StopDiagnose()
-	// IsDiagnoseEnabled returns true if the diagnose is enabled
-	IsDiagnoseEnabled() bool
+	// StartDiagnostic start the network diagnostic mode
+	StartDiagnostic(port int)
+	// StopDiagnostic start the network diagnostic mode
+	StopDiagnostic()
+	// IsDiagnosticEnabled returns true if the diagnostic is enabled
+	IsDiagnosticEnabled() bool
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -176,7 +176,7 @@ type controller struct {
 	agentStopDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
-	DiagnoseServer         *diagnose.Server
+	DiagnosticServer       *diagnostic.Server
 	sync.Mutex
 }
 
@@ -188,16 +188,16 @@ type initializer struct {
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c := &controller{
-		id:              stringid.GenerateRandomID(),
-		cfg:             config.ParseConfigOptions(cfgOptions...),
-		sandboxes:       sandboxTable{},
-		svcRecords:      make(map[string]svcInfo),
-		serviceBindings: make(map[serviceKey]*service),
-		agentInitDone:   make(chan struct{}),
-		networkLocker:   locker.New(),
-		DiagnoseServer:  diagnose.New(),
+		id:               stringid.GenerateRandomID(),
+		cfg:              config.ParseConfigOptions(cfgOptions...),
+		sandboxes:        sandboxTable{},
+		svcRecords:       make(map[string]svcInfo),
+		serviceBindings:  make(map[serviceKey]*service),
+		agentInitDone:    make(chan struct{}),
+		networkLocker:    locker.New(),
+		DiagnosticServer: diagnostic.New(),
 	}
-	c.DiagnoseServer.Init()
+	c.DiagnosticServer.Init()
 
 	if err := c.initStores(); err != nil {
 		return nil, err
@@ -1307,27 +1307,27 @@ func (c *controller) Stop() {
 	osl.GC()
 }
 
-// StartDiagnose start the network diagnose mode
-func (c *controller) StartDiagnose(port int) {
+// StartDiagnostic start the network dias mode
+func (c *controller) StartDiagnostic(port int) {
 	c.Lock()
-	if !c.DiagnoseServer.IsDebugEnable() {
-		c.DiagnoseServer.EnableDebug("127.0.0.1", port)
+	if !c.DiagnosticServer.IsDiagnosticEnabled() {
+		c.DiagnosticServer.EnableDiagnostic("127.0.0.1", port)
 	}
 	c.Unlock()
 }
 
-// StopDiagnose start the network diagnose mode
-func (c *controller) StopDiagnose() {
+// StopDiagnostic start the network dias mode
+func (c *controller) StopDiagnostic() {
 	c.Lock()
-	if c.DiagnoseServer.IsDebugEnable() {
-		c.DiagnoseServer.DisableDebug()
+	if c.DiagnosticServer.IsDiagnosticEnabled() {
+		c.DiagnosticServer.DisableDiagnostic()
 	}
 	c.Unlock()
 }
 
-// IsDiagnoseEnabled returns true if the diagnose is enabled
-func (c *controller) IsDiagnoseEnabled() bool {
+// IsDiagnosticEnabled returns true if the dias is enabled
+func (c *controller) IsDiagnosticEnabled() bool {
 	c.Lock()
 	defer c.Unlock()
-	return c.DiagnoseServer.IsDebugEnable()
+	return c.DiagnosticServer.IsDiagnosticEnabled()
 }
