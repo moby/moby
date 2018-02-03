@@ -182,6 +182,7 @@ func (sb *sandbox) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*P
 		if sb.ingress {
 			filteredPorts = filterPortConfigs(ingressPorts, false)
 			if err := programIngress(gwIP, filteredPorts, false); err != nil {
+				filterPortConfigs(filteredPorts, true)
 				logrus.Errorf("Failed to add ingress: %v", err)
 				return
 			}
@@ -255,6 +256,7 @@ func (sb *sandbox) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 		if sb.ingress {
 			filteredPorts = filterPortConfigs(ingressPorts, true)
 			if err := programIngress(gwIP, filteredPorts, true); err != nil {
+				filterPortConfigs(filteredPorts, false)
 				logrus.Errorf("Failed to delete ingress: %v", err)
 			}
 		}
