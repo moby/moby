@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/directory"
@@ -193,16 +194,6 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 	} else {
 		allImages = daemon.imageStore.Map()
 	}
-	allContainers := daemon.List()
-	imageRefs := map[string]bool{}
-	for _, c := range allContainers {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-			imageRefs[c.ID] = true
-		}
-	}
 
 	// Filter intermediary images and get their unique size
 	allLayers := make(map[layer.ChainID]layer.Layer)
@@ -242,14 +233,8 @@ deleteImagesLoop:
 		default:
 		}
 
-		dgst := digest.Digest(id)
-		hex := dgst.Hex()
-		if _, ok := imageRefs[hex]; ok {
-			continue
-		}
-
 		deletedImages := []types.ImageDeleteResponseItem{}
-		refs := daemon.referenceStore.References(dgst)
+		refs := daemon.referenceStore.References(id.Digest())
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
 			if !shouldDelete {
@@ -268,17 +253,16 @@ deleteImagesLoop:
 			if shouldDelete {
 				for _, ref := range refs {
 					imgDel, err := daemon.ImageDelete(ref.String(), false, true)
-					if err != nil {
-						logrus.Warnf("could not delete reference %s: %v", ref.String(), err)
+					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
 					deletedImages = append(deletedImages, imgDel...)
 				}
 			}
 		} else {
+			hex := id.Digest().Hex()
 			imgDel, err := daemon.ImageDelete(hex, false, true)
-			if err != nil {
-				logrus.Warnf("could not delete image %s: %v", hex, err)
+			if imageDeleteFailed(hex, err) {
 				continue
 			}
 			deletedImages = append(deletedImages, imgDel...)
@@ -307,6 +291,18 @@ deleteImagesLoop:
 	}
 
 	return rep, nil
+}
+
+func imageDeleteFailed(ref string, err error) bool {
+	switch {
+	case err == nil:
+		return false
+	case errdefs.IsConflict(err):
+		return true
+	default:
+		logrus.Warnf("failed to prune image %s: %v", ref, err)
+		return true
+	}
 }
 
 // localNetworksPrune removes unused local networks
