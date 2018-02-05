@@ -1,6 +1,6 @@
 // +build !windows
 
-package registry
+package registry // import "github.com/docker/docker/registry"
 
 var (
 	// CertsDir is the directory where certificates are stored

@@ -1,6 +1,6 @@
 // +build !windows
 
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"net/http"

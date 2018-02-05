@@ -1,4 +1,4 @@
-package environment
+package environment // import "github.com/docker/docker/internal/test/environment"
 
 import (
 	"context"

@@ -1,6 +1,6 @@
 // +build !windows
 
-package chrootarchive
+package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
 	"fmt"

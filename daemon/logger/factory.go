@@ -1,4 +1,4 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"fmt"

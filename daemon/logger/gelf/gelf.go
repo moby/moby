@@ -1,6 +1,6 @@
 // Package gelf provides the log driver for forwarding server logs to
 // endpoints that support the Graylog Extended Log Format.
-package gelf
+package gelf // import "github.com/docker/docker/daemon/logger/gelf"
 
 import (
 	"compress/flate"

@@ -1,4 +1,4 @@
-package register
+package register // import "github.com/docker/docker/daemon/graphdriver/register"
 
 import (
 	// register vfs

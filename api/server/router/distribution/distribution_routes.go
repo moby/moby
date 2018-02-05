@@ -1,4 +1,4 @@
-package distribution
+package distribution // import "github.com/docker/docker/api/server/router/distribution"
 
 import (
 	"encoding/base64"

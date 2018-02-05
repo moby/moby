@@ -1,6 +1,6 @@
 // +build linux freebsd
 
-package fileutils
+package fileutils // import "github.com/docker/docker/pkg/fileutils"
 
 import (
 	"fmt"

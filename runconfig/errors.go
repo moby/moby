@@ -1,4 +1,4 @@
-package runconfig
+package runconfig // import "github.com/docker/docker/runconfig"
 
 const (
 	// ErrConflictContainerNetworkAndLinks conflict between --net=container and links

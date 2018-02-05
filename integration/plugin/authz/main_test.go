@@ -1,6 +1,6 @@
 // +build !windows
 
-package authz
+package authz // import "github.com/docker/docker/integration/plugin/authz"
 
 import (
 	"encoding/json"

@@ -1,4 +1,4 @@
-package checkpoint
+package checkpoint // import "github.com/docker/docker/api/server/router/checkpoint"
 
 import "github.com/docker/docker/api/types"
 

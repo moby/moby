@@ -1,4 +1,4 @@
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"github.com/docker/docker/api/types/swarm"

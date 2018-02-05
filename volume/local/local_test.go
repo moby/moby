@@ -1,4 +1,4 @@
-package local
+package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"io/ioutil"

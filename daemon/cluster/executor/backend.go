@@ -1,4 +1,4 @@
-package executor
+package executor // import "github.com/docker/docker/daemon/cluster/executor"
 
 import (
 	"io"

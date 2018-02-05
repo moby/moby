@@ -1,5 +1,5 @@
 // Package parser implements a parser and parse tree dumper for Dockerfiles.
-package parser
+package parser // import "github.com/docker/docker/builder/dockerfile/parser"
 
 import (
 	"bufio"

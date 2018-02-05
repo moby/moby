@@ -1,4 +1,4 @@
-package git
+package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
 	"io/ioutil"

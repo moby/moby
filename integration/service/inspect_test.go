@@ -1,4 +1,4 @@
-package service
+package service // import "github.com/docker/docker/integration/service"
 
 import (
 	"fmt"

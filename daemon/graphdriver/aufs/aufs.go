@@ -20,7 +20,7 @@ aufs driver directory structure
 
 */
 
-package aufs
+package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
 
 import (
 	"bufio"

@@ -1,6 +1,6 @@
 // +build !windows
 
-package hack
+package hack // import "github.com/docker/docker/cmd/dockerd/hack"
 
 import (
 	"bytes"

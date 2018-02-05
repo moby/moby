@@ -1,4 +1,4 @@
-package system
+package system // import "github.com/docker/docker/integration/system"
 
 import (
 	"fmt"

@@ -1,4 +1,4 @@
-package parser
+package parser // import "github.com/docker/docker/builder/dockerfile/parser"
 
 import (
 	"strings"

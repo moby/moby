@@ -1,4 +1,4 @@
-package v1
+package v1 // import "github.com/docker/docker/image/v1"
 
 import (
 	"encoding/json"

@@ -1,6 +1,6 @@
 // +build windows
 
-package runconfig
+package runconfig // import "github.com/docker/docker/runconfig"
 
 import (
 	"testing"

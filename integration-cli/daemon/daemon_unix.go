@@ -1,6 +1,6 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
 	"os"

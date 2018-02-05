@@ -1,6 +1,6 @@
 // +build linux
 
-package signal
+package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
 	"fmt"

@@ -1,6 +1,6 @@
 // +build !windows
 
-package containerfs
+package containerfs // import "github.com/docker/docker/pkg/containerfs"
 
 import "path/filepath"
 

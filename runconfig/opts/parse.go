@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/runconfig/opts"
 
 import (
 	"strings"

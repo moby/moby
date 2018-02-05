@@ -1,4 +1,4 @@
-package multireader
+package multireader // import "github.com/docker/docker/daemon/logger/loggerutils/multireader"
 
 import (
 	"bytes"

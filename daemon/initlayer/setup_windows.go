@@ -1,4 +1,4 @@
-package initlayer
+package initlayer // import "github.com/docker/docker/daemon/initlayer"
 
 import (
 	"github.com/docker/docker/pkg/containerfs"

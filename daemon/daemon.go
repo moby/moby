@@ -3,7 +3,7 @@
 //
 // In implementing the various functions of the daemon, there is often
 // a method-specific struct for configuring the runtime behavior.
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"

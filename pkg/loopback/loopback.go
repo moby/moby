@@ -1,6 +1,6 @@
 // +build linux,cgo
 
-package loopback
+package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
 	"fmt"

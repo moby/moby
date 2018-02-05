@@ -1,4 +1,4 @@
-package session
+package session // import "github.com/docker/docker/api/server/router/session"
 
 import "github.com/docker/docker/api/server/router"
 

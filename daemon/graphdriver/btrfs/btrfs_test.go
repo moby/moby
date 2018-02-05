@@ -1,6 +1,6 @@
 // +build linux
 
-package btrfs
+package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 import (
 	"os"

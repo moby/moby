@@ -1,4 +1,4 @@
-package v1
+package v1 // import "github.com/docker/docker/migrate/v1"
 
 import (
 	"errors"

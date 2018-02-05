@@ -1,6 +1,6 @@
 //go:generate pluginrpc-gen -i $GOFILE -o proxy.go -type volumeDriver -name VolumeDriver
 
-package volumedrivers
+package volumedrivers // import "github.com/docker/docker/volume/drivers"
 
 import (
 	"fmt"

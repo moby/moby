@@ -1,4 +1,4 @@
-package system
+package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
 	"time"

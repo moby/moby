@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"

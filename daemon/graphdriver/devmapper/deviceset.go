@@ -1,6 +1,6 @@
 // +build linux
 
-package devmapper
+package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
 
 import (
 	"bufio"

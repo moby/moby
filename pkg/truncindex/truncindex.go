@@ -1,7 +1,7 @@
 // Package truncindex provides a general 'index tree', used by Docker
 // in order to be able to reference containers by only a few unambiguous
 // characters of their id.
-package truncindex
+package truncindex // import "github.com/docker/docker/pkg/truncindex"
 
 import (
 	"errors"

@@ -1,6 +1,6 @@
 // Package tailfile provides helper functions to read the nth lines of any
 // ReadSeeker.
-package tailfile
+package tailfile // import "github.com/docker/docker/pkg/tailfile"
 
 import (
 	"bytes"

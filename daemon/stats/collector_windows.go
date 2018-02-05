@@ -1,4 +1,4 @@
-package stats
+package stats // import "github.com/docker/docker/daemon/stats"
 
 // platformNewStatsCollector performs platform specific initialisation of the
 // Collector structure. This is a no-op on Windows.

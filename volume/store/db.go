@@ -1,4 +1,4 @@
-package store
+package store // import "github.com/docker/docker/volume/store"
 
 import (
 	"encoding/json"

@@ -1,6 +1,6 @@
 // +build !windows,!linux
 
-package chrootarchive
+package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import "golang.org/x/sys/unix"
 

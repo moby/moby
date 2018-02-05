@@ -1,4 +1,4 @@
-package xfer
+package xfer // import "github.com/docker/docker/distribution/xfer"
 
 import (
 	"sync/atomic"

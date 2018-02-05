@@ -1,4 +1,4 @@
-package network
+package network // import "github.com/docker/docker/integration/network"
 
 import (
 	"fmt"

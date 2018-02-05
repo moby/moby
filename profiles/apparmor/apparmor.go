@@ -1,6 +1,6 @@
 // +build linux
 
-package apparmor
+package apparmor // import "github.com/docker/docker/profiles/apparmor"
 
 import (
 	"bufio"

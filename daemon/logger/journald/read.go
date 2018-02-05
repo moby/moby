@@ -1,6 +1,6 @@
 // +build linux,cgo,!static_build,journald
 
-package journald
+package journald // import "github.com/docker/docker/daemon/logger/journald"
 
 // #include <sys/types.h>
 // #include <sys/poll.h>

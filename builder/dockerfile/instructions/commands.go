@@ -1,4 +1,4 @@
-package instructions
+package instructions // import "github.com/docker/docker/builder/dockerfile/instructions"
 
 import (
 	"errors"

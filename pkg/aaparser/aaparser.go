@@ -1,5 +1,5 @@
 // Package aaparser is a convenience package interacting with `apparmor_parser`.
-package aaparser
+package aaparser // import "github.com/docker/docker/pkg/aaparser"
 
 import (
 	"fmt"

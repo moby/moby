@@ -1,6 +1,6 @@
 // +build linux
 
-package aufs
+package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
 
 import (
 	"bufio"

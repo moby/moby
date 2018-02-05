@@ -1,4 +1,4 @@
-package cluster
+package cluster // import "github.com/docker/docker/daemon/cluster"
 
 import (
 	apitypes "github.com/docker/docker/api/types"
