@@ -145,7 +145,7 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 		imageRefOrID = stage.Image
 		localOnly = true
 	}
-	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.state.baseImage.OperatingSystem())
+	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.state.operatingSystem)
 }
 
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
@@ -288,7 +288,7 @@ func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
 func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	runConfig := d.state.runConfig
 	var err error
-	runConfig.WorkingDir, err = normalizeWorkdir(d.state.baseImage.OperatingSystem(), runConfig.WorkingDir, c.Path)
+	runConfig.WorkingDir, err = normalizeWorkdir(d.state.operatingSystem, runConfig.WorkingDir, c.Path)
 	if err != nil {
 		return err
 	}
@@ -304,7 +304,7 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 	}
 
 	comment := "WORKDIR " + runConfig.WorkingDir
-	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.baseImage.OperatingSystem()))
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.operatingSystem))
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
@@ -339,7 +339,7 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 		return system.ErrNotSupportedOperatingSystem
 	}
 	stateRunConfig := d.state.runConfig
-	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.baseImage.OperatingSystem())
+	cmdFromArgs := resolveCmdLine(c.ShellDependantCmdLine, stateRunConfig, d.state.operatingSystem)
 	buildArgs := d.state.buildArgs.FilterAllowed(stateRunConfig.Env)
 
 	saveCmd := cmdFromArgs
@@ -420,7 +420,7 @@ func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.S
 //
 func dispatchCmd(d dispatchRequest, c *instructions.CmdCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.baseImage.OperatingSystem())
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem)
 	runConfig.Cmd = cmd
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
@@ -463,7 +463,7 @@ func dispatchHealthcheck(d dispatchRequest, c *instructions.HealthCheckCommand) 
 //
 func dispatchEntrypoint(d dispatchRequest, c *instructions.EntrypointCommand) error {
 	runConfig := d.state.runConfig
-	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.baseImage.OperatingSystem())
+	cmd := resolveCmdLine(c.ShellDependantCmdLine, runConfig, d.state.operatingSystem)
 	runConfig.Entrypoint = cmd
 	if !d.state.cmdSet {
 		runConfig.Cmd = nil

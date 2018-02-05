@@ -83,7 +83,7 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 		return errors.New("Please provide a source image with `from` prior to commit")
 	}
 
-	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.baseImage.OperatingSystem()))
+	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
 	hit, err := b.probeCache(dispatchState, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
@@ -165,13 +165,13 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	// TODO: should this have been using origPaths instead of srcHash in the comment?
 	runConfigWithCommentCmd := copyRunConfig(
 		state.runConfig,
-		withCmdCommentString(commentStr, state.baseImage.OperatingSystem()))
+		withCmdCommentString(commentStr, state.operatingSystem))
 	hit, err := b.probeCache(state, runConfigWithCommentCmd)
 	if err != nil || hit {
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, state.baseImage.OperatingSystem())
+	imageMount, err := b.imageSources.Get(state.imageID, true, state.operatingSystem)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
@@ -182,7 +182,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 	}
 	defer rwLayer.Release()
 
-	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer, state.baseImage.OperatingSystem())
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer, state.operatingSystem)
 	if err != nil {
 		return err
 	}
