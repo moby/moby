@@ -1,17 +1,16 @@
 package service
 
 import (
-	"fmt"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/integration/util/swarm"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
@@ -22,7 +21,7 @@ import (
 func TestInspect(t *testing.T) {
 	skip.IfCondition(t, !testEnv.IsLocalDaemon())
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := request.NewClientForHost(d.Sock())
 	require.NoError(t, err)
@@ -49,19 +48,19 @@ func TestInspect(t *testing.T) {
 	assert.WithinDuration(t, before, service.UpdatedAt, 30*time.Second)
 }
 
-func fullSwarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
+func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
 	restartDelay := 100 * time.Millisecond
 	maxAttempts := uint64(4)
 
-	return swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
+	return swarmtypes.ServiceSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: name,
 			Labels: map[string]string{
 				"service-label": "service-label-value",
 			},
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
 				Image:           "busybox:latest",
 				Labels:          map[string]string{"container-label": "container-value"},
 				Command:         []string{"/bin/top"},
@@ -73,62 +72,41 @@ func fullSwarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
 				StopSignal:      "SIGINT",
 				StopGracePeriod: &restartDelay,
 				Hosts:           []string{"8.8.8.8  google"},
-				DNSConfig: &swarm.DNSConfig{
+				DNSConfig: &swarmtypes.DNSConfig{
 					Nameservers: []string{"8.8.8.8"},
 					Search:      []string{"somedomain"},
 				},
 				Isolation: container.IsolationDefault,
 			},
-			RestartPolicy: &swarm.RestartPolicy{
+			RestartPolicy: &swarmtypes.RestartPolicy{
 				Delay:       &restartDelay,
-				Condition:   swarm.RestartPolicyConditionOnFailure,
+				Condition:   swarmtypes.RestartPolicyConditionOnFailure,
 				MaxAttempts: &maxAttempts,
 			},
-			Runtime: swarm.RuntimeContainer,
+			Runtime: swarmtypes.RuntimeContainer,
 		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
+		Mode: swarmtypes.ServiceMode{
+			Replicated: &swarmtypes.ReplicatedService{
 				Replicas: &replicas,
 			},
 		},
-		UpdateConfig: &swarm.UpdateConfig{
+		UpdateConfig: &swarmtypes.UpdateConfig{
 			Parallelism:     2,
 			Delay:           200 * time.Second,
-			FailureAction:   swarm.UpdateFailureActionContinue,
+			FailureAction:   swarmtypes.UpdateFailureActionContinue,
 			Monitor:         2 * time.Second,
 			MaxFailureRatio: 0.2,
-			Order:           swarm.UpdateOrderStopFirst,
+			Order:           swarmtypes.UpdateOrderStopFirst,
 		},
-		RollbackConfig: &swarm.UpdateConfig{
+		RollbackConfig: &swarmtypes.UpdateConfig{
 			Parallelism:     3,
 			Delay:           300 * time.Second,
-			FailureAction:   swarm.UpdateFailureActionPause,
+			FailureAction:   swarmtypes.UpdateFailureActionPause,
 			Monitor:         3 * time.Second,
 			MaxFailureRatio: 0.3,
-			Order:           swarm.UpdateOrderStartFirst,
+			Order:           swarmtypes.UpdateOrderStartFirst,
 		},
 	}
-}
-
-const defaultSwarmPort = 2477
-
-func newSwarm(t *testing.T) *daemon.Swarm {
-	d := &daemon.Swarm{
-		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
-			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-		}),
-		// TODO: better method of finding an unused port
-		Port: defaultSwarmPort,
-	}
-	// TODO: move to a NewSwarm constructor
-	d.ListenAddr = fmt.Sprintf("0.0.0.0:%d", d.Port)
-
-	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
-
-	require.NoError(t, d.Init(swarm.InitRequest{}))
-	return d
 }
 
 func serviceContainerCount(client client.ServiceAPIClient, id string, count uint64) func(log poll.LogT) poll.Result {
