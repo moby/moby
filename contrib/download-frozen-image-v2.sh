@@ -47,6 +47,37 @@ registryBase='https://registry-1.docker.io'
 authBase='https://auth.docker.io'
 authService='registry.docker.io'
 
+ARM_VARIANT=""
+
+fetch_arm_variant() {
+	if [ "$(go env GOHOSTOS)" = "linux" ];then
+		local cpuinfo="$(cat /proc/cpuinfo | grep -i 'CPU architecture' | head -n 1 -)"
+		local variant="$(echo -e "${cpuinfo##*:}" | tr -d '[:space:]')"
+		case $variant in
+			"8")
+			ARM_VARIANT="v8"
+			;;
+			"7"|"7M"|"/?/(12/)"|"/?/(13/)"|"/?/(14/)"|"/?/(15/)"|"/?/(16/)"|"/?/(17/)")
+			ARM_VARIANT="v7"
+			;;
+			"6"|"6TE")
+			ARM_VARIANT="v6"
+			;;
+			"5"|"5T"|"5TE"|"5TEJ")
+			ARM_VARIANT="v5"
+			;;
+			"4"|"4T")
+			ARM_VARIANT="v4"
+			;;
+			"3")
+			ARM_VARIANT="v3"
+			;;
+			"*")
+			;;
+			esac
+	fi
+}
+
 # https://github.com/moby/moby/issues/33700
 fetch_blob() {
 	local token="$1"; shift
@@ -225,6 +256,7 @@ while [ $# -gt 0 ]; do
 					handle_single_manifest_v2 "$manifestJson"
 					;;
 				application/vnd.docker.distribution.manifest.list.v2+json)
+					Arch="$(go env GOARCH)"
 					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
 					IFS="$newlineIFS"
 					layers=( $layersFs )
@@ -232,25 +264,49 @@ while [ $# -gt 0 ]; do
 
 					found=""
 					# parse first level multi-arch manifest
-					for i in "${!layers[@]}"; do
-						layerMeta="${layers[$i]}"
-						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
-						if [ "$maniArch" = "$(go env GOARCH)" ]; then
-							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
-							# get second level single manifest
-							submanifestJson="$(
-								curl -fsSL \
-									-H "Authorization: Bearer $token" \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
-									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-									"$registryBase/v2/$image/manifests/$digest"
-							)"
-							handle_single_manifest_v2 "$submanifestJson"
-							found="found"
-							break
-						fi
-					done
+					if [ "${Arch}" = "arm64" ] || [ "${Arch}" = "arm" ]; then
+						fetch_arm_variant
+						for i in "${!layers[@]}"; do
+							layerMeta="${layers[$i]}"
+							maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
+							maniVariant="$(echo "$layerMeta" | jq --raw-output '.platform.variant')"
+							if [ "$maniArch" = "${Arch}" ] && [ "${ARM_VARIANT}" = "${maniVariant}" ]; then
+								digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+								# get second level single manifest
+								submanifestJson="$(
+									curl -fsSL \
+										-H "Authorization: Bearer $token" \
+										-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+										-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+										-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
+										"$registryBase/v2/$image/manifests/$digest"
+								)"
+								handle_single_manifest_v2 "$submanifestJson"
+								found="found"
+								break
+							fi
+						done
+					else
+						for i in "${!layers[@]}"; do
+							layerMeta="${layers[$i]}"
+							maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
+							if [ "$maniArch" = "${Arch}" ]; then
+								digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+								# get second level single manifest
+								submanifestJson="$(
+                                                                        curl -fsSL \
+                                                                                -H "Authorization: Bearer $token" \
+                                                                                -H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+                                                                                -H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+                                                                                -H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
+                                                                                "$registryBase/v2/$image/manifests/$digest"
+                                                                )"
+                                                                handle_single_manifest_v2 "$submanifestJson"
+                                                                found="found"
+                                                                break
+							fi
+						done
+					fi
 					if [ -z "$found" ]; then
 						echo >&2 "error: manifest for $maniArch is not found"
 						exit 1
