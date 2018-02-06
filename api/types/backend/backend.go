@@ -5,7 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
 
@@ -94,13 +93,26 @@ type ExecProcessConfig struct {
 	User       string   `json:"user,omitempty"`
 }
 
-// ContainerCommitConfig is a wrapper around
-// types.ContainerCommitConfig that also
-// transports configuration changes for a container.
-type ContainerCommitConfig struct {
-	types.ContainerCommitConfig
+// CreateImageConfig is the configuration for creating an image from a
+// container.
+type CreateImageConfig struct {
+	Repo    string
+	Tag     string
+	Pause   bool
+	Author  string
+	Comment string
+	Config  *container.Config
 	Changes []string
-	// TODO: ContainerConfig is only used by the dockerfile Builder, so remove it
-	// once the Builder has been updated to use a different interface
-	ContainerConfig *container.Config
+}
+
+// CommitConfig is the configuration for creating an image as part of a build.
+type CommitConfig struct {
+	Author              string
+	Comment             string
+	Config              *container.Config
+	ContainerConfig     *container.Config
+	ContainerID         string
+	ContainerMountLabel string
+	ContainerOS         string
+	ParentImageID       string
 }

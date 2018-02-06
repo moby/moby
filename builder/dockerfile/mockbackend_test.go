@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
 	"golang.org/x/net/context"
@@ -18,7 +19,7 @@ import (
 // MockBackend implements the builder.Backend interface for unit testing
 type MockBackend struct {
 	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
-	commitFunc          func(string, *backend.ContainerCommitConfig) (string, error)
+	commitFunc          func(backend.CommitConfig) (image.ID, error)
 	getImageFunc        func(string) (builder.Image, builder.ReleaseableLayer, error)
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
@@ -38,9 +39,9 @@ func (m *MockBackend) ContainerRm(name string, config *types.ContainerRmConfig) 
 	return nil
 }
 
-func (m *MockBackend) Commit(cID string, cfg *backend.ContainerCommitConfig) (string, error) {
+func (m *MockBackend) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
 	if m.commitFunc != nil {
-		return m.commitFunc(cID, cfg)
+		return m.commitFunc(c)
 	}
 	return "", nil
 }

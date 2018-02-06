@@ -21,7 +21,7 @@ type Backend interface {
 }
 
 type containerBackend interface {
-	Commit(name string, config *backend.ContainerCommitConfig) (imageID string, err error)
+	CreateImageFromContainer(name string, config *backend.CreateImageConfig) (imageID string, err error)
 }
 
 type imageBackend interface {

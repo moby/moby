@@ -34,33 +34,29 @@ func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 
-	cname := r.Form.Get("container")
-
+	// TODO: remove pause arg, and always pause in backend
 	pause := httputils.BoolValue(r, "pause")
 	version := httputils.VersionFromContext(ctx)
 	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
 		pause = true
 	}
 
-	c, _, _, err := s.decoder.DecodeConfig(r.Body)
+	config, _, _, err := s.decoder.DecodeConfig(r.Body)
 	if err != nil && err != io.EOF { //Do not fail if body is empty.
 		return err
 	}
 
-	commitCfg := &backend.ContainerCommitConfig{
-		ContainerCommitConfig: types.ContainerCommitConfig{
-			Pause:        pause,
-			Repo:         r.Form.Get("repo"),
-			Tag:          r.Form.Get("tag"),
-			Author:       r.Form.Get("author"),
-			Comment:      r.Form.Get("comment"),
-			Config:       c,
-			MergeConfigs: true,
-		},
+	commitCfg := &backend.CreateImageConfig{
+		Pause:   pause,
+		Repo:    r.Form.Get("repo"),
+		Tag:     r.Form.Get("tag"),
+		Author:  r.Form.Get("author"),
+		Comment: r.Form.Get("comment"),
+		Config:  config,
 		Changes: r.Form["changes"],
 	}
 
-	imgID, err := s.backend.Commit(cname, commitCfg)
+	imgID, err := s.backend.CreateImageFromContainer(r.Form.Get("container"), commitCfg)
 	if err != nil {
 		return err
 	}
