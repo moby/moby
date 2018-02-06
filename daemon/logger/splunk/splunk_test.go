@@ -4,12 +4,14 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/gotestyourself/gotestyourself/env"
 	"github.com/stretchr/testify/require"
 )
 
@@ -80,6 +82,36 @@ func TestNewMissedToken(t *testing.T) {
 	if err.Error() != "splunk: splunk-token is expected" {
 		t.Fatal("Logger driver should fail when no required parameters specified")
 	}
+}
+
+func TestNewWithProxy(t *testing.T) {
+	proxy := "http://proxy.testing:8888"
+	reset := env.Patch(t, "HTTP_PROXY", proxy)
+	defer reset()
+
+	// must not be localhost
+	splunkURL := "http://example.com:12345"
+	logger, err := New(logger.Info{
+		Config: map[string]string{
+			splunkURLKey:              splunkURL,
+			splunkTokenKey:            "token",
+			splunkVerifyConnectionKey: "false",
+		},
+		ContainerID: "containeriid",
+	})
+	require.NoError(t, err)
+	splunkLogger := logger.(*splunkLoggerInline)
+
+	proxyFunc := splunkLogger.transport.Proxy
+	require.NotNil(t, proxyFunc)
+
+	req, err := http.NewRequest("GET", splunkURL, nil)
+	require.NoError(t, err)
+
+	proxyURL, err := proxyFunc(req)
+	require.NoError(t, err)
+	require.NotNil(t, proxyURL)
+	require.Equal(t, proxy, proxyURL.String())
 }
 
 // Test default settings
