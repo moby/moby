@@ -103,6 +103,10 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 		memory.Swappiness = &swappiness
 	}
 
+	if config.OomKillDisable != nil {
+		memory.DisableOOMKiller = config.OomKillDisable
+	}
+
 	if config.KernelMemory != 0 {
 		memory.Kernel = &config.KernelMemory
 	}
