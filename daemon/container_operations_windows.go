@@ -64,12 +64,6 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	return nil
 }
 
-// getSize returns real size & virtual size
-func (daemon *Daemon) getSize(containerID string) (int64, int64) {
-	// TODO Windows
-	return 0, 0
-}
-
 func (daemon *Daemon) setupIpcDirs(container *container.Container) error {
 	return nil
 }

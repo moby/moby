@@ -1,6 +1,6 @@
 // +build linux freebsd
 
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"runtime"
@@ -8,8 +8,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// getSize returns the real size & virtual size of the container.
-func (i *imageService) GetContainerLayerSize(containerID string) (int64, int64) {
+// GetContainerLayerSize returns the real size & virtual size of the container.
+func (i *ImageService) GetContainerLayerSize(containerID string) (int64, int64) {
 	var (
 		sizeRw, sizeRootfs int64
 		err                error

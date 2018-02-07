@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"github.com/docker/docker/builder"
@@ -7,7 +7,7 @@ import (
 )
 
 // MakeImageCache creates a stateful image cache.
-func (i *imageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
+func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
 	if len(sourceRefs) == 0 {
 		return cache.NewLocal(i.imageStore)
 	}

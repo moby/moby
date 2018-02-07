@@ -62,6 +62,7 @@ type Backend interface {
 	GetAttachmentStore() *networkSettings.AttachmentStore
 }
 
+// ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)

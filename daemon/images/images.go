@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"encoding/json"
@@ -34,7 +34,7 @@ func (r byCreated) Swap(i, j int)      { r[i], r[j] = r[j], r[i] }
 func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 
 // Map returns a map of all images in the ImageStore
-func (i *imageService) Map() map[image.ID]*image.Image {
+func (i *ImageService) Map() map[image.ID]*image.Image {
 	return i.imageStore.Map()
 }
 
@@ -43,7 +43,7 @@ func (i *imageService) Map() map[image.ID]*image.Image {
 // filter is a shell glob string applied to repository names. The argument
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
-func (i *imageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
+func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
 	var (
 		allImages    map[image.ID]*image.Image
 		err          error
@@ -249,7 +249,7 @@ func (i *imageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 // This new image contains only the layers from it's parent + 1 extra layer which contains the diff of all the layers in between.
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
-func (i *imageService) SquashImage(id, parent string) (string, error) {
+func (i *ImageService) SquashImage(id, parent string) (string, error) {
 
 	var (
 		img *image.Image

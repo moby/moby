@@ -120,7 +120,7 @@ func (daemon *Daemon) cleanupContainer(container *container.Container, forceRemo
 	// When container creation fails and `RWLayer` has not been created yet, we
 	// do not call `ReleaseRWLayer`
 	if container.RWLayer != nil {
-		err := daemon.imageService.ReleaseContainerLayer(container.RWLayer, container.OS)
+		err := daemon.imageService.ReleaseLayer(container.RWLayer, container.OS)
 		if err != nil {
 			err = errors.Wrapf(err, "container %s", container.ID)
 			container.SetRemovalError(err)

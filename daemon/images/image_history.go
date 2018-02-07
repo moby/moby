@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"fmt"
@@ -11,7 +11,7 @@ import (
 
 // ImageHistory returns a slice of ImageHistory structures for the specified image
 // name by walking the image lineage.
-func (i *imageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
+func (i *ImageService) ImageHistory(name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
 	img, err := i.GetImage(name)
 	if err != nil {

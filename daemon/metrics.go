@@ -14,7 +14,6 @@ const metricsPluginType = "MetricsCollector"
 
 var (
 	containerActions          metrics.LabeledTimer
-	imageActions              metrics.LabeledTimer
 	networkActions            metrics.LabeledTimer
 	engineInfo                metrics.LabeledGauge
 	engineCpus                metrics.Gauge
@@ -52,7 +51,6 @@ func init() {
 	engineMemory = ns.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
 	healthChecksCounter = ns.NewCounter("health_checks", "The total number of health checks")
 	healthChecksFailedCounter = ns.NewCounter("health_checks_failed", "The total number of failed health checks")
-	imageActions = ns.NewLabeledTimer("image_actions", "The number of seconds it takes to process each image action", "action")
 
 	stateCtr = newStateCounter(ns.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))
 	ns.Add(stateCtr)

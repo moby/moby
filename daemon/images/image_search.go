@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"strconv"
@@ -22,7 +22,7 @@ var acceptedSearchFilterTags = map[string]bool{
 //
 // TODO: this could be implemented in a registry service instead of the image
 // service.
-func (i *imageService) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int,
+func (i *ImageService) SearchRegistryForImages(ctx context.Context, filtersArgs string, term string, limit int,
 	authConfig *types.AuthConfig,
 	headers map[string][]string) (*registrytypes.SearchResults, error) {
 

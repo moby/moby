@@ -80,7 +80,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 	var ds [][2]string
 	drivers := ""
-	statuses := daemon.imageService.GraphDriverStatuses()
+	statuses := daemon.imageService.LayerStoreStatus()
 	for os, gd := range daemon.graphDrivers {
 		ds = append(ds, statuses[os]...)
 		drivers += gd

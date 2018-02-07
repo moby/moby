@@ -21,21 +21,21 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/daemon/exec"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
 	// register graph drivers
-	"github.com/docker/docker/builder"
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
 	dmetadata "github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -75,23 +75,21 @@ type Daemon struct {
 	containers        container.Store
 	containersReplica container.ViewDB
 	execCommands      *exec.Store
-
-	imageService *imageService
-
-	idIndex          *truncindex.TruncIndex
-	configStore      *config.Config
-	statsCollector   *stats.Collector
-	defaultLogConfig containertypes.LogConfig
-	RegistryService  registry.Service
-	EventsService    *events.Events
-	netController    libnetwork.NetworkController
-	volumes          *store.VolumeStore
-	discoveryWatcher discovery.Reloader
-	root             string
-	seccompEnabled   bool
-	apparmorEnabled  bool
-	shutdown         bool
-	idMappings       *idtools.IDMappings
+	imageService      *images.ImageService
+	idIndex           *truncindex.TruncIndex
+	configStore       *config.Config
+	statsCollector    *stats.Collector
+	defaultLogConfig  containertypes.LogConfig
+	RegistryService   registry.Service
+	EventsService     *events.Events
+	netController     libnetwork.NetworkController
+	volumes           *store.VolumeStore
+	discoveryWatcher  discovery.Reloader
+	root              string
+	seccompEnabled    bool
+	apparmorEnabled   bool
+	shutdown          bool
+	idMappings        *idtools.IDMappings
 	// TODO: move graphDrivers field to an InfoService
 	graphDrivers map[string]string // By operating system
 
@@ -158,7 +156,7 @@ func (daemon *Daemon) restore() error {
 		// Ignore the container if it does not support the current driver being used by the graph
 		currentDriverForContainerOS := daemon.graphDrivers[container.OS]
 		if (container.Driver == "" && currentDriverForContainerOS == "aufs") || container.Driver == currentDriverForContainerOS {
-			rwlayer, err := daemon.imageService.GetRWLayerByID(container.ID, container.OS)
+			rwlayer, err := daemon.imageService.GetLayerByID(container.ID, container.OS)
 			if err != nil {
 				logrus.Errorf("Failed to load container mount %v: %v", id, err)
 				continue
@@ -808,8 +806,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
-	eventsService := events.New()
-
 	// We have a single tag/reference store for the daemon globally. However, it's
 	// stored under the graphdriver. On host platforms which only support a single
 	// container OS, but multiple selectable graphdrivers, this means depending on which
@@ -863,7 +859,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
-	d.EventsService = eventsService
+	d.EventsService = events.New()
 	d.volumes = volStore
 	d.root = config.Root
 	d.idMappings = idMappings
@@ -872,19 +868,21 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	d.linkIndex = newLinkIndex()
 
-	logrus.Debugf("Max Concurrent Downloads: %d", *config.MaxConcurrentDownloads)
-	logrus.Debugf("Max Concurrent Uploads: %d", *config.MaxConcurrentUploads)
-	d.imageService = &imageService{
-		trustKey:                  trustKey,
-		uploadManager:             xfer.NewLayerUploadManager(*config.MaxConcurrentUploads),
-		downloadManager:           xfer.NewLayerDownloadManager(layerStores, *config.MaxConcurrentDownloads),
-		registryService:           registryService,
-		referenceStore:            rs,
-		distributionMetadataStore: distributionMetadataStore,
-		imageStore:                imageStore,
-		eventsService:             eventsService,
-		containers:                d.containers,
-	}
+	// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
+	// used above to run migration. They could be initialized in ImageService
+	// if migration is called from daemon/images. layerStore might move as well.
+	d.imageService = images.NewImageService(images.ImageServiceConfig{
+		ContainerStore:            d.containers,
+		DistributionMetadataStore: distributionMetadataStore,
+		EventsService:             d.EventsService,
+		ImageStore:                imageStore,
+		LayerStores:               layerStores,
+		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
+		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
+		ReferenceStore:            rs,
+		RegistryService:           registryService,
+		TrustKey:                  trustKey,
+	})
 
 	go d.execCommandGC()
 
@@ -1007,7 +1005,7 @@ func (daemon *Daemon) Shutdown() error {
 				logrus.Errorf("Stop container error: %v", err)
 				return
 			}
-			if mountid, err := daemon.imageService.GetContainerMountID(c.ID, c.OS); err == nil {
+			if mountid, err := daemon.imageService.GetLayerMountID(c.ID, c.OS); err == nil {
 				daemon.cleanupMountsByID(mountid)
 			}
 			logrus.Debugf("container stopped %s", c.ID)
@@ -1020,7 +1018,9 @@ func (daemon *Daemon) Shutdown() error {
 		}
 	}
 
-	daemon.imageService.Cleanup()
+	if daemon.imageService != nil {
+		daemon.imageService.Cleanup()
+	}
 
 	// If we are part of a cluster, clean up cluster's stuff
 	if daemon.clusterProvider != nil {
@@ -1320,14 +1320,15 @@ func (daemon *Daemon) IDMappings() *idtools.IDMappings {
 	return daemon.idMappings
 }
 
-func (daemon *Daemon) ImageService() *imageService {
+// ImageService returns the Daemon's ImageService
+func (daemon *Daemon) ImageService() *images.ImageService {
 	return daemon.imageService
 }
 
-// TODO: tmp hack to merge interfaces
+// BuilderBackend returns the backend used by builder
 func (daemon *Daemon) BuilderBackend() builder.Backend {
 	return struct {
 		*Daemon
-		*imageService
+		*images.ImageService
 	}{daemon, daemon.imageService}
 }

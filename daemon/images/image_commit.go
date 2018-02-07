@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"encoding/json"
@@ -13,7 +13,7 @@ import (
 )
 
 // CommitImage creates a new image from a commit config
-func (i *imageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 	layerStore, ok := i.layerStores[c.ContainerOS]
 	if !ok {
 		return "", system.ErrNotSupportedOperatingSystem
@@ -114,7 +114,7 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //   * it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *imageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
 	container := i.containers.Get(c.ContainerID)
 	if container == nil {
 		// TODO: use typed error

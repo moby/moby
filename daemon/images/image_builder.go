@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"io"
@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/cache"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
@@ -138,7 +137,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *imageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, os string) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, os string) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -166,7 +165,7 @@ func (i *imageService) pullForBuilder(ctx context.Context, name string, authConf
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
-func (i *imageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" {
 		if !system.IsOSSupported(opts.OS) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
@@ -204,7 +203,7 @@ func (i *imageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *imageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
 	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")

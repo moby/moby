@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"fmt"
@@ -60,7 +60,7 @@ const (
 // meaning any delete conflicts will cause the image to not be deleted and the
 // conflict will not be reported.
 //
-func (i *imageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
+func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error) {
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
@@ -229,7 +229,7 @@ func isImageIDPrefix(imageID, possiblePrefix string) bool {
 // repositoryRef must not be an image ID but a repository name followed by an
 // optional tag or digest reference. If tag or digest is omitted, the default
 // tag is used. Returns the resolved image reference and an error.
-func (i *imageService) removeImageRef(ref reference.Named) (reference.Named, error) {
+func (i *ImageService) removeImageRef(ref reference.Named) (reference.Named, error) {
 	ref = reference.TagNameOnly(ref)
 
 	// Ignore the boolean value returned, as far as we're concerned, this
@@ -245,7 +245,7 @@ func (i *imageService) removeImageRef(ref reference.Named) (reference.Named, err
 // on the first encountered error. Removed references are logged to this
 // daemon's event service. An "Untagged" types.ImageDeleteResponseItem is added to the
 // given list of records.
-func (i *imageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
+func (i *ImageService) removeAllReferencesToImageID(imgID image.ID, records *[]types.ImageDeleteResponseItem) error {
 	imageRefs := i.referenceStore.References(imgID.Digest())
 
 	for _, imageRef := range imageRefs {
@@ -296,7 +296,7 @@ func (idc *imageDeleteConflict) Conflict() {}
 // conflict is encountered, it will be returned immediately without deleting
 // the image. If quiet is true, any encountered conflicts will be ignored and
 // the function will return nil immediately without deleting the image.
-func (i *imageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
+func (i *ImageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageDeleteResponseItem, force, prune, quiet bool) error {
 	// First, determine if this image has any conflicts. Ignore soft conflicts
 	// if force is true.
 	c := conflictHard
@@ -355,7 +355,7 @@ func (i *imageService) imageDeleteHelper(imgID image.ID, records *[]types.ImageD
 // using the image. A soft conflict is any tags/digest referencing the given
 // image or any stopped container using the image. If ignoreSoftConflicts is
 // true, this function will not check for soft conflict conditions.
-func (i *imageService) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
+func (i *ImageService) checkImageDeleteConflict(imgID image.ID, mask conflictType) *imageDeleteConflict {
 	// Check if the image has any descendant images.
 	if mask&conflictDependentChild != 0 && len(i.imageStore.Children(imgID)) > 0 {
 		return &imageDeleteConflict{
@@ -408,6 +408,6 @@ func (i *imageService) checkImageDeleteConflict(imgID image.ID, mask conflictTyp
 // imageIsDangling returns whether the given image is "dangling" which means
 // that there are no repository references to the given image and it has no
 // child images.
-func (i *imageService) imageIsDangling(imgID image.ID) bool {
+func (i *ImageService) imageIsDangling(imgID image.ID) bool {
 	return !(len(i.referenceStore.References(imgID.Digest())) > 0 || len(i.imageStore.Children(imgID)) > 0)
 }

@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"time"
@@ -13,7 +13,7 @@ import (
 
 // LookupImage looks up an image by name and returns it as an ImageInspect
 // structure.
-func (i *imageService) LookupImage(name string) (*types.ImageInspect, error) {
+func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 	img, err := i.GetImage(name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
@@ -86,7 +86,7 @@ func (i *imageService) LookupImage(name string) (*types.ImageInspect, error) {
 		},
 	}
 
-	imageInspect.GraphDriver.Name = i.GraphDriverForOS(img.OperatingSystem())
+	imageInspect.GraphDriver.Name = i.layerStores[img.OperatingSystem()].DriverName()
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

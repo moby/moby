@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"github.com/docker/distribution/reference"
@@ -7,7 +7,7 @@ import (
 
 // TagImage creates the tag specified by newTag, pointing to the image named
 // imageName (alternatively, imageName can also be an image ID).
-func (i *imageService) TagImage(imageName, repository, tag string) (string, error) {
+func (i *ImageService) TagImage(imageName, repository, tag string) (string, error) {
 	imageID, _, err := i.GetImageIDAndOS(imageName)
 	if err != nil {
 		return "", err
@@ -28,7 +28,7 @@ func (i *imageService) TagImage(imageName, repository, tag string) (string, erro
 }
 
 // TagImageWithReference adds the given reference to the image ID provided.
-func (i *imageService) TagImageWithReference(imageID image.ID, newTag reference.Named) error {
+func (i *ImageService) TagImageWithReference(imageID image.ID, newTag reference.Named) error {
 	if err := i.referenceStore.AddTag(newTag, imageID.Digest(), true); err != nil {
 		return err
 	}

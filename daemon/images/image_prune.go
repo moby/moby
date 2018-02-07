@@ -1,11 +1,14 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -21,8 +24,12 @@ var imagesAcceptedFilters = map[string]bool{
 	"until":    true,
 }
 
+// errPruneRunning is returned when a prune request is received while
+// one is in progress
+var errPruneRunning = fmt.Errorf("a prune operation is already running")
+
 // ImagesPrune removes unused images
-func (i *imageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
 	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
@@ -96,7 +103,7 @@ deleteImagesLoop:
 		}
 
 		deletedImages := []types.ImageDeleteResponseItem{}
-		refs := i.referenceStore.References(dgst)
+		refs := i.referenceStore.References(id.Digest())
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
 			if !shouldDelete {
@@ -165,4 +172,39 @@ func imageDeleteFailed(ref string, err error) bool {
 		logrus.Warnf("failed to prune image %s: %v", ref, err)
 		return true
 	}
+}
+
+func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
+	if !pruneFilters.MatchKVList("label", labels) {
+		return false
+	}
+	// By default MatchKVList will return true if field (like 'label!') does not exist
+	// So we have to add additional Contains("label!") check
+	if pruneFilters.Contains("label!") {
+		if pruneFilters.MatchKVList("label!", labels) {
+			return false
+		}
+	}
+	return true
+}
+
+func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
+	until := time.Time{}
+	if !pruneFilters.Contains("until") {
+		return until, nil
+	}
+	untilFilters := pruneFilters.Get("until")
+	if len(untilFilters) > 1 {
+		return until, fmt.Errorf("more than one until filter specified")
+	}
+	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	if err != nil {
+		return until, err
+	}
+	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	if err != nil {
+		return until, err
+	}
+	until = time.Unix(seconds, nanoseconds)
+	return until, nil
 }

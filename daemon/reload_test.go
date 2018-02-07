@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/pkg/discovery"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
@@ -21,7 +22,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 				Labels: []string{"foo:bar"},
 			},
 		},
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 
 	valuesSets := make(map[string]interface{})
@@ -46,7 +47,7 @@ func TestDaemonReloadLabels(t *testing.T) {
 func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 	daemon := &Daemon{
 		configStore:  &config.Config{},
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 
 	var err error
@@ -101,7 +102,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 
 func TestDaemonReloadMirrors(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	var err error
 	daemon.RegistryService, err = registry.NewService(registry.ServiceOptions{
@@ -200,7 +201,7 @@ func TestDaemonReloadMirrors(t *testing.T) {
 
 func TestDaemonReloadInsecureRegistries(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	var err error
 	// initialize daemon with existing insecure registries: "127.0.0.0/8", "10.10.1.11:5000", "10.10.1.22:5000"
@@ -292,7 +293,7 @@ func TestDaemonReloadInsecureRegistries(t *testing.T) {
 
 func TestDaemonReloadNotAffectOthers(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	daemon.configStore = &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -326,7 +327,7 @@ func TestDaemonReloadNotAffectOthers(t *testing.T) {
 
 func TestDaemonDiscoveryReload(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	daemon.configStore = &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -405,7 +406,7 @@ func TestDaemonDiscoveryReload(t *testing.T) {
 
 func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	daemon.configStore = &config.Config{}
 
@@ -452,7 +453,7 @@ func TestDaemonDiscoveryReloadFromEmptyDiscovery(t *testing.T) {
 
 func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	daemon.configStore = &config.Config{
 		CommonConfig: config.CommonConfig{
@@ -498,7 +499,7 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 
 func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
 	daemon := &Daemon{
-		imageService: &imageService{},
+		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
 	daemon.configStore = &config.Config{}
 

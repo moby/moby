@@ -138,7 +138,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 	}
 	s.Process.User.Username = c.Config.User
-	s.Windows.LayerFolders, err = daemon.GetLayerFolders(img, c.RWLayer)
+	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
 	if err != nil {
 		return nil, errors.Wrapf(err, "container %s", c.ID)
 	}
