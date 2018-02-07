@@ -68,8 +68,13 @@ type systemBackend interface {
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (*types.ContainersPruneReport, error)
 }
 
+type commitBackend interface {
+	CreateImageFromContainer(name string, config *backend.CreateImageConfig) (imageID string, err error)
+}
+
 // Backend is all the methods that need to be implemented to provide container specific functionality.
 type Backend interface {
+	commitBackend
 	execBackend
 	copyBackend
 	stateBackend

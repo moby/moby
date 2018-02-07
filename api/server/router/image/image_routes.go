@@ -4,14 +4,12 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"strconv"
 	"strings"
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -23,45 +21,6 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
-
-func (s *imageRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	if err := httputils.ParseForm(r); err != nil {
-		return err
-	}
-
-	if err := httputils.CheckForJSON(r); err != nil {
-		return err
-	}
-
-	// TODO: remove pause arg, and always pause in backend
-	pause := httputils.BoolValue(r, "pause")
-	version := httputils.VersionFromContext(ctx)
-	if r.FormValue("pause") == "" && versions.GreaterThanOrEqualTo(version, "1.13") {
-		pause = true
-	}
-
-	config, _, _, err := s.decoder.DecodeConfig(r.Body)
-	if err != nil && err != io.EOF { //Do not fail if body is empty.
-		return err
-	}
-
-	commitCfg := &backend.CreateImageConfig{
-		Pause:   pause,
-		Repo:    r.Form.Get("repo"),
-		Tag:     r.Form.Get("tag"),
-		Author:  r.Form.Get("author"),
-		Comment: r.Form.Get("comment"),
-		Config:  config,
-		Changes: r.Form["changes"],
-	}
-
-	imgID, err := s.backend.CreateImageFromContainer(r.Form.Get("container"), commitCfg)
-	if err != nil {
-		return err
-	}
-
-	return httputils.WriteJSON(w, http.StatusCreated, &types.IDResponse{ID: imgID})
-}
 
 // Creates an image from Pull or from Import
 func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
