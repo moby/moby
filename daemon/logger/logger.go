@@ -5,7 +5,7 @@
 // factory, which holds the contextual instance information that
 // allows multiple loggers of the same type to perform different
 // actions, such as logging to different locations.
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"sync"

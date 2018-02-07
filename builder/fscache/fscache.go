@@ -1,4 +1,4 @@
-package fscache
+package fscache // import "github.com/docker/docker/builder/fscache"
 
 import (
 	"archive/tar"

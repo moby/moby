@@ -1,4 +1,4 @@
-package dockerignore
+package dockerignore // import "github.com/docker/docker/builder/dockerignore"
 
 import (
 	"bufio"

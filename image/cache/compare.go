@@ -1,4 +1,4 @@
-package cache
+package cache // import "github.com/docker/docker/image/cache"
 
 import (
 	"github.com/docker/docker/api/types/container"

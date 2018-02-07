@@ -1,4 +1,4 @@
-package tarexport
+package tarexport // import "github.com/docker/docker/image/tarexport"
 
 import (
 	"encoding/json"

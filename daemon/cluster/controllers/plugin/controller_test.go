@@ -1,4 +1,4 @@
-package plugin
+package plugin // import "github.com/docker/docker/daemon/cluster/controllers/plugin"
 
 import (
 	"errors"

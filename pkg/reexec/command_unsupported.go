@@ -1,6 +1,6 @@
 // +build !linux,!windows,!freebsd,!darwin
 
-package reexec
+package reexec // import "github.com/docker/docker/pkg/reexec"
 
 import (
 	"os/exec"

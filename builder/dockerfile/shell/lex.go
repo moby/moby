@@ -1,4 +1,4 @@
-package shell
+package shell // import "github.com/docker/docker/builder/dockerfile/shell"
 
 import (
 	"bytes"

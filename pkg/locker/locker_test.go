@@ -1,4 +1,4 @@
-package locker
+package locker // import "github.com/docker/docker/pkg/locker"
 
 import (
 	"math/rand"

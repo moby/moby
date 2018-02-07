@@ -1,6 +1,6 @@
 // +build !linux
 
-package plugin
+package plugin // import "github.com/docker/docker/plugin"
 
 import (
 	"errors"

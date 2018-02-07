@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 // ContainerCreateWorkdir creates the working directory. This solves the
 // issue arising from https://github.com/docker/docker/issues/27545,

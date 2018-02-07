@@ -1,4 +1,4 @@
-package middleware
+package middleware // import "github.com/docker/docker/api/server/middleware"
 
 import (
 	"net/http"

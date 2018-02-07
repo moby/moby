@@ -1,6 +1,6 @@
 // Package logentries provides the log driver for forwarding server logs
 // to logentries endpoints.
-package logentries
+package logentries // import "github.com/docker/docker/daemon/logger/logentries"
 
 import (
 	"fmt"

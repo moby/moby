@@ -1,4 +1,4 @@
-package plugin
+package plugin // import "github.com/docker/docker/integration-cli/fixtures/plugin"
 
 import (
 	"encoding/json"

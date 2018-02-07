@@ -1,4 +1,4 @@
-package volume
+package volume // import "github.com/docker/docker/api/server/router/volume"
 
 import (
 	"golang.org/x/net/context"

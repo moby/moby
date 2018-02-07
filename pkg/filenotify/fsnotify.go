@@ -1,4 +1,4 @@
-package filenotify
+package filenotify // import "github.com/docker/docker/pkg/filenotify"
 
 import "github.com/fsnotify/fsnotify"
 

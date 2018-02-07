@@ -1,6 +1,6 @@
 // Package urlutil provides helper function to check urls kind.
 // It supports http urls, git urls and transport url (tcp://, …)
-package urlutil
+package urlutil // import "github.com/docker/docker/pkg/urlutil"
 
 import (
 	"regexp"

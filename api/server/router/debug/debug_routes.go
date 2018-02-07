@@ -1,4 +1,4 @@
-package debug
+package debug // import "github.com/docker/docker/api/server/router/debug"
 
 import (
 	"net/http"

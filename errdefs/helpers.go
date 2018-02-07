@@ -1,4 +1,4 @@
-package errdefs
+package errdefs // import "github.com/docker/docker/errdefs"
 
 import "context"
 

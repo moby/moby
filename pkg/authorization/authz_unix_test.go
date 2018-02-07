@@ -3,7 +3,7 @@
 // TODO Windows: This uses a Unix socket for testing. This might be possible
 // to port to Windows using a named pipe instead.
 
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bytes"

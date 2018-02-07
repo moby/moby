@@ -1,5 +1,5 @@
 // Package registry contains client primitives to interact with a remote Docker registry.
-package registry
+package registry // import "github.com/docker/docker/registry"
 
 import (
 	"crypto/tls"

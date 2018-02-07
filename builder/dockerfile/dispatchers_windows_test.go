@@ -1,6 +1,6 @@
 // +build windows
 
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import "testing"
 

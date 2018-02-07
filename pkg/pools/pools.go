@@ -7,7 +7,7 @@
 //
 // Utility functions which operate on pools should be added to this
 // package to allow them to be reused.
-package pools
+package pools // import "github.com/docker/docker/pkg/pools"
 
 import (
 	"bufio"

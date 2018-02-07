@@ -1,4 +1,4 @@
-package gcplogs
+package gcplogs // import "github.com/docker/docker/daemon/logger/gcplogs"
 
 import (
 	"fmt"

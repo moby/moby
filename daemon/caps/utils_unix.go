@@ -1,6 +1,6 @@
 // +build !windows
 
-package caps
+package caps // import "github.com/docker/docker/daemon/caps"
 
 import (
 	"fmt"

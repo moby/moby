@@ -1,4 +1,4 @@
-package build
+package build // import "github.com/docker/docker/api/server/backend/build"
 
 import (
 	"fmt"

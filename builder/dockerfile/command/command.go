@@ -1,5 +1,5 @@
 // Package command contains the set of Dockerfile commands.
-package command
+package command // import "github.com/docker/docker/builder/dockerfile/command"
 
 // Define constants for the command strings
 const (

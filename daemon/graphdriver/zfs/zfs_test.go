@@ -1,6 +1,6 @@
 // +build linux
 
-package zfs
+package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 
 import (
 	"testing"

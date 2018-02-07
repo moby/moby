@@ -53,7 +53,7 @@
 
 // TODO: Grab logs from SVM at terminate or errors
 
-package lcow
+package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"
 
 import (
 	"encoding/json"

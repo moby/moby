@@ -1,4 +1,4 @@
-package dockerversion
+package dockerversion // import "github.com/docker/docker/dockerversion"
 
 import (
 	"fmt"

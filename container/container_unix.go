@@ -1,6 +1,6 @@
 // +build linux freebsd
 
-package container
+package container // import "github.com/docker/docker/container"
 
 import (
 	"io/ioutil"

@@ -1,6 +1,6 @@
 // +build linux
 
-package copy
+package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
 
 /*
 #include <linux/fs.h>

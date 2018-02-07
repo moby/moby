@@ -1,4 +1,4 @@
-package discovery
+package discovery // import "github.com/docker/docker/pkg/discovery"
 
 import "net"
 

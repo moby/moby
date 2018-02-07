@@ -1,6 +1,6 @@
 // +build !windows
 
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"runtime"

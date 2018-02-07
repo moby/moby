@@ -1,4 +1,4 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/server/router/swarm"
 
 import "github.com/docker/docker/api/server/router"
 

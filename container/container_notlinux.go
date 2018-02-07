@@ -1,6 +1,6 @@
 // +build freebsd
 
-package container
+package container // import "github.com/docker/docker/container"
 
 import (
 	"golang.org/x/sys/unix"

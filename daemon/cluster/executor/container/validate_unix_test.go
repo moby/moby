@@ -1,6 +1,6 @@
 // +build !windows
 
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 const (
 	testAbsPath        = "/foo"

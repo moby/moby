@@ -1,4 +1,4 @@
-package requirement
+package requirement // import "github.com/docker/docker/integration-cli/requirement"
 
 import (
 	"fmt"

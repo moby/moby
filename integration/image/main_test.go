@@ -1,4 +1,4 @@
-package image
+package image // import "github.com/docker/docker/integration/image"
 
 import (
 	"fmt"

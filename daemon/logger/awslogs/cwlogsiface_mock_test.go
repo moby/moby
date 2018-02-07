@@ -1,4 +1,4 @@
-package awslogs
+package awslogs // import "github.com/docker/docker/daemon/logger/awslogs"
 
 import (
 	"fmt"

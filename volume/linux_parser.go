@@ -1,4 +1,4 @@
-package volume
+package volume // import "github.com/docker/docker/volume"
 
 import (
 	"errors"

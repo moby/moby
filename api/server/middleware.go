@@ -1,4 +1,4 @@
-package server
+package server // import "github.com/docker/docker/api/server"
 
 import (
 	"github.com/docker/docker/api/server/httputils"

@@ -1,4 +1,4 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
 	"runtime"

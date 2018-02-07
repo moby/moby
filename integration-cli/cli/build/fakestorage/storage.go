@@ -1,4 +1,4 @@
-package fakestorage
+package fakestorage // import "github.com/docker/docker/integration-cli/cli/build/fakestorage"
 
 import (
 	"fmt"

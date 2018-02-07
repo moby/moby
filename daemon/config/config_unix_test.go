@@ -1,6 +1,6 @@
 // +build !windows
 
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"testing"

@@ -10,7 +10,7 @@
 //
 // Each container log message generates an ETW event that also contains:
 // the container name and ID, the timestamp, and the stream type.
-package etwlogs
+package etwlogs // import "github.com/docker/docker/daemon/logger/etwlogs"
 
 import (
 	"errors"
