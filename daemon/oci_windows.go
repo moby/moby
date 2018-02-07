@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -144,6 +145,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		}
 		// Reverse order, expecting parent most first
 		s.Windows.LayerFolders = append([]string{layerPath}, s.Windows.LayerFolders...)
+	}
+	if c.RWLayer == nil {
+		return nil, errors.New("RWLayer of container " + c.ID + " is unexpectedly nil")
 	}
 	m, err := c.RWLayer.Metadata()
 	if err != nil {
