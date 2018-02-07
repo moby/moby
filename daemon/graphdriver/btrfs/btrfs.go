@@ -29,7 +29,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
@@ -163,7 +162,7 @@ func (d *Driver) Cleanup() error {
 		return err
 	}
 
-	return mount.RecursiveUnmount(d.home)
+	return nil
 }
 
 func free(p *C.char) {
