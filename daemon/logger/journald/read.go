@@ -330,12 +330,12 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	// here, potentially while the goroutine that uses them is still
 	// running.  Otherwise, close them when we return from this function.
 	following := false
-	defer func(pfollowing *bool) {
-		if !*pfollowing {
+	defer func() {
+		if !following {
 			close(logWatcher.Msg)
 		}
 		C.sd_journal_close(j)
-	}(&following)
+	}()
 	// Remove limits on the size of data items that we'll retrieve.
 	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))
 	if rc != 0 {
