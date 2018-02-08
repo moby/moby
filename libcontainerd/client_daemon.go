@@ -114,8 +114,21 @@ type client struct {
 	containers map[string]*container
 }
 
+func (c *client) setRemote(remote *containerd.Client) {
+	c.Lock()
+	c.remote = remote
+	c.Unlock()
+}
+
+func (c *client) getRemote() *containerd.Client {
+	c.RLock()
+	remote := c.remote
+	c.RUnlock()
+	return remote
+}
+
 func (c *client) Version(ctx context.Context) (containerd.Version, error) {
-	return c.remote.Version(ctx)
+	return c.getRemote().Version(ctx)
 }
 
 func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallback) (alive bool, pid int, err error) {
@@ -187,7 +200,7 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
-	cdCtr, err := c.remote.NewContainer(ctx, id,
+	cdCtr, err := c.getRemote().NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
 		// TODO(mlaventure): when containerd support lcow, revisit runtime value
 		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
@@ -230,7 +243,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		// remove the checkpoint when we're done
 		defer func() {
 			if cp != nil {
-				err := c.remote.ContentStore().Delete(context.Background(), cp.Digest)
+				err := c.getRemote().ContentStore().Delete(context.Background(), cp.Digest)
 				if err != nil {
 					c.logger.WithError(err).WithFields(logrus.Fields{
 						"ref":    checkpointDir,
@@ -528,14 +541,14 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 	}
 	// Whatever happens, delete the checkpoint from containerd
 	defer func() {
-		err := c.remote.ImageService().Delete(context.Background(), img.Name())
+		err := c.getRemote().ImageService().Delete(context.Background(), img.Name())
 		if err != nil {
 			c.logger.WithError(err).WithField("digest", img.Target().Digest).
 				Warnf("failed to delete checkpoint image")
 		}
 	}()
 
-	b, err := content.ReadBlob(ctx, c.remote.ContentStore(), img.Target().Digest)
+	b, err := content.ReadBlob(ctx, c.getRemote().ContentStore(), img.Target().Digest)
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
@@ -555,7 +568,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
-	rat, err := c.remote.ContentStore().ReaderAt(ctx, cpDesc.Digest)
+	rat, err := c.getRemote().ContentStore().ReaderAt(ctx, cpDesc.Digest)
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
@@ -708,7 +721,7 @@ func (c *client) processEventStream(ctx context.Context) {
 		}
 	}()
 
-	eventStream, err = c.remote.EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
+	eventStream, err = c.getRemote().EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
 		Filters: []string{
 			// Filter on both namespace *and* topic. To create an "and" filter,
 			// this must be a single, comma-separated string
@@ -718,6 +731,8 @@ func (c *client) processEventStream(ctx context.Context) {
 	if err != nil {
 		return
 	}
+
+	c.logger.WithField("namespace", c.namespace).Debug("processing event stream")
 
 	var oomKilled bool
 	for {
@@ -822,7 +837,7 @@ func (c *client) processEventStream(ctx context.Context) {
 }
 
 func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.Reader) (*types.Descriptor, error) {
-	writer, err := c.remote.ContentStore().Writer(ctx, ref, 0, "")
+	writer, err := c.getRemote().ContentStore().Writer(ctx, ref, 0, "")
 	if err != nil {
 		return nil, err
 	}
