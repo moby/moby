@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/util/request"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
@@ -89,5 +90,49 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 			)
 			testutil.ErrorContains(t, err, tc.expectedError)
 		})
+	}
+}
+
+// Test case for #30166 (target was not validated)
+func TestCreateTmpfsMountsTarget(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+
+	testCases := []struct {
+		target        string
+		expectedError string
+	}{
+		{
+			target:        ".",
+			expectedError: "mount path must be absolute",
+		},
+		{
+			target:        "foo",
+			expectedError: "mount path must be absolute",
+		},
+		{
+			target:        "/",
+			expectedError: "destination can't be '/'",
+		},
+		{
+			target:        "//",
+			expectedError: "destination can't be '/'",
+		},
+	}
+
+	for _, tc := range testCases {
+		_, err := client.ContainerCreate(context.Background(),
+			&container.Config{
+				Image: "busybox",
+			},
+			&container.HostConfig{
+				Tmpfs: map[string]string{tc.target: ""},
+			},
+			&network.NetworkingConfig{},
+			"",
+		)
+		testutil.ErrorContains(t, err, tc.expectedError)
 	}
 }
