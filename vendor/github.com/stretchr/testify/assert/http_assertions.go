@@ -99,7 +99,7 @@ func HTTPBodyNotContains(t TestingT, handler http.HandlerFunc, method, url strin
 
 	contains := strings.Contains(body, fmt.Sprint(str))
 	if contains {
-		Fail(t, "Expected response body for %s to NOT contain \"%s\" but found \"%s\"", url+"?"+values.Encode(), str, body)
+		Fail(t, fmt.Sprintf("Expected response body for \"%s\" to NOT contain \"%s\" but found \"%s\"", url+"?"+values.Encode(), str, body))
 	}
 
 	return !contains

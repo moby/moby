@@ -30,12 +30,48 @@ message Annotations {
 	repeated IndexEntry indices = 4 [(gogoproto.nullable) = false];
 }
 
+// NamedGenericResource represents a "user defined" resource which is defined
+// as a string.
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to identify the resource (GPU="UUID-1", FPGA="/dev/sdb5", ...)
+message NamedGenericResource {
+	string kind = 1;
+	string value = 2;
+}
+
+// DiscreteGenericResource represents a "user defined" resource which is defined
+// as an integer
+// "Kind" is used to describe the Kind of a resource (e.g: "GPU", "FPGA", "SSD", ...)
+// Value is used to count the resource (SSD=5, HDD=3, ...)
+message DiscreteGenericResource {
+	string kind = 1;
+	int64 value = 2;
+}
+
+// GenericResource represents a "user defined" resource which can
+// be either an integer (e.g: SSD=3) or a string (e.g: SSD=sda1)
+message GenericResource {
+	oneof resource {
+		NamedGenericResource named_resource_spec = 1;
+		DiscreteGenericResource discrete_resource_spec = 2;
+	}
+}
+
+enum ResourceType {
+	TASK = 0;
+	SECRET = 1;
+	CONFIG = 2;
+}
+
 message Resources {
 	// Amount of CPUs (e.g. 2000000000 = 2 CPU cores)
 	int64 nano_cpus = 1 [(gogoproto.customname) = "NanoCPUs"];
 
 	// Amount of memory in bytes.
 	int64 memory_bytes = 2;
+
+	// User specified resource (e.g: bananas=2;apple={red,yellow,green})
+	repeated GenericResource generic = 3;
 }
 
 message ResourceRequirements {
@@ -86,6 +122,18 @@ message NodeDescription {
 
 	// Information about the Docker Engine on the node.
 	EngineDescription engine = 4;
+
+	// Information on the node's TLS setup
+	NodeTLSInfo tls_info = 5 [(gogoproto.customname) = "TLSInfo"];
+}
+
+message NodeTLSInfo {
+	// Information about which root certs the node trusts
+	bytes trust_root = 1;
+
+	// Information about the node's current TLS certificate
+	bytes cert_issuer_subject = 2;
+	bytes cert_issuer_public_key = 3;
 }
 
 message RaftMemberStatus {
@@ -165,6 +213,18 @@ message Mount {
 
 	// ReadOnly should be set to true if the mount should not be writable.
 	bool readonly = 4 [(gogoproto.customname) = "ReadOnly"];
+
+	// Consistency indicates the tolerable level of file system consistency
+	enum Consistency {
+		option (gogoproto.goproto_enum_prefix) = false;
+		option (gogoproto.enum_customname) = "MountConsistency";
+
+		DEFAULT = 0 [(gogoproto.enumvalue_customname) = "MountConsistencyDefault"];
+		CONSISTENT = 1 [(gogoproto.enumvalue_customname) = "MountConsistencyFull"];
+		CACHED = 2 [(gogoproto.enumvalue_customname) = "MountConsistencyCached"];
+		DELEGATED = 3 [(gogoproto.enumvalue_customname) = "MountConsistencyDelegated"];
+	}
+	Consistency consistency = 8;
 
 	// BindOptions specifies options that are specific to a bind mount.
 	message BindOptions {
@@ -398,7 +458,16 @@ enum TaskState {
 	SHUTDOWN = 640 [(gogoproto.enumvalue_customname)="TaskStateShutdown"]; // orchestrator requested shutdown
 	FAILED = 704 [(gogoproto.enumvalue_customname)="TaskStateFailed"]; // task execution failed with error
 	REJECTED = 768 [(gogoproto.enumvalue_customname)="TaskStateRejected"]; // task could not be executed here.
-	ORPHANED = 832 [(gogoproto.enumvalue_customname)="TaskStateOrphaned"]; // The node on which this task is scheduled is Down for too long
+	// TaskStateRemove is used to correctly handle service deletions and scale
+	// downs. This allows us to keep track of tasks that have been marked for
+	// deletion, but can't yet be removed because the agent is in the process of
+	// shutting them down. Once the agent has shut down tasks with desired state
+	// REMOVE, the task reaper is responsible for removing them.
+	REMOVE = 800 [(gogoproto.enumvalue_customname)="TaskStateRemove"];
+	// TaskStateOrphaned is used to free up resources associated with service
+	// tasks on unresponsive nodes without having to delete those tasks. This
+	// state is directly assigned to the task by the orchestrator.
+	ORPHANED = 832 [(gogoproto.enumvalue_customname)="TaskStateOrphaned"];
 
 	// NOTE(stevvooe): The state of a task is actually a lamport clock, in that
 	// given two observations, the greater of the two can be considered
@@ -449,11 +518,16 @@ message TaskStatus {
 	// field.
 	string message = 3;
 
-	// Err is set if the task is in an error state.
+	// Err is set if the task is in an error state, or is unable to
+	// progress from an earlier state because a precondition is
+	// unsatisfied.
 	//
 	// The following states should report a companion error:
 	//
 	//	FAILED, REJECTED
+	//
+	// In general, messages that should be surfaced to users belong in the
+	// Err field, and notes on routine state transitions belong in Message.
 	//
 	// TODO(stevvooe) Integrate this field with the error interface.
 	string err = 4;
@@ -466,6 +540,15 @@ message TaskStatus {
 	// HostPorts provides a list of ports allocated at the host
 	// level.
 	PortStatus port_status = 6;
+
+	// AppliedBy gives the node ID of the manager that applied this task
+	// status update to the Task object.
+	string applied_by = 7;
+
+	// AppliedAt gives a timestamp of when this status update was applied to
+	// the Task object.
+	// Note: can't use stdtime because this field is nullable.
+	google.protobuf.Timestamp applied_at = 8;
 }
 
 // NetworkAttachmentConfig specifies how a service should be attached to a particular network.
@@ -483,6 +566,8 @@ message NetworkAttachmentConfig {
 	// preferred. If these addresses are not available then the
 	// attachment might fail.
 	repeated string addresses = 3;
+	// DriverAttachmentOpts is a map of driver attachment options for the network target
+	map<string, string> driver_attachment_opts = 4;
 }
 
 // IPAMConfig specifies parameters for IP Address Management.
@@ -759,6 +844,11 @@ message Placement {
 	// such as topology. They are provided in order from highest to lowest
 	// precedence.
 	repeated PlacementPreference preferences = 2;
+
+	// Platforms stores all the platforms that the image can run on.
+	// This field is used in the platform filter for scheduling. If empty,
+	// then the platform filter is off, meaning there are no scheduling restrictions.
+	repeated Platform platforms = 3;
 }
 
 // JoinToken contains the join tokens for workers and managers.
@@ -853,6 +943,20 @@ message ManagerStatus {
 	RaftMemberStatus.Reachability reachability = 4;
 }
 
+// FileTarget represents a specific target that is backed by a file
+message FileTarget {
+	// Name represents the final filename in the filesystem
+	string name = 1;
+
+	// UID represents the file UID
+	string uid = 2 [(gogoproto.customname) = "UID"];
+
+	// GID represents the file GID
+	string gid = 3 [(gogoproto.customname) = "GID"];
+
+	// Mode represents the FileMode of the file
+	uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+}
 
 // SecretReference is the linkage between a service and a secret that it uses.
 message SecretReference {
@@ -865,20 +969,21 @@ message SecretReference {
 	// lookup/display purposes.  The secret in the reference will be identified by its ID.
 	string secret_name = 2;
 
-	// FileTarget represents a specific target that is backed by a file
-	message FileTarget {
-		// Name represents the final filename in the filesystem
-		string name = 1;
-
-		// UID represents the file UID
-		string uid = 2 [(gogoproto.customname) = "UID"];
-
-		// GID represents the file GID
-		string gid = 3 [(gogoproto.customname) = "GID"];
-
-		// Mode represents the FileMode of the file
-		uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
+	// Target specifies how this secret should be exposed to the task.
+	oneof target {
+		FileTarget file = 3;
 	}
+}
+
+// ConfigReference is the linkage between a service and a config that it uses.
+message ConfigReference {
+	// ConfigID represents the ID of the specific Config that we're
+	// referencing.
+	string config_id = 1;
+
+	// ConfigName is the name of the config that this references, but this is just provided for
+	// lookup/display purposes. The config in the reference will be identified by its ID.
+	string config_name = 2;
 
 	// Target specifies how this secret should be exposed to the task.
 	oneof target {
@@ -942,4 +1047,27 @@ message RootRotation {
 	bytes ca_key = 2 [(gogoproto.customname) = "CAKey"];
 	// cross-signed CA cert is the CACert that has been cross-signed by the previous root
 	bytes cross_signed_ca_cert = 3 [(gogoproto.customname) = "CrossSignedCACert"];
+}
+
+// Privileges specifies security configuration/permissions.
+message Privileges {
+	// CredentialSpec for managed service account (Windows only).
+	message CredentialSpec {
+		oneof source {
+			string file = 1;
+			string registry = 2;
+		}
+	}
+	CredentialSpec credential_spec = 1;
+
+	// SELinuxContext contains the SELinux labels for the container.
+	message SELinuxContext {
+		bool disable = 1;
+
+		string user = 2;
+		string role = 3;
+		string type = 4;
+		string level = 5;
+	}
+	SELinuxContext selinux_context = 2 [(gogoproto.customname) = "SELinuxContext"];
 }

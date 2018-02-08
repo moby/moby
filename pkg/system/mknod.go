@@ -1,15 +1,15 @@
 // +build !windows
 
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
 import (
-	"syscall"
+	"golang.org/x/sys/unix"
 )
 
 // Mknod creates a filesystem node (file, device special file or named pipe) named path
 // with attributes specified by mode and dev.
 func Mknod(path string, mode uint32, dev int) error {
-	return syscall.Mknod(path, mode, dev)
+	return unix.Mknod(path, mode, dev)
 }
 
 // Mkdev is used to build the value of linux devices (in /dev/) which specifies major
@@ -18,5 +18,5 @@ func Mknod(path string, mode uint32, dev int) error {
 // They are, from low to high: the lower 8 bits of the minor, then 12 bits of the major,
 // then the top 12 bits of the minor.
 func Mkdev(major int64, minor int64) uint32 {
-	return uint32(((minor & 0xfff00) << 12) | ((major & 0xfff) << 8) | (minor & 0xff))
+	return uint32(unix.Mkdev(uint32(major), uint32(minor)))
 }

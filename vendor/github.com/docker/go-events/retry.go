@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // RetryingSink retries the write until success or an ErrSinkClosed is
@@ -90,7 +90,7 @@ func (rs *RetryingSink) Close() error {
 	return nil
 }
 
-func (rs RetryingSink) String() string {
+func (rs *RetryingSink) String() string {
 	// Serialize a copy of the RetryingSink without the sync.Once, to avoid
 	// a data race.
 	rs2 := map[string]interface{}{

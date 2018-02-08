@@ -10,9 +10,9 @@ import (
 	"net"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/sirupsen/logrus"
 )
 
 const udsBase = "/run/docker/libnetwork/"
@@ -52,7 +52,6 @@ func processSetKeyReexec() {
 	controllerID := os.Args[2]
 
 	err = SetExternalKey(controllerID, containerID, fmt.Sprintf("/proc/%d/ns/net", state.Pid))
-	return
 }
 
 // SetExternalKey provides a convenient way to set an External key to a sandbox

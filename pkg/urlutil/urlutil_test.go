@@ -1,4 +1,4 @@
-package urlutil
+package urlutil // import "github.com/docker/docker/pkg/urlutil"
 
 import "testing"
 
@@ -26,20 +26,6 @@ var (
 		"unixgram:///example",
 	}
 )
-
-func TestValidGitTransport(t *testing.T) {
-	for _, url := range gitUrls {
-		if !IsGitTransport(url) {
-			t.Fatalf("%q should be detected as valid Git prefix", url)
-		}
-	}
-
-	for _, url := range incompleteGitUrls {
-		if IsGitTransport(url) {
-			t.Fatalf("%q should not be detected as valid Git prefix", url)
-		}
-	}
-}
 
 func TestIsGIT(t *testing.T) {
 	for _, url := range gitUrls {

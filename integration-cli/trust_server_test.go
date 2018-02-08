@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -11,11 +12,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	cliconfig "github.com/docker/docker/cli/config"
 	"github.com/docker/docker/integration-cli/checker"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/fixtures/plugin"
+	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 var notaryBinary = "notary"
@@ -45,14 +50,6 @@ var SuccessSigningAndPushing = icmd.Expected{
 
 var SuccessDownloaded = icmd.Expected{
 	Out: "Status: Downloaded",
-}
-
-var SuccessTaggingOnStderr = icmd.Expected{
-	Err: "Tagging",
-}
-
-var SuccessSigningAndPushingOnStderr = icmd.Expected{
-	Err: "Signing and pushing trust metadata",
 }
 
 var SuccessDownloadedOnStderr = icmd.Expected{
@@ -190,27 +187,24 @@ func (t *testNotary) Close() {
 	os.RemoveAll(t.dir)
 }
 
-// Deprecated: used trustedCmd instead
-func trustedExecCmd(cmd *exec.Cmd) {
+func trustedCmd(cmd *icmd.Cmd) func() {
 	pwd := "12345678"
 	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)
+	return nil
 }
 
-func trustedCmd(cmd *icmd.Cmd) {
-	pwd := "12345678"
-	cmd.Env = append(cmd.Env, trustEnv(notaryURL, pwd, pwd)...)
-}
-
-func trustedCmdWithServer(server string) func(*icmd.Cmd) {
-	return func(cmd *icmd.Cmd) {
+func trustedCmdWithServer(server string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
 		pwd := "12345678"
 		cmd.Env = append(cmd.Env, trustEnv(server, pwd, pwd)...)
+		return nil
 	}
 }
 
-func trustedCmdWithPassphrases(rootPwd, repositoryPwd string) func(*icmd.Cmd) {
-	return func(cmd *icmd.Cmd) {
+func trustedCmdWithPassphrases(rootPwd, repositoryPwd string) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
 		cmd.Env = append(cmd.Env, trustEnv(notaryURL, rootPwd, repositoryPwd)...)
+		return nil
 	}
 }
 
@@ -227,28 +221,31 @@ func trustEnv(server, rootPwd, repositoryPwd string) []string {
 func (s *DockerTrustSuite) setupTrustedImage(c *check.C, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "tag", "busybox", repoName)
-
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
-		c.Fatalf("Error removing image %q\n%s", repoName, out)
-	}
-
+	cli.DockerCmd(c, "tag", "busybox", repoName)
+	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	cli.DockerCmd(c, "rmi", repoName)
 	return repoName
 }
 
 func (s *DockerTrustSuite) setupTrustedplugin(c *check.C, source, name string) string {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, name)
+
+	client, err := request.NewClient()
+	c.Assert(err, checker.IsNil, check.Commentf("could not create test client"))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	err = plugin.Create(ctx, client, repoName)
+	cancel()
+	c.Assert(err, checker.IsNil, check.Commentf("could not create test plugin"))
+
 	// tag the image and upload it to the private registry
-	dockerCmd(c, "plugin", "install", "--grant-all-permissions", "--alias", repoName, source)
+	// TODO: shouldn't need to use the CLI to do trust
+	cli.Docker(cli.Args("plugin", "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "plugin", "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	if out, status := dockerCmd(c, "plugin", "rm", "-f", repoName); status != 0 {
-		c.Fatalf("Error removing plugin %q\n%s", repoName, out)
-	}
-
+	ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
+	err = client.PluginRemove(ctx, repoName, types.PluginRemoveOptions{Force: true})
+	cancel()
+	c.Assert(err, checker.IsNil, check.Commentf("failed to cleanup test plugin for trust suite"))
 	return repoName
 }
 

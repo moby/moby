@@ -100,7 +100,7 @@ func (ro *readOnly) advance(m pb.Message) []*readIndexStatus {
 	if found {
 		ro.readIndexQueue = ro.readIndexQueue[i:]
 		for _, rs := range rss {
-			delete(ro.pendingReadIndex, string(rs.req.Context))
+			delete(ro.pendingReadIndex, string(rs.req.Entries[0].Data))
 		}
 		return rss
 	}

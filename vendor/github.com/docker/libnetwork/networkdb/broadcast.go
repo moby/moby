@@ -32,7 +32,7 @@ func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltim
 	nEvent := NetworkEvent{
 		Type:      event,
 		LTime:     ltime,
-		NodeName:  nDB.config.NodeName,
+		NodeName:  nDB.config.NodeID,
 		NetworkID: nid,
 	}
 
@@ -44,7 +44,7 @@ func (nDB *NetworkDB) sendNetworkEvent(nid string, event NetworkEvent_Type, ltim
 	nDB.networkBroadcasts.QueueBroadcast(&networkEventMessage{
 		msg:  raw,
 		id:   nid,
-		node: nDB.config.NodeName,
+		node: nDB.config.NodeID,
 	})
 	return nil
 }
@@ -72,7 +72,7 @@ func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 	nEvent := NodeEvent{
 		Type:     event,
 		LTime:    nDB.networkClock.Increment(),
-		NodeName: nDB.config.NodeName,
+		NodeName: nDB.config.NodeID,
 	}
 
 	raw, err := encodeMessage(MessageTypeNodeEvent, &nEvent)
@@ -85,6 +85,15 @@ func (nDB *NetworkDB) sendNodeEvent(event NodeEvent_Type) error {
 		msg:    raw,
 		notify: notifyCh,
 	})
+
+	nDB.RLock()
+	noPeers := len(nDB.nodes) <= 1
+	nDB.RUnlock()
+
+	// Message enqueued, do not wait for a send if no peer is present
+	if noPeers {
+		return nil
+	}
 
 	// Wait for the broadcast
 	select {
@@ -106,7 +115,7 @@ type tableEventMessage struct {
 
 func (m *tableEventMessage) Invalidates(other memberlist.Broadcast) bool {
 	otherm := other.(*tableEventMessage)
-	return m.id == otherm.id && m.tname == otherm.tname && m.key == otherm.key
+	return m.tname == otherm.tname && m.id == otherm.id && m.key == otherm.key
 }
 
 func (m *tableEventMessage) Message() []byte {
@@ -120,11 +129,13 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 	tEvent := TableEvent{
 		Type:      event,
 		LTime:     entry.ltime,
-		NodeName:  nDB.config.NodeName,
+		NodeName:  nDB.config.NodeID,
 		NetworkID: nid,
 		TableName: tname,
 		Key:       key,
 		Value:     entry.value,
+		// The duration in second is a float that below would be truncated
+		ResidualReapTime: int32(entry.reapTime.Seconds()),
 	}
 
 	raw, err := encodeMessage(MessageTypeTableEvent, &tEvent)
@@ -134,7 +145,7 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 
 	var broadcastQ *memberlist.TransmitLimitedQueue
 	nDB.RLock()
-	thisNodeNetworks, ok := nDB.networks[nDB.config.NodeName]
+	thisNodeNetworks, ok := nDB.networks[nDB.config.NodeID]
 	if ok {
 		// The network may have been removed
 		network, networkOk := thisNodeNetworks[nid]
@@ -157,7 +168,7 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		id:    nid,
 		tname: tname,
 		key:   key,
-		node:  nDB.config.NodeName,
+		node:  nDB.config.NodeID,
 	})
 	return nil
 }

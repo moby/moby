@@ -1,4 +1,4 @@
-package volume
+package volume // import "github.com/docker/docker/volume"
 
 import "strings"
 
@@ -13,11 +13,11 @@ func copyModeExists(mode string) bool {
 }
 
 // GetCopyMode gets the copy mode from the mode string for mounts
-func getCopyMode(mode string) (bool, bool) {
+func getCopyMode(mode string, def bool) (bool, bool) {
 	for _, o := range strings.Split(mode, ",") {
 		if isEnabled, exists := copyModes[o]; exists {
 			return isEnabled, true
 		}
 	}
-	return DefaultCopyMode, false
+	return def, false
 }

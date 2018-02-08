@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import "golang.org/x/net/context"
 
@@ -6,5 +6,5 @@ import "golang.org/x/net/context"
 func (cli *Client) NetworkRemove(ctx context.Context, networkID string) error {
 	resp, err := cli.delete(ctx, "/networks/"+networkID, nil, nil)
 	ensureReaderClosed(resp)
-	return err
+	return wrapResponseError(err, resp, "network", networkID)
 }

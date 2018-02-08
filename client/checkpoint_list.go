@@ -1,8 +1,7 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"encoding/json"
-	"net/http"
 	"net/url"
 
 	"github.com/docker/docker/api/types"
@@ -20,10 +19,7 @@ func (cli *Client) CheckpointList(ctx context.Context, container string, options
 
 	resp, err := cli.get(ctx, "/containers/"+container+"/checkpoints", query, nil)
 	if err != nil {
-		if resp.statusCode == http.StatusNotFound {
-			return checkpoints, containerNotFoundError{container}
-		}
-		return checkpoints, err
+		return checkpoints, wrapResponseError(err, resp, "container", container)
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&checkpoints)

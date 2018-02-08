@@ -1,4 +1,4 @@
-package stream
+package stream // import "github.com/docker/docker/container/stream"
 
 import (
 	"fmt"
@@ -7,11 +7,11 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/pkg/broadcaster"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/pools"
+	"github.com/sirupsen/logrus"
 )
 
 // Config holds information about I/O streams managed together.
@@ -114,12 +114,12 @@ func (c *Config) CloseStreams() error {
 }
 
 // CopyToPipe connects streamconfig with a libcontainerd.IOPipe
-func (c *Config) CopyToPipe(iop libcontainerd.IOPipe) {
+func (c *Config) CopyToPipe(iop *cio.DirectIO) {
 	copyFunc := func(w io.Writer, r io.ReadCloser) {
 		c.Add(1)
 		go func() {
 			if _, err := pools.Copy(w, r); err != nil {
-				logrus.Errorf("stream copy error: %+v", err)
+				logrus.Errorf("stream copy error: %v", err)
 			}
 			r.Close()
 			c.Done()
@@ -138,7 +138,7 @@ func (c *Config) CopyToPipe(iop libcontainerd.IOPipe) {
 			go func() {
 				pools.Copy(iop.Stdin, stdin)
 				if err := iop.Stdin.Close(); err != nil {
-					logrus.Warnf("failed to close stdin: %+v", err)
+					logrus.Warnf("failed to close stdin: %v", err)
 				}
 			}()
 		}

@@ -1,4 +1,4 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
 	"fmt"
@@ -7,10 +7,10 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // DigestWalkFunc is function called by StoreBackend.Walk
@@ -133,10 +133,7 @@ func (s *fs) Delete(dgst digest.Digest) error {
 	if err := os.RemoveAll(s.metadataDir(dgst)); err != nil {
 		return err
 	}
-	if err := os.Remove(s.contentFile(dgst)); err != nil {
-		return err
-	}
-	return nil
+	return os.Remove(s.contentFile(dgst))
 }
 
 // SetMetadata sets metadata for a given ID. It fails if there's no base file.

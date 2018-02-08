@@ -40,6 +40,11 @@ func init() {
 					AllowMissing: true,
 					Indexer:      serviceIndexerBySecret{},
 				},
+				indexConfig: {
+					Name:         indexConfig,
+					AllowMissing: true,
+					Indexer:      serviceIndexerByConfig{},
+				},
 				indexCustom: {
 					Name:         indexCustom,
 					Indexer:      api.ServiceCustomIndexer{},
@@ -53,21 +58,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			services, err := FindServices(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Services))
+			for i, x := range snapshot.Services {
+				toStoreObj[i] = x
 			}
-			for _, s := range services {
-				if err := DeleteService(tx, s.ID); err != nil {
-					return err
-				}
-			}
-			for _, s := range snapshot.Services {
-				if err := CreateService(tx, s); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableService, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {
@@ -131,7 +126,7 @@ func GetService(tx ReadTx, id string) *api.Service {
 func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
@@ -213,4 +208,31 @@ func (si serviceIndexerBySecret) FromObject(obj interface{}) (bool, [][]byte, er
 	}
 
 	return len(secretIDs) != 0, secretIDs, nil
+}
+
+type serviceIndexerByConfig struct{}
+
+func (si serviceIndexerByConfig) FromArgs(args ...interface{}) ([]byte, error) {
+	return fromArgs(args...)
+}
+
+func (si serviceIndexerByConfig) FromObject(obj interface{}) (bool, [][]byte, error) {
+	s, ok := obj.(*api.Service)
+	if !ok {
+		panic("unexpected type passed to FromObject")
+	}
+
+	container := s.Spec.Task.GetContainer()
+	if container == nil {
+		return false, nil, nil
+	}
+
+	var configIDs [][]byte
+
+	for _, configRef := range container.Configs {
+		// Add the null character as a terminator
+		configIDs = append(configIDs, []byte(configRef.ConfigID+"\x00"))
+	}
+
+	return len(configIDs) != 0, configIDs, nil
 }

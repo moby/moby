@@ -1,6 +1,4 @@
-// +build go1.7
-
-package httputils
+package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
 	"encoding/json"

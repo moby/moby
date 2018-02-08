@@ -12,10 +12,11 @@ import (
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
 	"github.com/opencontainers/go-digest"
+	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -35,24 +36,20 @@ func setupImageWithTag(c *check.C, tag string) (digest.Digest, error) {
 	// new file is committed because this layer is used for detecting malicious
 	// changes. if this was committed as empty layer it would be skipped on pull
 	// and malicious changes would never be detected.
-	dockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
+	cli.DockerCmd(c, "run", "-e", "digest=1", "--name", containerName, "busybox", "touch", "anewfile")
 
 	// tag the image to upload it to the private registry
 	repoAndTag := repoName + ":" + tag
-	out, _, err := dockerCmdWithError("commit", containerName, repoAndTag)
-	c.Assert(err, checker.IsNil, check.Commentf("image tagging failed: %s", out))
+	cli.DockerCmd(c, "commit", containerName, repoAndTag)
 
 	// delete the container as we don't need it any more
-	err = deleteContainer(containerName)
-	c.Assert(err, checker.IsNil)
+	cli.DockerCmd(c, "rm", "-fv", containerName)
 
 	// push the image
-	out, _, err = dockerCmdWithError("push", repoAndTag)
-	c.Assert(err, checker.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out))
+	out := cli.DockerCmd(c, "push", repoAndTag).Combined()
 
 	// delete our local repo that we previously tagged
-	rmiout, _, err := dockerCmdWithError("rmi", repoAndTag)
-	c.Assert(err, checker.IsNil, check.Commentf("error deleting images prior to real test: %s", rmiout))
+	cli.DockerCmd(c, "rmi", repoAndTag)
 
 	matches := pushDigestRegex.FindStringSubmatch(out)
 	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from push output: %s", out))
@@ -406,10 +403,12 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(imageJSON, checker.HasLen, 1)
 	c.Assert(imageJSON[0].RepoDigests, checker.HasLen, 1)
-	c.Assert(stringutils.InSlice(imageJSON[0].RepoDigests, imageReference), checker.Equals, true)
+	assert.Contains(c, imageJSON[0].RepoDigests, imageReference)
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {
+	existingContainers := ExistingContainerIDs(c)
+
 	digest, err := setupImage(c)
 	c.Assert(err, checker.IsNil, check.Commentf("error setting up image"))
 
@@ -441,7 +440,7 @@ func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c 
 
 	// Valid imageReference
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=ancestor="+imageReference)
-	checkPsAncestorFilterOutput(c, out, imageReference, expectedIDs)
+	checkPsAncestorFilterOutput(c, RemoveOutputForExistingElements(out, existingContainers), imageReference, expectedIDs)
 }
 
 func (s *DockerRegistrySuite) TestDeleteImageByIDOnlyPulledByDigest(c *check.C) {
@@ -636,7 +635,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 
@@ -679,7 +678,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(testEnv.DockerBasePath(), "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", s.d.StorageDriver(), "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 

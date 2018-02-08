@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"io"
@@ -51,7 +51,7 @@ func (daemon *Daemon) PushImage(ctx context.Context, image, tag string, metaHead
 			ReferenceStore:   daemon.referenceStore,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
-		LayerStore:      distribution.NewLayerProviderFromStore(daemon.layerStore),
+		LayerStores:     distribution.NewLayerProvidersFromStores(daemon.layerStores),
 		TrustKey:        daemon.trustKey,
 		UploadManager:   daemon.uploadManager,
 	}

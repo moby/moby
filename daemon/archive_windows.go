@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"errors"
@@ -15,11 +15,6 @@ import (
 // extracting to a mount point inside a volume. TODO Windows: FIXME Post-TP5
 func checkIfPathIsInAVolume(container *container.Container, absPath string) (bool, error) {
 	return false, nil
-}
-
-func fixPermissions(source, destination string, uid, gid int, destExisted bool) error {
-	// chown is not supported on Windows
-	return nil
 }
 
 // isOnlineFSOperationPermitted returns an error if an online filesystem operation

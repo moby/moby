@@ -37,21 +37,11 @@ func init() {
 			return err
 		},
 		Restore: func(tx Tx, snapshot *api.StoreSnapshot) error {
-			networks, err := FindNetworks(tx, All)
-			if err != nil {
-				return err
+			toStoreObj := make([]api.StoreObject, len(snapshot.Networks))
+			for i, x := range snapshot.Networks {
+				toStoreObj[i] = x
 			}
-			for _, n := range networks {
-				if err := DeleteNetwork(tx, n.ID); err != nil {
-					return err
-				}
-			}
-			for _, n := range snapshot.Networks {
-				if err := CreateNetwork(tx, n); err != nil {
-					return err
-				}
-			}
-			return nil
+			return RestoreTable(tx, tableNetwork, toStoreObj)
 		},
 		ApplyStoreAction: func(tx Tx, sa api.StoreAction) error {
 			switch v := sa.Target.(type) {

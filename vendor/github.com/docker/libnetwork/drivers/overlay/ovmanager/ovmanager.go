@@ -7,13 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/idm"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -49,7 +49,8 @@ type network struct {
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	var err error
 	c := driverapi.Capability{
-		DataScope: datastore.GlobalScope,
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
 	}
 
 	d := &driver{
@@ -164,7 +165,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 	n.Unlock()
 
 	if vni == 0 {
-		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd)
+		vni, err = n.driver.vxlanIdm.GetIDInRange(vxlanIDStart, vxlanIDEnd, true)
 		if err != nil {
 			return err
 		}

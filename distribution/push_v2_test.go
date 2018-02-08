@@ -1,4 +1,4 @@
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"net/http"
@@ -185,7 +185,7 @@ func TestLayerAlreadyExists(t *testing.T) {
 			expectedRequests:   []string{"apple"},
 		},
 		{
-			name:               "not matching reposies",
+			name:               "not matching repositories",
 			targetRepo:         "busybox",
 			maxExistenceChecks: 3,
 			metadata: []metadata.V2Metadata{

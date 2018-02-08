@@ -187,10 +187,7 @@ func (k *KeyReadWriter) ViewAndRotateKEK(cb func(KEKData, PEMKeyHeaders) (KEKDat
 		return err
 	}
 
-	if err := k.writeKey(keyBlock, updatedKEK, updatedHeaderObj); err != nil {
-		return err
-	}
-	return nil
+	return k.writeKey(keyBlock, updatedKEK, updatedHeaderObj)
 }
 
 // ViewAndUpdateHeaders updates the header manager, and updates any headers on the existing key

@@ -226,7 +226,7 @@ func (mw *Writer) WriteExtension(e Extension) error {
 // peek at the extension type, assuming the next
 // kind to be read is Extension
 func (m *Reader) peekExtensionType() (int8, error) {
-	p, err := m.r.Peek(2)
+	p, err := m.R.Peek(2)
 	if err != nil {
 		return 0, err
 	}
@@ -238,7 +238,7 @@ func (m *Reader) peekExtensionType() (int8, error) {
 		return int8(p[1]), nil
 	}
 	size := spec.size
-	p, err = m.r.Peek(int(size))
+	p, err = m.R.Peek(int(size))
 	if err != nil {
 		return 0, err
 	}
@@ -273,7 +273,7 @@ func peekExtension(b []byte) (int8, error) {
 // e.Type() is not the same as the wire type.
 func (m *Reader) ReadExtension(e Extension) (err error) {
 	var p []byte
-	p, err = m.r.Peek(2)
+	p, err = m.R.Peek(2)
 	if err != nil {
 		return
 	}
@@ -286,13 +286,13 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 			err = errExt(int8(p[1]), e.ExtensionType())
 			return
 		}
-		p, err = m.r.Peek(3)
+		p, err = m.R.Peek(3)
 		if err != nil {
 			return
 		}
 		err = e.UnmarshalBinary(p[2:])
 		if err == nil {
-			_, err = m.r.Skip(3)
+			_, err = m.R.Skip(3)
 		}
 		return
 
@@ -301,13 +301,13 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 			err = errExt(int8(p[1]), e.ExtensionType())
 			return
 		}
-		p, err = m.r.Peek(4)
+		p, err = m.R.Peek(4)
 		if err != nil {
 			return
 		}
 		err = e.UnmarshalBinary(p[2:])
 		if err == nil {
-			_, err = m.r.Skip(4)
+			_, err = m.R.Skip(4)
 		}
 		return
 
@@ -316,13 +316,13 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 			err = errExt(int8(p[1]), e.ExtensionType())
 			return
 		}
-		p, err = m.r.Peek(6)
+		p, err = m.R.Peek(6)
 		if err != nil {
 			return
 		}
 		err = e.UnmarshalBinary(p[2:])
 		if err == nil {
-			_, err = m.r.Skip(6)
+			_, err = m.R.Skip(6)
 		}
 		return
 
@@ -331,13 +331,13 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 			err = errExt(int8(p[1]), e.ExtensionType())
 			return
 		}
-		p, err = m.r.Peek(10)
+		p, err = m.R.Peek(10)
 		if err != nil {
 			return
 		}
 		err = e.UnmarshalBinary(p[2:])
 		if err == nil {
-			_, err = m.r.Skip(10)
+			_, err = m.R.Skip(10)
 		}
 		return
 
@@ -346,18 +346,18 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 			err = errExt(int8(p[1]), e.ExtensionType())
 			return
 		}
-		p, err = m.r.Peek(18)
+		p, err = m.R.Peek(18)
 		if err != nil {
 			return
 		}
 		err = e.UnmarshalBinary(p[2:])
 		if err == nil {
-			_, err = m.r.Skip(18)
+			_, err = m.R.Skip(18)
 		}
 		return
 
 	case mext8:
-		p, err = m.r.Peek(3)
+		p, err = m.R.Peek(3)
 		if err != nil {
 			return
 		}
@@ -369,7 +369,7 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 		off = 3
 
 	case mext16:
-		p, err = m.r.Peek(4)
+		p, err = m.R.Peek(4)
 		if err != nil {
 			return
 		}
@@ -381,7 +381,7 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 		off = 4
 
 	case mext32:
-		p, err = m.r.Peek(6)
+		p, err = m.R.Peek(6)
 		if err != nil {
 			return
 		}
@@ -397,13 +397,13 @@ func (m *Reader) ReadExtension(e Extension) (err error) {
 		return
 	}
 
-	p, err = m.r.Peek(read + off)
+	p, err = m.R.Peek(read + off)
 	if err != nil {
 		return
 	}
 	err = e.UnmarshalBinary(p[off:])
 	if err == nil {
-		_, err = m.r.Skip(read + off)
+		_, err = m.R.Skip(read + off)
 	}
 	return
 }

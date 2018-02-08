@@ -1,4 +1,0 @@
-ID       NAME           IMAGE          NODE             DESIRED STATE  CURRENT STATE      ERROR           PORTS
-taskID1  failure.1      myimage:mytag  defaultNodeName  Ready          Ready 2 hours ago  "a task error"  
-taskID2   \_ failure.1  myimage:mytag  defaultNodeName  Ready          Ready 3 hours ago  "a task error"  
-taskID3   \_ failure.1  myimage:mytag  defaultNodeName  Ready          Ready 4 hours ago  "a task error"  

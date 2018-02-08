@@ -1,4 +1,4 @@
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"bufio"
@@ -6,11 +6,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -69,7 +69,7 @@ func Push(ctx context.Context, ref reference.Named, imagePushConfig *ImagePushCo
 		return err
 	}
 
-	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to a repository [%s]", repoInfo.Name.Name())
+	progress.Messagef(imagePushConfig.ProgressOutput, "", "The push refers to repository [%s]", repoInfo.Name.Name())
 
 	associations := imagePushConfig.ReferenceStore.ReferencesByName(repoInfo.Name)
 	if len(associations) == 0 {

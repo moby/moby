@@ -11,11 +11,11 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/etchosts"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/resolvconf/dns"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -67,11 +67,7 @@ func (sb *sandbox) setupResolutionFiles() error {
 		return err
 	}
 
-	if err := sb.setupDNS(); err != nil {
-		return err
-	}
-
-	return nil
+	return sb.setupDNS()
 }
 
 func (sb *sandbox) buildHostsFile() error {
@@ -197,14 +193,26 @@ func (sb *sandbox) setupDNS() error {
 	// This is for the host mode networking
 	if sb.config.originResolvConfPath != "" {
 		if err := copyFile(sb.config.originResolvConfPath, sb.config.resolvConfPath); err != nil {
-			return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", sb.config.originResolvConfPath, sb.config.resolvConfPath, err)
+			if !os.IsNotExist(err) {
+				return fmt.Errorf("could not copy source resolv.conf file %s to %s: %v", sb.config.originResolvConfPath, sb.config.resolvConfPath, err)
+			}
+			logrus.Infof("%s does not exist, we create an empty resolv.conf for container", sb.config.originResolvConfPath)
+			if err := createFile(sb.config.resolvConfPath); err != nil {
+				return err
+			}
 		}
 		return nil
 	}
 
 	currRC, err := resolvconf.Get()
 	if err != nil {
-		return err
+		if !os.IsNotExist(err) {
+			return err
+		}
+		// it's ok to continue if /etc/resolv.conf doesn't exist, default resolvers (Google's Public DNS)
+		// will be used
+		currRC = &resolvconf.File{}
+		logrus.Infof("/etc/resolv.conf does not exist")
 	}
 
 	if len(sb.config.dnsList) > 0 || len(sb.config.dnsSearchList) > 0 || len(sb.config.dnsOptionsList) > 0 {
@@ -363,6 +371,7 @@ dnsOpt:
 					if num, err := strconv.Atoi(parts[1]); err != nil {
 						return fmt.Errorf("invalid number for ndots option %v", option)
 					} else if num > 0 {
+						// if the user sets ndots, use the user setting
 						sb.ndotsSet = true
 						break dnsOpt
 					}
@@ -371,7 +380,11 @@ dnsOpt:
 		}
 	}
 
-	dnsOptionsList = append(dnsOptionsList, resOptions...)
+	if !sb.ndotsSet {
+		// if the user did not set the ndots, set it to 0 to prioritize the service name resolution
+		// Ref: https://linux.die.net/man/5/resolv.conf
+		dnsOptionsList = append(dnsOptionsList, resOptions...)
+	}
 
 	_, err = resolvconf.Build(sb.config.resolvConfPath, dnsList, dnsSearchList, dnsOptionsList)
 	return err

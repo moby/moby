@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // Regression test for https://github.com/docker/docker/issues/7843
@@ -94,7 +94,6 @@ func (s *DockerSuite) TestStartRecordError(c *check.C) {
 func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// Windows does not support pausing containers
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
 	runSleepingContainer(c, "-d", "--name", "testing")
 
@@ -104,7 +103,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// an error should have been shown that you cannot start paused container
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// an error should have been shown that you cannot start paused container
-	c.Assert(out, checker.Contains, "Cannot start a paused container, try unpause instead.")
+	c.Assert(out, checker.Contains, "cannot start a paused container, try unpause instead")
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {
@@ -160,7 +159,7 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 		// err shouldn't be nil because start will fail
 		c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 		// output does not correspond to what was expected
-		c.Assert(out, checker.Contains, "You cannot start and attach multiple containers at once.")
+		c.Assert(out, checker.Contains, "you cannot start and attach multiple containers at once")
 	}
 
 	// confirm the state of all the containers be stopped
@@ -174,17 +173,15 @@ func (s *DockerSuite) TestStartAttachMultipleContainers(c *check.C) {
 // Test case for #23716
 func (s *DockerSuite) TestStartAttachWithRename(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "create", "-t", "--name", "before", "busybox")
+	cli.DockerCmd(c, "create", "-t", "--name", "before", "busybox")
 	go func() {
-		c.Assert(waitRun("before"), checker.IsNil)
-		dockerCmd(c, "rename", "before", "after")
-		dockerCmd(c, "stop", "--time=2", "after")
+		cli.WaitRun(c, "before")
+		cli.DockerCmd(c, "rename", "before", "after")
+		cli.DockerCmd(c, "stop", "--time=2", "after")
 	}()
 	// FIXME(vdemeester) the intent is not clear and potentially racey
-	result := icmd.RunCommand(dockerBinary, "start", "-a", "before")
-	result.Assert(c, icmd.Expected{
+	result := cli.Docker(cli.Args("start", "-a", "before")).Assert(c, icmd.Expected{
 		ExitCode: 137,
-		Error:    "exit status 137",
 	})
 	c.Assert(result.Stderr(), checker.Not(checker.Contains), "No such container")
 }

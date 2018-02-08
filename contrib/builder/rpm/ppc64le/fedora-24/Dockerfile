@@ -6,14 +6,14 @@ FROM ppc64le/fedora:24
 
 RUN dnf -y upgrade
 RUN dnf install -y @development-tools fedora-packager
-RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel libtool-ltdl-devel pkgconfig selinux-policy selinux-policy-devel systemd-devel tar git cmake
+RUN dnf install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim-common
 
-ENV GO_VERSION 1.7.5
+ENV GO_VERSION 1.9.3
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 
 ENV AUTO_GOPATH 1
 
-ENV DOCKER_BUILDTAGS pkcs11 seccomp selinux
+ENV DOCKER_BUILDTAGS seccomp selinux
 ENV RUNC_BUILDTAGS seccomp selinux
 

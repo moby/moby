@@ -1,11 +1,7 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
-	"bufio"
-	"bytes"
-	"encoding/binary"
 	"fmt"
-	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -25,16 +21,17 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const defaultGossipConvergeDelay = 2 * time.Second
+
 // controller implements agent.Controller against docker's API.
 //
 // Most operations against docker's API are done through the container name,
 // which is unique to the task.
 type controller struct {
-	task    *api.Task
-	adapter *containerAdapter
-	closed  chan struct{}
-	err     error
-
+	task       *api.Task
+	adapter    *containerAdapter
+	closed     chan struct{}
+	err        error
 	pulled     chan struct{} // closed after pull
 	cancelPull func()        // cancels pull context if not nil
 	pullErr    error         // pull error, only read after pulled closed
@@ -43,8 +40,8 @@ type controller struct {
 var _ exec.Controller = &controller{}
 
 // NewController returns a docker exec runner for the provided task.
-func newController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*controller, error) {
-	adapter, err := newContainerAdapter(b, task, secrets)
+func newController(b executorpkg.Backend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*controller, error) {
+	adapter, err := newContainerAdapter(b, task, node, dependencies)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +145,6 @@ func (r *controller) Prepare(ctx context.Context) error {
 			}
 		}
 	}
-
 	if err := r.adapter.create(ctx); err != nil {
 		if isContainerCreateNameConflict(err) {
 			if _, err := r.adapter.inspect(ctx); err != nil {
@@ -187,7 +183,7 @@ func (r *controller) Start(ctx context.Context) error {
 
 	for {
 		if err := r.adapter.start(ctx); err != nil {
-			if _, ok := err.(libnetwork.ErrNoSuchNetwork); ok {
+			if _, ok := errors.Cause(err).(libnetwork.ErrNoSuchNetwork); ok {
 				// Retry network creation again if we
 				// failed because some of the networks
 				// were not found.
@@ -281,28 +277,48 @@ func (r *controller) Wait(pctx context.Context) error {
 		}
 	}()
 
-	err := r.adapter.wait(ctx)
-	if ctx.Err() != nil {
-		return ctx.Err()
+	waitC, err := r.adapter.wait(ctx)
+	if err != nil {
+		return err
 	}
 
-	if err != nil {
-		ee := &exitError{}
-		if ec, ok := err.(exec.ExitCoder); ok {
-			ee.code = ec.ExitCode()
+	if status := <-waitC; status.ExitCode() != 0 {
+		exitErr := &exitError{
+			code: status.ExitCode(),
 		}
+
+		// Set the cause if it is knowable.
 		select {
 		case e := <-healthErr:
-			ee.cause = e
+			exitErr.cause = e
 		default:
-			if err.Error() != "" {
-				ee.cause = err
+			if status.Err() != nil {
+				exitErr.cause = status.Err()
 			}
 		}
-		return ee
+
+		return exitErr
 	}
 
 	return nil
+}
+
+func (r *controller) hasServiceBinding() bool {
+	if r.task == nil {
+		return false
+	}
+
+	// service is attached to a network besides the default bridge
+	for _, na := range r.task.Networks {
+		if na.Network == nil ||
+			na.Network.DriverState == nil ||
+			na.Network.DriverState.Name == "bridge" && na.Network.Spec.Annotations.Name == "bridge" {
+			continue
+		}
+		return true
+	}
+
+	return false
 }
 
 // Shutdown the container cleanly.
@@ -315,12 +331,18 @@ func (r *controller) Shutdown(ctx context.Context) error {
 		r.cancelPull()
 	}
 
-	// remove container from service binding
-	if err := r.adapter.deactivateServiceBinding(); err != nil {
-		log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
-		// Don't return an error here, because failure to deactivate
-		// the service binding is expected if the container was never
-		// started.
+	if r.hasServiceBinding() {
+		// remove container from service binding
+		if err := r.adapter.deactivateServiceBinding(); err != nil {
+			log.G(ctx).WithError(err).Warningf("failed to deactivate service binding for container %s", r.adapter.container.name())
+			// Don't return an error here, because failure to deactivate
+			// the service binding is expected if the container was never
+			// started.
+		}
+
+		// add a delay for gossip converge
+		// TODO(dongluochen): this delay should be configurable to fit different cluster size and network delay.
+		time.Sleep(defaultGossipConvergeDelay)
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
@@ -441,15 +463,27 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		return err
 	}
 
-	if err := r.waitReady(ctx); err != nil {
-		return errors.Wrap(err, "container not ready for logs")
+	// if we're following, wait for this container to be ready. there is a
+	// problem here: if the container will never be ready (for example, it has
+	// been totally deleted) then this will wait forever. however, this doesn't
+	// actually cause any UI issues, and shouldn't be a problem. the stuck wait
+	// will go away when the follow (context) is canceled.
+	if options.Follow {
+		if err := r.waitReady(ctx); err != nil {
+			return errors.Wrap(err, "container not ready for logs")
+		}
 	}
+	// if we're not following, we're not gonna wait for the container to be
+	// ready. just call logs. if the container isn't ready, the call will fail
+	// and return an error. no big deal, we don't care, we only want the logs
+	// we can get RIGHT NOW with no follow
 
-	rc, err := r.adapter.logs(ctx, options)
+	logsContext, cancel := context.WithCancel(ctx)
+	msgs, err := r.adapter.logs(logsContext, options)
+	defer cancel()
 	if err != nil {
 		return errors.Wrap(err, "failed getting container logs")
 	}
-	defer rc.Close()
 
 	var (
 		// use a rate limiter to keep things under control but also provides some
@@ -462,53 +496,48 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		}
 	)
 
-	brd := bufio.NewReader(rc)
 	for {
-		// so, message header is 8 bytes, treat as uint64, pull stream off MSB
-		var header uint64
-		if err := binary.Read(brd, binary.BigEndian, &header); err != nil {
-			if err == io.EOF {
-				return nil
-			}
-
-			return errors.Wrap(err, "failed reading log header")
+		msg, ok := <-msgs
+		if !ok {
+			// we're done here, no more messages
+			return nil
 		}
 
-		stream, size := (header>>(7<<3))&0xFF, header & ^(uint64(0xFF)<<(7<<3))
+		if msg.Err != nil {
+			// the defered cancel closes the adapter's log stream
+			return msg.Err
+		}
 
-		// limit here to decrease allocation back pressure.
-		if err := limiter.WaitN(ctx, int(size)); err != nil {
+		// wait here for the limiter to catch up
+		if err := limiter.WaitN(ctx, len(msg.Line)); err != nil {
 			return errors.Wrap(err, "failed rate limiter")
 		}
-
-		buf := make([]byte, size)
-		_, err := io.ReadFull(brd, buf)
-		if err != nil {
-			return errors.Wrap(err, "failed reading buffer")
-		}
-
-		// Timestamp is RFC3339Nano with 1 space after. Lop, parse, publish
-		parts := bytes.SplitN(buf, []byte(" "), 2)
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid timestamp in log message: %v", buf)
-		}
-
-		ts, err := time.Parse(time.RFC3339Nano, string(parts[0]))
-		if err != nil {
-			return errors.Wrap(err, "failed to parse timestamp")
-		}
-
-		tsp, err := gogotypes.TimestampProto(ts)
+		tsp, err := gogotypes.TimestampProto(msg.Timestamp)
 		if err != nil {
 			return errors.Wrap(err, "failed to convert timestamp")
+		}
+		var stream api.LogStream
+		if msg.Source == "stdout" {
+			stream = api.LogStreamStdout
+		} else if msg.Source == "stderr" {
+			stream = api.LogStreamStderr
+		}
+
+		// parse the details out of the Attrs map
+		var attrs []api.LogAttr
+		if len(msg.Attrs) != 0 {
+			attrs = make([]api.LogAttr, 0, len(msg.Attrs))
+			for _, attr := range msg.Attrs {
+				attrs = append(attrs, api.LogAttr{Key: attr.Key, Value: attr.Value})
+			}
 		}
 
 		if err := publisher.Publish(ctx, api.LogMessage{
 			Context:   msgctx,
 			Timestamp: tsp,
-			Stream:    api.LogStream(stream),
-
-			Data: parts[1],
+			Stream:    stream,
+			Attrs:     attrs,
+			Data:      msg.Line,
 		}); err != nil {
 			return errors.Wrap(err, "failed to publish log message")
 		}
@@ -535,15 +564,8 @@ func (r *controller) matchevent(event events.Message) bool {
 	if event.Type != events.ContainerEventType {
 		return false
 	}
-
-	// TODO(stevvooe): Filter based on ID matching, in addition to name.
-
-	// Make sure the events are for this container.
-	if event.Actor.Attributes["name"] != r.adapter.container.name() {
-		return false
-	}
-
-	return true
+	// we can't filter using id since it will have huge chances to introduce a deadlock. see #33377.
+	return event.Actor.Attributes["name"] == r.adapter.container.name()
 }
 
 func (r *controller) checkClosed() error {
@@ -637,7 +659,7 @@ func (e *exitError) Error() string {
 }
 
 func (e *exitError) ExitCode() int {
-	return int(e.code)
+	return e.code
 }
 
 func (e *exitError) Cause() error {

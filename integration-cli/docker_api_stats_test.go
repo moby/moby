@@ -13,19 +13,20 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/go-check/check"
+	"golang.org/x/net/context"
 )
 
 var expectedNetworkInterfaceStats = strings.Split("rx_bytes rx_dropped rx_errors rx_packets tx_bytes tx_dropped tx_errors tx_packets", " ")
 
 func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;do echo 'Hello'; usleep 100000; done")
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "while true;usleep 100; do echo 'Hello'; done")
 
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
-
 	resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id))
 	c.Assert(err, checker.IsNil)
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
@@ -38,7 +39,7 @@ func (s *DockerSuite) TestAPIStatsNoStreamGetCpu(c *check.C) {
 
 	var cpuPercent = 0.0
 
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		cpuDelta := float64(v.CPUStats.CPUUsage.TotalUsage - v.PreCPUStats.CPUUsage.TotalUsage)
 		systemDelta := float64(v.CPUStats.SystemUsage - v.PreCPUStats.SystemUsage)
 		cpuPercent = (cpuDelta / systemDelta) * float64(len(v.CPUStats.CPUUsage.PercpuUsage)) * 100.0
@@ -98,13 +99,13 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	testRequires(c, SameHostDaemon)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
 	// Retrieve the container address
 	net := "bridge"
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		net = "nat"
 	}
 	contIP := findContainerIP(c, id, net)
@@ -152,7 +153,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 	// On Linux, account for ARP.
 	expRxPkts := preRxPackets + uint64(numPings)
 	expTxPkts := preTxPackets + uint64(numPings)
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		expRxPkts++
 		expTxPkts++
 	}
@@ -166,7 +167,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 	wg := sync.WaitGroup{}
@@ -261,28 +262,30 @@ func jsonBlobHasGTE121NetworkStats(blob map[string]interface{}) bool {
 
 func (s *DockerSuite) TestAPIStatsContainerNotFound(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-
-	status, _, err := request.SockRequest("GET", "/containers/nonexistent/stats", nil, daemonHost())
+	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNotFound)
+	defer cli.Close()
 
-	status, _, err = request.SockRequest("GET", "/containers/nonexistent/stats?stream=0", nil, daemonHost())
-	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusNotFound)
+	expected := "No such container: nonexistent"
+
+	_, err = cli.ContainerStats(context.Background(), "nonexistent", true)
+	c.Assert(err.Error(), checker.Contains, expected)
+	_, err = cli.ContainerStats(context.Background(), "nonexistent", false)
+	c.Assert(err.Error(), checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestAPIStatsNoStreamConnectedContainers(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	out1, _ := runSleepingContainer(c)
+	out1 := runSleepingContainer(c)
 	id1 := strings.TrimSpace(out1)
 	c.Assert(waitRun(id1), checker.IsNil)
 
-	out2, _ := runSleepingContainer(c, "--net", "container:"+id1)
+	out2 := runSleepingContainer(c, "--net", "container:"+id1)
 	id2 := strings.TrimSpace(out2)
 	c.Assert(waitRun(id2), checker.IsNil)
 
-	ch := make(chan error)
+	ch := make(chan error, 1)
 	go func() {
 		resp, body, err := request.Get(fmt.Sprintf("/containers/%s/stats?stream=false", id2))
 		defer body.Close()

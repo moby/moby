@@ -1,4 +1,4 @@
-package plugin
+package plugin // import "github.com/docker/docker/plugin"
 
 import (
 	"sync"
@@ -22,5 +22,16 @@ func NewStore() *Store {
 	return &Store{
 		plugins:  make(map[string]*v2.Plugin),
 		handlers: make(map[string][]func(string, *plugins.Client)),
+	}
+}
+
+// CreateOpt is used to configure specific plugin details when created
+type CreateOpt func(p *v2.Plugin)
+
+// WithSwarmService is a CreateOpt that flags the passed in a plugin as a plugin
+// managed by swarm
+func WithSwarmService(id string) CreateOpt {
+	return func(p *v2.Plugin) {
+		p.SwarmServiceID = id
 	}
 }

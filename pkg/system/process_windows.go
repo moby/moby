@@ -1,20 +1,18 @@
-package system
+package system // import "github.com/docker/docker/pkg/system"
+
+import "os"
 
 // IsProcessAlive returns true if process with a given pid is running.
 func IsProcessAlive(pid int) bool {
-	// TODO Windows containerd. Not sure this is needed
-	//	p, err := os.FindProcess(pid)
-	//	if err == nil {
-	//		return true
-	//	}
-	return false
+	_, err := os.FindProcess(pid)
+
+	return err == nil
 }
 
 // KillProcess force-stops a process.
 func KillProcess(pid int) {
-	// TODO Windows containerd. Not sure this is needed
-	//	p, err := os.FindProcess(pid)
-	//	if err == nil {
-	//		p.Kill()
-	//	}
+	p, err := os.FindProcess(pid)
+	if err == nil {
+		p.Kill()
+	}
 }

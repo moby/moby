@@ -12,30 +12,33 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
-	"github.com/docker/go-units"
+	"github.com/docker/docker/integration-cli/cli/build"
+	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	units "github.com/docker/go-units"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {
 	testRequires(c, cpuCfsQuota)
 	name := "testbuildresourceconstraints"
+	buildLabel := "DockerSuite.TestBuildResourceConstraintsAreUsed"
 
-	ctx := fakeContext(c, `
+	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`
 	FROM hello-world:frozen
 	RUN ["/hello"]
-	`, map[string]string{})
+	`))
 	cli.Docker(
-		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "-t", name, "."),
+		cli.Args("build", "--no-cache", "--rm=false", "--memory=64m", "--memory-swap=-1", "--cpuset-cpus=0", "--cpuset-mems=0", "--cpu-shares=100", "--cpu-quota=8000", "--ulimit", "nofile=42", "--label="+buildLabel, "-t", name, "."),
 		cli.InDir(ctx.Dir),
 	).Assert(c, icmd.Success)
 
-	out := cli.DockerCmd(c, "ps", "-lq").Combined()
+	out := cli.DockerCmd(c, "ps", "-lq", "--filter", "label="+buildLabel).Combined()
 	cID := strings.TrimSpace(out)
 
 	type hostConfig struct {
@@ -85,7 +88,7 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testbuildaddown"
 
-	ctx := func() *FakeContext {
+	ctx := func() *fakecontext.Fake {
 		dockerfile := `
 			FROM busybox
 			ADD foo /bar/
@@ -108,12 +111,12 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 		if err := ioutil.WriteFile(filepath.Join(tmpDir, "Dockerfile"), []byte(dockerfile), 0644); err != nil {
 			c.Fatalf("failed to open destination dockerfile: %v", err)
 		}
-		return fakeContextFromDir(tmpDir)
+		return fakecontext.New(c, tmpDir)
 	}()
 
 	defer ctx.Close()
 
-	buildImageSuccessfully(c, name, withExternalBuildContext(ctx))
+	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
 }
 
 // Test that an infinite sleep during a build is killed if the client disconnects.
@@ -134,7 +137,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	defer observer.Stop()
 
 	// (Note: one year, will never finish)
-	ctx := fakeContext(c, "FROM busybox\nRUN sleep 31536000", nil)
+	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile("FROM busybox\nRUN sleep 31536000"))
 	defer ctx.Close()
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", name, ".")
@@ -146,6 +149,11 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	if err := buildCmd.Start(); err != nil {
 		c.Fatalf("failed to run build: %s", err)
 	}
+	// always clean up
+	defer func() {
+		buildCmd.Process.Kill()
+		buildCmd.Wait()
+	}()
 
 	matchCID := regexp.MustCompile("Running in (.+)")
 	scanner := bufio.NewScanner(stdoutBuild)
@@ -189,7 +197,7 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	}
 
 	// Get the exit status of `docker build`, check it exited because killed.
-	if err := buildCmd.Wait(); err != nil && !testutil.IsKilled(err) {
+	if err := buildCmd.Wait(); err != nil && !isKilled(err) {
 		c.Fatalf("wait failed during build run: %T %s", err, err)
 	}
 
@@ -199,4 +207,18 @@ func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
 	case <-testActions["die"]:
 		// ignore, done
 	}
+}
+
+func isKilled(err error) bool {
+	if exitErr, ok := err.(*exec.ExitError); ok {
+		status, ok := exitErr.Sys().(syscall.WaitStatus)
+		if !ok {
+			return false
+		}
+		// status.ExitStatus() is required on Windows because it does not
+		// implement Signal() nor Signaled(). Just check it had a bad exit
+		// status could mean it was killed (and in tests we do kill)
+		return (status.Signaled() && status.Signal() == os.Kill) || status.ExitStatus() != 0
+	}
+	return false
 }

@@ -1,4 +1,4 @@
-package pools
+package pools // import "github.com/docker/docker/pkg/pools"
 
 import (
 	"bufio"
@@ -6,6 +6,9 @@ import (
 	"io"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestBufioReaderPoolGetWithNoReaderShouldCreateOne(t *testing.T) {
@@ -92,22 +95,16 @@ func TestBufioWriterPoolPutAndGet(t *testing.T) {
 	buf := new(bytes.Buffer)
 	bw := bufio.NewWriter(buf)
 	writer := BufioWriter32KPool.Get(bw)
-	if writer == nil {
-		t.Fatalf("BufioReaderPool should not return a nil writer.")
-	}
+	require.NotNil(t, writer)
+
 	written, err := writer.Write([]byte("foobar"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if written != 6 {
-		t.Fatalf("Should have written 6 bytes, but wrote %v bytes", written)
-	}
+	require.NoError(t, err)
+	assert.Equal(t, 6, written)
+
 	// Make sure we Flush all the way ?
 	writer.Flush()
 	bw.Flush()
-	if len(buf.Bytes()) != 6 {
-		t.Fatalf("The buffer should contain 6 bytes ('foobar') but contains %v ('%v')", buf.Bytes(), string(buf.Bytes()))
-	}
+	assert.Len(t, buf.Bytes(), 6)
 	// Reset the buffer
 	buf.Reset()
 	BufioWriter32KPool.Put(writer)
@@ -158,4 +155,9 @@ func TestNewWriteCloserWrapperWithAWriteCloser(t *testing.T) {
 	if !sw.closed {
 		t.Fatalf("The ReaderCloser should have been closed, it is not.")
 	}
+}
+
+func TestBufferPoolPutAndGet(t *testing.T) {
+	buf := buffer32KPool.Get()
+	buffer32KPool.Put(buf)
 }

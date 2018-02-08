@@ -7,7 +7,9 @@ import (
 	"os/exec"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/opencontainers/runtime-spec/specs-go"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Rlimit struct {
@@ -112,8 +114,8 @@ type Config struct {
 	Namespaces Namespaces `json:"namespaces"`
 
 	// Capabilities specify the capabilities to keep when executing the process inside the container
-	// All capbilities not specified will be dropped from the processes capability mask
-	Capabilities []string `json:"capabilities"`
+	// All capabilities not specified will be dropped from the processes capability mask
+	Capabilities *Capabilities `json:"capabilities"`
 
 	// Networks specifies the container's network setup to be created
 	Networks []*Network `json:"networks"`
@@ -182,6 +184,13 @@ type Config struct {
 	// NoNewKeyring will not allocated a new session keyring for the container.  It will use the
 	// callers keyring in this case.
 	NoNewKeyring bool `json:"no_new_keyring"`
+
+	// Rootless specifies whether the container is a rootless container.
+	Rootless bool `json:"rootless"`
+
+	// IntelRdt specifies settings for Intel RDT/CAT group that the container is placed into
+	// to limit the resources (e.g., L3 cache) the container has available
+	IntelRdt *IntelRdt `json:"intel_rdt,omitempty"`
 }
 
 type Hooks struct {
@@ -194,6 +203,19 @@ type Hooks struct {
 
 	// Poststop commands are executed after the container init process exits.
 	Poststop []Hook
+}
+
+type Capabilities struct {
+	// Bounding is the set of capabilities checked by the kernel.
+	Bounding []string
+	// Effective is the set of capabilities checked by the kernel.
+	Effective []string
+	// Inheritable is the capabilities preserved across execve.
+	Inheritable []string
+	// Permitted is the limiting superset for effective capabilities.
+	Permitted []string
+	// Ambient is the ambient set of capabilities that are kept.
+	Ambient []string
 }
 
 func (hooks *Hooks) UnmarshalJSON(b []byte) error {
@@ -243,13 +265,7 @@ func (hooks Hooks) MarshalJSON() ([]byte, error) {
 }
 
 // HookState is the payload provided to a hook on execution.
-type HookState struct {
-	Version    string `json:"ociVersion"`
-	ID         string `json:"id"`
-	Pid        int    `json:"pid"`
-	Root       string `json:"root"`
-	BundlePath string `json:"bundlePath"`
-}
+type HookState specs.State
 
 type Hook interface {
 	// Run executes the hook with the provided state.

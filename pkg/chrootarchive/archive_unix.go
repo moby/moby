@@ -1,6 +1,6 @@
 // +build !windows
 
-package chrootarchive
+package chrootarchive // import "github.com/docker/docker/pkg/chrootarchive"
 
 import (
 	"bytes"
@@ -66,10 +66,12 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 	cmd.Stderr = output
 
 	if err := cmd.Start(); err != nil {
+		w.Close()
 		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
 	}
 	//write the options to the pipe for the untar exec to read
 	if err := json.NewEncoder(w).Encode(options); err != nil {
+		w.Close()
 		return fmt.Errorf("Untar json encode to pipe failed: %v", err)
 	}
 	w.Close()

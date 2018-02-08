@@ -13,20 +13,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
+	gmetrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
+	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
 	"github.com/docker/swarmkit/manager/dispatcher"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/health"
 	"github.com/docker/swarmkit/manager/keymanager"
 	"github.com/docker/swarmkit/manager/logbroker"
+	"github.com/docker/swarmkit/manager/metrics"
 	"github.com/docker/swarmkit/manager/orchestrator/constraintenforcer"
 	"github.com/docker/swarmkit/manager/orchestrator/global"
 	"github.com/docker/swarmkit/manager/orchestrator/replicated"
@@ -34,13 +38,15 @@ import (
 	"github.com/docker/swarmkit/manager/resourceapi"
 	"github.com/docker/swarmkit/manager/scheduler"
 	"github.com/docker/swarmkit/manager/state/raft"
+	"github.com/docker/swarmkit/manager/state/raft/transport"
 	"github.com/docker/swarmkit/manager/state/store"
-	"github.com/docker/swarmkit/manager/storeapi"
+	"github.com/docker/swarmkit/manager/watchapi"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	gogotypes "github.com/gogo/protobuf/types"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -65,6 +71,9 @@ type RemoteAddrs struct {
 type Config struct {
 	SecurityConfig *ca.SecurityConfig
 
+	// RootCAPaths is the path to which new root certs should be save
+	RootCAPaths ca.CertPaths
+
 	// ExternalCAs is a list of initial CAs to which a manager node
 	// will make certificate signing requests for node certificates.
 	ExternalCAs []*api.ExternalCA
@@ -80,7 +89,11 @@ type Config struct {
 	// cluster to join.
 	JoinRaft string
 
-	// Top-level state directory
+	// ForceJoin causes us to invoke raft's Join RPC even if already part
+	// of a cluster.
+	ForceJoin bool
+
+	// StateDir is the top-level state directory
 	StateDir string
 
 	// ForceNewCluster defines if we have to force a new cluster
@@ -119,9 +132,11 @@ type Config struct {
 type Manager struct {
 	config Config
 
+	collector              *metrics.Collector
 	caserver               *ca.Server
 	dispatcher             *dispatcher.Dispatcher
 	logbroker              *logbroker.LogBroker
+	watchServer            *watchapi.Server
 	replicatedOrchestrator *replicated.Orchestrator
 	globalOrchestrator     *global.Orchestrator
 	taskReaper             *taskreaper.TaskReaper
@@ -149,6 +164,16 @@ type Manager struct {
 	remoteListener  chan net.Listener
 	controlListener chan net.Listener
 	errServe        chan error
+}
+
+var (
+	leaderMetric gmetrics.Gauge
+)
+
+func init() {
+	ns := gmetrics.NewNamespace("swarm", "manager", nil)
+	leaderMetric = ns.NewGauge("leader", "Indicates if this manager node is a leader", "")
+	gmetrics.Register(ns)
 }
 
 type closeOnceListener struct {
@@ -194,6 +219,7 @@ func New(config *Config) (*Manager, error) {
 	newNodeOpts := raft.NodeOptions{
 		ID:              config.SecurityConfig.ClientTLSCreds.NodeID(),
 		JoinAddr:        config.JoinRaft,
+		ForceJoin:       config.ForceJoin,
 		Config:          raftCfg,
 		StateDir:        raftStateDir,
 		ForceNewCluster: config.ForceNewCluster,
@@ -206,13 +232,15 @@ func New(config *Config) (*Manager, error) {
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.MaxMsgSize(transport.GRPCMaxMsgSize),
 	}
 
 	m := &Manager{
 		config:          *config,
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
-		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig()),
+		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig(), drivers.New(config.PluginGetter), config.SecurityConfig),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
+		watchServer:     watchapi.NewServer(raftNode.MemoryStore()),
 		server:          grpc.NewServer(opts...),
 		localserver:     grpc.NewServer(opts...),
 		raftNode:        raftNode,
@@ -374,7 +402,7 @@ func (m *Manager) Run(parent context.Context) error {
 		)
 
 		m.raftNode.MemoryStore().View(func(readTx store.ReadTx) {
-			clusters, err = store.FindClusters(readTx, store.ByName("default"))
+			clusters, err = store.FindClusters(readTx, store.ByName(store.DefaultClusterName))
 
 		})
 
@@ -389,14 +417,13 @@ func (m *Manager) Run(parent context.Context) error {
 		return err
 	}
 
-	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.caserver, m.config.PluginGetter)
-	baseStoreAPI := storeapi.NewServer(m.raftNode.MemoryStore())
+	baseControlAPI := controlapi.NewServer(m.raftNode.MemoryStore(), m.raftNode, m.config.SecurityConfig, m.config.PluginGetter, drivers.New(m.config.PluginGetter))
 	baseResourceAPI := resourceapi.New(m.raftNode.MemoryStore())
 	healthServer := health.NewHealthServer()
 	localHealthServer := health.NewHealthServer()
 
 	authenticatedControlAPI := api.NewAuthenticatedWrapperControlServer(baseControlAPI, authorize)
-	authenticatedStoreAPI := api.NewAuthenticatedWrapperStoreServer(baseStoreAPI, authorize)
+	authenticatedWatchAPI := api.NewAuthenticatedWrapperWatchServer(m.watchServer, authorize)
 	authenticatedResourceAPI := api.NewAuthenticatedWrapperResourceAllocatorServer(baseResourceAPI, authorize)
 	authenticatedLogsServerAPI := api.NewAuthenticatedWrapperLogsServer(m.logbroker, authorize)
 	authenticatedLogBrokerAPI := api.NewAuthenticatedWrapperLogBrokerServer(m.logbroker, authorize)
@@ -446,7 +473,6 @@ func (m *Manager) Run(parent context.Context) error {
 		return context.WithValue(ctx, ca.LocalRequestKey, nodeInfo), nil
 	}
 	localProxyControlAPI := api.NewRaftProxyControlServer(baseControlAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
-	localProxyStoreAPI := api.NewRaftProxyStoreServer(baseStoreAPI, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyLogsAPI := api.NewRaftProxyLogsServer(m.logbroker, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyDispatcherAPI := api.NewRaftProxyDispatcherServer(m.dispatcher, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
 	localProxyCAAPI := api.NewRaftProxyCAServer(m.caserver, m.raftNode, handleRequestLocally, forwardAsOwnRequest)
@@ -462,7 +488,7 @@ func (m *Manager) Run(parent context.Context) error {
 	api.RegisterHealthServer(m.server, authenticatedHealthAPI)
 	api.RegisterRaftMembershipServer(m.server, proxyRaftMembershipAPI)
 	api.RegisterControlServer(m.server, authenticatedControlAPI)
-	api.RegisterStoreServer(m.server, authenticatedStoreAPI)
+	api.RegisterWatchServer(m.server, authenticatedWatchAPI)
 	api.RegisterLogsServer(m.server, authenticatedLogsServerAPI)
 	api.RegisterLogBrokerServer(m.server, proxyLogBrokerAPI)
 	api.RegisterResourceAllocatorServer(m.server, proxyResourceAPI)
@@ -470,7 +496,7 @@ func (m *Manager) Run(parent context.Context) error {
 	grpc_prometheus.Register(m.server)
 
 	api.RegisterControlServer(m.localserver, localProxyControlAPI)
-	api.RegisterStoreServer(m.localserver, localProxyStoreAPI)
+	api.RegisterWatchServer(m.localserver, m.watchServer)
 	api.RegisterLogsServer(m.localserver, localProxyLogsAPI)
 	api.RegisterHealthServer(m.localserver, localHealthServer)
 	api.RegisterDispatcherServer(m.localserver, localProxyDispatcherAPI)
@@ -482,6 +508,10 @@ func (m *Manager) Run(parent context.Context) error {
 
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_NOT_SERVING)
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_NOT_SERVING)
+
+	if err := m.watchServer.Start(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("watch server failed to start")
+	}
 
 	go m.serveListener(ctx, m.remoteListener)
 	go m.serveListener(ctx, m.controlListener)
@@ -495,10 +525,21 @@ func (m *Manager) Run(parent context.Context) error {
 	healthServer.SetServingStatus("Raft", api.HealthCheckResponse_SERVING)
 
 	if err := m.raftNode.JoinAndStart(ctx); err != nil {
+		// Don't block future calls to Stop.
+		close(m.started)
 		return errors.Wrap(err, "can't initialize raft node")
 	}
 
 	localHealthServer.SetServingStatus("ControlAPI", api.HealthCheckResponse_SERVING)
+
+	// Start metrics collection.
+
+	m.collector = metrics.NewCollector(m.raftNode.MemoryStore())
+	go func(collector *metrics.Collector) {
+		if err := collector.Run(ctx); err != nil {
+			log.G(ctx).WithError(err).Error("collector failed with an error")
+		}
+	}(m.collector)
 
 	close(m.started)
 
@@ -547,8 +588,8 @@ func (m *Manager) Run(parent context.Context) error {
 const stopTimeout = 8 * time.Second
 
 // Stop stops the manager. It immediately closes all open connections and
-// active RPCs as well as stopping the scheduler. If clearData is set, the
-// raft logs, snapshots, and keys will be erased.
+// active RPCs as well as stopping the manager's subsystems. If clearData is
+// set, the raft logs, snapshots, and keys will be erased.
 func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	log.G(ctx).Info("Stopping manager")
 	// It's not safe to start shutting down while the manager is still
@@ -576,8 +617,13 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 
 	m.raftNode.Cancel()
 
+	if m.collector != nil {
+		m.collector.Stop()
+	}
+
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
+	m.watchServer.Stop()
 	m.caserver.Stop()
 
 	if m.allocator != nil {
@@ -677,7 +723,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 			connBroker := connectionbroker.New(remotes.NewRemotes())
 			connBroker.SetLocalConn(conn)
-			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker); err != nil {
+			if err := ca.RenewTLSConfigNow(ctx, securityConfig, connBroker, m.config.RootCAPaths); err != nil {
 				logger.WithError(err).Error("failed to download new TLS certificate after locking the cluster")
 			}
 		}()
@@ -687,16 +733,14 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 
 func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 	clusterID := m.config.SecurityConfig.ClientTLSCreds.Organization()
+	var cluster *api.Cluster
 	clusterWatch, clusterWatchCancel, err := store.ViewAndWatch(m.raftNode.MemoryStore(),
 		func(tx store.ReadTx) error {
-			cluster := store.GetCluster(tx, clusterID)
+			cluster = store.GetCluster(tx, clusterID)
 			if cluster == nil {
 				return fmt.Errorf("unable to get current cluster")
 			}
-			if err := m.caserver.UpdateRootCA(ctx, cluster); err != nil {
-				log.G(ctx).WithError(err).Error("could not update security config")
-			}
-			return m.updateKEK(ctx, cluster)
+			return nil
 		},
 		api.EventUpdateCluster{
 			Cluster: &api.Cluster{ID: clusterID},
@@ -706,14 +750,15 @@ func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	if err := m.updateKEK(ctx, cluster); err != nil {
+		return err
+	}
+
 	go func() {
 		for {
 			select {
 			case event := <-clusterWatch:
 				clusterEvent := event.(api.EventUpdateCluster)
-				if err := m.caserver.UpdateRootCA(ctx, clusterEvent.Cluster); err != nil {
-					log.G(ctx).WithError(err).Error("could not update security config")
-				}
 				m.updateKEK(ctx, clusterEvent.Cluster)
 			case <-ctx.Done():
 				clusterWatchCancel()
@@ -773,22 +818,29 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 		}
 
 		if x509.IsEncryptedPEMBlock(keyBlock) {
-			// This key is already encrypted, let's try to decrypt with the current main passphrase
-			_, err = x509.DecryptPEMBlock(keyBlock, []byte(passphrase))
+			// PEM encryption does not have a digest, so sometimes decryption doesn't
+			// error even with the wrong passphrase.  So actually try to parse it into a valid key.
+			_, err := helpers.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrase))
 			if err == nil {
-				// The main key is the correct KEK, nothing to do here
+				// This key is already correctly encrypted with the correct KEK, nothing to do here
 				return nil
 			}
+
 			// This key is already encrypted, but failed with current main passphrase.
-			// Let's try to decrypt with the previous passphrase
-			unencryptedKey, err := x509.DecryptPEMBlock(keyBlock, []byte(passphrasePrev))
+			// Let's try to decrypt with the previous passphrase, and parse into a valid key, for the
+			// same reason as above.
+			_, err = helpers.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrasePrev))
 			if err != nil {
 				// We were not able to decrypt either with the main or backup passphrase, error
 				return err
 			}
+			// ok the above passphrase is correct, so decrypt the PEM block so we can re-encrypt -
+			// since the key was successfully decrypted above, there will be no error doing PEM
+			// decryption
+			unencryptedDER, _ := x509.DecryptPEMBlock(keyBlock, []byte(passphrasePrev))
 			unencryptedKeyBlock := &pem.Block{
 				Type:  keyBlock.Type,
-				Bytes: unencryptedKey,
+				Bytes: unencryptedDER,
 			}
 
 			// we were able to decrypt the key with the previous passphrase - if the current passphrase is empty,
@@ -834,8 +886,10 @@ func (m *Manager) handleLeadershipEvents(ctx context.Context, leadershipCh chan 
 
 			if newState == raft.IsLeader {
 				m.becomeLeader(ctx)
+				leaderMetric.Set(1)
 			} else if newState == raft.IsFollower {
 				m.becomeFollower()
+				leaderMetric.Set(0)
 			}
 			m.mu.Unlock()
 		case <-ctx.Done():
@@ -898,13 +952,18 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		// store. Don't check the error because
 		// we expect this to fail unless this
 		// is a brand new cluster.
-		store.CreateCluster(tx, defaultClusterObject(
+		err := store.CreateCluster(tx, defaultClusterObject(
 			clusterID,
 			initialCAConfig,
 			raftCfg,
 			api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
 			unlockKeys,
 			rootCA))
+
+		if err != nil && err != store.ErrExist {
+			log.G(ctx).WithError(err).Errorf("error creating cluster object")
+		}
+
 		// Add Node entry for ourself, if one
 		// doesn't exist already.
 		freshCluster := nil == store.CreateNode(tx, managerNode(nodeID, m.config.Availability))
@@ -918,7 +977,18 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 				log.G(ctx).WithError(err).Error("failed to create default ingress network")
 			}
 		}
-
+		// Create now the static predefined if the store does not contain predefined
+		//networks like bridge/host node-local networks which
+		// are known to be present in each cluster node. This is needed
+		// in order to allow running services on the predefined docker
+		// networks like `bridge` and `host`.
+		for _, p := range allocator.PredefinedNetworks() {
+			if store.GetNetwork(tx, p.Name) == nil {
+				if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil {
+					log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
+				}
+			}
+		}
 		return nil
 	})
 
@@ -961,11 +1031,9 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		}
 	}(m.dispatcher)
 
-	go func(lb *logbroker.LogBroker) {
-		if err := lb.Run(ctx); err != nil {
-			log.G(ctx).WithError(err).Error("LogBroker exited with an error")
-		}
-	}(m.logbroker)
+	if err := m.logbroker.Start(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("LogBroker failed to start")
+	}
 
 	go func(server *ca.Server) {
 		if err := server.Run(ctx); err != nil {
@@ -995,7 +1063,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	}(m.constraintEnforcer)
 
 	go func(taskReaper *taskreaper.TaskReaper) {
-		taskReaper.Run()
+		taskReaper.Run(ctx)
 	}(m.taskReaper)
 
 	go func(orchestrator *replicated.Orchestrator) {
@@ -1132,6 +1200,27 @@ func newIngressNetwork() *api.Network {
 					},
 				},
 			},
+		},
+	}
+}
+
+// Creates a network object representing one of the predefined networks
+// known to be statically created on the cluster nodes. These objects
+// are populated in the store at cluster creation solely in order to
+// support running services on the nodes' predefined networks.
+// External clients can filter these predefined networks by looking
+// at the predefined label.
+func newPredefinedNetwork(name, driver string) *api.Network {
+	return &api.Network{
+		ID: identity.NewID(),
+		Spec: api.NetworkSpec{
+			Annotations: api.Annotations{
+				Name: name,
+				Labels: map[string]string{
+					networkallocator.PredefinedLabel: "true",
+				},
+			},
+			DriverConfig: &api.Driver{Name: driver},
 		},
 	}
 }

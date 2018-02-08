@@ -1,7 +1,7 @@
 // Package jsonfilelog provides the default Logger implementation for
 // Docker logging. This logger logs to files on the host server in the
 // JSON format.
-package jsonfilelog
+package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelog"
 
 import (
 	"bytes"
@@ -10,11 +10,12 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
 	"github.com/docker/docker/daemon/logger/loggerutils"
-	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Name is the name of the file that the jsonlogger logs to.
@@ -22,11 +23,11 @@ const Name = "json-file"
 
 // JSONFileLogger is Logger implementation for default Docker logging.
 type JSONFileLogger struct {
-	buf     *bytes.Buffer
-	writer  *loggerutils.RotateFileWriter
 	mu      sync.Mutex
+	closed  bool
+	writer  *loggerutils.LogFile
 	readers map[*logger.LogWatcher]struct{} // stores the active log followers
-	extra   []byte                          // json-encoded extra attributes
+	tag     string                          // tag values requested by the user to log
 }
 
 func init() {
@@ -61,16 +62,21 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
-	writer, err := loggerutils.NewRotateFileWriter(info.LogPath, capval, maxFiles)
-	if err != nil {
-		return nil, err
-	}
-
-	var extra []byte
 	attrs, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, err
 	}
+
+	// no default template. only use a tag if the user asked for it
+	tag, err := loggerutils.ParseLogTag(info, "")
+	if err != nil {
+		return nil, err
+	}
+	if tag != "" {
+		attrs["tag"] = tag
+	}
+
+	var extra []byte
 	if len(attrs) > 0 {
 		var err error
 		extra, err = json.Marshal(attrs)
@@ -79,43 +85,52 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	buf := bytes.NewBuffer(nil)
+	marshalFunc := func(msg *logger.Message) ([]byte, error) {
+		if err := marshalMessage(msg, extra, buf); err != nil {
+			return nil, err
+		}
+		b := buf.Bytes()
+		buf.Reset()
+		return b, nil
+	}
+
+	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, marshalFunc, decodeFunc)
+	if err != nil {
+		return nil, err
+	}
+
 	return &JSONFileLogger{
-		buf:     bytes.NewBuffer(nil),
 		writer:  writer,
 		readers: make(map[*logger.LogWatcher]struct{}),
-		extra:   extra,
+		tag:     tag,
 	}, nil
 }
 
 // Log converts logger.Message to jsonlog.JSONLog and serializes it to file.
 func (l *JSONFileLogger) Log(msg *logger.Message) error {
-	timestamp, err := jsonlog.FastTimeMarshalJSON(msg.Timestamp)
-	if err != nil {
-		return err
-	}
 	l.mu.Lock()
-	logline := msg.Line
-	if !msg.Partial {
-		logline = append(msg.Line, '\n')
-	}
-	err = (&jsonlog.JSONLogs{
-		Log:      logline,
-		Stream:   msg.Source,
-		Created:  timestamp,
-		RawAttrs: l.extra,
-	}).MarshalJSONBuf(l.buf)
-	logger.PutMessage(msg)
-	if err != nil {
-		l.mu.Unlock()
-		return err
-	}
-
-	l.buf.WriteByte('\n')
-	_, err = l.writer.Write(l.buf.Bytes())
-	l.buf.Reset()
+	err := l.writer.WriteLogEntry(msg)
 	l.mu.Unlock()
-
 	return err
+}
+
+func marshalMessage(msg *logger.Message, extra json.RawMessage, buf *bytes.Buffer) error {
+	logLine := msg.Line
+	if !msg.Partial {
+		logLine = append(msg.Line, '\n')
+	}
+	err := (&jsonlog.JSONLogs{
+		Log:      logLine,
+		Stream:   msg.Source,
+		Created:  msg.Timestamp,
+		RawAttrs: extra,
+	}).MarshalJSONBuf(buf)
+	if err != nil {
+		return errors.Wrap(err, "error writing log message to buffer")
+	}
+	err = buf.WriteByte('\n')
+	return errors.Wrap(err, "error finalizing log buffer")
 }
 
 // ValidateLogOpt looks for json specific log options max-file & max-size.
@@ -127,6 +142,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "env":
 		case "env-regex":
+		case "tag":
 		default:
 			return fmt.Errorf("unknown log opt '%s' for json-file log driver", key)
 		}
@@ -142,6 +158,7 @@ func (l *JSONFileLogger) LogPath() string {
 // Close closes underlying file and signals all readers to stop.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
+	l.closed = true
 	err := l.writer.Close()
 	for r := range l.readers {
 		r.Close()

@@ -1,15 +1,17 @@
-package image
+package image // import "github.com/docker/docker/image"
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"sync"
+	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digestset"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Store is an interface for creating and accessing images
@@ -20,6 +22,8 @@ type Store interface {
 	Search(partialID string) (ID, error)
 	SetParent(id ID, parent ID) error
 	GetParent(id ID) (ID, error)
+	SetLastUpdated(id ID) error
+	GetLastUpdated(id ID) (time.Time, error)
 	Children(id ID) []ID
 	Map() map[ID]*Image
 	Heads() map[ID]*Image
@@ -37,17 +41,17 @@ type imageMeta struct {
 }
 
 type store struct {
-	sync.Mutex
-	ls        LayerGetReleaser
+	sync.RWMutex
+	lss       map[string]LayerGetReleaser
 	images    map[ID]*imageMeta
 	fs        StoreBackend
 	digestSet *digestset.Set
 }
 
-// NewImageStore returns new store object for given layer store
-func NewImageStore(fs StoreBackend, ls LayerGetReleaser) (Store, error) {
+// NewImageStore returns new store object for given set of layer stores
+func NewImageStore(fs StoreBackend, lss map[string]LayerGetReleaser) (Store, error) {
 	is := &store{
-		ls:        ls,
+		lss:       lss,
 		images:    make(map[ID]*imageMeta),
 		fs:        fs,
 		digestSet: digestset.NewSet(),
@@ -70,7 +74,10 @@ func (is *store) restore() error {
 		}
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
-			l, err = is.ls.Get(chainID)
+			if !system.IsOSSupported(img.OperatingSystem()) {
+				return system.ErrNotSupportedOperatingSystem
+			}
+			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {
 				return err
 			}
@@ -145,9 +152,12 @@ func (is *store) Create(config []byte) (ID, error) {
 
 	var l layer.Layer
 	if layerID != "" {
-		l, err = is.ls.Get(layerID)
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return "", system.ErrNotSupportedOperatingSystem
+		}
+		l, err = is.lss[img.OperatingSystem()].Get(layerID)
 		if err != nil {
-			return "", err
+			return "", errors.Wrapf(err, "failed to get layer %s", layerID)
 		}
 	}
 
@@ -165,16 +175,21 @@ func (is *store) Create(config []byte) (ID, error) {
 	return imageID, nil
 }
 
-func (is *store) Search(term string) (ID, error) {
-	is.Lock()
-	defer is.Unlock()
+type imageNotFoundError string
 
+func (e imageNotFoundError) Error() string {
+	return "No such image: " + string(e)
+}
+
+func (imageNotFoundError) NotFound() {}
+
+func (is *store) Search(term string) (ID, error) {
 	dgst, err := is.digestSet.Lookup(term)
 	if err != nil {
 		if err == digestset.ErrDigestNotFound {
-			err = fmt.Errorf("No such image: %s", term)
+			err = imageNotFoundError(term)
 		}
-		return "", err
+		return "", errors.WithStack(err)
 	}
 	return IDFromDigest(dgst), nil
 }
@@ -209,6 +224,13 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	if imageMeta == nil {
 		return nil, fmt.Errorf("unrecognized image ID %s", id.String())
 	}
+	img, err := is.Get(id)
+	if err != nil {
+		return nil, fmt.Errorf("unrecognized image %s, %v", id.String(), err)
+	}
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, fmt.Errorf("unsupported image operating system %q", img.OperatingSystem())
+	}
 	for id := range imageMeta.children {
 		is.fs.DeleteMetadata(id.Digest(), "parent")
 	}
@@ -223,7 +245,7 @@ func (is *store) Delete(id ID) ([]layer.Metadata, error) {
 	is.fs.Delete(id.Digest())
 
 	if imageMeta.layer != nil {
-		return is.ls.Release(imageMeta.layer)
+		return is.lss[img.OperatingSystem()].Release(imageMeta.layer)
 	}
 	return nil, nil
 }
@@ -250,9 +272,25 @@ func (is *store) GetParent(id ID) (ID, error) {
 	return ID(d), nil // todo: validate?
 }
 
+// SetLastUpdated time for the image ID to the current time
+func (is *store) SetLastUpdated(id ID) error {
+	lastUpdated := []byte(time.Now().Format(time.RFC3339Nano))
+	return is.fs.SetMetadata(id.Digest(), "lastUpdated", lastUpdated)
+}
+
+// GetLastUpdated time for the image ID
+func (is *store) GetLastUpdated(id ID) (time.Time, error) {
+	bytes, err := is.fs.GetMetadata(id.Digest(), "lastUpdated")
+	if err != nil || len(bytes) == 0 {
+		// No lastUpdated time
+		return time.Time{}, nil
+	}
+	return time.Parse(time.RFC3339Nano, string(bytes))
+}
+
 func (is *store) Children(id ID) []ID {
-	is.Lock()
-	defer is.Unlock()
+	is.RLock()
+	defer is.RUnlock()
 
 	return is.children(id)
 }
@@ -276,8 +314,8 @@ func (is *store) Map() map[ID]*Image {
 }
 
 func (is *store) imagesMap(all bool) map[ID]*Image {
-	is.Lock()
-	defer is.Unlock()
+	is.RLock()
+	defer is.RUnlock()
 
 	images := make(map[ID]*Image)
 

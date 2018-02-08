@@ -1,10 +1,12 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/pkg/plugingetter"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 )
@@ -22,6 +24,22 @@ type logdriverFactory struct {
 	m            sync.Mutex
 }
 
+func (lf *logdriverFactory) list() []string {
+	ls := make([]string, 0, len(lf.registry))
+	lf.m.Lock()
+	for name := range lf.registry {
+		ls = append(ls, name)
+	}
+	lf.m.Unlock()
+	sort.Strings(ls)
+	return ls
+}
+
+// ListDrivers gets the list of registered log driver names
+func ListDrivers() []string {
+	return factory.list()
+}
+
 func (lf *logdriverFactory) register(name string, c Creator) error {
 	if lf.driverRegistered(name) {
 		return fmt.Errorf("logger: log driver named '%s' is already registered", name)
@@ -37,6 +55,13 @@ func (lf *logdriverFactory) driverRegistered(name string) bool {
 	lf.m.Lock()
 	_, ok := lf.registry[name]
 	lf.m.Unlock()
+	if !ok {
+		if pluginGetter != nil { // this can be nil when the init functions are running
+			if l, _ := getPlugin(name, plugingetter.Lookup); l != nil {
+				return true
+			}
+		}
+	}
 	return ok
 }
 
@@ -56,17 +81,19 @@ func (lf *logdriverFactory) get(name string) (Creator, error) {
 	defer lf.m.Unlock()
 
 	c, ok := lf.registry[name]
-	if !ok {
-		return c, fmt.Errorf("logger: no log driver named '%s' is registered", name)
+	if ok {
+		return c, nil
 	}
-	return c, nil
+
+	c, err := getPlugin(name, plugingetter.Acquire)
+	return c, errors.Wrapf(err, "logger: no log driver named '%s' is registered", name)
 }
 
 func (lf *logdriverFactory) getLogOptValidator(name string) LogOptValidator {
 	lf.m.Lock()
 	defer lf.m.Unlock()
 
-	c, _ := lf.optValidator[name]
+	c := lf.optValidator[name]
 	return c
 }
 

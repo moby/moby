@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"bytes"
 	"fmt"
 	"math/rand"
 	"reflect"
@@ -44,6 +45,8 @@ type Agent struct {
 	stopOnce  sync.Once     // only allow stop to be called once
 	closed    chan struct{} // only closed in run
 	err       error         // read only after closed is closed
+
+	nodeUpdatePeriod time.Duration
 }
 
 // New returns a new agent, ready for task dispatch.
@@ -53,14 +56,15 @@ func New(config *Config) (*Agent, error) {
 	}
 
 	a := &Agent{
-		config:   config,
-		sessionq: make(chan sessionOperation),
-		started:  make(chan struct{}),
-		leaving:  make(chan struct{}),
-		left:     make(chan struct{}),
-		stopped:  make(chan struct{}),
-		closed:   make(chan struct{}),
-		ready:    make(chan struct{}),
+		config:           config,
+		sessionq:         make(chan sessionOperation),
+		started:          make(chan struct{}),
+		leaving:          make(chan struct{}),
+		left:             make(chan struct{}),
+		stopped:          make(chan struct{}),
+		closed:           make(chan struct{}),
+		ready:            make(chan struct{}),
+		nodeUpdatePeriod: nodeUpdatePeriod,
 	}
 
 	a.worker = newWorker(config.DB, config.Executor, a)
@@ -182,13 +186,15 @@ func (a *Agent) run(ctx context.Context) {
 	log.G(ctx).Debug("(*Agent).run")
 	defer log.G(ctx).Debug("(*Agent).run exited")
 
+	nodeTLSInfo := a.config.NodeTLSInfo
+
 	// get the node description
-	nodeDescription, err := a.nodeDescriptionWithHostname(ctx)
+	nodeDescription, err := a.nodeDescriptionWithHostname(ctx, nodeTLSInfo)
 	if err != nil {
 		log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: node description unavailable")
 	}
 	// nodeUpdateTicker is used to periodically check for updates to node description
-	nodeUpdateTicker := time.NewTicker(nodeUpdatePeriod)
+	nodeUpdateTicker := time.NewTicker(a.nodeUpdatePeriod)
 	defer nodeUpdateTicker.Stop()
 
 	var (
@@ -200,6 +206,9 @@ func (a *Agent) run(ctx context.Context) {
 		leaving       = a.leaving
 		subscriptions = map[string]context.CancelFunc{}
 	)
+	defer func() {
+		session.close()
+	}()
 
 	if err := a.worker.Init(ctx); err != nil {
 		log.G(ctx).WithError(err).Error("worker initialization failed")
@@ -213,6 +222,40 @@ func (a *Agent) run(ctx context.Context) {
 	defer reporter.Close()
 
 	a.worker.Listen(ctx, reporter)
+
+	updateNode := func() {
+		// skip updating if the registration isn't finished
+		if registered != nil {
+			return
+		}
+		// get the current node description
+		newNodeDescription, err := a.nodeDescriptionWithHostname(ctx, nodeTLSInfo)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: updated node description unavailable")
+		}
+
+		// if newNodeDescription is nil, it will cause a panic when
+		// trying to create a session. Typically this can happen
+		// if the engine goes down
+		if newNodeDescription == nil {
+			return
+		}
+
+		// if the node description has changed, update it to the new one
+		// and close the session. The old session will be stopped and a
+		// new one will be created with the updated description
+		if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
+			nodeDescription = newNodeDescription
+			// close the session
+			log.G(ctx).Info("agent: found node update")
+
+			if err := session.close(); err != nil {
+				log.G(ctx).WithError(err).Error("agent: closing session failed")
+			}
+			sessionq = nil
+			registered = nil
+		}
+	}
 
 	for {
 		select {
@@ -237,7 +280,8 @@ func (a *Agent) run(ctx context.Context) {
 
 			switch msg.Type {
 			case api.AssignmentsMessage_COMPLETE:
-				// Need to assign secrets before tasks, because tasks might depend on new secrets
+				// Need to assign secrets and configs before tasks,
+				// because tasks might depend on new secrets or configs
 				if err := a.worker.Assign(ctx, msg.Changes); err != nil {
 					log.G(ctx).WithError(err).Error("failed to synchronize worker assignments")
 				}
@@ -247,7 +291,7 @@ func (a *Agent) run(ctx context.Context) {
 				}
 			}
 		case msg := <-session.messages:
-			if err := a.handleSessionMessage(ctx, msg); err != nil {
+			if err := a.handleSessionMessage(ctx, msg, nodeTLSInfo); err != nil {
 				log.G(ctx).WithError(err).Error("session message handler failed")
 			}
 		case sub := <-session.subscriptions:
@@ -273,20 +317,27 @@ func (a *Agent) run(ctx context.Context) {
 			if ready != nil {
 				close(ready)
 			}
+			if a.config.SessionTracker != nil {
+				a.config.SessionTracker.SessionEstablished()
+			}
 			ready = nil
 			registered = nil // we only care about this once per session
 			backoff = 0      // reset backoff
 			sessionq = a.sessionq
 		case err := <-session.errs:
 			// TODO(stevvooe): This may actually block if a session is closed
-			// but no error was sent. Session.close must only be called here
-			// for this to work.
+			// but no error was sent. This must be the only place
+			// session.close is called in response to errors, for this to work.
 			if err != nil {
-				log.G(ctx).WithError(err).Error("agent: session failed")
+				if a.config.SessionTracker != nil {
+					a.config.SessionTracker.SessionError(err)
+				}
+
 				backoff = initialSessionFailureBackoff + 2*backoff
 				if backoff > maxSessionFailureBackoff {
 					backoff = maxSessionFailureBackoff
 				}
+				log.G(ctx).WithError(err).WithField("backoff", backoff).Errorf("agent: session failed")
 			}
 
 			if err := session.close(); err != nil {
@@ -296,6 +347,14 @@ func (a *Agent) run(ctx context.Context) {
 			// if we're here before <-registered, do nothing for that event
 			registered = nil
 		case <-session.closed:
+			if a.config.SessionTracker != nil {
+				if err := a.config.SessionTracker.SessionClosed(); err != nil {
+					log.G(ctx).WithError(err).Error("agent: exiting")
+					a.err = err
+					return
+				}
+			}
+
 			log.G(ctx).Debugf("agent: rebuild session")
 
 			// select a session registration delay from backoff range.
@@ -305,33 +364,17 @@ func (a *Agent) run(ctx context.Context) {
 			}
 			session = newSession(ctx, a, delay, session.sessionID, nodeDescription)
 			registered = session.registered
+		case ev := <-a.config.NotifyTLSChange:
+			// the TLS info has changed, so force a check to see if we need to restart the session
+			if tlsInfo, ok := ev.(*api.NodeTLSInfo); ok {
+				nodeTLSInfo = tlsInfo
+				updateNode()
+				nodeUpdateTicker.Stop()
+				nodeUpdateTicker = time.NewTicker(a.nodeUpdatePeriod)
+			}
 		case <-nodeUpdateTicker.C:
-			// skip this case if the registration isn't finished
-			if registered != nil {
-				continue
-			}
-			// get the current node description
-			newNodeDescription, err := a.nodeDescriptionWithHostname(ctx)
-			if err != nil {
-				log.G(ctx).WithError(err).WithField("agent", a.config.Executor).Error("agent: updated node description unavailable")
-			}
-
-			// if newNodeDescription is nil, it will cause a panic when
-			// trying to create a session. Typically this can happen
-			// if the engine goes down
-			if newNodeDescription == nil {
-				continue
-			}
-
-			// if the node description has changed, update it to the new one
-			// and close the session. The old session will be stopped and a
-			// new one will be created with the updated description
-			if !reflect.DeepEqual(nodeDescription, newNodeDescription) {
-				nodeDescription = newNodeDescription
-				// close the session
-				log.G(ctx).Info("agent: found node update")
-				session.sendError(nil)
-			}
+			// periodically check to see whether the node information has changed, and if so, restart the session
+			updateNode()
 		case <-a.stopped:
 			// TODO(stevvooe): Wait on shutdown and cleanup. May need to pump
 			// this loop a few times.
@@ -340,14 +383,12 @@ func (a *Agent) run(ctx context.Context) {
 			if a.err == nil {
 				a.err = ctx.Err()
 			}
-			session.close()
-
 			return
 		}
 	}
 }
 
-func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMessage) error {
+func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMessage, nti *api.NodeTLSInfo) error {
 	seen := map[api.Peer]struct{}{}
 	for _, manager := range message.Managers {
 		if manager.Peer.Addr == "" {
@@ -358,16 +399,26 @@ func (a *Agent) handleSessionMessage(ctx context.Context, message *api.SessionMe
 		seen[*manager.Peer] = struct{}{}
 	}
 
-	if message.Node != nil {
-		if a.node == nil || !nodesEqual(a.node, message.Node) {
-			if a.config.NotifyNodeChange != nil {
-				a.config.NotifyNodeChange <- message.Node.Copy()
-			}
-			a.node = message.Node.Copy()
-			if err := a.config.Executor.Configure(ctx, a.node); err != nil {
-				log.G(ctx).WithError(err).Error("node configure failed")
-			}
+	var changes *NodeChanges
+	if message.Node != nil && (a.node == nil || !nodesEqual(a.node, message.Node)) {
+		if a.config.NotifyNodeChange != nil {
+			changes = &NodeChanges{Node: message.Node.Copy()}
 		}
+		a.node = message.Node.Copy()
+		if err := a.config.Executor.Configure(ctx, a.node); err != nil {
+			log.G(ctx).WithError(err).Error("node configure failed")
+		}
+	}
+	if len(message.RootCA) > 0 && !bytes.Equal(message.RootCA, nti.TrustRoot) {
+		if changes == nil {
+			changes = &NodeChanges{RootCert: message.RootCA}
+		} else {
+			changes.RootCert = message.RootCA
+		}
+	}
+
+	if changes != nil {
+		a.config.NotifyNodeChange <- changes
 	}
 
 	// prune managers not in list.
@@ -517,12 +568,15 @@ func (a *Agent) Publisher(ctx context.Context, subscriptionID string) (exec.LogP
 }
 
 // nodeDescriptionWithHostname retrieves node description, and overrides hostname if available
-func (a *Agent) nodeDescriptionWithHostname(ctx context.Context) (*api.NodeDescription, error) {
+func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.NodeTLSInfo) (*api.NodeDescription, error) {
 	desc, err := a.config.Executor.Describe(ctx)
 
-	// Override hostname
-	if a.config.Hostname != "" && desc != nil {
-		desc.Hostname = a.config.Hostname
+	// Override hostname and TLS info
+	if desc != nil {
+		if a.config.Hostname != "" && desc != nil {
+			desc.Hostname = a.config.Hostname
+		}
+		desc.TLSInfo = tlsInfo
 	}
 	return desc, err
 }

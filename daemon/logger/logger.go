@@ -5,24 +5,26 @@
 // factory, which holds the contextual instance information that
 // allows multiple loggers of the same type to perform different
 // actions, such as logging to different locations.
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
-	"errors"
-	"sort"
-	"strings"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonlog"
+	"github.com/docker/docker/api/types/backend"
 )
 
-// ErrReadLogsNotSupported is returned when the logger does not support reading logs.
-var ErrReadLogsNotSupported = errors.New("configured logging driver does not support reading")
+// ErrReadLogsNotSupported is returned when the underlying log driver does not support reading
+type ErrReadLogsNotSupported struct{}
+
+func (ErrReadLogsNotSupported) Error() string {
+	return "configured logging driver does not support reading"
+}
+
+// NotImplemented makes this error implement the `NotImplemented` interface from api/errdefs
+func (ErrReadLogsNotSupported) NotImplemented() {}
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 
@@ -43,14 +45,13 @@ func PutMessage(msg *Message) {
 // Message is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
+//
+// Message is subtyped from backend.LogMessage because there is a lot of
+// internal complexity around the Message type that should not be exposed
+// to any package not explicitly importing the logger type.
+//
 // Any changes made to this struct must also be updated in the `reset` function
-type Message struct {
-	Line      []byte
-	Source    string
-	Timestamp time.Time
-	Attrs     LogAttributes
-	Partial   bool
-}
+type Message backend.LogMessage
 
 // reset sets the message back to default values
 // This is used when putting a message back into the message pool.
@@ -60,30 +61,14 @@ func (m *Message) reset() {
 	m.Source = ""
 	m.Attrs = nil
 	m.Partial = false
+
+	m.Err = nil
 }
 
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-type LogAttributes map[string]string
-type byKey []string
-
-func (s byKey) Len() int { return len(s) }
-func (s byKey) Less(i, j int) bool {
-	keyI := strings.Split(s[i], "=")
-	keyJ := strings.Split(s[j], "=")
-	return keyI[0] < keyJ[0]
-}
-func (s byKey) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-
-func (a LogAttributes) String() string {
-	var ss byKey
-	for k, v := range a {
-		ss = append(ss, k+"="+v)
-	}
-	sort.Sort(ss)
-	return strings.Join(ss, ",")
+// AsLogMessage returns a pointer to the message as a pointer to
+// backend.LogMessage, which is an identical type with a different purpose
+func (m *Message) AsLogMessage() *backend.LogMessage {
+	return (*backend.LogMessage)(m)
 }
 
 // Logger is the interface for docker logging drivers.
@@ -93,9 +78,17 @@ type Logger interface {
 	Close() error
 }
 
+// SizedLogger is the interface for logging drivers that can control
+// the size of buffer used for their messages.
+type SizedLogger interface {
+	Logger
+	BufSize() int
+}
+
 // ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
 	Since  time.Time
+	Until  time.Time
 	Tail   int
 	Follow bool
 }
@@ -139,3 +132,14 @@ func (w *LogWatcher) Close() {
 func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
 }
+
+// Capability defines the list of capabilties that a driver can implement
+// These capabilities are not required to be a logging driver, however do
+// determine how a logging driver can be used
+type Capability struct {
+	// Determines if a log driver can read back logs
+	ReadLogs bool
+}
+
+// MarshalFunc is a func that marshals a message into an arbitrary format
+type MarshalFunc func(*Message) ([]byte, error)

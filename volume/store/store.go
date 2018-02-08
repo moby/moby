@@ -1,19 +1,20 @@
-package store
+package store // import "github.com/docker/docker/volume/store"
 
 import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -144,8 +145,9 @@ func (s *VolumeStore) Purge(name string) {
 	s.globalLock.Lock()
 	v, exists := s.names[name]
 	if exists {
-		if _, err := volumedrivers.RemoveDriver(v.DriverName()); err != nil {
-			logrus.Errorf("Error dereferencing volume driver: %v", err)
+		driverName := v.DriverName()
+		if _, err := volumedrivers.ReleaseDriver(driverName); err != nil {
+			logrus.WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
 		}
 	}
 	if err := s.removeMeta(name); err != nil {
@@ -188,7 +190,7 @@ func (s *VolumeStore) List() ([]volume.Volume, []string, error) {
 	var out []volume.Volume
 
 	for _, v := range vols {
-		name := normaliseVolumeName(v.Name())
+		name := normalizeVolumeName(v.Name())
 
 		s.locks.Lock(name)
 		storedV, exists := s.getNamed(name)
@@ -269,7 +271,7 @@ func (s *VolumeStore) list() ([]volume.Volume, []string, error) {
 // CreateWithRef creates a volume with the given name and driver and stores the ref
 // This ensures there's no race between creating a volume and then storing a reference.
 func (s *VolumeStore) CreateWithRef(name, driverName, ref string, opts, labels map[string]string) (volume.Volume, error) {
-	name = normaliseVolumeName(name)
+	name = normalizeVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
@@ -369,12 +371,13 @@ func volumeExists(v volume.Volume) (bool, error) {
 // It is expected that callers of this function hold any necessary locks.
 func (s *VolumeStore) create(name, driverName string, opts, labels map[string]string) (volume.Volume, error) {
 	// Validate the name in a platform-specific manner
-	valid, err := volume.IsVolumeNameValid(name)
+
+	// volume name validation is specific to the host os and not on container image
+	// windows/lcow should have an equivalent volumename validation logic so we create a parser for current host OS
+	parser := volume.NewParser(runtime.GOOS)
+	err := parser.ValidateVolumeName(name)
 	if err != nil {
 		return nil, err
-	}
-	if !valid {
-		return nil, &OpErr{Err: errInvalidName, Name: name, Op: "create"}
 	}
 
 	v, err := s.checkConflict(name, driverName)
@@ -383,32 +386,37 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 	}
 
 	if v != nil {
-		return v, nil
+		// there is an existing volume, if we already have this stored locally, return it.
+		// TODO: there could be some inconsistent details such as labels here
+		if vv, _ := s.getNamed(v.Name()); vv != nil {
+			return vv, nil
+		}
 	}
 
 	// Since there isn't a specified driver name, let's see if any of the existing drivers have this volume name
 	if driverName == "" {
-		v, _ := s.getVolume(name)
+		v, _ = s.getVolume(name)
 		if v != nil {
 			return v, nil
 		}
 	}
 
 	vd, err := volumedrivers.CreateDriver(driverName)
-
 	if err != nil {
 		return nil, &OpErr{Op: "create", Name: name, Err: err}
 	}
 
 	logrus.Debugf("Registering new volume reference: driver %q, name %q", vd.Name(), name)
+	if v, _ = vd.Get(name); v == nil {
+		v, err = vd.Create(name, opts)
+		if err != nil {
+			if _, err := volumedrivers.ReleaseDriver(driverName); err != nil {
+				logrus.WithError(err).WithField("driver", driverName).Error("Error releasing reference to volume driver")
+			}
+			return nil, err
+		}
+	}
 
-	if v, _ := vd.Get(name); v != nil {
-		return v, nil
-	}
-	v, err = vd.Create(name, opts)
-	if err != nil {
-		return nil, err
-	}
 	s.globalLock.Lock()
 	s.labels[name] = labels
 	s.options[name] = opts
@@ -432,7 +440,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 // This is just like Get(), but we store the reference while holding the lock.
 // This makes sure there are no races between checking for the existence of a volume and adding a reference for it
 func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, error) {
-	name = normaliseVolumeName(name)
+	name = normalizeVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
@@ -455,7 +463,7 @@ func (s *VolumeStore) GetWithRef(name, driverName, ref string) (volume.Volume, e
 
 // Get looks if a volume with the given name exists and returns it if so
 func (s *VolumeStore) Get(name string) (volume.Volume, error) {
-	name = normaliseVolumeName(name)
+	name = normalizeVolumeName(name)
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 
@@ -558,7 +566,7 @@ func lookupVolume(driverName, volumeName string) (volume.Volume, error) {
 
 // Remove removes the requested volume. A volume is not removed if it has any refs
 func (s *VolumeStore) Remove(v volume.Volume) error {
-	name := normaliseVolumeName(v.Name())
+	name := normalizeVolumeName(v.Name())
 	s.locks.Lock(name)
 	defer s.locks.Unlock(name)
 

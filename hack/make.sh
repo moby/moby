@@ -56,23 +56,20 @@ echo
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	binary-client
 	binary-daemon
 	dynbinary
 
-	test-unit
-	test-integration-cli
+	test-integration
 	test-docker-py
 
 	cross
-	tgz
 )
 
-VERSION=$(< ./VERSION)
-! BUILDTIME=$(date --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
+VERSION=${VERSION:-dev}
+! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
 if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
-elif command -v git &> /dev/null && [ -d .git ] && git rev-parse &> /dev/null; then
+elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
 	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
@@ -98,13 +95,6 @@ if [ "$AUTO_GOPATH" ]; then
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="${PWD}/.gopath"
-
-	if [ "$(go env GOOS)" = 'solaris' ]; then
-		# sys/unix is installed outside the standard library on solaris
-		# TODO need to allow for version change, need to get version from go
-		export GO_VERSION=${GO_VERSION:-"1.7.1"}
-		export GOPATH="${GOPATH}:/usr/lib/gocode/${GO_VERSION}"
-	fi
 fi
 
 if [ ! "$GOPATH" ]; then
@@ -113,7 +103,6 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-DOCKER_BUILDTAGS+=" daemon"
 if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
 	DOCKER_BUILDTAGS+=" journald"
 elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
@@ -132,15 +121,14 @@ fi
 # functionality.
 if \
 	command -v gcc &> /dev/null \
-	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null -ldevmapper &> /dev/null ) \
+	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null ) \
 ; then
-       DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
+	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
 fi
 
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-source "$SCRIPTDIR/make/.go-autogen"
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
@@ -161,8 +149,8 @@ fi
 ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
 
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
-# Test timeout.
 
+# Test timeout.
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
 	: ${TIMEOUT:=10m}
 elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
@@ -186,94 +174,25 @@ if [ "$(uname -s)" = 'FreeBSD' ]; then
 	LDFLAGS="$LDFLAGS -extld clang"
 fi
 
-HAVE_GO_TEST_COVER=
-if \
-	go help testflag | grep -- -cover > /dev/null \
-	&& go tool -n cover > /dev/null 2>&1 \
-; then
-	HAVE_GO_TEST_COVER=1
-fi
-
-# a helper to provide ".exe" when it's appropriate
-binary_extension() {
-	if [ "$(go env GOOS)" = 'windows' ]; then
-		echo -n '.exe'
-	fi
-}
-
-hash_files() {
-	while [ $# -gt 0 ]; do
-		f="$1"
-		shift
-		dir="$(dirname "$f")"
-		base="$(basename "$f")"
-		for hashAlgo in md5 sha256; do
-			if command -v "${hashAlgo}sum" &> /dev/null; then
-				(
-					# subshell and cd so that we get output files like:
-					#   $HASH docker-$VERSION
-					# instead of:
-					#   $HASH /go/src/github.com/.../$VERSION/binary/docker-$VERSION
-					cd "$dir"
-					"${hashAlgo}sum" "$base" > "$base.$hashAlgo"
-				)
-			fi
-		done
-	done
-}
-
 bundle() {
 	local bundle="$1"; shift
 	echo "---> Making bundle: $(basename "$bundle") (in $DEST)"
 	source "$SCRIPTDIR/make/$bundle" "$@"
 }
 
-copy_binaries() {
-	dir="$1"
-	# Add nested executables to bundle dir so we have complete set of
-	# them available, but only if the native OS/ARCH is the same as the
-	# OS/ARCH of the build target
-	if [ "$(go env GOOS)/$(go env GOARCH)" == "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
-		if [ -x /usr/local/bin/docker-runc ]; then
-			echo "Copying nested executables into $dir"
-			for file in containerd containerd-shim containerd-ctr runc init proxy; do
-				cp -f `which "docker-$file"` "$dir/"
-				if [ "$2" == "hash" ]; then
-					hash_files "$dir/docker-$file"
-				fi
-			done
-		fi
-	fi
-}
-
-install_binary() {
-	file="$1"
-	target="${DOCKER_MAKE_INSTALL_PREFIX:=/usr/local}/bin/"
-	if [ "$(go env GOOS)" == "linux" ]; then
-		echo "Installing $(basename $file) to ${target}"
-		mkdir -p "$target"
-		cp -f -L "$file" "$target"
-	else
-		echo "Install is only supported on linux"
-		return 1
-	fi
-}
-
 main() {
-	# We want this to fail if the bundles already exist and cannot be removed.
-	# This is to avoid mixing bundles from different versions of the code.
-	mkdir -p bundles
-	if [ -e "bundles/$VERSION" ] && [ -z "$KEEPBUNDLE" ]; then
-		echo "bundles/$VERSION already exists. Removing."
-		rm -fr "bundles/$VERSION" && mkdir "bundles/$VERSION" || exit 1
+	if [ -z "${KEEPBUNDLE-}" ]; then
+		echo "Removing bundles/"
+		rm -rf "bundles/*"
 		echo
 	fi
+	mkdir -p bundles
 
+	# Windows and symlinks don't get along well
 	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
-		# Windows and symlinks don't get along well
-
 		rm -f bundles/latest
-		ln -s "$VERSION" bundles/latest
+		# preserve latest symlink for backward compatibility
+		ln -sf . bundles/latest
 	fi
 
 	if [ $# -lt 1 ]; then
@@ -282,7 +201,7 @@ main() {
 		bundles=($@)
 	fi
 	for bundle in ${bundles[@]}; do
-		export DEST="bundles/$VERSION/$(basename "$bundle")"
+		export DEST="bundles/$(basename "$bundle")"
 		# Cygdrive paths don't play well with go build -o.
 		if [[ "$(uname -s)" == CYGWIN* ]]; then
 			export DEST="$(cygpath -mw "$DEST")"

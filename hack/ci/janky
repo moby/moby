@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Entrypoint for jenkins janky CI build
+set -eu -o pipefail
+
+hack/validate/default
+hack/test/unit
+
+hack/make.sh \
+	binary-daemon \
+	dynbinary \
+	test-docker-py \
+	test-integration \
+	cross

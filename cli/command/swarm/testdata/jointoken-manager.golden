@@ -1,6 +1,0 @@
-To add a manager to this swarm, run the following command:
-
-    docker swarm join \
-    --token manager-join-token \
-    127.0.0.1
-

@@ -47,11 +47,12 @@ import (
 	"container/heap"
 	"fmt"
 	"net"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -60,6 +61,7 @@ import (
 	"github.com/docker/libnetwork/cluster"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
+	"github.com/docker/libnetwork/diagnostic"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drvregistry"
@@ -68,6 +70,7 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // NetworkController provides the interface for controller instance which manages
@@ -127,8 +130,18 @@ type NetworkController interface {
 	// Wait for agent initialization complete in libnetwork controller
 	AgentInitWait()
 
+	// Wait for agent to stop if running
+	AgentStopWait()
+
 	// SetKeys configures the encryption key for gossip and overlay data path
 	SetKeys(keys []*types.EncryptionKey) error
+
+	// StartDiagnostic start the network diagnostic mode
+	StartDiagnostic(port int)
+	// StopDiagnostic start the network diagnostic mode
+	StopDiagnostic()
+	// IsDiagnosticEnabled returns true if the diagnostic is enabled
+	IsDiagnosticEnabled() bool
 }
 
 // NetworkWalker is a client provided function which will be used to walk the Networks.
@@ -160,8 +173,10 @@ type controller struct {
 	agent                  *agent
 	networkLocker          *locker.Locker
 	agentInitDone          chan struct{}
+	agentStopDone          chan struct{}
 	keys                   []*types.EncryptionKey
 	clusterConfigAvailable bool
+	DiagnosticServer       *diagnostic.Server
 	sync.Mutex
 }
 
@@ -173,14 +188,16 @@ type initializer struct {
 // New creates a new instance of network controller.
 func New(cfgOptions ...config.Option) (NetworkController, error) {
 	c := &controller{
-		id:              stringid.GenerateRandomID(),
-		cfg:             config.ParseConfigOptions(cfgOptions...),
-		sandboxes:       sandboxTable{},
-		svcRecords:      make(map[string]svcInfo),
-		serviceBindings: make(map[serviceKey]*service),
-		agentInitDone:   make(chan struct{}),
-		networkLocker:   locker.New(),
+		id:               stringid.GenerateRandomID(),
+		cfg:              config.ParseConfigOptions(cfgOptions...),
+		sandboxes:        sandboxTable{},
+		svcRecords:       make(map[string]svcInfo),
+		serviceBindings:  make(map[serviceKey]*service),
+		agentInitDone:    make(chan struct{}),
+		networkLocker:    locker.New(),
+		DiagnosticServer: diagnostic.New(),
 	}
+	c.DiagnosticServer.Init()
 
 	if err := c.initStores(); err != nil {
 		return nil, err
@@ -239,15 +256,24 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 }
 
 func (c *controller) SetClusterProvider(provider cluster.Provider) {
+	var sameProvider bool
 	c.Lock()
-	c.cfg.Daemon.ClusterProvider = provider
-	disableProviderCh := c.cfg.Daemon.DisableProvider
-	c.Unlock()
-	if provider != nil {
-		go c.clusterAgentInit()
+	// Avoids to spawn multiple goroutine for the same cluster provider
+	if c.cfg.Daemon.ClusterProvider == provider {
+		// If the cluster provider is already set, there is already a go routine spawned
+		// that is listening for events, so nothing to do here
+		sameProvider = true
 	} else {
-		disableProviderCh <- struct{}{}
+		c.cfg.Daemon.ClusterProvider = provider
 	}
+	c.Unlock()
+
+	if provider == nil || sameProvider {
+		return
+	}
+	// We don't want to spawn a new go routine if the previous one did not exit yet
+	c.AgentStopWait()
+	go c.clusterAgentInit()
 }
 
 func isValidClusteringIP(addr string) bool {
@@ -257,12 +283,6 @@ func isValidClusteringIP(addr string) bool {
 // libnetwork side of agent depends on the keys. On the first receipt of
 // keys setup the agent. For subsequent key set handle the key change
 func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
-	c.Lock()
-	existingKeys := c.keys
-	clusterConfigAvailable := c.clusterConfigAvailable
-	agent := c.agent
-	c.Unlock()
-
 	subsysKeys := make(map[string]int)
 	for _, key := range keys {
 		if key.Subsystem != subsysGossip &&
@@ -277,19 +297,8 @@ func (c *controller) SetKeys(keys []*types.EncryptionKey) error {
 		}
 	}
 
-	if len(existingKeys) == 0 {
-		c.Lock()
-		c.keys = keys
-		c.Unlock()
-		if agent != nil {
-			return (fmt.Errorf("libnetwork agent setup without keys"))
-		}
-		if clusterConfigAvailable {
-			return c.agentSetup()
-		}
-		logrus.Debug("received encryption keys before cluster config")
-		return nil
-	}
+	agent := c.getAgent()
+
 	if agent == nil {
 		c.Lock()
 		c.keys = keys
@@ -307,24 +316,32 @@ func (c *controller) getAgent() *agent {
 
 func (c *controller) clusterAgentInit() {
 	clusterProvider := c.cfg.Daemon.ClusterProvider
+	var keysAvailable bool
 	for {
-		select {
-		case <-clusterProvider.ListenClusterEvents():
-			if !c.isDistributedControl() {
-				c.Lock()
-				c.clusterConfigAvailable = true
-				keys := c.keys
-				c.Unlock()
-				// agent initialization needs encryption keys and bind/remote IP which
-				// comes from the daemon cluster events
-				if len(keys) > 0 {
-					c.agentSetup()
+		eventType := <-clusterProvider.ListenClusterEvents()
+		// The events: EventSocketChange, EventNodeReady and EventNetworkKeysAvailable are not ordered
+		// when all the condition for the agent initialization are met then proceed with it
+		switch eventType {
+		case cluster.EventNetworkKeysAvailable:
+			// Validates that the keys are actually available before starting the initialization
+			// This will handle old spurious messages left on the channel
+			c.Lock()
+			keysAvailable = c.keys != nil
+			c.Unlock()
+			fallthrough
+		case cluster.EventSocketChange, cluster.EventNodeReady:
+			if keysAvailable && !c.isDistributedControl() {
+				c.agentOperationStart()
+				if err := c.agentSetup(clusterProvider); err != nil {
+					c.agentStopComplete()
+				} else {
+					c.agentInitComplete()
 				}
 			}
-		case <-c.cfg.Daemon.DisableProvider:
+		case cluster.EventNodeLeave:
+			keysAvailable = false
+			c.agentOperationStart()
 			c.Lock()
-			c.clusterConfigAvailable = false
-			c.agentInitDone = make(chan struct{})
 			c.keys = nil
 			c.Unlock()
 
@@ -336,17 +353,17 @@ func (c *controller) clusterAgentInit() {
 			// should still be present when cleaning up
 			// service bindings
 			c.agentClose()
+			c.cleanupServiceDiscovery("")
 			c.cleanupServiceBindings("")
 
-			c.clearIngress(true)
+			c.agentStopComplete()
 
 			return
 		}
 	}
 }
 
-// AgentInitWait waits for agent initialization to be completed in the
-// controller.
+// AgentInitWait waits for agent initialization to be completed in the controller.
 func (c *controller) AgentInitWait() {
 	c.Lock()
 	agentInitDone := c.agentInitDone
@@ -355,6 +372,48 @@ func (c *controller) AgentInitWait() {
 	if agentInitDone != nil {
 		<-agentInitDone
 	}
+}
+
+// AgentStopWait waits for the Agent stop to be completed in the controller
+func (c *controller) AgentStopWait() {
+	c.Lock()
+	agentStopDone := c.agentStopDone
+	c.Unlock()
+	if agentStopDone != nil {
+		<-agentStopDone
+	}
+}
+
+// agentOperationStart marks the start of an Agent Init or Agent Stop
+func (c *controller) agentOperationStart() {
+	c.Lock()
+	if c.agentInitDone == nil {
+		c.agentInitDone = make(chan struct{})
+	}
+	if c.agentStopDone == nil {
+		c.agentStopDone = make(chan struct{})
+	}
+	c.Unlock()
+}
+
+// agentInitComplete notifies the successful completion of the Agent initialization
+func (c *controller) agentInitComplete() {
+	c.Lock()
+	if c.agentInitDone != nil {
+		close(c.agentInitDone)
+		c.agentInitDone = nil
+	}
+	c.Unlock()
+}
+
+// agentStopComplete notifies the successful completion of the Agent stop
+func (c *controller) agentStopComplete() {
+	c.Lock()
+	if c.agentStopDone != nil {
+		close(c.agentStopDone)
+		c.agentStopDone = nil
+	}
+	c.Unlock()
 }
 
 func (c *controller) makeDriverConfig(ntype string) map[string]interface{} {
@@ -575,7 +634,7 @@ func (c *controller) pushNodeDiscovery(d driverapi.Driver, cap driverapi.Capabil
 		}
 	}
 
-	if d == nil || cap.DataScope != datastore.GlobalScope || nodes == nil {
+	if d == nil || cap.ConnectivityScope != datastore.GlobalScope || nodes == nil {
 		return
 	}
 
@@ -676,29 +735,76 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	network.processOptions(options...)
+	if err := network.validateConfiguration(); err != nil {
+		return nil, err
+	}
 
-	_, cap, err := network.resolveDriver(networkType, true)
+	var (
+		cap *driverapi.Capability
+		err error
+	)
+
+	// Reset network types, force local scope and skip allocation and
+	// plumbing for configuration networks. Reset of the config-only
+	// network drivers is needed so that this special network is not
+	// usable by old engine versions.
+	if network.configOnly {
+		network.scope = datastore.LocalScope
+		network.networkType = "null"
+		goto addToStore
+	}
+
+	_, cap, err = network.resolveDriver(network.networkType, true)
 	if err != nil {
 		return nil, err
 	}
 
+	if network.scope == datastore.LocalScope && cap.DataScope == datastore.GlobalScope {
+		return nil, types.ForbiddenErrorf("cannot downgrade network scope for %s networks", networkType)
+
+	}
 	if network.ingress && cap.DataScope != datastore.GlobalScope {
 		return nil, types.ForbiddenErrorf("Ingress network can only be global scope network")
 	}
 
-	if cap.DataScope == datastore.GlobalScope && !c.isDistributedControl() && !network.dynamic {
+	// At this point the network scope is still unknown if not set by user
+	if (cap.DataScope == datastore.GlobalScope || network.scope == datastore.SwarmScope) &&
+		!c.isDistributedControl() && !network.dynamic {
 		if c.isManager() {
 			// For non-distributed controlled environment, globalscoped non-dynamic networks are redirected to Manager
 			return nil, ManagerRedirectError(name)
 		}
-
 		return nil, types.ForbiddenErrorf("Cannot create a multi-host network from a worker node. Please create the network from a manager node.")
+	}
+
+	if network.scope == datastore.SwarmScope && c.isDistributedControl() {
+		return nil, types.ForbiddenErrorf("cannot create a swarm scoped network when swarm is not active")
 	}
 
 	// Make sure we have a driver available for this network type
 	// before we allocate anything.
 	if _, err := network.driver(true); err != nil {
 		return nil, err
+	}
+
+	// From this point on, we need the network specific configuration,
+	// which may come from a configuration-only network
+	if network.configFrom != "" {
+		t, err := c.getConfigNetwork(network.configFrom)
+		if err != nil {
+			return nil, types.NotFoundErrorf("configuration network %q does not exist", network.configFrom)
+		}
+		if err := t.applyConfigurationTo(network); err != nil {
+			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
+		}
+		defer func() {
+			if err == nil {
+				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
+					logrus.Warnf("Failed to update reference count for configuration network %q on creation of network %q: %v",
+						t.Name(), network.Name(), err)
+				}
+			}
+		}()
 	}
 
 	err = network.ipamAllocate()
@@ -723,6 +829,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		}
 	}()
 
+addToStore:
 	// First store the endpoint count, then the network. To avoid to
 	// end up with a datastore containing a network and not an epCnt,
 	// in case of an ungraceful shutdown during this function call.
@@ -742,19 +849,50 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	if err = c.updateToStore(network); err != nil {
 		return nil, err
 	}
+	defer func() {
+		if err != nil {
+			if e := c.deleteFromStore(network); e != nil {
+				logrus.Warnf("could not rollback from store, network %v on failure (%v): %v", network, err, e)
+			}
+		}
+	}()
+
+	if network.configOnly {
+		return network, nil
+	}
 
 	joinCluster(network)
+	defer func() {
+		if err != nil {
+			network.cancelDriverWatches()
+			if e := network.leaveCluster(); e != nil {
+				logrus.Warnf("Failed to leave agent cluster on network %s on failure (%v): %v", network.name, err, e)
+			}
+		}
+	}()
+
+	if len(network.loadBalancerIP) != 0 {
+		if err = network.createLoadBalancerSandbox(); err != nil {
+			return nil, err
+		}
+	}
+
 	if !c.isDistributedControl() {
 		c.Lock()
 		arrangeIngressFilterRule()
 		c.Unlock()
 	}
 
+	c.arrangeUserFilterRule()
+
 	return network, nil
 }
 
 var joinCluster NetworkWalker = func(nw Network) bool {
 	n := nw.(*network)
+	if n.configOnly {
+		return false
+	}
 	if err := n.joinCluster(); err != nil {
 		logrus.Errorf("Failed to join network %s (%s) into agent cluster: %v", n.Name(), n.ID(), err)
 	}
@@ -770,6 +908,9 @@ func (c *controller) reservePools() {
 	}
 
 	for _, n := range networks {
+		if n.configOnly {
+			continue
+		}
 		if !doReplayPoolReserve(n) {
 			continue
 		}
@@ -907,7 +1048,7 @@ func (c *controller) NetworkByID(id string) (Network, error) {
 }
 
 // NewSandbox creates a new sandbox for the passed container id
-func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (sBox Sandbox, err error) {
+func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (Sandbox, error) {
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
@@ -934,10 +1075,15 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 	}
 	c.Unlock()
 
+	sandboxID := stringid.GenerateRandomID()
+	if runtime.GOOS == "windows" {
+		sandboxID = containerID
+	}
+
 	// Create sandbox and process options first. Key generation depends on an option
 	if sb == nil {
 		sb = &sandbox{
-			id:                 stringid.GenerateRandomID(),
+			id:                 sandboxID,
 			containerID:        containerID,
 			endpoints:          epHeap{},
 			epPriority:         map[string]int{},
@@ -947,7 +1093,6 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 			extDNS:             []extDNSEntry{},
 		}
 	}
-	sBox = sb
 
 	heap.Init(&sb.endpoints)
 
@@ -961,9 +1106,13 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (s
 
 	if sb.ingress {
 		c.ingressSandbox = sb
+		sb.config.hostsPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/hosts")
+		sb.config.resolvConfPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/resolv.conf")
 		sb.id = "ingress_sbox"
 	}
 	c.Unlock()
+
+	var err error
 	defer func() {
 		if err != nil {
 			c.Lock()
@@ -1153,46 +1302,32 @@ func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 }
 
 func (c *controller) Stop() {
-	c.clearIngress(false)
 	c.closeStores()
 	c.stopExternalKeyListener()
 	osl.GC()
 }
 
-func (c *controller) clearIngress(clusterLeave bool) {
+// StartDiagnostic start the network dias mode
+func (c *controller) StartDiagnostic(port int) {
 	c.Lock()
-	ingressSandbox := c.ingressSandbox
-	c.ingressSandbox = nil
+	if !c.DiagnosticServer.IsDiagnosticEnabled() {
+		c.DiagnosticServer.EnableDiagnostic("127.0.0.1", port)
+	}
 	c.Unlock()
+}
 
-	var n *network
-	if ingressSandbox != nil {
-		for _, ep := range ingressSandbox.getConnectedEndpoints() {
-			if nw := ep.getNetwork(); nw.ingress {
-				n = nw
-				break
-			}
-		}
-		if err := ingressSandbox.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress sandbox while leaving: %v", err)
-		}
+// StopDiagnostic start the network dias mode
+func (c *controller) StopDiagnostic() {
+	c.Lock()
+	if c.DiagnosticServer.IsDiagnosticEnabled() {
+		c.DiagnosticServer.DisableDiagnostic()
 	}
+	c.Unlock()
+}
 
-	if n == nil {
-		for _, nw := range c.Networks() {
-			if nw.Info().Ingress() {
-				n = nw.(*network)
-				break
-			}
-		}
-	}
-	if n == nil && clusterLeave {
-		logrus.Warnf("Could not find ingress network while leaving")
-	}
-
-	if n != nil {
-		if err := n.Delete(); err != nil {
-			logrus.Warnf("Could not delete ingress network while leaving: %v", err)
-		}
-	}
+// IsDiagnosticEnabled returns true if the dias is enabled
+func (c *controller) IsDiagnosticEnabled() bool {
+	c.Lock()
+	defer c.Unlock()
+	return c.DiagnosticServer.IsDiagnosticEnabled()
 }

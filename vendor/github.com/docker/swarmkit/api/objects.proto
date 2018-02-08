@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
-import "specs.proto";
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
 import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // This file contains definitions for all first-class objects in the cluster
 // API. Such types typically have a corresponding specification, with the
@@ -59,8 +59,9 @@ message Node {
 	// component, if the node is a manager.
 	ManagerStatus manager_status = 6;
 
+	// DEPRECATED: Use lb_attachments to find the ingress network
 	// The node attachment to the ingress network.
-	NetworkAttachment attachment = 7;
+	NetworkAttachment attachment = 7 [deprecated=true];
 
 	// Certificate is the TLS certificate issued for the node, if any.
 	Certificate certificate = 8 [(gogoproto.nullable) = false];
@@ -75,6 +76,11 @@ message Node {
 	// shows the privilege level that the CA would currently grant when
 	// issuing or renewing the node's certificate.
 	NodeRole role = 9;
+
+	// Attachments enumerates the network attachments for the node to set up an
+	// endpoint on the node to be used for load balancing. Each overlay
+	// network, including ingress network, will have an NetworkAttachment.
+	repeated NetworkAttachment attachments = 10;
 }
 
 message Service {
@@ -239,6 +245,8 @@ message Task {
 	//
 	// If not present, the daemon's default will be used.
 	Driver log_driver = 13;
+
+	repeated GenericResource assigned_generic_resources = 15;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to
@@ -255,6 +263,9 @@ message NetworkAttachment {
 
 	// List of aliases by which a task is resolved in a network
 	repeated string aliases = 3;
+
+	// Map of all the driver attachment options for this network
+	map<string,string> driver_attachment_opts = 4;
 }
 
 message Network {
@@ -328,9 +339,7 @@ message Cluster {
 }
 
 // Secret represents a secret that should be passed to a container or a node,
-// and is immutable. It wraps the `spec` provided by the user with useful
-// information that is generated from the secret data in the `spec`, such as
-// the digest and size of the secret data.
+// and is immutable.
 message Secret {
 	option (docker.protobuf.plugin.store_object) = {
 		watch_selectors: {
@@ -353,6 +362,29 @@ message Secret {
 
 	// Whether the secret is an internal secret (not set by a user) or not.
 	bool internal = 4;
+}
+
+// Config represents a set of configuration files that should be passed to a
+// container.
+message Config {
+	option (docker.protobuf.plugin.store_object) = {
+		watch_selectors: {
+			id: true
+			id_prefix: true
+			name: true
+			name_prefix: true
+			custom: true
+			custom_prefix: true
+		}
+	};
+
+	string id = 1;
+
+	Meta meta = 2 [(gogoproto.nullable) = false];
+
+	// Spec contains the actual config data, as well as any context around the
+	// config data that the user provides.
+	ConfigSpec spec = 3  [(gogoproto.nullable) = false];
 }
 
 // Resource is a top-level object with externally defined content and indexing.

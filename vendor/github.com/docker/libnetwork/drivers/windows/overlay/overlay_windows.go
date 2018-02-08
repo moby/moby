@@ -8,12 +8,12 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -36,7 +36,8 @@ type driver struct {
 // Init registers a new instance of overlay driver
 func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	c := driverapi.Capability{
-		DataScope: datastore.GlobalScope,
+		DataScope:         datastore.GlobalScope,
+		ConnectivityScope: datastore.GlobalScope,
 	}
 
 	d := &driver{
@@ -103,7 +104,7 @@ func (d *driver) restoreHNSNetworks() error {
 func (d *driver) convertToOverlayNetwork(v *hcsshim.HNSNetwork) *network {
 	n := &network{
 		id:              v.Name,
-		hnsId:           v.Id,
+		hnsID:           v.Id,
 		driver:          d,
 		endpoints:       endpointTable{},
 		subnets:         []*subnet{},

@@ -1,4 +1,4 @@
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"github.com/docker/docker/api/types"
@@ -48,5 +48,10 @@ func (conf *Config) GetExecRoot() string {
 
 // IsSwarmCompatible defines if swarm mode can be enabled in this config
 func (conf *Config) IsSwarmCompatible() error {
+	return nil
+}
+
+// ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
+func (conf *Config) ValidatePlatformConfig() error {
 	return nil
 }

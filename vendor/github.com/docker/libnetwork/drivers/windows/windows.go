@@ -20,12 +20,12 @@ import (
 	"sync"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // networkConfiguration for network specific configuration
@@ -38,9 +38,13 @@ type networkConfiguration struct {
 	VLAN               uint
 	VSID               uint
 	DNSServers         string
+	MacPools           []hcsshim.MacPool
 	DNSSuffix          string
 	SourceMac          string
 	NetworkAdapterName string
+	dbIndex            uint64
+	dbExists           bool
+	DisableGatewayDNS  bool
 }
 
 // endpointConfiguration represents the user specified configuration for the sandbox endpoint
@@ -52,24 +56,37 @@ type endpointOption struct {
 	DisableICC  bool
 }
 
-type endpointConnectivity struct {
+// EndpointConnectivity stores the port bindings and exposed ports that the user has specified in epOptions.
+type EndpointConnectivity struct {
 	PortBindings []types.PortBinding
 	ExposedPorts []types.TransportPort
 }
 
 type hnsEndpoint struct {
-	id             string
-	profileID      string
+	id        string
+	nid       string
+	profileID string
+	Type      string
+	//Note: Currently, the sandboxID is the same as the containerID since windows does
+	//not expose the sandboxID.
+	//In the future, windows will support a proper sandboxID that is different
+	//than the containerID.
+	//Therefore, we are using sandboxID now, so that we won't have to change this code
+	//when windows properly supports a sandboxID.
+	sandboxID      string
 	macAddress     net.HardwareAddr
 	epOption       *endpointOption       // User specified parameters
-	epConnectivity *endpointConnectivity // User specified parameters
+	epConnectivity *EndpointConnectivity // User specified parameters
 	portMapping    []types.PortBinding   // Operation port bindings
 	addr           *net.IPNet
 	gateway        net.IP
+	dbIndex        uint64
+	dbExists       bool
 }
 
 type hnsNetwork struct {
 	id        string
+	created   bool
 	config    *networkConfiguration
 	endpoints map[string]*hnsEndpoint // key: endpoint id
 	driver    *driver                 // The network's driver
@@ -79,10 +96,15 @@ type hnsNetwork struct {
 type driver struct {
 	name     string
 	networks map[string]*hnsNetwork
+	store    datastore.DataStore
 	sync.Mutex
 }
 
-// IsBuiltinWindowsDriver vaidates if network-type is a builtin local-scoped driver
+const (
+	errNotFound = "HNS failed with error : The object identifier does not represent a valid object. "
+)
+
+// IsBuiltinLocalDriver validates if network-type is a builtin local-scoped driver
 func IsBuiltinLocalDriver(networkType string) bool {
 	if "l2bridge" == networkType || "l2tunnel" == networkType || "nat" == networkType || "ics" == networkType || "transparent" == networkType {
 		return true
@@ -103,8 +125,16 @@ func GetInit(networkType string) func(dc driverapi.DriverCallback, config map[st
 			return types.BadRequestErrorf("Network type not supported: %s", networkType)
 		}
 
-		return dc.RegisterDriver(networkType, newDriver(networkType), driverapi.Capability{
-			DataScope: datastore.LocalScope,
+		d := newDriver(networkType)
+
+		err := d.initStore(config)
+		if err != nil {
+			return err
+		}
+
+		return dc.RegisterDriver(networkType, d, driverapi.Capability{
+			DataScope:         datastore.LocalScope,
+			ConnectivityScope: datastore.LocalScope,
 		})
 	}
 }
@@ -132,7 +162,7 @@ func (n *hnsNetwork) getEndpoint(eid string) (*hnsEndpoint, error) {
 }
 
 func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string) (*networkConfiguration, error) {
-	config := &networkConfiguration{}
+	config := &networkConfiguration{Type: d.name}
 
 	for label, value := range genericOptions {
 		switch label {
@@ -148,6 +178,24 @@ func (d *driver) parseNetworkOptions(id string, genericOptions map[string]string
 			config.DNSSuffix = value
 		case DNSServers:
 			config.DNSServers = value
+		case DisableGatewayDNS:
+			b, err := strconv.ParseBool(value)
+			if err != nil {
+				return nil, err
+			}
+			config.DisableGatewayDNS = b
+		case MacPool:
+			config.MacPools = make([]hcsshim.MacPool, 0)
+			s := strings.Split(value, ",")
+			if len(s)%2 != 0 {
+				return nil, types.BadRequestErrorf("Invalid mac pool. You must specify both a start range and an end range")
+			}
+			for i := 0; i < len(s)-1; i += 2 {
+				config.MacPools = append(config.MacPools, hcsshim.MacPool{
+					StartMacAddress: s[i],
+					EndMacAddress:   s[i+1],
+				})
+			}
 		case VLAN:
 			vlan, err := strconv.ParseUint(value, 10, 32)
 			if err != nil {
@@ -187,6 +235,21 @@ func (d *driver) DecodeTableEntry(tablename string, key string, value []byte) (s
 	return "", nil
 }
 
+func (d *driver) createNetwork(config *networkConfiguration) error {
+	network := &hnsNetwork{
+		id:        config.ID,
+		endpoints: make(map[string]*hnsEndpoint),
+		config:    config,
+		driver:    d,
+	}
+
+	d.Lock()
+	d.networks[config.ID] = network
+	d.Unlock()
+
+	return nil
+}
+
 // Create a new network
 func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo driverapi.NetworkInfo, ipV4Data, ipV6Data []driverapi.IPAMData) error {
 	if _, err := d.getNetwork(id); err == nil {
@@ -209,16 +272,11 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return err
 	}
 
-	network := &hnsNetwork{
-		id:        config.ID,
-		endpoints: make(map[string]*hnsEndpoint),
-		config:    config,
-		driver:    d,
-	}
+	err = d.createNetwork(config)
 
-	d.Lock()
-	d.networks[config.ID] = network
-	d.Unlock()
+	if err != nil {
+		return err
+	}
 
 	// A non blank hnsid indicates that the network was discovered
 	// from HNS. No need to call HNS if this network was discovered
@@ -244,6 +302,7 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 			Subnets:            subnets,
 			DNSServerList:      config.DNSServers,
 			DNSSuffix:          config.DNSSuffix,
+			MacPools:           config.MacPools,
 			SourceMac:          config.SourceMac,
 			NetworkAdapterName: config.NetworkAdapterName,
 		}
@@ -293,7 +352,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		genData[HNSID] = config.HnsID
 	}
 
-	return nil
+	n, err := d.getNetwork(id)
+	if err != nil {
+		return err
+	}
+	n.created = true
+	return d.storeUpdate(config)
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
@@ -306,21 +370,25 @@ func (d *driver) DeleteNetwork(nid string) error {
 	config := n.config
 	n.Unlock()
 
-	// Cannot remove network if endpoints are still present
-	if len(n.endpoints) != 0 {
-		return fmt.Errorf("network %s has active endpoint", n.id)
-	}
-
-	_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
-	if err != nil {
-		return types.ForbiddenErrorf(err.Error())
+	if n.created {
+		_, err = hcsshim.HNSNetworkRequest("DELETE", config.HnsID, "")
+		if err != nil && err.Error() != errNotFound {
+			return types.ForbiddenErrorf(err.Error())
+		}
 	}
 
 	d.Lock()
 	delete(d.networks, nid)
 	d.Unlock()
 
-	return nil
+	// delele endpoints belong to this network
+	for _, ep := range n.endpoints {
+		if err := d.storeDelete(ep); err != nil {
+			logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
+		}
+	}
+
+	return d.storeDelete(config)
 }
 
 func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error) {
@@ -343,7 +411,8 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 	return qps, nil
 }
 
-func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
+// ConvertPortBindings converts PortBindings to JSON for HNS request
+func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, error) {
 	var pbs []json.RawMessage
 
 	// Enumerate through the port bindings specified by the user and convert
@@ -378,7 +447,8 @@ func convertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 	return pbs, nil
 }
 
-func parsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
+// ParsePortBindingPolicies parses HNS endpoint response message to PortBindings
+func ParsePortBindingPolicies(policies []json.RawMessage) ([]types.PortBinding, error) {
 	var bindings []types.PortBinding
 	hcsPolicy := &hcsshim.NatPolicy{}
 
@@ -452,12 +522,13 @@ func parseEndpointOptions(epOptions map[string]interface{}) (*endpointOption, er
 	return ec, nil
 }
 
-func parseEndpointConnectivity(epOptions map[string]interface{}) (*endpointConnectivity, error) {
+// ParseEndpointConnectivity parses options passed to CreateEndpoint, specifically port bindings, and store in a endpointConnectivity object.
+func ParseEndpointConnectivity(epOptions map[string]interface{}) (*EndpointConnectivity, error) {
 	if epOptions == nil {
 		return nil, nil
 	}
 
-	ec := &endpointConnectivity{}
+	ec := &EndpointConnectivity{}
 
 	if opt, ok := epOptions[netlabel.PortMap]; ok {
 		if bs, ok := opt.([]types.PortBinding); ok {
@@ -494,7 +565,13 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	epOption, err := parseEndpointOptions(epOptions)
-	epConnectivity, err := parseEndpointConnectivity(epOptions)
+	if err != nil {
+		return err
+	}
+	epConnectivity, err := ParseEndpointConnectivity(epOptions)
+	if err != nil {
+		return err
+	}
 
 	macAddress := ifInfo.MacAddress()
 	// Use the macaddress if it was provided
@@ -502,7 +579,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		endpointStruct.MacAddress = strings.Replace(macAddress.String(), ":", "-", -1)
 	}
 
-	endpointStruct.Policies, err = convertPortBindings(epConnectivity.PortBindings)
+	endpointStruct.Policies, err = ConvertPortBindings(epConnectivity.PortBindings)
 	if err != nil {
 		return err
 	}
@@ -519,7 +596,14 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	endpointStruct.DNSServerList = strings.Join(epOption.DNSServers, ",")
 
+	// overwrite the ep DisableDNS option if DisableGatewayDNS was set to true during the network creation option
+	if n.config.DisableGatewayDNS {
+		logrus.Debugf("n.config.DisableGatewayDNS[%v] overwrites epOption.DisableDNS[%v]", n.config.DisableGatewayDNS, epOption.DisableDNS)
+		epOption.DisableDNS = n.config.DisableGatewayDNS
+	}
+
 	if n.driver.name == "nat" && !epOption.DisableDNS {
+		logrus.Debugf("endpointStruct.EnableInternalDNS =[%v]", endpointStruct.EnableInternalDNS)
 		endpointStruct.EnableInternalDNS = true
 	}
 
@@ -543,6 +627,8 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	// TODO For now the ip mask is not in the info generated by HNS
 	endpoint := &hnsEndpoint{
 		id:         eid,
+		nid:        n.id,
+		Type:       d.name,
 		addr:       &net.IPNet{IP: hnsresponse.IPAddress, Mask: hnsresponse.IPAddress.DefaultMask()},
 		macAddress: mac,
 	}
@@ -554,7 +640,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	endpoint.profileID = hnsresponse.Id
 	endpoint.epConnectivity = epConnectivity
 	endpoint.epOption = epOption
-	endpoint.portMapping, err = parsePortBindingPolicies(hnsresponse.Policies)
+	endpoint.portMapping, err = ParsePortBindingPolicies(hnsresponse.Policies)
 
 	if err != nil {
 		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
@@ -571,6 +657,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	if macAddress == nil {
 		ifInfo.SetMacAddress(endpoint.macAddress)
+	}
+
+	if err = d.storeUpdate(endpoint); err != nil {
+		logrus.Errorf("Failed to save endpoint %s to store: %v", endpoint.id[0:7], err)
 	}
 
 	return nil
@@ -592,10 +682,13 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.Unlock()
 
 	_, err = hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
-	if err != nil {
+	if err != nil && err.Error() != errNotFound {
 		return err
 	}
 
+	if err := d.storeDelete(ep); err != nil {
+		logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
+	}
 	return nil
 }
 
@@ -658,7 +751,15 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	// This is just a stub for now
+	endpoint.sandboxID = sboxKey
+
+	err = hcsshim.HotAttachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err != nil {
+		// If container doesn't exists in hcs, do not throw error for hot add/remove
+		if err != hcsshim.ErrComputeSystemDoesNotExist {
+			return err
+		}
+	}
 
 	jinfo.DisableGatewayService()
 	return nil
@@ -672,13 +773,18 @@ func (d *driver) Leave(nid, eid string) error {
 	}
 
 	// Ensure that the endpoint exists
-	_, err = network.getEndpoint(eid)
+	endpoint, err := network.getEndpoint(eid)
 	if err != nil {
 		return err
 	}
 
-	// This is just a stub for now
-
+	err = hcsshim.HotDetachEndpoint(endpoint.sandboxID, endpoint.profileID)
+	if err != nil {
+		// If container doesn't exists in hcs, do not throw error for hot add/remove
+		if err != hcsshim.ErrComputeSystemDoesNotExist {
+			return err
+		}
+	}
 	return nil
 }
 

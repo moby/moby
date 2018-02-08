@@ -39,6 +39,8 @@ func getHealth(c *check.C, name string) *types.Health {
 func (s *DockerSuite) TestHealth(c *check.C) {
 	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
 
+	existingContainers := ExistingContainerIDs(c)
+
 	imageName := "testhealth"
 	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
 		RUN echo OK > /status
@@ -49,9 +51,10 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 
 	// No health status before starting
 	name := "test_health"
-	dockerCmd(c, "create", "--name", name, imageName)
-	out, _ := dockerCmd(c, "ps", "-a", "--format={{.Status}}")
-	c.Check(out, checker.Equals, "Created\n")
+	cid, _ := dockerCmd(c, "create", "--name", name, imageName)
+	out, _ := dockerCmd(c, "ps", "-a", "--format={{.ID}} {{.Status}}")
+	out = RemoveOutputForExistingElements(out, existingContainers)
+	c.Check(out, checker.Equals, cid[:12]+" Created\n")
 
 	// Inspect the options
 	out, _ = dockerCmd(c, "inspect",
@@ -137,5 +140,28 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	out, _ = dockerCmd(c, "inspect",
 		"--format={{.Config.Healthcheck.Test}}", imageName)
 	c.Check(out, checker.Equals, "[CMD cat /my status]\n")
+
+}
+
+// GitHub #33021
+func (s *DockerSuite) TestUnsetEnvVarHealthCheck(c *check.C) {
+	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
+
+	imageName := "testhealth"
+	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
+HEALTHCHECK --interval=1s --timeout=5s --retries=5 CMD /bin/sh -c "sleep 1"
+ENTRYPOINT /bin/sh -c "sleep 600"`))
+
+	name := "env_test_health"
+	// No health status before starting
+	dockerCmd(c, "run", "-d", "--name", name, "-e", "FOO", imageName)
+	defer func() {
+		dockerCmd(c, "rm", "-f", name)
+		dockerCmd(c, "rmi", imageName)
+	}()
+
+	// Start
+	dockerCmd(c, "start", name)
+	waitForHealthStatus(c, name, "starting", "healthy")
 
 }

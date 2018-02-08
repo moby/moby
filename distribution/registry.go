@@ -1,4 +1,4 @@
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"fmt"
@@ -82,7 +82,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		base.Dial = proxyDialer.Dial
 	}
 
-	modifiers := registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), metaHeaders)
+	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)
 	authTransport := transport.NewTransport(base, modifiers...)
 
 	challengeManager, foundVersion, err := registry.PingV2Registry(endpoint.URL, authTransport)

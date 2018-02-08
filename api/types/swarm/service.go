@@ -1,4 +1,4 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/types/swarm"
 
 import "time"
 
@@ -77,6 +77,11 @@ const (
 	UpdateFailureActionContinue = "continue"
 	// UpdateFailureActionRollback ROLLBACK
 	UpdateFailureActionRollback = "rollback"
+
+	// UpdateOrderStopFirst STOP_FIRST
+	UpdateOrderStopFirst = "stop-first"
+	// UpdateOrderStartFirst START_FIRST
+	UpdateOrderStartFirst = "start-first"
 )
 
 // UpdateConfig represents the update configuration.
@@ -111,4 +116,9 @@ type UpdateConfig struct {
 	// If the failure action is PAUSE, no more tasks will be updated until
 	// another update is started.
 	MaxFailureRatio float32
+
+	// Order indicates the order of operations when rolling out an updated
+	// task. Either the old task is shut down before the new task is
+	// started, or the new task is started before the old task is shut down.
+	Order string
 }

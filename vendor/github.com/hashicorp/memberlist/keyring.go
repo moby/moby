@@ -58,6 +58,17 @@ func NewKeyring(keys [][]byte, primaryKey []byte) (*Keyring, error) {
 	return keyring, nil
 }
 
+// ValidateKey will check to see if the key is valid and returns an error if not.
+//
+// key should be either 16, 24, or 32 bytes to select AES-128,
+// AES-192, or AES-256.
+func ValidateKey(key []byte) error {
+	if l := len(key); l != 16 && l != 24 && l != 32 {
+		return fmt.Errorf("key size must be 16, 24 or 32 bytes")
+	}
+	return nil
+}
+
 // AddKey will install a new key on the ring. Adding a key to the ring will make
 // it available for use in decryption. If the key already exists on the ring,
 // this function will just return noop.
@@ -65,8 +76,8 @@ func NewKeyring(keys [][]byte, primaryKey []byte) (*Keyring, error) {
 // key should be either 16, 24, or 32 bytes to select AES-128,
 // AES-192, or AES-256.
 func (k *Keyring) AddKey(key []byte) error {
-	if l := len(key); l != 16 && l != 24 && l != 32 {
-		return fmt.Errorf("key size must be 16, 24 or 32 bytes")
+	if err := ValidateKey(key); err != nil {
+		return err
 	}
 
 	// No-op if key is already installed

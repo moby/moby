@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
@@ -30,7 +30,7 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "unknown")
-	if err == nil || !IsErrContainerNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a containerNotFound error, got %v", err)
 	}
 }

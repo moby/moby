@@ -3,15 +3,18 @@ package overlay
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netlabel"
@@ -20,6 +23,7 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -55,6 +59,7 @@ type network struct {
 	dbIndex   uint64
 	dbExists  bool
 	sbox      osl.Sandbox
+	nlSocket  *nl.NetlinkSocket
 	endpoints endpointTable
 	driver    *driver
 	joinCnt   int
@@ -65,6 +70,58 @@ type network struct {
 	secure    bool
 	mtu       int
 	sync.Mutex
+}
+
+func init() {
+	reexec.Register("set-default-vlan", setDefaultVlan)
+}
+
+func setDefaultVlan() {
+	if len(os.Args) < 3 {
+		logrus.Error("insufficient number of arguments")
+		os.Exit(1)
+	}
+
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+
+	nsPath := os.Args[1]
+	ns, err := netns.GetFromPath(nsPath)
+	if err != nil {
+		logrus.Errorf("overlay namespace get failed, %v", err)
+		os.Exit(1)
+	}
+	if err = netns.Set(ns); err != nil {
+		logrus.Errorf("setting into overlay namespace failed, %v", err)
+		os.Exit(1)
+	}
+
+	// make sure the sysfs mount doesn't propagate back
+	if err = syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
+		logrus.Errorf("unshare failed, %v", err)
+		os.Exit(1)
+	}
+
+	flag := syscall.MS_PRIVATE | syscall.MS_REC
+	if err = syscall.Mount("", "/", "", uintptr(flag), ""); err != nil {
+		logrus.Errorf("root mount failed, %v", err)
+		os.Exit(1)
+	}
+
+	if err = syscall.Mount("sysfs", "/sys", "sysfs", 0, ""); err != nil {
+		logrus.Errorf("mounting sysfs failed, %v", err)
+		os.Exit(1)
+	}
+
+	brName := os.Args[2]
+	path := filepath.Join("/sys/class/net", brName, "bridge/default_pvid")
+	data := []byte{'0', '\n'}
+
+	if err = ioutil.WriteFile(path, data, 0644); err != nil {
+		logrus.Errorf("enabling default vlan on bridge %s failed %v", brName, err)
+		os.Exit(1)
+	}
+	os.Exit(0)
 }
 
 func (d *driver) NetworkAllocate(id string, option map[string]string, ipV4Data, ipV6Data []driverapi.IPAMData) (map[string]string, error) {
@@ -193,8 +250,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 		if err := d.deleteEndpointFromStore(ep); err != nil {
 			logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
 		}
-
 	}
+	// flush the peerDB entries
+	d.peerFlush(nid)
 	d.deleteNetwork(nid)
 
 	vnis, err := n.releaseVxlanID()
@@ -292,6 +350,12 @@ func (n *network) destroySandbox() {
 			if err := removeNetworkChain(n.id[:12]); err != nil {
 				logrus.Warnf("could not remove network chain: %v", err)
 			}
+		}
+
+		// Close the netlink socket, this will also release the watchMiss goroutine that is using it
+		if n.nlSocket != nil {
+			n.nlSocket.Close()
+			n.nlSocket = nil
 		}
 
 		n.sbox.Destroy()
@@ -430,7 +494,7 @@ func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) erro
 	brIfaceOption := make([]osl.IfaceOption, 2)
 	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Address(s.gwIP))
 	brIfaceOption = append(brIfaceOption, sbox.InterfaceOptions().Bridge(true))
-	Ifaces[fmt.Sprintf("%s+%s", brName, "br")] = brIfaceOption
+	Ifaces[brName+"+br"] = brIfaceOption
 
 	err := sbox.Restore(Ifaces, nil, nil, nil)
 	if err != nil {
@@ -440,12 +504,8 @@ func (n *network) restoreSubnetSandbox(s *subnet, brName, vxlanName string) erro
 	Ifaces = make(map[string][]osl.IfaceOption)
 	vxlanIfaceOption := make([]osl.IfaceOption, 1)
 	vxlanIfaceOption = append(vxlanIfaceOption, sbox.InterfaceOptions().Master(brName))
-	Ifaces[fmt.Sprintf("%s+%s", vxlanName, "vxlan")] = vxlanIfaceOption
-	err = sbox.Restore(Ifaces, nil, nil, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	Ifaces[vxlanName+"+vxlan"] = vxlanIfaceOption
+	return sbox.Restore(Ifaces, nil, nil, nil)
 }
 
 func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error {
@@ -503,6 +563,25 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 	if err := sbox.AddInterface(vxlanName, "vxlan",
 		sbox.InterfaceOptions().Master(brName)); err != nil {
 		return fmt.Errorf("vxlan interface creation failed for subnet %q: %v", s.subnetIP.String(), err)
+	}
+
+	if !hostMode {
+		var name string
+		for _, i := range sbox.Info().Interfaces() {
+			if i.Bridge() {
+				name = i.DstName()
+			}
+		}
+		cmd := &exec.Cmd{
+			Path:   reexec.Self(),
+			Args:   []string{"set-default-vlan", sbox.Key(), name},
+			Stdout: os.Stdout,
+			Stderr: os.Stderr,
+		}
+		if err := cmd.Run(); err != nil {
+			// not a fatal error
+			logrus.Errorf("reexec to set bridge default vlan failed %v", err)
+		}
 	}
 
 	if hostMode {
@@ -593,7 +672,7 @@ func (n *network) initSandbox(restore bool) error {
 	// In the restore case network sandbox already exist; but we don't know
 	// what epoch number it was created with. It has to be retrieved by
 	// searching the net namespaces.
-	key := ""
+	var key string
 	if restore {
 		key = osl.GenerateKey("-" + n.id)
 	} else {
@@ -605,19 +684,34 @@ func (n *network) initSandbox(restore bool) error {
 		return fmt.Errorf("could not get network sandbox (oper %t): %v", restore, err)
 	}
 
+	// this is needed to let the peerAdd configure the sandbox
 	n.setSandbox(sbox)
 
 	if !restore {
-		n.driver.peerDbUpdateSandbox(n.id)
+		// Initialize the sandbox with all the peers previously received from networkdb
+		n.driver.initSandboxPeerDB(n.id)
+	}
+
+	// If we are in swarm mode, we don't need anymore the watchMiss routine.
+	// This will save 1 thread and 1 netlink socket per network
+	if !n.driver.isSerfAlive() {
+		return nil
 	}
 
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
 		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
+		if err != nil {
+			return
+		}
+		// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
+		tv := syscall.NsecToTimeval(soTimeout.Nanoseconds())
+		err = nlSock.SetReceiveTimeout(&tv)
 	})
+	n.setNetlinkSocket(nlSock)
 
 	if err == nil {
-		go n.watchMiss(nlSock)
+		go n.watchMiss(nlSock, key)
 	} else {
 		logrus.Errorf("failed to subscribe to neighbor group netlink messages for overlay network %s in sbox %s: %v",
 			n.id, sbox.Key(), err)
@@ -626,10 +720,38 @@ func (n *network) initSandbox(restore bool) error {
 	return nil
 }
 
-func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
+func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
+	// With the new version of the netlink library the deserialize function makes
+	// requests about the interface of the netlink message. This can succeed only
+	// if this go routine is in the target namespace. For this reason following we
+	// lock the thread on that namespace
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	newNs, err := netns.GetFromPath(nsPath)
+	if err != nil {
+		logrus.WithError(err).Errorf("failed to get the namespace %s", nsPath)
+		return
+	}
+	defer newNs.Close()
+	if err = netns.Set(newNs); err != nil {
+		logrus.WithError(err).Errorf("failed to enter the namespace %s", nsPath)
+		return
+	}
 	for {
 		msgs, err := nlSock.Receive()
 		if err != nil {
+			n.Lock()
+			nlFd := nlSock.GetFd()
+			n.Unlock()
+			if nlFd == -1 {
+				// The netlink socket got closed, simply exit to not leak this goroutine
+				return
+			}
+			// When the receive timeout expires the receive will return EAGAIN
+			if err == syscall.EAGAIN {
+				// we continue here to avoid spam for timeouts
+				continue
+			}
 			logrus.Errorf("Failed to receive from netlink: %v ", err)
 			continue
 		}
@@ -645,37 +767,38 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket) {
 				continue
 			}
 
-			if neigh.IP.To4() == nil {
-				if neigh.HardwareAddr != nil {
-					logrus.Debugf("Miss notification, l2 mac %v", neigh.HardwareAddr)
-				}
+			var (
+				ip             net.IP
+				mac            net.HardwareAddr
+				l2Miss, l3Miss bool
+			)
+			if neigh.IP.To4() != nil {
+				ip = neigh.IP
+				l3Miss = true
+			} else if neigh.HardwareAddr != nil {
+				mac = []byte(neigh.HardwareAddr)
+				ip = net.IP(mac[2:])
+				l2Miss = true
+			} else {
 				continue
 			}
 
 			// Not any of the network's subnets. Ignore.
-			if !n.contains(neigh.IP) {
+			if !n.contains(ip) {
 				continue
 			}
-
-			logrus.Debugf("miss notification for dest IP, %v", neigh.IP.String())
 
 			if neigh.State&(netlink.NUD_STALE|netlink.NUD_INCOMPLETE) == 0 {
 				continue
 			}
 
-			if !n.driver.isSerfAlive() {
-				continue
-			}
-
-			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, neigh.IP)
+			logrus.Debugf("miss notification: dest IP %v, dest MAC %v", ip, mac)
+			mac, IPmask, vtep, err := n.driver.resolvePeer(n.id, ip)
 			if err != nil {
-				logrus.Errorf("could not resolve peer %q: %v", neigh.IP, err)
+				logrus.Errorf("could not resolve peer %q: %v", ip, err)
 				continue
 			}
-
-			if err := n.driver.peerAdd(n.id, "dummy", neigh.IP, IPmask, mac, vtep, true); err != nil {
-				logrus.Errorf("could not add neighbor entry for missed peer %q: %v", neigh.IP, err)
-			}
+			n.driver.peerAdd(n.id, "dummy", ip, IPmask, mac, vtep, l2Miss, l3Miss, false)
 		}
 	}
 }
@@ -737,6 +860,12 @@ func (n *network) setSandbox(sbox osl.Sandbox) {
 	n.Unlock()
 }
 
+func (n *network) setNetlinkSocket(nlSk *nl.NetlinkSocket) {
+	n.Lock()
+	n.nlSocket = nlSk
+	n.Unlock()
+}
+
 func (n *network) vxlanID(s *subnet) uint32 {
 	n.Lock()
 	defer n.Unlock()
@@ -772,15 +901,10 @@ func (n *network) Value() []byte {
 		netJSON = append(netJSON, sj)
 	}
 
-	b, err := json.Marshal(netJSON)
-	if err != nil {
-		return []byte{}
-	}
-
 	m["secure"] = n.secure
 	m["subnets"] = netJSON
 	m["mtu"] = n.mtu
-	b, err = json.Marshal(m)
+	b, err := json.Marshal(m)
 	if err != nil {
 		return []byte{}
 	}
@@ -925,7 +1049,7 @@ func (n *network) obtainVxlanID(s *subnet) error {
 		}
 
 		if s.vni == 0 {
-			vxlanID, err := n.driver.vxlanIdm.GetID()
+			vxlanID, err := n.driver.vxlanIdm.GetID(true)
 			if err != nil {
 				return fmt.Errorf("failed to allocate vxlan id: %v", err)
 			}

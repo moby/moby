@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"encoding/json"
@@ -12,10 +12,13 @@ import (
 
 // SecretList returns the list of secrets.
 func (cli *Client) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
+	if err := cli.NewVersionError("1.25", "secret list"); err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 
 	if options.Filters.Len() > 0 {
-		filterJSON, err := filters.ToParam(options.Filters)
+		filterJSON, err := filters.ToJSON(options.Filters)
 		if err != nil {
 			return nil, err
 		}

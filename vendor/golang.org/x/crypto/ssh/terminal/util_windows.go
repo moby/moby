@@ -17,7 +17,6 @@
 package terminal
 
 import (
-	"io"
 	"syscall"
 	"unsafe"
 )
@@ -123,6 +122,13 @@ func GetSize(fd int) (width, height int, err error) {
 	return int(info.size.x), int(info.size.y), nil
 }
 
+// passwordReader is an io.Reader that reads from a specific Windows HANDLE.
+type passwordReader int
+
+func (r passwordReader) Read(buf []byte) (int, error) {
+	return syscall.Read(syscall.Handle(r), buf)
+}
+
 // ReadPassword reads a line of input from a terminal without local echo.  This
 // is commonly used for inputting passwords and other sensitive data. The slice
 // returned does not include the \n.
@@ -145,30 +151,5 @@ func ReadPassword(fd int) ([]byte, error) {
 		syscall.Syscall(procSetConsoleMode.Addr(), 2, uintptr(fd), uintptr(old), 0)
 	}()
 
-	var buf [16]byte
-	var ret []byte
-	for {
-		n, err := syscall.Read(syscall.Handle(fd), buf[:])
-		if err != nil {
-			return nil, err
-		}
-		if n == 0 {
-			if len(ret) == 0 {
-				return nil, io.EOF
-			}
-			break
-		}
-		if buf[n-1] == '\n' {
-			n--
-		}
-		if n > 0 && buf[n-1] == '\r' {
-			n--
-		}
-		ret = append(ret, buf[:n]...)
-		if n < len(buf) {
-			break
-		}
-	}
-
-	return ret, nil
+	return readPasswordLine(passwordReader(fd))
 }

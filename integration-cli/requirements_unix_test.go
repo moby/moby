@@ -18,19 +18,19 @@ var (
 )
 
 func cpuCfsPeriod() bool {
-	return SysInfo.CPUCfsPeriod
+	return testEnv.DaemonInfo.CPUCfsPeriod
 }
 
 func cpuCfsQuota() bool {
-	return SysInfo.CPUCfsQuota
+	return testEnv.DaemonInfo.CPUCfsQuota
 }
 
 func cpuShare() bool {
-	return SysInfo.CPUShares
+	return testEnv.DaemonInfo.CPUShares
 }
 
 func oomControl() bool {
-	return SysInfo.OomKillDisable
+	return testEnv.DaemonInfo.OomKillDisable
 }
 
 func pidsLimit() bool {
@@ -38,11 +38,11 @@ func pidsLimit() bool {
 }
 
 func kernelMemorySupport() bool {
-	return SysInfo.KernelMemory
+	return testEnv.DaemonInfo.KernelMemory
 }
 
 func memoryLimitSupport() bool {
-	return SysInfo.MemoryLimit
+	return testEnv.DaemonInfo.MemoryLimit
 }
 
 func memoryReservationSupport() bool {
@@ -50,19 +50,19 @@ func memoryReservationSupport() bool {
 }
 
 func swapMemorySupport() bool {
-	return SysInfo.SwapLimit
+	return testEnv.DaemonInfo.SwapLimit
 }
 
 func memorySwappinessSupport() bool {
-	return SysInfo.MemorySwappiness
+	return SameHostDaemon() && SysInfo.MemorySwappiness
 }
 
 func blkioWeight() bool {
-	return SysInfo.BlkioWeight
+	return SameHostDaemon() && SysInfo.BlkioWeight
 }
 
 func cgroupCpuset() bool {
-	return SysInfo.Cpuset
+	return testEnv.DaemonInfo.CPUSet
 }
 
 func seccompEnabled() bool {
@@ -101,7 +101,7 @@ func overlay2Supported() bool {
 		return false
 	}
 
-	daemonV, err := kernel.ParseRelease(testEnv.DaemonKernelVersion())
+	daemonV, err := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
 	if err != nil {
 		return false
 	}
@@ -111,5 +111,7 @@ func overlay2Supported() bool {
 }
 
 func init() {
-	SysInfo = sysinfo.New(true)
+	if SameHostDaemon() {
+		SysInfo = sysinfo.New(true)
+	}
 }

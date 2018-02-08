@@ -4,6 +4,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -16,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -23,8 +25,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/sysinfo"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/kr/pty"
 )
 
@@ -224,6 +226,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
+	go cmd.Wait()
 
 	bufReader := bufio.NewReader(stdout)
 	out, err := bufReader.ReadString('\n')
@@ -422,6 +425,7 @@ func (s *DockerSuite) TestRunAttachInvalidDetachKeySequencePreserved(c *check.C)
 	if err := cmd.Start(); err != nil {
 		c.Fatal(err)
 	}
+	go cmd.Wait()
 	c.Assert(waitRun(name), check.IsNil)
 
 	// Invalid escape sequence aba, should print aba in output
@@ -675,7 +679,7 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
-	testRequires(c, memoryReservationSupport)
+	testRequires(c, SameHostDaemon, memoryReservationSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
 	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
@@ -687,7 +691,7 @@ func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 
 func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	testRequires(c, memoryReservationSupport)
+	testRequires(c, SameHostDaemon, memoryReservationSupport)
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Minimum memory limit can not be less than memory reservation limit"
@@ -1015,18 +1019,6 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 	})
 }
 
-// TestRunSeccompProfileDenyUnusualSocketFamilies checks that rarely used socket families such as Appletalk are blocked by the default profile
-func (s *DockerSuite) TestRunSeccompProfileDenyUnusualSocketFamilies(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
-	ensureSyscallTest(c)
-
-	runCmd := exec.Command(dockerBinary, "run", "syscall-test", "appletalk-test")
-	_, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatal("expected opening appletalk socket family to fail")
-	}
-}
-
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
@@ -1070,7 +1062,7 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
 	ensureSyscallTest(c)
 
-	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test", "id").Assert(c, icmd.Success)
+	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
 }
 
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
@@ -1411,7 +1403,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
 func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
-	testRequires(c, pidsLimit)
+	testRequires(c, SameHostDaemon, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"
 	out, _ := dockerCmd(c, "run", "--name", "skittles", "--pids-limit", "4", "busybox", "cat", file)
@@ -1575,14 +1567,18 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
 
-	out = inspectField(c, "test", "HostConfig.NanoCpus")
-	c.Assert(out, checker.Equals, "5e+08", check.Commentf("setting the Nano CPUs failed"))
+	clt, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	inspect, err := clt.ContainerInspect(context.Background(), "test")
+	c.Assert(err, checker.IsNil)
+	c.Assert(inspect.HostConfig.NanoCPUs, checker.Equals, int64(500000000))
+
 	out = inspectField(c, "test", "HostConfig.CpuQuota")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS quota should be 0"))
 	out = inspectField(c, "test", "HostConfig.CpuPeriod")
 	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS period should be 0"))
 
-	out, _, err := dockerCmdWithError("run", "--cpus", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
+	out, _, err = dockerCmdWithError("run", "--cpus", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
 	c.Assert(err, check.NotNil)
 	c.Assert(out, checker.Contains, "Conflicting options: Nano CPUs and CPU Period cannot both be set")
 }

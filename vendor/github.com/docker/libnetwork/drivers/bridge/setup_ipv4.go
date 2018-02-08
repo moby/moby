@@ -7,8 +7,8 @@ import (
 	"net"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 

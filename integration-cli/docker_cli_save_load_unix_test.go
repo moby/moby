@@ -13,8 +13,8 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/kr/pty"
 )
 
@@ -67,7 +67,7 @@ func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
 
 	n, err := pty.Read(buf)
 	c.Assert(err, check.IsNil) //could not read tty output
-	c.Assert(string(buf[:n]), checker.Contains, "Cowardly refusing", check.Commentf("help output is not being yielded"))
+	c.Assert(string(buf[:n]), checker.Contains, "cowardly refusing", check.Commentf("help output is not being yielded"))
 }
 
 func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {

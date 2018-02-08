@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/godbus/dbus"
+	"github.com/sirupsen/logrus"
 )
 
 // IPV defines the table string
@@ -151,7 +151,6 @@ func checkRunning() bool {
 
 	if connection != nil {
 		err = connection.sysobj.Call(dbusInterface+".getDefaultZone", 0).Store(&zone)
-		logrus.Infof("Firewalld running: %t", err == nil)
 		return err == nil
 	}
 	return false

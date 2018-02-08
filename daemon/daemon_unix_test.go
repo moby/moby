@@ -1,8 +1,9 @@
-// +build !windows,!solaris
+// +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -11,11 +12,51 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
+	"github.com/stretchr/testify/require"
 )
+
+type fakeContainerGetter struct {
+	containers map[string]*container.Container
+}
+
+func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
+	container, ok := f.containers[cid]
+	if !ok {
+		return nil, errors.New("container not found")
+	}
+	return container, nil
+}
+
+// Unix test as uses settings which are not available on Windows
+func TestAdjustSharedNamespaceContainerName(t *testing.T) {
+	fakeID := "abcdef1234567890"
+	hostConfig := &containertypes.HostConfig{
+		IpcMode:     containertypes.IpcMode("container:base"),
+		PidMode:     containertypes.PidMode("container:base"),
+		NetworkMode: containertypes.NetworkMode("container:base"),
+	}
+	containerStore := &fakeContainerGetter{}
+	containerStore.containers = make(map[string]*container.Container)
+	containerStore.containers["base"] = &container.Container{
+		ID: fakeID,
+	}
+
+	adaptSharedNamespaceContainer(containerStore, hostConfig)
+	if hostConfig.IpcMode != containertypes.IpcMode("container:"+fakeID) {
+		t.Errorf("Expected IpcMode to be container:%s", fakeID)
+	}
+	if hostConfig.PidMode != containertypes.PidMode("container:"+fakeID) {
+		t.Errorf("Expected PidMode to be container:%s", fakeID)
+	}
+	if hostConfig.NetworkMode != containertypes.NetworkMode("container:"+fakeID) {
+		t.Errorf("Expected NetworkMode to be container:%s", fakeID)
+	}
+}
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUShares(t *testing.T) {
@@ -249,13 +290,12 @@ func TestMigratePre17Volumes(t *testing.T) {
 	containerRoot := filepath.Join(rootDir, "containers")
 	cid := "1234"
 	err = os.MkdirAll(filepath.Join(containerRoot, cid), 0755)
+	require.NoError(t, err)
 
 	vid := "5678"
 	vfsPath := filepath.Join(rootDir, "vfs", "dir", vid)
 	err = os.MkdirAll(vfsPath, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	config := []byte(`
 		{
@@ -277,13 +317,17 @@ func TestMigratePre17Volumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	drv, err := local.New(volumeRoot, 0, 0)
+	drv, err := local.New(volumeRoot, idtools.IDPair{UID: 0, GID: 0})
 	if err != nil {
 		t.Fatal(err)
 	}
 	volumedrivers.Register(drv, volume.DefaultDriverName)
 
-	daemon := &Daemon{root: rootDir, repository: containerRoot, volumes: volStore}
+	daemon := &Daemon{
+		root:       rootDir,
+		repository: containerRoot,
+		volumes:    volStore,
+	}
 	err = ioutil.WriteFile(filepath.Join(containerRoot, cid, "config.v2.json"), config, 600)
 	if err != nil {
 		t.Fatal(err)

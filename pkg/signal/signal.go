@@ -1,6 +1,6 @@
 // Package signal provides helper functions for dealing with signals across
 // various operating systems.
-package signal
+package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
 	"fmt"

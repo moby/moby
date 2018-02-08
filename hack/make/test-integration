@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+source hack/make/.integration-test-helpers
+
+(
+	build_test_suite_binaries
+	bundle .integration-daemon-start
+	bundle .integration-daemon-setup
+
+	local testexit=0
+	( repeat run_test_integration ) || testexit=$?
+
+	# Always run cleanup, even if the subshell fails
+	bundle .integration-daemon-stop
+	cleanup_test_suite_binaries
+	error_on_leaked_containerd_shims
+
+	exit $testexit
+
+) 2>&1 | tee -a "$DEST/test.log"

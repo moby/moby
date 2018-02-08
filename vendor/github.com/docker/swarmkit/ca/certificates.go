@@ -104,6 +104,12 @@ type CertPaths struct {
 	Cert, Key string
 }
 
+// IssuerInfo contains the subject and public key of the issuer of a certificate
+type IssuerInfo struct {
+	Subject   []byte
+	PublicKey []byte
+}
+
 // LocalSigner is a signer that can sign CSRs
 type LocalSigner struct {
 	cfsigner.Signer
@@ -118,6 +124,11 @@ type LocalSigner struct {
 	// just cached parsed values for validation, etc.
 	parsedCert   *x509.Certificate
 	cryptoSigner crypto.Signer
+}
+
+type x509UnknownAuthError struct {
+	error
+	failedLeafCert *x509.Certificate
 }
 
 // RootCA is the representation of everything we need to sign certificates and/or to verify certificates
@@ -192,39 +203,47 @@ func (rca *RootCA) Signer() (*LocalSigner, error) {
 }
 
 // IssueAndSaveNewCertificates generates a new key-pair, signs it with the local root-ca, and returns a
-// tls certificate
-func (rca *RootCA) IssueAndSaveNewCertificates(kw KeyWriter, cn, ou, org string) (*tls.Certificate, error) {
+// TLS certificate and the issuer information for the certificate.
+func (rca *RootCA) IssueAndSaveNewCertificates(kw KeyWriter, cn, ou, org string) (*tls.Certificate, *IssuerInfo, error) {
 	csr, key, err := GenerateNewCSR()
 	if err != nil {
-		return nil, errors.Wrap(err, "error when generating new node certs")
+		return nil, nil, errors.Wrap(err, "error when generating new node certs")
 	}
 
 	// Obtain a signed Certificate
 	certChain, err := rca.ParseValidateAndSignCSR(csr, cn, ou, org)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to sign node certificate")
+		return nil, nil, errors.Wrap(err, "failed to sign node certificate")
+	}
+	signer, err := rca.Signer()
+	if err != nil { // should never happen, since if ParseValidateAndSignCSR did not fail this root CA must have a signer
+		return nil, nil, err
 	}
 
 	// Create a valid TLSKeyPair out of the PEM encoded private key and certificate
 	tlsKeyPair, err := tls.X509KeyPair(certChain, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := kw.Write(certChain, key, nil); err != nil {
-		return nil, err
+	if err := kw.Write(NormalizePEMs(certChain), key, nil); err != nil {
+		return nil, nil, err
 	}
 
-	return &tlsKeyPair, nil
+	return &tlsKeyPair, &IssuerInfo{
+		PublicKey: signer.parsedCert.RawSubjectPublicKeyInfo,
+		Subject:   signer.parsedCert.RawSubject,
+	}, nil
 }
 
 // RequestAndSaveNewCertificates gets new certificates issued, either by signing them locally if a signer is
-// available, or by requesting them from the remote server at remoteAddr.
-func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWriter, config CertificateRequestConfig) (*tls.Certificate, error) {
+// available, or by requesting them from the remote server at remoteAddr.  This function returns the TLS
+// certificate and the issuer information for the certificate.
+func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWriter, config CertificateRequestConfig) (*tls.Certificate, *IssuerInfo, error) {
 	// Create a new key/pair and CSR
 	csr, key, err := GenerateNewCSR()
 	if err != nil {
-		return nil, errors.Wrap(err, "error when generating new node certs")
+		return nil, nil, errors.Wrap(err, "error when generating new node certs")
 	}
 
 	// Get the remote manager to issue a CA signed certificate for this node
@@ -244,46 +263,81 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 		// the local connection will not be returned by the connection
 		// broker anymore.
 		config.ForceRemote = true
+
+		// Wait a moment, in case a leader election was taking place.
+		select {
+		case <-time.After(config.RetryInterval):
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Доверяй, но проверяй.
 	// Before we overwrite our local key + certificate, let's make sure the server gave us one that is valid
 	// Create an X509Cert so we can .Verify()
 	// Check to see if this certificate was signed by our CA, and isn't expired
-	parsedCerts, err := ValidateCertChain(rca.Pool, signedCert, false)
-	if err != nil {
-		return nil, err
+	parsedCerts, chains, err := ValidateCertChain(rca.Pool, signedCert, false)
+	// TODO(cyli): - right now we need the invalid certificate in order to determine whether or not we should
+	// download a new root, because we only want to do that in the case of workers.  When we have a single
+	// codepath for updating the root CAs for both managers and workers, this snippet can go.
+	if _, ok := err.(x509.UnknownAuthorityError); ok {
+		if parsedCerts, parseErr := helpers.ParseCertificatesPEM(signedCert); parseErr == nil && len(parsedCerts) > 0 {
+			return nil, nil, x509UnknownAuthError{
+				error:          err,
+				failedLeafCert: parsedCerts[0],
+			}
+		}
 	}
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// ValidateChain, if successful, will always return at least 1 parsed cert and at least 1 chain containing
+	// at least 2 certificates:  the leaf and the root.
+	leafCert := parsedCerts[0]
+	issuer := chains[0][1]
 
 	// Create a valid TLSKeyPair out of the PEM encoded private key and certificate
 	tlsKeyPair, err := tls.X509KeyPair(signedCert, key)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	var kekUpdate *KEKData
 	for i := 0; i < 5; i++ {
 		// ValidateCertChain will always return at least 1 cert, so indexing at 0 is safe
-		kekUpdate, err = rca.getKEKUpdate(ctx, parsedCerts[0], tlsKeyPair, config.ConnBroker)
+		kekUpdate, err = rca.getKEKUpdate(ctx, leafCert, tlsKeyPair, config)
 		if err == nil {
 			break
 		}
+
+		config.ForceRemote = true
+
+		// Wait a moment, in case a leader election was taking place.
+		select {
+		case <-time.After(config.RetryInterval):
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		}
 	}
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err := kw.Write(signedCert, key, kekUpdate); err != nil {
-		return nil, err
+	if err := kw.Write(NormalizePEMs(signedCert), key, kekUpdate); err != nil {
+		return nil, nil, err
 	}
 
-	return &tlsKeyPair, nil
+	return &tlsKeyPair, &IssuerInfo{
+		PublicKey: issuer.RawSubjectPublicKeyInfo,
+		Subject:   issuer.RawSubject,
+	}, nil
 }
 
-func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, connBroker *connectionbroker.Broker) (*KEKData, error) {
+func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, config CertificateRequestConfig) (*KEKData, error) {
 	var managerRole bool
 	for _, ou := range leafCert.Subject.OrganizationalUnit {
 		if ou == ManagerRole {
@@ -294,7 +348,7 @@ func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate,
 
 	if managerRole {
 		mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
-		conn, err := getGRPCConnection(mtlsCreds, connBroker, false)
+		conn, err := getGRPCConnection(mtlsCreds, config.ConnBroker, config.ForceRemote)
 		if err != nil {
 			return nil, err
 		}
@@ -364,16 +418,17 @@ func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
 	}
 
 	// create a new cert with exactly the same parameters, including the public key and exact NotBefore and NotAfter
-	newCert, err := helpers.ParseCertificatePEM(otherCAPEM)
+	template, err := helpers.ParseCertificatePEM(otherCAPEM)
 	if err != nil {
 		return nil, errors.New("could not parse new CA certificate")
 	}
 
-	if !newCert.IsCA {
+	if !template.IsCA {
 		return nil, errors.New("certificate not a CA")
 	}
 
-	derBytes, err := x509.CreateCertificate(cryptorand.Reader, newCert, signer.parsedCert, newCert.PublicKey, signer.cryptoSigner)
+	template.SignatureAlgorithm = signer.parsedCert.SignatureAlgorithm // make sure we can sign with the signer key
+	derBytes, err := x509.CreateCertificate(cryptorand.Reader, template, signer.parsedCert, template.PublicKey, signer.cryptoSigner)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not cross-sign new CA certificate using old CA material")
 	}
@@ -430,7 +485,7 @@ func NewRootCA(rootCertBytes, signCertBytes, signKeyBytes []byte, certExpiry tim
 	var intermediatePool *x509.CertPool
 	var parsedIntermediates []*x509.Certificate
 	if len(intermediates) > 0 {
-		parsedIntermediates, err = ValidateCertChain(pool, intermediates, false)
+		parsedIntermediates, _, err = ValidateCertChain(pool, intermediates, false)
 		if err != nil {
 			return RootCA{}, errors.Wrap(err, "invalid intermediate chain")
 		}
@@ -469,15 +524,15 @@ func NewRootCA(rootCertBytes, signCertBytes, signKeyBytes []byte, certExpiry tim
 // intermediate pool), because this function is intended to be used when reading certs from untrusted locations such as
 // from disk or over a network when a CSR is signed, so it is extra pedantic.
 // This function always returns all the parsed certificates in the bundle in order, which means there will always be
-// at least 1 certificate if there is no error.
-func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool) ([]*x509.Certificate, error) {
+// at least 1 certificate if there is no error, and the valid chains found by Certificate.Verify
+func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool) ([]*x509.Certificate, [][]*x509.Certificate, error) {
 	// Parse all the certificates in the cert bundle
 	parsedCerts, err := helpers.ParseCertificatesPEM(certs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	if len(parsedCerts) == 0 {
-		return nil, errors.New("no certificates to validate")
+		return nil, nil, errors.New("no certificates to validate")
 	}
 	now := time.Now()
 	// ensure that they form a chain, each one being signed by the one after it
@@ -486,7 +541,7 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 		// Manual expiry validation because we want more information on which certificate in the chain is expired, and
 		// because this is an easier way to allow expired certs.
 		if now.Before(cert.NotBefore) {
-			return nil, errors.Wrapf(
+			return nil, nil, errors.Wrapf(
 				x509.CertificateInvalidError{
 					Cert:   cert,
 					Reason: x509.Expired,
@@ -495,7 +550,7 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 				i+1, cert.Subject.CommonName, cert.NotBefore.UTC().Format(time.RFC1123), now.Format(time.RFC1123))
 		}
 		if !allowExpired && now.After(cert.NotAfter) {
-			return nil, errors.Wrapf(
+			return nil, nil, errors.Wrapf(
 				x509.CertificateInvalidError{
 					Cert:   cert,
 					Reason: x509.Expired,
@@ -508,7 +563,7 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 			// check that the previous cert was signed by this cert
 			prevCert := parsedCerts[i-1]
 			if err := prevCert.CheckSignatureFrom(cert); err != nil {
-				return nil, errors.Wrapf(err, "certificates do not form a chain: (%d - %s) is not signed by (%d - %s)",
+				return nil, nil, errors.Wrapf(err, "certificates do not form a chain: (%d - %s) is not signed by (%d - %s)",
 					i, prevCert.Subject.CommonName, i+1, cert.Subject.CommonName)
 			}
 
@@ -526,6 +581,8 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 		CurrentTime:   now,
 	}
 
+	var chains [][]*x509.Certificate
+
 	// If we accept expired certs, try to build a valid cert chain using some subset of the certs.  We start off using the
 	// first certificate's NotAfter as the current time, thus ensuring that the first cert is not expired. If the chain
 	// still fails to validate due to expiry issues, continue iterating over the rest of the certs.
@@ -540,22 +597,22 @@ func ValidateCertChain(rootPool *x509.CertPool, certs []byte, allowExpired bool)
 			}
 			verifyOpts.CurrentTime = cert.NotAfter
 
-			_, err = parsedCerts[0].Verify(verifyOpts)
+			chains, err = parsedCerts[0].Verify(verifyOpts)
 			if err == nil {
-				return parsedCerts, nil
+				return parsedCerts, chains, nil
 			}
 		}
 		if invalid, ok := err.(x509.CertificateInvalidError); ok && invalid.Reason == x509.Expired {
-			return nil, errors.New("there is no time span for which all of the certificates, including a root, are valid")
+			return nil, nil, errors.New("there is no time span for which all of the certificates, including a root, are valid")
 		}
-		return nil, err
+		return nil, nil, err
 	}
 
-	_, err = parsedCerts[0].Verify(verifyOpts)
+	chains, err = parsedCerts[0].Verify(verifyOpts)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return parsedCerts, nil
+	return parsedCerts, chains, nil
 }
 
 // newLocalSigner validates the signing cert and signing key to create a local signer, which accepts a crypto signer and a cert
@@ -830,7 +887,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			caClient = api.NewNodeCAClient(conn.ClientConn)
 
 		// If there was no deadline exceeded error, and the certificate was issued, return
-		case err == nil && statusResponse.Status.State == api.IssuanceStateIssued:
+		case err == nil && (statusResponse.Status.State == api.IssuanceStateIssued || statusResponse.Status.State == api.IssuanceStateRotate):
 			if statusResponse.Certificate == nil {
 				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")
@@ -929,4 +986,23 @@ func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 	}
 
 	return pem.EncodeToMemory(encryptedPEMBlock), nil
+}
+
+// NormalizePEMs takes a bundle of PEM-encoded certificates in a certificate bundle,
+// decodes them, removes headers, and re-encodes them to make sure that they have
+// consistent whitespace.  Note that this is intended to normalize x509 certificates
+// in PEM format, hence the stripping out of headers.
+func NormalizePEMs(certs []byte) []byte {
+	var (
+		results  []byte
+		pemBlock *pem.Block
+	)
+	for {
+		pemBlock, certs = pem.Decode(bytes.TrimSpace(certs))
+		if pemBlock == nil {
+			return results
+		}
+		pemBlock.Headers = nil
+		results = append(results, pem.EncodeToMemory(pemBlock)...)
+	}
 }

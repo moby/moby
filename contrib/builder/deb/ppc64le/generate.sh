@@ -36,7 +36,7 @@ for version in "${versions[@]}"; do
 
 	EOF
 
-	extraBuildTags='pkcs11'
+	extraBuildTags=
 	runcBuildTags=
 
 	# this list is sorted alphabetically; please keep it that way
@@ -53,13 +53,12 @@ for version in "${versions[@]}"; do
 		git # for "git commit" info in "docker -v"
 		libapparmor-dev # for "sys/apparmor.h"
 		libdevmapper-dev # for "libdevmapper.h"
-		libltdl-dev # for pkcs11 "ltdl.h"
 		pkg-config # for detecting things like libsystemd-journal dynamically
 		vim-common # tini dep
 	)
 
 	case "$suite" in
-		trusty) 
+		trusty)
 			packages+=( libsystemd-journal-dev )
 			;;
 		*)
@@ -82,7 +81,7 @@ for version in "${versions[@]}"; do
 			runcBuildTags="apparmor seccomp selinux"
 			;;
 	esac
-	
+
 	# update and install packages
 	echo "RUN apt-get update && apt-get install -y ${packages[*]} --no-install-recommends && rm -rf /var/lib/apt/lists/*" >> "$version/Dockerfile"
 	echo >> "$version/Dockerfile"

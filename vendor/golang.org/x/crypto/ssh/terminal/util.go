@@ -17,7 +17,6 @@
 package terminal // import "golang.org/x/crypto/ssh/terminal"
 
 import (
-	"io"
 	"syscall"
 	"unsafe"
 )
@@ -44,8 +43,13 @@ func MakeRaw(fd int) (*State, error) {
 	}
 
 	newState := oldState.termios
-	newState.Iflag &^= syscall.ISTRIP | syscall.INLCR | syscall.ICRNL | syscall.IGNCR | syscall.IXON | syscall.IXOFF
-	newState.Lflag &^= syscall.ECHO | syscall.ICANON | syscall.ISIG
+	// This attempts to replicate the behaviour documented for cfmakeraw in
+	// the termios(3) manpage.
+	newState.Iflag &^= syscall.IGNBRK | syscall.BRKINT | syscall.PARMRK | syscall.ISTRIP | syscall.INLCR | syscall.IGNCR | syscall.ICRNL | syscall.IXON
+	newState.Oflag &^= syscall.OPOST
+	newState.Lflag &^= syscall.ECHO | syscall.ECHONL | syscall.ICANON | syscall.ISIG | syscall.IEXTEN
+	newState.Cflag &^= syscall.CSIZE | syscall.PARENB
+	newState.Cflag |= syscall.CS8
 	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), ioctlWriteTermios, uintptr(unsafe.Pointer(&newState)), 0, 0, 0); err != 0 {
 		return nil, err
 	}
@@ -67,8 +71,10 @@ func GetState(fd int) (*State, error) {
 // Restore restores the terminal connected to the given file descriptor to a
 // previous state.
 func Restore(fd int, state *State) error {
-	_, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), ioctlWriteTermios, uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0)
-	return err
+	if _, _, err := syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), ioctlWriteTermios, uintptr(unsafe.Pointer(&state.termios)), 0, 0, 0); err != 0 {
+		return err
+	}
+	return nil
 }
 
 // GetSize returns the dimensions of the given terminal.
@@ -79,6 +85,13 @@ func GetSize(fd int) (width, height int, err error) {
 		return -1, -1, err
 	}
 	return int(dimensions[1]), int(dimensions[0]), nil
+}
+
+// passwordReader is an io.Reader that reads from a specific file descriptor.
+type passwordReader int
+
+func (r passwordReader) Read(buf []byte) (int, error) {
+	return syscall.Read(int(r), buf)
 }
 
 // ReadPassword reads a line of input from a terminal without local echo.  This
@@ -102,27 +115,5 @@ func ReadPassword(fd int) ([]byte, error) {
 		syscall.Syscall6(syscall.SYS_IOCTL, uintptr(fd), ioctlWriteTermios, uintptr(unsafe.Pointer(&oldState)), 0, 0, 0)
 	}()
 
-	var buf [16]byte
-	var ret []byte
-	for {
-		n, err := syscall.Read(fd, buf[:])
-		if err != nil {
-			return nil, err
-		}
-		if n == 0 {
-			if len(ret) == 0 {
-				return nil, io.EOF
-			}
-			break
-		}
-		if buf[n-1] == '\n' {
-			n--
-		}
-		ret = append(ret, buf[:n]...)
-		if n < len(buf) {
-			break
-		}
-	}
-
-	return ret, nil
+	return readPasswordLine(passwordReader(fd))
 }

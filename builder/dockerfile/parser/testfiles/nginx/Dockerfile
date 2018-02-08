@@ -1,5 +1,5 @@
 FROM ubuntu:14.04
-MAINTAINER Erik Hollensbe <erik@hollensbe.org>
+LABEL maintainer Erik Hollensbe <erik@hollensbe.org>
 
 RUN apt-get update && apt-get install nginx-full -y
 RUN rm -rf /etc/nginx

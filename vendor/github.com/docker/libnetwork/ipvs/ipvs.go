@@ -5,9 +5,17 @@ package ipvs
 import (
 	"net"
 	"syscall"
+	"time"
+
+	"fmt"
 
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+)
+
+const (
+	netlinkRecvSocketsTimeout = 3 * time.Second
+	netlinkSendSocketTimeout  = 30 * time.Second
 )
 
 // Service defines an IPVS service in its entirety.
@@ -25,6 +33,21 @@ type Service struct {
 	Netmask       uint32
 	AddressFamily uint16
 	PEName        string
+	Stats         SvcStats
+}
+
+// SvcStats defines an IPVS service statistics
+type SvcStats struct {
+	Connections uint32
+	PacketsIn   uint32
+	PacketsOut  uint32
+	BytesIn     uint64
+	BytesOut    uint64
+	CPS         uint32
+	BPSOut      uint32
+	PPSIn       uint32
+	PPSOut      uint32
+	BPSIn       uint32
 }
 
 // Destination defines an IPVS destination (real server) in its
@@ -66,6 +89,15 @@ func New(path string) (*Handle, error) {
 	if err != nil {
 		return nil, err
 	}
+	// Add operation timeout to avoid deadlocks
+	tv := syscall.NsecToTimeval(netlinkSendSocketTimeout.Nanoseconds())
+	if err := sock.SetSendTimeout(&tv); err != nil {
+		return nil, err
+	}
+	tv = syscall.NsecToTimeval(netlinkRecvSocketsTimeout.Nanoseconds())
+	if err := sock.SetReceiveTimeout(&tv); err != nil {
+		return nil, err
+	}
 
 	return &Handle{sock: sock}, nil
 }
@@ -100,6 +132,13 @@ func (i *Handle) DelService(s *Service) error {
 	return i.doCmd(s, nil, ipvsCmdDelService)
 }
 
+// Flush deletes all existing services in the passed
+// handle.
+func (i *Handle) Flush() error {
+	_, err := i.doCmdWithoutAttr(ipvsCmdFlush)
+	return err
+}
+
 // NewDestination creates a new real server in the passed ipvs
 // service which should already be existing in the passed handle.
 func (i *Handle) NewDestination(s *Service, d *Destination) error {
@@ -116,4 +155,30 @@ func (i *Handle) UpdateDestination(s *Service, d *Destination) error {
 // passed ipvs service in the passed handle.
 func (i *Handle) DelDestination(s *Service, d *Destination) error {
 	return i.doCmd(s, d, ipvsCmdDelDest)
+}
+
+// GetServices returns an array of services configured on the Node
+func (i *Handle) GetServices() ([]*Service, error) {
+	return i.doGetServicesCmd(nil)
+}
+
+// GetDestinations returns an array of Destinations configured for this Service
+func (i *Handle) GetDestinations(s *Service) ([]*Destination, error) {
+	return i.doGetDestinationsCmd(s, nil)
+}
+
+// GetService gets details of a specific IPVS services, useful in updating statisics etc.,
+func (i *Handle) GetService(s *Service) (*Service, error) {
+
+	res, err := i.doGetServicesCmd(s)
+	if err != nil {
+		return nil, err
+	}
+
+	// We are looking for exactly one service otherwise error out
+	if len(res) != 1 {
+		return nil, fmt.Errorf("Expected only one service obtained=%d", len(res))
+	}
+
+	return res[0], nil
 }

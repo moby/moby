@@ -1,22 +1,12 @@
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import (
 	"fmt"
-	"io"
 	"path/filepath"
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/plugin/v2"
 )
-
-type pluginClient interface {
-	// Call calls the specified method with the specified arguments for the plugin.
-	Call(string, interface{}, interface{}) error
-	// Stream calls the specified method with the specified arguments for the plugin and returns the response IO stream
-	Stream(string, interface{}) (io.ReadCloser, error)
-	// SendFile calls the specified method, and passes through the IO stream
-	SendFile(string, io.Reader, interface{}) error
-}
 
 func lookupPlugin(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if !config.ExperimentalEnabled {
@@ -38,6 +28,6 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 			}
 		}
 	}
-	proxy := &graphDriverProxy{name, pl}
+	proxy := &graphDriverProxy{name, pl, Capabilities{}}
 	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 }

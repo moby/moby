@@ -1,20 +1,21 @@
 package msgp
 
-import (
-	"testing"
-)
+type timer interface {
+	StartTimer()
+	StopTimer()
+}
 
 // EndlessReader is an io.Reader
 // that loops over the same data
 // endlessly. It is used for benchmarking.
 type EndlessReader struct {
-	tb     *testing.B
+	tb     timer
 	data   []byte
 	offset int
 }
 
 // NewEndlessReader returns a new endless reader
-func NewEndlessReader(b []byte, tb *testing.B) *EndlessReader {
+func NewEndlessReader(b []byte, tb timer) *EndlessReader {
 	return &EndlessReader{tb: tb, data: b, offset: 0}
 }
 

@@ -7,16 +7,17 @@
 // read-only and writable layers. The exported
 // tar data for a read-only layer should match
 // the tar used to create the layer.
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"errors"
 	"io"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -52,8 +53,8 @@ var (
 	ErrMaxDepthExceeded = errors.New("max depth exceeded")
 
 	// ErrNotSupported is used when the action is not supported
-	// on the current platform
-	ErrNotSupported = errors.New("not support on this platform")
+	// on the current host operating system.
+	ErrNotSupported = errors.New("not support on this host operating system")
 )
 
 // ChainID is the content-addressable ID of a layer.
@@ -126,7 +127,7 @@ type RWLayer interface {
 
 	// Mount mounts the RWLayer and returns the filesystem path
 	// the to the writable layer.
-	Mount(mountLabel string) (string, error)
+	Mount(mountLabel string) (containerfs.ContainerFS, error)
 
 	// Unmount unmounts the RWLayer. This should be called
 	// for every mount. If there are multiple mount calls
@@ -167,7 +168,7 @@ type Metadata struct {
 // writable mount. Changes made here will
 // not be included in the Tar stream of the
 // RWLayer.
-type MountInit func(root string) error
+type MountInit func(root containerfs.ContainerFS) error
 
 // CreateRWLayerOpts contains optional arguments to be passed to CreateRWLayer
 type CreateRWLayerOpts struct {
@@ -208,6 +209,7 @@ type MetadataTransaction interface {
 	SetDiffID(DiffID) error
 	SetCacheID(string) error
 	SetDescriptor(distribution.Descriptor) error
+	setOS(string) error
 	TarSplitWriter(compressInput bool) (io.WriteCloser, error)
 
 	Commit(ChainID) error
@@ -228,6 +230,7 @@ type MetadataStore interface {
 	GetDiffID(ChainID) (DiffID, error)
 	GetCacheID(ChainID) (string, error)
 	GetDescriptor(ChainID) (distribution.Descriptor, error)
+	getOS(ChainID) (string, error)
 	TarSplitReader(ChainID) (io.ReadCloser, error)
 
 	SetMountID(string, string) error

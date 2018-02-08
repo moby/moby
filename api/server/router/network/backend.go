@@ -1,6 +1,8 @@
-package network
+package network // import "github.com/docker/docker/api/server/router/network"
 
 import (
+	"golang.org/x/net/context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
@@ -15,6 +17,6 @@ type Backend interface {
 	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
-	DeleteNetwork(name string) error
-	NetworksPrune(pruneFilters filters.Args) (*types.NetworksPruneReport, error)
+	DeleteNetwork(networkID string) error
+	NetworksPrune(ctx context.Context, pruneFilters filters.Args) (*types.NetworksPruneReport, error)
 }

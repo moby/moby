@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
 	"encoding/base64"
@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 )
@@ -33,21 +35,21 @@ import (
 // are mostly naked calls to the client API, seeded with information from
 // containerConfig.
 type containerAdapter struct {
-	backend   executorpkg.Backend
-	container *containerConfig
-	secrets   exec.SecretGetter
+	backend      executorpkg.Backend
+	container    *containerConfig
+	dependencies exec.DependencyGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*containerAdapter, error) {
-	ctnr, err := newContainerConfig(task)
+func newContainerAdapter(b executorpkg.Backend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
+	ctnr, err := newContainerConfig(task, node)
 	if err != nil {
 		return nil, err
 	}
 
 	return &containerAdapter{
-		container: ctnr,
-		backend:   b,
-		secrets:   secrets,
+		container:    ctnr,
+		backend:      b,
+		dependencies: dependencies,
 	}, nil
 }
 
@@ -87,7 +89,10 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	metaHeaders := map[string][]string{}
 	go func() {
-		err := c.backend.PullImage(ctx, c.container.image(), "", metaHeaders, authConfig, pw)
+		// TODO @jhowardmsft LCOW Support: This will need revisiting as
+		// the stack is built up to include LCOW support for swarm.
+		platform := runtime.GOOS
+		err := c.backend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 
@@ -138,8 +143,8 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 }
 
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
-	for _, network := range c.container.networks() {
-		ncr, err := c.container.networkCreateRequest(network)
+	for name := range c.container.networksAttachments {
+		ncr, err := c.container.networkCreateRequest(name)
 		if err != nil {
 			return err
 		}
@@ -157,15 +162,15 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) removeNetworks(ctx context.Context) error {
-	for _, nid := range c.container.networks() {
-		if err := c.backend.DeleteManagedNetwork(nid); err != nil {
+	for name, v := range c.container.networksAttachments {
+		if err := c.backend.DeleteManagedNetwork(v.Network.ID); err != nil {
 			switch err.(type) {
 			case *libnetwork.ActiveEndpointsError:
 				continue
 			case libnetwork.ErrNoSuchNetwork:
 				continue
 			default:
-				log.G(ctx).Errorf("network %s remove failed: %v", nid, err)
+				log.G(ctx).Errorf("network %s remove failed: %v", name, err)
 				return err
 			}
 		}
@@ -175,7 +180,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) networkAttach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -190,11 +195,11 @@ func (c *containerAdapter) networkAttach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.UpdateAttachment(networkName, networkID, c.container.id(), config)
+	return c.backend.UpdateAttachment(networkName, networkID, c.container.networkAttachmentContainerID(), config)
 }
 
 func (c *containerAdapter) waitForDetach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -209,26 +214,25 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.id())
+	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.networkAttachmentContainerID())
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
-		NetworkingConfig: c.container.createNetworkingConfig(),
+		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
 		return err
 	}
 
 	// Docker daemon currently doesn't support multiple networks in container create
 	// Connect to all other networks
-	nc := c.container.connectNetworkingConfig()
+	nc := c.container.connectNetworkingConfig(c.backend)
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
@@ -243,21 +247,22 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		return errors.New("unable to get container from task spec")
 	}
 
+	if err := c.backend.SetContainerDependencyStore(cr.ID, c.dependencies); err != nil {
+		return err
+	}
+
 	// configure secrets
-	if err := c.backend.SetContainerSecretStore(cr.ID, c.secrets); err != nil {
+	secretRefs := convert.SecretReferencesFromGRPC(container.Secrets)
+	if err := c.backend.SetContainerSecretReferences(cr.ID, secretRefs); err != nil {
 		return err
 	}
 
-	refs := convert.SecretReferencesFromGRPC(container.Secrets)
-	if err := c.backend.SetContainerSecretReferences(cr.ID, refs); err != nil {
+	configRefs := convert.ConfigReferencesFromGRPC(container.Configs)
+	if err := c.backend.SetContainerConfigReferences(cr.ID, configRefs); err != nil {
 		return err
 	}
 
-	if err := c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig()); err != nil {
-		return err
-	}
-
-	return nil
+	return c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig())
 }
 
 // checkMounts ensures that the provided mounts won't have any host-specific
@@ -332,8 +337,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) error {
-	return c.backend.ContainerWaitWithContext(ctx, c.container.nameOrID())
+func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), containerpkg.WaitConditionNotRunning)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
@@ -396,26 +401,15 @@ func (c *containerAdapter) deactivateServiceBinding() error {
 	return c.backend.DeactivateContainerServiceBinding(c.container.name())
 }
 
-func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (io.ReadCloser, error) {
-	// we can't handle the peculiarities of a TTY-attached container yet
-	conf := c.container.config()
-	if conf != nil && conf.Tty {
-		return nil, errors.New("logs not supported on containers with a TTY attached")
-	}
+func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscriptionOptions) (<-chan *backend.LogMessage, error) {
+	apiOptions := &types.ContainerLogsOptions{
+		Follow: options.Follow,
 
-	reader, writer := io.Pipe()
-
-	apiOptions := &backend.ContainerLogsConfig{
-		ContainerLogsOptions: types.ContainerLogsOptions{
-			Follow: options.Follow,
-
-			// TODO(stevvooe): Parse timestamp out of message. This
-			// absolutely needs to be done before going to production with
-			// this, at it is completely redundant.
-			Timestamps: true,
-			Details:    false, // no clue what to do with this, let's just deprecate it.
-		},
-		OutStream: writer,
+		// Always say yes to Timestamps and Details. we make the decision
+		// of whether to return these to the user or not way higher up the
+		// stack.
+		Timestamps: true,
+		Details:    true,
 	}
 
 	if options.Since != nil {
@@ -449,14 +443,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			}
 		}
 	}
-
-	chStarted := make(chan struct{})
-	go func() {
-		defer writer.Close()
-		c.backend.ContainerLogs(ctx, c.container.name(), apiOptions, chStarted)
-	}()
-
-	return reader, nil
+	msgs, _, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
+	if err != nil {
+		return nil, err
+	}
+	return msgs, nil
 }
 
 // todo: typed/wrapped errors

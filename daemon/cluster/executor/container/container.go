@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
 	"errors"
@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -18,10 +18,14 @@ import (
 	enginemount "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	"github.com/docker/docker/daemon/cluster/convert"
+	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
 	"github.com/docker/go-connections/nat"
+	netconst "github.com/docker/libnetwork/datastore"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -44,12 +48,12 @@ type containerConfig struct {
 
 // newContainerConfig returns a validated container config. No methods should
 // return an error if this function returns without error.
-func newContainerConfig(t *api.Task) (*containerConfig, error) {
+func newContainerConfig(t *api.Task, node *api.NodeDescription) (*containerConfig, error) {
 	var c containerConfig
-	return &c, c.setTask(t)
+	return &c, c.setTask(t, node)
 }
 
-func (c *containerConfig) setTask(t *api.Task) error {
+func (c *containerConfig) setTask(t *api.Task, node *api.NodeDescription) error {
 	if t.Spec.GetContainer() == nil && t.Spec.GetAttachment() == nil {
 		return exec.ErrRuntimeUnsupported
 	}
@@ -74,7 +78,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	c.task = t
 
 	if t.Spec.GetContainer() != nil {
-		preparedSpec, err := template.ExpandContainerSpec(t)
+		preparedSpec, err := template.ExpandContainerSpec(node, t)
 		if err != nil {
 			return err
 		}
@@ -86,7 +90,7 @@ func (c *containerConfig) setTask(t *api.Task) error {
 	return nil
 }
 
-func (c *containerConfig) id() string {
+func (c *containerConfig) networkAttachmentContainerID() string {
 	attachment := c.task.Spec.GetAttachment()
 	if attachment == nil {
 		return ""
@@ -112,7 +116,7 @@ func (c *containerConfig) nameOrID() string {
 		return c.name()
 	}
 
-	return c.id()
+	return c.networkAttachmentContainerID()
 }
 
 func (c *containerConfig) name() string {
@@ -164,6 +168,10 @@ func (c *containerConfig) portBindings() nat.PortMap {
 	return portBindings
 }
 
+func (c *containerConfig) isolation() enginecontainer.Isolation {
+	return convert.IsolationFromGRPC(c.spec().Isolation)
+}
+
 func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 	exposedPorts := make(map[nat.Port]struct{})
 	if c.task.Endpoint == nil {
@@ -183,13 +191,16 @@ func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 }
 
 func (c *containerConfig) config() *enginecontainer.Config {
+	genericEnvs := genericresource.EnvFormat(c.task.AssignedGenericResources, "DOCKER_RESOURCE")
+	env := append(c.spec().Env, genericEnvs...)
+
 	config := &enginecontainer.Config{
 		Labels:       c.labels(),
 		StopSignal:   c.spec().StopSignal,
 		Tty:          c.spec().TTY,
 		OpenStdin:    c.spec().OpenStdin,
 		User:         c.spec().User,
-		Env:          c.spec().Env,
+		Env:          env,
 		Hostname:     c.spec().Hostname,
 		WorkingDir:   c.spec().Dir,
 		Image:        c.image(),
@@ -326,11 +337,13 @@ func (c *containerConfig) healthcheck() *enginecontainer.HealthConfig {
 	}
 	interval, _ := gogotypes.DurationFromProto(hcSpec.Interval)
 	timeout, _ := gogotypes.DurationFromProto(hcSpec.Timeout)
+	startPeriod, _ := gogotypes.DurationFromProto(hcSpec.StartPeriod)
 	return &enginecontainer.HealthConfig{
-		Test:     hcSpec.Test,
-		Interval: interval,
-		Timeout:  timeout,
-		Retries:  int(hcSpec.Retries),
+		Test:        hcSpec.Test,
+		Interval:    interval,
+		Timeout:     timeout,
+		Retries:     int(hcSpec.Retries),
+		StartPeriod: startPeriod,
 	}
 }
 
@@ -341,6 +354,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		PortBindings:   c.portBindings(),
 		Mounts:         c.mounts(),
 		ReadonlyRootfs: c.spec().ReadOnly,
+		Isolation:      c.isolation(),
 	}
 
 	if c.spec().DNSConfig != nil {
@@ -348,6 +362,8 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		hc.DNSSearch = c.spec().DNSConfig.Search
 		hc.DNSOptions = c.spec().DNSConfig.Options
 	}
+
+	c.applyPrivileges(hc)
 
 	// The format of extra hosts on swarmkit is specified in:
 	// http://man7.org/linux/man-pages/man5/hosts.5.html
@@ -367,6 +383,14 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		hc.LogConfig = enginecontainer.LogConfig{
 			Type:   c.task.LogDriver.Name,
 			Config: c.task.LogDriver.Options,
+		}
+	}
+
+	if len(c.task.Networks) > 0 {
+		labels := c.task.Networks[0].Network.Spec.Annotations.Labels
+		name := c.task.Networks[0].Network.Spec.Annotations.Name
+		if v, ok := labels["com.docker.swarm.predefined"]; ok && v == "true" {
+			hc.NetworkMode = enginecontainer.NetworkMode(name)
 		}
 	}
 
@@ -424,7 +448,7 @@ func (c *containerConfig) resources() enginecontainer.Resources {
 }
 
 // Docker daemon supports just 1 network during container create.
-func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
+func (c *containerConfig) createNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil || c.task.Spec.GetAttachment() != nil {
 		networks = c.task.Networks
@@ -432,19 +456,18 @@ func (c *containerConfig) createNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	if len(networks) > 0 {
-		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0])
+		epConfig[networks[0].Network.Spec.Annotations.Name] = getEndpointConfig(networks[0], b)
 	}
 
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
 // TODO: Merge this function with createNetworkingConfig after daemon supports multiple networks in container create
-func (c *containerConfig) connectNetworkingConfig() *network.NetworkingConfig {
+func (c *containerConfig) connectNetworkingConfig(b executorpkg.Backend) *network.NetworkingConfig {
 	var networks []*api.NetworkAttachment
 	if c.task.Spec.GetContainer() != nil {
 		networks = c.task.Networks
 	}
-
 	// First network is used during container create. Other networks are used in "docker network connect"
 	if len(networks) < 2 {
 		return nil
@@ -452,12 +475,12 @@ func (c *containerConfig) connectNetworkingConfig() *network.NetworkingConfig {
 
 	epConfig := make(map[string]*network.EndpointSettings)
 	for _, na := range networks[1:] {
-		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na)
+		epConfig[na.Network.Spec.Annotations.Name] = getEndpointConfig(na, b)
 	}
 	return &network.NetworkingConfig{EndpointsConfig: epConfig}
 }
 
-func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
+func getEndpointConfig(na *api.NetworkAttachment, b executorpkg.Backend) *network.EndpointSettings {
 	var ipv4, ipv6 string
 	for _, addr := range na.Addresses {
 		ip, _, err := net.ParseCIDR(addr)
@@ -475,13 +498,20 @@ func getEndpointConfig(na *api.NetworkAttachment) *network.EndpointSettings {
 		}
 	}
 
-	return &network.EndpointSettings{
+	n := &network.EndpointSettings{
 		NetworkID: na.Network.ID,
 		IPAMConfig: &network.EndpointIPAMConfig{
 			IPv4Address: ipv4,
 			IPv6Address: ipv6,
 		},
+		DriverOpts: na.DriverAttachmentOpts,
 	}
+	if v, ok := na.Network.Spec.Annotations.Labels["com.docker.swarm.predefined"]; ok && v == "true" {
+		if ln, err := b.FindNetwork(na.Network.Spec.Annotations.Name); err == nil {
+			n.NetworkID = ln.ID()
+		}
+	}
+	return n
 }
 
 func (c *containerConfig) virtualIP(networkID string) string {
@@ -545,19 +575,6 @@ func (c *containerConfig) serviceConfig() *clustertypes.ServiceConfig {
 	return svcCfg
 }
 
-// networks returns a list of network names attached to the container. The
-// returned name can be used to lookup the corresponding network create
-// options.
-func (c *containerConfig) networks() []string {
-	var networks []string
-
-	for name := range c.networksAttachments {
-		networks = append(networks, name)
-	}
-
-	return networks
-}
-
 func (c *containerConfig) networkCreateRequest(name string) (clustertypes.NetworkCreateRequest, error) {
 	na, ok := c.networksAttachments[name]
 	if !ok {
@@ -566,27 +583,38 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 
 	options := types.NetworkCreate{
 		// ID:     na.Network.ID,
-		Driver: na.Network.DriverState.Name,
-		IPAM: &network.IPAM{
-			Driver:  na.Network.IPAM.Driver.Name,
-			Options: na.Network.IPAM.Driver.Options,
-		},
-		Options:        na.Network.DriverState.Options,
 		Labels:         na.Network.Spec.Annotations.Labels,
 		Internal:       na.Network.Spec.Internal,
 		Attachable:     na.Network.Spec.Attachable,
-		Ingress:        na.Network.Spec.Ingress,
+		Ingress:        convert.IsIngressNetwork(na.Network),
 		EnableIPv6:     na.Network.Spec.Ipv6Enabled,
 		CheckDuplicate: true,
+		Scope:          netconst.SwarmScope,
 	}
 
-	for _, ic := range na.Network.IPAM.Configs {
-		c := network.IPAMConfig{
-			Subnet:  ic.Subnet,
-			IPRange: ic.Range,
-			Gateway: ic.Gateway,
+	if na.Network.Spec.GetNetwork() != "" {
+		options.ConfigFrom = &network.ConfigReference{
+			Network: na.Network.Spec.GetNetwork(),
 		}
-		options.IPAM.Config = append(options.IPAM.Config, c)
+	}
+
+	if na.Network.DriverState != nil {
+		options.Driver = na.Network.DriverState.Name
+		options.Options = na.Network.DriverState.Options
+	}
+	if na.Network.IPAM != nil {
+		options.IPAM = &network.IPAM{
+			Driver:  na.Network.IPAM.Driver.Name,
+			Options: na.Network.IPAM.Driver.Options,
+		}
+		for _, ic := range na.Network.IPAM.Configs {
+			c := network.IPAMConfig{
+				Subnet:  ic.Subnet,
+				IPRange: ic.Range,
+				Gateway: ic.Gateway,
+			}
+			options.IPAM.Config = append(options.IPAM.Config, c)
+		}
 	}
 
 	return clustertypes.NetworkCreateRequest{
@@ -596,6 +624,42 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 			NetworkCreate: options,
 		},
 	}, nil
+}
+
+func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
+	privileges := c.spec().Privileges
+	if privileges == nil {
+		return
+	}
+
+	credentials := privileges.CredentialSpec
+	if credentials != nil {
+		switch credentials.Source.(type) {
+		case *api.Privileges_CredentialSpec_File:
+			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=file://"+credentials.GetFile())
+		case *api.Privileges_CredentialSpec_Registry:
+			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=registry://"+credentials.GetRegistry())
+		}
+	}
+
+	selinux := privileges.SELinuxContext
+	if selinux != nil {
+		if selinux.Disable {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=disable")
+		}
+		if selinux.User != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=user:"+selinux.User)
+		}
+		if selinux.Role != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=role:"+selinux.Role)
+		}
+		if selinux.Level != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=level:"+selinux.Level)
+		}
+		if selinux.Type != "" {
+			hc.SecurityOpt = append(hc.SecurityOpt, "label=type:"+selinux.Type)
+		}
+	}
 }
 
 func (c containerConfig) eventFilter() filters.Args {

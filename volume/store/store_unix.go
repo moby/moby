@@ -1,9 +1,9 @@
-// +build linux freebsd solaris
+// +build linux freebsd
 
-package store
+package store // import "github.com/docker/docker/volume/store"
 
-// normaliseVolumeName is a platform specific function to normalise the name
+// normalizeVolumeName is a platform specific function to normalize the name
 // of a volume. This is a no-op on Unix-like platforms
-func normaliseVolumeName(name string) string {
+func normalizeVolumeName(name string) string {
 	return name
 }

@@ -1,12 +1,12 @@
-package store
+package store // import "github.com/docker/docker/volume/store"
 
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
+	"github.com/sirupsen/logrus"
 )
 
 // restore is called when a new volume store is created.

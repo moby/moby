@@ -1,7 +1,7 @@
 // +build !autogen
 
 // Package dockerversion is auto-generated at build-time
-package dockerversion
+package dockerversion // import "github.com/docker/docker/dockerversion"
 
 // Default build-time variable for library-import.
 // This file is overridden on build with build-time informations.
@@ -13,4 +13,5 @@ const (
 	ContainerdCommitID string = "library-import"
 	RuncCommitID       string = "library-import"
 	InitCommitID       string = "library-import"
+	PlatformName       string = ""
 )

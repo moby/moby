@@ -5,6 +5,7 @@ import (
 
 	"github.com/coreos/etcd/raft"
 	"github.com/coreos/etcd/raft/raftpb"
+	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
@@ -14,6 +15,18 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
+
+var (
+	// Snapshot create latency timer.
+	snapshotLatencyTimer metrics.Timer
+)
+
+func init() {
+	ns := metrics.NewNamespace("swarm", "raft", nil)
+	snapshotLatencyTimer = ns.NewTimer("snapshot_latency",
+		"Raft snapshot create latency.")
+	metrics.Register(ns)
+}
 
 func (n *Node) readFromDisk(ctx context.Context) (*raftpb.Snapshot, storage.WALData, error) {
 	keys := n.keyRotator.GetKeys()
@@ -169,7 +182,7 @@ func (n *Node) newRaftLogs(nodeID string) (raft.Peer, error) {
 	return raft.Peer{ID: n.Config.ID, Context: metadata}, nil
 }
 
-func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
+func (n *Node) triggerSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	snapshot := api.Snapshot{Version: api.Snapshot_V0}
 	for _, member := range n.cluster.Members() {
 		snapshot.Membership.Members = append(snapshot.Membership.Members,
@@ -185,6 +198,9 @@ func (n *Node) doSnapshot(ctx context.Context, raftConfig api.RaftConfig) {
 	n.asyncTasks.Add(1)
 	n.snapshotInProgress = make(chan raftpb.SnapshotMetadata, 1) // buffered in case Shutdown is called during the snapshot
 	go func(appliedIndex uint64, snapshotMeta raftpb.SnapshotMetadata) {
+		// Deferred latency capture.
+		defer metrics.StartTimer(snapshotLatencyTimer)()
+
 		defer func() {
 			n.asyncTasks.Done()
 			n.snapshotInProgress <- snapshotMeta

@@ -1,4 +1,4 @@
-package stdcopy
+package stdcopy // import "github.com/docker/docker/pkg/stdcopy"
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ func TestNewStdWriter(t *testing.T) {
 	}
 }
 
-func TestWriteWithUnitializedStdWriter(t *testing.T) {
+func TestWriteWithUninitializedStdWriter(t *testing.T) {
 	writer := stdWriter{
 		Writer: nil,
 		prefix: byte(Stdout),

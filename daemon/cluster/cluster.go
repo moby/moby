@@ -1,4 +1,4 @@
-package cluster
+package cluster // import "github.com/docker/docker/daemon/cluster"
 
 //
 // ## Swarmkit integration
@@ -46,14 +46,16 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types/network"
 	types "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/docker/pkg/signal"
+	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -70,21 +72,6 @@ const (
 	contextPrefix         = "com.docker.swarm"
 )
 
-// errNoSwarm is returned on leaving a cluster that was never initialized
-var errNoSwarm = errors.New("This node is not part of a swarm")
-
-// errSwarmExists is returned on initialize or join request for a cluster that has already been activated
-var errSwarmExists = errors.New("This node is already part of a swarm. Use \"docker swarm leave\" to leave this swarm and join another one.")
-
-// errSwarmJoinTimeoutReached is returned when cluster join could not complete before timeout was reached.
-var errSwarmJoinTimeoutReached = errors.New("Timeout was reached before node was joined. The attempt to join the swarm will continue in the background. Use the \"docker info\" command to see the current swarm status of your node.")
-
-// errSwarmLocked is returned if the swarm is encrypted and needs a key to unlock it.
-var errSwarmLocked = errors.New("Swarm is encrypted and needs to be unlocked before it can be used. Please use \"docker swarm unlock\" to unlock it.")
-
-// errSwarmCertificatesExpired is returned if docker was not started for the whole validity period and they had no chance to renew automatically.
-var errSwarmCertificatesExpired = errors.New("Swarm certificates have expired. To replace them, leave the swarm and join again.")
-
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
 // of networks managed by Docker, so they can be filtered.
 type NetworkSubnetsProvider interface {
@@ -96,6 +83,7 @@ type Config struct {
 	Root                   string
 	Name                   string
 	Backend                executorpkg.Backend
+	PluginBackend          plugin.Backend
 	NetworkSubnetsProvider NetworkSubnetsProvider
 
 	// DefaultAdvertiseAddr is the default host/IP or network interface to use
@@ -104,6 +92,9 @@ type Config struct {
 
 	// path to store runtime state, such as the swarm control socket
 	RuntimeRoot string
+
+	// WatchStream is a channel to pass watch API notifications to daemon
+	WatchStream chan *swarmapi.WatchMessage
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -115,8 +106,9 @@ type Cluster struct {
 	root         string
 	runtimeRoot  string
 	config       Config
-	configEvent  chan struct{} // todo: make this array and goroutine safe
+	configEvent  chan lncluster.ConfigEventType // todo: make this array and goroutine safe
 	attachers    map[string]*attacher
+	watchStream  chan *swarmapi.WatchMessage
 }
 
 // attacher manages the in-memory attachment state of a container
@@ -147,22 +139,31 @@ func New(config Config) (*Cluster, error) {
 	c := &Cluster{
 		root:        root,
 		config:      config,
-		configEvent: make(chan struct{}, 10),
+		configEvent: make(chan lncluster.ConfigEventType, 10),
 		runtimeRoot: config.RuntimeRoot,
 		attachers:   make(map[string]*attacher),
+		watchStream: config.WatchStream,
 	}
+	return c, nil
+}
+
+// Start the Cluster instance
+// TODO The split between New and Start can be join again when the SendClusterEvent
+// method is no longer required
+func (c *Cluster) Start() error {
+	root := filepath.Join(c.config.Root, swarmDirName)
 
 	nodeConfig, err := loadPersistentState(root)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return c, nil
+			return nil
 		}
-		return nil, err
+		return err
 	}
 
 	nr, err := c.newNodeRunner(*nodeConfig)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	c.nr = nr
 
@@ -172,10 +173,10 @@ func New(config Config) (*Cluster, error) {
 	case err := <-nr.Ready():
 		if err != nil {
 			logrus.WithError(err).Error("swarm component could not be started")
-			return c, nil
+			return nil
 		}
 	}
-	return c, nil
+	return nil
 }
 
 func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
@@ -270,33 +271,45 @@ func (c *Cluster) GetAdvertiseAddress() string {
 	return c.currentNodeState().actualLocalAddr
 }
 
-// GetRemoteAddress returns a known advertise address of a remote manager if
-// available.
-// todo: change to array/connect with info
-func (c *Cluster) GetRemoteAddress() string {
+// GetDataPathAddress returns the address to be used for the data path traffic, if specified.
+func (c *Cluster) GetDataPathAddress() string {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.getRemoteAddress()
-}
-
-func (c *Cluster) getRemoteAddress() string {
-	state := c.currentNodeState()
-	if state.swarmNode == nil {
-		return ""
-	}
-	nodeID := state.swarmNode.NodeID()
-	for _, r := range state.swarmNode.Remotes() {
-		if r.NodeID != nodeID {
-			return r.Addr
-		}
+	if c.nr != nil {
+		return c.nr.config.DataPathAddr
 	}
 	return ""
+}
+
+// GetRemoteAddressList returns the advertise address for each of the remote managers if
+// available.
+func (c *Cluster) GetRemoteAddressList() []string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.getRemoteAddressList()
+}
+
+func (c *Cluster) getRemoteAddressList() []string {
+	state := c.currentNodeState()
+	if state.swarmNode == nil {
+		return []string{}
+	}
+
+	nodeID := state.swarmNode.NodeID()
+	remotes := state.swarmNode.Remotes()
+	addressList := make([]string, 0, len(remotes))
+	for _, r := range remotes {
+		if r.NodeID != nodeID {
+			addressList = append(addressList, r.Addr)
+		}
+	}
+	return addressList
 }
 
 // ListenClusterEvents returns a channel that receives messages on cluster
 // participation changes.
 // todo: make cancelable and accessible to multiple callers
-func (c *Cluster) ListenClusterEvents() <-chan struct{} {
+func (c *Cluster) ListenClusterEvents() <-chan lncluster.ConfigEventType {
 	return c.configEvent
 }
 
@@ -315,12 +328,12 @@ func (c *Cluster) errNoManager(st nodeState) error {
 		if st.err == errSwarmCertificatesExpired {
 			return errSwarmCertificatesExpired
 		}
-		return errors.New("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again.")
+		return errors.WithStack(notAvailableError("This node is not a swarm manager. Use \"docker swarm init\" or \"docker swarm join\" to connect this node to swarm and try again."))
 	}
 	if st.swarmNode.Manager() != nil {
-		return errors.New("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster.")
+		return errors.WithStack(notAvailableError("This node is not a swarm manager. Manager is being prepared or has trouble connecting to the cluster."))
 	}
-	return errors.New("This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager.")
+	return errors.WithStack(notAvailableError("This node is not a swarm manager. Worker nodes can't be used to view or modify cluster state. Please run this command on a manager node or promote the current node to a manager."))
 }
 
 // Cleanup stops active swarm node. This is run before daemon shutdown.
@@ -334,8 +347,9 @@ func (c *Cluster) Cleanup() {
 		c.mu.Unlock()
 		return
 	}
-	defer c.mu.Unlock()
 	state := c.currentNodeState()
+	c.mu.Unlock()
+
 	if state.IsActiveManager() {
 		active, reachable, unreachable, err := managerStats(state.controlClient, state.NodeID())
 		if err == nil {
@@ -345,11 +359,15 @@ func (c *Cluster) Cleanup() {
 			}
 		}
 	}
+
 	if err := node.Stop(); err != nil {
 		logrus.Errorf("failed to shut down cluster node: %v", err)
 		signal.DumpStacks("")
 	}
+
+	c.mu.Lock()
 	c.nr = nil
+	c.mu.Unlock()
 }
 
 func managerStats(client swarmapi.ControlClient, currentNodeID string) (current bool, reachable int, unreachable int, err error) {
@@ -395,4 +413,14 @@ func (c *Cluster) lockedManagerAction(fn func(ctx context.Context, state nodeSta
 	defer cancel()
 
 	return fn(ctx, state)
+}
+
+// SendClusterEvent allows to send cluster events on the configEvent channel
+// TODO This method should not be exposed.
+// Currently it is used to notify the network controller that the keys are
+// available
+func (c *Cluster) SendClusterEvent(event lncluster.ConfigEventType) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	c.configEvent <- event
 }

@@ -5,11 +5,11 @@ import (
 	"net"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 )
 
 // Join method is invoked when a Sandbox is attached to an endpoint.
@@ -68,7 +68,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 
 	ep.ifName = containerIfName
 
-	if err := d.writeEndpointToStore(ep); err != nil {
+	if err = d.writeEndpointToStore(ep); err != nil {
 		return fmt.Errorf("failed to update overlay endpoint %s to local data store: %v", ep.id[0:7], err)
 	}
 
@@ -86,7 +86,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err := sbox.AddInterface(overlayIfName, "veth",
+	if err = sbox.AddInterface(overlayIfName, "veth",
 		sbox.InterfaceOptions().Master(s.brName)); err != nil {
 		return fmt.Errorf("could not add veth pair inside the network sandbox: %v", err)
 	}
@@ -100,7 +100,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 
-	if err := nlh.LinkSetHardwareAddr(veth, ep.mac); err != nil {
+	if err = nlh.LinkSetHardwareAddr(veth, ep.mac); err != nil {
 		return fmt.Errorf("could not set mac address (%v) to the container interface: %v", ep.mac, err)
 	}
 
@@ -108,7 +108,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		if sub == s {
 			continue
 		}
-		if err := jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
+		if err = jinfo.AddStaticRoute(sub.subnetIP, types.NEXTHOP, s.gwIP.IP); err != nil {
 			logrus.Errorf("Adding subnet %s static route in network %q failed\n", s.subnetIP, n.id)
 		}
 	}
@@ -120,10 +120,9 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		}
 	}
 
-	d.peerDbAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac,
-		net.ParseIP(d.advertiseAddress), true)
+	d.peerAdd(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), false, false, true)
 
-	if err := d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
+	if err = d.checkEncryption(nid, nil, n.vxlanID(s), true, true); err != nil {
 		logrus.Warn(err)
 	}
 
@@ -201,11 +200,11 @@ func (d *driver) EventNotify(etype driverapi.EventType, nid, tableName, key stri
 	}
 
 	if etype == driverapi.Delete {
-		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
+		d.peerDelete(nid, eid, addr.IP, addr.Mask, mac, vtep, false)
 		return
 	}
 
-	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, true)
+	d.peerAdd(nid, eid, addr.IP, addr.Mask, mac, vtep, false, false, false)
 }
 
 // Leave method is invoked when a Sandbox detaches from an endpoint.
@@ -233,11 +232,9 @@ func (d *driver) Leave(nid, eid string) error {
 		}
 	}
 
-	n.leaveSandbox()
+	d.peerDelete(nid, eid, ep.addr.IP, ep.addr.Mask, ep.mac, net.ParseIP(d.advertiseAddress), true)
 
-	if err := d.checkEncryption(nid, nil, 0, true, false); err != nil {
-		logrus.Warn(err)
-	}
+	n.leaveSandbox()
 
 	return nil
 }

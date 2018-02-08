@@ -1,10 +1,9 @@
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
@@ -15,8 +14,10 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -38,14 +39,10 @@ func (p *v1Pusher) Push(ctx context.Context) error {
 	tr := transport.NewTransport(
 		// TODO(tiborvass): was NoTimeout
 		registry.NewTransport(tlsConfig),
-		registry.DockerHeaders(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
+		registry.Headers(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)...,
 	)
 	client := registry.HTTPClient(tr)
-	v1Endpoint, err := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
-	if err != nil {
-		logrus.Debugf("Could not get v1 endpoint: %v", err)
-		return fallbackError{err: err}
-	}
+	v1Endpoint := p.endpoint.ToV1Endpoint(dockerversion.DockerUserAgent(ctx), p.config.MetaHeaders)
 	p.session, err = registry.NewSession(client, p.config.AuthConfig, v1Endpoint)
 	if err != nil {
 		// TODO(dmcgowan): Check if should fallback
@@ -214,7 +211,10 @@ func (p *v1Pusher) imageListForTag(imgID image.ID, dependenciesSeen map[layer.Ch
 
 	topLayerID := img.RootFS.ChainID()
 
-	pl, err := p.config.LayerStore.Get(topLayerID)
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, system.ErrNotSupportedOperatingSystem
+	}
+	pl, err := p.config.LayerStores[img.OperatingSystem()].Get(topLayerID)
 	*referencedLayers = append(*referencedLayers, pl)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get top layer from image: %v", err)

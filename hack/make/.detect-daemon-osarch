@@ -53,21 +53,16 @@ esac
 export PACKAGE_ARCH
 
 DOCKERFILE='Dockerfile'
-TEST_IMAGE_NAMESPACE=
 case "$PACKAGE_ARCH" in
 	amd64)
 		case "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" in
 			windows)
 				DOCKERFILE='Dockerfile.windows'
 				;;
-			solaris)
-				DOCKERFILE='Dockerfile.solaris'
-				;;
 		esac
 		;;
 	*)
 		DOCKERFILE="Dockerfile.$PACKAGE_ARCH"
-		TEST_IMAGE_NAMESPACE="$PACKAGE_ARCH"
 		;;
 esac
-export DOCKERFILE TEST_IMAGE_NAMESPACE
+export DOCKERFILE

@@ -1,31 +1,57 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
+	"os/exec"
+	"path/filepath"
 
+	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) ([]libcontainerd.CreateOption, error) {
-	createOptions := []libcontainerd.CreateOption{}
+func (daemon *Daemon) getRuntimeScript(container *container.Container) (string, error) {
+	name := container.HostConfig.Runtime
+	rt := daemon.configStore.GetRuntime(name)
+	if rt == nil {
+		return "", errdefs.InvalidParameter(errors.Errorf("no such runtime '%s'", name))
+	}
 
+	if len(rt.Args) > 0 {
+		// First check that the target exist, as using it in a script won't
+		// give us the right error
+		if _, err := exec.LookPath(rt.Path); err != nil {
+			return "", translateContainerdStartErr(container.Path, container.SetExitCode, err)
+		}
+		return filepath.Join(daemon.configStore.Root, "runtimes", name), nil
+	}
+	return rt.Path, nil
+}
+
+// getLibcontainerdCreateOptions callers must hold a lock on the container
+func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Container) (interface{}, error) {
 	// Ensure a runtime has been assigned to this container
 	if container.HostConfig.Runtime == "" {
 		container.HostConfig.Runtime = daemon.configStore.GetDefaultRuntimeName()
-		container.ToDisk()
+		container.CheckpointTo(daemon.containersReplica)
 	}
 
-	rt := daemon.configStore.GetRuntime(container.HostConfig.Runtime)
-	if rt == nil {
-		return nil, fmt.Errorf("no such runtime '%s'", container.HostConfig.Runtime)
+	path, err := daemon.getRuntimeScript(container)
+	if err != nil {
+		return nil, err
 	}
+	opts := &runctypes.RuncOptions{
+		Runtime: path,
+		RuntimeRoot: filepath.Join(daemon.configStore.ExecRoot,
+			fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),
+	}
+
 	if UsingSystemd(daemon.configStore) {
-		rt.Args = append(rt.Args, "--systemd-cgroup=true")
+		opts.SystemdCgroup = true
 	}
-	createOptions = append(createOptions, libcontainerd.WithRuntime(rt.Path, rt.Args))
 
-	return createOptions, nil
+	return opts, nil
 }

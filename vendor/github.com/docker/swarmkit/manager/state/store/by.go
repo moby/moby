@@ -154,6 +154,17 @@ func ByReferencedSecretID(secretID string) By {
 	return byReferencedSecretID(secretID)
 }
 
+type byReferencedConfigID string
+
+func (b byReferencedConfigID) isBy() {
+}
+
+// ByReferencedConfigID creates an object to pass to Find to search for a
+// service or task that references a config with the given ID.
+func ByReferencedConfigID(configID string) By {
+	return byReferencedConfigID(configID)
+}
+
 type byKind string
 
 func (b byKind) isBy() {

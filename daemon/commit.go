@@ -1,7 +1,8 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"runtime"
 	"strings"
@@ -12,10 +13,11 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -94,6 +96,9 @@ func merge(userConf, imageConf *containertypes.Config) error {
 			if userConf.Healthcheck.Timeout == 0 {
 				userConf.Healthcheck.Timeout = imageConf.Healthcheck.Timeout
 			}
+			if userConf.Healthcheck.StartPeriod == 0 {
+				userConf.Healthcheck.StartPeriod = imageConf.Healthcheck.StartPeriod
+			}
 			if userConf.Healthcheck.Retries == 0 {
 				userConf.Healthcheck.Retries = imageConf.Healthcheck.Retries
 			}
@@ -126,17 +131,34 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	// It is not possible to commit a running container on Windows and on Solaris.
-	if (runtime.GOOS == "windows" || runtime.GOOS == "solaris") && container.IsRunning() {
+	// It is not possible to commit a running container on Windows
+	if (runtime.GOOS == "windows") && container.IsRunning() {
 		return "", errors.Errorf("%+v does not support commit of a running container", runtime.GOOS)
+	}
+
+	if container.IsDead() {
+		err := fmt.Errorf("You cannot commit container %s which is Dead", container.ID)
+		return "", errdefs.Conflict(err)
+	}
+
+	if container.IsRemovalInProgress() {
+		err := fmt.Errorf("You cannot commit container %s which is being removed", container.ID)
+		return "", errdefs.Conflict(err)
 	}
 
 	if c.Pause && !container.IsPaused() {
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
+	if !system.IsOSSupported(container.OS) {
+		return "", system.ErrNotSupportedOperatingSystem
+	}
 
-	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes)
+	if c.MergeConfigs && c.Config == nil {
+		c.Config = container.Config
+	}
+
+	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
@@ -157,60 +179,36 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 	}()
 
-	var history []image.History
-	rootFS := image.NewRootFS()
-	osVersion := ""
-	var osFeatures []string
-
-	if container.ImageID != "" {
-		img, err := daemon.imageStore.Get(container.ImageID)
+	var parent *image.Image
+	if container.ImageID == "" {
+		parent = new(image.Image)
+		parent.RootFS = image.NewRootFS()
+	} else {
+		parent, err = daemon.imageStore.Get(container.ImageID)
 		if err != nil {
 			return "", err
 		}
-		history = img.History
-		rootFS = img.RootFS
-		osVersion = img.OSVersion
-		osFeatures = img.OSFeatures
 	}
 
-	l, err := daemon.layerStore.Register(rwTar, rootFS.ChainID())
+	l, err := daemon.layerStores[container.OS].Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStore, l)
+	defer layer.ReleaseAndLog(daemon.layerStores[container.OS], l)
 
-	h := image.History{
-		Author:     c.Author,
-		Created:    time.Now().UTC(),
-		CreatedBy:  strings.Join(container.Config.Cmd, " "),
-		Comment:    c.Comment,
-		EmptyLayer: true,
+	containerConfig := c.ContainerConfig
+	if containerConfig == nil {
+		containerConfig = container.Config
 	}
-
-	if diffID := l.DiffID(); layer.DigestSHA256EmptyTar != diffID {
-		h.EmptyLayer = false
-		rootFS.Append(diffID)
+	cc := image.ChildConfig{
+		ContainerID:     container.ID,
+		Author:          c.Author,
+		Comment:         c.Comment,
+		ContainerConfig: containerConfig,
+		Config:          newConfig,
+		DiffID:          l.DiffID(),
 	}
-
-	history = append(history, h)
-
-	config, err := json.Marshal(&image.Image{
-		V1Image: image.V1Image{
-			DockerVersion:   dockerversion.Version,
-			Config:          newConfig,
-			Architecture:    runtime.GOARCH,
-			OS:              runtime.GOOS,
-			Container:       container.ID,
-			ContainerConfig: *container.Config,
-			Author:          c.Author,
-			Created:         h.Created,
-		},
-		RootFS:     rootFS,
-		History:    history,
-		OSFeatures: osFeatures,
-		OSVersion:  osVersion,
-	})
-
+	config, err := json.Marshal(image.NewChildImage(parent, cc, container.OS))
 	if err != nil {
 		return "", err
 	}
@@ -256,19 +254,37 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	return id.String(), nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *container.Container) (io.ReadCloser, error) {
-	if err := daemon.Mount(container); err != nil {
+func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
+	// Note: Indexing by OS is safe as only called from `Commit` which has already performed validation
+	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err != nil {
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
+		}
+	}()
+
+	// TODO: this mount call is not necessary as we assume that TarStream() should
+	// mount the layer if needed. But the Diff() function for windows requests that
+	// the layer should be mounted when calling it. So we reserve this mount call
+	// until windows driver can implement Diff() interface correctly.
+	_, err = rwlayer.Mount(container.GetMountLabel())
+	if err != nil {
 		return nil, err
 	}
 
-	archive, err := container.RWLayer.TarStream()
+	archive, err := rwlayer.TarStream()
 	if err != nil {
-		daemon.Unmount(container) // logging is already handled in the `Unmount` function
+		rwlayer.Unmount()
 		return nil, err
 	}
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
-			return container.RWLayer.Unmount()
+			err = rwlayer.Unmount()
+			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
+			return err
 		}),
 		nil
 }

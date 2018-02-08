@@ -1,11 +1,10 @@
-// +build windows
-
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"sort"
 
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/volume"
 )
 
@@ -24,7 +23,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		s, err := mount.Setup(c.MountLabel, 0, 0)
+		s, err := mount.Setup(c.MountLabel, idtools.IDPair{0, 0}, nil)
 		if err != nil {
 			return nil, err
 		}

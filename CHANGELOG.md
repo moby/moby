@@ -5,6 +5,177 @@ information on the list of deprecated flags and APIs please have a look at
 https://docs.docker.com/engine/deprecated/ where target removal dates can also
 be found.
 
+## 17.05.0-ce (2017-05-04)
+
+### Builder
+
++ Add multi-stage build support [#31257](https://github.com/docker/docker/pull/31257) [#32063](https://github.com/docker/docker/pull/32063)
++ Allow using build-time args (`ARG`) in `FROM` [#31352](https://github.com/docker/docker/pull/31352)
++ Add an option for specifying build target [#32496](https://github.com/docker/docker/pull/32496)
+* Accept `-f -` to read Dockerfile from `stdin`, but use local context for building [#31236](https://github.com/docker/docker/pull/31236)
+* The values of default build time arguments (e.g `HTTP_PROXY`) are no longer displayed in docker image history unless a corresponding `ARG` instruction is written in the Dockerfile. [#31584](https://github.com/docker/docker/pull/31584)
+- Fix setting command if a custom shell is used in a parent image [#32236](https://github.com/docker/docker/pull/32236)
+- Fix `docker build --label` when the label includes single quotes and a space [#31750](https://github.com/docker/docker/pull/31750)
+
+### Client
+
+* Add `--mount` flag to `docker run` and `docker create` [#32251](https://github.com/docker/docker/pull/32251)
+* Add `--type=secret` to `docker inspect` [#32124](https://github.com/docker/docker/pull/32124)
+* Add `--format` option to `docker secret ls` [#31552](https://github.com/docker/docker/pull/31552)
+* Add `--filter` option to `docker secret ls` [#30810](https://github.com/docker/docker/pull/30810)
+* Add `--filter scope=<swarm|local>` to `docker network ls` [#31529](https://github.com/docker/docker/pull/31529)
+* Add `--cpus` support to `docker update` [#31148](https://github.com/docker/docker/pull/31148)
+* Add label filter to `docker system prune` and other `prune` commands [#30740](https://github.com/docker/docker/pull/30740)
+* `docker stack rm` now accepts multiple stacks as input [#32110](https://github.com/docker/docker/pull/32110)
+* Improve `docker version --format` option when the client has downgraded the API version [#31022](https://github.com/docker/docker/pull/31022)
+* Prompt when using an encrypted client certificate to connect to a docker daemon [#31364](https://github.com/docker/docker/pull/31364)
+* Display created tags on successful `docker build` [#32077](https://github.com/docker/docker/pull/32077)
+* Cleanup compose convert error messages [#32087](https://github.com/moby/moby/pull/32087)
+
+### Contrib
+
++ Add support for building docker debs for Ubuntu 17.04 Zesty on amd64 [#32435](https://github.com/docker/docker/pull/32435)
+
+### Daemon
+
+- Fix `--api-cors-header` being ignored if `--api-enable-cors` is not set [#32174](https://github.com/docker/docker/pull/32174)
+- Cleanup docker tmp dir on start [#31741](https://github.com/docker/docker/pull/31741)
+- Deprecate `--graph` flag in favor or `--data-root`  [#28696](https://github.com/docker/docker/pull/28696)
+
+### Logging
+
++ Add support for logging driver plugins [#28403](https://github.com/docker/docker/pull/28403)
+* Add support for showing logs of individual tasks to `docker service logs`, and add `/task/{id}/logs` REST endpoint [#32015](https://github.com/docker/docker/pull/32015)
+* Add `--log-opt env-regex` option to match environment variables using a regular expression [#27565](https://github.com/docker/docker/pull/27565)
+
+### Networking
+
++ Allow user to replace, and customize the ingress network [#31714](https://github.com/docker/docker/pull/31714)
+- Fix UDP traffic in containers not working after the container is restarted [#32505](https://github.com/docker/docker/pull/32505)
+- Fix files being written to `/var/lib/docker` if a different data-root is set [#32505](https://github.com/docker/docker/pull/32505)
+
+### Runtime
+
+- Ensure health probe is stopped when a container exits [#32274](https://github.com/docker/docker/pull/32274)
+
+### Swarm Mode
+
++ Add update/rollback order for services (`--update-order` / `--rollback-order`) [#30261](https://github.com/docker/docker/pull/30261)
++ Add support for synchronous `service create` and `service update` [#31144](https://github.com/docker/docker/pull/31144)
++ Add support for "grace periods" on healthchecks through the `HEALTHCHECK --start-period` and `--health-start-period` flag to
+  `docker service create`, `docker service update`, `docker create`, and `docker run` to support containers with an initial startup
+  time [#28938](https://github.com/docker/docker/pull/28938)
+* `docker service create` now omits fields that are not specified by the user, when possible. This will allow defaults to be applied inside the manager [#32284](https://github.com/docker/docker/pull/32284)
+* `docker service inspect` now shows default values for fields that are not specified by the user [#32284](https://github.com/docker/docker/pull/32284)
+* Move `docker service logs` out of experimental [#32462](https://github.com/docker/docker/pull/32462)
+* Add support for Credential Spec and SELinux to services to the API [#32339](https://github.com/docker/docker/pull/32339)
+* Add `--entrypoint` flag to `docker service create` and `docker service update` [#29228](https://github.com/docker/docker/pull/29228)
+* Add `--network-add` and `--network-rm` to `docker service update` [#32062](https://github.com/docker/docker/pull/32062)
+* Add `--credential-spec` flag to `docker service create` and `docker service update` [#32339](https://github.com/docker/docker/pull/32339)
+* Add `--filter mode=<global|replicated>` to `docker service ls` [#31538](https://github.com/docker/docker/pull/31538)
+* Resolve network IDs on the client side, instead of in the daemon when creating services [#32062](https://github.com/docker/docker/pull/32062)
+* Add `--format` option to `docker node ls` [#30424](https://github.com/docker/docker/pull/30424)
+* Add `--prune` option to `docker stack deploy` to remove services that are no longer defined in the docker-compose file [#31302](https://github.com/docker/docker/pull/31302)
+* Add `PORTS` column for `docker service ls` when using `ingress` mode [#30813](https://github.com/docker/docker/pull/30813)
+- Fix unnescessary re-deploying of tasks when environment-variables are used [#32364](https://github.com/docker/docker/pull/32364)
+- Fix `docker stack deploy` not supporting `endpoint_mode` when deploying from a docker compose file  [#32333](https://github.com/docker/docker/pull/32333)
+- Proceed with startup if cluster component cannot be created to allow recovering from a broken swarm setup [#31631](https://github.com/docker/docker/pull/31631)
+
+### Security
+
+* Allow setting SELinux type or MCS labels when using `--ipc=container:` or `--ipc=host` [#30652](https://github.com/docker/docker/pull/30652)
+
+
+### Deprecation
+
+- Deprecate `--api-enable-cors` daemon flag. This flag was marked deprecated in Docker 1.6.0 but not listed in deprecated features [#32352](https://github.com/docker/docker/pull/32352)
+- Remove Ubuntu 12.04 (Precise Pangolin) as supported platform. Ubuntu 12.04 is EOL, and no longer receives updates [#32520](https://github.com/docker/docker/pull/32520)
+
+## 17.04.0-ce (2017-04-05)
+
+### Builder
+
+* Disable container logging for build containers [#29552](https://github.com/docker/docker/pull/29552)
+* Fix use of `**/` in `.dockerignore` [#29043](https://github.com/docker/docker/pull/29043)
+
+### Client
+
++ Sort `docker stack ls` by name [#31085](https://github.com/docker/docker/pull/31085)
++ Flags for specifying bind mount consistency [#31047](https://github.com/docker/docker/pull/31047)
+* Output of docker CLI --help is now wrapped to the terminal width [#28751](https://github.com/docker/docker/pull/28751)
+* Suppress image digest in docker ps [#30848](https://github.com/docker/docker/pull/30848)
+* Hide command options that are related to Windows [#30788](https://github.com/docker/docker/pull/30788)
+* Fix `docker plugin install` prompt to accept "enter" for the "N" default [#30769](https://github.com/docker/docker/pull/30769)
++ Add `truncate` function for Go templates [#30484](https://github.com/docker/docker/pull/30484)
+* Support expanded syntax of ports in `stack deploy` [#30476](https://github.com/docker/docker/pull/30476)
+* Support expanded syntax of mounts in `stack deploy` [#30597](https://github.com/docker/docker/pull/30597) [#31795](https://github.com/docker/docker/pull/31795)
++ Add `--add-host` for docker build [#30383](https://github.com/docker/docker/pull/30383)
++ Add `.CreatedAt` placeholder for `docker network ls --format` [#29900](https://github.com/docker/docker/pull/29900)
+* Update order of `--secret-rm` and `--secret-add` [#29802](https://github.com/docker/docker/pull/29802)
++ Add `--filter enabled=true` for `docker plugin ls` [#28627](https://github.com/docker/docker/pull/28627)
++ Add `--format` to `docker service ls` [#28199](https://github.com/docker/docker/pull/28199)
++ Add `publish` and `expose` filter for `docker ps --filter` [#27557](https://github.com/docker/docker/pull/27557)
+* Support multiple service IDs on `docker service ps` [#25234](https://github.com/docker/docker/pull/25234)
++ Allow swarm join with `--availability=drain` [#24993](https://github.com/docker/docker/pull/24993)
+* Docker inspect now shows "docker-default" when AppArmor is enabled and no other profile was defined [#27083](https://github.com/docker/docker/pull/27083)
+
+### Logging
+
++ Implement optional ring buffer for container logs [#28762](https://github.com/docker/docker/pull/28762)
++ Add `--log-opt awslogs-create-group=<true|false>` for awslogs (CloudWatch) to support creation of log groups as needed [#29504](https://github.com/docker/docker/pull/29504)
+- Fix segfault when using the gcplogs logging driver with a "static" binary [#29478](https://github.com/docker/docker/pull/29478)
+
+
+### Networking
+
+* Check parameter `--ip`, `--ip6` and `--link-local-ip` in `docker network connect` [#30807](https://github.com/docker/docker/pull/30807)
++ Added support for `dns-search` [#30117](https://github.com/docker/docker/pull/30117)
++ Added --verbose option for docker network inspect to show task details from all swarm nodes [#31710](https://github.com/docker/docker/pull/31710)
+* Clear stale datapath encryption states when joining the cluster [docker/libnetwork#1354](https://github.com/docker/libnetwork/pull/1354)
++ Ensure iptables initialization only happens once [docker/libnetwork#1676](https://github.com/docker/libnetwork/pull/1676)
+* Fix bad order of iptables filter rules [docker/libnetwork#961](https://github.com/docker/libnetwork/pull/961)
++ Add anonymous container alias to service record on attachable network [docker/libnetwork#1651](https://github.com/docker/libnetwork/pull/1651)
++ Support for `com.docker.network.container_interface_prefix` driver label [docker/libnetwork#1667](https://github.com/docker/libnetwork/pull/1667)
++ Improve network list performance by omitting network details that are not used [#30673](https://github.com/docker/docker/pull/30673)
+
+### Runtime
+
+* Handle paused container when restoring without live-restore set [#31704](https://github.com/docker/docker/pull/31704)
+- Do not allow sub second in healthcheck options in Dockerfile [#31177](https://github.com/docker/docker/pull/31177)
+* Support name and id prefix in  `secret update` [#30856](https://github.com/docker/docker/pull/30856)
+* Use binary frame for websocket attach endpoint [#30460](https://github.com/docker/docker/pull/30460)
+* Fix linux mount calls not applying propagation type changes [#30416](https://github.com/docker/docker/pull/30416)
+* Fix ExecIds leak on failed `exec -i` [#30340](https://github.com/docker/docker/pull/30340)
+* Prune named but untagged images if `danglingOnly=true` [#30330](https://github.com/docker/docker/pull/30330)
++ Add daemon flag to set `no_new_priv` as default for unprivileged containers [#29984](https://github.com/docker/docker/pull/29984)
++ Add daemon option `--default-shm-size` [#29692](https://github.com/docker/docker/pull/29692)
++ Support registry mirror config reload [#29650](https://github.com/docker/docker/pull/29650)
+- Ignore the daemon log config when building images [#29552](https://github.com/docker/docker/pull/29552)
+* Move secret name or ID prefix resolving from client to daemon [#29218](https://github.com/docker/docker/pull/29218)
++ Allow adding rules to `cgroup devices.allow` on container create/run [#22563](https://github.com/docker/docker/pull/22563)
+- Fix `cpu.cfs_quota_us` being reset when running `systemd daemon-reload` [#31736](https://github.com/docker/docker/pull/31736)
+
+### Swarm Mode
+
++ Topology-aware scheduling [#30725](https://github.com/docker/docker/pull/30725)
++ Automatic service rollback on failure [#31108](https://github.com/docker/docker/pull/31108)
++ Worker and manager on the same node are now connected through a UNIX socket [docker/swarmkit#1828](https://github.com/docker/swarmkit/pull/1828), [docker/swarmkit#1850](https://github.com/docker/swarmkit/pull/1850), [docker/swarmkit#1851](https://github.com/docker/swarmkit/pull/1851)
+* Improve raft transport package [docker/swarmkit#1748](https://github.com/docker/swarmkit/pull/1748)
+* No automatic manager shutdown on demotion/removal [docker/swarmkit#1829](https://github.com/docker/swarmkit/pull/1829)
+* Use TransferLeadership to make leader demotion safer [docker/swarmkit#1939](https://github.com/docker/swarmkit/pull/1939)
+* Decrease default monitoring period [docker/swarmkit#1967](https://github.com/docker/swarmkit/pull/1967)
++ Add Service logs formatting [#31672](https://github.com/docker/docker/pull/31672)
+* Fix service logs API to be able to specify stream [#31313](https://github.com/docker/docker/pull/31313)
++ Add `--stop-signal` for `service create` and `service update` [#30754](https://github.com/docker/docker/pull/30754)
++ Add `--read-only` for `service create` and `service update` [#30162](https://github.com/docker/docker/pull/30162)
++ Renew the context after communicating with the registry [#31586](https://github.com/docker/docker/pull/31586)
++ (experimental) Add `--tail` and `--since` options to `docker service logs` [#31500](https://github.com/docker/docker/pull/31500)
++ (experimental) Add `--no-task-ids` and `--no-trunc` options to `docker service logs` [#31672](https://github.com/docker/docker/pull/31672)
+
+### Windows
+
+* Block pulling Windows images on non-Windows daemons [#29001](https://github.com/docker/docker/pull/29001)
+
 ## 17.03.1-ce (2017-03-27)
 
 ### Remote API (v1.27) & Client
@@ -19,7 +190,7 @@ be found.
 * Update runc to 54296cf40ad8143b62dbcaa1d90e520a2136ddfe [#31666](https://github.com/docker/docker/pull/31666)
  * Ignore cgroup2 mountpoints [opencontainers/runc#1266](https://github.com/opencontainers/runc/pull/1266)
 * Update containerd to 4ab9917febca54791c5f071a9d1f404867857fcc [#31662](https://github.com/docker/docker/pull/31662) [#31852](https://github.com/docker/docker/pull/31852)
- * Register healtcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
+ * Register healthcheck service before calling restore() [docker/containerd#609](https://github.com/docker/containerd/pull/609)
 * Fix `docker exec` not working after unattended upgrades that reload apparmor profiles [#31773](https://github.com/docker/docker/pull/31773)
 * Fix unmounting layer without merge dir with Overlay2 [#31069](https://github.com/docker/docker/pull/31069)
 * Do not ignore "volume in use" errors when force-delete [#31450](https://github.com/docker/docker/pull/31450)
@@ -81,6 +252,7 @@ Upgrading from Docker 1.13.1 to 17.03.0 is expected to be simple and low-risk.
 * Fix extraneous task creations for global services that led to confusing replica counts in `docker service ls` [docker/swarmkit#1957](https://github.com/docker/swarmkit/pull/1957)
 * Fix problem that made rolling updates slow when `task-history-limit` was set to 1 [docker/swarmkit#1948](https://github.com/docker/swarmkit/pull/1948)
 * Restart tasks elsewhere, if appropriate, when they are shut down as a result of nodes no longer satisfying constraints [docker/swarmkit#1958](https://github.com/docker/swarmkit/pull/1958)
+* (experimental)
 
 ## 1.13.1 (2017-02-08)
 
@@ -351,7 +523,7 @@ To manually remove all plugins and resolve this problem, take the following step
 - Fix selinux labeling of volumes shared in a container [#23024](https://github.com/docker/docker/pull/23024)
 - Prohibit `/sys/firmware/**` from being accessed with apparmor [#26618](https://github.com/docker/docker/pull/26618)
 
-### DEPRECATION
+### Deprecation
 
 - Marked the `docker daemon` command as deprecated. The daemon is moved to a separate binary (`dockerd`), and should be used instead [#26834](https://github.com/docker/docker/pull/26834)
 - Deprecate unversioned API endpoints [#28208](https://github.com/docker/docker/pull/28208)
@@ -915,12 +1087,12 @@ installing docker, please make sure to update them accordingly.
 + Add security options to `docker info` output [#21172](https://github.com/docker/docker/pull/21172) [#23520](https://github.com/docker/docker/pull/23520)
 + Add insecure registries to `docker info` output [#20410](https://github.com/docker/docker/pull/20410)
 + Extend Docker authorization with TLS user information [#21556](https://github.com/docker/docker/pull/21556)
-+ devicemapper: expose Mininum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
++ devicemapper: expose Minimum Thin Pool Free Space through `docker info` [#21945](https://github.com/docker/docker/pull/21945)
 * API now returns a JSON object when an error occurs making it more consistent [#22880](https://github.com/docker/docker/pull/22880)
 - Prevent `docker run -i --restart` from hanging on exit [#22777](https://github.com/docker/docker/pull/22777)
 - Fix API/CLI discrepancy on hostname validation [#21641](https://github.com/docker/docker/pull/21641)
 - Fix discrepancy in the format of sizes in `stats` from HumanSize to BytesSize [#21773](https://github.com/docker/docker/pull/21773)
-- authz: when request is denied return forbbiden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
+- authz: when request is denied return forbidden exit code (403) [#22448](https://github.com/docker/docker/pull/22448)
 - Windows: fix tty-related displaying issues [#23878](https://github.com/docker/docker/pull/23878)
 
 ### Runtime
@@ -974,7 +1146,8 @@ installing docker, please make sure to update them accordingly.
 - Windows: Enable auto-creation of host-path to match Linux [#22094](https://github.com/docker/docker/pull/22094)
 
 
-### DEPRECATION
+### Deprecation
+
 * Environment variables `DOCKER_CONTENT_TRUST_OFFLINE_PASSPHRASE` and `DOCKER_CONTENT_TRUST_TAGGING_PASSPHRASE` have been renamed
   to `DOCKER_CONTENT_TRUST_ROOT_PASSPHRASE` and `DOCKER_CONTENT_TRUST_REPOSITORY_PASSPHRASE` respectively [#22574](https://github.com/docker/docker/pull/22574)
 * Remove deprecated `syslog-tag`, `gelf-tag`, `fluentd-tag` log option in favor of the more generic `tag` one [#22620](https://github.com/docker/docker/pull/22620)
@@ -1714,7 +1887,7 @@ by another client (#15489)
 
 #### Remote API
 
-- Fix unmarshalling of Command and Entrypoint
+- Fix unmarshaling of Command and Entrypoint
 - Set limit for minimum client version supported
 - Validate port specification
 - Return proper errors when attach/reattach fail
@@ -2111,7 +2284,7 @@ by another client (#15489)
 - Use mock for search tests.
 - Update to double-dash everywhere.
 - Move .dockerenv parsing to lxc driver.
-- Move all bind-mounts in the container inside the namespace.
+- Move all bind mounts in the container inside the namespace.
 - Don't use separate bind mount for container.
 - Always symlink /dev/ptmx for libcontainer.
 - Don't kill by pid for other drivers.
@@ -2399,7 +2572,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 - Fix ADD caching issue with . prefixed path
 - Fix docker build on devicemapper by reverting sparse file tar option
 - Fix issue with file caching and prevent wrong cache hit
-* Use same error handling while unmarshalling CMD and ENTRYPOINT
+* Use same error handling while unmarshaling CMD and ENTRYPOINT
 
 #### Documentation
 
@@ -2546,7 +2719,7 @@ With the ongoing changes to the networking and execution subsystems of docker te
 + Implement `docker log -f` to stream logs
 + Add env variable to disable kernel version warning
 + Add -format to `docker inspect`
-+ Support bind-mount for files
++ Support bind mount for files
 - Fix bridge creation on RHEL
 - Fix image size calculation
 - Make sure iptables are called even if the bridge already exists

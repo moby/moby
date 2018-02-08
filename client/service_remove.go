@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import "golang.org/x/net/context"
 
@@ -6,5 +6,5 @@ import "golang.org/x/net/context"
 func (cli *Client) ServiceRemove(ctx context.Context, serviceID string) error {
 	resp, err := cli.delete(ctx, "/services/"+serviceID, nil, nil)
 	ensureReaderClosed(resp)
-	return err
+	return wrapResponseError(err, resp, "service", serviceID)
 }

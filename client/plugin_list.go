@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"encoding/json"
@@ -23,7 +23,7 @@ func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (types.P
 	}
 	resp, err := cli.get(ctx, "/plugins", query, nil)
 	if err != nil {
-		return plugins, err
+		return plugins, wrapResponseError(err, resp, "plugin", "")
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&plugins)

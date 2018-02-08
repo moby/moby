@@ -1,8 +1,4 @@
-// +build !solaris
-
-// TODO: Support Solaris
-
-package registry
+package registry // import "github.com/docker/docker/registry"
 
 import (
 	"testing"

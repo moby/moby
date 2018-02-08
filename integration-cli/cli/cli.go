@@ -1,44 +1,30 @@
-package cli
+package cli // import "github.com/docker/docker/integration-cli/cli"
 
 import (
 	"fmt"
 	"io"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
 
-var (
-	testEnv  *environment.Execution
-	onlyOnce sync.Once
-)
+var testEnv *environment.Execution
 
-// EnsureTestEnvIsLoaded make sure the test environment is loaded for this package
-func EnsureTestEnvIsLoaded(t testingT) {
-	var doIt bool
-	var err error
-	onlyOnce.Do(func() {
-		doIt = true
-	})
-
-	if !doIt {
-		return
-	}
-	testEnv, err = environment.New()
-	if err != nil {
-		t.Fatalf("error loading testenv : %v", err)
-	}
+// SetTestEnvironment sets a static test environment
+// TODO: decouple this package from environment
+func SetTestEnvironment(env *environment.Execution) {
+	testEnv = env
 }
 
 // CmdOperator defines functions that can modify a command
 type CmdOperator func(*icmd.Cmd) func()
 
 type testingT interface {
+	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
 }
 
@@ -55,6 +41,58 @@ func BuildCmd(t testingT, name string, cmdOperators ...CmdOperator) *icmd.Result
 // InspectCmd executes the specified docker inspect command and expect a success
 func InspectCmd(t testingT, name string, cmdOperators ...CmdOperator) *icmd.Result {
 	return Docker(Inspect(name), cmdOperators...).Assert(t, icmd.Success)
+}
+
+// WaitRun will wait for the specified container to be running, maximum 5 seconds.
+func WaitRun(t testingT, name string, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.State.Running}}", "true", 5*time.Second, cmdOperators...)
+}
+
+// WaitExited will wait for the specified container to state exit, subject
+// to a maximum time limit in seconds supplied by the caller
+func WaitExited(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.State.Status}}", "exited", timeout, cmdOperators...)
+}
+
+// WaitRestart will wait for the specified container to restart once
+func WaitRestart(t testingT, name string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	WaitForInspectResult(t, name, "{{.RestartCount}}", "1", timeout, cmdOperators...)
+}
+
+// WaitForInspectResult waits for the specified expression to be equals to the specified expected string in the given time.
+func WaitForInspectResult(t testingT, name, expr, expected string, timeout time.Duration, cmdOperators ...CmdOperator) {
+	after := time.After(timeout)
+
+	args := []string{"inspect", "-f", expr, name}
+	for {
+		result := Docker(Args(args...), cmdOperators...)
+		if result.Error != nil {
+			if !strings.Contains(strings.ToLower(result.Stderr()), "no such") {
+				t.Fatalf("error executing docker inspect: %v\n%s",
+					result.Stderr(), result.Stdout())
+			}
+			select {
+			case <-after:
+				t.Fatal(result.Error)
+			default:
+				time.Sleep(10 * time.Millisecond)
+				continue
+			}
+		}
+
+		out := strings.TrimSpace(result.Stdout())
+		if out == expected {
+			break
+		}
+
+		select {
+		case <-after:
+			t.Fatalf("condition \"%q == %q\" not true in time (%v)", out, expected, timeout)
+		default:
+		}
+
+		time.Sleep(100 * time.Millisecond)
+	}
 }
 
 // Docker executes the specified docker command
@@ -77,7 +115,7 @@ func Docker(cmd icmd.Cmd, cmdOperators ...CmdOperator) *icmd.Result {
 // validateArgs is a checker to ensure tests are not running commands which are
 // not supported on platforms. Specifically on Windows this is 'busybox top'.
 func validateArgs(args ...string) error {
-	if testEnv.DaemonPlatform() != "windows" {
+	if testEnv.OSType != "windows" {
 		return nil
 	}
 	foundBusybox := -1
@@ -173,6 +211,14 @@ func InDir(path string) func(*icmd.Cmd) func() {
 func WithStdout(writer io.Writer) func(*icmd.Cmd) func() {
 	return func(cmd *icmd.Cmd) func() {
 		cmd.Stdout = writer
+		return nil
+	}
+}
+
+// WithStdin sets the standard input reader for the command
+func WithStdin(stdin io.Reader) func(*icmd.Cmd) func() {
+	return func(cmd *icmd.Cmd) func() {
+		cmd.Stdin = stdin
 		return nil
 	}
 }

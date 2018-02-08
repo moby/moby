@@ -1,11 +1,10 @@
 // +build linux
 
-package devmapper
+package devmapper // import "github.com/docker/docker/daemon/graphdriver/devmapper"
 
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,43 +12,42 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
-
-	"github.com/Sirupsen/logrus"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/docker/docker/pkg/dmesg"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/loopback"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
+	"github.com/docker/docker/pkg/parsers/kernel"
 	units "github.com/docker/go-units"
-
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var (
-	defaultDataLoopbackSize     int64  = 100 * 1024 * 1024 * 1024
-	defaultMetaDataLoopbackSize int64  = 2 * 1024 * 1024 * 1024
-	defaultBaseFsSize           uint64 = 10 * 1024 * 1024 * 1024
-	defaultThinpBlockSize       uint32 = 128 // 64K = 128 512b sectors
-	defaultUdevSyncOverride            = false
-	maxDeviceID                        = 0xffffff // 24 bit, pool limit
-	deviceIDMapSz                      = (maxDeviceID + 1) / 8
-	// We retry device removal so many a times that even error messages
-	// will fill up console during normal operation. So only log Fatal
-	// messages by default.
-	logLevel                            = devicemapper.LogLevelFatal
+	defaultDataLoopbackSize      int64  = 100 * 1024 * 1024 * 1024
+	defaultMetaDataLoopbackSize  int64  = 2 * 1024 * 1024 * 1024
+	defaultBaseFsSize            uint64 = 10 * 1024 * 1024 * 1024
+	defaultThinpBlockSize        uint32 = 128 // 64K = 128 512b sectors
+	defaultUdevSyncOverride             = false
+	maxDeviceID                         = 0xffffff // 24 bit, pool limit
+	deviceIDMapSz                       = (maxDeviceID + 1) / 8
 	driverDeferredRemovalSupport        = false
 	enableDeferredRemoval               = false
 	enableDeferredDeletion              = false
 	userBaseSize                        = false
 	defaultMinFreeSpacePercent   uint32 = 10
+	lvmSetupConfigForce          bool
 )
 
 const deviceSetMetaFile string = "deviceset-metadata"
@@ -123,6 +121,7 @@ type DeviceSet struct {
 	gidMaps               []idtools.IDMap
 	minFreeSpacePercent   uint32 //min free space percentage in thinpool
 	xfsNospaceRetries     string // max retries when xfs receives ENOSPC
+	lvmSetupConfig        directLVMConfig
 }
 
 // DiskUsage contains information about disk usage and is used when reporting Status of a device.
@@ -269,7 +268,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := idtools.MkdirAllAs(dirname, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAllAndChown(dirname, 0700, idtools.IDPair{UID: uid, GID: gid}); err != nil {
 		return "", err
 	}
 
@@ -356,10 +355,7 @@ func (devices *DeviceSet) saveMetadata(info *devInfo) error {
 	if err != nil {
 		return fmt.Errorf("devmapper: Error encoding metadata to json: %s", err)
 	}
-	if err := devices.writeMetaFile(jsonData, devices.metadataFile(info)); err != nil {
-		return err
-	}
-	return nil
+	return devices.writeMetaFile(jsonData, devices.metadataFile(info))
 }
 
 func (devices *DeviceSet) markDeviceIDUsed(deviceID int) {
@@ -536,11 +532,11 @@ func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bo
 	return devicemapper.ActivateDevice(devices.getPoolDevName(), info.Name(), info.DeviceID, info.Size)
 }
 
-// Return true only if kernel supports xfs and mkfs.xfs is available
-func xfsSupported() bool {
+// xfsSupported checks if xfs is supported, returns nil if it is, otherwise an error
+func xfsSupported() error {
 	// Make sure mkfs.xfs is available
 	if _, err := exec.LookPath("mkfs.xfs"); err != nil {
-		return false
+		return err // error text is descriptive enough
 	}
 
 	// Check if kernel supports xfs filesystem or not.
@@ -548,40 +544,47 @@ func xfsSupported() bool {
 
 	f, err := os.Open("/proc/filesystems")
 	if err != nil {
-		logrus.Warnf("devmapper: Could not check if xfs is supported: %v", err)
-		return false
+		return errors.Wrapf(err, "error checking for xfs support")
 	}
 	defer f.Close()
 
 	s := bufio.NewScanner(f)
 	for s.Scan() {
 		if strings.HasSuffix(s.Text(), "\txfs") {
-			return true
+			return nil
 		}
 	}
 
 	if err := s.Err(); err != nil {
-		logrus.Warnf("devmapper: Could not check if xfs is supported: %v", err)
+		return errors.Wrapf(err, "error checking for xfs support")
 	}
-	return false
+
+	return errors.New(`kernel does not support xfs, or "modprobe xfs" failed`)
 }
 
 func determineDefaultFS() string {
-	if xfsSupported() {
+	err := xfsSupported()
+	if err == nil {
 		return "xfs"
 	}
 
-	logrus.Warn("devmapper: XFS is not supported in your system. Either the kernel doesn't support it or mkfs.xfs is not in your PATH. Defaulting to ext4 filesystem")
+	logrus.Warnf("devmapper: XFS is not supported in your system (%v). Defaulting to ext4 filesystem", err)
 	return "ext4"
+}
+
+// mkfsOptions tries to figure out whether some additional mkfs options are required
+func mkfsOptions(fs string) []string {
+	if fs == "xfs" && !kernel.CheckKernelVersion(3, 16, 0) {
+		// For kernels earlier than 3.16 (and newer xfsutils),
+		// some xfs features need to be explicitly disabled.
+		return []string{"-m", "crc=0,finobt=0"}
+	}
+
+	return []string{}
 }
 
 func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	devname := info.DevName()
-
-	args := []string{}
-	args = append(args, devices.mkfsArgs...)
-
-	args = append(args, devname)
 
 	if devices.filesystem == "" {
 		devices.filesystem = determineDefaultFS()
@@ -590,7 +593,11 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 		return err
 	}
 
-	logrus.Infof("devmapper: Creating filesystem %s on device %s", devices.filesystem, info.Name())
+	args := mkfsOptions(devices.filesystem)
+	args = append(args, devices.mkfsArgs...)
+	args = append(args, devname)
+
+	logrus.Infof("devmapper: Creating filesystem %s on device %s, mkfs args: %v", devices.filesystem, info.Name(), args)
 	defer func() {
 		if err != nil {
 			logrus.Infof("devmapper: Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
@@ -879,11 +886,7 @@ func (devices *DeviceSet) takeSnapshot(hash string, baseInfo *devInfo, size uint
 		defer devicemapper.ResumeDevice(baseInfo.Name())
 	}
 
-	if err = devices.createRegisterSnapDevice(hash, baseInfo, size); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.createRegisterSnapDevice(hash, baseInfo, size)
 }
 
 func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInfo, size uint64) error {
@@ -1191,10 +1194,10 @@ func (devices *DeviceSet) growFS(info *devInfo) error {
 	options = joinMountOptions(options, devices.mountOptions)
 
 	if err := mount.Mount(info.DevName(), fsMountPoint, devices.BaseDeviceFilesystem, options); err != nil {
-		return fmt.Errorf("Error mounting '%s' on '%s': %s", info.DevName(), fsMountPoint, err)
+		return fmt.Errorf("Error mounting '%s' on '%s' (fstype='%s' options='%s'): %s\n%v", info.DevName(), fsMountPoint, devices.BaseDeviceFilesystem, options, err, string(dmesg.Dmesg(256)))
 	}
 
-	defer syscall.Unmount(fsMountPoint, syscall.MNT_DETACH)
+	defer unix.Unmount(fsMountPoint, unix.MNT_DETACH)
 
 	switch devices.BaseDeviceFilesystem {
 	case "ext4":
@@ -1223,12 +1226,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 			if err := devices.setupVerifyBaseImageUUIDFS(oldInfo); err != nil {
 				return err
 			}
-
-			if err := devices.checkGrowBaseDeviceFS(oldInfo); err != nil {
-				return err
-			}
-
-			return nil
+			return devices.checkGrowBaseDeviceFS(oldInfo)
 		}
 
 		logrus.Debug("devmapper: Removing uninitialized base image")
@@ -1249,44 +1247,19 @@ func (devices *DeviceSet) setupBaseImage() error {
 	}
 
 	// Create new base image device
-	if err := devices.createBaseImage(); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.createBaseImage()
 }
 
 func setCloseOnExec(name string) {
-	if fileInfos, _ := ioutil.ReadDir("/proc/self/fd"); fileInfos != nil {
-		for _, i := range fileInfos {
-			link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
-			if link == name {
-				fd, err := strconv.Atoi(i.Name())
-				if err == nil {
-					syscall.CloseOnExec(fd)
-				}
+	fileInfos, _ := ioutil.ReadDir("/proc/self/fd")
+	for _, i := range fileInfos {
+		link, _ := os.Readlink(filepath.Join("/proc/self/fd", i.Name()))
+		if link == name {
+			fd, err := strconv.Atoi(i.Name())
+			if err == nil {
+				unix.CloseOnExec(fd)
 			}
 		}
-	}
-}
-
-// DMLog implements logging using DevMapperLogger interface.
-func (devices *DeviceSet) DMLog(level int, file string, line int, dmError int, message string) {
-	// By default libdm sends us all the messages including debug ones.
-	// We need to filter out messages here and figure out which one
-	// should be printed.
-	if level > logLevel {
-		return
-	}
-
-	// FIXME(vbatts) push this back into ./pkg/devicemapper/
-	if level <= devicemapper.LogLevelErr {
-		logrus.Errorf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else if level <= devicemapper.LogLevelInfo {
-		logrus.Infof("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
-	} else {
-		// FIXME(vbatts) push this back into ./pkg/devicemapper/
-		logrus.Debugf("libdevmapper(%d): %s:%d (%d) %s", level, file, line, dmError, message)
 	}
 }
 
@@ -1502,12 +1475,9 @@ func (devices *DeviceSet) closeTransaction() error {
 }
 
 func determineDriverCapabilities(version string) error {
-	/*
-	 * Driver version 4.27.0 and greater support deferred activation
-	 * feature.
-	 */
+	// Kernel driver version >= 4.27.0 support deferred removal
 
-	logrus.Debugf("devicemapper: driver version is %s", version)
+	logrus.Debugf("devicemapper: kernel dm driver version is %s", version)
 
 	versionSplit := strings.Split(version, ".")
 	major, err := strconv.Atoi(versionSplit[0])
@@ -1543,12 +1513,13 @@ func determineDriverCapabilities(version string) error {
 
 // Determine the major and minor number of loopback device
 func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
-	stat, err := file.Stat()
+	var stat unix.Stat_t
+	err := unix.Stat(file.Name(), &stat)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	dev := stat.Sys().(*syscall.Stat_t).Rdev
+	dev := stat.Rdev
 	majorNum := major(dev)
 	minorNum := minor(dev)
 
@@ -1686,20 +1657,7 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 	return nil
 }
 
-func (devices *DeviceSet) initDevmapper(doInit bool) error {
-	// give ourselves to libdm as a log handler
-	devicemapper.LogInit(devices)
-
-	version, err := devicemapper.GetDriverVersion()
-	if err != nil {
-		// Can't even get driver version, assume not supported
-		return graphdriver.ErrNotSupported
-	}
-
-	if err := determineDriverCapabilities(version); err != nil {
-		return graphdriver.ErrNotSupported
-	}
-
+func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	if err := devices.enableDeferredRemovalDeletion(); err != nil {
 		return err
 	}
@@ -1723,27 +1681,54 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAs(devices.root, 0700, uid, gid); err != nil && !os.IsExist(err) {
+	if err := idtools.MkdirAndChown(devices.root, 0700, idtools.IDPair{UID: uid, GID: gid}); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil && !os.IsExist(err) {
+	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil {
 		return err
+	}
+
+	prevSetupConfig, err := readLVMConfig(devices.root)
+	if err != nil {
+		return err
+	}
+
+	if !reflect.DeepEqual(devices.lvmSetupConfig, directLVMConfig{}) {
+		if devices.thinPoolDevice != "" {
+			return errors.New("cannot setup direct-lvm when `dm.thinpooldev` is also specified")
+		}
+
+		if !reflect.DeepEqual(prevSetupConfig, devices.lvmSetupConfig) {
+			if !reflect.DeepEqual(prevSetupConfig, directLVMConfig{}) {
+				return errors.New("changing direct-lvm config is not supported")
+			}
+			logrus.WithField("storage-driver", "devicemapper").WithField("direct-lvm-config", devices.lvmSetupConfig).Debugf("Setting up direct lvm mode")
+			if err := verifyBlockDevice(devices.lvmSetupConfig.Device, lvmSetupConfigForce); err != nil {
+				return err
+			}
+			if err := setupDirectLVM(devices.lvmSetupConfig); err != nil {
+				return err
+			}
+			if err := writeLVMConfig(devices.root, devices.lvmSetupConfig); err != nil {
+				return err
+			}
+		}
+		devices.thinPoolDevice = "docker-thinpool"
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Setting dm.thinpooldev to %q", devices.thinPoolDevice)
 	}
 
 	// Set the device prefix from the device id and inode of the docker root dir
-
-	st, err := os.Stat(devices.root)
-	if err != nil {
+	var st unix.Stat_t
+	if err := unix.Stat(devices.root, &st); err != nil {
 		return fmt.Errorf("devmapper: Error looking up dir %s: %s", devices.root, err)
 	}
-	sysSt := st.Sys().(*syscall.Stat_t)
 	// "reg-" stands for "regular file".
 	// In the future we might use "dev-" for "device file", etc.
 	// docker-maj,min[-inode] stands for:
 	//	- Managed by docker
 	//	- The target of this device is at major <maj> and minor <min>
 	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
-	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(sysSt.Dev), minor(sysSt.Dev), sysSt.Ino)
+	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(st.Dev), minor(st.Dev), st.Ino)
 	logrus.Debugf("devmapper: Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the thin-pool device
@@ -1840,6 +1825,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 		if err := devicemapper.CreatePool(devices.getPoolName(), dataFile, metadataFile, devices.thinpBlockSize); err != nil {
 			return err
 		}
+		defer func() {
+			if retErr != nil {
+				err = devices.deactivatePool()
+				if err != nil {
+					logrus.Warnf("devmapper: Failed to deactivatePool: %v", err)
+				}
+			}
+		}()
 	}
 
 	// Pool already exists and caller did not pass us a pool. That means
@@ -1863,7 +1856,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) error {
 
 	if devices.thinPoolDevice == "" {
 		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
-			logrus.Warn("devmapper: Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man docker` to refer to dm.thinpooldev section.")
+			logrus.Warn("devmapper: Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man dockerd` to refer to dm.thinpooldev section.")
 		}
 	}
 
@@ -2059,16 +2052,21 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	}
 
 	// Try to deactivate device in case it is active.
-	if err := devices.deactivateDevice(info); err != nil {
+	// If deferred removal is enabled and deferred deletion is disabled
+	// then make sure device is removed synchronously. There have been
+	// some cases of device being busy for short duration and we would
+	// rather busy wait for device removal to take care of these cases.
+	deferredRemove := devices.deferredRemove
+	if !devices.deferredDelete {
+		deferredRemove = false
+	}
+
+	if err := devices.deactivateDeviceMode(info, deferredRemove); err != nil {
 		logrus.Debugf("devmapper: Error deactivating device: %s", err)
 		return err
 	}
 
-	if err := devices.deleteTransaction(info, syncDelete); err != nil {
-		return err
-	}
-
-	return nil
+	return devices.deleteTransaction(info, syncDelete)
 }
 
 // DeleteDevice will return success if device has been marked for deferred
@@ -2116,6 +2114,11 @@ func (devices *DeviceSet) deactivatePool() error {
 }
 
 func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
+	return devices.deactivateDeviceMode(info, devices.deferredRemove)
+}
+
+func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove bool) error {
+	var err error
 	logrus.Debugf("devmapper: deactivateDevice START(%s)", info.Hash)
 	defer logrus.Debugf("devmapper: deactivateDevice END(%s)", info.Hash)
 
@@ -2128,14 +2131,17 @@ func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
 		return nil
 	}
 
-	if devices.deferredRemove {
-		if err := devicemapper.RemoveDeviceDeferred(info.Name()); err != nil {
-			return err
-		}
+	if deferredRemove {
+		err = devicemapper.RemoveDeviceDeferred(info.Name())
 	} else {
-		if err := devices.removeDevice(info.Name()); err != nil {
-			return err
-		}
+		err = devices.removeDevice(info.Name())
+	}
+
+	// This function's semantics is such that it does not return an
+	// error if device does not exist. So if device went away by
+	// the time we actually tried to remove it, do not return error.
+	if err != devicemapper.ErrEnxio {
+		return err
 	}
 	return nil
 }
@@ -2258,7 +2264,7 @@ func (devices *DeviceSet) Shutdown(home string) error {
 			// We use MNT_DETACH here in case it is still busy in some running
 			// container. This means it'll go away from the global scope directly,
 			// and the device will be released when that container dies.
-			if err := syscall.Unmount(p, syscall.MNT_DETACH); err != nil {
+			if err := unix.Unmount(p, unix.MNT_DETACH); err != nil {
 				logrus.Debugf("devmapper: Shutdown unmounting %s, error: %s", p, err)
 			}
 		}
@@ -2366,12 +2372,12 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	if err := mount.Mount(info.DevName(), path, fstype, options); err != nil {
-		return fmt.Errorf("devmapper: Error mounting '%s' on '%s': %s", info.DevName(), path, err)
+		return fmt.Errorf("devmapper: Error mounting '%s' on '%s' (fstype='%s' options='%s'): %s\n%v", info.DevName(), path, fstype, options, err, string(dmesg.Dmesg(256)))
 	}
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {
 		if err := devices.xfsSetNospaceRetries(info); err != nil {
-			syscall.Unmount(path, syscall.MNT_DETACH)
+			unix.Unmount(path, unix.MNT_DETACH)
 			devices.deactivateDevice(info)
 			return err
 		}
@@ -2397,10 +2403,22 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	defer devices.Unlock()
 
 	logrus.Debugf("devmapper: Unmount(%s)", mountPath)
-	if err := syscall.Unmount(mountPath, syscall.MNT_DETACH); err != nil {
+	if err := unix.Unmount(mountPath, unix.MNT_DETACH); err != nil {
 		return err
 	}
 	logrus.Debug("devmapper: Unmount done")
+
+	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
+	// will cause all other instances of this mount in other mount namespaces
+	// to be killed (this is an anti-DoS measure that is necessary for things
+	// like devicemapper). This is necessary to avoid cases where a libdm mount
+	// that is present in another namespace will cause subsequent RemoveDevice
+	// operations to fail. We ignore any errors here because this may fail on
+	// older kernels which don't have
+	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
+	if err := os.Remove(mountPath); err != nil {
+		logrus.Debugf("devmapper: error doing a remove on unmounted device %s: %v", mountPath, err)
+	}
 
 	return devices.deactivateDevice(info)
 }
@@ -2494,8 +2512,8 @@ func (devices *DeviceSet) MetadataDevicePath() string {
 }
 
 func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
-	buf := new(syscall.Statfs_t)
-	if err := syscall.Statfs(loopFile, buf); err != nil {
+	buf := new(unix.Statfs_t)
+	if err := unix.Statfs(loopFile, buf); err != nil {
 		logrus.Warnf("devmapper: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
 		return 0, err
 	}
@@ -2604,7 +2622,24 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 		minFreeSpacePercent:   defaultMinFreeSpacePercent,
 	}
 
+	version, err := devicemapper.GetDriverVersion()
+	if err != nil {
+		// Can't even get driver version, assume not supported
+		return nil, graphdriver.ErrNotSupported
+	}
+
+	if err := determineDriverCapabilities(version); err != nil {
+		return nil, graphdriver.ErrNotSupported
+	}
+
+	if driverDeferredRemovalSupport && devicemapper.LibraryDeferredRemovalSupport {
+		// enable deferred stuff by default
+		enableDeferredDeletion = true
+		enableDeferredRemoval = true
+	}
+
 	foundBlkDiscard := false
+	var lvmSetupConfig directLVMConfig
 	for _, option := range options {
 		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
@@ -2633,7 +2668,7 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 			devices.metaDataLoopbackSize = size
 		case "dm.fs":
 			if val != "ext4" && val != "xfs" {
-				return nil, fmt.Errorf("devmapper: Unsupported filesystem %s\n", val)
+				return nil, fmt.Errorf("devmapper: Unsupported filesystem %s", val)
 			}
 			devices.filesystem = val
 		case "dm.mkfsarg":
@@ -2699,10 +2734,71 @@ func NewDeviceSet(root string, doInit bool, options []string, uidMaps, gidMaps [
 				return nil, err
 			}
 			devices.xfsNospaceRetries = val
+		case "dm.directlvm_device":
+			lvmSetupConfig.Device = val
+		case "dm.directlvm_device_force":
+			lvmSetupConfigForce, err = strconv.ParseBool(val)
+			if err != nil {
+				return nil, err
+			}
+		case "dm.thinp_percent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_percent=%s`", val)
+			}
+			if per >= 100 {
+				return nil, errors.New("dm.thinp_percent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.ThinpPercent = per
+		case "dm.thinp_metapercent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_metapercent=%s`", val)
+			}
+			if per >= 100 {
+				return nil, errors.New("dm.thinp_metapercent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.ThinpMetaPercent = per
+		case "dm.thinp_autoextend_percent":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_autoextend_percent=%s`", val)
+			}
+			if per > 100 {
+				return nil, errors.New("dm.thinp_autoextend_percent must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.AutoExtendPercent = per
+		case "dm.thinp_autoextend_threshold":
+			per, err := strconv.ParseUint(strings.TrimSuffix(val, "%"), 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.thinp_autoextend_threshold=%s`", val)
+			}
+			if per > 100 {
+				return nil, errors.New("dm.thinp_autoextend_threshold must be greater than 0 and less than 100")
+			}
+			lvmSetupConfig.AutoExtendThreshold = per
+		case "dm.libdm_log_level":
+			level, err := strconv.ParseInt(val, 10, 32)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse `dm.libdm_log_level=%s`", val)
+			}
+			if level < devicemapper.LogLevelFatal || level > devicemapper.LogLevelDebug {
+				return nil, errors.Errorf("dm.libdm_log_level must be in range [%d,%d]", devicemapper.LogLevelFatal, devicemapper.LogLevelDebug)
+			}
+			// Register a new logging callback with the specified level.
+			devicemapper.LogInit(devicemapper.DefaultLogger{
+				Level: int(level),
+			})
 		default:
-			return nil, fmt.Errorf("devmapper: Unknown option %s\n", key)
+			return nil, fmt.Errorf("devmapper: Unknown option %s", key)
 		}
 	}
+
+	if err := validateLVMConfig(lvmSetupConfig); err != nil {
+		return nil, err
+	}
+
+	devices.lvmSetupConfig = lvmSetupConfig
 
 	// By default, don't do blk discard hack on raw devices, its rarely useful and is expensive
 	if !foundBlkDiscard && (devices.dataDevice != "" || devices.thinPoolDevice != "") {

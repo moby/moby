@@ -10,10 +10,9 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // This used to work, it test a log of PageSize-1 (gh#4851)
@@ -56,7 +55,7 @@ func (s *DockerSuite) TestLogsTimestamps(c *check.C) {
 
 	for _, l := range lines {
 		if l != "" {
-			_, err := time.Parse(jsonlog.RFC3339NanoFixed+" ", ts.FindString(l))
+			_, err := time.Parse(jsonmessage.RFC3339NanoFixed+" ", ts.FindString(l))
 			c.Assert(err, checker.IsNil, check.Commentf("Failed to parse timestamp from %v", l))
 			// ensure we have padded 0's
 			c.Assert(l[29], checker.Equals, uint8('Z'))
@@ -215,14 +214,15 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	// TODO Windows: Fix this test for TP5.
 	testRequires(c, DaemonIsLinux)
-	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", `usleep 600000;yes X | head -c 200000`)
+	expected := 150000
+	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", fmt.Sprintf("usleep 600000; yes X | head -c %d", expected))
 
 	id := strings.TrimSpace(out)
 
 	stopSlowRead := make(chan bool)
 
 	go func() {
-		exec.Command(dockerBinary, "wait", id).Run()
+		dockerCmd(c, "wait", id)
 		stopSlowRead <- true
 	}()
 
@@ -230,18 +230,43 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	stdout, err := logCmd.StdoutPipe()
 	c.Assert(err, checker.IsNil)
 	c.Assert(logCmd.Start(), checker.IsNil)
+	defer func() { go logCmd.Wait() }()
 
 	// First read slowly
-	bytes1, err := testutil.ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
+	bytes1, err := ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
 	c.Assert(err, checker.IsNil)
 
 	// After the container has finished we can continue reading fast
-	bytes2, err := testutil.ConsumeWithSpeed(stdout, 32*1024, 0, nil)
+	bytes2, err := ConsumeWithSpeed(stdout, 32*1024, 0, nil)
 	c.Assert(err, checker.IsNil)
 
+	c.Assert(logCmd.Wait(), checker.IsNil)
+
 	actual := bytes1 + bytes2
-	expected := 200000
 	c.Assert(actual, checker.Equals, expected)
+}
+
+// ConsumeWithSpeed reads chunkSize bytes from reader before sleeping
+// for interval duration. Returns total read bytes. Send true to the
+// stop channel to return before reading to EOF on the reader.
+func ConsumeWithSpeed(reader io.Reader, chunkSize int, interval time.Duration, stop chan bool) (n int, err error) {
+	buffer := make([]byte, chunkSize)
+	for {
+		var readBytes int
+		readBytes, err = reader.Read(buffer)
+		n += readBytes
+		if err != nil {
+			if err == io.EOF {
+				err = nil
+			}
+			return
+		}
+		select {
+		case <-stop:
+			return
+		case <-time.After(interval):
+		}
+	}
 }
 
 func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
@@ -255,6 +280,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	r, w := io.Pipe()
 	cmd.Stdout = w
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 
 	// Make sure pipe is written to
 	chErr := make(chan error)
@@ -266,6 +292,7 @@ func (s *DockerSuite) TestLogsFollowGoroutinesWithStdout(c *check.C) {
 	c.Assert(<-chErr, checker.IsNil)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
 	r.Close()
+	cmd.Wait()
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)
 }
@@ -279,8 +306,10 @@ func (s *DockerSuite) TestLogsFollowGoroutinesNoOutput(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	cmd := exec.Command(dockerBinary, "logs", "-f", id)
 	c.Assert(cmd.Start(), checker.IsNil)
+	go cmd.Wait()
 	time.Sleep(200 * time.Millisecond)
 	c.Assert(cmd.Process.Kill(), checker.IsNil)
+	cmd.Wait()
 
 	// NGoroutines is not updated right away, so we need to wait before failing
 	c.Assert(waitForGoroutines(nroutines), checker.IsNil)

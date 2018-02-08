@@ -20,15 +20,15 @@
 //	if err != nil {
 //		return fmt.Errorf("Error looking up volume plugin example: %v", err)
 //	}
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"errors"
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/sirupsen/logrus"
 )
 
 var (

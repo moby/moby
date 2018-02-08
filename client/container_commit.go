@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"encoding/json"
@@ -39,7 +39,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, container string, option
 	for _, change := range options.Changes {
 		query.Add("changes", change)
 	}
-	if options.Pause != true {
+	if !options.Pause {
 		query.Set("pause", "0")
 	}
 

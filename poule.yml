@@ -35,12 +35,6 @@
         }
       - type:       version-label
 
-# When a pull request is closed, attach it to the currently active milestone.
-- triggers:
-      pull_request: [ closed ]
-  operations:
-      - type:       version-milestone
-
 # Labeling a PR with `rebuild/<configuration>` triggers a rebuild job for the associated
 # configuration. The label is automatically removed after the rebuild is initiated. There's no such
 # thing as "templating" in this configuration, so we need one operation for each type of
@@ -114,7 +108,6 @@
                 "aaronlehmann",
                 "akihirosuda",
                 "aluzzardi",
-                "anusha-ragunathan",
                 "coolljt0725",
                 "cpuguy83",
                 "crosbymichael",

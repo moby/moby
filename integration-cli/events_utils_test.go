@@ -9,10 +9,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	eventstestutils "github.com/docker/docker/daemon/events/testutils"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/sirupsen/logrus"
 )
 
 // eventMatcher is a function that tries to match an event input.
@@ -69,7 +69,7 @@ func (e *eventObserver) Start() error {
 // Stop stops the events command.
 func (e *eventObserver) Stop() {
 	e.command.Process.Kill()
-	e.command.Process.Release()
+	e.command.Wait()
 }
 
 // Match tries to match the events output with a given matcher.

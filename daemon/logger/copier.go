@@ -1,4 +1,4 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"bytes"
@@ -6,12 +6,17 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
-	bufSize  = 16 * 1024
+	// readSize is the maximum bytes read during a single read
+	// operation.
 	readSize = 2 * 1024
+
+	// defaultBufSize provides a reasonable default for loggers that do
+	// not have an external limit to impose on log line size.
+	defaultBufSize = 16 * 1024
 )
 
 // Copier can copy logs from specified sources to Logger and attach Timestamp.
@@ -44,7 +49,13 @@ func (c *Copier) Run() {
 
 func (c *Copier) copySrc(name string, src io.Reader) {
 	defer c.copyJobs.Done()
+
+	bufSize := defaultBufSize
+	if sizedLogger, ok := c.dst.(SizedLogger); ok {
+		bufSize = sizedLogger.BufSize()
+	}
 	buf := make([]byte, bufSize)
+
 	n := 0
 	eof := false
 

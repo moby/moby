@@ -5,7 +5,6 @@ package main
 import (
 	"bufio"
 	"fmt"
-	"net/http"
 	"os"
 	"os/exec"
 	"reflect"
@@ -15,11 +14,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/request"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
+	"golang.org/x/net/context"
 )
 
 func (s *DockerSuite) TestExec(c *check.C) {
@@ -70,7 +71,7 @@ func (s *DockerSuite) TestExecInteractive(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
-	out, _ := runSleepingContainer(c)
+	out := runSleepingContainer(c)
 	cleanedContainerID := strings.TrimSpace(out)
 	c.Assert(waitRun(cleanedContainerID), check.IsNil)
 	dockerCmd(c, "restart", cleanedContainerID)
@@ -132,18 +133,17 @@ func (s *DockerSuite) TestExecExitStatus(c *check.C) {
 	runSleepingContainer(c, "-d", "--name", "top")
 
 	result := icmd.RunCommand(dockerBinary, "exec", "top", "sh", "-c", "exit 23")
-	c.Assert(result, icmd.Matches, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
+	result.Assert(c, icmd.Expected{ExitCode: 23, Error: "exit status 23"})
 }
 
 func (s *DockerSuite) TestExecPausedContainer(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 
-	out, _ := runSleepingContainer(c, "-d", "--name", "testing")
+	out := runSleepingContainer(c, "-d", "--name", "testing")
 	ContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", "testing")
-	out, _, err := dockerCmdWithError("exec", "-i", "-t", ContainerID, "echo", "hello")
+	out, _, err := dockerCmdWithError("exec", ContainerID, "echo", "hello")
 	c.Assert(err, checker.NotNil, check.Commentf("container should fail to exec new command if it is paused"))
 
 	expected := ContainerID + " is paused, unpause the container before exec"
@@ -229,18 +229,18 @@ func (s *DockerSuite) TestExecStopNotHanging(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	dockerCmd(c, "run", "-d", "--name", "testing", "busybox", "top")
 
-	err := exec.Command(dockerBinary, "exec", "testing", "top").Start()
-	c.Assert(err, checker.IsNil)
+	result := icmd.StartCmd(icmd.Command(dockerBinary, "exec", "testing", "top"))
+	result.Assert(c, icmd.Success)
+	go icmd.WaitOnCmd(0, result)
 
 	type dstop struct {
-		out []byte
+		out string
 		err error
 	}
-
 	ch := make(chan dstop)
 	go func() {
-		out, err := exec.Command(dockerBinary, "stop", "testing").CombinedOutput()
-		ch <- dstop{out, err}
+		result := icmd.RunCommand(dockerBinary, "stop", "testing")
+		ch <- dstop{result.Combined(), result.Error}
 		close(ch)
 	}()
 	select {
@@ -305,7 +305,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecInspectID(c *check.C) {
-	out, _ := runSleepingContainer(c, "-d")
+	out := runSleepingContainer(c, "-d")
 	id := strings.TrimSuffix(out, "\n")
 
 	out = inspectField(c, id, "ExecIDs")
@@ -357,16 +357,21 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	}
 
 	// But we should still be able to query the execID
-	sc, body, _ := request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
 
-	c.Assert(sc, checker.Equals, http.StatusOK, check.Commentf("received status != 200 OK: %d\n%s", sc, body))
+	_, err = cli.ContainerExecInspect(context.Background(), execID)
+	c.Assert(err, checker.IsNil)
 
 	// Now delete the container and then an 'inspect' on the exec should
 	// result in a 404 (not 'container not running')
 	out, ec := dockerCmd(c, "rm", "-f", id)
 	c.Assert(ec, checker.Equals, 0, check.Commentf("error removing container: %s", out))
-	sc, body, _ = request.SockRequest("GET", "/exec/"+execID+"/json", nil, daemonHost())
-	c.Assert(sc, checker.Equals, http.StatusNotFound, check.Commentf("received status != 404: %d\n%s", sc, body))
+
+	_, err = cli.ContainerExecInspect(context.Background(), execID)
+	expected := "No such exec instance"
+	c.Assert(err.Error(), checker.Contains, expected)
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
@@ -389,7 +394,10 @@ func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	// Not applicable on Windows to Windows CI.
 	testRequires(c, SameHostDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
-		deleteAllContainers(c)
+		containers := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
+		if containers != "" {
+			cli.DockerCmd(c, append([]string{"rm", "-fv"}, strings.Split(strings.TrimSpace(containers), "\n")...)...)
+		}
 
 		content := runCommandAndReadContainerFile(c, fn, dockerBinary, "run", "-d", "--name", "c1", "busybox", "sh", "-c", fmt.Sprintf("echo success >/etc/%s && top", fn))
 

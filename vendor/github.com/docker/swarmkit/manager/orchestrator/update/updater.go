@@ -155,31 +155,30 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		u.startUpdate(ctx, service.ID)
 	}
 
-	delay := defaults.Service.Update.Delay
-	parallelism := int(defaults.Service.Update.Parallelism)
-	failureAction := defaults.Service.Update.FailureAction
-	allowedFailureFraction := defaults.Service.Update.MaxFailureRatio
-	monitoringPeriod, _ := gogotypes.DurationFromProto(defaults.Service.Update.Monitor)
-	order := defaults.Service.Update.Order
+	var (
+		monitoringPeriod time.Duration
+		updateConfig     *api.UpdateConfig
+	)
 
-	updateConfig := service.Spec.Update
 	if service.UpdateStatus != nil && service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
+		monitoringPeriod, _ = gogotypes.DurationFromProto(defaults.Service.Rollback.Monitor)
 		updateConfig = service.Spec.Rollback
+		if updateConfig == nil {
+			updateConfig = defaults.Service.Rollback
+		}
+	} else {
+		monitoringPeriod, _ = gogotypes.DurationFromProto(defaults.Service.Update.Monitor)
+		updateConfig = service.Spec.Update
+		if updateConfig == nil {
+			updateConfig = defaults.Service.Update
+		}
 	}
 
-	if updateConfig != nil {
-		failureAction = updateConfig.FailureAction
-		allowedFailureFraction = updateConfig.MaxFailureRatio
-		parallelism = int(updateConfig.Parallelism)
-		delay = updateConfig.Delay
-		order = updateConfig.Order
-
-		var err error
-		if updateConfig.Monitor != nil {
-			monitoringPeriod, err = gogotypes.DurationFromProto(updateConfig.Monitor)
-			if err != nil {
-				monitoringPeriod, _ = gogotypes.DurationFromProto(defaults.Service.Update.Monitor)
-			}
+	parallelism := int(updateConfig.Parallelism)
+	if updateConfig.Monitor != nil {
+		newMonitoringPeriod, err := gogotypes.DurationFromProto(updateConfig.Monitor)
+		if err == nil {
+			monitoringPeriod = newMonitoringPeriod
 		}
 	}
 
@@ -195,14 +194,14 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	wg.Add(parallelism)
 	for i := 0; i < parallelism; i++ {
 		go func() {
-			u.worker(ctx, slotQueue, delay, order)
+			u.worker(ctx, slotQueue, updateConfig)
 			wg.Done()
 		}()
 	}
 
 	var failedTaskWatch chan events.Event
 
-	if failureAction != api.UpdateConfig_CONTINUE {
+	if updateConfig.FailureAction != api.UpdateConfig_CONTINUE {
 		var cancelWatch func()
 		failedTaskWatch, cancelWatch = state.Watch(
 			u.store.WatchQueue(),
@@ -234,8 +233,8 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 		if found && (startedAt.IsZero() || time.Since(startedAt) <= monitoringPeriod) {
 			failedTasks[failedTask.ID] = struct{}{}
 			totalFailures++
-			if float32(totalFailures)/float32(len(dirtySlots)) > allowedFailureFraction {
-				switch failureAction {
+			if float32(totalFailures)/float32(len(dirtySlots)) > updateConfig.MaxFailureRatio {
+				switch updateConfig.FailureAction {
 				case api.UpdateConfig_PAUSE:
 					stopped = true
 					message := fmt.Sprintf("update paused due to failure or early termination of task %s", failedTask.ID)
@@ -309,7 +308,7 @@ slotsLoop:
 	}
 }
 
-func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, delay time.Duration, order api.UpdateConfig_UpdateOrder) {
+func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, updateConfig *api.UpdateConfig) {
 	for slot := range queue {
 		// Do we have a task with the new spec in desired state = RUNNING?
 		// If so, all we have to do to complete the update is remove the
@@ -346,14 +345,14 @@ func (u *Updater) worker(ctx context.Context, queue <-chan orchestrator.Slot, de
 			}
 			updated.DesiredState = api.TaskStateReady
 
-			if err := u.updateTask(ctx, slot, updated, order); err != nil {
+			if err := u.updateTask(ctx, slot, updated, updateConfig.Order); err != nil {
 				log.G(ctx).WithError(err).WithField("task.id", updated.ID).Error("update failed")
 			}
 		}
 
-		if delay != 0 {
+		if updateConfig.Delay != 0 {
 			select {
-			case <-time.After(delay):
+			case <-time.After(updateConfig.Delay):
 			case <-u.stopChan:
 				return
 			}
@@ -379,16 +378,13 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	startThenStop := false
 	var delayStartCh <-chan struct{}
 	// Atomically create the updated task and bring down the old one.
-	_, err := u.store.Batch(func(batch *store.Batch) error {
+	err := u.store.Batch(func(batch *store.Batch) error {
 		err := batch.Update(func(tx store.Tx) error {
 			if store.GetService(tx, updated.ServiceID) == nil {
 				return errors.New("service was deleted")
 			}
 
-			if err := store.CreateTask(tx, updated); err != nil {
-				return err
-			}
-			return nil
+			return store.CreateTask(tx, updated)
 		})
 		if err != nil {
 			return err
@@ -431,8 +427,8 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 				u.updatedTasks[updated.ID] = time.Now()
 				u.updatedTasksMu.Unlock()
 
-				if startThenStop {
-					_, err := u.store.Batch(func(batch *store.Batch) error {
+				if startThenStop && updated.Status.State == api.TaskStateRunning {
+					err := u.store.Batch(func(batch *store.Batch) error {
 						_, err := u.removeOldTasks(ctx, batch, slot)
 						if err != nil {
 							log.G(ctx).WithError(err).WithField("task.id", updated.ID).Warning("failed to remove old task after starting replacement")
@@ -458,7 +454,7 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 	}
 	if len(removeTasks) != 0 || existing.DesiredState != api.TaskStateRunning {
 		var delayStartCh <-chan struct{}
-		_, err := u.store.Batch(func(batch *store.Batch) error {
+		err := u.store.Batch(func(batch *store.Batch) error {
 			var oldTask *api.Task
 			if len(removeTasks) != 0 {
 				var err error
@@ -497,6 +493,9 @@ func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, remove
 		removedTask *api.Task
 	)
 	for _, original := range removeTasks {
+		if original.DesiredState > api.TaskStateRunning {
+			continue
+		}
 		err := batch.Update(func(tx store.Tx) error {
 			t := store.GetTask(tx, original.ID)
 			if t == nil {
@@ -584,9 +583,8 @@ func (u *Updater) pauseUpdate(ctx context.Context, serviceID, message string) {
 func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string) {
 	log.G(ctx).Debugf("starting rollback of service %s", serviceID)
 
-	var service *api.Service
 	err := u.store.Update(func(tx store.Tx) error {
-		service = store.GetService(tx, serviceID)
+		service := store.GetService(tx, serviceID)
 		if service == nil {
 			return nil
 		}
@@ -602,7 +600,9 @@ func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string)
 			return errors.New("cannot roll back service because no previous spec is available")
 		}
 		service.Spec = *service.PreviousSpec
+		service.SpecVersion = service.PreviousSpecVersion.Copy()
 		service.PreviousSpec = nil
+		service.PreviousSpecVersion = nil
 
 		return store.UpdateService(tx, service)
 	})

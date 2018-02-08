@@ -1,4 +1,4 @@
-package platform
+package platform // import "github.com/docker/docker/pkg/platform"
 
 import (
 	"fmt"

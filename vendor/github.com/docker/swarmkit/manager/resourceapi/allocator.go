@@ -10,8 +10,8 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"golang.org/x/net/context"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -50,11 +50,11 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 		}
 	})
 	if network == nil {
-		return nil, grpc.Errorf(codes.NotFound, "network %s not found", request.Config.Target)
+		return nil, status.Errorf(codes.NotFound, "network %s not found", request.Config.Target)
 	}
 
 	if !network.Spec.Attachable {
-		return nil, grpc.Errorf(codes.PermissionDenied, "network %s not manually attachable", request.Config.Target)
+		return nil, status.Errorf(codes.PermissionDenied, "network %s not manually attachable", request.Config.Target)
 	}
 
 	t := &api.Task{
@@ -98,7 +98,7 @@ func (ra *ResourceAllocator) AttachNetwork(ctx context.Context, request *api.Att
 // - Returns an error if the deletion fails.
 func (ra *ResourceAllocator) DetachNetwork(ctx context.Context, request *api.DetachNetworkRequest) (*api.DetachNetworkResponse, error) {
 	if request.AttachmentID == "" {
-		return nil, grpc.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
+		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 
 	nodeInfo, err := ca.RemoteNode(ctx)
@@ -109,10 +109,10 @@ func (ra *ResourceAllocator) DetachNetwork(ctx context.Context, request *api.Det
 	if err := ra.store.Update(func(tx store.Tx) error {
 		t := store.GetTask(tx, request.AttachmentID)
 		if t == nil {
-			return grpc.Errorf(codes.NotFound, "attachment %s not found", request.AttachmentID)
+			return status.Errorf(codes.NotFound, "attachment %s not found", request.AttachmentID)
 		}
 		if t.NodeID != nodeInfo.NodeID {
-			return grpc.Errorf(codes.PermissionDenied, "attachment %s doesn't belong to this node", request.AttachmentID)
+			return status.Errorf(codes.PermissionDenied, "attachment %s doesn't belong to this node", request.AttachmentID)
 		}
 
 		return store.DeleteTask(tx, request.AttachmentID)

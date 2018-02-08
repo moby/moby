@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
 	"io/ioutil"
@@ -26,7 +26,8 @@ func newTestControllerWithMount(m api.Mount) (*controller, error) {
 				},
 			},
 		},
-	}, nil)
+	}, nil,
+		nil)
 }
 
 func TestControllerValidateMountBind(t *testing.T) {

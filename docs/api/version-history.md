@@ -4,8 +4,8 @@ description: "Documentation of changes that have been made to Engine API."
 keywords: "API, Docker, rcli, REST, documentation"
 ---
 
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
+<!-- This file is maintained within the moby/moby GitHub
+     repository at https://github.com/moby/moby/. Make all
      pull requests against that repo. If you see this file in
      another repository, consider it read-only there, as it will
      periodically be overwritten by the definitive file. Pull
@@ -13,15 +13,133 @@ keywords: "API, Docker, rcli, REST, documentation"
      will be rejected.
 -->
 
+## v1.36 API changes
+
+[Docker Engine API v1.36](https://docs.docker.com/engine/api/v1.36/) documentation
+
+* `Get /events` now return `exec_die` event when an exec process terminates.  
+
+
+## v1.35 API changes
+
+[Docker Engine API v1.35](https://docs.docker.com/engine/api/v1.35/) documentation
+
+* `POST /services/create` and `POST /services/(id)/update` now accepts an
+  `Isolation` field on container spec to set the Isolation technology of the
+  containers running the service (`default`, `process`, or `hyperv`). This
+  configuration is only used for Windows containers.
+* `GET /containers/(name)/logs` now supports an additional query parameter: `until`,
+  which returns log lines that occurred before the specified timestamp.
+* `POST /containers/{id}/exec` now accepts a `WorkingDir` property to set the
+  work-dir for the exec process, independent of the container's work-dir.
+* `Get /version` now returns a `Platform.Name` field, which can be used by products
+  using Moby as a foundation to return information about the platform.
+* `Get /version` now returns a `Components` field, which can be used to return
+  information about the components used. Information about the engine itself is
+  now included as a "Component" version, and contains all information from the
+  top-level `Version`, `GitCommit`, `APIVersion`, `MinAPIVersion`, `GoVersion`,
+  `Os`, `Arch`, `BuildTime`, `KernelVersion`, and `Experimental` fields. Going
+  forward, the information from the `Components` section is preferred over their
+  top-level counterparts.
+
+
+## v1.34 API changes
+
+[Docker Engine API v1.34](https://docs.docker.com/engine/api/v1.34/) documentation
+
+* `POST /containers/(name)/wait?condition=removed` now also also returns
+  in case of container removal failure. A pointer to a structure named
+  `Error` added to the response JSON in order to indicate a failure.
+  If `Error` is `null`, container removal has succeeded, otherwise
+  the test of an error message indicating why container removal has failed
+  is available from `Error.Message` field.
+
+## v1.33 API changes
+
+[Docker Engine API v1.33](https://docs.docker.com/engine/api/v1.33/) documentation
+
+* `GET /events` now supports filtering 4 more kinds of events: `config`, `node`,
+`secret` and `service`.
+
+## v1.32 API changes
+
+[Docker Engine API v1.32](https://docs.docker.com/engine/api/v1.32/) documentation
+
+* `POST /containers/create` now accepts additional values for the
+  `HostConfig.IpcMode` property. New values are `private`, `shareable`,
+  and `none`.
+* `DELETE /networks/{id or name}` fixed issue where a `name` equal to another
+  network's name was able to mask that `id`. If both a network with the given
+  _name_ exists, and a network with the given _id_, the network with the given
+  _id_ is now deleted. This change is not versioned, and affects all API versions
+  if the daemon has this patch.
+
+## v1.31 API changes
+
+[Docker Engine API v1.31](https://docs.docker.com/engine/api/v1.31/) documentation
+
+* `DELETE /secrets/(name)` now returns status code 404 instead of 500 when the secret does not exist.
+* `POST /secrets/create` now returns status code 409 instead of 500 when creating an already existing secret.
+* `POST /secrets/create` now accepts a `Driver` struct, allowing the
+  `Name` and driver-specific `Options` to be passed to store a secrets
+  in an external secrets store. The `Driver` property can be omitted
+  if the default (internal) secrets store is used.
+* `GET /secrets/(id)` and `GET /secrets` now return a `Driver` struct,
+  containing the `Name` and driver-specific `Options` of the external
+  secrets store used to store the secret. The `Driver` property is
+  omitted if no external store is used.
+* `POST /secrets/(name)/update` now returns status code 400 instead of 500 when updating a secret's content which is not the labels.
+* `POST /nodes/(name)/update` now returns status code 400 instead of 500 when demoting last node fails.
+* `GET /networks/(id or name)` now takes an optional query parameter `scope` that will filter the network based on the scope (`local`, `swarm`, or `global`).
+* `POST /session` is a new endpoint that can be used for running interactive long-running protocols between client and
+  the daemon. This endpoint is experimental and only available if the daemon is started with experimental features
+  enabled.
+* `GET /images/(name)/get` now includes an `ImageMetadata` field which contains image metadata that is local to the engine and not part of the image config.
+* `POST /services/create` now accepts a `PluginSpec` when `TaskTemplate.Runtime` is set to `plugin`
+* `GET /events` now supports config events `create`, `update` and `remove` that are emitted when users create, update or remove a config
+* `GET /volumes/` and `GET /volumes/{name}` now return a `CreatedAt` field,
+  containing the date/time the volume was created. This field is omitted if the
+  creation date/time for the volume is unknown. For volumes with scope "global",
+  this field represents the creation date/time of the local _instance_ of the
+  volume, which may differ from instances of the same volume on different nodes.
+* `GET /system/df` now returns a `CreatedAt` field for `Volumes`. Refer to the
+  `/volumes/` endpoint for a description of this field.
+
+## v1.30 API changes
+
+[Docker Engine API v1.30](https://docs.docker.com/engine/api/v1.30/) documentation
+
+* `GET /info` now returns the list of supported logging drivers, including plugins.
+* `GET /info` and `GET /swarm` now returns the cluster-wide swarm CA info if the node is in a swarm: the cluster root CA certificate, and the cluster TLS
+ leaf certificate issuer's subject and public key. It also displays the desired CA signing certificate, if any was provided as part of the spec.
+* `POST /build/` now (when not silent) produces an `Aux` message in the JSON output stream with payload `types.BuildResult` for each image produced. The final such message will reference the image resulting from the build.
+* `GET /nodes` and `GET /nodes/{id}` now returns additional information about swarm TLS info if the node is part of a swarm: the trusted root CA, and the
+ issuer's subject and public key.
+* `GET /distribution/(name)/json` is a new endpoint that returns a JSON output stream with payload `types.DistributionInspect` for an image name. It includes a descriptor with the digest, and supported platforms retrieved from directly contacting the registry.
+* `POST /swarm/update` now accepts 3 additional parameters as part of the swarm spec's CA configuration; the desired CA certificate for
+ the swarm, the desired CA key for the swarm (if not using an external certificate), and an optional parameter to force swarm to
+ generate and rotate to a new CA certificate/key pair.
+* `POST /service/create` and `POST /services/(id or name)/update` now take the field `Platforms` as part of the service `Placement`, allowing to specify platforms supported by the service.
+* `POST /containers/(name)/wait` now accepts a `condition` query parameter to indicate which state change condition to wait for. Also, response headers are now returned immediately to acknowledge that the server has registered a wait callback for the client.
+* `POST /swarm/init` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
+* `POST /swarm/join` now accepts a `DataPathAddr` property to set the IP-address or network interface to use for data traffic
+* `GET /events` now supports service, node and secret events which are emitted when users create, update and remove service, node and secret
+* `GET /events` now supports network remove event which is emitted when users remove a swarm scoped network
+* `GET /events` now supports a filter type `scope` in which supported value could be swarm and local
+
 ## v1.29 API changes
 
 [Docker Engine API v1.29](https://docs.docker.com/engine/api/v1.29/) documentation
-
 
 * `DELETE /networks/(name)` now allows to remove the ingress network, the one used to provide the routing-mesh.
 * `POST /networks/create` now supports creating the ingress network, by specifying an `Ingress` boolean field. As of now this is supported only when using the overlay network driver.
 * `GET /networks/(name)` now returns an `Ingress` field showing whether the network is the ingress one.
 * `GET /networks/` now supports a `scope` filter to filter networks based on the network mode (`swarm`, `global`, or `local`).
+* `POST /containers/create`, `POST /service/create` and `POST /services/(id or name)/update` now takes the field `StartPeriod` as a part of the `HealthConfig` allowing for specification of a period during which the container should not be considered unhealthy even if health checks do not pass.
+* `GET /services/(id)` now accepts an `insertDefaults` query-parameter to merge default values into the service inspect output.
+* `POST /containers/prune`, `POST /images/prune`, `POST /volumes/prune`, and `POST /networks/prune` now support a `label` filter to filter containers, images, volumes, or networks based on the label. The format of the label filter could be `label=<key>`/`label=<key>=<value>` to remove those with the specified labels, or `label!=<key>`/`label!=<key>=<value>` to remove those without the specified labels.
+* `POST /services/create` now accepts `Privileges` as part of `ContainerSpec`. Privileges currently include
+  `CredentialSpec` and `SELinuxContext`.
 
 ## v1.28 API changes
 
@@ -38,6 +156,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/create` and `POST /services/(id or name)/update` now accept a `rollback` value for `FailureAction`.
 * `POST /services/create` and `POST /services/(id or name)/update` now accept an optional `RollbackConfig` object which specifies rollback options.
 * `GET /services` now supports a `mode` filter to filter services based on the service mode (either `global` or `replicated`).
+* `POST /containers/(name)/update` now supports updating `NanoCPUs` that represents CPU quota in units of 10<sup>-9</sup> CPUs.
 
 ## v1.27 API changes
 
@@ -117,7 +236,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /secrets/{id}/update` updates the secret `id`.
 * `POST /services/(id or name)/update` now accepts service name or prefix of service id as a parameter.
 * `POST /containers/create` added 2 built-in log-opts that work on all logging drivers,
-`mode` (`blocking`|`non-blocking`), and `max-buffer-size` (e.g. `2m`) which enables a non-blocking log buffer.
+  `mode` (`blocking`|`non-blocking`), and `max-buffer-size` (e.g. `2m`) which enables a non-blocking log buffer.
+* `POST /containers/create` now takes `HostConfig.Init` field to run an init
+  inside the container that forwards signals and reaps processes.
 
 ## v1.24 API changes
 

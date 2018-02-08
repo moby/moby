@@ -1,14 +1,16 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
-	"github.com/docker/docker/libcontainerd"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func execSetPlatformOpt(c *container.Container, ec *exec.Config, p *libcontainerd.Process) error {
+func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config, p *specs.Process) error {
 	// Process arguments need to be escaped before sending to OCI.
-	p.Args = escapeArgs(p.Args)
-	p.User.Username = ec.User
+	if c.OS == "windows" {
+		p.Args = escapeArgs(p.Args)
+		p.User.Username = ec.User
+	}
 	return nil
 }

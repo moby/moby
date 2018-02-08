@@ -1,4 +1,4 @@
-package pubsub
+package pubsub // import "github.com/docker/docker/pkg/pubsub"
 
 import (
 	"fmt"

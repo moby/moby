@@ -24,16 +24,6 @@ type logT interface {
 	Logf(string, ...interface{})
 }
 
-func ensureFrozenImagesLinux(t testingT) {
-	images := []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
-	err := load.FrozenImagesLinux(dockerBinary, images...)
-	if err != nil {
-		t.Logf(dockerCmdWithError("images"))
-		t.Fatalf("%+v", err)
-	}
-	defer testEnv.ProtectImage(t, images...)
-}
-
 var ensureSyscallTestOnce sync.Once
 
 func ensureSyscallTest(c *check.C) {
@@ -48,7 +38,7 @@ func ensureSyscallTest(c *check.C) {
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
-	if testEnv.DaemonPlatform() != runtime.GOOS {
+	if testEnv.OSType != runtime.GOOS {
 		ensureSyscallTestBuild(c)
 		return
 	}
@@ -60,14 +50,14 @@ func ensureSyscallTest(c *check.C) {
 	gcc, err := exec.LookPath("gcc")
 	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
 
-	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw", "appletalk"}
+	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw"}
 	for _, test := range tests {
 		out, err := exec.Command(gcc, "-g", "-Wall", "-static", fmt.Sprintf("../contrib/syscall-test/%s.c", test), "-o", fmt.Sprintf("%s/%s-test", tmp, test)).CombinedOutput()
 		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	}
 
 	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
-		out, err := exec.Command(gcc, "-s", "-m32", "-nostdlib", "../contrib/syscall-test/exit32.s", "-o", tmp+"/"+"exit32-test").CombinedOutput()
+		out, err := exec.Command(gcc, "-s", "-m32", "-nostdlib", "-static", "../contrib/syscall-test/exit32.s", "-o", tmp+"/"+"exit32-test").CombinedOutput()
 		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
 	}
 
@@ -89,7 +79,7 @@ func ensureSyscallTest(c *check.C) {
 }
 
 func ensureSyscallTestBuild(c *check.C) {
-	err := load.FrozenImagesLinux(dockerBinary, "buildpack-deps:jessie")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
 	c.Assert(err, checker.IsNil)
 
 	var buildArgs []string
@@ -103,7 +93,7 @@ func ensureSyscallTestBuild(c *check.C) {
 
 func ensureNNPTest(c *check.C) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
-	if testEnv.DaemonPlatform() != runtime.GOOS {
+	if testEnv.OSType != runtime.GOOS {
 		ensureNNPTestBuild(c)
 		return
 	}
@@ -136,7 +126,7 @@ func ensureNNPTest(c *check.C) {
 }
 
 func ensureNNPTestBuild(c *check.C) {
-	err := load.FrozenImagesLinux(dockerBinary, "buildpack-deps:jessie")
+	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
 	c.Assert(err, checker.IsNil)
 
 	var buildArgs []string

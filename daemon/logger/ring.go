@@ -1,11 +1,11 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"errors"
 	"sync"
 	"sync/atomic"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -121,7 +121,7 @@ func (r *RingLogger) run() {
 
 type messageRing struct {
 	mu sync.Mutex
-	// singals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
+	// signals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
 	wait *sync.Cond
 
 	sizeBytes int64 // current buffer size
@@ -202,7 +202,6 @@ func (r *messageRing) Close() {
 	r.closed = true
 	r.wait.Broadcast()
 	r.mu.Unlock()
-	return
 }
 
 // Drain drains all messages from the queue.

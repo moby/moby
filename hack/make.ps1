@@ -17,11 +17,12 @@
              development and Windows to Windows CI.
 
              Usage Examples (run from repo root):
-                "hack\make.ps1 -Binary" to build the binaries
-                "hack\make.ps1 -Client" to build just the client 64-bit binary
+                "hack\make.ps1 -Client" to build docker.exe client 64-bit binary (remote repo)
                 "hack\make.ps1 -TestUnit" to run unit tests
-                "hack\make.ps1 -Binary -TestUnit" to build the binaries and run unit tests
+                "hack\make.ps1 -Daemon -TestUnit" to build the daemon and run unit tests
                 "hack\make.ps1 -All" to run everything this script knows about that can run in a container
+                "hack\make.ps1" to build the daemon binary (same as -Daemon)
+                "hack\make.ps1 -Binary" shortcut to -Client and -Daemon
 
 .PARAMETER Client
      Builds the client binaries.
@@ -30,7 +31,7 @@
      Builds the daemon binary.
 
 .PARAMETER Binary
-     Builds the client binaries and the daemon binary. A convenient shortcut to `make.ps1 -Client -Daemon`.
+     Builds the client and daemon binaries. A convenient shortcut to `make.ps1 -Client -Daemon`.
 
 .PARAMETER Race
      Use -race in go build and go test.
@@ -87,6 +88,7 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+$ProgressPreference = "SilentlyContinue"
 $pushed=$False  # To restore the directory if we have temporarily pushed to one.
 
 # Utility function to get the commit ID of the repository
@@ -110,12 +112,6 @@ Function Get-GitCommit() {
         Write-Host ""
     }
     return $gitCommit
-}
-
-# Utility function to get get the current build version of docker
-Function Get-DockerVersion() {
-    if (-not (Test-Path ".\VERSION")) { Throw "VERSION file not found. Is this running from the root of a docker repository?" }
-    return $(Get-Content ".\VERSION" -raw).ToString().Replace("`n","").Trim()
 }
 
 # Utility function to determine if we are running in a container or not.
@@ -174,7 +170,7 @@ Function Execute-Build($type, $additionalBuildTags, $directory) {
     if ($Race)                      { Write-Warning "Using race detector"; $raceParm=" -race"}
     if ($ForceBuildAll)             { $allParm=" -a" }
     if ($NoOpt)                     { $optParm=" -gcflags "+""""+"-N -l"+"""" }
-    if ($addtionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
+    if ($additionalBuildTags -ne "") { $buildTags += $(" " + $additionalBuildTags) }
 
     # Do the go build in the appropriate directory
     # Note -linkmode=internal is required to be able to debug on Windows.
@@ -279,7 +275,7 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
 
     # Get a list of all go source-code files which have changed.  Ignore exit code on next call - always process regardless
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'*.go`'"
-    $files = $files | Select-String -NotMatch "^vendor/" | Select-String -NotMatch "^cli/compose/schema/bindata.go"
+    $files = $files | Select-String -NotMatch "^vendor/"
     $badFiles=@(); $files | %{
         # Deliberately ignore error on next line - treat as failed
         $content=Invoke-Expression "git show $headCommit`:$_"
@@ -317,7 +313,7 @@ Function Run-UnitTests() {
     $pkgList = $pkgList | Select-String -Pattern "github.com/docker/docker"
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/vendor"
     $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/man"
-    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration-cli"
+    $pkgList = $pkgList | Select-String -NotMatch "github.com/docker/docker/integration"
     $pkgList = $pkgList -replace "`r`n", " "
     $goTestCommand = "go test" + $raceParm + " -cover -ldflags -w -tags """ + "autogen daemon" + """ -a """ + "-test.timeout=10m" + """ $pkgList"
     Invoke-Expression $goTestCommand
@@ -340,8 +336,8 @@ Try {
     # Handle the "-Binary" shortcut to build both client and daemon.
     if ($Binary) { $Client = $True; $Daemon = $True }
 
-    # Default to building the binaries if not asked for anything explicitly.
-    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { $Client=$True; $Daemon=$True }
+    # Default to building the daemon if not asked for anything explicitly.
+    if (-not($Client) -and -not($Daemon) -and -not($DCO) -and -not($PkgImports) -and -not($GoFormat) -and -not($TestUnit)) { $Daemon=$True }
 
     # Verify git is installed
     if ($(Get-Command git -ErrorAction SilentlyContinue) -eq $nil) { Throw "Git does not appear to be installed" }
@@ -354,7 +350,7 @@ Try {
     if ($CommitSuffix -ne "") { $gitCommit += "-"+$CommitSuffix -Replace ' ', '' }
 
     # Get the version of docker (eg 17.04.0-dev)
-    $dockerVersion=Get-DockerVersion
+    $dockerVersion="0.0.0-dev"
 
     # Give a warning if we are not running in a container and are building binaries or running unit tests.
     # Not relevant for validation tests as these are fine to run outside of a container.
@@ -369,7 +365,7 @@ Try {
     # Run autogen if building binaries or running unit tests.
     if ($Client -or $Daemon -or $TestUnit) {
         Write-Host "INFO: Invoking autogen..."
-        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion }
+        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion -Platform "$env:PLATFORM" }
         Catch [Exception] { Throw $_ }
     }
 
@@ -396,7 +392,32 @@ Try {
 
         # Perform the actual build
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
-        if ($Client) { Execute-Build "client" "" "docker" }
+        if ($Client) {
+            # Get the Docker channel and version from the environment, or use the defaults.
+            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "edge" }
+            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "17.06.0-ce" }
+
+            # Download the zip file and extract the client executable.
+            Write-Host "INFO: Downloading docker/cli version $version from $channel..."
+            $url = "https://download.docker.com/win/static/$channel/x86_64/docker-$version.zip"
+            Invoke-WebRequest $url -OutFile "docker.zip"
+            Try {
+                Add-Type -AssemblyName System.IO.Compression.FileSystem
+                $zip = [System.IO.Compression.ZipFile]::OpenRead("$PWD\docker.zip")
+                Try {
+                    if (-not ($entry = $zip.Entries | Where-Object { $_.Name -eq "docker.exe" })) {
+                        Throw "Cannot find docker.exe in $url"
+                    }
+                    [System.IO.Compression.ZipFileExtensions]::ExtractToFile($entry, "$PWD\bundles\docker.exe", $true)
+                }
+                Finally {
+                    $zip.Dispose()
+                }
+            }
+            Finally {
+                Remove-Item -Force "docker.zip"
+            }
+        }
     }
 
     # Run unit tests

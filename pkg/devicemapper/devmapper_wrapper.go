@@ -1,9 +1,9 @@
 // +build linux,cgo
 
-package devicemapper
+package devicemapper // import "github.com/docker/docker/pkg/devicemapper"
 
 /*
-#cgo LDFLAGS: -L. -ldevmapper
+#define _GNU_SOURCE
 #include <libdevmapper.h>
 #include <linux/fs.h>   // FIXME: present only for BLKGETSIZE64, maybe we can remove it?
 
@@ -12,19 +12,25 @@ extern void DevmapperLogCallback(int level, char *file, int line, int dm_errno_o
 
 static void	log_cb(int level, const char *file, int line, int dm_errno_or_class, const char *f, ...)
 {
-  char buffer[256];
-  va_list ap;
+	char *buffer = NULL;
+	va_list ap;
+	int ret;
 
-  va_start(ap, f);
-  vsnprintf(buffer, 256, f, ap);
-  va_end(ap);
+	va_start(ap, f);
+	ret = vasprintf(&buffer, f, ap);
+	va_end(ap);
+	if (ret < 0) {
+		// memory allocation failed -- should never happen?
+		return;
+	}
 
-  DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
+	DevmapperLogCallback(level, (char *)file, line, dm_errno_or_class, buffer);
+	free(buffer);
 }
 
 static void	log_with_errno_init()
 {
-  dm_log_with_errno_init(log_cb);
+	dm_log_with_errno_init(log_cb);
 }
 */
 import "C"
@@ -56,7 +62,6 @@ const (
 var (
 	DmGetLibraryVersion       = dmGetLibraryVersionFct
 	DmGetNextTarget           = dmGetNextTargetFct
-	DmLogInitVerbose          = dmLogInitVerboseFct
 	DmSetDevDir               = dmSetDevDirFct
 	DmTaskAddTarget           = dmTaskAddTargetFct
 	DmTaskCreate              = dmTaskCreateFct
@@ -224,10 +229,6 @@ func dmUdevWaitFct(cookie uint) int {
 
 func dmCookieSupportedFct() int {
 	return int(C.dm_cookie_supported())
-}
-
-func dmLogInitVerboseFct(level int) {
-	C.dm_log_init_verbose(C.int(level))
 }
 
 func logWithErrnoInitFct() {

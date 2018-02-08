@@ -14,12 +14,12 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ipvs"
 	"github.com/docker/libnetwork/ns"
 	"github.com/gogo/protobuf/proto"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
 )
@@ -44,6 +44,11 @@ func (n *network) connectedLoadbalancers() []*loadBalancer {
 	var lbs []*loadBalancer
 	for _, s := range serviceBindings {
 		s.Lock()
+		// Skip the serviceBindings that got deleted
+		if s.deleted {
+			s.Unlock()
+			continue
+		}
 		if lb, ok := s.loadBalancers[n.ID()]; ok {
 			lbs = append(lbs, lb)
 		}
@@ -106,7 +111,7 @@ func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
 
 // Add loadbalancer backend to all sandboxes which has a connection to
 // this network. If needed add the service as well.
-func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig) {
+func (n *network) addLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []*PortConfig) {
 	n.WalkEndpoints(func(e Endpoint) bool {
 		ep := e.(*endpoint)
 		if sb, ok := ep.getSandbox(); ok {
@@ -119,7 +124,7 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 				gwIP = ep.Iface().Address().IP
 			}
 
-			sb.addLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, n.ingress)
+			sb.addLBBackend(ip, vip, lb.fwMark, ingressPorts, ep.Iface().Address(), gwIP, n.ingress)
 		}
 
 		return false
@@ -129,7 +134,7 @@ func (n *network) addLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Po
 // Remove loadbalancer backend from all sandboxes which has a
 // connection to this network. If needed remove the service entry as
 // well, as specified by the rmService bool.
-func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*PortConfig, rmService bool) {
+func (n *network) rmLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []*PortConfig, rmService bool) {
 	n.WalkEndpoints(func(e Endpoint) bool {
 		ep := e.(*endpoint)
 		if sb, ok := ep.getSandbox(); ok {
@@ -142,7 +147,7 @@ func (n *network) rmLBBackend(ip, vip net.IP, fwMark uint32, ingressPorts []*Por
 				gwIP = ep.Iface().Address().IP
 			}
 
-			sb.rmLBBackend(ip, vip, fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService, n.ingress)
+			sb.rmLBBackend(ip, vip, lb.fwMark, ingressPorts, ep.Iface().Address(), gwIP, rmService, n.ingress)
 		}
 
 		return false
@@ -367,6 +372,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 			if err := iptables.RawCombinedOutput("-I", "FORWARD", "-j", ingressChain); err != nil {
 				return fmt.Errorf("failed to add jump rule to %s in filter table forward chain: %v", ingressChain, err)
 			}
+			arrangeUserFilterRule()
 		}
 
 		oifName, err := findOIFName(gwIP)
@@ -433,7 +439,9 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 	return nil
 }
 
-// In the filter table FORWARD chain first rule should be to jump to INGRESS-CHAIN
+// In the filter table FORWARD chain the first rule should be to jump to
+// DOCKER-USER so the user is able to filter packet first.
+// The second rule should be jump to INGRESS-CHAIN.
 // This chain has the rules to allow access to the published ports for swarm tasks
 // from local bridge networks and docker_gwbridge (ie:taks on other swarm netwroks)
 func arrangeIngressFilterRule() {
@@ -515,7 +523,7 @@ func writePortsToFile(ports []*PortConfig) (string, error) {
 	}
 	defer f.Close()
 
-	buf, err := proto.Marshal(&EndpointRecord{
+	buf, _ := proto.Marshal(&EndpointRecord{
 		IngressPorts: ports,
 	})
 

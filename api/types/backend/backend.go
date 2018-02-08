@@ -1,11 +1,12 @@
 // Package backend includes types to send information to server backends.
-package backend
+package backend // import "github.com/docker/docker/api/types/backend"
 
 import (
 	"io"
+	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerAttachConfig holds the streams to use when connecting to a container to view logs.
@@ -25,11 +26,28 @@ type ContainerAttachConfig struct {
 	MuxStreams bool
 }
 
-// ContainerLogsConfig holds configs for logging operations. Exists
-// for users of the backend to to pass it a logging configuration.
-type ContainerLogsConfig struct {
-	types.ContainerLogsOptions
-	OutStream io.Writer
+// LogMessage is datastructure that represents piece of output produced by some
+// container.  The Line member is a slice of an array whose contents can be
+// changed after a log driver's Log() method returns.
+// changes to this struct need to be reflect in the reset method in
+// daemon/logger/logger.go
+type LogMessage struct {
+	Line      []byte
+	Source    string
+	Timestamp time.Time
+	Attrs     []LogAttr
+	Partial   bool
+
+	// Err is an error associated with a message. Completeness of a message
+	// with Err is not expected, tho it may be partially complete (fields may
+	// be missing, gibberish, or nil)
+	Err error
+}
+
+// LogAttr is used to hold the extra attributes available in the log message.
+type LogAttr struct {
+	Key   string
+	Value string
 }
 
 // LogSelector is a list of services and tasks that should be returned as part
@@ -82,13 +100,7 @@ type ExecProcessConfig struct {
 type ContainerCommitConfig struct {
 	types.ContainerCommitConfig
 	Changes []string
-}
-
-// ProgressWriter is an interface
-// to transport progress streams.
-type ProgressWriter struct {
-	Output             io.Writer
-	StdoutFormatter    *streamformatter.StdoutFormatter
-	StderrFormatter    *streamformatter.StderrFormatter
-	ProgressReaderFunc func(io.ReadCloser) io.ReadCloser
+	// TODO: ContainerConfig is only used by the dockerfile Builder, so remove it
+	// once the Builder has been updated to use a different interface
+	ContainerConfig *container.Config
 }

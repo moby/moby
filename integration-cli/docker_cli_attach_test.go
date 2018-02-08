@@ -10,8 +10,9 @@ import (
 	"sync"
 	"time"
 
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 const attachWait = 5 * time.Second
@@ -22,8 +23,8 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 	endGroup.Add(3)
 	startGroup.Add(3)
 
-	err := waitForContainer("attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done")
-	c.Assert(err, check.IsNil)
+	cli.DockerCmd(c, "run", "--name", "attacher", "-d", "busybox", "/bin/sh", "-c", "while true; do sleep 1; echo hello; done")
+	cli.WaitRun(c, "attacher")
 
 	startDone := make(chan struct{})
 	endDone := make(chan struct{})
@@ -77,7 +78,7 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 		c.Fatalf("Attaches did not initialize properly")
 	}
 
-	dockerCmd(c, "kill", "attacher")
+	cli.DockerCmd(c, "kill", "attacher")
 
 	select {
 	case <-endDone:
@@ -87,6 +88,14 @@ func (s *DockerSuite) TestAttachMultipleAndRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestAttachTTYWithoutStdin(c *check.C) {
+	// TODO @jhowardmsft. Figure out how to get this running again reliable on Windows.
+	// It works by accident at the moment. Sometimes. I've gone back to v1.13.0 and see the same.
+	// On Windows, docker run -d -ti busybox causes the container to exit immediately.
+	// Obviously a year back when I updated the test, that was not the case. However,
+	// with this, and the test racing with the tear-down which panic's, sometimes CI
+	// will just fail and `MISS` all the other tests. For now, disabling it. Will
+	// open an issue to track re-enabling this and root-causing the problem.
+	testRequires(c, DaemonIsLinux)
 	out, _ := dockerCmd(c, "run", "-d", "-ti", "busybox")
 
 	id := strings.TrimSpace(out)
@@ -138,7 +147,10 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 	c.Assert(err, check.IsNil)
 	defer stdout.Close()
 	c.Assert(cmd.Start(), check.IsNil)
-	defer cmd.Process.Kill()
+	defer func() {
+		cmd.Process.Kill()
+		cmd.Wait()
+	}()
 
 	_, err = stdin.Write([]byte("hello\n"))
 	c.Assert(err, check.IsNil)
@@ -155,12 +167,11 @@ func (s *DockerSuite) TestAttachDisconnect(c *check.C) {
 
 func (s *DockerSuite) TestAttachPausedContainer(c *check.C) {
 	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
 	runSleepingContainer(c, "-d", "--name=test")
 	dockerCmd(c, "pause", "test")
 
 	result := dockerCmdWithResult("attach", "test")
-	c.Assert(result, icmd.Matches, icmd.Expected{
+	result.Assert(c, icmd.Expected{
 		Error:    "exit status 1",
 		ExitCode: 1,
 		Err:      "You cannot attach to a paused container, unpause it first",

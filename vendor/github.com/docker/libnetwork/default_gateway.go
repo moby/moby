@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -72,9 +73,19 @@ func (sb *sandbox) setupDefaultGW() error {
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}
+
+	defer func() {
+		if err != nil {
+			if err2 := newEp.Delete(true); err2 != nil {
+				logrus.Warnf("Failed to remove gw endpoint for container %s after failing to join the gateway network: %v",
+					sb.containerID, err2)
+			}
+		}
+	}()
+
 	epLocal := newEp.(*endpoint)
 
-	if err := epLocal.sbJoin(sb); err != nil {
+	if err = epLocal.sbJoin(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 

@@ -1,46 +1,34 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"strings"
-
 	"testing"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestBuildProcessLabels(t *testing.T) {
+func TestAddNodesForLabelOption(t *testing.T) {
 	dockerfile := "FROM scratch"
-	d := parser.Directive{}
-	parser.SetEscapeToken(parser.DefaultEscapeToken, &d)
-	n, err := parser.Parse(strings.NewReader(dockerfile), &d)
-	assert.NilError(t, err)
+	result, err := parser.Parse(strings.NewReader(dockerfile))
+	assert.NoError(t, err)
 
-	options := &types.ImageBuildOptions{
-		Labels: map[string]string{
-			"org.e": "cli-e",
-			"org.d": "cli-d",
-			"org.c": "cli-c",
-			"org.b": "cli-b",
-			"org.a": "cli-a",
-		},
+	labels := map[string]string{
+		"org.e": "cli-e",
+		"org.d": "cli-d",
+		"org.c": "cli-c",
+		"org.b": "cli-b",
+		"org.a": "cli-a",
 	}
-	b := &Builder{
-		runConfig:  &container.Config{},
-		options:    options,
-		directive:  d,
-		dockerfile: n,
-	}
-	b.processLabels()
+	nodes := result.AST
+	addNodesForLabelOption(nodes, labels)
 
 	expected := []string{
 		"FROM scratch",
 		`LABEL "org.a"='cli-a' "org.b"='cli-b' "org.c"='cli-c' "org.d"='cli-d' "org.e"='cli-e'`,
 	}
-	assert.Equal(t, len(b.dockerfile.Children), 2)
-	for i, v := range b.dockerfile.Children {
-		assert.Equal(t, v.Original, expected[i])
+	assert.Len(t, nodes.Children, 2)
+	for i, v := range nodes.Children {
+		assert.Equal(t, expected[i], v.Original)
 	}
 }

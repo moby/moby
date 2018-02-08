@@ -10,13 +10,6 @@ import (
 	"time"
 )
 
-func abs(i int64) int64 {
-	if i < 0 {
-		return -i
-	}
-	return i
-}
-
 // Sizer is an interface implemented
 // by types that can estimate their
 // size when MessagePack encoded.
@@ -59,15 +52,26 @@ func pushWriter(wr *Writer) {
 // it will cause undefined behavior.
 func freeW(w *Writer) { pushWriter(w) }
 
-// Require ensures that cap(old)-len(old) >= extra
+// Require ensures that cap(old)-len(old) >= extra.
 func Require(old []byte, extra int) []byte {
-	if cap(old)-len(old) >= extra {
+	l := len(old)
+	c := cap(old)
+	r := l + extra
+	if c >= r {
 		return old
-	}
-	if len(old) == 0 {
+	} else if l == 0 {
 		return make([]byte, 0, extra)
 	}
-	n := make([]byte, len(old), cap(old)-len(old)+extra)
+	// the new size is the greater
+	// of double the old capacity
+	// and the sum of the old length
+	// and the number of new bytes
+	// necessary.
+	c <<= 1
+	if c < r {
+		c = r
+	}
+	n := make([]byte, l, c)
 	copy(n, old)
 	return n
 }
@@ -184,6 +188,17 @@ func (mw *Writer) require(n int) (int, error) {
 	return wl, nil
 }
 
+func (mw *Writer) Append(b ...byte) error {
+	if mw.avail() < len(b) {
+		err := mw.flush()
+		if err != nil {
+			return err
+		}
+	}
+	mw.wloc += copy(mw.buf[mw.wloc:], b)
+	return nil
+}
+
 // push one byte onto the buffer
 //
 // NOTE: this is a hot code path
@@ -289,9 +304,9 @@ func (mw *Writer) Reset(w io.Writer) {
 // size to the writer
 func (mw *Writer) WriteMapHeader(sz uint32) error {
 	switch {
-	case sz < 16:
+	case sz <= 15:
 		return mw.push(wfixmap(uint8(sz)))
-	case sz < math.MaxUint16:
+	case sz <= math.MaxUint16:
 		return mw.prefix16(mmap16, uint16(sz))
 	default:
 		return mw.prefix32(mmap32, sz)
@@ -302,9 +317,9 @@ func (mw *Writer) WriteMapHeader(sz uint32) error {
 // given size to the writer
 func (mw *Writer) WriteArrayHeader(sz uint32) error {
 	switch {
-	case sz < 16:
+	case sz <= 15:
 		return mw.push(wfixarray(uint8(sz)))
-	case sz < math.MaxUint16:
+	case sz <= math.MaxUint16:
 		return mw.prefix16(marray16, uint16(sz))
 	default:
 		return mw.prefix32(marray32, sz)
@@ -328,17 +343,26 @@ func (mw *Writer) WriteFloat32(f float32) error {
 
 // WriteInt64 writes an int64 to the writer
 func (mw *Writer) WriteInt64(i int64) error {
-	a := abs(i)
+	if i >= 0 {
+		switch {
+		case i <= math.MaxInt8:
+			return mw.push(wfixint(uint8(i)))
+		case i <= math.MaxInt16:
+			return mw.prefix16(mint16, uint16(i))
+		case i <= math.MaxInt32:
+			return mw.prefix32(mint32, uint32(i))
+		default:
+			return mw.prefix64(mint64, uint64(i))
+		}
+	}
 	switch {
-	case i < 0 && i > -32:
+	case i >= -32:
 		return mw.push(wnfixint(int8(i)))
-	case i >= 0 && i < 128:
-		return mw.push(wfixint(uint8(i)))
-	case a < math.MaxInt8:
+	case i >= math.MinInt8:
 		return mw.prefix8(mint8, uint8(i))
-	case a < math.MaxInt16:
+	case i >= math.MinInt16:
 		return mw.prefix16(mint16, uint16(i))
-	case a < math.MaxInt32:
+	case i >= math.MinInt32:
 		return mw.prefix32(mint32, uint32(i))
 	default:
 		return mw.prefix64(mint64, uint64(i))
@@ -360,20 +384,20 @@ func (mw *Writer) WriteInt(i int) error { return mw.WriteInt64(int64(i)) }
 // WriteUint64 writes a uint64 to the writer
 func (mw *Writer) WriteUint64(u uint64) error {
 	switch {
-	case u < (1 << 7):
+	case u <= (1<<7)-1:
 		return mw.push(wfixint(uint8(u)))
-	case u < math.MaxUint8:
+	case u <= math.MaxUint8:
 		return mw.prefix8(muint8, uint8(u))
-	case u < math.MaxUint16:
+	case u <= math.MaxUint16:
 		return mw.prefix16(muint16, uint16(u))
-	case u < math.MaxUint32:
+	case u <= math.MaxUint32:
 		return mw.prefix32(muint32, uint32(u))
 	default:
 		return mw.prefix64(muint64, u)
 	}
 }
 
-// WriteByte is analagous to WriteUint8
+// WriteByte is analogous to WriteUint8
 func (mw *Writer) WriteByte(u byte) error { return mw.WriteUint8(uint8(u)) }
 
 // WriteUint8 writes a uint8 to the writer
@@ -393,9 +417,9 @@ func (mw *Writer) WriteBytes(b []byte) error {
 	sz := uint32(len(b))
 	var err error
 	switch {
-	case sz < math.MaxUint8:
+	case sz <= math.MaxUint8:
 		err = mw.prefix8(mbin8, uint8(sz))
-	case sz < math.MaxUint16:
+	case sz <= math.MaxUint16:
 		err = mw.prefix16(mbin16, uint16(sz))
 	default:
 		err = mw.prefix32(mbin32, sz)
@@ -405,6 +429,20 @@ func (mw *Writer) WriteBytes(b []byte) error {
 	}
 	_, err = mw.Write(b)
 	return err
+}
+
+// WriteBytesHeader writes just the size header
+// of a MessagePack 'bin' object. The user is responsible
+// for then writing 'sz' more bytes into the stream.
+func (mw *Writer) WriteBytesHeader(sz uint32) error {
+	switch {
+	case sz <= math.MaxUint8:
+		return mw.prefix8(mbin8, uint8(sz))
+	case sz <= math.MaxUint16:
+		return mw.prefix16(mbin16, uint16(sz))
+	default:
+		return mw.prefix32(mbin32, sz)
+	}
 }
 
 // WriteBool writes a bool to the writer
@@ -421,11 +459,11 @@ func (mw *Writer) WriteString(s string) error {
 	sz := uint32(len(s))
 	var err error
 	switch {
-	case sz < 32:
+	case sz <= 31:
 		err = mw.push(wfixstr(uint8(sz)))
-	case sz < math.MaxUint8:
+	case sz <= math.MaxUint8:
 		err = mw.prefix8(mstr8, uint8(sz))
-	case sz < math.MaxUint16:
+	case sz <= math.MaxUint16:
 		err = mw.prefix16(mstr16, uint16(sz))
 	default:
 		err = mw.prefix32(mstr32, sz)
@@ -434,6 +472,45 @@ func (mw *Writer) WriteString(s string) error {
 		return err
 	}
 	return mw.writeString(s)
+}
+
+// WriteStringHeader writes just the string size
+// header of a MessagePack 'str' object. The user
+// is responsible for writing 'sz' more valid UTF-8
+// bytes to the stream.
+func (mw *Writer) WriteStringHeader(sz uint32) error {
+	switch {
+	case sz <= 31:
+		return mw.push(wfixstr(uint8(sz)))
+	case sz <= math.MaxUint8:
+		return mw.prefix8(mstr8, uint8(sz))
+	case sz <= math.MaxUint16:
+		return mw.prefix16(mstr16, uint16(sz))
+	default:
+		return mw.prefix32(mstr32, sz)
+	}
+}
+
+// WriteStringFromBytes writes a 'str' object
+// from a []byte.
+func (mw *Writer) WriteStringFromBytes(str []byte) error {
+	sz := uint32(len(str))
+	var err error
+	switch {
+	case sz <= 31:
+		err = mw.push(wfixstr(uint8(sz)))
+	case sz <= math.MaxUint8:
+		err = mw.prefix8(mstr8, uint8(sz))
+	case sz <= math.MaxUint16:
+		err = mw.prefix16(mstr16, uint16(sz))
+	default:
+		err = mw.prefix32(mstr32, sz)
+	}
+	if err != nil {
+		return err
+	}
+	_, err = mw.Write(str)
+	return err
 }
 
 // WriteComplex64 writes a complex64 to the writer
@@ -509,7 +586,7 @@ func (mw *Writer) WriteMapStrIntf(mp map[string]interface{}) (err error) {
 // elapsed since "zero" Unix time, followed by 4 bytes
 // for a big-endian 32-bit signed integer denoting
 // the nanosecond offset of the time. This encoding
-// is intended to ease portability accross languages.
+// is intended to ease portability across languages.
 // (Note that this is *not* the standard time.Time
 // binary encoding, because its implementation relies
 // heavily on the internal representation used by the
@@ -612,7 +689,7 @@ func (mw *Writer) WriteIntf(v interface{}) error {
 }
 
 func (mw *Writer) writeMap(v reflect.Value) (err error) {
-	if v.Elem().Kind() != reflect.String {
+	if v.Type().Key().Kind() != reflect.String {
 		return errors.New("msgp: map keys must be strings")
 	}
 	ks := v.MapKeys()

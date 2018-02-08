@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -36,10 +36,10 @@ func xmain() (int, error) {
 	// Should we use cobra maybe?
 	replicas := flag.Int("replicas", 1, "Number of worker service replica")
 	chunks := flag.Int("chunks", 0, "Number of test chunks executed in batch (0 == replicas)")
-	pushWorkerImage := flag.String("push-worker-image", "", "Push the worker image to the registry. Required for distribuetd execution. (empty == not to push)")
+	pushWorkerImage := flag.String("push-worker-image", "", "Push the worker image to the registry. Required for distributed execution. (empty == not to push)")
 	shuffle := flag.Bool("shuffle", false, "Shuffle the input so as to mitigate makespan nonuniformity")
 	// flags below are rarely used
-	randSeed := flag.Int64("rand-seed", int64(0), "Random seed used for shuffling (0 == curent time)")
+	randSeed := flag.Int64("rand-seed", int64(0), "Random seed used for shuffling (0 == current time)")
 	filtersFile := flag.String("filters-file", "", "Path to optional file composed of `-check.f` filter strings")
 	dryRun := flag.Bool("dry-run", false, "Dry run")
 	keepExecutor := flag.Bool("keep-executor", false, "Do not auto-remove executor containers, which is used for running privileged programs on Swarm")
@@ -188,5 +188,11 @@ func waitForContainerCompletion(cli *client.Client, stdout, stderr io.Writer, co
 	}
 	stdcopy.StdCopy(stdout, stderr, stream)
 	stream.Close()
-	return cli.ContainerWait(context.Background(), containerID)
+	resultC, errC := cli.ContainerWait(context.Background(), containerID, "")
+	select {
+	case err := <-errC:
+		return 1, err
+	case result := <-resultC:
+		return result.StatusCode, nil
+	}
 }

@@ -1,4 +1,4 @@
-package parser
+package parser // import "github.com/docker/docker/builder/dockerfile/parser"
 
 // line parsers are dispatch calls that parse a single unit of text into a
 // Node object which contains the whole statement. Dockerfiles have varied
@@ -19,7 +19,7 @@ import (
 )
 
 var (
-	errDockerfileNotStringArray = errors.New("When using JSON array syntax, arrays must be comprised of strings only.")
+	errDockerfileNotStringArray = errors.New("when using JSON array syntax, arrays must be comprised of strings only")
 )
 
 const (
@@ -42,7 +42,7 @@ func parseSubCommand(rest string, d *Directive) (*Node, map[string]bool, error) 
 		return nil, nil, nil
 	}
 
-	_, child, err := ParseLine(rest, d, false)
+	child, err := newNodeFromLine(rest, d)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -103,7 +103,7 @@ func parseWords(rest string, d *Directive) []string {
 				blankOK = true
 				phase = inQuote
 			}
-			if ch == d.EscapeToken {
+			if ch == d.escapeToken {
 				if pos+chWidth == len(rest) {
 					continue // just skip an escape token at end of line
 				}
@@ -122,7 +122,7 @@ func parseWords(rest string, d *Directive) []string {
 				phase = inWord
 			}
 			// The escape token is special except for ' quotes - can't escape anything for '
-			if ch == d.EscapeToken && quote != '\'' {
+			if ch == d.escapeToken && quote != '\'' {
 				if pos+chWidth == len(rest) {
 					phase = inWord
 					continue // just skip the escape token at end

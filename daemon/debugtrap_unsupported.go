@@ -1,6 +1,6 @@
-// +build !linux,!darwin,!freebsd,!windows,!solaris
+// +build !linux,!darwin,!freebsd,!windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 func (d *Daemon) setupDumpStackTrap(_ string) {
 	return

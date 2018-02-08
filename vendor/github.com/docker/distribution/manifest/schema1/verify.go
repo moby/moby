@@ -3,8 +3,8 @@ package schema1
 import (
 	"crypto/x509"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libtrust"
+	"github.com/sirupsen/logrus"
 )
 
 // Verify verifies the signature of the signed manifest returning the public

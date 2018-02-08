@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"time"
@@ -6,6 +6,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -16,7 +17,9 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "no such image: %s", name)
 	}
-
+	if !system.IsOSSupported(img.OperatingSystem()) {
+		return nil, system.ErrNotSupportedOperatingSystem
+	}
 	refs := daemon.referenceStore.References(img.ID().Digest())
 	repoTags := []string{}
 	repoDigests := []string{}
@@ -33,11 +36,11 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	var layerMetadata map[string]string
 	layerID := img.RootFS.ChainID()
 	if layerID != "" {
-		l, err := daemon.layerStore.Get(layerID)
+		l, err := daemon.layerStores[img.OperatingSystem()].Get(layerID)
 		if err != nil {
 			return nil, err
 		}
-		defer layer.ReleaseAndLog(daemon.layerStore, l)
+		defer layer.ReleaseAndLog(daemon.layerStores[img.OperatingSystem()], l)
 		size, err = l.Size()
 		if err != nil {
 			return nil, err
@@ -54,6 +57,11 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		comment = img.History[len(img.History)-1].Comment
 	}
 
+	lastUpdated, err := daemon.imageStore.GetLastUpdated(img.ID())
+	if err != nil {
+		return nil, err
+	}
+
 	imageInspect := &types.ImageInspect{
 		ID:              img.ID().String(),
 		RepoTags:        repoTags,
@@ -67,15 +75,17 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 		Author:          img.Author,
 		Config:          img.Config,
 		Architecture:    img.Architecture,
-		Os:              img.OS,
+		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            size,
 		VirtualSize:     size, // TODO: field unused, deprecate
 		RootFS:          rootFSToAPIType(img.RootFS),
+		Metadata: types.ImageMetadata{
+			LastTagTime: lastUpdated,
+		},
 	}
 
-	imageInspect.GraphDriver.Name = daemon.GraphDriverName()
-
+	imageInspect.GraphDriver.Name = daemon.GraphDriverName(img.OperatingSystem())
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

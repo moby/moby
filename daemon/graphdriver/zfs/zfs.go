@@ -1,6 +1,6 @@
-// +build linux freebsd solaris
+// +build linux freebsd
 
-package zfs
+package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 
 import (
 	"fmt"
@@ -10,16 +10,17 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	zfs "github.com/mistifyio/go-zfs"
-	"github.com/opencontainers/runc/libcontainer/label"
+	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 type zfsOptions struct {
@@ -103,13 +104,10 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get root uid/guid: %v", err)
 	}
-	if err := idtools.MkdirAllAs(base, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(base, 0700, idtools.IDPair{rootUID, rootGID}); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
-	if err := mount.MakePrivate(base); err != nil {
-		return nil, err
-	}
 	d := &Driver{
 		dataset:          rootDataset,
 		options:          options,
@@ -141,8 +139,8 @@ func parseOptions(opt []string) (zfsOptions, error) {
 }
 
 func lookupZfsDataset(rootdir string) (string, error) {
-	var stat syscall.Stat_t
-	if err := syscall.Stat(rootdir, &stat); err != nil {
+	var stat unix.Stat_t
+	if err := unix.Stat(rootdir, &stat); err != nil {
 		return "", fmt.Errorf("Failed to access '%s': %s", rootdir, err)
 	}
 	wantedDev := stat.Dev
@@ -152,7 +150,7 @@ func lookupZfsDataset(rootdir string) (string, error) {
 		return "", err
 	}
 	for _, m := range mounts {
-		if err := syscall.Stat(m.Mountpoint, &stat); err != nil {
+		if err := unix.Stat(m.Mountpoint, &stat); err != nil {
 			logrus.Debugf("[zfs] failed to stat '%s' while scanning for zfs mount: %v", m.Mountpoint, err)
 			continue // may fail on fuse file systems
 		}
@@ -180,9 +178,9 @@ func (d *Driver) String() string {
 	return "zfs"
 }
 
-// Cleanup is used to implement graphdriver.ProtoDriver. There is no cleanup required for this driver.
+// Cleanup is called on daemon shutdown, it is used to clean up any remaining mounts
 func (d *Driver) Cleanup() error {
-	return nil
+	return mount.RecursiveUnmount(d.options.mountPath)
 }
 
 // Status returns information about the ZFS filesystem. It returns a two dimensional array of information
@@ -356,11 +354,24 @@ func (d *Driver) Remove(id string) error {
 }
 
 // Get returns the mountpoint for the given id after creating the target directories if necessary.
-func (d *Driver) Get(id, mountLabel string) (string, error) {
+func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr error) {
 	mountpoint := d.mountPath(id)
 	if count := d.ctr.Increment(mountpoint); count > 1 {
-		return mountpoint, nil
+		return containerfs.NewLocalContainerFS(mountpoint), nil
 	}
+	defer func() {
+		if retErr != nil {
+			if c := d.ctr.Decrement(mountpoint); c <= 0 {
+				if mntErr := unix.Unmount(mountpoint, 0); mntErr != nil {
+					logrus.Errorf("Error unmounting %v: %v", mountpoint, mntErr)
+				}
+				if rmErr := unix.Rmdir(mountpoint); rmErr != nil && !os.IsNotExist(rmErr) {
+					logrus.Debugf("Failed to remove %s: %v", id, rmErr)
+				}
+
+			}
+		}
+	}()
 
 	filesystem := d.zfsPath(id)
 	options := label.FormatMountLabel("", mountLabel)
@@ -368,29 +379,24 @@ func (d *Driver) Get(id, mountLabel string) (string, error) {
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(d.uidMaps, d.gidMaps)
 	if err != nil {
-		d.ctr.Decrement(mountpoint)
-		return "", err
+		return nil, err
 	}
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAs(mountpoint, 0755, rootUID, rootGID); err != nil {
-		d.ctr.Decrement(mountpoint)
-		return "", err
+	if err := idtools.MkdirAllAndChown(mountpoint, 0755, idtools.IDPair{rootUID, rootGID}); err != nil {
+		return nil, err
 	}
 
 	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
-		d.ctr.Decrement(mountpoint)
-		return "", fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+		return nil, fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
 	}
 
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root
 	// permissions instead of the remapped root uid:gid (if user namespaces are enabled):
 	if err := os.Chown(mountpoint, rootUID, rootGID); err != nil {
-		mount.Unmount(mountpoint)
-		d.ctr.Decrement(mountpoint)
-		return "", fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
+		return nil, fmt.Errorf("error modifying zfs mountpoint (%s) directory ownership: %v", mountpoint, err)
 	}
 
-	return mountpoint, nil
+	return containerfs.NewLocalContainerFS(mountpoint), nil
 }
 
 // Put removes the existing mountpoint for the given id if it exists.
@@ -399,16 +405,16 @@ func (d *Driver) Put(id string) error {
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
-	mounted, err := graphdriver.Mounted(graphdriver.FsMagicZfs, mountpoint)
-	if err != nil || !mounted {
-		return err
-	}
 
 	logrus.Debugf(`[zfs] unmount("%s")`, mountpoint)
 
-	if err := mount.Unmount(mountpoint); err != nil {
-		return fmt.Errorf("error unmounting to %s: %v", mountpoint, err)
+	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
+		logrus.Warnf("Failed to unmount %s mount %s: %v", id, mountpoint, err)
 	}
+	if err := unix.Rmdir(mountpoint); err != nil && !os.IsNotExist(err) {
+		logrus.Debugf("Failed to remove %s mount point %s: %v", id, mountpoint, err)
+	}
+
 	return nil
 }
 
@@ -416,5 +422,5 @@ func (d *Driver) Put(id string) error {
 func (d *Driver) Exists(id string) bool {
 	d.Lock()
 	defer d.Unlock()
-	return d.filesystemsCache[d.zfsPath(id)] == true
+	return d.filesystemsCache[d.zfsPath(id)]
 }

@@ -1,7 +1,8 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
+	"runtime"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -9,16 +10,26 @@ import (
 	"github.com/docker/docker/volume"
 )
 
-// createContainerPlatformSpecificSettings performs platform specific container create functionality
-func (daemon *Daemon) createContainerPlatformSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-	// Make sure the host config has the default daemon isolation if not specified by caller.
-	if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
-		hostConfig.Isolation = daemon.defaultIsolation
-	}
+// createContainerOSSpecificSettings performs host-OS specific container create functionality
+func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
 
+	if container.OS == runtime.GOOS {
+		// Make sure the host config has the default daemon isolation if not specified by caller.
+		if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
+			hostConfig.Isolation = daemon.defaultIsolation
+		}
+	} else {
+		// LCOW must be a Hyper-V container as you can't run a shared kernel when one
+		// is a Windows kernel, the other is a Linux kernel.
+		if containertypes.Isolation.IsProcess(containertypes.Isolation(hostConfig.Isolation)) {
+			return fmt.Errorf("process isolation is invalid for Linux containers on Windows")
+		}
+		hostConfig.Isolation = "hyperv"
+	}
+	parser := volume.NewParser(container.OS)
 	for spec := range config.Volumes {
 
-		mp, err := volume.ParseMountRaw(spec, hostConfig.VolumeDriver)
+		mp, err := parser.ParseMountRaw(spec, hostConfig.VolumeDriver)
 		if err != nil {
 			return fmt.Errorf("Unrecognised volume spec: %v", err)
 		}

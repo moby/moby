@@ -3,7 +3,7 @@
 // TODO Windows: This uses a Unix socket for testing. This might be possible
 // to port to Windows using a named pipe instead.
 
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bytes"
@@ -99,7 +99,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 
 	request := Request{
 		User:        "user",
-		RequestURI:  "someting.com/auth",
+		RequestURI:  "something.com/auth",
 		RequestBody: []byte("sample body"),
 	}
 	server.replayResponse = Response{

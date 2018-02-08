@@ -1,6 +1,6 @@
 // Package fluentd provides the log driver for forwarding server logs
 // to fluentd endpoints.
-package fluentd
+package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
 	"fmt"
@@ -11,13 +11,13 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/docker/go-units"
 	"github.com/fluent/fluent-logger-golang/fluent"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 type fluentd struct {
@@ -48,11 +48,12 @@ const (
 	defaultRetryWait  = 1000
 	defaultMaxRetries = math.MaxInt32
 
-	addressKey      = "fluentd-address"
-	bufferLimitKey  = "fluentd-buffer-limit"
-	retryWaitKey    = "fluentd-retry-wait"
-	maxRetriesKey   = "fluentd-max-retries"
-	asyncConnectKey = "fluentd-async-connect"
+	addressKey            = "fluentd-address"
+	bufferLimitKey        = "fluentd-buffer-limit"
+	retryWaitKey          = "fluentd-retry-wait"
+	maxRetriesKey         = "fluentd-max-retries"
+	asyncConnectKey       = "fluentd-async-connect"
+	subSecondPrecisionKey = "fluentd-sub-second-precision"
 )
 
 func init() {
@@ -117,15 +118,23 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	subSecondPrecision := false
+	if info.Config[subSecondPrecisionKey] != "" {
+		if subSecondPrecision, err = strconv.ParseBool(info.Config[subSecondPrecisionKey]); err != nil {
+			return nil, err
+		}
+	}
+
 	fluentConfig := fluent.Config{
-		FluentPort:       loc.port,
-		FluentHost:       loc.host,
-		FluentNetwork:    loc.protocol,
-		FluentSocketPath: loc.path,
-		BufferLimit:      bufferLimit,
-		RetryWait:        retryWait,
-		MaxRetry:         maxRetries,
-		AsyncConnect:     asyncConnect,
+		FluentPort:         loc.port,
+		FluentHost:         loc.host,
+		FluentNetwork:      loc.protocol,
+		FluentSocketPath:   loc.path,
+		BufferLimit:        bufferLimit,
+		RetryWait:          retryWait,
+		MaxRetry:           maxRetries,
+		AsyncConnect:       asyncConnect,
+		SubSecondPrecision: subSecondPrecision,
 	}
 
 	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
@@ -183,13 +192,14 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case retryWaitKey:
 		case maxRetriesKey:
 		case asyncConnectKey:
+		case subSecondPrecisionKey:
 			// Accepted
 		default:
 			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
 
-	_, err := parseAddress(cfg["fluentd-address"])
+	_, err := parseAddress(cfg[addressKey])
 	return err
 }
 

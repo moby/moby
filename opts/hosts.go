@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 import (
 	"fmt"
@@ -29,9 +29,9 @@ var (
 // ValidateHost validates that the specified string is a valid host and returns it.
 func ValidateHost(val string) (string, error) {
 	host := strings.TrimSpace(val)
-	// The empty string means default and is not handled by parseDockerDaemonHost
+	// The empty string means default and is not handled by parseDaemonHost
 	if host != "" {
-		_, err := parseDockerDaemonHost(host)
+		_, err := parseDaemonHost(host)
 		if err != nil {
 			return val, err
 		}
@@ -52,7 +52,7 @@ func ParseHost(defaultToTLS bool, val string) (string, error) {
 		}
 	} else {
 		var err error
-		host, err = parseDockerDaemonHost(host)
+		host, err = parseDaemonHost(host)
 		if err != nil {
 			return val, err
 		}
@@ -60,9 +60,9 @@ func ParseHost(defaultToTLS bool, val string) (string, error) {
 	return host, nil
 }
 
-// parseDockerDaemonHost parses the specified address and returns an address that will be used as the host.
+// parseDaemonHost parses the specified address and returns an address that will be used as the host.
 // Depending of the address specified, this may return one of the global Default* strings defined in hosts.go.
-func parseDockerDaemonHost(addr string) (string, error) {
+func parseDaemonHost(addr string) (string, error) {
 	addrParts := strings.SplitN(addr, "://", 2)
 	if len(addrParts) == 1 && addrParts[0] != "" {
 		addrParts = []string{"tcp", addrParts[0]}

@@ -31,6 +31,9 @@ type EndpointInfo interface {
 
 	// Sandbox returns the attached sandbox if there, nil otherwise.
 	Sandbox() Sandbox
+
+	// LoadBalancer returns whether the endpoint is the load balancer endpoint for the network.
+	LoadBalancer() bool
 }
 
 // InterfaceInfo provides an interface to retrieve interface addresses bound to the endpoint.
@@ -154,9 +157,7 @@ func (epi *endpointInterface) CopyTo(dstEpi *endpointInterface) error {
 	dstEpi.v6PoolID = epi.v6PoolID
 	if len(epi.llAddrs) != 0 {
 		dstEpi.llAddrs = make([]*net.IPNet, 0, len(epi.llAddrs))
-		for _, ll := range epi.llAddrs {
-			dstEpi.llAddrs = append(dstEpi.llAddrs, ll)
-		}
+		dstEpi.llAddrs = append(dstEpi.llAddrs, epi.llAddrs...)
 	}
 
 	for _, route := range epi.routes {
@@ -201,11 +202,7 @@ func (ep *endpoint) Info() EndpointInfo {
 		return ep
 	}
 
-	if epi := sb.getEndpoint(ep.ID()); epi != nil {
-		return epi
-	}
-
-	return nil
+	return sb.getEndpoint(ep.ID())
 }
 
 func (ep *endpoint) Iface() InterfaceInfo {
@@ -329,6 +326,12 @@ func (ep *endpoint) Sandbox() Sandbox {
 	return cnt
 }
 
+func (ep *endpoint) LoadBalancer() bool {
+	ep.Lock()
+	defer ep.Unlock()
+	return ep.loadBalancer
+}
+
 func (ep *endpoint) StaticRoutes() []*types.StaticRoute {
 	ep.Lock()
 	defer ep.Unlock()
@@ -415,7 +418,7 @@ func (epj *endpointJoinInfo) UnmarshalJSON(b []byte) error {
 		return err
 	}
 	if v, ok := epMap["gw"]; ok {
-		epj.gw6 = net.ParseIP(v.(string))
+		epj.gw = net.ParseIP(v.(string))
 	}
 	if v, ok := epMap["gw6"]; ok {
 		epj.gw6 = net.ParseIP(v.(string))
@@ -444,6 +447,6 @@ func (epj *endpointJoinInfo) CopyTo(dstEpj *endpointJoinInfo) error {
 	dstEpj.driverTableEntries = make([]*tableEntry, len(epj.driverTableEntries))
 	copy(dstEpj.driverTableEntries, epj.driverTableEntries)
 	dstEpj.gw = types.GetIPCopy(epj.gw)
-	dstEpj.gw = types.GetIPCopy(epj.gw6)
+	dstEpj.gw6 = types.GetIPCopy(epj.gw6)
 	return nil
 }

@@ -1,4 +1,4 @@
-package archive
+package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"unsafe"
 
 	"github.com/docker/docker/pkg/system"
+	"golang.org/x/sys/unix"
 )
 
 // walker is used to implement collectFileInfoForChanges on linux. Where this
@@ -233,7 +234,7 @@ func readdirnames(dirname string) (names []nameIno, err error) {
 		// Refill the buffer if necessary
 		if bufp >= nbuf {
 			bufp = 0
-			nbuf, err = syscall.ReadDirent(int(f.Fd()), buf) // getdents on linux
+			nbuf, err = unix.ReadDirent(int(f.Fd()), buf) // getdents on linux
 			if nbuf < 0 {
 				nbuf = 0
 			}
@@ -255,12 +256,12 @@ func readdirnames(dirname string) (names []nameIno, err error) {
 	return sl, nil
 }
 
-// parseDirent is a minor modification of syscall.ParseDirent (linux version)
+// parseDirent is a minor modification of unix.ParseDirent (linux version)
 // which returns {name,inode} pairs instead of just names.
 func parseDirent(buf []byte, names []nameIno) (consumed int, newnames []nameIno) {
 	origlen := len(buf)
 	for len(buf) > 0 {
-		dirent := (*syscall.Dirent)(unsafe.Pointer(&buf[0]))
+		dirent := (*unix.Dirent)(unsafe.Pointer(&buf[0]))
 		buf = buf[dirent.Reclen:]
 		if dirent.Ino == 0 { // File absent in directory.
 			continue
@@ -293,7 +294,7 @@ func OverlayChanges(layers []string, rw string) ([]Change, error) {
 func overlayDeletedFile(root, path string, fi os.FileInfo) (string, error) {
 	if fi.Mode()&os.ModeCharDevice != 0 {
 		s := fi.Sys().(*syscall.Stat_t)
-		if major(uint64(s.Rdev)) == 0 && minor(uint64(s.Rdev)) == 0 {
+		if unix.Major(uint64(s.Rdev)) == 0 && unix.Minor(uint64(s.Rdev)) == 0 { // nolint: unconvert
 			return path, nil
 		}
 	}

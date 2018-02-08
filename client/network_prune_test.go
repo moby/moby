@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -37,6 +37,11 @@ func TestNetworksPrune(t *testing.T) {
 
 	noDanglingFilters := filters.NewArgs()
 	noDanglingFilters.Add("dangling", "false")
+
+	labelFilters := filters.NewArgs()
+	labelFilters.Add("dangling", "true")
+	labelFilters.Add("label", "label1=foo")
+	labelFilters.Add("label", "label2!=bar")
 
 	listCases := []struct {
 		filters             filters.Args
@@ -66,6 +71,14 @@ func TestNetworksPrune(t *testing.T) {
 				"filters": `{"dangling":{"false":true}}`,
 			},
 		},
+		{
+			filters: labelFilters,
+			expectedQueryParams: map[string]string{
+				"until":   "",
+				"filter":  "",
+				"filters": `{"dangling":{"true":true},"label":{"label1=foo":true,"label2!=bar":true}}`,
+			},
+		},
 	}
 	for _, listCase := range listCases {
 		client := &Client{
@@ -76,7 +89,7 @@ func TestNetworksPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, actual, expected)
+					assert.Equal(t, expected, actual)
 				}
 				content, err := json.Marshal(types.NetworksPruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
@@ -93,7 +106,7 @@ func TestNetworksPrune(t *testing.T) {
 		}
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
-		assert.NilError(t, err)
-		assert.Equal(t, len(report.NetworksDeleted), 2)
+		assert.NoError(t, err)
+		assert.Len(t, report.NetworksDeleted, 2)
 	}
 }

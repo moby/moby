@@ -1,12 +1,14 @@
-# Docker maintainers file
+# Moby maintainers file
 #
-# This file describes who runs the docker/docker project and how.
-# This is a living document - if you see something out of date or missing, speak up!
+# This file describes the maintainer groups within the moby/moby project.
+# More detail on Moby project governance is available in the
+# project/GOVERNANCE.md file found in this repository.
 #
 # It is structured to be consumable by both humans and programs.
 # To extract its contents programmatically, use any TOML-compliant
 # parser.
 #
+# TODO(estesp): This file should not necessarily depend on docker/opensource
 # This file is compiled into the MAINTAINERS file in docker/opensource.
 #
 [Org]
@@ -90,6 +92,7 @@
 			"mgoelzer",
 			"programmerq",
 			"rheinwein",
+			"ripcurld0",
 			"thajeztah"
 		]
 
@@ -263,7 +266,7 @@
 	[people.cpuguy83]
 	Name = "Brian Goff"
 	Email = "cpuguy83@gmail.com"
-	Github = "cpuguy83"
+	GitHub = "cpuguy83"
 
 	[people.chanwit]
 	Name = "Chanwit Kaewkasi"
@@ -312,7 +315,7 @@
 
 	[people.icecrime]
 	Name = "Arnaud Porterie"
-	Email = "arnaud@docker.com"
+	Email = "icecrime@gmail.com"
 	GitHub = "icecrime"
 
 	[people.jamtur01]
@@ -363,11 +366,11 @@
 	[people.misty]
 	Name = "Misty Stanley-Jones"
 	Email = "misty@docker.com"
-	GitHub = "mstanleyjones"
+	GitHub = "mistyhacks"
 
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
-	Email = "mickael.laventure@docker.com"
+	Email = "mickael.laventure@gmail.com"
 	GitHub = "mlaventure"
 
 	[people.moxiegirl]
@@ -389,6 +392,11 @@
 	Name = "Laura Frank"
 	Email = "laura@codeship.com"
 	GitHub = "rheinwein"
+
+	[people.ripcurld0]
+	Name = "Boaz Shuster"
+	Email = "ripcurld.github@gmail.com"
+	GitHub = "ripcurld0"
 
 	[people.runcom]
 	Name = "Antonio Murdaca"
@@ -459,4 +467,3 @@
 	Name = "Yong Tang"
 	Email = "yong.tang.github@outlook.com"
 	GitHub = "yongtang"
-

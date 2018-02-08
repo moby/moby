@@ -1,16 +1,17 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
 	"os/exec"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/sysinfo"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // FillPlatformInfo fills the platform related info.
@@ -27,16 +28,9 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
 
-	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
-	if sv, err := daemon.containerd.GetServerVersion(context.Background()); err == nil {
-		v.ContainerdCommit.ID = sv.Revision
-	} else {
-		logrus.Warnf("failed to retrieve containerd version: %v", err)
-		v.ContainerdCommit.ID = "N/A"
-	}
-
 	v.RuncCommit.Expected = dockerversion.RuncCommitID
-	if rv, err := exec.Command(DefaultRuntimeBinary, "--version").Output(); err == nil {
+	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
+	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
 		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
 		if len(parts) == 3 {
 			parts = strings.Split(parts[1], ": ")
@@ -46,40 +40,54 @@ func (daemon *Daemon) FillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		}
 
 		if v.RuncCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultRuntimeBinary, string(rv))
+			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", defaultRuntimeBinary, string(rv))
 			v.RuncCommit.ID = "N/A"
 		}
 	} else {
-		logrus.Warnf("failed to retrieve %s version: %v", DefaultRuntimeBinary, err)
+		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
 		v.RuncCommit.ID = "N/A"
 	}
 
-	v.InitCommit.Expected = dockerversion.InitCommitID
-	if rv, err := exec.Command(DefaultInitBinary, "--version").Output(); err == nil {
-		// examples of how Tini outputs version info:
-		//   "tini version 0.13.0 - git.949e6fa"
-		//   "tini version 0.13.2"
-		parts := strings.Split(strings.TrimSpace(string(rv)), " - ")
-
-		v.InitCommit.ID = ""
-		if v.InitCommit.ID == "" && len(parts) >= 2 {
-			gitParts := strings.Split(parts[1], ".")
-			if len(gitParts) == 2 && gitParts[0] == "git" {
-				v.InitCommit.ID = gitParts[1]
-				v.InitCommit.Expected = dockerversion.InitCommitID[0:len(v.InitCommit.ID)]
-			}
-		}
-		if v.InitCommit.ID == "" && len(parts) >= 1 {
-			vs := strings.TrimPrefix(parts[0], "tini version ")
-			v.InitCommit.ID = "v" + vs
-		}
-
-		if v.InitCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", DefaultInitBinary, string(rv))
-			v.InitCommit.ID = "N/A"
-		}
+	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
+	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
+		v.ContainerdCommit.ID = rv.Revision
 	} else {
-		logrus.Warnf("failed to retrieve %s version", DefaultInitBinary)
+		logrus.Warnf("failed to retrieve containerd version: %v", err)
+		v.ContainerdCommit.ID = "N/A"
+	}
+
+	defaultInitBinary := daemon.configStore.GetInitPath()
+	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+		ver, err := parseInitVersion(string(rv))
+
+		if err != nil {
+			logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+		}
+		v.InitCommit = ver
+	} else {
+		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
 		v.InitCommit.ID = "N/A"
 	}
+}
+
+// parseInitVersion parses a Tini version string, and extracts the version.
+func parseInitVersion(v string) (types.Commit, error) {
+	version := types.Commit{ID: "", Expected: dockerversion.InitCommitID}
+	parts := strings.Split(strings.TrimSpace(v), " - ")
+
+	if len(parts) >= 2 {
+		gitParts := strings.Split(parts[1], ".")
+		if len(gitParts) == 2 && gitParts[0] == "git" {
+			version.ID = gitParts[1]
+			version.Expected = dockerversion.InitCommitID[0:len(version.ID)]
+		}
+	}
+	if version.ID == "" && strings.HasPrefix(parts[0], "tini version ") {
+		version.ID = "v" + strings.TrimPrefix(parts[0], "tini version ")
+	}
+	if version.ID == "" {
+		version.ID = "N/A"
+		return version, errors.Errorf("unknown output format: %s", v)
+	}
+	return version, nil
 }

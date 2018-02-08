@@ -1,4 +1,4 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"net/url"
@@ -10,7 +10,7 @@ import (
 
 // ImageTag tags an image in the docker host
 func (cli *Client) ImageTag(ctx context.Context, source, target string) error {
-	if _, err := reference.ParseNormalizedNamed(source); err != nil {
+	if _, err := reference.ParseAnyReference(source); err != nil {
 		return errors.Wrapf(err, "Error parsing reference: %q is not a valid repository/tag", source)
 	}
 

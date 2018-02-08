@@ -6,30 +6,17 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
-	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/spf13/pflag"
 )
 
-type daemonOptions struct {
-	version      bool
-	configFile   string
-	daemonConfig *config.Config
-	common       *cliflags.CommonOptions
-	flags        *pflag.FlagSet
-}
-
 func newDaemonCommand() *cobra.Command {
-	opts := daemonOptions{
-		daemonConfig: config.New(),
-		common:       cliflags.NewCommonOptions(),
-	}
+	opts := newDaemonOptions(config.New())
 
 	cmd := &cobra.Command{
 		Use:           "dockerd [OPTIONS]",
@@ -47,14 +34,14 @@ func newDaemonCommand() *cobra.Command {
 	flags := cmd.Flags()
 	flags.BoolVarP(&opts.version, "version", "v", false, "Print version information and quit")
 	flags.StringVar(&opts.configFile, "config-file", defaultDaemonConfigFile, "Daemon configuration file")
-	opts.common.InstallFlags(flags)
+	opts.InstallFlags(flags)
 	installConfigFlags(opts.daemonConfig, flags)
 	installServiceFlags(flags)
 
 	return cmd
 }
 
-func runDaemon(opts daemonOptions) error {
+func runDaemon(opts *daemonOptions) error {
 	if opts.version {
 		showVersion()
 		return nil

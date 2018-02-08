@@ -1,11 +1,10 @@
 // +build !windows
 
-// TODO(amitkris): We need to split this file for solaris.
-
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -42,8 +41,18 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, m); err != nil {
 			return nil, err
 		}
-		rootUID, rootGID := daemon.GetRemappedUIDGID()
-		path, err := m.Setup(c.MountLabel, rootUID, rootGID)
+		// If the daemon is being shutdown, we should not let a container start if it is trying to
+		// mount the socket the daemon is listening on. During daemon shutdown, the socket
+		// (/var/run/docker.sock by default) doesn't exist anymore causing the call to m.Setup to
+		// create at directory instead. This in turn will prevent the daemon to restart.
+		checkfunc := func(m *volume.MountPoint) error {
+			if _, exist := daemon.hosts[m.Source]; exist && daemon.IsShuttingDown() {
+				return fmt.Errorf("Could not mount %q to container while the daemon is shutting down", m.Source)
+			}
+			return nil
+		}
+
+		path, err := m.Setup(c.MountLabel, daemon.idMappings.RootPair(), checkfunc)
 		if err != nil {
 			return nil, err
 		}
@@ -73,10 +82,15 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	// if we are going to mount any of the network files from container
 	// metadata, the ownership must be set properly for potential container
 	// remapped root (user namespaces)
-	rootUID, rootGID := daemon.GetRemappedUIDGID()
+	rootIDs := daemon.idMappings.RootPair()
 	for _, mount := range netMounts {
-		if err := os.Chown(mount.Source, rootUID, rootGID); err != nil {
-			return nil, err
+		// we should only modify ownership of network files within our own container
+		// metadata repository. If the user specifies a mount path external, it is
+		// up to the user to make sure the file has proper ownership for userns
+		if strings.Index(mount.Source, daemon.repository) == 0 {
+			if err := os.Chown(mount.Source, rootIDs.UID, rootIDs.GID); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return append(mounts, netMounts...), nil
@@ -126,6 +140,9 @@ func migrateVolume(id, vfs string) error {
 // verifyVolumesInfo ports volumes configured for the containers pre docker 1.7.
 // It reads the container configuration and creates valid mount points for the old volumes.
 func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
+	container.Lock()
+	defer container.Unlock()
+
 	// Inspect old structures only when we're upgrading from old versions
 	// to versions >= 1.7 and the MountPoints has not been populated with volumes data.
 	type volumes struct {
@@ -166,7 +183,6 @@ func (daemon *Daemon) verifyVolumesInfo(container *container.Container) error {
 				container.MountPoints[destination] = &m
 			}
 		}
-		return container.ToDisk()
 	}
 	return nil
 }
