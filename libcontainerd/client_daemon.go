@@ -159,7 +159,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 		return attachStdio(dio)
 	}
 	t, err := ctr.Task(ctx, attachIO)
-	if err != nil && !errdefs.IsNotFound(errors.Cause(err)) {
+	if err != nil && !containerderrors.IsNotFound(err) {
 		return false, -1, err
 	}
 
