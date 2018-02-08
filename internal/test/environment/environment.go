@@ -32,7 +32,7 @@ type PlatformDefaults struct {
 
 // New creates a new Execution struct
 func New() (*Execution, error) {
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client")
 	}

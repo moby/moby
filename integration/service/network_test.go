@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/util/swarm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,7 +17,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := request.NewClientForHost(d.Sock())
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	require.NoError(t, err)
 	ctx := context.Background()
 

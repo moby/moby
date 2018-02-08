@@ -179,7 +179,7 @@ func (s *DockerSuite) TestAPIImagesSizeCompatibility(c *check.C) {
 		Labels      map[string]string
 	}
 
-	cli, err = request.NewEnvClientWithVersion("v1.24")
+	cli, err = client.NewClientWithOpts(client.FromEnv, client.WithVersion("v1.24"))
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

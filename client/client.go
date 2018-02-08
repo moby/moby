@@ -107,8 +107,14 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 // Use DOCKER_API_VERSION to set the version of the API to reach, leave empty for latest.
 // Use DOCKER_CERT_PATH to load the TLS certificates from.
 // Use DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
+// deprecated: use NewClientWithOpts(FromEnv)
 func NewEnvClient() (*Client, error) {
-	var client *http.Client
+	return NewClientWithOpts(FromEnv)
+}
+
+// FromEnv enhance the default client with values from environment variables
+func FromEnv(c *Client) error {
+	var httpClient *http.Client
 	if dockerCertPath := os.Getenv("DOCKER_CERT_PATH"); dockerCertPath != "" {
 		options := tlsconfig.Options{
 			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
@@ -118,10 +124,10 @@ func NewEnvClient() (*Client, error) {
 		}
 		tlsc, err := tlsconfig.Client(options)
 		if err != nil {
-			return nil, err
+			return err
 		}
 
-		client = &http.Client{
+		httpClient = &http.Client{
 			Transport: &http.Transport{
 				TLSClientConfig: tlsc,
 			},
@@ -130,22 +136,128 @@ func NewEnvClient() (*Client, error) {
 	}
 
 	host := os.Getenv("DOCKER_HOST")
-	if host == "" {
-		host = DefaultDockerHost
+	if host != "" {
+		var err error
+		if err := WithHost(host)(c); err != nil {
+			return err
+		}
+		httpClient, err = defaultHTTPClient(host)
+		if err != nil {
+			return err
+		}
+	}
+	if httpClient != nil {
+		if err := WithHTTPClient(httpClient)(c); err != nil {
+			return err
+		}
 	}
 	version := os.Getenv("DOCKER_API_VERSION")
-	if version == "" {
-		version = api.DefaultVersion
+	if version != "" {
+		c.version = version
+		c.manualOverride = true
+	}
+	return nil
+}
+
+// WithVersion overrides the client version with the specified one
+func WithVersion(version string) func(*Client) error {
+	return func(c *Client) error {
+		c.version = version
+		return nil
+	}
+}
+
+// WithHost overrides the client host with the specified one
+func WithHost(host string) func(*Client) error {
+	return func(c *Client) error {
+		hostURL, err := ParseHostURL(host)
+		if err != nil {
+			return err
+		}
+		c.host = host
+		c.proto = hostURL.Scheme
+		c.addr = hostURL.Host
+		c.basePath = hostURL.Path
+		client, err := defaultHTTPClient(host)
+		if err != nil {
+			return err
+		}
+		return WithHTTPClient(client)(c)
+	}
+}
+
+// WithHTTPClient overrides the client http client with the specified one
+func WithHTTPClient(client *http.Client) func(*Client) error {
+	return func(c *Client) error {
+		if client != nil {
+			c.client = client
+		}
+		return nil
+	}
+}
+
+// WithHTTPHeaders overrides the client default http headers
+func WithHTTPHeaders(headers map[string]string) func(*Client) error {
+	return func(c *Client) error {
+		c.customHTTPHeaders = headers
+		return nil
+	}
+}
+
+// NewClientWithOpts initializes a new API client with default values. It takes functors
+// to modify values when creating it, like `NewClientWithOpts(WithVersion(…))`
+// It also initializes the custom http headers to add to each request.
+//
+// It won't send any version information if the version number is empty. It is
+// highly recommended that you set a version or your client may break if the
+// server is upgraded.
+func NewClientWithOpts(ops ...func(*Client) error) (*Client, error) {
+	client, err := defaultHTTPClient(DefaultDockerHost)
+	if err != nil {
+		return nil, err
+	}
+	c := &Client{
+		host:    DefaultDockerHost,
+		version: api.DefaultVersion,
+		scheme:  "http",
+		client:  client,
+		proto:   defaultProto,
+		addr:    defaultAddr,
 	}
 
-	cli, err := NewClient(host, version, client, nil)
+	for _, op := range ops {
+		if err := op(c); err != nil {
+			return nil, err
+		}
+	}
+
+	if _, ok := c.client.Transport.(http.RoundTripper); !ok {
+		return nil, fmt.Errorf("unable to verify TLS configuration, invalid transport %v", c.client.Transport)
+	}
+	tlsConfig := resolveTLSConfig(c.client.Transport)
+	if tlsConfig != nil {
+		// TODO(stevvooe): This isn't really the right way to write clients in Go.
+		// `NewClient` should probably only take an `*http.Client` and work from there.
+		// Unfortunately, the model of having a host-ish/url-thingy as the connection
+		// string has us confusing protocol and transport layers. We continue doing
+		// this to avoid breaking existing clients but this should be addressed.
+		c.scheme = "https"
+	}
+
+	return c, nil
+}
+
+func defaultHTTPClient(host string) (*http.Client, error) {
+	url, err := ParseHostURL(host)
 	if err != nil {
-		return cli, err
+		return nil, err
 	}
-	if os.Getenv("DOCKER_API_VERSION") != "" {
-		cli.manualOverride = true
-	}
-	return cli, nil
+	transport := new(http.Transport)
+	sockets.ConfigureTransport(transport, url.Scheme, url.Host)
+	return &http.Client{
+		Transport:     transport,
+		CheckRedirect: CheckRedirect,
+	}, nil
 }
 
 // NewClient initializes a new API client for the given host and API version.
@@ -155,47 +267,9 @@ func NewEnvClient() (*Client, error) {
 // It won't send any version information if the version number is empty. It is
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
+// deprecated: use NewClientWithOpts
 func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error) {
-	hostURL, err := ParseHostURL(host)
-	if err != nil {
-		return nil, err
-	}
-
-	if client != nil {
-		if _, ok := client.Transport.(http.RoundTripper); !ok {
-			return nil, fmt.Errorf("unable to verify TLS configuration, invalid transport %v", client.Transport)
-		}
-	} else {
-		transport := new(http.Transport)
-		sockets.ConfigureTransport(transport, hostURL.Scheme, hostURL.Host)
-		client = &http.Client{
-			Transport:     transport,
-			CheckRedirect: CheckRedirect,
-		}
-	}
-
-	scheme := "http"
-	tlsConfig := resolveTLSConfig(client.Transport)
-	if tlsConfig != nil {
-		// TODO(stevvooe): This isn't really the right way to write clients in Go.
-		// `NewClient` should probably only take an `*http.Client` and work from there.
-		// Unfortunately, the model of having a host-ish/url-thingy as the connection
-		// string has us confusing protocol and transport layers. We continue doing
-		// this to avoid breaking existing clients but this should be addressed.
-		scheme = "https"
-	}
-
-	// TODO: store URL instead of proto/addr/basePath
-	return &Client{
-		scheme:            scheme,
-		host:              host,
-		proto:             hostURL.Scheme,
-		addr:              hostURL.Host,
-		basePath:          hostURL.Path,
-		client:            client,
-		version:           version,
-		customHTTPHeaders: httpHeaders,
-	}, nil
+	return NewClientWithOpts(WithHost(host), WithVersion(version), WithHTTPClient(client), WithHTTPHeaders(httpHeaders))
 }
 
 // Close the transport used by the client
