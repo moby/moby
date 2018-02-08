@@ -25,19 +25,6 @@ type ContainerRmConfig struct {
 	ForceRemove, RemoveVolume, RemoveLink bool
 }
 
-// ContainerCommitConfig contains build configs for commit operation,
-// and is used when making a commit with the current state of the container.
-type ContainerCommitConfig struct {
-	Pause   bool
-	Repo    string
-	Tag     string
-	Author  string
-	Comment string
-	// merge container config into commit config before commit
-	MergeConfigs bool
-	Config       *container.Config
-}
-
 // ExecConfig is a small subset of the Config struct that holds the configuration
 // for the exec feature of docker.
 type ExecConfig struct {

@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -122,9 +121,10 @@ func merge(userConf, imageConf *containertypes.Config) error {
 	return nil
 }
 
-// Commit creates a new filesystem image from the current state of a container.
-// The image can optionally be tagged into a repository.
-func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (string, error) {
+// CreateImageFromContainer creates a new image from a container. The container
+// config will be updated by applying the change set to the custom config, then
+// applying that config over the existing container config.
+func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateImageConfig) (string, error) {
 	start := time.Now()
 	container, err := daemon.GetContainer(name)
 	if err != nil {
@@ -150,26 +150,51 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		daemon.containerPause(container)
 		defer daemon.containerUnpause(container)
 	}
-	if !system.IsOSSupported(container.OS) {
-		return "", system.ErrNotSupportedOperatingSystem
-	}
 
-	if c.MergeConfigs && c.Config == nil {
+	if c.Config == nil {
 		c.Config = container.Config
 	}
-
 	newConfig, err := dockerfile.BuildFromConfig(c.Config, c.Changes, container.OS)
 	if err != nil {
 		return "", err
 	}
-
-	if c.MergeConfigs {
-		if err := merge(newConfig, container.Config); err != nil {
-			return "", err
-		}
+	if err := merge(newConfig, container.Config); err != nil {
+		return "", err
 	}
 
-	rwTar, err := daemon.exportContainerRw(container)
+	id, err := daemon.commitImage(backend.CommitConfig{
+		Author:              c.Author,
+		Comment:             c.Comment,
+		Config:              newConfig,
+		ContainerConfig:     container.Config,
+		ContainerID:         container.ID,
+		ContainerMountLabel: container.MountLabel,
+		ContainerOS:         container.OS,
+		ParentImageID:       string(container.ImageID),
+	})
+	if err != nil {
+		return "", err
+	}
+
+	imageRef, err := daemon.tagCommit(c.Repo, c.Tag, id)
+	if err != nil {
+		return "", err
+	}
+	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
+		"comment":  c.Comment,
+		"imageID":  id.String(),
+		"imageRef": imageRef,
+	})
+	containerActions.WithValues("commit").UpdateSince(start)
+	return id.String(), nil
+}
+
+func (daemon *Daemon) commitImage(c backend.CommitConfig) (image.ID, error) {
+	layerStore, ok := daemon.layerStores[c.ContainerOS]
+	if !ok {
+		return "", system.ErrNotSupportedOperatingSystem
+	}
+	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
 		return "", err
 	}
@@ -180,35 +205,31 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 	}()
 
 	var parent *image.Image
-	if container.ImageID == "" {
+	if c.ParentImageID == "" {
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = daemon.imageStore.Get(container.ImageID)
+		parent, err = daemon.imageStore.Get(image.ID(c.ParentImageID))
 		if err != nil {
 			return "", err
 		}
 	}
 
-	l, err := daemon.layerStores[container.OS].Register(rwTar, parent.RootFS.ChainID())
+	l, err := layerStore.Register(rwTar, parent.RootFS.ChainID())
 	if err != nil {
 		return "", err
 	}
-	defer layer.ReleaseAndLog(daemon.layerStores[container.OS], l)
+	defer layer.ReleaseAndLog(layerStore, l)
 
-	containerConfig := c.ContainerConfig
-	if containerConfig == nil {
-		containerConfig = container.Config
-	}
 	cc := image.ChildConfig{
-		ContainerID:     container.ID,
+		ContainerID:     c.ContainerID,
 		Author:          c.Author,
 		Comment:         c.Comment,
-		ContainerConfig: containerConfig,
-		Config:          newConfig,
+		ContainerConfig: c.ContainerConfig,
+		Config:          c.Config,
 		DiffID:          l.DiffID(),
 	}
-	config, err := json.Marshal(image.NewChildImage(parent, cc, container.OS))
+	config, err := json.Marshal(image.NewChildImage(parent, cc, c.ContainerOS))
 	if err != nil {
 		return "", err
 	}
@@ -218,23 +239,27 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		return "", err
 	}
 
-	if container.ImageID != "" {
-		if err := daemon.imageStore.SetParent(id, container.ImageID); err != nil {
+	if c.ParentImageID != "" {
+		if err := daemon.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
 			return "", err
 		}
 	}
+	return id, nil
+}
 
+// TODO: remove from Daemon, move to api backend
+func (daemon *Daemon) tagCommit(repo string, tag string, id image.ID) (string, error) {
 	imageRef := ""
-	if c.Repo != "" {
-		newTag, err := reference.ParseNormalizedNamed(c.Repo) // todo: should move this to API layer
+	if repo != "" {
+		newTag, err := reference.ParseNormalizedNamed(repo) // todo: should move this to API layer
 		if err != nil {
 			return "", err
 		}
 		if !reference.IsNameOnly(newTag) {
-			return "", errors.Errorf("unexpected repository name: %s", c.Repo)
+			return "", errors.Errorf("unexpected repository name: %s", repo)
 		}
-		if c.Tag != "" {
-			if newTag, err = reference.WithTag(newTag, c.Tag); err != nil {
+		if tag != "" {
+			if newTag, err = reference.WithTag(newTag, tag); err != nil {
 				return "", err
 			}
 		}
@@ -243,26 +268,17 @@ func (daemon *Daemon) Commit(name string, c *backend.ContainerCommitConfig) (str
 		}
 		imageRef = reference.FamiliarString(newTag)
 	}
-
-	attributes := map[string]string{
-		"comment":  c.Comment,
-		"imageID":  id.String(),
-		"imageRef": imageRef,
-	}
-	daemon.LogContainerEventWithAttributes(container, "commit", attributes)
-	containerActions.WithValues("commit").UpdateSince(start)
-	return id.String(), nil
+	return imageRef, nil
 }
 
-func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io.ReadCloser, err error) {
-	// Note: Indexing by OS is safe as only called from `Commit` which has already performed validation
-	rwlayer, err := daemon.layerStores[container.OS].GetRWLayer(container.ID)
+func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, err error) {
+	rwlayer, err := layerStore.GetRWLayer(id)
 	if err != nil {
 		return nil, err
 	}
 	defer func() {
 		if err != nil {
-			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
+			layerStore.ReleaseRWLayer(rwlayer)
 		}
 	}()
 
@@ -270,7 +286,7 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io
 	// mount the layer if needed. But the Diff() function for windows requests that
 	// the layer should be mounted when calling it. So we reserve this mount call
 	// until windows driver can implement Diff() interface correctly.
-	_, err = rwlayer.Mount(container.GetMountLabel())
+	_, err = rwlayer.Mount(mountLabel)
 	if err != nil {
 		return nil, err
 	}
@@ -283,8 +299,28 @@ func (daemon *Daemon) exportContainerRw(container *container.Container) (arch io
 	return ioutils.NewReadCloserWrapper(archive, func() error {
 			archive.Close()
 			err = rwlayer.Unmount()
-			daemon.layerStores[container.OS].ReleaseRWLayer(rwlayer)
+			layerStore.ReleaseRWLayer(rwlayer)
 			return err
 		}),
 		nil
+}
+
+// CommitBuildStep is used by the builder to create an image for each step in
+// the build.
+//
+// This method is different from CreateImageFromContainer:
+//   * it doesn't attempt to validate container state
+//   * it doesn't send a commit action to metrics
+//   * it doesn't log a container commit event
+//
+// This is a temporary shim. Should be removed when builder stops using commit.
+func (daemon *Daemon) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+	container, err := daemon.GetContainer(c.ContainerID)
+	if err != nil {
+		return "", err
+	}
+	c.ContainerMountLabel = container.MountLabel
+	c.ContainerOS = container.OS
+	c.ParentImageID = string(container.ImageID)
+	return daemon.commitImage(c)
 }
