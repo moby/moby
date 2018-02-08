@@ -218,6 +218,7 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,
+		Proxy:           http.ProxyFromEnvironment,
 	}
 	client := &http.Client{
 		Transport: transport,
