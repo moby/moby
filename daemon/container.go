@@ -291,6 +291,21 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		return nil, nil
 	}
 
+	if hostConfig.Privileged {
+		for _, deviceMapping := range hostConfig.Devices {
+			if deviceMapping.PathOnHost == deviceMapping.PathInContainer {
+				continue
+			}
+			if _, err := os.Stat(deviceMapping.PathInContainer); err != nil {
+				if os.IsNotExist(err) {
+					continue
+				}
+				return nil, errors.Wrap(err, "error stating device path in container")
+			}
+			return nil, errors.Errorf("container device path: %s must be different from any host device path for privileged mode containers", deviceMapping.PathInContainer)
+		}
+	}
+
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
 		return nil, errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}

@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -95,6 +96,30 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		}
 		for _, d := range hostDevices {
 			devs = append(devs, oci.Device(d))
+		}
+		for _, deviceMapping := range c.HostConfig.Devices {
+			if deviceMapping.PathOnHost == deviceMapping.PathInContainer {
+				if deviceMapping.CgroupPermissions != "rwm" {
+					logrus.WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
+				}
+				continue
+			}
+
+			if _, err := os.Stat(deviceMapping.PathInContainer); os.IsNotExist(err) {
+				if deviceMapping.CgroupPermissions != "rwm" {
+					logrus.WithField("container", c.ID).Warnf("custom %s permissions for device %s are ignored in privileged mode", deviceMapping.CgroupPermissions, deviceMapping.PathOnHost)
+				}
+				d, _, err2 := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, "rwm")
+				if err2 != nil {
+					return err2
+				}
+				devs = append(devs, d...)
+			} else {
+				if err == nil {
+					return errdefs.InvalidParameter(errors.Errorf("container device path: %s must be different from any host device path for privileged mode containers", deviceMapping.PathInContainer))
+				}
+				return err
+			}
 		}
 		devPermissions = []specs.LinuxDeviceCgroup{
 			{
