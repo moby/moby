@@ -29,7 +29,7 @@ type imageBackend interface {
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
 	LookupImage(name string) (*types.ImageInspect, error)
-	TagImage(imageName, repository, tag string) error
+	TagImage(imageName, repository, tag string) (string, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }
 

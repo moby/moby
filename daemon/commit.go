@@ -8,7 +8,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
@@ -176,9 +175,12 @@ func (daemon *Daemon) CreateImageFromContainer(name string, c *backend.CreateIma
 		return "", err
 	}
 
-	imageRef, err := daemon.tagCommit(c.Repo, c.Tag, id)
-	if err != nil {
-		return "", err
+	var imageRef string
+	if c.Repo != "" {
+		imageRef, err = daemon.TagImage(string(id), c.Repo, c.Tag)
+		if err != nil {
+			return "", err
+		}
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
 		"comment":  c.Comment,
@@ -245,30 +247,6 @@ func (daemon *Daemon) commitImage(c backend.CommitConfig) (image.ID, error) {
 		}
 	}
 	return id, nil
-}
-
-// TODO: remove from Daemon, move to api backend
-func (daemon *Daemon) tagCommit(repo string, tag string, id image.ID) (string, error) {
-	imageRef := ""
-	if repo != "" {
-		newTag, err := reference.ParseNormalizedNamed(repo) // todo: should move this to API layer
-		if err != nil {
-			return "", err
-		}
-		if !reference.IsNameOnly(newTag) {
-			return "", errors.Errorf("unexpected repository name: %s", repo)
-		}
-		if tag != "" {
-			if newTag, err = reference.WithTag(newTag, tag); err != nil {
-				return "", err
-			}
-		}
-		if err := daemon.TagImageWithReference(id, newTag); err != nil {
-			return "", err
-		}
-		imageRef = reference.FamiliarString(newTag)
-	}
-	return imageRef, nil
 }
 
 func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, err error) {
