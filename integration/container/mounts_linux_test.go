@@ -136,7 +136,16 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	err = cli.ContainerStart(ctx, ctrCreate.ID, types.ContainerStartOptions{})
 	require.NoError(t, err)
 
-	// check that host-located bind mount network file did not change ownership when the container was started
+	// Check that host-located bind mount network file did not change ownership when the container was started
+	// Note: If the user specifies a mountpath from the host, we should not be
+	// attempting to chown files outside the daemon's metadata directory
+	// (represented by `daemon.repository` at init time).
+	// This forces users who want to use user namespaces to handle the
+	// ownership needs of any external files mounted as network files
+	// (/etc/resolv.conf, /etc/hosts, /etc/hostname) separately from the
+	// daemon. In all other volume/bind mount situations we have taken this
+	// same line--we don't chown host file content.
+	// See GitHub PR 34224 for details.
 	statT, err := system.Stat(tmpNWFileMount)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), statT.UID(), "bind mounted network file should not change ownership from root")
