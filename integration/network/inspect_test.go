@@ -47,7 +47,7 @@ func TestInspectNetwork(t *testing.T) {
 	require.NoError(t, err)
 
 	pollSettings := func(config *poll.Settings) {
-		if runtime.GOARCH == "arm" {
+		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
 			config.Timeout = 30 * time.Second
 			config.Delay = 100 * time.Millisecond
 		}
