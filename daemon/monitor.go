@@ -111,10 +111,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			}
 
 			daemon.setStateCounter(c)
-			if err := c.CheckpointTo(daemon.containersReplica); err != nil {
-				return err
-			}
-			return daemon.postRunProcessing(c, ei)
+			return c.CheckpointTo(daemon.containersReplica)
 		}
 
 		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
