@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -145,4 +146,40 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	err := client.ContainerKill(ctx, id, "SIGKILL")
 	require.NoError(t, err)
 	poll.WaitOn(t, containerIsInState(ctx, client, id, "exited"), poll.WithDelay(100*time.Millisecond))
+}
+
+func TestInspectOomKilledTrue(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := request.NewAPIClient(t)
+
+	name := "testoomkilled"
+	cID := container.Run(t, ctx, client, container.WithName(name), container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
+		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
+	})
+
+	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+
+	inspect, err := client.ContainerInspect(ctx, cID)
+	require.NoError(t, err)
+	assert.Equal(t, inspect.State.OOMKilled, true)
+}
+
+func TestInspectOomKilledFalse(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := request.NewAPIClient(t)
+
+	name := "testoomkilled"
+	cID := container.Run(t, ctx, client, container.WithName(name), container.WithCmd("sh", "-c", "echo hello world"))
+
+	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+
+	inspect, err := client.ContainerInspect(ctx, cID)
+	require.NoError(t, err)
+	assert.Equal(t, inspect.State.OOMKilled, false)
 }
