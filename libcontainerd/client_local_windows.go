@@ -223,7 +223,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 
 	if configuration.HvPartition {
 		// We don't currently support setting the utility VM image explicitly.
-		// TODO @swernli/jhowardmsft circa RS3/4, this may be re-locatable.
+		// TODO @swernli/jhowardmsft circa RS5, this may be re-locatable.
 		if spec.Windows.HyperV.UtilityVMPath != "" {
 			return errors.New("runtime does not support an explicit utility VM path for Hyper-V containers")
 		}
@@ -303,7 +303,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 	}
 	configuration.MappedDirectories = mds
-	if len(mps) > 0 && system.GetOSVersion().Build < 16210 { // replace with Win10 RS3 build number at RTM
+	if len(mps) > 0 && system.GetOSVersion().Build < 16299 { // RS3
 		return errors.New("named pipe mounts are not supported on this version of Windows")
 	}
 	configuration.MappedPipes = mps
