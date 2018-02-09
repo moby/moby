@@ -1,4 +1,4 @@
-package requirement // import "github.com/docker/docker/integration/util/requirement"
+package requirement // import "github.com/docker/docker/integration/internal/requirement"
 
 import (
 	"net/http"

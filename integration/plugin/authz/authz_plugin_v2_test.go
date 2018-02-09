@@ -16,7 +16,7 @@ import (
 	networktypes "github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/util/requirement"
+	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/require"
 )

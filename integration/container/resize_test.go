@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	req "github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/integration/util/request"
+	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/stretchr/testify/assert"

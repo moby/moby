@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/integration/util/request"
+	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/gotestyourself/gotestyourself/poll"
