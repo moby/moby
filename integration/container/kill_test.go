@@ -5,11 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -20,25 +18,15 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   strslice.StrSlice([]string{"top"}),
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"")
-	require.NoError(t, err)
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	id := container.Run(t, ctx, client)
 
-	err = client.ContainerKill(ctx, c.ID, "0")
+	err := client.ContainerKill(ctx, id, "0")
 	require.EqualError(t, err, "Error response from daemon: Invalid signal: 0")
-	poll.WaitOn(t, containerIsInState(ctx, client, c.ID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err = client.ContainerKill(ctx, c.ID, "SIG42")
+	err = client.ContainerKill(ctx, id, "SIG42")
 	require.EqualError(t, err, "Error response from daemon: Invalid signal: SIG42")
-	poll.WaitOn(t, containerIsInState(ctx, client, c.ID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 }
 
 func TestKillContainer(t *testing.T) {
@@ -71,21 +59,11 @@ func TestKillContainer(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := context.Background()
-			c, err := client.ContainerCreate(ctx,
-				&container.Config{
-					Image: "busybox",
-					Cmd:   strslice.StrSlice([]string{"top"}),
-				},
-				&container.HostConfig{},
-				&network.NetworkingConfig{},
-				"")
-			require.NoError(t, err)
-			err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-			require.NoError(t, err)
-			err = client.ContainerKill(ctx, c.ID, tc.signal)
+			id := container.Run(t, ctx, client)
+			err := client.ContainerKill(ctx, id, tc.signal)
 			require.NoError(t, err)
 
-			poll.WaitOn(t, containerIsInState(ctx, client, c.ID, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, containerIsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
 	}
 }
@@ -116,25 +94,16 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := context.Background()
-			c, err := client.ContainerCreate(ctx,
-				&container.Config{
-					Image:      "busybox",
-					Cmd:        strslice.StrSlice([]string{"top"}),
-					StopSignal: tc.stopsignal,
-				},
-				&container.HostConfig{
-					RestartPolicy: container.RestartPolicy{
-						Name: "always",
-					}},
-				&network.NetworkingConfig{},
-				"")
-			require.NoError(t, err)
-			err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-			require.NoError(t, err)
-			err = client.ContainerKill(ctx, c.ID, "TERM")
+			id := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+				c.Config.StopSignal = tc.stopsignal
+				c.HostConfig.RestartPolicy = containertypes.RestartPolicy{
+					Name: "always",
+				}
+			})
+			err := client.ContainerKill(ctx, id, "TERM")
 			require.NoError(t, err)
 
-			poll.WaitOn(t, containerIsInState(ctx, client, c.ID, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, containerIsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
 	}
 }
@@ -144,16 +113,8 @@ func TestKillStoppedContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   strslice.StrSlice([]string{"top"}),
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"")
-	require.NoError(t, err)
-	err = client.ContainerKill(ctx, c.ID, "SIGKILL")
+	id := container.Create(t, ctx, client)
+	err := client.ContainerKill(ctx, id, "SIGKILL")
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "is not running")
 }
@@ -163,16 +124,8 @@ func TestKillStoppedContainerAPIPre120(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   strslice.StrSlice([]string{"top"}),
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"")
-	require.NoError(t, err)
-	err = client.ContainerKill(ctx, c.ID, "SIGKILL")
+	id := container.Create(t, ctx, client)
+	err := client.ContainerKill(ctx, id, "SIGKILL")
 	require.NoError(t, err)
 }
 
@@ -184,12 +137,12 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 
-	cID := runSimpleContainer(ctx, t, client, "", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		config.User = "daemon"
+	id := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.Config.User = "daemon"
 	})
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
-	err := client.ContainerKill(ctx, cID, "SIGKILL")
+	err := client.ContainerKill(ctx, id, "SIGKILL")
 	require.NoError(t, err)
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, containerIsInState(ctx, client, id, "exited"), poll.WithDelay(100*time.Millisecond))
 }
