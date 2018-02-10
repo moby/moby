@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration/util/request"
-	"github.com/docker/docker/integration/util/requirement"
+	"github.com/docker/docker/integration/internal/request"
+	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"

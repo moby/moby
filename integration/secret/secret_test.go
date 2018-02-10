@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration/util/swarm"
+	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
