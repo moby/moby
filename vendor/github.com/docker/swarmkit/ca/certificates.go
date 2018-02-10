@@ -26,6 +26,8 @@ import (
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/ca/keyutils"
+	"github.com/docker/swarmkit/ca/pkcs8"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/opencontainers/go-digest"
@@ -655,9 +657,9 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 	}
 
 	// Attempt to decrypt the current private-key with the passphrases provided
-	priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
+	priv, err = keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
 	if err != nil {
-		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
+		priv, err = keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
 		if err != nil {
 			return nil, errors.Wrap(err, "malformed private key")
 		}
@@ -677,7 +679,7 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 	// ensure it is encrypted, so it doesn't hit raft in plain-text
 	// we don't have to check for nil, because if we couldn't pem-decode the bytes, then parsing above would have failed
 	keyBlock, _ := pem.Decode(keyBytes)
-	if passphraseStr != "" && !x509.IsEncryptedPEMBlock(keyBlock) {
+	if passphraseStr != "" && !keyutils.IsEncryptedPEMBlock(keyBlock) {
 		keyBytes, err = EncryptECPrivateKey(keyBytes, passphraseStr)
 		if err != nil {
 			return nil, errors.Wrap(err, "unable to encrypt signing CA key material")
@@ -813,6 +815,14 @@ func CreateRootCA(rootCN string) (RootCA, error) {
 	cert, _, key, err := initca.New(&req)
 	if err != nil {
 		return RootCA{}, err
+	}
+
+	// Convert key to PKCS#8 in FIPS mode
+	if keyutils.FIPSEnabled() {
+		key, err = pkcs8.ConvertECPrivateKeyPEM(key)
+		if err != nil {
+			return RootCA{}, err
+		}
 	}
 
 	rootCA, err := NewRootCA(cert, cert, key, DefaultNodeCertExpiration, nil)
@@ -956,7 +966,14 @@ func GenerateNewCSR() ([]byte, []byte, error) {
 	req := &cfcsr.CertificateRequest{
 		KeyRequest: cfcsr.NewBasicKeyRequest(),
 	}
-	return cfcsr.ParseRequest(req)
+
+	csr, key, err := cfcsr.ParseRequest(req)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	key, err = pkcs8.ConvertECPrivateKeyPEM(key)
+	return csr, key, err
 }
 
 // EncryptECPrivateKey receives a PEM encoded private key and returns an encrypted
@@ -964,7 +981,6 @@ func GenerateNewCSR() ([]byte, []byte, error) {
 // TODO: Make this method generic to handle RSA keys
 func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 	passphrase := []byte(passphraseStr)
-	cipherType := x509.PEMCipherAES256
 
 	keyBlock, _ := pem.Decode(key)
 	if keyBlock == nil {
@@ -972,11 +988,7 @@ func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
 		return nil, errors.New("error while decoding PEM key")
 	}
 
-	encryptedPEMBlock, err := x509.EncryptPEMBlock(cryptorand.Reader,
-		"EC PRIVATE KEY",
-		keyBlock.Bytes,
-		passphrase,
-		cipherType)
+	encryptedPEMBlock, err := keyutils.EncryptPEMBlock(keyBlock.Bytes, passphrase)
 	if err != nil {
 		return nil, err
 	}

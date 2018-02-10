@@ -463,7 +463,7 @@ func (g *Orchestrator) reconcileOneNode(ctx context.Context, node *api.Node) {
 				)
 
 				for _, t := range tasks[serviceID] {
-					if orchestrator.IsTaskDirty(service.Service, t) {
+					if orchestrator.IsTaskDirty(service.Service, t, node) {
 						dirtyTasks = append(dirtyTasks, t)
 					} else {
 						cleanTasks = append(cleanTasks, t)

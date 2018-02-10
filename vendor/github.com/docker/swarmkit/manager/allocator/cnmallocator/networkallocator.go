@@ -15,6 +15,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -244,6 +245,7 @@ vipLoop:
 		}
 		for _, nAttach := range specNetworks {
 			if nAttach.Target == eAttach.NetworkID {
+				log.L.WithFields(logrus.Fields{"service_id": s.ID, "vip": eAttach.Addr}).Debug("allocate vip")
 				if err = na.allocateVIP(eAttach); err != nil {
 					return err
 				}

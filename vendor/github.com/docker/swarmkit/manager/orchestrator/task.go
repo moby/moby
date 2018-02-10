@@ -7,6 +7,7 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/defaults"
 	"github.com/docker/swarmkit/identity"
+	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 )
 
@@ -58,8 +59,17 @@ func RestartCondition(task *api.Task) api.RestartPolicy_RestartCondition {
 	return restartCondition
 }
 
-// IsTaskDirty determines whether a task matches the given service's spec.
-func IsTaskDirty(s *api.Service, t *api.Task) bool {
+// IsTaskDirty determines whether a task matches the given service's spec and
+// if the given node satisfies the placement constraints.
+// Returns false if the spec version didn't change,
+// only the task placement constraints changed and the assigned node
+// satisfies the new constraints, or the service task spec and the endpoint spec
+// didn't change at all.
+// Returns true otherwise.
+// Note: for non-failed tasks with a container spec runtime that have already
+// pulled the required image (i.e., current state is between READY and
+// RUNNING inclusively), the value of the `PullOptions` is ignored.
+func IsTaskDirty(s *api.Service, t *api.Task, n *api.Node) bool {
 	// If the spec version matches, we know the task is not dirty. However,
 	// if it does not match, that doesn't mean the task is dirty, since
 	// only a portion of the spec is included in the comparison.
@@ -69,6 +79,12 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 
 	// Make a deep copy of the service and task spec for the comparison.
 	serviceTaskSpec := *s.Spec.Task.Copy()
+
+	// Task is not dirty if the placement constraints alone changed
+	// and the node currently assigned can satisfy the changed constraints.
+	if IsTaskDirtyPlacementConstraintsOnly(serviceTaskSpec, t) && nodeMatches(s, n) {
+		return false
+	}
 
 	// For non-failed tasks with a container spec runtime that have already
 	// pulled the required image (i.e., current state is between READY and
@@ -83,7 +99,9 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 	// and its last known current state is between READY and RUNNING in
 	// which case we know that the task either successfully pulled its
 	// container image or didn't need to.
-	ignorePullOpts := t.DesiredState <= api.TaskStateRunning && currentState >= api.TaskStateReady && currentState <= api.TaskStateRunning
+	ignorePullOpts := t.DesiredState <= api.TaskStateRunning &&
+		currentState >= api.TaskStateReady &&
+		currentState <= api.TaskStateRunning
 	if ignorePullOpts && serviceTaskSpec.GetContainer() != nil && t.Spec.GetContainer() != nil {
 		// Modify the service's container spec.
 		serviceTaskSpec.GetContainer().PullOptions = t.Spec.GetContainer().PullOptions
@@ -91,6 +109,31 @@ func IsTaskDirty(s *api.Service, t *api.Task) bool {
 
 	return !reflect.DeepEqual(serviceTaskSpec, t.Spec) ||
 		(t.Endpoint != nil && !reflect.DeepEqual(s.Spec.Endpoint, t.Endpoint.Spec))
+}
+
+// Checks if the current assigned node matches the Placement.Constraints
+// specified in the task spec for Updater.newService.
+func nodeMatches(s *api.Service, n *api.Node) bool {
+	if n == nil {
+		return false
+	}
+
+	constraints, _ := constraint.Parse(s.Spec.Task.Placement.Constraints)
+	return constraint.NodeMatches(constraints, n)
+}
+
+// IsTaskDirtyPlacementConstraintsOnly checks if the Placement field alone
+// in the spec has changed.
+func IsTaskDirtyPlacementConstraintsOnly(serviceTaskSpec api.TaskSpec, t *api.Task) bool {
+	// Compare the task placement constraints.
+	if reflect.DeepEqual(serviceTaskSpec.Placement, t.Spec.Placement) {
+		return false
+	}
+
+	// Update spec placement to only the fields
+	// other than the placement constraints in the spec.
+	serviceTaskSpec.Placement = t.Spec.Placement
+	return reflect.DeepEqual(serviceTaskSpec, t.Spec)
 }
 
 // InvalidNode is true if the node is nil, down, or drained

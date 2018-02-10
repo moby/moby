@@ -616,6 +616,7 @@ message PortConfig {
 
 		TCP = 0 [(gogoproto.enumvalue_customname) = "ProtocolTCP"];
 		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
+		SCTP = 2 [(gogoproto.enumvalue_customname) = "ProtocolSCTP"];
 	}
 
 	// PublishMode controls how ports are published on the swarm.

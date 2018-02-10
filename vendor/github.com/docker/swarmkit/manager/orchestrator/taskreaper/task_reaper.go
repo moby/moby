@@ -2,6 +2,7 @@ package taskreaper
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -23,6 +24,9 @@ const (
 // exist for the same service/instance or service/nodeid combination.
 type TaskReaper struct {
 	store *store.MemoryStore
+
+	// closeOnce ensures that stopChan is closed only once
+	closeOnce sync.Once
 
 	// taskHistory is the number of tasks to keep
 	taskHistory int64
@@ -281,9 +285,14 @@ func (tr *TaskReaper) tick() {
 }
 
 // Stop stops the TaskReaper and waits for the main loop to exit.
+// Stop can be called in two cases. One when the manager is
+// shutting down, and the other when the manager (the leader) is
+// becoming a follower. Since these two instances could race with
+// each other, we use closeOnce here to ensure that TaskReaper.Stop()
+// is called only once to avoid a panic.
 func (tr *TaskReaper) Stop() {
-	// TODO(dperny) calling stop on the task reaper twice will cause a panic
-	// because we try to close a channel that will already have been closed.
-	close(tr.stopChan)
+	tr.closeOnce.Do(func() {
+		close(tr.stopChan)
+	})
 	<-tr.doneChan
 }
