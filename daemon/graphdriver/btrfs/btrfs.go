@@ -4,14 +4,31 @@
 package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 /*
-#include <stdlib.h>
 #include <dirent.h>
-#include <btrfs/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <btrfs/ctree.h>
 
-static void set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const char* value) {
-    snprintf(btrfs_struct->name, BTRFS_SUBVOL_NAME_MAX, "%s", value);
+static int set_name_btrfs_ioctl_vol_args(struct btrfs_ioctl_vol_args* btrfs_struct, char* name) {
+    int r = snprintf(btrfs_struct->name,
+                     sizeof(btrfs_struct->name),
+                     "%s", name);
+    free(name);
+    return r;
 }
+
+static int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, char* name) {
+    int r = snprintf(btrfs_struct->name,
+                     sizeof(btrfs_struct->name),
+                     "%s", name);
+    free(name);
+    return r;
+}
+
+static inline __u16 _le16toh(__le16 i) {return le16toh(i);}
+static inline __u64 _le64toh(__le64 i) {return le64toh(i);}
+
+static inline int _openat(int dirfd, const char *pathname, int flags) {return openat(dirfd, pathname, flags);}
 */
 import "C"
 
@@ -24,6 +41,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"unsafe"
 
 	"github.com/containerd/containerd/pkg/userns"
@@ -180,20 +198,70 @@ func free(p *C.char) {
 	C.free(unsafe.Pointer(p))
 }
 
-func openDir(path string) (*C.DIR, error) {
-	Cpath := C.CString(path)
-	defer free(Cpath)
+func openDir(dirpath string) (*C.DIR, error) {
+	if len(dirpath) >= C.PATH_MAX {
+		// Remove // and . to more safely slice the path
+		dirpath = path.Clean(dirpath)
+	}
 
-	dir := C.opendir(Cpath)
+	if len(dirpath) < C.PATH_MAX {
+		Cdirpath := C.CString(dirpath)
+		dir, err := C.opendir(Cdirpath)
+		free(Cdirpath)
+		if dir == nil {
+			return nil, fmt.Errorf("Can't open dir %s: %v", dirpath, err)
+		}
+		return dir, nil
+	}
+
+	// Path too long to fit in one ioctl so we will move in a small steps
+	head := path.Dir(dirpath[:C.PATH_MAX-1])
+	tail := dirpath[len(head)+1:]
+
+	closefd := func(fd C.int) {
+		if r, err := C.close(fd); r < 0 {
+			logrus.Errorf("Failed to close %v: %v", fd, err)
+		}
+	}
+	var oflags C.int = (C.O_RDONLY | C.O_NDELAY | C.O_DIRECTORY | C.O_CLOEXEC)
+
+	tmpCstr := C.CString(head)
+	headfd, err := C._openat(C.AT_FDCWD, tmpCstr, oflags)
+	free(tmpCstr)
+	if headfd < 0 {
+		return nil, fmt.Errorf("Can't open dir %s: %v", head, err)
+	}
+
+	relfd := headfd
+	for len(tail) > 0 {
+		if len(tail) >= C.PATH_MAX {
+			head = path.Dir(tail[:C.PATH_MAX-1])
+			tail = tail[len(head)+1:]
+		} else {
+			head = tail
+			tail = ""
+		}
+		tmpCstr = C.CString(head)
+		headfd, err = C._openat(relfd, tmpCstr, oflags)
+		free(tmpCstr)
+		closefd(relfd)
+		if headfd < 0 {
+			return nil, fmt.Errorf("Can't open dir %s: %v", head, err)
+		}
+		relfd = headfd
+	}
+
+	dir, err := C.fdopendir(headfd)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		closefd(headfd)
+		return nil, fmt.Errorf("Can't get DIR from fd %d for dir %s: %v", headfd, dirpath, err)
 	}
 	return dir, nil
 }
 
 func closeDir(dir *C.DIR) {
-	if dir != nil {
-		C.closedir(dir)
+	if r, err := C.closedir(dir); r < 0 {
+		logrus.Errorf("Failed to closedir: %v", err)
 	}
 }
 
@@ -223,9 +291,9 @@ func subvolSnapshot(src, dest, name string) error {
 		args.fd = C.__s64(getDirFd(srcDir))
 	}
 
-	var cs = C.CString(name)
-	C.set_name_btrfs_ioctl_vol_args_v2(&args, cs)
-	C.free(unsafe.Pointer(cs))
+	if r, err := C.set_name_btrfs_ioctl_vol_args_v2(&args, C.CString(name)); r < 0 {
+		return fmt.Errorf("Failed to copy subvolume name %s to args struct: %v", name, err)
+	}
 
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(destDir), cmd, uintptr(unsafe.Pointer(&args)))
 	if errno != 0 {
@@ -235,79 +303,250 @@ func subvolSnapshot(src, dest, name string) error {
 	return nil
 }
 
-func isSubvolume(p string) (bool, error) {
-	var bufStat unix.Stat_t
-	if err := unix.Lstat(p, &bufStat); err != nil {
-		return false, err
+func btrfsIoctlSearchArgsInc(args *C.struct_btrfs_ioctl_search_args) bool {
+	/* the objectid, type, offset together make up the btrfs key,
+	 * which is considered a single 136byte integer when
+	 * comparing. This call increases the counter by one, dealing
+	 * with the overflow between the overflows */
+	if args.key.min_offset < ^C.__u64(0) {
+		args.key.min_offset++
+		return false
 	}
 
-	// return true if it is a btrfs subvolume
-	return bufStat.Ino == C.BTRFS_FIRST_FREE_OBJECTID, nil
+	if args.key.min_type < C.__u32(^C.__u8(0)) {
+		args.key.min_type++
+		args.key.min_offset = 0
+		return false
+	}
+
+	if args.key.min_objectid < ^C.__u64(0) {
+		args.key.min_objectid++
+		args.key.min_offset = 0
+		args.key.min_type = 0
+		return false
+	}
+
+	return true
 }
 
-func subvolDelete(dirpath, name string, quotaEnabled bool) error {
+func btrfsIoctlSearchArgsCompare(args *C.struct_btrfs_ioctl_search_args) bool {
+	/* Compare min and max. Return true if min <= max */
+	if args.key.min_objectid < args.key.max_objectid {
+		return true
+	}
+	if args.key.min_objectid > args.key.max_objectid {
+		return false
+	}
+
+	if args.key.min_type < args.key.max_type {
+		return true
+	}
+	if args.key.min_type > args.key.max_type {
+		return false
+	}
+
+	if args.key.min_offset < args.key.max_offset {
+		return true
+	}
+	if args.key.min_offset > args.key.max_offset {
+		return false
+	}
+
+	return true
+}
+
+func subvolDelete(dirpath, name string, subvolID C.__u64, quotaEnabled bool) error {
 	dir, err := openDir(dirpath)
 	if err != nil {
 		return err
 	}
 	defer closeDir(dir)
+
 	fullPath := path.Join(dirpath, name)
 
-	var args C.struct_btrfs_ioctl_vol_args
-
-	// walk the btrfs subvolumes
-	walkSubvolumes := func(p string, f os.FileInfo, err error) error {
-		if err != nil {
-			if os.IsNotExist(err) && p != fullPath {
-				// missing most likely because the path was a subvolume that got removed in the previous iteration
-				// since it's gone anyway, we don't care
-				return nil
-			}
-			return fmt.Errorf("error walking subvolumes: %v", err)
-		}
-		// we want to check children only so skip itself
-		// it will be removed after the filepath walk anyways
-		if f.IsDir() && p != fullPath {
-			sv, err := isSubvolume(p)
-			if err != nil {
-				return fmt.Errorf("Failed to test if %s is a btrfs subvolume: %v", p, err)
-			}
-			if sv {
-				if err := subvolDelete(path.Dir(p), f.Name(), quotaEnabled); err != nil {
-					return fmt.Errorf("Failed to destroy btrfs child subvolume (%s) of parent (%s): %v", p, dirpath, err)
-				}
-			}
-		}
-		return nil
+	subvoldir, err := openDir(fullPath)
+	if err != nil {
+		return err
 	}
-	if err := filepath.Walk(fullPath, walkSubvolumes); err != nil {
-		return fmt.Errorf("Recursively walking subvolumes for %s failed: %v", dirpath, err)
+	defer closeDir(subvoldir)
+
+	if subvolID == 0 {
+		// Get subvol ID
+		var lkpargs C.struct_btrfs_ioctl_ino_lookup_args
+		lkpargs.objectid = C.BTRFS_FIRST_FREE_OBJECTID
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(subvoldir), C.BTRFS_IOC_INO_LOOKUP,
+			uintptr(unsafe.Pointer(&lkpargs)))
+		if errno != 0 {
+			return fmt.Errorf("Cannot resolve ID for path %s: %v", fullPath, errno.Error())
+		}
+		subvolID = lkpargs.treeid
 	}
 
-	if quotaEnabled {
-		if qgroupid, err := subvolLookupQgroup(fullPath); err == nil {
+	destroySnap := func() syscall.Errno {
+		// TODO: qgroup can have child groups, so it removing also should be recursive
+		if quotaEnabled {
 			var args C.struct_btrfs_ioctl_qgroup_create_args
-			args.qgroupid = C.__u64(qgroupid)
-
+			// for the leaf subvolumes, the qgroup id is identical to the subvol id
+			args.qgroupid = subvolID
 			_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_QGROUP_CREATE,
 				uintptr(unsafe.Pointer(&args)))
 			if errno != 0 {
-				logrus.WithField("storage-driver", "btrfs").Errorf("Failed to delete btrfs qgroup %v for %s: %v", qgroupid, fullPath, errno.Error())
+				logrus.Errorf("Failed to delete btrfs qgroup %v for %s: %v", subvolID, fullPath, errno.Error())
 			}
-		} else {
-			logrus.WithField("storage-driver", "btrfs").Errorf("Failed to lookup btrfs qgroup for %s: %v", fullPath, err.Error())
+		}
+
+		var args C.struct_btrfs_ioctl_vol_args
+		if r, err := C.set_name_btrfs_ioctl_vol_args(&args, C.CString(name)); r < 0 {
+			return err.(syscall.Errno)
+		}
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
+			uintptr(unsafe.Pointer(&args)))
+		return errno
+	}
+
+	// First try to delete right now. Should be most common case
+	if errno := destroySnap(); errno == 0 {
+		return nil
+	} else if errno != syscall.ENOTEMPTY {
+		return fmt.Errorf("Failed to destroy btrfs subvolume %s: %v", fullPath, errno.Error())
+	}
+	// errno == ENOTEMPTY going to search nested subvols
+
+	// map to store info about subvols relative path to which is not fit in BTRFS_IOC_INO_LOOKUP
+	type subvolData struct {
+		name string
+		id   C.__u64
+	}
+	// key - dirid (inode number) of parent dir
+	distantDescendants := make(map[C.__u64][]subvolData)
+
+	// Init search key
+	var args C.struct_btrfs_ioctl_search_args
+	args.key.tree_id = C.BTRFS_ROOT_TREE_OBJECTID
+	args.key.min_type = C.BTRFS_ROOT_BACKREF_KEY
+	args.key.max_type = C.BTRFS_ROOT_BACKREF_KEY
+	args.key.min_objectid = C.BTRFS_FIRST_FREE_OBJECTID
+	args.key.max_objectid = C.BTRFS_LAST_FREE_OBJECTID
+	args.key.min_transid = 0
+	args.key.max_transid = ^C.__u64(0)
+	args.key.min_offset = subvolID
+	args.key.max_offset = subvolID
+
+	// while search key is still valid
+	for btrfsIoctlSearchArgsCompare(&args) {
+		// Get list of all subvolumes that is a child of this subvolume
+		args.key.nr_items = 256
+		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_TREE_SEARCH,
+			uintptr(unsafe.Pointer(&args)))
+		if errno != 0 {
+			return fmt.Errorf("Failed to search subvols for %s: %v", dirpath, errno.Error())
+		}
+		if args.key.nr_items == 0 {
+			break
+		}
+		// Parse search results
+		var sh *C.struct_btrfs_ioctl_search_header
+		for i, shPtr := C.__u32(0), unsafe.Pointer(&args.buf); i < args.key.nr_items; i, shPtr = i+1, unsafe.Pointer(uintptr(shPtr)+C.sizeof_struct_btrfs_ioctl_search_header+uintptr(sh.len)) {
+			sh = (*C.struct_btrfs_ioctl_search_header)(shPtr)
+
+			// Make sure we start the next search at least from this entry
+			args.key.min_objectid = sh.objectid
+			args.key.min_type = sh._type
+			args.key.min_offset = sh.offset
+
+			if sh._type != C.BTRFS_ROOT_BACKREF_KEY {
+				continue
+			}
+			if sh.offset != subvolID {
+				continue
+			}
+
+			// We found some
+			ref := (*C.struct_btrfs_root_ref)(unsafe.Pointer(uintptr(shPtr) + C.sizeof_struct_btrfs_ioctl_search_header))
+			childName := C.GoStringN((*C.char)(unsafe.Pointer(uintptr(unsafe.Pointer(ref))+C.sizeof_struct_btrfs_root_ref)), C.int(C._le16toh(ref.name_len)))
+			dirid := C._le64toh(ref.dirid)
+
+			// Search relative path to subvol parent dir
+			var inoArgs C.struct_btrfs_ioctl_ino_lookup_args
+			inoArgs.treeid = subvolID
+			inoArgs.objectid = dirid
+			_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
+				uintptr(unsafe.Pointer(&inoArgs)))
+			if errno == syscall.ENAMETOOLONG {
+				// Path too long so save it for future walk
+				distantDescendants[dirid] = append(distantDescendants[dirid], subvolData{childName, sh.objectid})
+			} else if errno != 0 {
+				return fmt.Errorf("Failed to search relative path from %s to %s: %v", name, childName, errno.Error())
+			} else {
+				relPath := C.GoString((*C.char)(unsafe.Pointer(&inoArgs.name)))
+				if err := subvolDelete(path.Join(fullPath, relPath), childName, sh.objectid, quotaEnabled); err != nil {
+					return err
+				}
+			}
+		}
+		// Increase search key by one, to read the next item, if we can.
+		if btrfsIoctlSearchArgsInc(&args) {
+			break
 		}
 	}
 
-	// all subvolumes have been removed
-	// now remove the one originally passed in
-	for i, c := range []byte(name) {
-		args.name[i] = C.char(c)
+	// If there's any subvolumes whose path is too long, process it now
+	if len(distantDescendants) > 0 {
+		var walk func(*C.DIR, string) error
+		walk = func(pdir *C.DIR, ppath string) error {
+			ent, errno := C.readdir(pdir)
+			for ; ent != nil; ent, errno = C.readdir(pdir) {
+				if ent.d_type == C.DT_DIR {
+					dname := C.GoString((*C.char)(unsafe.Pointer(&ent.d_name)))
+					// Check if dir contain subvols
+					if childs, ok := distantDescendants[C.__u64(ent.d_ino)]; ok {
+						dpath := path.Join(ppath, dname)
+						for _, child := range childs {
+							if err := subvolDelete(dpath, child.name, child.id, quotaEnabled); err != nil {
+								return fmt.Errorf("Failed to delete btrfs subvolume %+v: %v", child, err)
+							}
+						}
+						delete(distantDescendants, C.__u64(ent.d_ino))
+					}
+					// Go deeper
+					if dname != "." && dname != ".." {
+						var oflags C.int = (C.O_RDONLY | C.O_NDELAY | C.O_DIRECTORY | C.O_CLOEXEC | C.O_NOFOLLOW)
+						dirfd, err := C._openat(C.dirfd(pdir), (*C.char)(unsafe.Pointer(&ent.d_name)), oflags)
+						if dirfd < 0 {
+							logrus.Errorf("Can't open dir %s: %v", dname, err)
+							continue
+						}
+						cdir, err := C.fdopendir(dirfd)
+						if cdir == nil {
+							C.close(dirfd)
+							logrus.Errorf("Can't get DIR from fd %d for %s: %v", dirfd, dname, err)
+							continue
+						}
+						defer closeDir(cdir)
+
+						if err := walk(cdir, path.Join(ppath, dname)); err != nil {
+							return err
+						}
+					}
+				}
+			}
+			if errno != nil {
+				logrus.Errorf("Error while walk at %s: %v", ppath, errno)
+			}
+			return nil
+		}
+
+		if err := walk(subvoldir, fullPath); err != nil {
+			return err
+		}
+		if len(distantDescendants) > 0 {
+			return fmt.Errorf("Child btrfs subvolumes %+v was not reached from %s", distantDescendants, fullPath)
+		}
 	}
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return fmt.Errorf("Failed to destroy btrfs snapshot %s for %s: %v", dirpath, name, errno.Error())
+
+	// For now all descendants should be destroyed and we can try one more time
+	if errno := destroySnap(); errno != 0 {
+		return fmt.Errorf("Failed to destroy btrfs subvolume %s: %v", fullPath, errno.Error())
 	}
 	return nil
 }
@@ -423,28 +662,6 @@ func qgroupStatus(path string) error {
 		return fmt.Errorf("Invalid qgroup search header type for %s: %v", path, sh._type)
 	}
 	return nil
-}
-
-func subvolLookupQgroup(path string) (uint64, error) {
-	dir, err := openDir(path)
-	if err != nil {
-		return 0, err
-	}
-	defer closeDir(dir)
-
-	var args C.struct_btrfs_ioctl_ino_lookup_args
-	args.objectid = C.BTRFS_FIRST_FREE_OBJECTID
-
-	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_INO_LOOKUP,
-		uintptr(unsafe.Pointer(&args)))
-	if errno != 0 {
-		return 0, fmt.Errorf("Failed to lookup qgroup for %s: %v", dir, errno.Error())
-	}
-	if args.treeid == 0 {
-		return 0, fmt.Errorf("Invalid qgroup id for %s: 0", dir)
-	}
-
-	return uint64(args.treeid), nil
 }
 
 func (d *Driver) subvolumesDir() string {
@@ -590,7 +807,7 @@ func (d *Driver) Remove(id string) error {
 	// Call updateQuotaStatus() to invoke status update
 	d.updateQuotaStatus()
 
-	if err := subvolDelete(d.subvolumesDir(), id, d.quotaEnabled); err != nil {
+	if err := subvolDelete(d.subvolumesDir(), id, 0, d.quotaEnabled); err != nil {
 		if d.quotaEnabled {
 			// use strings.Contains() rather than errors.Is(), because subvolDelete() does not use %w yet
 			if userns.RunningInUserNS() && strings.Contains(err.Error(), "operation not permitted") {
