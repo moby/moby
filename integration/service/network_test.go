@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -27,20 +27,15 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 		Attachable: true,
 	})
 	require.NoError(t, err)
-	_, err = client.ContainerCreate(ctx,
-		&container.Config{
-			Cmd:   []string{"top"},
-			Image: "busybox",
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
+
+	container.Create(t, ctx, client, container.WithName("ng1"), func(c *container.TestContainerConfig) {
+		c.NetworkingConfig = &network.NetworkingConfig{
+			map[string]*network.EndpointSettings{
 				name: {},
 			},
-		},
-		"ng1",
-	)
-	require.NoError(t, err)
+		}
+	})
+
 	err = client.NetworkConnect(ctx, name, "ng1", &network.EndpointSettings{
 		Aliases: []string{
 			"aaa",
@@ -56,20 +51,14 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	assert.Equal(t, len(ng1.NetworkSettings.Networks[name].Aliases), 2)
 	assert.Equal(t, ng1.NetworkSettings.Networks[name].Aliases[0], "aaa")
 
-	_, err = client.ContainerCreate(ctx,
-		&container.Config{
-			Cmd:   []string{"top"},
-			Image: "busybox",
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{
-			EndpointsConfig: map[string]*network.EndpointSettings{
+	container.Create(t, ctx, client, container.WithName("ng2"), func(c *container.TestContainerConfig) {
+		c.NetworkingConfig = &network.NetworkingConfig{
+			map[string]*network.EndpointSettings{
 				name: {},
 			},
-		},
-		"ng2",
-	)
-	require.NoError(t, err)
+		}
+	})
+
 	err = client.NetworkConnect(ctx, name, "ng2", &network.EndpointSettings{
 		Aliases: []string{
 			"bbb",

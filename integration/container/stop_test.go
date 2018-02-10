@@ -8,9 +8,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -25,23 +24,9 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 
 	names := []string{"verifyRestart1", "verifyRestart2"}
 	for _, name := range names {
-		resp, err := client.ContainerCreate(ctx,
-			&container.Config{
-				Cmd:   []string{"false"},
-				Image: "busybox",
-			},
-			&container.HostConfig{
-				RestartPolicy: container.RestartPolicy{
-					Name: "always",
-				},
-			},
-			&network.NetworkingConfig{},
-			name,
-		)
-		require.NoError(t, err)
-
-		err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
-		require.NoError(t, err)
+		container.Run(t, ctx, client, container.WithName(name), container.WithCmd("false"), func(c *container.TestContainerConfig) {
+			c.HostConfig.RestartPolicy.Name = "always"
+		})
 	}
 
 	for _, name := range names {
@@ -65,24 +50,12 @@ func TestDeleteDevicemapper(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	foo, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Cmd:   []string{"echo"},
-			Image: "busybox",
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"foo",
-	)
-	require.NoError(t, err)
+	id := container.Run(t, ctx, client, container.WithName("foo"), container.WithCmd("echo"))
 
-	err = client.ContainerStart(ctx, foo.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	poll.WaitOn(t, containerIsStopped(ctx, client, id), poll.WithDelay(100*time.Millisecond))
 
-	inspect, err := client.ContainerInspect(ctx, foo.ID)
+	inspect, err := client.ContainerInspect(ctx, id)
 	require.NoError(t, err)
-
-	poll.WaitOn(t, containerIsStopped(ctx, client, foo.ID), poll.WithDelay(100*time.Millisecond))
 
 	deviceID := inspect.GraphDriver.Data["DeviceId"]
 
@@ -94,7 +67,7 @@ func TestDeleteDevicemapper(t *testing.T) {
 	result := icmd.RunCommand("dmsetup", "message", devicePool, "0", fmt.Sprintf("delete %s", deviceID))
 	result.Assert(t, icmd.Success)
 
-	err = client.ContainerRemove(ctx, foo.ID, types.ContainerRemoveOptions{})
+	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
 	require.NoError(t, err)
 }
 
