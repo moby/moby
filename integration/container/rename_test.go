@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stringid"
@@ -26,23 +26,18 @@ func TestRenameLinkedContainer(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	aID := runSimpleContainer(ctx, t, client, "a0")
-
-	bID := runSimpleContainer(ctx, t, client, "b0", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		hostConfig.Links = []string{"a0"}
-	})
+	aID := container.Run(t, ctx, client, container.WithName("a0"))
+	bID := container.Run(t, ctx, client, container.WithName("b0"), container.WithLinks("a0"))
 
 	err := client.ContainerRename(ctx, aID, "a1")
 	require.NoError(t, err)
 
-	runSimpleContainer(ctx, t, client, "a0")
+	container.Run(t, ctx, client, container.WithName("a0"))
 
 	err = client.ContainerRemove(ctx, bID, types.ContainerRemoveOptions{Force: true})
 	require.NoError(t, err)
 
-	bID = runSimpleContainer(ctx, t, client, "b0", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		hostConfig.Links = []string{"a0"}
-	})
+	bID = container.Run(t, ctx, client, container.WithName("b0"), container.WithLinks("a0"))
 
 	inspect, err := client.ContainerInspect(ctx, bID)
 	require.NoError(t, err)
@@ -55,9 +50,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	oldName := "first_name"
-	cID := runSimpleContainer(ctx, t, client, oldName, func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		config.Cmd = []string{"sh"}
-	})
+	cID := container.Run(t, ctx, client, container.WithName(oldName), container.WithCmd("sh"))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
@@ -79,7 +72,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	oldName := "first_name"
-	cID := runSimpleContainer(ctx, t, client, oldName)
+	cID := container.Run(t, ctx, client, container.WithName(oldName))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	newName := "new_name" + stringid.GenerateNonCryptoID()
@@ -93,7 +86,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	_, err = client.ContainerInspect(ctx, oldName)
 	testutil.ErrorContains(t, err, "No such container: "+oldName)
 
-	cID = runSimpleContainer(ctx, t, client, oldName)
+	cID = container.Run(t, ctx, client, container.WithName(oldName))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err = client.ContainerInspect(ctx, cID)
@@ -107,7 +100,7 @@ func TestRenameInvalidName(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	oldName := "first_name"
-	cID := runSimpleContainer(ctx, t, client, oldName)
+	cID := container.Run(t, ctx, client, container.WithName(oldName))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerRename(ctx, oldName, "new:invalid")
@@ -132,11 +125,11 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 	_, err := client.NetworkCreate(ctx, "network1", types.NetworkCreate{})
 	require.NoError(t, err)
-	cID := createSimpleContainer(ctx, t, client, "", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		networkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
 			"network1": {},
 		}
-		hostConfig.NetworkMode = "network1"
+		c.HostConfig.NetworkMode = "network1"
 	})
 	err = client.ContainerRename(ctx, cID, "container1")
 	require.NoError(t, err)
@@ -149,13 +142,12 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	if testEnv.OSType == "windows" {
 		count = "-n"
 	}
-	cID = runSimpleContainer(ctx, t, client, "", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		networkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
+	cID = container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{
 			"network1": {},
 		}
-		hostConfig.NetworkMode = "network1"
-		config.Cmd = []string{"ping", count, "1", "container1"}
-	})
+		c.HostConfig.NetworkMode = "network1"
+	}, container.WithCmd("ping", count, "1", "container1"))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
@@ -169,7 +161,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	cID := runSimpleContainer(ctx, t, client, "old")
+	cID := container.Run(t, ctx, client, container.WithName("old"))
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	err := client.ContainerRename(ctx, "old", "old")
 	testutil.ErrorContains(t, err, "Renaming a container with the same name")
@@ -189,12 +181,10 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	db1ID := runSimpleContainer(ctx, t, client, "db1")
+	db1ID := container.Run(t, ctx, client, container.WithName("db1"))
 	poll.WaitOn(t, containerIsInState(ctx, client, db1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	app1ID := runSimpleContainer(ctx, t, client, "app1", func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		hostConfig.Links = []string{"db1:/mysql"}
-	})
+	app1ID := container.Run(t, ctx, client, container.WithName("app1"), container.WithLinks("db1:/mysql"))
 	poll.WaitOn(t, containerIsInState(ctx, client, app1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerRename(ctx, "app1", "app2")

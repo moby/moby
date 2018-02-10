@@ -6,9 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -25,10 +24,12 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 
 	name := "cpusetinconfig-pre120"
 	// Create container with up to-date-API
-	runSimpleContainer(ctx, t, request.NewAPIClient(t), name, func(config *container.Config, hostConfig *container.HostConfig, networkingConfig *network.NetworkingConfig) {
-		config.Cmd = []string{"true"}
-		hostConfig.Resources.CpusetCpus = "0"
-	})
+	container.Run(t, ctx, request.NewAPIClient(t), container.WithName(name),
+		container.WithCmd("true"),
+		func(c *container.TestContainerConfig) {
+			c.HostConfig.Resources.CpusetCpus = "0"
+		},
+	)
 	poll.WaitOn(t, containerIsInState(ctx, client, name, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	_, body, err := client.ContainerInspectWithRaw(ctx, name, false)
