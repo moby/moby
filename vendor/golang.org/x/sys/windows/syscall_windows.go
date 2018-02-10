@@ -16,7 +16,46 @@ import (
 
 type Handle uintptr
 
-const InvalidHandle = ^Handle(0)
+const (
+	InvalidHandle = ^Handle(0)
+
+	// Flags for DefineDosDevice.
+	DDD_EXACT_MATCH_ON_REMOVE = 0x00000004
+	DDD_NO_BROADCAST_SYSTEM   = 0x00000008
+	DDD_RAW_TARGET_PATH       = 0x00000001
+	DDD_REMOVE_DEFINITION     = 0x00000002
+
+	// Return values for GetDriveType.
+	DRIVE_UNKNOWN     = 0
+	DRIVE_NO_ROOT_DIR = 1
+	DRIVE_REMOVABLE   = 2
+	DRIVE_FIXED       = 3
+	DRIVE_REMOTE      = 4
+	DRIVE_CDROM       = 5
+	DRIVE_RAMDISK     = 6
+
+	// File system flags from GetVolumeInformation and GetVolumeInformationByHandle.
+	FILE_CASE_SENSITIVE_SEARCH        = 0x00000001
+	FILE_CASE_PRESERVED_NAMES         = 0x00000002
+	FILE_FILE_COMPRESSION             = 0x00000010
+	FILE_DAX_VOLUME                   = 0x20000000
+	FILE_NAMED_STREAMS                = 0x00040000
+	FILE_PERSISTENT_ACLS              = 0x00000008
+	FILE_READ_ONLY_VOLUME             = 0x00080000
+	FILE_SEQUENTIAL_WRITE_ONCE        = 0x00100000
+	FILE_SUPPORTS_ENCRYPTION          = 0x00020000
+	FILE_SUPPORTS_EXTENDED_ATTRIBUTES = 0x00800000
+	FILE_SUPPORTS_HARD_LINKS          = 0x00400000
+	FILE_SUPPORTS_OBJECT_IDS          = 0x00010000
+	FILE_SUPPORTS_OPEN_BY_FILE_ID     = 0x01000000
+	FILE_SUPPORTS_REPARSE_POINTS      = 0x00000080
+	FILE_SUPPORTS_SPARSE_FILES        = 0x00000040
+	FILE_SUPPORTS_TRANSACTIONS        = 0x00200000
+	FILE_SUPPORTS_USN_JOURNAL         = 0x02000000
+	FILE_UNICODE_ON_DISK              = 0x00000004
+	FILE_VOLUME_IS_COMPRESSED         = 0x00008000
+	FILE_VOLUME_QUOTAS                = 0x00000020
+)
 
 // StringToUTF16 is deprecated. Use UTF16FromString instead.
 // If s contains a NUL byte this function panics instead of
@@ -199,6 +238,27 @@ func NewCallbackCDecl(fn interface{}) uintptr {
 //sys	SetEvent(event Handle) (err error) = kernel32.SetEvent
 //sys	ResetEvent(event Handle) (err error) = kernel32.ResetEvent
 //sys	PulseEvent(event Handle) (err error) = kernel32.PulseEvent
+
+// Volume Management Functions
+//sys	DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) = DefineDosDeviceW
+//sys	DeleteVolumeMountPoint(volumeMountPoint *uint16) (err error) = DeleteVolumeMountPointW
+//sys	FindFirstVolume(volumeName *uint16, bufferLength uint32) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstVolumeW
+//sys	FindFirstVolumeMountPoint(rootPathName *uint16, volumeMountPoint *uint16, bufferLength uint32) (handle Handle, err error) [failretval==InvalidHandle] = FindFirstVolumeMountPointW
+//sys	FindNextVolume(findVolume Handle, volumeName *uint16, bufferLength uint32) (err error) = FindNextVolumeW
+//sys	FindNextVolumeMountPoint(findVolumeMountPoint Handle, volumeMountPoint *uint16, bufferLength uint32) (err error) = FindNextVolumeMountPointW
+//sys	FindVolumeClose(findVolume Handle) (err error)
+//sys	FindVolumeMountPointClose(findVolumeMountPoint Handle) (err error)
+//sys	GetDriveType(rootPathName *uint16) (driveType uint32) = GetDriveTypeW
+//sys	GetLogicalDrives() (drivesBitMask uint32, err error) [failretval==0]
+//sys	GetLogicalDriveStrings(bufferLength uint32, buffer *uint16) (n uint32, err error) [failretval==0] = GetLogicalDriveStringsW
+//sys	GetVolumeInformation(rootPathName *uint16, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationW
+//sys	GetVolumeInformationByHandle(file Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) = GetVolumeInformationByHandleW
+//sys	GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) = GetVolumeNameForVolumeMountPointW
+//sys	GetVolumePathName(fileName *uint16, volumePathName *uint16, bufferLength uint32) (err error) = GetVolumePathNameW
+//sys	GetVolumePathNamesForVolumeName(volumeName *uint16, volumePathNames *uint16, bufferLength uint32, returnLength *uint32) (err error) = GetVolumePathNamesForVolumeNameW
+//sys	QueryDosDevice(deviceName *uint16, targetPath *uint16, max uint32) (n uint32, err error) [failretval==0] = QueryDosDeviceW
+//sys	SetVolumeLabel(rootPathName *uint16, volumeName *uint16) (err error) = SetVolumeLabelW
+//sys	SetVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16) (err error) = SetVolumeMountPointW
 
 // syscall interface implementation for other packages
 
@@ -794,6 +854,75 @@ func ConnectEx(fd Handle, sa Sockaddr, sendBuf *byte, sendDataLen uint32, bytesS
 		return err
 	}
 	return connectEx(fd, ptr, n, sendBuf, sendDataLen, bytesSent, overlapped)
+}
+
+var sendRecvMsgFunc struct {
+	once     sync.Once
+	sendAddr uintptr
+	recvAddr uintptr
+	err      error
+}
+
+func loadWSASendRecvMsg() error {
+	sendRecvMsgFunc.once.Do(func() {
+		var s Handle
+		s, sendRecvMsgFunc.err = Socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+		if sendRecvMsgFunc.err != nil {
+			return
+		}
+		defer CloseHandle(s)
+		var n uint32
+		sendRecvMsgFunc.err = WSAIoctl(s,
+			SIO_GET_EXTENSION_FUNCTION_POINTER,
+			(*byte)(unsafe.Pointer(&WSAID_WSARECVMSG)),
+			uint32(unsafe.Sizeof(WSAID_WSARECVMSG)),
+			(*byte)(unsafe.Pointer(&sendRecvMsgFunc.recvAddr)),
+			uint32(unsafe.Sizeof(sendRecvMsgFunc.recvAddr)),
+			&n, nil, 0)
+		if sendRecvMsgFunc.err != nil {
+			return
+		}
+		sendRecvMsgFunc.err = WSAIoctl(s,
+			SIO_GET_EXTENSION_FUNCTION_POINTER,
+			(*byte)(unsafe.Pointer(&WSAID_WSASENDMSG)),
+			uint32(unsafe.Sizeof(WSAID_WSASENDMSG)),
+			(*byte)(unsafe.Pointer(&sendRecvMsgFunc.sendAddr)),
+			uint32(unsafe.Sizeof(sendRecvMsgFunc.sendAddr)),
+			&n, nil, 0)
+	})
+	return sendRecvMsgFunc.err
+}
+
+func WSASendMsg(fd Handle, msg *WSAMsg, flags uint32, bytesSent *uint32, overlapped *Overlapped, croutine *byte) error {
+	err := loadWSASendRecvMsg()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := syscall.Syscall6(sendRecvMsgFunc.sendAddr, 6, uintptr(fd), uintptr(unsafe.Pointer(msg)), uintptr(flags), uintptr(unsafe.Pointer(bytesSent)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)))
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return err
+}
+
+func WSARecvMsg(fd Handle, msg *WSAMsg, bytesReceived *uint32, overlapped *Overlapped, croutine *byte) error {
+	err := loadWSASendRecvMsg()
+	if err != nil {
+		return err
+	}
+	r1, _, e1 := syscall.Syscall6(sendRecvMsgFunc.recvAddr, 5, uintptr(fd), uintptr(unsafe.Pointer(msg)), uintptr(unsafe.Pointer(bytesReceived)), uintptr(unsafe.Pointer(overlapped)), uintptr(unsafe.Pointer(croutine)), 0)
+	if r1 == socket_error {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return err
 }
 
 // Invented structures to support what package os expects.

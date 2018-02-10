@@ -65,6 +65,7 @@ func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr,
 
 //sys	Lstat(path string, stat *Stat_t) (err error) = SYS_LSTAT64
 //sys	Fstat(fd int, stat *Stat_t) (err error) = SYS_FSTAT64
+//sys	Fstatat(dirfd int, path string, stat *Stat_t, flags int) (err error) = SYS_FSTATAT64
 //sys	Stat(path string, stat *Stat_t) (err error) = SYS_STAT64
 
 //sys	Utime(path string, buf *Utimbuf) (err error)

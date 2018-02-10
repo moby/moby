@@ -480,3 +480,11 @@ const (
 	POLLWRBAND = 0x100
 	POLLWRNORM = 0x4
 )
+
+type Utsname struct {
+	Sysname  [256]byte
+	Nodename [256]byte
+	Release  [256]byte
+	Version  [256]byte
+	Machine  [256]byte
+}

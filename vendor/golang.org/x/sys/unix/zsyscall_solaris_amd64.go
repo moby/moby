@@ -95,6 +95,7 @@ import (
 //go:cgo_import_dynamic libc_renameat renameat "libc.so"
 //go:cgo_import_dynamic libc_rmdir rmdir "libc.so"
 //go:cgo_import_dynamic libc_lseek lseek "libc.so"
+//go:cgo_import_dynamic libc_select select "libc.so"
 //go:cgo_import_dynamic libc_setegid setegid "libc.so"
 //go:cgo_import_dynamic libc_seteuid seteuid "libc.so"
 //go:cgo_import_dynamic libc_setgid setgid "libc.so"
@@ -220,6 +221,7 @@ import (
 //go:linkname procRenameat libc_renameat
 //go:linkname procRmdir libc_rmdir
 //go:linkname proclseek libc_lseek
+//go:linkname procSelect libc_select
 //go:linkname procSetegid libc_setegid
 //go:linkname procSeteuid libc_seteuid
 //go:linkname procSetgid libc_setgid
@@ -346,6 +348,7 @@ var (
 	procRenameat,
 	procRmdir,
 	proclseek,
+	procSelect,
 	procSetegid,
 	procSeteuid,
 	procSetgid,
@@ -1258,6 +1261,14 @@ func Rmdir(path string) (err error) {
 func Seek(fd int, offset int64, whence int) (newoffset int64, err error) {
 	r0, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&proclseek)), 3, uintptr(fd), uintptr(offset), uintptr(whence), 0, 0, 0)
 	newoffset = int64(r0)
+	if e1 != 0 {
+		err = e1
+	}
+	return
+}
+
+func Select(n int, r *FdSet, w *FdSet, e *FdSet, timeout *Timeval) (err error) {
+	_, _, e1 := sysvicall6(uintptr(unsafe.Pointer(&procSelect)), 5, uintptr(n), uintptr(unsafe.Pointer(r)), uintptr(unsafe.Pointer(w)), uintptr(unsafe.Pointer(e)), uintptr(unsafe.Pointer(timeout)), 0)
 	if e1 != 0 {
 		err = e1
 	}
