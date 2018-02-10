@@ -38,7 +38,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
-	"github.com/docker/go-units"
+	units "github.com/docker/go-units"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
@@ -391,6 +391,8 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 		if err != nil {
 			return nil, err
 		}
+
+		container.LogPath = info.LogPath
 	}
 
 	l, err := initDriver(info)
@@ -973,11 +975,6 @@ func (container *Container) startLogging() error {
 	container.LogCopier = copier
 	copier.Run()
 	container.LogDriver = l
-
-	// set LogPath field only for json-file logdriver
-	if jl, ok := l.(*jsonfilelog.JSONFileLogger); ok {
-		container.LogPath = jl.LogPath()
-	}
 
 	return nil
 }
