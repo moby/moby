@@ -130,13 +130,6 @@ func rotate(name string, maxFiles int) error {
 	return nil
 }
 
-// LogPath returns the location the given writer logs to.
-func (w *LogFile) LogPath() string {
-	w.mu.Lock()
-	defer w.mu.Unlock()
-	return w.f.Name()
-}
-
 // MaxFiles return maximum number of files
 func (w *LogFile) MaxFiles() int {
 	return w.maxFiles
