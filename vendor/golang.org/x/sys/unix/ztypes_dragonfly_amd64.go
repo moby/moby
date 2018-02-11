@@ -143,6 +143,10 @@ type Fsid struct {
 	Val [2]int32
 }
 
+const (
+	PathMax = 0x400
+)
+
 type RawSockaddrInet4 struct {
 	Len    uint8
 	Family uint8
@@ -442,6 +446,13 @@ type Termios struct {
 	Ospeed uint32
 }
 
+type Winsize struct {
+	Row    uint16
+	Col    uint16
+	Xpixel uint16
+	Ypixel uint16
+}
+
 const (
 	AT_FDCWD            = 0xfffafdcd
 	AT_SYMLINK_NOFOLLOW = 0x1
@@ -465,3 +476,11 @@ const (
 	POLLWRBAND = 0x100
 	POLLWRNORM = 0x4
 )
+
+type Utsname struct {
+	Sysname  [32]byte
+	Nodename [32]byte
+	Release  [32]byte
+	Version  [32]byte
+	Machine  [32]byte
+}

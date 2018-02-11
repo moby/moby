@@ -99,6 +99,10 @@ type Fsid struct {
 	X__fsid_val [2]int32
 }
 
+const (
+	PathMax = 0x400
+)
+
 type RawSockaddrInet4 struct {
 	Len    uint8
 	Family uint8
@@ -382,6 +386,13 @@ type Termios struct {
 	Ospeed int32
 }
 
+type Winsize struct {
+	Row    uint16
+	Col    uint16
+	Xpixel uint16
+	Ypixel uint16
+}
+
 const (
 	AT_FDCWD            = -0x64
 	AT_SYMLINK_NOFOLLOW = 0x200
@@ -417,4 +428,12 @@ type Sysctlnode struct {
 	X_sysctl_func   [8]byte
 	X_sysctl_parent [8]byte
 	X_sysctl_desc   [8]byte
+}
+
+type Utsname struct {
+	Sysname  [256]byte
+	Nodename [256]byte
+	Release  [256]byte
+	Version  [256]byte
+	Machine  [256]byte
 }

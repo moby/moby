@@ -413,6 +413,7 @@ func (sa *SockaddrUnix) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	return unsafe.Pointer(&sa.raw), sl, nil
 }
 
+// SockaddrLinklayer implements the Sockaddr interface for AF_PACKET type sockets.
 type SockaddrLinklayer struct {
 	Protocol uint16
 	Ifindex  int
@@ -439,6 +440,7 @@ func (sa *SockaddrLinklayer) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrLinklayer, nil
 }
 
+// SockaddrNetlink implements the Sockaddr interface for AF_NETLINK type sockets.
 type SockaddrNetlink struct {
 	Family uint16
 	Pad    uint16
@@ -455,6 +457,8 @@ func (sa *SockaddrNetlink) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrNetlink, nil
 }
 
+// SockaddrHCI implements the Sockaddr interface for AF_BLUETOOTH type sockets
+// using the HCI protocol.
 type SockaddrHCI struct {
 	Dev     uint16
 	Channel uint16
@@ -466,6 +470,31 @@ func (sa *SockaddrHCI) sockaddr() (unsafe.Pointer, _Socklen, error) {
 	sa.raw.Dev = sa.Dev
 	sa.raw.Channel = sa.Channel
 	return unsafe.Pointer(&sa.raw), SizeofSockaddrHCI, nil
+}
+
+// SockaddrL2 implements the Sockaddr interface for AF_BLUETOOTH type sockets
+// using the L2CAP protocol.
+type SockaddrL2 struct {
+	PSM      uint16
+	CID      uint16
+	Addr     [6]uint8
+	AddrType uint8
+	raw      RawSockaddrL2
+}
+
+func (sa *SockaddrL2) sockaddr() (unsafe.Pointer, _Socklen, error) {
+	sa.raw.Family = AF_BLUETOOTH
+	psm := (*[2]byte)(unsafe.Pointer(&sa.raw.Psm))
+	psm[0] = byte(sa.PSM)
+	psm[1] = byte(sa.PSM >> 8)
+	for i := 0; i < len(sa.Addr); i++ {
+		sa.raw.Bdaddr[i] = sa.Addr[len(sa.Addr)-1-i]
+	}
+	cid := (*[2]byte)(unsafe.Pointer(&sa.raw.Cid))
+	cid[0] = byte(sa.CID)
+	cid[1] = byte(sa.CID >> 8)
+	sa.raw.Bdaddr_type = sa.AddrType
+	return unsafe.Pointer(&sa.raw), SizeofSockaddrL2, nil
 }
 
 // SockaddrCAN implements the Sockaddr interface for AF_CAN type sockets.
@@ -808,6 +837,24 @@ func GetsockoptTCPInfo(fd, level, opt int) (*TCPInfo, error) {
 	return &value, err
 }
 
+// GetsockoptString returns the string value of the socket option opt for the
+// socket associated with fd at the given socket level.
+func GetsockoptString(fd, level, opt int) (string, error) {
+	buf := make([]byte, 256)
+	vallen := _Socklen(len(buf))
+	err := getsockopt(fd, level, opt, unsafe.Pointer(&buf[0]), &vallen)
+	if err != nil {
+		if err == ERANGE {
+			buf = make([]byte, vallen)
+			err = getsockopt(fd, level, opt, unsafe.Pointer(&buf[0]), &vallen)
+		}
+		if err != nil {
+			return "", err
+		}
+	}
+	return string(buf[:vallen-1]), nil
+}
+
 func SetsockoptIPMreqn(fd, level, opt int, mreq *IPMreqn) (err error) {
 	return setsockopt(fd, level, opt, unsafe.Pointer(mreq), unsafe.Sizeof(*mreq))
 }
@@ -1125,6 +1172,10 @@ func PtracePokeData(pid int, addr uintptr, data []byte) (count int, err error) {
 	return ptracePoke(PTRACE_POKEDATA, PTRACE_PEEKDATA, pid, addr, data)
 }
 
+func PtracePokeUser(pid int, addr uintptr, data []byte) (count int, err error) {
+	return ptracePoke(PTRACE_POKEUSR, PTRACE_PEEKUSR, pid, addr, data)
+}
+
 func PtraceGetRegs(pid int, regsout *PtraceRegs) (err error) {
 	return ptrace(PTRACE_GETREGS, pid, 0, uintptr(unsafe.Pointer(regsout)))
 }
@@ -1166,22 +1217,6 @@ func Reboot(cmd int) (err error) {
 
 func ReadDirent(fd int, buf []byte) (n int, err error) {
 	return Getdents(fd, buf)
-}
-
-func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Ino), unsafe.Sizeof(Dirent{}.Ino))
-}
-
-func direntReclen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
-}
-
-func direntNamlen(buf []byte) (uint64, bool) {
-	reclen, ok := direntReclen(buf)
-	if !ok {
-		return 0, false
-	}
-	return reclen - uint64(unsafe.Offsetof(Dirent{}.Name)), true
 }
 
 //sys	mount(source string, target string, fstype string, flags uintptr, data *byte) (err error)
@@ -1289,6 +1324,7 @@ func Setgid(uid int) (err error) {
 
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Setxattr(path string, attr string, data []byte, flags int) (err error)
+//sys	Statx(dirfd int, path string, flags int, mask int, stat *Statx_t) (err error)
 //sys	Sync()
 //sys	Syncfs(fd int) (err error)
 //sysnb	Sysinfo(info *Sysinfo_t) (err error)
@@ -1406,7 +1442,6 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) {
 // Msgget
 // Msgrcv
 // Msgsnd
-// Newfstatat
 // Nfsservctl
 // Personality
 // Pselect6
@@ -1427,11 +1462,9 @@ func Vmsplice(fd int, iovs []Iovec, flags int) (int, error) {
 // RtSigtimedwait
 // SchedGetPriorityMax
 // SchedGetPriorityMin
-// SchedGetaffinity
 // SchedGetparam
 // SchedGetscheduler
 // SchedRrGetInterval
-// SchedSetaffinity
 // SchedSetparam
 // SchedYield
 // Security

@@ -29,6 +29,7 @@ const (
 	ERROR_NOT_FOUND              syscall.Errno = 1168
 	ERROR_PRIVILEGE_NOT_HELD     syscall.Errno = 1314
 	WSAEACCES                    syscall.Errno = 10013
+	WSAEMSGSIZE                  syscall.Errno = 10040
 	WSAECONNRESET                syscall.Errno = 10054
 )
 
@@ -158,9 +159,6 @@ const (
 	WAIT_OBJECT_0  = 0x00000000
 	WAIT_FAILED    = 0xFFFFFFFF
 
-	CREATE_NEW_PROCESS_GROUP   = 0x00000200
-	CREATE_UNICODE_ENVIRONMENT = 0x00000400
-
 	PROCESS_TERMINATE         = 1
 	PROCESS_QUERY_INFORMATION = 0x00000400
 	SYNCHRONIZE               = 0x00100000
@@ -175,6 +173,26 @@ const (
 
 	// Windows reserves errors >= 1<<29 for application use.
 	APPLICATION_ERROR = 1 << 29
+)
+
+const (
+	// Process creation flags.
+	CREATE_BREAKAWAY_FROM_JOB        = 0x01000000
+	CREATE_DEFAULT_ERROR_MODE        = 0x04000000
+	CREATE_NEW_CONSOLE               = 0x00000010
+	CREATE_NEW_PROCESS_GROUP         = 0x00000200
+	CREATE_NO_WINDOW                 = 0x08000000
+	CREATE_PROTECTED_PROCESS         = 0x00040000
+	CREATE_PRESERVE_CODE_AUTHZ_LEVEL = 0x02000000
+	CREATE_SEPARATE_WOW_VDM          = 0x00000800
+	CREATE_SHARED_WOW_VDM            = 0x00001000
+	CREATE_SUSPENDED                 = 0x00000004
+	CREATE_UNICODE_ENVIRONMENT       = 0x00000400
+	DEBUG_ONLY_THIS_PROCESS          = 0x00000002
+	DEBUG_PROCESS                    = 0x00000001
+	DETACHED_PROCESS                 = 0x00000008
+	EXTENDED_STARTUPINFO_PRESENT     = 0x00080000
+	INHERIT_PARENT_AFFINITY          = 0x00010000
 )
 
 const (
@@ -567,6 +585,16 @@ const (
 	IPV6_JOIN_GROUP     = 0xc
 	IPV6_LEAVE_GROUP    = 0xd
 
+	MSG_OOB       = 0x1
+	MSG_PEEK      = 0x2
+	MSG_DONTROUTE = 0x4
+	MSG_WAITALL   = 0x8
+
+	MSG_TRUNC  = 0x0100
+	MSG_CTRUNC = 0x0200
+	MSG_BCAST  = 0x0400
+	MSG_MCAST  = 0x0800
+
 	SOMAXCONN = 0x7fffffff
 
 	TCP_NODELAY = 1
@@ -582,6 +610,15 @@ const (
 type WSABuf struct {
 	Len uint32
 	Buf *byte
+}
+
+type WSAMsg struct {
+	Name        *syscall.RawSockaddrAny
+	Namelen     int32
+	Buffers     *WSABuf
+	BufferCount uint32
+	Control     WSABuf
+	Flags       uint32
 }
 
 // Invented values to support what package os expects.
@@ -1009,6 +1046,20 @@ var WSAID_CONNECTEX = GUID{
 	0xddf3,
 	0x4660,
 	[8]byte{0x8e, 0xe9, 0x76, 0xe5, 0x8c, 0x74, 0x06, 0x3e},
+}
+
+var WSAID_WSASENDMSG = GUID{
+	0xa441e712,
+	0x754f,
+	0x43ca,
+	[8]byte{0x84, 0xa7, 0x0d, 0xee, 0x44, 0xcf, 0x60, 0x6d},
+}
+
+var WSAID_WSARECVMSG = GUID{
+	0xf689d7c8,
+	0x6f1f,
+	0x436b,
+	[8]byte{0x8a, 0x53, 0xe5, 0x4f, 0xe3, 0x51, 0xc3, 0x22},
 }
 
 const (
