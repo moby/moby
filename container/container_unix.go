@@ -6,13 +6,12 @@ import (
 	"io/ioutil"
 	"os"
 
+	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/volume"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
@@ -398,53 +397,15 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 // copyExistingContents copies from the source to the destination and
 // ensures the ownership is appropriately set.
 func copyExistingContents(source, destination string) error {
-	volList, err := ioutil.ReadDir(source)
+	dstList, err := ioutil.ReadDir(destination)
 	if err != nil {
 		return err
 	}
-	if len(volList) > 0 {
-		srcList, err := ioutil.ReadDir(destination)
-		if err != nil {
-			return err
-		}
-		if len(srcList) == 0 {
-			// If the source volume is empty, copies files from the root into the volume
-			if err := chrootarchive.NewArchiver(nil).CopyWithTar(source, destination); err != nil {
-				return err
-			}
-		}
+	if len(dstList) != 0 {
+		// destination is not empty, do not copy
+		return nil
 	}
-	return copyOwnership(source, destination)
-}
-
-// copyOwnership copies the permissions and uid:gid of the source file
-// to the destination file
-func copyOwnership(source, destination string) error {
-	stat, err := system.Stat(source)
-	if err != nil {
-		return err
-	}
-
-	destStat, err := system.Stat(destination)
-	if err != nil {
-		return err
-	}
-
-	// In some cases, even though UID/GID match and it would effectively be a no-op,
-	// this can return a permission denied error... for example if this is an NFS
-	// mount.
-	// Since it's not really an error that we can't chown to the same UID/GID, don't
-	// even bother trying in such cases.
-	if stat.UID() != destStat.UID() || stat.GID() != destStat.GID() {
-		if err := os.Chown(destination, int(stat.UID()), int(stat.GID())); err != nil {
-			return err
-		}
-	}
-
-	if stat.Mode() != destStat.Mode() {
-		return os.Chmod(destination, os.FileMode(stat.Mode()))
-	}
-	return nil
+	return fs.CopyDir(destination, source)
 }
 
 // TmpfsMounts returns the list of tmpfs mounts

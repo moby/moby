@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"os"
 	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 func DeviceInfo(fi os.FileInfo) (uint64, uint64, error) {
@@ -14,42 +16,43 @@ func DeviceInfo(fi os.FileInfo) (uint64, uint64, error) {
 		return 0, 0, fmt.Errorf("cannot extract device from os.FileInfo")
 	}
 
-	return getmajor(sys.Rdev), getminor(sys.Rdev), nil
+	dev := uint64(sys.Rdev)
+	return uint64(unix.Major(dev)), uint64(unix.Minor(dev)), nil
 }
 
 // mknod provides a shortcut for syscall.Mknod
 func Mknod(p string, mode os.FileMode, maj, min int) error {
 	var (
 		m   = syscallMode(mode.Perm())
-		dev int
+		dev uint64
 	)
 
 	if mode&os.ModeDevice != 0 {
-		dev = makedev(maj, min)
+		dev = unix.Mkdev(uint32(maj), uint32(min))
 
 		if mode&os.ModeCharDevice != 0 {
-			m |= syscall.S_IFCHR
+			m |= unix.S_IFCHR
 		} else {
-			m |= syscall.S_IFBLK
+			m |= unix.S_IFBLK
 		}
 	} else if mode&os.ModeNamedPipe != 0 {
-		m |= syscall.S_IFIFO
+		m |= unix.S_IFIFO
 	}
 
-	return syscall.Mknod(p, m, dev)
+	return unix.Mknod(p, m, int(dev))
 }
 
 // syscallMode returns the syscall-specific mode bits from Go's portable mode bits.
 func syscallMode(i os.FileMode) (o uint32) {
 	o |= uint32(i.Perm())
 	if i&os.ModeSetuid != 0 {
-		o |= syscall.S_ISUID
+		o |= unix.S_ISUID
 	}
 	if i&os.ModeSetgid != 0 {
-		o |= syscall.S_ISGID
+		o |= unix.S_ISGID
 	}
 	if i&os.ModeSticky != 0 {
-		o |= syscall.S_ISVTX
+		o |= unix.S_ISVTX
 	}
 	return
 }
