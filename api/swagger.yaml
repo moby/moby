@@ -6178,6 +6178,12 @@ paths:
             uses the buildargs as the environment context for commands run via the `Dockerfile` RUN
             instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for
             passing secret values.
+
+
+            For example, the build arg `FOO=bar` would become `{"FOO":"bar"}` in JSON. This would result in the
+            the query parameter `buildargs={"FOO":"bar"}`. Note that `{"FOO":"bar"}` should be URI component encoded.
+
+
             [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)
           type: "string"
         - name: "shmsize"
