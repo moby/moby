@@ -11,11 +11,10 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	networktypes "github.com/docker/docker/api/types/network"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/require"
@@ -47,6 +46,8 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	client, err := d.NewClient()
 	require.Nil(t, err)
 
+	ctx := context.Background()
+
 	// Install authz plugin
 	err = pluginInstallGrantAllPermissions(client, authzPluginNameWithTag)
 	require.Nil(t, err)
@@ -56,13 +57,9 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	d.LoadBusybox(t)
 
 	// Ensure docker run command and accompanying docker ps are successful
-	createResponse, err := client.ContainerCreate(context.Background(), &container.Config{Cmd: []string{"top"}, Image: "busybox"}, &container.HostConfig{}, &networktypes.NetworkingConfig{}, "")
-	require.Nil(t, err)
+	cID := container.Run(t, ctx, client)
 
-	err = client.ContainerStart(context.Background(), createResponse.ID, types.ContainerStartOptions{})
-	require.Nil(t, err)
-
-	_, err = client.ContainerInspect(context.Background(), createResponse.ID)
+	_, err = client.ContainerInspect(ctx, cID)
 	require.Nil(t, err)
 }
 

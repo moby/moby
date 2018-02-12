@@ -6,13 +6,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/poll"
-	"github.com/stretchr/testify/require"
 )
 
 // TestHealthCheckWorkdir verifies that health-checks inherit the containers'
@@ -22,27 +20,17 @@ func TestHealthCheckWorkdir(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image:      "busybox",
-			Tty:        true,
-			WorkingDir: "/foo",
-			Cmd:        strslice.StrSlice([]string{"top"}),
-			Healthcheck: &container.HealthConfig{
-				Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
-				Interval: 50 * time.Millisecond,
-				Retries:  3,
-			},
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"healthtest",
-	)
-	require.NoError(t, err)
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.Config.Tty = true
+		c.Config.WorkingDir = "/foo"
+		c.Config.Healthcheck = &containertypes.HealthConfig{
+			Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
+			Interval: 50 * time.Millisecond,
+			Retries:  3,
+		}
+	})
 
-	poll.WaitOn(t, pollForHealthStatus(ctx, client, c.ID, types.Healthy), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, pollForHealthStatus(ctx, client, cID, types.Healthy), poll.WithDelay(100*time.Millisecond))
 }
 
 func pollForHealthStatus(ctx context.Context, client client.APIClient, containerID string, healthStatus string) func(log poll.LogT) poll.Result {

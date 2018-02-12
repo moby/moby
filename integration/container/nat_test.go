@@ -12,8 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/go-connections/nat"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -67,25 +66,15 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String())},
-			Tty:   true,
-		},
-		&container.HostConfig{
-			NetworkMode: "container:server",
-		},
-		nil,
-		"")
-	require.NoError(t, err)
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String())), func(c *container.TestContainerConfig) {
+		c.Config.Tty = true
+		c.HostConfig.NetworkMode = "container:server"
+	})
 
-	poll.WaitOn(t, containerIsStopped(ctx, client, c.ID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, containerIsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
-	body, err := client.ContainerLogs(ctx, c.ID, types.ContainerLogsOptions{
+	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	require.NoError(t, err)
@@ -102,34 +91,22 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)},
-			ExposedPorts: map[nat.Port]struct{}{
-				nat.Port(fmt.Sprintf("%d/tcp", port)): {},
-			},
-		},
-		&container.HostConfig{
-			PortBindings: nat.PortMap{
-				nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
-					{
-						HostPort: fmt.Sprintf("%d", port),
-					},
+	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)), func(c *container.TestContainerConfig) {
+		c.Config.ExposedPorts = map[nat.Port]struct{}{
+			nat.Port(fmt.Sprintf("%d/tcp", port)): {},
+		}
+		c.HostConfig.PortBindings = nat.PortMap{
+			nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
+				{
+					HostPort: fmt.Sprintf("%d", port),
 				},
 			},
-		},
-		&network.NetworkingConfig{},
-		"server",
-	)
-	require.NoError(t, err)
+		}
+	})
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	poll.WaitOn(t, containerIsInState(ctx, client, c.ID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	return c.ID
+	return cID
 }
 
 func getExternalAddress(t *testing.T) net.IP {
