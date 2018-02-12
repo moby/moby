@@ -26,7 +26,7 @@ import (
 // We'll also end up with many tasks all pointing to the same plugin ID.
 //
 // TODO(@cpuguy83): registry auth is intentionally not supported until we work out
-// the right way to pass registry crednetials via secrets.
+// the right way to pass registry credentials via secrets.
 type Controller struct {
 	backend Backend
 	spec    runtime.PluginSpec

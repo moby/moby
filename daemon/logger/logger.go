@@ -42,7 +42,7 @@ func PutMessage(msg *Message) {
 	messagePool.Put(msg)
 }
 
-// Message is datastructure that represents piece of output produced by some
+// Message is data structure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
 //
@@ -133,7 +133,7 @@ func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
 }
 
-// Capability defines the list of capabilties that a driver can implement
+// Capability defines the list of capabilities that a driver can implement
 // These capabilities are not required to be a logging driver, however do
 // determine how a logging driver can be used
 type Capability struct {
