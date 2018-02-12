@@ -7,10 +7,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/stretchr/testify/require"
 )
@@ -20,22 +19,9 @@ func TestEvents(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	container, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image:      "busybox",
-			Tty:        true,
-			WorkingDir: "/root",
-			Cmd:        strslice.StrSlice([]string{"top"}),
-		},
-		&container.HostConfig{},
-		&network.NetworkingConfig{},
-		"foo",
-	)
-	require.NoError(t, err)
-	err = client.ContainerStart(ctx, container.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	cID := container.Run(t, ctx, client)
 
-	id, err := client.ContainerExecCreate(ctx, container.ID,
+	id, err := client.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{
 			Cmd: strslice.StrSlice([]string{"echo", "hello"}),
 		},
@@ -43,7 +29,7 @@ func TestEvents(t *testing.T) {
 	require.NoError(t, err)
 
 	filters := filters.NewArgs(
-		filters.Arg("container", container.ID),
+		filters.Arg("container", cID),
 		filters.Arg("event", "exec_die"),
 	)
 	msg, errors := client.Events(ctx, types.EventsOptions{
@@ -61,7 +47,7 @@ func TestEvents(t *testing.T) {
 	select {
 	case m := <-msg:
 		require.Equal(t, m.Type, "container")
-		require.Equal(t, m.Actor.ID, container.ID)
+		require.Equal(t, m.Actor.ID, cID)
 		require.Equal(t, m.Action, "exec_die")
 		require.Equal(t, m.Actor.Attributes["execID"], id.ID)
 		require.Equal(t, m.Actor.Attributes["exitCode"], "0")

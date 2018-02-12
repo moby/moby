@@ -3,7 +3,6 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"io/ioutil"
 	"strconv"
 	"strings"
@@ -11,9 +10,10 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -31,44 +31,32 @@ func TestUpdateMemory(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Cmd:   []string{"top"},
-			Image: "busybox",
-		},
-		&container.HostConfig{
-			Resources: container.Resources{
-				Memory: 200 * 1024 * 1024,
-			},
-		},
-		nil,
-		"",
-	)
-	require.NoError(t, err)
+	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.HostConfig.Resources = containertypes.Resources{
+			Memory: 200 * 1024 * 1024,
+		}
+	})
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	poll.WaitOn(t, containerIsInState(ctx, client, c.ID, "running"), poll.WithDelay(100*time.Millisecond))
-
-	_, err = client.ContainerUpdate(ctx, c.ID, container.UpdateConfig{
-		Resources: container.Resources{
+	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+		Resources: containertypes.Resources{
 			Memory:     314572800,
 			MemorySwap: 524288000,
 		},
 	})
 	require.NoError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, c.ID)
+	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
 	assert.Equal(t, inspect.HostConfig.Memory, int64(314572800))
 	assert.Equal(t, inspect.HostConfig.MemorySwap, int64(524288000))
 
-	body, err := getContainerSysFSValue(ctx, client, c.ID, "/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	body, err := getContainerSysFSValue(ctx, client, cID, "/sys/fs/cgroup/memory/memory.limit_in_bytes")
 	require.NoError(t, err)
 	assert.Equal(t, strings.TrimSpace(body), "314572800")
 
-	body, err = getContainerSysFSValue(ctx, client, c.ID, "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
+	body, err = getContainerSysFSValue(ctx, client, cID, "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
 	require.NoError(t, err)
 	assert.Equal(t, strings.TrimSpace(body), "524288000")
 }
@@ -76,25 +64,11 @@ func TestUpdateMemory(t *testing.T) {
 func TestUpdateCPUQUota(t *testing.T) {
 	t.Parallel()
 
+	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	c, err := client.ContainerCreate(ctx, &container.Config{
-		Image: "busybox",
-		Cmd:   []string{"top"},
-	}, nil, nil, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer func() {
-		if err := client.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true}); err != nil {
-			panic(fmt.Sprintf("failed to clean up after test: %v", err))
-		}
-	}()
-
-	if err := client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{}); err != nil {
-		t.Fatal(err)
-	}
+	cID := container.Run(t, ctx, client)
 
 	for _, test := range []struct {
 		desc   string
@@ -105,15 +79,15 @@ func TestUpdateCPUQUota(t *testing.T) {
 		{desc: "a lower value", update: 10000},
 		{desc: "unset value", update: -1},
 	} {
-		if _, err := client.ContainerUpdate(ctx, c.ID, container.UpdateConfig{
-			Resources: container.Resources{
+		if _, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+			Resources: containertypes.Resources{
 				CPUQuota: test.update,
 			},
 		}); err != nil {
 			t.Fatal(err)
 		}
 
-		inspect, err := client.ContainerInspect(ctx, c.ID)
+		inspect, err := client.ContainerInspect(ctx, cID)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -122,7 +96,7 @@ func TestUpdateCPUQUota(t *testing.T) {
 			t.Fatalf("quota not updated in the API, expected %d, got: %d", test.update, inspect.HostConfig.CPUQuota)
 		}
 
-		execCreate, err := client.ContainerExecCreate(ctx, c.ID, types.ExecConfig{
+		execCreate, err := client.ContainerExecCreate(ctx, cID, types.ExecConfig{
 			Cmd:          []string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"},
 			AttachStdout: true,
 			AttachStderr: true,
