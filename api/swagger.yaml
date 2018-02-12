@@ -6173,7 +6173,12 @@ paths:
           type: "integer"
         - name: "buildargs"
           in: "query"
-          description: "JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker uses the buildargs as the environment context for commands run via the `Dockerfile` RUN instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for passing secret values. [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)"
+          description: >
+            JSON map of string pairs for build-time variables. Users pass these values at build-time. Docker
+            uses the buildargs as the environment context for commands run via the `Dockerfile` RUN
+            instruction, or for variable expansion in other `Dockerfile` instructions. This is not meant for
+            passing secret values.
+            [Read more about the buildargs instruction.](https://docs.docker.com/engine/reference/builder/#arg)
           type: "string"
         - name: "shmsize"
           in: "query"
