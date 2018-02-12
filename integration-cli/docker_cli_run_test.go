@@ -4002,7 +4002,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 		v, err := kernel.GetKernelVersion()
 		c.Assert(err, checker.IsNil)
 		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build >= 16292 { // @jhowardmsft TODO - replace with final RS3 build and ==
+		if build == 16299 {
 			c.Skip("Temporarily disabled on RS3 builds")
 		}
 	}
