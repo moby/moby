@@ -133,21 +133,13 @@ func FromEnv(c *Client) error {
 			},
 			CheckRedirect: CheckRedirect,
 		}
+		WithHTTPClient(httpClient)(c)
 	}
 
 	host := os.Getenv("DOCKER_HOST")
 	if host != "" {
-		var err error
+		// WithHost will create an API client if it doesn't exist
 		if err := WithHost(host)(c); err != nil {
-			return err
-		}
-		httpClient, err = defaultHTTPClient(host)
-		if err != nil {
-			return err
-		}
-	}
-	if httpClient != nil {
-		if err := WithHTTPClient(httpClient)(c); err != nil {
 			return err
 		}
 	}
@@ -167,7 +159,8 @@ func WithVersion(version string) func(*Client) error {
 	}
 }
 
-// WithHost overrides the client host with the specified one
+// WithHost overrides the client host with the specified one, creating a new
+// http client if one doesn't exist
 func WithHost(host string) func(*Client) error {
 	return func(c *Client) error {
 		hostURL, err := ParseHostURL(host)
@@ -178,11 +171,17 @@ func WithHost(host string) func(*Client) error {
 		c.proto = hostURL.Scheme
 		c.addr = hostURL.Host
 		c.basePath = hostURL.Path
-		client, err := defaultHTTPClient(host)
-		if err != nil {
-			return err
+		if c.client == nil {
+			client, err := defaultHTTPClient(host)
+			if err != nil {
+				return err
+			}
+			return WithHTTPClient(client)(c)
 		}
-		return WithHTTPClient(client)(c)
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			return sockets.ConfigureTransport(transport, c.proto, c.addr)
+		}
+		return fmt.Errorf("cannot apply host to http transport")
 	}
 }
 
