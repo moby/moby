@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import sys, signal, time
+import sys, signal, time, os
 import docker
 import re
 import subprocess
@@ -14,6 +14,14 @@ ipv4match = re.compile(
     r'(25[0-5]|2[0-4][0-9]|[01]?[0-9]?[0-9])'
 )
 
+def which(name, defaultPath=""):
+    if defaultPath and os.path.exists(defaultPath):
+      return defaultPath
+    for path in os.getenv("PATH").split(os.path.pathsep):
+        fullPath = path + os.sep + name
+        if os.path.exists(fullPath):
+            return fullPath
+        
 def check_iptables(name, plist):
     replace = (':', ',')
     ports = []
@@ -26,13 +34,13 @@ def check_iptables(name, plist):
 
     # get the ingress sandbox's docker_gwbridge network IP.
     # published ports get DNAT'ed to this IP.
-    ip = subprocess.check_output(['/usr/bin/nsenter', '--net=/var/run/docker/netns/ingress_sbox', '/bin/bash', '-c', 'ifconfig eth1 | grep \"inet\\ addr\" | cut -d: -f2 | cut -d\" \" -f1'])
+    ip = subprocess.check_output([ which("nsenter","/usr/bin/nsenter"), '--net=/var/run/docker/netns/ingress_sbox', which("bash", "/bin/bash"), '-c', 'ifconfig eth1 | grep \"inet\\ addr\" | cut -d: -f2 | cut -d\" \" -f1'])
     ip = ip.rstrip()
 
     for p in ports:
-        rule = '/sbin/iptables -t nat -C DOCKER-INGRESS -p tcp --dport {0} -j DNAT --to {1}:{2}'.format(p[1], ip, p[1])
+        rule = which("iptables", "/sbin/iptables") + '-t nat -C DOCKER-INGRESS -p tcp --dport {0} -j DNAT --to {1}:{2}'.format(p[1], ip, p[1])
         try:
-            subprocess.check_output(["/bin/bash", "-c", rule])
+            subprocess.check_output([which("bash", "/bin/bash"), "-c", rule])
         except subprocess.CalledProcessError as e:
             print "Service {0}: host iptables DNAT rule for port {1} -> ingress sandbox {2}:{3} missing".format(name, p[1], ip, p[1])
 
@@ -58,7 +66,12 @@ def check_network(nw_name, ingress=False):
 
     data = cli.inspect_network(nw_name, verbose=True)
 
-    services = data["Services"]
+    if "Services" in data.keys():
+        services = data["Services"]
+    else:
+        print "Network %s has no services. Skipping check" % nw_name
+        return
+
     fwmarks = {str(service): str(svalue["LocalLBIndex"]) for service, svalue in services.items()}
 
     stasks = {}
@@ -78,7 +91,7 @@ def check_network(nw_name, ingress=False):
     containers = get_namespaces(data, ingress)
     for container, namespace in containers.items():
         print "Verifying container %s..." % container
-        ipvs = subprocess.check_output(['/usr/bin/nsenter', '--net=%s' % namespace, '/usr/sbin/ipvsadm', '-ln'])
+        ipvs = subprocess.check_output([which("nsenter","/usr/bin/nsenter"), '--net=%s' % namespace, which("ipvsadm","/usr/sbin/ipvsadm"), '-ln'])
 
         mark = ""
         realmark = {}
