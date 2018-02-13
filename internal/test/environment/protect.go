@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var frozenImages = []string{"busybox:latest", "hello-world:frozen", "debian:jessie"}
+var frozenImages = []string{"busybox:1.27-glibc", "hello-world:frozen", "debian:jessie"}
 
 type protectedElements struct {
 	containers map[string]struct{}

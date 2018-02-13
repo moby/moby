@@ -400,13 +400,7 @@ func (s *DockerSuite) TestBuildLastModified(c *check.C) {
 	defer server.Close()
 
 	var out, out2 string
-	var args []string
-	// Temopray workaround for #35963. Will remove this when that issue fixed
-	if runtime.GOARCH == "amd64" {
-		args = []string{"run", name, "ls", "-le", "/file"}
-	} else {
-		args = []string{"run", name, "ls", "-l", "--full-time", "/file"}
-	}
+	args := []string{"run", name, "ls", "-l", "--full-time", "/file"}
 
 	dFmt := `FROM busybox
 ADD %s/file /`
