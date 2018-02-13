@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -28,24 +28,11 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"cat", "/etc/hosts"},
-		},
-		&container.HostConfig{
-			NetworkMode: "host",
-		},
-		nil,
-		"")
-	require.NoError(t, err)
+	cID := container.Run(t, ctx, client, container.WithCmd("cat", "/etc/hosts"), container.WithNetworkMode("host"))
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	poll.WaitOn(t, containerIsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
-	poll.WaitOn(t, containerIsStopped(ctx, client, c.ID), poll.WithDelay(100*time.Millisecond))
-
-	body, err := client.ContainerLogs(ctx, c.ID, types.ContainerLogsOptions{
+	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
 	require.NoError(t, err)
