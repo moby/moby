@@ -17,10 +17,7 @@ func TestExec(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
-		c.Config.Tty = true
-		c.Config.WorkingDir = "/root"
-	})
+	cID := container.Run(t, ctx, client, container.WithTty(true), container.WithWorkingDir("/root"))
 
 	id, err := client.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{

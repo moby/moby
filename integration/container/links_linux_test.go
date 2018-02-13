@@ -28,9 +28,7 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("cat", "/etc/hosts"), func(c *container.TestContainerConfig) {
-		c.HostConfig.NetworkMode = "host"
-	})
+	cID := container.Run(t, ctx, client, container.WithCmd("cat", "/etc/hosts"), container.WithNetworkMode("host"))
 
 	poll.WaitOn(t, containerIsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 

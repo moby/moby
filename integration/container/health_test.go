@@ -20,9 +20,7 @@ func TestHealthCheckWorkdir(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
-		c.Config.Tty = true
-		c.Config.WorkingDir = "/foo"
+	cID := container.Run(t, ctx, client, container.WithTty(true), container.WithWorkingDir("/foo"), func(c *container.TestContainerConfig) {
 		c.Config.Healthcheck = &containertypes.HealthConfig{
 			Test:     []string{"CMD-SHELL", "if [ \"$PWD\" = \"/foo\" ]; then exit 0; else exit 1; fi;"},
 			Interval: 50 * time.Millisecond,
