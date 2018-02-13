@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
@@ -1358,17 +1357,6 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
 	return nil
-}
-
-func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
-	var layers []string
-	for _, l := range rootfs.DiffIDs {
-		layers = append(layers, l.String())
-	}
-	return types.RootFS{
-		Type:   rootfs.Type,
-		Layers: layers,
-	}
 }
 
 // setupDaemonProcess sets various settings for the daemon's process

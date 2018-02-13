@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -89,4 +90,15 @@ func (daemon *Daemon) LookupImage(name string) (*types.ImageInspect, error) {
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil
+}
+
+func rootFSToAPIType(rootfs *image.RootFS) types.RootFS {
+	var layers []string
+	for _, l := range rootfs.DiffIDs {
+		layers = append(layers, l.String())
+	}
+	return types.RootFS{
+		Type:   rootfs.Type,
+		Layers: layers,
+	}
 }
