@@ -54,7 +54,7 @@ func parseSecurityOpt(container *container.Container, config *containertypes.Hos
 	return nil
 }
 
-func (daemon *Daemon) getLayerInit() func(containerfs.ContainerFS) error {
+func setupInitLayer(idMappings *idtools.IDMappings) func(containerfs.ContainerFS) error {
 	return nil
 }
 
