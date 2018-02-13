@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 
@@ -86,17 +85,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
-		// TODO @jhowardmsft. The following environment variable is an interim
-		// measure to allow the daemon to have a default platform if omitted by
-		// the client. This allows LCOW and WCOW to work with a down-level CLI
-		// for a short period of time, as the CLI changes can't be merged
-		// until after the daemon changes have been merged. Once the CLI is
-		// updated, this can be removed. PR for CLI is currently in
-		// https://github.com/docker/cli/pull/474.
 		apiPlatform := r.FormValue("platform")
-		if system.LCOWSupported() && apiPlatform == "" {
-			apiPlatform = os.Getenv("LCOW_API_PLATFORM_IF_OMITTED")
-		}
 		platform = system.ParsePlatform(apiPlatform)
 		if err = system.ValidatePlatform(platform); err != nil {
 			err = fmt.Errorf("invalid platform: %s", err)
