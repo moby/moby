@@ -79,6 +79,10 @@ func (is *store) restore() error {
 			}
 			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {
+				if err == layer.ErrLayerDoesNotExist {
+					logrus.Errorf("layer does not exist, not restoring image %v, %v, %s", dgst, chainID, img.OperatingSystem())
+					return nil
+				}
 				return err
 			}
 		}
