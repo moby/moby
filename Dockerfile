@@ -2,14 +2,23 @@
 #
 # Usage:
 #
-# # Assemble the full dev environment. This is slow the first time.
-# docker build -t docker .
+# # Use make to build a development environment image and run it in a container.
+# # This is slow the first time.
+# make BIND_DIR=. shell
 #
-# # Mount your source in an interactive container for quick testing:
-# docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
+# The following commands are executed inside the running container.
+
+# # Make a dockerd binary.
+# # hack/make.sh binary
 #
-# # Run the test suite:
-# docker run -e DOCKER_GITCOMMIT=foo --privileged docker hack/make.sh test-unit test-integration test-docker-py
+# # Install dockerd to /usr/local/bin
+# # make install
+#
+# # Run unit tests
+# # hack/test/unit
+#
+# # Run tests e.g. integration, py
+# # hack/make.sh binary test-integration test-docker-py
 #
 # # Publish a release:
 # docker run --privileged \
