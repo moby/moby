@@ -64,14 +64,15 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 	start := time.Now()
 	records := []types.ImageDeleteResponseItem{}
 
-	imgID, operatingSystem, err := i.GetImageIDAndOS(imageRef)
+	img, err := i.GetImage(imageRef)
 	if err != nil {
 		return nil, err
 	}
-	if !system.IsOSSupported(operatingSystem) {
+	if !system.IsOSSupported(img.OperatingSystem()) {
 		return nil, errors.Errorf("unable to delete image: %q", system.ErrNotSupportedOperatingSystem)
 	}
 
+	imgID := img.ID()
 	repoRefs := i.referenceStore.References(imgID.Digest())
 
 	using := func(c *container.Container) bool {

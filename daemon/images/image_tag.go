@@ -8,7 +8,7 @@ import (
 // TagImage creates the tag specified by newTag, pointing to the image named
 // imageName (alternatively, imageName can also be an image ID).
 func (i *ImageService) TagImage(imageName, repository, tag string) (string, error) {
-	imageID, _, err := i.GetImageIDAndOS(imageName)
+	img, err := i.GetImage(imageName)
 	if err != nil {
 		return "", err
 	}
@@ -23,7 +23,7 @@ func (i *ImageService) TagImage(imageName, repository, tag string) (string, erro
 		}
 	}
 
-	err = i.TagImageWithReference(imageID, newTag)
+	err = i.TagImageWithReference(img.ID(), newTag)
 	return reference.FamiliarString(newTag), err
 }
 

@@ -324,17 +324,17 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			id, _, err := daemon.imageService.GetImageIDAndOS(ancestor)
+			img, err := daemon.imageService.GetImage(ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
 			}
-			if imagesFilter[id] {
+			if imagesFilter[img.ID()] {
 				// Already seen this ancestor, skip it
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, id, daemon.imageService.Children)
+			populateImageFilterByParents(imagesFilter, img.ID(), daemon.imageService.Children)
 			return nil
 		})
 	}
@@ -592,11 +592,11 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	c := s.Container
 	image := s.Image // keep the original ref if still valid (hasn't changed)
 	if image != s.ImageID {
-		id, _, err := daemon.imageService.GetImageIDAndOS(image)
+		img, err := daemon.imageService.GetImage(image)
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
-		if err != nil || id.String() != s.ImageID {
+		if err != nil || img.ImageID() != s.ImageID {
 			// ref changed, we need to use original ID
 			image = s.ImageID
 		}
