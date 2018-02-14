@@ -1,5 +1,15 @@
 #!/usr/bin/env bash
 
+while getopts ":s" opt; do
+  case $opt in
+    s)
+      SSD="true"
+      ;;
+  esac
+done
+
+SSD="${SSD:-false}"
+
 # Required tools
 DOCKER="${DOCKER:-docker}"
 NSENTER="${NSENTER:-nsenter}"
@@ -7,6 +17,7 @@ BRIDGE="${BRIDGE:-bridge}"
 IPTABLES="${IPTABLES:-iptables}"
 IPVSADM="${IPVSADM:-ipvsadm}"
 IP="${IP:-ip}"
+SSDBIN="${SSDBIN:-ssd}"
 
 networks=0
 containers=0
@@ -100,6 +111,15 @@ while read containerID status; do
     fi
     printf "\n"
 done < <(${DOCKER} container ls -a --format '{{.ID}} {{.Status}}' |cut -d' ' -f1,2)
+
+if [ "true" == ${SSD} ] ; then
+    echo "" ; echo "#### SSD control-plane and datapath consistency check on a node ####"
+    for netName in $(docker network ls -f driver=overlay --format "{{.Name}}") ; do
+        echo "## $netName ##"
+        ${SSDBIN} $netName
+        echo ""
+    done
+fi
 
 echo -e "\n\n==SUMMARY=="
 echo -e "\t Processed $networks networks"
