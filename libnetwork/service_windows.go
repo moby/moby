@@ -44,7 +44,10 @@ func (n *network) addLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []
 
 		var endpoints []hcsshim.HNSEndpoint
 
-		for eid := range lb.backEnds {
+		for eid, be := range lb.backEnds {
+			if be.disabled {
+				continue
+			}
 			//Call HNS to get back ID (GUID) corresponding to the endpoint.
 			hnsEndpoint, err := hcsshim.GetHNSEndpointByName(eid)
 			if err != nil {
@@ -114,9 +117,9 @@ func (n *network) addLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []
 	}
 }
 
-func (n *network) rmLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []*PortConfig, rmService bool) {
+func (n *network) rmLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []*PortConfig, rmService bool, fullRemove bool) {
 	if system.GetOSVersion().Build > 16236 {
-		if len(lb.backEnds) > 0 {
+		if numEnabledBackends(lb) > 0 {
 			//Reprogram HNS (actually VFP) with the existing backends.
 			n.addLBBackend(ip, vip, lb, ingressPorts)
 		} else {
@@ -141,6 +144,16 @@ func (n *network) rmLBBackend(ip, vip net.IP, lb *loadBalancer, ingressPorts []*
 			}
 		}
 	}
+}
+
+func numEnabledBackends(lb *loadBalancer) int {
+	nEnabled := 0
+	for _, be := range lb.backEnds {
+		if !be.disabled {
+			nEnabled++
+		}
+	}
+	return nEnabled
 }
 
 func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
