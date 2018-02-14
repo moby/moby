@@ -192,8 +192,12 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 		for _, f := range files {
 			seekers = append(seekers, f)
 		}
-		seekers = append(seekers, currentChunk)
-		tailFile(multireader.MultiReadSeeker(seekers...), watcher, w.createDecoder, config)
+		if currentChunk.Size() > 0 {
+			seekers = append(seekers, currentChunk)
+		}
+		if len(seekers) > 0 {
+			tailFile(multireader.MultiReadSeeker(seekers...), watcher, w.createDecoder, config)
+		}
 	}
 
 	w.mu.RLock()
