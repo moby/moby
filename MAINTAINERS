@@ -23,29 +23,19 @@
 	# a subsystem, they are responsible for doing so and holding the
 	# subsystem maintainers accountable. If ownership is unclear, they are the de facto owners.
 
-	# For each release (including minor releases), a "release captain" is assigned from the
-	# pool of core maintainers. Rotation is encouraged across all maintainers, to ensure
-	# the release process is clear and up-to-date.
-
 		people = [
 			"aaronlehmann",
 			"akihirosuda",
-			"albers",
-			"aluzzardi",
 			"anusha",
 			"coolljt0725",
 			"cpuguy83",
 			"crosbymichael",
 			"dnephin",
 			"duglin",
-			"ehazlett",
 			"estesp",
-			"icecrime",
 			"jhowardmsft",
 			"johnstep",
 			"justincormack",
-			"lk4d4",
-			"mavenugo",
 			"mhbauer",
 			"mlaventure",
 			"runcom",
@@ -103,6 +93,16 @@
 	# Thank you!
 
 		people = [
+			# Harald Albers is the mastermind behind the bash completion scripts for the
+			# Docker CLI. The completion scripts moved to the Docker CLI repository, so
+			# you can now find him perform his magic in the https://github.com/docker/cli repository.
+			"albers",
+
+			# Andrea Luzzardi started contributing to the Docker codebase in the "dotCloud"
+			# era, even before it was called "Docker". He is one of the architects of both
+			# Swarm and SwarmKit, and its integration into the Docker engine.
+			"aluzzardi",
+			
 			# David Calavera contributed many features to Docker, such as an improved
 			# event system, dynamic configuration reloading, volume plugins, fancy
 			# new templating options, and an external client credential store. As a
@@ -119,6 +119,24 @@
 			# in his own repository https://github.com/erikh. You may
 			# still stumble into him in our issue tracker, or on IRC.
 			"erikh",
+
+			# Evan Hazlett is the creator of of the Shipyard and Interlock open source projects,
+			# and the author of "Orca", which became the foundation of Docker Universal Control
+			# Plane (UCP). As a maintainer, Evan helped integrating SwarmKit (secrets, tasks)
+			# into the Docker engine.
+			"ehazlett",
+
+			# Arnaud Porterie (AKA "icecrime") was in charge of maintaining the maintainers.
+			# As a maintainer, he made life easier for contributors to the Docker open-source
+			# projects, bringing order in the chaos by designing a triage- and review workflow
+			# using labels (see https://icecrime.net/technology/a-structured-approach-to-labeling/),
+			# and automating the hell out of things with his buddies GordonTheTurtle and Poule
+			# (a chicken!).
+			# 
+			# A lesser-known fact is that he created the first commit in the libnetwork repository
+			# even though he didn't know anything about it. Some say, he's now selling stuff on
+			# the internet ;-)
+			"icecrime",
 
 			# After a false start with his first PR being rejected, James Turnbull became a frequent
 			# contributor to the documentation, and became a docs maintainer on December 5, 2013. As
@@ -139,12 +157,23 @@
 			# containers a lot more secure). Besides being a maintainer, she
 			# set up the CI infrastructure for the project, giving everyone
 			# something to shout at if a PR failed ("noooo Janky!").
-			# Jess is currently working on the DCOS security team at Mesosphere,
-			# and contributing to various open source projects.
 			# Be sure you don't miss her talks at a conference near you (a must-see),
 			# read her blog at https://blog.jessfraz.com (a must-read), and
 			# check out her open source projects on GitHub https://github.com/jessfraz (a must-try).
 			"jessfraz",
+
+			# Alexander Morozov contributed many features to Docker, worked on the premise of 
+			# what later became containerd (and worked on that too), and made a "stupid" Go
+			# vendor tool specificaly for docker/docker needs: vndr (https://github.com/LK4D4/vndr).
+			# Not many know that Alexander is a master negotiator, being able to change course
+			# of action with a single "Nope, we're not gonna do that".
+			"lk4d4",
+
+			# Madhu Venugopal was part of the SocketPlane team that joined Docker.
+			# As a maintainer, he was working with Jana for the Container Network
+			# Model (CNM) implemented through libnetwork, and the "routing mesh" powering
+			# Swarm mode networking.
+			"mavenugo",
 
 			# As a docs maintainer, Mary Anthony contributed greatly to the Docker
 			# docs. She wrote the Docker Contributor Guide and Getting Started
