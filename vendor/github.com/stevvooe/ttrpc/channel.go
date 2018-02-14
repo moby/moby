@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/binary"
 	"io"
+	"net"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -60,16 +61,18 @@ func writeMessageHeader(w io.Writer, p []byte, mh messageHeader) error {
 var buffers sync.Pool
 
 type channel struct {
+	conn  net.Conn
 	bw    *bufio.Writer
 	br    *bufio.Reader
 	hrbuf [messageHeaderLength]byte // avoid alloc when reading header
 	hwbuf [messageHeaderLength]byte
 }
 
-func newChannel(w io.Writer, r io.Reader) *channel {
+func newChannel(conn net.Conn) *channel {
 	return &channel{
-		bw: bufio.NewWriter(w),
-		br: bufio.NewReader(r),
+		conn: conn,
+		bw:   bufio.NewWriter(conn),
+		br:   bufio.NewReader(conn),
 	}
 }
 

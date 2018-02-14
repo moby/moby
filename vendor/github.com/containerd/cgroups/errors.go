@@ -12,7 +12,7 @@ var (
 	ErrFreezerNotSupported      = errors.New("cgroups: freezer cgroup not supported on this system")
 	ErrMemoryNotSupported       = errors.New("cgroups: memory cgroup not supported on this system")
 	ErrCgroupDeleted            = errors.New("cgroups: cgroup deleted")
-	ErrNoCgroupMountDestination = errors.New("cgroups: cannot found cgroup mount destination")
+	ErrNoCgroupMountDestination = errors.New("cgroups: cannot find cgroup mount destination")
 )
 
 // ErrorHandler is a function that handles and acts on errors
