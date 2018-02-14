@@ -291,7 +291,13 @@ func parseEventTime(t time.Time) string {
 }
 
 func setupRegistry(c *check.C, schema1 bool, auth, tokenURL string) *registry.V2 {
-	reg, err := registry.NewV2(schema1, auth, tokenURL, privateRegistryURL)
+	cfg := registry.V2Config{
+		Schema1:     schema1,
+		Auth:        auth,
+		TokenURL:    tokenURL,
+		RegistryURL: "http://" + privateRegistryURL,
+	}
+	reg, err := registry.NewV2(cfg)
 	c.Assert(err, check.IsNil)
 
 	// Wait for registry to be ready to serve requests.

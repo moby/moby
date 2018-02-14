@@ -322,18 +322,30 @@ func ValidateMirror(val string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("invalid mirror: %q is not a valid URI", val)
 	}
-	if uri.Scheme != "http" && uri.Scheme != "https" {
+	if uri.Scheme != "http" && uri.Scheme != "https" && uri.Scheme != "unix" {
 		return "", fmt.Errorf("invalid mirror: unsupported scheme %q in %q", uri.Scheme, uri)
 	}
-	if (uri.Path != "" && uri.Path != "/") || uri.RawQuery != "" || uri.Fragment != "" {
-		return "", fmt.Errorf("invalid mirror: path, query, or fragment at end of the URI %q", uri)
+	if uri.Scheme == "http" || uri.Scheme == "https" {
+		if uri.Path != "" && uri.Path != "/" {
+			return "", fmt.Errorf("invalid mirror: path at end of the URI %q", uri)
+		}
+	}
+	if uri.RawQuery != "" || uri.Fragment != "" {
+		return "", fmt.Errorf("invalid mirror: query or fragment at end of the URI %q", uri)
 	}
 	if uri.User != nil {
 		// strip password from output
 		uri.User = url.UserPassword(uri.User.Username(), "xxxxx")
 		return "", fmt.Errorf("invalid mirror: username/password not allowed in URI %q", uri)
 	}
-	return strings.TrimSuffix(val, "/") + "/", nil
+	if uri.Scheme == "http" || uri.Scheme == "https" {
+		return strings.TrimSuffix(val, "/") + "/", nil
+	}
+	if strings.HasSuffix(val, "/") {
+		return "", fmt.Errorf("invalid mirror: unexpected trailing slash in unix URI %q", uri)
+	}
+	// does not check the existence of socket here
+	return val, nil
 }
 
 // ValidateIndexName validates an index name.

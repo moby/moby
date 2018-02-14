@@ -7,8 +7,11 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
+	"github.com/docker/go-connections/sockets"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 )
 
 const (
@@ -37,27 +40,48 @@ type V2 struct {
 	email       string
 }
 
+type V2Config struct {
+	RegistryURL    string
+	Schema1        bool
+	Auth           string
+	TokenURL       string
+	ProxyRemoteURL string // requires scheme part (http:// or unix://)
+}
+
 // NewV2 creates a v2 registry server
-func NewV2(schema1 bool, auth, tokenURL, registryURL string) (*V2, error) {
+func NewV2(c V2Config) (*V2, error) {
+	if strings.Count(c.RegistryURL, "://") != 1 {
+		return nil, errors.Errorf("unexpected registry URL: %q", c.RegistryURL)
+	}
 	tmp, err := ioutil.TempDir("", "registry-test-")
 	if err != nil {
 		return nil, err
 	}
-	template := `version: 0.1
+	net := "tcp"
+	addr := strings.TrimPrefix(c.RegistryURL, "http://")
+	if strings.HasPrefix(c.RegistryURL, "unix://") {
+		net = "unix"
+		addr = strings.TrimPrefix(c.RegistryURL, "unix://")
+	}
+	template := fmt.Sprintf(`version: 0.1
 loglevel: debug
 storage:
+    cache:
+        blobdescriptor: inmemory
     filesystem:
         rootdirectory: %s
 http:
     addr: %s
-%s`
+    net: %s
+`, tmp, addr, net)
 	var (
-		authTemplate string
-		username     string
-		password     string
-		email        string
+		authTemplate  string
+		proxyTemplate string
+		username      string
+		password      string
+		email         string
 	)
-	switch auth {
+	switch c.Auth {
 	case "htpasswd":
 		htpasswdPath := filepath.Join(tmp, "htpasswd")
 		// generated with: htpasswd -Bbn testuser testpassword
@@ -80,7 +104,12 @@ http:
         service: "registry"
         issuer: "auth-registry"
         rootcertbundle: "fixtures/registry/cert.pem"
-`, tokenURL)
+`, c.TokenURL)
+	}
+	if c.ProxyRemoteURL != "" {
+		proxyTemplate = fmt.Sprintf(`proxy:
+    remoteurl: %s
+`, c.ProxyRemoteURL)
 	}
 
 	confPath := filepath.Join(tmp, "config.yaml")
@@ -90,13 +119,13 @@ http:
 	}
 	defer config.Close()
 
-	if _, err := fmt.Fprintf(config, template, tmp, registryURL, authTemplate); err != nil {
+	if _, err := fmt.Fprintf(config, strings.Join([]string{template, authTemplate, proxyTemplate}, "\n")); err != nil {
 		os.RemoveAll(tmp)
 		return nil, err
 	}
 
 	binary := v2binary
-	if schema1 {
+	if c.Schema1 {
 		binary = v2binarySchema1
 	}
 	cmd := exec.Command(binary, confPath)
@@ -107,18 +136,31 @@ http:
 	return &V2{
 		cmd:         cmd,
 		dir:         tmp,
-		auth:        auth,
+		auth:        c.Auth,
 		username:    username,
 		password:    password,
 		email:       email,
-		registryURL: registryURL,
+		registryURL: c.RegistryURL,
 	}, nil
 }
 
 // Ping sends an http request to the current registry, and fail if it doesn't respond correctly
 func (r *V2) Ping() error {
-	// We always ping through HTTP for our test registry.
-	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", r.registryURL))
+	reqURL := r.registryURL + "/v2/"
+	var tr http.Transport
+	if strings.HasPrefix(r.registryURL, "unix://") {
+		reqURL = "http://registry/v2/"
+		path := strings.TrimPrefix(r.registryURL, "unix://")
+		if err := sockets.ConfigureTransport(&tr, "unix", path); err != nil {
+			return err
+		}
+	}
+	req, err := http.NewRequest("GET", reqURL, nil)
+	if err != nil {
+		return err
+	}
+	client := http.Client{Transport: &tr}
+	resp, err := client.Do(req)
 	if err != nil {
 		return err
 	}
@@ -191,6 +233,17 @@ func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()
 		os.Rename(tempFile.Name(), blobFilename)
 		os.Remove(tempFile.Name())
 	}
+}
+
+// ManifestDigest does not verify args, as this is just for test utility.
+// usage: ManifestDigest("library/hello-world", latest)
+func (r *V2) ManifestDigest(repo, tag string) (digest.Digest, error) {
+	path := filepath.Join(r.Path(), "repositories", repo, "_manifests", "tags", tag, "current", "link")
+	b, err := ioutil.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	return digest.Digest(string(b)), nil
 }
 
 // Username returns the configured user name of the server

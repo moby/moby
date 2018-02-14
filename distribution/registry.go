@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"time"
 
 	"github.com/docker/distribution"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -77,9 +79,23 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		DisableKeepAlives: true,
 	}
 
-	proxyDialer, err := sockets.DialerFromEnvironment(direct)
-	if err == nil {
-		base.Dial = proxyDialer.Dial
+	if endpoint.URL.Scheme == "unix" {
+		path := endpoint.URL.Path
+		// FIXME(AkihiroSuda): go-connections/socket should support specifying custom timeout. (Default=32s)
+		if err := sockets.ConfigureTransport(base, "unix", path); err != nil {
+			return nil, false, err
+		}
+		// We fake URL here because http.Transport.RoundTrip requires the protocol to be http or https.
+		// We have something similar in client.buildRequest as well.
+		// TODO(AkihiroSuda): move the fake logic to go-connections.
+		oldURL := *endpoint.URL
+		endpoint.URL, _ = url.Parse("http://registry")
+		logrus.Debugf("Transformed UNIX address %q into fake HTTP address %q", oldURL, endpoint.URL)
+	} else {
+		proxyDialer, err := sockets.DialerFromEnvironment(direct)
+		if err == nil {
+			base.Dial = proxyDialer.Dial
+		}
 	}
 
 	modifiers := registry.Headers(dockerversion.DockerUserAgent(ctx), metaHeaders)

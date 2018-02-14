@@ -127,19 +127,20 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 }
 
 func TestValidateMirror(t *testing.T) {
-	valid := []string{
-		"http://mirror-1.com",
-		"http://mirror-1.com/",
-		"https://mirror-1.com",
-		"https://mirror-1.com/",
-		"http://localhost",
-		"https://localhost",
-		"http://localhost:5000",
-		"https://localhost:5000",
-		"http://127.0.0.1",
-		"https://127.0.0.1",
-		"http://127.0.0.1:5000",
-		"https://127.0.0.1:5000",
+	valid := map[string]string{
+		"http://mirror-1.com":    "http://mirror-1.com/",
+		"http://mirror-1.com/":   "http://mirror-1.com/",
+		"https://mirror-1.com":   "https://mirror-1.com/",
+		"https://mirror-1.com/":  "https://mirror-1.com/",
+		"http://localhost":       "http://localhost/",
+		"https://localhost":      "https://localhost/",
+		"http://localhost:5000":  "http://localhost:5000/",
+		"https://localhost:5000": "https://localhost:5000/",
+		"http://127.0.0.1":       "http://127.0.0.1/",
+		"https://127.0.0.1":      "https://127.0.0.1/",
+		"http://127.0.0.1:5000":  "http://127.0.0.1:5000/",
+		"https://127.0.0.1:5000": "https://127.0.0.1:5000/",
+		"unix:///foo/bar.sock":   "unix:///foo/bar.sock",
 	}
 
 	invalid := []string{
@@ -156,11 +157,15 @@ func TestValidateMirror(t *testing.T) {
 		"https://mirror-1.com/v1/",
 		"https://mirror-1.com/v1/#",
 		"https://mirror-1.com?q",
+		"unix:///foo/bar.sock/",
+		"unix:///foo/bar.sock?q",
+		"unix:///foo/bar.sock#frag",
 	}
 
-	for _, address := range valid {
-		if ret, err := ValidateMirror(address); err != nil || ret == "" {
-			t.Errorf("ValidateMirror(`"+address+"`) got %s %s", ret, err)
+	for address, expected := range valid {
+		ret, err := ValidateMirror(address)
+		if err != nil || ret == "" || expected != ret {
+			t.Errorf("ValidateMirror(`"+address+"`) got %s, expected %s, err=%s", ret, expected, err)
 		}
 	}
 
