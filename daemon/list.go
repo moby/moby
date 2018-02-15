@@ -182,6 +182,10 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
 func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
+	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
+		return nil, err
+	}
+
 	var (
 		view       = daemon.containersReplica.Snapshot()
 		containers = []*types.Container{}
@@ -245,10 +249,6 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 // foldFilter generates the container filter based on the user's filtering options.
 func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filters
-
-	if err := psFilters.Validate(acceptedPsFilterTags); err != nil {
-		return nil, err
-	}
 
 	var filtExited []int
 

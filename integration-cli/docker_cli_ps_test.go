@@ -139,13 +139,6 @@ func assertContainerList(out string, expected []string) bool {
 	return true
 }
 
-// FIXME(vdemeester) Move this into a unit test in daemon package
-func (s *DockerSuite) TestPsListContainersInvalidFilterName(c *check.C) {
-	out, _, err := dockerCmdWithError("ps", "-f", "invalidFilter=test")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "Invalid filter")
-}
-
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	// Problematic on Windows as it doesn't report the size correctly @swernli
 	testRequires(c, DaemonIsLinux)
