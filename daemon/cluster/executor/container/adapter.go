@@ -18,6 +18,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/libnetwork"
@@ -153,7 +154,11 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue
 			}
-
+			// We will continue if CreateManagedNetwork returns PredefinedNetworkError error.
+			// Other callers still can treat it as Error.
+			if _, ok := err.(daemon.PredefinedNetworkError); ok {
+				continue
+			}
 			return err
 		}
 	}

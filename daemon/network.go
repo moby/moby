@@ -24,6 +24,16 @@ import (
 	"golang.org/x/net/context"
 )
 
+// PredefinedNetworkError is returned when user tries to create predefined network that already exists.
+type PredefinedNetworkError string
+
+func (pnr PredefinedNetworkError) Error() string {
+	return fmt.Sprintf("operation is not permitted on predefined %s network ", string(pnr))
+}
+
+// Forbidden denotes the type of this error
+func (pnr PredefinedNetworkError) Forbidden() {}
+
 // NetworkControllerEnabled checks if the networking stack is enabled.
 // This feature depends on OS primitives and it's disabled in systems like Windows.
 func (daemon *Daemon) NetworkControllerEnabled() bool {
@@ -267,9 +277,8 @@ func (daemon *Daemon) CreateNetwork(create types.NetworkCreateRequest) (*types.N
 }
 
 func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string, agent bool) (*types.NetworkCreateResponse, error) {
-	if runconfig.IsPreDefinedNetwork(create.Name) && !agent {
-		err := fmt.Errorf("%s is a pre-defined network and cannot be created", create.Name)
-		return nil, errdefs.Forbidden(err)
+	if runconfig.IsPreDefinedNetwork(create.Name) {
+		return nil, PredefinedNetworkError(create.Name)
 	}
 
 	var warning string
