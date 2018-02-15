@@ -604,7 +604,8 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		//
 		// For private volumes any root propagation value should work.
 		pFlag := mountPropagationMap[m.Propagation]
-		if pFlag == mount.SHARED || pFlag == mount.RSHARED {
+		switch pFlag {
+		case mount.SHARED, mount.RSHARED:
 			if err := ensureShared(m.Source); err != nil {
 				return err
 			}
@@ -612,13 +613,34 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 			if rootpg != mount.SHARED && rootpg != mount.RSHARED {
 				s.Linux.RootfsPropagation = mountPropagationReverseMap[mount.SHARED]
 			}
-		} else if pFlag == mount.SLAVE || pFlag == mount.RSLAVE {
+		case mount.SLAVE, mount.RSLAVE:
+			var fallback bool
 			if err := ensureSharedOrSlave(m.Source); err != nil {
-				return err
+				// For backwards compatability purposes, treat mounts from the daemon root
+				// as special since we automatically add rslave propagation to these mounts
+				// when the user did not set anything, so we should fallback to the old
+				// behavior which is to use private propagation which is normally the
+				// default.
+				if !strings.HasPrefix(m.Source, daemon.root) && !strings.HasPrefix(daemon.root, m.Source) {
+					return err
+				}
+
+				cm, ok := c.MountPoints[m.Destination]
+				if !ok {
+					return err
+				}
+				if cm.Spec.BindOptions != nil && cm.Spec.BindOptions.Propagation != "" {
+					// This means the user explicitly set a propagation, do not fallback in that case.
+					return err
+				}
+				fallback = true
+				logrus.WithField("container", c.ID).WithField("source", m.Source).Warn("Falling back to default propagation for bind source in daemon root")
 			}
-			rootpg := mountPropagationMap[s.Linux.RootfsPropagation]
-			if rootpg != mount.SHARED && rootpg != mount.RSHARED && rootpg != mount.SLAVE && rootpg != mount.RSLAVE {
-				s.Linux.RootfsPropagation = mountPropagationReverseMap[mount.RSLAVE]
+			if !fallback {
+				rootpg := mountPropagationMap[s.Linux.RootfsPropagation]
+				if rootpg != mount.SHARED && rootpg != mount.RSHARED && rootpg != mount.SLAVE && rootpg != mount.RSLAVE {
+					s.Linux.RootfsPropagation = mountPropagationReverseMap[mount.RSLAVE]
+				}
 			}
 		}
 
