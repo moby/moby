@@ -2,7 +2,6 @@ package manager
 
 import (
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/pem"
 	"fmt"
 	"net"
@@ -13,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	gmetrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
+	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
@@ -817,10 +816,10 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 			return fmt.Errorf("invalid PEM-encoded private key inside of cluster %s", clusterID)
 		}
 
-		if x509.IsEncryptedPEMBlock(keyBlock) {
+		if keyutils.IsEncryptedPEMBlock(keyBlock) {
 			// PEM encryption does not have a digest, so sometimes decryption doesn't
 			// error even with the wrong passphrase.  So actually try to parse it into a valid key.
-			_, err := helpers.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrase))
+			_, err := keyutils.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrase))
 			if err == nil {
 				// This key is already correctly encrypted with the correct KEK, nothing to do here
 				return nil
@@ -829,7 +828,7 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 			// This key is already encrypted, but failed with current main passphrase.
 			// Let's try to decrypt with the previous passphrase, and parse into a valid key, for the
 			// same reason as above.
-			_, err = helpers.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrasePrev))
+			_, err = keyutils.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrasePrev))
 			if err != nil {
 				// We were not able to decrypt either with the main or backup passphrase, error
 				return err
@@ -837,7 +836,7 @@ func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
 			// ok the above passphrase is correct, so decrypt the PEM block so we can re-encrypt -
 			// since the key was successfully decrypted above, there will be no error doing PEM
 			// decryption
-			unencryptedDER, _ := x509.DecryptPEMBlock(keyBlock, []byte(passphrasePrev))
+			unencryptedDER, _ := keyutils.DecryptPEMBlock(keyBlock, []byte(passphrasePrev))
 			unencryptedKeyBlock := &pem.Block{
 				Type:  keyBlock.Type,
 				Bytes: unencryptedDER,

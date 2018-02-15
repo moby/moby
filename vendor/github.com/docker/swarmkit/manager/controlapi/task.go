@@ -155,7 +155,8 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 					return false
 				}
 
-				return !orchestrator.IsTaskDirty(service, e)
+				n := store.GetNode(tx, e.NodeID)
+				return !orchestrator.IsTaskDirty(service, e, n)
 			},
 		)
 	})

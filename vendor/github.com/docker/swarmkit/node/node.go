@@ -971,6 +971,15 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 	}
 }
 
+// DowngradeKey reverts the node key to older format so that it can
+// run on older version of swarmkit
+func (n *Node) DowngradeKey() error {
+	paths := ca.NewConfigPaths(filepath.Join(n.config.StateDir, certDirectory))
+	krw := ca.NewKeyReadWriter(paths.Node, n.config.UnlockKey, nil)
+
+	return krw.DowngradeKey()
+}
+
 type persistentRemotes struct {
 	sync.RWMutex
 	c *sync.Cond

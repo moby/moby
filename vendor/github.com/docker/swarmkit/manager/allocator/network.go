@@ -244,7 +244,7 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 			break
 		}
 
-		if err := a.allocateService(ctx, s); err != nil {
+		if err := a.allocateService(ctx, s, false); err != nil {
 			log.G(ctx).WithError(err).Errorf("Failed allocation for service %s", s.ID)
 			break
 		}
@@ -274,7 +274,7 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 			}
 			updatePortsInHostPublishMode(s)
 		} else {
-			if err := a.allocateService(ctx, s); err != nil {
+			if err := a.allocateService(ctx, s, false); err != nil {
 				log.G(ctx).WithError(err).Errorf("Failed allocation during update of service %s", s.ID)
 				break
 			}
@@ -587,8 +587,8 @@ func (a *Allocator) allocateServices(ctx context.Context, existingAddressesOnly 
 			continue
 		}
 
-		if err := a.allocateService(ctx, s); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed allocating service %s during init", s.ID)
+		if err := a.allocateService(ctx, s, existingAddressesOnly); err != nil {
+			log.G(ctx).WithField("existingAddressesOnly", existingAddressesOnly).WithError(err).Errorf("failed allocating service %s during init", s.ID)
 			continue
 		}
 		allocatedServices = append(allocatedServices, s)
@@ -940,7 +940,10 @@ func updatePortsInHostPublishMode(s *api.Service) {
 	s.Endpoint.Spec = s.Spec.Endpoint.Copy()
 }
 
-func (a *Allocator) allocateService(ctx context.Context, s *api.Service) error {
+// allocateService takes care to align the desired state with the spec passed
+// the last parameter is true only during restart when the data is read from raft
+// and used to build internal state
+func (a *Allocator) allocateService(ctx context.Context, s *api.Service, existingAddressesOnly bool) error {
 	nc := a.netCtx
 
 	if s.Spec.Endpoint != nil {
@@ -972,7 +975,9 @@ func (a *Allocator) allocateService(ctx context.Context, s *api.Service) error {
 					&api.Endpoint_VirtualIP{NetworkID: nc.ingressNetwork.ID})
 			}
 		}
-	} else if s.Endpoint != nil {
+	} else if s.Endpoint != nil && !existingAddressesOnly {
+		// if we are in the restart phase there is no reason to try to deallocate anything because the state
+		// is not there
 		// service has no user-defined endpoints while has already allocated network resources,
 		// need deallocated.
 		if err := nc.nwkAllocator.DeallocateService(s); err != nil {
@@ -1188,7 +1193,7 @@ func (a *Allocator) procUnallocatedServices(ctx context.Context) {
 	var allocatedServices []*api.Service
 	for _, s := range nc.unallocatedServices {
 		if !nc.nwkAllocator.IsServiceAllocated(s) {
-			if err := a.allocateService(ctx, s); err != nil {
+			if err := a.allocateService(ctx, s, false); err != nil {
 				log.G(ctx).WithError(err).Debugf("Failed allocation of unallocated service %s", s.ID)
 				continue
 			}

@@ -105,7 +105,7 @@ func (ps allocatedPorts) delState(p *api.PortConfig) *api.PortConfig {
 
 func newPortAllocator() (*portAllocator, error) {
 	portSpaces := make(map[api.PortConfig_Protocol]*portSpace)
-	for _, protocol := range []api.PortConfig_Protocol{api.ProtocolTCP, api.ProtocolUDP} {
+	for _, protocol := range []api.PortConfig_Protocol{api.ProtocolTCP, api.ProtocolUDP, api.ProtocolSCTP} {
 		ps, err := newPortSpace(protocol)
 		if err != nil {
 			return nil, err
