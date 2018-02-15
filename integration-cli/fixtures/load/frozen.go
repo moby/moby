@@ -37,6 +37,9 @@ func FrozenImagesLinux(client client.APIClient, images ...string) error {
 			if img == "hello-world:frozen" {
 				srcName = "hello-world:latest"
 			}
+			if img == "busybox:1.27-glibc" {
+				img = "busybox:latest"
+			}
 			loadImages = append(loadImages, struct{ srcName, destName string }{
 				srcName:  srcName,
 				destName: img,
