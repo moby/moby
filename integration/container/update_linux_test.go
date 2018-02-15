@@ -88,55 +88,17 @@ func TestUpdateCPUQUota(t *testing.T) {
 		}
 
 		inspect, err := client.ContainerInspect(ctx, cID)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, test.update, inspect.HostConfig.CPUQuota)
 
-		if inspect.HostConfig.CPUQuota != test.update {
-			t.Fatalf("quota not updated in the API, expected %d, got: %d", test.update, inspect.HostConfig.CPUQuota)
-		}
+		res, err := container.Exec(ctx, client, cID,
+			[]string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"})
+		require.NoError(t, err)
+		require.Empty(t, res.Stderr())
+		require.Equal(t, 0, res.ExitCode)
 
-		execCreate, err := client.ContainerExecCreate(ctx, cID, types.ExecConfig{
-			Cmd:          []string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"},
-			AttachStdout: true,
-			AttachStderr: true,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		attach, err := client.ContainerExecAttach(ctx, execCreate.ID, types.ExecStartCheck{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err := client.ContainerExecStart(ctx, execCreate.ID, types.ExecStartCheck{}); err != nil {
-			t.Fatal(err)
-		}
-
-		buf := bytes.NewBuffer(nil)
-		ready := make(chan error)
-
-		go func() {
-			_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-			ready <- err
-		}()
-
-		select {
-		case <-time.After(60 * time.Second):
-			t.Fatal("timeout waiting for exec to complete")
-		case err := <-ready:
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		actual := strings.TrimSpace(buf.String())
-		if actual != strconv.Itoa(int(test.update)) {
-			t.Fatalf("expected cgroup value %d, got: %s", test.update, actual)
-		}
+		assert.Equal(t, strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout()))
 	}
-
 }
 
 func getContainerSysFSValue(ctx context.Context, client client.APIClient, cID string, path string) (string, error) {
