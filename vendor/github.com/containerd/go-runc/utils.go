@@ -1,8 +1,10 @@
 package runc
 
 import (
+	"bytes"
 	"io/ioutil"
 	"strconv"
+	"sync"
 	"syscall"
 )
 
@@ -25,4 +27,19 @@ func exitStatus(status syscall.WaitStatus) int {
 		return exitSignalOffset + int(status.Signal())
 	}
 	return status.ExitStatus()
+}
+
+var bytesBufferPool = sync.Pool{
+	New: func() interface{} {
+		return bytes.NewBuffer(nil)
+	},
+}
+
+func getBuf() *bytes.Buffer {
+	return bytesBufferPool.Get().(*bytes.Buffer)
+}
+
+func putBuf(b *bytes.Buffer) {
+	b.Reset()
+	bytesBufferPool.Put(b)
 }

@@ -3,12 +3,12 @@ package cgroups
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -105,8 +105,13 @@ func (b *blkioController) Stat(path string, stats *Metrics) error {
 			},
 		)
 	}
+	f, err := os.Open("/proc/diskstats")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
 
-	devices, err := getDevices("/dev")
+	devices, err := getDevices(f)
 	if err != nil {
 		return err
 	}
@@ -268,50 +273,32 @@ type deviceKey struct {
 // getDevices makes a best effort attempt to read all the devices into a map
 // keyed by major and minor number. Since devices may be mapped multiple times,
 // we err on taking the first occurrence.
-func getDevices(path string) (map[deviceKey]string, error) {
-	// TODO(stevvooe): We are ignoring lots of errors. It might be kind of
-	// challenging to debug this if we aren't mapping devices correctly.
-	// Consider logging these errors.
-	devices := map[deviceKey]string{}
-	if err := filepath.Walk(path, func(p string, fi os.FileInfo, err error) error {
+func getDevices(r io.Reader) (map[deviceKey]string, error) {
+
+	var (
+		s       = bufio.NewScanner(r)
+		devices = make(map[deviceKey]string)
+	)
+	for s.Scan() {
+		fields := strings.Fields(s.Text())
+		major, err := strconv.Atoi(fields[0])
 		if err != nil {
-			return err
+			return nil, err
 		}
-		switch {
-		case fi.IsDir():
-			switch fi.Name() {
-			case "pts", "shm", "fd", "mqueue", ".lxc", ".lxd-mounts":
-				return filepath.SkipDir
-			default:
-				return nil
-			}
-		case fi.Name() == "console":
-			return nil
-		default:
-			if fi.Mode()&os.ModeDevice == 0 {
-				// skip non-devices
-				return nil
-			}
-
-			st, ok := fi.Sys().(*syscall.Stat_t)
-			if !ok {
-				return fmt.Errorf("%s: unable to convert to system stat", p)
-			}
-
-			key := deviceKey{major(st.Rdev), minor(st.Rdev)}
-			if _, ok := devices[key]; ok {
-				return nil // skip it if we have already populated the path.
-			}
-
-			devices[key] = p
+		minor, err := strconv.Atoi(fields[1])
+		if err != nil {
+			return nil, err
 		}
-
-		return nil
-	}); err != nil {
-		return nil, err
+		key := deviceKey{
+			major: uint64(major),
+			minor: uint64(minor),
+		}
+		if _, ok := devices[key]; ok {
+			continue
+		}
+		devices[key] = filepath.Join("/dev", fields[2])
 	}
-
-	return devices, nil
+	return devices, s.Err()
 }
 
 func major(devNumber uint64) uint64 {

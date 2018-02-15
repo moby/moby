@@ -1,7 +1,6 @@
 package runc
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -532,7 +531,9 @@ func (r *Runc) Restore(context context.Context, id, bundle string, opts *Restore
 
 // Update updates the current container with the provided resource spec
 func (r *Runc) Update(context context.Context, id string, resources *specs.LinuxResources) error {
-	buf := bytes.NewBuffer(nil)
+	buf := getBuf()
+	defer putBuf(buf)
+
 	if err := json.NewEncoder(buf).Encode(resources); err != nil {
 		return err
 	}
@@ -638,11 +639,12 @@ func (r *Runc) runOrError(cmd *exec.Cmd) error {
 }
 
 func cmdOutput(cmd *exec.Cmd, combined bool) ([]byte, error) {
-	var b bytes.Buffer
+	b := getBuf()
+	defer putBuf(b)
 
-	cmd.Stdout = &b
+	cmd.Stdout = b
 	if combined {
-		cmd.Stderr = &b
+		cmd.Stderr = b
 	}
 	ec, err := Monitor.Start(cmd)
 	if err != nil {
