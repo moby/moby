@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -178,6 +180,10 @@ func (dm *downloadManager) Put(dt []byte) (digest.Digest, error) {
 func (dm *downloadManager) Get(d digest.Digest) ([]byte, error) {
 	return nil, fmt.Errorf("digest not found")
 }
-func (dm *downloadManager) RootFSAndOSFromConfig(c []byte) (*image.RootFS, string, error) {
+func (dm *downloadManager) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 	return configToRootFS(c)
+}
+func (dm *downloadManager) PlatformFromConfig(c []byte) (*specs.Platform, error) {
+	// TODO: LCOW/Plugins. This will need revisiting. For now use the runtime OS
+	return &specs.Platform{OS: runtime.GOOS}, nil
 }

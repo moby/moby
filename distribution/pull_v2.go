@@ -30,6 +30,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
@@ -584,11 +585,11 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	}()
 
 	var (
-		configJSON       []byte        // raw serialized image config
-		downloadedRootFS *image.RootFS // rootFS from registered layers
-		configRootFS     *image.RootFS // rootFS from configuration
-		release          func()        // release resources from rootFS download
-		configOS         string        // for LCOW when registering downloaded layers
+		configJSON       []byte          // raw serialized image config
+		downloadedRootFS *image.RootFS   // rootFS from registered layers
+		configRootFS     *image.RootFS   // rootFS from configuration
+		release          func()          // release resources from rootFS download
+		configPlatform   *specs.Platform // for LCOW when registering downloaded layers
 	)
 
 	// https://github.com/docker/docker/issues/24766 - Err on the side of caution,
@@ -600,13 +601,15 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
 	if runtime.GOOS == "windows" {
-		configJSON, configRootFS, configOS, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
+		configJSON, configRootFS, configPlatform, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err != nil {
 			return "", "", err
 		}
-
 		if configRootFS == nil {
 			return "", "", errRootFSInvalid
+		}
+		if err := checkImageCompatibility(configPlatform.OS, configPlatform.OSVersion); err != nil {
+			return "", "", err
 		}
 
 		if len(descriptors) != len(configRootFS.DiffIDs) {
@@ -615,8 +618,8 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		// Early bath if the requested OS doesn't match that of the configuration.
 		// This avoids doing the download, only to potentially fail later.
-		if !strings.EqualFold(configOS, requestedOS) {
-			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configOS, requestedOS)
+		if !strings.EqualFold(configPlatform.OS, requestedOS) {
+			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configPlatform.OS, requestedOS)
 		}
 
 		// Populate diff ids in descriptors to avoid downloading foreign layers
@@ -698,16 +701,20 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	return imageID, manifestDigest, nil
 }
 
-func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, string, error) {
+func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan error) ([]byte, *image.RootFS, *specs.Platform, error) {
 	select {
 	case configJSON := <-configChan:
-		rootfs, os, err := s.RootFSAndOSFromConfig(configJSON)
+		rootfs, err := s.RootFSFromConfig(configJSON)
 		if err != nil {
-			return nil, nil, "", err
+			return nil, nil, nil, err
 		}
-		return configJSON, rootfs, os, nil
+		platform, err := s.PlatformFromConfig(configJSON)
+		if err != nil {
+			return nil, nil, nil, err
+		}
+		return configJSON, rootfs, platform, nil
 	case err := <-errChan:
-		return nil, nil, "", err
+		return nil, nil, nil, err
 		// Don't need a case for ctx.Done in the select because cancellation
 		// will trigger an error in p.pullSchema2ImageConfig.
 	}
@@ -735,6 +742,10 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 		logrus.Debugf("found multiple matches in manifest list, choosing best match %s", manifestMatches[0].Digest.String())
 	}
 	manifestDigest := manifestMatches[0].Digest
+
+	if err := checkImageCompatibility(manifestMatches[0].Platform.OS, manifestMatches[0].Platform.OSVersion); err != nil {
+		return "", "", err
+	}
 
 	manSvc, err := p.repo.Manifests(ctx)
 	if err != nil {

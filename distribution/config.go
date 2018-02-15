@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"golang.org/x/net/context"
 )
 
@@ -86,7 +87,8 @@ type ImagePushConfig struct {
 type ImageConfigStore interface {
 	Put([]byte) (digest.Digest, error)
 	Get(digest.Digest) ([]byte, error)
-	RootFSAndOSFromConfig([]byte) (*image.RootFS, string, error)
+	RootFSFromConfig([]byte) (*image.RootFS, error)
+	PlatformFromConfig([]byte) (*specs.Platform, error)
 }
 
 // PushLayerProvider provides layers to be pushed by ChainID.
@@ -140,18 +142,26 @@ func (s *imageConfigStore) Get(d digest.Digest) ([]byte, error) {
 	return img.RawJSON(), nil
 }
 
-func (s *imageConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, string, error) {
+func (s *imageConfigStore) RootFSFromConfig(c []byte) (*image.RootFS, error) {
 	var unmarshalledConfig image.Image
 	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
-		return nil, "", err
+		return nil, err
+	}
+	return unmarshalledConfig.RootFS, nil
+}
+
+func (s *imageConfigStore) PlatformFromConfig(c []byte) (*specs.Platform, error) {
+	var unmarshalledConfig image.Image
+	if err := json.Unmarshal(c, &unmarshalledConfig); err != nil {
+		return nil, err
 	}
 
 	// fail immediately on Windows when downloading a non-Windows image
 	// and vice versa. Exception on Windows if Linux Containers are enabled.
 	if runtime.GOOS == "windows" && unmarshalledConfig.OS == "linux" && !system.LCOWSupported() {
-		return nil, "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
 	} else if runtime.GOOS != "windows" && unmarshalledConfig.OS == "windows" {
-		return nil, "", fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
+		return nil, fmt.Errorf("image operating system %q cannot be used on this platform", unmarshalledConfig.OS)
 	}
 
 	os := unmarshalledConfig.OS
@@ -159,9 +169,9 @@ func (s *imageConfigStore) RootFSAndOSFromConfig(c []byte) (*image.RootFS, strin
 		os = runtime.GOOS
 	}
 	if !system.IsOSSupported(os) {
-		return nil, "", system.ErrNotSupportedOperatingSystem
+		return nil, system.ErrNotSupportedOperatingSystem
 	}
-	return unmarshalledConfig.RootFS, os, nil
+	return &specs.Platform{OS: os, OSVersion: unmarshalledConfig.OSVersion}, nil
 }
 
 type storeLayerProvider struct {
