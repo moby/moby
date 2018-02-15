@@ -138,22 +138,6 @@ func (r *multiReadSeeker) getCurOffset() (int64, error) {
 	return totalSize, nil
 }
 
-func (r *multiReadSeeker) getOffsetToReader(rdr io.ReadSeeker) (int64, error) {
-	var offset int64
-	for _, r := range r.readers {
-		if r == rdr {
-			break
-		}
-
-		size, err := getReadSeekerSize(rdr)
-		if err != nil {
-			return -1, err
-		}
-		offset += size
-	}
-	return offset, nil
-}
-
 func (r *multiReadSeeker) Read(b []byte) (int, error) {
 	if r.pos == nil {
 		// make sure all readers are at 0
