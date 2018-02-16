@@ -301,6 +301,46 @@ COPY bar /`
 	require.NotContains(t, out.String(), "Using cache")
 }
 
+// docker/for-linux#135
+// #35641
+func TestBuildMultiStageLayerLeak(t *testing.T) {
+	ctx := context.TODO()
+	defer setupTest(t)()
+
+	// all commands need to match until COPY
+	dockerfile := `FROM busybox
+WORKDIR /foo
+COPY foo .
+FROM busybox
+WORKDIR /foo
+COPY bar .
+RUN [ -f bar ]
+RUN [ ! -f foo ]
+`
+
+	source := fakecontext.New(t, "",
+		fakecontext.WithFile("foo", "0"),
+		fakecontext.WithFile("bar", "1"),
+		fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+		})
+
+	out := bytes.NewBuffer(nil)
+	require.NoError(t, err)
+	_, err = io.Copy(out, resp.Body)
+	resp.Body.Close()
+	require.NoError(t, err)
+
+	assert.Contains(t, out.String(), "Successfully built")
+}
+
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	err := w.WriteHeader(&tar.Header{
 		Name:     fn,
