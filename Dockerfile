@@ -187,11 +187,12 @@ RUN ./contrib/download-frozen-image-v2.sh /docker-frozen-images \
 	hello-world:latest@sha256:be0cd392e45be79ffeffa6b05338b98ebb16c87b255f48e297ec7f98e123905c
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-# Install tomlv, vndr, runc, containerd, tini, docker-proxy dockercli
-# Please edit hack/dockerfile/install-binaries.sh to update them.
-COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
-COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh tomlv vndr runc containerd tini proxy dockercli gometalinter
+# Install tomlv, vndr, runc, containerd, tini, proxy dockercli
+# Please edit hack/dockerfile/install/<name>.installer to update them.
+COPY hack/dockerfile/install hack/dockerfile/install
+RUN for i in tomlv vndr tini gometalinter proxy dockercli runc containerd; \
+		do hack/dockerfile/install/install.sh $i; \
+	done
 ENV PATH=/usr/local/cli:$PATH
 
 # Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
