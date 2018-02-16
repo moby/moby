@@ -10,9 +10,33 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
+
+func TestConfigInspectNotFound(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
+	}
+
+	_, _, err := client.ConfigInspectWithRaw(context.Background(), "unknown")
+	if err == nil || !IsErrNotFound(err) {
+		t.Fatalf("expected a NotFoundError error, got %v", err)
+	}
+}
+
+func TestConfigInspectWithEmptyID(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.ConfigInspectWithRaw(context.Background(), "")
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
+	}
+}
 
 func TestConfigInspectUnsupported(t *testing.T) {
 	client := &Client{

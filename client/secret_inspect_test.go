@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
@@ -44,6 +45,18 @@ func TestSecretInspectSecretNotFound(t *testing.T) {
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
 	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a secretNotFoundError error, got %v", err)
+	}
+}
+
+func TestSecretInspectWithEmptyID(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.SecretInspectWithRaw(context.Background(), "")
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 
