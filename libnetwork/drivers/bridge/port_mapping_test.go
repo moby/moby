@@ -33,7 +33,8 @@ func TestPortMappingConfig(t *testing.T) {
 
 	binding1 := types.PortBinding{Proto: types.UDP, Port: uint16(400), HostPort: uint16(54000)}
 	binding2 := types.PortBinding{Proto: types.TCP, Port: uint16(500), HostPort: uint16(65000)}
-	portBindings := []types.PortBinding{binding1, binding2}
+	binding3 := types.PortBinding{Proto: types.SCTP, Port: uint16(300), HostPort: uint16(65000)}
+	portBindings := []types.PortBinding{binding1, binding2, binding3}
 
 	sbOptions := make(map[string]interface{})
 	sbOptions[netlabel.PortMap] = portBindings
@@ -69,15 +70,17 @@ func TestPortMappingConfig(t *testing.T) {
 		t.Fatalf("Cannot find network %s inside driver", "dummy")
 	}
 	ep, _ := network.endpoints["ep1"]
-	if len(ep.portMapping) != 2 {
+	if len(ep.portMapping) != 3 {
 		t.Fatalf("Failed to store the port bindings into the sandbox info. Found: %v", ep.portMapping)
 	}
 	if ep.portMapping[0].Proto != binding1.Proto || ep.portMapping[0].Port != binding1.Port ||
-		ep.portMapping[1].Proto != binding2.Proto || ep.portMapping[1].Port != binding2.Port {
+		ep.portMapping[1].Proto != binding2.Proto || ep.portMapping[1].Port != binding2.Port ||
+		ep.portMapping[2].Proto != binding3.Proto || ep.portMapping[2].Port != binding3.Port {
 		t.Fatal("bridgeEndpoint has incorrect port mapping values")
 	}
 	if ep.portMapping[0].HostIP == nil || ep.portMapping[0].HostPort == 0 ||
-		ep.portMapping[1].HostIP == nil || ep.portMapping[1].HostPort == 0 {
+		ep.portMapping[1].HostIP == nil || ep.portMapping[1].HostPort == 0 ||
+		ep.portMapping[2].HostIP == nil || ep.portMapping[2].HostPort == 0 {
 		t.Fatal("operational port mapping data not found on bridgeEndpoint")
 	}
 

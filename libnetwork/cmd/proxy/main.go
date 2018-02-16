@@ -8,6 +8,8 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/ishidawataru/sctp"
 )
 
 func main() {
@@ -28,7 +30,7 @@ func main() {
 	p.Run()
 }
 
-// parseHostContainerAddrs parses the flags passed on reexec to create the TCP or UDP
+// parseHostContainerAddrs parses the flags passed on reexec to create the TCP/UDP/SCTP
 // net.Addrs to map the host and container ports
 func parseHostContainerAddrs() (host net.Addr, container net.Addr) {
 	var (
@@ -48,6 +50,9 @@ func parseHostContainerAddrs() (host net.Addr, container net.Addr) {
 	case "udp":
 		host = &net.UDPAddr{IP: net.ParseIP(*hostIP), Port: *hostPort}
 		container = &net.UDPAddr{IP: net.ParseIP(*containerIP), Port: *containerPort}
+	case "sctp":
+		host = &sctp.SCTPAddr{IP: []net.IP{net.ParseIP(*hostIP)}, Port: *hostPort}
+		container = &sctp.SCTPAddr{IP: []net.IP{net.ParseIP(*containerIP)}, Port: *containerPort}
 	default:
 		log.Fatalf("unsupported protocol %s", *proto)
 	}

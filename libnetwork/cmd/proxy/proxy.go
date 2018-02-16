@@ -4,6 +4,8 @@ package main
 
 import (
 	"net"
+
+	"github.com/ishidawataru/sctp"
 )
 
 // Proxy defines the behavior of a proxy. It forwards traffic back and forth
@@ -30,6 +32,8 @@ func NewProxy(frontendAddr, backendAddr net.Addr) (Proxy, error) {
 		return NewUDPProxy(frontendAddr.(*net.UDPAddr), backendAddr.(*net.UDPAddr))
 	case *net.TCPAddr:
 		return NewTCPProxy(frontendAddr.(*net.TCPAddr), backendAddr.(*net.TCPAddr))
+	case *sctp.SCTPAddr:
+		return NewSCTPProxy(frontendAddr.(*sctp.SCTPAddr), backendAddr.(*sctp.SCTPAddr))
 	default:
 		panic("Unsupported protocol")
 	}
