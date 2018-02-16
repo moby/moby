@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/remotecontext"
 	dockerimage "github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -13,7 +12,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-type getAndMountFunc func(string, bool) (builder.Image, builder.ReleaseableLayer, error)
+type getAndMountFunc func(string, bool) (builder.Image, builder.ROLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
@@ -24,7 +23,7 @@ type imageSources struct {
 }
 
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
-	getAndMount := func(idOrRef string, localOnly bool) (builder.Image, builder.ReleaseableLayer, error) {
+	getAndMount := func(idOrRef string, localOnly bool) (builder.Image, builder.ROLayer, error) {
 		pullOption := backend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
@@ -92,30 +91,12 @@ func (m *imageSources) Add(im *imageMount) {
 type imageMount struct {
 	image  builder.Image
 	source builder.Source
-	layer  builder.ReleaseableLayer
+	layer  builder.ROLayer
 }
 
-func newImageMount(image builder.Image, layer builder.ReleaseableLayer) *imageMount {
+func newImageMount(image builder.Image, layer builder.ROLayer) *imageMount {
 	im := &imageMount{image: image, layer: layer}
 	return im
-}
-
-func (im *imageMount) Source() (builder.Source, error) {
-	if im.source == nil {
-		if im.layer == nil {
-			return nil, errors.Errorf("empty context")
-		}
-		mountPath, err := im.layer.Mount()
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to mount %s", im.image.ImageID())
-		}
-		source, err := remotecontext.NewLazySource(mountPath)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create lazycontext for %s", mountPath)
-		}
-		im.source = source
-	}
-	return im.source, nil
 }
 
 func (im *imageMount) unmount() error {
@@ -133,8 +114,8 @@ func (im *imageMount) Image() builder.Image {
 	return im.image
 }
 
-func (im *imageMount) Layer() builder.ReleaseableLayer {
-	return im.layer
+func (im *imageMount) NewRWLayer() (builder.RWLayer, error) {
+	return im.layer.NewRWLayer()
 }
 
 func (im *imageMount) ImageID() string {

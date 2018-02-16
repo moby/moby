@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
@@ -114,8 +115,8 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 	return err
 }
 
-func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runConfig *container.Config) error {
-	newLayer, err := imageMount.Layer().Commit()
+func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
 	}
@@ -124,7 +125,7 @@ func (b *Builder) exportImage(state *dispatchState, imageMount *imageMount, runC
 	// if there is an error before we can add the full mount with image
 	b.imageSources.Add(newImageMount(nil, newLayer))
 
-	parentImage, ok := imageMount.Image().(*image.Image)
+	parentImage, ok := parent.(*image.Image)
 	if !ok {
 		return errors.Errorf("unexpected image type")
 	}
@@ -177,7 +178,13 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
 
-	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, imageMount, b.options.Platform)
+	rwLayer, err := imageMount.NewRWLayer()
+	if err != nil {
+		return err
+	}
+	defer rwLayer.Release()
+
+	destInfo, err := createDestInfo(state.runConfig.WorkingDir, inst, rwLayer, b.options.Platform)
 	if err != nil {
 		return err
 	}
@@ -203,10 +210,10 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 			return errors.Wrapf(err, "failed to copy files")
 		}
 	}
-	return b.exportImage(state, imageMount, runConfigWithCommentCmd)
+	return b.exportImage(state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
-func createDestInfo(workingDir string, inst copyInstruction, imageMount *imageMount, platform string) (copyInfo, error) {
+func createDestInfo(workingDir string, inst copyInstruction, rwLayer builder.RWLayer, platform string) (copyInfo, error) {
 	// Twiddle the destination when it's a relative path - meaning, make it
 	// relative to the WORKINGDIR
 	dest, err := normalizeDest(workingDir, inst.dest, platform)
@@ -214,12 +221,7 @@ func createDestInfo(workingDir string, inst copyInstruction, imageMount *imageMo
 		return copyInfo{}, errors.Wrapf(err, "invalid %s", inst.cmdName)
 	}
 
-	destMount, err := imageMount.Source()
-	if err != nil {
-		return copyInfo{}, errors.Wrapf(err, "failed to mount copy source")
-	}
-
-	return newCopyInfoFromSource(destMount, dest, ""), nil
+	return copyInfo{root: rwLayer.Root(), path: dest}, nil
 }
 
 // normalizeDest normalises the destination of a COPY/ADD command in a

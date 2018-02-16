@@ -20,7 +20,7 @@ import (
 type MockBackend struct {
 	containerCreateFunc func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	commitFunc          func(backend.CommitConfig) (image.ID, error)
-	getImageFunc        func(string) (builder.Image, builder.ReleaseableLayer, error)
+	getImageFunc        func(string) (builder.Image, builder.ROLayer, error)
 	makeImageCacheFunc  func(cacheFrom []string) builder.ImageCache
 }
 
@@ -66,7 +66,7 @@ func (m *MockBackend) CopyOnBuild(containerID string, destPath string, srcRoot s
 	return nil
 }
 
-func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ReleaseableLayer, error) {
+func (m *MockBackend) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if m.getImageFunc != nil {
 		return m.getImageFunc(refOrID)
 	}
@@ -124,14 +124,25 @@ func (l *mockLayer) Release() error {
 	return nil
 }
 
-func (l *mockLayer) Mount() (containerfs.ContainerFS, error) {
-	return containerfs.NewLocalContainerFS("mountPath"), nil
-}
-
-func (l *mockLayer) Commit() (builder.ReleaseableLayer, error) {
-	return nil, nil
+func (l *mockLayer) NewRWLayer() (builder.RWLayer, error) {
+	return &mockRWLayer{}, nil
 }
 
 func (l *mockLayer) DiffID() layer.DiffID {
 	return layer.DiffID("abcdef")
+}
+
+type mockRWLayer struct {
+}
+
+func (l *mockRWLayer) Release() error {
+	return nil
+}
+
+func (l *mockRWLayer) Commit() (builder.ROLayer, error) {
+	return nil, nil
+}
+
+func (l *mockRWLayer) Root() containerfs.ContainerFS {
+	return nil
 }

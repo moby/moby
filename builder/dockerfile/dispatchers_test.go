@@ -127,7 +127,7 @@ func TestFromScratch(t *testing.T) {
 func TestFromWithArg(t *testing.T) {
 	tag, expected := ":sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
+	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
 		assert.Equal(t, "alpine"+tag, name)
 		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
@@ -159,7 +159,7 @@ func TestFromWithArg(t *testing.T) {
 func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
-	getImage := func(name string) (builder.Image, builder.ReleaseableLayer, error) {
+	getImage := func(name string) (builder.Image, builder.ROLayer, error) {
 		assert.Equal(t, "alpine", name)
 		return &mockImage{id: "expectedthisid"}, nil, nil
 	}
@@ -433,7 +433,7 @@ func TestRunWithBuildArgs(t *testing.T) {
 		return imageCache
 	}
 	b.imageProber = newImageProber(mockBackend, nil, false)
-	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ReleaseableLayer, error) {
+	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
 		return &mockImage{
 			id:     "abcdef",
 			config: &container.Config{Cmd: origCmd},

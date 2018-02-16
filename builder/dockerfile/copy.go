@@ -72,8 +72,12 @@ type copier struct {
 	source      builder.Source
 	pathCache   pathCache
 	download    sourceDownloader
-	tmpPaths    []string
 	platform    string
+	// for cleanup. TODO: having copier.cleanup() is error prone and hard to
+	// follow. Code calling performCopy should manage the lifecycle of its params.
+	// Copier should take override source as input, not imageMount.
+	activeLayer builder.RWLayer
+	tmpPaths    []string
 }
 
 func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, imageSource *imageMount) copier {
@@ -155,6 +159,10 @@ func (o *copier) Cleanup() {
 		os.RemoveAll(path)
 	}
 	o.tmpPaths = []string{}
+	if o.activeLayer != nil {
+		o.activeLayer.Release()
+		o.activeLayer = nil
+	}
 }
 
 // TODO: allowWildcards can probably be removed by refactoring this function further.
@@ -166,9 +174,15 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	// done on image Source?
 	if imageSource != nil {
 		var err error
-		o.source, err = imageSource.Source()
+		rwLayer, err := imageSource.NewRWLayer()
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to copy from %s", imageSource.ImageID())
+			return nil, err
+		}
+		o.activeLayer = rwLayer
+
+		o.source, err = remotecontext.NewLazySource(rwLayer.Root())
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to create context for copy from %s", rwLayer.Root().Path())
 		}
 	}
 
