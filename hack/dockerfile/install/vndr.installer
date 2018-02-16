@@ -1,0 +1,11 @@
+#!/bin/sh
+
+VNDR_COMMIT=a6e196d8b4b0cbbdc29aebdb20c59ac6926bb384
+
+install_vndr() {
+	echo "Install vndr version $VNDR_COMMIT"
+	git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
+	cd "$GOPATH/src/github.com/LK4D4/vndr"
+	git checkout -q "$VNDR_COMMIT"
+	go build -buildmode=pie -v -o ${PREFIX}/vndr .
+}

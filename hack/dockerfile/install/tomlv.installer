@@ -1,0 +1,12 @@
+#!/bin/sh
+
+# When updating TOMLV_COMMIT, consider updating github.com/BurntSushi/toml
+# in vendor.conf accordingly
+TOMLV_COMMIT=a368813c5e648fee92e5f6c30e3944ff9d5e8895
+
+install_tomlv() {
+	echo "Install tomlv version $TOMLV_COMMIT"
+	git clone https://github.com/BurntSushi/toml.git "$GOPATH/src/github.com/BurntSushi/toml"
+	cd "$GOPATH/src/github.com/BurntSushi/toml" && git checkout -q "$TOMLV_COMMIT"
+	go build -v -buildmode=pie -o ${PREFIX}/tomlv github.com/BurntSushi/toml/cmd/tomlv
+}

@@ -50,10 +50,11 @@ ENV GOPATH /go
 ENV CGO_LDFLAGS -L/lib
 
 # Install runc, containerd, tini and docker-proxy
-# Please edit hack/dockerfile/install-binaries.sh to update them.
-COPY hack/dockerfile/binaries-commits /tmp/binaries-commits
-COPY hack/dockerfile/install-binaries.sh /tmp/install-binaries.sh
-RUN /tmp/install-binaries.sh runc containerd tini proxy dockercli
+# Please edit hack/dockerfile/install/<name>.installer to update them.
+COPY hack/dockerfile/install hack/dockerfile/install
+RUN for i in runc containerd tini proxy dockercli; \
+		do hack/dockerfile/install/install.sh $i; \
+	done
 ENV PATH=/usr/local/cli:$PATH
 
 ENV AUTO_GOPATH 1
