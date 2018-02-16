@@ -266,7 +266,7 @@ func (daemon *Daemon) setRWLayer(container *container.Container) error {
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
 		MountLabel: container.MountLabel,
-		InitFunc:   daemon.getLayerInit(),
+		InitFunc:   setupInitLayer(daemon.idMappings),
 		StorageOpt: container.HostConfig.StorageOpt,
 	}
 
