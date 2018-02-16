@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# When updating TOMLV_COMMIT, consider updating github.com/BurntSushi/toml
+# in vendor.conf accordingly
 TOMLV_COMMIT=9baf8a8a9f2ed20a8e54160840c492f937eeaf9a
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
@@ -10,6 +12,10 @@ RUNC_COMMIT=6c55f98695e902427906eed2c799e566e3d3dfb5
 # fixes or new APIs.
 CONTAINERD_COMMIT=cfd04396dc68220d1cecbe686a6cc3aa5ce3667c # v1.0.2
 TINI_COMMIT=949e6facb77383876aeff8a6944dde66b3089574
+
+# LIBNETWORK_COMMIT is used to build the docker-userland-proxy binary. When
+# updating the binary version, consider updating github.com/docker/libnetwork
+# in vendor.conf accordingly
 LIBNETWORK_COMMIT=fcf1c3b5e57833aaaa756ae3c4140ea54da00319
 VNDR_COMMIT=a6e196d8b4b0cbbdc29aebdb20c59ac6926bb384
 
