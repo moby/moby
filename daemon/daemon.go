@@ -671,8 +671,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, fmt.Errorf("error setting default isolation mode: %v", err)
 	}
 
-	logrus.Debugf("Using default logging driver %s", config.LogConfig.Type)
-
 	if err := configureMaxThreads(config); err != nil {
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
@@ -751,6 +749,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "couldn't create plugin manager")
+	}
+
+	if err := d.setupDefaultLogConfig(); err != nil {
+		return nil, err
 	}
 
 	for operatingSystem, gd := range d.graphDrivers {
@@ -873,10 +875,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.trustKey = trustKey
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
-	d.defaultLogConfig = containertypes.LogConfig{
-		Type:   config.LogConfig.Type,
-		Config: config.LogConfig.Config,
-	}
+
 	d.EventsService = eventsService
 	d.volumes = volStore
 	d.root = config.Root

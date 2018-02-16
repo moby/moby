@@ -1697,7 +1697,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 	c.Assert(d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
-	expected := "Failed to set log opts: syslog-address should be in form proto://address"
+	expected := "syslog-address should be in form proto://address"
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
 }
 
@@ -1707,7 +1707,7 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
 	c.Assert(d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
-	expected := "Failed to set log opts: invalid fluentd-address corrupted:c: "
+	expected := "invalid fluentd-address corrupted:c: "
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
 }
 
