@@ -8,4 +8,9 @@ COPY	nullfile /tmp
 ADD		[ "vimrc", "/tmp" ]
 COPY	[ "bashrc", "/tmp" ]
 COPY	[ "test file", "/tmp" ]
-ADD		[ "test file", "/tmp/test file" ]
+ADD		\
+    [
+         "test file",
+    
+    "/tmp/test file"
+]

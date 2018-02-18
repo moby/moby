@@ -81,11 +81,12 @@ func (node *Node) AddChild(child *Node, startLine, endLine int) {
 }
 
 var (
-	dispatch             map[string]func(string, *Directive) (*Node, map[string]bool, error)
-	tokenWhitespace      = regexp.MustCompile(`[\t\v\f\r ]+`)
-	tokenEscapeCommand   = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
-	tokenPlatformCommand = regexp.MustCompile(`^#[ \t]*platform[ \t]*=[ \t]*(?P<platform>.*)$`)
-	tokenComment         = regexp.MustCompile(`^#.*$`)
+	dispatch                 map[string]func(string, *Directive) (*Node, map[string]bool, error)
+	tokenWhitespace          = regexp.MustCompile(`[\t\v\f\r ]+`)
+	tokenEscapeCommand       = regexp.MustCompile(`^#[ \t]*escape[ \t]*=[ \t]*(?P<escapechar>.).*$`)
+	tokenPlatformCommand     = regexp.MustCompile(`^#[ \t]*platform[ \t]*=[ \t]*(?P<platform>.*)$`)
+	tokenComment             = regexp.MustCompile(`^#.*$`)
+	lineJSONArrayContinuator = regexp.MustCompile(`[^"]*\[[^\]]*$`)
 )
 
 // DefaultEscapeToken is the default escape token
@@ -94,12 +95,12 @@ const DefaultEscapeToken = '\\'
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
 type Directive struct {
-	escapeToken           rune           // Current escape token
-	platformToken         string         // Current platform token
-	lineContinuationRegex *regexp.Regexp // Current line continuation regex
-	processingComplete    bool           // Whether we are done looking for directives
-	escapeSeen            bool           // Whether the escape directive has been seen
-	platformSeen          bool           // Whether the platform directive has been seen
+	escapeToken        rune           // Current escape token
+	platformToken      string         // Current platform token
+	lineEscapeRegex    *regexp.Regexp // Current line escape regex
+	processingComplete bool           // Whether we are done looking for directives
+	escapeSeen         bool           // Whether the escape directive has been seen
+	platformSeen       bool           // Whether the platform directive has been seen
 }
 
 // setEscapeToken sets the default token for escaping characters in a Dockerfile.
@@ -108,7 +109,7 @@ func (d *Directive) setEscapeToken(s string) error {
 		return fmt.Errorf("invalid ESCAPE '%s'. Must be ` or \\", s)
 	}
 	d.escapeToken = rune(s[0])
-	d.lineContinuationRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
+	d.lineEscapeRegex = regexp.MustCompile(`\` + s + `[ \t]*$`)
 	return nil
 }
 
@@ -274,7 +275,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		currentLine++
 
 		startLine := currentLine
-		line, isEndOfLine := trimContinuationCharacter(string(bytesRead), d)
+		line, isEndOfLine := continuateLine(string(bytesRead), d)
 		if isEndOfLine && line == "" {
 			continue
 		}
@@ -297,8 +298,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 			}
 
 			continuationLine := string(bytesRead)
-			continuationLine, isEndOfLine = trimContinuationCharacter(continuationLine, d)
-			line += continuationLine
+			line, isEndOfLine = continuateLine(line+continuationLine, d)
 		}
 
 		if hasEmptyContinuationLine {
@@ -342,11 +342,15 @@ func isEmptyContinuationLine(line []byte) bool {
 
 var utf8bom = []byte{0xEF, 0xBB, 0xBF}
 
-func trimContinuationCharacter(line string, d *Directive) (string, bool) {
-	if d.lineContinuationRegex.MatchString(line) {
-		line = d.lineContinuationRegex.ReplaceAllString(line, "")
+func continuateLine(line string, d *Directive) (string, bool) {
+	if d.lineEscapeRegex.MatchString(line) {
+		line = d.lineEscapeRegex.ReplaceAllString(line, "")
 		return line, false
 	}
+	if lineJSONArrayContinuator.MatchString(line) {
+		return line, false
+	}
+
 	return line, true
 }
 

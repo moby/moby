@@ -23,7 +23,8 @@ var validJSONArraysOfStrings = map[string][]string{
 	`[ "a", "b" ]`: {"a", "b"},
 	`[	"a",	"b"	]`: {"a", "b"},
 	`	[	"a",	"b"	]	`: {"a", "b"},
-	`["abc 123", "♥", "☃", "\" \\ \/ \b \f \n \r \t \u0000"]`: {"abc 123", "♥", "☃", "\" \\ / \b \f \n \r \t \u0000"},
+	"[\"a\", \n \"b\"]":                                      {"a", "b"},
+	`["abc 123","♥", "☃", "\" \\ \/ \b \f \n \r \t \u0000"]`: {"abc 123", "♥", "☃", "\" \\ / \b \f \n \r \t \u0000"},
 }
 
 func TestJSONArraysOfStrings(t *testing.T) {
