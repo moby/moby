@@ -194,13 +194,13 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 		allImages = daemon.imageStore.Map()
 	}
 	allContainers := daemon.List()
-	imageRefs := map[string]bool{}
+	ignoredImageIDs := map[image.ID]bool{}
 	for _, c := range allContainers {
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
-			imageRefs[c.ID] = true
+			ignoredImageIDs[c.ImageID] = true
 		}
 	}
 
@@ -242,11 +242,12 @@ deleteImagesLoop:
 		default:
 		}
 
-		dgst := digest.Digest(id)
-		hex := dgst.Hex()
-		if _, ok := imageRefs[hex]; ok {
+		if _, ok := ignoredImageIDs[id]; ok {
 			continue
 		}
+
+		dgst := digest.Digest(id)
+		hex := dgst.Hex()
 
 		deletedImages := []types.ImageDeleteResponseItem{}
 		refs := daemon.referenceStore.References(dgst)
