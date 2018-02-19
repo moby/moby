@@ -236,7 +236,7 @@ func (ts *tarSum) Read(buf []byte) (int, error) {
 				}
 				return n, err
 			}
-			ts.currentFile = path.Clean(currentHeader.Name)
+			ts.currentFile = path.Join(".", path.Join("/", currentHeader.Name))
 			if err := ts.encodeHeader(currentHeader); err != nil {
 				return 0, err
 			}
