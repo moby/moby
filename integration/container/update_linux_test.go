@@ -66,7 +66,7 @@ func TestUpdateMemory(t *testing.T) {
 	assert.Equal(t, strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout()))
 }
 
-func TestUpdateCPUQUota(t *testing.T) {
+func TestUpdateCPUQuota(t *testing.T) {
 	t.Parallel()
 
 	defer setupTest(t)()
