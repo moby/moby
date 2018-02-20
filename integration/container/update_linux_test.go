@@ -1,21 +1,15 @@
 package container // import "github.com/docker/docker/integration/container"
 
 import (
-	"bytes"
 	"context"
-	"io/ioutil"
 	"strconv"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
-	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
@@ -39,26 +33,37 @@ func TestUpdateMemory(t *testing.T) {
 
 	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
+	const (
+		setMemory     int64 = 314572800
+		setMemorySwap       = 524288000
+	)
+
 	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 		Resources: containertypes.Resources{
-			Memory:     314572800,
-			MemorySwap: 524288000,
+			Memory:     setMemory,
+			MemorySwap: setMemorySwap,
 		},
 	})
 	require.NoError(t, err)
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.HostConfig.Memory, int64(314572800))
-	assert.Equal(t, inspect.HostConfig.MemorySwap, int64(524288000))
+	assert.Equal(t, setMemory, inspect.HostConfig.Memory)
+	assert.Equal(t, setMemorySwap, inspect.HostConfig.MemorySwap)
 
-	body, err := getContainerSysFSValue(ctx, client, cID, "/sys/fs/cgroup/memory/memory.limit_in_bytes")
+	res, err := container.Exec(ctx, client, cID,
+		[]string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"})
 	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(body), "314572800")
+	require.Empty(t, res.Stderr())
+	require.Equal(t, 0, res.ExitCode)
+	assert.Equal(t, strconv.FormatInt(setMemory, 10), strings.TrimSpace(res.Stdout()))
 
-	body, err = getContainerSysFSValue(ctx, client, cID, "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes")
+	res, err = container.Exec(ctx, client, cID,
+		[]string{"cat", "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"})
 	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(body), "524288000")
+	require.Empty(t, res.Stderr())
+	require.Equal(t, 0, res.ExitCode)
+	assert.Equal(t, strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout()))
 }
 
 func TestUpdateCPUQUota(t *testing.T) {
@@ -88,83 +93,15 @@ func TestUpdateCPUQUota(t *testing.T) {
 		}
 
 		inspect, err := client.ContainerInspect(ctx, cID)
-		if err != nil {
-			t.Fatal(err)
-		}
+		require.NoError(t, err)
+		assert.Equal(t, test.update, inspect.HostConfig.CPUQuota)
 
-		if inspect.HostConfig.CPUQuota != test.update {
-			t.Fatalf("quota not updated in the API, expected %d, got: %d", test.update, inspect.HostConfig.CPUQuota)
-		}
+		res, err := container.Exec(ctx, client, cID,
+			[]string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"})
+		require.NoError(t, err)
+		require.Empty(t, res.Stderr())
+		require.Equal(t, 0, res.ExitCode)
 
-		execCreate, err := client.ContainerExecCreate(ctx, cID, types.ExecConfig{
-			Cmd:          []string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"},
-			AttachStdout: true,
-			AttachStderr: true,
-		})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		attach, err := client.ContainerExecAttach(ctx, execCreate.ID, types.ExecStartCheck{})
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		if err := client.ContainerExecStart(ctx, execCreate.ID, types.ExecStartCheck{}); err != nil {
-			t.Fatal(err)
-		}
-
-		buf := bytes.NewBuffer(nil)
-		ready := make(chan error)
-
-		go func() {
-			_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-			ready <- err
-		}()
-
-		select {
-		case <-time.After(60 * time.Second):
-			t.Fatal("timeout waiting for exec to complete")
-		case err := <-ready:
-			if err != nil {
-				t.Fatal(err)
-			}
-		}
-
-		actual := strings.TrimSpace(buf.String())
-		if actual != strconv.Itoa(int(test.update)) {
-			t.Fatalf("expected cgroup value %d, got: %s", test.update, actual)
-		}
+		assert.Equal(t, strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout()))
 	}
-
-}
-
-func getContainerSysFSValue(ctx context.Context, client client.APIClient, cID string, path string) (string, error) {
-	var b bytes.Buffer
-
-	ex, err := client.ContainerExecCreate(ctx, cID,
-		types.ExecConfig{
-			AttachStdout: true,
-			Cmd:          strslice.StrSlice([]string{"cat", path}),
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-
-	resp, err := client.ContainerExecAttach(ctx, ex.ID,
-		types.ExecStartCheck{
-			Detach: false,
-			Tty:    false,
-		},
-	)
-	if err != nil {
-		return "", err
-	}
-
-	defer resp.Close()
-
-	b.Reset()
-	_, err = stdcopy.StdCopy(&b, ioutil.Discard, resp.Reader)
-	return b.String(), err
 }
