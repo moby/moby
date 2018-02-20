@@ -35,7 +35,7 @@ func TestUpdateMemory(t *testing.T) {
 
 	const (
 		setMemory     int64 = 314572800
-		setMemorySwap       = 524288000
+		setMemorySwap int64 = 524288000
 	)
 
 	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
