@@ -117,13 +117,13 @@ Try this now.
 3.  Run the unit tests using the `hack/test/unit` script.
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/test/unit
+    # hack/test/unit
     ```
 
 4.  Run the tests using the `hack/make.sh` script.
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-integration test-docker-py
+    # hack/make.sh dynbinary binary cross test-integration test-docker-py
     ```
 
     The tests run just as they did within your local host.
@@ -132,7 +132,7 @@ Try this now.
     just the integration tests:
 
     ```bash
-    root@5f8630b873fe:/go/src/github.com/docker/docker# hack/make.sh dynbinary binary cross test-integration
+    # hack/make.sh dynbinary binary cross test-integration
     ```
 
     Most test targets require that you build these precursor targets first:
@@ -180,7 +180,7 @@ $ TESTFLAGS='-check.f DockerSuite.TestBuild*' make test-integration
 To run the same test inside your Docker development container, you do this:
 
 ```bash
-root@5f8630b873fe:/go/src/github.com/docker/docker# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration
+# TESTFLAGS='-check.f TestBuild*' hack/make.sh binary test-integration
 ```
 
 ## Test the Windows binary against a Linux daemon

@@ -131,7 +131,7 @@ can take over 15 minutes to complete.
    Successfully built 3d872560918e
    Successfully tagged docker-dev:dry-run-test
    docker run --rm -i --privileged -e BUILDFLAGS -e KEEPBUNDLE -e DOCKER_BUILD_GOGC -e DOCKER_BUILD_PKGS -e DOCKER_CLIENTONLY -e DOCKER_DEBUG -e DOCKER_EXPERIMENTAL -e DOCKER_GITCOMMIT -e DOCKER_GRAPHDRIVER=devicemapper -e DOCKER_INCREMENTAL_BINARY -e DOCKER_REMAP_ROOT -e DOCKER_STORAGE_OPTS -e DOCKER_USERLANDPROXY -e TESTDIRS -e TESTFLAGS -e TIMEOUT -v "home/ubuntu/repos/docker/bundles:/go/src/github.com/docker/docker/bundles" -t "docker-dev:dry-run-test" bash
-   root@f31fa223770f:/go/src/github.com/docker/docker#
+   #
    ```
 
    At this point, your prompt reflects the container's BASH shell.
@@ -146,7 +146,7 @@ can take over 15 minutes to complete.
 6. Make a `dockerd` binary.
 
    ```none
-   root@a8b2885ab900:/go/src/github.com/docker/docker# hack/make.sh binary
+   # hack/make.sh binary
    Removing bundles/
 
    ---> Making bundle: binary (in bundles/binary)
@@ -160,13 +160,13 @@ can take over 15 minutes to complete.
    `/usr/local/bin/` directory.
 
    ```none
-   root@a8b2885ab900:/go/src/github.com/docker/docker# make install
+   # make install
    ```
 
 8. Start the Engine daemon running in the background.
 
    ```none
-   root@a8b2885ab900:/go/src/github.com/docker/docker# dockerd -D &
+   # dockerd -D &
    ...output snipped...
    DEBU[0001] Registering POST, /networks/{id:.*}/connect
    DEBU[0001] Registering POST, /networks/{id:.*}/disconnect
@@ -252,13 +252,13 @@ can take over 15 minutes to complete.
 10. Run the `hello-world` image.
 
     ```none
-    root@5f8630b873fe:/go/src/github.com/docker/docker# docker run hello-world
+    # docker run hello-world
     ```
 
 11. List the image you just downloaded.
 
     ```none
-    root@5f8630b873fe:/go/src/github.com/docker/docker# docker images
+    # docker images
 	REPOSITORY   TAG     IMAGE ID      CREATED        SIZE
 	hello-world  latest  c54a2cc56cbb  3 months ago   1.85 kB
     ```
@@ -347,7 +347,7 @@ example, you'll edit the help for the `attach` subcommand.
 10. To view your change, run the `dockerd --help` command in the docker development container shell.
 
    ```bash
-   root@b0cb4f22715d:/go/src/github.com/docker/docker# dockerd --help
+   # dockerd --help
 
    Usage:        dockerd COMMAND
 
