@@ -3,8 +3,6 @@
 package main
 
 import (
-	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
@@ -199,12 +197,6 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	if err != nil {
 		c.Fatalf("Could not install plugin: %v %s", err, out)
 	}
-	pluginID, err := s.d.Cmd("plugin", "inspect", "-f", "{{.Id}}", pName)
-	pluginID = strings.TrimSpace(pluginID)
-	if err != nil {
-		c.Fatalf("Could not retrieve plugin ID: %v %s", err, pluginID)
-	}
-	mountpointPrefix := filepath.Join(s.d.RootDir(), "plugins", pluginID, "rootfs")
 	defer func() {
 		if out, err := s.d.Cmd("plugin", "disable", pName); err != nil {
 			c.Fatalf("Could not disable plugin: %v %s", err, out)
@@ -213,11 +205,6 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 		if out, err := s.d.Cmd("plugin", "remove", pName); err != nil {
 			c.Fatalf("Could not remove plugin: %v %s", err, out)
 		}
-
-		exists, err := existsMountpointWithPrefix(mountpointPrefix)
-		c.Assert(err, checker.IsNil)
-		c.Assert(exists, checker.Equals, false)
-
 	}()
 
 	out, err = s.d.Cmd("volume", "create", "-d", pName, volName)
@@ -237,21 +224,11 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	c.Assert(out, checker.Contains, volName)
 	c.Assert(out, checker.Contains, pName)
 
-	mountPoint, err := s.d.Cmd("volume", "inspect", volName, "--format", "{{.Mountpoint}}")
-	if err != nil {
-		c.Fatalf("Could not inspect volume: %v %s", err, mountPoint)
-	}
-	mountPoint = strings.TrimSpace(mountPoint)
-
 	out, err = s.d.Cmd("run", "--rm", "-v", volName+":"+destDir, "busybox", "touch", destDir+destFile)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	path := filepath.Join(s.d.RootDir(), "plugins", pluginID, "rootfs", mountPoint, destFile)
-	_, err = os.Lstat(path)
-	c.Assert(err, checker.IsNil)
 
-	exists, err := existsMountpointWithPrefix(mountpointPrefix)
-	c.Assert(err, checker.IsNil)
-	c.Assert(exists, checker.Equals, true)
+	out, err = s.d.Cmd("run", "--rm", "-v", volName+":"+destDir, "busybox", "ls", destDir+destFile)
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
 func (s *DockerDaemonSuite) TestGraphdriverPlugin(c *check.C) {
