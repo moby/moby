@@ -69,10 +69,10 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	cmd.Stdout = tty
 	cmd.Stderr = tty
 
-	errChan := make(chan error)
+	cmdExit := make(chan error)
 	go func() {
-		errChan <- cmd.Run()
-		close(errChan)
+		cmdExit <- cmd.Run()
+		close(cmdExit)
 	}()
 
 	c.Assert(waitRun(name), check.IsNil)
@@ -82,12 +82,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 	cpty.Write([]byte{17})
 
 	select {
-	case err := <-errChan:
-		if err != nil {
-			buff := make([]byte, 200)
-			tty.Read(buff)
-			c.Fatalf("%s: %s", err, buff)
-		}
+	case <-cmdExit:
 	case <-time.After(5 * time.Second):
 		c.Fatal("timeout while detaching")
 	}
@@ -102,6 +97,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 
 	err = cmd.Start()
 	c.Assert(err, checker.IsNil)
+	defer cmd.Process.Kill()
 
 	bytes := make([]byte, 10)
 	var nBytes int
@@ -124,11 +120,7 @@ func (s *DockerSuite) TestAttachAfterDetach(c *check.C) {
 		c.Fatal("timeout waiting for attach read")
 	}
 
-	err = cmd.Wait()
-	c.Assert(err, checker.IsNil)
-
 	c.Assert(string(bytes[:nBytes]), checker.Contains, "/ #")
-
 }
 
 // TestAttachDetach checks that attach in tty mode can be detached using the long container ID
