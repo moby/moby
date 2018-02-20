@@ -2,9 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -137,13 +134,6 @@ func assertContainerList(out string, expected []string) bool {
 	}
 
 	return true
-}
-
-// FIXME(vdemeester) Move this into a unit test in daemon package
-func (s *DockerSuite) TestPsListContainersInvalidFilterName(c *check.C) {
-	out, _, err := dockerCmdWithError("ps", "-f", "invalidFilter=test")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "Invalid filter")
 }
 
 func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
@@ -519,48 +509,6 @@ func (s *DockerSuite) TestPsRightTagName(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPsLinkedWithNoTrunc(c *check.C) {
-	// Problematic on Windows as it doesn't support links as of Jan 2016
-	testRequires(c, DaemonIsLinux)
-	existingContainers := ExistingContainerIDs(c)
-	runSleepingContainer(c, "--name=first")
-	runSleepingContainer(c, "--name=second", "--link=first:first")
-
-	out, _ := dockerCmd(c, "ps", "--no-trunc")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	// strip header
-	lines = lines[1:]
-	lines = RemoveLinesForExistingElements(lines, existingContainers)
-	expected := []string{"second", "first,second/first"}
-	var names []string
-	for _, l := range lines {
-		fields := strings.Fields(l)
-		names = append(names, fields[len(fields)-1])
-	}
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array: %v, got: %v", expected, names))
-}
-
-func (s *DockerSuite) TestPsGroupPortRange(c *check.C) {
-	// Problematic on Windows as it doesn't support port ranges as of Jan 2016
-	testRequires(c, DaemonIsLinux)
-	portRange := "3850-3900"
-	dockerCmd(c, "run", "-d", "--name", "porttest", "-p", portRange+":"+portRange, "busybox", "top")
-
-	out, _ := dockerCmd(c, "ps")
-
-	c.Assert(string(out), checker.Contains, portRange, check.Commentf("docker ps output should have had the port range %q: %s", portRange, string(out)))
-
-}
-
-func (s *DockerSuite) TestPsWithSize(c *check.C) {
-	// Problematic on Windows as it doesn't report the size correctly @swernli
-	testRequires(c, DaemonIsLinux)
-	dockerCmd(c, "run", "-d", "--name", "sizetest", "busybox", "top")
-
-	out, _ := dockerCmd(c, "ps", "--size")
-	c.Assert(out, checker.Contains, "virtual", check.Commentf("docker ps with --size should show virtual size of container"))
-}
-
 func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	// create a container
 	out, _ := dockerCmd(c, "create", "busybox")
@@ -589,69 +537,6 @@ func (s *DockerSuite) TestPsListContainersFilterCreated(c *check.C) {
 	out, _ = dockerCmd(c, "ps", "-q", "-f", "status=created")
 	containerOut := strings.TrimSpace(out)
 	c.Assert(cID, checker.HasPrefix, containerOut)
-}
-
-func (s *DockerSuite) TestPsFormatMultiNames(c *check.C) {
-	// Problematic on Windows as it doesn't support link as of Jan 2016
-	testRequires(c, DaemonIsLinux)
-	existingContainers := ExistingContainerNames(c)
-	//create 2 containers and link them
-	dockerCmd(c, "run", "--name=child", "-d", "busybox", "top")
-	dockerCmd(c, "run", "--name=parent", "--link=child:linkedone", "-d", "busybox", "top")
-
-	//use the new format capabilities to only list the names and --no-trunc to get all names
-	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}}", "--no-trunc")
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	expected := []string{"parent", "child,parent/linkedone"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with non-truncated names: %v, got: %v", expected, names))
-
-	//now list without turning off truncation and make sure we only get the non-link names
-	out, _ = dockerCmd(c, "ps", "--format", "{{.Names}}")
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	lines = strings.Split(strings.TrimSpace(string(out)), "\n")
-	expected = []string{"parent", "child"}
-	var truncNames []string
-	truncNames = append(truncNames, lines...)
-	c.Assert(expected, checker.DeepEquals, truncNames, check.Commentf("Expected array with truncated names: %v, got: %v", expected, truncNames))
-}
-
-// Test for GitHub issue #21772
-func (s *DockerSuite) TestPsNamesMultipleTime(c *check.C) {
-	existingContainers := ExistingContainerNames(c)
-	runSleepingContainer(c, "--name=test1")
-	runSleepingContainer(c, "--name=test2")
-
-	//use the new format capabilities to list the names twice
-	out, _ := dockerCmd(c, "ps", "--format", "{{.Names}} {{.Names}}")
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
-	lines = RemoveLinesForExistingElements(lines, existingContainers)
-	expected := []string{"test2 test2", "test1 test1"}
-	var names []string
-	names = append(names, lines...)
-	c.Assert(expected, checker.DeepEquals, names, check.Commentf("Expected array with names displayed twice: %v, got: %v", expected, names))
-}
-
-func (s *DockerSuite) TestPsDefaultFormatAndQuiet(c *check.C) {
-	existingContainers := ExistingContainerIDs(c)
-	config := `{
-		"psFormat": "default {{ .ID }}"
-}`
-	d, err := ioutil.TempDir("", "integration-cli-")
-	c.Assert(err, checker.IsNil)
-	defer os.RemoveAll(d)
-
-	err = ioutil.WriteFile(filepath.Join(d, "config.json"), []byte(config), 0644)
-	c.Assert(err, checker.IsNil)
-
-	out := runSleepingContainer(c, "--name=test")
-	id := strings.TrimSpace(out)
-
-	out, _ = dockerCmd(c, "--config", d, "ps", "-q")
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	c.Assert(id, checker.HasPrefix, strings.TrimSpace(out), check.Commentf("Expected to print only the container id, got %v\n", out))
 }
 
 // Test for GitHub issue #12595
@@ -822,23 +707,6 @@ func (s *DockerSuite) TestPsShowMounts(c *check.C) {
 	c.Assert(strings.TrimSpace(string(out)), checker.HasLen, 0)
 }
 
-func (s *DockerSuite) TestPsFormatSize(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	runSleepingContainer(c)
-
-	out, _ := dockerCmd(c, "ps", "--format", "table {{.Size}}")
-	lines := strings.Split(out, "\n")
-	c.Assert(lines[1], checker.Not(checker.Equals), "0 B", check.Commentf("Should not display a size of 0 B"))
-
-	out, _ = dockerCmd(c, "ps", "--size", "--format", "table {{.Size}}")
-	lines = strings.Split(out, "\n")
-	c.Assert(lines[0], checker.Equals, "SIZE", check.Commentf("Should only have one size column"))
-
-	out, _ = dockerCmd(c, "ps", "--size", "--format", "raw")
-	lines = strings.Split(out, "\n")
-	c.Assert(lines[8], checker.HasPrefix, "size:", check.Commentf("Size should be appended on a newline"))
-}
-
 func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 	existing := ExistingContainerIDs(c)
 
@@ -941,20 +809,6 @@ func (s *DockerSuite) TestPsByOrder(c *check.C) {
 	// Run multiple time should have the same result
 	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()
 	c.Assert(strings.TrimSpace(out), checker.Equals, fmt.Sprintf("%s\n%s", container2, container1))
-}
-
-func (s *DockerSuite) TestPsFilterMissingArgErrorCode(c *check.C) {
-	_, errCode, _ := dockerCmdWithError("ps", "--filter")
-	c.Assert(errCode, checker.Equals, 125)
-}
-
-// Test case for 30291
-func (s *DockerSuite) TestPsFormatTemplateWithArg(c *check.C) {
-	existingContainers := ExistingContainerNames(c)
-	runSleepingContainer(c, "-d", "--name", "top", "--label", "some.label=label.foo-bar")
-	out, _ := dockerCmd(c, "ps", "--format", `{{.Names}} {{.Label "some.label"}}`)
-	out = RemoveOutputForExistingElements(out, existingContainers)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "top label.foo-bar")
 }
 
 func (s *DockerSuite) TestPsListContainersFilterPorts(c *check.C) {
