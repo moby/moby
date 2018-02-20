@@ -51,6 +51,7 @@ message PortConfig {
 
 		TCP = 0 [(gogoproto.enumvalue_customname) = "ProtocolTCP"];
 		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
+		SCTP = 2 [(gogoproto.enumvalue_customname) = "ProtocolSCTP"];
 	}
 
 	// Name for the port. If provided the port information can

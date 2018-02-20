@@ -7,6 +7,8 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/ishidawataru/sctp"
 )
 
 // constants for the IP address type
@@ -96,6 +98,8 @@ func (p PortBinding) HostAddr() (net.Addr, error) {
 		return &net.UDPAddr{IP: p.HostIP, Port: int(p.HostPort)}, nil
 	case TCP:
 		return &net.TCPAddr{IP: p.HostIP, Port: int(p.HostPort)}, nil
+	case SCTP:
+		return &sctp.SCTPAddr{IP: []net.IP{p.HostIP}, Port: int(p.HostPort)}, nil
 	default:
 		return nil, ErrInvalidProtocolBinding(p.Proto.String())
 	}
@@ -108,6 +112,8 @@ func (p PortBinding) ContainerAddr() (net.Addr, error) {
 		return &net.UDPAddr{IP: p.IP, Port: int(p.Port)}, nil
 	case TCP:
 		return &net.TCPAddr{IP: p.IP, Port: int(p.Port)}, nil
+	case SCTP:
+		return &sctp.SCTPAddr{IP: []net.IP{p.IP}, Port: int(p.Port)}, nil
 	default:
 		return nil, ErrInvalidProtocolBinding(p.Proto.String())
 	}
@@ -233,6 +239,8 @@ const (
 	TCP = 6
 	// UDP is for the UDP ip protocol
 	UDP = 17
+	// SCTP is for the SCTP ip protocol
+	SCTP = 132
 )
 
 // Protocol represents an IP protocol number
@@ -246,6 +254,8 @@ func (p Protocol) String() string {
 		return "tcp"
 	case UDP:
 		return "udp"
+	case SCTP:
+		return "sctp"
 	default:
 		return fmt.Sprintf("%d", p)
 	}
@@ -260,6 +270,8 @@ func ParseProtocol(s string) Protocol {
 		return UDP
 	case "tcp":
 		return TCP
+	case "sctp":
+		return SCTP
 	default:
 		return 0
 	}

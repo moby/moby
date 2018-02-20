@@ -19,6 +19,7 @@ import (
 	"github.com/docker/libnetwork/ipvs"
 	"github.com/docker/libnetwork/ns"
 	"github.com/gogo/protobuf/proto"
+	"github.com/ishidawataru/sctp"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
@@ -503,6 +504,10 @@ func plumbProxy(iPort *PortConfig, isDelete bool) error {
 		l, err = net.ListenTCP("tcp", &net.TCPAddr{Port: int(iPort.PublishedPort)})
 	case ProtocolUDP:
 		l, err = net.ListenUDP("udp", &net.UDPAddr{Port: int(iPort.PublishedPort)})
+	case ProtocolSCTP:
+		l, err = sctp.ListenSCTP("sctp", &sctp.SCTPAddr{Port: int(iPort.PublishedPort)})
+	default:
+		err = fmt.Errorf("unknown protocol %v", iPort.Protocol)
 	}
 
 	if err != nil {
@@ -761,6 +766,7 @@ func redirecter() {
 
 	// Ensure blocking rules for anything else in/to ingress network
 	for _, rule := range [][]string{
+		{"-d", eIP.String(), "-p", "sctp", "-j", "DROP"},
 		{"-d", eIP.String(), "-p", "udp", "-j", "DROP"},
 		{"-d", eIP.String(), "-p", "tcp", "-j", "DROP"},
 	} {

@@ -276,7 +276,31 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 		"--dport", strconv.Itoa(destPort),
 		"-j", "MASQUERADE",
 	}
-	return ProgramRule(Nat, "POSTROUTING", action, args)
+
+	if err := ProgramRule(Nat, "POSTROUTING", action, args); err != nil {
+		return err
+	}
+
+	if proto == "sctp" {
+		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
+		// the following commit.
+		// This introduces a problem when conbined with a physical NIC without
+		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
+		// to fill the checksum.
+		//
+		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
+		args = []string{
+			"-p", proto,
+			"--sport", strconv.Itoa(destPort),
+			"-j", "CHECKSUM",
+			"--checksum-fill",
+		}
+		if err := ProgramRule(Mangle, "POSTROUTING", action, args); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Link adds reciprocal ACCEPT rule for two supplied IP addresses.

@@ -621,6 +621,8 @@ func parsePortMap(portMap nat.PortMap) ([]*api.PortConfig, error) {
 			protocol = api.ProtocolTCP
 		case "udp":
 			protocol = api.ProtocolUDP
+		case "sctp":
+			protocol = api.ProtocolSCTP
 		default:
 			return nil, fmt.Errorf("invalid protocol: %s", parts[1])
 		}

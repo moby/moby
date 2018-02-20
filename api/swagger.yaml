@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.36"
+basePath: "/v1.37"
 info:
   title: "Docker Engine API"
-  version: "1.36"
+  version: "1.37"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -49,7 +49,7 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.36) is used.
+    If you omit the version-prefix, the current version of the API (v1.37) is used.
     For example, calling `/info` is the same as calling `/v1.36/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
@@ -167,7 +167,7 @@ definitions:
       Type:
         type: "string"
         x-nullable: false
-        enum: ["tcp", "udp"]
+        enum: ["tcp", "udp", "sctp"]
     example:
       PrivatePort: 8080
       PublicPort: 80
@@ -801,7 +801,7 @@ definitions:
         description: |
           An object mapping ports to an empty object in the form:
 
-          `{"<port>/<tcp|udp>": {}}`
+          `{"<port>/<tcp|udp|sctp>": {}}`
         type: "object"
         additionalProperties:
           type: "object"
@@ -1066,8 +1066,8 @@ definitions:
       container's port-number and protocol as key in the format `<port>/<protocol>`,
       for example, `80/udp`.
 
-      If a container's port is mapped for both `tcp` and `udp`, two separate
-      entries are added to the mapping table.
+      If a container's port is mapped for multiple protocols, separate entries
+      are added to the mapping table.
     type: "object"
     additionalProperties:
       type: "array"
@@ -3046,6 +3046,7 @@ definitions:
         enum:
           - "tcp"
           - "udp"
+          - "sctp"
       TargetPort:
         description: "The port inside the container."
         type: "integer"
