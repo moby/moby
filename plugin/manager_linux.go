@@ -22,7 +22,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) (err error) {
+func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	p.Rootfs = filepath.Join(pm.config.Root, p.PluginObj.ID, "rootfs")
 	if p.IsEnabled() && !force {
 		return errors.Wrap(enabledError(p.Name()), "plugin already enabled")
@@ -40,19 +40,15 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) (err error) {
 	pm.mu.Unlock()
 
 	var propRoot string
-	if p.PropagatedMount != "" {
+	if p.PluginObj.Config.PropagatedMount != "" {
 		propRoot = filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount")
 
-		if err = os.MkdirAll(propRoot, 0755); err != nil {
+		if err := os.MkdirAll(propRoot, 0755); err != nil {
 			logrus.Errorf("failed to create PropagatedMount directory at %s: %v", propRoot, err)
 		}
 
-		if err = mount.MakeRShared(propRoot); err != nil {
+		if err := mount.MakeRShared(propRoot); err != nil {
 			return errors.Wrap(err, "error setting up propagated mount dir")
-		}
-
-		if err = mount.Mount(propRoot, p.PropagatedMount, "none", "rbind"); err != nil {
-			return errors.Wrap(err, "error creating mount for propagated mount")
 		}
 	}
 
@@ -63,16 +59,12 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) (err error) {
 
 	stdout, stderr := makeLoggerStreams(p.GetID())
 	if err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
-		if p.PropagatedMount != "" {
-			if err := mount.Unmount(p.PropagatedMount); err != nil {
-				logrus.Warnf("Could not unmount %s: %v", p.PropagatedMount, err)
-			}
+		if p.PluginObj.Config.PropagatedMount != "" {
 			if err := mount.Unmount(propRoot); err != nil {
 				logrus.Warnf("Could not unmount %s: %v", propRoot, err)
 			}
 		}
 	}
-
 	return pm.pluginPostStart(p, c)
 }
 
@@ -167,13 +159,6 @@ func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 	}
 }
 
-func setupRoot(root string) error {
-	if err := mount.MakePrivate(root); err != nil {
-		return errors.Wrap(err, "error setting plugin manager root to private")
-	}
-	return nil
-}
-
 func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
 	if !p.IsEnabled() {
 		return errors.Wrap(errDisabled(p.Name()), "plugin is already disabled")
@@ -202,7 +187,9 @@ func (pm *Manager) Shutdown() {
 			shutdownPlugin(p, c, pm.executor)
 		}
 	}
-	mount.Unmount(pm.config.Root)
+	if err := mount.RecursiveUnmount(pm.config.Root); err != nil {
+		logrus.WithError(err).Warn("error cleaning up plugin mounts")
+	}
 }
 
 func (pm *Manager) upgradePlugin(p *v2.Plugin, configDigest digest.Digest, blobsums []digest.Digest, tmpRootFSDir string, privileges *types.PluginPrivileges) (err error) {

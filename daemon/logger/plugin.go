@@ -5,7 +5,6 @@ import (
 	"io"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	getter "github.com/docker/docker/pkg/plugingetter"
@@ -39,18 +38,20 @@ func getPlugin(name string, mode int) (Creator, error) {
 	}
 
 	d := &logPluginProxy{p.Client()}
-	return makePluginCreator(name, d, p.BasePath()), nil
+	return makePluginCreator(name, d, p.ScopedPath), nil
 }
 
-func makePluginCreator(name string, l *logPluginProxy, basePath string) Creator {
+func makePluginCreator(name string, l *logPluginProxy, scopePath func(s string) string) Creator {
 	return func(logCtx Info) (logger Logger, err error) {
 		defer func() {
 			if err != nil {
 				pluginGetter.Get(name, extName, getter.Release)
 			}
 		}()
-		root := filepath.Join(basePath, "run", "docker", "logging")
-		if err := os.MkdirAll(root, 0700); err != nil {
+
+		unscopedPath := filepath.Join("/", "run", "docker", "logging")
+		logRoot := scopePath(unscopedPath)
+		if err := os.MkdirAll(logRoot, 0700); err != nil {
 			return nil, err
 		}
 
@@ -59,8 +60,7 @@ func makePluginCreator(name string, l *logPluginProxy, basePath string) Creator 
 			driverName: name,
 			id:         id,
 			plugin:     l,
-			basePath:   basePath,
-			fifoPath:   filepath.Join(root, id),
+			fifoPath:   filepath.Join(logRoot, id),
 			logInfo:    logCtx,
 		}
 
@@ -77,7 +77,7 @@ func makePluginCreator(name string, l *logPluginProxy, basePath string) Creator 
 		a.stream = stream
 		a.enc = logdriver.NewLogEntryEncoder(a.stream)
 
-		if err := l.StartLogging(strings.TrimPrefix(a.fifoPath, basePath), logCtx); err != nil {
+		if err := l.StartLogging(filepath.Join(unscopedPath, id), logCtx); err != nil {
 			return nil, errors.Wrapf(err, "error creating logger")
 		}
 

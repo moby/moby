@@ -3,7 +3,7 @@ package logger // import "github.com/docker/docker/daemon/logger"
 import (
 	"io"
 	"os"
-	"strings"
+	"path/filepath"
 	"sync"
 	"time"
 
@@ -19,7 +19,6 @@ type pluginAdapter struct {
 	driverName   string
 	id           string
 	plugin       logPlugin
-	basePath     string
 	fifoPath     string
 	capabilities Capability
 	logInfo      Info
@@ -58,7 +57,7 @@ func (a *pluginAdapter) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	if err := a.plugin.StopLogging(strings.TrimPrefix(a.fifoPath, a.basePath)); err != nil {
+	if err := a.plugin.StopLogging(filepath.Join("/", "run", "docker", "logging", a.id)); err != nil {
 		return err
 	}
 
