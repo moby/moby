@@ -1,8 +1,10 @@
 package config
 
 import (
+	"bytes"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -10,6 +12,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -187,4 +190,140 @@ func TestConfigsUpdate(t *testing.T) {
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = client.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
 	testutil.ErrorContains(t, err, "only updates to Labels are allowed")
+}
+
+func TestTemplatedConfig(t *testing.T) {
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+
+	ctx := context.Background()
+	client := swarm.GetClient(t, d)
+
+	referencedSecretSpec := swarmtypes.SecretSpec{
+		Annotations: swarmtypes.Annotations{
+			Name: "referencedsecret",
+		},
+		Data: []byte("this is a secret"),
+	}
+	referencedSecret, err := client.SecretCreate(ctx, referencedSecretSpec)
+	assert.NoError(t, err)
+
+	referencedConfigSpec := swarmtypes.ConfigSpec{
+		Annotations: swarmtypes.Annotations{
+			Name: "referencedconfig",
+		},
+		Data: []byte("this is a config"),
+	}
+	referencedConfig, err := client.ConfigCreate(ctx, referencedConfigSpec)
+	assert.NoError(t, err)
+
+	configSpec := swarmtypes.ConfigSpec{
+		Annotations: swarmtypes.Annotations{
+			Name: "templated_config",
+		},
+		Templating: &swarmtypes.Driver{
+			Name: "golang",
+		},
+		Data: []byte("SERVICE_NAME={{.Service.Name}}\n" +
+			"{{secret \"referencedsecrettarget\"}}\n" +
+			"{{config \"referencedconfigtarget\"}}\n"),
+	}
+
+	templatedConfig, err := client.ConfigCreate(ctx, configSpec)
+	assert.NoError(t, err)
+
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithConfig(
+			&swarmtypes.ConfigReference{
+				File: &swarmtypes.ConfigReferenceFileTarget{
+					Name: "/templated_config",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0600,
+				},
+				ConfigID:   templatedConfig.ID,
+				ConfigName: "templated_config",
+			},
+		),
+		swarm.ServiceWithConfig(
+			&swarmtypes.ConfigReference{
+				File: &swarmtypes.ConfigReferenceFileTarget{
+					Name: "referencedconfigtarget",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0600,
+				},
+				ConfigID:   referencedConfig.ID,
+				ConfigName: "referencedconfig",
+			},
+		),
+		swarm.ServiceWithSecret(
+			&swarmtypes.SecretReference{
+				File: &swarmtypes.SecretReferenceFileTarget{
+					Name: "referencedsecrettarget",
+					UID:  "0",
+					GID:  "0",
+					Mode: 0600,
+				},
+				SecretID:   referencedSecret.ID,
+				SecretName: "referencedsecret",
+			},
+		),
+		swarm.ServiceWithName("svc"),
+	)
+
+	var tasks []swarmtypes.Task
+	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
+		tasks = swarm.GetRunningTasks(t, d, serviceID)
+		return len(tasks) > 0
+	})
+
+	task := tasks[0]
+	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
+		if task.NodeID == "" || (task.Status.ContainerStatus == nil || task.Status.ContainerStatus.ContainerID == "") {
+			task, _, _ = client.TaskInspectWithRaw(context.Background(), task.ID)
+		}
+		return task.NodeID != "" && task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != ""
+	})
+
+	attach := swarm.ExecTask(t, d, task, types.ExecConfig{
+		Cmd:          []string{"/bin/cat", "/templated_config"},
+		AttachStdout: true,
+		AttachStderr: true,
+	})
+
+	expect := "SERVICE_NAME=svc\n" +
+		"this is a secret\n" +
+		"this is a config\n"
+	assertAttachedStream(t, attach, expect)
+
+	attach = swarm.ExecTask(t, d, task, types.ExecConfig{
+		Cmd:          []string{"mount"},
+		AttachStdout: true,
+		AttachStderr: true,
+	})
+	assertAttachedStream(t, attach, "tmpfs on /templated_config type tmpfs")
+}
+
+func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
+	buf := bytes.NewBuffer(nil)
+	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
+	require.NoError(t, err)
+	assert.Contains(t, buf.String(), expect)
+}
+
+func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {
+	t.Helper()
+	after := time.After(timeout)
+	for {
+		select {
+		case <-after:
+			t.Fatalf("timed out waiting for condition")
+		default:
+		}
+		if f(t) {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }

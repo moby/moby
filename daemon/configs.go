@@ -16,8 +16,6 @@ func (daemon *Daemon) SetContainerConfigReferences(name string, refs []*swarmtyp
 	if err != nil {
 		return err
 	}
-
-	c.ConfigReferences = refs
-
+	c.ConfigReferences = append(c.ConfigReferences, refs...)
 	return nil
 }

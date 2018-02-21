@@ -5,11 +5,13 @@ package container // import "github.com/docker/docker/container"
 import (
 	"io/ioutil"
 	"os"
+	"path/filepath"
 
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
@@ -233,6 +235,17 @@ func (container *Container) SecretMounts() ([]Mount, error) {
 			Writable:    false,
 		})
 	}
+	for _, r := range container.ConfigReferences {
+		fPath, err := container.ConfigFilePath(*r)
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, Mount{
+			Source:      fPath,
+			Destination: r.File.Name,
+			Writable:    false,
+		})
+	}
 
 	return mounts, nil
 }
@@ -251,27 +264,6 @@ func (container *Container) UnmountSecrets() error {
 	}
 
 	return mount.RecursiveUnmount(p)
-}
-
-// ConfigMounts returns the mounts for configs.
-func (container *Container) ConfigMounts() ([]Mount, error) {
-	var mounts []Mount
-	for _, configRef := range container.ConfigReferences {
-		if configRef.File == nil {
-			continue
-		}
-		src, err := container.ConfigFilePath(*configRef)
-		if err != nil {
-			return nil, err
-		}
-		mounts = append(mounts, Mount{
-			Source:      src,
-			Destination: configRef.File.Name,
-			Writable:    false,
-		})
-	}
-
-	return mounts, nil
 }
 
 type conflictingUpdateOptions string
@@ -456,4 +448,14 @@ func (container *Container) GetMountPoints() []types.MountPoint {
 		})
 	}
 	return mountPoints
+}
+
+// ConfigFilePath returns the path to the on-disk location of a config.
+// On unix, configs are always considered secret
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) (string, error) {
+	mounts, err := container.SecretMountPath()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(mounts, configRef.ConfigID), nil
 }
