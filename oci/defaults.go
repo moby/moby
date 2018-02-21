@@ -115,6 +115,7 @@ func DefaultLinuxSpec() specs.Spec {
 	s.Linux = &specs.Linux{
 		MaskedPaths: []string{
 			"/proc/kcore",
+			"/proc/keys",
 			"/proc/latency_stats",
 			"/proc/timer_list",
 			"/proc/timer_stats",
