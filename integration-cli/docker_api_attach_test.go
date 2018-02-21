@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
+	"net/http/httputil"
 	"strings"
 	"time"
 
@@ -73,10 +75,8 @@ func (s *DockerSuite) TestGetContainersAttachWebsocket(c *check.C) {
 
 // regression gh14320
 func (s *DockerSuite) TestPostContainersAttachContainerNotFound(c *check.C) {
-	client, err := request.NewHTTPClient(daemonHost())
+	resp, _, err := request.Post("/containers/doesnotexist/attach")
 	c.Assert(err, checker.IsNil)
-	req, err := request.New(daemonHost(), "/containers/doesnotexist/attach", request.Method(http.MethodPost))
-	resp, err := client.Do(req)
 	// connection will shutdown, err should be "persistent connection closed"
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusNotFound)
 	content, err := request.ReadBody(resp.Body)
@@ -140,12 +140,12 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	cid, _ := dockerCmd(c, "run", "-di", "busybox", "cat")
 	cid = strings.TrimSpace(cid)
 	// Attach to the container's stdout stream.
-	conn, br, err := request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
+	conn, br, err := sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	// Check if the data from stdout can be received.
 	expectSuccess(conn, br, "stdout", false)
 	// Attach to the container's stderr stream.
-	conn, br, err = request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
+	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	// Since the container only emits stdout, attaching to stderr should return nothing.
 	expectTimeout(conn, br, "stdout")
@@ -153,10 +153,10 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	// Test the similar functions of the stderr stream.
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
-	conn, br, err = request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
+	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	expectSuccess(conn, br, "stderr", false)
-	conn, br, err = request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
+	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	expectTimeout(conn, br, "stderr")
 
@@ -164,12 +164,12 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	cid, _ = dockerCmd(c, "run", "-dit", "busybox", "/bin/sh", "-c", "cat >&2")
 	cid = strings.TrimSpace(cid)
 	// Attach to stdout only.
-	conn, br, err = request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
+	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stdout=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	expectSuccess(conn, br, "stdout", true)
 
 	// Attach without stdout stream.
-	conn, br, err = request.SockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
+	conn, br, err = sockRequestHijack("POST", "/containers/"+cid+"/attach?stream=1&stdin=1&stderr=1", nil, "text/plain", daemonHost())
 	c.Assert(err, checker.IsNil)
 	// Nothing should be received because both the stdout and stderr of the container will be
 	// sent to the client as stdout when tty is enabled.
@@ -209,4 +209,44 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	actualStderr := new(bytes.Buffer)
 	stdcopy.StdCopy(actualStdout, actualStderr, resp.Reader)
 	c.Assert(actualStdout.Bytes(), checker.DeepEquals, []byte("hello\nsuccess"), check.Commentf("Attach didn't return the expected data from stdout"))
+}
+
+// SockRequestHijack creates a connection to specified host (with method, contenttype, …) and returns a hijacked connection
+// and the output as a `bufio.Reader`
+func sockRequestHijack(method, endpoint string, data io.Reader, ct string, daemon string, modifiers ...func(*http.Request)) (net.Conn, *bufio.Reader, error) {
+	req, client, err := newRequestClient(method, endpoint, data, ct, daemon, modifiers...)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	client.Do(req)
+	conn, br := client.Hijack()
+	return conn, br, nil
+}
+
+// FIXME(vdemeester) httputil.ClientConn is deprecated, use http.Client instead (closer to actual client)
+// Deprecated: Use New instead of NewRequestClient
+// Deprecated: use request.Do (or Get, Delete, Post) instead
+func newRequestClient(method, endpoint string, data io.Reader, ct, daemon string, modifiers ...func(*http.Request)) (*http.Request, *httputil.ClientConn, error) {
+	c, err := request.SockConn(time.Duration(10*time.Second), daemon)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not dial docker daemon: %v", err)
+	}
+
+	client := httputil.NewClientConn(c, nil)
+
+	req, err := http.NewRequest(method, endpoint, data)
+	if err != nil {
+		client.Close()
+		return nil, nil, fmt.Errorf("could not create new request: %v", err)
+	}
+
+	for _, opt := range modifiers {
+		opt(req)
+	}
+
+	if ct != "" {
+		req.Header.Set("Content-Type", ct)
+	}
+	return req, client, nil
 }

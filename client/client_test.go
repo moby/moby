@@ -6,18 +6,19 @@ import (
 	"net/url"
 	"os"
 	"runtime"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/env"
 	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewEnvClient(t *testing.T) {
-	skip.IfCondition(t, runtime.GOOS == "windows")
+	skip.If(t, runtime.GOOS == "windows")
 
 	testcases := []struct {
 		doc             string
@@ -83,10 +84,9 @@ func TestNewEnvClient(t *testing.T) {
 		},
 	}
 
-	env := envToMap()
-	defer mapToEnv(env)
+	defer env.PatchAll(t, nil)()
 	for _, c := range testcases {
-		mapToEnv(c.envs)
+		env.PatchAll(t, c.envs)
 		apiclient, err := NewEnvClient()
 		if c.expectedError != "" {
 			assert.Error(t, err, c.doc)
@@ -132,32 +132,6 @@ func TestGetAPIPath(t *testing.T) {
 	}
 }
 
-func TestParseHost(t *testing.T) {
-	cases := []struct {
-		host  string
-		proto string
-		addr  string
-		base  string
-		err   bool
-	}{
-		{"", "", "", "", true},
-		{"foobar", "", "", "", true},
-		{"foo://bar", "foo", "bar", "", false},
-		{"tcp://localhost:2476", "tcp", "localhost:2476", "", false},
-		{"tcp://localhost:2476/path", "tcp", "localhost:2476", "/path", false},
-	}
-
-	for _, cs := range cases {
-		p, a, b, e := ParseHost(cs.host)
-		if cs.err {
-			assert.Error(t, e)
-		}
-		assert.Equal(t, cs.proto, p)
-		assert.Equal(t, cs.addr, a)
-		assert.Equal(t, cs.base, b)
-	}
-}
-
 func TestParseHostURL(t *testing.T) {
 	testcases := []struct {
 		host        string
@@ -196,16 +170,12 @@ func TestParseHostURL(t *testing.T) {
 }
 
 func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
-	env := envToMap()
-	defer mapToEnv(env)
-
-	envMap := map[string]string{
+	defer env.PatchAll(t, map[string]string{
 		"DOCKER_HOST":        "",
 		"DOCKER_API_VERSION": "",
 		"DOCKER_TLS_VERIFY":  "",
 		"DOCKER_CERT_PATH":   "",
-	}
-	mapToEnv(envMap)
+	})()
 
 	client, err := NewEnvClient()
 	if err != nil {
@@ -225,18 +195,10 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 // TestNegotiateAPIVersionEmpty asserts that client.Client can
 // negotiate a compatible APIVersion when omitted
 func TestNegotiateAPIVersionEmpty(t *testing.T) {
-	env := envToMap()
-	defer mapToEnv(env)
-
-	envMap := map[string]string{
-		"DOCKER_API_VERSION": "",
-	}
-	mapToEnv(envMap)
+	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": ""})
 
 	client, err := NewEnvClient()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	ping := types.Ping{
 		APIVersion:   "",
@@ -260,12 +222,9 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 // negotiate a compatible APIVersion with the server
 func TestNegotiateAPIVersion(t *testing.T) {
 	client, err := NewEnvClient()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	expected := "1.21"
-
 	ping := types.Ping{
 		APIVersion:   expected,
 		OSType:       "linux",
@@ -291,18 +250,11 @@ func TestNegotiateAPIVersion(t *testing.T) {
 // TestNegotiateAPIVersionOverride asserts that we honor
 // the environment variable DOCKER_API_VERSION when negotianing versions
 func TestNegotiateAPVersionOverride(t *testing.T) {
-	env := envToMap()
-	defer mapToEnv(env)
-
-	envMap := map[string]string{
-		"DOCKER_API_VERSION": "9.99",
-	}
-	mapToEnv(envMap)
+	expected := "9.99"
+	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
 
 	client, err := NewEnvClient()
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	ping := types.Ping{
 		APIVersion:   "1.24",
@@ -310,29 +262,9 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 		Experimental: false,
 	}
 
-	expected := envMap["DOCKER_API_VERSION"]
-
 	// test that we honored the env var
 	client.NegotiateAPIVersionPing(ping)
 	assert.Equal(t, expected, client.version)
-}
-
-// mapToEnv takes a map of environment variables and sets them
-func mapToEnv(env map[string]string) {
-	for k, v := range env {
-		os.Setenv(k, v)
-	}
-}
-
-// envToMap returns a map of environment variables
-func envToMap() map[string]string {
-	env := make(map[string]string)
-	for _, e := range os.Environ() {
-		kv := strings.SplitAfterN(e, "=", 2)
-		env[kv[0]] = kv[1]
-	}
-
-	return env
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

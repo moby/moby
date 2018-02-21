@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -14,7 +13,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
@@ -596,28 +594,6 @@ func (d *Daemon) PrependHostArg(args []string) []string {
 	return append([]string{"--host", d.Sock()}, args...)
 }
 
-// SockRequest executes a socket request on a daemon and returns statuscode and output.
-func (d *Daemon) SockRequest(method, endpoint string, data interface{}) (int, []byte, error) {
-	jsonData := bytes.NewBuffer(nil)
-	if err := json.NewEncoder(jsonData).Encode(data); err != nil {
-		return -1, nil, err
-	}
-
-	res, body, err := d.SockRequestRaw(method, endpoint, jsonData, "application/json")
-	if err != nil {
-		return -1, nil, err
-	}
-	b, err := request.ReadBody(body)
-	return res.StatusCode, b, err
-}
-
-// SockRequestRaw executes a socket request on a daemon and returns an http
-// response and a reader for the output data.
-// Deprecated: use request package instead
-func (d *Daemon) SockRequestRaw(method, endpoint string, data io.Reader, ct string) (*http.Response, io.ReadCloser, error) {
-	return request.SockRequestRaw(method, endpoint, data, ct, d.Sock())
-}
-
 // LogFileName returns the path the daemon's log file
 func (d *Daemon) LogFileName() string {
 	return d.logFile.Name()
@@ -746,12 +722,9 @@ func (d *Daemon) ReloadConfig() error {
 
 // NewClient creates new client based on daemon's socket path
 func (d *Daemon) NewClient() (*client.Client, error) {
-	httpClient, err := request.NewHTTPClient(d.Sock())
-	if err != nil {
-		return nil, err
-	}
-
-	return client.NewClient(d.Sock(), api.DefaultVersion, httpClient, nil)
+	return client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithHost(d.Sock()))
 }
 
 // WaitInspectWithArgs waits for the specified expression to be equals to the specified expected string in the given time.

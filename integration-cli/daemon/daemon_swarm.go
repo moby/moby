@@ -1,18 +1,18 @@
 package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
-	"encoding/json"
 	"fmt"
-	"net/http"
 	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -234,31 +234,28 @@ func (d *Swarm) CheckServiceUpdateState(service string) func(*check.C) (interfac
 // CheckPluginRunning returns the runtime state of the plugin
 func (d *Swarm) CheckPluginRunning(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		status, out, err := d.SockRequest("GET", "/plugins/"+plugin+"/json", nil)
-		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-		if status != http.StatusOK {
-			return false, nil
+		apiclient, err := d.NewClient()
+		require.NoError(c, err)
+		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
+		if client.IsErrNotFound(err) {
+			return false, check.Commentf("%v", err)
 		}
-
-		var p types.Plugin
-		c.Assert(json.Unmarshal(out, &p), checker.IsNil, check.Commentf(string(out)))
-
-		return p.Enabled, check.Commentf("%+v", p)
+		require.NoError(c, err)
+		return resp.Enabled, check.Commentf("%+v", resp)
 	}
 }
 
 // CheckPluginImage returns the runtime state of the plugin
 func (d *Swarm) CheckPluginImage(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		status, out, err := d.SockRequest("GET", "/plugins/"+plugin+"/json", nil)
-		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
-		if status != http.StatusOK {
-			return false, nil
+		apiclient, err := d.NewClient()
+		require.NoError(c, err)
+		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
+		if client.IsErrNotFound(err) {
+			return false, check.Commentf("%v", err)
 		}
-
-		var p types.Plugin
-		c.Assert(json.Unmarshal(out, &p), checker.IsNil, check.Commentf(string(out)))
-		return p.PluginReference, check.Commentf("%+v", p)
+		require.NoError(c, err)
+		return resp.PluginReference, check.Commentf("%+v", resp)
 	}
 }
 

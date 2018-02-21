@@ -42,8 +42,8 @@ For example, to list running containers (the equivalent of "docker ps"):
 package client // import "github.com/docker/docker/client"
 
 import (
-	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -56,6 +56,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
 	"golang.org/x/net/context"
 )
 
@@ -103,18 +104,21 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 }
 
 // NewEnvClient initializes a new API client based on environment variables.
-// Use DOCKER_HOST to set the url to the docker server.
-// Use DOCKER_API_VERSION to set the version of the API to reach, leave empty for latest.
-// Use DOCKER_CERT_PATH to load the TLS certificates from.
-// Use DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
-// deprecated: use NewClientWithOpts(FromEnv)
+// See FromEnv for a list of support environment variables.
+//
+// Deprecated: use NewClientWithOpts(FromEnv)
 func NewEnvClient() (*Client, error) {
 	return NewClientWithOpts(FromEnv)
 }
 
-// FromEnv enhance the default client with values from environment variables
+// FromEnv configures the client with values from environment variables.
+//
+// Supported environment variables:
+// DOCKER_HOST to set the url to the docker server.
+// DOCKER_API_VERSION to set the version of the API to reach, leave empty for latest.
+// DOCKER_CERT_PATH to load the TLS certificates from.
+// DOCKER_TLS_VERIFY to enable or disable TLS verification, off by default.
 func FromEnv(c *Client) error {
-	var httpClient *http.Client
 	if dockerCertPath := os.Getenv("DOCKER_CERT_PATH"); dockerCertPath != "" {
 		options := tlsconfig.Options{
 			CAFile:             filepath.Join(dockerCertPath, "ca.pem"),
@@ -127,28 +131,56 @@ func FromEnv(c *Client) error {
 			return err
 		}
 
-		httpClient = &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: tlsc,
-			},
+		c.client = &http.Client{
+			Transport:     &http.Transport{TLSClientConfig: tlsc},
 			CheckRedirect: CheckRedirect,
 		}
-		WithHTTPClient(httpClient)(c)
 	}
 
-	host := os.Getenv("DOCKER_HOST")
-	if host != "" {
-		// WithHost will create an API client if it doesn't exist
+	if host := os.Getenv("DOCKER_HOST"); host != "" {
 		if err := WithHost(host)(c); err != nil {
 			return err
 		}
 	}
-	version := os.Getenv("DOCKER_API_VERSION")
-	if version != "" {
+
+	if version := os.Getenv("DOCKER_API_VERSION"); version != "" {
 		c.version = version
 		c.manualOverride = true
 	}
 	return nil
+}
+
+// WithTLSClientConfig applies a tls config to the client transport.
+func WithTLSClientConfig(cacertPath, certPath, keyPath string) func(*Client) error {
+	return func(c *Client) error {
+		opts := tlsconfig.Options{
+			CAFile:             cacertPath,
+			CertFile:           certPath,
+			KeyFile:            keyPath,
+			ExclusiveRootPools: true,
+		}
+		config, err := tlsconfig.Client(opts)
+		if err != nil {
+			return errors.Wrap(err, "failed to create tls config")
+		}
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.TLSClientConfig = config
+			return nil
+		}
+		return errors.Errorf("cannot apply tls config to transport: %T", c.client.Transport)
+	}
+}
+
+// WithDialer applies the dialer.DialContext to the client transport. This can be
+// used to set the Timeout and KeepAlive settings of the client.
+func WithDialer(dialer *net.Dialer) func(*Client) error {
+	return func(c *Client) error {
+		if transport, ok := c.client.Transport.(*http.Transport); ok {
+			transport.DialContext = dialer.DialContext
+			return nil
+		}
+		return errors.Errorf("cannot apply dialer to transport: %T", c.client.Transport)
+	}
 }
 
 // WithVersion overrides the client version with the specified one
@@ -159,8 +191,7 @@ func WithVersion(version string) func(*Client) error {
 	}
 }
 
-// WithHost overrides the client host with the specified one, creating a new
-// http client if one doesn't exist
+// WithHost overrides the client host with the specified one.
 func WithHost(host string) func(*Client) error {
 	return func(c *Client) error {
 		hostURL, err := ParseHostURL(host)
@@ -171,17 +202,10 @@ func WithHost(host string) func(*Client) error {
 		c.proto = hostURL.Scheme
 		c.addr = hostURL.Host
 		c.basePath = hostURL.Path
-		if c.client == nil {
-			client, err := defaultHTTPClient(host)
-			if err != nil {
-				return err
-			}
-			return WithHTTPClient(client)(c)
-		}
 		if transport, ok := c.client.Transport.(*http.Transport); ok {
 			return sockets.ConfigureTransport(transport, c.proto, c.addr)
 		}
-		return fmt.Errorf("cannot apply host to http transport")
+		return errors.Errorf("cannot apply host to transport: %T", c.client.Transport)
 	}
 }
 
@@ -266,7 +290,7 @@ func defaultHTTPClient(host string) (*http.Client, error) {
 // It won't send any version information if the version number is empty. It is
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
-// deprecated: use NewClientWithOpts
+// Deprecated: use NewClientWithOpts
 func NewClient(host string, version string, client *http.Client, httpHeaders map[string]string) (*Client, error) {
 	return NewClientWithOpts(WithHost(host), WithVersion(version), WithHTTPClient(client), WithHTTPHeaders(httpHeaders))
 }
@@ -332,17 +356,6 @@ func (cli *Client) DaemonHost() string {
 	return cli.host
 }
 
-// ParseHost parses a url string, validates the strings is a host url, and returns
-// the parsed host as: protocol, address, and base path
-// Deprecated: use ParseHostURL
-func ParseHost(host string) (string, string, string, error) {
-	hostURL, err := ParseHostURL(host)
-	if err != nil {
-		return "", "", "", err
-	}
-	return hostURL.Scheme, hostURL.Host, hostURL.Path, nil
-}
-
 // ParseHostURL parses a url string, validates the string is a host url, and
 // returns the parsed URL
 func ParseHostURL(host string) (*url.URL, error) {
@@ -378,6 +391,7 @@ func (cli *Client) CustomHTTPHeaders() map[string]string {
 }
 
 // SetCustomHTTPHeaders that will be set on every HTTP request made by the client.
+// Deprecated: use WithHTTPHeaders when creating the client.
 func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
 	cli.customHTTPHeaders = headers
 }
