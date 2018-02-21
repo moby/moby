@@ -18,6 +18,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 [Docker Engine API v1.37](https://docs.docker.com/engine/api/v1.36/) documentation
 
 * `POST /containers/create` and `POST /services/create` now supports exposing SCTP ports.
+* `POST /configs/create` and `POST /configs/{id}/create` now accept a `Templating` driver.
+* `GET /configs` and `GET /configs/{id}` now return the `Templating` driver of the config.
+* `POST /secrets/create` and `POST /secrets/{id}/create` now accept a `Templating` driver.
+* `GET /secrets` and `GET /secrets/{id}` now return the `Templating` driver of the secret.
 
 ## v1.36 API changes
 
