@@ -35,7 +35,7 @@ func TestUpdateMemory(t *testing.T) {
 
 	const (
 		setMemory     int64 = 314572800
-		setMemorySwap       = 524288000
+		setMemorySwap int64 = 524288000
 	)
 
 	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
@@ -66,7 +66,7 @@ func TestUpdateMemory(t *testing.T) {
 	assert.Equal(t, strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout()))
 }
 
-func TestUpdateCPUQUota(t *testing.T) {
+func TestUpdateCPUQuota(t *testing.T) {
 	t.Parallel()
 
 	defer setupTest(t)()
