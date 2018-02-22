@@ -23,7 +23,7 @@ RUN contrib/download-frozen-image-v2.sh /output/docker-frozen-images \
 
 # Download Docker CLI binary
 COPY hack/dockerfile hack/dockerfile
-RUN hack/dockerfile/install-binaries.sh dockercli
+RUN hack/dockerfile/install.sh dockercli
 
 # Set tag and add sources
 ARG DOCKER_GITCOMMIT
