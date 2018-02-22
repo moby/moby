@@ -782,7 +782,9 @@ func (d *driver) deleteNetwork(nid string) error {
 			logrus.Warn(err)
 		}
 		if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
-			d.nlh.LinkDel(link)
+			if dellinkerr := d.nlh.LinkDel(link); dellinkerr != nil {
+				logrus.Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.srcName, ep.id, dellinkerr)
+                	}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
@@ -969,7 +971,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	defer func() {
 		if err != nil {
-			d.nlh.LinkDel(host)
+                	if dellinkerr := d.nlh.LinkDel(host); dellinkerr != nil {
+				logrus.Warnf("Failed to delete host side interface (%s)'s link, err: %v", hostIfName, dellinkerr)
+                	}
 		}
 	}()
 
@@ -980,7 +984,10 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	defer func() {
 		if err != nil {
-			d.nlh.LinkDel(sbox)
+			if dellinkerr := d.nlh.LinkDel(sbox); dellinkerr != nil {
+                                logrus.Warnf("Failed to del sandbox side interface (%s)'s link, err: %v", containerIfName, dellinkerr)
+                        }
+
 		}
 	}()
 
@@ -1117,7 +1124,10 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Try removal of link. Discard error: it is a best effort.
 	// Also make sure defer does not see this error either.
 	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
-		d.nlh.LinkDel(link)
+		if dellinkerr := d.nlh.LinkDel(link); dellinkerr != nil {
+			logrus.Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete: %v", ep.srcName, ep.id, dellinkerr)
+		}
+
 	}
 
 	if err := d.storeDelete(ep); err != nil {
