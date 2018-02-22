@@ -165,6 +165,9 @@ var (
 		// Niels Bohr is the father of quantum theory. https://en.wikipedia.org/wiki/Niels_Bohr.
 		"bohr",
 
+		// Zapp Brannigan a 25-Star General in the Democratic Order of Planets, and captain of its flagship, the Nimbus -https://en.wikipedia.org/wiki/Zapp_Brannigan
+		"brannigan",
+
 		// Kathleen Booth, she's credited with writing the first assembly language. https://en.wikipedia.org/wiki/Kathleen_Booth
 		"booth",
 
@@ -176,6 +179,9 @@ var (
 
 		// Evelyn Boyd Granville - She was one of the first African-American woman to receive a Ph.D. in mathematics; she earned it in 1949 from Yale University. https://en.wikipedia.org/wiki/Evelyn_Boyd_Granville
 		"boyd",
+    
+    // Zapp Brannigan a 25-Star General in the Democratic Order of Planets, and captain of its flagship, the Nimbus -https://en.wikipedia.org/wiki/Zapp_Brannigan
+		"brannigan",
 
 		// Brahmagupta - Ancient Indian mathematician during 598-670 CE who gave rules to compute with zero - https://en.wikipedia.org/wiki/Brahmagupta#Zero
 		"brahmagupta",
@@ -185,6 +191,9 @@ var (
 
 		// Emmett Brown invented time travel. https://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 		"brown",
+
+		// Georg Cantor German mathematician inventer of set theory - https://en.wikipedia.org/wiki/Georg_Cantor
+		"cantor",
 
 		// Rachel Carson - American marine biologist and conservationist, her book Silent Spring and other writings are credited with advancing the global environmental movement. https://en.wikipedia.org/wiki/Rachel_Carson
 		"carson",
@@ -212,6 +221,9 @@ var (
 
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
+
+		// Nicolaus Copernicus a Renaissance-era mathematician and astronomer - https://en.wikipedia.org/wiki/Nicolaus_Copernicus
+		"copernicus",
 
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
@@ -259,6 +271,9 @@ var (
 
 		// Leonhard Euler invented large parts of modern mathematics. https://de.wikipedia.org/wiki/Leonhard_Euler
 		"euler",
+    
+		// Hubert J. Farnsworth proprietor of the Planet Express delivery service - https://en.wikipedia.org/wiki/Professor_Farnsworth
+		"farnsworth",
 
 		// Pierre de Fermat pioneered several aspects of modern mathematics. https://en.wikipedia.org/wiki/Pierre_de_Fermat
 		"fermat",
@@ -277,6 +292,9 @@ var (
 
 		// William Henry "Bill" Gates III is an American business magnate, philanthropist, investor, computer programmer, and inventor. https://en.wikipedia.org/wiki/Bill_Gates
 		"gates",
+    
+    // Kurt Friedrich Gödel an Austrian logicians considered along with Aristotle, Alfred Tarski and Gottlob Frege to be one of the most significant logicians in history - https://en.wikipedia.org/wiki/Kurt_G%C3%B6del
+		"godel",
 
 		// Adele Goldberg, was one of the designers and developers of the Smalltalk language. https://en.wikipedia.org/wiki/Adele_Goldberg_(computer_scientist)
 		"goldberg",
@@ -451,6 +469,9 @@ var (
 
 		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
 		"murdock",
+    
+    //Randall Munroe  - an American cartoonist, author, engineer, scientific theorist, and the creator of the XKCD phone https://en.wikipedia.org/wiki/Randall_Munroe
+		"munroe",
 
 		// John von Neumann - todays computer architectures are based on the von Neumann architecture. https://en.wikipedia.org/wiki/Von_Neumann_architecture
 		"neumann",
@@ -574,6 +595,9 @@ var (
 
 		// Ken Thompson - co-creator of UNIX and the C programming language - https://en.wikipedia.org/wiki/Ken_Thompson
 		"thompson",
+    
+		// Kip Thorne an American theoretical physicist and Nobel laureate, known for his contributions in gravitational physics and astrophysics - https://en.wikipedia.org/wiki/Kip_Thorne
+		"thorne",
 
 		// Linus Torvalds invented Linux and Git. https://en.wikipedia.org/wiki/Linus_Torvalds
 		"torvalds",
