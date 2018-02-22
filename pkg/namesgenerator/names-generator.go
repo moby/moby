@@ -107,8 +107,14 @@ var (
 		// Niels Bohr is the father of quantum theory. https://en.wikipedia.org/wiki/Niels_Bohr.
 		"bohr",
 
+		// Zapp Brannigan a 25-Star General in the Democratic Order of Planets, and captain of its flagship, the Nimbus -https://en.wikipedia.org/wiki/Zapp_Brannigan
+		"brannigan",
+
 		// Emmett Brown invented time travel. https://en.wikipedia.org/wiki/Emmett_Brown (thanks Brian Goff)
 		"brown",
+
+		// Georg Cantor German mathematician inventer of set theory - https://en.wikipedia.org/wiki/Georg_Cantor
+		"cantor",
 
 		// Rachel Carson - American marine biologist and conservationist, her book Silent Spring and other writings are credited with advancing the global environmental movement. https://en.wikipedia.org/wiki/Rachel_Carson
 		"carson",
@@ -118,6 +124,9 @@ var (
 
 		// Gerty Theresa Cori - American biochemist who became the third woman—and first American woman—to win a Nobel Prize in science, and the first woman to be awarded the Nobel Prize in Physiology or Medicine. Cori was born in Prague. https://en.wikipedia.org/wiki/Gerty_Cori
 		"cori",
+
+		// Nicolaus Copernicus a Renaissance-era mathematician and astronomer - https://en.wikipedia.org/wiki/Nicolaus_Copernicus
+		"copernicus",
 
 		// Seymour Roger Cray was an American electrical engineer and supercomputer architect who designed a series of computers that were the fastest in the world for decades. https://en.wikipedia.org/wiki/Seymour_Cray
 		"cray",
@@ -143,6 +152,9 @@ var (
 		// Euclid invented geometry. https://en.wikipedia.org/wiki/Euclid
 		"euclid",
 
+		// Hubert J. Farnsworth proprietor of the Planet Express delivery service - https://en.wikipedia.org/wiki/Professor_Farnsworth
+		"farnsworth",
+
 		// Pierre de Fermat pioneered several aspects of modern mathematics. https://en.wikipedia.org/wiki/Pierre_de_Fermat
 		"fermat",
 
@@ -157,6 +169,9 @@ var (
 
 		// Galileo was a founding father of modern astronomy, and faced politics and obscurantism to establish scientific truth.  https://en.wikipedia.org/wiki/Galileo_Galilei
 		"galileo",
+
+		// Kurt Friedrich Gödel an Austrian logicians considered along with Aristotle, Alfred Tarski and Gottlob Frege to be one of the most significant logicians in history - https://en.wikipedia.org/wiki/Kurt_G%C3%B6del
+		"godel",
 
 		// Adele Goldstine, born Adele Katz, wrote the complete technical description for the first electronic digital computer, ENIAC. https://en.wikipedia.org/wiki/Adele_Goldstine
 		"goldstine",
@@ -211,6 +226,9 @@ var (
 
 		// Auguste and Louis Lumière - the first filmmakers in history - https://en.wikipedia.org/wiki/Auguste_and_Louis_Lumi%C3%A8re
 		"lumiere",
+
+		//Randall Munroe  - an American cartoonist, author, engineer, scientific theorist, and the creator of the XKCD phone https://en.wikipedia.org/wiki/Randall_Munroe
+		"munroe",
 
 		// Maria Mayer - American theoretical physicist and Nobel laureate in Physics for proposing the nuclear shell model of the atomic nucleus - https://en.wikipedia.org/wiki/Maria_Mayer
 		"mayer",
@@ -286,6 +304,9 @@ var (
 
 		// Nikola Tesla invented the AC electric system and every gadget ever used by a James Bond villain. https://en.wikipedia.org/wiki/Nikola_Tesla
 		"tesla",
+
+		// Kip Thorne an American theoretical physicist and Nobel laureate, known for his contributions in gravitational physics and astrophysics - https://en.wikipedia.org/wiki/Kip_Thorne
+		"thorne",
 
 		// Linus Torvalds invented Linux and Git. https://en.wikipedia.org/wiki/Linus_Torvalds
 		"torvalds",
