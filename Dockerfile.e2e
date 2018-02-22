@@ -21,13 +21,14 @@ RUN contrib/download-frozen-image-v2.sh /output/docker-frozen-images \
 	debian:jessie@sha256:287a20c5f73087ab406e6b364833e3fb7b3ae63ca0eb3486555dc27ed32c6e60 \
 	hello-world:latest@sha256:be0cd392e45be79ffeffa6b05338b98ebb16c87b255f48e297ec7f98e123905c
 
-# Download Docker CLI binary
-COPY hack/dockerfile hack/dockerfile
-RUN hack/dockerfile/install.sh dockercli
+# Install dockercli
+# Please edit hack/dockerfile/install/<name>.installer to update them.
+COPY hack/dockerfile/install hack/dockerfile/install
+RUN ./hack/dockerfile/install/install.sh dockercli
 
 # Set tag and add sources
 ARG DOCKER_GITCOMMIT
-ENV DOCKER_GITCOMMIT=$DOCKER_GITCOMMIT
+ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
 ADD . .
 
 # Build DockerSuite.TestBuild* dependency
