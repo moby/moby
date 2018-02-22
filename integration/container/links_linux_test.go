@@ -31,7 +31,7 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 
 	cID := container.Run(t, ctx, client, container.WithCmd("cat", "/etc/hosts"), container.WithNetworkMode("host"))
 
-	poll.WaitOn(t, containerIsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
 	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
 		ShowStdout: true,

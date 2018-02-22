@@ -30,7 +30,7 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 			c.HostConfig.Resources.CpusetCpus = "0"
 		},
 	)
-	poll.WaitOn(t, containerIsInState(ctx, client, name, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, name, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	_, body, err := client.ContainerInspectWithRaw(ctx, name, false)
 	require.NoError(t, err)

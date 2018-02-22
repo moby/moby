@@ -51,7 +51,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 
 	oldName := "first_name"
 	cID := container.Run(t, ctx, client, container.WithName(oldName), container.WithCmd("sh"))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
@@ -73,7 +73,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 
 	oldName := "first_name"
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	newName := "new_name" + stringid.GenerateNonCryptoID()
 	err := client.ContainerRename(ctx, oldName, newName)
@@ -87,7 +87,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	testutil.ErrorContains(t, err, "No such container: "+oldName)
 
 	cID = container.Run(t, ctx, client, container.WithName(oldName))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err = client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
@@ -101,7 +101,7 @@ func TestRenameInvalidName(t *testing.T) {
 
 	oldName := "first_name"
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerRename(ctx, oldName, "new:invalid")
 	testutil.ErrorContains(t, err, "Invalid container name")
@@ -136,7 +136,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	err = client.ContainerStart(ctx, "container1", types.ContainerStartOptions{})
 	require.NoError(t, err)
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	count := "-c"
 	if testEnv.OSType == "windows" {
@@ -148,7 +148,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 		}
 		c.HostConfig.NetworkMode = "network1"
 	}, container.WithCmd("ping", count, "1", "container1"))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
@@ -162,7 +162,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	cID := container.Run(t, ctx, client, container.WithName("old"))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	err := client.ContainerRename(ctx, "old", "old")
 	testutil.ErrorContains(t, err, "Renaming a container with the same name")
 	err = client.ContainerRename(ctx, cID, "old")
@@ -182,10 +182,10 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	db1ID := container.Run(t, ctx, client, container.WithName("db1"))
-	poll.WaitOn(t, containerIsInState(ctx, client, db1ID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, db1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	app1ID := container.Run(t, ctx, client, container.WithName("app1"), container.WithLinks("db1:/mysql"))
-	poll.WaitOn(t, containerIsInState(ctx, client, app1ID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, app1ID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerRename(ctx, "app1", "app2")
 	require.NoError(t, err)

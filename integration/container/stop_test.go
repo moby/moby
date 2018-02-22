@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/gotestyourself/gotestyourself/icmd"
@@ -30,7 +29,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		poll.WaitOn(t, containerIsInState(ctx, client, name, "running", "restarting"), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsInState(ctx, client, name, "running", "restarting"), poll.WithDelay(100*time.Millisecond))
 	}
 
 	for _, name := range names {
@@ -39,7 +38,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 	}
 
 	for _, name := range names {
-		poll.WaitOn(t, containerIsStopped(ctx, client, name), poll.WithDelay(100*time.Millisecond))
+		poll.WaitOn(t, container.IsStopped(ctx, client, name), poll.WithDelay(100*time.Millisecond))
 	}
 }
 
@@ -52,7 +51,7 @@ func TestDeleteDevicemapper(t *testing.T) {
 
 	id := container.Run(t, ctx, client, container.WithName("foo"), container.WithCmd("echo"))
 
-	poll.WaitOn(t, containerIsStopped(ctx, client, id), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, client, id), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, id)
 	require.NoError(t, err)
@@ -69,34 +68,4 @@ func TestDeleteDevicemapper(t *testing.T) {
 
 	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
 	require.NoError(t, err)
-}
-
-func containerIsStopped(ctx context.Context, client client.APIClient, containerID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctx, containerID)
-
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case !inspect.State.Running:
-			return poll.Success()
-		default:
-			return poll.Continue("waiting for container to be stopped")
-		}
-	}
-}
-
-func containerIsInState(ctx context.Context, client client.APIClient, containerID string, state ...string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		inspect, err := client.ContainerInspect(ctx, containerID)
-		if err != nil {
-			return poll.Error(err)
-		}
-		for _, v := range state {
-			if inspect.State.Status == v {
-				return poll.Success()
-			}
-		}
-		return poll.Continue("waiting for container to be running, currently %s", inspect.State.Status)
-	}
 }

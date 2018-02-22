@@ -29,7 +29,7 @@ func TestDiffFilenameShownInOutput(t *testing.T) {
 	// a "Files/" prefix.
 	lookingFor := containertypes.ContainerChangeResponseItem{Kind: archive.ChangeAdd, Path: "/foo/bar"}
 	if testEnv.OSType == "windows" {
-		poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
+		poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond), poll.WithTimeout(60*time.Second))
 		lookingFor = containertypes.ContainerChangeResponseItem{Kind: archive.ChangeModify, Path: "Files/foo/bar"}
 	}
 
