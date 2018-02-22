@@ -27,7 +27,7 @@ func TestPause(t *testing.T) {
 
 	name := "testeventpause"
 	cID := container.Run(t, ctx, client, container.WithName(name))
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	since := request.DaemonUnixTime(ctx, t, client, testEnv)
 
@@ -59,7 +59,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
 	testutil.ErrorContains(t, err, "cannot pause Windows Server Containers")
@@ -73,7 +73,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
 	require.NoError(t, err)
@@ -81,7 +81,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	err = client.ContainerStop(ctx, cID, nil)
 	require.NoError(t, err)
 
-	poll.WaitOn(t, containerIsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 }
 
 func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []string {
