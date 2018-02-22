@@ -12,45 +12,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSwarmSuite) TestSecretCreate(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
-		},
-		Data: []byte("TESTINGDATA"),
-	})
-	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
-
-	secret := d.GetSecret(c, id)
-	c.Assert(secret.Spec.Name, checker.Equals, testName)
-}
-
-func (s *DockerSwarmSuite) TestSecretCreateWithLabels(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	testName := "test_secret"
-	id := d.CreateSecret(c, swarm.SecretSpec{
-		Annotations: swarm.Annotations{
-			Name: testName,
-			Labels: map[string]string{
-				"key1": "value1",
-				"key2": "value2",
-			},
-		},
-		Data: []byte("TESTINGDATA"),
-	})
-	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
-
-	secret := d.GetSecret(c, id)
-	c.Assert(secret.Spec.Name, checker.Equals, testName)
-	c.Assert(len(secret.Spec.Labels), checker.Equals, 2)
-	c.Assert(secret.Spec.Labels["key1"], checker.Equals, "value1")
-	c.Assert(secret.Spec.Labels["key2"], checker.Equals, "value2")
-}
-
 // Test case for 28884
 func (s *DockerSwarmSuite) TestSecretCreateResolve(c *check.C) {
 	d := s.AddDaemon(c, true, true)
