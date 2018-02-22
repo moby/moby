@@ -129,32 +129,7 @@ func createSecret(ctx context.Context, t *testing.T, client client.APIClient, na
 	return secret.ID
 }
 
-func TestSecretsCreate(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
-
-	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
-
-	ctx := context.Background()
-
-	testName := "test_secret"
-	createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	require.NoError(t, err)
-
-	// create an already existin secret, daemon should return a status code of 409
-	_, err = client.SecretCreate(ctx, swarmtypes.SecretSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: testName,
-		},
-		Data: []byte("TESTINGDATA"),
-	})
-	testutil.ErrorContains(t, err, "already exists")
-}
-
-func TestSecretsDelete(t *testing.T) {
+func TestSecretsCreateAndDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
@@ -167,12 +142,17 @@ func TestSecretsDelete(t *testing.T) {
 
 	testName := "test_secret"
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	require.NoError(t, err)
 
-	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.ID, secretID)
+	// create an already existin secret, daemon should return a status code of 409
+	_, err = client.SecretCreate(ctx, swarmtypes.SecretSpec{
+		Annotations: swarmtypes.Annotations{
+			Name: testName,
+		},
+		Data: []byte("TESTINGDATA"),
+	})
+	testutil.ErrorContains(t, err, "already exists")
 
+	// Ported from original TestSecretsDelete
 	err = client.SecretRemove(ctx, secretID)
 	require.NoError(t, err)
 
@@ -181,6 +161,20 @@ func TestSecretsDelete(t *testing.T) {
 
 	err = client.SecretRemove(ctx, "non-existin")
 	testutil.ErrorContains(t, err, "No such secret: non-existin")
+
+	// Ported from original TestSecretsCreteaWithLabels
+	testName = "test_secret_with_labels"
+	secretID = createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	})
+
+	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
+	require.NoError(t, err)
+	assert.Equal(t, insp.Spec.Name, testName)
+	assert.Equal(t, len(insp.Spec.Labels), 2)
+	assert.Equal(t, insp.Spec.Labels["key1"], "value1")
+	assert.Equal(t, insp.Spec.Labels["key2"], "value2")
 }
 
 func TestSecretsUpdate(t *testing.T) {
