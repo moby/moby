@@ -1,0 +1,12 @@
+#!/bin/sh
+
+GOMETALINTER_COMMIT=bfcc1d6942136fd86eb6f1a6fb328de8398fbd80
+
+install_gometalinter() {
+	echo "Installing gometalinter version $GOMETALINTER_COMMIT"
+	go get -d github.com/alecthomas/gometalinter
+	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
+	git checkout -q "$GOMETALINTER_COMMIT"
+	go build -buildmode=pie -o ${PREFIX}/gometalinter github.com/alecthomas/gometalinter
+	GOBIN=${PREFIX} ${PREFIX}/gometalinter --install
+}

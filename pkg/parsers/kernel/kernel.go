@@ -1,25 +1,29 @@
-package kernel
+// +build !windows
+
+// Package kernel provides helper function to get, parse and compare kernel
+// versions for different platforms.
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
-	"bytes"
 	"errors"
 	"fmt"
 )
 
-type KernelVersionInfo struct {
-	Kernel int
-	Major  int
-	Minor  int
-	Flavor string
+// VersionInfo holds information about the kernel.
+type VersionInfo struct {
+	Kernel int    // Version of the kernel (e.g. 4.1.2-generic -> 4)
+	Major  int    // Major part of the kernel version (e.g. 4.1.2-generic -> 1)
+	Minor  int    // Minor part of the kernel version (e.g. 4.1.2-generic -> 2)
+	Flavor string // Flavor of the kernel version (e.g. 4.1.2-generic -> generic)
 }
 
-func (k *KernelVersionInfo) String() string {
+func (k *VersionInfo) String() string {
 	return fmt.Sprintf("%d.%d.%d%s", k.Kernel, k.Major, k.Minor, k.Flavor)
 }
 
-// Compare two KernelVersionInfo struct.
+// CompareKernelVersion compares two kernel.VersionInfo structs.
 // Returns -1 if a < b, 0 if a == b, 1 it a > b
-func CompareKernelVersion(a, b *KernelVersionInfo) int {
+func CompareKernelVersion(a, b VersionInfo) int {
 	if a.Kernel < b.Kernel {
 		return -1
 	} else if a.Kernel > b.Kernel {
@@ -41,31 +45,8 @@ func CompareKernelVersion(a, b *KernelVersionInfo) int {
 	return 0
 }
 
-func GetKernelVersion() (*KernelVersionInfo, error) {
-	var (
-		err error
-	)
-
-	uts, err := uname()
-	if err != nil {
-		return nil, err
-	}
-
-	release := make([]byte, len(uts.Release))
-
-	i := 0
-	for _, c := range uts.Release {
-		release[i] = byte(c)
-		i++
-	}
-
-	// Remove the \x00 from the release for Atoi to parse correctly
-	release = release[:bytes.IndexByte(release, 0)]
-
-	return ParseRelease(string(release))
-}
-
-func ParseRelease(release string) (*KernelVersionInfo, error) {
+// ParseRelease parses a string and creates a VersionInfo based on it.
+func ParseRelease(release string) (*VersionInfo, error) {
 	var (
 		kernel, major, minor, parsed int
 		flavor, partial              string
@@ -84,7 +65,7 @@ func ParseRelease(release string) (*KernelVersionInfo, error) {
 		flavor = partial
 	}
 
-	return &KernelVersionInfo{
+	return &VersionInfo{
 		Kernel: kernel,
 		Major:  major,
 		Minor:  minor,

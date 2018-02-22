@@ -1,0 +1,4 @@
+1. This program only runs in Linux. So you just first copy the files over to a Linux machine. 
+2. Get Go and and then run make get-deps && make. This is set the $GOPATH for you and build the binaries.
+3. vhd_to_tar and tar_to_vhd are the standalone executables that read/write to stdin/out and do the tar <-> vhd conversion.
+   tar2vhd_server is the service VM server that takes client requests over hvsock.

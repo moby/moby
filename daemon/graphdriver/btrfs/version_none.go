@@ -1,14 +1,14 @@
 // +build linux,btrfs_noversion
 
-package btrfs
+package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 
 // TODO(vbatts) remove this work-around once supported linux distros are on
-// btrfs utililties of >= 3.16.1
+// btrfs utilities of >= 3.16.1
 
-func BtrfsBuildVersion() string {
+func btrfsBuildVersion() string {
 	return "-"
 }
 
-func BtrfsLibVersion() int {
+func btrfsLibVersion() int {
 	return -1
 }

@@ -1,3 +1,5 @@
+// +build !windows
+
 package main
 
 import (
@@ -9,9 +11,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver/devmapper"
 	"github.com/docker/docker/pkg/devicemapper"
+	"github.com/sirupsen/logrus"
 )
 
 func usage() {
@@ -73,7 +75,7 @@ func main() {
 	args := flag.Args()
 
 	home := path.Join(*root, "devicemapper")
-	devices, err := devmapper.NewDeviceSet(home, false, nil)
+	devices, err := devmapper.NewDeviceSet(home, false, nil, nil, nil)
 	if err != nil {
 		fmt.Println("Can't initialize device mapper: ", err)
 		os.Exit(1)
@@ -88,14 +90,12 @@ func main() {
 		fmt.Printf("Sector size: %d\n", status.SectorSize)
 		fmt.Printf("Data use: %d of %d (%.1f %%)\n", status.Data.Used, status.Data.Total, 100.0*float64(status.Data.Used)/float64(status.Data.Total))
 		fmt.Printf("Metadata use: %d of %d (%.1f %%)\n", status.Metadata.Used, status.Metadata.Total, 100.0*float64(status.Metadata.Used)/float64(status.Metadata.Total))
-		break
 	case "list":
 		ids := devices.List()
 		sort.Strings(ids)
 		for _, id := range ids {
 			fmt.Println(id)
 		}
-		break
 	case "device":
 		if flag.NArg() < 2 {
 			usage()
@@ -105,13 +105,12 @@ func main() {
 			fmt.Println("Can't get device info: ", err)
 			os.Exit(1)
 		}
-		fmt.Printf("Id: %d\n", status.DeviceId)
+		fmt.Printf("Id: %d\n", status.DeviceID)
 		fmt.Printf("Size: %d\n", status.Size)
-		fmt.Printf("Transaction Id: %d\n", status.TransactionId)
+		fmt.Printf("Transaction Id: %d\n", status.TransactionID)
 		fmt.Printf("Size in Sectors: %d\n", status.SizeInSectors)
 		fmt.Printf("Mapped Sectors: %d\n", status.MappedSectors)
 		fmt.Printf("Highest Mapped Sector: %d\n", status.HighestMappedSector)
-		break
 	case "resize":
 		if flag.NArg() < 2 {
 			usage()
@@ -129,18 +128,16 @@ func main() {
 			os.Exit(1)
 		}
 
-		break
 	case "snap":
 		if flag.NArg() < 3 {
 			usage()
 		}
 
-		err := devices.AddDevice(args[1], args[2])
+		err := devices.AddDevice(args[1], args[2], nil)
 		if err != nil {
 			fmt.Println("Can't create snap device: ", err)
 			os.Exit(1)
 		}
-		break
 	case "remove":
 		if flag.NArg() < 2 {
 			usage()
@@ -151,7 +148,6 @@ func main() {
 			fmt.Println("Can't remove device: ", err)
 			os.Exit(1)
 		}
-		break
 	case "mount":
 		if flag.NArg() < 3 {
 			usage()
@@ -159,16 +155,13 @@ func main() {
 
 		err := devices.MountDevice(args[1], args[2], "")
 		if err != nil {
-			fmt.Println("Can't create snap device: ", err)
+			fmt.Println("Can't mount device: ", err)
 			os.Exit(1)
 		}
-		break
 	default:
 		fmt.Printf("Unknown command %s\n", args[0])
 		usage()
 
 		os.Exit(1)
 	}
-
-	return
 }

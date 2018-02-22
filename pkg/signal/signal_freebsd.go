@@ -1,9 +1,10 @@
-package signal
+package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
 	"syscall"
 )
 
+// SignalMap is a map of FreeBSD signals.
 var SignalMap = map[string]syscall.Signal{
 	"ABRT":   syscall.SIGABRT,
 	"ALRM":   syscall.SIGALRM,

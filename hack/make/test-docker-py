@@ -1,11 +1,11 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
 
-DEST=$1
+source hack/make/.integration-test-helpers
 
 # subshell so that we can export PATH without breaking other things
 (
-	source "${MAKEDIR}/.integration-daemon-start"
+	bundle .integration-daemon-start
 
 	dockerPy='/docker-py'
 	[ -d "$dockerPy" ] || {
@@ -14,7 +14,7 @@ DEST=$1
 	}
 
 	# exporting PYTHONPATH to import "docker" from our local docker-py
-	test_env PYTHONPATH="$dockerPy" python "$dockerPy/tests/integration_test.py"
+	test_env PYTHONPATH="$dockerPy" py.test --junitxml="$DEST/results.xml" "$dockerPy/tests/integration"
 
-	source "${MAKEDIR}/.integration-daemon-stop"
+	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"

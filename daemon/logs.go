@@ -1,162 +1,201 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"io"
-	"os"
 	"strconv"
-	"sync"
+	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/jsonlog"
-	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/docker/docker/pkg/tailfile"
-	"github.com/docker/docker/pkg/timeutils"
+	"golang.org/x/net/context"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/backend"
+	containertypes "github.com/docker/docker/api/types/container"
+	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-type ContainerLogsConfig struct {
-	Follow, Timestamps   bool
-	Tail                 string
-	UseStdout, UseStderr bool
-	OutStream            io.Writer
+// ContainerLogs copies the container's log channel to the channel provided in
+// the config. If ContainerLogs returns an error, no messages have been copied.
+// and the channel will be closed without data.
+//
+// if it returns nil, the config channel will be active and return log
+// messages until it runs out or the context is canceled.
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *types.ContainerLogsOptions) (<-chan *backend.LogMessage, bool, error) {
+	lg := logrus.WithFields(logrus.Fields{
+		"module":    "daemon",
+		"method":    "(*Daemon).ContainerLogs",
+		"container": containerName,
+	})
+
+	if !(config.ShowStdout || config.ShowStderr) {
+		return nil, false, errdefs.InvalidParameter(errors.New("You must choose at least one stream"))
+	}
+	container, err := daemon.GetContainer(containerName)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if container.RemovalInProgress || container.Dead {
+		return nil, false, errdefs.Conflict(errors.New("can not get logs from container which is dead or marked for removal"))
+	}
+
+	if container.HostConfig.LogConfig.Type == "none" {
+		return nil, false, logger.ErrReadLogsNotSupported{}
+	}
+
+	cLog, cLogCreated, err := daemon.getLogger(container)
+	if err != nil {
+		return nil, false, err
+	}
+	if cLogCreated {
+		defer func() {
+			if err = cLog.Close(); err != nil {
+				logrus.Errorf("Error closing logger: %v", err)
+			}
+		}()
+	}
+
+	logReader, ok := cLog.(logger.LogReader)
+	if !ok {
+		return nil, false, logger.ErrReadLogsNotSupported{}
+	}
+
+	follow := config.Follow && !cLogCreated
+	tailLines, err := strconv.Atoi(config.Tail)
+	if err != nil {
+		tailLines = -1
+	}
+
+	var since time.Time
+	if config.Since != "" {
+		s, n, err := timetypes.ParseTimestamps(config.Since, 0)
+		if err != nil {
+			return nil, false, err
+		}
+		since = time.Unix(s, n)
+	}
+
+	var until time.Time
+	if config.Until != "" && config.Until != "0" {
+		s, n, err := timetypes.ParseTimestamps(config.Until, 0)
+		if err != nil {
+			return nil, false, err
+		}
+		until = time.Unix(s, n)
+	}
+
+	readConfig := logger.ReadConfig{
+		Since:  since,
+		Until:  until,
+		Tail:   tailLines,
+		Follow: follow,
+	}
+
+	logs := logReader.ReadLogs(readConfig)
+
+	// past this point, we can't possibly return any errors, so we can just
+	// start a goroutine and return to tell the caller not to expect errors
+	// (if the caller wants to give up on logs, they have to cancel the context)
+	// this goroutine functions as a shim between the logger and the caller.
+	messageChan := make(chan *backend.LogMessage, 1)
+	go func() {
+		// set up some defers
+		defer logs.Close()
+
+		// close the messages channel. closing is the only way to signal above
+		// that we're doing with logs (other than context cancel i guess).
+		defer close(messageChan)
+
+		lg.Debug("begin logs")
+		for {
+			select {
+			// i do not believe as the system is currently designed any error
+			// is possible, but we should be prepared to handle it anyway. if
+			// we do get an error, copy only the error field to a new object so
+			// we don't end up with partial data in the other fields
+			case err := <-logs.Err:
+				lg.Errorf("Error streaming logs: %v", err)
+				select {
+				case <-ctx.Done():
+				case messageChan <- &backend.LogMessage{Err: err}:
+				}
+				return
+			case <-ctx.Done():
+				lg.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
+				return
+			case msg, ok := <-logs.Msg:
+				// there is some kind of pool or ring buffer in the logger that
+				// produces these messages, and a possible future optimization
+				// might be to use that pool and reuse message objects
+				if !ok {
+					lg.Debug("end logs")
+					return
+				}
+				m := msg.AsLogMessage() // just a pointer conversion, does not copy data
+
+				// there could be a case where the reader stops accepting
+				// messages and the context is canceled. we need to check that
+				// here, or otherwise we risk blocking forever on the message
+				// send.
+				select {
+				case <-ctx.Done():
+					return
+				case messageChan <- m:
+				}
+			}
+		}
+	}()
+	return messageChan, container.Config.Tty, nil
 }
 
-func (daemon *Daemon) ContainerLogs(name string, config *ContainerLogsConfig) error {
-	var (
-		lines  = -1
-		format string
-	)
-	if !(config.UseStdout || config.UseStderr) {
-		return fmt.Errorf("You must choose at least one stream")
+func (daemon *Daemon) getLogger(container *container.Container) (l logger.Logger, created bool, err error) {
+	container.Lock()
+	if container.State.Running {
+		l = container.LogDriver
 	}
-	if config.Timestamps {
-		format = timeutils.RFC3339NanoFixed
+	container.Unlock()
+	if l == nil {
+		created = true
+		l, err = container.StartLogger()
 	}
-	if config.Tail == "" {
-		config.Tail = "all"
+	return
+}
+
+// mergeLogConfig merges the daemon log config to the container's log config if the container's log driver is not specified.
+func (daemon *Daemon) mergeAndVerifyLogConfig(cfg *containertypes.LogConfig) error {
+	if cfg.Type == "" {
+		cfg.Type = daemon.defaultLogConfig.Type
 	}
 
-	container, err := daemon.Get(name)
-	if err != nil {
-		return err
+	if cfg.Config == nil {
+		cfg.Config = make(map[string]string)
 	}
 
-	var (
-		outStream = config.OutStream
-		errStream io.Writer
-	)
-	if !container.Config.Tty {
-		errStream = stdcopy.NewStdWriter(outStream, stdcopy.Stderr)
-		outStream = stdcopy.NewStdWriter(outStream, stdcopy.Stdout)
-	} else {
-		errStream = outStream
-	}
-
-	if container.LogDriverType() != "json-file" {
-		return fmt.Errorf("\"logs\" endpoint is supported only for \"json-file\" logging driver")
-	}
-	cLog, err := container.ReadLog("json")
-	if err != nil && os.IsNotExist(err) {
-		// Legacy logs
-		logrus.Debugf("Old logs format")
-		if config.UseStdout {
-			cLog, err := container.ReadLog("stdout")
-			if err != nil {
-				logrus.Errorf("Error reading logs (stdout): %s", err)
-			} else if _, err := io.Copy(outStream, cLog); err != nil {
-				logrus.Errorf("Error streaming logs (stdout): %s", err)
-			}
-		}
-		if config.UseStderr {
-			cLog, err := container.ReadLog("stderr")
-			if err != nil {
-				logrus.Errorf("Error reading logs (stderr): %s", err)
-			} else if _, err := io.Copy(errStream, cLog); err != nil {
-				logrus.Errorf("Error streaming logs (stderr): %s", err)
-			}
-		}
-	} else if err != nil {
-		logrus.Errorf("Error reading logs (json): %s", err)
-	} else {
-		if config.Tail != "all" {
-			var err error
-			lines, err = strconv.Atoi(config.Tail)
-			if err != nil {
-				logrus.Errorf("Failed to parse tail %s, error: %v, show all logs", config.Tail, err)
-				lines = -1
-			}
-		}
-		if lines != 0 {
-			if lines > 0 {
-				f := cLog.(*os.File)
-				ls, err := tailfile.TailFile(f, lines)
-				if err != nil {
-					return err
-				}
-				tmp := bytes.NewBuffer([]byte{})
-				for _, l := range ls {
-					fmt.Fprintf(tmp, "%s\n", l)
-				}
-				cLog = tmp
-			}
-			dec := json.NewDecoder(cLog)
-			l := &jsonlog.JSONLog{}
-			for {
-				if err := dec.Decode(l); err == io.EOF {
-					break
-				} else if err != nil {
-					logrus.Errorf("Error streaming logs: %s", err)
-					break
-				}
-				logLine := l.Log
-				if config.Timestamps {
-					// format can be "" or time format, so here can't be error
-					logLine, _ = l.Format(format)
-				}
-				if l.Stream == "stdout" && config.UseStdout {
-					io.WriteString(outStream, logLine)
-				}
-				if l.Stream == "stderr" && config.UseStderr {
-					io.WriteString(errStream, logLine)
-				}
-				l.Reset()
+	if cfg.Type == daemon.defaultLogConfig.Type {
+		for k, v := range daemon.defaultLogConfig.Config {
+			if _, ok := cfg.Config[k]; !ok {
+				cfg.Config[k] = v
 			}
 		}
 	}
-	if config.Follow && container.IsRunning() {
-		errors := make(chan error, 2)
-		wg := sync.WaitGroup{}
 
-		if config.UseStdout {
-			wg.Add(1)
-			stdoutPipe := container.StdoutLogPipe()
-			defer stdoutPipe.Close()
-			go func() {
-				errors <- jsonlog.WriteLog(stdoutPipe, outStream, format)
-				wg.Done()
-			}()
+	return logger.ValidateLogOpts(cfg.Type, cfg.Config)
+}
+
+func (daemon *Daemon) setupDefaultLogConfig() error {
+	config := daemon.configStore
+	if len(config.LogConfig.Config) > 0 {
+		if err := logger.ValidateLogOpts(config.LogConfig.Type, config.LogConfig.Config); err != nil {
+			return errors.Wrap(err, "failed to set log opts")
 		}
-		if config.UseStderr {
-			wg.Add(1)
-			stderrPipe := container.StderrLogPipe()
-			defer stderrPipe.Close()
-			go func() {
-				errors <- jsonlog.WriteLog(stderrPipe, errStream, format)
-				wg.Done()
-			}()
-		}
-
-		wg.Wait()
-		close(errors)
-
-		for err := range errors {
-			if err != nil {
-				logrus.Errorf("%s", err)
-			}
-		}
-
 	}
+	daemon.defaultLogConfig = containertypes.LogConfig{
+		Type:   config.LogConfig.Type,
+		Config: config.LogConfig.Config,
+	}
+	logrus.Debugf("Using default logging driver %s", daemon.defaultLogConfig.Type)
 	return nil
 }

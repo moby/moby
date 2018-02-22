@@ -1,328 +1,296 @@
-package registry
+package registry // import "github.com/docker/docker/registry"
 
 import (
-	"encoding/json"
-	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"strings"
-	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/cliconfig"
-	"github.com/docker/docker/pkg/requestdecorator"
+	"github.com/docker/distribution/registry/client/auth"
+	"github.com/docker/distribution/registry/client/auth/challenge"
+	"github.com/docker/distribution/registry/client/transport"
+	"github.com/docker/docker/api/types"
+	registrytypes "github.com/docker/docker/api/types/registry"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-type RequestAuthorization struct {
-	authConfig       *cliconfig.AuthConfig
-	registryEndpoint *Endpoint
-	resource         string
-	scope            string
-	actions          []string
-
-	tokenLock       sync.Mutex
-	tokenCache      string
-	tokenExpiration time.Time
-}
-
-func NewRequestAuthorization(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, resource, scope string, actions []string) *RequestAuthorization {
-	return &RequestAuthorization{
-		authConfig:       authConfig,
-		registryEndpoint: registryEndpoint,
-		resource:         resource,
-		scope:            scope,
-		actions:          actions,
-	}
-}
-
-func (auth *RequestAuthorization) getToken() (string, error) {
-	auth.tokenLock.Lock()
-	defer auth.tokenLock.Unlock()
-	now := time.Now()
-	if now.Before(auth.tokenExpiration) {
-		logrus.Debugf("Using cached token for %s", auth.authConfig.Username)
-		return auth.tokenCache, nil
-	}
-
-	client := auth.registryEndpoint.HTTPClient()
-	factory := HTTPRequestFactory(nil)
-
-	for _, challenge := range auth.registryEndpoint.AuthChallenges {
-		switch strings.ToLower(challenge.Scheme) {
-		case "basic":
-			// no token necessary
-		case "bearer":
-			logrus.Debugf("Getting bearer token with %s for %s", challenge.Parameters, auth.authConfig.Username)
-			params := map[string]string{}
-			for k, v := range challenge.Parameters {
-				params[k] = v
-			}
-			params["scope"] = fmt.Sprintf("%s:%s:%s", auth.resource, auth.scope, strings.Join(auth.actions, ","))
-			token, err := getToken(auth.authConfig.Username, auth.authConfig.Password, params, auth.registryEndpoint, client, factory)
-			if err != nil {
-				return "", err
-			}
-			auth.tokenCache = token
-			auth.tokenExpiration = now.Add(time.Minute)
-
-			return token, nil
-		default:
-			logrus.Infof("Unsupported auth scheme: %q", challenge.Scheme)
-		}
-	}
-
-	// Do not expire cache since there are no challenges which use a token
-	auth.tokenExpiration = time.Now().Add(time.Hour * 24)
-
-	return "", nil
-}
-
-func (auth *RequestAuthorization) Authorize(req *http.Request) error {
-	token, err := auth.getToken()
-	if err != nil {
-		return err
-	}
-	if token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-	} else if auth.authConfig.Username != "" && auth.authConfig.Password != "" {
-		req.SetBasicAuth(auth.authConfig.Username, auth.authConfig.Password)
-	}
-	return nil
-}
-
-// Login tries to register/login to the registry server.
-func Login(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
-	// Separates the v2 registry login logic from the v1 logic.
-	if registryEndpoint.Version == APIVersion2 {
-		return loginV2(authConfig, registryEndpoint, factory)
-	}
-	return loginV1(authConfig, registryEndpoint, factory)
-}
+const (
+	// AuthClientID is used the ClientID used for the token server
+	AuthClientID = "docker"
+)
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
-	var (
-		status        string
-		reqBody       []byte
-		err           error
-		client        = registryEndpoint.HTTPClient()
-		reqStatusCode = 0
-		serverAddress = authConfig.ServerAddress
-	)
+func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
+	registryEndpoint := apiEndpoint.ToV1Endpoint(userAgent, nil)
+	serverAddress := registryEndpoint.String()
 
-	logrus.Debugf("attempting v1 login to registry endpoint %s", registryEndpoint)
+	logrus.Debugf("attempting v1 login to registry endpoint %s", serverAddress)
 
 	if serverAddress == "" {
-		return "", fmt.Errorf("Server Error: Server Address not set.")
+		return "", "", errdefs.System(errors.New("server Error: Server Address not set"))
 	}
 
-	loginAgainstOfficialIndex := serverAddress == IndexServerAddress()
-
-	// to avoid sending the server address to the server it should be removed before being marshalled
-	authCopy := *authConfig
-	authCopy.ServerAddress = ""
-
-	jsonBody, err := json.Marshal(authCopy)
+	req, err := http.NewRequest("GET", serverAddress+"users/", nil)
 	if err != nil {
-		return "", fmt.Errorf("Config Error: %s", err)
+		return "", "", err
 	}
-
-	// using `bytes.NewReader(jsonBody)` here causes the server to respond with a 411 status.
-	b := strings.NewReader(string(jsonBody))
-	req1, err := client.Post(serverAddress+"users/", "application/json; charset=utf-8", b)
-	if err != nil {
-		return "", fmt.Errorf("Server Error: %s", err)
-	}
-	reqStatusCode = req1.StatusCode
-	defer req1.Body.Close()
-	reqBody, err = ioutil.ReadAll(req1.Body)
-	if err != nil {
-		return "", fmt.Errorf("Server Error: [%#v] %s", reqStatusCode, err)
-	}
-
-	if reqStatusCode == 201 {
-		if loginAgainstOfficialIndex {
-			status = "Account created. Please use the confirmation link we sent" +
-				" to your e-mail to activate it."
-		} else {
-			// *TODO: Use registry configuration to determine what this says, if anything?
-			status = "Account created. Please see the documentation of the registry " + serverAddress + " for instructions how to activate it."
-		}
-	} else if reqStatusCode == 400 {
-		if string(reqBody) == "\"Username or email already exists\"" {
-			req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
-			req.SetBasicAuth(authConfig.Username, authConfig.Password)
-			resp, err := client.Do(req)
-			if err != nil {
-				return "", err
-			}
-			defer resp.Body.Close()
-			body, err := ioutil.ReadAll(resp.Body)
-			if err != nil {
-				return "", err
-			}
-			if resp.StatusCode == 200 {
-				return "Login Succeeded", nil
-			} else if resp.StatusCode == 401 {
-				return "", fmt.Errorf("Wrong login/password, please try again")
-			} else if resp.StatusCode == 403 {
-				if loginAgainstOfficialIndex {
-					return "", fmt.Errorf("Login: Account is not Active. Please check your e-mail for a confirmation link.")
-				}
-				// *TODO: Use registry configuration to determine what this says, if anything?
-				return "", fmt.Errorf("Login: Account is not Active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress)
-			}
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body, resp.StatusCode, resp.Header)
-		}
-		return "", fmt.Errorf("Registration: %s", reqBody)
-
-	} else if reqStatusCode == 401 {
-		// This case would happen with private registries where /v1/users is
-		// protected, so people can use `docker login` as an auth check.
-		req, err := factory.NewRequest("GET", serverAddress+"users/", nil)
-		req.SetBasicAuth(authConfig.Username, authConfig.Password)
-		resp, err := client.Do(req)
-		if err != nil {
-			return "", err
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return "", err
-		}
-		if resp.StatusCode == 200 {
-			return "Login Succeeded", nil
-		} else if resp.StatusCode == 401 {
-			return "", fmt.Errorf("Wrong login/password, please try again")
-		} else {
-			return "", fmt.Errorf("Login: %s (Code: %d; Headers: %s)", body,
-				resp.StatusCode, resp.Header)
-		}
-	} else {
-		return "", fmt.Errorf("Unexpected status code [%d] : %s", reqStatusCode, reqBody)
-	}
-	return status, nil
-}
-
-// loginV2 tries to login to the v2 registry server. The given registry endpoint has been
-// pinged or setup with a list of authorization challenges. Each of these challenges are
-// tried until one of them succeeds. Currently supported challenge schemes are:
-// 		HTTP Basic Authorization
-// 		Token Authorization with a separate token issuing server
-// NOTE: the v2 logic does not attempt to create a user account if one doesn't exist. For
-// now, users should create their account through other means like directly from a web page
-// served by the v2 registry service provider. Whether this will be supported in the future
-// is to be determined.
-func loginV2(authConfig *cliconfig.AuthConfig, registryEndpoint *Endpoint, factory *requestdecorator.RequestFactory) (string, error) {
-	logrus.Debugf("attempting v2 login to registry endpoint %s", registryEndpoint)
-	var (
-		err       error
-		allErrors []error
-		client    = registryEndpoint.HTTPClient()
-	)
-
-	for _, challenge := range registryEndpoint.AuthChallenges {
-		logrus.Debugf("trying %q auth challenge with params %s", challenge.Scheme, challenge.Parameters)
-
-		switch strings.ToLower(challenge.Scheme) {
-		case "basic":
-			err = tryV2BasicAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client, factory)
-		case "bearer":
-			err = tryV2TokenAuthLogin(authConfig, challenge.Parameters, registryEndpoint, client, factory)
-		default:
-			// Unsupported challenge types are explicitly skipped.
-			err = fmt.Errorf("unsupported auth scheme: %q", challenge.Scheme)
-		}
-
-		if err == nil {
-			return "Login Succeeded", nil
-		}
-
-		logrus.Debugf("error trying auth challenge %q: %s", challenge.Scheme, err)
-
-		allErrors = append(allErrors, err)
-	}
-
-	return "", fmt.Errorf("no successful auth challenge for %s - errors: %s", registryEndpoint, allErrors)
-}
-
-func tryV2BasicAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
-	req, err := factory.NewRequest("GET", registryEndpoint.Path(""), nil)
-	if err != nil {
-		return err
-	}
-
 	req.SetBasicAuth(authConfig.Username, authConfig.Password)
-
-	resp, err := client.Do(req)
+	resp, err := registryEndpoint.client.Do(req)
 	if err != nil {
-		return err
+		// fallback when request could not be completed
+		return "", "", fallbackError{
+			err: err,
+		}
 	}
 	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("basic auth attempt to %s realm %q failed with status: %d %s", registryEndpoint, params["realm"], resp.StatusCode, http.StatusText(resp.StatusCode))
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return "", "", errdefs.System(err)
 	}
 
-	return nil
+	switch resp.StatusCode {
+	case http.StatusOK:
+		return "Login Succeeded", "", nil
+	case http.StatusUnauthorized:
+		return "", "", errdefs.Unauthorized(errors.New("Wrong login/password, please try again"))
+	case http.StatusForbidden:
+		// *TODO: Use registry configuration to determine what this says, if anything?
+		return "", "", errdefs.Forbidden(errors.Errorf("Login: Account is not active. Please see the documentation of the registry %s for instructions how to activate it.", serverAddress))
+	case http.StatusInternalServerError:
+		logrus.Errorf("%s returned status code %d. Response Body :\n%s", req.URL.String(), resp.StatusCode, body)
+		return "", "", errdefs.System(errors.New("Internal Server Error"))
+	}
+	return "", "", errdefs.System(errors.Errorf("Login: %s (Code: %d; Headers: %s)", body,
+		resp.StatusCode, resp.Header))
 }
 
-func tryV2TokenAuthLogin(authConfig *cliconfig.AuthConfig, params map[string]string, registryEndpoint *Endpoint, client *http.Client, factory *requestdecorator.RequestFactory) error {
-	token, err := getToken(authConfig.Username, authConfig.Password, params, registryEndpoint, client, factory)
-	if err != nil {
-		return err
-	}
-
-	req, err := factory.NewRequest("GET", registryEndpoint.Path(""), nil)
-	if err != nil {
-		return err
-	}
-
-	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("token auth attempt to %s realm %q failed with status: %d %s", registryEndpoint, params["realm"], resp.StatusCode, http.StatusText(resp.StatusCode))
-	}
-
-	return nil
+type loginCredentialStore struct {
+	authConfig *types.AuthConfig
 }
 
-// this method matches a auth configuration to a server address or a url
-func ResolveAuthConfig(config *cliconfig.ConfigFile, index *IndexInfo) cliconfig.AuthConfig {
-	configKey := index.GetAuthConfigKey()
-	// First try the happy case
-	if c, found := config.AuthConfigs[configKey]; found || index.Official {
-		return c
+func (lcs loginCredentialStore) Basic(*url.URL) (string, string) {
+	return lcs.authConfig.Username, lcs.authConfig.Password
+}
+
+func (lcs loginCredentialStore) RefreshToken(*url.URL, string) string {
+	return lcs.authConfig.IdentityToken
+}
+
+func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token string) {
+	lcs.authConfig.IdentityToken = token
+}
+
+type staticCredentialStore struct {
+	auth *types.AuthConfig
+}
+
+// NewStaticCredentialStore returns a credential store
+// which always returns the same credential values.
+func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+	return staticCredentialStore{
+		auth: auth,
+	}
+}
+
+func (scs staticCredentialStore) Basic(*url.URL) (string, string) {
+	if scs.auth == nil {
+		return "", ""
+	}
+	return scs.auth.Username, scs.auth.Password
+}
+
+func (scs staticCredentialStore) RefreshToken(*url.URL, string) string {
+	if scs.auth == nil {
+		return ""
+	}
+	return scs.auth.IdentityToken
+}
+
+func (scs staticCredentialStore) SetRefreshToken(*url.URL, string, string) {
+}
+
+type fallbackError struct {
+	err error
+}
+
+func (err fallbackError) Error() string {
+	return err.err.Error()
+}
+
+// loginV2 tries to login to the v2 registry server. The given registry
+// endpoint will be pinged to get authorization challenges. These challenges
+// will be used to authenticate against the registry to validate credentials.
+func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+	logrus.Debugf("attempting v2 login to registry endpoint %s", strings.TrimRight(endpoint.URL.String(), "/")+"/v2/")
+
+	modifiers := Headers(userAgent, nil)
+	authTransport := transport.NewTransport(NewTransport(endpoint.TLSConfig), modifiers...)
+
+	credentialAuthConfig := *authConfig
+	creds := loginCredentialStore{
+		authConfig: &credentialAuthConfig,
 	}
 
-	convertToHostname := func(url string) string {
-		stripped := url
-		if strings.HasPrefix(url, "http://") {
-			stripped = strings.Replace(url, "http://", "", 1)
-		} else if strings.HasPrefix(url, "https://") {
-			stripped = strings.Replace(url, "https://", "", 1)
+	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	if err != nil {
+		return "", "", err
+	}
+
+	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
+	req, err := http.NewRequest("GET", endpointStr, nil)
+	if err != nil {
+		if !foundV2 {
+			err = fallbackError{err: err}
+		}
+		return "", "", err
+	}
+
+	resp, err := loginClient.Do(req)
+	if err != nil {
+		err = translateV2AuthError(err)
+		if !foundV2 {
+			err = fallbackError{err: err}
 		}
 
-		nameParts := strings.SplitN(stripped, "/", 2)
+		return "", "", err
+	}
+	defer resp.Body.Close()
 
-		return nameParts[0]
+	if resp.StatusCode == http.StatusOK {
+		return "Login Succeeded", credentialAuthConfig.IdentityToken, nil
+	}
+
+	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
+	err = errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
+	if !foundV2 {
+		err = fallbackError{err: err}
+	}
+	return "", "", err
+}
+
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {
+	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
+	if err != nil {
+		if !foundV2 {
+			err = fallbackError{err: err}
+		}
+		return nil, foundV2, err
+	}
+
+	tokenHandlerOptions := auth.TokenHandlerOptions{
+		Transport:     authTransport,
+		Credentials:   creds,
+		OfflineAccess: true,
+		ClientID:      AuthClientID,
+		Scopes:        scopes,
+	}
+	tokenHandler := auth.NewTokenHandlerWithOptions(tokenHandlerOptions)
+	basicHandler := auth.NewBasicHandler(creds)
+	modifiers = append(modifiers, auth.NewAuthorizer(challengeManager, tokenHandler, basicHandler))
+	tr := transport.NewTransport(authTransport, modifiers...)
+
+	return &http.Client{
+		Transport: tr,
+		Timeout:   15 * time.Second,
+	}, foundV2, nil
+
+}
+
+// ConvertToHostname converts a registry url which has http|https prepended
+// to just an hostname.
+func ConvertToHostname(url string) string {
+	stripped := url
+	if strings.HasPrefix(url, "http://") {
+		stripped = strings.TrimPrefix(url, "http://")
+	} else if strings.HasPrefix(url, "https://") {
+		stripped = strings.TrimPrefix(url, "https://")
+	}
+
+	nameParts := strings.SplitN(stripped, "/", 2)
+
+	return nameParts[0]
+}
+
+// ResolveAuthConfig matches an auth configuration to a server address or a URL
+func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+	configKey := GetAuthConfigKey(index)
+	// First try the happy case
+	if c, found := authConfigs[configKey]; found || index.Official {
+		return c
 	}
 
 	// Maybe they have a legacy config file, we will iterate the keys converting
 	// them to the new format and testing
-	for registry, ac := range config.AuthConfigs {
-		if configKey == convertToHostname(registry) {
+	for registry, ac := range authConfigs {
+		if configKey == ConvertToHostname(registry) {
 			return ac
 		}
 	}
 
 	// When all else fails, return an empty auth config
-	return cliconfig.AuthConfig{}
+	return types.AuthConfig{}
+}
+
+// PingResponseError is used when the response from a ping
+// was received but invalid.
+type PingResponseError struct {
+	Err error
+}
+
+func (err PingResponseError) Error() string {
+	return err.Err.Error()
+}
+
+// PingV2Registry attempts to ping a v2 registry and on success return a
+// challenge manager for the supported authentication types and
+// whether v2 was confirmed by the response. If a response is received but
+// cannot be interpreted a PingResponseError will be returned.
+// nolint: interfacer
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
+	var (
+		foundV2   = false
+		v2Version = auth.APIVersion{
+			Type:    "registry",
+			Version: "2.0",
+		}
+	)
+
+	pingClient := &http.Client{
+		Transport: transport,
+		Timeout:   15 * time.Second,
+	}
+	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
+	req, err := http.NewRequest("GET", endpointStr, nil)
+	if err != nil {
+		return nil, false, err
+	}
+	resp, err := pingClient.Do(req)
+	if err != nil {
+		return nil, false, err
+	}
+	defer resp.Body.Close()
+
+	versions := auth.APIVersions(resp, DefaultRegistryVersionHeader)
+	for _, pingVersion := range versions {
+		if pingVersion == v2Version {
+			// The version header indicates we're definitely
+			// talking to a v2 registry. So don't allow future
+			// fallbacks to the v1 protocol.
+
+			foundV2 = true
+			break
+		}
+	}
+
+	challengeManager := challenge.NewSimpleManager()
+	if err := challengeManager.AddResponse(resp); err != nil {
+		return nil, foundV2, PingResponseError{
+			Err: err,
+		}
+	}
+
+	return challengeManager, foundV2, nil
 }

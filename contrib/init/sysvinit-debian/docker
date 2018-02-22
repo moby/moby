@@ -19,10 +19,10 @@ set -e
 
 export PATH=/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin
 
-BASE=$(basename $0)
+BASE=docker
 
 # modify these in /etc/default/$BASE (/etc/default/docker)
-DOCKER=/usr/bin/$BASE
+DOCKERD=/usr/bin/dockerd
 # This is the pid file managed by docker itself
 DOCKER_PIDFILE=/var/run/$BASE.pid
 # This is the pid file created/managed by start-stop-daemon
@@ -30,7 +30,6 @@ DOCKER_SSD_PIDFILE=/var/run/$BASE-ssd.pid
 DOCKER_LOGFILE=/var/log/$BASE.log
 DOCKER_OPTS=
 DOCKER_DESC="Docker"
-UNSHARE=${UNSHARE:-/usr/bin/unshare}
 
 # Get lsb functions
 . /lib/lsb/init-functions
@@ -39,17 +38,19 @@ if [ -f /etc/default/$BASE ]; then
 	. /etc/default/$BASE
 fi
 
-# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it)
-if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
-	log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
+# Check docker is present
+if [ ! -x $DOCKERD ]; then
+	log_failure_msg "$DOCKERD not present or not executable"
 	exit 1
 fi
 
-# Check docker is present
-if [ ! -x $DOCKER ]; then
-	log_failure_msg "$DOCKER not present or not executable"
-	exit 1
-fi
+check_init() {
+	# see also init_is_upstart in /lib/lsb/init-functions (which isn't available in Ubuntu 12.04, or we'd use it directly)
+	if [ -x /sbin/initctl ] && /sbin/initctl version 2>/dev/null | grep -q upstart; then
+		log_failure_msg "$DOCKER_DESC is managed via upstart, try using service $BASE $1"
+		exit 1
+	fi
+}
 
 fail_unless_root() {
 	if [ "$(id -u)" != '0' ]; then
@@ -83,6 +84,8 @@ cgroupfs_mount() {
 
 case "$1" in
 	start)
+		check_init
+		
 		fail_unless_root
 
 		cgroupfs_mount
@@ -91,33 +94,42 @@ case "$1" in
 		chgrp docker "$DOCKER_LOGFILE"
 
 		ulimit -n 1048576
+
+		# Having non-zero limits causes performance problems due to accounting overhead
+		# in the kernel. We recommend using cgroups to do container-local accounting.
 		if [ "$BASH" ]; then
-			ulimit -u 1048576
+			ulimit -u unlimited
 		else
-			ulimit -p 1048576
+			ulimit -p unlimited
 		fi
 
 		log_begin_msg "Starting $DOCKER_DESC: $BASE"
 		start-stop-daemon --start --background \
 			--no-close \
-			--exec "$UNSHARE" \
+			--exec "$DOCKERD" \
 			--pidfile "$DOCKER_SSD_PIDFILE" \
 			--make-pidfile \
-			-- --mount \
-			-- "$DOCKER" -d -p "$DOCKER_PIDFILE" \
+			-- \
+				-p "$DOCKER_PIDFILE" \
 				$DOCKER_OPTS \
 					>> "$DOCKER_LOGFILE" 2>&1
 		log_end_msg $?
 		;;
 
 	stop)
+		check_init
 		fail_unless_root
-		log_begin_msg "Stopping $DOCKER_DESC: $BASE"
-		start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE"
-		log_end_msg $?
+		if [ -f "$DOCKER_SSD_PIDFILE" ]; then
+			log_begin_msg "Stopping $DOCKER_DESC: $BASE"
+			start-stop-daemon --stop --pidfile "$DOCKER_SSD_PIDFILE" --retry 10
+			log_end_msg $?
+		else
+			log_warning_msg "Docker already stopped - file $DOCKER_SSD_PIDFILE not found."
+		fi
 		;;
 
 	restart)
+		check_init
 		fail_unless_root
 		docker_pid=`cat "$DOCKER_SSD_PIDFILE" 2>/dev/null`
 		[ -n "$docker_pid" ] \
@@ -127,16 +139,18 @@ case "$1" in
 		;;
 
 	force-reload)
+		check_init
 		fail_unless_root
 		$0 restart
 		;;
 
 	status)
-		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKER" "$DOCKER_DESC"
+		check_init
+		status_of_proc -p "$DOCKER_SSD_PIDFILE" "$DOCKERD" "$DOCKER_DESC"
 		;;
 
 	*)
-		echo "Usage: $0 {start|stop|restart|status}"
+		echo "Usage: service docker {start|stop|restart|status}"
 		exit 1
 		;;
 esac

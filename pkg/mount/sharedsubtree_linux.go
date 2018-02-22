@@ -1,6 +1,4 @@
-// +build linux
-
-package mount
+package mount // import "github.com/docker/docker/pkg/mount"
 
 // MakeShared ensures a mounted filesystem has the SHARED mount option enabled.
 // See the supported options in flags.go for further reference.
@@ -61,8 +59,7 @@ func ensureMountedAs(mountPoint, options string) error {
 			return err
 		}
 	}
-	mounted, err = Mounted(mountPoint)
-	if err != nil {
+	if _, err = Mounted(mountPoint); err != nil {
 		return err
 	}
 

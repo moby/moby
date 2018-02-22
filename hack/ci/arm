@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Entrypoint for jenkins arm CI build
+set -eu -o pipefail
+
+hack/test/unit
+
+hack/make.sh \
+	binary-daemon \
+	dynbinary \
+	test-integration

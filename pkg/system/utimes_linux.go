@@ -1,28 +1,25 @@
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
 import (
 	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
+// LUtimesNano is used to change access and modification time of the specified path.
+// It's used for symbol link file because unix.UtimesNano doesn't support a NOFOLLOW flag atm.
 func LUtimesNano(path string, ts []syscall.Timespec) error {
-	// These are not currently available in syscall
-	AT_FDCWD := -100
-	AT_SYMLINK_NOFOLLOW := 0x100
+	atFdCwd := unix.AT_FDCWD
 
 	var _path *byte
-	_path, err := syscall.BytePtrFromString(path)
+	_path, err := unix.BytePtrFromString(path)
 	if err != nil {
 		return err
 	}
-
-	if _, _, err := syscall.Syscall6(syscall.SYS_UTIMENSAT, uintptr(AT_FDCWD), uintptr(unsafe.Pointer(_path)), uintptr(unsafe.Pointer(&ts[0])), uintptr(AT_SYMLINK_NOFOLLOW), 0, 0); err != 0 && err != syscall.ENOSYS {
+	if _, _, err := unix.Syscall6(unix.SYS_UTIMENSAT, uintptr(atFdCwd), uintptr(unsafe.Pointer(_path)), uintptr(unsafe.Pointer(&ts[0])), unix.AT_SYMLINK_NOFOLLOW, 0, 0); err != 0 && err != unix.ENOSYS {
 		return err
 	}
 
 	return nil
-}
-
-func UtimesNano(path string, ts []syscall.Timespec) error {
-	return syscall.UtimesNano(path, ts)
 }

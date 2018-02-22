@@ -1,6 +1,7 @@
-package tarsum
+package tarsum // import "github.com/docker/docker/pkg/tarsum"
 
 import (
+	"archive/tar"
 	"bytes"
 	"compress/gzip"
 	"crypto/md5"
@@ -13,9 +14,11 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"strings"
 	"testing"
 
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type testLayer struct {
@@ -33,33 +36,33 @@ var testLayers = []testLayer{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		version:  Version0,
-		tarsum:   "tarsum+sha256:e58fcf7418d4390dec8e8fb69d88c06ec07039d651fedd3aa72af9972e7d046b"},
+		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6"},
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		version:  VersionDev,
-		tarsum:   "tarsum.dev+sha256:486b86e25c4db4551228154848bc4663b15dd95784b1588980f4ba1cb42e83e9"},
+		tarsum:   "tarsum.dev+sha256:db56e35eec6ce65ba1588c20ba6b1ea23743b59e81fb6b7f358ccbde5580345c"},
 	{
 		filename: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/layer.tar",
 		jsonfile: "testdata/46af0962ab5afeb5ce6740d4d91652e69206fc991fd5328c1a94d364ad00e457/json",
 		gzip:     true,
-		tarsum:   "tarsum+sha256:e58fcf7418d4390dec8e8fb69d88c06ec07039d651fedd3aa72af9972e7d046b"},
+		tarsum:   "tarsum+sha256:4095cc12fa5fdb1ab2760377e1cd0c4ecdd3e61b4f9b82319d96fcea6c9a41c6"},
 	{
 		// Tests existing version of TarSum when xattrs are present
 		filename: "testdata/xattr/layer.tar",
 		jsonfile: "testdata/xattr/json",
 		version:  Version0,
-		tarsum:   "tarsum+sha256:e86f81a4d552f13039b1396ed03ca968ea9717581f9577ef1876ea6ff9b38c98"},
+		tarsum:   "tarsum+sha256:07e304a8dbcb215b37649fde1a699f8aeea47e60815707f1cdf4d55d25ff6ab4"},
 	{
 		// Tests next version of TarSum when xattrs are present
 		filename: "testdata/xattr/layer.tar",
 		jsonfile: "testdata/xattr/json",
 		version:  VersionDev,
-		tarsum:   "tarsum.dev+sha256:6235cd3a2afb7501bac541772a3d61a3634e95bc90bb39a4676e2cb98d08390d"},
+		tarsum:   "tarsum.dev+sha256:6c58917892d77b3b357b0f9ad1e28e1f4ae4de3a8006bd3beb8beda214d8fd16"},
 	{
 		filename: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/layer.tar",
 		jsonfile: "testdata/511136ea3c5a64f264b78b5433614aec563103b4d4702f3ba7d4d2698e22c158/json",
-		tarsum:   "tarsum+sha256:ac672ee85da9ab7f9667ae3c32841d3e42f33cc52c273c23341dabba1c8b0c8b"},
+		tarsum:   "tarsum+sha256:c66bd5ec9f87b8f4c6135ca37684618f486a3dd1d113b138d0a177bfa39c2571"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
 		tarsum:  "tarsum+sha256:8bf12d7e67c51ee2e8306cba569398b1b9f419969521a12ffb9d8875e8836738"},
@@ -176,22 +179,59 @@ func emptyTarSum(gzip bool) (TarSum, error) {
 	return NewTarSum(reader, !gzip, Version0)
 }
 
+// Test errors on NewTarsumForLabel
+func TestNewTarSumForLabelInvalid(t *testing.T) {
+	reader := strings.NewReader("")
+
+	if _, err := NewTarSumForLabel(reader, true, "invalidlabel"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+
+	if _, err := NewTarSumForLabel(reader, true, "invalid+sha256"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+	if _, err := NewTarSumForLabel(reader, true, "tarsum.v1+invalid"); err == nil {
+		t.Fatalf("Expected an error, got nothing.")
+	}
+}
+
+func TestNewTarSumForLabel(t *testing.T) {
+
+	layer := testLayers[0]
+
+	reader, err := os.Open(layer.filename)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer reader.Close()
+
+	label := strings.Split(layer.tarsum, ":")[0]
+	ts, err := NewTarSumForLabel(reader, false, label)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Make sure it actually worked by reading a little bit of it
+	nbByteToRead := 8 * 1024
+	dBuf := make([]byte, nbByteToRead)
+	_, err = ts.Read(dBuf)
+	if err != nil {
+		t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+	}
+}
+
 // TestEmptyTar tests that tarsum does not fail to read an empty tar
 // and correctly returns the hex digest of an empty hash.
 func TestEmptyTar(t *testing.T) {
 	// Test without gzip.
 	ts, err := emptyTarSum(false)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	zeroBlock := make([]byte, 1024)
 	buf := new(bytes.Buffer)
 
 	n, err := io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 
 	if n != int64(len(zeroBlock)) || !bytes.Equal(buf.Bytes(), zeroBlock) {
 		t.Fatalf("tarSum did not write the correct number of zeroed bytes: %d", n)
@@ -206,19 +246,16 @@ func TestEmptyTar(t *testing.T) {
 
 	// Test with gzip.
 	ts, err = emptyTarSum(true)
-	if err != nil {
-		t.Fatal(err)
-	}
+	require.NoError(t, err)
 	buf.Reset()
 
-	n, err = io.Copy(buf, ts)
-	if err != nil {
-		t.Fatal(err)
-	}
+	_, err = io.Copy(buf, ts)
+	require.NoError(t, err)
 
 	bufgz := new(bytes.Buffer)
 	gz := gzip.NewWriter(bufgz)
 	n, err = io.Copy(gz, bytes.NewBuffer(zeroBlock))
+	require.NoError(t, err)
 	gz.Close()
 	gzBytes := bufgz.Bytes()
 
@@ -238,10 +275,7 @@ func TestEmptyTar(t *testing.T) {
 	}
 
 	resultSum = ts.Sum(nil)
-
-	if resultSum != expectedSum {
-		t.Fatalf("expected [%s] but got [%s]", expectedSum, resultSum)
-	}
+	assert.Equal(t, expectedSum, resultSum)
 }
 
 var (
@@ -251,6 +285,35 @@ var (
 	sha384Hash = NewTHash("sha384", sha512.New384)
 	sha512Hash = NewTHash("sha512", sha512.New)
 )
+
+// Test all the build-in read size : buf8K, buf16K, buf32K and more
+func TestTarSumsReadSize(t *testing.T) {
+	// Test always on the same layer (that is big enough)
+	layer := testLayers[0]
+
+	for i := 0; i < 5; i++ {
+
+		reader, err := os.Open(layer.filename)
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer reader.Close()
+
+		ts, err := NewTarSum(reader, false, layer.version)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		// Read and discard bytes so that it populates sums
+		nbByteToRead := (i + 1) * 8 * 1024
+		dBuf := make([]byte, nbByteToRead)
+		_, err = ts.Read(dBuf)
+		if err != nil {
+			t.Errorf("failed to read %vKB from %s: %s", nbByteToRead, layer.filename, err)
+			continue
+		}
+	}
+}
 
 func TestTarSums(t *testing.T) {
 	for _, layer := range testLayers {
@@ -314,6 +377,8 @@ func TestTarSums(t *testing.T) {
 				t.Errorf("failed to open %s: %s", layer.jsonfile, err)
 				continue
 			}
+			defer jfh.Close()
+
 			buf, err := ioutil.ReadAll(jfh)
 			if err != nil {
 				t.Errorf("failed to readAll %s: %s", layer.jsonfile, err)
@@ -326,6 +391,15 @@ func TestTarSums(t *testing.T) {
 
 		if layer.tarsum != gotSum {
 			t.Errorf("expecting [%s], but got [%s]", layer.tarsum, gotSum)
+		}
+		var expectedHashName string
+		if layer.hash != nil {
+			expectedHashName = layer.hash.Name()
+		} else {
+			expectedHashName = DefaultTHash.Name()
+		}
+		if expectedHashName != ts.Hash().Name() {
+			t.Errorf("expecting hash [%v], but got [%s]", expectedHashName, ts.Hash().Name())
 		}
 	}
 }
@@ -484,8 +558,13 @@ func Benchmark9kTar(b *testing.B) {
 		b.Error(err)
 		return
 	}
+	defer fh.Close()
+
 	n, err := io.Copy(buf, fh)
-	fh.Close()
+	if err != nil {
+		b.Error(err)
+		return
+	}
 
 	reader := bytes.NewReader(buf.Bytes())
 
@@ -510,8 +589,13 @@ func Benchmark9kTarGzip(b *testing.B) {
 		b.Error(err)
 		return
 	}
+	defer fh.Close()
+
 	n, err := io.Copy(buf, fh)
-	fh.Close()
+	if err != nil {
+		b.Error(err)
+		return
+	}
 
 	reader := bytes.NewReader(buf.Bytes())
 

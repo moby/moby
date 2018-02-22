@@ -1,6 +1,6 @@
 // +build freebsd,cgo
 
-package mount
+package mount // import "github.com/docker/docker/pkg/mount"
 
 /*
 #include <sys/mount.h>
@@ -45,4 +45,5 @@ const (
 	RELATIME    = 0
 	REMOUNT     = 0
 	STRICTATIME = 0
+	mntDetach   = 0
 )

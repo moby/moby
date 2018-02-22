@@ -1,21 +1,6 @@
-#!/bin/bash
+#!/usr/bin/env bash
 set -e
+echo "WARNING: test-integration-cli is DEPRECATED. Use test-integration." >&2
 
-DEST=$1
-
-bundle_test_integration_cli() {
-	go_test_dir ./integration-cli
-}
-
-# subshell so that we can export PATH without breaking other things
-(
-	source "${MAKEDIR}/.integration-daemon-start"
-
-	source "${MAKEDIR}/.ensure-frozen-images"
-	source "${MAKEDIR}/.ensure-httpserver"
-	source "${MAKEDIR}/.ensure-emptyfs"
-
-	bundle_test_integration_cli
-
-	source "${MAKEDIR}/.integration-daemon-stop"
-) 2>&1 | tee -a "$DEST/test.log"
+# TODO: remove this and exit 1 once CI has changed to use test-integration
+bundle test-integration

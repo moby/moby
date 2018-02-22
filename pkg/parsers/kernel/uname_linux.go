@@ -1,15 +1,16 @@
-package kernel
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
-import (
-	"syscall"
-)
+import "golang.org/x/sys/unix"
 
-type Utsname syscall.Utsname
+// Utsname represents the system name structure.
+// It is passthrough for unix.Utsname in order to make it portable with
+// other platforms where it is not available.
+type Utsname unix.Utsname
 
-func uname() (*syscall.Utsname, error) {
-	uts := &syscall.Utsname{}
+func uname() (*unix.Utsname, error) {
+	uts := &unix.Utsname{}
 
-	if err := syscall.Uname(uts); err != nil {
+	if err := unix.Uname(uts); err != nil {
 		return nil, err
 	}
 	return uts, nil

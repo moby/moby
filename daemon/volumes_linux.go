@@ -1,24 +1,36 @@
-// +build !windows
-
 package daemon
 
 import (
-	"os"
+	"strings"
 
-	"github.com/docker/docker/pkg/system"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
-// copyOwnership copies the permissions and uid:gid of the source file
-// into the destination file
-func copyOwnership(source, destination string) error {
-	stat, err := system.Stat(source)
-	if err != nil {
-		return err
+// validateBindDaemonRoot ensures that if a given mountpoint's source is within
+// the daemon root path, that the propagation is setup to prevent a container
+// from holding private refereneces to a mount within the daemon root, which
+// can cause issues when the daemon attempts to remove the mountpoint.
+func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
+	if m.Type != mount.TypeBind {
+		return false, nil
 	}
 
-	if err := os.Chown(destination, int(stat.Uid()), int(stat.Gid())); err != nil {
-		return err
+	// check if the source is within the daemon root, or if the daemon root is within the source
+	if !strings.HasPrefix(m.Source, daemon.root) && !strings.HasPrefix(daemon.root, m.Source) {
+		return false, nil
 	}
 
-	return os.Chmod(destination, os.FileMode(stat.Mode()))
+	if m.BindOptions == nil {
+		return true, nil
+	}
+
+	switch m.BindOptions.Propagation {
+	case mount.PropagationRSlave, mount.PropagationRShared, "":
+		return m.BindOptions.Propagation == "", nil
+	default:
+	}
+
+	return false, errdefs.InvalidParameter(errors.Errorf(`invalid mount config: must use either propagation mode "rslave" or "rshared" when mount source is within the daemon root, daemon root: %q, bind mount source: %q, propagation: %q`, daemon.root, m.Source, m.BindOptions.Propagation))
 }

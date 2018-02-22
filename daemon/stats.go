@@ -1,99 +1,156 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"encoding/json"
-	"io"
+	"errors"
+	"runtime"
+	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/daemon/execdriver"
-	"github.com/docker/libcontainer"
-	"github.com/docker/libcontainer/cgroups"
+	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/container"
+	"github.com/docker/docker/pkg/ioutils"
 )
 
-func (daemon *Daemon) ContainerStats(name string, out io.Writer) error {
-	updates, err := daemon.SubscribeToContainerStats(name)
+// ContainerStats writes information about the container to the stream
+// given in the config object.
+func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
+	// Engine API version (used for backwards compatibility)
+	apiVersion := config.Version
+
+	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
 	}
-	enc := json.NewEncoder(out)
-	for v := range updates {
-		update := v.(*execdriver.ResourceStats)
-		ss := convertToAPITypes(update.Stats)
-		ss.MemoryStats.Limit = uint64(update.MemoryLimit)
-		ss.Read = update.Read
-		ss.CpuStats.SystemUsage = update.SystemUsage
-		if err := enc.Encode(ss); err != nil {
-			// TODO: handle the specific broken pipe
-			daemon.UnsubscribeToContainerStats(name, updates)
-			return err
+
+	// If the container is either not running or restarting and requires no stream, return an empty stats.
+	if (!container.IsRunning() || container.IsRestarting()) && !config.Stream {
+		return json.NewEncoder(config.OutStream).Encode(&types.StatsJSON{
+			Name: container.Name,
+			ID:   container.ID})
+	}
+
+	outStream := config.OutStream
+	if config.Stream {
+		wf := ioutils.NewWriteFlusher(outStream)
+		defer wf.Close()
+		wf.Flush()
+		outStream = wf
+	}
+
+	var preCPUStats types.CPUStats
+	var preRead time.Time
+	getStatJSON := func(v interface{}) *types.StatsJSON {
+		ss := v.(types.StatsJSON)
+		ss.Name = container.Name
+		ss.ID = container.ID
+		ss.PreCPUStats = preCPUStats
+		ss.PreRead = preRead
+		preCPUStats = ss.CPUStats
+		preRead = ss.Read
+		return &ss
+	}
+
+	enc := json.NewEncoder(outStream)
+
+	updates := daemon.subscribeToContainerStats(container)
+	defer daemon.unsubscribeToContainerStats(container, updates)
+
+	noStreamFirstFrame := true
+	for {
+		select {
+		case v, ok := <-updates:
+			if !ok {
+				return nil
+			}
+
+			var statsJSON interface{}
+			statsJSONPost120 := getStatJSON(v)
+			if versions.LessThan(apiVersion, "1.21") {
+				if runtime.GOOS == "windows" {
+					return errors.New("API versions pre v1.21 do not support stats on Windows")
+				}
+				var (
+					rxBytes   uint64
+					rxPackets uint64
+					rxErrors  uint64
+					rxDropped uint64
+					txBytes   uint64
+					txPackets uint64
+					txErrors  uint64
+					txDropped uint64
+				)
+				for _, v := range statsJSONPost120.Networks {
+					rxBytes += v.RxBytes
+					rxPackets += v.RxPackets
+					rxErrors += v.RxErrors
+					rxDropped += v.RxDropped
+					txBytes += v.TxBytes
+					txPackets += v.TxPackets
+					txErrors += v.TxErrors
+					txDropped += v.TxDropped
+				}
+				statsJSON = &v1p20.StatsJSON{
+					Stats: statsJSONPost120.Stats,
+					Network: types.NetworkStats{
+						RxBytes:   rxBytes,
+						RxPackets: rxPackets,
+						RxErrors:  rxErrors,
+						RxDropped: rxDropped,
+						TxBytes:   txBytes,
+						TxPackets: txPackets,
+						TxErrors:  txErrors,
+						TxDropped: txDropped,
+					},
+				}
+			} else {
+				statsJSON = statsJSONPost120
+			}
+
+			if !config.Stream && noStreamFirstFrame {
+				// prime the cpu stats so they aren't 0 in the final output
+				noStreamFirstFrame = false
+				continue
+			}
+
+			if err := enc.Encode(statsJSON); err != nil {
+				return err
+			}
+
+			if !config.Stream {
+				return nil
+			}
+		case <-ctx.Done():
+			return nil
 		}
 	}
-	return nil
 }
 
-// convertToAPITypes converts the libcontainer.Stats to the api specific
-// structs.  This is done to preserve API compatibility and versioning.
-func convertToAPITypes(ls *libcontainer.Stats) *types.Stats {
-	s := &types.Stats{}
-	if ls.Interfaces != nil {
-		s.Network = types.Network{}
-		for _, iface := range ls.Interfaces {
-			s.Network.RxBytes += iface.RxBytes
-			s.Network.RxPackets += iface.RxPackets
-			s.Network.RxErrors += iface.RxErrors
-			s.Network.RxDropped += iface.RxDropped
-			s.Network.TxBytes += iface.TxBytes
-			s.Network.TxPackets += iface.TxPackets
-			s.Network.TxErrors += iface.TxErrors
-			s.Network.TxDropped += iface.TxDropped
-		}
-	}
-	cs := ls.CgroupStats
-	if cs != nil {
-		s.BlkioStats = types.BlkioStats{
-			IoServiceBytesRecursive: copyBlkioEntry(cs.BlkioStats.IoServiceBytesRecursive),
-			IoServicedRecursive:     copyBlkioEntry(cs.BlkioStats.IoServicedRecursive),
-			IoQueuedRecursive:       copyBlkioEntry(cs.BlkioStats.IoQueuedRecursive),
-			IoServiceTimeRecursive:  copyBlkioEntry(cs.BlkioStats.IoServiceTimeRecursive),
-			IoWaitTimeRecursive:     copyBlkioEntry(cs.BlkioStats.IoWaitTimeRecursive),
-			IoMergedRecursive:       copyBlkioEntry(cs.BlkioStats.IoMergedRecursive),
-			IoTimeRecursive:         copyBlkioEntry(cs.BlkioStats.IoTimeRecursive),
-			SectorsRecursive:        copyBlkioEntry(cs.BlkioStats.SectorsRecursive),
-		}
-		cpu := cs.CpuStats
-		s.CpuStats = types.CpuStats{
-			CpuUsage: types.CpuUsage{
-				TotalUsage:        cpu.CpuUsage.TotalUsage,
-				PercpuUsage:       cpu.CpuUsage.PercpuUsage,
-				UsageInKernelmode: cpu.CpuUsage.UsageInKernelmode,
-				UsageInUsermode:   cpu.CpuUsage.UsageInUsermode,
-			},
-			ThrottlingData: types.ThrottlingData{
-				Periods:          cpu.ThrottlingData.Periods,
-				ThrottledPeriods: cpu.ThrottlingData.ThrottledPeriods,
-				ThrottledTime:    cpu.ThrottlingData.ThrottledTime,
-			},
-		}
-		mem := cs.MemoryStats
-		s.MemoryStats = types.MemoryStats{
-			Usage:    mem.Usage,
-			MaxUsage: mem.MaxUsage,
-			Stats:    mem.Stats,
-			Failcnt:  mem.Failcnt,
-		}
-	}
-	return s
+func (daemon *Daemon) subscribeToContainerStats(c *container.Container) chan interface{} {
+	return daemon.statsCollector.Collect(c)
 }
 
-func copyBlkioEntry(entries []cgroups.BlkioStatEntry) []types.BlkioStatEntry {
-	out := make([]types.BlkioStatEntry, len(entries))
-	for i, re := range entries {
-		out[i] = types.BlkioStatEntry{
-			Major: re.Major,
-			Minor: re.Minor,
-			Op:    re.Op,
-			Value: re.Value,
+func (daemon *Daemon) unsubscribeToContainerStats(c *container.Container, ch chan interface{}) {
+	daemon.statsCollector.Unsubscribe(c, ch)
+}
+
+// GetContainerStats collects all the stats published by a container
+func (daemon *Daemon) GetContainerStats(container *container.Container) (*types.StatsJSON, error) {
+	stats, err := daemon.stats(container)
+	if err != nil {
+		return nil, err
+	}
+
+	// We already have the network stats on Windows directly from HCS.
+	if !container.Config.NetworkDisabled && runtime.GOOS != "windows" {
+		if stats.Networks, err = daemon.getNetworkStats(container); err != nil {
+			return nil, err
 		}
 	}
-	return out
+
+	return stats, nil
 }

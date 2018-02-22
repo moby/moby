@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# required by `make build-integration-cli-on-swarm`
+set -e
+
+source hack/make/.integration-test-helpers
+
+build_test_suite_binaries

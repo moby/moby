@@ -16,7 +16,7 @@ with "access" privileges for a particular channel.
 
 A similar command is used to give someone a particular access level.  For
 example, to add a new maintainer to the `#docker-maintainers` access list so
-that they can contribute to the dicsussions (after they've been merged
+that they can contribute to the discussions (after they've been merged
 appropriately in a `MAINTAINERS` file, of course), one would use `/msg ChanServ
 ACCESS #docker-maintainers ADD <nick> maintainer`.
 

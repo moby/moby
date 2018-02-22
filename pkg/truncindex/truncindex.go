@@ -1,4 +1,7 @@
-package truncindex
+// Package truncindex provides a general 'index tree', used by Docker
+// in order to be able to reference containers by only a few unambiguous
+// characters of their id.
+package truncindex // import "github.com/docker/docker/pkg/truncindex"
 
 import (
 	"errors"
@@ -10,14 +13,24 @@ import (
 )
 
 var (
-	ErrEmptyPrefix     = errors.New("Prefix can't be empty")
-	ErrAmbiguousPrefix = errors.New("Multiple IDs found with provided prefix")
+	// ErrEmptyPrefix is an error returned if the prefix was empty.
+	ErrEmptyPrefix = errors.New("Prefix can't be empty")
+
+	// ErrIllegalChar is returned when a space is in the ID
+	ErrIllegalChar = errors.New("illegal character: ' '")
+
+	// ErrNotExist is returned when ID or its prefix not found in index.
+	ErrNotExist = errors.New("ID does not exist")
 )
 
-func init() {
-	// Change patricia max prefix per node length,
-	// because our len(ID) always 64
-	patricia.MaxPrefixPerNode = 64
+// ErrAmbiguousPrefix is returned if the prefix was ambiguous
+// (multiple ids for the prefix).
+type ErrAmbiguousPrefix struct {
+	prefix string
+}
+
+func (e ErrAmbiguousPrefix) Error() string {
+	return fmt.Sprintf("Multiple IDs found with provided prefix: %s", e.prefix)
 }
 
 // TruncIndex allows the retrieval of string identifiers by any of their unique prefixes.
@@ -28,11 +41,14 @@ type TruncIndex struct {
 	ids  map[string]struct{}
 }
 
-// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs
+// NewTruncIndex creates a new TruncIndex and initializes with a list of IDs.
 func NewTruncIndex(ids []string) (idx *TruncIndex) {
 	idx = &TruncIndex{
-		ids:  make(map[string]struct{}),
-		trie: patricia.NewTrie(),
+		ids: make(map[string]struct{}),
+
+		// Change patricia max prefix per node length,
+		// because our len(ID) always 64
+		trie: patricia.NewTrie(patricia.MaxPrefixPerNode(64)),
 	}
 	for _, id := range ids {
 		idx.addID(id)
@@ -42,7 +58,7 @@ func NewTruncIndex(ids []string) (idx *TruncIndex) {
 
 func (idx *TruncIndex) addID(id string) error {
 	if strings.Contains(id, " ") {
-		return fmt.Errorf("illegal character: ' '")
+		return ErrIllegalChar
 	}
 	if id == "" {
 		return ErrEmptyPrefix
@@ -57,14 +73,11 @@ func (idx *TruncIndex) addID(id string) error {
 	return nil
 }
 
-// Add adds a new ID to the TruncIndex
+// Add adds a new ID to the TruncIndex.
 func (idx *TruncIndex) Add(id string) error {
 	idx.Lock()
 	defer idx.Unlock()
-	if err := idx.addID(id); err != nil {
-		return err
-	}
-	return nil
+	return idx.addID(id)
 }
 
 // Delete removes an ID from the TruncIndex. If there are multiple IDs
@@ -95,7 +108,7 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 		if id != "" {
 			// we haven't found the ID if there are two or more IDs
 			id = ""
-			return ErrAmbiguousPrefix
+			return ErrAmbiguousPrefix{prefix: string(prefix)}
 		}
 		id = string(prefix)
 		return nil
@@ -109,5 +122,18 @@ func (idx *TruncIndex) Get(s string) (string, error) {
 	if id != "" {
 		return id, nil
 	}
-	return "", fmt.Errorf("no such id: %s", s)
+	return "", ErrNotExist
+}
+
+// Iterate iterates over all stored IDs and passes each of them to the given
+// handler. Take care that the handler method does not call any public
+// method on truncindex as the internal locking is not reentrant/recursive
+// and will result in deadlock.
+func (idx *TruncIndex) Iterate(handler func(id string)) {
+	idx.Lock()
+	defer idx.Unlock()
+	idx.trie.Visit(func(prefix patricia.Prefix, item patricia.Item) error {
+		handler(string(prefix))
+		return nil
+	})
 }

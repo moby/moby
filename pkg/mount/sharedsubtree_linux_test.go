@@ -1,12 +1,13 @@
 // +build linux
 
-package mount
+package mount // import "github.com/docker/docker/pkg/mount"
 
 import (
 	"os"
 	"path"
-	"syscall"
 	"testing"
+
+	"golang.org/x/sys/unix"
 )
 
 // nothing is propagated in or out
@@ -107,7 +108,7 @@ func TestSubtreePrivate(t *testing.T) {
 }
 
 // Testing that when a target is a shared mount,
-// then child mounts propogate to the source
+// then child mounts propagate to the source
 func TestSubtreeShared(t *testing.T) {
 	tmp := path.Join(os.TempDir(), "mount-tests")
 	if err := os.MkdirAll(tmp, 0777); err != nil {
@@ -168,7 +169,7 @@ func TestSubtreeShared(t *testing.T) {
 		}
 	}()
 
-	// NOW, check that the file from the outside directory is avaible in the source directory
+	// NOW, check that the file from the outside directory is available in the source directory
 	if _, err := os.Stat(sourceCheckPath); err != nil {
 		t.Fatal(err)
 	}
@@ -309,7 +310,7 @@ func TestSubtreeUnbindable(t *testing.T) {
 	}()
 
 	// then attempt to mount it to target. It should fail
-	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil && err != syscall.EINVAL {
+	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil && err != unix.EINVAL {
 		t.Fatal(err)
 	} else if err == nil {
 		t.Fatalf("%q should not have been bindable", sourceDir)

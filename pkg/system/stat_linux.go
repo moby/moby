@@ -1,12 +1,10 @@
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
-import (
-	"syscall"
-)
+import "syscall"
 
 // fromStatT converts a syscall.Stat_t type to a system.Stat_t type
-func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
-	return &Stat_t{size: s.Size,
+func fromStatT(s *syscall.Stat_t) (*StatT, error) {
+	return &StatT{size: s.Size,
 		mode: s.Mode,
 		uid:  s.Uid,
 		gid:  s.Gid,
@@ -14,14 +12,8 @@ func fromStatT(s *syscall.Stat_t) (*Stat_t, error) {
 		mtim: s.Mtim}, nil
 }
 
-// Stat takes a path to a file and returns
-// a system.Stat_t type pertaining to that file.
-//
-// Throws an error if the file does not exist
-func Stat(path string) (*Stat_t, error) {
-	s := &syscall.Stat_t{}
-	if err := syscall.Stat(path, s); err != nil {
-		return nil, err
-	}
+// FromStatT converts a syscall.Stat_t type to a system.Stat_t type
+// This is exposed on Linux as pkg/archive/changes uses it.
+func FromStatT(s *syscall.Stat_t) (*StatT, error) {
 	return fromStatT(s)
 }

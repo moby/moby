@@ -5,7 +5,7 @@ the Docker project.
 
 ### CI
 
-The Docker project uses [Jenkins](https://jenkins.dockerproject.com/) as our
+The Docker project uses [Jenkins](https://jenkins.dockerproject.org/) as our
 continuous integration server. Each Pull Request to Docker is tested by running the 
 equivalent of `make all`. We chose Jenkins because we can host it ourselves and
 we run Docker in Docker to test.
@@ -16,13 +16,14 @@ Leeroy is a Go application which integrates Jenkins with
 GitHub pull requests. Leeroy uses 
 [GitHub hooks](https://developer.github.com/v3/repos/hooks/) 
 to listen for pull request notifications and starts jobs on your Jenkins 
-server.  Using the Jenkins [notification plugin][jnp], Leeroy updates the 
-pull request using GitHub's 
+server.  Using the Jenkins
+[notification plugin](https://wiki.jenkins-ci.org/display/JENKINS/Notification+Plugin),
+Leeroy updates the pull request using GitHub's 
 [status API](https://developer.github.com/v3/repos/statuses/)
 with pending, success, failure, or error statuses.
 
 The leeroy repository is maintained at
-[github.com/jfrazelle/leeroy](https://github.com/jfrazelle/leeroy).
+[github.com/docker/leeroy](https://github.com/docker/leeroy).
 
 #### GordonTheTurtle IRC Bot
 
@@ -36,12 +37,12 @@ This command works by integrating with Leroy. He has a few other commands too, s
 as `!gif` or `!godoc`, but we are always looking for more fun commands to add.
 
 The gordon-bot repository is maintained at
-[github.com/jfrazelle/gordon-bot](https://github.com/jfrazelle/gordon-bot)
+[github.com/docker/gordon-bot](https://github.com/docker/gordon-bot)
 
 ### NSQ
 
 We use [NSQ](https://github.com/bitly/nsq) for various aspects of the project
-infrastucture.
+infrastructure.
 
 #### Hooks
 
@@ -59,16 +60,4 @@ jobs.
 One of the things queued from the Hooks are the building of the Master
 Binaries. This happens on every push to the master branch of Docker. The
 repository for this is maintained at
-[github.com/jfrazelle/docker-bb](https://github.com/jfrazelle/docker-bb).
-
-#### Docker Master Docs
-
-The master build of the docs gets queued from the Hooks as well. They are built
-using [github.com/jfrazelle/nsqexec](https://github.com/jfrazelle/nsqexec).
-
-#### Patch Parser Bot
-
-The bot, also named GordonTheTurtle, that labels and comments on Pull Requests
-listens on Hooks as well. He is capable of knowing if a Pull Request needs to
-be signed, or gofmt'd, as well as rebased. The repository for this is maintained at
-[github.com/jfrazelle/gh-patch-parser](https://github.com/jfrazelle/gh-patch-parser).
+[github.com/docker/docker-bb](https://github.com/docker/docker-bb).

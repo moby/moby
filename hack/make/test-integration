@@ -1,25 +1,21 @@
-#!/bin/bash
-set -e
+#!/usr/bin/env bash
+set -e -o pipefail
 
-DEST=$1
+source hack/make/.integration-test-helpers
 
-INIT=$DEST/../dynbinary/dockerinit-$VERSION
-[ -x "$INIT" ] || {
-	source "${MAKEDIR}/.dockerinit"
-	INIT="$DEST/dockerinit"
-}
-export TEST_DOCKERINIT_PATH="$INIT"
+(
+	build_test_suite_binaries
+	bundle .integration-daemon-start
+	bundle .integration-daemon-setup
 
-bundle_test_integration() {
-	LDFLAGS="
-		$LDFLAGS
-		-X $DOCKER_PKG/dockerversion.INITSHA1 \"$DOCKER_INITSHA1\"
-	" go_test_dir ./integration \
-		"-coverpkg $(find_dirs '*.go' | sed 's,^\.,'$DOCKER_PKG',g' | paste -d, -s)"
-}
+	local testexit=0
+	( repeat run_test_integration ) || testexit=$?
 
-# this "grep" hides some really irritating warnings that "go test -coverpkg"
-# spews when it is given packages that aren't used
-bundle_test_integration 2>&1 \
-	| grep --line-buffered -v '^warning: no packages being tested depend on ' \
-	| tee -a "$DEST/test.log"
+	# Always run cleanup, even if the subshell fails
+	bundle .integration-daemon-stop
+	cleanup_test_suite_binaries
+	error_on_leaked_containerd_shims
+
+	exit $testexit
+
+) 2>&1 | tee -a "$DEST/test.log"

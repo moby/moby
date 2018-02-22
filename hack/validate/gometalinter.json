@@ -1,0 +1,26 @@
+{
+  "Vendor": true,
+  "EnableGC": true,
+  "Sort": ["linter", "severity", "path"],
+  "Exclude": [
+    ".*\\.pb\\.go",
+    "dockerversion/version_autogen.go",
+    "api/types/container/container_.*",
+    "integration-cli/"
+  ],
+  "Skip": ["integration-cli/"],
+
+  "Enable": [
+    "deadcode",
+    "gofmt",
+    "goimports",
+    "golint",
+    "gosimple",
+    "ineffassign",
+    "interfacer",
+    "unconvert",
+    "vet"
+  ],
+
+  "LineLength": 200
+}

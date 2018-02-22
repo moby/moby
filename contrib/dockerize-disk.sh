@@ -74,7 +74,7 @@ mount -t aufs -o "br=$builddir/diff=rw${base_image_mounts},dio,xino=/dev/shm/auf
 
 # Update files
 cd $builddir
-diff -rq disk_image workdir \
+LC_ALL=C diff -rq disk_image workdir \
   | sed -re "s|Only in workdir(.*?): |DEL \1/|g;s|Only in disk_image(.*?): |ADD \1/|g;s|Files disk_image/(.+) and workdir/(.+) differ|UPDATE /\1|g" \
   | while read action entry; do
       case "$action" in

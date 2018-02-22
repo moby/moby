@@ -1,0 +1,218 @@
+syntax = "proto3";
+
+package docker.swarmkit.v1;
+
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/objects.proto";
+import "gogoproto/gogo.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
+import "google/protobuf/duration.proto";
+
+// Dispatcher is the API provided by a manager group for agents to connect to. Agents
+// connect to this service to receive task assignments and report status.
+//
+// API methods on this service are used only by agent nodes.
+service Dispatcher { // maybe dispatch, al likes this
+	// Session starts an agent session with the dispatcher. The session is
+	// started after the first SessionMessage is received.
+	//
+	// Once started, the agent is controlled with a stream of SessionMessage.
+	// Agents should list on the stream at all times for instructions.
+	rpc Session(SessionRequest) returns (stream SessionMessage) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+
+	// Heartbeat is heartbeat method for nodes. It returns new TTL in response.
+	// Node should send new heartbeat earlier than now + TTL, otherwise it will
+	// be deregistered from dispatcher and its status will be updated to NodeStatus_DOWN
+	rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+
+	// UpdateTaskStatus updates status of task. Node should send such updates
+	// on every status change of its tasks.
+	//
+	// Whether receiving batch updates or single status updates, this method
+	// should be accepting. Errors should only be returned if the entire update
+	// should be retried, due to data loss or other problems.
+	//
+	// If a task is unknown the dispatcher, the status update should be
+	// accepted regardless.
+	rpc UpdateTaskStatus(UpdateTaskStatusRequest) returns (UpdateTaskStatusResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+
+	// Tasks is a stream of tasks state for node. Each message contains full list
+	// of tasks which should be run on node, if task is not present in that list,
+	// it should be terminated.
+	rpc Tasks(TasksRequest) returns (stream TasksMessage) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+		option deprecated = true;
+	};
+
+	// Assignments is a stream of assignments such as tasks and secrets for node.
+	// The first message in the stream contains all of the tasks and secrets
+	// that are relevant to the node. Future messages in the stream are updates to
+	// the set of assignments.
+	rpc Assignments(AssignmentsRequest) returns (stream AssignmentsMessage) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-worker" roles: "swarm-manager" };
+	};
+}
+
+// SessionRequest starts a session.
+message SessionRequest {
+	NodeDescription description = 1;
+	// SessionID can be provided to attempt resuming an existing session. If the
+	// SessionID is empty or invalid, a new SessionID will be assigned.
+	//
+	// See SessionMessage.SessionID for details.
+	string session_id = 2;
+}
+
+// SessionMessage instructs an agent on various actions as part of the current
+// session. An agent should act immediately on the contents.
+message SessionMessage {
+	// SessionID is allocated after a successful registration. It should be
+	// used on all RPC calls after registration. A dispatcher may choose to
+	// change the SessionID, at which time an agent must re-register and obtain
+	// a new one.
+	//
+	// All Dispatcher calls after register should include the SessionID. If the
+	// Dispatcher so chooses, it may reject the call with an InvalidArgument
+	// error code, at which time the agent should call Register to start a new
+	// session.
+	//
+	// As a rule, once an agent has a SessionID, it should never save it to
+	// disk or try to otherwise reuse. If the agent loses its SessionID, it
+	// must start a new session through a call to Register. A Dispatcher may
+	// choose to reuse the SessionID, if it sees fit, but it is not advised.
+	//
+	// The actual implementation of the SessionID is Dispatcher specific and
+	// should be treated as opaque by agents.
+	//
+	// From a Dispatcher perspective, there are many ways to use the SessionID
+	// to ensure uniqueness of a set of client RPC calls. One method is to keep
+	// the SessionID unique to every call to Register in a single Dispatcher
+	// instance. This ensures that the SessionID represents the unique
+	// session from a single Agent to Manager. If the Agent restarts, we
+	// allocate a new session, since the restarted Agent is not aware of the
+	// new SessionID.
+	//
+	// The most compelling use case is to support duplicate node detection. If
+	// one clones a virtual machine, including certificate material, two nodes
+	// may end up with the same identity. This can also happen if two identical
+	// agent processes are coming from the same node. If the SessionID is
+	// replicated through the cluster, we can immediately detect the condition
+	// and address it.
+	//
+	// Extending from the case above, we can actually detect a compromised
+	// identity. Coupled with provisions to rebuild node identity, we can ban
+	// the compromised node identity and have the nodes re-authenticate and
+	// build a new identity. At this time, an administrator can then
+	// re-authorize the compromised nodes, if it was a mistake or ensure that a
+	// misbehaved node can no longer connect to the cluster.
+	//
+	// We considered placing this field in a GRPC header. Because this is a
+	// critical feature of the protocol, we thought it should be represented
+	// directly in the RPC message set.
+	string session_id = 1;
+
+	// Node identifies the registering node.
+	Node node = 2;
+
+	// Managers provides a weight list of alternative dispatchers
+	repeated WeightedPeer managers = 3;
+
+	// Symmetric encryption key distributed by the lead manager. Used by agents
+	// for securing network bootstrapping and communication.
+	repeated EncryptionKey network_bootstrap_keys = 4;
+
+	// Which root certificates to trust
+	bytes RootCA = 5;
+}
+
+// HeartbeatRequest provides identifying properties for a single heartbeat.
+message HeartbeatRequest {
+	string session_id = 1;
+}
+
+message HeartbeatResponse {
+	// Period is the duration to wait before sending the next heartbeat.
+	// Well-behaved agents should update this on every heartbeat round trip.
+	google.protobuf.Duration period = 1 [(gogoproto.stdduration) = true, (gogoproto.nullable) = false];
+}
+
+message UpdateTaskStatusRequest {
+	// Tasks should contain all statuses for running tasks. Only the status
+	// field must be set. The spec is not required.
+	string session_id = 1;
+
+	message TaskStatusUpdate {
+		string task_id = 1;
+		TaskStatus status = 2;
+	}
+
+	repeated TaskStatusUpdate updates = 3;
+}
+
+message  UpdateTaskStatusResponse{
+	// void
+}
+
+message TasksRequest {
+	string session_id = 1;
+}
+
+message TasksMessage {
+	// Tasks is the set of tasks that should be running on the node.
+	// Tasks outside of this set running on the node should be terminated.
+	repeated Task tasks = 1;
+}
+
+message AssignmentsRequest {
+	string session_id = 1;
+}
+
+message Assignment {
+	oneof item {
+		Task task = 1;
+		Secret secret = 2;
+		Config config = 3;
+	}
+}
+
+message AssignmentChange {
+	enum AssignmentAction {
+		UPDATE = 0 [(gogoproto.enumvalue_customname) = "AssignmentActionUpdate"];
+		REMOVE = 1 [(gogoproto.enumvalue_customname) = "AssignmentActionRemove"];
+	}
+
+	Assignment assignment = 1;
+	AssignmentAction action = 2;
+}
+
+message AssignmentsMessage {
+	// AssignmentType specifies whether this assignment message carries
+	// the full state, or is an update to an existing state.
+	enum Type {
+		COMPLETE = 0;
+		INCREMENTAL = 1;
+	}
+
+	Type type = 1;
+
+	// AppliesTo references the previous ResultsIn value, to chain
+	// incremental updates together. For the first update in a stream,
+	// AppliesTo is empty.  If AppliesTo does not match the previously
+	// received ResultsIn, the consumer of the stream should start a new
+	// Assignments stream to re-sync.
+	string applies_to = 2;
+
+	// ResultsIn identifies the result of this assignments message, to
+	// match against the next message's AppliesTo value and protect
+	// against missed messages.
+	string results_in = 3;
+
+	// AssignmentChange is a set of changes to apply on this node.
+	repeated AssignmentChange changes = 4;
+}

@@ -1,15 +1,15 @@
-package tarsum
+package tarsum // import "github.com/docker/docker/pkg/tarsum"
 
 import (
+	"archive/tar"
 	"errors"
+	"io"
 	"sort"
 	"strconv"
 	"strings"
-
-	"github.com/docker/docker/vendor/src/code.google.com/p/go/src/pkg/archive/tar"
 )
 
-// versioning of the TarSum algorithm
+// Version is used for versioning of the TarSum algorithm
 // based on the prefix of the hash used
 // i.e. "tarsum+sha256:e58fcf7418d4390dec8e8fb69d88c06ec07039d651fedd3aa72af9972e7d046b"
 type Version int
@@ -18,9 +18,16 @@ type Version int
 const (
 	Version0 Version = iota
 	Version1
-	// NOTE: this variable will be either the latest or an unsettled next-version of the TarSum calculation
+	// VersionDev this constant will be either the latest or an unsettled next-version of the TarSum calculation
 	VersionDev
 )
+
+// WriteV1Header writes a tar header to a writer in V1 tarsum format.
+func WriteV1Header(h *tar.Header, w io.Writer) {
+	for _, elem := range v1TarHeaderSelect(h) {
+		w.Write([]byte(elem[0] + elem[1]))
+	}
+}
 
 // VersionLabelForChecksum returns the label for the given tarsum
 // checksum, i.e., everything before the first `+` character in
@@ -34,7 +41,7 @@ func VersionLabelForChecksum(checksum string) string {
 	return checksum[:sepIndex]
 }
 
-// Get a list of all known tarsum Version
+// GetVersions gets a list of all known tarsum versions.
 func GetVersions() []Version {
 	v := []Version{}
 	for k := range tarSumVersions {
@@ -60,7 +67,7 @@ func (tsv Version) String() string {
 	return tarSumVersions[tsv]
 }
 
-// GetVersionFromTarsum returns the Version from the provided string
+// GetVersionFromTarsum returns the Version from the provided string.
 func GetVersionFromTarsum(tarsum string) (Version, error) {
 	tsv := tarsum
 	if strings.Contains(tarsum, "+") {
@@ -96,17 +103,17 @@ func (f tarHeaderSelectFunc) selectHeaders(h *tar.Header) (orderedHeaders [][2]s
 func v0TarHeaderSelect(h *tar.Header) (orderedHeaders [][2]string) {
 	return [][2]string{
 		{"name", h.Name},
-		{"mode", strconv.Itoa(int(h.Mode))},
+		{"mode", strconv.FormatInt(h.Mode, 10)},
 		{"uid", strconv.Itoa(h.Uid)},
 		{"gid", strconv.Itoa(h.Gid)},
-		{"size", strconv.Itoa(int(h.Size))},
-		{"mtime", strconv.Itoa(int(h.ModTime.UTC().Unix()))},
+		{"size", strconv.FormatInt(h.Size, 10)},
+		{"mtime", strconv.FormatInt(h.ModTime.UTC().Unix(), 10)},
 		{"typeflag", string([]byte{h.Typeflag})},
 		{"linkname", h.Linkname},
 		{"uname", h.Uname},
 		{"gname", h.Gname},
-		{"devmajor", strconv.Itoa(int(h.Devmajor))},
-		{"devminor", strconv.Itoa(int(h.Devminor))},
+		{"devmajor", strconv.FormatInt(h.Devmajor, 10)},
+		{"devminor", strconv.FormatInt(h.Devminor, 10)},
 	}
 }
 

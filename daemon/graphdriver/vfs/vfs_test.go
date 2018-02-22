@@ -1,4 +1,6 @@
-package vfs
+// +build linux
+
+package vfs // import "github.com/docker/docker/daemon/graphdriver/vfs"
 
 import (
 	"testing"
@@ -28,6 +30,10 @@ func TestVfsCreateBase(t *testing.T) {
 
 func TestVfsCreateSnap(t *testing.T) {
 	graphtest.DriverTestCreateSnap(t, "vfs")
+}
+
+func TestVfsSetQuota(t *testing.T) {
+	graphtest.DriverTestSetQuota(t, "vfs", false)
 }
 
 func TestVfsTeardown(t *testing.T) {

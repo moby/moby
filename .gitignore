@@ -2,32 +2,23 @@
 #  if you want to ignore files created by your editor/tools,
 #  please consider a global .gitignore https://help.github.com/articles/ignoring-files
 *.exe
+*.exe~
 *.orig
-*.test
+test.main
 .*.swp
 .DS_Store
+# a .bashrc may be added to customize the build environment
 .bashrc
-.dotcloud
-.flymake*
-.git/
+.editorconfig
 .gopath/
-.hg/
-.idea
-.vagrant*
-Vagrantfile
-a.out
+.go-pkg-cache/
 autogen/
-bin
-build_src
 bundles/
-docker/docker
-docs/AWS_S3_BUCKET
-docs/GITCOMMIT
-docs/GIT_BRANCH
-docs/VERSION
-docs/_build
-docs/_static
-docs/_templates
-docs/changed-files
-pyenv
+cmd/dockerd/dockerd
+contrib/builder/rpm/*/changelog
+dockerversion/version_autogen.go
+dockerversion/version_autogen_unix.go
 vendor/pkg/
+hack/integration-cli-on-swarm/integration-cli-on-swarm
+coverage.txt
+profile.out

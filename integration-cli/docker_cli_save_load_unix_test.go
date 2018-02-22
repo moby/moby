@@ -3,98 +3,105 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
+	"time"
 
-	"github.com/docker/docker/vendor/src/github.com/kr/pty"
+	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/kr/pty"
 )
 
 // save a repo and try to load it using stdout
 func (s *DockerSuite) TestSaveAndLoadRepoStdout(c *check.C) {
-	runCmd := exec.Command(dockerBinary, "run", "-d", "busybox", "true")
-	out, _, err := runCommandWithOutput(runCmd)
-	if err != nil {
-		c.Fatalf("failed to create a container: %s, %v", out, err)
-	}
-
-	cleanedContainerID := strings.TrimSpace(out)
+	name := "test-save-and-load-repo-stdout"
+	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
 	repoName := "foobar-save-load-test"
+	before, _ := dockerCmd(c, "commit", name, repoName)
+	before = strings.TrimRight(before, "\n")
 
-	inspectCmd := exec.Command(dockerBinary, "inspect", cleanedContainerID)
-	if out, _, err = runCommandWithOutput(inspectCmd); err != nil {
-		c.Fatalf("output should've been a container id: %s, %v", out, err)
-	}
+	tmpFile, err := ioutil.TempFile("", "foobar-save-load-test.tar")
+	c.Assert(err, check.IsNil)
+	defer os.Remove(tmpFile.Name())
 
-	commitCmd := exec.Command(dockerBinary, "commit", cleanedContainerID, repoName)
-	if out, _, err = runCommandWithOutput(commitCmd); err != nil {
-		c.Fatalf("failed to commit container: %s, %v", out, err)
-	}
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "save", repoName},
+		Stdout:  tmpFile,
+	}).Assert(c, icmd.Success)
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
-	before, _, err := runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("the repo should exist before saving it: %s, %v", before, err)
-	}
-
-	saveCmdTemplate := `%v save %v > /tmp/foobar-save-load-test.tar`
-	saveCmdFinal := fmt.Sprintf(saveCmdTemplate, dockerBinary, repoName)
-	saveCmd := exec.Command("bash", "-c", saveCmdFinal)
-	if out, _, err = runCommandWithOutput(saveCmd); err != nil {
-		c.Fatalf("failed to save repo: %s, %v", out, err)
-	}
+	tmpFile, err = os.Open(tmpFile.Name())
+	c.Assert(err, check.IsNil)
+	defer tmpFile.Close()
 
 	deleteImages(repoName)
 
-	loadCmdFinal := `cat /tmp/foobar-save-load-test.tar | docker load`
-	loadCmd := exec.Command("bash", "-c", loadCmdFinal)
-	if out, _, err = runCommandWithOutput(loadCmd); err != nil {
-		c.Fatalf("failed to load repo: %s, %v", out, err)
-	}
+	icmd.RunCmd(icmd.Cmd{
+		Command: []string{dockerBinary, "load"},
+		Stdin:   tmpFile,
+	}).Assert(c, icmd.Success)
 
-	inspectCmd = exec.Command(dockerBinary, "inspect", repoName)
-	after, _, err := runCommandWithOutput(inspectCmd)
-	if err != nil {
-		c.Fatalf("the repo should exist after loading it: %s %v", after, err)
-	}
+	after := inspectField(c, repoName, "Id")
+	after = strings.TrimRight(after, "\n")
 
-	if before != after {
-		c.Fatalf("inspect is not the same after a save / load")
-	}
+	c.Assert(after, check.Equals, before) //inspect is not the same after a save / load
 
-	deleteContainer(cleanedContainerID)
 	deleteImages(repoName)
-
-	os.Remove("/tmp/foobar-save-load-test.tar")
 
 	pty, tty, err := pty.Open()
-	if err != nil {
-		c.Fatalf("Could not open pty: %v", err)
-	}
+	c.Assert(err, check.IsNil)
 	cmd := exec.Command(dockerBinary, "save", repoName)
 	cmd.Stdin = tty
 	cmd.Stdout = tty
 	cmd.Stderr = tty
-	if err := cmd.Start(); err != nil {
-		c.Fatalf("start err: %v", err)
-	}
-	if err := cmd.Wait(); err == nil {
-		c.Fatal("did not break writing to a TTY")
-	}
+	c.Assert(cmd.Start(), check.IsNil)
+	c.Assert(cmd.Wait(), check.NotNil) //did not break writing to a TTY
 
 	buf := make([]byte, 1024)
 
 	n, err := pty.Read(buf)
-	if err != nil {
-		c.Fatal("could not read tty output")
-	}
+	c.Assert(err, check.IsNil) //could not read tty output
+	c.Assert(string(buf[:n]), checker.Contains, "cowardly refusing", check.Commentf("help output is not being yielded"))
+}
 
-	if !bytes.Contains(buf[:n], []byte("Cowardly refusing")) {
-		c.Fatal("help output is not being yielded", out)
-	}
+func (s *DockerSuite) TestSaveAndLoadWithProgressBar(c *check.C) {
+	name := "test-load"
+	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
+	RUN touch aa
+	`))
 
+	tmptar := name + ".tar"
+	dockerCmd(c, "save", "-o", tmptar, name)
+	defer os.Remove(tmptar)
+
+	dockerCmd(c, "rmi", name)
+	dockerCmd(c, "tag", "busybox", name)
+	out, _ := dockerCmd(c, "load", "-i", tmptar)
+	expected := fmt.Sprintf("The image %s:latest already exists, renaming the old one with ID", name)
+	c.Assert(out, checker.Contains, expected)
+}
+
+// fail because load didn't receive data from stdin
+func (s *DockerSuite) TestLoadNoStdinFail(c *check.C) {
+	pty, tty, err := pty.Open()
+	c.Assert(err, check.IsNil)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, dockerBinary, "load")
+	cmd.Stdin = tty
+	cmd.Stdout = tty
+	cmd.Stderr = tty
+	c.Assert(cmd.Run(), check.NotNil) // docker-load should fail
+
+	buf := make([]byte, 1024)
+
+	n, err := pty.Read(buf)
+	c.Assert(err, check.IsNil) //could not read tty output
+	c.Assert(string(buf[:n]), checker.Contains, "requested load from stdin, but stdin is empty")
 }
