@@ -42,6 +42,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanPersistance(c *check.C) {
 	master := "dm-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
 	createMasterDummy(c, master)
+	// cleanup the master interface that also collects the slave dev
+	defer deleteInterface(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.60", "dm-persist")
 	assertNwIsAvailable(c, "dm-persist")
@@ -49,8 +51,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanPersistance(c *check.C) {
 	s.d.Restart(c)
 	// verify network is recreated from persistence
 	assertNwIsAvailable(c, "dm-persist")
-	// cleanup the master interface that also collects the slave dev
-	deleteInterface(c, "dm-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
@@ -60,6 +60,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
 	createMasterDummy(c, master)
+	// cleanup the master interface that also collects the slave dev
+	defer deleteInterface(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.70", "di-persist")
 	assertNwIsAvailable(c, "di-persist")
@@ -67,8 +69,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 	s.d.Restart(c)
 	// verify network is recreated from persistence
 	assertNwIsAvailable(c, "di-persist")
-	// cleanup the master interface that also collects the slave dev
-	deleteInterface(c, "di-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkMacvlanSubIntCreate(c *check.C) {
@@ -78,11 +78,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanSubIntCreate(c *check.C) {
 	master := "dm-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
 	createMasterDummy(c, master)
+	// cleanup the master interface which also collects the slave dev
+	defer deleteInterface(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.50", "dm-subinterface")
 	assertNwIsAvailable(c, "dm-subinterface")
-	// cleanup the master interface which also collects the slave dev
-	deleteInterface(c, "dm-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanSubIntCreate(c *check.C) {
@@ -92,11 +92,11 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanSubIntCreate(c *check.C) {
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
 	createMasterDummy(c, master)
+	// cleanup the master interface which also collects the slave dev
+	defer deleteInterface(c, master)
 	// create a network specifying the desired sub-interface name
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.60", "di-subinterface")
 	assertNwIsAvailable(c, "di-subinterface")
-	// cleanup the master interface which also collects the slave dev
-	deleteInterface(c, "di-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkMacvlanOverlapParent(c *check.C) {
@@ -105,6 +105,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanOverlapParent(c *check.C) {
 	// master dummy interface 'dm' abbreviation represents 'docker macvlan'
 	master := "dm-dummy0"
 	createMasterDummy(c, master)
+	// cleanup the master interface which also collects the slave dev
+	defer deleteInterface(c, master)
 	createVlanInterface(c, master, "dm-dummy0.40", "40")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.40", "dm-subinterface")
@@ -113,8 +115,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanOverlapParent(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.40", "dm-parent-net-overlap")
 	// verify that the overlap returns an error
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	// cleanup the master interface which also collects the slave dev
-	deleteInterface(c, "dm-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
@@ -123,6 +123,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
 	// master dummy interface 'dm' abbreviation represents 'docker ipvlan'
 	master := "di-dummy0"
 	createMasterDummy(c, master)
+	// cleanup the master interface which also collects the slave dev
+	defer deleteInterface(c, master)
 	createVlanInterface(c, master, "di-dummy0.30", "30")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.30", "di-subinterface")
@@ -131,8 +133,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
 	out, _, err := dockerCmdWithError("network", "create", "--driver=ipvlan", "-o", "parent=di-dummy0.30", "di-parent-net-overlap")
 	// verify that the overlap returns an error
 	c.Assert(err, check.NotNil, check.Commentf(out))
-	// cleanup the master interface which also collects the slave dev
-	deleteInterface(c, "di-dummy0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
@@ -471,6 +471,7 @@ func (s *DockerSuite) TestDockerNetworkMacVlanExistingParent(c *check.C) {
 	testRequires(c, DaemonIsLinux, macvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	netName := "dm-parent-exists"
 	createMasterDummy(c, "dm-dummy0")
+	defer deleteInterface(c, "dm-dummy0")
 	//out, err := createVlanInterface(c, "dm-parent", "dm-slave", "macvlan", "bridge")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0", netName)
@@ -480,7 +481,6 @@ func (s *DockerSuite) TestDockerNetworkMacVlanExistingParent(c *check.C) {
 	assertNwNotAvailable(c, netName)
 	// verify the network delete did not delete the predefined link
 	linkExists(c, "dm-dummy0")
-	deleteInterface(c, "dm-dummy0")
 }
 
 func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
@@ -488,6 +488,8 @@ func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	testRequires(c, DaemonIsLinux, macvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
 	netName := "dm-subinterface"
 	createMasterDummy(c, "dm-dummy0")
+	// delete the parent interface which also collects the slave
+	defer deleteInterface(c, "dm-dummy0")
 	createVlanInterface(c, "dm-dummy0", "dm-dummy0.20", "20")
 	// create a network using an existing parent interface
 	dockerCmd(c, "network", "create", "--driver=macvlan", "-o", "parent=dm-dummy0.20", netName)
@@ -510,8 +512,6 @@ func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	assertNwNotAvailable(c, netName)
 	// verify the network delete did not delete the predefined sub-interface
 	linkExists(c, "dm-dummy0.20")
-	// delete the parent interface which also collects the slave
-	deleteInterface(c, "dm-dummy0")
 }
 
 func createMasterDummy(c *check.C, master string) {
