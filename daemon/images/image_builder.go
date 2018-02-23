@@ -166,7 +166,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
-	if refOrID == "" {
+	if refOrID == "" { // ie FROM scratch
 		if !system.IsOSSupported(opts.OS) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}

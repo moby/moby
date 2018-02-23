@@ -59,10 +59,10 @@ func ParsePlatform(in string) *specs.Platform {
 
 // IsOSSupported determines if an operating system is supported by the host
 func IsOSSupported(os string) bool {
-	if runtime.GOOS == os {
+	if strings.EqualFold(runtime.GOOS, os) {
 		return true
 	}
-	if LCOWSupported() && os == "linux" {
+	if LCOWSupported() && strings.EqualFold(os, "linux") {
 		return true
 	}
 	return false

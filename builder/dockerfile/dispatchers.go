@@ -229,7 +229,7 @@ func (d *dispatchRequest) getOsFromFlagsAndStage(stageOS string) string {
 		// multi-arch aware yet, it is guaranteed to only hold the OS part here.
 		return d.builder.options.Platform
 	default:
-		return runtime.GOOS
+		return "" // Auto-select
 	}
 }
 
@@ -248,9 +248,9 @@ func (d *dispatchRequest) getImageOrStage(name string, stageOS string) (builder.
 		imageImage.OS = runtime.GOOS
 		if runtime.GOOS == "windows" {
 			switch os {
-			case "windows", "":
+			case "windows":
 				return nil, errors.New("Windows does not support FROM scratch")
-			case "linux":
+			case "linux", "":
 				if !system.LCOWSupported() {
 					return nil, errors.New("Linux containers are not supported on this system")
 				}
