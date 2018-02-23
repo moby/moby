@@ -1203,7 +1203,13 @@ func (c *client) shutdownContainer(ctr *container) error {
 	if err != nil {
 		c.logger.WithError(err).WithField("container", ctr.id).
 			Debug("failed to shutdown container, terminating it")
-		return c.terminateContainer(ctr)
+		terminateErr := c.terminateContainer(ctr)
+		if terminateErr != nil {
+			c.logger.WithError(terminateErr).WithField("container", ctr.id).
+				Error("failed to shutdown container, and subsequent terminate also failed")
+			return fmt.Errorf("%s: subsequent terminate failed %s", err, terminateErr)
+		}
+		return err
 	}
 
 	return nil
@@ -1234,6 +1240,8 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		"process":   p.id,
 	})
 
+	var eventErr error
+
 	// Block indefinitely for the process to exit.
 	if err := p.hcsProcess.Wait(); err != nil {
 		if herr, ok := err.(*hcsshim.ProcessError); ok && herr.Err != windows.ERROR_BROKEN_PIPE {
@@ -1263,6 +1271,8 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 
 	if err := p.hcsProcess.Close(); err != nil {
 		logger.WithError(err).Warnf("failed to cleanup hcs process resources")
+		exitCode = -1
+		eventErr = fmt.Errorf("hcsProcess.Close() failed %s", err)
 	}
 
 	var pendingUpdates bool
@@ -1286,13 +1296,27 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		}
 
 		if err := c.shutdownContainer(ctr); err != nil {
+			exitCode = -1
 			logger.WithError(err).Warn("failed to shutdown container")
+			thisErr := fmt.Errorf("failed to shutdown container: %s", err)
+			if eventErr != nil {
+				eventErr = fmt.Errorf("%s: %s", eventErr, thisErr)
+			} else {
+				eventErr = thisErr
+			}
 		} else {
 			logger.Debug("completed container shutdown")
 		}
 
 		if err := ctr.hcsContainer.Close(); err != nil {
+			exitCode = -1
 			logger.WithError(err).Error("failed to clean hcs container resources")
+			thisErr := fmt.Errorf("failed to terminate container: %s", err)
+			if eventErr != nil {
+				eventErr = fmt.Errorf("%s: %s", eventErr, thisErr)
+			} else {
+				eventErr = thisErr
+			}
 		}
 	}
 
@@ -1305,6 +1329,7 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 				ExitCode:      uint32(exitCode),
 				ExitedAt:      exitedAt,
 				UpdatePending: pendingUpdates,
+				Error:         eventErr,
 			}
 			c.logger.WithFields(logrus.Fields{
 				"container":  ctr.id,
