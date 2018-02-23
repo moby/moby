@@ -212,7 +212,7 @@ func TestUtilGenerateRandomMAC(t *testing.T) {
 
 func TestNetworkRequest(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
-	ipamutils.InitNetworks()
+	ipamutils.InitNetworks(nil)
 
 	nw, err := FindAvailableNetwork(ipamutils.PredefinedBroadNetworks)
 	if err != nil {
@@ -266,7 +266,7 @@ func TestNetworkRequest(t *testing.T) {
 
 func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
-	ipamutils.InitNetworks()
+	ipamutils.InitNetworks(nil)
 
 	nws := []string{"172.101.202.254/16", "172.102.202.254/16"}
 	createInterface(t, "test", nws...)
@@ -303,7 +303,7 @@ func TestElectInterfaceAddressMultipleAddresses(t *testing.T) {
 
 func TestElectInterfaceAddress(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
-	ipamutils.InitNetworks()
+	ipamutils.InitNetworks(nil)
 
 	nws := "172.101.202.254/16"
 	createInterface(t, "test", nws)

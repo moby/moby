@@ -21,7 +21,7 @@ import (
 )
 
 func init() {
-	ipamutils.InitNetworks()
+	ipamutils.InitNetworks(nil)
 }
 
 func TestEndpointMarshalling(t *testing.T) {
