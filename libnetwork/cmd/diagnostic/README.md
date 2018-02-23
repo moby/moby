@@ -199,7 +199,17 @@ The following flags are supported:
 | -ip <string>  | The IP address to query. Defaults to 127.0.0.1. |
 | -net <string> | The target network ID.                          |
 | -port <int>   | The target port. (default port is 2000)         |
+| -a            | Join/leave network                              |
 | -v            | Enable verbose output.                          |
+
+*NOTE*
+By default the tool won't try to join the network. This is following the intent to not change
+the state on which the node is when the diagnostic client is run. This means that it is safe
+to run the diagnosticClient against a running daemon because it will just dump the current state.
+When using instead the diagnosticClient in the containerized version the flag `-a` MUST be passed
+to avoid retrieving empty results. On the other side using the `-a` flag against a loaded daemon
+will have the undesirable side effect to leave the network and so cutting down the data path for
+that daemon.
 
 ### Container version of the diagnostic tool
 
@@ -242,11 +252,11 @@ Remember to use the full network ID, you can easily find that with `docker netwo
 **Service discovery and load balancer:**
 
 ```bash
-$ diagnostiClient -c sd -v -net n8a8ie6tb3wr2e260vxj8ncy4
+$ diagnostiClient -c sd -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
 ```
 
 **Overlay network:**
 
 ```bash
-$ diagnostiClient -port 2001 -c overlay -v -net n8a8ie6tb3wr2e260vxj8ncy4
+$ diagnostiClient -port 2001 -c overlay -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
 ```

@@ -45,12 +45,18 @@ func main() {
 	networkPtr := flag.String("net", "", "target network")
 	tablePtr := flag.String("t", "", "table to process <sd/overlay>")
 	remediatePtr := flag.Bool("r", false, "perform remediation deleting orphan entries")
+	joinPtr := flag.Bool("a", false, "join/leave network")
 	verbosePtr := flag.Bool("v", false, "verbose output")
 
 	flag.Parse()
 
 	if *verbosePtr {
 		logrus.SetLevel(logrus.DebugLevel)
+	}
+
+	if _, ok := os.LookupEnv("DIND_CLIENT"); !ok && *joinPtr {
+		logrus.Fatal("you are not using the client in docker in docker mode, the use of the -a flag can be disruptive, " +
+			"please remove it (doc:https://github.com/docker/libnetwork/blob/master/cmd/diagnostic/README.md)")
 	}
 
 	logrus.Infof("Connecting to %s:%d checking ready", *ipPtr, *portPtr)
@@ -64,14 +70,20 @@ func main() {
 	var networkPeers map[string]string
 	var joinedNetwork bool
 	if *networkPtr != "" {
-		logrus.Infof("Joining the network:%s", *networkPtr)
-		resp, err = http.Get(fmt.Sprintf(joinNetwork, *ipPtr, *portPtr, *networkPtr))
-		if err != nil {
-			logrus.WithError(err).Fatalf("Failed joining the network")
+		if *joinPtr {
+			logrus.Infof("Joining the network:%q", *networkPtr)
+			resp, err = http.Get(fmt.Sprintf(joinNetwork, *ipPtr, *portPtr, *networkPtr))
+			if err != nil {
+				logrus.WithError(err).Fatalf("Failed joining the network")
+			}
+			httpIsOk(resp.Body)
+			joinedNetwork = true
 		}
-		httpIsOk(resp.Body)
+
 		networkPeers = fetchNodePeers(*ipPtr, *portPtr, *networkPtr)
-		joinedNetwork = true
+		if len(networkPeers) == 0 {
+			logrus.Warnf("There is no peer on network %q, check the network ID, and verify that is the non truncated version", *networkPtr)
+		}
 	}
 
 	switch *tablePtr {
@@ -82,6 +94,7 @@ func main() {
 	}
 
 	if joinedNetwork {
+		logrus.Infof("Leaving the network:%q", *networkPtr)
 		resp, err = http.Get(fmt.Sprintf(leaveNetwork, *ipPtr, *portPtr, *networkPtr))
 		if err != nil {
 			logrus.WithError(err).Fatalf("Failed leaving the network")
@@ -91,7 +104,12 @@ func main() {
 }
 
 func fetchNodePeers(ip string, port int, network string) map[string]string {
-	logrus.Infof("Fetch peers %s", network)
+	if network == "" {
+		logrus.Infof("Fetch cluster peers")
+	} else {
+		logrus.Infof("Fetch peers network:%q", network)
+	}
+
 	var path string
 	if network != "" {
 		path = fmt.Sprintf(networkPeers, ip, port, network)
