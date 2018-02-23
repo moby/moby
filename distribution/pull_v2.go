@@ -509,6 +509,14 @@ func (p *v2Puller) pullSchema1(ctx context.Context, ref reference.Reference, unv
 		}
 	}
 
+	// In the situation that the API call didn't specify an OS explicitly, but
+	// we support the operating system, switch to that operating system.
+	// eg FROM supertest2014/nyan with no platform specifier, and docker build
+	// with no --platform= flag under LCOW.
+	if requestedOS == "" && system.IsOSSupported(configOS) {
+		requestedOS = configOS
+	}
+
 	// Early bath if the requested OS doesn't match that of the configuration.
 	// This avoids doing the download, only to potentially fail later.
 	if !strings.EqualFold(configOS, requestedOS) {
@@ -618,15 +626,20 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 
 		// Early bath if the requested OS doesn't match that of the configuration.
 		// This avoids doing the download, only to potentially fail later.
-		if !strings.EqualFold(configPlatform.OS, requestedOS) {
+		if !system.IsOSSupported(configPlatform.OS) {
 			return "", "", fmt.Errorf("cannot download image with operating system %q when requesting %q", configPlatform.OS, requestedOS)
 		}
+		requestedOS = configPlatform.OS
 
 		// Populate diff ids in descriptors to avoid downloading foreign layers
 		// which have been side loaded
 		for i := range descriptors {
 			descriptors[i].(*v2LayerDescriptor).diffID = configRootFS.DiffIDs[i]
 		}
+	}
+
+	if requestedOS == "" {
+		requestedOS = runtime.GOOS
 	}
 
 	if p.config.DownloadManager != nil {
@@ -722,18 +735,22 @@ func receiveConfig(s ImageConfigStore, configChan <-chan []byte, errChan <-chan 
 
 // pullManifestList handles "manifest lists" which point to various
 // platform-specific manifests.
-func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, os string) (id digest.Digest, manifestListDigest digest.Digest, err error) {
+func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mfstList *manifestlist.DeserializedManifestList, requestedOS string) (id digest.Digest, manifestListDigest digest.Digest, err error) {
 	manifestListDigest, err = schema2ManifestDigest(ref, mfstList)
 	if err != nil {
 		return "", "", err
 	}
 
-	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a %s/%s match", ref, len(mfstList.Manifests), os, runtime.GOARCH)
+	logOS := requestedOS // May be "" indicating any OS
+	if logOS == "" {
+		logOS = "*"
+	}
+	logrus.Debugf("%s resolved to a manifestList object with %d entries; looking for a %s/%s match", ref, len(mfstList.Manifests), logOS, runtime.GOARCH)
 
-	manifestMatches := filterManifests(mfstList.Manifests, os)
+	manifestMatches := filterManifests(mfstList.Manifests, requestedOS)
 
 	if len(manifestMatches) == 0 {
-		errMsg := fmt.Sprintf("no matching manifest for %s/%s in the manifest list entries", os, runtime.GOARCH)
+		errMsg := fmt.Sprintf("no matching manifest for %s/%s in the manifest list entries", logOS, runtime.GOARCH)
 		logrus.Debugf(errMsg)
 		return "", "", errors.New(errMsg)
 	}
@@ -764,12 +781,12 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
-		id, _, err = p.pullSchema1(ctx, manifestRef, v, os)
+		id, _, err = p.pullSchema1(ctx, manifestRef, v, manifestMatches[0].Platform.OS)
 		if err != nil {
 			return "", "", err
 		}
 	case *schema2.DeserializedManifest:
-		id, _, err = p.pullSchema2(ctx, manifestRef, v, os)
+		id, _, err = p.pullSchema2(ctx, manifestRef, v, manifestMatches[0].Platform.OS)
 		if err != nil {
 			return "", "", err
 		}
