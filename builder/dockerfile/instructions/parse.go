@@ -276,23 +276,13 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
-	specPlatform := system.ParsePlatform(flPlatform.Value)
-	if err := system.ValidatePlatform(specPlatform); err != nil {
-		return nil, fmt.Errorf("invalid platform %q on FROM", flPlatform.Value)
-	}
-	if specPlatform.OS != "" && !system.IsOSSupported(specPlatform.OS) {
-		return nil, fmt.Errorf("unsupported platform %q on FROM", flPlatform.Value)
-	}
-	if err != nil {
-		return nil, err
-	}
 	code := strings.TrimSpace(req.original)
 	return &Stage{
-		BaseName:        req.args[0],
-		Name:            stageName,
-		SourceCode:      code,
-		Commands:        []Command{},
-		OperatingSystem: specPlatform.OS,
+		BaseName:   req.args[0],
+		Name:       stageName,
+		SourceCode: code,
+		Commands:   []Command{},
+		Platform:   *system.ParsePlatform(flPlatform.Value),
 	}, nil
 
 }

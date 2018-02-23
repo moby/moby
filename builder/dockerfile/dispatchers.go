@@ -152,7 +152,10 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.OperatingSystem)
+	if err := system.ValidatePlatform(&cmd.Platform); err != nil {
+		return err
+	}
+	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.Platform.OS)
 	if err != nil {
 		return err
 	}
@@ -215,32 +218,29 @@ func (d *dispatchRequest) getExpandedImageName(shlex *shell.Lex, name string) (s
 // stagePlatform contains the value supplied by optional `--platform=` on
 // a current FROM statement. b.builder.options.Platform contains the operating
 // system part of the optional flag passed in the API call (or CLI flag
-// through `docker build --platform=...`).
-func (d *dispatchRequest) getOsFromFlagsAndStage(stagePlatform string) string {
-	osForPull := ""
-	// First, take the API platform if nothing provided on FROM
-	if stagePlatform == "" && d.builder.options.Platform != "" {
-		osForPull = d.builder.options.Platform
+// through `docker build --platform=...`). Precedence is for an explicit
+// platform indication in the FROM statement.
+func (d *dispatchRequest) getOsFromFlagsAndStage(stageOS string) string {
+	switch {
+	case stageOS != "":
+		return stageOS
+	case d.builder.options.Platform != "":
+		// Note this is API "platform", but by this point, as the daemon is not
+		// multi-arch aware yet, it is guaranteed to only hold the OS part here.
+		return d.builder.options.Platform
+	default:
+		return runtime.GOOS
 	}
-	// Next, use the FROM flag if that was provided
-	if osForPull == "" && stagePlatform != "" {
-		osForPull = stagePlatform
-	}
-	// Finally, assume the host OS
-	if osForPull == "" {
-		osForPull = runtime.GOOS
-	}
-	return osForPull
 }
 
-func (d *dispatchRequest) getImageOrStage(name string, stagePlatform string) (builder.Image, error) {
+func (d *dispatchRequest) getImageOrStage(name string, stageOS string) (builder.Image, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
 		localOnly = true
 	}
 
-	os := d.getOsFromFlagsAndStage(stagePlatform)
+	os := d.getOsFromFlagsAndStage(stageOS)
 
 	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
@@ -267,12 +267,12 @@ func (d *dispatchRequest) getImageOrStage(name string, stagePlatform string) (bu
 	}
 	return imageMount.Image(), nil
 }
-func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string, stagePlatform string) (builder.Image, error) {
+func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string, stageOS string) (builder.Image, error) {
 	name, err := d.getExpandedImageName(shlex, name)
 	if err != nil {
 		return nil, err
 	}
-	return d.getImageOrStage(name, stagePlatform)
+	return d.getImageOrStage(name, stageOS)
 }
 
 func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
