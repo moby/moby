@@ -31,7 +31,7 @@ func TestUpdateMemory(t *testing.T) {
 		}
 	})
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	const (
 		setMemory     int64 = 314572800

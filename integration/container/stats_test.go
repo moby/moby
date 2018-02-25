@@ -28,7 +28,7 @@ func TestStats(t *testing.T) {
 
 	cID := container.Run(t, ctx, client)
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	resp, err := client.ContainerStats(ctx, cID, false)
 	require.NoError(t, err)

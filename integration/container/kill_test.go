@@ -23,11 +23,11 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 
 	err := client.ContainerKill(ctx, id, "0")
 	require.EqualError(t, err, "Error response from daemon: Invalid signal: 0")
-	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err = client.ContainerKill(ctx, id, "SIG42")
 	require.EqualError(t, err, "Error response from daemon: Invalid signal: SIG42")
-	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 }
 
 func TestKillContainer(t *testing.T) {
@@ -64,7 +64,7 @@ func TestKillContainer(t *testing.T) {
 			err := client.ContainerKill(ctx, id, tc.signal)
 			require.NoError(t, err)
 
-			poll.WaitOn(t, containerIsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
 	}
 }
@@ -104,7 +104,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 			err := client.ContainerKill(ctx, id, "TERM")
 			require.NoError(t, err)
 
-			poll.WaitOn(t, containerIsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
+			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
 	}
 }
@@ -141,11 +141,11 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	id := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
 		c.Config.User = "daemon"
 	})
-	poll.WaitOn(t, containerIsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerKill(ctx, id, "SIGKILL")
 	require.NoError(t, err)
-	poll.WaitOn(t, containerIsInState(ctx, client, id, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, id, "exited"), poll.WithDelay(100*time.Millisecond))
 }
 
 func TestInspectOomKilledTrue(t *testing.T) {
@@ -160,7 +160,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
 	})
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 	name := "testoomkilled"
 	cID := container.Run(t, ctx, client, container.WithName(name), container.WithCmd("sh", "-c", "echo hello world"))
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)

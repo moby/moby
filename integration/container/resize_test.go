@@ -23,7 +23,7 @@ func TestResize(t *testing.T) {
 
 	cID := container.Run(t, ctx, client)
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
@@ -39,7 +39,7 @@ func TestResizeWithInvalidSize(t *testing.T) {
 
 	cID := container.Run(t, ctx, client)
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	endpoint := "/containers/" + cID + "/resize?h=foo&w=bar"
 	res, _, err := req.Post(endpoint)
@@ -54,7 +54,7 @@ func TestResizeWhenContainerNotStarted(t *testing.T) {
 
 	cID := container.Run(t, ctx, client, container.WithCmd("echo"))
 
-	poll.WaitOn(t, containerIsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerResize(ctx, cID, types.ResizeOptions{
 		Height: 40,
