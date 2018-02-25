@@ -5,5 +5,5 @@ set -eu -o pipefail
 export DOCKER_EXPERIMENTAL=y
 
 hack/make.sh \
-	binary-daemon \
+	binary-engine \
 	test-integration

@@ -17,7 +17,7 @@ install_binary() {
 }
 
 (
-	DEST="$(dirname $DEST)/binary-daemon"
+	DEST="$(dirname $DEST)/binary-engine"
 	source "${MAKEDIR}/.binary-setup"
 	install_binary "${DEST}/${DOCKER_DAEMON_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_RUNC_BINARY_NAME}"

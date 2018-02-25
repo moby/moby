@@ -2,12 +2,12 @@
 set -e
 
 # if we have our linux/amd64 version compiled, let's symlink it in
-if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
+if [ -x "$DEST/../binary-engine/dockerd-$VERSION" ]; then
 	arch=$(go env GOHOSTARCH)
 	mkdir -p "$DEST/linux/${arch}"
 	(
 		cd "$DEST/linux/${arch}"
-		ln -sf ../../../binary-daemon/* ./
+		ln -sf ../../../binary-engine/* ./
 	)
 	echo "Created symlinks:" "$DEST/linux/${arch}/"*
 fi
@@ -24,6 +24,6 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		echo "Cross building: $DEST"
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
-		source "${MAKEDIR}/binary-daemon"
+		source "${MAKEDIR}/binary-engine"
 	)
 done

@@ -23,46 +23,18 @@ set -e
 
 set -o pipefail
 
-export DOCKER_PKG='github.com/docker/docker'
 export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
-export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 
-# We're a nice, sexy, little shell script, and people might try to run us;
-# but really, they shouldn't. We want to be in a container!
-inContainer="AssumeSoInitially"
-if [ "$(go env GOHOSTOS)" = 'windows' ]; then
-	if [ -z "$FROM_DOCKERFILE" ]; then
-		unset inContainer
-	fi
-else
-	if [ "$PWD" != "/go/src/$DOCKER_PKG" ]; then
-		unset inContainer
-	fi
-fi
-
-if [ -z "$inContainer" ]; then
-	{
-		echo "# WARNING! I don't seem to be running in a Docker container."
-		echo "# The result of this command might be an incorrect build, and will not be"
-		echo "# officially supported."
-		echo "#"
-		echo "# Try this instead: make all"
-		echo "#"
-	} >&2
-fi
-
-echo
+hack/warn-outside-container
 
 # List of bundles to create when no argument is passed
 DEFAULT_BUNDLES=(
-	binary-daemon
-	dynbinary
-
+	binary-engine
+	dynbinary-engine
 	test-integration
 	test-docker-py
-
-	cross
+	cross-engine
 )
 
 VERSION=${VERSION:-dev}
@@ -90,6 +62,7 @@ else
 	exit 1
 fi
 
+DOCKER_PKG='github.com/docker/docker'
 if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
@@ -103,52 +76,12 @@ if [ ! "$GOPATH" ]; then
 	exit 1
 fi
 
-if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
-	DOCKER_BUILDTAGS+=" journald"
-elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
-	DOCKER_BUILDTAGS+=" journald journald_compat"
-fi
-
-# test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
-if \
-	command -v gcc &> /dev/null \
-	&& ! gcc -E - -o /dev/null &> /dev/null <<<'#include <btrfs/version.h>' \
-; then
-	DOCKER_BUILDTAGS+=' btrfs_noversion'
-fi
-
-# test whether "libdevmapper.h" is new enough to support deferred remove
-# functionality.
-if \
-	command -v gcc &> /dev/null \
-	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null ) \
-; then
-	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
-fi
-
-# Use these flags when compiling the tests and final binary
-
-IAMSTATIC='true'
 if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
 LDFLAGS_STATIC=''
 EXTLDFLAGS_STATIC='-static'
-# ORIG_BUILDFLAGS is necessary for the cross target which cannot always build
-# with options like -race.
-ORIG_BUILDFLAGS=( -tags "autogen netgo static_build $DOCKER_BUILDTAGS" -installsuffix netgo )
-# see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
-
-# When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
-# builds by installing dependent packages to the GOPATH.
-REBUILD_FLAG="-a"
-if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
-	REBUILD_FLAG="-i"
-fi
-ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
-
-BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 
 # Test timeout.
 if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then

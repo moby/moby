@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+# export BUILDFLAGS for use with `go build`
+set -eu -o pipefail
+
+DOCKER_BUILDTAGS="apparmor seccomp selinux"
+
+PKG_CONFIG=${PKG_CONFIG:-pkg-config}
+if ${PKG_CONFIG} 'libsystemd >= 209' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald"
+elif ${PKG_CONFIG} 'libsystemd-journal' 2> /dev/null ; then
+	DOCKER_BUILDTAGS+=" journald journald_compat"
+fi
+
+# test whether "btrfs/version.h" exists and apply btrfs_noversion appropriately
+if command -v gcc &> /dev/null \
+	&& ! gcc -E - -o /dev/null &> /dev/null <<<'#include <btrfs/version.h>'; then
+	DOCKER_BUILDTAGS+=' btrfs_noversion'
+fi
+
+# test whether "libdevmapper.h" is new enough to support deferred remove
+# functionality.
+if command -v gcc &> /dev/null \
+	&& ! ( echo -e  '#include <libdevmapper.h>\nint main() { dm_task_deferred_remove(NULL); }'| gcc -xc - -o /dev/null $(pkg-config --libs devmapper) &> /dev/null ) \
+; then
+	DOCKER_BUILDTAGS+=' libdm_no_deferred_remove'
+fi
+BUILDFLAGS=()
+
+# When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
+# builds by installing dependent packages to the GOPATH.
+DOCKER_INCREMENTAL_BINARY=${DOCKER_INCREMENTAL_BINARY-}
+REBUILD_FLAG="-a"
+if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
+	REBUILD_FLAG="-i"
+fi
+
+# see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
+export BUILDFLAGS=(
+	${BUILDFLAGS-}
+	$REBUILD_FLAG
+	-tags "autogen netgo static_build $DOCKER_BUILDTAGS"
+	-installsuffix netgo
+)

@@ -4,7 +4,7 @@ set -e
 rm -rf "$DEST"
 
 if ! command -v dockerd &> /dev/null; then
-	echo >&2 'error: binary-daemon or dynbinary-daemon must be run before run'
+	echo >&2 'error: binary-engine or dynbinary-engine must be run before run'
 	false
 fi
 

@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Print a warning if this script is run outside of a container
+set -eu
+
+in_container="assume yes"
+docker_pkg='github.com/docker/docker'
+
+# TODO: use FROM_DOCKERFILE always, don't make assumptions about path
+if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+	if [ -z "${FROM_DOCKERFILE-}" ]; then
+		in_container=""
+	fi
+else
+	if [ "$PWD" != "/go/src/$docker_pkg" ]; then
+		in_container=""
+	fi
+fi
+
+if [ -z "$in_container" ]; then
+	(
+		echo "# WARNING! I don't seem to be running in a Docker container."
+		echo "# The result of this command might be an incorrect build, and will not be"
+		echo "# officially supported."
+		echo "#"
+		echo "# Try this instead: make all"
+		echo "#"
+	) >&2
+fi
