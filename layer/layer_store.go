@@ -18,6 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
+	"github.com/docker/docker/daemon/graphdriver/overlay2"
 )
 
 // maxLayerDepth represents the maximum number of
@@ -601,6 +602,7 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 		return []Metadata{}, nil
 	}
 
+	IdPathMap := overlay2.SeparateIdPath(m.mountID)
 	if err := ls.driver.Remove(m.mountID); err != nil {
 		logrus.Errorf("Error removing mounted layer %s: %s", m.name, err)
 		m.retakeReference(l)
@@ -608,7 +610,7 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 	}
 
 	if m.initID != "" {
-		if err := ls.driver.Remove(m.initID); err != nil {
+		if err := ls.driver.Remove(AppendPathToId(m.initID, IdPathMap["ContainerPath"])); err != nil {
 			logrus.Errorf("Error removing init layer %s: %s", m.name, err)
 			m.retakeReference(l)
 			return nil, err

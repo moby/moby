@@ -494,7 +494,7 @@ func SeparateIdPath(raw string) map[string]string{
 	}
 	return IdPathMap
 }
-// read_dir will read dir from /var/lib/docker/containers/container-id/startPath
+// read_dir will extract folder have 2 upper layer from /var/lib/docker/containers/container-id/startPath
 func (d *Driver) read_dir(rawid string) string {
 	IdPathMap := SeparateIdPath(rawid)
 	if len(IdPathMap["ContainerPath"]) != 0 {
@@ -524,7 +524,7 @@ func (d *Driver) getLowerDirs(id string) ([]string, error) {
 func (d *Driver) Remove(id string) error {
 	d.locker.Lock(id)
 	defer d.locker.Unlock(id)
-	dir := d.dir(id)
+	dir := d.read_dir(id)
 	lid, err := ioutil.ReadFile(path.Join(dir, "link"))
 	if err == nil {
 		if err := os.RemoveAll(path.Join(d.home, linkDir, string(lid))); err != nil {
