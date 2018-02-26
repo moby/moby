@@ -53,7 +53,7 @@ type Backend interface {
 
 // ImageBackend are the interface methods required from an image component
 type ImageBackend interface {
-	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ReleaseableLayer, error)
+	GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (Image, ROLayer, error)
 }
 
 // ExecBackend contains the interface methods required for executing containers
@@ -100,10 +100,16 @@ type Image interface {
 	OperatingSystem() string
 }
 
-// ReleaseableLayer is an image layer that can be mounted and released
-type ReleaseableLayer interface {
+// ROLayer is a reference to image rootfs layer
+type ROLayer interface {
 	Release() error
-	Mount() (containerfs.ContainerFS, error)
-	Commit() (ReleaseableLayer, error)
+	NewRWLayer() (RWLayer, error)
 	DiffID() layer.DiffID
+}
+
+// RWLayer is active layer that can be read/modified
+type RWLayer interface {
+	Release() error
+	Root() containerfs.ContainerFS
+	Commit() (ROLayer, error)
 }
