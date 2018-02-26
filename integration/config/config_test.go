@@ -2,6 +2,7 @@ package config
 
 import (
 	"bytes"
+	"encoding/json"
 	"sort"
 	"testing"
 	"time"
@@ -326,4 +327,28 @@ func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool)
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
+}
+
+func TestConfigInspect(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
+	require.NoError(t, err)
+
+	ctx := context.Background()
+
+	testName := t.Name()
+	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
+
+	insp, body, err := client.ConfigInspectWithRaw(ctx, configID)
+	require.NoError(t, err)
+	assert.Equal(t, insp.Spec.Name, testName)
+
+	var config swarmtypes.Config
+	err = json.Unmarshal(body, &config)
+	require.NoError(t, err)
+	assert.Equal(t, config, insp)
 }
