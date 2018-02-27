@@ -143,8 +143,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 	// Ensure the network was created
 	assertNwIsAvailable(c, "dualstackbridge")
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=first", "--ip", "172.28.100.20", "--ip6", "2001:db8:abc2::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=second", "--ip", "172.28.100.21", "--ip6", "2001:db8:abc2::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=first", "--ip", "172.28.100.20", "--ip6", "2001:db8:abc2::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=second", "--ip", "172.28.100.21", "--ip6", "2001:db8:abc2::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackbridge
 	ip := inspectField(c, "first", "NetworkSettings.Networks.dualstackbridge.IPAddress")
@@ -160,8 +160,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkMacvlanMultiSubnet(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=third", "--ip", "172.28.102.20", "--ip6", "2001:db8:abc4::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=fourth", "--ip", "172.28.102.21", "--ip6", "2001:db8:abc4::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=third", "--ip", "172.28.102.20", "--ip6", "2001:db8:abc4::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackbridge", "--name=fourth", "--ip", "172.28.102.21", "--ip6", "2001:db8:abc4::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackbridge
 	ip = inspectField(c, "third", "NetworkSettings.Networks.dualstackbridge.IPAddress")
@@ -198,8 +198,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL2MultiSubnet(c *check.C) {
 	// Ensure the network was created
 	assertNwIsAvailable(c, "dualstackl2")
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.200.0/24 and 2001:db8:abc8::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=first", "--ip", "172.28.200.20", "--ip6", "2001:db8:abc8::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=second", "--ip", "172.28.200.21", "--ip6", "2001:db8:abc8::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=first", "--ip", "172.28.200.20", "--ip6", "2001:db8:abc8::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=second", "--ip", "172.28.200.21", "--ip6", "2001:db8:abc8::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackl2
 	ip := inspectField(c, "first", "NetworkSettings.Networks.dualstackl2.IPAddress")
@@ -214,8 +214,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL2MultiSubnet(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.202.0/24 and 2001:db8:abc6::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=third", "--ip", "172.28.202.20", "--ip6", "2001:db8:abc6::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=fourth", "--ip", "172.28.202.21", "--ip6", "2001:db8:abc6::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=third", "--ip", "172.28.202.20", "--ip6", "2001:db8:abc6::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl2", "--name=fourth", "--ip", "172.28.202.21", "--ip6", "2001:db8:abc6::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackl2
 	ip = inspectField(c, "third", "NetworkSettings.Networks.dualstackl2.IPAddress")
@@ -253,8 +253,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL3MultiSubnet(c *check.C) {
 	assertNwIsAvailable(c, "dualstackl3")
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.10.0/24 and 2001:db8:abc9::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=first", "--ip", "172.28.10.20", "--ip6", "2001:db8:abc9::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=second", "--ip", "172.28.10.21", "--ip6", "2001:db8:abc9::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=first", "--ip", "172.28.10.20", "--ip6", "2001:db8:abc9::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=second", "--ip", "172.28.10.21", "--ip6", "2001:db8:abc9::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackl3
 	ip := inspectField(c, "first", "NetworkSettings.Networks.dualstackl3.IPAddress")
@@ -269,8 +269,8 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanL3MultiSubnet(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.12.0/24 and 2001:db8:abc7::/64
-	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=third", "--ip", "172.28.12.20", "--ip6", "2001:db8:abc7::20", "busybox", "top")
-	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=fourth", "--ip", "172.28.12.21", "--ip6", "2001:db8:abc7::21", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=third", "--ip", "172.28.12.20", "--ip6", "2001:db8:abc7::20", "busybox:glibc", "top")
+	dockerCmd(c, "run", "-d", "--net=dualstackl3", "--name=fourth", "--ip", "172.28.12.21", "--ip6", "2001:db8:abc7::21", "busybox:glibc", "top")
 
 	// Inspect and store the v4 address from specified container on the network dualstackl3
 	ip = inspectField(c, "third", "NetworkSettings.Networks.dualstackl3.IPAddress")
@@ -356,9 +356,9 @@ func (s *DockerSuite) TestDockerNetworkMacVlanBridgeNilParent(c *check.C) {
 	assertNwIsAvailable(c, "dm-nil-parent")
 
 	// start two containers on the same subnet
-	dockerCmd(c, "run", "-d", "--net=dm-nil-parent", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dm-nil-parent", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	dockerCmd(c, "run", "-d", "--net=dm-nil-parent", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dm-nil-parent", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// intra-network communications should succeed
@@ -375,9 +375,9 @@ func (s *DockerSuite) TestDockerNetworkMacVlanBridgeInternalMode(c *check.C) {
 	c.Assert(nr.Internal, checker.True)
 
 	// start two containers on the same subnet
-	cli.DockerCmd(c, "run", "-d", "--net=dm-internal", "--name=first", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--net=dm-internal", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	cli.DockerCmd(c, "run", "-d", "--net=dm-internal", "--name=second", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--net=dm-internal", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// access outside of the network should fail
@@ -395,9 +395,9 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL2NilParent(c *check.C) {
 	assertNwIsAvailable(c, "di-nil-parent")
 
 	// start two containers on the same subnet
-	dockerCmd(c, "run", "-d", "--net=di-nil-parent", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=di-nil-parent", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	dockerCmd(c, "run", "-d", "--net=di-nil-parent", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=di-nil-parent", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// intra-network communications should succeed
@@ -414,9 +414,9 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL2InternalMode(c *check.C) {
 	c.Assert(nr.Internal, checker.True)
 
 	// start two containers on the same subnet
-	cli.DockerCmd(c, "run", "-d", "--net=di-internal", "--name=first", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--net=di-internal", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	cli.DockerCmd(c, "run", "-d", "--net=di-internal", "--name=second", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--net=di-internal", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// access outside of the network should fail
@@ -434,9 +434,9 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL3NilParent(c *check.C) {
 	assertNwIsAvailable(c, "di-nil-parent-l3")
 
 	// start two containers on separate subnets
-	dockerCmd(c, "run", "-d", "--ip=172.28.220.10", "--net=di-nil-parent-l3", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--ip=172.28.220.10", "--net=di-nil-parent-l3", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	dockerCmd(c, "run", "-d", "--ip=172.28.230.10", "--net=di-nil-parent-l3", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--ip=172.28.230.10", "--net=di-nil-parent-l3", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// intra-network communications should succeed
@@ -454,9 +454,9 @@ func (s *DockerSuite) TestDockerNetworkIpvlanL3InternalMode(c *check.C) {
 	c.Assert(nr.Internal, checker.True)
 
 	// start two containers on separate subnets
-	cli.DockerCmd(c, "run", "-d", "--ip=172.28.220.10", "--net=di-internal-l3", "--name=first", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--ip=172.28.220.10", "--net=di-internal-l3", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	cli.DockerCmd(c, "run", "-d", "--ip=172.28.230.10", "--net=di-internal-l3", "--name=second", "busybox", "top")
+	cli.DockerCmd(c, "run", "-d", "--ip=172.28.230.10", "--net=di-internal-l3", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// access outside of the network should fail
@@ -496,9 +496,9 @@ func (s *DockerSuite) TestDockerNetworkMacVlanSubinterface(c *check.C) {
 	assertNwIsAvailable(c, netName)
 
 	// start containers on 802.1q tagged '-o parent' sub-interface
-	dockerCmd(c, "run", "-d", "--net=dm-subinterface", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dm-subinterface", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	dockerCmd(c, "run", "-d", "--net=dm-subinterface", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=dm-subinterface", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 	// verify containers can communicate
 	_, _, err := dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")

@@ -910,6 +910,8 @@ func (s *DockerSwarmSuite) TestAPIDuplicateNetworks(c *check.C) {
 
 // Test case for 30178
 func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
+	// Issue #36386 can be a independent one, which is worth further investigation.
+	c.Skip("Root cause of Issue #36386 is needed")
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("network", "create", "-d", "overlay", "lb")
