@@ -2,14 +2,10 @@ package main
 
 import (
 	"os"
-	"runtime"
-	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
-
-// docker cp LOCALPATH CONTAINER:PATH
 
 // Try all of the test cases from the archive package which implements the
 // internals of `docker cp` and ensure that the behavior matches when actually
@@ -20,124 +16,6 @@ import (
 // 2. If SRC ends with a trailing separator, it must be a directory.
 // 3. DST parent directory must exist.
 // 4. If DST exists as a file, it must not end with a trailing separator.
-
-// First get these easy error cases out of the way.
-
-// Test for error when SRC does not exist.
-func (s *DockerSuite) TestCpToErrSrcNotExists(c *check.C) {
-	containerID := makeTestContainer(c, testContainerOptions{})
-
-	tmpDir := getTestDir(c, "test-cp-to-err-src-not-exists")
-	defer os.RemoveAll(tmpDir)
-
-	srcPath := cpPath(tmpDir, "file1")
-	dstPath := containerCpPath(containerID, "file1")
-	_, srcStatErr := os.Stat(srcPath)
-	c.Assert(os.IsNotExist(srcStatErr), checker.True)
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	if runtime.GOOS == "windows" {
-		// Go 1.9+ on Windows returns a different error for `os.Stat()`, see
-		// https://github.com/golang/go/commit/6144c7270e5812d9de8fb97456ee4e5ae657fcbb#diff-f63e1a4b4377b2fe0b05011db3df9599
-		//
-		// Go 1.8: CreateFile C:\not-exist: The system cannot find the file specified.
-		// Go 1.9: GetFileAttributesEx C:\not-exist: The system cannot find the file specified.
-		//
-		// Due to the CLI using a different version than the daemon, comparing the
-		// error message won't work, so just hard-code the common part here.
-		//
-		// TODO this should probably be a test in the CLI repository instead
-		c.Assert(strings.ToLower(err.Error()), checker.Contains, "cannot find the file specified")
-		c.Assert(strings.ToLower(err.Error()), checker.Contains, strings.ToLower(tmpDir))
-	} else {
-		c.Assert(strings.ToLower(err.Error()), checker.Contains, strings.ToLower(srcStatErr.Error()))
-	}
-}
-
-// Test for error when SRC ends in a trailing
-// path separator but it exists as a file.
-func (s *DockerSuite) TestCpToErrSrcNotDir(c *check.C) {
-	containerID := makeTestContainer(c, testContainerOptions{})
-
-	tmpDir := getTestDir(c, "test-cp-to-err-src-not-dir")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	srcPath := cpPathTrailingSep(tmpDir, "file1")
-	dstPath := containerCpPath(containerID, "testDir")
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotDir(err), checker.True, check.Commentf("expected IsNotDir error, but got %T: %s", err, err))
-}
-
-// Test for error when SRC is a valid file or directory,
-// but the DST parent directory does not exist.
-func (s *DockerSuite) TestCpToErrDstParentNotExists(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-to-err-dst-parent-not-exists")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	// Try with a file source.
-	srcPath := cpPath(tmpDir, "file1")
-	dstPath := containerCpPath(containerID, "/notExists", "file1")
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
-
-	// Try with a directory source.
-	srcPath = cpPath(tmpDir, "dir1")
-
-	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
-}
-
-// Test for error when DST ends in a trailing path separator but exists as a
-// file. Also test that we cannot overwrite an existing directory with a
-// non-directory and cannot overwrite an existing
-func (s *DockerSuite) TestCpToErrDstNotDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-to-err-dst-not-dir")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	// Try with a file source.
-	srcPath := cpPath(tmpDir, "dir1/file1-1")
-	dstPath := containerCpPathTrailingSep(containerID, "file1")
-
-	// The client should encounter an error trying to stat the destination
-	// and then be unable to copy since the destination is asserted to be a
-	// directory but does not exist.
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpDirNotExist(err), checker.True, check.Commentf("expected DirNotExist error, but got %T: %s", err, err))
-
-	// Try with a directory source.
-	srcPath = cpPath(tmpDir, "dir1")
-
-	// The client should encounter an error trying to stat the destination and
-	// then decide to extract to the parent directory instead with a rebased
-	// name in the source archive, but this directory would overwrite the
-	// existing file with the same name.
-	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCannotOverwriteNonDirWithDir(err), checker.True, check.Commentf("expected CannotOverwriteNonDirWithDir error, but got %T: %s", err, err))
-}
 
 // Check that copying from a local path to a symlink in a container copies to
 // the symlink target and does not overwrite the container symlink itself.
