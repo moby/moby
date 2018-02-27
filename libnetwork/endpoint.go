@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -514,9 +513,7 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 	// Current endpoint providing external connectivity for the sandbox
 	extEp := sb.getGatewayEndpoint()
 
-	sb.Lock()
-	heap.Push(&sb.endpoints, ep)
-	sb.Unlock()
+	sb.addEndpoint(ep)
 	defer func() {
 		if err != nil {
 			sb.removeEndpoint(ep)

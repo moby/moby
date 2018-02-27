@@ -1,10 +1,10 @@
 package libnetwork
 
 import (
-	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -63,8 +63,6 @@ func (sb *sandbox) processOptions(options ...SandboxOption) {
 	}
 }
 
-type epHeap []*endpoint
-
 type sandbox struct {
 	id                 string
 	containerID        string
@@ -75,7 +73,7 @@ type sandbox struct {
 	resolver           Resolver
 	resolverOnce       sync.Once
 	refCnt             int
-	endpoints          epHeap
+	endpoints          []*endpoint
 	epPriority         map[string]int
 	populatedEndpoints map[string]struct{}
 	joinLeaveDone      chan struct{}
@@ -360,13 +358,31 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	return eps
 }
 
+func (sb *sandbox) addEndpoint(ep *endpoint) {
+	sb.Lock()
+	defer sb.Unlock()
+
+	l := len(sb.endpoints)
+	i := sort.Search(l, func(j int) bool {
+		return ep.Less(sb.endpoints[j])
+	})
+
+	sb.endpoints = append(sb.endpoints, nil)
+	copy(sb.endpoints[i+1:], sb.endpoints[i:])
+	sb.endpoints[i] = ep
+}
+
 func (sb *sandbox) removeEndpoint(ep *endpoint) {
 	sb.Lock()
 	defer sb.Unlock()
 
+	sb.removeEndpointRaw(ep)
+}
+
+func (sb *sandbox) removeEndpointRaw(ep *endpoint) {
 	for i, e := range sb.endpoints {
 		if e == ep {
-			heap.Remove(&sb.endpoints, i)
+			sb.endpoints = append(sb.endpoints[:i], sb.endpoints[i+1:]...)
 			return
 		}
 	}
@@ -940,7 +956,7 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 		return nil
 	}
 
-	heap.Remove(&sb.endpoints, index)
+	sb.removeEndpointRaw(ep)
 	for _, e := range sb.endpoints {
 		if len(e.Gateway()) > 0 {
 			gwepAfter = e
@@ -1165,19 +1181,14 @@ func OptionIngress() SandboxOption {
 	}
 }
 
-func (eh epHeap) Len() int { return len(eh) }
-
-func (eh epHeap) Less(i, j int) bool {
+func (epi *endpoint) Less(epj *endpoint) bool {
 	var (
 		cip, cjp int
 		ok       bool
 	)
 
-	ci, _ := eh[i].getSandbox()
-	cj, _ := eh[j].getSandbox()
-
-	epi := eh[i]
-	epj := eh[j]
+	ci, _ := epi.getSandbox()
+	cj, _ := epj.getSandbox()
 
 	if epi.endpointInGWNetwork() {
 		return false
@@ -1207,38 +1218,24 @@ func (eh epHeap) Less(i, j int) bool {
 	}
 
 	if ci != nil {
-		cip, ok = ci.epPriority[eh[i].ID()]
+		cip, ok = ci.epPriority[epi.ID()]
 		if !ok {
 			cip = 0
 		}
 	}
 
 	if cj != nil {
-		cjp, ok = cj.epPriority[eh[j].ID()]
+		cjp, ok = cj.epPriority[epj.ID()]
 		if !ok {
 			cjp = 0
 		}
 	}
 
 	if cip == cjp {
-		return eh[i].network.Name() < eh[j].network.Name()
+		return epi.network.Name() < epj.network.Name()
 	}
 
 	return cip > cjp
-}
-
-func (eh epHeap) Swap(i, j int) { eh[i], eh[j] = eh[j], eh[i] }
-
-func (eh *epHeap) Push(x interface{}) {
-	*eh = append(*eh, x.(*endpoint))
-}
-
-func (eh *epHeap) Pop() interface{} {
-	old := *eh
-	n := len(old)
-	x := old[n-1]
-	*eh = old[0 : n-1]
-	return x
 }
 
 func (sb *sandbox) NdotsSet() bool {

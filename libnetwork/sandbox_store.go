@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"container/heap"
 	"encoding/json"
 	"sync"
 
@@ -215,7 +214,7 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
-			endpoints:          epHeap{},
+			endpoints:          []*endpoint{},
 			populatedEndpoints: map[string]struct{}{},
 			dbIndex:            sbs.dbIndex,
 			isStub:             true,
@@ -242,7 +241,6 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			sb.processOptions(opts...)
 			sb.restorePath()
 			create = !sb.config.useDefaultSandBox
-			heap.Init(&sb.endpoints)
 		}
 		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)
 		if err != nil {
@@ -272,7 +270,7 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 				logrus.Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
 				continue
 			}
-			heap.Push(&sb.endpoints, ep)
+			sb.addEndpoint(ep)
 		}
 
 		if _, ok := activeSandboxes[sb.ID()]; !ok {
