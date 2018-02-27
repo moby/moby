@@ -1439,6 +1439,7 @@ func (s *DockerSuite) TestBuildRelativeCopy(c *check.C) {
 	))
 }
 
+// FIXME(vdemeester) should be unit test
 func (s *DockerSuite) TestBuildBlankName(c *check.C) {
 	name := "testbuildblankname"
 	testCases := []struct {
@@ -2066,6 +2067,7 @@ func (s *DockerSuite) TestBuildNoContext(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) migrate to docker/cli e2e
 func (s *DockerSuite) TestBuildDockerfileStdin(c *check.C) {
 	name := "stdindockerfile"
 	tmpDir, err := ioutil.TempDir("", "fake-context")
@@ -2085,6 +2087,7 @@ CMD ["cat", "/foo"]`),
 	c.Assert(strings.TrimSpace(string(res)), checker.Equals, `[cat /foo]`)
 }
 
+// FIXME(vdemeester) migrate to docker/cli tests (unit or e2e)
 func (s *DockerSuite) TestBuildDockerfileStdinConflict(c *check.C) {
 	name := "stdindockerfiletarcontext"
 	icmd.RunCmd(icmd.Cmd{
@@ -2401,6 +2404,7 @@ func (s *DockerSuite) TestBuildDockerignoringDockerfile(c *check.C) {
 		build.WithFile("Dockerfile", dockerfile),
 		build.WithFile(".dockerignore", "Dockerfile\n"),
 	))
+	// FIXME(vdemeester) why twice ?
 	buildImageSuccessfully(c, name, build.WithBuildContext(c,
 		build.WithFile("Dockerfile", dockerfile),
 		build.WithFile(".dockerignore", "./Dockerfile\n"),
@@ -2420,6 +2424,7 @@ func (s *DockerSuite) TestBuildDockerignoringRenamedDockerfile(c *check.C) {
 		build.WithFile("MyDockerfile", dockerfile),
 		build.WithFile(".dockerignore", "MyDockerfile\n"),
 	))
+	// FIXME(vdemeester) why twice ?
 	buildImageSuccessfully(c, name, cli.WithFlags("-f", "MyDockerfile"), build.WithBuildContext(c,
 		build.WithFile("Dockerfile", "Should not use me"),
 		build.WithFile("MyDockerfile", dockerfile),
@@ -3045,6 +3050,7 @@ func (s *DockerSuite) TestBuildAddTarXzGz(c *check.C) {
 	buildImageSuccessfully(c, name, build.WithExternalBuildContext(ctx))
 }
 
+// FIXME(vdemeester) most of the from git tests could be moved to `docker/cli` e2e tests
 func (s *DockerSuite) TestBuildFromGit(c *check.C) {
 	name := "testbuildfromgit"
 	git := fakegit.New(c, "repo", map[string]string{
@@ -3422,6 +3428,7 @@ func (s *DockerSuite) TestBuildLabelsCache(c *check.C) {
 
 }
 
+// FIXME(vdemeester) port to docker/cli e2e tests (api tests should test suppressOutput option though)
 func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 	// This test makes sure that -q works correctly when build is successful:
 	// stdout has only the image ID (long image ID) and stderr is empty.
@@ -3472,6 +3479,7 @@ func (s *DockerSuite) TestBuildNotVerboseSuccess(c *check.C) {
 
 }
 
+// FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerSuite) TestBuildNotVerboseFailureWithNonExistImage(c *check.C) {
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
@@ -3492,6 +3500,7 @@ func (s *DockerSuite) TestBuildNotVerboseFailureWithNonExistImage(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	// This test makes sure that -q works correctly when build fails by
 	// comparing between the stderr output in quiet mode and in stdout
@@ -3519,6 +3528,7 @@ func (s *DockerSuite) TestBuildNotVerboseFailure(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerSuite) TestBuildNotVerboseFailureRemote(c *check.C) {
 	// This test ensures that when given a wrong URL, stderr in quiet mode and
 	// stderr in verbose mode are identical.
@@ -3548,6 +3558,7 @@ func (s *DockerSuite) TestBuildNotVerboseFailureRemote(c *check.C) {
 	}
 }
 
+// FIXME(vdemeester) migrate to docker/cli tests
 func (s *DockerSuite) TestBuildStderr(c *check.C) {
 	// This test just makes sure that no non-error output goes
 	// to stderr
@@ -3688,67 +3699,6 @@ CMD cat /foo/file`),
 
 }
 
-// FIXME(vdemeester) part of this should be unit test, other part should be clearer
-func (s *DockerSuite) TestBuildRenamedDockerfile(c *check.C) {
-	ctx := fakecontext.New(c, "", fakecontext.WithFiles(map[string]string{
-		"Dockerfile":       "FROM busybox\nRUN echo from Dockerfile",
-		"files/Dockerfile": "FROM busybox\nRUN echo from files/Dockerfile",
-		"files/dFile":      "FROM busybox\nRUN echo from files/dFile",
-		"dFile":            "FROM busybox\nRUN echo from dFile",
-		"files/dFile2":     "FROM busybox\nRUN echo from files/dFile2",
-	}))
-	defer ctx.Close()
-
-	cli.Docker(cli.Args("build", "-t", "test1", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
-		Out: "from Dockerfile",
-	})
-
-	cli.Docker(cli.Args("build", "-f", filepath.Join("files", "Dockerfile"), "-t", "test2", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
-		Out: "from files/Dockerfile",
-	})
-
-	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", filepath.Join("files", "dFile")), "-t", "test3", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
-		Out: "from files/dFile",
-	})
-
-	cli.Docker(cli.Args("build", "--file=dFile", "-t", "test4", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
-		Out: "from dFile",
-	})
-
-	dirWithNoDockerfile, err := ioutil.TempDir(os.TempDir(), "test5")
-	c.Assert(err, check.IsNil)
-	nonDockerfileFile := filepath.Join(dirWithNoDockerfile, "notDockerfile")
-	if _, err = os.Create(nonDockerfileFile); err != nil {
-		c.Fatal(err)
-	}
-	cli.Docker(cli.Args("build", fmt.Sprintf("--file=%s", nonDockerfileFile), "-t", "test5", "."), cli.InDir(ctx.Dir)).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      fmt.Sprintf("unable to prepare context: the Dockerfile (%s) must be within the build context", nonDockerfileFile),
-	})
-
-	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test6", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
-		Out: "from Dockerfile",
-	})
-
-	cli.Docker(cli.Args("build", "-f", filepath.Join(ctx.Dir, "files", "Dockerfile"), "-t", "test7", ".."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
-		Out: "from files/Dockerfile",
-	})
-
-	cli.Docker(cli.Args("build", "-f", filepath.Join("..", "Dockerfile"), "-t", "test8", "."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "must be within the build context",
-	})
-
-	tmpDir := os.TempDir()
-	cli.Docker(cli.Args("build", "-t", "test9", ctx.Dir), cli.InDir(tmpDir)).Assert(c, icmd.Expected{
-		Out: "from Dockerfile",
-	})
-
-	cli.Docker(cli.Args("build", "-f", "dFile2", "-t", "test10", "."), cli.InDir(filepath.Join(ctx.Dir, "files"))).Assert(c, icmd.Expected{
-		Out: "from files/dFile2",
-	})
-}
-
 func (s *DockerSuite) TestBuildFromMixedcaseDockerfile(c *check.C) {
 	testRequires(c, UnixCli) // Dockerfile overwrites dockerfile on windows
 	testRequires(c, DaemonIsLinux)
@@ -3772,6 +3722,7 @@ func (s *DockerSuite) TestBuildFromMixedcaseDockerfile(c *check.C) {
 	})
 }
 
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildFromURLWithF(c *check.C) {
 	server := fakestorage.New(c, "", fakecontext.WithFiles(map[string]string{"baz": `FROM busybox
 RUN echo from baz
@@ -3798,6 +3749,7 @@ RUN find /tmp/`}))
 
 }
 
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildFromStdinWithF(c *check.C) {
 	testRequires(c, DaemonIsLinux) // TODO Windows: This test is flaky; no idea why
 	ctx := fakecontext.New(c, "", fakecontext.WithDockerfile(`FROM busybox
@@ -3837,61 +3789,6 @@ func (s *DockerSuite) TestBuildFromOfficialNames(c *check.C) {
 		imgName := fmt.Sprintf("%s%d", name, idx)
 		buildImageSuccessfully(c, imgName, build.WithDockerfile("FROM "+fromName))
 		dockerCmd(c, "rmi", imgName)
-	}
-}
-
-func (s *DockerSuite) TestBuildDockerfileOutsideContext(c *check.C) {
-	testRequires(c, UnixCli, DaemonIsLinux) // uses os.Symlink: not implemented in windows at the time of writing (go-1.4.2)
-
-	name := "testbuilddockerfileoutsidecontext"
-	tmpdir, err := ioutil.TempDir("", name)
-	c.Assert(err, check.IsNil)
-	defer os.RemoveAll(tmpdir)
-	ctx := filepath.Join(tmpdir, "context")
-	if err := os.MkdirAll(ctx, 0755); err != nil {
-		c.Fatal(err)
-	}
-	if err := ioutil.WriteFile(filepath.Join(ctx, "Dockerfile"), []byte("FROM scratch\nENV X Y"), 0644); err != nil {
-		c.Fatal(err)
-	}
-	wd, err := os.Getwd()
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.Chdir(wd)
-	if err := os.Chdir(ctx); err != nil {
-		c.Fatal(err)
-	}
-	if err := ioutil.WriteFile(filepath.Join(tmpdir, "outsideDockerfile"), []byte("FROM scratch\nENV x y"), 0644); err != nil {
-		c.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join("..", "outsideDockerfile"), filepath.Join(ctx, "dockerfile1")); err != nil {
-		c.Fatal(err)
-	}
-	if err := os.Symlink(filepath.Join(tmpdir, "outsideDockerfile"), filepath.Join(ctx, "dockerfile2")); err != nil {
-		c.Fatal(err)
-	}
-
-	for _, dockerfilePath := range []string{
-		filepath.Join("..", "outsideDockerfile"),
-		filepath.Join(ctx, "dockerfile1"),
-		filepath.Join(ctx, "dockerfile2"),
-	} {
-		result := dockerCmdWithResult("build", "-t", name, "--no-cache", "-f", dockerfilePath, ".")
-		result.Assert(c, icmd.Expected{
-			Err:      "must be within the build context",
-			ExitCode: 1,
-		})
-		deleteImages(name)
-	}
-
-	os.Chdir(tmpdir)
-
-	// Path to Dockerfile should be resolved relative to working directory, not relative to context.
-	// There is a Dockerfile in the context, but since there is no Dockerfile in the current directory, the following should fail
-	out, _, err := dockerCmdWithError("build", "-t", name, "--no-cache", "-f", "Dockerfile", ctx)
-	if err == nil {
-		c.Fatalf("Expected error. Out: %s", out)
 	}
 }
 
@@ -4186,6 +4083,7 @@ func (s *DockerTrustSuite) TestTrustedBuildUntrustedTag(c *check.C) {
 	})
 }
 
+// FIXME(vdemeester) should migrate to docker/cli e2e tests
 func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	tempDir, err := ioutil.TempDir("", "test-build-dir-is-symlink-")
@@ -5132,6 +5030,7 @@ func (s *DockerSuite) TestBuildCacheRootSource(c *check.C) {
 }
 
 // #19375
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildFailsGitNotCallable(c *check.C) {
 	buildImage("gitnotcallable", cli.WithEnvironmentVariables("PATH="),
 		build.WithContextPath("github.com/docker/v1.10-migrator.git")).Assert(c, icmd.Expected{
@@ -6449,6 +6348,7 @@ CMD echo foo
 	c.Assert(strings.TrimSpace(out), checker.Equals, `["/bin/sh","-c","echo foo"]`)
 }
 
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildIidFile(c *check.C) {
 	tmpDir, err := ioutil.TempDir("", "TestBuildIidFile")
 	if err != nil {
@@ -6473,6 +6373,7 @@ ENV BAR BAZ`),
 	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
 }
 
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
 	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileCleanupOnFail")
 	if err != nil {
@@ -6495,6 +6396,7 @@ func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
 	c.Assert(os.IsNotExist(err), check.Equals, true)
 }
 
+// FIXME(vdemeester) should migrate to docker/cli tests
 func (s *DockerSuite) TestBuildIidFileSquash(c *check.C) {
 	testRequires(c, ExperimentalDaemon)
 	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileSquash")
