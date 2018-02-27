@@ -248,7 +248,7 @@ func TestNegotiateAPIVersion(t *testing.T) {
 }
 
 // TestNegotiateAPIVersionOverride asserts that we honor
-// the environment variable DOCKER_API_VERSION when negotianing versions
+// the environment variable DOCKER_API_VERSION when negotiating versions
 func TestNegotiateAPVersionOverride(t *testing.T) {
 	expected := "9.99"
 	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
