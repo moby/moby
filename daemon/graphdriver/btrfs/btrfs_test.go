@@ -13,6 +13,8 @@ import (
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
+	"github.com/opencontainers/selinux/go-selinux"
+	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
 // This avoids creating a new driver for each test if all tests are run
@@ -35,10 +37,10 @@ func TestBtrfsCreateSnap(t *testing.T) {
 
 func TestBtrfsSubvolDelete(t *testing.T) {
 	d := graphtest.GetDriver(t, "btrfs")
+	defer graphtest.PutDriver(t)
 	if err := d.CreateReadWrite("test", "", nil); err != nil {
 		t.Fatal(err)
 	}
-	defer graphtest.PutDriver(t)
 
 	dirFS, err := d.Get("test", "")
 	if err != nil {
@@ -249,6 +251,48 @@ func TestBtrfsSubvolLongPath(t *testing.T) {
 	}
 
 	if err := d.Remove("rootsubvol"); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestBtrfsSubvolSELinux(t *testing.T) {
+	pl, fl, err := label.InitLabels([]string{"role:test_r"})
+	if err != nil {
+		t.Fatalf("Fail to get init labels: %v", err)
+	}
+	if pl == "" && fl == "" {
+		t.Skip("SELinux disabled or \"selinux\" buildtag not set")
+	}
+	if strings.SplitN(pl, ":", 3)[1] != "test_r" {
+		t.Fatalf("test role was not set: %s", pl)
+	}
+
+	tstl := strings.SplitN(fl, ":", 3)
+	tstl[2] = "test_file_t:s0"
+	filetestlabel := strings.Join(tstl, ":")
+
+	d := graphtest.GetDriver(t, "btrfs")
+	defer graphtest.PutDriver(t)
+
+	createOpts := &graphdriver.CreateOpts{MountLabel: filetestlabel}
+
+	if err := d.Create("SEsubvol", "", createOpts); err != nil {
+		t.Fatal(err)
+	}
+
+	x := d.(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
+	subvoldir := x.subvolumesDirID("SEsubvol")
+
+	subvollabel, err := selinux.FileLabel(subvoldir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if subvollabel != filetestlabel {
+		t.Logf("subvol label %s not match with MountLabel %s", subvollabel, filetestlabel)
+		t.Fail()
+	}
+
+	if err := d.Remove("SEsubvol"); err != nil {
 		t.Fatal(err)
 	}
 }
