@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"errors"
@@ -76,8 +76,8 @@ func TestSearchRegistryForImagesErrors(t *testing.T) {
 		},
 	}
 	for index, e := range errorCases {
-		daemon := &Daemon{
-			RegistryService: &FakeService{
+		daemon := &ImageService{
+			registryService: &FakeService{
 				shouldReturnError: e.shouldReturnError,
 			},
 		}
@@ -322,8 +322,8 @@ func TestSearchRegistryForImages(t *testing.T) {
 		},
 	}
 	for index, s := range successCases {
-		daemon := &Daemon{
-			RegistryService: &FakeService{
+		daemon := &ImageService{
+			registryService: &FakeService{
 				term:    term,
 				results: s.registryResults,
 			},

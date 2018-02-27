@@ -79,7 +79,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	container.Unlock()
 
 	if size {
-		sizeRw, sizeRootFs := daemon.getSize(base.ID)
+		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
 		base.SizeRw = &sizeRw
 		base.SizeRootFs = &sizeRootFs
 	}

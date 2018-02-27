@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"encoding/json"
@@ -9,10 +9,12 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) commitImage(c backend.CommitConfig) (image.ID, error) {
-	layerStore, ok := daemon.layerStores[c.ContainerOS]
+// CommitImage creates a new image from a commit config
+func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+	layerStore, ok := i.layerStores[c.ContainerOS]
 	if !ok {
 		return "", system.ErrNotSupportedOperatingSystem
 	}
@@ -31,7 +33,7 @@ func (daemon *Daemon) commitImage(c backend.CommitConfig) (image.ID, error) {
 		parent = new(image.Image)
 		parent.RootFS = image.NewRootFS()
 	} else {
-		parent, err = daemon.imageStore.Get(image.ID(c.ParentImageID))
+		parent, err = i.imageStore.Get(image.ID(c.ParentImageID))
 		if err != nil {
 			return "", err
 		}
@@ -56,13 +58,13 @@ func (daemon *Daemon) commitImage(c backend.CommitConfig) (image.ID, error) {
 		return "", err
 	}
 
-	id, err := daemon.imageStore.Create(config)
+	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return "", err
 	}
 
 	if c.ParentImageID != "" {
-		if err := daemon.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
+		if err := i.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
 			return "", err
 		}
 	}
@@ -112,13 +114,14 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //   * it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (daemon *Daemon) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
-	container, err := daemon.GetContainer(c.ContainerID)
-	if err != nil {
-		return "", err
+func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+	container := i.containers.Get(c.ContainerID)
+	if container == nil {
+		// TODO: use typed error
+		return "", errors.Errorf("container not found: %s", c.ContainerID)
 	}
 	c.ContainerMountLabel = container.MountLabel
 	c.ContainerOS = container.OS
 	c.ParentImageID = string(container.ImageID)
-	return daemon.commitImage(c)
+	return i.CommitImage(c)
 }

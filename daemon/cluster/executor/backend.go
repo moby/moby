@@ -31,7 +31,6 @@ type Backend interface {
 	FindNetwork(idName string) (libnetwork.Network, error)
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
-	PullImage(ctx context.Context, image, tag, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
@@ -58,9 +57,14 @@ type Backend interface {
 	UnsubscribeFromEvents(listener chan interface{})
 	UpdateAttachment(string, string, string, *network.NetworkingConfig) error
 	WaitForDetachment(context.Context, string, string, string, string) error
-	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
-	LookupImage(name string) (*types.ImageInspect, error)
 	PluginManager() *plugin.Manager
 	PluginGetter() *plugin.Store
 	GetAttachmentStore() *networkSettings.AttachmentStore
+}
+
+// ImageBackend is used by an executor to perform image operations
+type ImageBackend interface {
+	PullImage(ctx context.Context, image, tag, platform string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
+	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
+	LookupImage(name string) (*types.ImageInspect, error)
 }

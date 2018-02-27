@@ -1,11 +1,14 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"fmt"
 	"sync/atomic"
+	"time"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -21,12 +24,16 @@ var imagesAcceptedFilters = map[string]bool{
 	"until":    true,
 }
 
+// errPruneRunning is returned when a prune request is received while
+// one is in progress
+var errPruneRunning = fmt.Errorf("a prune operation is already running")
+
 // ImagesPrune removes unused images
-func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
+func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
+	if !atomic.CompareAndSwapInt32(&i.pruneRunning, 0, 1) {
 		return nil, errPruneRunning
 	}
-	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
+	defer atomic.StoreInt32(&i.pruneRunning, 0)
 
 	// make sure that only accepted filters have been received
 	err := pruneFilters.Validate(imagesAcceptedFilters)
@@ -52,14 +59,14 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 
 	var allImages map[image.ID]*image.Image
 	if danglingOnly {
-		allImages = daemon.imageStore.Heads()
+		allImages = i.imageStore.Heads()
 	} else {
-		allImages = daemon.imageStore.Map()
+		allImages = i.imageStore.Map()
 	}
 
 	// Filter intermediary images and get their unique size
 	allLayers := make(map[layer.ChainID]layer.Layer)
-	for _, ls := range daemon.layerStores {
+	for _, ls := range i.layerStores {
 		for k, v := range ls.Map() {
 			allLayers[k] = v
 		}
@@ -71,7 +78,7 @@ func (daemon *Daemon) ImagesPrune(ctx context.Context, pruneFilters filters.Args
 			return nil, ctx.Err()
 		default:
 			dgst := digest.Digest(id)
-			if len(daemon.referenceStore.References(dgst)) == 0 && len(daemon.imageStore.Children(id)) != 0 {
+			if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
 				continue
 			}
 			if !until.IsZero() && img.Created.After(until) {
@@ -96,7 +103,7 @@ deleteImagesLoop:
 		}
 
 		deletedImages := []types.ImageDeleteResponseItem{}
-		refs := daemon.referenceStore.References(id.Digest())
+		refs := i.referenceStore.References(id.Digest())
 		if len(refs) > 0 {
 			shouldDelete := !danglingOnly
 			if !shouldDelete {
@@ -114,7 +121,7 @@ deleteImagesLoop:
 
 			if shouldDelete {
 				for _, ref := range refs {
-					imgDel, err := daemon.ImageDelete(ref.String(), false, true)
+					imgDel, err := i.ImageDelete(ref.String(), false, true)
 					if imageDeleteFailed(ref.String(), err) {
 						continue
 					}
@@ -123,7 +130,7 @@ deleteImagesLoop:
 			}
 		} else {
 			hex := id.Digest().Hex()
-			imgDel, err := daemon.ImageDelete(hex, false, true)
+			imgDel, err := i.ImageDelete(hex, false, true)
 			if imageDeleteFailed(hex, err) {
 				continue
 			}
@@ -165,4 +172,39 @@ func imageDeleteFailed(ref string, err error) bool {
 		logrus.Warnf("failed to prune image %s: %v", ref, err)
 		return true
 	}
+}
+
+func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
+	if !pruneFilters.MatchKVList("label", labels) {
+		return false
+	}
+	// By default MatchKVList will return true if field (like 'label!') does not exist
+	// So we have to add additional Contains("label!") check
+	if pruneFilters.Contains("label!") {
+		if pruneFilters.MatchKVList("label!", labels) {
+			return false
+		}
+	}
+	return true
+}
+
+func getUntilFromPruneFilters(pruneFilters filters.Args) (time.Time, error) {
+	until := time.Time{}
+	if !pruneFilters.Contains("until") {
+		return until, nil
+	}
+	untilFilters := pruneFilters.Get("until")
+	if len(untilFilters) > 1 {
+		return until, fmt.Errorf("more than one until filter specified")
+	}
+	ts, err := timetypes.GetTimestamp(untilFilters[0], time.Now())
+	if err != nil {
+		return until, err
+	}
+	seconds, nanoseconds, err := timetypes.ParseTimestamps(ts, 0)
+	if err != nil {
+		return until, err
+	}
+	until = time.Unix(seconds, nanoseconds)
+	return until, nil
 }

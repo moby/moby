@@ -1,4 +1,4 @@
-package daemon // import "github.com/docker/docker/daemon"
+package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"io"
@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
-	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
@@ -138,7 +137,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, os string) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, os string) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -148,7 +147,7 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 	pullRegistryAuth := &types.AuthConfig{}
 	if len(authConfigs) > 0 {
 		// The request came with a full auth config, use it
-		repoInfo, err := daemon.RegistryService.ResolveRepository(ref)
+		repoInfo, err := i.registryService.ResolveRepository(ref)
 		if err != nil {
 			return nil, err
 		}
@@ -157,26 +156,26 @@ func (daemon *Daemon) pullForBuilder(ctx context.Context, name string, authConfi
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := daemon.pullImageWithReference(ctx, ref, os, nil, pullRegistryAuth, output); err != nil {
+	if err := i.pullImageWithReference(ctx, ref, os, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
-	return daemon.GetImage(name)
+	return i.GetImage(name)
 }
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
-func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" {
 		if !system.IsOSSupported(opts.OS) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, daemon.layerStores[opts.OS])
+		layer, err := newROLayerForImage(nil, i.layerStores[opts.OS])
 		return nil, layer, err
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := daemon.GetImage(refOrID)
+		image, err := i.GetImage(refOrID)
 		if err != nil && opts.PullOption == backend.PullOptionNoPull {
 			return nil, nil, err
 		}
@@ -185,41 +184,36 @@ func (daemon *Daemon) GetImageAndReleasableLayer(ctx context.Context, refOrID st
 			if !system.IsOSSupported(image.OperatingSystem()) {
 				return nil, nil, system.ErrNotSupportedOperatingSystem
 			}
-			layer, err := newROLayerForImage(image, daemon.layerStores[image.OperatingSystem()])
+			layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
 			return image, layer, err
 		}
 	}
 
-	image, err := daemon.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.OS)
+	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.OS)
 	if err != nil {
 		return nil, nil, err
 	}
 	if !system.IsOSSupported(image.OperatingSystem()) {
 		return nil, nil, system.ErrNotSupportedOperatingSystem
 	}
-	layer, err := newROLayerForImage(image, daemon.layerStores[image.OperatingSystem()])
+	layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
 	return image, layer, err
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (daemon *Daemon) CreateImage(config []byte, parent string) (builder.Image, error) {
-	id, err := daemon.imageStore.Create(config)
+func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+	id, err := i.imageStore.Create(config)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create image")
 	}
 
 	if parent != "" {
-		if err := daemon.imageStore.SetParent(id, image.ID(parent)); err != nil {
+		if err := i.imageStore.SetParent(id, image.ID(parent)); err != nil {
 			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
 		}
 	}
 
-	return daemon.imageStore.Get(id)
-}
-
-// IDMappings returns uid/gid mappings for the builder
-func (daemon *Daemon) IDMappings() *idtools.IDMappings {
-	return daemon.idMappings
+	return i.imageStore.Get(id)
 }
