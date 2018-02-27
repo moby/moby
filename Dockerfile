@@ -242,7 +242,6 @@ COPY --from=runc /opt/runc/ /usr/local/bin/
 COPY --from=containerd /opt/containerd/ /usr/local/bin/
 COPY --from=proxy /opt/proxy/ /usr/local/bin/
 COPY --from=dockercli /opt/dockercli /usr/local/cli
-COPY --from=golang /usr/local/go /usr/local/go
 COPY --from=registry /usr/local/bin/registry* /usr/local/bin/
 COPY --from=notary /usr/local/bin/notary* /usr/local/bin/
 COPY --from=criu /opt/criu/ /usr/local/
