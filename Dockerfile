@@ -32,22 +32,13 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM buildpack-deps:stretch AS base
+FROM golang:1.9.4 AS base
+# FIXME(vdemeester) this is kept for other script depending on it to not fail right away
+# Remove this once the other scripts uses something else to detect the version
+ENV GO_VERSION 1.9.4
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
-
-
-FROM base AS golang
-# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
-#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
-#            with a heads-up.
-# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.9.4
-RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
-	| tar -xzC /usr/local
-ENV PATH=/usr/local/go/bin:/go/bin:$PATH GOPATH=/go
-
 
 FROM base AS criu
 # Install CRIU for checkpoint/restore support
@@ -69,7 +60,7 @@ RUN apt-get update && apt-get install -y \
 	&& make PREFIX=/opt/criu install-criu
 
 
-FROM golang AS registry
+FROM base AS registry
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
 # both. This allows integration-cli tests to cover push/pull with both schema1
@@ -89,7 +80,7 @@ RUN set -x \
 
 
 
-FROM golang AS notary
+FROM base AS notary
 # Install notary and notary-server
 ENV NOTARY_VERSION v0.5.0
 RUN set -x \
@@ -113,7 +104,7 @@ RUN git clone https://github.com/docker/docker-py.git /docker-py \
 
 
 
-FROM golang AS swagger
+FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
 RUN set -x \
@@ -124,7 +115,7 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 
-FROM golang AS frozen-images
+FROM base AS frozen-images
 RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
@@ -136,44 +127,44 @@ RUN /download-frozen-image-v2.sh /docker-frozen-images \
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
-FROM golang AS runtime-dev
+FROM base AS runtime-dev
 RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libseccomp-dev
 
 
-FROM golang AS tomlv
+FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
-FROM golang AS vndr
+FROM base AS vndr
 ENV INSTALL_BINARY_NAME=vndr
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
-FROM golang AS containerd
+FROM base AS containerd
 RUN apt-get update && apt-get install -y btrfs-tools
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
-FROM golang AS proxy
+FROM base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
-FROM golang AS gometalinter
+FROM base AS gometalinter
 ENV INSTALL_BINARY_NAME=gometalinter
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
-FROM golang AS dockercli
+FROM base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -231,6 +222,8 @@ RUN apt-get update && apt-get install -y \
 	vim-common \
 	xfsprogs \
 	zip \
+	bzip2 \
+	xz-utils \
 	--no-install-recommends
 COPY --from=swagger /usr/local/bin/swagger* /usr/local/bin/
 COPY --from=frozen-images /docker-frozen-images /docker-frozen-images
