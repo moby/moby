@@ -1,41 +1,71 @@
 #!/usr/bin/env bash
-set -e
+set -e -u -o pipefail
 
-TESTFLAGS=${TESTFLAGS:-""}
-# Currently only DockerSuite and DockerNetworkSuite have been adapted for E2E testing
-TESTFLAGS_LEGACY=${TESTFLAGS_LEGACY:-""}
-TIMEOUT=${TIMEOUT:-60m}
+ARCH=$(uname -m)
+if [ "$ARCH" == "x86_64" ]; then
+  ARCH="amd64"
+fi
 
-SCRIPTDIR="$(dirname ${BASH_SOURCE[0]})"
+export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-${ARCH}}
 
-export DOCKER_ENGINE_GOARCH=${DOCKER_ENGINE_GOARCH:-amd64}
+# Set defaults
+: ${TESTFLAGS:=}
+: ${TESTDEBUG:=}
+
+integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
+	find ./integration -type d |
+	grep -vE '(^./integration($|/internal)|/testdata)')"}
 
 run_test_integration() {
-  run_test_integration_suites
-  run_test_integration_legacy_suites
+	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
+	run_test_integration_legacy_suites
 }
 
 run_test_integration_suites() {
-  local flags="-test.timeout=${TIMEOUT} $TESTFLAGS"
-  for dir in /tests/integration/*; do
-    if ! (
-      cd $dir
-      echo "Running $PWD"
-      ./test.main $flags
-    ); then exit 1; fi
-  done
+	local flags="-test.v -test.timeout=${TIMEOUT:=10m} $TESTFLAGS"
+	for dir in $integration_api_dirs; do
+		if ! (
+			cd $dir
+			echo "Running $PWD"
+			test_env ./test.main $flags
+		); then exit 1; fi
+	done
 }
 
 run_test_integration_legacy_suites() {
-  (
-    flags="-check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS_LEGACY"
-    cd /tests/integration-cli
-    echo "Running $PWD"
-    ./test.main $flags
-  )
+	(
+		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
+		cd test/integration-cli
+		echo "Running $PWD"
+		test_env ./test.main $flags
+	)
 }
 
-bash $SCRIPTDIR/ensure-emptyfs.sh
+# use "env -i" to tightly control the environment variables that bleed into the tests
+test_env() {
+	(
+		set -e +u
+		[ -n "$TESTDEBUG" ] && set -x
+		env -i \
+			DOCKER_API_VERSION="$DOCKER_API_VERSION" \
+			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
+			DOCKER_TLS_VERIFY="$DOCKER_TEST_TLS_VERIFY" \
+			DOCKER_CERT_PATH="$DOCKER_TEST_CERT_PATH" \
+			DOCKER_ENGINE_GOARCH="$DOCKER_ENGINE_GOARCH" \
+			DOCKER_GRAPHDRIVER="$DOCKER_GRAPHDRIVER" \
+			DOCKER_USERLANDPROXY="$DOCKER_USERLANDPROXY" \
+			DOCKER_HOST="$DOCKER_HOST" \
+			DOCKER_REMAP_ROOT="$DOCKER_REMAP_ROOT" \
+			DOCKER_REMOTE_DAEMON="$DOCKER_REMOTE_DAEMON" \
+			DOCKERFILE="$DOCKERFILE" \
+			GOPATH="$GOPATH" \
+			GOTRACEBACK=all \
+			HOME="$ABS_DEST/fake-HOME" \
+			PATH="$PATH" \
+			TEMP="$TEMP" \
+			TEST_CLIENT_BINARY="$TEST_CLIENT_BINARY" \
+			"$@"
+	)
+}
 
-echo "Run integration tests"
 run_test_integration
