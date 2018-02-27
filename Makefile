@@ -156,7 +156,14 @@ rpm: build ## build the rpm packages
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
-shell: build ## start a shell inside the build env
+shell: ## start a shell inside the build env
+	docker build \
+		${BUILD_APT_MIRROR} \
+		${DOCKER_BUILD_ARGS} \
+		-t "$(DOCKER_IMAGE)" \
+		--target dev-interactive \
+		-f "$(DOCKERFILE)" .
+	# TODO: always set BINDDIR=.
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build test-unit ## run the unit, integration and docker-py tests

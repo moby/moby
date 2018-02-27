@@ -195,7 +195,7 @@ RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
 
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
-FROM runtime-dev AS dev
+FROM runtime-dev AS dev-deps
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
 # Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
@@ -263,5 +263,11 @@ WORKDIR /go/src/github.com/docker/docker
 VOLUME /var/lib/docker
 # Wrap all commands in the "docker-in-docker" script to allow nested containers
 ENTRYPOINT ["hack/dind"]
+
+
+FROM dev-deps as dev-interactive
+COPY hack/dockerfile/bashrc /root/.bashrc
+
+FROM dev-deps as dev
 # Upload docker source
 COPY . /go/src/github.com/docker/docker
