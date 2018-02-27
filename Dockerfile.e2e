@@ -68,6 +68,6 @@ COPY --from=builder /output/httpserver /tests/contrib/httpserver/httpserver
 COPY --from=builder /output/tests /tests
 COPY --from=builder /usr/local/bin/docker /usr/bin/docker
 
-ENV DOCKER_REMOTE_DAEMON=1 DOCKER_INTEGRATION_DAEMON_DEST=/
+ENV DOCKER_REMOTE_DAEMON=1 DOCKER_INTEGRATION_DAEMON_DEST=/ DOCKER_ENGINE_GOARCH=
 
 ENTRYPOINT ["/scripts/run.sh"]
