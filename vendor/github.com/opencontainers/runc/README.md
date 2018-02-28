@@ -41,7 +41,17 @@ make
 sudo make install
 ```
 
+You can also use `go get` to install to your `GOPATH`, assuming that you have a `github.com` parent folder already created under `src`:
+
+```bash
+go get github.com/opencontainers/runc
+cd $GOPATH/src/github.com/opencontainers/runc
+make
+sudo make install
+```
+
 `runc` will be installed to `/usr/local/sbin/runc` on your system.
+
 
 #### Build Tags
 
