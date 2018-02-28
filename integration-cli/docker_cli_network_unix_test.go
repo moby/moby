@@ -1541,10 +1541,10 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 	dockerCmd(c, "network", "create", "-d", "bridge", "net1")
 	dockerCmd(c, "network", "create", "-d", "bridge", "net2")
 
-	cid, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo", "busybox", "top")
+	cid, _ := dockerCmd(c, "run", "-d", "--net=net1", "--name=first", "--net-alias=foo", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
 
-	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=net1", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 
 	// ping first container and its alias
@@ -1581,7 +1581,7 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectDisconnectAlias(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	// verify the alias option is rejected when running on predefined network
-	out, _, err := dockerCmdWithError("run", "--rm", "--name=any", "--net-alias=any", "busybox", "top")
+	out, _, err := dockerCmdWithError("run", "--rm", "--name=any", "--net-alias=any", "busybox:glibc", "top")
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	c.Assert(out, checker.Contains, runconfig.ErrUnsupportedNetworkAndAlias.Error())
 
@@ -1595,10 +1595,10 @@ func (s *DockerSuite) TestUserDefinedNetworkConnectivity(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace)
 	dockerCmd(c, "network", "create", "-d", "bridge", "br.net1")
 
-	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c1.net1", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c1.net1", "busybox:glibc", "top")
 	c.Assert(waitRun("c1.net1"), check.IsNil)
 
-	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c2.net1", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=br.net1", "--name=c2.net1", "busybox:glibc", "top")
 	c.Assert(waitRun("c2.net1"), check.IsNil)
 
 	// ping first container by its unqualified name
@@ -1643,9 +1643,9 @@ func (s *DockerSuite) TestDockerNetworkInternalMode(c *check.C) {
 	nr := getNetworkResource(c, "internal")
 	c.Assert(nr.Internal, checker.True)
 
-	dockerCmd(c, "run", "-d", "--net=internal", "--name=first", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=internal", "--name=first", "busybox:glibc", "top")
 	c.Assert(waitRun("first"), check.IsNil)
-	dockerCmd(c, "run", "-d", "--net=internal", "--name=second", "busybox", "top")
+	dockerCmd(c, "run", "-d", "--net=internal", "--name=second", "busybox:glibc", "top")
 	c.Assert(waitRun("second"), check.IsNil)
 	out, _, err := dockerCmdWithError("exec", "first", "ping", "-W", "4", "-c", "1", "www.google.com")
 	c.Assert(err, check.NotNil)
