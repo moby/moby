@@ -242,7 +242,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 
 	for _, ep := range n.endpoints {
 		if ep.ifName != "" {
-			if link, err := ns.NlHandle().LinkByName(ep.ifName); err != nil {
+			if link, err := ns.NlHandle().LinkByName(ep.ifName); err == nil {
 				ns.NlHandle().LinkDel(link)
 			}
 		}
