@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/container"
 import (
 	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -74,6 +75,7 @@ func TestContainerSecretReferenceDestTarget(t *testing.T) {
 func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 	containerRoot, err := ioutil.TempDir("", "TestContainerLogPathSetForJSONFileLogger")
 	require.NoError(t, err)
+	defer os.RemoveAll(containerRoot)
 
 	c := &Container{
 		Config: &container.Config{},
@@ -86,8 +88,9 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 		Root: containerRoot,
 	}
 
-	_, err = c.StartLogger()
+	logger, err := c.StartLogger()
 	require.NoError(t, err)
+	defer logger.Close()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
 	require.NoError(t, err)
@@ -97,6 +100,7 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 func TestContainerLogPathSetForRingLogger(t *testing.T) {
 	containerRoot, err := ioutil.TempDir("", "TestContainerLogPathSetForRingLogger")
 	require.NoError(t, err)
+	defer os.RemoveAll(containerRoot)
 
 	c := &Container{
 		Config: &container.Config{},
@@ -112,8 +116,9 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 		Root: containerRoot,
 	}
 
-	_, err = c.StartLogger()
+	logger, err := c.StartLogger()
 	require.NoError(t, err)
+	defer logger.Close()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
 	require.NoError(t, err)
