@@ -5,9 +5,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,23 +17,9 @@ func TestPsFilter(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	createContainerForFilter := func(ctx context.Context, name string) string {
-		body, err := client.ContainerCreate(ctx,
-			&container.Config{
-				Cmd:   []string{"top"},
-				Image: "busybox",
-			},
-			&container.HostConfig{},
-			&network.NetworkingConfig{},
-			name,
-		)
-		require.NoError(t, err)
-		return body.ID
-	}
-
-	prev := createContainerForFilter(ctx, "prev")
-	createContainerForFilter(ctx, "top")
-	next := createContainerForFilter(ctx, "next")
+	prev := container.Create(t, ctx, client, container.WithName("prev"))
+	container.Create(t, ctx, client, container.WithName("top"))
+	next := container.Create(t, ctx, client, container.WithName("next"))
 
 	containerIDs := func(containers []types.Container) []string {
 		entries := []string{}
