@@ -326,9 +326,6 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		s.Windows.CredentialSpec = cs
 	}
 
-	// Assume we are not starting a container for a servicing operation
-	s.Windows.Servicing = false
-
 	return nil
 }
 
