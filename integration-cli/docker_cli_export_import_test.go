@@ -9,25 +9,8 @@ import (
 	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
-// export an image and try to import it into a new one
-func (s *DockerSuite) TestExportContainerAndImportImage(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := "testexportcontainerandimportimage"
-
-	dockerCmd(c, "run", "--name", containerID, "busybox", "true")
-
-	out, _ := dockerCmd(c, "export", containerID)
-
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "import", "-", "repo/testexp:v1"},
-		Stdin:   strings.NewReader(out),
-	})
-	result.Assert(c, icmd.Success)
-
-	cleanedImageID := strings.TrimSpace(result.Combined())
-	c.Assert(cleanedImageID, checker.Not(checker.Equals), "", check.Commentf("output should have been an image id"))
-}
-
+// TODO: Move this test to docker/cli, as it is essentially the same test
+// as TestExportContainerAndImportImage except output to a file.
 // Used to test output flag in the export command
 func (s *DockerSuite) TestExportContainerWithOutputAndImportImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
