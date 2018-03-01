@@ -1,4 +1,4 @@
-package secret
+package secret // import "github.com/docker/docker/integration/secret"
 
 import (
 	"bytes"
