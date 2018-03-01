@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
 )
@@ -36,22 +36,14 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	assert.NoError(t, err, "error creating client")
 
 	ctx := context.Background()
-	c, err := client.ContainerCreate(ctx,
-		&container.Config{
-			Image: "busybox",
-			Cmd:   []string{"top"},
-		},
-		nil,
-		nil,
-		"",
-	)
-	assert.NoError(t, err, "error creating test container")
-	defer client.ContainerRemove(ctx, c.ID, types.ContainerRemoveOptions{Force: true})
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
+	cID := container.Create(t, ctx, client)
+	defer client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+
+	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
 	assert.NoError(t, err, "error starting test container")
 
-	inspect, err := client.ContainerInspect(ctx, c.ID)
+	inspect, err := client.ContainerInspect(ctx, cID)
 	assert.NoError(t, err, "error getting inspect data")
 
 	ppid := getContainerdShimPid(t, inspect)
@@ -67,7 +59,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	d.Start(t, "--iptables=false")
 
-	err = client.ContainerStart(ctx, c.ID, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
 	assert.NoError(t, err, "failed to start test container")
 }
 
