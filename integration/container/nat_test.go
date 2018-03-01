@@ -36,7 +36,7 @@ func TestNetworkNat(t *testing.T) {
 
 	data, err := ioutil.ReadAll(conn)
 	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(string(data)), msg)
+	assert.Equal(t, msg, strings.TrimSpace(string(data)))
 }
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
@@ -53,7 +53,7 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 
 	data, err := ioutil.ReadAll(conn)
 	require.NoError(t, err)
-	assert.Equal(t, strings.TrimSpace(string(data)), msg)
+	assert.Equal(t, msg, strings.TrimSpace(string(data)))
 }
 
 func TestNetworkLoopbackNat(t *testing.T) {
@@ -81,7 +81,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	_, err = io.Copy(&b, body)
 	require.NoError(t, err)
 
-	assert.Equal(t, strings.TrimSpace(b.String()), msg)
+	assert.Equal(t, msg, strings.TrimSpace(b.String()))
 }
 
 func startServerContainer(t *testing.T, msg string, port int) string {
@@ -109,7 +109,7 @@ func getExternalAddress(t *testing.T) net.IP {
 
 	ifaceAddrs, err := iface.Addrs()
 	require.NoError(t, err)
-	assert.NotEqual(t, len(ifaceAddrs), 0)
+	assert.NotEqual(t, 0, len(ifaceAddrs))
 
 	ifaceIP, _, err := net.ParseCIDR(ifaceAddrs[0].String())
 	require.NoError(t, err)
