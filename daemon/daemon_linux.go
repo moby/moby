@@ -74,18 +74,22 @@ func (daemon *Daemon) cleanupMounts() error {
 		return err
 	}
 
-	infos, err := mount.GetMounts(nil)
+	info, err := mount.GetMounts(mount.SingleEntryFilter(daemon.root))
 	if err != nil {
 		return errors.Wrap(err, "error reading mount table for cleanup")
 	}
 
-	info := getMountInfo(infos, daemon.root)
+	if len(info) < 1 {
+		// no mount found, we're done here
+		return nil
+	}
+
 	// `info.Root` here is the root mountpoint of the passed in path (`daemon.root`).
 	// The ony cases that need to be cleaned up is when the daemon has performed a
 	//   `mount --bind /daemon/root /daemon/root && mount --make-shared /daemon/root`
 	// This is only done when the daemon is started up and `/daemon/root` is not
 	// already on a shared mountpoint.
-	if !shouldUnmountRoot(daemon.root, info) {
+	if !shouldUnmountRoot(daemon.root, info[0]) {
 		return nil
 	}
 
@@ -114,12 +118,6 @@ func getRealPath(path string) (string, error) {
 }
 
 func shouldUnmountRoot(root string, info *mount.Info) bool {
-	if info == nil {
-		return false
-	}
-	if info.Mountpoint != root {
-		return false
-	}
 	if !strings.HasSuffix(root, info.Root) {
 		return false
 	}
