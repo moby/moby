@@ -22,6 +22,13 @@ func WithLinks(links ...string) func(*TestContainerConfig) {
 	}
 }
 
+// WithImage sets the image of the container
+func WithImage(image string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.Image = image
+	}
+}
+
 // WithCmd sets the comannds of the container
 func WithCmd(cmds ...string) func(*TestContainerConfig) {
 	return func(c *TestContainerConfig) {
