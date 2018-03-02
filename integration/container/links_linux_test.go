@@ -20,7 +20,7 @@ import (
 )
 
 func TestLinksEtcHostsContentMatch(t *testing.T) {
-	skip.If(t, !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 
 	hosts, err := ioutil.ReadFile("/etc/hosts")
 	skip.If(t, os.IsNotExist(err))

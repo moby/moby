@@ -55,7 +55,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.Name, "/"+oldName)
+	assert.Equal(t, "/"+oldName, inspect.Name)
 
 	newName := "new_name" + stringid.GenerateNonCryptoID()
 	err = client.ContainerRename(ctx, oldName, newName)
@@ -63,7 +63,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 
 	inspect, err = client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.Name, "/"+newName)
+	assert.Equal(t, "/"+newName, inspect.Name)
 }
 
 func TestRenameRunningContainerAndReuse(t *testing.T) {
@@ -81,7 +81,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.Name, "/"+newName)
+	assert.Equal(t, "/"+newName, inspect.Name)
 
 	_, err = client.ContainerInspect(ctx, oldName)
 	testutil.ErrorContains(t, err, "No such container: "+oldName)
@@ -91,7 +91,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 
 	inspect, err = client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.Name, "/"+oldName)
+	assert.Equal(t, "/"+oldName, inspect.Name)
 }
 
 func TestRenameInvalidName(t *testing.T) {
@@ -108,7 +108,7 @@ func TestRenameInvalidName(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, oldName)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.ID, cID)
+	assert.Equal(t, cID, inspect.ID)
 }
 
 // Test case for GitHub issue 22466
@@ -133,6 +133,10 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	})
 	err = client.ContainerRename(ctx, cID, "container1")
 	require.NoError(t, err)
+	// Stop/Start the container to get registered
+	// FIXME(vdemeester) this is a really weird behavior as it fails otherwise
+	err = client.ContainerStop(ctx, "container1", nil)
+	require.NoError(t, err)
 	err = client.ContainerStart(ctx, "container1", types.ContainerStartOptions{})
 	require.NoError(t, err)
 
@@ -152,7 +156,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.State.ExitCode, 0)
+	assert.Equal(t, 0, inspect.State.ExitCode, "container %s exited with the wrong exitcode: %+v", cID, inspect)
 }
 
 // TODO: should be a unit test
@@ -175,7 +179,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 // of the linked container should be updated so that the other
 // container could still reference to the container that is renamed.
 func TestRenameContainerWithLinkedContainer(t *testing.T) {
-	skip.If(t, !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
 	ctx := context.Background()
@@ -192,5 +196,5 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, "app2/mysql")
 	require.NoError(t, err)
-	assert.Equal(t, inspect.ID, db1ID)
+	assert.Equal(t, db1ID, inspect.ID)
 }

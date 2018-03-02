@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
 )
@@ -26,6 +27,7 @@ import (
 // the container process, then start dockerd back up and attempt to start the
 // container again.
 func TestContainerStartOnDaemonRestart(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon(), "cannot start daemon on remote test run")
 	t.Parallel()
 
 	d := daemon.New(t, "", "dockerd", daemon.Config{})
