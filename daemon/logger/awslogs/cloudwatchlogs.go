@@ -61,6 +61,7 @@ type logStream struct {
 	logStreamName    string
 	logGroupName     string
 	logCreateGroup   bool
+	logNonBlocking   bool
 	multilinePattern *regexp.Regexp
 	client           api
 	messages         chan *logger.Message
@@ -127,6 +128,8 @@ func New(info logger.Info) (logger.Logger, error) {
 		}
 	}
 
+	logNonBlocking := info.Config["mode"] == "non-blocking"
+
 	if info.Config[logStreamKey] != "" {
 		logStreamName = info.Config[logStreamKey]
 	}
@@ -140,19 +143,54 @@ func New(info logger.Info) (logger.Logger, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	containerStream := &logStream{
 		logStreamName:    logStreamName,
 		logGroupName:     logGroupName,
 		logCreateGroup:   logCreateGroup,
+		logNonBlocking:   logNonBlocking,
 		multilinePattern: multilinePattern,
 		client:           client,
 		messages:         make(chan *logger.Message, 4096),
 	}
-	err = containerStream.create()
-	if err != nil {
-		return nil, err
+
+	creationDone := make(chan bool)
+	if logNonBlocking {
+		go func() {
+			backoff := 1
+			maxBackoff := 32
+			for {
+				// If logger is closed we are done
+				containerStream.lock.RLock()
+				if containerStream.closed {
+					containerStream.lock.RUnlock()
+					break
+				}
+				containerStream.lock.RUnlock()
+				err := containerStream.create()
+				if err == nil {
+					break
+				}
+
+				time.Sleep(time.Duration(backoff) * time.Second)
+				if backoff < maxBackoff {
+					backoff *= 2
+				}
+				logrus.
+					WithError(err).
+					WithField("container-id", info.ContainerID).
+					WithField("container-name", info.ContainerName).
+					Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+			}
+			close(creationDone)
+		}()
+	} else {
+		if err = containerStream.create(); err != nil {
+			return nil, err
+		}
+		close(creationDone)
 	}
-	go containerStream.collectBatch()
+	go containerStream.collectBatch(creationDone)
 
 	return containerStream, nil
 }
@@ -294,9 +332,18 @@ func (l *logStream) BufSize() int {
 func (l *logStream) Log(msg *logger.Message) error {
 	l.lock.RLock()
 	defer l.lock.RUnlock()
-	if !l.closed {
-		l.messages <- msg
+	if l.closed {
+		return errors.New("awslogs is closed")
 	}
+	if l.logNonBlocking {
+		select {
+		case l.messages <- msg:
+			return nil
+		default:
+			return errors.New("awslogs buffer is full")
+		}
+	}
+	l.messages <- msg
 	return nil
 }
 
@@ -322,7 +369,9 @@ func (l *logStream) create() error {
 				return l.createLogStream()
 			}
 		}
-		return err
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -399,7 +448,9 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 // seconds.  When events are ready to be processed for submission to CloudWatch
 // Logs, the processEvents method is called.  If a multiline pattern is not
 // configured, log events are submitted to the processEvents method immediately.
-func (l *logStream) collectBatch() {
+func (l *logStream) collectBatch(created chan bool) {
+	// Wait for the logstream/group to be created
+	<-created
 	ticker := newTicker(batchPublishFrequency)
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
