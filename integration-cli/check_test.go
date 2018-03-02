@@ -84,7 +84,7 @@ type DockerSuite struct {
 }
 
 func (s *DockerSuite) OnTimeout(c *check.C) {
-	if !testEnv.IsLocalDaemon() {
+	if testEnv.IsRemoteDaemon() {
 		return
 	}
 	path := filepath.Join(os.Getenv("DEST"), "docker.pid")

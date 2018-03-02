@@ -18,7 +18,7 @@ import (
 )
 
 func TestInspect(t *testing.T) {
-	skip.IfCondition(t, !testEnv.IsLocalDaemon())
+	skip.IfCondition(t, testEnv.IsRemoteDaemon())
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)

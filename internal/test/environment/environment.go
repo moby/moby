@@ -96,7 +96,7 @@ func toSlash(path string) string {
 }
 
 // IsLocalDaemon is true if the daemon under test is on the same
-// host as the CLI.
+// host as the test process.
 //
 // Deterministically working out the environment in which CI is running
 // to evaluate whether the daemon is local or remote is not possible through
@@ -113,6 +113,12 @@ func toSlash(path string) string {
 // a Linux CLI (built with the daemon tag) against a Windows daemon.
 func (e *Execution) IsLocalDaemon() bool {
 	return os.Getenv("DOCKER_REMOTE_DAEMON") == ""
+}
+
+// IsRemoteDaemon is true if the daemon under test is on different host
+// as the test process.
+func (e *Execution) IsRemoteDaemon() bool {
+	return !e.IsLocalDaemon()
 }
 
 // Print the execution details to stdout

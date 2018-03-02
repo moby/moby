@@ -25,20 +25,19 @@ func TestPause(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	name := "testeventpause"
-	cID := container.Run(t, ctx, client, container.WithName(name))
+	cID := container.Run(t, ctx, client)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	since := request.DaemonUnixTime(ctx, t, client, testEnv)
 
-	err := client.ContainerPause(ctx, name)
+	err := client.ContainerPause(ctx, cID)
 	require.NoError(t, err)
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
 	assert.Equal(t, inspect.State.Paused, true)
 
-	err = client.ContainerUnpause(ctx, name)
+	err = client.ContainerUnpause(ctx, cID)
 	require.NoError(t, err)
 
 	until := request.DaemonUnixTime(ctx, t, client, testEnv)
@@ -46,7 +45,7 @@ func TestPause(t *testing.T) {
 	messages, errs := client.Events(ctx, types.EventsOptions{
 		Since:   since,
 		Until:   until,
-		Filters: filters.NewArgs(filters.Arg("container", name)),
+		Filters: filters.NewArgs(filters.Arg("container", cID)),
 	})
 	assert.Equal(t, getEventActions(t, messages, errs), []string{"pause", "unpause"})
 }

@@ -22,7 +22,7 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
-	skip.If(t, !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
 
@@ -40,7 +40,7 @@ func TestNetworkNat(t *testing.T) {
 }
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
-	skip.If(t, !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
 
@@ -57,7 +57,7 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 }
 
 func TestNetworkLoopbackNat(t *testing.T) {
-	skip.If(t, !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon())
 
 	msg := "it works"
 	startServerContainer(t, msg, 8080)

@@ -23,6 +23,7 @@ import (
 )
 
 func TestContainerShmNoLeak(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon(), "cannot start daemon on remote test run")
 	t.Parallel()
 	d := daemon.New(t, "docker", "dockerd", daemon.Config{})
 	client, err := d.NewClient()
@@ -94,7 +95,7 @@ func TestContainerShmNoLeak(t *testing.T) {
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || !testEnv.IsLocalDaemon())
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
 
