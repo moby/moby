@@ -20,7 +20,6 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	ctx := context.Background()
 
 	id := container.Run(t, ctx, client, container.WithCmd("sleep", "100000"))
-	defer client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{Force: true})
 
 	logs, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
 	if logs != nil {
