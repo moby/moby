@@ -155,8 +155,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	name := "testoomkilled"
-	cID := container.Run(t, ctx, client, container.WithName(name), container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
+	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
 	})
 
@@ -174,8 +173,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
-	name := "testoomkilled"
-	cID := container.Run(t, ctx, client, container.WithName(name), container.WithCmd("sh", "-c", "echo hello world"))
+	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "echo hello world"))
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
