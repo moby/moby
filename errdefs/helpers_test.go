@@ -179,3 +179,16 @@ func TestUnavailable(t *testing.T) {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
 }
+
+func TestSystem(t *testing.T) {
+	if IsSystem(errTest) {
+		t.Fatalf("did not expect system error, got %T", errTest)
+	}
+	e := System(errTest)
+	if !IsSystem(e) {
+		t.Fatalf("expected system error, got %T", e)
+	}
+	if cause := e.(causal).Cause(); cause != errTest {
+		t.Fatalf("causual should be errTest, got: %v", cause)
+	}
+}

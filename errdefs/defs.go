@@ -35,7 +35,7 @@ type ErrForbidden interface {
 // ErrSystem signals that some internal error occurred.
 // An example of this would be a failed mount request.
 type ErrSystem interface {
-	ErrSystem()
+	System()
 }
 
 // ErrNotModified signals that an action can't be performed because it's already in the desired state
