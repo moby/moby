@@ -8,6 +8,10 @@ IPTABLES="${IPTABLES:-iptables}"
 IPVSADM="${IPVSADM:-ipvsadm}"
 IP="${IP:-ip}"
 
+networks=0
+containers=0
+ip_overlap=0
+
 NSDIR=/var/run/docker/netns
 
 function die {
@@ -18,6 +22,18 @@ function die {
 function echo_and_run {
   echo "#" "$@"
   eval $(printf '%q ' "$@") < /dev/stdout
+}
+
+function check_ip_overlap {
+  inspect=$1
+  overlap=$(echo "$inspect_output" | grep "EndpointIP\|VIP" | awk -F ':' '{print $2}' | sort | uniq -c | grep -v "1 ")
+  if [ ! -z "$overlap" ]; then
+    echo -e "\n\n*** OVERLAP on Network ${networkID} ***";
+    echo -e "${overlap} \n\n"
+    ((ip_overlap++))
+  else
+    echo "No overlap"
+  fi
 }
 
 type -P ${DOCKER} > /dev/null || echo "This tool requires the docker binary"
@@ -49,7 +65,9 @@ for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "
     echo "nnn Network ${networkID}"
     if [ "${networkID}" != "ingress_sbox" ]; then
         nspath=(${NSDIR}/*-${networkID:0:10})
-        ${DOCKER} network inspect ${NETINSPECT_VERBOSE_SUPPORT} ${networkID}
+        inspect_output=$(${DOCKER} network inspect ${NETINSPECT_VERBOSE_SUPPORT} ${networkID})
+        echo "$inspect_output"
+        check_ip_overlap $inspect_output
     else
         nspath=(${NSDIR}/${networkID})
     fi
@@ -62,6 +80,7 @@ for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "
     echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
     echo_and_run ${NSENTER} --net=${nspath[0]} ${IPVSADM} -l -n
     printf "\n"
+    ((networks++))
 done
 
 echo "Container network configuration"
@@ -76,4 +95,10 @@ for containerID in $(${DOCKER} container ls -q); do
     echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
     echo_and_run ${NSENTER} --net=${nspath[0]} ${IPVSADM} -l -n
     printf "\n"
+    ((containers++))
 done
+
+echo -e "\n\n==SUMMARY=="
+echo -e "\t Processed $networks networks"
+echo -e "\t IP overlap found: $ip_overlap"
+echo -e "\t Processed $containers containers"
