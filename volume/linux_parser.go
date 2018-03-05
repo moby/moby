@@ -83,7 +83,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 		if validateBindSourceExists {
 			exists, _, _ := currentFileInfoProvider.fileInfo(mnt.Source)
 			if !exists {
-				return &errMountConfig{mnt, errBindNotExist}
+				return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 			}
 		}
 

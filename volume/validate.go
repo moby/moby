@@ -7,8 +7,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-var errBindNotExist = errors.New("bind source path does not exist")
-
 type errMountConfig struct {
 	mount *mount.Mount
 	err   error
@@ -16,6 +14,10 @@ type errMountConfig struct {
 
 func (e *errMountConfig) Error() string {
 	return fmt.Sprintf("invalid mount config for type %q: %v", e.mount.Type, e.err.Error())
+}
+
+func errBindSourceDoesNotExist(path string) error {
+	return errors.Errorf("bind mount source path does not exist: %s", path)
 }
 
 func errExtraField(name string) error {
