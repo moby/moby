@@ -69,11 +69,8 @@ func newTestStore(t *testing.T) (Store, string, func()) {
 	}
 
 	graph, graphcleanup := newTestGraphDriver(t)
-	fms, err := NewFSMetadataStore(td)
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph, runtime.GOOS)
+
+	ls, err := newStoreFromGraphDriver(td, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -403,7 +400,7 @@ func TestStoreRestore(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	ls2, err := NewStoreFromGraphDriver(ls.(*layerStore).store, ls.(*layerStore).driver, runtime.GOOS)
+	ls2, err := newStoreFromGraphDriver(ls.(*layerStore).store.root, ls.(*layerStore).driver, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
