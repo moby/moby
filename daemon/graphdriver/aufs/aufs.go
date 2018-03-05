@@ -108,7 +108,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	switch fsMagic {
 	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs:
-		logrus.Errorf("AUFS is not supported over %s", backingFs)
+		logrus.WithField("storage-driver", "aufs").Errorf("AUFS is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -142,10 +142,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, err
 		}
 	}
-	logger := logrus.WithFields(logrus.Fields{
-		"module": "graphdriver",
-		"driver": "aufs",
-	})
+	logger := logrus.WithField("storage-driver", "aufs")
 
 	for _, path := range []string{"mnt", "diff"} {
 		p := filepath.Join(root, path)
@@ -309,9 +306,8 @@ func (a *Driver) Remove(id string) error {
 	}
 
 	logger := logrus.WithFields(logrus.Fields{
-		"module": "graphdriver",
-		"driver": "aufs",
-		"layer":  id,
+		"storage-driver": "aufs",
+		"layer":          id,
 	})
 
 	var retries int
@@ -442,7 +438,7 @@ func (a *Driver) Put(id string) error {
 
 	err := a.unmount(m)
 	if err != nil {
-		logrus.Debugf("Failed to unmount %s aufs: %v", id, err)
+		logrus.WithField("storage-driver", "aufs").Debugf("Failed to unmount %s aufs: %v", id, err)
 	}
 	return err
 }
@@ -600,7 +596,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, m := range dirs {
 		if err := a.unmount(m); err != nil {
-			logrus.Debugf("aufs error unmounting %s: %s", m, err)
+			logrus.WithField("storage-driver", "aufs").Debugf("error unmounting %s: %s", m, err)
 		}
 	}
 	return mountpk.RecursiveUnmount(a.root)
@@ -655,17 +651,18 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 // useDirperm checks dirperm1 mount option can be used with the current
 // version of aufs.
 func useDirperm() bool {
+	logger := logrus.WithField("storage-driver", "aufs")
 	enableDirpermLock.Do(func() {
 		base, err := ioutil.TempDir("", "docker-aufs-base")
 		if err != nil {
-			logrus.Errorf("error checking dirperm1: %v", err)
+			logger.Errorf("error checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(base)
 
 		union, err := ioutil.TempDir("", "docker-aufs-union")
 		if err != nil {
-			logrus.Errorf("error checking dirperm1: %v", err)
+			logger.Errorf("error checking dirperm1: %v", err)
 			return
 		}
 		defer os.RemoveAll(union)
@@ -676,7 +673,7 @@ func useDirperm() bool {
 		}
 		enableDirperm = true
 		if err := Unmount(union); err != nil {
-			logrus.Errorf("error checking dirperm1: failed to unmount %v", err)
+			logger.Errorf("error checking dirperm1: failed to unmount %v", err)
 		}
 	})
 	return enableDirperm

@@ -276,7 +276,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 		if !os.IsNotExist(err) {
 			return "", err
 		}
-		logrus.Debugf("devmapper: Creating loopback file %s for device-manage use", filename)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Creating loopback file %s for device-manage use", filename)
 		file, err := os.OpenFile(filename, os.O_RDWR|os.O_CREATE, 0600)
 		if err != nil {
 			return "", err
@@ -297,7 +297,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 				return "", fmt.Errorf("devmapper: Unable to grow loopback file %s: %v", filename, err)
 			}
 		} else if fi.Size() > size {
-			logrus.Warnf("devmapper: Can't shrink loopback file %s", filename)
+			logrus.WithField("storage-driver", "devicemapper").Warnf("Can't shrink loopback file %s", filename)
 		}
 	}
 	return filename, nil
@@ -403,39 +403,40 @@ func (devices *DeviceSet) lookupDeviceWithLock(hash string) (*devInfo, error) {
 // This function relies on that device hash map has been loaded in advance.
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) constructDeviceIDMap() {
-	logrus.Debug("devmapper: constructDeviceIDMap()")
-	defer logrus.Debug("devmapper: constructDeviceIDMap() END")
+	logrus.WithField("storage-driver", "devicemapper").Debug("constructDeviceIDMap()")
+	defer logrus.WithField("storage-driver", "devicemapper").Debug("constructDeviceIDMap() END")
 
 	for _, info := range devices.Devices {
 		devices.markDeviceIDUsed(info.DeviceID)
-		logrus.Debugf("devmapper: Added deviceId=%d to DeviceIdMap", info.DeviceID)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Added deviceId=%d to DeviceIdMap", info.DeviceID)
 	}
 }
 
 func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo) error {
+	logger := logrus.WithField("storage-driver", "devicemapper")
 
 	// Skip some of the meta files which are not device files.
 	if strings.HasSuffix(finfo.Name(), ".migrated") {
-		logrus.Debugf("devmapper: Skipping file %s", path)
+		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
 	if strings.HasPrefix(finfo.Name(), ".") {
-		logrus.Debugf("devmapper: Skipping file %s", path)
+		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
 	if finfo.Name() == deviceSetMetaFile {
-		logrus.Debugf("devmapper: Skipping file %s", path)
+		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
 	if finfo.Name() == transactionMetaFile {
-		logrus.Debugf("devmapper: Skipping file %s", path)
+		logger.Debugf("Skipping file %s", path)
 		return nil
 	}
 
-	logrus.Debugf("devmapper: Loading data for file %s", path)
+	logger.Debugf("Loading data for file %s", path)
 
 	hash := finfo.Name()
 	if hash == "base" {
@@ -452,12 +453,12 @@ func (devices *DeviceSet) deviceFileWalkFunction(path string, finfo os.FileInfo)
 }
 
 func (devices *DeviceSet) loadDeviceFilesOnStart() error {
-	logrus.Debug("devmapper: loadDeviceFilesOnStart()")
-	defer logrus.Debug("devmapper: loadDeviceFilesOnStart() END")
+	logrus.WithField("storage-driver", "devicemapper").Debug("loadDeviceFilesOnStart()")
+	defer logrus.WithField("storage-driver", "devicemapper").Debug("loadDeviceFilesOnStart() END")
 
 	var scan = func(path string, info os.FileInfo, err error) error {
 		if err != nil {
-			logrus.Debugf("devmapper: Can't walk the file %s", path)
+			logrus.WithField("storage-driver", "devicemapper").Debugf("Can't walk the file %s", path)
 			return nil
 		}
 
@@ -474,7 +475,7 @@ func (devices *DeviceSet) loadDeviceFilesOnStart() error {
 
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) unregisterDevice(hash string) error {
-	logrus.Debugf("devmapper: unregisterDevice(%v)", hash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("unregisterDevice(%v)", hash)
 	info := &devInfo{
 		Hash: hash,
 	}
@@ -482,7 +483,7 @@ func (devices *DeviceSet) unregisterDevice(hash string) error {
 	delete(devices.Devices, hash)
 
 	if err := devices.removeMetadata(info); err != nil {
-		logrus.Debugf("devmapper: Error removing metadata: %s", err)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Error removing metadata: %s", err)
 		return err
 	}
 
@@ -491,7 +492,7 @@ func (devices *DeviceSet) unregisterDevice(hash string) error {
 
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, transactionID uint64) (*devInfo, error) {
-	logrus.Debugf("devmapper: registerDevice(%v, %v)", id, hash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("registerDevice(%v, %v)", id, hash)
 	info := &devInfo{
 		Hash:          hash,
 		DeviceID:      id,
@@ -513,7 +514,7 @@ func (devices *DeviceSet) registerDevice(id int, hash string, size uint64, trans
 }
 
 func (devices *DeviceSet) activateDeviceIfNeeded(info *devInfo, ignoreDeleted bool) error {
-	logrus.Debugf("devmapper: activateDeviceIfNeeded(%v)", info.Hash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("activateDeviceIfNeeded(%v)", info.Hash)
 
 	if info.Deleted && !ignoreDeleted {
 		return fmt.Errorf("devmapper: Can't activate device %v as it is marked for deletion", info.Hash)
@@ -568,7 +569,7 @@ func determineDefaultFS() string {
 		return "xfs"
 	}
 
-	logrus.Warnf("devmapper: XFS is not supported in your system (%v). Defaulting to ext4 filesystem", err)
+	logrus.WithField("storage-driver", "devicemapper").Warnf("XFS is not supported in your system (%v). Defaulting to ext4 filesystem", err)
 	return "ext4"
 }
 
@@ -597,12 +598,12 @@ func (devices *DeviceSet) createFilesystem(info *devInfo) (err error) {
 	args = append(args, devices.mkfsArgs...)
 	args = append(args, devname)
 
-	logrus.Infof("devmapper: Creating filesystem %s on device %s, mkfs args: %v", devices.filesystem, info.Name(), args)
+	logrus.WithField("storage-driver", "devicemapper").Infof("Creating filesystem %s on device %s, mkfs args: %v", devices.filesystem, info.Name(), args)
 	defer func() {
 		if err != nil {
-			logrus.Infof("devmapper: Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
+			logrus.WithField("storage-driver", "devicemapper").Infof("Error while creating filesystem %s on device %s: %v", devices.filesystem, info.Name(), err)
 		} else {
-			logrus.Infof("devmapper: Successfully created filesystem %s on device %s", devices.filesystem, info.Name())
+			logrus.WithField("storage-driver", "devicemapper").Infof("Successfully created filesystem %s on device %s", devices.filesystem, info.Name())
 		}
 	}()
 
@@ -668,7 +669,7 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 		if !info.Deleted {
 			continue
 		}
-		logrus.Debugf("devmapper: Found deleted device %s.", info.Hash)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Found deleted device %s.", info.Hash)
 		deletedDevices = append(deletedDevices, info)
 	}
 
@@ -679,7 +680,7 @@ func (devices *DeviceSet) cleanupDeletedDevices() error {
 	for _, info := range deletedDevices {
 		// This will again try deferred deletion.
 		if err := devices.DeleteDevice(info.Hash, false); err != nil {
-			logrus.Warnf("devmapper: Deletion of device %s, device_id=%v failed:%v", info.Hash, info.DeviceID, err)
+			logrus.WithField("storage-driver", "devicemapper").Warnf("Deletion of device %s, device_id=%v failed:%v", info.Hash, info.DeviceID, err)
 		}
 	}
 
@@ -701,7 +702,7 @@ func (devices *DeviceSet) startDeviceDeletionWorker() {
 		return
 	}
 
-	logrus.Debug("devmapper: Worker to cleanup deleted devices started")
+	logrus.WithField("storage-driver", "devicemapper").Debug("Worker to cleanup deleted devices started")
 	for range devices.deletionWorkerTicker.C {
 		devices.cleanupDeletedDevices()
 	}
@@ -797,8 +798,10 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 		return nil, err
 	}
 
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
 	if err := devices.openTransaction(hash, deviceID); err != nil {
-		logrus.Debugf("devmapper: Error opening transaction hash = %s deviceID = %d", hash, deviceID)
+		logger.Debugf("Error opening transaction hash = %s deviceID = %d", hash, deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return nil, err
 	}
@@ -810,7 +813,7 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 				// happen. Now we have a mechanism to find
 				// a free device ID. So something is not right.
 				// Give a warning and continue.
-				logrus.Errorf("devmapper: Device ID %d exists in pool but it is supposed to be unused", deviceID)
+				logger.Errorf("Device ID %d exists in pool but it is supposed to be unused", deviceID)
 				deviceID, err = devices.getNextFreeDeviceID()
 				if err != nil {
 					return nil, err
@@ -819,14 +822,14 @@ func (devices *DeviceSet) createRegisterDevice(hash string) (*devInfo, error) {
 				devices.refreshTransaction(deviceID)
 				continue
 			}
-			logrus.Debugf("devmapper: Error creating device: %s", err)
+			logger.Debugf("Error creating device: %s", err)
 			devices.markDeviceIDFree(deviceID)
 			return nil, err
 		}
 		break
 	}
 
-	logrus.Debugf("devmapper: Registering device (id %v) with FS size %v", deviceID, devices.baseFsSize)
+	logger.Debugf("Registering device (id %v) with FS size %v", deviceID, devices.baseFsSize)
 	info, err := devices.registerDevice(deviceID, hash, devices.baseFsSize, devices.OpenTransactionID)
 	if err != nil {
 		_ = devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
@@ -895,8 +898,10 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 		return err
 	}
 
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
 	if err := devices.openTransaction(hash, deviceID); err != nil {
-		logrus.Debugf("devmapper: Error opening transaction hash = %s deviceID = %d", hash, deviceID)
+		logger.Debugf("Error opening transaction hash = %s deviceID = %d", hash, deviceID)
 		devices.markDeviceIDFree(deviceID)
 		return err
 	}
@@ -908,7 +913,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 				// happen. Now we have a mechanism to find
 				// a free device ID. So something is not right.
 				// Give a warning and continue.
-				logrus.Errorf("devmapper: Device ID %d exists in pool but it is supposed to be unused", deviceID)
+				logger.Errorf("Device ID %d exists in pool but it is supposed to be unused", deviceID)
 				deviceID, err = devices.getNextFreeDeviceID()
 				if err != nil {
 					return err
@@ -917,7 +922,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 				devices.refreshTransaction(deviceID)
 				continue
 			}
-			logrus.Debugf("devmapper: Error creating snap device: %s", err)
+			logger.Debugf("Error creating snap device: %s", err)
 			devices.markDeviceIDFree(deviceID)
 			return err
 		}
@@ -927,7 +932,7 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 	if _, err := devices.registerDevice(deviceID, hash, size, devices.OpenTransactionID); err != nil {
 		devicemapper.DeleteDevice(devices.getPoolDevName(), deviceID)
 		devices.markDeviceIDFree(deviceID)
-		logrus.Debugf("devmapper: Error registering device: %s", err)
+		logger.Debugf("Error registering device: %s", err)
 		return err
 	}
 
@@ -942,20 +947,21 @@ func (devices *DeviceSet) createRegisterSnapDevice(hash string, baseInfo *devInf
 
 func (devices *DeviceSet) loadMetadata(hash string) *devInfo {
 	info := &devInfo{Hash: hash, devices: devices}
+	logger := logrus.WithField("storage-driver", "devicemapper")
 
 	jsonData, err := ioutil.ReadFile(devices.metadataFile(info))
 	if err != nil {
-		logrus.Debugf("devmapper: Failed to read %s with err: %v", devices.metadataFile(info), err)
+		logger.Debugf("Failed to read %s with err: %v", devices.metadataFile(info), err)
 		return nil
 	}
 
 	if err := json.Unmarshal(jsonData, &info); err != nil {
-		logrus.Debugf("devmapper: Failed to unmarshal devInfo from %s with err: %v", devices.metadataFile(info), err)
+		logger.Debugf("Failed to unmarshal devInfo from %s with err: %v", devices.metadataFile(info), err)
 		return nil
 	}
 
 	if info.DeviceID > maxDeviceID {
-		logrus.Errorf("devmapper: Ignoring Invalid DeviceId=%d", info.DeviceID)
+		logger.Errorf("Ignoring Invalid DeviceId=%d", info.DeviceID)
 		return nil
 	}
 
@@ -970,7 +976,7 @@ func getDeviceUUID(device string) (string, error) {
 
 	uuid := strings.TrimSuffix(string(out), "\n")
 	uuid = strings.TrimSpace(uuid)
-	logrus.Debugf("devmapper: UUID for device: %s is:%s", device, uuid)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("UUID for device: %s is:%s", device, uuid)
 	return uuid, nil
 }
 
@@ -1018,7 +1024,7 @@ func (devices *DeviceSet) verifyBaseDeviceUUIDFS(baseInfo *devInfo) error {
 	// file system of base image is not same, warn user that dm.fs
 	// will be ignored.
 	if devices.BaseDeviceFilesystem != devices.filesystem {
-		logrus.Warnf("devmapper: Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", devices.BaseDeviceFilesystem, devices.filesystem)
+		logrus.WithField("storage-driver", "devicemapper").Warnf("Base device already exists and has filesystem %s on it. User specified filesystem %s will be ignored.", devices.BaseDeviceFilesystem, devices.filesystem)
 		devices.filesystem = devices.BaseDeviceFilesystem
 	}
 	return nil
@@ -1048,7 +1054,7 @@ func (devices *DeviceSet) saveBaseDeviceUUID(baseInfo *devInfo) error {
 }
 
 func (devices *DeviceSet) createBaseImage() error {
-	logrus.Debug("devmapper: Initializing base device-mapper thin volume")
+	logrus.WithField("storage-driver", "devicemapper").Debug("Initializing base device-mapper thin volume")
 
 	// Create initial device
 	info, err := devices.createRegisterDevice("")
@@ -1056,7 +1062,7 @@ func (devices *DeviceSet) createBaseImage() error {
 		return err
 	}
 
-	logrus.Debug("devmapper: Creating filesystem on base device-mapper thin volume")
+	logrus.WithField("storage-driver", "devicemapper").Debug("Creating filesystem on base device-mapper thin volume")
 
 	if err := devices.activateDeviceIfNeeded(info, false); err != nil {
 		return err
@@ -1082,7 +1088,7 @@ func (devices *DeviceSet) createBaseImage() error {
 // Returns if thin pool device exists or not. If device exists, also makes
 // sure it is a thin pool device and not some other type of device.
 func (devices *DeviceSet) thinPoolExists(thinPoolDevice string) (bool, error) {
-	logrus.Debugf("devmapper: Checking for existence of the pool %s", thinPoolDevice)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("Checking for existence of the pool %s", thinPoolDevice)
 
 	info, err := devicemapper.GetInfo(thinPoolDevice)
 	if err != nil {
@@ -1229,7 +1235,7 @@ func (devices *DeviceSet) setupBaseImage() error {
 			return devices.checkGrowBaseDeviceFS(oldInfo)
 		}
 
-		logrus.Debug("devmapper: Removing uninitialized base image")
+		logrus.WithField("storage-driver", "devicemapper").Debug("Removing uninitialized base image")
 		// If previous base device is in deferred delete state,
 		// that needs to be cleaned up first. So don't try
 		// deferred deletion.
@@ -1374,24 +1380,26 @@ func (devices *DeviceSet) removeTransactionMetaData() error {
 }
 
 func (devices *DeviceSet) rollbackTransaction() error {
-	logrus.Debugf("devmapper: Rolling back open transaction: TransactionID=%d hash=%s device_id=%d", devices.OpenTransactionID, devices.DeviceIDHash, devices.DeviceID)
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
+	logger.Debugf("Rolling back open transaction: TransactionID=%d hash=%s device_id=%d", devices.OpenTransactionID, devices.DeviceIDHash, devices.DeviceID)
 
 	// A device id might have already been deleted before transaction
 	// closed. In that case this call will fail. Just leave a message
 	// in case of failure.
 	if err := devicemapper.DeleteDevice(devices.getPoolDevName(), devices.DeviceID); err != nil {
-		logrus.Errorf("devmapper: Unable to delete device: %s", err)
+		logger.Errorf("Unable to delete device: %s", err)
 	}
 
 	dinfo := &devInfo{Hash: devices.DeviceIDHash}
 	if err := devices.removeMetadata(dinfo); err != nil {
-		logrus.Errorf("devmapper: Unable to remove metadata: %s", err)
+		logger.Errorf("Unable to remove metadata: %s", err)
 	} else {
 		devices.markDeviceIDFree(devices.DeviceID)
 	}
 
 	if err := devices.removeTransactionMetaData(); err != nil {
-		logrus.Errorf("devmapper: Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
+		logger.Errorf("Unable to remove transaction meta file %s: %s", devices.transactionMetaFile(), err)
 	}
 
 	return nil
@@ -1411,7 +1419,7 @@ func (devices *DeviceSet) processPendingTransaction() error {
 	// If open transaction ID is less than pool transaction ID, something
 	// is wrong. Bail out.
 	if devices.OpenTransactionID < devices.TransactionID {
-		logrus.Errorf("devmapper: Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionID, devices.TransactionID)
+		logrus.WithField("storage-driver", "devicemapper").Errorf("Open Transaction id %d is less than pool transaction id %d", devices.OpenTransactionID, devices.TransactionID)
 		return nil
 	}
 
@@ -1468,7 +1476,7 @@ func (devices *DeviceSet) refreshTransaction(DeviceID int) error {
 
 func (devices *DeviceSet) closeTransaction() error {
 	if err := devices.updatePoolTransactionID(); err != nil {
-		logrus.Debug("devmapper: Failed to close Transaction")
+		logrus.WithField("storage-driver", "devicemapper").Debug("Failed to close Transaction")
 		return err
 	}
 	return nil
@@ -1477,7 +1485,7 @@ func (devices *DeviceSet) closeTransaction() error {
 func determineDriverCapabilities(version string) error {
 	// Kernel driver version >= 4.27.0 support deferred removal
 
-	logrus.Debugf("devicemapper: kernel dm driver version is %s", version)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("kernel dm driver version is %s", version)
 
 	versionSplit := strings.Split(version, ".")
 	major, err := strconv.Atoi(versionSplit[0])
@@ -1523,7 +1531,7 @@ func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
 	majorNum := major(dev)
 	minorNum := minor(dev)
 
-	logrus.Debugf("devmapper: Major:Minor for device: %s is:%v:%v", file.Name(), majorNum, minorNum)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("Major:Minor for device: %s is:%v:%v", file.Name(), majorNum, minorNum)
 	return majorNum, minorNum, nil
 }
 
@@ -1532,7 +1540,7 @@ func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
 func getLoopFileDeviceMajMin(filename string) (string, uint64, uint64, error) {
 	file, err := os.Open(filename)
 	if err != nil {
-		logrus.Debugf("devmapper: Failed to open file %s", filename)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Failed to open file %s", filename)
 		return "", 0, 0, err
 	}
 
@@ -1563,7 +1571,7 @@ func (devices *DeviceSet) getThinPoolDataMetaMajMin() (uint64, uint64, uint64, u
 		return 0, 0, 0, 0, err
 	}
 
-	logrus.Debugf("devmapper: poolDataMajMin=%s poolMetaMajMin=%s\n", poolDataMajMin, poolMetadataMajMin)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("poolDataMajMin=%s poolMetaMajMin=%s\n", poolDataMajMin, poolMetadataMajMin)
 
 	poolDataMajMinorSplit := strings.Split(poolDataMajMin, ":")
 	poolDataMajor, err := strconv.ParseUint(poolDataMajMinorSplit[0], 10, 32)
@@ -1643,7 +1651,7 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 		if !devicemapper.LibraryDeferredRemovalSupport {
 			return fmt.Errorf("devmapper: Deferred removal can not be enabled as libdm does not support it")
 		}
-		logrus.Debug("devmapper: Deferred removal support enabled.")
+		logrus.WithField("storage-driver", "devicemapper").Debug("Deferred removal support enabled.")
 		devices.deferredRemove = true
 	}
 
@@ -1651,7 +1659,7 @@ func (devices *DeviceSet) enableDeferredRemovalDeletion() error {
 		if !devices.deferredRemove {
 			return fmt.Errorf("devmapper: Deferred deletion can not be enabled as deferred removal is not enabled. Enable deferred removal using --storage-opt dm.use_deferred_removal=true parameter")
 		}
-		logrus.Debug("devmapper: Deferred deletion support enabled.")
+		logrus.WithField("storage-driver", "devicemapper").Debug("Deferred deletion support enabled.")
 		devices.deferredDelete = true
 	}
 	return nil
@@ -1662,12 +1670,14 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 		return err
 	}
 
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
 	// https://github.com/docker/docker/issues/4036
 	if supported := devicemapper.UdevSetSyncSupport(true); !supported {
 		if dockerversion.IAmStatic == "true" {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
+			logger.Error("Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a dynamic binary to use devicemapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		} else {
-			logrus.Error("devmapper: Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
+			logger.Error("Udev sync is not supported. This will lead to data loss and unexpected behavior. Install a more recent version of libdevmapper or select a different storage driver. For more information, see https://docs.docker.com/engine/reference/commandline/dockerd/#storage-driver-options")
 		}
 
 		if !devices.overrideUdevSyncCheck {
@@ -1702,7 +1712,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 			if !reflect.DeepEqual(prevSetupConfig, directLVMConfig{}) {
 				return errors.New("changing direct-lvm config is not supported")
 			}
-			logrus.WithField("storage-driver", "devicemapper").WithField("direct-lvm-config", devices.lvmSetupConfig).Debugf("Setting up direct lvm mode")
+			logger.WithField("direct-lvm-config", devices.lvmSetupConfig).Debugf("Setting up direct lvm mode")
 			if err := verifyBlockDevice(devices.lvmSetupConfig.Device, lvmSetupConfigForce); err != nil {
 				return err
 			}
@@ -1714,7 +1724,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 			}
 		}
 		devices.thinPoolDevice = "docker-thinpool"
-		logrus.WithField("storage-driver", "devicemapper").Debugf("Setting dm.thinpooldev to %q", devices.thinPoolDevice)
+		logger.Debugf("Setting dm.thinpooldev to %q", devices.thinPoolDevice)
 	}
 
 	// Set the device prefix from the device id and inode of the docker root dir
@@ -1729,7 +1739,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	//	- The target of this device is at major <maj> and minor <min>
 	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
 	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(st.Dev), minor(st.Dev), st.Ino)
-	logrus.Debugf("devmapper: Generated prefix: %s", devices.devicePrefix)
+	logger.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the thin-pool device
 	poolExists, err := devices.thinPoolExists(devices.getPoolName())
@@ -1749,7 +1759,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 	// If the pool doesn't exist, create it
 	if !poolExists && devices.thinPoolDevice == "" {
-		logrus.Debug("devmapper: Pool doesn't exist. Creating it.")
+		logger.Debug("Pool doesn't exist. Creating it.")
 
 		var (
 			dataFile     *os.File
@@ -1771,7 +1781,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 			data, err := devices.ensureImage("data", devices.dataLoopbackSize)
 			if err != nil {
-				logrus.Debugf("devmapper: Error device ensureImage (data): %s", err)
+				logger.Debugf("Error device ensureImage (data): %s", err)
 				return err
 			}
 
@@ -1804,7 +1814,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 			metadata, err := devices.ensureImage("metadata", devices.metaDataLoopbackSize)
 			if err != nil {
-				logrus.Debugf("devmapper: Error device ensureImage (metadata): %s", err)
+				logger.Debugf("Error device ensureImage (metadata): %s", err)
 				return err
 			}
 
@@ -1829,7 +1839,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 			if retErr != nil {
 				err = devices.deactivatePool()
 				if err != nil {
-					logrus.Warnf("devmapper: Failed to deactivatePool: %v", err)
+					logger.Warnf("Failed to deactivatePool: %v", err)
 				}
 			}
 		}()
@@ -1841,7 +1851,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	// pool, like is it using loop devices.
 	if poolExists && devices.thinPoolDevice == "" {
 		if err := devices.loadThinPoolLoopBackInfo(); err != nil {
-			logrus.Debugf("devmapper: Failed to load thin pool loopback device information:%v", err)
+			logger.Debugf("Failed to load thin pool loopback device information:%v", err)
 			return err
 		}
 	}
@@ -1856,7 +1866,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 	if devices.thinPoolDevice == "" {
 		if devices.metadataLoopFile != "" || devices.dataLoopFile != "" {
-			logrus.Warn("devmapper: Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man dockerd` to refer to dm.thinpooldev section.")
+			logger.Warn("Usage of loopback devices is strongly discouraged for production use. Please use `--storage-opt dm.thinpooldev` or use `man dockerd` to refer to dm.thinpooldev section.")
 		}
 	}
 
@@ -1869,7 +1879,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	// Setup the base image
 	if doInit {
 		if err := devices.setupBaseImage(); err != nil {
-			logrus.Debugf("devmapper: Error device setupBaseImage: %s", err)
+			logger.Debugf("Error device setupBaseImage: %s", err)
 			return err
 		}
 	}
@@ -1879,8 +1889,8 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 
 // AddDevice adds a device and registers in the hash.
 func (devices *DeviceSet) AddDevice(hash, baseHash string, storageOpt map[string]string) error {
-	logrus.Debugf("devmapper: AddDevice START(hash=%s basehash=%s)", hash, baseHash)
-	defer logrus.Debugf("devmapper: AddDevice END(hash=%s basehash=%s)", hash, baseHash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("AddDevice START(hash=%s basehash=%s)", hash, baseHash)
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("AddDevice END(hash=%s basehash=%s)", hash, baseHash)
 
 	// If a deleted device exists, return error.
 	baseInfo, err := devices.lookupDeviceWithLock(baseHash)
@@ -1962,7 +1972,7 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 		return nil
 	}
 
-	logrus.Debugf("devmapper: Marking device %s for deferred deletion.", info.Hash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("Marking device %s for deferred deletion.", info.Hash)
 
 	info.Deleted = true
 
@@ -1979,7 +1989,7 @@ func (devices *DeviceSet) markForDeferredDeletion(info *devInfo) error {
 // Should be called with devices.Lock() held.
 func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) error {
 	if err := devices.openTransaction(info.Hash, info.DeviceID); err != nil {
-		logrus.Debugf("devmapper: Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Error opening transaction hash = %s deviceId = %d", "", info.DeviceID)
 		return err
 	}
 
@@ -1991,7 +2001,7 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 		// deletion is not enabled, we return an error. If error is
 		// something other then EBUSY, return an error.
 		if syncDelete || !devices.deferredDelete || err != devicemapper.ErrBusy {
-			logrus.Debugf("devmapper: Error deleting device: %s", err)
+			logrus.WithField("storage-driver", "devicemapper").Debugf("Error deleting device: %s", err)
 			return err
 		}
 	}
@@ -2018,8 +2028,9 @@ func (devices *DeviceSet) deleteTransaction(info *devInfo, syncDelete bool) erro
 
 // Issue discard only if device open count is zero.
 func (devices *DeviceSet) issueDiscard(info *devInfo) error {
-	logrus.Debugf("devmapper: issueDiscard START(device: %s).", info.Hash)
-	defer logrus.Debugf("devmapper: issueDiscard END(device: %s).", info.Hash)
+	logger := logrus.WithField("storage-driver", "devicemapper")
+	logger.Debugf("issueDiscard START(device: %s).", info.Hash)
+	defer logger.Debugf("issueDiscard END(device: %s).", info.Hash)
 	// This is a workaround for the kernel not discarding block so
 	// on the thin pool when we remove a thinp device, so we do it
 	// manually.
@@ -2035,12 +2046,12 @@ func (devices *DeviceSet) issueDiscard(info *devInfo) error {
 	}
 
 	if devinfo.OpenCount != 0 {
-		logrus.Debugf("devmapper: Device: %s is in use. OpenCount=%d. Not issuing discards.", info.Hash, devinfo.OpenCount)
+		logger.Debugf("Device: %s is in use. OpenCount=%d. Not issuing discards.", info.Hash, devinfo.OpenCount)
 		return nil
 	}
 
 	if err := devicemapper.BlockDeviceDiscard(info.DevName()); err != nil {
-		logrus.Debugf("devmapper: Error discarding block on device: %s (ignoring)", err)
+		logger.Debugf("Error discarding block on device: %s (ignoring)", err)
 	}
 	return nil
 }
@@ -2062,7 +2073,7 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 	}
 
 	if err := devices.deactivateDeviceMode(info, deferredRemove); err != nil {
-		logrus.Debugf("devmapper: Error deactivating device: %s", err)
+		logrus.WithField("storage-driver", "devicemapper").Debugf("Error deactivating device: %s", err)
 		return err
 	}
 
@@ -2073,8 +2084,8 @@ func (devices *DeviceSet) deleteDevice(info *devInfo, syncDelete bool) error {
 // removal. If one wants to override that and want DeleteDevice() to fail if
 // device was busy and could not be deleted, set syncDelete=true.
 func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
-	logrus.Debugf("devmapper: DeleteDevice START(hash=%v syncDelete=%v)", hash, syncDelete)
-	defer logrus.Debugf("devmapper: DeleteDevice END(hash=%v syncDelete=%v)", hash, syncDelete)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("DeleteDevice START(hash=%v syncDelete=%v)", hash, syncDelete)
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("DeleteDevice END(hash=%v syncDelete=%v)", hash, syncDelete)
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
 		return err
@@ -2090,8 +2101,8 @@ func (devices *DeviceSet) DeleteDevice(hash string, syncDelete bool) error {
 }
 
 func (devices *DeviceSet) deactivatePool() error {
-	logrus.Debug("devmapper: deactivatePool() START")
-	defer logrus.Debug("devmapper: deactivatePool() END")
+	logrus.WithField("storage-driver", "devicemapper").Debug("deactivatePool() START")
+	defer logrus.WithField("storage-driver", "devicemapper").Debug("deactivatePool() END")
 	devname := devices.getPoolDevName()
 
 	devinfo, err := devicemapper.GetInfo(devname)
@@ -2107,7 +2118,7 @@ func (devices *DeviceSet) deactivatePool() error {
 	}
 
 	if d, err := devicemapper.GetDeps(devname); err == nil {
-		logrus.Warnf("devmapper: device %s still has %d active dependents", devname, d.Count)
+		logrus.WithField("storage-driver", "devicemapper").Warnf("device %s still has %d active dependents", devname, d.Count)
 	}
 
 	return nil
@@ -2119,8 +2130,8 @@ func (devices *DeviceSet) deactivateDevice(info *devInfo) error {
 
 func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove bool) error {
 	var err error
-	logrus.Debugf("devmapper: deactivateDevice START(%s)", info.Hash)
-	defer logrus.Debugf("devmapper: deactivateDevice END(%s)", info.Hash)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("deactivateDevice START(%s)", info.Hash)
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("deactivateDevice END(%s)", info.Hash)
 
 	devinfo, err := devicemapper.GetInfo(info.Name())
 	if err != nil {
@@ -2150,8 +2161,8 @@ func (devices *DeviceSet) deactivateDeviceMode(info *devInfo, deferredRemove boo
 func (devices *DeviceSet) removeDevice(devname string) error {
 	var err error
 
-	logrus.Debugf("devmapper: removeDevice START(%s)", devname)
-	defer logrus.Debugf("devmapper: removeDevice END(%s)", devname)
+	logrus.WithField("storage-driver", "devicemapper").Debugf("removeDevice START(%s)", devname)
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("removeDevice END(%s)", devname)
 
 	for i := 0; i < 200; i++ {
 		err = devicemapper.RemoveDevice(devname)
@@ -2177,8 +2188,8 @@ func (devices *DeviceSet) cancelDeferredRemovalIfNeeded(info *devInfo) error {
 		return nil
 	}
 
-	logrus.Debugf("devmapper: cancelDeferredRemovalIfNeeded START(%s)", info.Name())
-	defer logrus.Debugf("devmapper: cancelDeferredRemovalIfNeeded END(%s)", info.Name())
+	logrus.WithField("storage-driver", "devicemapper").Debugf("cancelDeferredRemovalIfNeeded START(%s)", info.Name())
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("cancelDeferredRemovalIfNeeded END(%s)", info.Name())
 
 	devinfo, err := devicemapper.GetInfoWithDeferred(info.Name())
 	if err != nil {
@@ -2200,8 +2211,8 @@ func (devices *DeviceSet) cancelDeferredRemovalIfNeeded(info *devInfo) error {
 }
 
 func (devices *DeviceSet) cancelDeferredRemoval(info *devInfo) error {
-	logrus.Debugf("devmapper: cancelDeferredRemoval START(%s)", info.Name())
-	defer logrus.Debugf("devmapper: cancelDeferredRemoval END(%s)", info.Name())
+	logrus.WithField("storage-driver", "devicemapper").Debugf("cancelDeferredRemoval START(%s)", info.Name())
+	defer logrus.WithField("storage-driver", "devicemapper").Debugf("cancelDeferredRemoval END(%s)", info.Name())
 
 	var err error
 
@@ -2224,9 +2235,11 @@ func (devices *DeviceSet) cancelDeferredRemoval(info *devInfo) error {
 }
 
 func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
 	files, err := ioutil.ReadDir(dir)
 	if err != nil {
-		logrus.Warnf("devmapper: unmountAndDeactivate: %s", err)
+		logger.Warnf("unmountAndDeactivate: %s", err)
 		return
 	}
 
@@ -2242,14 +2255,14 @@ func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
 		// container. This means it'll go away from the global scope directly,
 		// and the device will be released when that container dies.
 		if err := unix.Unmount(fullname, unix.MNT_DETACH); err != nil && err != unix.EINVAL {
-			logrus.Warnf("devmapper: Shutdown unmounting %s, error: %s", fullname, err)
+			logger.Warnf("Shutdown unmounting %s, error: %s", fullname, err)
 		}
 
 		if devInfo, err := devices.lookupDevice(name); err != nil {
-			logrus.Debugf("devmapper: Shutdown lookup device %s, error: %s", name, err)
+			logger.Debugf("Shutdown lookup device %s, error: %s", name, err)
 		} else {
 			if err := devices.deactivateDevice(devInfo); err != nil {
-				logrus.Debugf("devmapper: Shutdown deactivate %s, error: %s", devInfo.Hash, err)
+				logger.Debugf("Shutdown deactivate %s, error: %s", devInfo.Hash, err)
 			}
 		}
 	}
@@ -2257,9 +2270,11 @@ func (devices *DeviceSet) unmountAndDeactivateAll(dir string) {
 
 // Shutdown shuts down the device by unmounting the root.
 func (devices *DeviceSet) Shutdown(home string) error {
-	logrus.Debugf("devmapper: [deviceset %s] Shutdown()", devices.devicePrefix)
-	logrus.Debugf("devmapper: Shutting down DeviceSet: %s", devices.root)
-	defer logrus.Debugf("devmapper: [deviceset %s] Shutdown() END", devices.devicePrefix)
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
+	logger.Debugf("[deviceset %s] Shutdown()", devices.devicePrefix)
+	logger.Debugf("Shutting down DeviceSet: %s", devices.root)
+	defer logger.Debugf("[deviceset %s] Shutdown() END", devices.devicePrefix)
 
 	// Stop deletion worker. This should start delivering new events to
 	// ticker channel. That means no new instance of cleanupDeletedDevice()
@@ -2284,7 +2299,7 @@ func (devices *DeviceSet) Shutdown(home string) error {
 		info.lock.Lock()
 		devices.Lock()
 		if err := devices.deactivateDevice(info); err != nil {
-			logrus.Debugf("devmapper: Shutdown deactivate base , error: %s", err)
+			logger.Debugf("Shutdown deactivate base , error: %s", err)
 		}
 		devices.Unlock()
 		info.lock.Unlock()
@@ -2293,7 +2308,7 @@ func (devices *DeviceSet) Shutdown(home string) error {
 	devices.Lock()
 	if devices.thinPoolDevice == "" {
 		if err := devices.deactivatePool(); err != nil {
-			logrus.Debugf("devmapper: Shutdown deactivate pool , error: %s", err)
+			logger.Debugf("Shutdown deactivate pool , error: %s", err)
 		}
 	}
 	devices.Unlock()
@@ -2382,8 +2397,10 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 
 // UnmountDevice unmounts the device and removes it from hash.
 func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
-	logrus.Debugf("devmapper: UnmountDevice START(hash=%s)", hash)
-	defer logrus.Debugf("devmapper: UnmountDevice END(hash=%s)", hash)
+	logger := logrus.WithField("storage-driver", "devicemapper")
+
+	logger.Debugf("UnmountDevice START(hash=%s)", hash)
+	defer logger.Debugf("UnmountDevice END(hash=%s)", hash)
 
 	info, err := devices.lookupDeviceWithLock(hash)
 	if err != nil {
@@ -2396,11 +2413,11 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	devices.Lock()
 	defer devices.Unlock()
 
-	logrus.Debugf("devmapper: Unmount(%s)", mountPath)
+	logger.Debugf("Unmount(%s)", mountPath)
 	if err := unix.Unmount(mountPath, unix.MNT_DETACH); err != nil {
 		return err
 	}
-	logrus.Debug("devmapper: Unmount done")
+	logger.Debug("Unmount done")
 
 	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
 	// will cause all other instances of this mount in other mount namespaces
@@ -2411,7 +2428,7 @@ func (devices *DeviceSet) UnmountDevice(hash, mountPath string) error {
 	// older kernels which don't have
 	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
 	if err := os.Remove(mountPath); err != nil {
-		logrus.Debugf("devmapper: error doing a remove on unmounted device %s: %v", mountPath, err)
+		logger.Debugf("error doing a remove on unmounted device %s: %v", mountPath, err)
 	}
 
 	return devices.deactivateDevice(info)
@@ -2508,7 +2525,7 @@ func (devices *DeviceSet) MetadataDevicePath() string {
 func (devices *DeviceSet) getUnderlyingAvailableSpace(loopFile string) (uint64, error) {
 	buf := new(unix.Statfs_t)
 	if err := unix.Statfs(loopFile, buf); err != nil {
-		logrus.Warnf("devmapper: Couldn't stat loopfile filesystem %v: %v", loopFile, err)
+		logrus.WithField("storage-driver", "devicemapper").Warnf("Couldn't stat loopfile filesystem %v: %v", loopFile, err)
 		return 0, err
 	}
 	return buf.Bfree * uint64(buf.Bsize), nil
@@ -2518,7 +2535,7 @@ func (devices *DeviceSet) isRealFile(loopFile string) (bool, error) {
 	if loopFile != "" {
 		fi, err := os.Stat(loopFile)
 		if err != nil {
-			logrus.Warnf("devmapper: Couldn't stat loopfile %v: %v", loopFile, err)
+			logrus.WithField("storage-driver", "devicemapper").Warnf("Couldn't stat loopfile %v: %v", loopFile, err)
 			return false, err
 		}
 		return fi.Mode().IsRegular(), nil

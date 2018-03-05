@@ -27,7 +27,7 @@ func doesSupportNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.Warnf("Failed to remove check directory %v: %v", td, err)
+			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -62,7 +62,7 @@ func doesSupportNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-			logrus.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 		}
 	}()
 
@@ -113,7 +113,7 @@ func supportsMultipleLowerDir(d string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.Warnf("Failed to remove check directory %v: %v", td, err)
+			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -128,7 +128,7 @@ func supportsMultipleLowerDir(d string) error {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-		logrus.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+		logrus.WithField("storage-driver", "overlay2").Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 	}
 	return nil
 }
