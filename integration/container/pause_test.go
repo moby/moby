@@ -35,7 +35,7 @@ func TestPause(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.State.Paused, true)
+	assert.Equal(t, true, inspect.State.Paused)
 
 	err = client.ContainerUnpause(ctx, cID)
 	require.NoError(t, err)
@@ -47,7 +47,7 @@ func TestPause(t *testing.T) {
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg("container", cID)),
 	})
-	assert.Equal(t, getEventActions(t, messages, errs), []string{"pause", "unpause"})
+	assert.Equal(t, []string{"pause", "unpause"}, getEventActions(t, messages, errs))
 }
 
 func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
@@ -88,7 +88,7 @@ func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan e
 	for {
 		select {
 		case err := <-errs:
-			assert.Equal(t, err == nil || err == io.EOF, true)
+			assert.True(t, err == nil || err == io.EOF)
 			return actions
 		case e := <-messages:
 			actions = append(actions, e.Status)

@@ -44,7 +44,7 @@ func TestResizeWithInvalidSize(t *testing.T) {
 	endpoint := "/containers/" + cID + "/resize?h=foo&w=bar"
 	res, _, err := req.Post(endpoint)
 	require.NoError(t, err)
-	assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
 
 func TestResizeWhenContainerNotStarted(t *testing.T) {

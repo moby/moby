@@ -66,7 +66,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 
 	insp, _, err := client.ContainerInspectWithRaw(ctx, cID, true)
 	require.NoError(t, err)
-	assert.Equal(t, len(insp.Mounts), 1)
+	assert.Equal(t, 1, len(insp.Mounts))
 	volName := insp.Mounts[0].Name
 
 	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
@@ -76,7 +76,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 
 	volumes, err := client.VolumeList(ctx, filters.NewArgs(filters.Arg("name", volName)))
 	require.NoError(t, err)
-	assert.Equal(t, len(volumes.Volumes), 0)
+	assert.Equal(t, 0, len(volumes.Volumes))
 }
 
 func TestRemoveContainerRunning(t *testing.T) {

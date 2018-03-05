@@ -40,9 +40,9 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	require.NoError(t, err, "unable to unmarshal body for version 1.19: %s", err)
 
 	config, ok := inspectJSON["Config"]
-	assert.Equal(t, ok, true, "Unable to find 'Config'")
+	assert.Equal(t, true, ok, "Unable to find 'Config'")
 
 	cfg := config.(map[string]interface{})
 	_, ok = cfg["Cpuset"]
-	assert.Equal(t, ok, true, "API version 1.19 expected to include Cpuset in 'Config'")
+	assert.Equal(t, true, ok, "API version 1.19 expected to include Cpuset in 'Config'")
 }
