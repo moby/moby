@@ -222,6 +222,8 @@ func (daemon *Daemon) releaseIngress(id string) {
 		return
 	}
 
+	daemon.deleteLoadBalancerSandbox(n)
+
 	if err := n.Delete(); err != nil {
 		logrus.Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		return
