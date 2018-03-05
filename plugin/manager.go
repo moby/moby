@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"reflect"
 	"regexp"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -353,19 +352,17 @@ func isEqualPrivilege(a, b types.PluginPrivilege) bool {
 	return reflect.DeepEqual(a.Value, b.Value)
 }
 
-func configToRootFS(c []byte) (*image.RootFS, string, error) {
-	// TODO @jhowardmsft LCOW - Will need to revisit this.
-	os := runtime.GOOS
+func configToRootFS(c []byte) (*image.RootFS, error) {
 	var pluginConfig types.PluginConfig
 	if err := json.Unmarshal(c, &pluginConfig); err != nil {
-		return nil, "", err
+		return nil, err
 	}
 	// validation for empty rootfs is in distribution code
 	if pluginConfig.Rootfs == nil {
-		return nil, os, nil
+		return nil, nil
 	}
 
-	return rootFSFromPlugin(pluginConfig.Rootfs), os, nil
+	return rootFSFromPlugin(pluginConfig.Rootfs), nil
 }
 
 func rootFSFromPlugin(pluginfs *types.PluginConfigRootfs) *image.RootFS {

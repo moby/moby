@@ -118,12 +118,17 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return fmt.Errorf("could not find image from tag %s: %v", reference.FamiliarString(ref), err)
 	}
 
-	rootfs, os, err := p.config.ImageStore.RootFSAndOSFromConfig(imgConfig)
+	rootfs, err := p.config.ImageStore.RootFSFromConfig(imgConfig)
 	if err != nil {
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}
 
-	l, err := p.config.LayerStores[os].Get(rootfs.ChainID())
+	platform, err := p.config.ImageStore.PlatformFromConfig(imgConfig)
+	if err != nil {
+		return fmt.Errorf("unable to get platform for image %s: %s", reference.FamiliarString(ref), err)
+	}
+
+	l, err := p.config.LayerStores[platform.OS].Get(rootfs.ChainID())
 	if err != nil {
 		return fmt.Errorf("failed to get top layer from image: %v", err)
 	}

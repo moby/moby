@@ -1,11 +1,13 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
 	"runtime"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/docker/distribution"
@@ -63,7 +65,6 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 func filterManifests(manifests []manifestlist.ManifestDescriptor, os string) []manifestlist.ManifestDescriptor {
 	osVersion := ""
 	if os == "windows" {
-		// TODO: Add UBR (Update Build Release) component after build
 		version := system.GetOSVersion()
 		osVersion = fmt.Sprintf("%d.%d.%d", version.MajorVersion, version.MinorVersion, version.Build)
 		logrus.Debugf("will prefer entries with version %s", osVersion)
@@ -71,10 +72,11 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, os string) []m
 
 	var matches []manifestlist.ManifestDescriptor
 	for _, manifestDescriptor := range manifests {
-		// TODO: Consider filtering out greater versions, including only greater UBR
 		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == os {
 			matches = append(matches, manifestDescriptor)
-			logrus.Debugf("found match for %s/%s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			logrus.Debugf("found match for %s/%s %s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+		} else {
+			logrus.Debugf("ignoring %s/%s %s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
 	}
 	if os == "windows" {
@@ -106,4 +108,23 @@ func (mbv manifestsByVersion) Len() int {
 
 func (mbv manifestsByVersion) Swap(i, j int) {
 	mbv.list[i], mbv.list[j] = mbv.list[j], mbv.list[i]
+}
+
+// checkImageCompatibility blocks pulling incompatible images based on a later OS build
+// Fixes https://github.com/moby/moby/issues/36184.
+func checkImageCompatibility(imageOS, imageOSVersion string) error {
+	if imageOS == "windows" {
+		hostOSV := system.GetOSVersion()
+		splitImageOSVersion := strings.Split(imageOSVersion, ".") // eg 10.0.16299.nnnn
+		if len(splitImageOSVersion) >= 3 {
+			if imageOSBuild, err := strconv.Atoi(splitImageOSVersion[2]); err == nil {
+				if imageOSBuild > int(hostOSV.Build) {
+					errMsg := fmt.Sprintf("a Windows version %s.%s.%s-based image is incompatible with a %s host", splitImageOSVersion[0], splitImageOSVersion[1], splitImageOSVersion[2], hostOSV.ToString())
+					logrus.Debugf(errMsg)
+					return errors.New(errMsg)
+				}
+			}
+		}
+	}
+	return nil
 }
