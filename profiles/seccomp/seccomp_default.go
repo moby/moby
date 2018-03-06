@@ -315,6 +315,7 @@ func DefaultProfile() *types.Seccomp {
 				"stat64",
 				"statfs",
 				"statfs64",
+				"statx",
 				"symlink",
 				"symlinkat",
 				"sync",
