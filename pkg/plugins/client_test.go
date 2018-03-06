@@ -2,6 +2,7 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -13,7 +14,9 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -231,4 +234,44 @@ func TestClientSendFile(t *testing.T) {
 		t.Fatal(err)
 	}
 	assert.Equal(t, m, output)
+}
+
+func TestClientWithRequestTimeout(t *testing.T) {
+	timeout := 1 * time.Millisecond
+	testHandler := func(w http.ResponseWriter, r *http.Request) {
+		time.Sleep(timeout + 1*time.Millisecond)
+		w.WriteHeader(http.StatusOK)
+	}
+
+	srv := httptest.NewServer(http.HandlerFunc(testHandler))
+	defer srv.Close()
+
+	client := &Client{http: srv.Client(), requestFactory: &testRequestWrapper{srv}}
+	_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(timeout))
+	require.Error(t, err, "expected error")
+
+	err = errors.Cause(err)
+
+	switch e := err.(type) {
+	case *url.Error:
+		err = e.Err
+	}
+	require.Equal(t, context.DeadlineExceeded, err)
+}
+
+type testRequestWrapper struct {
+	*httptest.Server
+}
+
+func (w *testRequestWrapper) NewRequest(path string, data io.Reader) (*http.Request, error) {
+	req, err := http.NewRequest("POST", path, data)
+	if err != nil {
+		return nil, err
+	}
+	u, err := url.Parse(w.Server.URL)
+	if err != nil {
+		return nil, err
+	}
+	req.URL = u
+	return req, nil
 }
