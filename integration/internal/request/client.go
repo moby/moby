@@ -20,8 +20,8 @@ func NewAPIClient(t *testing.T, ops ...func(*client.Client) error) client.APICli
 	return clt
 }
 
-// daemonTime provides the current time on the daemon host
-func daemonTime(ctx context.Context, t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
+// DaemonTime provides the current time on the daemon host
+func DaemonTime(ctx context.Context, t *testing.T, client client.APIClient, testEnv *environment.Execution) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
@@ -37,6 +37,6 @@ func daemonTime(ctx context.Context, t *testing.T, client client.APIClient, test
 // DaemonUnixTime returns the current time on the daemon host with nanoseconds precision.
 // It return the time formatted how the client sends timestamps to the server.
 func DaemonUnixTime(ctx context.Context, t *testing.T, client client.APIClient, testEnv *environment.Execution) string {
-	dt := daemonTime(ctx, t, client, testEnv)
+	dt := DaemonTime(ctx, t, client, testEnv)
 	return fmt.Sprintf("%d.%09d", dt.Unix(), int64(dt.Nanosecond()))
 }
