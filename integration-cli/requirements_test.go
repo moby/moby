@@ -112,22 +112,6 @@ func Apparmor() bool {
 	return err == nil && len(buf) > 1 && buf[0] == 'Y'
 }
 
-func NotaryHosting() bool {
-	// for now notary binary is built only if we're running inside
-	// container through `make test`. Figure that out by testing if
-	// notary-server binary is in PATH.
-	_, err := exec.LookPath(notaryServerBinary)
-	return err == nil
-}
-
-func NotaryServerHosting() bool {
-	// for now notary-server binary is built only if we're running inside
-	// container through `make test`. Figure that out by testing if
-	// notary-server binary is in PATH.
-	_, err := exec.LookPath(notaryServerBinary)
-	return err == nil
-}
-
 func Devicemapper() bool {
 	return strings.HasPrefix(testEnv.DaemonInfo.Driver, "devicemapper")
 }
