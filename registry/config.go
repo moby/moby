@@ -45,9 +45,6 @@ var (
 	// IndexName is the name of the index
 	IndexName = "docker.io"
 
-	// NotaryServer is the endpoint serving the Notary trust server
-	NotaryServer = "https://notary.docker.io"
-
 	// DefaultV2Registry is the URI of the default v2 registry
 	DefaultV2Registry = &url.URL{
 		Scheme: "https",

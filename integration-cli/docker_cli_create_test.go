@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"reflect"
 	"strings"
@@ -16,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // Make sure we can create a simple container with some args
@@ -290,75 +288,6 @@ func (s *DockerSuite) TestCreateByImageID(c *check.C) {
 	if expected := "Unable to find image"; !strings.Contains(out, expected) {
 		c.Fatalf(`Expected %q in output; got: %s`, expected, out)
 	}
-}
-
-func (s *DockerTrustSuite) TestTrustedCreate(c *check.C) {
-	repoName := s.setupTrustedImage(c, "trusted-create")
-
-	// Try create
-	cli.Docker(cli.Args("create", repoName), trustedCmd).Assert(c, SuccessTagging)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Try untrusted create to ensure we pushed the tag to the registry
-	cli.Docker(cli.Args("create", "--disable-content-trust=true", repoName)).Assert(c, SuccessDownloadedOnStderr)
-}
-
-func (s *DockerTrustSuite) TestUntrustedCreate(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockercliuntrusted/createtest", privateRegistryURL)
-	withTagName := fmt.Sprintf("%s:latest", repoName)
-	// tag the image and upload it to the private registry
-	cli.DockerCmd(c, "tag", "busybox", withTagName)
-	cli.DockerCmd(c, "push", withTagName)
-	cli.DockerCmd(c, "rmi", withTagName)
-
-	// Try trusted create on untrusted tag
-	cli.Docker(cli.Args("create", withTagName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      fmt.Sprintf("does not have trust data for %s", repoName),
-	})
-}
-
-func (s *DockerTrustSuite) TestTrustedIsolatedCreate(c *check.C) {
-	repoName := s.setupTrustedImage(c, "trusted-isolated-create")
-
-	// Try create
-	cli.Docker(cli.Args("--config", "/tmp/docker-isolated-create", "create", repoName), trustedCmd).Assert(c, SuccessTagging)
-	defer os.RemoveAll("/tmp/docker-isolated-create")
-
-	cli.DockerCmd(c, "rmi", repoName)
-}
-
-func (s *DockerTrustSuite) TestTrustedCreateFromBadTrustServer(c *check.C) {
-	repoName := fmt.Sprintf("%v/dockerclievilcreate/trusted:latest", privateRegistryURL)
-	evilLocalConfigDir, err := ioutil.TempDir("", "evilcreate-local-config-dir")
-	c.Assert(err, check.IsNil)
-
-	// tag the image and upload it to the private registry
-	cli.DockerCmd(c, "tag", "busybox", repoName)
-	cli.Docker(cli.Args("push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Try create
-	cli.Docker(cli.Args("create", repoName), trustedCmd).Assert(c, SuccessTagging)
-	cli.DockerCmd(c, "rmi", repoName)
-
-	// Kill the notary server, start a new "evil" one.
-	s.not.Close()
-	s.not, err = newTestNotary(c)
-	c.Assert(err, check.IsNil)
-
-	// In order to make an evil server, lets re-init a client (with a different trust dir) and push new data.
-	// tag an image and upload it to the private registry
-	cli.DockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
-
-	// Push up to the new server
-	cli.Docker(cli.Args("--config", evilLocalConfigDir, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
-
-	// Now, try creating with the original client from this new trust server. This should fail because the new root is invalid.
-	cli.Docker(cli.Args("create", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "could not rotate trust to a new trusted root",
-	})
 }
 
 func (s *DockerSuite) TestCreateStopSignal(c *check.C) {
