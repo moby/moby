@@ -11,41 +11,6 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSwarmSuite) TestServiceUpdatePort(c *check.C) {
-	d := s.AddDaemon(c, true, true)
-
-	serviceName := "TestServiceUpdatePort"
-	serviceArgs := append([]string{"service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "-p", "8080:8081", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
-
-	// Create a service with a port mapping of 8080:8081.
-	out, err := d.Cmd(serviceArgs...)
-	c.Assert(err, checker.IsNil)
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
-
-	// Update the service: changed the port mapping from 8080:8081 to 8082:8083.
-	_, err = d.Cmd("service", "update", "--detach", "--publish-add", "8082:8083", "--publish-rm", "8081", serviceName)
-	c.Assert(err, checker.IsNil)
-
-	// Inspect the service and verify port mapping
-	expected := []swarm.PortConfig{
-		{
-			Protocol:      "tcp",
-			PublishedPort: 8082,
-			TargetPort:    8083,
-			PublishMode:   "ingress",
-		},
-	}
-
-	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.EndpointSpec.Ports }}", serviceName)
-	c.Assert(err, checker.IsNil)
-
-	var portConfig []swarm.PortConfig
-	if err := json.Unmarshal([]byte(out), &portConfig); err != nil {
-		c.Fatalf("invalid JSON in inspect result: %v (%s)", err, out)
-	}
-	c.Assert(portConfig, checker.DeepEquals, expected)
-}
-
 func (s *DockerSwarmSuite) TestServiceUpdateLabel(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name=test", "busybox", "top")
