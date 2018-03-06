@@ -163,7 +163,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.State.OOMKilled, true)
+	assert.Equal(t, true, inspect.State.OOMKilled)
 }
 
 func TestInspectOomKilledFalse(t *testing.T) {
@@ -179,5 +179,5 @@ func TestInspectOomKilledFalse(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	require.NoError(t, err)
-	assert.Equal(t, inspect.State.OOMKilled, false)
+	assert.Equal(t, false, inspect.State.OOMKilled)
 }
