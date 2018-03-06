@@ -85,21 +85,23 @@ for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "
 done
 
 echo "Container network configuration"
-for containerID in $(${DOCKER} container ls -q); do
-    echo "ccc Container ${containerID}"
+while read containerID status; do
+    echo "ccc Container ${containerID} state: ${status}"
     ${DOCKER} container inspect ${containerID} --format 'Name:{{json .Name | printf "%s\n"}}Id:{{json .Id | printf "%s\n"}}Hostname:{{json .Config.Hostname | printf "%s\n"}}CreatedAt:{{json .Created | printf "%s\n"}}State:{{json .State|printf "%s\n"}}RestartCount:{{json .RestartCount | printf "%s\n" }}Labels:{{json .Config.Labels | printf "%s\n"}}NetworkSettings:{{json .NetworkSettings}}' | sed '/^State:/ {s/\\"/QUOTE/g; s/,"Output":"[^"]*"//g;}'
-    nspath=$(docker container inspect --format {{.NetworkSettings.SandboxKey}} ${containerID})
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -o -4 address show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 route show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 neigh show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPVSADM} -l -n
+    if [ ${status} = "Up" ]; then
+        nspath=$(docker container inspect --format {{.NetworkSettings.SandboxKey}} ${containerID})
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -o -4 address show
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 route show
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 neigh show
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
+        echo_and_run ${NSENTER} --net=${nspath[0]} ${IPVSADM} -l -n
+        ((containers++))
+    fi
     printf "\n"
-    ((containers++))
-done
+done < <(${DOCKER} container ls -a --format '{{.ID}} {{.Status}}' |cut -d' ' -f1,2)
 
 echo -e "\n\n==SUMMARY=="
 echo -e "\t Processed $networks networks"
 echo -e "\t IP overlap found: $ip_overlap"
-echo -e "\t Processed $containers containers"
+echo -e "\t Processed $containers running containers"
