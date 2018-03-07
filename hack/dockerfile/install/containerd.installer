@@ -15,7 +15,7 @@ install_containerd() {
 	(
 
 		export BUILDTAGS='static_build netgo'
-		export EXTRA_FLAGS='-buildmod pie'
+		export EXTRA_FLAGS='-buildmode=pie'
 		export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
 
 		# Reset build flags to nothing if we want a dynbinary
