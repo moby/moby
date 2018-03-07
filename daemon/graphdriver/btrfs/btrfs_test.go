@@ -297,6 +297,25 @@ func TestBtrfsSubvolSELinux(t *testing.T) {
 	}
 }
 
+func TestBtrfsSetQuota(t *testing.T) {
+	d := graphtest.GetDriver(t, "btrfs")
+	defer graphtest.PutDriver(t)
+
+	graphtest.DriverTestSetQuota(t, "btrfs", false)
+
+	x := d.(*graphtest.Driver).Driver.(*graphdriver.NaiveDiffDriver).ProtoDriver.(*Driver)
+	subdir := x.subvolumesDir()
+	files, err := ioutil.ReadDir(subdir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, subvol := range files {
+		if err := d.Remove(subvol.Name()); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
 func TestBtrfsTeardown(t *testing.T) {
 	graphtest.PutDriver(t)
 }
