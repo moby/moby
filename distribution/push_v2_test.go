@@ -2,6 +2,7 @@ package distribution // import "github.com/docker/docker/distribution"
 
 import (
 	"net/http"
+	"net/url"
 	"reflect"
 	"testing"
 
@@ -9,9 +10,13 @@ import (
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/api/errcode"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
+	refstore "github.com/docker/docker/reference"
+	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -458,6 +463,158 @@ func TestLayerAlreadyExists(t *testing.T) {
 		for i := len(tc.expectedRemovals); i < len(ms.removed); i++ {
 			t.Errorf("[%s] removed unexpected metadata at position %d (%q)", tc.name, i, ms.removed[i])
 		}
+	}
+}
+
+type mockReferenceStore struct {
+}
+
+func (s *mockReferenceStore) References(id digest.Digest) []reference.Named {
+	return []reference.Named{}
+}
+func (s *mockReferenceStore) ReferencesByName(ref reference.Named) []refstore.Association {
+	return []refstore.Association{}
+}
+func (s *mockReferenceStore) AddTag(ref reference.Named, id digest.Digest, force bool) error {
+	return nil
+}
+func (s *mockReferenceStore) AddDigest(ref reference.Canonical, id digest.Digest, force bool) error {
+	return nil
+}
+func (s *mockReferenceStore) Delete(ref reference.Named) (bool, error) {
+	return true, nil
+}
+func (s *mockReferenceStore) Get(ref reference.Named) (digest.Digest, error) {
+	return "", nil
+}
+
+func TestWhenEmptyAuthConfig(t *testing.T) {
+	for _, authInfo := range []struct {
+		username      string
+		password      string
+		registryToken string
+		expected      bool
+	}{
+		{
+			username:      "",
+			password:      "",
+			registryToken: "",
+			expected:      false,
+		},
+		{
+			username:      "username",
+			password:      "password",
+			registryToken: "",
+			expected:      true,
+		},
+		{
+			username:      "",
+			password:      "",
+			registryToken: "token",
+			expected:      true,
+		},
+	} {
+		imagePushConfig := &ImagePushConfig{}
+		imagePushConfig.AuthConfig = &types.AuthConfig{
+			Username:      authInfo.username,
+			Password:      authInfo.password,
+			RegistryToken: authInfo.registryToken,
+		}
+		imagePushConfig.ReferenceStore = &mockReferenceStore{}
+		repoInfo, _ := reference.ParseNormalizedNamed("xujihui1985/test.img")
+		pusher := &v2Pusher{
+			config: imagePushConfig,
+			repoInfo: &registry.RepositoryInfo{
+				Name: repoInfo,
+			},
+			endpoint: registry.APIEndpoint{
+				URL: &url.URL{
+					Scheme: "https",
+					Host:   "index.docker.io",
+				},
+				Version:      registry.APIVersion1,
+				TrimHostname: true,
+			},
+		}
+		pusher.Push(context.Background())
+		if pusher.pushState.hasAuthInfo != authInfo.expected {
+			t.Errorf("hasAuthInfo does not match expected: %t != %t", authInfo.expected, pusher.pushState.hasAuthInfo)
+		}
+	}
+}
+
+type mockBlobStoreWithCreate struct {
+	mockBlobStore
+	repo *mockRepoWithBlob
+}
+
+func (blob *mockBlobStoreWithCreate) Create(ctx context.Context, options ...distribution.BlobCreateOption) (distribution.BlobWriter, error) {
+	return nil, errcode.Errors(append([]error{errcode.ErrorCodeUnauthorized.WithMessage("unauthorized")}))
+}
+
+type mockRepoWithBlob struct {
+	mockRepo
+}
+
+func (m *mockRepoWithBlob) Blobs(ctx context.Context) distribution.BlobStore {
+	blob := &mockBlobStoreWithCreate{}
+	blob.mockBlobStore.repo = &m.mockRepo
+	blob.repo = m
+	return blob
+}
+
+type mockMetadataService struct {
+	mockV2MetadataService
+}
+
+func (m *mockMetadataService) GetMetadata(diffID layer.DiffID) ([]metadata.V2Metadata, error) {
+	return []metadata.V2Metadata{
+		taggedMetadata("abcd", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e28", "docker.io/user/app1"),
+		taggedMetadata("abcd", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e22", "docker.io/user/app/base"),
+		taggedMetadata("hash", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e23", "docker.io/user/app"),
+		taggedMetadata("abcd", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e24", "127.0.0.1/user/app"),
+		taggedMetadata("hash", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e25", "docker.io/user/foo"),
+		taggedMetadata("hash", "sha256:ff3a5c916c92643ff77519ffa742d3ec61b7f591b6b7504599d95a4a41134e26", "docker.io/app/bar"),
+	}, nil
+}
+
+var removeMetadata bool
+
+func (m *mockMetadataService) Remove(metadata metadata.V2Metadata) error {
+	removeMetadata = true
+	return nil
+}
+
+func TestPushRegistryWhenAuthInfoEmpty(t *testing.T) {
+	repoInfo, _ := reference.ParseNormalizedNamed("user/app")
+	ms := &mockMetadataService{}
+	remoteErrors := map[digest.Digest]error{digest.Digest("sha256:apple"): distribution.ErrAccessDenied}
+	remoteBlobs := map[digest.Digest]distribution.Descriptor{digest.Digest("sha256:apple"): {Digest: digest.Digest("shar256:apple")}}
+	repo := &mockRepoWithBlob{
+		mockRepo: mockRepo{
+			t:        t,
+			errors:   remoteErrors,
+			blobs:    remoteBlobs,
+			requests: []string{},
+		},
+	}
+	pd := &v2PushDescriptor{
+		hmacKey:  []byte("abcd"),
+		repoInfo: repoInfo,
+		layer: &storeLayer{
+			Layer: layer.EmptyLayer,
+		},
+		repo:              repo,
+		v2MetadataService: ms,
+		pushState: &pushState{
+			remoteLayers: make(map[layer.DiffID]distribution.Descriptor),
+			hasAuthInfo:  false,
+		},
+		checkedDigests: make(map[digest.Digest]struct{}),
+	}
+	pd.Upload(context.Background(), &progressSink{t})
+	if removeMetadata {
+		t.Fatalf("expect remove not be called but called")
 	}
 }
 
