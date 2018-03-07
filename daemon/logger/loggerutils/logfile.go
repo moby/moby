@@ -31,13 +31,14 @@ type LogFile struct {
 	notifyRotate  *pubsub.Publisher
 	marshal       logger.MarshalFunc
 	createDecoder makeDecoderFunc
+	perms         os.FileMode
 }
 
 type makeDecoderFunc func(rdr io.Reader) func() (*logger.Message, error)
 
 //NewLogFile creates new LogFile
-func NewLogFile(logPath string, capacity int64, maxFiles int, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc) (*LogFile, error) {
-	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0640)
+func NewLogFile(logPath string, capacity int64, maxFiles int, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode) (*LogFile, error) {
+	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
 	}
@@ -55,6 +56,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, marshaller logger.
 		notifyRotate:  pubsub.NewPublisher(0, 1),
 		marshal:       marshaller,
 		createDecoder: decodeFunc,
+		perms:         perms,
 	}, nil
 }
 
@@ -100,7 +102,7 @@ func (w *LogFile) checkCapacityAndRotate() error {
 		if err := rotate(name, w.maxFiles); err != nil {
 			return err
 		}
-		file, err := os.OpenFile(name, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, 0640)
+		file, err := os.OpenFile(name, os.O_WRONLY|os.O_TRUNC|os.O_CREATE, w.perms)
 		if err != nil {
 			return err
 		}
