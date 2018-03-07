@@ -15,6 +15,7 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
@@ -55,12 +56,14 @@ type pushState struct {
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
 	confirmedV2 bool
+	hasAuthInfo bool
 }
 
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
 	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.pushState.hasAuthInfo = p.config.AuthConfig.RegistryToken != "" || (p.config.AuthConfig.Username != "" && p.config.AuthConfig.Password != "")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return err
@@ -308,6 +311,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 
 	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
 	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, v2Metadata)
+	isUnauthorizedError := false
 	for _, mountCandidate := range candidates {
 		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
 		createOpts := []distribution.BlobCreateOption{}
@@ -360,11 +364,26 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
 			return err.Descriptor, nil
+		case errcode.Errors:
+			for _, e := range err {
+				switch e := e.(type) {
+				case errcode.Error:
+					if e.Code == errcode.ErrorCodeUnauthorized {
+						// when unauthorized error that indicate user don't has right to push layer to register
+						logrus.Debugln("failed to push layer to registry because unauthorized error")
+						isUnauthorizedError = true
+					}
+				default:
+				}
+			}
 		default:
 			logrus.Infof("failed to mount layer %s (%s) from %s: %v", diffID, mountCandidate.Digest, mountCandidate.SourceRepository, err)
 		}
 
+		// when error is unauthorizedError and user don't hasAuthInfo that's the case user don't has right to push layer to register
+		// and he hasn't login either, in this case candidate cache should be removed
 		if len(mountCandidate.SourceRepository) > 0 &&
+			!(isUnauthorizedError && !pd.pushState.hasAuthInfo) &&
 			(metadata.CheckV2MetadataHMAC(&mountCandidate, pd.hmacKey) ||
 				len(mountCandidate.HMAC) == 0) {
 			cause := "blob mount failure"
@@ -398,7 +417,6 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 		}
 	}
 	defer layerUpload.Close()
-
 	// upload the blob
 	return pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
 }
