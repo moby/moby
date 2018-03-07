@@ -60,6 +60,34 @@ func hasPid(procs []uint32, pid int) bool {
 	return false
 }
 
+func insertCharacterToLine(baseString string, index int, value string) string {
+	return baseString[:index] + value + baseString[index:]
+}
+
+func correctPidValue(line string, pidValue string) string {
+	// PIDs are numeric values.  If pidValue contains any non-numeric characters
+	// it's assumed that the value belongs in the ps column after PID
+	var alphaPos = -1
+	for pos, character := range pidValue {
+		if character < '0' || character > '9' {
+			alphaPos = pos
+			break
+		}
+	}
+
+	if alphaPos == -1 {
+		// pidValue contains only numeric characters, unable to correct
+		// the field.
+		return line
+	}
+
+	pidValueIndex := strings.Index(line, pidValue)
+	splitAtIndex := alphaPos + pidValueIndex
+	newline := insertCharacterToLine(line, splitAtIndex, " ")
+
+	return newline
+}
+
 func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody, error) {
 	procList := &container.ContainerTopOKBody{}
 
@@ -84,6 +112,13 @@ func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody
 		if len(line) == 0 {
 			continue
 		}
+
+		// Issue #34282 has identified a situation where the PID column
+		// and the next column's fields are not separated by white space.
+		// This is an attempt to correct the line when the column following PID
+		// starts with a letter.
+		line = correctPidValue(line, fieldsASCII(line)[pidIndex])
+
 		fields := fieldsASCII(line)
 
 		var (
