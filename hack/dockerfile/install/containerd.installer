@@ -14,10 +14,15 @@ install_containerd() {
 
 	(
 
-		if [ "$1" == "static" ]; then
-			export BUILDTAGS='static_build netgo'
-			export EXTRA_FLAGS='-buildmod pie'
-			export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
+		export BUILDTAGS='static_build netgo'
+		export EXTRA_FLAGS='-buildmod pie'
+		export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
+
+		# Reset build flags to nothing if we want a dynbinary
+		if [ "$1" == "dynamic" ]; then
+			export BUILDTAGS=''
+			export EXTRA_FLAGS=''
+			export EXTRA_LDFLAGS=''
 		fi
 
 		make

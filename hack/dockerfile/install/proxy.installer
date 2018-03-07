@@ -23,6 +23,7 @@ install_proxy() {
 
 install_proxy_dynamic() {
 	export PROXY_LDFLAGS="-linkmode=external" install_proxy
+	export BUILD_MODE="-buildmode=pie"
 	_install_proxy
 }
 
@@ -31,7 +32,7 @@ _install_proxy() {
 	git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
 	cd "$GOPATH/src/github.com/docker/libnetwork"
 	git checkout -q "$LIBNETWORK_COMMIT"
-	go build -buildmode=pie -ldflags="$PROXY_LDFLAGS" -o ${PREFIX}/docker-proxy github.com/docker/libnetwork/cmd/proxy
+	go build $BUILD_MODE -ldflags="$PROXY_LDFLAGS" -o ${PREFIX}/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
 
