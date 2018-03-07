@@ -19,6 +19,8 @@ var builtinAllowedBuildArgs = map[string]bool{
 	"ftp_proxy":   true,
 	"NO_PROXY":    true,
 	"no_proxy":    true,
+	"SECRET":      true,
+	"secret":      true,
 }
 
 // buildArgs manages arguments used by the builder
