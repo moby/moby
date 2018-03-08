@@ -4,7 +4,6 @@ package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"strings"
@@ -13,6 +12,7 @@ import (
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/Microsoft/opengcs/client"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -323,8 +323,9 @@ func (svm *serviceVM) createUnionMount(mountName string, mvds ...hcsshim.MappedV
 	}
 
 	logrus.Debugf("Doing the overlay mount with union directory=%s", mountName)
-	if err = svm.runProcess(fmt.Sprintf("mkdir -p %s", mountName), nil, nil, nil); err != nil {
-		return err
+	errOut := &bytes.Buffer{}
+	if err = svm.runProcess(fmt.Sprintf("mkdir -p %s", mountName), nil, nil, errOut); err != nil {
+		return errors.Wrapf(err, "mkdir -p %s failed (%s)", mountName, errOut.String())
 	}
 
 	var cmd string
@@ -340,8 +341,9 @@ func (svm *serviceVM) createUnionMount(mountName string, mvds ...hcsshim.MappedV
 		upper := fmt.Sprintf("%s/upper", svm.getShortContainerPath(&mvds[0]))
 		work := fmt.Sprintf("%s/work", svm.getShortContainerPath(&mvds[0]))
 
-		if err = svm.runProcess(fmt.Sprintf("mkdir -p %s %s", upper, work), nil, nil, nil); err != nil {
-			return err
+		errOut := &bytes.Buffer{}
+		if err = svm.runProcess(fmt.Sprintf("mkdir -p %s %s", upper, work), nil, nil, errOut); err != nil {
+			return errors.Wrapf(err, "mkdir -p %s failed (%s)", mountName, errOut.String())
 		}
 
 		cmd = fmt.Sprintf("mount -t overlay overlay -olowerdir=%s,upperdir=%s,workdir=%s %s",
@@ -352,8 +354,9 @@ func (svm *serviceVM) createUnionMount(mountName string, mvds ...hcsshim.MappedV
 	}
 
 	logrus.Debugf("createUnionMount: Executing mount=%s", cmd)
-	if err = svm.runProcess(cmd, nil, nil, nil); err != nil {
-		return err
+	errOut = &bytes.Buffer{}
+	if err = svm.runProcess(cmd, nil, nil, errOut); err != nil {
+		return errors.Wrapf(err, "%s failed (%s)", cmd, errOut.String())
 	}
 
 	svm.unionMounts[mountName] = 1
