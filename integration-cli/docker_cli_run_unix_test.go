@@ -615,7 +615,8 @@ func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) 
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	testRequires(c, memoryLimitSupport, swapMemorySupport)
+	// TODO temporarily disabled for ppc64le as it is failing due to configuration changes of the nodes
+	testRequires(c, NotPpc64le, memoryLimitSupport, swapMemorySupport)
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)

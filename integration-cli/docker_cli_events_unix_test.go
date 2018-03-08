@@ -49,7 +49,8 @@ func (s *DockerSuite) TestEventsRedirectStdout(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsOOMDisableFalse(c *check.C) {
-	testRequires(c, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport)
+	// TODO temporarily disabled for ppc64le as it is failing due to configuration changes of the nodes
+	testRequires(c, NotPpc64le, DaemonIsLinux, oomControl, memoryLimitSupport, swapMemorySupport)
 
 	errChan := make(chan error)
 	go func() {
