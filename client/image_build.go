@@ -123,6 +123,12 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	}
 	query.Set("labels", string(labelsJSON))
 
+	storageOptJSON, err := json.Marshal(options.StorageOpt)
+	if err != nil {
+		return query, err
+	}
+	query.Set("storageopt", string(storageOptJSON))
+
 	cacheFromJSON, err := json.Marshal(options.CacheFrom)
 	if err != nil {
 		return query, err

@@ -177,6 +177,7 @@ type ImageBuildOptions struct {
 	// specified here do not need to have a valid parent chain to match cache.
 	CacheFrom   []string
 	SecurityOpt []string
+	StorageOpt  map[string]string
 	ExtraHosts  []string // List of extra hosts
 	Target      string
 	SessionID   string
