@@ -8,10 +8,12 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/stretchr/testify/require"
 )
 
 func TestContainerExecCreateError(t *testing.T) {
@@ -76,6 +78,27 @@ func TestContainerExecStartError(t *testing.T) {
 	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+}
+
+func TestContainerExecAttachTimeout(t *testing.T) {
+	hostURL, err := ParseHostURL("unix:///var/run/docker.sock")
+	require.NoError(t, err)
+
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("")
+		}),
+
+		proto:    hostURL.Scheme,
+		addr:     hostURL.Host,
+		basePath: hostURL.Path,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+	_, err = client.ContainerExecAttach(ctx, "nothing", types.ExecStartCheck{})
+	if err == nil || !strings.Contains(err.Error(), "i/o timeout") {
+		t.Fatalf("expected a timeout error, got %v", err)
 	}
 }
 

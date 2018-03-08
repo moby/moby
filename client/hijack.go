@@ -45,6 +45,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 		return types.HijackedResponse{}, err
 	}
 	req = cli.addHeaders(req, headers)
+	req = req.WithContext(ctx)
 
 	conn, err := cli.setupHijackConn(req, "tcp")
 	if err != nil {
@@ -52,10 +53,6 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	}
 
 	return types.HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn)}, err
-}
-
-func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
-	return tlsDialWithDialer(new(net.Dialer), network, addr, config)
 }
 
 // We need to copy Go's implementation of tls.Dial (pkg/cryptor/tls/tls.go) in
@@ -77,11 +74,18 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 	}
 
 	var errChannel chan error
+	var done chan struct{}
 
 	if timeout != 0 {
-		errChannel = make(chan error, 2)
+		errChannel = make(chan error)
+		done = make(chan struct{})
+		defer close(done)
+
 		time.AfterFunc(timeout, func() {
-			errChannel <- errors.New("")
+			select {
+			case errChannel <- context.DeadlineExceeded:
+			case <-done:
+			}
 		})
 	}
 
@@ -90,10 +94,28 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 		return nil, err
 	}
 
-	rawConn, err := proxyDialer.Dial(network, addr)
+	var rawConn net.Conn
+	if timeout == 0 {
+		rawConn, err = proxyDialer.Dial(network, addr)
+	} else {
+		go func() {
+			rawConn, err = proxyDialer.Dial(network, addr)
+			select {
+			case errChannel <- err:
+			case <-done:
+				if err == nil {
+					rawConn.Close()
+				}
+			}
+		}()
+
+		err = <-errChannel
+	}
+
 	if err != nil {
 		return nil, err
 	}
+
 	// When we set up a TCP connection for hijack, there could be long periods
 	// of inactivity (a long running command with no output) that in certain
 	// network setups may cause ECONNTIMEOUT, leaving the client in an unknown
@@ -124,7 +146,12 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 		err = conn.Handshake()
 	} else {
 		go func() {
-			errChannel <- conn.Handshake()
+			err := conn.Handshake()
+			select {
+			case errChannel <- err:
+			case <-done:
+				// TODO close conn?
+			}
 		}()
 
 		err = <-errChannel
@@ -140,15 +167,27 @@ func tlsDialWithDialer(dialer *net.Dialer, network, addr string, config *tls.Con
 	return &tlsClientCon{conn, rawConn}, nil
 }
 
-func dial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
+func dial(ctx context.Context, proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
+	// 0 = no timeout
+	var timeout time.Duration
+
+	deadline, ok := ctx.Deadline()
+	if ok {
+		timeout = time.Until(deadline)
+	}
+
 	if tlsConfig != nil && proto != "unix" && proto != "npipe" {
 		// Notice this isn't Go standard's tls.Dial function
-		return tlsDial(proto, addr, tlsConfig)
+		return tlsDialWithDialer(&net.Dialer{Timeout: timeout}, proto, addr, tlsConfig)
 	}
 	if proto == "npipe" {
-		return sockets.DialPipe(addr, 32*time.Second)
+		if timeout == 0 {
+			// Why 32? See issue 8035
+			timeout = 32 * time.Second
+		}
+		return sockets.DialPipe(addr, timeout)
 	}
-	return net.Dial(proto, addr)
+	return net.DialTimeout(proto, addr, timeout)
 }
 
 func (cli *Client) setupHijackConn(req *http.Request, proto string) (net.Conn, error) {
@@ -156,7 +195,9 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (net.Conn, e
 	req.Header.Set("Connection", "Upgrade")
 	req.Header.Set("Upgrade", proto)
 
-	conn, err := dial(cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
+	ctx := req.Context()
+
+	conn, err := dial(ctx, cli.proto, cli.addr, resolveTLSConfig(cli.client.Transport))
 	if err != nil {
 		return nil, errors.Wrap(err, "cannot connect to the Docker daemon. Is 'docker daemon' running on this host?")
 	}
@@ -175,15 +216,30 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (net.Conn, e
 	defer clientconn.Close()
 
 	// Server hijacks the connection, error 'connection closed' expected
-	resp, err := clientconn.Do(req)
-	if err != httputil.ErrPersistEOF {
+	errCh := make(chan error, 1)
+	go func() {
+		resp, err := clientconn.Do(req)
+		if err != httputil.ErrPersistEOF {
+			if err != nil {
+				errCh <- err
+				return
+			}
+			if resp.StatusCode != http.StatusSwitchingProtocols {
+				resp.Body.Close()
+				errCh <- fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
+				return
+			}
+		}
+		errCh <- nil
+	}()
+
+	select {
+	case err := <-errCh:
 		if err != nil {
 			return nil, err
 		}
-		if resp.StatusCode != http.StatusSwitchingProtocols {
-			resp.Body.Close()
-			return nil, fmt.Errorf("unable to upgrade to %s, received %d", proto, resp.StatusCode)
-		}
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 
 	c, br := clientconn.Hijack()
