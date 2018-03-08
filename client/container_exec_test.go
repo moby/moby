@@ -82,7 +82,7 @@ func TestContainerExecStartError(t *testing.T) {
 }
 
 func TestContainerExecAttachTimeout(t *testing.T) {
-	hostURL, err := ParseHostURL("unix:///var/run/docker.sock")
+	hostURL, err := ParseHostURL("tcp://0.0.0.0:4243")
 	require.NoError(t, err)
 
 	client := &Client{
@@ -97,7 +97,8 @@ func TestContainerExecAttachTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	defer cancel()
 	_, err = client.ContainerExecAttach(ctx, "nothing", types.ExecStartCheck{})
-	if err == nil || !strings.Contains(err.Error(), "i/o timeout") {
+	if err == nil || (!strings.Contains(err.Error(), "i/o timeout") && // unix
+		!strings.Contains(err.Error(), "requested service provider could not be loaded")) { // win
 		t.Fatalf("expected a timeout error, got %v", err)
 	}
 }
