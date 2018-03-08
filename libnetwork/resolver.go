@@ -280,7 +280,7 @@ func (r *resolver) handleIPQuery(name string, query *dns.Msg, ipType int) (*dns.
 }
 
 func (r *resolver) handlePTRQuery(ptr string, query *dns.Msg) (*dns.Msg, error) {
-	parts := []string{}
+	var parts []string
 
 	if strings.HasSuffix(ptr, ptrIPv4domain) {
 		parts = strings.Split(ptr, ptrIPv4domain)

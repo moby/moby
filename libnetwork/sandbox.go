@@ -351,9 +351,7 @@ func (sb *sandbox) getConnectedEndpoints() []*endpoint {
 	defer sb.Unlock()
 
 	eps := make([]*endpoint, len(sb.endpoints))
-	for i, ep := range sb.endpoints {
-		eps[i] = ep
-	}
+	copy(eps, sb.endpoints)
 
 	return eps
 }
