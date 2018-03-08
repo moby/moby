@@ -192,6 +192,11 @@ func TestGetFirstAvailable(t *testing.T) {
 		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffffffe, count: 1, next: &sequence{block: 0xffffffff, count: 6}}}, 7, 7, 0},
 
 		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0x0, count: 6}}, 8, 0, 0},
+		{&sequence{block: 0xfffcffff, count: 1, next: &sequence{block: 0x0, count: 6}}, 4, 0, 16},
+		{&sequence{block: 0xfffcffff, count: 1, next: &sequence{block: 0x0, count: 6}}, 1, 7, 15},
+		{&sequence{block: 0xfffcffff, count: 1, next: &sequence{block: 0x0, count: 6}}, 1, 6, 10},
+		{&sequence{block: 0xfffcfffe, count: 1, next: &sequence{block: 0x0, count: 6}}, 3, 7, 31},
+		{&sequence{block: 0xfffcffff, count: 1, next: &sequence{block: 0xffffffff, count: 6}}, invalidPos, invalidPos, 31},
 	}
 
 	for n, i := range input {
@@ -1238,7 +1243,7 @@ func TestIsCorrupted(t *testing.T) {
 	}
 }
 
-func TestSetRollover(t *testing.T) {
+func testSetRollover(t *testing.T, serial bool) {
 	ds, err := randomLocalStore()
 	if err != nil {
 		t.Fatal(err)
@@ -1253,7 +1258,7 @@ func TestSetRollover(t *testing.T) {
 
 	// Allocate first half of the bits
 	for i := 0; i < numBits/2; i++ {
-		_, err := hnd.SetAny(true)
+		_, err := hnd.SetAny(serial)
 		if err != nil {
 			t.Fatalf("Unexpected failure on allocation %d: %v\n%s", i, err, hnd)
 		}
@@ -1276,12 +1281,12 @@ func TestSetRollover(t *testing.T) {
 		}
 	}
 	if hnd.Unselected() != uint64(3*numBits/4) {
-		t.Fatalf("Expected full sequence. Instead found %d free bits.\nSeed: %d.\n%s", hnd.unselected, seed, hnd)
+		t.Fatalf("Unexpected free bits: found %d free bits.\nSeed: %d.\n%s", hnd.unselected, seed, hnd)
 	}
 
 	//request to allocate for remaining half of the bits
 	for i := 0; i < numBits/2; i++ {
-		_, err := hnd.SetAny(true)
+		_, err := hnd.SetAny(serial)
 		if err != nil {
 			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
 		}
@@ -1294,7 +1299,7 @@ func TestSetRollover(t *testing.T) {
 	}
 
 	for i := 0; i < numBits/4; i++ {
-		_, err := hnd.SetAny(true)
+		_, err := hnd.SetAny(serial)
 		if err != nil {
 			t.Fatalf("Unexpected failure on allocation %d: %v\nSeed: %d\n%s", i, err, seed, hnd)
 		}
@@ -1302,11 +1307,55 @@ func TestSetRollover(t *testing.T) {
 	//Now requesting to allocate the unallocated random bits (qurter of the number of bits) should
 	//leave no more bits that can be allocated.
 	if hnd.Unselected() != 0 {
-		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), numBits/4)
+		t.Fatalf("Unexpected number of unselected bits %d, Expected %d", hnd.Unselected(), 0)
 	}
 
 	err = hnd.Destroy()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestSetRollover(t *testing.T) {
+	testSetRollover(t, false)
+}
+
+func TestSetRolloverSerial(t *testing.T) {
+	testSetRollover(t, true)
+}
+
+func TestGetFirstAvailableFromCurrent(t *testing.T) {
+	input := []struct {
+		mask    *sequence
+		bytePos uint64
+		bitPos  uint64
+		start   uint64
+		curr    uint64
+		end     uint64
+	}{
+		{&sequence{block: 0xffffffff, count: 2048}, invalidPos, invalidPos, 0, 0, 65536},
+		{&sequence{block: 0x0, count: 8}, 0, 0, 0, 0, 256},
+		{&sequence{block: 0x80000000, count: 8}, 1, 0, 0, 8, 256},
+		{&sequence{block: 0xC0000000, count: 8}, 0, 2, 0, 2, 256},
+		{&sequence{block: 0xE0000000, count: 8}, 0, 3, 0, 0, 256},
+		{&sequence{block: 0xFFFB1FFF, count: 8}, 2, 0, 14, 0, 256},
+		{&sequence{block: 0xFFFFFFFE, count: 8}, 3, 7, 0, 0, 256},
+
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0x00000000, count: 1, next: &sequence{block: 0xffffffff, count: 14}}}, 4, 0, 0, 32, 512},
+		{&sequence{block: 0xfffeffff, count: 1, next: &sequence{block: 0xffffffff, count: 15}}, 1, 7, 0, 16, 512},
+		{&sequence{block: 0xfffeffff, count: 15, next: &sequence{block: 0xffffffff, count: 1}}, 5, 7, 0, 16, 512},
+		{&sequence{block: 0xfffeffff, count: 15, next: &sequence{block: 0xffffffff, count: 1}}, 9, 7, 0, 48, 512},
+		{&sequence{block: 0xffffffff, count: 2, next: &sequence{block: 0xffffffef, count: 14}}, 19, 3, 0, 124, 512},
+		{&sequence{block: 0xfffeffff, count: 15, next: &sequence{block: 0x0fffffff, count: 1}}, 60, 0, 0, 480, 512},
+		{&sequence{block: 0xffffffff, count: 1, next: &sequence{block: 0xfffeffff, count: 14, next: &sequence{block: 0xffffffff, count: 1}}}, 17, 7, 0, 124, 512},
+		{&sequence{block: 0xfffffffb, count: 1, next: &sequence{block: 0xffffffff, count: 14, next: &sequence{block: 0xffffffff, count: 1}}}, 3, 5, 0, 124, 512},
+		{&sequence{block: 0xfffffffb, count: 1, next: &sequence{block: 0xfffeffff, count: 14, next: &sequence{block: 0xffffffff, count: 1}}}, 13, 7, 0, 80, 512},
+	}
+
+	for n, i := range input {
+		bytePos, bitPos, _ := getAvailableFromCurrent(i.mask, i.start, i.curr, i.end)
+		if bytePos != i.bytePos || bitPos != i.bitPos {
+			t.Fatalf("Error in (%d) getFirstAvailable(). Expected (%d, %d). Got (%d, %d)", n, i.bytePos, i.bitPos, bytePos, bitPos)
+		}
 	}
 }
