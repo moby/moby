@@ -615,7 +615,7 @@ func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) 
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
-	testRequires(c, memoryLimitSupport, swapMemorySupport)
+	testRequires(c, memoryLimitSupport, swapMemorySupport, NotPpc64le)
 	errChan := make(chan error)
 	go func() {
 		defer close(errChan)
