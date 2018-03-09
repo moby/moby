@@ -34,35 +34,10 @@ export DOCKER_CLIENT_GOOS="${DOCKER_CLIENT_OSARCH%/*}"
 export DOCKER_CLIENT_GOARCH="${DOCKER_CLIENT_OSARCH##*/}"
 DOCKER_CLIENT_GOARCH=${DOCKER_CLIENT_GOARCH:=amd64}
 
-# Retrieve the architecture used in contrib/builder/(deb|rpm)/$PACKAGE_ARCH/
-PACKAGE_ARCH='amd64'
-case "${DOCKER_ENGINE_GOARCH:-$DOCKER_CLIENT_GOARCH}" in
-	arm)
-		PACKAGE_ARCH='armhf'
-		;;
-	arm64)
-		PACKAGE_ARCH='aarch64'
-		;;
-	amd64|ppc64le|s390x)
-		PACKAGE_ARCH="${DOCKER_ENGINE_GOARCH:-$DOCKER_CLIENT_GOARCH}"
-		;;
-	*)
-		echo >&2 "warning: not sure how to convert '$DOCKER_ENGINE_GOARCH' to a 'Docker' arch, assuming '$PACKAGE_ARCH'"
-		;;
-esac
-export PACKAGE_ARCH
-
 DOCKERFILE='Dockerfile'
-case "$PACKAGE_ARCH" in
-	amd64)
-		case "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" in
-			windows)
-				DOCKERFILE='Dockerfile.windows'
-				;;
-		esac
-		;;
-	*)
-		DOCKERFILE="Dockerfile.$PACKAGE_ARCH"
-		;;
-esac
+
+if [ "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" = "windows" ]; then
+	DOCKERFILE='Dockerfile.windows'
+fi
+
 export DOCKERFILE
