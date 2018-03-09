@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -51,10 +50,6 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	err = client.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
-
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
-	poll.WaitOn(t, noTasks(client), pollSettings)
-
 }
 
 const ingressNet = "ingress"
@@ -108,7 +103,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
-	poll.WaitOn(t, noTasks(client), pollSettings)
+	poll.WaitOn(t, noServices(client), pollSettings)
 
 	// Ensure that "ingress" is not removed or corrupted
 	time.Sleep(10 * time.Second)
@@ -125,8 +120,6 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 
 func serviceRunningCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
 		services, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
 		if err != nil {
 			return poll.Error(err)
@@ -158,5 +151,19 @@ func swarmIngressReady(client client.NetworkAPIClient) func(log poll.LogT) poll.
 			return poll.Continue("ingress not ready: does not contain the ingress-sbox")
 		}
 		return poll.Success()
+	}
+}
+
+func noServices(client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		services, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
+		switch {
+		case err != nil:
+			return poll.Error(err)
+		case len(services) == 0:
+			return poll.Success()
+		default:
+			return poll.Continue("Service count at %d waiting for 0", len(services))
+		}
 	}
 }
