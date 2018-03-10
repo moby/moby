@@ -48,3 +48,41 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 	err = setMounts(&d, &s, c, ms)
 	assert.NoError(t, err)
 }
+
+// TestIpcPrivateVsReadonly checks that in case of IpcMode: private
+// and ReadonlyRootfs: true (as in "docker run --ipc private --read-only")
+// the resulting /dev/shm mount is NOT made read-only.
+// https://github.com/moby/moby/issues/36503
+func TestIpcPrivateVsReadonly(t *testing.T) {
+	d := Daemon{
+		// some empty structs to avoid getting a panic
+		// caused by a null pointer dereference
+		idMappings:  &idtools.IDMappings{},
+		configStore: &config.Config{},
+	}
+	c := &container.Container{
+		HostConfig: &containertypes.HostConfig{
+			IpcMode:        containertypes.IpcMode("private"),
+			ReadonlyRootfs: true,
+		},
+	}
+
+	// We can't call createSpec() so mimick the minimal part
+	// of its code flow, just enough to reproduce the issue.
+	ms, err := d.setupMounts(c)
+	assert.NoError(t, err)
+
+	s := oci.DefaultSpec()
+	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
+
+	err = setMounts(&d, &s, c, ms)
+	assert.NoError(t, err)
+
+	// Find the /dev/shm mount in ms, check it does not have ro
+	for _, m := range s.Mounts {
+		if m.Destination != "/dev/shm" {
+			continue
+		}
+		assert.Equal(t, false, inSlice(m.Options, "ro"))
+	}
+}
