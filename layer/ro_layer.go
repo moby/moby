@@ -121,7 +121,7 @@ func (rl *roLayer) depth() int {
 	return rl.parent.depth() + 1
 }
 
-func storeLayer(tx MetadataTransaction, layer *roLayer) error {
+func storeLayer(tx *fileMetadataTransaction, layer *roLayer) error {
 	if err := tx.SetDiffID(layer.diffID); err != nil {
 		return err
 	}

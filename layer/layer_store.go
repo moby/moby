@@ -27,7 +27,7 @@ import (
 const maxLayerDepth = 125
 
 type layerStore struct {
-	store       MetadataStore
+	store       *fileMetadataStore
 	driver      graphdriver.Driver
 	useTarSplit bool
 
@@ -65,18 +65,15 @@ func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	}
 	logrus.Debugf("Initialized graph driver %s", driver)
 
-	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
-	if err != nil {
-		return nil, err
-	}
+	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
 
-	return NewStoreFromGraphDriver(fms, driver, options.OS)
+	return newStoreFromGraphDriver(root, driver, options.OS)
 }
 
-// NewStoreFromGraphDriver creates a new Store instance using the provided
+// newStoreFromGraphDriver creates a new Store instance using the provided
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os string) (Store, error) {
+func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) (Store, error) {
 	if !system.IsOSSupported(os) {
 		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
 	}
@@ -85,8 +82,13 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os 
 		caps = capDriver.Capabilities()
 	}
 
+	ms, err := newFSMetadataStore(root)
+	if err != nil {
+		return nil, err
+	}
+
 	ls := &layerStore{
-		store:       store,
+		store:       ms,
 		driver:      driver,
 		layerMap:    map[ChainID]*roLayer{},
 		mounts:      map[string]*mountedLayer{},
@@ -94,7 +96,7 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver, os 
 		os:          os,
 	}
 
-	ids, mounts, err := store.List()
+	ids, mounts, err := ms.List()
 	if err != nil {
 		return nil, err
 	}
@@ -225,7 +227,7 @@ func (ls *layerStore) loadMount(mount string) error {
 	return nil
 }
 
-func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
+func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
 	digester := digest.Canonical.Digester()
 	tr := io.TeeReader(ts, digester.Hash())
 

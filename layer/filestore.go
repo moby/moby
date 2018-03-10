@@ -37,10 +37,10 @@ type fileMetadataTransaction struct {
 	ws    *ioutils.AtomicWriteSet
 }
 
-// NewFSMetadataStore returns an instance of a metadata store
+// newFSMetadataStore returns an instance of a metadata store
 // which is backed by files on disk using the provided root
 // as the root of metadata files.
-func NewFSMetadataStore(root string) (MetadataStore, error) {
+func newFSMetadataStore(root string) (*fileMetadataStore, error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (fms *fileMetadataStore) getMountFilename(mount, filename string) string {
 	return filepath.Join(fms.getMountDirectory(mount), filename)
 }
 
-func (fms *fileMetadataStore) StartTransaction() (MetadataTransaction, error) {
+func (fms *fileMetadataStore) StartTransaction() (*fileMetadataTransaction, error) {
 	tmpDir := filepath.Join(fms.root, "tmp")
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, err
