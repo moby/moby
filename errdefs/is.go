@@ -21,7 +21,7 @@ func getImplementer(err error) error {
 		ErrDeadline,
 		ErrDataLoss,
 		ErrUnknown:
-		return e
+		return err
 	case causer:
 		return getImplementer(e.Cause())
 	default:
