@@ -13,6 +13,11 @@ import (
 	windowsipam "github.com/docker/libnetwork/ipams/windowsipam"
 )
 
+var (
+	// defaultAddressPool Stores user configured subnet list
+	defaultAddressPool []*ipamutils.NetworkToSplit
+)
+
 // InitDockerDefault registers the built-in ipam service with libnetwork
 func InitDockerDefault(ic ipamapi.Callback, l, g interface{}) error {
 	var (
@@ -32,7 +37,7 @@ func InitDockerDefault(ic ipamapi.Callback, l, g interface{}) error {
 		}
 	}
 
-	ipamutils.InitNetworks()
+	ipamutils.InitNetworks(nil)
 
 	a, err := ipam.NewAllocator(localDs, globalDs)
 	if err != nil {
@@ -54,4 +59,14 @@ func Init(ic ipamapi.Callback, l, g interface{}) error {
 	}
 
 	return initFunc(ic, l, g)
+}
+
+// SetDefaultIPAddressPool stores default address pool .
+func SetDefaultIPAddressPool(addressPool []*ipamutils.NetworkToSplit) {
+	defaultAddressPool = addressPool
+}
+
+// GetDefaultIPAddressPool returns default address pool .
+func GetDefaultIPAddressPool() []*ipamutils.NetworkToSplit {
+	return defaultAddressPool
 }

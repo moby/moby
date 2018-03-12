@@ -222,7 +222,7 @@ func New(cfgOptions ...config.Option) (NetworkController, error) {
 		}
 	}
 
-	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope)); err != nil {
+	if err = initIPAMDrivers(drvRegistry, nil, c.getStore(datastore.GlobalScope), c.cfg.Daemon.DefaultAddressPool); err != nil {
 		return nil, err
 	}
 

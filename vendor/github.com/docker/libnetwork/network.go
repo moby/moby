@@ -959,7 +959,7 @@ func (n *network) delete(force bool) error {
 
 	if len(n.loadBalancerIP) != 0 {
 		endpoints := n.Endpoints()
-		if force || len(endpoints) == 1 {
+		if force || (len(endpoints) == 1 && !n.ingress) {
 			n.deleteLoadBalancerSandbox()
 		}
 		//Reload the network from the store to update the epcnt.

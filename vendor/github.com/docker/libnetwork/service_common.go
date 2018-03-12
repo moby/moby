@@ -9,6 +9,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const maxSetStringLen = 350
+
 func (c *controller) addEndpointNameResolution(svcName, svcID, nID, eID, containerName string, vip net.IP, serviceAliases, taskAliases []string, ip net.IP, addService bool, method string) error {
 	n, err := c.NetworkByID(nID)
 	if err != nil {
@@ -285,7 +287,10 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	ok, entries := s.assignIPToEndpoint(ip.String(), eID)
 	if !ok || entries > 1 {
 		setStr, b := s.printIPToEndpoint(ip.String())
-		logrus.Warnf("addServiceBinding %s possible trainsient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
+		if len(setStr) > maxSetStringLen {
+			setStr = setStr[:maxSetStringLen]
+		}
+		logrus.Warnf("addServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
 	// Add loadbalancer service and backend in all sandboxes in
@@ -353,7 +358,10 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	ok, entries := s.removeIPToEndpoint(ip.String(), eID)
 	if !ok || entries > 0 {
 		setStr, b := s.printIPToEndpoint(ip.String())
-		logrus.Warnf("rmServiceBinding %s possible trainsient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
+		if len(setStr) > maxSetStringLen {
+			setStr = setStr[:maxSetStringLen]
+		}
+		logrus.Warnf("rmServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
 	// Remove loadbalancer service(if needed) and backend in all

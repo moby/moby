@@ -2,8 +2,11 @@
 package ipamutils
 
 import (
+	"fmt"
 	"net"
 	"sync"
+
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -13,38 +16,81 @@ var (
 	// PredefinedGranularNetworks contains a list of 64K IPv4 private networks with host size 8
 	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedBroadNetworks`
 	PredefinedGranularNetworks []*net.IPNet
+	initNetworksOnce           sync.Once
 
-	initNetworksOnce sync.Once
+	defaultBroadNetwork = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
+		{"172.20.0.0/14", 16}, {"172.24.0.0/14", 16}, {"172.28.0.0/14", 16},
+		{"192.168.0.0/16", 20}}
+	defaultGranularNetwork = []*NetworkToSplit{{"10.0.0.0/8", 24}}
 )
 
-// InitNetworks initializes the pre-defined networks used by the built-in IP allocator
-func InitNetworks() {
+// NetworkToSplit represent a network that has to be split in chunks with mask length Size.
+// Each subnet in the set is derived from the Base pool. Base is to be passed
+// in CIDR format.
+// Example: a Base "10.10.0.0/16 with Size 24 will define the set of 256
+// 10.10.[0-255].0/24 address pools
+type NetworkToSplit struct {
+	Base string `json:"base"`
+	Size int    `json:"size"`
+}
+
+// InitNetworks initializes the broad network pool and the granular network pool
+func InitNetworks(defaultAddressPool []*NetworkToSplit) {
 	initNetworksOnce.Do(func() {
-		PredefinedBroadNetworks = initBroadPredefinedNetworks()
-		PredefinedGranularNetworks = initGranularPredefinedNetworks()
+		// error ingnored should never fail
+		PredefinedGranularNetworks, _ = splitNetworks(defaultGranularNetwork)
+		if defaultAddressPool == nil {
+			defaultAddressPool = defaultBroadNetwork
+		}
+		var err error
+		if PredefinedBroadNetworks, err = splitNetworks(defaultAddressPool); err != nil {
+			logrus.WithError(err).Error("InitAddressPools failed to initialize the default address pool")
+		}
 	})
 }
 
-func initBroadPredefinedNetworks() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 31)
-	mask := []byte{255, 255, 0, 0}
-	for i := 17; i < 32; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{172, byte(i), 0, 0}, Mask: mask})
+// splitNetworks takes a slice of networks, split them accordingly and returns them
+func splitNetworks(list []*NetworkToSplit) ([]*net.IPNet, error) {
+	localPools := make([]*net.IPNet, 0, len(list))
+
+	for _, p := range list {
+		_, b, err := net.ParseCIDR(p.Base)
+		if err != nil {
+			return nil, fmt.Errorf("invalid base pool %q: %v", p.Base, err)
+		}
+		ones, _ := b.Mask.Size()
+		if p.Size <= 0 || p.Size < ones {
+			return nil, fmt.Errorf("invalid pools size: %d", p.Size)
+		}
+		localPools = append(localPools, splitNetwork(p.Size, b)...)
 	}
-	mask20 := []byte{255, 255, 240, 0}
-	for i := 0; i < 16; i++ {
-		pl = append(pl, &net.IPNet{IP: []byte{192, 168, byte(i << 4), 0}, Mask: mask20})
-	}
-	return pl
+	return localPools, nil
 }
 
-func initGranularPredefinedNetworks() []*net.IPNet {
-	pl := make([]*net.IPNet, 0, 256*256)
-	mask := []byte{255, 255, 255, 0}
-	for i := 0; i < 256; i++ {
-		for j := 0; j < 256; j++ {
-			pl = append(pl, &net.IPNet{IP: []byte{10, byte(i), byte(j), 0}, Mask: mask})
-		}
+func splitNetwork(size int, base *net.IPNet) []*net.IPNet {
+	one, bits := base.Mask.Size()
+	mask := net.CIDRMask(size, bits)
+	n := 1 << uint(size-one)
+	s := uint(bits - size)
+	list := make([]*net.IPNet, 0, n)
+
+	for i := 0; i < n; i++ {
+		ip := copyIP(base.IP)
+		addIntToIP(ip, uint(i<<s))
+		list = append(list, &net.IPNet{IP: ip, Mask: mask})
 	}
-	return pl
+	return list
+}
+
+func copyIP(from net.IP) net.IP {
+	ip := make([]byte, len(from))
+	copy(ip, from)
+	return ip
+}
+
+func addIntToIP(array net.IP, ordinal uint) {
+	for i := len(array) - 1; i >= 0; i-- {
+		array[i] |= (byte)(ordinal & 0xff)
+		ordinal >>= 8
+	}
 }
