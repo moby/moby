@@ -154,7 +154,9 @@ func (d *driver) DeleteNetwork(nid string) error {
 	}
 	for _, ep := range n.endpoints {
 		if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
-			ns.NlHandle().LinkDel(link)
+			if err := ns.NlHandle().LinkDel(link); err != nil {
+				logrus.WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
