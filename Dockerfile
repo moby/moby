@@ -44,7 +44,9 @@ FROM base AS criu
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
 # Install dependancy packages specific to criu
-RUN apt-get update && apt-get install -y \
+RUN case $(uname -m) in \
+    x86_64) \
+	apt-get update && apt-get install -y \
 	libnet-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
@@ -57,7 +59,12 @@ RUN apt-get update && apt-get install -y \
 	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
-	&& make PREFIX=/opt/criu install-criu
+	&& make PREFIX=/opt/criu install-criu ;\
+	;; \
+    armv7l|aarch64|ppc64le|s390x) \
+	mkdir -p /opt/criu; \
+	;; \
+    esac
 
 
 FROM base AS registry
@@ -73,9 +80,13 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
 		go build -buildmode=pie -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
-	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1") \
-	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-		go build -buildmode=pie -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry \
+	&& case $(uname -m) in \
+		x86_64|ppc64le|s390x) \
+		(cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1"); \
+		GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
+			go build -buildmode=pie -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
+		;; \
+	   esac \
 	&& rm -rf "$GOPATH"
 
 
@@ -207,7 +218,7 @@ RUN apt-get update && apt-get install -y \
 	libudev-dev \
 	libsystemd-dev \
 	binutils-mingw-w64 \
-	g++-mingw-w64-x86-64 \ 
+	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
 	python-backports.ssl-match-hostname \
