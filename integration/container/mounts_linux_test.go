@@ -30,7 +30,7 @@ func TestContainerShmNoLeak(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	d.StartWithBusybox(t)
+	d.StartWithBusybox(t, "--iptables=false")
 	defer d.Stop(t)
 
 	ctx := context.Background()
