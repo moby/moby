@@ -61,8 +61,7 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		}
 	}()
 
-	_, err = rwlayer.Mount(container.GetMountLabel())
-	if err != nil {
+	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
 
