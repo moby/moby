@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+
+userrc=/go/src/github.com/docker/docker/.bashrc
+if [ -f "$userrc" ]; then
+    source "$userrc"
+fi
