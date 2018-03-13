@@ -4357,7 +4357,7 @@ func (s *DockerSuite) TestSlowStdinClosing(c *check.C) {
 		}()
 
 		select {
-		case <-time.After(15 * time.Second):
+		case <-time.After(30 * time.Second):
 			c.Fatal("running container timed out") // cleanup in teardown
 		case err := <-done:
 			c.Assert(err, checker.IsNil)
