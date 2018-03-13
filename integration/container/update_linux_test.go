@@ -10,10 +10,10 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateMemory(t *testing.T) {
@@ -44,26 +44,26 @@ func TestUpdateMemory(t *testing.T) {
 			MemorySwap: setMemorySwap,
 		},
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	inspect, err := client.ContainerInspect(ctx, cID)
-	require.NoError(t, err)
-	assert.Equal(t, setMemory, inspect.HostConfig.Memory)
-	assert.Equal(t, setMemorySwap, inspect.HostConfig.MemorySwap)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(setMemory, inspect.HostConfig.Memory))
+	assert.Check(t, is.Equal(setMemorySwap, inspect.HostConfig.MemorySwap))
 
 	res, err := container.Exec(ctx, client, cID,
 		[]string{"cat", "/sys/fs/cgroup/memory/memory.limit_in_bytes"})
-	require.NoError(t, err)
-	require.Empty(t, res.Stderr())
-	require.Equal(t, 0, res.ExitCode)
-	assert.Equal(t, strconv.FormatInt(setMemory, 10), strings.TrimSpace(res.Stdout()))
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Equal(strconv.FormatInt(setMemory, 10), strings.TrimSpace(res.Stdout())))
 
 	res, err = container.Exec(ctx, client, cID,
 		[]string{"cat", "/sys/fs/cgroup/memory/memory.memsw.limit_in_bytes"})
-	require.NoError(t, err)
-	require.Empty(t, res.Stderr())
-	require.Equal(t, 0, res.ExitCode)
-	assert.Equal(t, strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout()))
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Equal(strconv.FormatInt(setMemorySwap, 10), strings.TrimSpace(res.Stdout())))
 }
 
 func TestUpdateCPUQuota(t *testing.T) {
@@ -93,15 +93,15 @@ func TestUpdateCPUQuota(t *testing.T) {
 		}
 
 		inspect, err := client.ContainerInspect(ctx, cID)
-		require.NoError(t, err)
-		assert.Equal(t, test.update, inspect.HostConfig.CPUQuota)
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(test.update, inspect.HostConfig.CPUQuota))
 
 		res, err := container.Exec(ctx, client, cID,
 			[]string{"/bin/cat", "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"})
-		require.NoError(t, err)
-		require.Empty(t, res.Stderr())
-		require.Equal(t, 0, res.ExitCode)
+		assert.NilError(t, err)
+		assert.Assert(t, is.Len(res.Stderr(), 0))
+		assert.Equal(t, 0, res.ExitCode)
 
-		assert.Equal(t, strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout()))
+		assert.Check(t, is.Equal(strconv.FormatInt(test.update, 10), strings.TrimSpace(res.Stdout())))
 	}
 }

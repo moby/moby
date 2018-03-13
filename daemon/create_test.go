@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/errdefs"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // Test case for 35752
@@ -17,5 +17,5 @@ func TestVerifyNetworkingConfig(t *testing.T) {
 		EndpointsConfig: endpoints,
 	}
 	err := verifyNetworkingConfig(nwConfig)
-	assert.True(t, errdefs.IsInvalidParameter(err))
+	assert.Check(t, errdefs.IsInvalidParameter(err))
 }

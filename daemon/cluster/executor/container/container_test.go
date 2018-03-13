@@ -5,7 +5,7 @@ import (
 
 	container "github.com/docker/docker/api/types/container"
 	swarmapi "github.com/docker/swarmkit/api"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestIsolationConversion(t *testing.T) {
@@ -31,7 +31,7 @@ func TestIsolationConversion(t *testing.T) {
 				},
 			}
 			config := containerConfig{task: &task}
-			require.Equal(t, c.to, config.hostConfig().Isolation)
+			assert.Equal(t, c.to, config.hostConfig().Isolation)
 		})
 	}
 }

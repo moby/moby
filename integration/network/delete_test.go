@@ -6,8 +6,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/request"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func containsNetwork(nws []types.NetworkResource, nw types.NetworkCreateResponse) bool {
@@ -29,18 +29,18 @@ func createAmbiguousNetworks(t *testing.T) (types.NetworkCreateResponse, types.N
 	ctx := context.Background()
 
 	testNet, err := client.NetworkCreate(ctx, "testNet", types.NetworkCreate{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	idPrefixNet, err := client.NetworkCreate(ctx, testNet.ID[:12], types.NetworkCreate{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	fullIDNet, err := client.NetworkCreate(ctx, testNet.ID, types.NetworkCreate{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	nws, err := client.NetworkList(ctx, types.NetworkListOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.Equal(t, true, containsNetwork(nws, testNet), "failed to create network testNet")
-	assert.Equal(t, true, containsNetwork(nws, idPrefixNet), "failed to create network idPrefixNet")
-	assert.Equal(t, true, containsNetwork(nws, fullIDNet), "failed to create network fullIDNet")
+	assert.Check(t, is.Equal(true, containsNetwork(nws, testNet)), "failed to create network testNet")
+	assert.Check(t, is.Equal(true, containsNetwork(nws, idPrefixNet)), "failed to create network idPrefixNet")
+	assert.Check(t, is.Equal(true, containsNetwork(nws, fullIDNet)), "failed to create network fullIDNet")
 	return testNet, idPrefixNet, fullIDNet
 }
 
@@ -56,17 +56,17 @@ func TestDockerNetworkDeletePreferID(t *testing.T) {
 	// Delete the network using a prefix of the first network's ID as name.
 	// This should the network name with the id-prefix, not the original network.
 	err := client.NetworkRemove(ctx, testNet.ID[:12])
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	// Delete the network using networkID. This should remove the original
 	// network, not the network with the name equal to the networkID
 	err = client.NetworkRemove(ctx, testNet.ID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	// networks "testNet" and "idPrefixNet" should be removed, but "fullIDNet" should still exist
 	nws, err := client.NetworkList(ctx, types.NetworkListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, false, containsNetwork(nws, testNet), "Network testNet not removed")
-	assert.Equal(t, false, containsNetwork(nws, idPrefixNet), "Network idPrefixNet not removed")
-	assert.Equal(t, true, containsNetwork(nws, fullIDNet), "Network fullIDNet not found")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(false, containsNetwork(nws, testNet)), "Network testNet not removed")
+	assert.Check(t, is.Equal(false, containsNetwork(nws, idPrefixNet)), "Network idPrefixNet not removed")
+	assert.Check(t, is.Equal(true, containsNetwork(nws, fullIDNet)), "Network fullIDNet not found")
 }

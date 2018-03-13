@@ -12,10 +12,10 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestPause(t *testing.T) {
@@ -31,14 +31,14 @@ func TestPause(t *testing.T) {
 	since := request.DaemonUnixTime(ctx, t, client, testEnv)
 
 	err := client.ContainerPause(ctx, cID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	inspect, err := client.ContainerInspect(ctx, cID)
-	require.NoError(t, err)
-	assert.Equal(t, true, inspect.State.Paused)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(true, inspect.State.Paused))
 
 	err = client.ContainerUnpause(ctx, cID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	until := request.DaemonUnixTime(ctx, t, client, testEnv)
 
@@ -47,7 +47,7 @@ func TestPause(t *testing.T) {
 		Until:   until,
 		Filters: filters.NewArgs(filters.Arg("container", cID)),
 	})
-	assert.Equal(t, []string{"pause", "unpause"}, getEventActions(t, messages, errs))
+	assert.Check(t, is.DeepEqual([]string{"pause", "unpause"}, getEventActions(t, messages, errs)))
 }
 
 func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
@@ -75,10 +75,10 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ContainerStop(ctx, cID, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 }
@@ -88,7 +88,7 @@ func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan e
 	for {
 		select {
 		case err := <-errs:
-			assert.True(t, err == nil || err == io.EOF)
+			assert.Check(t, err == nil || err == io.EOF)
 			return actions
 		case e := <-messages:
 			actions = append(actions, e.Status)

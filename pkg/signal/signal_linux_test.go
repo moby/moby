@@ -8,7 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestCatchAll(t *testing.T) {
@@ -34,7 +35,7 @@ func TestCatchAll(t *testing.T) {
 			}()
 
 			s := <-sigs
-			assert.EqualValues(t, s.String(), signal.String())
+			assert.Check(t, is.Equal(s.String(), signal.String()))
 		}
 
 	}
@@ -50,9 +51,9 @@ func TestStopCatch(t *testing.T) {
 		syscall.Kill(syscall.Getpid(), signal)
 	}()
 	signalString := <-channel
-	assert.EqualValues(t, signalString.String(), signal.String())
+	assert.Check(t, is.Equal(signalString.String(), signal.String()))
 
 	StopCatch(channel)
 	_, ok := <-channel
-	assert.EqualValues(t, ok, false)
+	assert.Check(t, is.Equal(ok, false))
 }

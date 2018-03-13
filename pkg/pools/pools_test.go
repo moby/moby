@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestBufioReaderPoolGetWithNoReaderShouldCreateOne(t *testing.T) {
@@ -95,16 +95,16 @@ func TestBufioWriterPoolPutAndGet(t *testing.T) {
 	buf := new(bytes.Buffer)
 	bw := bufio.NewWriter(buf)
 	writer := BufioWriter32KPool.Get(bw)
-	require.NotNil(t, writer)
+	assert.Assert(t, writer != nil)
 
 	written, err := writer.Write([]byte("foobar"))
-	require.NoError(t, err)
-	assert.Equal(t, 6, written)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(6, written))
 
 	// Make sure we Flush all the way ?
 	writer.Flush()
 	bw.Flush()
-	assert.Len(t, buf.Bytes(), 6)
+	assert.Check(t, is.Len(buf.Bytes(), 6))
 	// Reset the buffer
 	buf.Reset()
 	BufioWriter32KPool.Put(writer)

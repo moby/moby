@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 const mountsFixture = `142 78 0:38 / / rw,relatime - aufs none rw,si=573b861da0b3a05b,dio
@@ -138,7 +138,7 @@ func TestTmpfsDevShmSizeOverride(t *testing.T) {
 	// convert ms to spec
 	spec := oci.DefaultSpec()
 	err := setMounts(&d, &spec, c, ms)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	// Check the resulting spec for the correct size
 	found := false
@@ -149,7 +149,7 @@ func TestTmpfsDevShmSizeOverride(t *testing.T) {
 					continue
 				}
 				t.Logf("%+v\n", m.Options)
-				assert.Equal(t, "size="+size, o)
+				assert.Check(t, is.Equal("size="+size, o))
 				found = true
 			}
 		}
@@ -163,7 +163,7 @@ func TestValidateContainerIsolationLinux(t *testing.T) {
 	d := Daemon{}
 
 	_, err := d.verifyContainerSettings("linux", &containertypes.HostConfig{Isolation: containertypes.IsolationHyperV}, nil, false)
-	assert.EqualError(t, err, "invalid isolation 'hyperv' on linux")
+	assert.Check(t, is.Error(err, "invalid isolation 'hyperv' on linux"))
 }
 
 func TestShouldUnmountRoot(t *testing.T) {
@@ -222,7 +222,7 @@ func TestShouldUnmountRoot(t *testing.T) {
 					if test.info != nil {
 						test.info.Optional = options.Optional
 					}
-					assert.Equal(t, expect, shouldUnmountRoot(test.root, test.info))
+					assert.Check(t, is.Equal(expect, shouldUnmountRoot(test.root, test.info)))
 				})
 			}
 		})

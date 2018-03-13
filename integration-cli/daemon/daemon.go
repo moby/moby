@@ -24,14 +24,14 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
 type testingT interface {
-	require.TestingT
+	assert.TestingT
 	logT
 	Fatalf(string, ...interface{})
 }
@@ -487,20 +487,20 @@ func (d *Daemon) handleUserns() {
 // LoadBusybox image into the daemon
 func (d *Daemon) LoadBusybox(t testingT) {
 	clientHost, err := client.NewEnvClient()
-	require.NoError(t, err, "failed to create client")
+	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
 
 	ctx := context.Background()
 	reader, err := clientHost.ImageSave(ctx, []string{"busybox:latest"})
-	require.NoError(t, err, "failed to download busybox")
+	assert.NilError(t, err, "failed to download busybox")
 	defer reader.Close()
 
 	client, err := d.NewClient()
-	require.NoError(t, err, "failed to create client")
+	assert.NilError(t, err, "failed to create client")
 	defer client.Close()
 
 	resp, err := client.ImageLoad(ctx, reader, true)
-	require.NoError(t, err, "failed to load busybox")
+	assert.NilError(t, err, "failed to load busybox")
 	defer resp.Body.Close()
 }
 
@@ -563,11 +563,11 @@ func (d *Daemon) WaitRun(contID string) error {
 }
 
 // Info returns the info struct for this daemon
-func (d *Daemon) Info(t require.TestingT) types.Info {
+func (d *Daemon) Info(t assert.TestingT) types.Info {
 	apiclient, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	info, err := apiclient.Info(context.Background())
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return info
 }
 

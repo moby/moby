@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestSerialization(t *testing.T) {
@@ -16,15 +16,15 @@ func TestSerialization(t *testing.T) {
 	q.append("aaa", func() {
 		//simulate a long time task
 		time.Sleep(10 * time.Millisecond)
-		require.EqualValues(t, serialization, 1)
+		assert.Equal(t, serialization, 1)
 		serialization = 2
 	})
 	q.append("aaa", func() {
-		require.EqualValues(t, serialization, 2)
+		assert.Equal(t, serialization, 2)
 		serialization = 3
 	})
 	q.append("aaa", func() {
-		require.EqualValues(t, serialization, 3)
+		assert.Equal(t, serialization, 3)
 		serialization = 4
 	})
 	time.Sleep(20 * time.Millisecond)

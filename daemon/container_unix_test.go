@@ -9,7 +9,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // TestContainerWarningHostAndPublishPorts that a warning is returned when setting network mode to host and specifying published ports.
@@ -38,7 +38,7 @@ func TestContainerWarningHostAndPublishPorts(t *testing.T) {
 		}
 		d := &Daemon{configStore: cs}
 		wrns, err := d.verifyContainerSettings("", hostConfig, &containertypes.Config{}, false)
-		require.NoError(t, err)
-		require.Equal(t, tc.warnings, wrns)
+		assert.NilError(t, err)
+		assert.DeepEqual(t, tc.warnings, wrns)
 	}
 }

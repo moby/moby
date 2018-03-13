@@ -4,8 +4,9 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -15,7 +16,7 @@ func TestDistributionInspectUnsupported(t *testing.T) {
 		client:  &http.Client{},
 	}
 	_, err := client.DistributionInspect(context.Background(), "foobar:1.0", "")
-	assert.EqualError(t, err, `"distribution inspect" requires API version 1.30, but the Docker daemon API version is 1.29`)
+	assert.Check(t, is.Error(err, `"distribution inspect" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestDistributionInspectWithEmptyID(t *testing.T) {

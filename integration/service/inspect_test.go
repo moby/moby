@@ -10,10 +10,10 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -23,7 +23,7 @@ func TestInspect(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var before = time.Now()
 	var instances uint64 = 2
@@ -33,16 +33,16 @@ func TestInspect(t *testing.T) {
 	resp, err := client.ServiceCreate(ctx, serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	id := resp.ID
 	poll.WaitOn(t, serviceContainerCount(client, id, instances))
 
 	service, _, err := client.ServiceInspectWithRaw(ctx, id, types.ServiceInspectOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, serviceSpec, service.Spec)
-	assert.Equal(t, uint64(11), service.Meta.Version.Index)
-	assert.Equal(t, id, service.ID)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(serviceSpec, service.Spec))
+	assert.Check(t, is.Equal(uint64(11), service.Meta.Version.Index))
+	assert.Check(t, is.Equal(id, service.ID))
 	assert.WithinDuration(t, before, service.CreatedAt, 30*time.Second)
 	assert.WithinDuration(t, before, service.UpdatedAt, 30*time.Second)
 }

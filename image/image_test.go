@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/layer"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 const sampleImageJSON = `{
@@ -25,13 +25,13 @@ const sampleImageJSON = `{
 
 func TestNewFromJSON(t *testing.T) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
-	require.NoError(t, err)
-	assert.Equal(t, sampleImageJSON, string(img.RawJSON()))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(sampleImageJSON, string(img.RawJSON())))
 }
 
 func TestNewFromJSONWithInvalidJSON(t *testing.T) {
 	_, err := NewFromJSON([]byte("{}"))
-	assert.EqualError(t, err, "invalid image JSON, no RootFS key")
+	assert.Check(t, is.Error(err, "invalid image JSON, no RootFS key"))
 }
 
 func TestMarshalKeyOrder(t *testing.T) {
@@ -42,7 +42,7 @@ func TestMarshalKeyOrder(t *testing.T) {
 			Architecture: "c",
 		},
 	})
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	expectedOrder := []string{"architecture", "author", "comment"}
 	var indexes []int
@@ -71,10 +71,10 @@ func TestImage(t *testing.T) {
 		computedID: ID(cid),
 	}
 
-	assert.Equal(t, cid, img.ImageID())
-	assert.Equal(t, cid, img.ID().String())
-	assert.Equal(t, os, img.OperatingSystem())
-	assert.Equal(t, config, img.RunConfig())
+	assert.Check(t, is.Equal(cid, img.ImageID()))
+	assert.Check(t, is.Equal(cid, img.ID().String()))
+	assert.Check(t, is.Equal(os, img.OperatingSystem()))
+	assert.Check(t, is.DeepEqual(config, img.RunConfig()))
 }
 
 func TestImageOSNotEmpty(t *testing.T) {
@@ -85,7 +85,7 @@ func TestImageOSNotEmpty(t *testing.T) {
 		},
 		OSVersion: "osversion",
 	}
-	assert.Equal(t, os, img.OperatingSystem())
+	assert.Check(t, is.Equal(os, img.OperatingSystem()))
 }
 
 func TestNewChildImageFromImageWithRootFS(t *testing.T) {
@@ -109,16 +109,16 @@ func TestNewChildImageFromImageWithRootFS(t *testing.T) {
 
 	newImage := NewChildImage(parent, childConfig, "platform")
 	expectedDiffIDs := []layer.DiffID{layer.DiffID("ba5e"), layer.DiffID("abcdef")}
-	assert.Equal(t, expectedDiffIDs, newImage.RootFS.DiffIDs)
-	assert.Equal(t, childConfig.Author, newImage.Author)
-	assert.Equal(t, childConfig.Config, newImage.Config)
-	assert.Equal(t, *childConfig.ContainerConfig, newImage.ContainerConfig)
-	assert.Equal(t, "platform", newImage.OS)
-	assert.Equal(t, childConfig.Config, newImage.Config)
+	assert.Check(t, is.DeepEqual(expectedDiffIDs, newImage.RootFS.DiffIDs))
+	assert.Check(t, is.Equal(childConfig.Author, newImage.Author))
+	assert.Check(t, is.DeepEqual(childConfig.Config, newImage.Config))
+	assert.Check(t, is.DeepEqual(*childConfig.ContainerConfig, newImage.ContainerConfig))
+	assert.Check(t, is.Equal("platform", newImage.OS))
+	assert.Check(t, is.DeepEqual(childConfig.Config, newImage.Config))
 
-	assert.Len(t, newImage.History, 2)
-	assert.Equal(t, childConfig.Comment, newImage.History[1].Comment)
+	assert.Check(t, is.Len(newImage.History, 2))
+	assert.Check(t, is.Equal(childConfig.Comment, newImage.History[1].Comment))
 
 	// RootFS should be copied not mutated
-	assert.NotEqual(t, parent.RootFS.DiffIDs, newImage.RootFS.DiffIDs)
+	assert.Check(t, parent.RootFS.DiffIDs != newImage.RootFS.DiffIDs)
 }

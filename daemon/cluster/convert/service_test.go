@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/swarm/runtime"
 	swarmapi "github.com/docker/swarmkit/api"
 	google_protobuf3 "github.com/gogo/protobuf/types"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {
@@ -178,12 +178,12 @@ func TestServiceConvertToGRPCIsolation(t *testing.T) {
 				},
 			}
 			res, err := ServiceSpecToGRPC(s)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 			v, ok := res.Task.Runtime.(*swarmapi.TaskSpec_Container)
 			if !ok {
 				t.Fatal("expected type swarmapi.TaskSpec_Container")
 			}
-			require.Equal(t, c.to, v.Container.Isolation)
+			assert.Equal(t, c.to, v.Container.Isolation)
 		})
 	}
 }
@@ -228,7 +228,7 @@ func TestServiceConvertFromGRPCIsolation(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			require.Equal(t, c.to, svc.Spec.TaskTemplate.ContainerSpec.Isolation)
+			assert.Equal(t, c.to, svc.Spec.TaskTemplate.ContainerSpec.Isolation)
 		})
 	}
 }

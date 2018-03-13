@@ -7,13 +7,12 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"golang.org/x/net/context"
 )
 
 type testingT interface {
-	require.TestingT
+	assert.TestingT
 	logT
 	Fatalf(string, ...interface{})
 }
@@ -47,7 +46,7 @@ func unpauseAllContainers(t assert.TestingT, client client.ContainerAPIClient) {
 	if len(containers) > 0 {
 		for _, container := range containers {
 			err := client.ContainerUnpause(ctx, container.ID)
-			assert.NoError(t, err, "failed to unpause container %s", container.ID)
+			assert.Check(t, err, "failed to unpause container %s", container.ID)
 		}
 	}
 }
@@ -60,7 +59,7 @@ func getPausedContainers(ctx context.Context, t assert.TestingT, client client.C
 		Quiet:   true,
 		All:     true,
 	})
-	assert.NoError(t, err, "failed to list containers")
+	assert.Check(t, err, "failed to list containers")
 	return containers
 }
 
@@ -84,7 +83,7 @@ func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient,
 		if err == nil || client.IsErrNotFound(err) || alreadyExists.MatchString(err.Error()) || isErrNotFoundSwarmClassic(err) {
 			continue
 		}
-		assert.NoError(t, err, "failed to remove %s", container.ID)
+		assert.Check(t, err, "failed to remove %s", container.ID)
 	}
 }
 
@@ -93,13 +92,13 @@ func getAllContainers(ctx context.Context, t assert.TestingT, client client.Cont
 		Quiet: true,
 		All:   true,
 	})
-	assert.NoError(t, err, "failed to list containers")
+	assert.Check(t, err, "failed to list containers")
 	return containers
 }
 
 func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	images, err := apiclient.ImageList(context.Background(), types.ImageListOptions{})
-	assert.NoError(t, err, "failed to list images")
+	assert.Check(t, err, "failed to list images")
 
 	ctx := context.Background()
 	for _, image := range images {
@@ -126,12 +125,12 @@ func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageA
 	if client.IsErrNotFound(err) {
 		return
 	}
-	assert.NoError(t, err, "failed to remove image %s", ref)
+	assert.Check(t, err, "failed to remove image %s", ref)
 }
 
 func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
 	volumes, err := c.VolumeList(context.Background(), filters.Args{})
-	assert.NoError(t, err, "failed to list volumes")
+	assert.Check(t, err, "failed to list volumes")
 
 	for _, v := range volumes.Volumes {
 		if _, ok := protectedVolumes[v.Name]; ok {
@@ -142,13 +141,13 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 		if isErrNotFoundSwarmClassic(err) {
 			continue
 		}
-		assert.NoError(t, err, "failed to remove volume %s", v.Name)
+		assert.Check(t, err, "failed to remove volume %s", v.Name)
 	}
 }
 
 func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
 	networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
-	assert.NoError(t, err, "failed to list networks")
+	assert.Check(t, err, "failed to list networks")
 
 	for _, n := range networks {
 		if n.Name == "bridge" || n.Name == "none" || n.Name == "host" {
@@ -162,7 +161,7 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 			continue
 		}
 		err := c.NetworkRemove(context.Background(), n.ID)
-		assert.NoError(t, err, "failed to remove network %s", n.ID)
+		assert.Check(t, err, "failed to remove network %s", n.ID)
 	}
 }
 
@@ -172,14 +171,14 @@ func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient, protectedPlug
 	if client.IsErrNotImplemented(err) {
 		return
 	}
-	assert.NoError(t, err, "failed to list plugins")
+	assert.Check(t, err, "failed to list plugins")
 
 	for _, p := range plugins {
 		if _, ok := protectedPlugins[p.Name]; ok {
 			continue
 		}
 		err := c.PluginRemove(context.Background(), p.Name, types.PluginRemoveOptions{Force: true})
-		assert.NoError(t, err, "failed to remove plugin %s", p.ID)
+		assert.Check(t, err, "failed to remove plugin %s", p.ID)
 	}
 }
 

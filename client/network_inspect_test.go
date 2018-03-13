@@ -11,8 +11,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -22,7 +23,7 @@ func TestNetworkInspectError(t *testing.T) {
 	}
 
 	_, err := client.NetworkInspect(context.Background(), "nothing", types.NetworkInspectOptions{})
-	assert.EqualError(t, err, "Error response from daemon: Server error")
+	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
 }
 
 func TestNetworkInspectNotFoundError(t *testing.T) {
@@ -31,8 +32,8 @@ func TestNetworkInspectNotFoundError(t *testing.T) {
 	}
 
 	_, err := client.NetworkInspect(context.Background(), "unknown", types.NetworkInspectOptions{})
-	assert.EqualError(t, err, "Error: No such network: unknown")
-	assert.True(t, IsErrNotFound(err))
+	assert.Check(t, is.Error(err, "Error: No such network: unknown"))
+	assert.Check(t, IsErrNotFound(err))
 }
 
 func TestNetworkInspectWithEmptyID(t *testing.T) {
@@ -113,5 +114,5 @@ func TestNetworkInspect(t *testing.T) {
 	}
 
 	_, err = client.NetworkInspect(context.Background(), "network_id", types.NetworkInspectOptions{Scope: "global"})
-	assert.EqualError(t, err, "Error: No such network: network_id")
+	assert.Check(t, is.Error(err, "Error: No such network: network_id"))
 }

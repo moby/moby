@@ -4,30 +4,31 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestParseSignal(t *testing.T) {
 	_, checkAtoiError := ParseSignal("0")
-	assert.EqualError(t, checkAtoiError, "Invalid signal: 0")
+	assert.Check(t, is.Error(checkAtoiError, "Invalid signal: 0"))
 
 	_, error := ParseSignal("SIG")
-	assert.EqualError(t, error, "Invalid signal: SIG")
+	assert.Check(t, is.Error(error, "Invalid signal: SIG"))
 
 	for sigStr := range SignalMap {
 		responseSignal, error := ParseSignal(sigStr)
-		assert.NoError(t, error)
+		assert.Check(t, error)
 		signal := SignalMap[sigStr]
-		assert.EqualValues(t, signal, responseSignal)
+		assert.Check(t, is.DeepEqual(signal, responseSignal))
 	}
 }
 
 func TestValidSignalForPlatform(t *testing.T) {
 	isValidSignal := ValidSignalForPlatform(syscall.Signal(0))
-	assert.EqualValues(t, false, isValidSignal)
+	assert.Check(t, is.Equal(false, isValidSignal))
 
 	for _, sigN := range SignalMap {
 		isValidSignal = ValidSignalForPlatform(syscall.Signal(sigN))
-		assert.EqualValues(t, true, isValidSignal)
+		assert.Check(t, is.Equal(true, isValidSignal))
 	}
 }

@@ -10,12 +10,12 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {
 	tmp, err := ioutil.TempDir("", "docker-daemon-unix-test-")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	d := &Daemon{
 		repository: tmp,
 		root:       tmp,

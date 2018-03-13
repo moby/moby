@@ -11,7 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -21,7 +22,7 @@ func TestConfigCreateUnsupported(t *testing.T) {
 		client:  &http.Client{},
 	}
 	_, err := client.ConfigCreate(context.Background(), swarm.ConfigSpec{})
-	assert.EqualError(t, err, `"config create" requires API version 1.30, but the Docker daemon API version is 1.29`)
+	assert.Check(t, is.Error(err, `"config create" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigCreateError(t *testing.T) {

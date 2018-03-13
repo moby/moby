@@ -25,8 +25,8 @@ import (
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/swarmkit/ca"
 	"github.com/go-check/check"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -1010,16 +1010,16 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *check.C) {
 	name := "test-scoped-network"
 	ctx := context.Background()
 	apiclient, err := d.NewClient()
-	require.NoError(c, err)
+	assert.NilError(c, err)
 
 	resp, err := apiclient.NetworkCreate(ctx, name, types.NetworkCreate{Driver: "overlay"})
-	require.NoError(c, err)
+	assert.NilError(c, err)
 
 	network, err := apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{})
-	require.NoError(c, err)
-	assert.Equal(c, "swarm", network.Scope)
-	assert.Equal(c, resp.ID, network.ID)
+	assert.NilError(c, err)
+	assert.Check(c, is.Equal("swarm", network.Scope))
+	assert.Check(c, is.Equal(resp.ID, network.ID))
 
 	_, err = apiclient.NetworkInspect(ctx, name, types.NetworkInspectOptions{Scope: "local"})
-	assert.True(c, client.IsErrNotFound(err))
+	assert.Check(c, client.IsErrNotFound(err))
 }

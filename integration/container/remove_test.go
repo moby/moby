@@ -11,11 +11,11 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
@@ -42,12 +42,12 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	err := os.RemoveAll(tempDir.Path())
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	_, _, err = client.ContainerInspectWithRaw(ctx, cID, true)
 	testutil.ErrorContains(t, err, "No such container")
@@ -65,18 +65,18 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	insp, _, err := client.ContainerInspectWithRaw(ctx, cID, true)
-	require.NoError(t, err)
-	assert.Equal(t, 1, len(insp.Mounts))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(1, len(insp.Mounts)))
 	volName := insp.Mounts[0].Name
 
 	err = client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		RemoveVolumes: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	volumes, err := client.VolumeList(ctx, filters.NewArgs(filters.Arg("name", volName)))
-	require.NoError(t, err)
-	assert.Equal(t, 0, len(volumes.Volumes))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(0, len(volumes.Volumes)))
 }
 
 func TestRemoveContainerRunning(t *testing.T) {
@@ -100,7 +100,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 	err := client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		Force: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestRemoveInvalidContainer(t *testing.T) {

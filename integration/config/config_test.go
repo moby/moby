@@ -14,9 +14,9 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -27,14 +27,14 @@ func TestConfigList(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
 	// This test case is ported from the original TestConfigsEmptyList
 	configs, err := client.ConfigList(ctx, types.ConfigListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, len(configs), 0)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(configs), 0))
 
 	testName0 := "test0"
 	testName1 := "test1"
@@ -57,8 +57,8 @@ func TestConfigList(t *testing.T) {
 
 	// test by `config ls`
 	entries, err := client.ConfigList(ctx, types.ConfigListOptions{})
-	require.NoError(t, err)
-	assert.Equal(t, names(entries), testNames)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(names(entries), testNames))
 
 	testCases := []struct {
 		filters  filters.Args
@@ -92,8 +92,8 @@ func TestConfigList(t *testing.T) {
 		entries, err = client.ConfigList(ctx, types.ConfigListOptions{
 			Filters: tc.filters,
 		})
-		require.NoError(t, err)
-		assert.Equal(t, names(entries), tc.expected)
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(names(entries), tc.expected))
 
 	}
 }
@@ -106,8 +106,8 @@ func createConfig(ctx context.Context, t *testing.T, client client.APIClient, na
 		},
 		Data: data,
 	})
-	require.NoError(t, err)
-	assert.NotEqual(t, config.ID, "")
+	assert.NilError(t, err)
+	assert.Check(t, config.ID != "")
 	return config.ID
 }
 
@@ -118,7 +118,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -128,12 +128,12 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	insp, _, err := client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Name, testName)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
 
 	// This test case is ported from the original TestConfigsDelete
 	err = client.ConfigRemove(ctx, configID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.ConfigInspectWithRaw(ctx, configID)
 	testutil.ErrorContains(t, err, "No such config")
@@ -146,7 +146,7 @@ func TestConfigsUpdate(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -156,35 +156,35 @@ func TestConfigsUpdate(t *testing.T) {
 	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	insp, _, err := client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.ID, configID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.ID, configID))
 
 	// test UpdateConfig with full ID
 	insp.Spec.Labels = map[string]string{"test": "test1"}
 	err = client.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test1")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test1"))
 
 	// test UpdateConfig with full name
 	insp.Spec.Labels = map[string]string{"test": "test2"}
 	err = client.ConfigUpdate(ctx, testName, insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test2")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test2"))
 
 	// test UpdateConfig with prefix ID
 	insp.Spec.Labels = map[string]string{"test": "test3"}
 	err = client.ConfigUpdate(ctx, configID[:1], insp.Version, insp.Spec)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	insp, _, err = client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Labels["test"], "test3")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Labels["test"], "test3"))
 
 	// test UpdateConfig in updating Data which is not supported in daemon
 	// this test will produce an error in func UpdateConfig
@@ -207,7 +207,7 @@ func TestTemplatedConfig(t *testing.T) {
 		Data: []byte("this is a secret"),
 	}
 	referencedSecret, err := client.SecretCreate(ctx, referencedSecretSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	referencedConfigSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
@@ -216,7 +216,7 @@ func TestTemplatedConfig(t *testing.T) {
 		Data: []byte("this is a config"),
 	}
 	referencedConfig, err := client.ConfigCreate(ctx, referencedConfigSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	configSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
@@ -231,7 +231,7 @@ func TestTemplatedConfig(t *testing.T) {
 	}
 
 	templatedConfig, err := client.ConfigCreate(ctx, configSpec)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithConfig(
@@ -309,8 +309,8 @@ func TestTemplatedConfig(t *testing.T) {
 func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
 	buf := bytes.NewBuffer(nil)
 	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
-	require.NoError(t, err)
-	assert.Contains(t, buf.String(), expect)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(buf.String(), expect))
 }
 
 func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {
@@ -336,7 +336,7 @@ func TestConfigInspect(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -344,11 +344,11 @@ func TestConfigInspect(t *testing.T) {
 	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	insp, body, err := client.ConfigInspectWithRaw(ctx, configID)
-	require.NoError(t, err)
-	assert.Equal(t, insp.Spec.Name, testName)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
 
 	var config swarmtypes.Config
 	err = json.Unmarshal(body, &config)
-	require.NoError(t, err)
-	assert.Equal(t, config, insp)
+	assert.NilError(t, err)
+	assert.Check(t, is.DeepEqual(config, insp))
 }

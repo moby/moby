@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // TestContainerConfig holds container configuration struct that
@@ -37,7 +37,7 @@ func Create(t *testing.T, ctx context.Context, client client.APIClient, ops ...f
 	}
 
 	c, err := client.ContainerCreate(ctx, config.Config, config.HostConfig, config.NetworkingConfig, config.Name)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	return c.ID
 }
@@ -48,7 +48,7 @@ func Run(t *testing.T, ctx context.Context, client client.APIClient, ops ...func
 	id := Create(t, ctx, client, ops...)
 
 	err := client.ContainerStart(ctx, id, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	return id
 }

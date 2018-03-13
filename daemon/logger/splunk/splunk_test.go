@@ -11,8 +11,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/env"
-	"github.com/stretchr/testify/require"
 )
 
 // Validate options
@@ -99,19 +99,19 @@ func TestNewWithProxy(t *testing.T) {
 		},
 		ContainerID: "containeriid",
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	splunkLogger := logger.(*splunkLoggerInline)
 
 	proxyFunc := splunkLogger.transport.Proxy
-	require.NotNil(t, proxyFunc)
+	assert.Assert(t, proxyFunc != nil)
 
 	req, err := http.NewRequest("GET", splunkURL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	proxyURL, err := proxyFunc(req)
-	require.NoError(t, err)
-	require.NotNil(t, proxyURL)
-	require.Equal(t, proxy, proxyURL.String())
+	assert.NilError(t, err)
+	assert.Assert(t, proxyURL != nil)
+	assert.Equal(t, proxy, proxyURL.String())
 }
 
 // Test default settings
@@ -483,10 +483,10 @@ func TestRawFormat(t *testing.T) {
 	}
 
 	hostname, err := info.Hostname()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	loggerDriver, err := New(info)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	if !hec.connectionVerified {
 		t.Fatal("By default connection should be verified")

@@ -10,8 +10,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -44,7 +45,7 @@ func TestConfigInspectUnsupported(t *testing.T) {
 		client:  &http.Client{},
 	}
 	_, _, err := client.ConfigInspectWithRaw(context.Background(), "nothing")
-	assert.EqualError(t, err, `"config inspect" requires API version 1.30, but the Docker daemon API version is 1.29`)
+	assert.Check(t, is.Error(err, `"config inspect" requires API version 1.30, but the Docker daemon API version is 1.29`))
 }
 
 func TestConfigInspectError(t *testing.T) {

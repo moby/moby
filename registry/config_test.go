@@ -6,7 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestLoadAllowNondistributableArtifacts(t *testing.T) {
@@ -311,9 +312,9 @@ func TestNewServiceConfig(t *testing.T) {
 	for _, testCase := range testCases {
 		_, err := newServiceConfig(testCase.opts)
 		if testCase.errStr != "" {
-			assert.EqualError(t, err, testCase.errStr)
+			assert.Check(t, is.Error(err, testCase.errStr))
 		} else {
-			assert.Nil(t, err)
+			assert.Check(t, err)
 		}
 	}
 }
@@ -347,8 +348,8 @@ func TestValidateIndexName(t *testing.T) {
 
 	for _, testCase := range valid {
 		result, err := ValidateIndexName(testCase.index)
-		if assert.NoError(t, err) {
-			assert.Equal(t, testCase.expect, result)
+		if assert.Check(t, err) {
+			assert.Check(t, is.Equal(testCase.expect, result))
 		}
 
 	}
@@ -375,6 +376,6 @@ func TestValidateIndexNameWithError(t *testing.T) {
 	}
 	for _, testCase := range invalid {
 		_, err := ValidateIndexName(testCase.index)
-		assert.EqualError(t, err, testCase.err)
+		assert.Check(t, is.Error(err, testCase.err))
 	}
 }

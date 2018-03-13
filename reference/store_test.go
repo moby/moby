@@ -9,9 +9,9 @@ import (
 	"testing"
 
 	"github.com/docker/distribution/reference"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -64,10 +64,10 @@ func TestLoad(t *testing.T) {
 
 func TestSave(t *testing.T) {
 	jsonFile, err := ioutil.TempFile("", "tag-store-test")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	_, err = jsonFile.Write([]byte(`{}`))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	jsonFile.Close()
 	defer os.RemoveAll(jsonFile.Name())
 
@@ -328,23 +328,23 @@ func TestAddDeleteGet(t *testing.T) {
 
 func TestInvalidTags(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "tag-store-test")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	store, err := NewReferenceStore(filepath.Join(tmpDir, "repositories.json"))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	id := digest.Digest("sha256:470022b8af682154f57a2163d030eb369549549cba00edc69e1b99b46bb924d6")
 
 	// sha256 as repo name
 	ref, err := reference.ParseNormalizedNamed("sha256:abc")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	err = store.AddTag(ref, id, true)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 
 	// setting digest as a tag
 	ref, err = reference.ParseNormalizedNamed("registry@sha256:367eb40fd0330a7e464777121e39d2f5b3e8e23a1e159342e53ab05c9e4d94e6")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = store.AddTag(ref, id, true)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 }

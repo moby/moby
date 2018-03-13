@@ -16,10 +16,10 @@ import (
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/docker/docker/pkg/system"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestContainerShmNoLeak(t *testing.T) {
@@ -130,14 +130,14 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	}
 
 	cli, err := client.NewEnvClient()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer cli.Close()
 
 	ctrCreate, err := cli.ContainerCreate(ctx, &config, &hostConfig, &network.NetworkingConfig{}, "")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	// container will exit immediately because of no tty, but we only need the start sequence to test the condition
 	err = cli.ContainerStart(ctx, ctrCreate.ID, types.ContainerStartOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	// Check that host-located bind mount network file did not change ownership when the container was started
 	// Note: If the user specifies a mountpath from the host, we should not be
@@ -150,8 +150,8 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// same line--we don't chown host file content.
 	// See GitHub PR 34224 for details.
 	statT, err := system.Stat(tmpNWFileMount)
-	require.NoError(t, err)
-	assert.Equal(t, uint32(0), statT.UID(), "bind mounted network file should not change ownership from root")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(uint32(0), statT.UID()), "bind mounted network file should not change ownership from root")
 }
 
 func TestMountDaemonRoot(t *testing.T) {

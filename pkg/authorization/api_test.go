@@ -11,7 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestPeerCertificateMarshalJSON(t *testing.T) {
@@ -32,21 +33,21 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 	}
 	// generate private key
 	privatekey, err := rsa.GenerateKey(rand.Reader, 2048)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	publickey := &privatekey.PublicKey
 
 	// create a self-signed certificate. template = parent
 	var parent = template
 	raw, err := x509.CreateCertificate(rand.Reader, template, parent, publickey, privatekey)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	cert, err := x509.ParseCertificate(raw)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var certs = []*x509.Certificate{cert}
 	addr := "www.authz.com/auth"
 	req, err := http.NewRequest("GET", addr, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	req.RequestURI = addr
 	req.TLS = &tls.ConnectionState{}
@@ -58,15 +59,15 @@ func TestPeerCertificateMarshalJSON(t *testing.T) {
 
 		t.Run("Marshalling :", func(t *testing.T) {
 			raw, err = pcObj.MarshalJSON()
-			require.NotNil(t, raw)
-			require.Nil(t, err)
+			assert.Assert(t, raw != nil)
+			assert.NilError(t, err)
 		})
 
 		t.Run("UnMarshalling :", func(t *testing.T) {
 			err := pcObj.UnmarshalJSON(raw)
-			require.Nil(t, err)
-			require.Equal(t, "Earth", pcObj.Subject.Country[0])
-			require.Equal(t, true, pcObj.IsCA)
+			assert.Assert(t, is.Nil(err))
+			assert.Equal(t, "Earth", pcObj.Subject.Country[0])
+			assert.Equal(t, true, pcObj.IsCA)
 
 		})
 

@@ -7,14 +7,15 @@ import (
 	"testing"
 	"time"
 
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/moby/buildkit/session/filesync"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
 func TestFSCache(t *testing.T) {
 	tmpDir, err := ioutil.TempDir("", "fscache")
-	assert.Nil(t, err)
+	assert.Check(t, err)
 	defer os.RemoveAll(tmpDir)
 
 	backend := NewNaiveCacheBackend(filepath.Join(tmpDir, "backend"))
@@ -26,84 +27,84 @@ func TestFSCache(t *testing.T) {
 	}
 
 	fscache, err := NewFSCache(opt)
-	assert.Nil(t, err)
+	assert.Check(t, err)
 
 	defer fscache.Close()
 
 	err = fscache.RegisterTransport("test", &testTransport{})
-	assert.Nil(t, err)
+	assert.Check(t, err)
 
 	src1, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo", "data", "bar"})
-	assert.Nil(t, err)
+	assert.Check(t, err)
 
 	dt, err := ioutil.ReadFile(filepath.Join(src1.Root().Path(), "foo"))
-	assert.Nil(t, err)
-	assert.Equal(t, string(dt), "data")
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(dt), "data"))
 
 	// same id doesn't recalculate anything
 	src2, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo", "data2", "bar"})
-	assert.Nil(t, err)
-	assert.Equal(t, src1.Root().Path(), src2.Root().Path())
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(src1.Root().Path(), src2.Root().Path()))
 
 	dt, err = ioutil.ReadFile(filepath.Join(src1.Root().Path(), "foo"))
-	assert.Nil(t, err)
-	assert.Equal(t, string(dt), "data")
-	assert.Nil(t, src2.Close())
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(dt), "data"))
+	assert.Check(t, src2.Close())
 
 	src3, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo2", "data2", "bar"})
-	assert.Nil(t, err)
-	assert.NotEqual(t, src1.Root().Path(), src3.Root().Path())
+	assert.Check(t, err)
+	assert.Check(t, src1.Root().Path() != src3.Root().Path())
 
 	dt, err = ioutil.ReadFile(filepath.Join(src3.Root().Path(), "foo2"))
-	assert.Nil(t, err)
-	assert.Equal(t, string(dt), "data2")
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(dt), "data2"))
 
 	s, err := fscache.DiskUsage()
-	assert.Nil(t, err)
-	assert.Equal(t, s, int64(0))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(s, int64(0)))
 
-	assert.Nil(t, src3.Close())
+	assert.Check(t, src3.Close())
 
 	s, err = fscache.DiskUsage()
-	assert.Nil(t, err)
-	assert.Equal(t, s, int64(5))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(s, int64(5)))
 
 	// new upload with the same shared key shoutl overwrite
 	src4, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo3", "data3", "bar"})
-	assert.Nil(t, err)
-	assert.NotEqual(t, src1.Root().Path(), src3.Root().Path())
+	assert.Check(t, err)
+	assert.Check(t, src1.Root().Path() != src3.Root().Path())
 
 	dt, err = ioutil.ReadFile(filepath.Join(src3.Root().Path(), "foo3"))
-	assert.Nil(t, err)
-	assert.Equal(t, string(dt), "data3")
-	assert.Equal(t, src4.Root().Path(), src3.Root().Path())
-	assert.Nil(t, src4.Close())
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(string(dt), "data3"))
+	assert.Check(t, is.Equal(src4.Root().Path(), src3.Root().Path()))
+	assert.Check(t, src4.Close())
 
 	s, err = fscache.DiskUsage()
-	assert.Nil(t, err)
-	assert.Equal(t, s, int64(10))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(s, int64(10)))
 
 	// this one goes over the GC limit
 	src5, err := fscache.SyncFrom(context.TODO(), &testIdentifier{"foo4", "datadata", "baz"})
-	assert.Nil(t, err)
-	assert.Nil(t, src5.Close())
+	assert.Check(t, err)
+	assert.Check(t, src5.Close())
 
 	// GC happens async
 	time.Sleep(100 * time.Millisecond)
 
 	// only last insertion after GC
 	s, err = fscache.DiskUsage()
-	assert.Nil(t, err)
-	assert.Equal(t, s, int64(8))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(s, int64(8)))
 
 	// prune deletes everything
 	released, err := fscache.Prune(context.TODO())
-	assert.Nil(t, err)
-	assert.Equal(t, released, uint64(8))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(released, uint64(8)))
 
 	s, err = fscache.DiskUsage()
-	assert.Nil(t, err)
-	assert.Equal(t, s, int64(0))
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(s, int64(0)))
 }
 
 type testTransport struct {

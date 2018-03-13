@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -31,15 +32,15 @@ func TestPingFail(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.Error(t, err)
-	assert.Equal(t, false, ping.Experimental)
-	assert.Equal(t, "", ping.APIVersion)
+	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.Equal(false, ping.Experimental))
+	assert.Check(t, is.Equal("", ping.APIVersion))
 
 	withHeader = true
 	ping2, err := client.Ping(context.Background())
-	assert.Error(t, err)
-	assert.Equal(t, true, ping2.Experimental)
-	assert.Equal(t, "awesome", ping2.APIVersion)
+	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.Equal(true, ping2.Experimental))
+	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
 }
 
 // TestPingWithError tests the case where there is a protocol error in the ping.
@@ -57,9 +58,9 @@ func TestPingWithError(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.Error(t, err)
-	assert.Equal(t, false, ping.Experimental)
-	assert.Equal(t, "", ping.APIVersion)
+	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.Equal(false, ping.Experimental))
+	assert.Check(t, is.Equal("", ping.APIVersion))
 }
 
 // TestPingSuccess tests that we are able to get the expected API headers/ping
@@ -76,7 +77,7 @@ func TestPingSuccess(t *testing.T) {
 		}),
 	}
 	ping, err := client.Ping(context.Background())
-	assert.Error(t, err)
-	assert.Equal(t, true, ping.Experimental)
-	assert.Equal(t, "awesome", ping.APIVersion)
+	assert.Check(t, is.ErrorContains(err, ""))
+	assert.Check(t, is.Equal(true, ping.Experimental))
+	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 }

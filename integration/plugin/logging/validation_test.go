@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // Regression test for #35553
@@ -20,12 +20,12 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	defer d.Stop(t)
 
 	client, err := d.NewClient()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	ctx := context.Background()
 
 	createPlugin(t, client, "test", "dummy", asLogDriver)
 	err = client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer client.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 
 	d.Stop(t)

@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/opts"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
@@ -46,15 +46,15 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
 
 	cc, err := MergeDaemonConfigurations(c, flags, configFile)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.True(t, cc.Debug)
-	assert.True(t, cc.AutoRestart)
+	assert.Check(t, cc.Debug)
+	assert.Check(t, cc.AutoRestart)
 
 	expectedLogConfig := LogConfig{
 		Type:   "syslog",
 		Config: map[string]string{"tag": "test_tag"},
 	}
 
-	assert.Equal(t, expectedLogConfig, cc.LogConfig)
+	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
 }

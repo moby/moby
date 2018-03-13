@@ -12,7 +12,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -22,7 +23,7 @@ func TestSecretListUnsupported(t *testing.T) {
 		client:  &http.Client{},
 	}
 	_, err := client.SecretList(context.Background(), types.SecretListOptions{})
-	assert.EqualError(t, err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`)
+	assert.Check(t, is.Error(err, `"secret list" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretListError(t *testing.T) {

@@ -5,8 +5,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/containerfs"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestIsExistingDirectory(t *testing.T) {
@@ -39,10 +40,10 @@ func TestIsExistingDirectory(t *testing.T) {
 
 	for _, testcase := range testcases {
 		result, err := isExistingDirectory(&copyEndpoint{driver: containerfs.NewLocalDriver(), path: testcase.path})
-		if !assert.NoError(t, err) {
+		if !assert.Check(t, err) {
 			continue
 		}
-		assert.Equal(t, testcase.expected, result, testcase.doc)
+		assert.Check(t, is.Equal(testcase.expected, result), testcase.doc)
 	}
 }
 
@@ -142,6 +143,6 @@ func TestGetFilenameForDownload(t *testing.T) {
 			resp.Header.Add("Content-Disposition", testcase.disposition)
 		}
 		filename := getFilenameForDownload(testcase.path, &resp)
-		assert.Equal(t, testcase.expected, filename)
+		assert.Check(t, is.Equal(testcase.expected, filename))
 	}
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/poll"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -19,7 +19,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	d := newSwarm(t)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	hostName := "host"
 	var instances uint64 = 1
@@ -30,7 +30,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	pollSettings := func(config *poll.Settings) {
 		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
@@ -101,10 +101,10 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), pollSettings)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ServiceRemove(context.Background(), serviceID)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
 	poll.WaitOn(t, noTasks(client), pollSettings)

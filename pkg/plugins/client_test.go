@@ -14,9 +14,9 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -88,7 +88,7 @@ func TestEchoInputOutput(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	assert.Equal(t, m, output)
+	assert.Check(t, is.DeepEqual(m, output))
 	err = c.Call("Test.Echo", nil, nil)
 	if err != nil {
 		t.Fatal(err)
@@ -205,7 +205,7 @@ func TestClientStream(t *testing.T) {
 	if err := json.NewDecoder(body).Decode(&output); err != nil {
 		t.Fatalf("Test.Echo: error reading plugin resp: %v", err)
 	}
-	assert.Equal(t, m, output)
+	assert.Check(t, is.DeepEqual(m, output))
 }
 
 func TestClientSendFile(t *testing.T) {
@@ -233,7 +233,7 @@ func TestClientSendFile(t *testing.T) {
 	if err := c.SendFile("Test.Echo", &buf, &output); err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, m, output)
+	assert.Check(t, is.DeepEqual(m, output))
 }
 
 func TestClientWithRequestTimeout(t *testing.T) {
@@ -248,7 +248,7 @@ func TestClientWithRequestTimeout(t *testing.T) {
 
 	client := &Client{http: srv.Client(), requestFactory: &testRequestWrapper{srv}}
 	_, err := client.callWithRetry("/Plugin.Hello", nil, false, WithRequestTimeout(timeout))
-	require.Error(t, err, "expected error")
+	assert.Assert(t, is.ErrorContains(err, ""), "expected error")
 
 	err = errors.Cause(err)
 
@@ -256,7 +256,7 @@ func TestClientWithRequestTimeout(t *testing.T) {
 	case *url.Error:
 		err = e.Err
 	}
-	require.Equal(t, context.DeadlineExceeded, err)
+	assert.DeepEqual(t, context.DeadlineExceeded, err)
 }
 
 type testRequestWrapper struct {

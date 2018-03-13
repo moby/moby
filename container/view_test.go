@@ -8,8 +8,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pborman/uuid"
-	"github.com/stretchr/testify/assert"
 )
 
 var root string
@@ -109,56 +110,56 @@ func TestNames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.NoError(t, db.ReserveName("name1", "containerid1"))
-	assert.NoError(t, db.ReserveName("name1", "containerid1")) // idempotent
-	assert.NoError(t, db.ReserveName("name2", "containerid2"))
-	assert.EqualError(t, db.ReserveName("name2", "containerid3"), ErrNameReserved.Error())
+	assert.Check(t, db.ReserveName("name1", "containerid1"))
+	assert.Check(t, db.ReserveName("name1", "containerid1")) // idempotent
+	assert.Check(t, db.ReserveName("name2", "containerid2"))
+	assert.Check(t, is.Error(db.ReserveName("name2", "containerid3"), ErrNameReserved.Error()))
 
 	// Releasing a name allows the name to point to something else later.
-	assert.NoError(t, db.ReleaseName("name2"))
-	assert.NoError(t, db.ReserveName("name2", "containerid3"))
+	assert.Check(t, db.ReleaseName("name2"))
+	assert.Check(t, db.ReserveName("name2", "containerid3"))
 
 	view := db.Snapshot()
 
 	id, err := view.GetID("name1")
-	assert.NoError(t, err)
-	assert.Equal(t, "containerid1", id)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal("containerid1", id))
 
 	id, err = view.GetID("name2")
-	assert.NoError(t, err)
-	assert.Equal(t, "containerid3", id)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal("containerid3", id))
 
 	_, err = view.GetID("notreserved")
-	assert.EqualError(t, err, ErrNameNotReserved.Error())
+	assert.Check(t, is.Error(err, ErrNameNotReserved.Error()))
 
 	// Releasing and re-reserving a name doesn't affect the snapshot.
-	assert.NoError(t, db.ReleaseName("name2"))
-	assert.NoError(t, db.ReserveName("name2", "containerid4"))
+	assert.Check(t, db.ReleaseName("name2"))
+	assert.Check(t, db.ReserveName("name2", "containerid4"))
 
 	id, err = view.GetID("name1")
-	assert.NoError(t, err)
-	assert.Equal(t, "containerid1", id)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal("containerid1", id))
 
 	id, err = view.GetID("name2")
-	assert.NoError(t, err)
-	assert.Equal(t, "containerid3", id)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal("containerid3", id))
 
 	// GetAllNames
-	assert.Equal(t, map[string][]string{"containerid1": {"name1"}, "containerid3": {"name2"}}, view.GetAllNames())
+	assert.Check(t, is.DeepEqual(map[string][]string{"containerid1": {"name1"}, "containerid3": {"name2"}}, view.GetAllNames()))
 
-	assert.NoError(t, db.ReserveName("name3", "containerid1"))
-	assert.NoError(t, db.ReserveName("name4", "containerid1"))
+	assert.Check(t, db.ReserveName("name3", "containerid1"))
+	assert.Check(t, db.ReserveName("name4", "containerid1"))
 
 	view = db.Snapshot()
-	assert.Equal(t, map[string][]string{"containerid1": {"name1", "name3", "name4"}, "containerid4": {"name2"}}, view.GetAllNames())
+	assert.Check(t, is.DeepEqual(map[string][]string{"containerid1": {"name1", "name3", "name4"}, "containerid4": {"name2"}}, view.GetAllNames()))
 
 	// Release containerid1's names with Delete even though no container exists
-	assert.NoError(t, db.Delete(&Container{ID: "containerid1"}))
+	assert.Check(t, db.Delete(&Container{ID: "containerid1"}))
 
 	// Reusing one of those names should work
-	assert.NoError(t, db.ReserveName("name1", "containerid4"))
+	assert.Check(t, db.ReserveName("name1", "containerid4"))
 	view = db.Snapshot()
-	assert.Equal(t, map[string][]string{"containerid4": {"name1", "name2"}}, view.GetAllNames())
+	assert.Check(t, is.DeepEqual(map[string][]string{"containerid4": {"name1", "name2"}}, view.GetAllNames()))
 }
 
 // Test case for GitHub issue 35920

@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 var (
@@ -189,7 +189,7 @@ func TestCleanupWithNoDirs(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	err := d.Cleanup()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }
 
 func TestCleanupWithDir(t *testing.T) {
@@ -210,11 +210,11 @@ func TestMountedFalseResponse(t *testing.T) {
 	defer os.RemoveAll(tmp)
 
 	err := d.Create("1", "", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	response, err := d.mounted(d.getDiffPath("1"))
-	require.NoError(t, err)
-	assert.False(t, response)
+	assert.NilError(t, err)
+	assert.Check(t, !response)
 }
 
 func TestMountedTrueResponse(t *testing.T) {
@@ -223,16 +223,16 @@ func TestMountedTrueResponse(t *testing.T) {
 	defer d.Cleanup()
 
 	err := d.Create("1", "", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	err = d.Create("2", "1", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	_, err = d.Get("2", "")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	response, err := d.mounted(d.pathCache["2"])
-	require.NoError(t, err)
-	assert.True(t, response)
+	assert.NilError(t, err)
+	assert.Check(t, response)
 }
 
 func TestMountWithParent(t *testing.T) {
@@ -567,7 +567,7 @@ func TestStatus(t *testing.T) {
 	}
 
 	status := d.Status()
-	assert.Len(t, status, 4)
+	assert.Check(t, is.Len(status, 4))
 
 	rootDir := status[0]
 	dirs := status[2]
@@ -670,18 +670,18 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 		current = hash(current)
 
 		err := d.CreateReadWrite(current, parent, nil)
-		require.NoError(t, err, "current layer %d", i)
+		assert.NilError(t, err, "current layer %d", i)
 
 		point, err := driverGet(d, current, "")
-		require.NoError(t, err, "current layer %d", i)
+		assert.NilError(t, err, "current layer %d", i)
 
 		f, err := os.Create(path.Join(point, current))
-		require.NoError(t, err, "current layer %d", i)
+		assert.NilError(t, err, "current layer %d", i)
 		f.Close()
 
 		if i%10 == 0 {
 			err := os.Remove(path.Join(point, parent))
-			require.NoError(t, err, "current layer %d", i)
+			assert.NilError(t, err, "current layer %d", i)
 			expected--
 		}
 		last = current
@@ -689,10 +689,10 @@ func testMountMoreThan42Layers(t *testing.T, mountPath string) {
 
 	// Perform the actual mount for the top most image
 	point, err := driverGet(d, last, "")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	files, err := ioutil.ReadDir(point)
-	require.NoError(t, err)
-	assert.Len(t, files, expected)
+	assert.NilError(t, err)
+	assert.Check(t, is.Len(files, expected))
 }
 
 func TestMountMoreThan42Layers(t *testing.T) {

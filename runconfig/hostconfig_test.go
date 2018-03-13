@@ -10,7 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 // TODO Windows: This will need addressing for a Windows daemon.
@@ -83,12 +84,12 @@ func TestIpcModeTest(t *testing.T) {
 	}
 
 	for ipcMode, state := range ipcModes {
-		assert.Equal(t, state.private, ipcMode.IsPrivate(), "IpcMode.IsPrivate() parsing failed for %q", ipcMode)
-		assert.Equal(t, state.host, ipcMode.IsHost(), "IpcMode.IsHost()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.container, ipcMode.IsContainer(), "IpcMode.IsContainer()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.shareable, ipcMode.IsShareable(), "IpcMode.IsShareable()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.valid, ipcMode.Valid(), "IpcMode.Valid()  parsing failed for %q", ipcMode)
-		assert.Equal(t, state.ctrName, ipcMode.Container(), "IpcMode.Container() parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.private, ipcMode.IsPrivate()), "IpcMode.IsPrivate() parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.host, ipcMode.IsHost()), "IpcMode.IsHost()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.container, ipcMode.IsContainer()), "IpcMode.IsContainer()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.shareable, ipcMode.IsShareable()), "IpcMode.IsShareable()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.valid, ipcMode.Valid()), "IpcMode.Valid()  parsing failed for %q", ipcMode)
+		assert.Check(t, is.Equal(state.ctrName, ipcMode.Container()), "IpcMode.Container() parsing failed for %q", ipcMode)
 	}
 }
 
@@ -195,7 +196,7 @@ func TestDecodeHostConfig(t *testing.T) {
 			t.Fatal(fmt.Errorf("Error parsing %s: %v", f, err))
 		}
 
-		assert.False(t, c.Privileged)
+		assert.Check(t, !c.Privileged)
 
 		if l := len(c.Binds); l != 1 {
 			t.Fatalf("Expected 1 bind, found %d\n", l)

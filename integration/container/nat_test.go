@@ -15,10 +15,10 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/go-connections/nat"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNetworkNat(t *testing.T) {
@@ -31,12 +31,12 @@ func TestNetworkNat(t *testing.T) {
 
 	endpoint := getExternalAddress(t)
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", endpoint.String(), 8080))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer conn.Close()
 
 	data, err := ioutil.ReadAll(conn)
-	require.NoError(t, err)
-	assert.Equal(t, msg, strings.TrimSpace(string(data)))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(msg, strings.TrimSpace(string(data))))
 }
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
@@ -48,12 +48,12 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 	startServerContainer(t, msg, 8081)
 
 	conn, err := net.Dial("tcp", "localhost:8081")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer conn.Close()
 
 	data, err := ioutil.ReadAll(conn)
-	require.NoError(t, err)
-	assert.Equal(t, msg, strings.TrimSpace(string(data)))
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(msg, strings.TrimSpace(string(data))))
 }
 
 func TestNetworkLoopbackNat(t *testing.T) {
@@ -74,14 +74,14 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	body, err := client.ContainerLogs(ctx, cID, types.ContainerLogsOptions{
 		ShowStdout: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer body.Close()
 
 	var b bytes.Buffer
 	_, err = io.Copy(&b, body)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.Equal(t, msg, strings.TrimSpace(b.String()))
+	assert.Check(t, is.Equal(msg, strings.TrimSpace(b.String())))
 }
 
 func startServerContainer(t *testing.T, msg string, port int) string {
@@ -108,11 +108,11 @@ func getExternalAddress(t *testing.T) net.IP {
 	skip.If(t, err != nil, "Test not running with `make test-integration`. Interface eth0 not found: %s", err)
 
 	ifaceAddrs, err := iface.Addrs()
-	require.NoError(t, err)
-	assert.NotEqual(t, 0, len(ifaceAddrs))
+	assert.NilError(t, err)
+	assert.Check(t, 0 != len(ifaceAddrs))
 
 	ifaceIP, _, err := net.ParseCIDR(ifaceAddrs[0].String())
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	return ifaceIP
 }

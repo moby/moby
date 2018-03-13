@@ -11,7 +11,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/test/environment"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 const (
@@ -35,7 +35,7 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution) *daemon.Swarm {
 	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
 	d.StartWithBusybox(t, args...)
 
-	require.NoError(t, d.Init(swarmtypes.InitRequest{}))
+	assert.NilError(t, d.Init(swarmtypes.InitRequest{}))
 	return d
 }
 
@@ -52,7 +52,7 @@ func CreateService(t *testing.T, d *daemon.Swarm, opts ...ServiceSpecOpt) string
 	client := GetClient(t, d)
 
 	resp, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
-	require.NoError(t, err, "error creating service")
+	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }
 
@@ -126,7 +126,7 @@ func GetRunningTasks(t *testing.T, d *daemon.Swarm, serviceID string) []swarmtyp
 		Filters: filterArgs,
 	}
 	tasks, err := client.TaskList(context.Background(), options)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return tasks
 }
 
@@ -136,11 +136,11 @@ func ExecTask(t *testing.T, d *daemon.Swarm, task swarmtypes.Task, config types.
 
 	ctx := context.Background()
 	resp, err := client.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, config)
-	require.NoError(t, err, "error creating exec")
+	assert.NilError(t, err, "error creating exec")
 
 	startCheck := types.ExecStartCheck{}
 	attach, err := client.ContainerExecAttach(ctx, resp.ID, startCheck)
-	require.NoError(t, err, "error attaching to exec")
+	assert.NilError(t, err, "error attaching to exec")
 	return attach
 }
 
@@ -153,6 +153,6 @@ func ensureContainerSpec(spec *swarmtypes.ServiceSpec) {
 // GetClient creates a new client for the passed in swarm daemon.
 func GetClient(t *testing.T, d *daemon.Swarm) client.APIClient {
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return client
 }

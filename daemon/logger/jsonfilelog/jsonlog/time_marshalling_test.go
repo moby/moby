@@ -5,8 +5,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestFastTimeMarshalJSONWithInvalidYear(t *testing.T) {
@@ -22,14 +22,14 @@ func TestFastTimeMarshalJSONWithInvalidYear(t *testing.T) {
 func TestFastTimeMarshalJSON(t *testing.T) {
 	aTime := time.Date(2015, 5, 29, 11, 1, 2, 3, time.UTC)
 	json, err := fastTimeMarshalJSON(aTime)
-	require.NoError(t, err)
-	assert.Equal(t, "\"2015-05-29T11:01:02.000000003Z\"", json)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("\"2015-05-29T11:01:02.000000003Z\"", json))
 
 	location, err := time.LoadLocation("Europe/Paris")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	aTime = time.Date(2015, 5, 29, 11, 1, 2, 3, location)
 	json, err = fastTimeMarshalJSON(aTime)
-	require.NoError(t, err)
-	assert.Equal(t, "\"2015-05-29T11:01:02.000000003+02:00\"", json)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("\"2015-05-29T11:01:02.000000003+02:00\"", json))
 }

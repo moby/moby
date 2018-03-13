@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestDockerNetworkConnectAlias(t *testing.T) {
@@ -18,7 +18,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	ctx := context.Background()
 
 	name := "test-alias"
@@ -26,7 +26,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 		Driver:     "overlay",
 		Attachable: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	container.Create(t, ctx, client, container.WithName("ng1"), func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
@@ -41,15 +41,15 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 			"aaa",
 		},
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ContainerStart(ctx, "ng1", types.ContainerStartOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ng1, err := client.ContainerInspect(ctx, "ng1")
-	require.NoError(t, err)
-	assert.Equal(t, len(ng1.NetworkSettings.Networks[name].Aliases), 2)
-	assert.Equal(t, ng1.NetworkSettings.Networks[name].Aliases[0], "aaa")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(ng1.NetworkSettings.Networks[name].Aliases), 2))
+	assert.Check(t, is.Equal(ng1.NetworkSettings.Networks[name].Aliases[0], "aaa"))
 
 	container.Create(t, ctx, client, container.WithName("ng2"), func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
@@ -64,13 +64,13 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 			"bbb",
 		},
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.ContainerStart(ctx, "ng2", types.ContainerStartOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ng2, err := client.ContainerInspect(ctx, "ng2")
-	require.NoError(t, err)
-	assert.Equal(t, len(ng2.NetworkSettings.Networks[name].Aliases), 2)
-	assert.Equal(t, ng2.NetworkSettings.Networks[name].Aliases[0], "bbb")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(ng2.NetworkSettings.Networks[name].Aliases), 2))
+	assert.Check(t, is.Equal(ng2.NetworkSettings.Networks[name].Aliases[0], "bbb"))
 }

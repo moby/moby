@@ -11,16 +11,17 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/stretchr/testify/assert"
 )
 
 func defaultFSStoreBackend(t *testing.T) (StoreBackend, func()) {
 	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	fsBackend, err := NewFSStoreBackend(tmpdir)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	return fsBackend, func() { os.RemoveAll(tmpdir) }
 }
@@ -30,12 +31,12 @@ func TestFSGetInvalidData(t *testing.T) {
 	defer cleanup()
 
 	id, err := store.Set([]byte("foobar"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	dgst := digest.Digest(id)
 
 	err = ioutil.WriteFile(filepath.Join(store.(*fs).root, contentDirName, string(dgst.Algorithm()), dgst.Hex()), []byte("foobar2"), 0600)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = store.Get(id)
 	testutil.ErrorContains(t, err, "failed to verify")
@@ -47,7 +48,7 @@ func TestFSInvalidSet(t *testing.T) {
 
 	id := digest.FromBytes([]byte("foobar"))
 	err := os.Mkdir(filepath.Join(store.(*fs).root, contentDirName, string(id.Algorithm()), id.Hex()), 0700)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = store.Set([]byte("foobar"))
 	testutil.ErrorContains(t, err, "failed to write digest data")
@@ -55,7 +56,7 @@ func TestFSInvalidSet(t *testing.T) {
 
 func TestFSInvalidRoot(t *testing.T) {
 	tmpdir, err := ioutil.TempDir("", "images-fs-store")
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer os.RemoveAll(tmpdir)
 
 	tcases := []struct {
@@ -70,10 +71,10 @@ func TestFSInvalidRoot(t *testing.T) {
 		root := filepath.Join(tmpdir, tc.root)
 		filePath := filepath.Join(tmpdir, tc.invalidFile)
 		err := os.MkdirAll(filepath.Dir(filePath), 0700)
-		assert.NoError(t, err)
+		assert.Check(t, err)
 
 		f, err := os.Create(filePath)
-		assert.NoError(t, err)
+		assert.Check(t, err)
 		f.Close()
 
 		_, err = NewFSStoreBackend(root)
@@ -89,10 +90,10 @@ func TestFSMetadataGetSet(t *testing.T) {
 	defer cleanup()
 
 	id, err := store.Set([]byte("foo"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	id2, err := store.Set([]byte("bar"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	tcases := []struct {
 		id    digest.Digest
@@ -106,12 +107,12 @@ func TestFSMetadataGetSet(t *testing.T) {
 
 	for _, tc := range tcases {
 		err = store.SetMetadata(tc.id, tc.key, tc.value)
-		assert.NoError(t, err)
+		assert.Check(t, err)
 
 		actual, err := store.GetMetadata(tc.id, tc.key)
-		assert.NoError(t, err)
+		assert.Check(t, err)
 
-		assert.Equal(t, tc.value, actual)
+		assert.Check(t, is.DeepEqual(tc.value, actual))
 	}
 
 	_, err = store.GetMetadata(id2, "tkey2")
@@ -130,19 +131,19 @@ func TestFSInvalidWalker(t *testing.T) {
 	defer cleanup()
 
 	fooID, err := store.Set([]byte("foo"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	err = ioutil.WriteFile(filepath.Join(store.(*fs).root, contentDirName, "sha256/foobar"), []byte("foobar"), 0600)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	n := 0
 	err = store.Walk(func(id digest.Digest) error {
-		assert.Equal(t, fooID, id)
+		assert.Check(t, is.Equal(fooID, id))
 		n++
 		return nil
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 1, n)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(1, n))
 }
 
 func TestFSGetSet(t *testing.T) {
@@ -159,12 +160,12 @@ func TestFSGetSet(t *testing.T) {
 
 	randomInput := make([]byte, 8*1024)
 	_, err := rand.Read(randomInput)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	// skipping use of digest pkg because it is used by the implementation
 	h := sha256.New()
 	_, err = h.Write(randomInput)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	tcases = append(tcases, tcase{
 		input:    randomInput,
@@ -173,14 +174,14 @@ func TestFSGetSet(t *testing.T) {
 
 	for _, tc := range tcases {
 		id, err := store.Set([]byte(tc.input))
-		assert.NoError(t, err)
-		assert.Equal(t, tc.expected, id)
+		assert.Check(t, err)
+		assert.Check(t, is.Equal(tc.expected, id))
 	}
 
 	for _, tc := range tcases {
 		data, err := store.Get(tc.expected)
-		assert.NoError(t, err)
-		assert.Equal(t, tc.input, data)
+		assert.Check(t, err)
+		assert.Check(t, is.DeepEqual(tc.input, data))
 	}
 }
 
@@ -209,22 +210,22 @@ func TestFSDelete(t *testing.T) {
 	defer cleanup()
 
 	id, err := store.Set([]byte("foo"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	id2, err := store.Set([]byte("bar"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	err = store.Delete(id)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = store.Get(id)
 	testutil.ErrorContains(t, err, "failed to get digest")
 
 	_, err = store.Get(id2)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	err = store.Delete(id2)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = store.Get(id2)
 	testutil.ErrorContains(t, err, "failed to get digest")
@@ -235,10 +236,10 @@ func TestFSWalker(t *testing.T) {
 	defer cleanup()
 
 	id, err := store.Set([]byte("foo"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	id2, err := store.Set([]byte("bar"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}
@@ -249,9 +250,9 @@ func TestFSWalker(t *testing.T) {
 		n++
 		return nil
 	})
-	assert.NoError(t, err)
-	assert.Equal(t, 2, n)
-	assert.Len(t, tcases, 0)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(2, n))
+	assert.Check(t, is.Len(tcases, 0))
 }
 
 func TestFSWalkerStopOnError(t *testing.T) {
@@ -259,7 +260,7 @@ func TestFSWalkerStopOnError(t *testing.T) {
 	defer cleanup()
 
 	id, err := store.Set([]byte("foo"))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	tcases := make(map[digest.Digest]struct{})
 	tcases[id] = struct{}{}

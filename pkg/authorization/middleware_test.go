@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestMiddleware(t *testing.T) {
@@ -15,9 +15,9 @@ func TestMiddleware(t *testing.T) {
 	var pluginGetter plugingetter.PluginGetter
 	m := NewMiddleware(pluginNames, pluginGetter)
 	authPlugins := m.getAuthzPlugins()
-	require.Equal(t, 2, len(authPlugins))
-	require.EqualValues(t, pluginNames[0], authPlugins[0].Name())
-	require.EqualValues(t, pluginNames[1], authPlugins[1].Name())
+	assert.Equal(t, 2, len(authPlugins))
+	assert.Equal(t, pluginNames[0], authPlugins[0].Name())
+	assert.Equal(t, pluginNames[1], authPlugins[1].Name())
 }
 
 func TestNewResponseModifier(t *testing.T) {
@@ -25,17 +25,17 @@ func TestNewResponseModifier(t *testing.T) {
 	modifier := NewResponseModifier(recorder)
 	modifier.Header().Set("H1", "V1")
 	modifier.Write([]byte("body"))
-	require.False(t, modifier.Hijacked())
+	assert.Assert(t, !modifier.Hijacked())
 	modifier.WriteHeader(http.StatusInternalServerError)
-	require.NotNil(t, modifier.RawBody())
+	assert.Assert(t, modifier.RawBody() != nil)
 
 	raw, err := modifier.RawHeaders()
-	require.NotNil(t, raw)
-	require.Nil(t, err)
+	assert.Assert(t, raw != nil)
+	assert.NilError(t, err)
 
 	headerData := strings.Split(strings.TrimSpace(string(raw)), ":")
-	require.EqualValues(t, "H1", strings.TrimSpace(headerData[0]))
-	require.EqualValues(t, "V1", strings.TrimSpace(headerData[1]))
+	assert.Equal(t, "H1", strings.TrimSpace(headerData[0]))
+	assert.Equal(t, "V1", strings.TrimSpace(headerData[1]))
 
 	modifier.Flush()
 	modifier.FlushAll()

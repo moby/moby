@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestEvents(t *testing.T) {
@@ -33,7 +33,7 @@ func TestEvents(t *testing.T) {
 			Cmd: strslice.StrSlice([]string{"echo", "hello"}),
 		},
 	)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	filters := filters.NewArgs(
 		filters.Arg("container", cID),
@@ -49,15 +49,15 @@ func TestEvents(t *testing.T) {
 			Tty:    false,
 		},
 	)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	select {
 	case m := <-msg:
-		require.Equal(t, m.Type, "container")
-		require.Equal(t, m.Actor.ID, cID)
-		require.Equal(t, m.Action, "exec_die")
-		require.Equal(t, m.Actor.Attributes["execID"], id.ID)
-		require.Equal(t, m.Actor.Attributes["exitCode"], "0")
+		assert.Equal(t, m.Type, "container")
+		assert.Equal(t, m.Actor.ID, cID)
+		assert.Equal(t, m.Action, "exec_die")
+		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
+		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
 	case err = <-errors:
 		t.Fatal(err)
 	case <-time.After(time.Second * 3):
@@ -84,16 +84,16 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	// The test here makes sure the response time is less than 3 sec.
 	expectedTime := time.Now().Add(3 * time.Second)
 	emptyResp, emptyBody, err := req.Get("/events")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer emptyBody.Close()
-	assert.Equal(t, http.StatusOK, emptyResp.StatusCode)
-	assert.True(t, time.Now().Before(expectedTime), "timeout waiting for events api to respond, should have responded immediately")
+	assert.Check(t, is.DeepEqual(http.StatusOK, emptyResp.StatusCode))
+	assert.Check(t, time.Now().Before(expectedTime), "timeout waiting for events api to respond, should have responded immediately")
 
 	// We also test to make sure the `events.Message` is compatible with `JSONMessage`
 	q := url.Values{}
 	q.Set("since", ts)
 	_, body, err := req.Get("/events?" + q.Encode())
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer body.Close()
 
 	dec := json.NewDecoder(body)
@@ -112,8 +112,8 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 		}
 	}
 
-	assert.NotNil(t, containerCreateEvent)
-	assert.Equal(t, "create", containerCreateEvent.Status)
-	assert.Equal(t, cID, containerCreateEvent.ID)
-	assert.Equal(t, "busybox", containerCreateEvent.From)
+	assert.Check(t, containerCreateEvent != nil)
+	assert.Check(t, is.Equal("create", containerCreateEvent.Status))
+	assert.Check(t, is.Equal(cID, containerCreateEvent.ID))
+	assert.Check(t, is.Equal("busybox", containerCreateEvent.From))
 }
