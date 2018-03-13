@@ -158,6 +158,9 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 	if os == "" {
 		os = runtime.GOOS
 	}
+	if !system.IsOSSupported(os) {
+		return fmt.Errorf("os %q is not supported", os)
+	}
 	layer, err := l.lss[os].Get(topLayerID)
 	if err != nil {
 		return err
