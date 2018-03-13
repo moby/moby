@@ -2,6 +2,7 @@ package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelo
 
 import (
 	"bytes"
+	"compress/gzip"
 	"encoding/json"
 	"io/ioutil"
 	"os"
@@ -142,7 +143,7 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	}
 	defer os.RemoveAll(tmp)
 	filename := filepath.Join(tmp, "container.log")
-	config := map[string]string{"max-file": "2", "max-size": "1k"}
+	config := map[string]string{"max-file": "3", "max-size": "1k", "compress": "true"}
 	l, err := New(logger.Info{
 		ContainerID: cid,
 		LogPath:     filename,
@@ -152,21 +153,55 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer l.Close()
-	for i := 0; i < 20; i++ {
+	for i := 0; i < 36; i++ {
 		if err := l.Log(&logger.Message{Line: []byte("line" + strconv.Itoa(i)), Source: "src1"}); err != nil {
 			t.Fatal(err)
 		}
 	}
+
 	res, err := ioutil.ReadFile(filename)
 	if err != nil {
 		t.Fatal(err)
 	}
+
 	penUlt, err := ioutil.ReadFile(filename + ".1")
+	if err != nil {
+		if !os.IsNotExist(err) {
+			t.Fatal(err)
+		}
+
+		file, err := os.Open(filename + ".1.gz")
+		defer file.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		zipReader, err := gzip.NewReader(file)
+		defer zipReader.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
+		penUlt, err = ioutil.ReadAll(zipReader)
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	file, err := os.Open(filename + ".2.gz")
+	defer file.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	zipReader, err := gzip.NewReader(file)
+	defer zipReader.Close()
+	if err != nil {
+		t.Fatal(err)
+	}
+	antepenult, err := ioutil.ReadAll(zipReader)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expectedPenultimate := `{"log":"line0\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expectedAntepenultimate := `{"log":"line0\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line1\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line2\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line3\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
@@ -183,10 +218,27 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 {"log":"line14\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line15\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 `
-	expected := `{"log":"line16\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+	expectedPenultimate := `{"log":"line16\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line17\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line18\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 {"log":"line19\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line20\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line21\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line22\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line23\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line24\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line25\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line26\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line27\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line28\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line29\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line30\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line31\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+`
+	expected := `{"log":"line32\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line33\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line34\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
+{"log":"line35\n","stream":"src1","time":"0001-01-01T00:00:00Z"}
 `
 
 	if string(res) != expected {
@@ -195,7 +247,9 @@ func TestJSONFileLoggerWithOpts(t *testing.T) {
 	if string(penUlt) != expectedPenultimate {
 		t.Fatalf("Wrong log content: %q, expected %q", penUlt, expectedPenultimate)
 	}
-
+	if string(antepenult) != expectedAntepenultimate {
+		t.Fatalf("Wrong log content: %q, expected %q", antepenult, expectedAntepenultimate)
+	}
 }
 
 func TestJSONFileLoggerWithLabelsEnv(t *testing.T) {
