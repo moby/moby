@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/net/context"
 )
 
@@ -235,12 +235,12 @@ func (d *Swarm) CheckServiceUpdateState(service string) func(*check.C) (interfac
 func (d *Swarm) CheckPluginRunning(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
 		apiclient, err := d.NewClient()
-		require.NoError(c, err)
+		assert.NilError(c, err)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
 			return false, check.Commentf("%v", err)
 		}
-		require.NoError(c, err)
+		assert.NilError(c, err)
 		return resp.Enabled, check.Commentf("%+v", resp)
 	}
 }
@@ -249,12 +249,12 @@ func (d *Swarm) CheckPluginRunning(plugin string) func(c *check.C) (interface{},
 func (d *Swarm) CheckPluginImage(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
 		apiclient, err := d.NewClient()
-		require.NoError(c, err)
+		assert.NilError(c, err)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
 			return false, check.Commentf("%v", err)
 		}
-		require.NoError(c, err)
+		assert.NilError(c, err)
 		return resp.PluginReference, check.Commentf("%+v", resp)
 	}
 }

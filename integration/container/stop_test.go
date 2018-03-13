@@ -10,10 +10,10 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/require"
 )
 
 func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
@@ -34,7 +34,7 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 
 	for _, name := range names {
 		err := client.ContainerStop(ctx, name, nil)
-		require.NoError(t, err)
+		assert.NilError(t, err)
 	}
 
 	for _, name := range names {
@@ -54,7 +54,7 @@ func TestDeleteDevicemapper(t *testing.T) {
 	poll.WaitOn(t, container.IsStopped(ctx, client, id), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, id)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	deviceID := inspect.GraphDriver.Data["DeviceId"]
 
@@ -67,5 +67,5 @@ func TestDeleteDevicemapper(t *testing.T) {
 	result.Assert(t, icmd.Success)
 
 	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }

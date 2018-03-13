@@ -3,13 +3,14 @@ package testutil // import "github.com/docker/docker/internal/testutil"
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func testLengthHelper(generator func(int) string, t *testing.T) {
 	expectedLength := 20
 	s := generator(expectedLength)
-	assert.Equal(t, expectedLength, len(s))
+	assert.Check(t, is.Equal(expectedLength, len(s)))
 }
 
 func testUniquenessHelper(generator func(int) string, t *testing.T) {
@@ -17,9 +18,9 @@ func testUniquenessHelper(generator func(int) string, t *testing.T) {
 	set := make(map[string]struct{}, repeats)
 	for i := 0; i < repeats; i = i + 1 {
 		str := generator(64)
-		assert.Equal(t, 64, len(str))
+		assert.Check(t, is.Equal(64, len(str)))
 		_, ok := set[str]
-		assert.False(t, ok, "Random number is repeated")
+		assert.Check(t, !ok, "Random number is repeated")
 		set[str] = struct{}{}
 	}
 }

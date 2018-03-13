@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
@@ -26,7 +26,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	vol, err := client.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
 		Name: name,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	expected := types.Volume{
 		// Ignore timestamp of CreatedAt
@@ -36,14 +36,14 @@ func TestVolumesCreateAndList(t *testing.T) {
 		Name:       name,
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
-	assert.Equal(t, vol, expected)
+	assert.Check(t, is.DeepEqual(vol, expected))
 
 	volumes, err := client.VolumeList(ctx, filters.Args{})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.Equal(t, len(volumes.Volumes), 1)
-	assert.NotNil(t, volumes.Volumes[0])
-	assert.Equal(t, *volumes.Volumes[0], expected)
+	assert.Check(t, is.Equal(len(volumes.Volumes), 1))
+	assert.Check(t, volumes.Volumes[0] != nil)
+	assert.Check(t, is.DeepEqual(*volumes.Volumes[0], expected))
 }
 
 func TestVolumesRemove(t *testing.T) {
@@ -56,7 +56,7 @@ func TestVolumesRemove(t *testing.T) {
 	id := container.Create(t, ctx, client, container.WithVolume(prefix+"foo"))
 
 	c, err := client.ContainerInspect(ctx, id)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	vname := c.Mounts[0].Name
 
 	err = client.VolumeRemove(ctx, vname, false)
@@ -65,10 +65,10 @@ func TestVolumesRemove(t *testing.T) {
 	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		Force: true,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	err = client.VolumeRemove(ctx, vname, false)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestVolumesInspect(t *testing.T) {
@@ -83,10 +83,10 @@ func TestVolumesInspect(t *testing.T) {
 	_, err := client.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
 		Name: name,
 	})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	vol, err := client.VolumeInspect(ctx, name)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	expected := types.Volume{
 		// Ignore timestamp of CreatedAt
@@ -96,13 +96,13 @@ func TestVolumesInspect(t *testing.T) {
 		Name:       name,
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
-	assert.Equal(t, vol, expected)
+	assert.Check(t, is.DeepEqual(vol, expected))
 
 	// comparing CreatedAt field time for the new volume to now. Removing a minute from both to avoid false positive
 	testCreatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(vol.CreatedAt))
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	testCreatedAt = testCreatedAt.Truncate(time.Minute)
-	assert.Equal(t, testCreatedAt.Equal(now), true, "Time Volume is CreatedAt not equal to current time")
+	assert.Check(t, is.Equal(testCreatedAt.Equal(now), true), "Time Volume is CreatedAt not equal to current time")
 }
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {

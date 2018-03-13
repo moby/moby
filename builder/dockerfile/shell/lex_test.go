@@ -7,7 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestShellParser4EnvVars(t *testing.T) {
@@ -15,7 +16,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 	lineCount := 0
 
 	file, err := os.Open(fn)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer file.Close()
 
 	shlex := NewLex('\\')
@@ -37,7 +38,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 		}
 
 		words := strings.Split(line, "|")
-		assert.Len(t, words, 3)
+		assert.Check(t, is.Len(words, 3))
 
 		platform := strings.TrimSpace(words[0])
 		source := strings.TrimSpace(words[1])
@@ -52,10 +53,10 @@ func TestShellParser4EnvVars(t *testing.T) {
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
 			newWord, err := shlex.ProcessWord(source, envs)
 			if expected == "error" {
-				assert.Error(t, err)
+				assert.Check(t, is.ErrorContains(err, ""))
 			} else {
-				assert.NoError(t, err)
-				assert.Equal(t, newWord, expected)
+				assert.Check(t, err)
+				assert.Check(t, is.Equal(newWord, expected))
 			}
 		}
 	}

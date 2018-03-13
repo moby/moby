@@ -3,7 +3,8 @@ package middleware // import "github.com/docker/docker/api/server/middleware"
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestMaskSecretKeys(t *testing.T) {
@@ -53,6 +54,6 @@ func TestMaskSecretKeys(t *testing.T) {
 
 	for _, testcase := range tests {
 		maskSecretKeys(testcase.input, testcase.path)
-		assert.Equal(t, testcase.expected, testcase.input)
+		assert.Check(t, is.DeepEqual(testcase.expected, testcase.input))
 	}
 }

@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"golang.org/x/net/context"
 )
 
@@ -46,7 +46,7 @@ func TestSetHostHeader(t *testing.T) {
 
 	for c, test := range testCases {
 		hostURL, err := ParseHostURL(test.host)
-		require.NoError(t, err)
+		assert.NilError(t, err)
 
 		client := &Client{
 			client: newMockClient(func(req *http.Request) (*http.Response, error) {
@@ -71,7 +71,7 @@ func TestSetHostHeader(t *testing.T) {
 		}
 
 		_, err = client.sendRequest(context.Background(), "GET", testURL, nil, nil, nil)
-		require.NoError(t, err)
+		assert.NilError(t, err)
 	}
 }
 

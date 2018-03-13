@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestDiscoveryOptsErrors(t *testing.T) {
@@ -42,26 +42,26 @@ func TestDiscoveryOptsErrors(t *testing.T) {
 
 	for _, testcase := range testcases {
 		_, _, err := discoveryOpts(testcase.opts)
-		assert.Error(t, err, testcase.doc)
+		assert.Check(t, is.ErrorContains(err, ""), testcase.doc)
 	}
 }
 
 func TestDiscoveryOpts(t *testing.T) {
 	clusterOpts := map[string]string{"discovery.heartbeat": "10", "discovery.ttl": "20"}
 	heartbeat, ttl, err := discoveryOpts(clusterOpts)
-	require.NoError(t, err)
-	assert.Equal(t, 10*time.Second, heartbeat)
-	assert.Equal(t, 20*time.Second, ttl)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(10*time.Second, heartbeat))
+	assert.Check(t, is.Equal(20*time.Second, ttl))
 
 	clusterOpts = map[string]string{"discovery.heartbeat": "10"}
 	heartbeat, ttl, err = discoveryOpts(clusterOpts)
-	require.NoError(t, err)
-	assert.Equal(t, 10*time.Second, heartbeat)
-	assert.Equal(t, 10*defaultDiscoveryTTLFactor*time.Second, ttl)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(10*time.Second, heartbeat))
+	assert.Check(t, is.Equal(10*defaultDiscoveryTTLFactor*time.Second, ttl))
 
 	clusterOpts = map[string]string{"discovery.ttl": "30"}
 	heartbeat, ttl, err = discoveryOpts(clusterOpts)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	if ttl != 30*time.Second {
 		t.Fatalf("TTL - Expected : %v, Actual : %v", 30*time.Second, ttl)

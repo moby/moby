@@ -12,7 +12,8 @@ import (
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/registry"
 	"github.com/docker/libnetwork"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestDaemonReloadLabels(t *testing.T) {
@@ -97,7 +98,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 
 	sort.Strings(registries)
 	sort.Strings(actual)
-	assert.Equal(t, registries, actual)
+	assert.Check(t, is.DeepEqual(registries, actual))
 }
 
 func TestDaemonReloadMirrors(t *testing.T) {

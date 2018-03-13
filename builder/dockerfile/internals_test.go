@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/builder/remotecontext"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/go-connections/nat"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestEmptyDockerfile(t *testing.T) {
@@ -60,7 +60,7 @@ func TestNonExistingDockerfile(t *testing.T) {
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	defer func() {
 		if err = tarStream.Close(); err != nil {
@@ -77,7 +77,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		Source:  tarStream,
 	}
 	_, _, err = remotecontext.Detect(config)
-	assert.EqualError(t, err, expectedError)
+	assert.Check(t, is.Error(err, expectedError))
 }
 
 func TestCopyRunConfig(t *testing.T) {
@@ -124,9 +124,9 @@ func TestCopyRunConfig(t *testing.T) {
 			Env: defaultEnv,
 		}
 		runConfigCopy := copyRunConfig(runConfig, testcase.modifiers...)
-		assert.Equal(t, testcase.expected, runConfigCopy, testcase.doc)
+		assert.Check(t, is.DeepEqual(testcase.expected, runConfigCopy), testcase.doc)
 		// Assert the original was not modified
-		assert.NotEqual(t, runConfig, runConfigCopy, testcase.doc)
+		assert.Check(t, runConfig != runConfigCopy, testcase.doc)
 	}
 
 }
@@ -156,7 +156,7 @@ func fullMutableRunConfig() *container.Config {
 func TestDeepCopyRunConfig(t *testing.T) {
 	runConfig := fullMutableRunConfig()
 	copy := copyRunConfig(runConfig)
-	assert.Equal(t, fullMutableRunConfig(), copy)
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), copy))
 
 	copy.Cmd[1] = "arg2"
 	copy.Env[1] = "env2=new"
@@ -166,5 +166,5 @@ func TestDeepCopyRunConfig(t *testing.T) {
 	copy.OnBuild[0] = "start"
 	copy.Labels["label3"] = "value3"
 	copy.Shell[0] = "sh"
-	assert.Equal(t, fullMutableRunConfig(), runConfig)
+	assert.Check(t, is.DeepEqual(fullMutableRunConfig(), runConfig))
 }

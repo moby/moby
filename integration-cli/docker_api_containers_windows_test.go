@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
 	"github.com/go-check/check"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -65,12 +65,12 @@ func (s *DockerSuite) TestContainersAPICreateMountsBindNamedPipe(c *check.C) {
 			},
 		},
 		nil, name)
-	require.NoError(c, err)
+	assert.NilError(c, err)
 
 	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
-	require.NoError(c, err)
+	assert.NilError(c, err)
 
 	err = <-ch
-	require.NoError(c, err)
-	assert.Equal(c, text, strings.TrimSpace(string(b)))
+	assert.NilError(c, err)
+	assert.Check(c, is.Equal(text, strings.TrimSpace(string(b))))
 }

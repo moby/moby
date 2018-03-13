@@ -9,10 +9,10 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestKillContainerInvalidSignal(t *testing.T) {
@@ -22,11 +22,11 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 	id := container.Run(t, ctx, client)
 
 	err := client.ContainerKill(ctx, id, "0")
-	require.EqualError(t, err, "Error response from daemon: Invalid signal: 0")
+	assert.Error(t, err, "Error response from daemon: Invalid signal: 0")
 	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err = client.ContainerKill(ctx, id, "SIG42")
-	require.EqualError(t, err, "Error response from daemon: Invalid signal: SIG42")
+	assert.Error(t, err, "Error response from daemon: Invalid signal: SIG42")
 	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 }
 
@@ -62,7 +62,7 @@ func TestKillContainer(t *testing.T) {
 			ctx := context.Background()
 			id := container.Run(t, ctx, client)
 			err := client.ContainerKill(ctx, id, tc.signal)
-			require.NoError(t, err)
+			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
@@ -102,7 +102,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 				}
 			})
 			err := client.ContainerKill(ctx, id, "TERM")
-			require.NoError(t, err)
+			assert.NilError(t, err)
 
 			poll.WaitOn(t, container.IsInState(ctx, client, id, tc.status), poll.WithDelay(100*time.Millisecond))
 		})
@@ -116,8 +116,8 @@ func TestKillStoppedContainer(t *testing.T) {
 	client := request.NewAPIClient(t)
 	id := container.Create(t, ctx, client)
 	err := client.ContainerKill(ctx, id, "SIGKILL")
-	require.Error(t, err)
-	require.Contains(t, err.Error(), "is not running")
+	assert.Assert(t, is.ErrorContains(err, ""))
+	assert.Assert(t, is.Contains(err.Error(), "is not running"))
 }
 
 func TestKillStoppedContainerAPIPre120(t *testing.T) {
@@ -127,7 +127,7 @@ func TestKillStoppedContainerAPIPre120(t *testing.T) {
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 	id := container.Create(t, ctx, client)
 	err := client.ContainerKill(ctx, id, "SIGKILL")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestKillDifferentUserContainer(t *testing.T) {
@@ -144,7 +144,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerKill(ctx, id, "SIGKILL")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	poll.WaitOn(t, container.IsInState(ctx, client, id, "exited"), poll.WithDelay(100*time.Millisecond))
 }
 
@@ -162,8 +162,8 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
-	require.NoError(t, err)
-	assert.Equal(t, true, inspect.State.OOMKilled)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(true, inspect.State.OOMKilled))
 }
 
 func TestInspectOomKilledFalse(t *testing.T) {
@@ -178,6 +178,6 @@ func TestInspectOomKilledFalse(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	inspect, err := client.ContainerInspect(ctx, cID)
-	require.NoError(t, err)
-	assert.Equal(t, false, inspect.State.OOMKilled)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(false, inspect.State.OOMKilled))
 }

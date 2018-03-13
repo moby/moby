@@ -14,8 +14,9 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -78,11 +79,11 @@ func TestGet(t *testing.T) {
 
 	// check negative case where plugin fruit doesn't implement banana
 	_, err = Get("fruit", "banana")
-	assert.Equal(t, errors.Cause(err), ErrNotImplements)
+	assert.Check(t, is.DeepEqual(errors.Cause(err), ErrNotImplements))
 
 	// check negative case where plugin vegetable doesn't exist
 	_, err = Get("vegetable", "potato")
-	assert.Equal(t, errors.Cause(err), ErrNotFound)
+	assert.Check(t, is.DeepEqual(errors.Cause(err), ErrNotFound))
 
 }
 

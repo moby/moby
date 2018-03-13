@@ -6,8 +6,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/idtools"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestChownFlagParsing(t *testing.T) {
@@ -99,8 +99,8 @@ othergrp:x:6666:
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
 			idPair, err := parseChownFlag(testcase.chownStr, contextDir, testcase.idMapping)
-			require.NoError(t, err, "Failed to parse chown flag: %q", testcase.chownStr)
-			assert.Equal(t, testcase.expected, idPair, "chown flag mapping failure")
+			assert.NilError(t, err, "Failed to parse chown flag: %q", testcase.chownStr)
+			assert.Check(t, is.DeepEqual(testcase.expected, idPair), "chown flag mapping failure")
 		})
 	}
 
@@ -132,7 +132,7 @@ othergrp:x:6666:
 	} {
 		t.Run(testcase.name, func(t *testing.T) {
 			_, err := parseChownFlag(testcase.chownStr, contextDir, testcase.idMapping)
-			assert.EqualError(t, err, testcase.descr, "Expected error string doesn't match")
+			assert.Check(t, is.Error(err, testcase.descr), "Expected error string doesn't match")
 		})
 	}
 }

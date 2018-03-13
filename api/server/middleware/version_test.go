@@ -7,7 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/server/httputils"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -17,7 +18,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 	expectedVersion := defaultVersion
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		v := httputils.VersionFromContext(ctx)
-		assert.Equal(t, expectedVersion, v)
+		assert.Check(t, is.Equal(expectedVersion, v))
 		return nil
 	}
 
@@ -56,9 +57,9 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 		err := h(ctx, resp, req, map[string]string{"version": test.reqVersion})
 
 		if test.errString != "" {
-			assert.EqualError(t, err, test.errString)
+			assert.Check(t, is.Error(err, test.errString))
 		} else {
-			assert.NoError(t, err)
+			assert.Check(t, err)
 		}
 	}
 }
@@ -66,7 +67,7 @@ func TestVersionMiddlewareVersion(t *testing.T) {
 func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 	handler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		v := httputils.VersionFromContext(ctx)
-		assert.NotEmpty(t, v)
+		assert.Check(t, len(v) != 0)
 		return nil
 	}
 
@@ -81,11 +82,11 @@ func TestVersionMiddlewareWithErrorsReturnsHeaders(t *testing.T) {
 
 	vars := map[string]string{"version": "0.1"}
 	err := h(ctx, resp, req, vars)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 
 	hdr := resp.Result().Header
-	assert.Contains(t, hdr.Get("Server"), "Docker/"+defaultVersion)
-	assert.Contains(t, hdr.Get("Server"), runtime.GOOS)
-	assert.Equal(t, hdr.Get("API-Version"), defaultVersion)
-	assert.Equal(t, hdr.Get("OSType"), runtime.GOOS)
+	assert.Check(t, is.Contains(hdr.Get("Server"), "Docker/"+defaultVersion))
+	assert.Check(t, is.Contains(hdr.Get("Server"), runtime.GOOS))
+	assert.Check(t, is.Equal(hdr.Get("API-Version"), defaultVersion))
+	assert.Check(t, is.Equal(hdr.Get("OSType"), runtime.GOOS))
 }

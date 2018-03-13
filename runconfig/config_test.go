@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 type f struct {
@@ -149,21 +149,21 @@ func runDecodeContainerConfigTestCase(testcase decodeConfigTestcase) func(t *tes
 		raw := marshal(t, testcase.wrapper, testcase.doc)
 		config, hostConfig, _, err := decodeContainerConfig(bytes.NewReader(raw))
 		if testcase.expectedErr != "" {
-			if !assert.Error(t, err) {
+			if !assert.Check(t, is.ErrorContains(err, "")) {
 				return
 			}
-			assert.Contains(t, err.Error(), testcase.expectedErr)
+			assert.Check(t, is.Contains(err.Error(), testcase.expectedErr))
 			return
 		}
-		assert.NoError(t, err)
-		assert.Equal(t, testcase.expectedConfig, config)
-		assert.Equal(t, testcase.expectedHostConfig, hostConfig)
+		assert.Check(t, err)
+		assert.Check(t, is.DeepEqual(testcase.expectedConfig, config))
+		assert.Check(t, is.DeepEqual(testcase.expectedHostConfig, hostConfig))
 	}
 }
 
 func marshal(t *testing.T, w ContainerConfigWrapper, doc string) []byte {
 	b, err := json.Marshal(w)
-	require.NoError(t, err, "%s: failed to encode config wrapper", doc)
+	assert.NilError(t, err, "%s: failed to encode config wrapper", doc)
 	return b
 }
 

@@ -12,9 +12,10 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/net/context"
 )
 
@@ -73,8 +74,8 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 					return nil, err
 				}
 
-				assert.Equal(t, "foobar:1.0@sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96", serviceSpec.TaskTemplate.ContainerSpec.Image)
-				assert.Len(t, serviceSpec.TaskTemplate.Placement.Platforms, 1)
+				assert.Check(t, is.Equal("foobar:1.0@sha256:c0537ff6a5218ef531ece93d4984efc99bbf3f7497c0a7726c88e2bb7584dc96", serviceSpec.TaskTemplate.ContainerSpec.Image))
+				assert.Check(t, is.Len(serviceSpec.TaskTemplate.Placement.Platforms, 1))
 
 				p := serviceSpec.TaskTemplate.Placement.Platforms[0]
 				b, err := json.Marshal(types.ServiceCreateResponse{
@@ -115,8 +116,8 @@ func TestServiceCreateCompatiblePlatforms(t *testing.T) {
 	spec := swarm.ServiceSpec{TaskTemplate: swarm.TaskSpec{ContainerSpec: &swarm.ContainerSpec{Image: "foobar:1.0"}}}
 
 	r, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{QueryRegistry: true})
-	assert.NoError(t, err)
-	assert.Equal(t, "service_linux_amd64", r.ID)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal("service_linux_amd64", r.ID))
 }
 
 func TestServiceCreateDigestPinning(t *testing.T) {

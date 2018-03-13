@@ -3,15 +3,15 @@ package testutil // import "github.com/docker/docker/internal/testutil"
 import (
 	"io"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 // ErrorContains checks that the error is not nil, and contains the expected
 // substring.
-func ErrorContains(t require.TestingT, err error, expectedError string, msgAndArgs ...interface{}) {
-	require.Error(t, err, msgAndArgs...)
-	assert.Contains(t, err.Error(), expectedError, msgAndArgs...)
+func ErrorContains(t assert.TestingT, err error, expectedError string, msgAndArgs ...interface{}) {
+	assert.Assert(t, is.ErrorContains(err, ""), msgAndArgs)
+	assert.Check(t, is.Contains(err.Error(), expectedError), msgAndArgs)
 }
 
 // DevZero acts like /dev/zero but in an OS-independent fashion.

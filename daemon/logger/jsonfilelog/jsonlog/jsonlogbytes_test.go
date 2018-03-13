@@ -7,8 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestJSONLogsMarshalJSONBuf(t *testing.T) {
@@ -35,8 +34,8 @@ func TestJSONLogsMarshalJSONBuf(t *testing.T) {
 	for jsonLog, expression := range logs {
 		var buf bytes.Buffer
 		err := jsonLog.MarshalJSONBuf(&buf)
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		assert.Regexp(t, regexp.MustCompile(expression), buf.String())
-		assert.NoError(t, json.Unmarshal(buf.Bytes(), &map[string]interface{}{}))
+		assert.Check(t, json.Unmarshal(buf.Bytes(), &map[string]interface{}{}))
 	}
 }

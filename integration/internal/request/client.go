@@ -9,14 +9,14 @@ import (
 
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/environment"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // NewAPIClient returns a docker API client configured from environment variables
 func NewAPIClient(t *testing.T, ops ...func(*client.Client) error) client.APIClient {
 	ops = append([]func(*client.Client) error{client.FromEnv}, ops...)
 	clt, err := client.NewClientWithOpts(ops...)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return clt
 }
 
@@ -27,10 +27,10 @@ func DaemonTime(ctx context.Context, t *testing.T, client client.APIClient, test
 	}
 
 	info, err := client.Info(ctx)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	require.NoError(t, err, "invalid time format in GET /info response")
+	assert.NilError(t, err, "invalid time format in GET /info response")
 	return dt
 }
 

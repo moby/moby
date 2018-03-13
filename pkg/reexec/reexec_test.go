@@ -5,8 +5,7 @@ import (
 	"os/exec"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func init() {
@@ -19,7 +18,7 @@ func init() {
 func TestRegister(t *testing.T) {
 	defer func() {
 		if r := recover(); r != nil {
-			require.Equal(t, `reexec func already registered under name "reexec"`, r)
+			assert.Equal(t, `reexec func already registered under name "reexec"`, r)
 		}
 	}()
 	Register("reexec", func() {})
@@ -28,13 +27,13 @@ func TestRegister(t *testing.T) {
 func TestCommand(t *testing.T) {
 	cmd := Command("reexec")
 	w, err := cmd.StdinPipe()
-	require.NoError(t, err, "Error on pipe creation: %v", err)
+	assert.NilError(t, err, "Error on pipe creation: %v", err)
 	defer w.Close()
 
 	err = cmd.Start()
-	require.NoError(t, err, "Error on re-exec cmd: %v", err)
+	assert.NilError(t, err, "Error on re-exec cmd: %v", err)
 	err = cmd.Wait()
-	require.EqualError(t, err, "exit status 2")
+	assert.Error(t, err, "exit status 2")
 }
 
 func TestNaiveSelf(t *testing.T) {
@@ -44,10 +43,10 @@ func TestNaiveSelf(t *testing.T) {
 	cmd := exec.Command(naiveSelf(), "-test.run=TestNaiveSelf")
 	cmd.Env = append(os.Environ(), "TEST_CHECK=1")
 	err := cmd.Start()
-	require.NoError(t, err, "Unable to start command")
+	assert.NilError(t, err, "Unable to start command")
 	err = cmd.Wait()
-	require.EqualError(t, err, "exit status 2")
+	assert.Error(t, err, "exit status 2")
 
 	os.Args[0] = "mkdir"
-	assert.NotEqual(t, naiveSelf(), os.Args[0])
+	assert.Check(t, naiveSelf() != os.Args[0])
 }
