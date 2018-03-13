@@ -316,6 +316,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 			v1Img.Parent = parent.Hex()
 		}
 
+		v1Img.OS = img.OS
 		src, err := s.saveLayer(rootFS.ChainID(), v1Img, img.Created)
 		if err != nil {
 			return nil, err
