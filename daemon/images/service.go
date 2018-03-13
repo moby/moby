@@ -77,7 +77,7 @@ type ImageService struct {
 // CountImages returns the number of images stored by ImageService
 // called from info.go
 func (i *ImageService) CountImages() int {
-	return len(i.imageStore.Map())
+	return i.imageStore.Len()
 }
 
 // Children returns the children image.IDs for a parent image.
