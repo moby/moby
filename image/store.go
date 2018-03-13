@@ -27,6 +27,7 @@ type Store interface {
 	Children(id ID) []ID
 	Map() map[ID]*Image
 	Heads() map[ID]*Image
+	Len() int
 }
 
 // LayerGetReleaser is a minimal interface for getting and releasing images.
@@ -335,4 +336,10 @@ func (is *store) imagesMap(all bool) map[ID]*Image {
 		images[id] = img
 	}
 	return images
+}
+
+func (is *store) Len() int {
+	is.RLock()
+	defer is.RUnlock()
+	return len(is.images)
 }
