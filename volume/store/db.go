@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 
 	"github.com/boltdb/bolt"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -28,7 +29,10 @@ func setMeta(tx *bolt.Tx, name string, meta volumeMetadata) error {
 	if err != nil {
 		return err
 	}
-	b := tx.Bucket(volumeBucketName)
+	b, err := tx.CreateBucketIfNotExists(volumeBucketName)
+	if err != nil {
+		return errors.Wrap(err, "error creating volume bucket")
+	}
 	return errors.Wrap(b.Put([]byte(name), metaJSON), "error setting volume metadata")
 }
 
@@ -42,8 +46,11 @@ func (s *VolumeStore) getMeta(name string) (volumeMetadata, error) {
 
 func getMeta(tx *bolt.Tx, name string, meta *volumeMetadata) error {
 	b := tx.Bucket(volumeBucketName)
+	if b == nil {
+		return errdefs.NotFound(errors.New("volume bucket does not exist"))
+	}
 	val := b.Get([]byte(name))
-	if string(val) == "" {
+	if len(val) == 0 {
 		return nil
 	}
 	if err := json.Unmarshal(val, meta); err != nil {

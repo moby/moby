@@ -12,6 +12,8 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
 	volumetestutils "github.com/docker/docker/volume/testutils"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestCreate(t *testing.T) {
@@ -291,6 +293,7 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 
 	pg := volumetestutils.NewFakePluginGetter(p)
 	volumedrivers.RegisterPluginGetter(pg)
+	defer volumedrivers.RegisterPluginGetter(nil)
 
 	dir, err := ioutil.TempDir("", "test-plugin-deref-err")
 	if err != nil {
@@ -318,5 +321,105 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 	// There should be only 1 plugin reference
 	if refs := volumetestutils.FakeRefs(p); refs != 1 {
 		t.Fatalf("expected 1 plugin reference, got: %d", refs)
+	}
+}
+
+func TestRefDerefRemove(t *testing.T) {
+	t.Parallel()
+
+	driverName := "test-ref-deref-remove"
+	s, cleanup := setupTest(t, driverName)
+	defer cleanup(t)
+
+	v, err := s.CreateWithRef("test", driverName, "test-ref", nil, nil)
+	require.NoError(t, err)
+
+	err = s.Remove(v)
+	require.Error(t, err)
+	require.Equal(t, errVolumeInUse, err.(*OpErr).Err)
+
+	s.Dereference(v, "test-ref")
+	err = s.Remove(v)
+	require.NoError(t, err)
+}
+
+func TestGet(t *testing.T) {
+	t.Parallel()
+
+	driverName := "test-get"
+	s, cleanup := setupTest(t, driverName)
+	defer cleanup(t)
+
+	_, err := s.Get("not-exist")
+	require.Error(t, err)
+	require.Equal(t, errNoSuchVolume, err.(*OpErr).Err)
+
+	v1, err := s.Create("test", driverName, nil, map[string]string{"a": "1"})
+	require.NoError(t, err)
+
+	v2, err := s.Get("test")
+	require.NoError(t, err)
+	require.Equal(t, v1, v2)
+
+	dv := v2.(volume.DetailedVolume)
+	require.Equal(t, "1", dv.Labels()["a"])
+
+	err = s.Remove(v1)
+	require.NoError(t, err)
+}
+
+func TestGetWithRef(t *testing.T) {
+	t.Parallel()
+
+	driverName := "test-get-with-ref"
+	s, cleanup := setupTest(t, driverName)
+	defer cleanup(t)
+
+	_, err := s.GetWithRef("not-exist", driverName, "test-ref")
+	require.Error(t, err)
+
+	v1, err := s.Create("test", driverName, nil, map[string]string{"a": "1"})
+	require.NoError(t, err)
+
+	v2, err := s.GetWithRef("test", driverName, "test-ref")
+	require.NoError(t, err)
+	require.Equal(t, v1, v2)
+
+	err = s.Remove(v2)
+	require.Error(t, err)
+	require.Equal(t, errVolumeInUse, err.(*OpErr).Err)
+
+	s.Dereference(v2, "test-ref")
+	err = s.Remove(v2)
+	require.NoError(t, err)
+}
+
+func setupTest(t *testing.T, name string) (*VolumeStore, func(*testing.T)) {
+	t.Helper()
+	s, cleanup := newTestStore(t)
+
+	volumedrivers.Register(volumetestutils.NewFakeDriver(name), name)
+	return s, func(t *testing.T) {
+		cleanup(t)
+		volumedrivers.Unregister(name)
+	}
+}
+
+func newTestStore(t *testing.T) (*VolumeStore, func(*testing.T)) {
+	t.Helper()
+
+	dir, err := ioutil.TempDir("", "store-root")
+	require.NoError(t, err)
+
+	cleanup := func(t *testing.T) {
+		err := os.RemoveAll(dir)
+		assert.NoError(t, err)
+	}
+
+	s, err := New(dir)
+	assert.NoError(t, err)
+	return s, func(t *testing.T) {
+		s.Shutdown()
+		cleanup(t)
 	}
 }
