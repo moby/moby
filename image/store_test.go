@@ -1,6 +1,7 @@
 package image // import "github.com/docker/docker/image"
 
 import (
+	"fmt"
 	"runtime"
 	"testing"
 
@@ -169,6 +170,20 @@ func TestGetAndSetLastUpdated(t *testing.T) {
 	updated, err = store.GetLastUpdated(id)
 	assert.NoError(t, err)
 	assert.Equal(t, updated.IsZero(), false)
+}
+
+func TestStoreLen(t *testing.T) {
+	store, cleanup := defaultImageStore(t)
+	defer cleanup()
+
+	expected := 10
+	for i := 0; i < expected; i++ {
+		_, err := store.Create([]byte(fmt.Sprintf(`{"comment": "abc%d", "rootfs": {"type": "layers"}}`, i)))
+		assert.NoError(t, err)
+	}
+	numImages := store.Len()
+	assert.Equal(t, expected, numImages)
+	assert.Equal(t, len(store.Map()), numImages)
 }
 
 type mockLayerGetReleaser struct{}

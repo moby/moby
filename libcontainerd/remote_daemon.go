@@ -263,11 +263,15 @@ func (r *remote) startContainerd() error {
 func (r *remote) monitorConnection(monitor *containerd.Client) {
 	var transientFailureCount = 0
 
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-
 	for {
-		<-ticker.C
+		select {
+		case <-r.shutdownContext.Done():
+			r.logger.Info("stopping healthcheck following graceful shutdown")
+			monitor.Close()
+			return
+		case <-time.After(500 * time.Millisecond):
+		}
+
 		ctx, cancel := context.WithTimeout(r.shutdownContext, healthCheckTimeout)
 		_, err := monitor.IsServing(ctx)
 		cancel()
