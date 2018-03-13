@@ -29,7 +29,10 @@ type volumeWrapper struct {
 }
 
 func (v volumeWrapper) Options() map[string]string {
-	options := map[string]string{}
+	if v.options == nil {
+		return nil
+	}
+	options := make(map[string]string, len(v.options))
 	for key, value := range v.options {
 		options[key] = value
 	}
@@ -37,7 +40,15 @@ func (v volumeWrapper) Options() map[string]string {
 }
 
 func (v volumeWrapper) Labels() map[string]string {
-	return v.labels
+	if v.labels == nil {
+		return nil
+	}
+
+	labels := make(map[string]string, len(v.labels))
+	for key, value := range v.labels {
+		labels[key] = value
+	}
+	return labels
 }
 
 func (v volumeWrapper) Scope() string {
