@@ -56,11 +56,13 @@
 package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -963,4 +965,88 @@ func hostToGuest(hostpath string) string {
 
 func unionMountName(disks []hcsshim.MappedVirtualDisk) string {
 	return fmt.Sprintf("%s-mount", disks[0].ContainerPath)
+}
+
+type nopCloser struct {
+	io.Reader
+}
+
+func (nopCloser) Close() error {
+	return nil
+}
+
+type fileGetCloserFromSVM struct {
+	id  string
+	svm *serviceVM
+	mvd *hcsshim.MappedVirtualDisk
+	d   *Driver
+}
+
+func (fgc *fileGetCloserFromSVM) Close() error {
+	if fgc.svm != nil {
+		if fgc.mvd != nil {
+			if err := fgc.svm.hotRemoveVHDs(*fgc.mvd); err != nil {
+				// We just log this as we're going to tear down the SVM imminently unless in global mode
+				logrus.Errorf("failed to remove mvd %s: %s", fgc.mvd.ContainerPath, err)
+			}
+		}
+	}
+	if fgc.d != nil && fgc.svm != nil && fgc.id != "" {
+		if err := fgc.d.terminateServiceVM(fgc.id, fmt.Sprintf("diffgetter %s", fgc.id), false); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (fgc *fileGetCloserFromSVM) Get(filename string) (io.ReadCloser, error) {
+	errOut := &bytes.Buffer{}
+	outOut := &bytes.Buffer{}
+	file := path.Join(fgc.mvd.ContainerPath, filename)
+	if err := fgc.svm.runProcess(fmt.Sprintf("cat %s", file), nil, outOut, errOut); err != nil {
+		logrus.Debugf("cat %s failed: %s", file, errOut.String())
+		return nil, err
+	}
+	return nopCloser{bytes.NewReader(outOut.Bytes())}, nil
+}
+
+// DiffGetter returns a FileGetCloser that can read files from the directory that
+// contains files for the layer differences. Used for direct access for tar-split.
+func (d *Driver) DiffGetter(id string) (graphdriver.FileGetCloser, error) {
+	title := fmt.Sprintf("lcowdriver: diffgetter: %s", id)
+	logrus.Debugf(title)
+
+	ld, err := getLayerDetails(d.dir(id))
+	if err != nil {
+		logrus.Debugf("%s: failed to get vhdx information of %s: %s", title, d.dir(id), err)
+		return nil, err
+	}
+
+	// Start the SVM with a mapped virtual disk. Note that if the SVM is
+	// already running and we are in global mode, this will be hot-added.
+	mvd := hcsshim.MappedVirtualDisk{
+		HostPath:          ld.filename,
+		ContainerPath:     hostToGuest(ld.filename),
+		CreateInUtilityVM: true,
+		ReadOnly:          true,
+	}
+
+	logrus.Debugf("%s: starting service VM", title)
+	svm, err := d.startServiceVMIfNotRunning(id, []hcsshim.MappedVirtualDisk{mvd}, fmt.Sprintf("diffgetter %s", id))
+	if err != nil {
+		return nil, err
+	}
+
+	logrus.Debugf("%s: waiting for svm to finish booting", title)
+	err = svm.getStartError()
+	if err != nil {
+		d.terminateServiceVM(id, fmt.Sprintf("diff %s", id), false)
+		return nil, fmt.Errorf("%s: svm failed to boot: %s", title, err)
+	}
+
+	return &fileGetCloserFromSVM{
+		id:  id,
+		svm: svm,
+		mvd: &mvd,
+		d:   d}, nil
 }
