@@ -705,6 +705,9 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 }
 
 func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) error {
+	if c.BaseFS == nil {
+		return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil")
+	}
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {
 		return err

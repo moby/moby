@@ -61,12 +61,12 @@ func (daemon *Daemon) containerExport(container *container.Container) (arch io.R
 		}
 	}()
 
-	_, err = rwlayer.Mount(container.GetMountLabel())
+	basefs, err := rwlayer.Mount(container.GetMountLabel())
 	if err != nil {
 		return nil, err
 	}
 
-	archive, err := archivePath(container.BaseFS, container.BaseFS.Path(), &archive.TarOptions{
+	archive, err := archivePath(basefs, basefs.Path(), &archive.TarOptions{
 		Compression: archive.Uncompressed,
 		UIDMaps:     daemon.idMappings.UIDs(),
 		GIDMaps:     daemon.idMappings.GIDs(),
