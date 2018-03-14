@@ -311,6 +311,9 @@ func (container *Container) SetupWorkingDirectory(rootIDs idtools.IDPair) error 
 //       symlinking to a different path) between using this method and using the
 //       path. See symlink.FollowSymlinkInScope for more details.
 func (container *Container) GetResourcePath(path string) (string, error) {
+	if container.BaseFS == nil {
+		return "", errors.New("GetResourcePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	}
 	// IMPORTANT - These are paths on the OS where the daemon is running, hence
 	// any filepath operations must be done in an OS agnostic way.
 	r, e := container.BaseFS.ResolveScopedPath(path, false)

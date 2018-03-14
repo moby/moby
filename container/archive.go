@@ -6,6 +6,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
 )
 
 // ResolvePath resolves the given path in the container to a resource on the
@@ -13,6 +14,9 @@ import (
 // the absolute path to the resource relative to the container's rootfs, and
 // an error if the path points to outside the container's rootfs.
 func (container *Container) ResolvePath(path string) (resolvedPath, absPath string, err error) {
+	if container.BaseFS == nil {
+		return "", "", errors.New("ResolvePath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	}
 	// Check if a drive letter supplied, it must be the system drive. No-op except on Windows
 	path, err = system.CheckSystemDriveAndRemoveDriveLetter(path, container.BaseFS)
 	if err != nil {
@@ -45,6 +49,9 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
 func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {
+	if container.BaseFS == nil {
+		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly nil")
+	}
 	driver := container.BaseFS
 
 	lstat, err := driver.Lstat(resolvedPath)

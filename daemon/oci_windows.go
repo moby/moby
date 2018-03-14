@@ -241,6 +241,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
+	if c.BaseFS == nil {
+		return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil")
+	}
 	if len(s.Process.Cwd) == 0 {
 		// We default to C:\ to workaround the oddity of the case that the
 		// default directory for cmd running as LocalSystem (or
