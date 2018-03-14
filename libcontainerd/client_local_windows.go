@@ -2,6 +2,7 @@ package libcontainerd // import "github.com/docker/docker/libcontainerd"
 
 import (
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -299,6 +300,78 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		}
 	}
 	configuration.MappedDirectories = mds
+
+	// Proxy Support for RS4
+	if system.GetOSVersion().Build >= 17134 {
+		proxy := ""
+		exceptions := ""
+
+		for _, envVar := range spec.Process.Env {
+			if strings.HasPrefix(envVar, "HTTP_PROXY") ||
+				strings.HasPrefix(envVar, "HTTPS_PROXY") ||
+				strings.HasPrefix(envVar, "FTP_PROXY") {
+				proxy = strings.Split(envVar, "=")[1]
+			} else if strings.HasPrefix(envVar, "NO_PROXY") {
+				exceptions = strings.Replace(strings.Split(envVar, "=")[1], ",", ";", -1)
+			}
+		}
+
+		if proxy != "" {
+			defaultConnectionString := []byte{
+				0x46, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00, 0x00,
+				0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+			}
+
+			winHTTPSettings := []byte{
+				0x28, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+				0x00, 0x00, 0x00, 0x00,
+			}
+
+			if exceptions != "" {
+				defaultConnectionString = append(defaultConnectionString[:20], append([]byte(exceptions), defaultConnectionString[20:]...)...)
+				binary.LittleEndian.PutUint32(defaultConnectionString[16:20], uint32(len(exceptions)))
+
+				winHTTPSettings = append(winHTTPSettings[:20], append([]byte(exceptions), winHTTPSettings[20:]...)...)
+				binary.LittleEndian.PutUint32(winHTTPSettings[16:20], uint32(len(exceptions)))
+			}
+
+			defaultConnectionString = append(defaultConnectionString[:16], append([]byte(proxy), defaultConnectionString[16:]...)...)
+			binary.LittleEndian.PutUint32(defaultConnectionString[12:16], uint32(len(proxy)))
+
+			winHTTPSettings = append(winHTTPSettings[:16], append([]byte(proxy), winHTTPSettings[16:]...)...)
+			binary.LittleEndian.PutUint32(winHTTPSettings[12:16], uint32(len(proxy)))
+
+			configuration.RegistryChanges = &hcsshim.RegistryChanges{
+				AddValues: []hcsshim.RegistryValue{
+					{
+						Key:        hcsshim.RegistryKey{"Software", "Policies\\Microsoft\\Windows\\CurrentVersion\\Internet Settings", true},
+						Name:       "ProxySettingsPerUser",
+						Type:       "DWORD",
+						DWordValue: new(uint32),
+					},
+					{
+						Key:         hcsshim.RegistryKey{"Software", "Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections", true},
+						Name:        "DefaultConnectionSettings",
+						Type:        "BINARY",
+						BinaryValue: defaultConnectionString,
+					},
+					{
+						Key:         hcsshim.RegistryKey{"Software", "Microsoft\\Windows\\CurrentVersion\\Internet Settings\\Connections", true},
+						Name:        "WinHttpSettings",
+						Type:        "BINARY",
+						BinaryValue: winHTTPSettings,
+					},
+				},
+			}
+		}
+	}
+
 	if len(mps) > 0 && system.GetOSVersion().Build < 16299 { // RS3
 		return errors.New("named pipe mounts are not supported on this version of Windows")
 	}
