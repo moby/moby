@@ -365,6 +365,22 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 		config.HnsID = hnsresponse.Id
 		genData[HNSID] = config.HnsID
+
+	} else {
+		// Delete any stale HNS endpoints for this network.
+		if endpoints, err := hcsshim.HNSListEndpointRequest(); err == nil {
+			for _, ep := range endpoints {
+				if ep.VirtualNetwork == config.HnsID {
+					logrus.Infof("Removing stale HNS endpoint %s", ep.Id)
+					_, err = hcsshim.HNSEndpointRequest("DELETE", ep.Id, "")
+					if err != nil {
+						logrus.Warnf("Error removing HNS endpoint %s", ep.Id)
+					}
+				}
+			}
+		} else {
+			logrus.Warnf("Error listing HNS endpoints for network %s", config.HnsID)
+		}
 	}
 
 	n, err := d.getNetwork(id)
