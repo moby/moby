@@ -14,8 +14,6 @@ import (
 	"github.com/pkg/errors"
 )
 
-const dockerdBinary = "dockerd"
-
 var pluginBuildLock = locker.New()
 
 func ensurePlugin(t *testing.T, name string) string {

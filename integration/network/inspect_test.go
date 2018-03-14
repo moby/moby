@@ -1,16 +1,15 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
-	"fmt"
 	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/poll"
 	"golang.org/x/net/context"
@@ -21,7 +20,7 @@ const dockerdBinary = "dockerd"
 
 func TestInspectNetwork(t *testing.T) {
 	defer setupTest(t)()
-	d := newSwarm(t)
+	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	assert.NilError(t, err)
@@ -38,8 +37,9 @@ func TestInspectNetwork(t *testing.T) {
 
 	var instances uint64 = 4
 	serviceName := "TestService"
+	// FIXME(vdemeester) consolidate with swarm.CreateService
 	serviceSpec := swarmServiceSpec(serviceName, instances)
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarm.NetworkAttachmentConfig{Target: overlayName})
+	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: overlayName})
 
 	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
@@ -107,38 +107,19 @@ func TestInspectNetwork(t *testing.T) {
 	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
-func newSwarm(t *testing.T) *daemon.Swarm {
-	d := &daemon.Swarm{
-		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
-			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-		}),
-		// TODO: better method of finding an unused port
-		Port: defaultSwarmPort,
-	}
-	// TODO: move to a NewSwarm constructor
-	d.ListenAddr = fmt.Sprintf("0.0.0.0:%d", d.Port)
-
-	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
-
-	assert.NilError(t, d.Init(swarm.InitRequest{}))
-	return d
-}
-
-func swarmServiceSpec(name string, replicas uint64) swarm.ServiceSpec {
-	return swarm.ServiceSpec{
-		Annotations: swarm.Annotations{
+func swarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
+	return swarmtypes.ServiceSpec{
+		Annotations: swarmtypes.Annotations{
 			Name: name,
 		},
-		TaskTemplate: swarm.TaskSpec{
-			ContainerSpec: &swarm.ContainerSpec{
+		TaskTemplate: swarmtypes.TaskSpec{
+			ContainerSpec: &swarmtypes.ContainerSpec{
 				Image:   "busybox:latest",
 				Command: []string{"/bin/top"},
 			},
 		},
-		Mode: swarm.ServiceMode{
-			Replicated: &swarm.ReplicatedService{
+		Mode: swarmtypes.ServiceMode{
+			Replicated: &swarmtypes.ReplicatedService{
 				Replicas: &replicas,
 			},
 		},
@@ -157,7 +138,7 @@ func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, 
 			return poll.Error(err)
 		case len(tasks) == int(instances):
 			for _, task := range tasks {
-				if task.Status.State != swarm.TaskStateRunning {
+				if task.Status.State != swarmtypes.TaskStateRunning {
 					return poll.Continue("waiting for tasks to enter run state")
 				}
 			}
