@@ -402,15 +402,15 @@ func (a *Allocator) getPredefinedPool(as string, ipV6 bool) (*net.IPNet, error) 
 			continue
 		}
 		aSpace.Lock()
-		_, ok := aSpace.subnets[SubnetKey{AddressSpace: as, Subnet: nw.String()}]
-		aSpace.Unlock()
-		if ok {
+		if _, ok := aSpace.subnets[SubnetKey{AddressSpace: as, Subnet: nw.String()}]; ok {
+			aSpace.Unlock()
 			continue
 		}
-
 		if !aSpace.contains(as, nw) {
+			aSpace.Unlock()
 			return nw, nil
 		}
+		aSpace.Unlock()
 	}
 
 	return nil, types.NotFoundErrorf("could not find an available, non-overlapping IPv%d address pool among the defaults to assign to the network", v)
