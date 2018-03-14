@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -219,7 +220,11 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 
 		for _, l := range imageDescr.layers {
-			layers = append(layers, filepath.Join(l, legacyLayerFileName))
+			// IMPORTANT: We use path, not filepath here to ensure the layers
+			// in the manifest use Unix-style forward-slashes. Otherwise, a
+			// Linux image saved from LCOW won't be able to be imported on
+			// LCOL.
+			layers = append(layers, path.Join(l, legacyLayerFileName))
 		}
 
 		manifest = append(manifest, manifestItem{
