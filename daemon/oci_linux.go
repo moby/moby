@@ -255,7 +255,7 @@ func setCapabilities(s *specs.Spec, c *container.Container) error {
 	if c.HostConfig.Privileged {
 		caplist = caps.GetAllCapabilities()
 	} else {
-		caplist, err = caps.TweakCapabilities(s.Process.Capabilities.Effective, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
+		caplist, err = caps.TweakCapabilities(s.Process.Capabilities.Bounding, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
 		if err != nil {
 			return err
 		}
@@ -264,6 +264,12 @@ func setCapabilities(s *specs.Spec, c *container.Container) error {
 	s.Process.Capabilities.Bounding = caplist
 	s.Process.Capabilities.Permitted = caplist
 	s.Process.Capabilities.Inheritable = caplist
+	// setUser has already been executed here
+	// if non root drop capabilities in the way execve does
+	if s.Process.User.UID != 0 {
+		s.Process.Capabilities.Effective = []string{}
+		s.Process.Capabilities.Permitted = []string{}
+	}
 	return nil
 }
 
