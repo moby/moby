@@ -7,10 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/golang/sync/semaphore"
-
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/stretchr/testify/assert"
+	"golang.org/x/sync/semaphore"
 )
 
 const (
