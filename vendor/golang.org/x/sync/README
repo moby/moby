@@ -1,2 +1,0 @@
-This repository provides Go concurrency primitives in addition to the
-ones provided by the language and "sync" and "sync/atomic" packages.
