@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
@@ -13,6 +14,7 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 )
 
@@ -97,8 +99,7 @@ func TestContainerExecAttachTimeout(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
 	defer cancel()
 	_, err = client.ContainerExecAttach(ctx, "nothing", types.ExecStartCheck{})
-	if err == nil || (!strings.Contains(err.Error(), "i/o timeout") && // unix
-		!strings.Contains(err.Error(), "requested service provider could not be loaded")) { // win
+	if err == nil || !errors.Cause(err).(net.Error).Timeout() {
 		t.Fatalf("expected a timeout error, got %v", err)
 	}
 }
