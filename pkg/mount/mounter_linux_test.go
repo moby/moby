@@ -39,7 +39,11 @@ func TestMount(t *testing.T) {
 	}
 	defer os.RemoveAll(target)
 
-	tests := []struct {
+	var baseOpt string
+	if selinux.GetEnabled() {
+		baseOpt = "seclabel,"
+	}
+	for _, tc := range []struct {
 		source           string
 		ftype            string
 		options          string
@@ -68,11 +72,11 @@ func TestMount(t *testing.T) {
 		{source, "", "bind,ro,slave", "ro", "master", ""},
 		{source, "", "bind,ro,unbindable", "ro", "unbindable", ""},
 		// Remount tests to change per filesystem options
-		{"", "", "remount,size=128k", "rw", "", "rw,size=128k"},
-		{"", "", "remount,ro,size=128k", "ro", "", "ro,size=128k"},
-	}
+		// If "seclabel" is used in mounts, we need to expect it in our test cases
+		{"", "", "remount,size=128k", "rw", "", baseOpt + "rw,size=128k"},
+		{"", "", "remount,ro,size=128k", "ro", "", baseOpt + "ro,size=128k"},
+	} {
 
-	for _, tc := range tests {
 		ftype, options := tc.ftype, tc.options
 		if tc.ftype == "" {
 			ftype = "none"
