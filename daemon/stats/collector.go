@@ -91,6 +91,10 @@ func (s *Collector) Run() {
 	var pairs []publishersPair
 
 	for {
+		// Put sleep at the start so that it will always be hit,
+		// preventing a tight loop if no stats are collected.
+		time.Sleep(s.interval)
+
 		// it does not make sense in the first iteration,
 		// but saves allocations in further iterations
 		pairs = pairs[:0]
@@ -141,8 +145,6 @@ func (s *Collector) Run() {
 				logrus.Errorf("collecting stats for %s: %v", pair.container.ID, err)
 			}
 		}
-
-		time.Sleep(s.interval)
 	}
 }
 
