@@ -34,7 +34,6 @@ func TestVolumesCreateAndList(t *testing.T) {
 		Driver:     "local",
 		Scope:      "local",
 		Name:       name,
-		Options:    map[string]string{},
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
 	assert.Equal(t, vol, expected)
@@ -95,7 +94,6 @@ func TestVolumesInspect(t *testing.T) {
 		Driver:     "local",
 		Scope:      "local",
 		Name:       name,
-		Options:    map[string]string{},
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
 	assert.Equal(t, vol, expected)
