@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"golang.org/x/sys/unix"
+
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/libkv/store/consul"
 	"github.com/docker/libnetwork/datastore"
@@ -150,7 +152,7 @@ func TestNetlinkSocket(t *testing.T) {
 		t.Fatal()
 	}
 	// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
-	tv := syscall.NsecToTimeval(soTimeout.Nanoseconds())
+	tv := unix.NsecToTimeval(soTimeout.Nanoseconds())
 	err = nlSock.SetReceiveTimeout(&tv)
 	if err != nil {
 		t.Fatal()
