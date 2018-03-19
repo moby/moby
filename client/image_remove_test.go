@@ -10,7 +10,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -20,7 +21,7 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
-	assert.EqualError(t, err, "Error response from daemon: Server error")
+	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
 }
 
 func TestImageRemoveImageNotFound(t *testing.T) {
@@ -29,8 +30,8 @@ func TestImageRemoveImageNotFound(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
-	assert.EqualError(t, err, "Error: No such image: unknown")
-	assert.True(t, IsErrNotFound(err))
+	assert.Check(t, is.Error(err, "Error: No such image: unknown"))
+	assert.Check(t, IsErrNotFound(err))
 }
 
 func TestImageRemove(t *testing.T) {

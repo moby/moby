@@ -21,7 +21,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/loggerutils"
 	"github.com/docker/docker/dockerversion"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 const (
@@ -544,17 +545,17 @@ func TestCollectBatchMultilinePattern(t *testing.T) {
 
 	// Verify single multiline event
 	argument := <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
 
 	stream.Close()
 
 	// Verify single event
 	argument = <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
-	assert.Equal(t, "xxxx "+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
+	assert.Check(t, is.Equal("xxxx "+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
 }
 
 func BenchmarkCollectBatch(b *testing.B) {
@@ -657,9 +658,9 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 
 	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
 	argument := <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
 
 	// Log an event 1 second later
 	stream.Log(&logger.Message{
@@ -672,9 +673,9 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 
 	// Verify the event buffer is truly flushed - we should only receive a single event
 	argument = <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
-	assert.Equal(t, logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
+	assert.Check(t, is.Equal(logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
 	stream.Close()
 }
 
@@ -719,9 +720,9 @@ func TestCollectBatchMultilinePatternNegativeEventAge(t *testing.T) {
 
 	// Verify single multiline event is flushed with a negative event buffer age
 	argument := <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 1, len(argument.LogEvents), "Expected single multiline event")
-	assert.Equal(t, logline+"\n"+logline+"\n", *argument.LogEvents[0].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
+	assert.Check(t, is.Equal(logline+"\n"+logline+"\n", *argument.LogEvents[0].Message), "Received incorrect multiline message")
 
 	stream.Close()
 }
@@ -772,10 +773,10 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 	// We expect a maximum sized event with no new line characters and a
 	// second short event with a new line character at the end
 	argument := <-mockClient.putLogEventsArgument
-	assert.NotNil(t, argument, "Expected non-nil PutLogEventsInput")
-	assert.Equal(t, 2, len(argument.LogEvents), "Expected two events")
-	assert.Equal(t, longline, *argument.LogEvents[0].Message, "Received incorrect multiline message")
-	assert.Equal(t, shortline+"\n", *argument.LogEvents[1].Message, "Received incorrect multiline message")
+	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
+	assert.Check(t, is.Equal(2, len(argument.LogEvents)), "Expected two events")
+	assert.Check(t, is.Equal(longline, *argument.LogEvents[0].Message), "Received incorrect multiline message")
+	assert.Check(t, is.Equal(shortline+"\n", *argument.LogEvents[1].Message), "Received incorrect multiline message")
 	stream.Close()
 }
 
@@ -1069,8 +1070,8 @@ func TestParseLogOptionsMultilinePattern(t *testing.T) {
 	}
 
 	multilinePattern, err := parseMultilineOptions(info)
-	assert.Nil(t, err, "Received unexpected error")
-	assert.True(t, multilinePattern.MatchString("xxxx"), "No multiline pattern match found")
+	assert.Check(t, err, "Received unexpected error")
+	assert.Check(t, multilinePattern.MatchString("xxxx"), "No multiline pattern match found")
 }
 
 func TestParseLogOptionsDatetimeFormat(t *testing.T) {
@@ -1094,8 +1095,8 @@ func TestParseLogOptionsDatetimeFormat(t *testing.T) {
 				},
 			}
 			multilinePattern, err := parseMultilineOptions(info)
-			assert.Nil(t, err, "Received unexpected error")
-			assert.True(t, multilinePattern.MatchString(dt.match), "No multiline pattern match found")
+			assert.Check(t, err, "Received unexpected error")
+			assert.Check(t, multilinePattern.MatchString(dt.match), "No multiline pattern match found")
 		})
 	}
 }
@@ -1109,8 +1110,8 @@ func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
 	conflictingLogOptionsError := "you cannot configure log opt 'awslogs-datetime-format' and 'awslogs-multiline-pattern' at the same time"
 
 	err := ValidateLogOpt(cfg)
-	assert.NotNil(t, err, "Expected an error")
-	assert.Equal(t, err.Error(), conflictingLogOptionsError, "Received invalid error")
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), conflictingLogOptionsError), "Received invalid error")
 }
 
 func TestCreateTagSuccess(t *testing.T) {
@@ -1143,11 +1144,6 @@ func TestCreateTagSuccess(t *testing.T) {
 	}
 }
 
-func TestIsSizedLogger(t *testing.T) {
-	awslogs := &logStream{}
-	assert.Implements(t, (*logger.SizedLogger)(nil), awslogs, "awslogs should implement SizedLogger")
-}
-
 func BenchmarkUnwrapEvents(b *testing.B) {
 	events := make([]wrappedEvent, maximumLogEventsPerPut)
 	for i := 0; i < maximumLogEventsPerPut; i++ {
@@ -1157,11 +1153,10 @@ func BenchmarkUnwrapEvents(b *testing.B) {
 		}
 	}
 
-	as := assert.New(b)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		res := unwrapEvents(events)
-		as.Len(res, maximumLogEventsPerPut)
+		assert.Check(b, is.Len(res, maximumLogEventsPerPut))
 	}
 }
 
@@ -1194,15 +1189,15 @@ func TestNewAWSLogsClientCredentialEndpointDetect(t *testing.T) {
 	info.Config["awslogs-credentials-endpoint"] = "/creds"
 
 	c, err := newAWSLogsClient(info)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	client := c.(*cloudwatchlogs.CloudWatchLogs)
 
 	creds, err := client.Config.Credentials.Get()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
-	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
-	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
+	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
+	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
 }
 
 func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
@@ -1224,15 +1219,15 @@ func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
 	}
 
 	c, err := newAWSLogsClient(info)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	client := c.(*cloudwatchlogs.CloudWatchLogs)
 
 	creds, err := client.Config.Credentials.Get()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
-	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
-	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
+	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
+	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
 
 }
 
@@ -1253,13 +1248,13 @@ func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 
 	tmpfile, err := ioutil.TempFile("", "example")
 	defer os.Remove(tmpfile.Name()) // clean up
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = tmpfile.Write(content)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	err = tmpfile.Close()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	os.Unsetenv("AWS_ACCESS_KEY_ID")
 	os.Unsetenv("AWS_SECRET_ACCESS_KEY")
@@ -1272,13 +1267,13 @@ func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
 	}
 
 	c, err := newAWSLogsClient(info)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	client := c.(*cloudwatchlogs.CloudWatchLogs)
 
 	creds, err := client.Config.Credentials.Get()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
-	assert.Equal(t, expectedAccessKeyID, creds.AccessKeyID)
-	assert.Equal(t, expectedSecretAccessKey, creds.SecretAccessKey)
+	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
+	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
 }

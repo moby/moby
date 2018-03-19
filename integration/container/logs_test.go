@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/stdcopy"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // Regression test for #35370
@@ -25,8 +25,8 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	if logs != nil {
 		defer logs.Close()
 	}
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	_, err = stdcopy.StdCopy(ioutil.Discard, ioutil.Discard, logs)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }

@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"golang.org/x/sys/unix"
 )
 
@@ -89,7 +89,7 @@ func TestMkdirAllAndChown(t *testing.T) {
 func TestMkdirAllAndChownNew(t *testing.T) {
 	RequiresRoot(t)
 	dirName, err := ioutil.TempDir("", "mkdirnew")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(dirName)
 
 	testTree := map[string]node{
@@ -99,32 +99,32 @@ func TestMkdirAllAndChownNew(t *testing.T) {
 		"lib/x86_64":       {45, 45},
 		"lib/x86_64/share": {1, 1},
 	}
-	require.NoError(t, buildTree(dirName, testTree))
+	assert.NilError(t, buildTree(dirName, testTree))
 
 	// test adding a directory to a pre-existing dir; only the new dir is owned by the uid/gid
 	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr", "share"), 0755, IDPair{UID: 99, GID: 99})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	testTree["usr/share"] = node{99, 99}
 	verifyTree, err := readTree(dirName, "")
-	require.NoError(t, err)
-	require.NoError(t, compareTrees(testTree, verifyTree))
+	assert.NilError(t, err)
+	assert.NilError(t, compareTrees(testTree, verifyTree))
 
 	// test 2-deep new directories--both should be owned by the uid/gid pair
 	err = MkdirAllAndChownNew(filepath.Join(dirName, "lib", "some", "other"), 0755, IDPair{UID: 101, GID: 101})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	testTree["lib/some"] = node{101, 101}
 	testTree["lib/some/other"] = node{101, 101}
 	verifyTree, err = readTree(dirName, "")
-	require.NoError(t, err)
-	require.NoError(t, compareTrees(testTree, verifyTree))
+	assert.NilError(t, err)
+	assert.NilError(t, compareTrees(testTree, verifyTree))
 
 	// test a directory that already exists; should NOT be chowned
 	err = MkdirAllAndChownNew(filepath.Join(dirName, "usr"), 0755, IDPair{UID: 102, GID: 102})
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	verifyTree, err = readTree(dirName, "")
-	require.NoError(t, err)
-	require.NoError(t, compareTrees(testTree, verifyTree))
+	assert.NilError(t, err)
+	assert.NilError(t, compareTrees(testTree, verifyTree))
 }
 
 func TestMkdirAndChown(t *testing.T) {
@@ -235,7 +235,7 @@ func compareTrees(left, right map[string]node) error {
 
 func delUser(t *testing.T, name string) {
 	_, err := execCmd("userdel", name)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }
 
 func TestParseSubidFileWithNewlinesAndComments(t *testing.T) {
@@ -283,9 +283,9 @@ func TestGetRootUIDGID(t *testing.T) {
 	}
 
 	uid, gid, err := GetRootUIDGID(uidMap, gidMap)
-	assert.NoError(t, err)
-	assert.Equal(t, os.Getegid(), uid)
-	assert.Equal(t, os.Getegid(), gid)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(os.Getegid(), uid))
+	assert.Check(t, is.Equal(os.Getegid(), gid))
 
 	uidMapError := []IDMap{
 		{
@@ -295,7 +295,7 @@ func TestGetRootUIDGID(t *testing.T) {
 		},
 	}
 	_, _, err = GetRootUIDGID(uidMapError, gidMap)
-	assert.EqualError(t, err, "Container ID 0 cannot be mapped to a host ID")
+	assert.Check(t, is.Error(err, "Container ID 0 cannot be mapped to a host ID"))
 }
 
 func TestToContainer(t *testing.T) {
@@ -308,74 +308,74 @@ func TestToContainer(t *testing.T) {
 	}
 
 	containerID, err := toContainer(2, uidMap)
-	assert.NoError(t, err)
-	assert.Equal(t, uidMap[0].ContainerID, containerID)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(uidMap[0].ContainerID, containerID))
 }
 
 func TestNewIDMappings(t *testing.T) {
 	RequiresRoot(t)
 	_, _, err := AddNamespaceRangesUser(tempUser)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer delUser(t, tempUser)
 
 	tempUser, err := user.Lookup(tempUser)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	gids, err := tempUser.GroupIds()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	group, err := user.LookupGroupId(string(gids[0]))
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	idMappings, err := NewIDMappings(tempUser.Username, group.Name)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	rootUID, rootGID, err := GetRootUIDGID(idMappings.UIDs(), idMappings.GIDs())
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	dirName, err := ioutil.TempDir("", "mkdirall")
-	assert.NoError(t, err, "Couldn't create temp directory")
+	assert.Check(t, err, "Couldn't create temp directory")
 	defer os.RemoveAll(dirName)
 
 	err = MkdirAllAndChown(dirName, 0700, IDPair{UID: rootUID, GID: rootGID})
-	assert.NoError(t, err, "Couldn't change ownership of file path. Got error")
-	assert.True(t, CanAccess(dirName, idMappings.RootPair()), fmt.Sprintf("Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID))
+	assert.Check(t, err, "Couldn't change ownership of file path. Got error")
+	assert.Check(t, CanAccess(dirName, idMappings.RootPair()), fmt.Sprintf("Unable to access %s directory with user UID:%d and GID:%d", dirName, rootUID, rootGID))
 }
 
 func TestLookupUserAndGroup(t *testing.T) {
 	RequiresRoot(t)
 	uid, gid, err := AddNamespaceRangesUser(tempUser)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer delUser(t, tempUser)
 
 	fetchedUser, err := LookupUser(tempUser)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	fetchedUserByID, err := LookupUID(uid)
-	assert.NoError(t, err)
-	assert.Equal(t, fetchedUserByID, fetchedUser)
+	assert.Check(t, err)
+	assert.Check(t, is.DeepEqual(fetchedUserByID, fetchedUser))
 
 	fetchedGroup, err := LookupGroup(tempUser)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	fetchedGroupByID, err := LookupGID(gid)
-	assert.NoError(t, err)
-	assert.Equal(t, fetchedGroupByID, fetchedGroup)
+	assert.Check(t, err)
+	assert.Check(t, is.DeepEqual(fetchedGroupByID, fetchedGroup))
 }
 
 func TestLookupUserAndGroupThatDoesNotExist(t *testing.T) {
 	fakeUser := "fakeuser"
 	_, err := LookupUser(fakeUser)
-	assert.EqualError(t, err, "getent unable to find entry \""+fakeUser+"\" in passwd database")
+	assert.Check(t, is.Error(err, "getent unable to find entry \""+fakeUser+"\" in passwd database"))
 
 	_, err = LookupUID(-1)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 
 	fakeGroup := "fakegroup"
 	_, err = LookupGroup(fakeGroup)
-	assert.EqualError(t, err, "getent unable to find entry \""+fakeGroup+"\" in group database")
+	assert.Check(t, is.Error(err, "getent unable to find entry \""+fakeGroup+"\" in group database"))
 
 	_, err = LookupGID(-1)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 }
 
 // TestMkdirIsNotDir checks that mkdirAs() function (used by MkdirAll...)
@@ -389,7 +389,7 @@ func TestMkdirIsNotDir(t *testing.T) {
 	defer os.Remove(file.Name())
 
 	err = mkdirAs(file.Name(), 0755, 0, 0, false, false)
-	assert.EqualError(t, err, "mkdir "+file.Name()+": not a directory")
+	assert.Check(t, is.Error(err, "mkdir "+file.Name()+": not a directory"))
 }
 
 func RequiresRoot(t *testing.T) {

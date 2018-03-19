@@ -6,12 +6,12 @@ import (
 	"io"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestGenerateEmptyFile(t *testing.T) {
 	archive, err := Generate("emptyFile")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	if archive == nil {
 		t.Fatal("The generated archive should not be nil.")
 	}
@@ -28,7 +28,7 @@ func TestGenerateEmptyFile(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
 		content := buf.String()
@@ -52,7 +52,7 @@ func TestGenerateEmptyFile(t *testing.T) {
 
 func TestGenerateWithContent(t *testing.T) {
 	archive, err := Generate("file", "content")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	if archive == nil {
 		t.Fatal("The generated archive should not be nil.")
 	}
@@ -69,7 +69,7 @@ func TestGenerateWithContent(t *testing.T) {
 		if err == io.EOF {
 			break
 		}
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		buf := new(bytes.Buffer)
 		buf.ReadFrom(tr)
 		content := buf.String()

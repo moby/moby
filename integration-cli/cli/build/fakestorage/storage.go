@@ -15,13 +15,13 @@ import (
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 var testEnv *environment.Execution
 
 type testingT interface {
-	require.TestingT
+	assert.TestingT
 	logT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})

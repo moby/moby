@@ -3,10 +3,10 @@ package term // import "github.com/docker/docker/pkg/term"
 import (
 	"bytes"
 	"fmt"
-	"reflect"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestEscapeProxyRead(t *testing.T) {
@@ -15,78 +15,75 @@ func TestEscapeProxyRead(t *testing.T) {
 	reader := NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf := make([]byte, len(keys))
 	nr, err := reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, len(keys), fmt.Sprintf("nr %d should be equal to the number of %d", nr, len(keys)))
-	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, len(keys), fmt.Sprintf("nr %d should be equal to the number of %d", nr, len(keys)))
+	assert.DeepEqual(t, keys, buf)
 
 	keys, _ = ToBytes("")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.Error(t, err, "Should throw error when no keys are to read")
-	require.EqualValues(t, nr, 0, "nr should be zero")
-	require.Condition(t, func() (success bool) { return len(keys) == 0 && len(buf) == 0 }, "keys & the read buffer size should be zero")
+	assert.Assert(t, is.ErrorContains(err, ""), "Should throw error when no keys are to read")
+	assert.Equal(t, nr, 0, "nr should be zero")
+	assert.Check(t, is.Len(keys, 0))
+	assert.Check(t, is.Len(buf, 0))
 
 	escapeKeys, _ = ToBytes("ctrl-x,ctrl-@")
 	keys, _ = ToBytes("DEL")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, 1, fmt.Sprintf("nr %d should be equal to the number of 1", nr))
-	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, 1, fmt.Sprintf("nr %d should be equal to the number of 1", nr))
+	assert.DeepEqual(t, keys, buf)
 
 	escapeKeys, _ = ToBytes("ctrl-c")
 	keys, _ = ToBytes("ctrl-c")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.Condition(t, func() (success bool) {
-		return reflect.TypeOf(err).Name() == "EscapeError"
-	}, err)
-	require.EqualValues(t, nr, 0, "nr should be equal to 0")
-	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
+	assert.Error(t, err, "read escape sequence")
+	assert.Equal(t, nr, 0, "nr should be equal to 0")
+	assert.DeepEqual(t, keys, buf)
 
 	escapeKeys, _ = ToBytes("ctrl-c,ctrl-z")
 	keys, _ = ToBytes("ctrl-c,ctrl-z")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, 1)
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, 0, "nr should be equal to 0")
-	require.Equal(t, keys[0:1], buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, 0, "nr should be equal to 0")
+	assert.DeepEqual(t, keys[0:1], buf)
 	nr, err = reader.Read(buf)
-	require.Condition(t, func() (success bool) {
-		return reflect.TypeOf(err).Name() == "EscapeError"
-	}, err)
-	require.EqualValues(t, nr, 0, "nr should be equal to 0")
-	require.Equal(t, keys[1:], buf, "keys & the read buffer should be equal")
+	assert.Error(t, err, "read escape sequence")
+	assert.Equal(t, nr, 0, "nr should be equal to 0")
+	assert.DeepEqual(t, keys[1:], buf)
 
 	escapeKeys, _ = ToBytes("ctrl-c,ctrl-z")
 	keys, _ = ToBytes("ctrl-c,DEL,+")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, 1)
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, 0, "nr should be equal to 0")
-	require.Equal(t, keys[0:1], buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, 0, "nr should be equal to 0")
+	assert.DeepEqual(t, keys[0:1], buf)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, len(keys), fmt.Sprintf("nr should be equal to %d", len(keys)))
-	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, len(keys), fmt.Sprintf("nr should be equal to %d", len(keys)))
+	assert.DeepEqual(t, keys, buf)
 
 	escapeKeys, _ = ToBytes("ctrl-c,ctrl-z")
 	keys, _ = ToBytes("ctrl-c,DEL")
 	reader = NewEscapeProxy(bytes.NewReader(keys), escapeKeys)
 	buf = make([]byte, 1)
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, 0, "nr should be equal to 0")
-	require.Equal(t, keys[0:1], buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, 0, "nr should be equal to 0")
+	assert.DeepEqual(t, keys[0:1], buf)
 	buf = make([]byte, len(keys))
 	nr, err = reader.Read(buf)
-	require.NoError(t, err)
-	require.EqualValues(t, nr, len(keys), fmt.Sprintf("nr should be equal to %d", len(keys)))
-	require.Equal(t, keys, buf, "keys & the read buffer should be equal")
+	assert.NilError(t, err)
+	assert.Equal(t, nr, len(keys), fmt.Sprintf("nr should be equal to %d", len(keys)))
+	assert.DeepEqual(t, keys, buf)
 }

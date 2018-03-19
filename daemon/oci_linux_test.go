@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 // TestTmpfsDevShmNoDupMount checks that a user-specified /dev/shm tmpfs
@@ -36,17 +36,17 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 
 	// Mimick the code flow of daemon.createSpec(), enough to reproduce the issue
 	ms, err := d.setupMounts(c)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	ms = append(ms, c.IpcMounts()...)
 
 	tmpfsMounts, err := c.TmpfsMounts()
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	ms = append(ms, tmpfsMounts...)
 
 	s := oci.DefaultSpec()
 	err = setMounts(&d, &s, c, ms)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }
 
 // TestIpcPrivateVsReadonly checks that in case of IpcMode: private
@@ -70,19 +70,19 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 	// We can't call createSpec() so mimick the minimal part
 	// of its code flow, just enough to reproduce the issue.
 	ms, err := d.setupMounts(c)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	s := oci.DefaultSpec()
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 
 	err = setMounts(&d, &s, c, ms)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	// Find the /dev/shm mount in ms, check it does not have ro
 	for _, m := range s.Mounts {
 		if m.Destination != "/dev/shm" {
 			continue
 		}
-		assert.Equal(t, false, inSlice(m.Options, "ro"))
+		assert.Check(t, is.Equal(false, inSlice(m.Options, "ro")))
 	}
 }

@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestStreamWriterStdout(t *testing.T) {
@@ -14,11 +14,11 @@ func TestStreamWriterStdout(t *testing.T) {
 	sw := NewStdoutWriter(buffer)
 	size, err := sw.Write([]byte(content))
 
-	require.NoError(t, err)
-	assert.Equal(t, len(content), size)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(content), size))
 
 	expected := `{"stream":"content"}` + streamNewline
-	assert.Equal(t, expected, buffer.String())
+	assert.Check(t, is.Equal(expected, buffer.String()))
 }
 
 func TestStreamWriterStderr(t *testing.T) {
@@ -27,9 +27,9 @@ func TestStreamWriterStderr(t *testing.T) {
 	sw := NewStderrWriter(buffer)
 	size, err := sw.Write([]byte(content))
 
-	require.NoError(t, err)
-	assert.Equal(t, len(content), size)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(content), size))
 
 	expected := `{"stream":"\u001b[91mcontent\u001b[0m"}` + streamNewline
-	assert.Equal(t, expected, buffer.String())
+	assert.Check(t, is.Equal(expected, buffer.String()))
 }

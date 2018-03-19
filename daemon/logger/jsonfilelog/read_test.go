@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/fs"
-	"github.com/stretchr/testify/require"
 )
 
 func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
@@ -25,7 +25,7 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 			"second": "label_foo",
 		},
 	})
-	require.NoError(b, err)
+	assert.NilError(b, err)
 	defer jsonlogger.Close()
 
 	msg := &logger.Message{
@@ -35,7 +35,7 @@ func BenchmarkJSONFileLoggerReadLogs(b *testing.B) {
 	}
 
 	buf := bytes.NewBuffer(nil)
-	require.NoError(b, marshalMessage(msg, nil, buf))
+	assert.NilError(b, marshalMessage(msg, nil, buf))
 	b.SetBytes(int64(buf.Len()))
 
 	b.ResetTimer()

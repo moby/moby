@@ -10,19 +10,19 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string) {
 	tmpDir, err := ioutil.TempDir(tmpdir, prefix)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	exePath := tmpDir + "/" + prefix
 	wd, _ := os.Getwd()
 	testHelperCode := wd + "/testfiles/main.go"
 	cmd := exec.Command("go", "build", "-o", exePath, testHelperCode)
 	err = cmd.Run()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return exePath, tmpDir
 }
 
@@ -48,14 +48,14 @@ func TestTrap(t *testing.T) {
 			cmd.Env = append(cmd.Env, "IF_MULTIPLE=1")
 		}
 		err := cmd.Start()
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		err = cmd.Wait()
 		if e, ok := err.(*exec.ExitError); ok {
 			code := e.Sys().(syscall.WaitStatus).ExitStatus()
 			if v.multiple {
-				assert.Equal(t, 128+int(v.signal.(syscall.Signal)), code)
+				assert.Check(t, is.DeepEqual(128+int(v.signal.(syscall.Signal)), code))
 			} else {
-				assert.Equal(t, 99, code)
+				assert.Check(t, is.Equal(99, code))
 			}
 			continue
 		}
@@ -66,17 +66,17 @@ func TestTrap(t *testing.T) {
 
 func TestDumpStacks(t *testing.T) {
 	directory, err := ioutil.TempDir("", "test-dump-tasks")
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	defer os.RemoveAll(directory)
 	dumpPath, err := DumpStacks(directory)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	readFile, _ := ioutil.ReadFile(dumpPath)
 	fileData := string(readFile)
-	assert.Contains(t, fileData, "goroutine")
+	assert.Check(t, is.Contains(fileData, "goroutine"))
 }
 
 func TestDumpStacksWithEmptyInput(t *testing.T) {
 	path, err := DumpStacks("")
-	assert.NoError(t, err)
-	assert.Equal(t, os.Stderr.Name(), path)
+	assert.Check(t, err)
+	assert.Check(t, is.Equal(os.Stderr.Name(), path))
 }

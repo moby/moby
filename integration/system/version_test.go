@@ -4,8 +4,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/integration/internal/request"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -13,11 +13,11 @@ func TestVersion(t *testing.T) {
 	client := request.NewAPIClient(t)
 
 	version, err := client.ServerVersion(context.Background())
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.NotNil(t, version.APIVersion)
-	assert.NotNil(t, version.Version)
-	assert.NotNil(t, version.MinAPIVersion)
-	assert.Equal(t, testEnv.DaemonInfo.ExperimentalBuild, version.Experimental)
-	assert.Equal(t, testEnv.OSType, version.Os)
+	assert.Check(t, version.APIVersion != "")
+	assert.Check(t, version.Version != "")
+	assert.Check(t, version.MinAPIVersion != "")
+	assert.Check(t, is.Equal(testEnv.DaemonInfo.ExperimentalBuild, version.Experimental))
+	assert.Check(t, is.Equal(testEnv.OSType, version.Os))
 }

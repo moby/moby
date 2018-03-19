@@ -14,8 +14,8 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
-	"github.com/stretchr/testify/assert"
 )
 
 const (
@@ -54,7 +54,6 @@ func testActive(t *testing.T, p *Plugin) {
 		t.Fatalf("%s:%d: deadlock in waitActive", filepath.Base(f), l)
 	case <-done:
 	}
-
 }
 
 func TestGet(t *testing.T) {
@@ -83,7 +82,6 @@ func TestGet(t *testing.T) {
 	// check negative case where plugin vegetable doesn't exist
 	_, err = Get("vegetable", "potato")
 	assert.Equal(t, errors.Cause(err), ErrNotFound)
-
 }
 
 func TestPluginWithNoManifest(t *testing.T) {

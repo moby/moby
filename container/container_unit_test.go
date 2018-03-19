@@ -11,7 +11,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
 	"github.com/docker/docker/pkg/signal"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestContainerStopSignal(t *testing.T) {
@@ -74,7 +74,7 @@ func TestContainerSecretReferenceDestTarget(t *testing.T) {
 
 func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 	containerRoot, err := ioutil.TempDir("", "TestContainerLogPathSetForJSONFileLogger")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(containerRoot)
 
 	c := &Container{
@@ -89,17 +89,17 @@ func TestContainerLogPathSetForJSONFileLogger(t *testing.T) {
 	}
 
 	logger, err := c.StartLogger()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer logger.Close()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
-	require.NoError(t, err)
-	require.Equal(t, c.LogPath, expectedLogPath)
+	assert.NilError(t, err)
+	assert.Equal(t, c.LogPath, expectedLogPath)
 }
 
 func TestContainerLogPathSetForRingLogger(t *testing.T) {
 	containerRoot, err := ioutil.TempDir("", "TestContainerLogPathSetForRingLogger")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(containerRoot)
 
 	c := &Container{
@@ -117,10 +117,10 @@ func TestContainerLogPathSetForRingLogger(t *testing.T) {
 	}
 
 	logger, err := c.StartLogger()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer logger.Close()
 
 	expectedLogPath, err := filepath.Abs(filepath.Join(containerRoot, fmt.Sprintf("%s-json.log", c.ID)))
-	require.NoError(t, err)
-	require.Equal(t, c.LogPath, expectedLogPath)
+	assert.NilError(t, err)
+	assert.Equal(t, c.LogPath, expectedLogPath)
 }

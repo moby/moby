@@ -7,8 +7,8 @@ import (
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestCommandsExactlyOneArgument(t *testing.T) {
@@ -21,9 +21,9 @@ func TestCommandsExactlyOneArgument(t *testing.T) {
 
 	for _, command := range commands {
 		ast, err := parser.Parse(strings.NewReader(command))
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		_, err = ParseInstruction(ast.AST.Children[0])
-		assert.EqualError(t, err, errExactlyOneArgument(command).Error())
+		assert.Check(t, is.Error(err, errExactlyOneArgument(command).Error()))
 	}
 }
 
@@ -39,9 +39,9 @@ func TestCommandsAtLeastOneArgument(t *testing.T) {
 
 	for _, command := range commands {
 		ast, err := parser.Parse(strings.NewReader(command))
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		_, err = ParseInstruction(ast.AST.Children[0])
-		assert.EqualError(t, err, errAtLeastOneArgument(command).Error())
+		assert.Check(t, is.Error(err, errAtLeastOneArgument(command).Error()))
 	}
 }
 
@@ -53,9 +53,9 @@ func TestCommandsNoDestinationArgument(t *testing.T) {
 
 	for _, command := range commands {
 		ast, err := parser.Parse(strings.NewReader(command + " arg1"))
-		require.NoError(t, err)
+		assert.NilError(t, err)
 		_, err = ParseInstruction(ast.AST.Children[0])
-		assert.EqualError(t, err, errNoDestinationArgument(command).Error())
+		assert.Check(t, is.Error(err, errNoDestinationArgument(command).Error()))
 	}
 }
 
@@ -80,7 +80,7 @@ func TestCommandsTooManyArguments(t *testing.T) {
 			},
 		}
 		_, err := ParseInstruction(node)
-		assert.EqualError(t, err, errTooManyArguments(command).Error())
+		assert.Check(t, is.Error(err, errTooManyArguments(command).Error()))
 	}
 }
 
@@ -102,7 +102,7 @@ func TestCommandsBlankNames(t *testing.T) {
 			},
 		}
 		_, err := ParseInstruction(node)
-		assert.EqualError(t, err, errBlankCommandNames(command).Error())
+		assert.Check(t, is.Error(err, errBlankCommandNames(command).Error()))
 	}
 }
 
@@ -120,11 +120,11 @@ func TestHealthCheckCmd(t *testing.T) {
 		},
 	}
 	cmd, err := ParseInstruction(node)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 	hc, ok := cmd.(*HealthCheckCommand)
-	assert.True(t, ok)
+	assert.Check(t, ok)
 	expected := []string{"CMD-SHELL", "hello world"}
-	assert.Equal(t, expected, hc.Health.Test)
+	assert.Check(t, is.DeepEqual(expected, hc.Health.Test))
 }
 
 func TestParseOptInterval(t *testing.T) {
@@ -138,7 +138,7 @@ func TestParseOptInterval(t *testing.T) {
 
 	flInterval.Value = "1ms"
 	_, err = parseOptInterval(flInterval)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestErrorCases(t *testing.T) {

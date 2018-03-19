@@ -72,7 +72,7 @@ func ifCondition(t skipT, condition bool, msgAndArgs ...interface{}) {
 		stackIndex = 2
 		argPos     = 1
 	)
-	source, err := source.GetCondition(stackIndex, argPos)
+	source, err := source.FormattedCallExprArg(stackIndex, argPos)
 	if err != nil {
 		t.Log(err.Error())
 		t.Skip(format.Message(msgAndArgs...))

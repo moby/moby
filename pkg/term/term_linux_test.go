@@ -7,7 +7,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/stretchr/testify/require"
+	"github.com/google/go-cmp/cmp"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // RequiresRoot skips tests that require root, unless the test.root flag has
@@ -31,85 +32,86 @@ func newTempFile() (*os.File, error) {
 func TestGetWinsize(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	winSize, err := GetWinsize(tty.Fd())
-	require.NoError(t, err)
-	require.NotNil(t, winSize)
-	require.NotNil(t, winSize.Height)
-	require.NotNil(t, winSize.Width)
+	assert.NilError(t, err)
+	assert.Assert(t, winSize != nil)
+
 	newSize := Winsize{Width: 200, Height: 200, x: winSize.x, y: winSize.y}
 	err = SetWinsize(tty.Fd(), &newSize)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	winSize, err = GetWinsize(tty.Fd())
-	require.NoError(t, err)
-	require.Equal(t, *winSize, newSize)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *winSize, newSize, cmpWinsize)
 }
+
+var cmpWinsize = cmp.AllowUnexported(Winsize{})
 
 func TestSetWinsize(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	winSize, err := GetWinsize(tty.Fd())
-	require.NoError(t, err)
-	require.NotNil(t, winSize)
+	assert.NilError(t, err)
+	assert.Assert(t, winSize != nil)
 	newSize := Winsize{Width: 200, Height: 200, x: winSize.x, y: winSize.y}
 	err = SetWinsize(tty.Fd(), &newSize)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	winSize, err = GetWinsize(tty.Fd())
-	require.NoError(t, err)
-	require.Equal(t, *winSize, newSize)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *winSize, newSize, cmpWinsize)
 }
 
 func TestGetFdInfo(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	inFd, isTerminal := GetFdInfo(tty)
-	require.Equal(t, inFd, tty.Fd())
-	require.Equal(t, isTerminal, true)
+	assert.Equal(t, inFd, tty.Fd())
+	assert.Equal(t, isTerminal, true)
 	tmpFile, err := newTempFile()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer tmpFile.Close()
 	inFd, isTerminal = GetFdInfo(tmpFile)
-	require.Equal(t, inFd, tmpFile.Fd())
-	require.Equal(t, isTerminal, false)
+	assert.Equal(t, inFd, tmpFile.Fd())
+	assert.Equal(t, isTerminal, false)
 }
 
 func TestIsTerminal(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	isTerminal := IsTerminal(tty.Fd())
-	require.Equal(t, isTerminal, true)
+	assert.Equal(t, isTerminal, true)
 	tmpFile, err := newTempFile()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer tmpFile.Close()
 	isTerminal = IsTerminal(tmpFile.Fd())
-	require.Equal(t, isTerminal, false)
+	assert.Equal(t, isTerminal, false)
 }
 
 func TestSaveState(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	state, err := SaveState(tty.Fd())
-	require.NoError(t, err)
-	require.NotNil(t, state)
+	assert.NilError(t, err)
+	assert.Assert(t, state != nil)
 	tty, err = newTtyForTest(t)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer tty.Close()
 	err = RestoreTerminal(tty.Fd(), state)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestDisableEcho(t *testing.T) {
 	tty, err := newTtyForTest(t)
 	defer tty.Close()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	state, err := SetRawTerminal(tty.Fd())
 	defer RestoreTerminal(tty.Fd(), state)
-	require.NoError(t, err)
-	require.NotNil(t, state)
+	assert.NilError(t, err)
+	assert.Assert(t, state != nil)
 	err = DisableEcho(tty.Fd(), state)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }

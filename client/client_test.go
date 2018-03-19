@@ -11,10 +11,10 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/env"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestNewEnvClient(t *testing.T) {
@@ -89,19 +89,18 @@ func TestNewEnvClient(t *testing.T) {
 		env.PatchAll(t, c.envs)
 		apiclient, err := NewEnvClient()
 		if c.expectedError != "" {
-			assert.Error(t, err, c.doc)
-			assert.Equal(t, c.expectedError, err.Error(), c.doc)
+			assert.Check(t, is.Error(err, c.expectedError), c.doc)
 		} else {
-			assert.NoError(t, err, c.doc)
+			assert.Check(t, err, c.doc)
 			version := apiclient.ClientVersion()
-			assert.Equal(t, c.expectedVersion, version, c.doc)
+			assert.Check(t, is.Equal(c.expectedVersion, version), c.doc)
 		}
 
 		if c.envs["DOCKER_TLS_VERIFY"] != "" {
 			// pedantic checking that this is handled correctly
 			tr := apiclient.client.Transport.(*http.Transport)
-			assert.NotNil(t, tr.TLSClientConfig, c.doc)
-			assert.Equal(t, tr.TLSClientConfig.InsecureSkipVerify, false, c.doc)
+			assert.Assert(t, tr.TLSClientConfig != nil, c.doc)
+			assert.Check(t, is.Equal(tr.TLSClientConfig.InsecureSkipVerify, false), c.doc)
 		}
 	}
 }
@@ -128,7 +127,7 @@ func TestGetAPIPath(t *testing.T) {
 	for _, testcase := range testcases {
 		c := Client{version: testcase.version, basePath: "/"}
 		actual := c.getAPIPath(testcase.path, testcase.query)
-		assert.Equal(t, actual, testcase.expected)
+		assert.Check(t, is.Equal(actual, testcase.expected))
 	}
 }
 
@@ -165,7 +164,7 @@ func TestParseHostURL(t *testing.T) {
 		if testcase.expectedErr != "" {
 			testutil.ErrorContains(t, err, testcase.expectedErr)
 		}
-		assert.Equal(t, testcase.expected, actual)
+		assert.Check(t, is.DeepEqual(testcase.expected, actual))
 	}
 }
 
@@ -181,7 +180,7 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, client.version, api.DefaultVersion)
+	assert.Check(t, is.Equal(client.version, api.DefaultVersion))
 
 	expected := "1.22"
 	os.Setenv("DOCKER_API_VERSION", expected)
@@ -189,7 +188,7 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, expected, client.version)
+	assert.Check(t, is.Equal(expected, client.version))
 }
 
 // TestNegotiateAPIVersionEmpty asserts that client.Client can
@@ -198,7 +197,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": ""})
 
 	client, err := NewEnvClient()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ping := types.Ping{
 		APIVersion:   "",
@@ -215,14 +214,14 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 
 	// test downgrade
 	client.NegotiateAPIVersionPing(ping)
-	assert.Equal(t, expected, client.version)
+	assert.Check(t, is.Equal(expected, client.version))
 }
 
 // TestNegotiateAPIVersion asserts that client.Client can
 // negotiate a compatible APIVersion with the server
 func TestNegotiateAPIVersion(t *testing.T) {
 	client, err := NewEnvClient()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	expected := "1.21"
 	ping := types.Ping{
@@ -236,14 +235,14 @@ func TestNegotiateAPIVersion(t *testing.T) {
 
 	// test downgrade
 	client.NegotiateAPIVersionPing(ping)
-	assert.Equal(t, expected, client.version)
+	assert.Check(t, is.Equal(expected, client.version))
 
 	// set the client version to something older, and verify that we keep the
 	// original setting.
 	expected = "1.20"
 	client.version = expected
 	client.NegotiateAPIVersionPing(ping)
-	assert.Equal(t, expected, client.version)
+	assert.Check(t, is.Equal(expected, client.version))
 
 }
 
@@ -254,7 +253,7 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
 
 	client, err := NewEnvClient()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ping := types.Ping{
 		APIVersion:   "1.24",
@@ -264,7 +263,7 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 
 	// test that we honored the env var
 	client.NegotiateAPIVersionPing(ping)
-	assert.Equal(t, expected, client.version)
+	assert.Check(t, is.Equal(expected, client.version))
 }
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
@@ -298,7 +297,7 @@ func TestClientRedirect(t *testing.T) {
 
 	cases := []struct {
 		httpMethod  string
-		expectedErr error
+		expectedErr *url.Error
 		statusCode  int
 	}{
 		{http.MethodGet, nil, 301},
@@ -309,9 +308,15 @@ func TestClientRedirect(t *testing.T) {
 
 	for _, tc := range cases {
 		req, err := http.NewRequest(tc.httpMethod, "/redirectme", nil)
-		assert.NoError(t, err)
+		assert.Check(t, err)
 		resp, err := client.Do(req)
-		assert.Equal(t, tc.expectedErr, err)
-		assert.Equal(t, tc.statusCode, resp.StatusCode)
+		assert.Check(t, is.Equal(tc.statusCode, resp.StatusCode))
+		if tc.expectedErr == nil {
+			assert.Check(t, is.Nil(err))
+		} else {
+			urlError, ok := err.(*url.Error)
+			assert.Assert(t, ok, "%T is not *url.Error", err)
+			assert.Check(t, is.Equal(*tc.expectedErr, *urlError))
+		}
 	}
 }

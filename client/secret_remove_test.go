@@ -8,7 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -18,7 +19,7 @@ func TestSecretRemoveUnsupported(t *testing.T) {
 		client:  &http.Client{},
 	}
 	err := client.SecretRemove(context.Background(), "secret_id")
-	assert.EqualError(t, err, `"secret remove" requires API version 1.25, but the Docker daemon API version is 1.24`)
+	assert.Check(t, is.Error(err, `"secret remove" requires API version 1.25, but the Docker daemon API version is 1.24`))
 }
 
 func TestSecretRemoveError(t *testing.T) {

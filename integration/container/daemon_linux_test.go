@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/sys/unix"
 )
 
@@ -35,7 +35,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	client, err := d.NewClient()
-	assert.NoError(t, err, "error creating client")
+	assert.Check(t, err, "error creating client")
 
 	ctx := context.Background()
 
@@ -43,36 +43,36 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	defer client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
 	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
-	assert.NoError(t, err, "error starting test container")
+	assert.Check(t, err, "error starting test container")
 
 	inspect, err := client.ContainerInspect(ctx, cID)
-	assert.NoError(t, err, "error getting inspect data")
+	assert.Check(t, err, "error getting inspect data")
 
 	ppid := getContainerdShimPid(t, inspect)
 
 	err = d.Kill()
-	assert.NoError(t, err, "failed to kill test daemon")
+	assert.Check(t, err, "failed to kill test daemon")
 
 	err = unix.Kill(inspect.State.Pid, unix.SIGKILL)
-	assert.NoError(t, err, "failed to kill container process")
+	assert.Check(t, err, "failed to kill container process")
 
 	err = unix.Kill(ppid, unix.SIGKILL)
-	assert.NoError(t, err, "failed to kill containerd-shim")
+	assert.Check(t, err, "failed to kill containerd-shim")
 
 	d.Start(t, "--iptables=false")
 
 	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
-	assert.NoError(t, err, "failed to start test container")
+	assert.Check(t, err, "failed to start test container")
 }
 
 func getContainerdShimPid(t *testing.T, c types.ContainerJSON) int {
 	statB, err := ioutil.ReadFile(fmt.Sprintf("/proc/%d/stat", c.State.Pid))
-	assert.NoError(t, err, "error looking up containerd-shim pid")
+	assert.Check(t, err, "error looking up containerd-shim pid")
 
 	// ppid is the 4th entry in `/proc/pid/stat`
 	ppid, err := strconv.Atoi(strings.Fields(string(statB))[3])
-	assert.NoError(t, err, "error converting ppid field to int")
+	assert.Check(t, err, "error converting ppid field to int")
 
-	assert.NotEqual(t, ppid, 1, "got unexpected ppid")
+	assert.Check(t, ppid != 1, "got unexpected ppid")
 	return ppid
 }

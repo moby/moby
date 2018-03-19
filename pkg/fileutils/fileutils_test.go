@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 // CopyFile with invalid src
@@ -384,9 +384,9 @@ func TestMatches(t *testing.T) {
 	for _, test := range tests {
 		desc := fmt.Sprintf("pattern=%q text=%q", test.pattern, test.text)
 		pm, err := NewPatternMatcher([]string{test.pattern})
-		require.NoError(t, err, desc)
+		assert.NilError(t, err, desc)
 		res, _ := pm.Matches(test.text)
-		assert.Equal(t, test.pass, res, desc)
+		assert.Check(t, is.Equal(test.pass, res), desc)
 	}
 }
 

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
@@ -24,11 +24,11 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resreq := &requestReader{}
 	_, err = resreq.Read([]byte{})
-	assert.EqualError(t, err, "client and request can't be nil")
+	assert.Check(t, is.Error(err, "client and request can't be nil"))
 
 	resreq = &requestReader{
 		client:    client,
@@ -36,7 +36,7 @@ func TestResumableRequestHeaderSimpleErrors(t *testing.T) {
 		totalSize: -1,
 	}
 	_, err = resreq.Read([]byte{})
-	assert.EqualError(t, err, "failed to auto detect content length")
+	assert.Check(t, is.Error(err, "failed to auto detect content length"))
 }
 
 // Not too much failures, bails out after some wait
@@ -45,7 +45,7 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 
 	var badReq *http.Request
 	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resreq := &requestReader{
 		client:       client,
@@ -55,8 +55,8 @@ func TestResumableRequestHeaderNotTooMuchFailures(t *testing.T) {
 		waitDuration: 10 * time.Millisecond,
 	}
 	read, err := resreq.Read([]byte{})
-	require.NoError(t, err)
-	assert.Equal(t, 0, read)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(0, read))
 }
 
 // Too much failures, returns the error
@@ -65,7 +65,7 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 
 	var badReq *http.Request
 	badReq, err := http.NewRequest("GET", "I'm not an url", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resreq := &requestReader{
 		client:      client,
@@ -77,8 +77,8 @@ func TestResumableRequestHeaderTooMuchFailures(t *testing.T) {
 
 	expectedError := `Get I%27m%20not%20an%20url: unsupported protocol scheme ""`
 	read, err := resreq.Read([]byte{})
-	assert.EqualError(t, err, expectedError)
-	assert.Equal(t, 0, read)
+	assert.Check(t, is.Error(err, expectedError))
+	assert.Check(t, is.Equal(0, read))
 }
 
 type errorReaderCloser struct{}
@@ -93,7 +93,7 @@ func (errorReaderCloser) Read(p []byte) (n int, err error) {
 func TestResumableRequestReaderWithReadError(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", "", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 
@@ -116,15 +116,15 @@ func TestResumableRequestReaderWithReadError(t *testing.T) {
 
 	buf := make([]byte, 1)
 	read, err := resreq.Read(buf)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
-	assert.Equal(t, 0, read)
+	assert.Check(t, is.Equal(0, read))
 }
 
 func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 	var req *http.Request
 	req, err := http.NewRequest("GET", "", nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 
@@ -147,7 +147,7 @@ func TestResumableRequestReaderWithEOFWith416Response(t *testing.T) {
 
 	buf := make([]byte, 1)
 	_, err = resreq.Read(buf)
-	assert.EqualError(t, err, io.EOF.Error())
+	assert.Check(t, is.Error(err, io.EOF.Error()))
 }
 
 func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
@@ -160,7 +160,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 
@@ -173,7 +173,7 @@ func TestResumableRequestReaderWithServerDoesntSupportByteRanges(t *testing.T) {
 
 	buf := make([]byte, 2)
 	_, err = resreq.Read(buf)
-	assert.EqualError(t, err, "the server doesn't support byte ranges")
+	assert.Check(t, is.Error(err, "the server doesn't support byte ranges"))
 }
 
 func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
@@ -186,7 +186,7 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 	retries := uint32(5)
@@ -195,10 +195,10 @@ func TestResumableRequestReaderWithZeroTotalSize(t *testing.T) {
 	defer resreq.Close()
 
 	data, err := ioutil.ReadAll(resreq)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resstr := strings.TrimSuffix(string(data), "\n")
-	assert.Equal(t, srvtxt, resstr)
+	assert.Check(t, is.Equal(srvtxt, resstr))
 }
 
 func TestResumableRequestReader(t *testing.T) {
@@ -211,7 +211,7 @@ func TestResumableRequestReader(t *testing.T) {
 
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 	retries := uint32(5)
@@ -221,10 +221,10 @@ func TestResumableRequestReader(t *testing.T) {
 	defer resreq.Close()
 
 	data, err := ioutil.ReadAll(resreq)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resstr := strings.TrimSuffix(string(data), "\n")
-	assert.Equal(t, srvtxt, resstr)
+	assert.Check(t, is.Equal(srvtxt, resstr))
 }
 
 func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
@@ -237,21 +237,21 @@ func TestResumableRequestReaderWithInitialResponse(t *testing.T) {
 
 	var req *http.Request
 	req, err := http.NewRequest("GET", ts.URL, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	client := &http.Client{}
 	retries := uint32(5)
 	imgSize := int64(len(srvtxt))
 
 	res, err := client.Do(req)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resreq := NewRequestReaderWithInitialResponse(client, req, retries, imgSize, res)
 	defer resreq.Close()
 
 	data, err := ioutil.ReadAll(resreq)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resstr := strings.TrimSuffix(string(data), "\n")
-	assert.Equal(t, srvtxt, resstr)
+	assert.Check(t, is.Equal(srvtxt, resstr))
 }

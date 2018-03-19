@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
 )
@@ -24,6 +25,7 @@ func SetTestEnvironment(env *environment.Execution) {
 type CmdOperator func(*icmd.Cmd) func()
 
 type testingT interface {
+	assert.TestingT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
 }

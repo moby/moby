@@ -15,8 +15,9 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
-	"github.com/stretchr/testify/assert"
 )
 
 var (
@@ -403,7 +404,7 @@ func (s *DockerRegistrySuite) TestInspectImageWithDigests(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(imageJSON, checker.HasLen, 1)
 	c.Assert(imageJSON[0].RepoDigests, checker.HasLen, 1)
-	assert.Contains(c, imageJSON[0].RepoDigests, imageReference)
+	assert.Check(c, is.Contains(imageJSON[0].RepoDigests, imageReference))
 }
 
 func (s *DockerRegistrySuite) TestPsListContainersFilterAncestorImageByDigest(c *check.C) {

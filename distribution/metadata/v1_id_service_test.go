@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 func TestV1IDService(t *testing.T) {
@@ -24,7 +24,7 @@ func TestV1IDService(t *testing.T) {
 
 	ns := v1IDService.namespace()
 
-	require.Equal(t, "v1id", ns)
+	assert.Equal(t, "v1id", ns)
 
 	testVectors := []struct {
 		registry string

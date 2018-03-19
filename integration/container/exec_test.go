@@ -9,7 +9,8 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestExec(t *testing.T) {
@@ -27,7 +28,7 @@ func TestExec(t *testing.T) {
 			Cmd:          strslice.StrSlice([]string{"sh", "-c", "env"}),
 		},
 	)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	resp, err := client.ContainerExecAttach(ctx, id.ID,
 		types.ExecStartCheck{
@@ -35,12 +36,12 @@ func TestExec(t *testing.T) {
 			Tty:    false,
 		},
 	)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	defer resp.Close()
 	r, err := ioutil.ReadAll(resp.Reader)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	out := string(r)
-	require.NoError(t, err)
-	require.Contains(t, out, "PWD=/tmp", "exec command not running in expected /tmp working directory")
-	require.Contains(t, out, "FOO=BAR", "exec command not running with expected environment variable FOO")
+	assert.NilError(t, err)
+	assert.Assert(t, is.Contains(out, "PWD=/tmp"), "exec command not running in expected /tmp working directory")
+	assert.Assert(t, is.Contains(out, "FOO=BAR"), "exec command not running with expected environment variable FOO")
 }

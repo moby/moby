@@ -7,8 +7,8 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/exec"
-
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestGetInspectData(t *testing.T) {
@@ -25,9 +25,9 @@ func TestGetInspectData(t *testing.T) {
 	}
 
 	_, err := d.getInspectData(c)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 
 	c.Dead = true
 	_, err = d.getInspectData(c)
-	assert.NoError(t, err)
+	assert.Check(t, err)
 }

@@ -69,6 +69,8 @@ type logStream struct {
 	sequenceToken    *string
 }
 
+var _ logger.SizedLogger = &logStream{}
+
 type api interface {
 	CreateLogGroup(*cloudwatchlogs.CreateLogGroupInput) (*cloudwatchlogs.CreateLogGroupOutput, error)
 	CreateLogStream(*cloudwatchlogs.CreateLogStreamInput) (*cloudwatchlogs.CreateLogStreamOutput, error)

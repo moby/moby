@@ -24,8 +24,8 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -55,15 +55,15 @@ func setupTestV1(t *testing.T) func() {
 	teardown := setupTest(t)
 
 	err := os.MkdirAll("/etc/docker/plugins", 0755)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", testAuthZPlugin)
 	err = ioutil.WriteFile(fileName, []byte(server.URL), 0644)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	return func() {
 		err := os.RemoveAll("/etc/docker/plugins")
-		require.Nil(t, err)
+		assert.NilError(t, err)
 
 		teardown()
 		ctrl = nil
@@ -87,7 +87,7 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin)
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -98,9 +98,9 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", cID))
 
 	_, err = client.ServerVersion(ctx)
-	require.Nil(t, err)
-	require.Equal(t, 1, ctrl.versionReqCount)
-	require.Equal(t, 1, ctrl.versionResCount)
+	assert.NilError(t, err)
+	assert.Equal(t, 1, ctrl.versionReqCount)
+	assert.Equal(t, 1, ctrl.versionResCount)
 }
 
 func TestAuthZPluginTLS(t *testing.T) {
@@ -126,13 +126,13 @@ func TestAuthZPluginTLS(t *testing.T) {
 	ctrl.resRes.Allow = true
 
 	client, err := newTLSAPIClient(testDaemonHTTPSAddr, cacertPath, clientCertPath, clientKeyPath)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	_, err = client.ServerVersion(context.Background())
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
-	require.Equal(t, "client", ctrl.reqUser)
-	require.Equal(t, "client", ctrl.resUser)
+	assert.Equal(t, "client", ctrl.reqUser)
+	assert.Equal(t, "client", ctrl.resUser)
 }
 
 func newTLSAPIClient(host, cacertPath, certPath, keyPath string) (client.APIClient, error) {
@@ -153,16 +153,16 @@ func TestAuthZPluginDenyRequest(t *testing.T) {
 	ctrl.reqRes.Msg = unauthorizedMessage
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	// Ensure command is blocked
 	_, err = client.ServerVersion(context.Background())
-	require.NotNil(t, err)
-	require.Equal(t, 1, ctrl.versionReqCount)
-	require.Equal(t, 0, ctrl.versionResCount)
+	assert.Assert(t, err != nil)
+	assert.Equal(t, 1, ctrl.versionReqCount)
+	assert.Equal(t, 0, ctrl.versionResCount)
 
 	// Ensure unauthorized message appears in response
-	require.Equal(t, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s", testAuthZPlugin, unauthorizedMessage), err.Error())
+	assert.Equal(t, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s", testAuthZPlugin, unauthorizedMessage), err.Error())
 }
 
 // TestAuthZPluginAPIDenyResponse validates that when authorization
@@ -174,17 +174,17 @@ func TestAuthZPluginAPIDenyResponse(t *testing.T) {
 	ctrl.resRes.Msg = unauthorizedMessage
 
 	daemonURL, err := url.Parse(d.Sock())
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	client := httputil.NewClientConn(conn, nil)
 	req, err := http.NewRequest("GET", "/version", nil)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	resp, err := client.Do(req)
 
-	require.Nil(t, err)
-	require.Equal(t, http.StatusForbidden, resp.StatusCode)
+	assert.NilError(t, err)
+	assert.DeepEqual(t, http.StatusForbidden, resp.StatusCode)
 }
 
 func TestAuthZPluginDenyResponse(t *testing.T) {
@@ -195,16 +195,16 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 	ctrl.resRes.Msg = unauthorizedMessage
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	// Ensure command is blocked
 	_, err = client.ServerVersion(context.Background())
-	require.NotNil(t, err)
-	require.Equal(t, 1, ctrl.versionReqCount)
-	require.Equal(t, 1, ctrl.versionResCount)
+	assert.Assert(t, err != nil)
+	assert.Equal(t, 1, ctrl.versionReqCount)
+	assert.Equal(t, 1, ctrl.versionResCount)
 
 	// Ensure unauthorized message appears in response
-	require.Equal(t, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s", testAuthZPlugin, unauthorizedMessage), err.Error())
+	assert.Equal(t, fmt.Sprintf("Error response from daemon: authorization denied by plugin %s: %s", testAuthZPlugin, unauthorizedMessage), err.Error())
 }
 
 // TestAuthZPluginAllowEventStream verifies event stream propagates
@@ -218,7 +218,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin)
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
@@ -231,7 +231,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 
 	for i := 0; i < 100; i++ {
 		c, err := client.ContainerInspect(ctx, cID)
-		require.Nil(t, err)
+		assert.NilError(t, err)
 		if c.State.Running {
 			break
 		}
@@ -258,7 +258,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 			if err == io.EOF {
 				t.Fatal("premature end of event stream")
 			}
-			require.Nil(t, err)
+			assert.NilError(t, err)
 		case <-time.After(30 * time.Second):
 			// Fail the test
 			t.Fatal("event stream timeout")
@@ -279,10 +279,10 @@ func systemTime(t *testing.T, client client.APIClient, testEnv *environment.Exec
 
 	ctx := context.Background()
 	info, err := client.Info(ctx)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
-	require.Nil(t, err, "invalid time format in GET /info response")
+	assert.NilError(t, err, "invalid time format in GET /info response")
 	return dt
 }
 
@@ -303,12 +303,12 @@ func TestAuthZPluginErrorResponse(t *testing.T) {
 	ctrl.resRes.Err = errorMessage
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	// Ensure command is blocked
 	_, err = client.ServerVersion(context.Background())
-	require.NotNil(t, err)
-	require.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage), err.Error())
+	assert.Assert(t, err != nil)
+	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiResponse, errorMessage), err.Error())
 }
 
 func TestAuthZPluginErrorRequest(t *testing.T) {
@@ -317,12 +317,12 @@ func TestAuthZPluginErrorRequest(t *testing.T) {
 	ctrl.reqRes.Err = errorMessage
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	// Ensure command is blocked
 	_, err = client.ServerVersion(context.Background())
-	require.NotNil(t, err)
-	require.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage), err.Error())
+	assert.Assert(t, err != nil)
+	assert.Equal(t, fmt.Sprintf("Error response from daemon: plugin %s failed with error: %s: %s", testAuthZPlugin, authorization.AuthZApiRequest, errorMessage), err.Error())
 }
 
 func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
@@ -333,14 +333,14 @@ func TestAuthZPluginEnsureNoDuplicatePluginRegistration(t *testing.T) {
 	ctrl.resRes.Allow = true
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	_, err = client.ServerVersion(context.Background())
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	// assert plugin is only called once..
-	require.Equal(t, 1, ctrl.versionReqCount)
-	require.Equal(t, 1, ctrl.versionResCount)
+	assert.Equal(t, 1, ctrl.versionReqCount)
+	assert.Equal(t, 1, ctrl.versionResCount)
 }
 
 func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
@@ -350,36 +350,36 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
 
 	client, err := d.NewClient()
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	ctx := context.Background()
 
 	tmp, err := ioutil.TempDir("", "test-authz-load-import")
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(tmp)
 
 	savedImagePath := filepath.Join(tmp, "save.tar")
 
 	err = imageSave(client, savedImagePath, "busybox")
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	err = imageLoad(client, savedImagePath)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	exportedImagePath := filepath.Join(tmp, "export.tar")
 
 	cID := container.Run(t, ctx, client)
 
 	responseReader, err := client.ContainerExport(context.Background(), cID)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	defer responseReader.Close()
 	file, err := os.Create(exportedImagePath)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	defer file.Close()
 	_, err = io.Copy(file, responseReader)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	err = imageImport(client, exportedImagePath)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 }
 
 func imageSave(client client.APIClient, path, image string) error {
@@ -442,16 +442,16 @@ func TestAuthZPluginHeader(t *testing.T) {
 	d.StartWithBusybox(t, "--debug", "--authorization-plugin="+testAuthZPlugin)
 
 	daemonURL, err := url.Parse(d.Sock())
-	require.Nil(t, err)
+	assert.NilError(t, err)
 
 	conn, err := net.DialTimeout(daemonURL.Scheme, daemonURL.Path, time.Second*10)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	client := httputil.NewClientConn(conn, nil)
 	req, err := http.NewRequest("GET", "/version", nil)
-	require.Nil(t, err)
+	assert.NilError(t, err)
 	resp, err := client.Do(req)
-	require.Nil(t, err)
-	require.Equal(t, "application/json", resp.Header["Content-Type"][0])
+	assert.NilError(t, err)
+	assert.Equal(t, "application/json", resp.Header["Content-Type"][0])
 }
 
 // assertURIRecorded verifies that the given URI was sent and recorded

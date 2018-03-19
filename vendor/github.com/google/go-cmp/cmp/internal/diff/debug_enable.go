@@ -50,7 +50,7 @@ import (
 //
 // The series of '.', 'X', 'Y', and 'M' characters at the bottom represents
 // the currently established path from the forward and reverse searches,
-// seperated by a '|' character.
+// separated by a '|' character.
 
 const (
 	updateDelay  = 100 * time.Millisecond

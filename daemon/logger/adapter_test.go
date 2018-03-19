@@ -10,7 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	protoio "github.com/gogo/protobuf/io"
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 // mockLoggingPlugin implements the loggingPlugin interface for testing purposes
@@ -88,7 +89,7 @@ func (l *mockLoggingPlugin) ReadLogs(info Info, config ReadConfig) (io.ReadClose
 func newMockPluginAdapter(t *testing.T) Logger {
 	r, w := io.Pipe()
 	f, err := ioutil.TempFile("", "mock-plugin-adapter")
-	assert.NoError(t, err)
+	assert.Check(t, err)
 
 	enc := logdriver.NewLogEntryEncoder(w)
 	a := &pluginAdapterWithRead{
@@ -116,11 +117,11 @@ func TestAdapterReadLogs(t *testing.T) {
 	}
 	for _, msg := range testMsg {
 		m := msg.copy()
-		assert.NoError(t, l.Log(m))
+		assert.Check(t, l.Log(m))
 	}
 
 	lr, ok := l.(LogReader)
-	assert.NotNil(t, ok)
+	assert.Check(t, ok, "Logger does not implement LogReader")
 
 	lw := lr.ReadLogs(ReadConfig{})
 
@@ -135,7 +136,7 @@ func TestAdapterReadLogs(t *testing.T) {
 
 	select {
 	case _, ok := <-lw.Msg:
-		assert.False(t, ok, "expected message channel to be closed")
+		assert.Check(t, !ok, "expected message channel to be closed")
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for message channel to close")
 
@@ -153,11 +154,11 @@ func TestAdapterReadLogs(t *testing.T) {
 	}
 
 	x := Message{Line: []byte("Too infinity and beyond!"), Timestamp: time.Now()}
-	assert.NoError(t, l.Log(x.copy()))
+	assert.Check(t, l.Log(x.copy()))
 
 	select {
 	case msg, ok := <-lw.Msg:
-		assert.NotNil(t, ok, "message channel unexpectedly closed")
+		assert.Check(t, ok, "message channel unexpectedly closed")
 		testMessageEqual(t, &x, msg)
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout reading logs")
@@ -166,15 +167,15 @@ func TestAdapterReadLogs(t *testing.T) {
 	l.Close()
 	select {
 	case msg, ok := <-lw.Msg:
-		assert.False(t, ok, "expected message channel to be closed")
-		assert.Nil(t, msg)
+		assert.Check(t, !ok, "expected message channel to be closed")
+		assert.Check(t, is.Nil(msg))
 	case <-time.After(10 * time.Second):
 		t.Fatal("timeout waiting for logger to close")
 	}
 }
 
 func testMessageEqual(t *testing.T, a, b *Message) {
-	assert.Equal(t, a.Line, b.Line)
-	assert.Equal(t, a.Timestamp.UnixNano(), b.Timestamp.UnixNano())
-	assert.Equal(t, a.Source, b.Source)
+	assert.Check(t, is.DeepEqual(a.Line, b.Line))
+	assert.Check(t, is.DeepEqual(a.Timestamp.UnixNano(), b.Timestamp.UnixNano()))
+	assert.Check(t, is.Equal(a.Source, b.Source))
 }

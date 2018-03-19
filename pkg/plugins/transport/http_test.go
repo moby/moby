@@ -5,7 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestHTTPTransport(t *testing.T) {
@@ -16,5 +17,5 @@ func TestHTTPTransport(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	assert.Equal(t, "POST", request.Method)
+	assert.Check(t, is.Equal("POST", request.Method))
 }

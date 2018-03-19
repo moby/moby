@@ -11,8 +11,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -55,6 +55,6 @@ func TestSwarmGetUnlockKey(t *testing.T) {
 	}
 
 	resp, err := client.SwarmGetUnlockKey(context.Background())
-	require.NoError(t, err)
-	assert.Equal(t, unlockKey, resp.UnlockKey)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(unlockKey, resp.UnlockKey))
 }

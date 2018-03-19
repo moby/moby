@@ -8,7 +8,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	"github.com/stretchr/testify/require"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/net/context"
 )
 
@@ -30,7 +31,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 	middleWare.SetPlugins([]string{"My Test Plugin"})
 	setAuthzPlugins(middleWare, authList)
 	mdHandler := middleWare.WrapHandler(handler)
-	require.NotNil(t, mdHandler)
+	assert.Assert(t, mdHandler != nil)
 
 	addr := "www.example.com/auth"
 	req, _ := http.NewRequest("GET", addr, nil)
@@ -46,7 +47,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 			Msg:   "Server Auth Not Allowed",
 		}
 		if err := mdHandler(ctx, resp, req, map[string]string{}); err == nil {
-			require.Error(t, err)
+			assert.Assert(t, is.ErrorContains(err, ""))
 		}
 
 	})
@@ -57,7 +58,7 @@ func TestMiddlewareWrapHandler(t *testing.T) {
 			Msg:   "Server Auth Allowed",
 		}
 		if err := mdHandler(ctx, resp, req, map[string]string{}); err != nil {
-			require.NoError(t, err)
+			assert.NilError(t, err)
 		}
 
 	})

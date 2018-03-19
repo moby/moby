@@ -2,9 +2,11 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"bytes"
+	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func strPtr(source string) *string {
@@ -39,7 +41,7 @@ func TestGetAllAllowed(t *testing.T) {
 		"ArgFromMeta":                         "frommeta1",
 		"ArgFromMetaOverridden":               "fromdockerfile3",
 	}
-	assert.Equal(t, expected, all)
+	assert.Check(t, is.DeepEqual(expected, all))
 }
 
 func TestGetAllMeta(t *testing.T) {
@@ -61,7 +63,7 @@ func TestGetAllMeta(t *testing.T) {
 		"ArgOverriddenByOptions":        "fromopt2",
 		"ArgNoDefaultInMetaFromOptions": "fromopt3",
 	}
-	assert.Equal(t, expected, all)
+	assert.Check(t, is.DeepEqual(expected, all))
 }
 
 func TestWarnOnUnusedBuildArgs(t *testing.T) {
@@ -77,10 +79,10 @@ func TestWarnOnUnusedBuildArgs(t *testing.T) {
 	buffer := new(bytes.Buffer)
 	buildArgs.WarnOnUnusedBuildArgs(buffer)
 	out := buffer.String()
-	assert.NotContains(t, out, "ThisArgIsUsed")
-	assert.NotContains(t, out, "HTTPS_PROXY")
-	assert.NotContains(t, out, "HTTP_PROXY")
-	assert.Contains(t, out, "ThisArgIsNotUsed")
+	assert.Assert(t, !strings.Contains(out, "ThisArgIsUsed"), out)
+	assert.Assert(t, !strings.Contains(out, "HTTPS_PROXY"), out)
+	assert.Assert(t, !strings.Contains(out, "HTTP_PROXY"), out)
+	assert.Check(t, is.Contains(out, "ThisArgIsNotUsed"))
 }
 
 func TestIsUnreferencedBuiltin(t *testing.T) {
@@ -93,8 +95,8 @@ func TestIsUnreferencedBuiltin(t *testing.T) {
 	buildArgs.AddArg("ThisArgIsUsed", nil)
 	buildArgs.AddArg("HTTPS_PROXY", nil)
 
-	assert.True(t, buildArgs.IsReferencedOrNotBuiltin("ThisArgIsUsed"))
-	assert.True(t, buildArgs.IsReferencedOrNotBuiltin("ThisArgIsNotUsed"))
-	assert.True(t, buildArgs.IsReferencedOrNotBuiltin("HTTPS_PROXY"))
-	assert.False(t, buildArgs.IsReferencedOrNotBuiltin("HTTP_PROXY"))
+	assert.Check(t, buildArgs.IsReferencedOrNotBuiltin("ThisArgIsUsed"))
+	assert.Check(t, buildArgs.IsReferencedOrNotBuiltin("ThisArgIsNotUsed"))
+	assert.Check(t, buildArgs.IsReferencedOrNotBuiltin("HTTPS_PROXY"))
+	assert.Check(t, !buildArgs.IsReferencedOrNotBuiltin("HTTP_PROXY"))
 }
