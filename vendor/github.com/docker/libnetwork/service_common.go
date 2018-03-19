@@ -198,23 +198,8 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 			if cleanupNID != "" && nid != cleanupNID {
 				continue
 			}
-
-			for eid, ip := range lb.backEnds {
-				epID := eid
-				epIP := ip
-				service := s
-				loadBalancer := lb
-				networkID := nid
-				cleanupFuncs = append(cleanupFuncs, func() {
-					// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
-					// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
-					// Balancer bookeeping, is to keep consistent the mapping of endpoint to IP.
-					if err := c.rmServiceBinding(service.name, service.id, networkID, epID, "", loadBalancer.vip,
-						service.ingressPorts, service.aliases, []string{}, epIP, "cleanupServiceBindings", false); err != nil {
-						logrus.Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v",
-							service.id, networkID, epID, err)
-					}
-				})
+			for eid, be := range lb.backEnds {
+				cleanupFuncs = append(cleanupFuncs, makeServiceCleanupFunc(c, s, nid, eid, lb.vip, be.ip))
 			}
 		}
 		s.Unlock()
@@ -224,6 +209,17 @@ func (c *controller) cleanupServiceBindings(cleanupNID string) {
 		f()
 	}
 
+}
+
+func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.IP, ip net.IP) func() {
+	// ContainerName and taskAliases are not available here, this is still fine because the Service discovery
+	// cleanup already happened before. The only thing that rmServiceBinding is still doing here a part from the Load
+	// Balancer bookeeping, is to keep consistent the mapping of endpoint to IP.
+	return func() {
+		if err := c.rmServiceBinding(s.name, s.id, nID, eID, "", vip, s.ingressPorts, s.aliases, []string{}, ip, "cleanupServiceBindings", false, true); err != nil {
+			logrus.Errorf("Failed to remove service bindings for service %s network %s endpoint %s while cleanup: %v", s.id, nID, eID, err)
+		}
+	}
 }
 
 func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
@@ -271,7 +267,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		lb = &loadBalancer{
 			vip:      vip,
 			fwMark:   fwMarkCtr,
-			backEnds: make(map[string]net.IP),
+			backEnds: make(map[string]*lbBackend),
 			service:  s,
 		}
 
@@ -282,7 +278,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		addService = true
 	}
 
-	lb.backEnds[eID] = ip
+	lb.backEnds[eID] = &lbBackend{ip, false}
 
 	ok, entries := s.assignIPToEndpoint(ip.String(), eID)
 	if !ok || entries > 1 {
@@ -307,7 +303,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 	return nil
 }
 
-func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool) error {
+func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
 
 	var rmService bool
 
@@ -338,13 +334,19 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 		return nil
 	}
 
-	_, ok = lb.backEnds[eID]
+	be, ok := lb.backEnds[eID]
 	if !ok {
-		logrus.Warnf("rmServiceBinding %s %s %s aborted lb.backEnds[eid] !ok", method, svcName, eID)
+		logrus.Warnf("rmServiceBinding %s %s %s aborted lb.backEnds[eid] && lb.disabled[eid] !ok", method, svcName, eID)
 		return nil
 	}
 
-	delete(lb.backEnds, eID)
+	if fullRemove {
+		// delete regardless
+		delete(lb.backEnds, eID)
+	} else {
+		be.disabled = true
+	}
+
 	if len(lb.backEnds) == 0 {
 		// All the backends for this service have been
 		// removed. Time to remove the load balancer and also
@@ -367,7 +369,7 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
 	if len(vip) != 0 && entries == 0 {
-		n.(*network).rmLBBackend(ip, vip, lb, ingressPorts, rmService)
+		n.(*network).rmLBBackend(ip, vip, lb, ingressPorts, rmService, fullRemove)
 	}
 
 	// Delete the name resolutions

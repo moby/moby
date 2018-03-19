@@ -703,7 +703,7 @@ func (sb *sandbox) DisableService() (err error) {
 	}()
 	for _, ep := range sb.getConnectedEndpoints() {
 		if ep.isServiceEnabled() {
-			if err := ep.deleteServiceInfoFromCluster(sb, "DisableService"); err != nil {
+			if err := ep.deleteServiceInfoFromCluster(sb, false, "DisableService"); err != nil {
 				failedEps = append(failedEps, ep.Name())
 				logrus.Warnf("failed update state for endpoint %s into cluster: %v", ep.Name(), err)
 			}
