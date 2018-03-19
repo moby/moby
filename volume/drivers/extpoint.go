@@ -7,20 +7,13 @@ import (
 	"sort"
 	"sync"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/locker"
 	getter "github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-// currently created by hand. generation tool would generate this like:
-// $ extpoint-gen Driver > volume/extpoint.go
-
-var drivers = &driverExtpoint{
-	extensions: make(map[string]volume.Driver),
-	driverLock: &locker.Locker{},
-}
 
 const extName = "VolumeDriver"
 
@@ -53,53 +46,21 @@ type volumeDriver interface {
 	Capabilities() (capabilities volume.Capability, err error)
 }
 
-type driverExtpoint struct {
-	extensions map[string]volume.Driver
-	sync.Mutex
+// Store is an in-memory store for volume drivers
+type Store struct {
+	extensions   map[string]volume.Driver
+	mu           sync.Mutex
 	driverLock   *locker.Locker
-	plugingetter getter.PluginGetter
+	pluginGetter getter.PluginGetter
 }
 
-// RegisterPluginGetter sets the plugingetter
-func RegisterPluginGetter(plugingetter getter.PluginGetter) {
-	drivers.plugingetter = plugingetter
-}
-
-// Register associates the given driver to the given name, checking if
-// the name is already associated
-func Register(extension volume.Driver, name string) bool {
-	if name == "" {
-		return false
+// NewStore creates a new volume driver store
+func NewStore(pg getter.PluginGetter) *Store {
+	return &Store{
+		extensions:   make(map[string]volume.Driver),
+		driverLock:   locker.New(),
+		pluginGetter: pg,
 	}
-
-	drivers.Lock()
-	defer drivers.Unlock()
-
-	_, exists := drivers.extensions[name]
-	if exists {
-		return false
-	}
-
-	if err := validateDriver(extension); err != nil {
-		return false
-	}
-
-	drivers.extensions[name] = extension
-
-	return true
-}
-
-// Unregister dissociates the name from its driver, if the association exists.
-func Unregister(name string) bool {
-	drivers.Lock()
-	defer drivers.Unlock()
-
-	_, exists := drivers.extensions[name]
-	if !exists {
-		return false
-	}
-	delete(drivers.extensions, name)
-	return true
 }
 
 type driverNotFoundError string
@@ -113,18 +74,21 @@ func (driverNotFoundError) NotFound() {}
 // lookup returns the driver associated with the given name. If a
 // driver with the given name has not been registered it checks if
 // there is a VolumeDriver plugin available with the given name.
-func lookup(name string, mode int) (volume.Driver, error) {
-	drivers.driverLock.Lock(name)
-	defer drivers.driverLock.Unlock(name)
+func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
+	if name == "" {
+		return nil, errdefs.InvalidParameter(errors.New("driver name cannot be empty"))
+	}
+	s.driverLock.Lock(name)
+	defer s.driverLock.Unlock(name)
 
-	drivers.Lock()
-	ext, ok := drivers.extensions[name]
-	drivers.Unlock()
+	s.mu.Lock()
+	ext, ok := s.extensions[name]
+	s.mu.Unlock()
 	if ok {
 		return ext, nil
 	}
-	if drivers.plugingetter != nil {
-		p, err := drivers.plugingetter.Get(name, extName, mode)
+	if s.pluginGetter != nil {
+		p, err := s.pluginGetter.Get(name, extName, mode)
 		if err != nil {
 			return nil, errors.Wrap(err, "error looking up volume plugin "+name)
 		}
@@ -133,7 +97,7 @@ func lookup(name string, mode int) (volume.Driver, error) {
 		if err := validateDriver(d); err != nil {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
-				if _, err := drivers.plugingetter.Get(name, extName, mode*-1); err != nil {
+				if _, err := s.pluginGetter.Get(name, extName, mode*-1); err != nil {
 					logrus.WithError(err).WithField("action", "validate-driver").WithField("plugin", name).Error("error releasing reference to plugin")
 				}
 			}
@@ -141,9 +105,9 @@ func lookup(name string, mode int) (volume.Driver, error) {
 		}
 
 		if p.IsV1() {
-			drivers.Lock()
-			drivers.extensions[name] = d
-			drivers.Unlock()
+			s.mu.Lock()
+			s.extensions[name] = d
+			s.mu.Unlock()
 		}
 		return d, nil
 	}
@@ -158,75 +122,88 @@ func validateDriver(vd volume.Driver) error {
 	return nil
 }
 
+// Register associates the given driver to the given name, checking if
+// the name is already associated
+func (s *Store) Register(d volume.Driver, name string) bool {
+	if name == "" {
+		return false
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.extensions[name]; exists {
+		return false
+	}
+
+	if err := validateDriver(d); err != nil {
+		return false
+	}
+
+	s.extensions[name] = d
+	return true
+}
+
 // GetDriver returns a volume driver by its name.
 // If the driver is empty, it looks for the local driver.
-func GetDriver(name string) (volume.Driver, error) {
-	if name == "" {
-		name = volume.DefaultDriverName
-	}
-	return lookup(name, getter.Lookup)
+func (s *Store) GetDriver(name string) (volume.Driver, error) {
+	return s.lookup(name, getter.Lookup)
 }
 
 // CreateDriver returns a volume driver by its name and increments RefCount.
 // If the driver is empty, it looks for the local driver.
-func CreateDriver(name string) (volume.Driver, error) {
-	if name == "" {
-		name = volume.DefaultDriverName
-	}
-	return lookup(name, getter.Acquire)
+func (s *Store) CreateDriver(name string) (volume.Driver, error) {
+	return s.lookup(name, getter.Acquire)
 }
 
 // ReleaseDriver returns a volume driver by its name and decrements RefCount..
 // If the driver is empty, it looks for the local driver.
-func ReleaseDriver(name string) (volume.Driver, error) {
-	if name == "" {
-		name = volume.DefaultDriverName
-	}
-	return lookup(name, getter.Release)
+func (s *Store) ReleaseDriver(name string) (volume.Driver, error) {
+	return s.lookup(name, getter.Release)
 }
 
 // GetDriverList returns list of volume drivers registered.
 // If no driver is registered, empty string list will be returned.
-func GetDriverList() []string {
+func (s *Store) GetDriverList() []string {
 	var driverList []string
-	drivers.Lock()
-	for driverName := range drivers.extensions {
+	s.mu.Lock()
+	for driverName := range s.extensions {
 		driverList = append(driverList, driverName)
 	}
-	drivers.Unlock()
+	s.mu.Unlock()
 	sort.Strings(driverList)
 	return driverList
 }
 
 // GetAllDrivers lists all the registered drivers
-func GetAllDrivers() ([]volume.Driver, error) {
+func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 	var plugins []getter.CompatPlugin
-	if drivers.plugingetter != nil {
+	if s.pluginGetter != nil {
 		var err error
-		plugins, err = drivers.plugingetter.GetAllByCap(extName)
+		plugins, err = s.pluginGetter.GetAllByCap(extName)
 		if err != nil {
 			return nil, fmt.Errorf("error listing plugins: %v", err)
 		}
 	}
 	var ds []volume.Driver
 
-	drivers.Lock()
-	defer drivers.Unlock()
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-	for _, d := range drivers.extensions {
+	for _, d := range s.extensions {
 		ds = append(ds, d)
 	}
 
 	for _, p := range plugins {
 		name := p.Name()
 
-		if _, ok := drivers.extensions[name]; ok {
+		if _, ok := s.extensions[name]; ok {
 			continue
 		}
 
 		ext := NewVolumeDriver(name, p.ScopedPath, p.Client())
 		if p.IsV1() {
-			drivers.extensions[name] = ext
+			s.extensions[name] = ext
 		}
 		ds = append(ds, ext)
 	}

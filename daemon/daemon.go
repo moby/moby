@@ -1145,17 +1145,15 @@ func setDefaultMtu(conf *config.Config) {
 }
 
 func (daemon *Daemon) configureVolumes(rootIDs idtools.IDPair) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootIDs)
+	volumeDriver, err := local.New(daemon.configStore.Root, rootIDs)
 	if err != nil {
 		return nil, err
 	}
-
-	volumedrivers.RegisterPluginGetter(daemon.PluginStore)
-
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
+	drivers := volumedrivers.NewStore(daemon.PluginStore)
+	if !drivers.Register(volumeDriver, volumeDriver.Name()) {
 		return nil, errors.New("local volume driver could not be registered")
 	}
-	return store.New(daemon.configStore.Root)
+	return store.New(daemon.configStore.Root, drivers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

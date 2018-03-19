@@ -13,7 +13,6 @@ import (
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/truncindex"
-	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/store"
@@ -121,7 +120,8 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 		repository: tmp,
 		root:       tmp,
 	}
-	daemon.volumes, err = store.New(tmp)
+	drivers := volumedrivers.NewStore(nil)
+	daemon.volumes, err = store.New(tmp, drivers)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +130,7 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 	if err != nil {
 		return nil, err
 	}
-	volumedrivers.Register(volumesDriver, volumesDriver.Name())
+	drivers.Register(volumesDriver, volumesDriver.Name())
 
 	return daemon, nil
 }
@@ -208,7 +208,6 @@ func TestContainerInitDNS(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer volumedrivers.Unregister(volume.DefaultDriverName)
 
 	c, err := daemon.load(containerID)
 	if err != nil {
