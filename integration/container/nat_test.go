@@ -59,6 +59,8 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 func TestNetworkLoopbackNat(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 
+	defer setupTest(t)()
+
 	msg := "it works"
 	startServerContainer(t, msg, 8080)
 
