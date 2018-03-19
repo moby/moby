@@ -1,7 +1,6 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,7 +14,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -384,33 +382,4 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		cm.Spec.Target = cm.Destination
 		cm.Spec.ReadOnly = !cm.RW
 	}
-}
-
-func (daemon *Daemon) traverseLocalVolumes(fn func(volume.Volume) error) error {
-	localVolumeDriver, err := volumedrivers.GetDriver(volume.DefaultDriverName)
-	if err != nil {
-		return fmt.Errorf("can't retrieve local volume driver: %v", err)
-	}
-	vols, err := localVolumeDriver.List()
-	if err != nil {
-		return fmt.Errorf("can't retrieve local volumes: %v", err)
-	}
-
-	for _, v := range vols {
-		name := v.Name()
-		vol, err := daemon.volumes.Get(name)
-		if err != nil {
-			logrus.Warnf("failed to retrieve volume %s from store: %v", name, err)
-		} else {
-			// daemon.volumes.Get will return DetailedVolume
-			v = vol
-		}
-
-		err = fn(v)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
 }

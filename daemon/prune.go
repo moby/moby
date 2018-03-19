@@ -107,11 +107,20 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 
 	rep := &types.VolumesPruneReport{}
 
-	pruneVols := func(v volume.Volume) error {
+	volumes, err := daemon.volumes.FilterByDriver(volume.DefaultDriverName)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, v := range volumes {
 		select {
 		case <-ctx.Done():
 			logrus.Debugf("VolumesPrune operation cancelled: %#v", *rep)
-			return ctx.Err()
+			err := ctx.Err()
+			if err == context.Canceled {
+				return rep, nil
+			}
+			return rep, err
 		default:
 		}
 
@@ -122,9 +131,10 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 			detailedVolume, ok := v.(volume.DetailedVolume)
 			if ok {
 				if !matchLabels(pruneFilters, detailedVolume.Labels()) {
-					return nil
+					continue
 				}
 			}
+
 			vSize, err := directory.Size(ctx, v.Path())
 			if err != nil {
 				logrus.Warnf("could not determine size of volume %s: %v", name, err)
@@ -132,21 +142,15 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 			err = daemon.volumeRm(v)
 			if err != nil {
 				logrus.Warnf("could not remove volume %s: %v", name, err)
-				return nil
+				continue
 			}
 			rep.SpaceReclaimed += uint64(vSize)
 			rep.VolumesDeleted = append(rep.VolumesDeleted, name)
 		}
 
-		return nil
 	}
 
-	err = daemon.traverseLocalVolumes(pruneVols)
-	if err == context.Canceled {
-		return rep, nil
-	}
-
-	return rep, err
+	return rep, nil
 }
 
 // localNetworksPrune removes unused local networks
