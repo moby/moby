@@ -79,13 +79,18 @@ func (s *service) printIPToEndpoint(ip string) (string, bool) {
 	return s.ipToEndpoint.String(ip)
 }
 
+type lbBackend struct {
+	ip       net.IP
+	disabled bool
+}
+
 type loadBalancer struct {
 	vip    net.IP
 	fwMark uint32
 
 	// Map of backend IPs backing this loadbalancer on this
 	// network. It is keyed with endpoint ID.
-	backEnds map[string]net.IP
+	backEnds map[string]*lbBackend
 
 	// Back pointer to service to which the loadbalancer belongs.
 	service *service
