@@ -34,6 +34,8 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		if c.AppArmorProfile != "" {
 			appArmorProfile = c.AppArmorProfile
 		} else if c.HostConfig.Privileged {
+			// `docker exec --privileged` does not currently disable AppArmor
+			// profiles. Privileged configuration of the container is inherited
 			appArmorProfile = "unconfined"
 		} else {
 			appArmorProfile = "docker-default"
@@ -50,6 +52,7 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 				return err
 			}
 		}
+		p.ApparmorProfile = appArmorProfile
 	}
 	daemon.setRlimits(&specs.Spec{Process: p}, c)
 	return nil
