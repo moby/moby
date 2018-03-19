@@ -12,7 +12,7 @@ func GetOperatingSystem() (string, error) {
 	// Default return value
 	ret := "Unknown Operating System"
 
-	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\WIndows NT\CurrentVersion`, registry.QUERY_VALUE)
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
 	if err != nil {
 		return ret, err
 	}
