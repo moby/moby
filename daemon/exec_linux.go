@@ -54,6 +54,13 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		}
 		p.ApparmorProfile = appArmorProfile
 	}
+	if !ec.Privileged {
+		// Do not use c.GetProcessLabel() here, because exec "Privileged" is
+		// separate from the containers' "HostConfig.Privileged"
+		p.SelinuxLabel = c.ProcessLabel
+		p.NoNewPrivileges = c.NoNewPrivileges
+	}
+
 	daemon.setRlimits(&specs.Spec{Process: p}, c)
 	return nil
 }
