@@ -3,7 +3,9 @@ package libnetwork
 import (
 	"bytes"
 	"net"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/miekg/dns"
 )
@@ -15,7 +17,7 @@ type tstaddr struct {
 
 func (a *tstaddr) Network() string { return "tcp" }
 
-func (a *tstaddr) String() string { return "" }
+func (a *tstaddr) String() string { return "127.0.0.1" }
 
 // a simple writer that implements dns.ResponseWriter for unit testing purposes
 type tstwriter struct {
@@ -164,4 +166,105 @@ func TestDNSIPQuery(t *testing.T) {
 	checkDNSResponseCode(t, resp, dns.RcodeServerFailure)
 	w.ClearResponse()
 
+}
+
+func newDNSHandlerServFailOnce(requests *int) func(w dns.ResponseWriter, r *dns.Msg) {
+	return func(w dns.ResponseWriter, r *dns.Msg) {
+		m := new(dns.Msg)
+		m.SetReply(r)
+		m.Compress = false
+		if *requests == 0 {
+			m.SetRcode(r, dns.RcodeServerFailure)
+		}
+		*requests = *requests + 1
+		w.WriteMsg(m)
+	}
+}
+
+func waitForLocalDNSServer(t *testing.T) {
+	retries := 0
+	maxRetries := 10
+
+	for retries < maxRetries {
+		t.Log("Try connecting to DNS server ...")
+		// this test and retry mechanism only works for TCP. With UDP there is no
+		// connection and the test becomes inaccurate leading to unpredictable results
+		tconn, err := net.DialTimeout("tcp", "127.0.0.1:53", 10*time.Second)
+		retries = retries + 1
+		if err != nil {
+			if oerr, ok := err.(*net.OpError); ok {
+				// server is probably initializing
+				if oerr.Err == syscall.ECONNREFUSED {
+					continue
+				}
+			} else {
+				// something is wrong: we should stop for analysis
+				t.Fatal(err)
+			}
+		}
+		if tconn != nil {
+			tconn.Close()
+			break
+		}
+	}
+}
+
+func TestDNSProxyServFail(t *testing.T) {
+	c, err := New()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer c.Stop()
+
+	n, err := c.NewNetwork("bridge", "dtnet2", "", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := n.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	sb, err := c.NewSandbox("c1")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	defer func() {
+		if err := sb.Delete(); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	var nRequests int
+	// initialize a local DNS server and configure it to fail the first query
+	dns.HandleFunc(".", newDNSHandlerServFailOnce(&nRequests))
+	// use TCP for predictable results. Connection tests (to figure out DNS server initialization) don't work with UDP
+	server := &dns.Server{Addr: ":53", Net: "tcp"}
+	go server.ListenAndServe()
+	defer server.Shutdown()
+
+	waitForLocalDNSServer(t)
+	t.Log("DNS Server can be reached")
+
+	w := new(tstwriter)
+	r := NewResolver(resolverIPSandbox, true, sb.Key(), sb.(*sandbox))
+	q := new(dns.Msg)
+	q.SetQuestion("name1.", dns.TypeA)
+
+	var localDNSEntries []extDNSEntry
+	extTestDNSEntry := extDNSEntry{IPStr: "127.0.0.1", HostLoopback: true}
+
+	// configure two external DNS entries and point both to local DNS server thread
+	localDNSEntries = append(localDNSEntries, extTestDNSEntry)
+	localDNSEntries = append(localDNSEntries, extTestDNSEntry)
+
+	// this should generate two requests: the first will fail leading to a retry
+	r.(*resolver).SetExtServers(localDNSEntries)
+	r.(*resolver).ServeDNS(w, q)
+	if nRequests != 2 {
+		t.Fatalf("Expected 2 DNS querries. Found: %d", nRequests)
+	}
+	t.Logf("Expected number of DNS requests generated")
 }
