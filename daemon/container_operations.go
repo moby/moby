@@ -979,9 +979,6 @@ func (daemon *Daemon) releaseNetwork(container *container.Container) {
 		logrus.Warnf("error locating sandbox id %s: %v", sid, err)
 		return
 	}
-	if err := sb.DisableService(); err != nil {
-		logrus.WithFields(logrus.Fields{"container": container.ID, "sandbox": sid}).WithError(err).Error("Error removing service from sandbox")
-	}
 
 	if err := sb.Delete(); err != nil {
 		logrus.Errorf("Error deleting sandbox id %s for container %s: %v", sid, container.ID, err)
