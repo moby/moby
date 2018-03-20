@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,6 +11,8 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 func TestManagerWithPluginMounts(t *testing.T) {
@@ -76,4 +79,59 @@ func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 	p.PluginObj.ID = name
 
 	return &p
+}
+
+type simpleExecutor struct {
+}
+
+func (e *simpleExecutor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+	return errors.New("Create failed")
+}
+
+func (e *simpleExecutor) Restore(id string, stdout, stderr io.WriteCloser) error {
+	return nil
+}
+
+func (e *simpleExecutor) IsRunning(id string) (bool, error) {
+	return false, nil
+}
+
+func (e *simpleExecutor) Signal(id string, signal int) error {
+	return nil
+}
+
+func TestCreateFailed(t *testing.T) {
+	root, err := ioutil.TempDir("", "test-create-failed")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer system.EnsureRemoveAll(root)
+
+	s := NewStore()
+	managerRoot := filepath.Join(root, "manager")
+	p := newTestPlugin(t, "create", "testcreate", managerRoot)
+
+	m, err := NewManager(
+		ManagerConfig{
+			Store:          s,
+			Root:           managerRoot,
+			ExecRoot:       filepath.Join(root, "exec"),
+			CreateExecutor: func(*Manager) (Executor, error) { return &simpleExecutor{}, nil },
+			LogPluginEvent: func(_, _, _ string) {},
+		})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := s.Add(p); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := m.enable(p, &controller{}, false); err == nil {
+		t.Fatalf("expected Create failed error, got %v", err)
+	}
+
+	if err := m.Remove(p.Name(), &types.PluginRmConfig{ForceRemove: true}); err != nil {
+		t.Fatal(err)
+	}
 }
