@@ -113,6 +113,10 @@ func (s *DefaultService) Auth(ctx context.Context, authConfig *types.AuthConfig,
 	if serverAddress == "" {
 		serverAddress = IndexServer
 	}
+	if strings.HasPrefix(serverAddress, "unix://") {
+		// FIXME(AkihiroSuda): this should be ok for most usecases.
+		return "", "", errdefs.NotImplemented(errors.New("authentication is not implemented for the unix protocol"))
+	}
 	if !strings.HasPrefix(serverAddress, "https://") && !strings.HasPrefix(serverAddress, "http://") {
 		serverAddress = "https://" + serverAddress
 	}
