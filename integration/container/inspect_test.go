@@ -22,7 +22,7 @@ func TestInspectCpusetInConfigPre120(t *testing.T) {
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 	ctx := context.Background()
 
-	name := "cpusetinconfig-pre120"
+	name := "cpusetinconfig-pre120-" + t.Name()
 	// Create container with up to-date-API
 	container.Run(t, ctx, request.NewAPIClient(t), container.WithName(name),
 		container.WithCmd("true"),
