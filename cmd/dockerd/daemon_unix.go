@@ -104,10 +104,6 @@ func allocateDaemonPort(addr string) error {
 	return nil
 }
 
-// notifyShutdown is called after the daemon shuts down but before the process exits.
-func notifyShutdown(err error) {
-}
-
 func wrapListeners(proto string, ls []net.Listener) []net.Listener {
 	switch proto {
 	case "unix":
