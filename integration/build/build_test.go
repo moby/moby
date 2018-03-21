@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -12,11 +13,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
@@ -304,6 +307,9 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
+	fmt.Println(testEnv.DaemonAPIVersion())
+	skip.IfCondition(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"),
+		"Don't run on API lower than 1.38 as it has been fixed starting from that version")
 	ctx := context.TODO()
 	defer setupTest(t)()
 

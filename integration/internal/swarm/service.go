@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 const (
@@ -21,6 +22,7 @@ const (
 
 // NewSwarm creates a swarm daemon for testing
 func NewSwarm(t *testing.T, testEnv *environment.Execution) *daemon.Swarm {
+	skip.IfCondition(t, testEnv.IsRemoteDaemon())
 	d := &daemon.Swarm{
 		Daemon: daemon.New(t, "", dockerdBinary, daemon.Config{
 			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
