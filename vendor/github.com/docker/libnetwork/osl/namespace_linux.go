@@ -607,7 +607,7 @@ func reexecSetIPv6() {
 	}
 
 	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
-		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
+		logrus.Warnf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
 		os.Exit(4)
 	}
 
