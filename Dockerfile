@@ -91,21 +91,6 @@ RUN set -x \
 
 
 
-FROM base AS notary
-# Install notary and notary-server
-ENV NOTARY_VERSION v0.5.0
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/docker/notary.git "$GOPATH/src/github.com/docker/notary" \
-	&& (cd "$GOPATH/src/github.com/docker/notary" && git checkout -q "$NOTARY_VERSION") \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
-		go build -buildmode=pie -o /usr/local/bin/notary-server github.com/docker/notary/cmd/notary-server \
-	&& GOPATH="$GOPATH/src/github.com/docker/notary/vendor:$GOPATH" \
-		go build -buildmode=pie -o /usr/local/bin/notary github.com/docker/notary/cmd/notary \
-	&& rm -rf "$GOPATH"
-
-
-
 FROM base AS docker-py
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
@@ -248,7 +233,6 @@ COPY --from=containerd /opt/containerd/ /usr/local/bin/
 COPY --from=proxy /opt/proxy/ /usr/local/bin/
 COPY --from=dockercli /opt/dockercli /usr/local/cli
 COPY --from=registry /usr/local/bin/registry* /usr/local/bin/
-COPY --from=notary /usr/local/bin/notary* /usr/local/bin/
 COPY --from=criu /opt/criu/ /usr/local/
 COPY --from=docker-py /docker-py /docker-py
 # TODO: This is for the docker-py tests, which shouldn't really be needed for
