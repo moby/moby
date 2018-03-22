@@ -1,12 +1,13 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	volumestore "github.com/docker/docker/volume/store"
+	volumesservice "github.com/docker/docker/volume/service"
 )
 
 func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
@@ -20,11 +21,12 @@ func (daemon *Daemon) prepareMountPoints(container *container.Container) error {
 
 func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool) error {
 	var rmErrors []string
+	ctx := context.TODO()
 	for _, m := range container.MountPoints {
 		if m.Type != mounttypes.TypeVolume || m.Volume == nil {
 			continue
 		}
-		daemon.volumes.Dereference(m.Volume, container.ID)
+		daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
 		if !rm {
 			continue
 		}
@@ -35,13 +37,13 @@ func (daemon *Daemon) removeMountPoints(container *container.Container, rm bool)
 			continue
 		}
 
-		err := daemon.volumes.Remove(m.Volume)
+		err := daemon.volumes.Remove(ctx, m.Volume.Name())
 		// Ignore volume in use errors because having this
 		// volume being referenced by other container is
 		// not an error, but an implementation detail.
 		// This prevents docker from logging "ERROR: Volume in use"
 		// where there is another container using the volume.
-		if err != nil && !volumestore.IsInUse(err) {
+		if err != nil && !volumesservice.IsInUse(err) {
 			rmErrors = append(rmErrors, err.Error())
 		}
 	}

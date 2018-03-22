@@ -517,22 +517,20 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverGetEmptyResponse(c *
 }
 
 // Ensure only cached paths are used in volume list to prevent N+1 calls to `VolumeDriver.Path`
+//
+// TODO(@cpuguy83): This test is testing internal implementation. In all the cases here, there may not even be a path
+// 	available because the volume is not even mounted. Consider removing this test.
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverPathCalls(c *check.C) {
 	s.d.Start(c)
 	c.Assert(s.ec.paths, checker.Equals, 0)
 
 	out, err := s.d.Cmd("volume", "create", "test", "--driver=test-external-volume-driver")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(s.ec.paths, checker.Equals, 1)
+	c.Assert(s.ec.paths, checker.Equals, 0)
 
 	out, err = s.d.Cmd("volume", "ls")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(s.ec.paths, checker.Equals, 1)
-
-	out, err = s.d.Cmd("volume", "inspect", "--format='{{.Mountpoint}}'", "test")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
-	c.Assert(s.ec.paths, checker.Equals, 1)
+	c.Assert(s.ec.paths, checker.Equals, 0)
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverMountID(c *check.C) {

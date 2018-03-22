@@ -1,6 +1,7 @@
-package store // import "github.com/docker/docker/volume/store"
+package service // import "github.com/docker/docker/volume/service"
 
 import (
+	"context"
 	"sync"
 
 	"github.com/boltdb/bolt"
@@ -20,6 +21,7 @@ func (s *VolumeStore) restore() {
 		ls = listMeta(tx)
 		return nil
 	})
+	ctx := context.Background()
 
 	chRemove := make(chan *volumeMetadata, len(ls))
 	var wg sync.WaitGroup
@@ -32,7 +34,7 @@ func (s *VolumeStore) restore() {
 			var v volume.Volume
 			var err error
 			if meta.Driver != "" {
-				v, err = lookupVolume(s.drivers, meta.Driver, meta.Name)
+				v, err = lookupVolume(ctx, s.drivers, meta.Driver, meta.Name)
 				if err != nil && err != errNoSuchVolume {
 					logrus.WithError(err).WithField("driver", meta.Driver).WithField("volume", meta.Name).Warn("Error restoring volume")
 					return
@@ -43,7 +45,7 @@ func (s *VolumeStore) restore() {
 					return
 				}
 			} else {
-				v, err = s.getVolume(meta.Name)
+				v, err = s.getVolume(ctx, meta.Name, meta.Driver)
 				if err != nil {
 					if err == errNoSuchVolume {
 						chRemove <- &meta
@@ -65,6 +67,7 @@ func (s *VolumeStore) restore() {
 			s.options[v.Name()] = meta.Options
 			s.labels[v.Name()] = meta.Labels
 			s.names[v.Name()] = v
+			s.refs[v.Name()] = make(map[string]struct{})
 			s.globalLock.Unlock()
 		}(meta)
 	}

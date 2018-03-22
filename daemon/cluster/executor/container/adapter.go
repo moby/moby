@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -36,23 +37,25 @@ import (
 // are mostly naked calls to the client API, seeded with information from
 // containerConfig.
 type containerAdapter struct {
-	backend      executorpkg.Backend
-	imageBackend executorpkg.ImageBackend
-	container    *containerConfig
-	dependencies exec.DependencyGetter
+	backend       executorpkg.Backend
+	imageBackend  executorpkg.ImageBackend
+	volumeBackend executorpkg.VolumeBackend
+	container     *containerConfig
+	dependencies  exec.DependencyGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, i executorpkg.ImageBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
+func newContainerAdapter(b executorpkg.Backend, i executorpkg.ImageBackend, v executorpkg.VolumeBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
 	ctnr, err := newContainerConfig(task, node)
 	if err != nil {
 		return nil, err
 	}
 
 	return &containerAdapter{
-		container:    ctnr,
-		backend:      b,
-		imageBackend: i,
-		dependencies: dependencies,
+		container:     ctnr,
+		backend:       b,
+		imageBackend:  i,
+		volumeBackend: v,
+		dependencies:  dependencies,
 	}, nil
 }
 
@@ -388,7 +391,10 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 		req := c.container.volumeCreateRequest(&mount)
 
 		// Check if this volume exists on the engine
-		if _, err := c.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
+		if _, err := c.volumeBackend.Create(ctx, req.Name, req.Driver,
+			volumeopts.WithCreateOptions(req.DriverOpts),
+			volumeopts.WithCreateLabels(req.Labels),
+		); err != nil {
 			// TODO(amitshukla): Today, volume create through the engine api does not return an error
 			// when the named volume with the same parameters already exists.
 			// It returns an error if the driver name is different - that is a valid error

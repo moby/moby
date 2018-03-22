@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -15,6 +16,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/volume"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/docker/docker/volume/service"
+	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -26,23 +29,6 @@ var (
 )
 
 type mounts []container.Mount
-
-// volumeToAPIType converts a volume.Volume to the type used by the Engine API
-func volumeToAPIType(v volume.Volume) *types.Volume {
-	createdAt, _ := v.CreatedAt()
-	tv := &types.Volume{
-		Name:      v.Name(),
-		Driver:    v.DriverName(),
-		CreatedAt: createdAt.Format(time.RFC3339),
-	}
-	if v, ok := v.(volume.DetailedVolume); ok {
-		tv.Labels = v.Labels()
-		tv.Options = v.Options()
-		tv.Scope = v.Scope()
-	}
-
-	return tv
-}
 
 // Len returns the number of mounts. Used in sorting.
 func (m mounts) Len() int {
@@ -78,6 +64,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	mountPoints := map[string]*volumemounts.MountPoint{}
 	parser := volumemounts.NewParser(container.OS)
 
+	ctx := context.TODO()
 	defer func() {
 		// clean up the container mountpoints once return with error
 		if retErr != nil {
@@ -85,7 +72,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 				if m.Volume == nil {
 					continue
 				}
-				daemon.volumes.Dereference(m.Volume, container.ID)
+				daemon.volumes.Release(ctx, m.Volume.Name(), container.ID)
 			}
 		}
 	}()
@@ -94,7 +81,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		if v, ok := mountPoints[destination]; ok {
 			logrus.Debugf("Duplicate mount point '%s'", destination)
 			if v.Volume != nil {
-				daemon.volumes.Dereference(v.Volume, container.ID)
+				daemon.volumes.Release(ctx, v.Volume.Name(), container.ID)
 			}
 		}
 	}
@@ -130,11 +117,11 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 
 			if len(cp.Source) == 0 {
-				v, err := daemon.volumes.GetWithRef(cp.Name, cp.Driver, container.ID)
+				v, err := daemon.volumes.Get(ctx, cp.Name, volumeopts.WithGetDriver(cp.Driver), volumeopts.WithGetReference(container.ID))
 				if err != nil {
 					return err
 				}
-				cp.Volume = v
+				cp.Volume = &volumeWrapper{v: v, s: daemon.volumes}
 			}
 			dereferenceIfExists(cp.Destination)
 			mountPoints[cp.Destination] = cp
@@ -163,14 +150,14 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 
 		if bind.Type == mounttypes.TypeVolume {
 			// create the volume
-			v, err := daemon.volumes.CreateWithRef(bind.Name, bind.Driver, container.ID, nil, nil)
+			v, err := daemon.volumes.Create(ctx, bind.Name, bind.Driver, volumeopts.WithCreateReference(container.ID))
 			if err != nil {
 				return err
 			}
-			bind.Volume = v
-			bind.Source = v.Path()
+			bind.Volume = &volumeWrapper{v: v, s: daemon.volumes}
+			bind.Source = v.Mountpoint
 			// bind.Name is an already existing volume, we need to use that here
-			bind.Driver = v.DriverName()
+			bind.Driver = v.Driver
 			if bind.Driver == volume.DefaultDriverName {
 				setBindModeIfNull(bind)
 			}
@@ -199,30 +186,30 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 		}
 
 		if mp.Type == mounttypes.TypeVolume {
-			var v volume.Volume
+			var v *types.Volume
 			if cfg.VolumeOptions != nil {
 				var driverOpts map[string]string
 				if cfg.VolumeOptions.DriverConfig != nil {
 					driverOpts = cfg.VolumeOptions.DriverConfig.Options
 				}
-				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, driverOpts, cfg.VolumeOptions.Labels)
+				v, err = daemon.volumes.Create(ctx,
+					mp.Name,
+					mp.Driver,
+					volumeopts.WithCreateReference(container.ID),
+					volumeopts.WithCreateOptions(driverOpts),
+					volumeopts.WithCreateLabels(cfg.VolumeOptions.Labels),
+				)
 			} else {
-				v, err = daemon.volumes.CreateWithRef(mp.Name, mp.Driver, container.ID, nil, nil)
+				v, err = daemon.volumes.Create(ctx, mp.Name, mp.Driver, volumeopts.WithCreateReference(container.ID))
 			}
 			if err != nil {
 				return err
 			}
 
-			mp.Volume = v
-			mp.Name = v.Name()
-			mp.Driver = v.DriverName()
+			mp.Volume = &volumeWrapper{v: v, s: daemon.volumes}
+			mp.Name = v.Name
+			mp.Driver = v.Driver
 
-			// only use the cached path here since getting the path is not necessary right now and calling `Path()` may be slow
-			if cv, ok := v.(interface {
-				CachedPath() string
-			}); ok {
-				mp.Source = cv.CachedPath()
-			}
 			if mp.Driver == volume.DefaultDriverName {
 				setBindModeIfNull(mp)
 			}
@@ -239,7 +226,7 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 	for _, m := range mountPoints {
 		if parser.IsBackwardCompatible(m) {
 			if mp, exists := container.MountPoints[m.Destination]; exists && mp.Volume != nil {
-				daemon.volumes.Dereference(mp.Volume, container.ID)
+				daemon.volumes.Release(ctx, mp.Volume.Name(), container.ID)
 			}
 		}
 	}
@@ -254,11 +241,11 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 // This happens after a daemon restart.
 func (daemon *Daemon) lazyInitializeVolume(containerID string, m *volumemounts.MountPoint) error {
 	if len(m.Driver) > 0 && m.Volume == nil {
-		v, err := daemon.volumes.GetWithRef(m.Name, m.Driver, containerID)
+		v, err := daemon.volumes.Get(context.TODO(), m.Name, volumeopts.WithGetDriver(m.Driver), volumeopts.WithGetReference(containerID))
 		if err != nil {
 			return err
 		}
-		m.Volume = v
+		m.Volume = &volumeWrapper{v: v, s: daemon.volumes}
 	}
 	return nil
 }
@@ -384,4 +371,47 @@ func (daemon *Daemon) backportMountSpec(container *container.Container) {
 		cm.Spec.Target = cm.Destination
 		cm.Spec.ReadOnly = !cm.RW
 	}
+}
+
+// VolumesService is used to perform volume operations
+func (daemon *Daemon) VolumesService() *service.VolumesService {
+	return daemon.volumes
+}
+
+type volumeMounter interface {
+	Mount(ctx context.Context, v *types.Volume, ref string) (string, error)
+	Unmount(ctx context.Context, v *types.Volume, ref string) error
+}
+
+type volumeWrapper struct {
+	v *types.Volume
+	s volumeMounter
+}
+
+func (v *volumeWrapper) Name() string {
+	return v.v.Name
+}
+
+func (v *volumeWrapper) DriverName() string {
+	return v.v.Driver
+}
+
+func (v *volumeWrapper) Path() string {
+	return v.v.Mountpoint
+}
+
+func (v *volumeWrapper) Mount(ref string) (string, error) {
+	return v.s.Mount(context.TODO(), v.v, ref)
+}
+
+func (v *volumeWrapper) Unmount(ref string) error {
+	return v.s.Unmount(context.TODO(), v.v, ref)
+}
+
+func (v *volumeWrapper) CreatedAt() (time.Time, error) {
+	return time.Time{}, errors.New("not implemented")
+}
+
+func (v *volumeWrapper) Status() map[string]interface{} {
+	return v.v.Status
 }

@@ -167,10 +167,10 @@ func (s *Store) ReleaseDriver(name string) (volume.Driver, error) {
 func (s *Store) GetDriverList() []string {
 	var driverList []string
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	for driverName := range s.extensions {
 		driverList = append(driverList, driverName)
 	}
-	s.mu.Unlock()
 	sort.Strings(driverList)
 	return driverList
 }

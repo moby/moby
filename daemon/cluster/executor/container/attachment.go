@@ -21,8 +21,8 @@ type networkAttacherController struct {
 	closed  chan struct{}
 }
 
-func newNetworkAttacherController(b executorpkg.Backend, i executorpkg.ImageBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*networkAttacherController, error) {
-	adapter, err := newContainerAdapter(b, i, task, node, dependencies)
+func newNetworkAttacherController(b executorpkg.Backend, i executorpkg.ImageBackend, v executorpkg.VolumeBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*networkAttacherController, error) {
+	adapter, err := newContainerAdapter(b, i, v, task, node, dependencies)
 	if err != nil {
 		return nil, err
 	}
