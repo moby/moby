@@ -1,6 +1,7 @@
 package config // import "github.com/docker/docker/daemon/config"
 
 import (
+	"bytes"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -460,6 +461,77 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 	err = Reload(configFile, flags, func(c *Config) {})
 	assert.Check(t, is.ErrorContains(err, ""))
 	testutil.ErrorContains(t, err, "unable to configure the Docker daemon with file")
+}
+
+func TestGetDecoderByExtensionMap(t *testing.T) {
+	testCases := []struct {
+		file     string
+		data     string
+		expected map[string]interface{}
+	}{
+		{"/etc/docker/config.json", `{}`, map[string]interface{}{}},
+		{"/etc/docker/config.json", `{
+			"tls": {
+				"tlskey": "/etc/certs/docker.key"
+			}
+		}`, map[string]interface{}{
+			"tls": map[string]interface{}{"tlskey": "/etc/certs/docker.key"}},
+		},
+
+		{"/etc/docker/config.toml", `cgroup-parent="hello"`, map[string]interface{}{
+			"cgroup-parent": "hello",
+		}},
+	}
+	for _, tc := range testCases {
+		decoder, err := getDecoderByExtension(tc.file)
+		if err != nil {
+			t.Error(err)
+		}
+		var cfgMap map[string]interface{}
+		if err := decoder(bytes.NewBufferString(tc.data), &cfgMap); err != nil {
+			t.Error(err)
+		}
+		assert.Equal(t, tc.expected, cfgMap)
+	}
+}
+
+func TestGetDecoderByExtensionConfigTOML(t *testing.T) {
+	fileContent := `
+dns=["8.8.8.8","9.9.9.9"]
+labels=["docker","awesome"]
+debug=true
+log-level="info"
+tlsverify=true
+log-driver="gelf"
+[log-opts]
+	opt1="hello"
+	opt2="opt"
+`
+	expected := &Config{
+		CommonConfig: CommonConfig{
+			DNS:       []string{"8.8.8.8", "9.9.9.9"},
+			Labels:    []string{"docker", "awesome"},
+			Debug:     true,
+			LogLevel:  "info",
+			TLSVerify: true,
+			LogConfig: LogConfig{
+				Type: "gelf",
+				Config: map[string]string{
+					"opt1": "hello",
+					"opt2": "opt",
+				},
+			},
+		},
+	}
+	decoder, err := getDecoderByExtension("file.toml")
+	if err != nil {
+		t.Error(err)
+	}
+	var cfg Config
+	if err := decoder(bytes.NewBufferString(fileContent), &cfg); err != nil {
+		t.Error(err)
+	}
+	assert.Equal(t, &cfg, expected)
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
