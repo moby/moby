@@ -270,7 +270,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		case <-attachErr:
 			// TERM signal worked
 		}
-		return fmt.Errorf("context cancelled")
+		return ctx.Err()
 	case err := <-attachErr:
 		if err != nil {
 			if _, ok := err.(term.EscapeError); !ok {
