@@ -36,24 +36,24 @@ func setupIPChains(config *configuration) (*iptables.ChainInfo, *iptables.ChainI
 
 	natChain, err := iptables.NewChain(DockerChain, iptables.Nat, hairpinMode)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to create NAT chain: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to create NAT chain %s: %v", DockerChain, err)
 	}
 	defer func() {
 		if err != nil {
 			if err := iptables.RemoveExistingChain(DockerChain, iptables.Nat); err != nil {
-				logrus.Warnf("failed on removing iptables NAT chain on cleanup: %v", err)
+				logrus.Warnf("failed on removing iptables NAT chain %s on cleanup: %v", DockerChain, err)
 			}
 		}
 	}()
 
 	filterChain, err := iptables.NewChain(DockerChain, iptables.Filter, false)
 	if err != nil {
-		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain: %v", err)
+		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER chain %s: %v", DockerChain, err)
 	}
 	defer func() {
 		if err != nil {
 			if err := iptables.RemoveExistingChain(DockerChain, iptables.Filter); err != nil {
-				logrus.Warnf("failed on removing iptables FILTER chain on cleanup: %v", err)
+				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", DockerChain, err)
 			}
 		}
 	}()
@@ -62,11 +62,25 @@ func setupIPChains(config *configuration) (*iptables.ChainInfo, *iptables.ChainI
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
+	defer func() {
+		if err != nil {
+			if err := iptables.RemoveExistingChain(IsolationChain1, iptables.Filter); err != nil {
+				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain1, err)
+			}
+		}
+	}()
 
 	isolationChain2, err := iptables.NewChain(IsolationChain2, iptables.Filter, false)
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("failed to create FILTER isolation chain: %v", err)
 	}
+	defer func() {
+		if err != nil {
+			if err := iptables.RemoveExistingChain(IsolationChain2, iptables.Filter); err != nil {
+				logrus.Warnf("failed on removing iptables FILTER chain %s on cleanup: %v", IsolationChain2, err)
+			}
+		}
+	}()
 
 	if err := iptables.AddReturnRule(IsolationChain1); err != nil {
 		return nil, nil, nil, nil, err
