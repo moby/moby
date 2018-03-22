@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/cli"
@@ -25,6 +24,10 @@ func newDaemonCommand() *cobra.Command {
 		SilenceErrors: true,
 		Args:          cli.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if opts.version {
+				showVersion()
+				return nil
+			}
 			opts.flags = cmd.Flags()
 			return runDaemon(opts)
 		},
@@ -39,45 +42,6 @@ func newDaemonCommand() *cobra.Command {
 	installServiceFlags(flags)
 
 	return cmd
-}
-
-func runDaemon(opts *daemonOptions) error {
-	if opts.version {
-		showVersion()
-		return nil
-	}
-
-	daemonCli := NewDaemonCli()
-
-	// Windows specific settings as these are not defaulted.
-	if runtime.GOOS == "windows" {
-		if opts.daemonConfig.Pidfile == "" {
-			opts.daemonConfig.Pidfile = filepath.Join(opts.daemonConfig.Root, "docker.pid")
-		}
-		if opts.configFile == "" {
-			opts.configFile = filepath.Join(opts.daemonConfig.Root, `config\daemon.json`)
-		}
-	}
-
-	// On Windows, this may be launching as a service or with an option to
-	// register the service.
-	stop, runAsService, err := initService(daemonCli)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
-	if stop {
-		return nil
-	}
-
-	// If Windows SCM manages the service - no need for PID files
-	if runAsService {
-		opts.daemonConfig.Pidfile = ""
-	}
-
-	err = daemonCli.start(opts)
-	notifyShutdown(err)
-	return err
 }
 
 func showVersion() {
