@@ -62,14 +62,14 @@ func TestNetworkLoopbackNat(t *testing.T) {
 	defer setupTest(t)()
 
 	msg := "it works"
-	startServerContainer(t, msg, 8080)
+	serverContainerID := startServerContainer(t, msg, 8080)
 
 	endpoint := getExternalAddress(t)
 
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String())), container.WithTty(true), container.WithNetworkMode("container:server"))
+	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String())), container.WithTty(true), container.WithNetworkMode("container:"+serverContainerID))
 
 	poll.WaitOn(t, container.IsStopped(ctx, client, cID), poll.WithDelay(100*time.Millisecond))
 
@@ -90,7 +90,7 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithName("server"), container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)), container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)), func(c *container.TestContainerConfig) {
+	cID := container.Run(t, ctx, client, container.WithName("server-"+t.Name()), container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)), container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)), func(c *container.TestContainerConfig) {
 		c.HostConfig.PortBindings = nat.PortMap{
 			nat.Port(fmt.Sprintf("%d/tcp", port)): []nat.PortBinding{
 				{
