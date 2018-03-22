@@ -404,3 +404,10 @@ type HostConfig struct {
 	// Run a custom init inside the container, if null, use the daemon's configured settings
 	Init *bool `json:",omitempty"`
 }
+
+// ParsePortSpecs is a proxy function to nat.ParsePortSpecs,
+// so that any applications who use this package "github.com/docker/docker/api/types/container"
+// don't have to import the vendored package "github.com/docker/go-connections" directly.
+func ParsePortSpecs(port []string) (map[nat.Port]struct{}, map[nat.Port][]nat.PortBinding, error) {
+	return nat.ParsePortSpecs(port)
+}
