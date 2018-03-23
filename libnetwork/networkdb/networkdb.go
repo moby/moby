@@ -313,7 +313,7 @@ func (nDB *NetworkDB) Peers(nid string) []PeerInfo {
 		} else {
 			// Added for testing purposes, this condition should never happen else mean that the network list
 			// is out of sync with the node list
-			peers = append(peers, PeerInfo{})
+			peers = append(peers, PeerInfo{Name: nodeName, IP: "unknown"})
 		}
 	}
 	return peers
