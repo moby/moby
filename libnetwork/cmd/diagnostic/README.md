@@ -252,11 +252,11 @@ Remember to use the full network ID, you can easily find that with `docker netwo
 **Service discovery and load balancer:**
 
 ```bash
-$ diagnostiClient -c sd -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
+$ diagnostiClient -t sd -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
 ```
 
 **Overlay network:**
 
 ```bash
-$ diagnostiClient -port 2001 -c overlay -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
+$ diagnostiClient -port 2001 -t overlay -v -net n8a8ie6tb3wr2e260vxj8ncy4 -a
 ```
