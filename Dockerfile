@@ -44,9 +44,7 @@ FROM base AS criu
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
 # Install dependancy packages specific to criu
-RUN case $(uname -m) in \
-    x86_64) \
-	apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \
 	libnet-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
@@ -59,13 +57,7 @@ RUN case $(uname -m) in \
 	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
-	&& make PREFIX=/opt/criu install-criu ;\
-	;; \
-    armv7l|aarch64|ppc64le|s390x) \
-	mkdir -p /opt/criu; \
-	;; \
-    esac
-
+	&& make PREFIX=/opt/criu install-criu
 
 FROM base AS registry
 # Install two versions of the registry. The first is an older version that
@@ -80,8 +72,8 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
 		go build -buildmode=pie -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
-	&& case $(uname -m) in \
-		x86_64|ppc64le|s390x) \
+	&& case $(dpkg --print-architecture) in \
+		amd64|ppc64*|s390x) \
 		(cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1"); \
 		GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
 			go build -buildmode=pie -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
