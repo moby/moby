@@ -17,9 +17,10 @@ func TestPsFilter(t *testing.T) {
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	prev := container.Create(t, ctx, client, container.WithName("prev"))
-	container.Create(t, ctx, client, container.WithName("top"))
-	next := container.Create(t, ctx, client, container.WithName("next"))
+	prev := container.Create(t, ctx, client, container.WithName("prev-"+t.Name()))
+	topContainerName := "top-" + t.Name()
+	container.Create(t, ctx, client, container.WithName(topContainerName))
+	next := container.Create(t, ctx, client, container.WithName("next-"+t.Name()))
 
 	containerIDs := func(containers []types.Container) []string {
 		entries := []string{}
@@ -30,7 +31,7 @@ func TestPsFilter(t *testing.T) {
 	}
 
 	f1 := filters.NewArgs()
-	f1.Add("since", "top")
+	f1.Add("since", topContainerName)
 	q1, err := client.ContainerList(ctx, types.ContainerListOptions{
 		All:     true,
 		Filters: f1,
@@ -39,7 +40,7 @@ func TestPsFilter(t *testing.T) {
 	assert.Check(t, is.Contains(containerIDs(q1), next))
 
 	f2 := filters.NewArgs()
-	f2.Add("before", "top")
+	f2.Add("before", topContainerName)
 	q2, err := client.ContainerList(ctx, types.ContainerListOptions{
 		All:     true,
 		Filters: f2,
