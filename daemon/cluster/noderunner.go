@@ -124,8 +124,11 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 			n.cluster.config.Backend,
 			n.cluster.config.PluginBackend,
 			n.cluster.config.ImageBackend),
-		HeartbeatTick:    1,
-		ElectionTick:     3,
+		HeartbeatTick: 1,
+		// Recommended value in etcd/raft is 10 x (HeartbeatTick).
+		// Lower values were seen to have caused instability because of
+		// frequent leader elections when running on flakey networks.
+		ElectionTick:     10,
 		UnlockKey:        conf.lockKey,
 		AutoLockManagers: conf.autolock,
 		PluginGetter:     n.cluster.config.Backend.PluginGetter(),
