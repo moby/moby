@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-set -e
 
-if ! docker image inspect emptyfs > /dev/null; then
+inspect_err="$(docker image inspect emptyfs 2>&1 > /dev/null)"
+
+set -e
+if [ "$inspect_err" == "Error: No such image: emptyfs" ]; then
 	# build a "docker save" tarball for "emptyfs"
 	# see https://github.com/docker/docker/pull/5262
 	# and also https://github.com/docker/docker/issues/4242
@@ -20,4 +22,6 @@ if ! docker image inspect emptyfs > /dev/null; then
 		tar -cC "$dir" . | docker load
 	)
 	rm -rf "$dir"
+else
+	echo "$inspect_err"
 fi
