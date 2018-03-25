@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/daemon/cluster/executor/co
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
@@ -360,9 +361,14 @@ func convertMount(m api.Mount) enginemount.Mount {
 	}
 
 	if m.TmpfsOptions != nil {
+		var options [][]string
+		// see daemon/cluster/convert/container.go, tmpfsOptionsFromGRPC for
+		// details on error handling.
+		_ = json.Unmarshal([]byte(m.TmpfsOptions.Options), &options)
 		mount.TmpfsOptions = &enginemount.TmpfsOptions{
 			SizeBytes: m.TmpfsOptions.SizeBytes,
 			Mode:      m.TmpfsOptions.Mode,
+			Options:   options,
 		}
 	}
 

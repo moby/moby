@@ -30,6 +30,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /images/{name}/push` now supports a `platform` parameter (JSON encoded
   OCI Platform type) that allows selecting a specific platform manifest from
   the multi-platform image.
+* `POST /containers/create` now takes `Options` as part of `HostConfig.Mounts.TmpfsOptions` to set options for tmpfs mounts.
+* `POST /services/create` now takes `Options` as part of `ContainerSpec.Mounts.TmpfsOptions`, to set options for tmpfs mounts.
 
 ### Deprecated Config fields in `GET /images/{name}/json` response
 
