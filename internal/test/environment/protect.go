@@ -17,6 +17,7 @@ type protectedElements struct {
 	networks   map[string]struct{}
 	plugins    map[string]struct{}
 	volumes    map[string]struct{}
+	services   map[string]struct{}
 }
 
 func newProtectedElements() protectedElements {
@@ -26,6 +27,7 @@ func newProtectedElements() protectedElements {
 		networks:   map[string]struct{}{},
 		plugins:    map[string]struct{}{},
 		volumes:    map[string]struct{}{},
+		services:   map[string]struct{}{},
 	}
 }
 
@@ -39,6 +41,10 @@ func ProtectAll(t testingT, testEnv *Execution) {
 	ProtectVolumes(t, testEnv)
 	if testEnv.OSType == "linux" {
 		ProtectPlugins(t, testEnv)
+	}
+
+	if testEnv.DaemonInfo.Swarm.NodeID != "" {
+		ProtectServices(t, testEnv)
 	}
 }
 
@@ -202,4 +208,30 @@ func getExistingVolumes(t assert.TestingT, testEnv *Execution) []string {
 		volumes = append(volumes, volume.Name)
 	}
 	return volumes
+}
+
+// ProtectService adds the specified service(s) to be protected in case of clean
+func (e *Execution) ProtectService(t testingT, services ...string) {
+	for _, service := range services {
+		e.protectedElements.services[service] = struct{}{}
+	}
+}
+
+// ProtectServices protects existing services from being cleaned up at the end of
+// test runs
+func ProtectServices(t testingT, testEnv *Execution) {
+	services := getExistingServices(t, testEnv)
+	testEnv.ProtectService(t, services...)
+}
+
+func getExistingServices(t assert.TestingT, testEnv *Execution) []string {
+	client := testEnv.APIClient()
+	serviceList, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
+	assert.NilError(t, err, "failed to list services")
+
+	services := []string{}
+	for _, service := range serviceList {
+		services = append(services, service.ID)
+	}
+	return services
 }

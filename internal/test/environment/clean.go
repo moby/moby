@@ -38,6 +38,10 @@ func (e *Execution) Clean(t testingT) {
 	if platform == "linux" {
 		deleteAllPlugins(t, client, e.protectedElements.plugins)
 	}
+
+	if e.DaemonInfo.Swarm.NodeID != "" {
+		deleteAllServices(t, client, platform, e.protectedElements.services)
+	}
 }
 
 func unpauseAllContainers(t assert.TestingT, client client.ContainerAPIClient) {
@@ -162,6 +166,20 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 		}
 		err := c.NetworkRemove(context.Background(), n.ID)
 		assert.Check(t, err, "failed to remove network %s", n.ID)
+	}
+}
+
+func deleteAllServices(t testingT, c client.ServiceAPIClient, daemonPlatform string, protectedServices map[string]struct{}) {
+	services, err := c.ServiceList(context.Background(), types.ServiceListOptions{})
+	assert.Check(t, err, "failed to list services")
+
+	for _, service := range services {
+		if _, ok := protectedServices[service.ID]; ok {
+			continue
+		}
+		t.Logf("Removing service %s", service.ID)
+		err := c.ServiceRemove(context.Background(), service.ID)
+		assert.Check(t, err, "failed to remove service %s", service.ID)
 	}
 }
 
