@@ -39,6 +39,9 @@ type Worker interface {
 	// The listener will be removed if the context is cancelled.
 	Listen(ctx context.Context, reporter StatusReporter)
 
+	// Report resends the status of all tasks controlled by this worker.
+	Report(ctx context.Context, reporter StatusReporter)
+
 	// Subscribe to log messages matching the subscription.
 	Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error
 
@@ -416,12 +419,23 @@ func (w *worker) Listen(ctx context.Context, reporter StatusReporter) {
 	}()
 
 	// report the current statuses to the new listener
+	w.reportAllStatuses(ctx, reporter)
+}
+
+func (w *worker) Report(ctx context.Context, reporter StatusReporter) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.reportAllStatuses(ctx, reporter)
+}
+
+func (w *worker) reportAllStatuses(ctx context.Context, reporter StatusReporter) {
 	if err := w.db.View(func(tx *bolt.Tx) error {
 		return WalkTaskStatus(tx, func(id string, status *api.TaskStatus) error {
 			return reporter.UpdateTaskStatus(ctx, id, status)
 		})
 	}); err != nil {
-		log.G(ctx).WithError(err).Errorf("failed reporting initial statuses to registered listener %v", reporter)
+		log.G(ctx).WithError(err).Errorf("failed reporting initial statuses")
 	}
 }
 

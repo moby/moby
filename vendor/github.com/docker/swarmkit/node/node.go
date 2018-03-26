@@ -260,12 +260,16 @@ func (n *Node) currentRole() api.NodeRole {
 func (n *Node) run(ctx context.Context) (err error) {
 	defer func() {
 		n.err = err
+		// close the n.closed channel to indicate that the Node has completely
+		// terminated
 		close(n.closed)
 	}()
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 	ctx = log.WithModule(ctx, "node")
 
+	// set up a goroutine to monitor the stop channel, and cancel the run
+	// context when the node is stopped
 	go func(ctx context.Context) {
 		select {
 		case <-ctx.Done():
@@ -274,6 +278,17 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}(ctx)
 
+	// First thing's first: get the SecurityConfig for this node. This includes
+	// the certificate information, and the root CA.  It also returns a cancel
+	// function. This is needed because the SecurityConfig is a live object,
+	// and provides a watch queue so that caller can observe changes to the
+	// security config. This watch queue has to be closed, which is done by the
+	// secConfigCancel function.
+	//
+	// It's also noteworthy that loading the security config with the node's
+	// loadSecurityConfig method has the side effect of setting the node's ID
+	// and role fields, meaning it isn't until after that point that node knows
+	// its ID
 	paths := ca.NewConfigPaths(filepath.Join(n.config.StateDir, certDirectory))
 	securityConfig, secConfigCancel, err := n.loadSecurityConfig(ctx, paths)
 	if err != nil {
@@ -281,11 +296,23 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}
 	defer secConfigCancel()
 
+	// Now that we have the security config, we can get a TLSRenewer, which is
+	// a live component handling certificate rotation.
 	renewer := ca.NewTLSRenewer(securityConfig, n.connBroker, paths.RootCA)
 
+	// Now that we have the security goop all loaded, we know the Node's ID and
+	// can add that to our logging context.
 	ctx = log.WithLogger(ctx, log.G(ctx).WithField("node.id", n.NodeID()))
 
+	// Next, set up the task database. The task database is used by the agent
+	// to keep a persistent local record of its tasks. Since every manager also
+	// has an agent, every node needs a task database, so we do this regardless
+	// of role.
 	taskDBPath := filepath.Join(n.config.StateDir, "worker", "tasks.db")
+	// Doing os.MkdirAll will create the necessary directory path for the task
+	// database if it doesn't already exist, and if it does already exist, no
+	// error will be returned, so we use this regardless of whether this node
+	// is new or not.
 	if err := os.MkdirAll(filepath.Dir(taskDBPath), 0777); err != nil {
 		return err
 	}
@@ -296,8 +323,18 @@ func (n *Node) run(ctx context.Context) (err error) {
 	}
 	defer db.Close()
 
+	// agentDone is a channel that represents the agent having exited. We start
+	// the agent in a goroutine a few blocks down, and before that goroutine
+	// exits, it closes this channel to signal to the goroutine just below to
+	// terminate.
 	agentDone := make(chan struct{})
 
+	// This goroutine is the node changes loop. The n.notifyNodeChange
+	// channel is passed to the agent. When an new node object gets sent down
+	// to the agent, it gets passed back up to this node object, so that we can
+	// check if a role update or a root certificate rotation is required. This
+	// handles root rotation, but the renewer handles regular certification
+	// rotation.
 	go func() {
 		// lastNodeDesiredRole is the last-seen value of Node.Spec.DesiredRole,
 		// used to make role changes "edge triggered" and avoid renewal loops.
@@ -354,9 +391,14 @@ func (n *Node) run(ctx context.Context) (err error) {
 		}
 	}()
 
+	// Now we're going to launch the main component goroutines, the Agent, the
+	// Manager (maybe) and the certificate updates loop. We shouldn't exit
+	// the node object until all 3 of these components have terminated, so we
+	// create a waitgroup to block termination of the node until then
 	var wg sync.WaitGroup
 	wg.Add(3)
 
+	// These two blocks update some of the metrics settings.
 	nodeInfo.WithValues(
 		securityConfig.ClientTLSCreds.Organization(),
 		securityConfig.ClientTLSCreds.NodeID(),
@@ -368,6 +410,10 @@ func (n *Node) run(ctx context.Context) (err error) {
 		nodeManager.Set(0)
 	}
 
+	// We created the renewer way up when we were creating the SecurityConfig
+	// at the beginning of run, but now we're ready to start receiving
+	// CertificateUpdates, and launch a goroutine to handle this. Updates is a
+	// channel we iterate containing the results of certificate renewals.
 	updates := renewer.Start(ctx)
 	go func() {
 		for certUpdate := range updates {
@@ -375,12 +421,14 @@ func (n *Node) run(ctx context.Context) (err error) {
 				logrus.Warnf("error renewing TLS certificate: %v", certUpdate.Err)
 				continue
 			}
+			// Set the new role, and notify our waiting role changing logic
+			// that the role has changed.
 			n.Lock()
 			n.role = certUpdate.Role
 			n.roleCond.Broadcast()
 			n.Unlock()
 
-			// Export the new role.
+			// Export the new role for metrics
 			if n.currentRole() == api.NodeRoleManager {
 				nodeManager.Set(1)
 			} else {
@@ -391,13 +439,19 @@ func (n *Node) run(ctx context.Context) (err error) {
 		wg.Done()
 	}()
 
+	// and, finally, start the two main components: the manager and the agent
 	role := n.role
 
+	// Channels to signal when these respective components are up and ready to
+	// go.
 	managerReady := make(chan struct{})
 	agentReady := make(chan struct{})
+	// these variables are defined in this scope so that they're closed on by
+	// respective goroutines below.
 	var managerErr error
 	var agentErr error
 	go func() {
+		// superviseManager is a routine that watches our manager role
 		managerErr = n.superviseManager(ctx, securityConfig, paths.RootCA, managerReady, renewer) // store err and loop
 		wg.Done()
 		cancel()
@@ -409,6 +463,11 @@ func (n *Node) run(ctx context.Context) (err error) {
 		close(agentDone)
 	}()
 
+	// This goroutine is what signals that the node has fully started by
+	// closing the n.ready channel. First, it waits for the agent to start.
+	// Then, if this node is a manager, it will wait on either the manager
+	// starting, or the node role changing. This ensures that if the node is
+	// demoted before the manager starts, it doesn't get stuck.
 	go func() {
 		<-agentReady
 		if role == ca.ManagerRole {
@@ -428,6 +487,8 @@ func (n *Node) run(ctx context.Context) (err error) {
 		close(n.ready)
 	}()
 
+	// And, finally, we park and wait for the node to close up. If we get any
+	// error other than context canceled, we return it.
 	wg.Wait()
 	if managerErr != nil && errors.Cause(managerErr) != context.Canceled {
 		return managerErr
@@ -435,6 +496,9 @@ func (n *Node) run(ctx context.Context) (err error) {
 	if agentErr != nil && errors.Cause(agentErr) != context.Canceled {
 		return agentErr
 	}
+	// NOTE(dperny): we return err here, but the last time I can see err being
+	// set is when we open the boltdb way up in this method, so I don't know
+	// what returning err is supposed to do.
 	return err
 }
 
@@ -477,11 +541,25 @@ func (n *Node) Err(ctx context.Context) error {
 	}
 }
 
+// runAgent starts the node's agent. When the agent has started, the provided
+// ready channel is closed. When the agent exits, this will return the error
+// that caused it.
 func (n *Node) runAgent(ctx context.Context, db *bolt.DB, securityConfig *ca.SecurityConfig, ready chan<- struct{}) error {
-	waitCtx, waitCancel := context.WithCancel(ctx)
+	// First, get a channel for knowing when a remote peer has been selected.
+	// The value returned from the remotesCh is ignored, we just need to know
+	// when the peer is selected
 	remotesCh := n.remotes.WaitSelect(ctx)
+	// then, we set up a new context to pass specifically to
+	// ListenControlSocket, and start that method to wait on a connection on
+	// the cluster control API.
+	waitCtx, waitCancel := context.WithCancel(ctx)
 	controlCh := n.ListenControlSocket(waitCtx)
 
+	// The goal here to wait either until we have a remote peer selected, or
+	// connection to the control
+	// socket. These are both ways to connect the
+	// agent to a manager, and we need to wait until one or the other is
+	// available to start the agent
 waitPeer:
 	for {
 		select {
@@ -490,20 +568,28 @@ waitPeer:
 		case <-remotesCh:
 			break waitPeer
 		case conn := <-controlCh:
+			// conn will probably be nil the first time we call this, probably,
+			// but only a non-nil conn represent an actual connection.
 			if conn != nil {
 				break waitPeer
 			}
 		}
 	}
 
+	// We can stop listening for new control socket connections once we're
+	// ready
 	waitCancel()
 
+	// NOTE(dperny): not sure why we need to recheck the context here. I guess
+	// it avoids a race if the context was canceled at the same time that a
+	// connection or peer was available. I think it's just an optimization.
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 
+	// Now we can go ahead and configure, create, and start the agent.
 	secChangesCh, secChangesCancel := securityConfig.Watch()
 	defer secChangesCancel()
 
@@ -524,8 +610,8 @@ waitPeer:
 			CertIssuerSubject:   issuer.Subject,
 		},
 	}
-	// if a join address has been specified, then if the agent fails to connect due to a TLS error, fail fast - don't
-	// keep re-trying to join
+	// if a join address has been specified, then if the agent fails to connect
+	// due to a TLS error, fail fast - don't keep re-trying to join
 	if n.config.JoinAddr != "" {
 		agentConfig.SessionTracker = &firstSessionErrorTracker{}
 	}
@@ -548,6 +634,7 @@ waitPeer:
 		n.Unlock()
 	}()
 
+	// when the agent indicates that it is ready, we close the ready channel.
 	go func() {
 		<-a.Ready()
 		close(ready)
@@ -785,6 +872,10 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	return nil
 }
 
+// waitRole takes a context and a role. it the blocks until the context is
+// canceled or the node's role updates to the provided role. returns nil when
+// the node has acquired the provided role, or ctx.Err() if the context is
+// canceled
 func (n *Node) waitRole(ctx context.Context, role string) error {
 	n.roleCond.L.Lock()
 	if role == n.role {
@@ -814,7 +905,13 @@ func (n *Node) waitRole(ctx context.Context, role string) error {
 	return nil
 }
 
+// runManager runs the manager on this node. It returns a boolean indicating if
+// the stoppage was due to a role change, and an error indicating why the
+// manager stopped
 func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, workerRole <-chan struct{}) (bool, error) {
+	// First, set up this manager's advertise and listen addresses, if
+	// provided. they might not be provided if this node is joining the cluster
+	// instead of creating a new one.
 	var remoteAPI *manager.RemoteAddrs
 	if n.config.ListenRemoteAPI != "" {
 		remoteAPI = &manager.RemoteAddrs{
@@ -851,8 +948,15 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	if err != nil {
 		return false, err
 	}
+	// The done channel is used to signal that the manager has exited.
 	done := make(chan struct{})
+	// runErr is an error value set by the goroutine that runs the manager
 	var runErr error
+
+	// The context used to start this might have a logger associated with it
+	// that we'd like to reuse, but we don't want to use that context, so we
+	// pass to the goroutine only the logger, and create a new context with
+	//that logger.
 	go func(logger *logrus.Entry) {
 		if err := m.Run(log.WithLogger(context.Background(), logger)); err != nil {
 			runErr = err
@@ -860,6 +964,9 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		close(done)
 	}(log.G(ctx))
 
+	// clearData is set in the select below, and is used to signal why the
+	// manager is stopping, and indicate whether or not to delete raft data and
+	// keys when stopping the manager.
 	var clearData bool
 	defer func() {
 		n.Lock()
@@ -877,9 +984,26 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	connCtx, connCancel := context.WithCancel(ctx)
 	defer connCancel()
 
+	// launch a goroutine that will manage our local connection to the manager
+	// from the agent. Remember the managerReady channel created way back in
+	// run? This is actually where we close it. Not when the manager starts,
+	// but when a connection to the control socket has been established.
 	go n.initManagerConnection(connCtx, ready)
 
 	// wait for manager stop or for role change
+	// The manager can be stopped one of 4 ways:
+	// 1. The manager may have errored out and returned an error, closing the
+	//    done channel in the process
+	// 2. The node may have been demoted to a worker. In this case, we're gonna
+	//    have to stop the manager ourselves, setting clearData to true so the
+	//    local raft data, certs, keys, etc, are nuked.
+	// 3. The manager may have been booted from raft. This could happen if it's
+	//    removed from the raft quorum but the role update hasn't registered
+	//    yet. The fact that there is more than 1 code path to cause the
+	//    manager to exit is a possible source of bugs.
+	// 4. The context may have been canceled from above, in which case we
+	//    should stop the manager ourselves, but indicate that this is NOT a
+	//    demotion.
 	select {
 	case <-done:
 		return false, runErr
@@ -895,12 +1019,22 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 	return clearData, nil
 }
 
+// superviseManager controls whether or not we are running a manager on this
+// node
 func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.SecurityConfig, rootPaths ca.CertPaths, ready chan struct{}, renewer *ca.TLSRenewer) error {
+	// superviseManager is a loop, because we can come in and out of being a
+	// manager, and need to appropriately handle that without disrupting the
+	// node functionality.
 	for {
+		// if we're not a manager, we're just gonna park here and wait until we
+		// are. For normal agent nodes, we'll stay here forever, as intended.
 		if err := n.waitRole(ctx, ca.ManagerRole); err != nil {
 			return err
 		}
 
+		// Once we know we are a manager, we get ourselves ready for when we
+		// lose that role. we create a channel to signal that we've become a
+		// worker, and close it when n.waitRole completes.
 		workerRole := make(chan struct{})
 		waitRoleCtx, waitRoleCancel := context.WithCancel(ctx)
 		go func() {
@@ -909,6 +1043,9 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			}
 		}()
 
+		// the ready channel passed to superviseManager is in turn passed down
+		// to the runManager function. It's used to signal to the caller that
+		// the manager has started.
 		wasRemoved, err := n.runManager(ctx, securityConfig, rootPaths, ready, workerRole)
 		if err != nil {
 			waitRoleCancel()
@@ -967,6 +1104,8 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			return err
 		}
 
+		// set ready to nil after the first time we've gone through this, as we
+		// don't need to signal after the first time that the manager is ready.
 		ready = nil
 	}
 }
