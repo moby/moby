@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
+	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
 
@@ -271,16 +272,17 @@ func parseFrom(req parseRequest) (*Stage, error) {
 		return nil, err
 	}
 
+	flPlatform := req.flags.AddString("platform", "")
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
 	code := strings.TrimSpace(req.original)
-
 	return &Stage{
 		BaseName:   req.args[0],
 		Name:       stageName,
 		SourceCode: code,
 		Commands:   []Command{},
+		Platform:   *system.ParsePlatform(flPlatform.Value),
 	}, nil
 
 }

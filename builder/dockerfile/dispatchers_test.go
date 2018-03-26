@@ -208,6 +208,7 @@ func TestOnbuild(t *testing.T) {
 func TestWorkdir(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
 	workingDir := "/app"
 	if runtime.GOOS == "windows" {
 		workingDir = "C:\\app"
@@ -224,6 +225,7 @@ func TestWorkdir(t *testing.T) {
 func TestCmd(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
 	command := "./executable"
 
 	cmd := &instructions.CmdCommand{
@@ -281,6 +283,7 @@ func TestHealthcheckCmd(t *testing.T) {
 func TestEntrypoint(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
 	entrypointCmd := "/usr/sbin/nginx"
 
 	cmd := &instructions.EntrypointCommand{
@@ -356,6 +359,7 @@ func TestStopSignal(t *testing.T) {
 	}
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+	sb.state.baseImage = &mockImage{}
 	signal := "SIGKILL"
 
 	cmd := &instructions.StopSignalCommand{

@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"strings"
 	"time"
 
@@ -104,18 +103,12 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		source = src
 	}
 
-	os := runtime.GOOS
-	optionsPlatform := system.ParsePlatform(config.Options.Platform)
-	if dockerfile.OS != "" {
-		if optionsPlatform.OS != "" && optionsPlatform.OS != dockerfile.OS {
-			return nil, fmt.Errorf("invalid platform")
-		}
-		os = dockerfile.OS
-	} else if optionsPlatform.OS != "" {
-		os = optionsPlatform.OS
+	os := ""
+	apiPlatform := system.ParsePlatform(config.Options.Platform)
+	if apiPlatform.OS != "" {
+		os = apiPlatform.OS
 	}
 	config.Options.Platform = os
-	dockerfile.OS = os
 
 	builderOptions := builderOptions{
 		Options:        config.Options,

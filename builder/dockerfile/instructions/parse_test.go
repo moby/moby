@@ -196,5 +196,4 @@ func TestErrorCases(t *testing.T) {
 		_, err = ParseInstruction(n)
 		testutil.ErrorContains(t, err, c.expectedError)
 	}
-
 }

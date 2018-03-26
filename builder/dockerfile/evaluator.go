@@ -37,8 +37,7 @@ import (
 
 func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 	if c, ok := cmd.(instructions.PlatformSpecific); ok {
-		optionsOS := system.ParsePlatform(d.builder.options.Platform).OS
-		err := c.CheckPlatform(optionsOS)
+		err := c.CheckPlatform(d.state.operatingSystem)
 		if err != nil {
 			return errdefs.InvalidParameter(err)
 		}
