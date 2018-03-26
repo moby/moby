@@ -3,7 +3,7 @@
 #
 # KEEP THIS FILE SORTED. Order is important. Last match takes precedence.
 
-builder/**                              @dnephin @tonistiigi
+builder/**                              @tonistiigi
 client/**                               @dnephin
 contrib/mkimage/**                      @tianon
 daemon/graphdriver/devmapper/**         @rhvgoyal 
@@ -12,10 +12,9 @@ daemon/graphdriver/overlay/**           @dmcgowan
 daemon/graphdriver/overlay2/**          @dmcgowan
 daemon/graphdriver/windows/**           @johnstep @jhowardmsft
 daemon/logger/awslogs/**                @samuelkarp  
-hack/**                                 @dnephin @tianon
+hack/**                                 @tianon
 hack/integration-cli-on-swarm/**        @AkihiroSuda
-integration-cli/**                      @dnephin @vdemeester
-integration/**                          @dnephin @vdemeester
-pkg/testutil/**                         @dnephin
+integration-cli/**                      @vdemeester
+integration/**                          @vdemeester
 plugin/**                               @cpuguy83
 project/**                              @thaJeztah
