@@ -116,7 +116,13 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	service, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, service.ID, instances))
+	pollSettings := func(config *poll.Settings) {
+		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+			config.Timeout = 30 * time.Second
+			config.Delay = 100 * time.Millisecond
+		}
+	}
+	poll.WaitOn(t, serviceRunningTasksCount(client, service.ID, instances), pollSettings)
 
 	resp, _, err := client.ServiceInspectWithRaw(context.Background(), service.ID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -196,7 +202,13 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances))
+	pollSettings := func(config *poll.Settings) {
+		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+			config.Timeout = 30 * time.Second
+			config.Delay = 100 * time.Millisecond
+		}
+	}
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances), pollSettings)
 
 	filter := filters.NewArgs()
 	filter.Add("service", serviceResp.ID)
@@ -219,8 +231,8 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	err = client.ServiceRemove(ctx, serviceResp.ID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID))
-	poll.WaitOn(t, noTasks(client))
+	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID), pollSettings)
+	poll.WaitOn(t, noTasks(client), pollSettings)
 
 	err = client.SecretRemove(ctx, "TestSecret")
 	assert.NilError(t, err)
