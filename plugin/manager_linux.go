@@ -64,6 +64,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 				logrus.Warnf("Could not unmount %s: %v", propRoot, err)
 			}
 		}
+		return errors.WithStack(err)
 	}
 	return pm.pluginPostStart(p, c)
 }
