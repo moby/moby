@@ -644,7 +644,7 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 		return nil, err
 	}
 
-	if err := s.validateNetworks(request.Spec.Networks); err != nil {
+	if err := s.validateNetworks(request.Spec.Task.Networks); err != nil {
 		return nil, err
 	}
 
@@ -724,6 +724,10 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		return nil, status.Errorf(codes.InvalidArgument, errInvalidArgument.Error())
 	}
 	if err := validateServiceSpec(request.Spec); err != nil {
+		return nil, err
+	}
+
+	if err := s.validateNetworks(request.Spec.Task.Networks); err != nil {
 		return nil, err
 	}
 

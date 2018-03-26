@@ -43,7 +43,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 const ingressNet = "ingress"
 
-func TestServiceWithIngressNetwork(t *testing.T) {
+func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
@@ -54,9 +54,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	poll.WaitOn(t, swarmIngressReady(client), swarm.NetworkPoll)
 
 	var instances uint64 = 1
-	serviceName := "TestIngressService"
-	serviceSpec := swarmServiceSpec(serviceName, instances)
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: ingressNet})
+	serviceSpec := swarmServiceSpec(t.Name()+"-service", instances)
 	serviceSpec.EndpointSpec = &swarmtypes.EndpointSpec{
 		Ports: []swarmtypes.PortConfig{
 			{
