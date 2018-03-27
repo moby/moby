@@ -7537,6 +7537,7 @@ paths:
                 x-nullable: false
                 description: "List of volumes"
                 items:
+                  x-nullable: true
                   $ref: "#/definitions/Volume"
               Warnings:
                 type: "array"

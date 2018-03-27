@@ -46,12 +46,13 @@ swagger-gen --package container -o api/types/container/responses-generated.go \
     -p ContainerUpdate \
     -p ContainerWait
 
-#mkdir -p api/types/image
-#swagger-gen --package image -o api/types/image/responses-generated.go \
-#    -f api/swagger.yaml \
-#    -p ImageHistory
-#
-#mkdir -p api/types/volume
-#swagger-gen --package volume -o api/types/volume/responses-generated.go \
-#    -f api/swagger.yaml \
-#    -p VolumeList
+mkdir -p api/types/image
+swagger-gen --package image -o api/types/image/responses-generated.go \
+    -f api/swagger.yaml \
+    -p ImageHistory
+
+mkdir -p api/types/volume
+swagger-gen --package volume -o api/types/volume/responses-generated.go \
+    --definitions-package github.com/docker/docker/api/types \
+    -f api/swagger.yaml \
+    -p VolumeList

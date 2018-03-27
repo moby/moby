@@ -1,6 +1,6 @@
 #!/bin/sh
 
-SWAGGER_GEN_COMMIT=44a6d863ea46f074ba15256d95c3e4dd1be1e654
+SWAGGER_GEN_COMMIT=990d840bc697301b2c3ad57778a6b13bae50fa4a
 
 install_swaggergen() {
 	echo "Install swagger-gen version $CONTAINERD_COMMIT"

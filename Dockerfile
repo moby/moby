@@ -206,9 +206,9 @@ RUN apt-get update && apt-get install -y \
 	bzip2 \
 	xz-utils \
 	--no-install-recommends
-COPY --from=swagger /usr/local/bin/swagger* /usr/local/bin/
 COPY --from=frozen-images /docker-frozen-images /docker-frozen-images
 COPY --from=gometalinter /opt/gometalinter/ /usr/local/bin/
+COPY --from=swaggergen /opt/swaggergen/  /usr/local/bin/
 COPY --from=tomlv /opt/tomlv/ /usr/local/bin/
 COPY --from=vndr /opt/vndr/ /usr/local/bin/
 COPY --from=tini /opt/tini/ /usr/local/bin/
