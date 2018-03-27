@@ -180,12 +180,8 @@ win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
 
 .PHONY: swagger-gen
-swagger-gen:
-	docker run --rm -v $(PWD):/go/src/github.com/docker/docker \
-		-w /go/src/github.com/docker/docker \
-		--entrypoint hack/generate-swagger-api.sh \
-		-e GOPATH=/go \
-		quay.io/goswagger/swagger:0.7.4
+swagger-gen: build
+	$(DOCKER_RUN_DOCKER) hack/validate/swagger-gen
 
 .PHONY: swagger-docs
 swagger-docs: ## preview the API documentation

@@ -82,26 +82,12 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 
-
 FROM base AS docker-py
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
 RUN git clone https://github.com/docker/docker-py.git /docker-py \
 	&& cd /docker-py \
 	&& git checkout -q $DOCKER_PY_COMMIT
-
-
-
-FROM base AS swagger
-# Install go-swagger for validating swagger.yaml
-ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
-RUN set -x \
-	&& export GOPATH="$(mktemp -d)" \
-	&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
-	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
-	&& go build -o /usr/local/bin/swagger github.com/go-swagger/go-swagger/cmd/swagger \
-	&& rm -rf "$GOPATH"
-
 
 FROM base AS frozen-images
 RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
@@ -121,6 +107,12 @@ RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libseccomp-dev
 
+
+FROM base AS swaggergen
+ENV INSTALL_BINARY_NAME=swaggergen
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv

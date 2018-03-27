@@ -1,0 +1,12 @@
+#!/bin/sh
+
+SWAGGER_GEN_COMMIT=44a6d863ea46f074ba15256d95c3e4dd1be1e654
+
+install_swaggergen() {
+	echo "Install swagger-gen version $CONTAINERD_COMMIT"
+	git clone https://github.com/dnephin/swagger-gen-types.git "$GOPATH/src/github.com/dnephin/swagger-gen"
+	cd "$GOPATH/src/github.com/dnephin/swagger-gen"
+	git checkout -q "$SWAGGER_GEN_COMMIT"
+
+    go build -o ${PREFIX}/swagger-gen .
+}
