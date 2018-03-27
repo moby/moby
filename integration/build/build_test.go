@@ -5,7 +5,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"strings"
@@ -249,6 +248,7 @@ RUN cat somefile`
 
 // #35403 #36122
 func TestBuildUncleanTarFilenames(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
 
@@ -307,9 +307,7 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
-	fmt.Println(testEnv.DaemonAPIVersion())
-	skip.IfCondition(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"),
-		"Don't run on API lower than 1.38 as it has been fixed starting from that version")
+	skip.IfCondition(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
 

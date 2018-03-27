@@ -155,6 +155,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 }
 
 func TestMountDaemonRoot(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
 	t.Parallel()
 
 	client := request.NewAPIClient(t)

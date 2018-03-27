@@ -23,12 +23,17 @@ var testEnv *environment.Execution
 type testingT interface {
 	assert.TestingT
 	logT
+	skipT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
 }
 
 type logT interface {
 	Logf(string, ...interface{})
+}
+
+type skipT interface {
+	Skip(reason string)
 }
 
 // Fake is a static file server. It might be running locally or remotely
@@ -51,10 +56,15 @@ func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fak
 		t.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
 	}
 	ctx := fakecontext.New(t, dir, modifiers...)
-	if testEnv.IsLocalDaemon() {
+	switch {
+	case testEnv.IsRemoteDaemon() && strings.HasPrefix(request.DaemonHost(), "unix:///"):
+		t.Skip(fmt.Sprintf("e2e run : daemon is remote but docker host points to a unix socket"))
+	case testEnv.IsLocalDaemon():
 		return newLocalFakeStorage(ctx)
+	default:
+		return newRemoteFileServer(t, ctx)
 	}
-	return newRemoteFileServer(t, ctx)
+	return nil
 }
 
 // localFileStorage is a file storage on the running machine
@@ -152,7 +162,6 @@ COPY . /static`); err != nil {
 	if err != nil {
 		t.Fatalf("unable to parse daemon host URL: %v", err)
 	}
-
 	host, _, err := net.SplitHostPort(dockerHostURL.Host)
 	if err != nil {
 		t.Fatalf("unable to parse docker daemon host:port: %v", err)

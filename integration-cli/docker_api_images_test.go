@@ -115,7 +115,14 @@ func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	c.Assert(historydata, checker.Not(checker.HasLen), 0)
-	c.Assert(historydata[0].Tags[0], checker.Equals, "test-api-images-history:latest")
+	var found bool
+	for _, tag := range historydata[0].Tags {
+		if tag == "test-api-images-history:latest" {
+			found = true
+			break
+		}
+	}
+	c.Assert(found, checker.True)
 }
 
 func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {

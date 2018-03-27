@@ -347,7 +347,7 @@ func (s *DockerExternalGraphdriverSuite) TearDownSuite(c *check.C) {
 }
 
 func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriver(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
+	testRequires(c, ExperimentalDaemon, SameHostDaemon)
 
 	s.testExternalGraphDriver("test-external-graph-driver", "spec", c)
 	s.testExternalGraphDriver("json-external-graph-driver", "json", c)
@@ -395,7 +395,7 @@ func (s *DockerExternalGraphdriverSuite) testExternalGraphDriver(name string, ex
 }
 
 func (s *DockerExternalGraphdriverSuite) TestExternalGraphDriverPull(c *check.C) {
-	testRequires(c, Network, ExperimentalDaemon)
+	testRequires(c, Network, ExperimentalDaemon, SameHostDaemon)
 
 	s.d.Start(c)
 
