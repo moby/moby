@@ -1228,6 +1228,7 @@ definitions:
       ParentId:
         type: "string"
         x-nullable: false
+        title: ParentID
       RepoTags:
         type: "array"
         x-nullable: false
@@ -1569,6 +1570,7 @@ definitions:
     description: "Response to an API call that returns just an Id"
     type: "object"
     required: ["Id"]
+    title: "IDResponse"
     properties:
       Id:
         description: "The id of the newly created object."
@@ -1696,6 +1698,7 @@ definitions:
       Source:
         type: "string"
         example: "/var/lib/docker/plugins/"
+        x-nullable: true
       Destination:
         type: "string"
         x-nullable: false
@@ -1729,6 +1732,7 @@ definitions:
           type: "string"
       Path:
         type: "string"
+        x-nullable: true
         example: "/dev/fuse"
 
   PluginEnv:
@@ -1747,6 +1751,7 @@ definitions:
         items:
           type: "string"
       Value:
+        x-nullable: true
         type: "string"
 
   PluginInterfaceType:
@@ -1958,6 +1963,7 @@ definitions:
                   type: "string"
           rootfs:
             type: "object"
+            x-nullable: true
             properties:
               type:
                 type: "string"
@@ -6774,7 +6780,6 @@ paths:
           description: "An identity token was generated successfully."
           schema:
             type: "object"
-            title: "SystemAuthResponse"
             required: [Status]
             properties:
               Status:
