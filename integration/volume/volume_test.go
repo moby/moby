@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -36,14 +37,14 @@ func TestVolumesCreateAndList(t *testing.T) {
 		Name:       name,
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
-	assert.Check(t, is.DeepEqual(vol, expected))
+	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
 	volumes, err := client.VolumeList(ctx, filters.Args{})
 	assert.NilError(t, err)
 
 	assert.Check(t, is.Equal(len(volumes.Volumes), 1))
 	assert.Check(t, volumes.Volumes[0] != nil)
-	assert.Check(t, is.DeepEqual(*volumes.Volumes[0], expected))
+	assert.Check(t, is.DeepEqual(*volumes.Volumes[0], expected, cmpopts.EquateEmpty()))
 }
 
 func TestVolumesRemove(t *testing.T) {
@@ -96,7 +97,7 @@ func TestVolumesInspect(t *testing.T) {
 		Name:       name,
 		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
 	}
-	assert.Check(t, is.DeepEqual(vol, expected))
+	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
 	// comparing CreatedAt field time for the new volume to now. Removing a minute from both to avoid false positive
 	testCreatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(vol.CreatedAt))

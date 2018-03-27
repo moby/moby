@@ -36,7 +36,7 @@ func checkKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion i
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
-	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
+	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon, SameHostDaemon)
 	// master dummy interface 'di' notation represent 'docker ipvlan'
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
@@ -54,7 +54,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanPersistance(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanSubIntCreate(c *check.C) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.50)
-	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
+	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon, SameHostDaemon)
 	// master dummy interface 'dm' abbreviation represents 'docker ipvlan'
 	master := "di-dummy0"
 	// simulate the master link the vlan tagged subinterface parent link will use
@@ -68,7 +68,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkIpvlanSubIntCreate(c *check.C) {
 
 func (s *DockerNetworkSuite) TestDockerNetworkIpvlanOverlapParent(c *check.C) {
 	// verify the same parent interface cannot be used if already in use by an existing network
-	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon)
+	testRequires(c, DaemonIsLinux, ipvlanKernelSupport, NotUserNamespace, NotArm, ExperimentalDaemon, SameHostDaemon)
 	// master dummy interface 'dm' abbreviation represents 'docker ipvlan'
 	master := "di-dummy0"
 	createMasterDummy(c, master)

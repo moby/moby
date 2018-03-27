@@ -22,7 +22,7 @@ run_test_integration() {
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT:=10m} $TESTFLAGS"
+	local flags="-test.v -test.timeout=${TIMEOUT:-10m} $TESTFLAGS"
 	for dir in $integration_api_dirs; do
 		if ! (
 			cd $dir
@@ -34,7 +34,7 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
+		flags="-check.v -check.timeout=${TIMEOUT:-200m} -test.timeout=360m $TESTFLAGS"
 		cd /tests/integration-cli
 		echo "Running $PWD"
 		test_env ./test.main $flags
@@ -68,4 +68,5 @@ test_env() {
 	)
 }
 
+sh /scripts/ensure-emptyfs.sh
 run_test_integration
