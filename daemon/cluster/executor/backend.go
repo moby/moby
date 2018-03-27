@@ -31,7 +31,7 @@ type Backend interface {
 	FindNetwork(idName string) (libnetwork.Network, error)
 	SetupIngress(clustertypes.NetworkCreateRequest, string) (<-chan struct{}, error)
 	ReleaseIngress() (<-chan struct{}, error)
-	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	CreateManagedContainer(config types.ContainerCreateConfig) (container.ContainerCreateResponse, error)
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerLogs(context.Context, string, *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)

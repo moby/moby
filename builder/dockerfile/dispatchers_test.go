@@ -443,12 +443,12 @@ func TestRunWithBuildArgs(t *testing.T) {
 			config: &container.Config{Cmd: origCmd},
 		}, nil, nil
 	}
-	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateResponse, error) {
 		// Check the runConfig.Cmd sent to create()
 		assert.Check(t, is.DeepEqual(cmdWithShell, config.Config.Cmd))
 		assert.Check(t, is.Contains(config.Config.Env, "one=two"))
 		assert.Check(t, is.DeepEqual(strslice.StrSlice{""}, config.Config.Entrypoint))
-		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
+		return container.ContainerCreateResponse{ID: "12345"}, nil
 	}
 	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
 		// Check the runConfig.Cmd sent to commit()

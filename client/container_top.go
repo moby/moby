@@ -10,8 +10,8 @@ import (
 )
 
 // ContainerTop shows process information from within a container.
-func (cli *Client) ContainerTop(ctx context.Context, containerID string, arguments []string) (container.ContainerTopOKBody, error) {
-	var response container.ContainerTopOKBody
+func (cli *Client) ContainerTop(ctx context.Context, containerID string, arguments []string) (container.ContainerTopResponse, error) {
+	var response container.ContainerTopResponse
 	query := url.Values{}
 	if len(arguments) > 0 {
 		query.Set("ps_args", strings.Join(arguments, " "))

@@ -10,24 +10,24 @@ import (
 )
 
 // ContainerUpdate updates configuration of the container
-func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error) {
+func (daemon *Daemon) ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateResponse, error) {
 	var warnings []string
 
 	c, err := daemon.GetContainer(name)
 	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return container.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
 	warnings, err = daemon.verifyContainerSettings(c.OS, hostConfig, nil, true)
 	if err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, errdefs.InvalidParameter(err)
+		return container.ContainerUpdateResponse{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	if err := daemon.update(name, hostConfig); err != nil {
-		return container.ContainerUpdateOKBody{Warnings: warnings}, err
+		return container.ContainerUpdateResponse{Warnings: warnings}, err
 	}
 
-	return container.ContainerUpdateOKBody{Warnings: warnings}, nil
+	return container.ContainerUpdateResponse{Warnings: warnings}, nil
 }
 
 func (daemon *Daemon) update(name string, hostConfig *container.HostConfig) error {

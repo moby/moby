@@ -33,7 +33,7 @@ type copyBackend interface {
 
 // stateBackend includes functions to implement to provide container state lifecycle functionality.
 type stateBackend interface {
-	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error)
+	ContainerCreate(config types.ContainerCreateConfig) (container.ContainerCreateResponse, error)
 	ContainerKill(name string, sig uint64) error
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
@@ -43,7 +43,7 @@ type stateBackend interface {
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
 	ContainerUnpause(name string) error
-	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateOKBody, error)
+	ContainerUpdate(name string, hostConfig *container.HostConfig) (container.ContainerUpdateResponse, error)
 	ContainerWait(ctx context.Context, name string, condition containerpkg.WaitCondition) (<-chan containerpkg.StateStatus, error)
 }
 
@@ -53,7 +53,7 @@ type monitorBackend interface {
 	ContainerInspect(name string, size bool, version string) (interface{}, error)
 	ContainerLogs(ctx context.Context, name string, config *types.ContainerLogsOptions) (msgs <-chan *backend.LogMessage, tty bool, err error)
 	ContainerStats(ctx context.Context, name string, config *backend.ContainerStatsConfig) error
-	ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error)
+	ContainerTop(name string, psArgs string) (*container.ContainerTopResponse, error)
 
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 }

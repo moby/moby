@@ -43,7 +43,7 @@ func fieldsASCII(s string) []string {
 	return strings.FieldsFunc(s, fn)
 }
 
-func appendProcess2ProcList(procList *container.ContainerTopOKBody, fields []string) {
+func appendProcess2ProcList(procList *container.ContainerTopResponse, fields []string) {
 	// Make sure number of fields equals number of header titles
 	// merging "overhanging" fields
 	process := fields[:len(procList.Titles)-1]
@@ -60,8 +60,8 @@ func hasPid(procs []uint32, pid int) bool {
 	return false
 }
 
-func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody, error) {
-	procList := &container.ContainerTopOKBody{}
+func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopResponse, error) {
+	procList := &container.ContainerTopResponse{}
 
 	lines := strings.Split(string(output), "\n")
 	procList.Titles = fieldsASCII(lines[0])
@@ -117,7 +117,7 @@ func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody
 // "-ef" if no args are given.  An error is returned if the container
 // is not found, or is not running, or if there are any problems
 // running ps, or parsing the output.
-func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopOKBody, error) {
+func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.ContainerTopResponse, error) {
 	if psArgs == "" {
 		psArgs = "-ef"
 	}

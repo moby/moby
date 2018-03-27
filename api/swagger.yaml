@@ -5778,6 +5778,7 @@ paths:
               Error:
                 description: "container waiting error, if any"
                 type: "object"
+                x-nullable: true
                 properties:
                   Message:
                     description: "Details of an error"
@@ -6781,6 +6782,7 @@ paths:
           schema:
             type: "object"
             required: [Status]
+            title: "AuthenticateOKBody"
             properties:
               Status:
                 description: "The status of the authentication"

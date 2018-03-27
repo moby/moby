@@ -44,7 +44,7 @@ type CommonAPIClient interface {
 type ContainerAPIClient interface {
 	ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error)
 	ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error)
-	ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, containerName string) (containertypes.ContainerCreateCreatedBody, error)
+	ContainerCreate(ctx context.Context, config *containertypes.Config, hostConfig *containertypes.HostConfig, networkingConfig *networktypes.NetworkingConfig, containerName string) (containertypes.ContainerCreateResponse, error)
 	ContainerDiff(ctx context.Context, container string) ([]containertypes.ContainerChangeResponseItem, error)
 	ContainerExecAttach(ctx context.Context, execID string, config types.ExecStartCheck) (types.HijackedResponse, error)
 	ContainerExecCreate(ctx context.Context, container string, config types.ExecConfig) (types.IDResponse, error)
@@ -66,10 +66,10 @@ type ContainerAPIClient interface {
 	ContainerStats(ctx context.Context, container string, stream bool) (types.ContainerStats, error)
 	ContainerStart(ctx context.Context, container string, options types.ContainerStartOptions) error
 	ContainerStop(ctx context.Context, container string, timeout *time.Duration) error
-	ContainerTop(ctx context.Context, container string, arguments []string) (containertypes.ContainerTopOKBody, error)
+	ContainerTop(ctx context.Context, container string, arguments []string) (containertypes.ContainerTopResponse, error)
 	ContainerUnpause(ctx context.Context, container string) error
-	ContainerUpdate(ctx context.Context, container string, updateConfig containertypes.UpdateConfig) (containertypes.ContainerUpdateOKBody, error)
-	ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.ContainerWaitOKBody, <-chan error)
+	ContainerUpdate(ctx context.Context, container string, updateConfig containertypes.UpdateConfig) (containertypes.ContainerUpdateResponse, error)
+	ContainerWait(ctx context.Context, container string, condition containertypes.WaitCondition) (<-chan containertypes.ContainerWaitResponse, <-chan error)
 	CopyFromContainer(ctx context.Context, container, srcPath string) (io.ReadCloser, types.ContainerPathStat, error)
 	CopyToContainer(ctx context.Context, container, path string, content io.Reader, options types.CopyToContainerOptions) error
 	ContainersPrune(ctx context.Context, pruneFilters filters.Args) (types.ContainersPruneReport, error)

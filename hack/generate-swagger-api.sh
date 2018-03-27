@@ -32,20 +32,20 @@ swagger-gen -o api/types/volumes-generated.go \
     -f api/swagger.yaml \
     -d Volume
 
-#mkdir -p api/types/registry
-#swagger-gen --package registry -o api/types/registry/authenticate-generated.go \
-#    -f api/swagger.yaml \
-#    -p SystemAuth
-#
-#mkdir -p api/types/container
-#swagger-gen --package container -o api/types/container/responses-generated.go \
-#    -f api/swagger.yaml \
-#    -p ContainerChanges \
-#    -p ContainerCreate \
-#    -p ContainerTop \
-#    -p ContainerUpdate \
-#    -p ContainerWait
-#
+mkdir -p api/types/registry
+swagger-gen --package registry -o api/types/registry/auth-generated.go \
+    -f api/swagger.yaml \
+    -p SystemAuth
+
+mkdir -p api/types/container
+swagger-gen --package container -o api/types/container/responses-generated.go \
+    -f api/swagger.yaml \
+    -p ContainerChanges \
+    -p ContainerCreate \
+    -p ContainerTop \
+    -p ContainerUpdate \
+    -p ContainerWait
+
 #mkdir -p api/types/image
 #swagger-gen --package image -o api/types/image/responses-generated.go \
 #    -f api/swagger.yaml \

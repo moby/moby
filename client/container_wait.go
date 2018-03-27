@@ -25,12 +25,12 @@ import (
 // wait request or in getting the response. This allows the caller to
 // synchronize ContainerWait with other calls, such as specifying a
 // "next-exit" condition before issuing a ContainerStart request.
-func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitOKBody, <-chan error) {
+func (cli *Client) ContainerWait(ctx context.Context, containerID string, condition container.WaitCondition) (<-chan container.ContainerWaitResponse, <-chan error) {
 	if versions.LessThan(cli.ClientVersion(), "1.30") {
 		return cli.legacyContainerWait(ctx, containerID)
 	}
 
-	resultC := make(chan container.ContainerWaitOKBody)
+	resultC := make(chan container.ContainerWaitResponse)
 	errC := make(chan error, 1)
 
 	query := url.Values{}
@@ -45,7 +45,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 
 	go func() {
 		defer ensureReaderClosed(resp)
-		var res container.ContainerWaitOKBody
+		var res container.ContainerWaitResponse
 		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
 			errC <- err
 			return
@@ -59,8 +59,8 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 
 // legacyContainerWait returns immediately and doesn't have an option to wait
 // until the container is removed.
-func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.ContainerWaitOKBody, <-chan error) {
-	resultC := make(chan container.ContainerWaitOKBody)
+func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) (<-chan container.ContainerWaitResponse, <-chan error) {
+	resultC := make(chan container.ContainerWaitResponse)
 	errC := make(chan error)
 
 	go func() {
@@ -71,7 +71,7 @@ func (cli *Client) legacyContainerWait(ctx context.Context, containerID string) 
 		}
 		defer ensureReaderClosed(resp)
 
-		var res container.ContainerWaitOKBody
+		var res container.ContainerWaitResponse
 		if err := json.NewDecoder(resp.body).Decode(&res); err != nil {
 			errC <- err
 			return
