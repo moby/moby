@@ -155,6 +155,38 @@ func makePluginBundle(inPath string, opts ...CreateOpt) (io.ReadCloser, error) {
 	if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(p.Entrypoint[0])), 0755); err != nil {
 		return nil, errors.Wrap(err, "error creating plugin rootfs dir")
 	}
+
+	// Ensure the mount target paths exist
+	for _, m := range p.Mounts {
+		var stat os.FileInfo
+		if m.Source != nil {
+			stat, err = os.Stat(*m.Source)
+			if err != nil && !os.IsNotExist(err) {
+				return nil, err
+			}
+		}
+
+		if stat == nil || stat.IsDir() {
+			var mode os.FileMode = 0755
+			if stat != nil {
+				mode = stat.Mode()
+			}
+			if err := os.MkdirAll(filepath.Join(inPath, "rootfs", m.Destination), mode); err != nil {
+				return nil, errors.Wrap(err, "error preparing plugin mount destination path")
+			}
+		} else {
+			if err := os.MkdirAll(filepath.Join(inPath, "rootfs", filepath.Dir(m.Destination)), 0755); err != nil {
+				return nil, errors.Wrap(err, "error preparing plugin mount destination dir")
+			}
+			f, err := os.Create(filepath.Join(inPath, "rootfs", m.Destination))
+			if err != nil && !os.IsExist(err) {
+				return nil, errors.Wrap(err, "error preparing plugin mount destination file")
+			}
+			if f != nil {
+				f.Close()
+			}
+		}
+	}
 	if err := archive.NewDefaultArchiver().CopyFileWithTar(cfg.binPath, filepath.Join(inPath, "rootfs", p.Entrypoint[0])); err != nil {
 		return nil, errors.Wrap(err, "error copying plugin binary to rootfs path")
 	}
