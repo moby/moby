@@ -26,7 +26,7 @@ function echo_and_run {
 
 function check_ip_overlap {
   inspect=$1
-  overlap=$(echo "$inspect_output" | grep "EndpointIP\|VIP" | awk -F ':' '{print $2}' | sort | uniq -c | grep -v "1 ")
+  overlap=$(echo "$inspect_output" | grep "EndpointIP\|VIP" | cut -d':' -f2 | sort | uniq -c | grep -v "1 ")
   if [ ! -z "$overlap" ]; then
     echo -e "\n\n*** OVERLAP on Network ${networkID} ***";
     echo -e "${overlap} \n\n"
