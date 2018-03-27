@@ -225,7 +225,7 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 		// TODO(mlaventure): when containerd support lcow, revisit runtime value
 		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
 	if err != nil {
-		return err
+		return wrapError(err)
 	}
 
 	c.Lock()
@@ -306,7 +306,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 			rio.Cancel()
 			rio.Close()
 		}
-		return -1, err
+		return -1, wrapError(err)
 	}
 
 	ctr.setTask(t)
@@ -320,7 +320,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 				Error("failed to delete task after fail start")
 		}
 		ctr.setTask(nil)
-		return -1, err
+		return -1, wrapError(err)
 	}
 
 	return int(t.Pid()), nil
@@ -364,7 +364,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	})
 	if err != nil {
 		close(stdinCloseSync)
-		return -1, err
+		return -1, wrapError(err)
 	}
 
 	ctr.addProcess(processID, p)
@@ -375,7 +375,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	if err = p.Start(ctx); err != nil {
 		p.Delete(context.Background())
 		ctr.deleteProcess(processID)
-		return -1, err
+		return -1, wrapError(err)
 	}
 
 	return int(p.Pid()), nil
@@ -413,7 +413,7 @@ func (c *client) Pause(ctx context.Context, containerID string) error {
 		return err
 	}
 
-	return p.(containerd.Task).Pause(ctx)
+	return wrapError(p.(containerd.Task).Pause(ctx))
 }
 
 func (c *client) Resume(ctx context.Context, containerID string) error {
@@ -513,7 +513,7 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	}
 
 	if err := ctr.ctr.Delete(ctx); err != nil {
-		return err
+		return wrapError(err)
 	}
 
 	if os.Getenv("LIBCONTAINERD_NOCLEAN") != "1" {
@@ -543,7 +543,7 @@ func (c *client) Status(ctx context.Context, containerID string) (Status, error)
 
 	s, err := t.Status(ctx)
 	if err != nil {
-		return StatusUnknown, err
+		return StatusUnknown, wrapError(err)
 	}
 
 	return Status(s.Status), nil
@@ -557,7 +557,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 
 	img, err := p.(containerd.Task).Checkpoint(ctx)
 	if err != nil {
-		return err
+		return wrapError(err)
 	}
 	// Whatever happens, delete the checkpoint from containerd
 	defer func() {
