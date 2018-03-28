@@ -5,13 +5,14 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/testutils"
 )
 
-func getTestEnv(t *testing.T, numNetworks int) (NetworkController, []Network) {
+func getTestEnv(t *testing.T, opts ...[]NetworkOption) (NetworkController, []Network) {
 	netType := "bridge"
 
 	option := options.Generic{
@@ -29,19 +30,22 @@ func getTestEnv(t *testing.T, numNetworks int) (NetworkController, []Network) {
 		t.Fatal(err)
 	}
 
-	if numNetworks == 0 {
+	if len(opts) == 0 {
 		return c, nil
 	}
 
-	nwList := make([]Network, 0, numNetworks)
-	for i := 0; i < numNetworks; i++ {
+	nwList := make([]Network, 0, len(opts))
+	for i, opt := range opts {
 		name := fmt.Sprintf("test_nw_%d", i)
 		netOption := options.Generic{
 			netlabel.GenericData: options.Generic{
 				"BridgeName": name,
 			},
 		}
-		n, err := c.NewNetwork(netType, name, "", NetworkOptionGeneric(netOption))
+		newOptions := make([]NetworkOption, 1, len(opt)+1)
+		newOptions[0] = NetworkOptionGeneric(netOption)
+		newOptions = append(newOptions, opt...)
+		n, err := c.NewNetwork(netType, name, "", newOptions...)
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -53,7 +57,7 @@ func getTestEnv(t *testing.T, numNetworks int) (NetworkController, []Network) {
 }
 
 func TestSandboxAddEmpty(t *testing.T) {
-	c, _ := getTestEnv(t, 0)
+	c, _ := getTestEnv(t)
 	ctrlr := c.(*controller)
 
 	sbx, err := ctrlr.NewSandbox("sandbox0")
@@ -72,12 +76,19 @@ func TestSandboxAddEmpty(t *testing.T) {
 	osl.GC()
 }
 
+// // If different priorities are specified, internal option and ipv6 addresses mustn't influence endpoint order
 func TestSandboxAddMultiPrio(t *testing.T) {
 	if !testutils.IsRunningInContainer() {
 		defer testutils.SetupTestOSContext(t)()
 	}
 
-	c, nws := getTestEnv(t, 3)
+	opts := [][]NetworkOption{
+		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
+		{NetworkOptionInternalNetwork()},
+		{},
+	}
+
+	c, nws := getTestEnv(t, opts...)
 	ctrlr := c.(*controller)
 
 	sbx, err := ctrlr.NewSandbox("sandbox1")
@@ -158,7 +169,14 @@ func TestSandboxAddSamePrio(t *testing.T) {
 		defer testutils.SetupTestOSContext(t)()
 	}
 
-	c, nws := getTestEnv(t, 2)
+	opts := [][]NetworkOption{
+		{},
+		{},
+		{NetworkOptionEnableIPv6(true), NetworkOptionIpam(ipamapi.DefaultIPAM, "", nil, []*IpamConf{{PreferredPool: "fe90::/64"}}, nil)},
+		{NetworkOptionInternalNetwork()},
+	}
+
+	c, nws := getTestEnv(t, opts...)
 
 	ctrlr := c.(*controller)
 
@@ -168,36 +186,66 @@ func TestSandboxAddSamePrio(t *testing.T) {
 	}
 	sid := sbx.ID()
 
-	ep1, err := nws[0].CreateEndpoint("ep1")
+	epNw1, err := nws[1].CreateEndpoint("ep1")
 	if err != nil {
 		t.Fatal(err)
 	}
-	ep2, err := nws[1].CreateEndpoint("ep2")
+	epIPv6, err := nws[2].CreateEndpoint("ep2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep1.Join(sbx); err != nil {
+	epInternal, err := nws[3].CreateEndpoint("ep3")
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := ep2.Join(sbx); err != nil {
+	epNw0, err := nws[0].CreateEndpoint("ep4")
+	if err != nil {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep1.ID() {
-		t.Fatal("Expected ep1 to be at the top of the heap. But did not find ep1 at the top of the heap")
-	}
-
-	if err := ep1.Leave(sbx); err != nil {
+	if err := epNw1.Join(sbx); err != nil {
 		t.Fatal(err)
 	}
 
-	if ctrlr.sandboxes[sid].endpoints[0].ID() != ep2.ID() {
-		t.Fatal("Expected ep2 to be at the top of the heap after removing ep3. But did not find ep2 at the top of the heap")
+	if err := epIPv6.Join(sbx); err != nil {
+		t.Fatal(err)
 	}
 
-	if err := ep2.Leave(sbx); err != nil {
+	if err := epInternal.Join(sbx); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := epNw0.Join(sbx); err != nil {
+		t.Fatal(err)
+	}
+
+	// order should now be: epIPv6, epNw0, epNw1, epInternal
+	if len(sbx.Endpoints()) != 4 {
+		t.Fatal("Expected 4 endpoints to be connected to the sandbox.")
+	}
+
+	// IPv6 has precedence over IPv4
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != epIPv6.ID() {
+		t.Fatal("Expected epIPv6 to be at the top of the heap. But did not find epIPv6 at the top of the heap")
+	}
+
+	// internal network has lowest precedence
+	if ctrlr.sandboxes[sid].endpoints[3].ID() != epInternal.ID() {
+		t.Fatal("Expected epInternal to be at the bottom of the heap. But did not find epInternal at the bottom of the heap")
+	}
+
+	if err := epIPv6.Leave(sbx); err != nil {
+		t.Fatal(err)
+	}
+
+	// 'test_nw_0' has precedence over 'test_nw_1'
+	if ctrlr.sandboxes[sid].endpoints[0].ID() != epNw0.ID() {
+		t.Fatal("Expected epNw0 to be at the top of the heap after removing epIPv6. But did not find epNw0 at the top of the heap")
+	}
+
+	if err := epNw1.Leave(sbx); err != nil {
 		t.Fatal(err)
 	}
 

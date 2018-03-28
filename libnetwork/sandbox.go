@@ -1179,61 +1179,69 @@ func OptionIngress() SandboxOption {
 	}
 }
 
+// <=> Returns true if a < b, false if a > b and advances to next level if a == b
+// epi.prio <=> epj.prio           # 2 < 1
+// epi.gw <=> epj.gw               # non-gw < gw
+// epi.internal <=> epj.internal   # non-internal < internal
+// epi.joininfo <=> epj.joininfo   # ipv6 < ipv4
+// epi.name <=> epj.name           # bar < foo
 func (epi *endpoint) Less(epj *endpoint) bool {
 	var (
-		cip, cjp int
-		ok       bool
+		prioi, prioj int
 	)
 
-	ci, _ := epi.getSandbox()
-	cj, _ := epj.getSandbox()
+	sbi, _ := epi.getSandbox()
+	sbj, _ := epj.getSandbox()
 
-	if epi.endpointInGWNetwork() {
-		return false
+	// Prio defaults to 0
+	if sbi != nil {
+		prioi = sbi.epPriority[epi.ID()]
+	}
+	if sbj != nil {
+		prioj = sbj.epPriority[epj.ID()]
 	}
 
-	if epj.endpointInGWNetwork() {
-		return true
+	if prioi != prioj {
+		return prioi > prioj
 	}
 
-	if epi.getNetwork().Internal() {
-		return false
+	gwi := epi.endpointInGWNetwork()
+	gwj := epj.endpointInGWNetwork()
+	if gwi != gwj {
+		return gwj
 	}
 
-	if epj.getNetwork().Internal() {
-		return true
+	inti := epi.getNetwork().Internal()
+	intj := epj.getNetwork().Internal()
+	if inti != intj {
+		return intj
 	}
 
-	if epi.joinInfo != nil && epj.joinInfo != nil {
-		if (epi.joinInfo.gw != nil && epi.joinInfo.gw6 != nil) &&
-			(epj.joinInfo.gw == nil || epj.joinInfo.gw6 == nil) {
-			return true
+	jii := 0
+	if epi.joinInfo != nil {
+		if epi.joinInfo.gw != nil {
+			jii = jii + 1
 		}
-		if (epj.joinInfo.gw != nil && epj.joinInfo.gw6 != nil) &&
-			(epi.joinInfo.gw == nil || epi.joinInfo.gw6 == nil) {
-			return false
-		}
-	}
-
-	if ci != nil {
-		cip, ok = ci.epPriority[epi.ID()]
-		if !ok {
-			cip = 0
-		}
-	}
-
-	if cj != nil {
-		cjp, ok = cj.epPriority[epj.ID()]
-		if !ok {
-			cjp = 0
+		if epi.joinInfo.gw6 != nil {
+			jii = jii + 2
 		}
 	}
 
-	if cip == cjp {
-		return epi.network.Name() < epj.network.Name()
+	jij := 0
+	if epj.joinInfo != nil {
+		if epj.joinInfo.gw != nil {
+			jij = jij + 1
+		}
+		if epj.joinInfo.gw6 != nil {
+			jij = jij + 2
+		}
 	}
 
-	return cip > cjp
+	if jii != jij {
+		return jii > jij
+	}
+
+	return epi.network.Name() < epj.network.Name()
 }
 
 func (sb *sandbox) NdotsSet() bool {
