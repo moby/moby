@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package metadata
 
 import (
@@ -318,12 +334,23 @@ func (cs *contentStore) Writer(ctx context.Context, ref string, size int64, expe
 	cs.l.RLock()
 	defer cs.l.RUnlock()
 
-	var w content.Writer
+	var (
+		w      content.Writer
+		exists bool
+	)
 	if err := update(ctx, cs.db, func(tx *bolt.Tx) error {
 		if expected != "" {
 			cbkt := getBlobBucket(tx, ns, expected)
 			if cbkt != nil {
-				return errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", expected)
+				// Add content to lease to prevent other reference removals
+				// from effecting this object during a provided lease
+				if err := addContentLease(ctx, tx, expected); err != nil {
+					return errors.Wrap(err, "unable to lease content")
+				}
+				// Return error outside of transaction to ensure
+				// commit succeeds with the lease.
+				exists = true
+				return nil
 			}
 		}
 
@@ -362,6 +389,9 @@ func (cs *contentStore) Writer(ctx context.Context, ref string, size int64, expe
 		return err
 	}); err != nil {
 		return nil, err
+	}
+	if exists {
+		return nil, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", expected)
 	}
 
 	// TODO: keep the expected in the writer to use on commit

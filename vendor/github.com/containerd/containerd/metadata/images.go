@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package metadata
 
 import (
@@ -20,12 +36,12 @@ import (
 )
 
 type imageStore struct {
-	tx *bolt.Tx
+	db *DB
 }
 
 // NewImageStore returns a store backed by a bolt DB
-func NewImageStore(tx *bolt.Tx) images.Store {
-	return &imageStore{tx: tx}
+func NewImageStore(db *DB) images.Store {
+	return &imageStore{db: db}
 }
 
 func (s *imageStore) Get(ctx context.Context, name string) (images.Image, error) {
@@ -36,19 +52,25 @@ func (s *imageStore) Get(ctx context.Context, name string) (images.Image, error)
 		return images.Image{}, err
 	}
 
-	bkt := getImagesBucket(s.tx, namespace)
-	if bkt == nil {
-		return images.Image{}, errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
-	}
+	if err := view(ctx, s.db, func(tx *bolt.Tx) error {
+		bkt := getImagesBucket(tx, namespace)
+		if bkt == nil {
+			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
+		}
 
-	ibkt := bkt.Bucket([]byte(name))
-	if ibkt == nil {
-		return images.Image{}, errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
-	}
+		ibkt := bkt.Bucket([]byte(name))
+		if ibkt == nil {
+			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
+		}
 
-	image.Name = name
-	if err := readImage(&image, ibkt); err != nil {
-		return images.Image{}, errors.Wrapf(err, "image %q", name)
+		image.Name = name
+		if err := readImage(&image, ibkt); err != nil {
+			return errors.Wrapf(err, "image %q", name)
+		}
+
+		return nil
+	}); err != nil {
+		return images.Image{}, err
 	}
 
 	return image, nil
@@ -65,28 +87,30 @@ func (s *imageStore) List(ctx context.Context, fs ...string) ([]images.Image, er
 		return nil, errors.Wrapf(errdefs.ErrInvalidArgument, err.Error())
 	}
 
-	bkt := getImagesBucket(s.tx, namespace)
-	if bkt == nil {
-		return nil, nil // empty store
-	}
-
 	var m []images.Image
-	if err := bkt.ForEach(func(k, v []byte) error {
-		var (
-			image = images.Image{
-				Name: string(k),
+	if err := view(ctx, s.db, func(tx *bolt.Tx) error {
+		bkt := getImagesBucket(tx, namespace)
+		if bkt == nil {
+			return nil // empty store
+		}
+
+		return bkt.ForEach(func(k, v []byte) error {
+			var (
+				image = images.Image{
+					Name: string(k),
+				}
+				kbkt = bkt.Bucket(k)
+			)
+
+			if err := readImage(&image, kbkt); err != nil {
+				return err
 			}
-			kbkt = bkt.Bucket(k)
-		)
 
-		if err := readImage(&image, kbkt); err != nil {
-			return err
-		}
-
-		if filter.Match(adaptImage(image)) {
-			m = append(m, image)
-		}
-		return nil
+			if filter.Match(adaptImage(image)) {
+				m = append(m, image)
+			}
+			return nil
+		})
 	}); err != nil {
 		return nil, err
 	}
@@ -100,11 +124,16 @@ func (s *imageStore) Create(ctx context.Context, image images.Image) (images.Ima
 		return images.Image{}, err
 	}
 
-	if err := validateImage(&image); err != nil {
-		return images.Image{}, err
-	}
+	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
+		if err := validateImage(&image); err != nil {
+			return err
+		}
 
-	return image, withImagesBucket(s.tx, namespace, func(bkt *bolt.Bucket) error {
+		bkt, err := createImagesBucket(tx, namespace)
+		if err != nil {
+			return err
+		}
+
 		ibkt, err := bkt.CreateBucket([]byte(image.Name))
 		if err != nil {
 			if err != bolt.ErrBucketExists {
@@ -117,7 +146,11 @@ func (s *imageStore) Create(ctx context.Context, image images.Image) (images.Ima
 		image.CreatedAt = time.Now().UTC()
 		image.UpdatedAt = image.CreatedAt
 		return writeImage(ibkt, &image)
-	})
+	}); err != nil {
+		return images.Image{}, err
+	}
+
+	return image, nil
 }
 
 func (s *imageStore) Update(ctx context.Context, image images.Image, fieldpaths ...string) (images.Image, error) {
@@ -131,7 +164,13 @@ func (s *imageStore) Update(ctx context.Context, image images.Image, fieldpaths 
 	}
 
 	var updated images.Image
-	return updated, withImagesBucket(s.tx, namespace, func(bkt *bolt.Bucket) error {
+
+	if err := update(ctx, s.db, func(tx *bolt.Tx) error {
+		bkt, err := createImagesBucket(tx, namespace)
+		if err != nil {
+			return err
+		}
+
 		ibkt := bkt.Bucket([]byte(image.Name))
 		if ibkt == nil {
 			return errors.Wrapf(errdefs.ErrNotFound, "image %q", image.Name)
@@ -180,7 +219,12 @@ func (s *imageStore) Update(ctx context.Context, image images.Image, fieldpaths 
 		updated.CreatedAt = createdat
 		updated.UpdatedAt = time.Now().UTC()
 		return writeImage(ibkt, &updated)
-	})
+	}); err != nil {
+		return images.Image{}, err
+	}
+
+	return updated, nil
+
 }
 
 func (s *imageStore) Delete(ctx context.Context, name string, opts ...images.DeleteOpt) error {
@@ -189,11 +233,24 @@ func (s *imageStore) Delete(ctx context.Context, name string, opts ...images.Del
 		return err
 	}
 
-	return withImagesBucket(s.tx, namespace, func(bkt *bolt.Bucket) error {
-		err := bkt.DeleteBucket([]byte(name))
+	return update(ctx, s.db, func(tx *bolt.Tx) error {
+		bkt := getImagesBucket(tx, namespace)
+		if bkt == nil {
+			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
+		}
+
+		err = bkt.DeleteBucket([]byte(name))
 		if err == bolt.ErrBucketNotFound {
 			return errors.Wrapf(errdefs.ErrNotFound, "image %q", name)
 		}
+
+		// A reference to a piece of content has been removed,
+		// mark content store as dirty for triggering garbage
+		// collection
+		s.db.dirtyL.Lock()
+		s.db.dirtyCS = true
+		s.db.dirtyL.Unlock()
+
 		return err
 	})
 }
@@ -275,7 +332,7 @@ func writeImage(bkt *bolt.Bucket, image *images.Image) error {
 	}
 
 	// write the target bucket
-	tbkt, err := bkt.CreateBucketIfNotExists([]byte(bucketKeyTarget))
+	tbkt, err := bkt.CreateBucketIfNotExists(bucketKeyTarget)
 	if err != nil {
 		return err
 	}

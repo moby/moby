@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package containerd
 
 import (
@@ -7,8 +23,6 @@ import (
 	"net/http"
 	"runtime"
 	"strconv"
-	"strings"
-	"sync"
 	"time"
 
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
@@ -24,7 +38,6 @@ import (
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/dialer"
-	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
@@ -80,11 +93,22 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 			grpc.WithStreamInterceptor(stream),
 		)
 	}
-	conn, err := grpc.Dial(dialer.DialAddress(address), gopts...)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to dial %q", address)
+	connector := func() (*grpc.ClientConn, error) {
+		conn, err := grpc.Dial(dialer.DialAddress(address), gopts...)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to dial %q", address)
+		}
+		return conn, nil
 	}
-	return NewWithConn(conn, opts...)
+	conn, err := connector()
+	if err != nil {
+		return nil, err
+	}
+	return &Client{
+		conn:      conn,
+		connector: connector,
+		runtime:   fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
+	}, nil
 }
 
 // NewWithConn returns a new containerd client that is connected to the containerd
@@ -99,8 +123,23 @@ func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
 // Client is the client to interact with containerd and its various services
 // using a uniform interface
 type Client struct {
-	conn    *grpc.ClientConn
-	runtime string
+	conn      *grpc.ClientConn
+	runtime   string
+	connector func() (*grpc.ClientConn, error)
+}
+
+// Reconnect re-establishes the GRPC connection to the containerd daemon
+func (c *Client) Reconnect() error {
+	if c.connector == nil {
+		return errors.New("unable to reconnect to containerd, no connector available")
+	}
+	c.conn.Close()
+	conn, err := c.connector()
+	if err != nil {
+		return err
+	}
+	c.conn = conn
+	return nil
 }
 
 // IsServing returns true if the client can successfully connect to the
@@ -222,11 +261,11 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 
 	name, desc, err := pullCtx.Resolver.Resolve(ctx, ref)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to resolve reference %q", ref)
 	}
 	fetcher, err := pullCtx.Resolver.Fetcher(ctx, name)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to get fetcher for %q", name)
 	}
 
 	var (
@@ -237,10 +276,17 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 		schema1Converter = schema1.NewConverter(store, fetcher)
 		handler = images.Handlers(append(pullCtx.BaseHandlers, schema1Converter)...)
 	} else {
+		// Get all the children for a descriptor
+		childrenHandler := images.ChildrenHandler(store)
+		// Set any children labels for that content
+		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
+		// Filter the childen by the platform
+		childrenHandler = images.FilterPlatform(platforms.Default(), childrenHandler)
+
 		handler = images.Handlers(append(pullCtx.BaseHandlers,
 			remotes.FetchHandler(store, fetcher),
-			images.ChildrenHandler(store, platforms.Default()))...,
-		)
+			childrenHandler,
+		)...)
 	}
 
 	if err := images.Dispatch(ctx, handler, desc); err != nil {
@@ -281,7 +327,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	}
 	if pullCtx.Unpack {
 		if err := img.Unpack(ctx, pullCtx.Snapshotter); err != nil {
-			return nil, err
+			errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
 		}
 	}
 	return img, nil
@@ -301,51 +347,7 @@ func (c *Client) Push(ctx context.Context, ref string, desc ocispec.Descriptor, 
 		return err
 	}
 
-	var m sync.Mutex
-	manifestStack := []ocispec.Descriptor{}
-
-	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		switch desc.MediaType {
-		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
-			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
-			m.Lock()
-			manifestStack = append(manifestStack, desc)
-			m.Unlock()
-			return nil, images.ErrStopHandler
-		default:
-			return nil, nil
-		}
-	})
-
-	cs := c.ContentStore()
-	pushHandler := remotes.PushHandler(cs, pusher)
-
-	handlers := append(pushCtx.BaseHandlers,
-		images.ChildrenHandler(cs, platforms.Default()),
-		filterHandler,
-		pushHandler,
-	)
-
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
-		return err
-	}
-
-	// Iterate in reverse order as seen, parent always uploaded after child
-	for i := len(manifestStack) - 1; i >= 0; i-- {
-		_, err := pushHandler(ctx, manifestStack[i])
-		if err != nil {
-			// TODO(estesp): until we have a more complete method for index push, we need to report
-			// missing dependencies in an index/manifest list by sensing the "400 Bad Request"
-			// as a marker for this problem
-			if (manifestStack[i].MediaType == ocispec.MediaTypeImageIndex ||
-				manifestStack[i].MediaType == images.MediaTypeDockerSchema2ManifestList) &&
-				errors.Cause(err) != nil && strings.Contains(errors.Cause(err).Error(), "400 Bad Request") {
-				return errors.Wrap(err, "manifest list/index references to blobs and/or manifests are missing in your target registry")
-			}
-			return err
-		}
-	}
-	return nil
+	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.BaseHandlers...)
 }
 
 // GetImage returns an existing image
@@ -378,11 +380,11 @@ func (c *Client) ListImages(ctx context.Context, filters ...string) ([]Image, er
 
 // Subscribe to events that match one or more of the provided filters.
 //
-// Callers should listen on both the envelope channel and errs channel. If the
-// errs channel returns nil or an error, the subscriber should terminate.
+// Callers should listen on both the envelope and errs channels. If the errs
+// channel returns nil or an error, the subscriber should terminate.
 //
-// To cancel shutdown reciept of events, cancel the provided context. The errs
-// channel will be closed and return a nil error.
+// The subscriber can stop receiving events by canceling the provided context.
+// The errs channel will be closed and return a nil error.
 func (c *Client) Subscribe(ctx context.Context, filters ...string) (ch <-chan *eventsapi.Envelope, errs <-chan error) {
 	var (
 		evq  = make(chan *eventsapi.Envelope)
@@ -458,7 +460,7 @@ func (c *Client) ImageService() images.Store {
 }
 
 // DiffService returns the underlying Differ
-func (c *Client) DiffService() diff.Differ {
+func (c *Client) DiffService() DiffService {
 	return NewDiffServiceFromClient(diffapi.NewDiffClient(c.conn))
 }
 

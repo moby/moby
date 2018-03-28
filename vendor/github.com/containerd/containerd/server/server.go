@@ -1,7 +1,24 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package server
 
 import (
 	"expvar"
+	"io"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -10,17 +27,6 @@ import (
 	"strings"
 
 	"github.com/boltdb/bolt"
-	containers "github.com/containerd/containerd/api/services/containers/v1"
-	contentapi "github.com/containerd/containerd/api/services/content/v1"
-	diff "github.com/containerd/containerd/api/services/diff/v1"
-	eventsapi "github.com/containerd/containerd/api/services/events/v1"
-	images "github.com/containerd/containerd/api/services/images/v1"
-	introspection "github.com/containerd/containerd/api/services/introspection/v1"
-	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
-	namespaces "github.com/containerd/containerd/api/services/namespaces/v1"
-	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
-	tasks "github.com/containerd/containerd/api/services/tasks/v1"
-	version "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/content/local"
 	"github.com/containerd/containerd/events/exchange"
@@ -34,7 +40,6 @@ import (
 	"golang.org/x/net/context"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/health/grpc_health_v1"
 )
 
 // New creates and initializes a new containerd server
@@ -57,12 +62,12 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 	if err := apply(ctx, config); err != nil {
 		return nil, err
 	}
-	plugins, err := loadPlugins(config)
+	plugins, err := LoadPlugins(config)
 	if err != nil {
 		return nil, err
 	}
 	rpc := grpc.NewServer(
-		grpc.UnaryInterceptor(interceptor),
+		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
 	)
 	var (
@@ -70,6 +75,7 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 		s        = &Server{
 			rpc:    rpc,
 			events: exchange.NewExchange(),
+			config: config,
 		}
 		initialized = plugin.NewPluginSet()
 	)
@@ -113,6 +119,7 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 		if service, ok := instance.(plugin.Service); ok {
 			services = append(services, service)
 		}
+		s.plugins = append(s.plugins, result)
 	}
 	// register services after all plugins have been initialized
 	for _, service := range services {
@@ -125,12 +132,18 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 
 // Server is the containerd main daemon
 type Server struct {
-	rpc    *grpc.Server
-	events *exchange.Exchange
+	rpc     *grpc.Server
+	events  *exchange.Exchange
+	config  *Config
+	plugins []*plugin.Plugin
 }
 
 // ServeGRPC provides the containerd grpc APIs on the provided listener
 func (s *Server) ServeGRPC(l net.Listener) error {
+	if s.config.Metrics.GRPCHistogram {
+		// enable grpc time histograms to measure rpc latencies
+		grpc_prometheus.EnableHandlingTimeHistogram()
+	}
 	// before we start serving the grpc API regster the grpc_prometheus metrics
 	// handler.  This needs to be the last service registered so that it can collect
 	// metrics for every other service
@@ -162,9 +175,28 @@ func (s *Server) ServeDebug(l net.Listener) error {
 // Stop the containerd server canceling any open connections
 func (s *Server) Stop() {
 	s.rpc.Stop()
+	for i := len(s.plugins) - 1; i >= 0; i-- {
+		p := s.plugins[i]
+		instance, err := p.Instance()
+		if err != nil {
+			log.L.WithError(err).WithField("id", p.Registration.ID).
+				Errorf("could not get plugin instance")
+			continue
+		}
+		closer, ok := instance.(io.Closer)
+		if !ok {
+			continue
+		}
+		if err := closer.Close(); err != nil {
+			log.L.WithError(err).WithField("id", p.Registration.ID).
+				Errorf("failed to close plugin")
+		}
+	}
 }
 
-func loadPlugins(config *Config) ([]*plugin.Registration, error) {
+// LoadPlugins loads all plugins into containerd and generates an ordered graph
+// of all plugins.
+func LoadPlugins(config *Config) ([]*plugin.Registration, error) {
 	// load all plugins into containerd
 	if err := plugin.Load(filepath.Join(config.Root, "plugins")); err != nil {
 		return nil, err
@@ -226,45 +258,7 @@ func loadPlugins(config *Config) ([]*plugin.Registration, error) {
 	})
 
 	// return the ordered graph for plugins
-	return plugin.Graph(), nil
-}
-
-func interceptor(
-	ctx context.Context,
-	req interface{},
-	info *grpc.UnaryServerInfo,
-	handler grpc.UnaryHandler,
-) (interface{}, error) {
-	ctx = log.WithModule(ctx, "containerd")
-	switch info.Server.(type) {
-	case tasks.TasksServer:
-		ctx = log.WithModule(ctx, "tasks")
-	case containers.ContainersServer:
-		ctx = log.WithModule(ctx, "containers")
-	case contentapi.ContentServer:
-		ctx = log.WithModule(ctx, "content")
-	case images.ImagesServer:
-		ctx = log.WithModule(ctx, "images")
-	case grpc_health_v1.HealthServer:
-		// No need to change the context
-	case version.VersionServer:
-		ctx = log.WithModule(ctx, "version")
-	case snapshotsapi.SnapshotsServer:
-		ctx = log.WithModule(ctx, "snapshot")
-	case diff.DiffServer:
-		ctx = log.WithModule(ctx, "diff")
-	case namespaces.NamespacesServer:
-		ctx = log.WithModule(ctx, "namespaces")
-	case eventsapi.EventsServer:
-		ctx = log.WithModule(ctx, "events")
-	case introspection.IntrospectionServer:
-		ctx = log.WithModule(ctx, "introspection")
-	case leasesapi.LeasesServer:
-		ctx = log.WithModule(ctx, "leases")
-	default:
-		log.G(ctx).Warnf("unknown GRPC server type: %#v\n", info.Server)
-	}
-	return grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
+	return plugin.Graph(config.DisabledPlugins), nil
 }
 
 func trapClosedConnErr(err error) error {

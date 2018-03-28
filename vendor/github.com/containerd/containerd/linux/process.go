@@ -1,5 +1,21 @@
 // +build linux
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package linux
 
 import (
@@ -10,6 +26,8 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	shim "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/runtime"
+	"github.com/pkg/errors"
+	"github.com/stevvooe/ttrpc"
 )
 
 // Process implements a linux process
@@ -44,7 +62,14 @@ func (p *Process) State(ctx context.Context) (runtime.State, error) {
 		ID: p.id,
 	})
 	if err != nil {
-		return runtime.State{}, errdefs.FromGRPC(err)
+		if errors.Cause(err) != ttrpc.ErrClosed {
+			return runtime.State{}, errdefs.FromGRPC(err)
+		}
+
+		// We treat ttrpc.ErrClosed as the shim being closed, but really this
+		// likely means that the process no longer exists. We'll have to plumb
+		// the connection differently if this causes problems.
+		return runtime.State{}, errdefs.ErrNotFound
 	}
 	var status runtime.Status
 	switch response.Status {

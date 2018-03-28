@@ -4,6 +4,7 @@
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd?ref=badge_shield)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containerd/containerd)](https://goreportcard.com/report/github.com/containerd/containerd)
+[![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1271/badge)](https://bestpractices.coreinfrastructure.org/projects/1271)
 
 containerd is an industry-standard container runtime with an emphasis on simplicity, robustness and portability. It is available as a daemon for Linux and Windows, which can manage the complete container lifecycle of its host system: image transfer and storage, container execution and supervision, low-level storage and network attachments, etc.
 
@@ -13,7 +14,7 @@ containerd is designed to be embedded into a larger system, rather than being us
 
 ## Getting Started
 
-See our documentation on [containerd.io](containerd.io):
+See our documentation on [containerd.io](https://containerd.io):
 * [for ops and admins](docs/ops.md)
 * [namespaces](docs/namespaces.md)
 * [client options](docs/client-opts.md)

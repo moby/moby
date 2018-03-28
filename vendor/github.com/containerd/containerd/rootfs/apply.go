@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package rootfs
 
 import (
@@ -30,7 +46,7 @@ type Layer struct {
 // The returned result is a chain id digest representing all the applied layers.
 // Layers are applied in order they are given, making the first layer the
 // bottom-most layer in the layer chain.
-func ApplyLayers(ctx context.Context, layers []Layer, sn snapshots.Snapshotter, a diff.Differ) (digest.Digest, error) {
+func ApplyLayers(ctx context.Context, layers []Layer, sn snapshots.Snapshotter, a diff.Applier) (digest.Digest, error) {
 	var chain []digest.Digest
 	for _, layer := range layers {
 		if _, err := ApplyLayer(ctx, layer, chain, sn, a); err != nil {
@@ -46,7 +62,7 @@ func ApplyLayers(ctx context.Context, layers []Layer, sn snapshots.Snapshotter, 
 // ApplyLayer applies a single layer on top of the given provided layer chain,
 // using the provided snapshotter and applier. If the layer was unpacked true
 // is returned, if the layer already exists false is returned.
-func ApplyLayer(ctx context.Context, layer Layer, chain []digest.Digest, sn snapshots.Snapshotter, a diff.Differ, opts ...snapshots.Opt) (bool, error) {
+func ApplyLayer(ctx context.Context, layer Layer, chain []digest.Digest, sn snapshots.Snapshotter, a diff.Applier, opts ...snapshots.Opt) (bool, error) {
 	var (
 		parent  = identity.ChainID(chain)
 		chainID = identity.ChainID(append(chain, layer.Diff.Digest))

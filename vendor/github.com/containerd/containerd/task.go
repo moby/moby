@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package containerd
 
 import (
@@ -267,13 +283,16 @@ func (t *task) Delete(ctx context.Context, opts ...ProcessDeleteOpts) (*ExitStat
 	if t.io != nil {
 		t.io.Cancel()
 		t.io.Wait()
-		t.io.Close()
 	}
 	r, err := t.client.TaskService().Delete(ctx, &tasks.DeleteTaskRequest{
 		ContainerID: t.id,
 	})
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
+	}
+	// Only cleanup the IO after a successful Delete
+	if t.io != nil {
+		t.io.Close()
 	}
 	return &ExitStatus{code: r.ExitStatus, exitedAt: r.ExitedAt}, nil
 }
@@ -536,7 +555,7 @@ func (t *task) checkpointRWSnapshot(ctx context.Context, index *v1.Index, snapsh
 	opts := []diff.Opt{
 		diff.WithReference(fmt.Sprintf("checkpoint-rw-%s", id)),
 	}
-	rw, err := rootfs.Diff(ctx, id, t.client.SnapshotService(snapshotterName), t.client.DiffService(), opts...)
+	rw, err := rootfs.CreateDiff(ctx, id, t.client.SnapshotService(snapshotterName), t.client.DiffService(), opts...)
 	if err != nil {
 		return err
 	}
@@ -572,7 +591,7 @@ func (t *task) writeIndex(ctx context.Context, index *v1.Index) (d v1.Descriptor
 	return writeContent(ctx, t.client.ContentStore(), v1.MediaTypeImageIndex, t.id, buf, content.WithLabels(labels))
 }
 
-func writeContent(ctx context.Context, store content.Store, mediaType, ref string, r io.Reader, opts ...content.Opt) (d v1.Descriptor, err error) {
+func writeContent(ctx context.Context, store content.Ingester, mediaType, ref string, r io.Reader, opts ...content.Opt) (d v1.Descriptor, err error) {
 	writer, err := store.Writer(ctx, ref, 0, "")
 	if err != nil {
 		return d, err

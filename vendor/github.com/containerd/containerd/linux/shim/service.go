@@ -1,5 +1,21 @@
 // +build !windows
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package shim
 
 import (
@@ -29,7 +45,15 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-var empty = &ptypes.Empty{}
+var (
+	empty   = &ptypes.Empty{}
+	bufPool = sync.Pool{
+		New: func() interface{} {
+			buffer := make([]byte, 32<<10)
+			return &buffer
+		},
+	}
+)
 
 // Config contains shim specific configuration
 type Config struct {
@@ -87,6 +111,16 @@ type Service struct {
 func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*shimapi.CreateTaskResponse, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	var mounts []proc.Mount
+	for _, m := range r.Rootfs {
+		mounts = append(mounts, proc.Mount{
+			Type:    m.Type,
+			Source:  m.Source,
+			Target:  m.Target,
+			Options: m.Options,
+		})
+	}
 	process, err := proc.New(
 		ctx,
 		s.config.Path,
@@ -100,7 +134,7 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*sh
 			ID:               r.ID,
 			Bundle:           r.Bundle,
 			Runtime:          r.Runtime,
-			Rootfs:           r.Rootfs,
+			Rootfs:           mounts,
 			Terminal:         r.Terminal,
 			Stdin:            r.Stdin,
 			Stdout:           r.Stdout,
@@ -129,7 +163,7 @@ func (s *Service) Start(ctx context.Context, r *shimapi.StartRequest) (*shimapi.
 	defer s.mu.Unlock()
 	p := s.processes[r.ID]
 	if p == nil {
-		return nil, errdefs.ToGRPCf(errdefs.ErrNotFound, "process %s not found", r.ID)
+		return nil, errdefs.ToGRPCf(errdefs.ErrNotFound, "process %s", r.ID)
 	}
 	if err := p.Start(ctx); err != nil {
 		return nil, err
@@ -235,10 +269,10 @@ func (s *Service) ResizePty(ctx context.Context, r *shimapi.ResizePtyRequest) (*
 // State returns runtime state information for a process
 func (s *Service) State(ctx context.Context, r *shimapi.StateRequest) (*shimapi.StateResponse, error) {
 	s.mu.Lock()
+	defer s.mu.Unlock()
 	p := s.processes[r.ID]
-	s.mu.Unlock()
 	if p == nil {
-		return nil, errdefs.ToGRPCf(errdefs.ErrNotFound, "process id %s not found", r.ID)
+		return nil, errdefs.ToGRPCf(errdefs.ErrNotFound, "process id %s", r.ID)
 	}
 	st, err := p.Status(ctx)
 	if err != nil {

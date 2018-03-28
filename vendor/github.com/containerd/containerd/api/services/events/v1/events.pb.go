@@ -115,9 +115,7 @@ func (m *Envelope) Field(fieldpath []string) (string, bool) {
 			return "", false
 		}
 
-		adaptor, ok := decoded.(interface {
-			Field([]string) (string, bool)
-		})
+		adaptor, ok := decoded.(interface{ Field([]string) (string, bool) })
 		if !ok {
 			return "", false
 		}

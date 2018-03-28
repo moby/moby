@@ -1,17 +1,35 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package remotes
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io"
 	"math/rand"
+	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -99,88 +117,32 @@ func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc
 		break
 	}
 
+	ws, err := cw.Status()
+	if err != nil {
+		return err
+	}
+
+	if ws.Offset == desc.Size {
+		// If writer is already complete, commit and return
+		err := cw.Commit(ctx, desc.Size, desc.Digest)
+		if err != nil && !errdefs.IsAlreadyExists(err) {
+			return errors.Wrapf(err, "failed commit on ref %q", ws.Ref)
+		}
+		return nil
+	}
+
 	rc, err := fetcher.Fetch(ctx, desc)
 	if err != nil {
 		return err
 	}
 	defer rc.Close()
 
-	r, opts := commitOpts(desc, rc)
-	return content.Copy(ctx, cw, r, desc.Size, desc.Digest, opts...)
-}
-
-// commitOpts gets the appropriate content options to alter
-// the content info on commit based on media type.
-func commitOpts(desc ocispec.Descriptor, r io.Reader) (io.Reader, []content.Opt) {
-	var childrenF func(r io.Reader) ([]ocispec.Descriptor, error)
-
-	// TODO(AkihiroSuda): use images/oci.GetChildrenDescriptors?
-	switch desc.MediaType {
-	case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
-		childrenF = func(r io.Reader) ([]ocispec.Descriptor, error) {
-			var (
-				manifest ocispec.Manifest
-				decoder  = json.NewDecoder(r)
-			)
-			if err := decoder.Decode(&manifest); err != nil {
-				return nil, err
-			}
-
-			return append([]ocispec.Descriptor{manifest.Config}, manifest.Layers...), nil
-		}
-	case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
-		childrenF = func(r io.Reader) ([]ocispec.Descriptor, error) {
-			var (
-				index   ocispec.Index
-				decoder = json.NewDecoder(r)
-			)
-			if err := decoder.Decode(&index); err != nil {
-				return nil, err
-			}
-
-			return index.Manifests, nil
-		}
-	default:
-		return r, nil
-	}
-
-	pr, pw := io.Pipe()
-
-	var children []ocispec.Descriptor
-	errC := make(chan error)
-
-	go func() {
-		defer close(errC)
-		ch, err := childrenF(pr)
-		if err != nil {
-			errC <- err
-		}
-		children = ch
-	}()
-
-	opt := func(info *content.Info) error {
-		err := <-errC
-		if err != nil {
-			return errors.Wrap(err, "unable to get commit labels")
-		}
-
-		if len(children) > 0 {
-			if info.Labels == nil {
-				info.Labels = map[string]string{}
-			}
-			for i, ch := range children {
-				info.Labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = ch.Digest.String()
-			}
-		}
-		return nil
-	}
-
-	return io.TeeReader(r, pw), []content.Opt{opt}
+	return content.Copy(ctx, cw, rc, desc.Size, desc.Digest)
 }
 
 // PushHandler returns a handler that will push all content from the provider
 // using a writer from the pusher.
-func PushHandler(provider content.Provider, pusher Pusher) images.HandlerFunc {
+func PushHandler(pusher Pusher, provider content.Provider) images.HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		ctx = log.WithLogger(ctx, log.G(ctx).WithFields(logrus.Fields{
 			"digest":    desc.Digest,
@@ -214,4 +176,56 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 
 	rd := io.NewSectionReader(ra, 0, desc.Size)
 	return content.Copy(ctx, cw, rd, desc.Size, desc.Digest)
+}
+
+// PushContent pushes content specified by the descriptor from the provider.
+//
+// Base handlers can be provided which will be called before any push specific
+// handlers.
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, baseHandlers ...images.Handler) error {
+	var m sync.Mutex
+	manifestStack := []ocispec.Descriptor{}
+
+	filterHandler := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+			m.Lock()
+			manifestStack = append(manifestStack, desc)
+			m.Unlock()
+			return nil, images.ErrStopHandler
+		default:
+			return nil, nil
+		}
+	})
+
+	pushHandler := PushHandler(pusher, provider)
+
+	handlers := append(baseHandlers,
+		images.FilterPlatform(platforms.Default(), images.ChildrenHandler(provider)),
+		filterHandler,
+		pushHandler,
+	)
+
+	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
+		return err
+	}
+
+	// Iterate in reverse order as seen, parent always uploaded after child
+	for i := len(manifestStack) - 1; i >= 0; i-- {
+		_, err := pushHandler(ctx, manifestStack[i])
+		if err != nil {
+			// TODO(estesp): until we have a more complete method for index push, we need to report
+			// missing dependencies in an index/manifest list by sensing the "400 Bad Request"
+			// as a marker for this problem
+			if (manifestStack[i].MediaType == ocispec.MediaTypeImageIndex ||
+				manifestStack[i].MediaType == images.MediaTypeDockerSchema2ManifestList) &&
+				errors.Cause(err) != nil && strings.Contains(errors.Cause(err).Error(), "400 Bad Request") {
+				return errors.Wrap(err, "manifest list/index references to blobs and/or manifests are missing in your target registry")
+			}
+			return err
+		}
+	}
+
+	return nil
 }

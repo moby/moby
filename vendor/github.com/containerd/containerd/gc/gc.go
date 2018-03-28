@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 // Package gc experiments with providing central gc tooling to ensure
 // deterministic resource removal within containerd.
 //
@@ -8,6 +24,7 @@ package gc
 import (
 	"context"
 	"sync"
+	"time"
 )
 
 // ResourceType represents type of resource at a node
@@ -19,6 +36,11 @@ type Node struct {
 	Type      ResourceType
 	Namespace string
 	Key       string
+}
+
+// Stats about a garbage collection run
+type Stats interface {
+	Elapsed() time.Duration
 }
 
 // Tricolor implements basic, single-thread tri-color GC. Given the roots, the

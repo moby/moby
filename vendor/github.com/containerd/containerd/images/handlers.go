@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package images
 
 import (
@@ -5,6 +21,7 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/platforms"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -128,8 +145,78 @@ func Dispatch(ctx context.Context, handler Handler, descs ...ocispec.Descriptor)
 //
 // One can also replace this with another implementation to allow descending of
 // arbitrary types.
-func ChildrenHandler(provider content.Provider, platform string) HandlerFunc {
+func ChildrenHandler(provider content.Provider) HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		return Children(ctx, provider, desc, platform)
+		return Children(ctx, provider, desc)
+	}
+}
+
+// SetChildrenLabels is a handler wrapper which sets labels for the content on
+// the children returned by the handler and passes through the children.
+// Must follow a handler that returns the children to be labeled.
+func SetChildrenLabels(manager content.Manager, f HandlerFunc) HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return children, err
+		}
+
+		if len(children) > 0 {
+			info := content.Info{
+				Digest: desc.Digest,
+				Labels: map[string]string{},
+			}
+			fields := []string{}
+			for i, ch := range children {
+				info.Labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = ch.Digest.String()
+				fields = append(fields, fmt.Sprintf("labels.containerd.io/gc.ref.content.%d", i))
+			}
+
+			_, err := manager.Update(ctx, info, fields...)
+			if err != nil {
+				return nil, err
+			}
+		}
+
+		return children, err
+	}
+}
+
+// FilterPlatform is a handler wrapper which limits the descriptors returned
+// by a handler to a single platform.
+func FilterPlatform(platform string, f HandlerFunc) HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return children, err
+		}
+
+		var descs []ocispec.Descriptor
+		if platform != "" && isMultiPlatform(desc.MediaType) {
+			matcher, err := platforms.Parse(platform)
+			if err != nil {
+				return nil, err
+			}
+
+			for _, d := range children {
+				if d.Platform == nil || matcher.Match(*d.Platform) {
+					descs = append(descs, d)
+				}
+			}
+		} else {
+			descs = children
+		}
+
+		return descs, nil
+	}
+
+}
+
+func isMultiPlatform(mediaType string) bool {
+	switch mediaType {
+	case MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		return true
+	default:
+		return false
 	}
 }

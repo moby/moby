@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package metadata
 
 import (
@@ -133,31 +149,38 @@ func (s *namespaceStore) Delete(ctx context.Context, namespace string) error {
 }
 
 func (s *namespaceStore) namespaceEmpty(ctx context.Context, namespace string) (bool, error) {
-	ctx = namespaces.WithNamespace(ctx, namespace)
-
-	// need to check the various object stores.
-
-	imageStore := NewImageStore(s.tx)
-	images, err := imageStore.List(ctx)
-	if err != nil {
-		return false, err
+	// Get all data buckets
+	buckets := []*bolt.Bucket{
+		getImagesBucket(s.tx, namespace),
+		getBlobsBucket(s.tx, namespace),
+		getContainersBucket(s.tx, namespace),
 	}
-	if len(images) > 0 {
-		return false, nil
-	}
-
-	containerStore := NewContainerStore(s.tx)
-	containers, err := containerStore.List(ctx)
-	if err != nil {
-		return false, err
+	if snbkt := getSnapshottersBucket(s.tx, namespace); snbkt != nil {
+		if err := snbkt.ForEach(func(k, v []byte) error {
+			if v == nil {
+				buckets = append(buckets, snbkt.Bucket(k))
+			}
+			return nil
+		}); err != nil {
+			return false, err
+		}
 	}
 
-	if len(containers) > 0 {
-		return false, nil
+	// Ensure data buckets are empty
+	for _, bkt := range buckets {
+		if !isBucketEmpty(bkt) {
+			return false, nil
+		}
 	}
-
-	// TODO(stevvooe): Need to add check for content store, as well. Still need
-	// to make content store namespace aware.
 
 	return true, nil
+}
+
+func isBucketEmpty(bkt *bolt.Bucket) bool {
+	if bkt == nil {
+		return true
+	}
+
+	k, _ := bkt.Cursor().First()
+	return k == nil
 }

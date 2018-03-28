@@ -1,9 +1,22 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package server
 
 import (
-	"bytes"
-	"io"
-
 	"github.com/BurntSushi/toml"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
@@ -21,10 +34,11 @@ type Config struct {
 	Debug Debug `toml:"debug"`
 	// Metrics and monitoring settings
 	Metrics MetricsConfig `toml:"metrics"`
+	// DisabledPlugins are IDs of plugins to disable. Disabled plugins won't be
+	// initialized and started.
+	DisabledPlugins []string `toml:"disabled_plugins"`
 	// Plugins provides plugin specific configuration for the initialization of a plugin
 	Plugins map[string]toml.Primitive `toml:"plugins"`
-	// NoSubreaper disables containerd as a subreaper
-	NoSubreaper bool `toml:"no_subreaper"`
 	// OOMScore adjust the containerd's oom score
 	OOMScore int `toml:"oom_score"`
 	// Cgroup specifies cgroup information for the containerd daemon process
@@ -50,7 +64,8 @@ type Debug struct {
 
 // MetricsConfig provides metrics configuration
 type MetricsConfig struct {
-	Address string `toml:"address"`
+	Address       string `toml:"address"`
+	GRPCHistogram bool   `toml:"grpc_histogram"`
 }
 
 // CgroupConfig provides cgroup configuration
@@ -68,16 +83,6 @@ func (c *Config) Decode(id string, v interface{}) (interface{}, error) {
 		return nil, err
 	}
 	return v, nil
-}
-
-// WriteTo marshals the config to the provided writer
-func (c *Config) WriteTo(w io.Writer) (int64, error) {
-	buf := bytes.NewBuffer(nil)
-	e := toml.NewEncoder(buf)
-	if err := e.Encode(c); err != nil {
-		return 0, err
-	}
-	return io.Copy(w, buf)
 }
 
 // LoadConfig loads the containerd server config from the provided path

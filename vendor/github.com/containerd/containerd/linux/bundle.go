@@ -1,11 +1,26 @@
 // +build linux
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package linux
 
 import (
-	"bytes"
 	"context"
-	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -52,12 +67,7 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 	if err := os.Mkdir(filepath.Join(path, "rootfs"), 0711); err != nil {
 		return nil, err
 	}
-	f, err := os.Create(filepath.Join(path, configFilename))
-	if err != nil {
-		return nil, err
-	}
-	defer f.Close()
-	_, err = io.Copy(f, bytes.NewReader(spec))
+	err = ioutil.WriteFile(filepath.Join(path, configFilename), spec, 0666)
 	return &bundle{
 		id:      id,
 		path:    path,
@@ -90,9 +100,9 @@ func ShimLocal(exchange *exchange.Exchange) ShimOpt {
 }
 
 // ShimConnect is a ShimOpt for connecting to an existing remote shim
-func ShimConnect() ShimOpt {
+func ShimConnect(onClose func()) ShimOpt {
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
-		return b.shimConfig(ns, ropts), client.WithConnect(b.shimAddress(ns))
+		return b.shimConfig(ns, ropts), client.WithConnect(b.shimAddress(ns), onClose)
 	}
 }
 
