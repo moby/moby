@@ -307,7 +307,9 @@ func (r *remote) monitorConnection(monitor *containerd.Client) {
 			<-time.After(100 * time.Millisecond)
 			system.KillProcess(r.daemonPid)
 		}
-		<-r.daemonWaitCh
+		if r.daemonWaitCh != nil {
+			<-r.daemonWaitCh
+		}
 
 		monitor.Close()
 		os.Remove(r.GRPC.Address)
