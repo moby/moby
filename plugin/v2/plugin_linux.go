@@ -4,7 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"sort"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -137,10 +136,6 @@ func (p *Plugin) InitSpec(execRoot string) (*specs.Spec, error) {
 	if p.modifyRuntimeSpec != nil {
 		p.modifyRuntimeSpec(&s)
 	}
-
-	sort.Slice(s.Mounts, func(i, j int) bool {
-		return s.Mounts[i].Destination < s.Mounts[j].Destination
-	})
 
 	return &s, nil
 }
