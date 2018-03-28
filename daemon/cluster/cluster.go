@@ -96,6 +96,13 @@ type Config struct {
 
 	// WatchStream is a channel to pass watch API notifications to daemon
 	WatchStream chan *swarmapi.WatchMessage
+
+	// RaftHeartbeatTick is the number of ticks for heartbeat of quorum members
+	RaftHeartbeatTick uint32
+
+	// RaftElectionTick is the number of ticks to elapse before followers propose a new round of leader election
+	// This value should be 10x that of RaftHeartbeatTick
+	RaftElectionTick uint32
 }
 
 // Cluster provides capabilities to participate in a cluster as a worker or a
@@ -134,6 +141,14 @@ func New(config Config) (*Cluster, error) {
 	if config.RuntimeRoot == "" {
 		config.RuntimeRoot = root
 	}
+	if config.RaftHeartbeatTick == 0 {
+		config.RaftHeartbeatTick = 1
+	}
+	if config.RaftElectionTick == 0 {
+		// 10X heartbeat tick is the recommended ratio according to etcd docs.
+		config.RaftElectionTick = 10 * config.RaftHeartbeatTick
+	}
+
 	if err := os.MkdirAll(config.RuntimeRoot, 0700); err != nil {
 		return nil, err
 	}
