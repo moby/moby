@@ -49,10 +49,17 @@ build_test_suite_binaries() {
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
-	build_test_suite_binary ./integration-cli "test.main"
 	for dir in $integration_api_dirs; do
 		build_test_suite_binary "$dir" "test.main"
 	done
+}
+
+build_legacy_test_suite_binaries() {
+	if [ ${DOCKER_INTEGRATION_TESTS_VERIFIED-} ]; then
+		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
+		return
+	fi
+	build_test_suite_binary ./integration-cli "test.main"
 }
 
 # Build a binary for a test suite package

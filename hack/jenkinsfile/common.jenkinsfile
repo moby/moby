@@ -1,0 +1,152 @@
+IMAGE="vdemeester/docker-dev"
+MAKE="make -f Makefile.jenkins"
+
+hubCred = [
+    $class: 'UsernamePasswordMultiBinding',
+    usernameVariable: 'DOCKER_HUB_USERNAME',
+    passwordVariable: 'DOCKER_HUB_PASSWORD',
+    credentialsId: 'vdemeester-docker-hub',
+]
+
+
+def withStatus(String context, Closure cl) {
+    def setGithubStatus = { String state ->
+	try {
+	    def backref = "${BUILD_URL}flowGraphTable/"
+	    def reposSourceURL = scm.repositories[0].getURIs()[0].toString()
+	    step(
+		$class: 'GitHubCommitStatusSetter',
+		contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
+		errorHandlers: [[$class: 'ShallowAnyErrorHandler']],
+		reposSource: [$class: 'ManuallyEnteredRepositorySource', url: reposSourceURL],
+		statusBackrefSource: [$class: 'ManuallyEnteredBackrefSource', backref: backref],
+		statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', state: state]]],
+	    )
+	} catch (err) {
+	    echo "Exception from GitHubCommitStatusSetter for $context: $err"
+	}
+    }
+
+    setGithubStatus 'PENDING'
+    try {
+	cl()
+    } catch (err) {
+	// AbortException signals a "normal" build failure.
+	if (!(err instanceof hudson.AbortException)) {
+	    echo "Exception in withGithubStatus for $context: $err"
+	}
+	setGithubStatus 'FAILURE'
+	throw err
+    }
+    setGithubStatus 'SUCCESS'
+}
+
+def getImage(String platform) {
+    return "${IMAGE}:\$(git rev-parse --short HEAD)-${platform}"
+}
+
+def getTestSuites() {
+    return [
+	'DockerSuite',
+	'DockerSwarmSuite',
+	'DockerAuthzSuite',
+	'DockerAuthzV2Suite',
+	'DockerDaemonSuite',
+	'DockerExternalGraphdriverSuite',
+	'DockerExternalVolumeSuite',
+	'DockerHubPullSuite',
+	'DockerNetworkSuite',
+	'DockerRegistrySuite',
+	'DockerRegistryAuthHtpasswdSuite',
+	'DockerRegistryAuthTokenSuite',
+	'DockerSchema1RegistrySuite',
+    ]
+}
+
+def buildImage(String platform, String label) {
+    def image = getImage(platform)
+    return stage("${platform}.image-build") {
+	wrappedNode(label: label, cleanWorkspace: true) {
+	    // withGithubStatus("${platform}.image-build") {
+	    withCredentials([hubCred]) {
+		checkout scm
+		sh '''
+docker login \
+  --username="$DOCKER_HUB_USERNAME" \
+  --password="$DOCKER_HUB_PASSWORD"
+'''
+		sh("make DOCKER_IMAGE=${image} build")
+		sh("docker push ${image}")
+	    }
+	    // }
+	}
+    }
+}
+
+def validateStep(String platform, String label) {
+    def image = getImage(platform)
+    return stage("validate") {
+	wrappedNode(label: label, cleanWorkspace: true) {
+	    // withGithubStatus("binary") {
+	    checkout scm
+	    sh("${MAKE} DOCKER_IMAGE=${image} validate")
+	    // }
+	}
+    }
+}
+
+def binaryStep(String platform, String label) {
+    def image = getImage(platform)
+    return stage("${platform}.binary") {
+	wrappedNode(label: label, cleanWorkspace: true) {
+	    // withGithubStatus("binary") {
+	    checkout scm
+	    sh("${MAKE} DOCKER_IMAGE=${image} binary")
+	    // }
+	}
+    }
+}
+
+def testIntegrationStep(String platform, String label) {
+    def image = getImage(platform)
+    return stage("${platform}.test-integration") {
+	wrappedNode(label: label, cleanWorkspace: true) {
+	    // withGithubStatus("${platform}.test-integration") {
+	    checkout scm
+	    sh("${MAKE} DOCKER_IMAGE=${image} test-integration")
+	    // }
+	}
+    }
+}
+
+def testUnitStep(String platform, String label) {
+    def image = getImage(platform)
+    return stage("${platform}.test-unit") {
+	wrappedNode(label: label, cleanWorkspace: true) {
+	    // withGithubStatus("${platform}.test-unit") {
+	    checkout scm
+	    sh("${MAKE} DOCKER_IMAGE=${image} test-unit")
+	    // }
+	}
+    }
+}
+
+def genTestIntegrationCliStep(String suite, String platform, String label) {
+    def image = getImage(platform)
+    return [ "${suite}" : { ->
+	    stage("${platform}.${suite}") {
+		wrappedNode(label: label, cleanWorkspace: true) {
+		    withChownWorkspace {
+			// withGithubStatus("${platform}.${suite}") {
+			checkout scm
+			timeout(60) {
+			    sh("${MAKE} DOCKER_IMAGE=${image} TEST_SUITE=${suite} test-integration-cli")
+			}
+			// }
+		    }
+		}
+	    }
+	} ]
+}
+
+return this;

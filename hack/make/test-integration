@@ -9,7 +9,7 @@ source hack/make/.integration-test-helpers
 	bundle .integration-daemon-setup
 
 	local testexit=0
-	( repeat run_test_integration ) || testexit=$?
+	( repeat run_test_integration_suites ) || testexit=$?
 
 	# Always run cleanup, even if the subshell fails
 	bundle .integration-daemon-stop
@@ -18,4 +18,4 @@ source hack/make/.integration-test-helpers
 
 	exit $testexit
 
-) 2>&1 | tee -a "$DEST/test.log"
+) 2>&1 | tee -a "$DEST/test-integration.log"
