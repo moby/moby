@@ -59,13 +59,13 @@ func TestFSCache(t *testing.T) {
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(string(dt), "data2"))
 
-	s, err := fscache.DiskUsage()
+	s, err := fscache.DiskUsage(context.TODO())
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(s, int64(0)))
 
 	assert.Check(t, src3.Close())
 
-	s, err = fscache.DiskUsage()
+	s, err = fscache.DiskUsage(context.TODO())
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(s, int64(5)))
 
@@ -80,7 +80,7 @@ func TestFSCache(t *testing.T) {
 	assert.Check(t, is.Equal(src4.Root().Path(), src3.Root().Path()))
 	assert.Check(t, src4.Close())
 
-	s, err = fscache.DiskUsage()
+	s, err = fscache.DiskUsage(context.TODO())
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(s, int64(10)))
 
@@ -93,7 +93,7 @@ func TestFSCache(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	// only last insertion after GC
-	s, err = fscache.DiskUsage()
+	s, err = fscache.DiskUsage(context.TODO())
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(s, int64(8)))
 
@@ -102,7 +102,7 @@ func TestFSCache(t *testing.T) {
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(released, uint64(8)))
 
-	s, err = fscache.DiskUsage()
+	s, err = fscache.DiskUsage(context.TODO())
 	assert.Check(t, err)
 	assert.Check(t, is.Equal(s, int64(0)))
 }

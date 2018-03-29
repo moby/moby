@@ -3,13 +3,14 @@
 package directory // import "github.com/docker/docker/pkg/directory"
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"syscall"
 )
 
 // Size walks a directory tree and returns its total size in bytes.
-func Size(dir string) (size int64, err error) {
+func Size(ctx context.Context, dir string) (size int64, err error) {
 	data := make(map[uint64]struct{})
 	err = filepath.Walk(dir, func(d string, fileInfo os.FileInfo, err error) error {
 		if err != nil {
@@ -19,6 +20,11 @@ func Size(dir string) (size int64, err error) {
 				return nil
 			}
 			return err
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
 
 		// Ignore directory sizes
