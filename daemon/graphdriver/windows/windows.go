@@ -779,7 +779,7 @@ func writeLayerReexec() {
 }
 
 // writeLayer writes a layer from a tar file.
-func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (int64, error) {
+func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ...string) (size int64, retErr error) {
 	err := winio.EnableProcessPrivileges([]string{winio.SeBackupPrivilege, winio.SeRestorePrivilege})
 	if err != nil {
 		return 0, err
@@ -804,17 +804,17 @@ func writeLayer(layerData io.Reader, home string, id string, parentLayerPaths ..
 		return 0, err
 	}
 
-	size, err := writeLayerFromTar(layerData, w, filepath.Join(home, id))
-	if err != nil {
-		return 0, err
-	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			// This error should not be discarded as a failure here
+			// could result in an invalid layer on disk
+			if retErr == nil {
+				retErr = err
+			}
+		}
+	}()
 
-	err = w.Close()
-	if err != nil {
-		return 0, err
-	}
-
-	return size, nil
+	return writeLayerFromTar(layerData, w, filepath.Join(home, id))
 }
 
 // resolveID computes the layerID information based on the given id.
