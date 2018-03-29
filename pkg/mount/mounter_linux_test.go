@@ -205,7 +205,7 @@ func validateMount(t *testing.T, mnt string, opts, optional, vfs string) {
 			if mi.VfsOpts != "" {
 				for _, opt := range strings.Split(mi.VfsOpts, ",") {
 					opt = clean(opt)
-					if !has(wantedVFS, opt) {
+					if !has(wantedVFS, opt) && opt != "seclabel" { // seclabel may be added automatically even when selinuxfs is not mounted
 						t.Errorf("unexpected mount option %q expected %q", opt, vfs)
 					}
 					delete(wantedVFS, opt)
