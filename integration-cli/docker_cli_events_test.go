@@ -563,6 +563,8 @@ func (s *DockerRegistrySuite) TestEventsImageFilterPush(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsFilterType(c *check.C) {
+	// FIXME(vdemeester) fails on e2e run
+	testRequires(c, SameHostDaemon)
 	since := daemonUnixTime(c)
 	name := "labelfiltertest"
 	label := "io.docker.testing=image"

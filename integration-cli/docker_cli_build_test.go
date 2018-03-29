@@ -1050,7 +1050,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *check.C) {
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
-	testRequires(c, DaemonIsLinux, UnixCli) // test uses chown/chmod: not available on windows
+	testRequires(c, DaemonIsLinux, UnixCli, SameHostDaemon) // test uses chown/chmod: not available on windows
 
 	{
 		name := "testbuildinaccessiblefiles"

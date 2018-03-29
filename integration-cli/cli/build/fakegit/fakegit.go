@@ -17,12 +17,17 @@ import (
 type testingT interface {
 	assert.TestingT
 	logT
+	skipT
 	Fatal(args ...interface{})
 	Fatalf(string, ...interface{})
 }
 
 type logT interface {
 	Logf(string, ...interface{})
+}
+
+type skipT interface {
+	Skip(reason string)
 }
 
 type gitServer interface {
