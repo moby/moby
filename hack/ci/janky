@@ -6,7 +6,7 @@ hack/validate/default
 hack/test/unit
 bash <(curl -s https://codecov.io/bash) \
     -f coverage.txt \
-    -C $GIT_SHA1 || \
+    -C "$GIT_SHA1" || \
     echo 'Codecov failed to upload'
 
 hack/make.sh \
