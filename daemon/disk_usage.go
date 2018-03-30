@@ -53,7 +53,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 			refs := daemon.volumes.Refs(v)
 
 			tv := volumeToAPIType(v)
-			sz, err := directory.Size(v.Path())
+			sz, err := directory.Size(ctx, v.Path())
 			if err != nil {
 				logrus.Warnf("failed to determine size of volume %v", name)
 				sz = -1

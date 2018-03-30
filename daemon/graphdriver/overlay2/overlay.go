@@ -4,6 +4,7 @@ package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -706,7 +707,7 @@ func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64
 		return 0, err
 	}
 
-	return directory.Size(applyDir)
+	return directory.Size(context.TODO(), applyDir)
 }
 
 func (d *Driver) getDiffPath(id string) string {
@@ -722,7 +723,7 @@ func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
 	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
 		return d.naiveDiff.DiffSize(id, parent)
 	}
-	return directory.Size(d.getDiffPath(id))
+	return directory.Size(context.TODO(), d.getDiffPath(id))
 }
 
 // Diff produces an archive of the changes between the specified

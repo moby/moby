@@ -24,6 +24,7 @@ package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -502,7 +503,7 @@ func (a *Driver) DiffSize(id, parent string) (size int64, err error) {
 		return a.naiveDiff.DiffSize(id, parent)
 	}
 	// AUFS doesn't need the parent layer to calculate the diff size.
-	return directory.Size(path.Join(a.rootPath(), "diff", id))
+	return directory.Size(context.TODO(), path.Join(a.rootPath(), "diff", id))
 }
 
 // ApplyDiff extracts the changeset from the given diff into the

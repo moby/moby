@@ -125,7 +125,7 @@ func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Arg
 					return nil
 				}
 			}
-			vSize, err := directory.Size(v.Path())
+			vSize, err := directory.Size(ctx, v.Path())
 			if err != nil {
 				logrus.Warnf("could not determine size of volume %s: %v", name, err)
 			}
