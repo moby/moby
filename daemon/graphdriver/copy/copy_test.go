@@ -12,31 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/system"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/sys/unix"
 )
-
-func TestIsCopyFileRangeSyscallAvailable(t *testing.T) {
-	// Verifies:
-	// 1. That copyFileRangeEnabled is being set to true when copy_file_range syscall is available
-	// 2. That isCopyFileRangeSyscallAvailable() works on "new" kernels
-	v, err := kernel.GetKernelVersion()
-	assert.NilError(t, err)
-
-	copyWithFileRange := true
-	copyWithFileClone := false
-	doCopyTest(t, &copyWithFileRange, &copyWithFileClone)
-
-	if kernel.CompareKernelVersion(*v, kernel.VersionInfo{Kernel: 4, Major: 5, Minor: 0}) < 0 {
-		assert.Check(t, !copyWithFileRange)
-	} else {
-		assert.Check(t, copyWithFileRange)
-	}
-
-}
 
 func TestCopy(t *testing.T) {
 	copyWithFileRange := true
