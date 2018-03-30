@@ -1,7 +1,6 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
-	"runtime"
 	"testing"
 	"time"
 
@@ -32,18 +31,8 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	pollSettings := func(config *poll.Settings) {
-		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-			config.Timeout = 50 * time.Second
-			config.Delay = 100 * time.Millisecond
-		} else {
-			config.Timeout = 30 * time.Second
-			config.Delay = 100 * time.Millisecond
-		}
-	}
-
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), pollSettings)
+	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -62,17 +51,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
 	assert.NilError(t, err)
 
-	pollSettings := func(config *poll.Settings) {
-		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-			config.Timeout = 50 * time.Second
-			config.Delay = 100 * time.Millisecond
-		} else {
-			config.Timeout = 30 * time.Second
-			config.Delay = 100 * time.Millisecond
-		}
-	}
-
-	poll.WaitOn(t, swarmIngressReady(client), pollSettings)
+	poll.WaitOn(t, swarmIngressReady(client), swarm.NetworkPoll)
 
 	var instances uint64 = 1
 	serviceName := "TestIngressService"
@@ -94,7 +73,7 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), pollSettings)
+	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -102,8 +81,8 @@ func TestServiceWithIngressNetwork(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
-	poll.WaitOn(t, noServices(client), pollSettings)
+	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, noServices(client), swarm.ServicePoll)
 
 	// Ensure that "ingress" is not removed or corrupted
 	time.Sleep(10 * time.Second)

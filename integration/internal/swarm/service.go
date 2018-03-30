@@ -3,7 +3,9 @@ package swarm
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -12,6 +14,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/poll"
 	"github.com/gotestyourself/gotestyourself/skip"
 )
 
@@ -19,6 +22,37 @@ const (
 	dockerdBinary    = "dockerd"
 	defaultSwarmPort = 2477
 )
+
+// ServicePoll tweaks the pollSettings for `service`
+func ServicePoll(config *poll.Settings) {
+	// Override the default pollSettings for `service` resource here ...
+
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+		config.Timeout = 1 * time.Minute
+		config.Delay = 100 * time.Millisecond
+	}
+}
+
+// NetworkPoll tweaks the pollSettings for `network`
+func NetworkPoll(config *poll.Settings) {
+	// Override the default pollSettings for `network` resource here ...
+	config.Timeout = 30 * time.Second
+	config.Delay = 100 * time.Millisecond
+
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+		config.Timeout = 50 * time.Second
+	}
+}
+
+// ContainerPoll tweaks the pollSettings for `container`
+func ContainerPoll(config *poll.Settings) {
+	// Override the default pollSettings for `container` resource here ...
+
+	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
+		config.Timeout = 30 * time.Second
+		config.Delay = 100 * time.Millisecond
+	}
+}
 
 // NewSwarm creates a swarm daemon for testing
 func NewSwarm(t *testing.T, testEnv *environment.Execution) *daemon.Swarm {

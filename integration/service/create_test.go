@@ -2,7 +2,6 @@ package service // import "github.com/docker/docker/integration/service"
 
 import (
 	"io/ioutil"
-	"runtime"
 	"testing"
 	"time"
 
@@ -43,16 +42,8 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	pollSettings := func(config *poll.Settings) {
-		// It takes about ~25s to finish the multi services creation in this case per the pratical observation on arm64/arm platform
-		if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-			config.Timeout = 30 * time.Second
-			config.Delay = 100 * time.Millisecond
-		}
-	}
-
 	serviceID := serviceResp.ID
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), pollSettings)
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -60,8 +51,8 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), pollSettings)
-	poll.WaitOn(t, noTasks(client), pollSettings)
+	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
 
 	serviceResp, err = client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
 		QueryRegistry: false,
@@ -69,13 +60,13 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	assert.NilError(t, err)
 
 	serviceID2 := serviceResp.ID
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), pollSettings)
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
 
 	err = client.ServiceRemove(context.Background(), serviceID2)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID2), pollSettings)
-	poll.WaitOn(t, noTasks(client), pollSettings)
+	poll.WaitOn(t, serviceIsRemoved(client, serviceID2), swarm.ServicePoll)
+	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
 
 	err = client.NetworkRemove(context.Background(), overlayID)
 	assert.NilError(t, err)
@@ -116,7 +107,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	service, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, service.ID, instances))
+	poll.WaitOn(t, serviceRunningTasksCount(client, service.ID, instances), swarm.ServicePoll)
 
 	resp, _, err := client.ServiceInspectWithRaw(context.Background(), service.ID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -127,7 +118,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Make sure task has been destroyed.
-	poll.WaitOn(t, serviceIsRemoved(client, service.ID))
+	poll.WaitOn(t, serviceIsRemoved(client, service.ID), swarm.ServicePoll)
 
 	// Remove networks
 	err = client.NetworkRemove(context.Background(), n3.ID)
@@ -196,7 +187,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances))
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceResp.ID, instances), swarm.ServicePoll)
 
 	filter := filters.NewArgs()
 	filter.Add("service", serviceResp.ID)
@@ -219,8 +210,8 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	err = client.ServiceRemove(ctx, serviceResp.ID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID))
-	poll.WaitOn(t, noTasks(client))
+	poll.WaitOn(t, serviceIsRemoved(client, serviceResp.ID), swarm.ServicePoll)
+	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
 
 	err = client.SecretRemove(ctx, "TestSecret")
 	assert.NilError(t, err)
