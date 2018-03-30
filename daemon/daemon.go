@@ -32,6 +32,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/semaphore"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
@@ -115,6 +116,8 @@ type Daemon struct {
 
 	attachmentStore       network.AttachmentStore
 	attachableNetworkLock *locker.Locker
+
+	healthcheckLimiter *semaphore.Weighted // semaphore to limit healthcheck concurrency
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -858,6 +861,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.execCommands = exec.NewStore()
 	d.idIndex = truncindex.NewTruncIndex([]string{})
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
+	d.healthcheckLimiter = semaphore.NewWeighted(int64(2 * runtime.NumCPU())) // simple heuristic for concurrent healthcheck execs
 
 	d.EventsService = events.New()
 	d.volumes = volStore

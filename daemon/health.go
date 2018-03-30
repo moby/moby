@@ -188,15 +188,22 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeTimeout := timeoutWithDefault(c.Config.Healthcheck.Timeout, defaultProbeTimeout)
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
+loop:
 	for {
 		select {
 		case <-stop:
 			logrus.Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
 			return
 		case <-time.After(probeInterval):
-			logrus.Debugf("Running health check for container %s ...", c.ID)
 			startTime := time.Now()
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
+			if err := d.healthcheckLimiter.Acquire(ctx, 1); err != nil {
+				// if we see this, we have ourselves a nasty bug
+				logrus.WithError(err).Warnf("Healthcheck semaphore acquisition failed", c.ID)
+				continue loop
+			}
+
+			logrus.Debugf("Running health check for container %s ...", c.ID)
 			results := make(chan *types.HealthcheckResult, 1)
 			go func() {
 				healthChecksCounter.Inc()
@@ -215,6 +222,7 @@ func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe)
 					logrus.Debugf("Health check for container %s done (exitCode=%d)", c.ID, result.ExitCode)
 					results <- result
 				}
+				d.healthcheckLimiter.Release(1)
 				close(results)
 			}()
 			select {
