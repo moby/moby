@@ -233,6 +233,7 @@ COPY --from=docker-py /docker-py /docker-py
 # above.
 RUN cd /docker-py \
 	&& pip install docker-pycreds==0.2.1 \
+	&& pip install yamllint==1.5.0 \
 	&& pip install -r test-requirements.txt
 
 ENV PATH=/usr/local/cli:$PATH
