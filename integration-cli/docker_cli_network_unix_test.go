@@ -739,7 +739,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkInspectCustomSpecified(c *check.C)
 	c.Assert(nr.IPAM.Config[0].Gateway, checker.Equals, "172.28.5.254")
 	c.Assert(nr.Internal, checker.False)
 	dockerCmd(c, "network", "rm", "br0")
-	assertNwNotAvailable(c, "test01")
+	assertNwNotAvailable(c, "br0")
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkIPAMInvalidCombinations(c *check.C) {
