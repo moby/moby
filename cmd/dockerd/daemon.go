@@ -257,6 +257,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		PluginBackend:          d.PluginManager(),
 		NetworkSubnetsProvider: d,
 		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
+		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
+		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
 		RuntimeRoot:            cli.getSwarmRunRoot(),
 		WatchStream:            watchStream,
 	})
