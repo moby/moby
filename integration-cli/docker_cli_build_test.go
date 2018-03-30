@@ -5598,46 +5598,6 @@ func (s *DockerSuite) TestBuildWithExtraHostInvalidFormat(c *check.C) {
 
 }
 
-func (s *DockerSuite) TestBuildSquashParent(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-	dockerFile := `
-		FROM busybox
-		RUN echo hello > /hello
-		RUN echo world >> /hello
-		RUN echo hello > /remove_me
-		ENV HELLO world
-		RUN rm /remove_me
-		`
-	// build and get the ID that we can use later for history comparison
-	name := "test"
-	buildImageSuccessfully(c, name, build.WithDockerfile(dockerFile))
-	origID := getIDByName(c, name)
-
-	// build with squash
-	buildImageSuccessfully(c, name, cli.WithFlags("--squash"), build.WithDockerfile(dockerFile))
-	id := getIDByName(c, name)
-
-	out, _ := dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", "cat /hello")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello\nworld")
-
-	dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", "[ ! -f /remove_me ]")
-	dockerCmd(c, "run", "--rm", id, "/bin/sh", "-c", `[ "$(echo $HELLO)" == "world" ]`)
-
-	// make sure the ID produced is the ID of the tag we specified
-	inspectID := inspectImage(c, "test", ".ID")
-	c.Assert(inspectID, checker.Equals, id)
-
-	origHistory, _ := dockerCmd(c, "history", origID)
-	testHistory, _ := dockerCmd(c, "history", "test")
-
-	splitOrigHistory := strings.Split(strings.TrimSpace(origHistory), "\n")
-	splitTestHistory := strings.Split(strings.TrimSpace(testHistory), "\n")
-	c.Assert(len(splitTestHistory), checker.Equals, len(splitOrigHistory)+1)
-
-	out = inspectImage(c, id, "len .RootFS.Layers")
-	c.Assert(strings.TrimSpace(out), checker.Equals, "2")
-}
-
 func (s *DockerSuite) TestBuildContChar(c *check.C) {
 	name := "testbuildcontchar"
 
@@ -6236,34 +6196,4 @@ func (s *DockerSuite) TestBuildIidFileCleanupOnFail(c *check.C) {
 	_, err = os.Stat(tmpIidFile)
 	c.Assert(err, check.NotNil)
 	c.Assert(os.IsNotExist(err), check.Equals, true)
-}
-
-// FIXME(vdemeester) should migrate to docker/cli tests
-func (s *DockerSuite) TestBuildIidFileSquash(c *check.C) {
-	testRequires(c, ExperimentalDaemon)
-	tmpDir, err := ioutil.TempDir("", "TestBuildIidFileSquash")
-	if err != nil {
-		c.Fatal(err)
-	}
-	defer os.RemoveAll(tmpDir)
-	tmpIidFile := filepath.Join(tmpDir, "iidsquash")
-
-	name := "testbuildiidfilesquash"
-	// Use a Dockerfile with multiple stages to ensure we get the last one
-	cli.BuildCmd(c, name,
-		// This could be minimalBaseImage except
-		// https://github.com/moby/moby/issues/33823 requires
-		// `touch` to workaround.
-		build.WithDockerfile(`FROM busybox
-ENV FOO FOO
-ENV BAR BAR
-RUN touch /foop
-`),
-		cli.WithFlags("--iidfile", tmpIidFile, "--squash"))
-
-	id, err := ioutil.ReadFile(tmpIidFile)
-	c.Assert(err, check.IsNil)
-	d, err := digest.Parse(string(id))
-	c.Assert(err, check.IsNil)
-	c.Assert(d.String(), checker.Equals, getIDByName(c, name))
 }
