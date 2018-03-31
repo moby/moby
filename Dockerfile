@@ -213,6 +213,7 @@ RUN apt-get update && apt-get install -y \
 	zip \
 	bzip2 \
 	xz-utils \
+	zstd \
 	--no-install-recommends
 COPY --from=swagger /usr/local/bin/swagger* /usr/local/bin/
 COPY --from=frozen-images /docker-frozen-images /docker-frozen-images

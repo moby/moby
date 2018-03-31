@@ -133,6 +133,13 @@ func TestDecompressStreamXz(t *testing.T) {
 	testDecompressStream(t, "xz", "xz -f")
 }
 
+func TestDecompressStreamZstd(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("Zstd not present in msys2")
+	}
+	testDecompressStream(t, "zst", "zstd -f")
+}
+
 func TestCompressStreamXzUnsupported(t *testing.T) {
 	dest, err := os.Create(tmp + "dest")
 	if err != nil {
@@ -156,6 +163,19 @@ func TestCompressStreamBzip2Unsupported(t *testing.T) {
 	_, err = CompressStream(dest, Xz)
 	if err == nil {
 		t.Fatalf("Should fail as xz is unsupported for compression format.")
+	}
+}
+
+func TestCompressStreamZstdUnsupported(t *testing.T) {
+	dest, err := os.Create(tmp + "dest")
+	if err != nil {
+		t.Fatalf("Fail to create the destination file")
+	}
+	defer dest.Close()
+
+	_, err = CompressStream(dest, Zstd)
+	if err == nil {
+		t.Fatalf("Should fail as zstd is unsupported for compression format.")
 	}
 }
 
@@ -206,6 +226,14 @@ func TestExtensionXz(t *testing.T) {
 	output := compression.Extension()
 	if output != "tar.xz" {
 		t.Fatalf("The extension of a bzip2 archive should be 'tar.xz'")
+	}
+}
+
+func TestExtensionZstd(t *testing.T) {
+	compression := Zstd
+	output := compression.Extension()
+	if output != "tar.zst" {
+		t.Fatalf("The extension of a zstd archive should be 'tar.zst'")
 	}
 }
 

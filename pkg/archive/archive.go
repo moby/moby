@@ -94,6 +94,8 @@ const (
 	Gzip
 	// Xz is xz compression algorithm.
 	Xz
+	// Zstd is zstd compression algorithm.
+	Zstd
 )
 
 const (
@@ -133,17 +135,23 @@ func IsArchivePath(path string) bool {
 
 // DetectCompression detects the compression algorithm of the source.
 func DetectCompression(source []byte) Compression {
-	for compression, m := range map[Compression][]byte{
-		Bzip2: {0x42, 0x5A, 0x68},
-		Gzip:  {0x1F, 0x8B, 0x08},
-		Xz:    {0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00},
+	for compression, number := range map[Compression][][]byte{
+		Bzip2: {{0x42, 0x5A, 0x68}},
+		Gzip:  {{0x1F, 0x8B, 0x08}},
+		Xz:    {{0xFD, 0x37, 0x7A, 0x58, 0x5A, 0x00}},
+		Zstd: {{0x22, 0xB5, 0x2F, 0xFD}, {0x23, 0xB5, 0x2F, 0xFD},
+			{0x24, 0xB5, 0x2F, 0xFD}, {0x25, 0xB5, 0x2F, 0xFD},
+			{0x26, 0xB5, 0x2F, 0xFD}, {0x27, 0xB5, 0x2F, 0xFD},
+			{0x28, 0xB5, 0x2F, 0xFD}},
 	} {
-		if len(source) < len(m) {
-			logrus.Debug("Len too short")
-			continue
-		}
-		if bytes.Equal(m, source[:len(m)]) {
-			return compression
+		for _, m := range number {
+			if len(source) < len(m) {
+				logrus.Debug("Len too short")
+				continue
+			}
+			if bytes.Equal(m, source[:len(m)]) {
+				return compression
+			}
 		}
 	}
 	return Uncompressed
@@ -151,6 +159,12 @@ func DetectCompression(source []byte) Compression {
 
 func xzDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
 	args := []string{"xz", "-d", "-c", "-q"}
+
+	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
+}
+
+func zstdDecompress(ctx context.Context, archive io.Reader) (io.ReadCloser, error) {
+	args := []string{"zstd", "-d", "-c", "-q"}
 
 	return cmdStream(exec.CommandContext(ctx, args[0], args[1:]...), archive)
 }
@@ -223,6 +237,16 @@ func DecompressStream(archive io.Reader) (io.ReadCloser, error) {
 		}
 		readBufWrapper := p.NewReadCloserWrapper(buf, xzReader)
 		return wrapReadCloser(readBufWrapper, cancel), nil
+	case Zstd:
+		ctx, cancel := context.WithCancel(context.Background())
+
+		zstdReader, err := zstdDecompress(ctx, buf)
+		if err != nil {
+			cancel()
+			return nil, err
+		}
+		readBufWrapper := p.NewReadCloserWrapper(buf, zstdReader)
+		return wrapReadCloser(readBufWrapper, cancel), nil
 	default:
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
 	}
@@ -240,7 +264,7 @@ func CompressStream(dest io.Writer, compression Compression) (io.WriteCloser, er
 		gzWriter := gzip.NewWriter(dest)
 		writeBufWrapper := p.NewWriteCloserWrapper(buf, gzWriter)
 		return writeBufWrapper, nil
-	case Bzip2, Xz:
+	case Bzip2, Xz, Zstd:
 		// archive/bzip2 does not support writing, and there is no xz support at all
 		// However, this is not a problem as docker only currently generates gzipped tars
 		return nil, fmt.Errorf("Unsupported compression format %s", (&compression).Extension())
@@ -347,6 +371,8 @@ func (compression *Compression) Extension() string {
 		return "tar.gz"
 	case Xz:
 		return "tar.xz"
+	case Zstd:
+		return "tar.zst"
 	}
 	return ""
 }
@@ -1020,7 +1046,7 @@ loop:
 // Untar reads a stream of bytes from `archive`, parses it as a tar archive,
 // and unpacks it into the directory at `dest`.
 // The archive may be compressed with one of the following algorithms:
-//  identity (uncompressed), gzip, bzip2, xz.
+//  identity (uncompressed), gzip, bzip2, xz, zstd.
 // FIXME: specify behavior when target path exists vs. doesn't exist.
 func Untar(tarArchive io.Reader, dest string, options *TarOptions) error {
 	return untarHandler(tarArchive, dest, options, true)
