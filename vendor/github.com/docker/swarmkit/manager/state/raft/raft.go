@@ -474,8 +474,11 @@ func (n *Node) joinCluster(ctx context.Context) error {
 // raft node that can be modified and customized
 func DefaultNodeConfig() *raft.Config {
 	return &raft.Config{
-		HeartbeatTick:   1,
-		ElectionTick:    3,
+		HeartbeatTick: 1,
+		// Recommended value in etcd/raft is 10 x (HeartbeatTick).
+		// Lower values were seen to have caused instability because of
+		// frequent leader elections when running on flakey networks.
+		ElectionTick:    10,
 		MaxSizePerMsg:   math.MaxUint16,
 		MaxInflightMsgs: 256,
 		Logger:          log.L,
@@ -489,8 +492,11 @@ func DefaultRaftConfig() api.RaftConfig {
 		KeepOldSnapshots:           0,
 		SnapshotInterval:           10000,
 		LogEntriesForSlowFollowers: 500,
-		ElectionTick:               3,
-		HeartbeatTick:              1,
+		// Recommended value in etcd/raft is 10 x (HeartbeatTick).
+		// Lower values were seen to have caused instability because of
+		// frequent leader elections when running on flakey networks.
+		HeartbeatTick: 1,
+		ElectionTick:  10,
 	}
 }
 
@@ -1701,6 +1707,18 @@ func (n *Node) GetMemberByNodeID(nodeID string) *membership.Member {
 		}
 	}
 	return nil
+}
+
+// GetNodeIDByRaftID returns the generic Node ID of a member given its raft ID.
+// It returns ErrMemberUnknown if the raft ID is unknown.
+func (n *Node) GetNodeIDByRaftID(raftID uint64) (string, error) {
+	if member, ok := n.cluster.Members()[raftID]; ok {
+		return member.NodeID, nil
+	}
+	// this is the only possible error value that should be returned; the
+	// manager code depends on this. if you need to add more errors later, make
+	// sure that you update the callers of this method accordingly
+	return "", ErrMemberUnknown
 }
 
 // IsMember checks if the raft node has effectively joined

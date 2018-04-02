@@ -324,6 +324,8 @@ func (a *Agent) run(ctx context.Context) {
 			registered = nil // we only care about this once per session
 			backoff = 0      // reset backoff
 			sessionq = a.sessionq
+			// re-report all task statuses when re-establishing a session
+			go a.worker.Report(ctx, reporter)
 		case err := <-session.errs:
 			// TODO(stevvooe): This may actually block if a session is closed
 			// but no error was sent. This must be the only place
