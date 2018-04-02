@@ -425,14 +425,15 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
+	verifyV4INCEntries(d.networks, t)
+
 	config2 := &networkConfiguration{BridgeName: "net_test_2"}
 	genericOption[netlabel.GenericData] = config2
 	if err := d.CreateNetwork("2", genericOption, nil, getIPv4Data(t, ""), nil); err != nil {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	// Verify the network isolation rules are installed, each network subnet should appear 2 times
-	verifyV4INCEntries(d.networks, 2, t)
+	verifyV4INCEntries(d.networks, t)
 
 	config3 := &networkConfiguration{BridgeName: "net_test_3"}
 	genericOption[netlabel.GenericData] = config3
@@ -440,8 +441,7 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	// Verify the network isolation rules are installed, each network subnet should appear 4 times
-	verifyV4INCEntries(d.networks, 6, t)
+	verifyV4INCEntries(d.networks, t)
 
 	config4 := &networkConfiguration{BridgeName: "net_test_4"}
 	genericOption[netlabel.GenericData] = config4
@@ -449,45 +449,43 @@ func TestCreateMultipleNetworks(t *testing.T) {
 		t.Fatalf("Failed to create bridge: %v", err)
 	}
 
-	// Now 6 times
-	verifyV4INCEntries(d.networks, 12, t)
+	verifyV4INCEntries(d.networks, t)
 
 	d.DeleteNetwork("1")
-	verifyV4INCEntries(d.networks, 6, t)
+	verifyV4INCEntries(d.networks, t)
 
 	d.DeleteNetwork("2")
-	verifyV4INCEntries(d.networks, 2, t)
+	verifyV4INCEntries(d.networks, t)
 
 	d.DeleteNetwork("3")
-	verifyV4INCEntries(d.networks, 0, t)
+	verifyV4INCEntries(d.networks, t)
 
 	d.DeleteNetwork("4")
-	verifyV4INCEntries(d.networks, 0, t)
+	verifyV4INCEntries(d.networks, t)
 }
 
-func verifyV4INCEntries(networks map[string]*bridgeNetwork, numEntries int, t *testing.T) {
-	out, err := iptables.Raw("-nvL", IsolationChain)
+// Verify the network isolation rules are installed for each network
+func verifyV4INCEntries(networks map[string]*bridgeNetwork, t *testing.T) {
+	out1, err := iptables.Raw("-S", IsolationChain1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out2, err := iptables.Raw("-S", IsolationChain2)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	found := 0
-	for _, x := range networks {
-		for _, y := range networks {
-			if x == y {
-				continue
-			}
-			re := regexp.MustCompile(x.config.BridgeName + " " + y.config.BridgeName)
-			matches := re.FindAllString(string(out[:]), -1)
-			if len(matches) != 1 {
-				t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables:\n%s", string(out[:]))
-			}
-			found++
+	for _, n := range networks {
+		re := regexp.MustCompile(fmt.Sprintf("-i %s ! -o %s -j %s", n.config.BridgeName, n.config.BridgeName, IsolationChain2))
+		matches := re.FindAllString(string(out1[:]), -1)
+		if len(matches) != 1 {
+			t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables for network %s:\n%s.", n.id, string(out1[:]))
 		}
-	}
-
-	if found != numEntries {
-		t.Fatalf("Cannot find expected number (%d) of inter-network isolation rules in IP Tables:\n%s\nFound %d", numEntries, string(out[:]), found)
+		re = regexp.MustCompile(fmt.Sprintf("-o %s -j DROP", n.config.BridgeName))
+		matches = re.FindAllString(string(out2[:]), -1)
+		if len(matches) != 1 {
+			t.Fatalf("Cannot find expected inter-network isolation rules in IP Tables for network %s:\n%s.", n.id, string(out2[:]))
+		}
 	}
 }
 
@@ -996,9 +994,9 @@ func TestCleanupIptableRules(t *testing.T) {
 	bridgeChain := []iptables.ChainInfo{
 		{Name: DockerChain, Table: iptables.Nat},
 		{Name: DockerChain, Table: iptables.Filter},
-		{Name: IsolationChain, Table: iptables.Filter},
+		{Name: IsolationChain1, Table: iptables.Filter},
 	}
-	if _, _, _, err := setupIPChains(&configuration{EnableIPTables: true}); err != nil {
+	if _, _, _, _, err := setupIPChains(&configuration{EnableIPTables: true}); err != nil {
 		t.Fatalf("Error setting up ip chains: %v", err)
 	}
 	for _, chainInfo := range bridgeChain {
