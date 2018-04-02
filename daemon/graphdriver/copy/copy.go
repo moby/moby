@@ -189,15 +189,15 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		case os.ModeNamedPipe:
 			fallthrough
 		case os.ModeSocket:
-			if rsystem.RunningInUserNS() {
-				// cannot create a device if running in user namespace
-				return nil
-			}
 			if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}
 
 		case os.ModeDevice:
+			if rsystem.RunningInUserNS() {
+				// cannot create a device if running in user namespace
+				return nil
+			}
 			if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
 				return err
 			}
