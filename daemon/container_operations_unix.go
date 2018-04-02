@@ -293,7 +293,6 @@ func (daemon *Daemon) createSecretsDir(c *container.Container) error {
 	if err := mount.Mount("tmpfs", dir, "tmpfs", "nodev,nosuid,noexec,"+tmpfsOwnership); err != nil {
 		return errors.Wrap(err, "unable to setup secret mount")
 	}
-
 	return nil
 }
 
@@ -400,15 +399,5 @@ func (daemon *Daemon) setupContainerMountsRoot(c *container.Container) error {
 	if err != nil {
 		return err
 	}
-
-	if err := idtools.MkdirAllAndChown(p, 0700, daemon.idMappings.RootPair()); err != nil {
-		return err
-	}
-
-	if err := mount.MakeUnbindable(p); err != nil {
-		// Setting unbindable is a precaution and is not neccessary for correct operation.
-		// Do not error out if this fails.
-		logrus.WithError(err).WithField("resource", p).WithField("container", c.ID).Warn("Error setting container resource mounts to unbindable, this may cause mount leakages, preventing removal of this container.")
-	}
-	return nil
+	return idtools.MkdirAllAndChown(p, 0700, daemon.idMappings.RootPair())
 }
