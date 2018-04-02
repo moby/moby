@@ -313,11 +313,7 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 	}
 
 	// Install the rules to isolate this network against each of the other networks
-	if err := setINC(thisConfig.BridgeName, enable); err != nil {
-		return err
-	}
-
-	return nil
+	return setINC(thisConfig.BridgeName, enable)
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
