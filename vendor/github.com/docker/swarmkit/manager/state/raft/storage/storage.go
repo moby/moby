@@ -13,7 +13,6 @@ import (
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
-	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
@@ -32,20 +31,6 @@ var versionedWALSnapDirs = []walSnapDirs{
 	{wal: "wal-v3-encrypted", snap: "snap-v3-encrypted"},
 	{wal: "wal-v3", snap: "snap-v3"},
 	{wal: "wal", snap: "snap"},
-}
-
-// MultiDecrypter attempts to decrypt with a list of decrypters
-type MultiDecrypter []encryption.Decrypter
-
-// Decrypt tries to decrypt using all the decrypters
-func (m MultiDecrypter) Decrypt(r api.MaybeEncryptedRecord) (result []byte, err error) {
-	for _, d := range m {
-		result, err = d.Decrypt(r)
-		if err == nil {
-			return
-		}
-	}
-	return
 }
 
 // EncryptedRaftLogger saves raft data to disk
@@ -75,7 +60,7 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 			_, d := encryption.Defaults(key)
 			decrypters = append(decrypters, d)
 		}
-		decrypter = MultiDecrypter(decrypters)
+		decrypter = encryption.NewMultiDecrypter(decrypters...)
 	}
 
 	snapFactory := NewSnapFactory(encrypter, decrypter)

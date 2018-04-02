@@ -118,42 +118,15 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 		return errors.Wrap(err, "failure while looking for ingress network during init")
 	}
 
-	// Allocate networks in the store so far before we started
-	// watching.
-	var networks []*api.Network
-	a.store.View(func(tx store.ReadTx) {
-		networks, err = store.FindNetworks(tx, store.All)
-	})
-	if err != nil {
-		return errors.Wrap(err, "error listing all networks in store while trying to allocate during init")
+	// First, allocate (read it as restore) objects likes network,nodes,serives
+	// and tasks that were already allocated. Then go on the allocate objects
+	// that are in raft and were previously not allocated. The reason being, during
+	// restore, we  make sure that we populate the allocated states of
+	// the objects in the raft onto our in memory state.
+	if err := a.allocateNetworks(ctx, true); err != nil {
+		return err
 	}
 
-	var allocatedNetworks []*api.Network
-	for _, n := range networks {
-		if na.IsAllocated(n) {
-			continue
-		}
-
-		if err := a.allocateNetwork(ctx, n); err != nil {
-			log.G(ctx).WithError(err).Errorf("failed allocating network %s during init", n.ID)
-			continue
-		}
-		allocatedNetworks = append(allocatedNetworks, n)
-	}
-
-	if err := a.store.Batch(func(batch *store.Batch) error {
-		for _, n := range allocatedNetworks {
-			if err := a.commitAllocatedNetwork(ctx, batch, n); err != nil {
-				log.G(ctx).WithError(err).Errorf("failed committing allocation of network %s during init", n.ID)
-			}
-		}
-		return nil
-	}); err != nil {
-		log.G(ctx).WithError(err).Error("failed committing allocation of networks during init")
-	}
-
-	// First, allocate objects that already have addresses associated with
-	// them, to reserve these IP addresses in internal state.
 	if err := a.allocateNodes(ctx, true); err != nil {
 		return err
 	}
@@ -162,6 +135,11 @@ func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 		return err
 	}
 	if err := a.allocateTasks(ctx, true); err != nil {
+		return err
+	}
+	// Now allocate objects that were not previously allocated
+	// but were present in the raft.
+	if err := a.allocateNetworks(ctx, false); err != nil {
 		return err
 	}
 
@@ -184,7 +162,6 @@ func (a *Allocator) doNetworkAlloc(ctx context.Context, ev events.Event) {
 		if nc.nwkAllocator.IsAllocated(n) {
 			break
 		}
-
 		if IsIngressNetwork(n) && nc.ingressNetwork != nil {
 			log.G(ctx).Errorf("Cannot allocate ingress network %s (%s) because another ingress network is already present: %s (%s)",
 				n.ID, n.Spec.Annotations.Name, nc.ingressNetwork.ID, nc.ingressNetwork.Spec.Annotations)
@@ -560,6 +537,60 @@ func (a *Allocator) deallocateNode(node *api.Node) error {
 	return nil
 }
 
+// allocateNetworks allocates (restores) networks in the store so far before we process
+// watched events. existingOnly flags is set to true to specify if only allocated
+// networks need to be restored.
+func (a *Allocator) allocateNetworks(ctx context.Context, existingOnly bool) error {
+	var (
+		nc       = a.netCtx
+		networks []*api.Network
+		err      error
+	)
+	a.store.View(func(tx store.ReadTx) {
+		networks, err = store.FindNetworks(tx, store.All)
+	})
+	if err != nil {
+		return errors.Wrap(err, "error listing all networks in store while trying to allocate during init")
+	}
+
+	var allocatedNetworks []*api.Network
+	for _, n := range networks {
+		if nc.nwkAllocator.IsAllocated(n) {
+			continue
+		}
+		// Network is considered allocated only if the DriverState and IPAM are NOT nil.
+		// During initial restore (existingOnly being true), check the network state in
+		// raft store. If it is allocated, then restore the same in the in memory allocator
+		// state. If it is not allocated, then skip allocating the network at this step.
+		// This is to avoid allocating  an in-use network IP, subnet pool or vxlan id to
+		// another network.
+		if existingOnly &&
+			(n.DriverState == nil ||
+				n.IPAM == nil) {
+			continue
+		}
+
+		if err := a.allocateNetwork(ctx, n); err != nil {
+			log.G(ctx).WithField("existingOnly", existingOnly).WithError(err).Errorf("failed allocating network %s during init", n.ID)
+			continue
+		}
+		allocatedNetworks = append(allocatedNetworks, n)
+	}
+
+	if err := a.store.Batch(func(batch *store.Batch) error {
+		for _, n := range allocatedNetworks {
+			if err := a.commitAllocatedNetwork(ctx, batch, n); err != nil {
+				log.G(ctx).WithError(err).Errorf("failed committing allocation of network %s during init", n.ID)
+			}
+		}
+		return nil
+	}); err != nil {
+		log.G(ctx).WithError(err).Error("failed committing allocation of networks during init")
+	}
+
+	return nil
+}
+
 // allocateServices allocates services in the store so far before we process
 // watched events.
 func (a *Allocator) allocateServices(ctx context.Context, existingAddressesOnly bool) error {
@@ -580,7 +611,6 @@ func (a *Allocator) allocateServices(ctx context.Context, existingAddressesOnly 
 		if nc.nwkAllocator.IsServiceAllocated(s, networkallocator.OnInit) {
 			continue
 		}
-
 		if existingAddressesOnly &&
 			(s.Endpoint == nil ||
 				len(s.Endpoint.VirtualIPs) == 0) {

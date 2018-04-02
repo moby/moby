@@ -29,6 +29,7 @@ import (
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/ca/pkcs8"
 	"github.com/docker/swarmkit/connectionbroker"
+	"github.com/docker/swarmkit/fips"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -51,13 +52,6 @@ const (
 	RootKeySize = 256
 	// RootKeyAlgo defines the default algorithm for the root CA Key
 	RootKeyAlgo = "ecdsa"
-	// PassphraseENVVar defines the environment variable to look for the
-	// root CA private key material encryption key
-	PassphraseENVVar = "SWARM_ROOT_CA_PASSPHRASE"
-	// PassphraseENVVarPrev defines the alternate environment variable to look for the
-	// root CA private key material encryption key. It can be used for seamless
-	// KEK rotations.
-	PassphraseENVVarPrev = "SWARM_ROOT_CA_PASSPHRASE_PREV"
 	// RootCAExpiration represents the default expiration for the root CA in seconds (20 years)
 	RootCAExpiration = "630720000s"
 	// DefaultNodeCertExpiration represents the default expiration for node certificates (3 months)
@@ -641,28 +635,10 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 		return nil, errors.Wrap(err, "error while validating signing CA certificate against roots and intermediates")
 	}
 
-	var (
-		passphraseStr              string
-		passphrase, passphrasePrev []byte
-		priv                       crypto.Signer
-	)
-
-	// Attempt two distinct passphrases, so we can do a hitless passphrase rotation
-	if passphraseStr = os.Getenv(PassphraseENVVar); passphraseStr != "" {
-		passphrase = []byte(passphraseStr)
-	}
-
-	if p := os.Getenv(PassphraseENVVarPrev); p != "" {
-		passphrasePrev = []byte(p)
-	}
-
-	// Attempt to decrypt the current private-key with the passphrases provided
-	priv, err = keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
+	// The key should not be encrypted, but it could be in PKCS8 format rather than PKCS1
+	priv, err := keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, nil)
 	if err != nil {
-		priv, err = keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
-		if err != nil {
-			return nil, errors.Wrap(err, "malformed private key")
-		}
+		return nil, errors.Wrap(err, "malformed private key")
 	}
 
 	// We will always use the first certificate inside of the root bundle as the active one
@@ -673,17 +649,6 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 	signer, err := local.NewSigner(priv, parsedCerts[0], cfsigner.DefaultSigAlgo(priv), SigningPolicy(certExpiry))
 	if err != nil {
 		return nil, err
-	}
-
-	// If the key was loaded from disk unencrypted, but there is a passphrase set,
-	// ensure it is encrypted, so it doesn't hit raft in plain-text
-	// we don't have to check for nil, because if we couldn't pem-decode the bytes, then parsing above would have failed
-	keyBlock, _ := pem.Decode(keyBytes)
-	if passphraseStr != "" && !keyutils.IsEncryptedPEMBlock(keyBlock) {
-		keyBytes, err = EncryptECPrivateKey(keyBytes, passphraseStr)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to encrypt signing CA key material")
-		}
 	}
 
 	return &LocalSigner{Cert: certBytes, Key: keyBytes, Signer: signer, parsedCert: parsedCerts[0], cryptoSigner: priv}, nil
@@ -818,7 +783,7 @@ func CreateRootCA(rootCN string) (RootCA, error) {
 	}
 
 	// Convert key to PKCS#8 in FIPS mode
-	if keyutils.FIPSEnabled() {
+	if fips.Enabled() {
 		key, err = pkcs8.ConvertECPrivateKeyPEM(key)
 		if err != nil {
 			return RootCA{}, err
@@ -974,30 +939,6 @@ func GenerateNewCSR() ([]byte, []byte, error) {
 
 	key, err = pkcs8.ConvertECPrivateKeyPEM(key)
 	return csr, key, err
-}
-
-// EncryptECPrivateKey receives a PEM encoded private key and returns an encrypted
-// AES256 version using a passphrase
-// TODO: Make this method generic to handle RSA keys
-func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
-	passphrase := []byte(passphraseStr)
-
-	keyBlock, _ := pem.Decode(key)
-	if keyBlock == nil {
-		// This RootCA does not have a valid signer.
-		return nil, errors.New("error while decoding PEM key")
-	}
-
-	encryptedPEMBlock, err := keyutils.EncryptPEMBlock(keyBlock.Bytes, passphrase)
-	if err != nil {
-		return nil, err
-	}
-
-	if encryptedPEMBlock.Headers == nil {
-		return nil, errors.New("unable to encrypt key - invalid PEM file produced")
-	}
-
-	return pem.EncodeToMemory(encryptedPEMBlock), nil
 }
 
 // NormalizePEMs takes a bundle of PEM-encoded certificates in a certificate bundle,
