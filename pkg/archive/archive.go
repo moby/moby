@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
@@ -360,6 +361,10 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	if err != nil {
 		return nil, err
 	}
+	hdr.Format = tar.FormatPAX
+	hdr.ModTime = hdr.ModTime.Truncate(time.Second)
+	hdr.AccessTime = time.Time{}
+	hdr.ChangeTime = time.Time{}
 	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
 	name, err = canonicalTarName(name, fi.IsDir())
 	if err != nil {
@@ -1158,6 +1163,10 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			if err != nil {
 				return err
 			}
+			hdr.Format = tar.FormatPAX
+			hdr.ModTime = hdr.ModTime.Truncate(time.Second)
+			hdr.AccessTime = time.Time{}
+			hdr.ChangeTime = time.Time{}
 			hdr.Name = filepath.Base(dst)
 			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
