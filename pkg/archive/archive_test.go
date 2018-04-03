@@ -153,9 +153,9 @@ func TestCompressStreamBzip2Unsupported(t *testing.T) {
 	}
 	defer dest.Close()
 
-	_, err = CompressStream(dest, Xz)
+	_, err = CompressStream(dest, Bzip2)
 	if err == nil {
-		t.Fatalf("Should fail as xz is unsupported for compression format.")
+		t.Fatalf("Should fail as bzip2 is unsupported for compression format.")
 	}
 }
 
@@ -198,14 +198,14 @@ func TestExtensionGzip(t *testing.T) {
 	compression := Gzip
 	output := compression.Extension()
 	if output != "tar.gz" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.gz'")
+		t.Fatalf("The extension of a gzip archive should be 'tar.gz'")
 	}
 }
 func TestExtensionXz(t *testing.T) {
 	compression := Xz
 	output := compression.Extension()
 	if output != "tar.xz" {
-		t.Fatalf("The extension of a bzip2 archive should be 'tar.xz'")
+		t.Fatalf("The extension of a xz archive should be 'tar.xz'")
 	}
 }
 
