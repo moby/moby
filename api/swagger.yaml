@@ -6253,6 +6253,11 @@ paths:
           description: "Platform in the format os[/arch[/variant]]"
           type: "string"
           default: ""
+        - name: "target"
+          in: "query"
+          description: "Target build stage"
+          type: "string"
+          default: ""
       responses:
         200:
           description: "no error"
