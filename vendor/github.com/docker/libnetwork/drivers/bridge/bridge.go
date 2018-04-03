@@ -137,15 +137,16 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config         *configuration
-	network        *bridgeNetwork
-	natChain       *iptables.ChainInfo
-	filterChain    *iptables.ChainInfo
-	isolationChain *iptables.ChainInfo
-	networks       map[string]*bridgeNetwork
-	store          datastore.DataStore
-	nlh            *netlink.Handle
-	configNetwork  sync.Mutex
+	config          *configuration
+	network         *bridgeNetwork
+	natChain        *iptables.ChainInfo
+	filterChain     *iptables.ChainInfo
+	isolationChain1 *iptables.ChainInfo
+	isolationChain2 *iptables.ChainInfo
+	networks        map[string]*bridgeNetwork
+	store           datastore.DataStore
+	nlh             *netlink.Handle
+	configNetwork   sync.Mutex
 	sync.Mutex
 }
 
@@ -266,15 +267,15 @@ func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
-func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
+func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	n.Lock()
 	defer n.Unlock()
 
 	if n.driver == nil {
-		return nil, nil, nil, types.BadRequestErrorf("no driver found")
+		return nil, nil, nil, nil, types.BadRequestErrorf("no driver found")
 	}
 
-	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain, nil
+	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain1, n.driver.isolationChain2, nil
 }
 
 func (n *bridgeNetwork) getNetworkBridgeName() string {
@@ -311,33 +312,18 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 		return nil
 	}
 
-	// Install the rules to isolate this networks against each of the other networks
-	for _, o := range others {
-		o.Lock()
-		otherConfig := o.config
-		o.Unlock()
-
-		if otherConfig.Internal {
-			continue
-		}
-
-		if thisConfig.BridgeName != otherConfig.BridgeName {
-			if err := setINC(thisConfig.BridgeName, otherConfig.BridgeName, enable); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
+	// Install the rules to isolate this network against each of the other networks
+	return setINC(thisConfig.BridgeName, enable)
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config         *configuration
-		err            error
-		natChain       *iptables.ChainInfo
-		filterChain    *iptables.ChainInfo
-		isolationChain *iptables.ChainInfo
+		config          *configuration
+		err             error
+		natChain        *iptables.ChainInfo
+		filterChain     *iptables.ChainInfo
+		isolationChain1 *iptables.ChainInfo
+		isolationChain2 *iptables.ChainInfo
 	)
 
 	genericData, ok := option[netlabel.GenericData]
@@ -365,7 +351,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 			}
 		}
 		removeIPChains()
-		natChain, filterChain, isolationChain, err = setupIPChains(config)
+		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config)
 		if err != nil {
 			return err
 		}
@@ -384,7 +370,8 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Lock()
 	d.natChain = natChain
 	d.filterChain = filterChain
-	d.isolationChain = isolationChain
+	d.isolationChain1 = isolationChain1
+	d.isolationChain2 = isolationChain2
 	d.config = config
 	d.Unlock()
 
