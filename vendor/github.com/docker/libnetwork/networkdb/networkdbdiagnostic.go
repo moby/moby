@@ -84,7 +84,11 @@ func dbPeers(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 		peers := nDB.Peers(r.Form["nid"][0])
 		rsp := &diagnostic.TableObj{Length: len(peers)}
 		for i, peerInfo := range peers {
-			rsp.Elements = append(rsp.Elements, &diagnostic.PeerEntryObj{Index: i, Name: peerInfo.Name, IP: peerInfo.IP})
+			if peerInfo.IP == "unknown" {
+				rsp.Elements = append(rsp.Elements, &diagnostic.PeerEntryObj{Index: i, Name: "orphan-" + peerInfo.Name, IP: peerInfo.IP})
+			} else {
+				rsp.Elements = append(rsp.Elements, &diagnostic.PeerEntryObj{Index: i, Name: peerInfo.Name, IP: peerInfo.IP})
+			}
 		}
 		log.WithField("response", fmt.Sprintf("%+v", rsp)).Info("network peers done")
 		diagnostic.HTTPReply(w, diagnostic.CommandSucceed(rsp), json)
