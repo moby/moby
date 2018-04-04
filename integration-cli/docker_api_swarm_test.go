@@ -30,7 +30,7 @@ import (
 	"golang.org/x/net/context"
 )
 
-var defaultReconciliationTimeout = 30 * time.Second
+var defaultReconciliationTimeout = 60 * time.Second
 
 func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	// todo: should find a better way to verify that components are running than /info
