@@ -172,6 +172,66 @@ func TestDrainBody(t *testing.T) {
 	}
 }
 
+func TestSendBody(t *testing.T) {
+	var (
+		url       = "nothing.com"
+		testcases = []struct {
+			contentType string
+			expected    bool
+		}{
+			{
+				contentType: "application/json",
+				expected:    true,
+			},
+			{
+				contentType: "Application/json",
+				expected:    true,
+			},
+			{
+				contentType: "application/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "APPLICATION/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "text/html",
+				expected:    false,
+			},
+			{
+				contentType: "",
+				expected:    false,
+			},
+		}
+	)
+
+	for _, testcase := range testcases {
+		header := http.Header{}
+		header.Set("Content-Type", testcase.contentType)
+
+		if b := sendBody(url, header); b != testcase.expected {
+			t.Fatalf("Unexpected Content-Type; Expected: %t, Actual: %t", testcase.expected, b)
+		}
+	}
+}
+
 func TestResponseModifierOverride(t *testing.T) {
 	r := httptest.NewRecorder()
 	m := NewResponseModifier(r)
