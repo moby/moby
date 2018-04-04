@@ -2,7 +2,6 @@ package manager
 
 import (
 	"crypto/tls"
-	"encoding/pem"
 	"fmt"
 	"net"
 	"os"
@@ -17,7 +16,6 @@ import (
 	gmetrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
-	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
@@ -227,17 +225,51 @@ func New(config *Config) (*Manager, error) {
 	}
 	raftNode := raft.NewNode(newNodeOpts)
 
+	// the interceptorWrappers are functions that wrap the prometheus grpc
+	// interceptor, and add some of code to log errors locally. one for stream
+	// and one for unary. this is needed because the grpc unary interceptor
+	// doesn't natively do chaining, you have to implement it in the caller.
+	// note that even though these are logging errors, we're still using
+	// debug level. returning errors from GRPC methods is common and expected,
+	// and logging an ERROR every time a user mistypes a service name would
+	// pollute the logs really fast.
+	//
+	// NOTE(dperny): Because of the fact that these functions are very simple
+	// in their operation and have no side effects other than the log output,
+	// they are not automatically tested. If you modify them later, make _sure_
+	// that they are correct. If you add substantial side effects, abstract
+	// these out and test them!
+	unaryInterceptorWrapper := func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		// pass the call down into the grpc_prometheus interceptor
+		resp, err := grpc_prometheus.UnaryServerInterceptor(ctx, req, info, handler)
+		if err != nil {
+			log.G(ctx).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling rpc")
+		}
+		return resp, err
+	}
+
+	streamInterceptorWrapper := func(srv interface{}, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+		// we can't re-write a stream context, so don't bother creating a
+		// sub-context like in unary methods
+		// pass the call down into the grpc_prometheus interceptor
+		err := grpc_prometheus.StreamServerInterceptor(srv, ss, info, handler)
+		if err != nil {
+			log.G(ss.Context()).WithField("rpc", info.FullMethod).WithError(err).Debug("error handling streaming rpc")
+		}
+		return err
+	}
+
 	opts := []grpc.ServerOption{
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
-		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
+		grpc.StreamInterceptor(streamInterceptorWrapper),
+		grpc.UnaryInterceptor(unaryInterceptorWrapper),
 		grpc.MaxMsgSize(transport.GRPCMaxMsgSize),
 	}
 
 	m := &Manager{
 		config:          *config,
 		caserver:        ca.NewServer(raftNode.MemoryStore(), config.SecurityConfig),
-		dispatcher:      dispatcher.New(raftNode, dispatcher.DefaultConfig(), drivers.New(config.PluginGetter), config.SecurityConfig),
+		dispatcher:      dispatcher.New(),
 		logbroker:       logbroker.New(raftNode.MemoryStore()),
 		watchServer:     watchapi.NewServer(raftNode.MemoryStore()),
 		server:          grpc.NewServer(opts...),
@@ -620,6 +652,10 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 		m.collector.Stop()
 	}
 
+	// The following components are gRPC services that are
+	// registered when creating the manager and will need
+	// to be re-registered if they are recreated.
+	// For simplicity, they are not nilled out.
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.watchServer.Stop()
@@ -768,111 +804,39 @@ func (m *Manager) watchForClusterChanges(ctx context.Context) error {
 	return nil
 }
 
-// rotateRootCAKEK will attempt to rotate the key-encryption-key for root CA key-material in raft.
-// If there is no passphrase set in ENV, it returns.
-// If there is plain-text root key-material, and a passphrase set, it encrypts it.
-// If there is encrypted root key-material and it is using the current passphrase, it returns.
-// If there is encrypted root key-material, and it is using the previous passphrase, it
-// re-encrypts it with the current passphrase.
-func (m *Manager) rotateRootCAKEK(ctx context.Context, clusterID string) error {
-	// If we don't have a KEK, we won't ever be rotating anything
-	strPassphrase := os.Getenv(ca.PassphraseENVVar)
-	strPassphrasePrev := os.Getenv(ca.PassphraseENVVarPrev)
-	if strPassphrase == "" && strPassphrasePrev == "" {
-		return nil
+// getLeaderNodeID is a small helper function returning a string with the
+// leader's node ID. it is only used for logging, and should not be relied on
+// to give a node ID for actual operational purposes (because it returns errors
+// as nicely decorated strings)
+func (m *Manager) getLeaderNodeID() string {
+	// get the current leader ID. this variable tracks the leader *only* for
+	// the purposes of logging leadership changes, and should not be relied on
+	// for other purposes
+	leader, leaderErr := m.raftNode.Leader()
+	switch leaderErr {
+	case raft.ErrNoRaftMember:
+		// this is an unlikely case, but we have to handle it. this means this
+		// node is not a member of the raft quorum. this won't look very pretty
+		// in logs ("leadership changed from aslkdjfa to ErrNoRaftMember") but
+		// it also won't be very common
+		return "not yet part of a raft cluster"
+	case raft.ErrNoClusterLeader:
+		return "no cluster leader"
+	default:
+		id, err := m.raftNode.GetNodeIDByRaftID(leader)
+		// the only possible error here is "ErrMemberUnknown"
+		if err != nil {
+			return "an unknown node"
+		}
+		return id
 	}
-	if strPassphrase != "" {
-		log.G(ctx).Warn("Encrypting the root CA key in swarm using environment variables is deprecated. " +
-			"Support for decrypting or rotating the key will be removed in the future.")
-	}
-
-	passphrase := []byte(strPassphrase)
-	passphrasePrev := []byte(strPassphrasePrev)
-
-	s := m.raftNode.MemoryStore()
-	var (
-		cluster  *api.Cluster
-		err      error
-		finalKey []byte
-	)
-	// Retrieve the cluster identified by ClusterID
-	return s.Update(func(tx store.Tx) error {
-		cluster = store.GetCluster(tx, clusterID)
-		if cluster == nil {
-			return fmt.Errorf("cluster not found: %s", clusterID)
-		}
-
-		// Try to get the private key from the cluster
-		privKeyPEM := cluster.RootCA.CAKey
-		if len(privKeyPEM) == 0 {
-			// We have no PEM root private key in this cluster.
-			log.G(ctx).Warnf("cluster %s does not have private key material", clusterID)
-			return nil
-		}
-
-		// Decode the PEM private key
-		keyBlock, _ := pem.Decode(privKeyPEM)
-		if keyBlock == nil {
-			return fmt.Errorf("invalid PEM-encoded private key inside of cluster %s", clusterID)
-		}
-
-		if keyutils.IsEncryptedPEMBlock(keyBlock) {
-			// PEM encryption does not have a digest, so sometimes decryption doesn't
-			// error even with the wrong passphrase.  So actually try to parse it into a valid key.
-			_, err := keyutils.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrase))
-			if err == nil {
-				// This key is already correctly encrypted with the correct KEK, nothing to do here
-				return nil
-			}
-
-			// This key is already encrypted, but failed with current main passphrase.
-			// Let's try to decrypt with the previous passphrase, and parse into a valid key, for the
-			// same reason as above.
-			_, err = keyutils.ParsePrivateKeyPEMWithPassword(privKeyPEM, []byte(passphrasePrev))
-			if err != nil {
-				// We were not able to decrypt either with the main or backup passphrase, error
-				return err
-			}
-			// ok the above passphrase is correct, so decrypt the PEM block so we can re-encrypt -
-			// since the key was successfully decrypted above, there will be no error doing PEM
-			// decryption
-			unencryptedDER, _ := keyutils.DecryptPEMBlock(keyBlock, []byte(passphrasePrev))
-			unencryptedKeyBlock := &pem.Block{
-				Type:  keyBlock.Type,
-				Bytes: unencryptedDER,
-			}
-
-			// we were able to decrypt the key with the previous passphrase - if the current passphrase is empty,
-			// the we store the decrypted key in raft
-			finalKey = pem.EncodeToMemory(unencryptedKeyBlock)
-
-			// the current passphrase is not empty, so let's encrypt with the new one and store it in raft
-			if strPassphrase != "" {
-				finalKey, err = ca.EncryptECPrivateKey(finalKey, strPassphrase)
-				if err != nil {
-					log.G(ctx).WithError(err).Debugf("failed to rotate the key-encrypting-key for the root key material of cluster %s", clusterID)
-					return err
-				}
-			}
-		} else if strPassphrase != "" {
-			// If this key is not encrypted, and the passphrase is not nil, then we have to encrypt it
-			finalKey, err = ca.EncryptECPrivateKey(privKeyPEM, strPassphrase)
-			if err != nil {
-				log.G(ctx).WithError(err).Debugf("failed to rotate the key-encrypting-key for the root key material of cluster %s", clusterID)
-				return err
-			}
-		} else {
-			return nil // don't update if it's not encrypted and we don't want it encrypted
-		}
-
-		log.G(ctx).Infof("Updating the encryption on the root key material of cluster %s", clusterID)
-		cluster.RootCA.CAKey = finalKey
-		return store.UpdateCluster(tx, cluster)
-	})
 }
 
 // handleLeadershipEvents handles the is leader event or is follower event.
 func (m *Manager) handleLeadershipEvents(ctx context.Context, leadershipCh chan events.Event) {
+	// get the current leader and save it for logging leadership changes in
+	// this loop
+	oldLeader := m.getLeaderNodeID()
 	for {
 		select {
 		case leadershipEvent := <-leadershipCh:
@@ -891,6 +855,12 @@ func (m *Manager) handleLeadershipEvents(ctx context.Context, leadershipCh chan 
 				leaderMetric.Set(0)
 			}
 			m.mu.Unlock()
+
+			newLeader := m.getLeaderNodeID()
+			// maybe we should use logrus fields for old and new leader, so
+			// that users are better able to ingest leadership changes into log
+			// aggregators?
+			log.G(ctx).Infof("leadership changed from %v to %v", oldLeader, newLeader)
 		case <-ctx.Done():
 			return
 		}
@@ -938,7 +908,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	initialCAConfig := ca.DefaultCAConfig()
 	initialCAConfig.ExternalCAs = m.config.ExternalCAs
 
-	var unlockKeys []*api.EncryptionKey
+	var (
+		unlockKeys []*api.EncryptionKey
+		err        error
+	)
 	if m.config.AutoLockManagers {
 		unlockKeys = []*api.EncryptionKey{{
 			Subsystem: ca.ManagerRole,
@@ -991,12 +964,6 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		return nil
 	})
 
-	// Attempt to rotate the key-encrypting-key of the root CA key-material
-	err := m.rotateRootCAKEK(ctx, clusterID)
-	if err != nil {
-		log.G(ctx).WithError(err).Error("root key-encrypting-key rotation failed")
-	}
-
 	m.replicatedOrchestrator = replicated.NewReplicatedOrchestrator(s)
 	m.constraintEnforcer = constraintenforcer.New(s)
 	m.globalOrchestrator = global.NewGlobalOrchestrator(s)
@@ -1025,6 +992,8 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	}
 
 	go func(d *dispatcher.Dispatcher) {
+		// Initialize the dispatcher.
+		d.Init(m.raftNode, dispatcher.DefaultConfig(), drivers.New(m.config.PluginGetter), m.config.SecurityConfig)
 		if err := d.Run(ctx); err != nil {
 			log.G(ctx).WithError(err).Error("Dispatcher exited with an error")
 		}
@@ -1084,6 +1053,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 
 // becomeFollower shuts down the subsystems that are only run by the leader.
 func (m *Manager) becomeFollower() {
+	// The following components are gRPC services that are
+	// registered when creating the manager and will need
+	// to be re-registered if they are recreated.
+	// For simplicity, they are not nilled out.
 	m.dispatcher.Stop()
 	m.logbroker.Stop()
 	m.caserver.Stop()

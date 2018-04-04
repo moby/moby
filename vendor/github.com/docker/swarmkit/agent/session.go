@@ -67,7 +67,14 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 	)
 
 	if err != nil {
-		s.errs <- err
+		// since we are returning without launching the session goroutine, we
+		// need to provide the delay that is guaranteed by calling this
+		// function. We launch a goroutine so that we only delay the retry and
+		// avoid blocking the main loop.
+		go func() {
+			time.Sleep(delay)
+			s.errs <- err
+		}()
 		return s
 	}
 
