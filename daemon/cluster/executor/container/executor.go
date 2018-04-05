@@ -143,13 +143,22 @@ func (e *executor) Configure(ctx context.Context, node *api.Node) error {
 	attachments := make(map[string]string)
 
 	for _, na := range node.Attachments {
+		if na == nil || na.Network == nil || len(na.Addresses) == 0 {
+			// this should not happen, but we got a panic here and don't have a
+			// good idea about what the underlying data structure looks like.
+			logrus.WithField("NetworkAttachment", fmt.Sprintf("%#v", na)).
+				Warnf("skipping nil or malformed node network attachment entry")
+			continue
+		}
+
 		if na.Network.Spec.Ingress {
 			ingressNA = na
 		}
+
 		attachments[na.Network.ID] = na.Addresses[0]
 	}
 
-	if (ingressNA == nil) && (node.Attachment != nil) {
+	if (ingressNA == nil) && (node.Attachment != nil) && (len(node.Attachment.Addresses) > 0) {
 		ingressNA = node.Attachment
 		attachments[ingressNA.Network.ID] = ingressNA.Addresses[0]
 	}
