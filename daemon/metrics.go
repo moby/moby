@@ -13,13 +13,18 @@ import (
 const metricsPluginType = "MetricsCollector"
 
 var (
-	containerActions          metrics.LabeledTimer
-	networkActions            metrics.LabeledTimer
-	engineInfo                metrics.LabeledGauge
-	engineCpus                metrics.Gauge
-	engineMemory              metrics.Gauge
-	healthChecksCounter       metrics.Counter
-	healthChecksFailedCounter metrics.Counter
+	containerActions                 metrics.LabeledTimer
+	networkActions                   metrics.LabeledTimer
+	engineInfo                       metrics.LabeledGauge
+	engineCpus                       metrics.Gauge
+	engineMemory                     metrics.Gauge
+	healthChecksCounter              metrics.Counter
+	healthChecksActive               metrics.Gauge
+	healthChecksWaitDuration         metrics.Timer
+	healthChecksWaiters              metrics.Gauge
+	healthChecksWaitersFailedCounter metrics.Counter
+	healthChecksDuration             metrics.Timer
+	healthChecksFailedCounter        metrics.Counter
 
 	stateCtr *stateCounter
 )
@@ -50,6 +55,11 @@ func init() {
 	engineCpus = ns.NewGauge("engine_cpus", "The number of cpus that the host system of the engine has", metrics.Unit("cpus"))
 	engineMemory = ns.NewGauge("engine_memory", "The number of bytes of memory that the host system of the engine has", metrics.Bytes)
 	healthChecksCounter = ns.NewCounter("health_checks", "The total number of health checks")
+	healthChecksActive = ns.NewGauge("health_checks", "The number of health checks currently running", metrics.Unit("active"))
+	healthChecksWaiters = ns.NewGauge("health_checks", "The number of health checks waiting to run", metrics.Unit("waiters"))
+	healthChecksWaitersFailedCounter = ns.NewCounter("health_checks_waiters_failed", "Number of total failures to acquire the semaphore after timeout")
+	healthChecksWaitDuration = ns.NewTimer("health_checks_wait_duration", "Time spent waiting to acquire health check semaphore")
+	healthChecksDuration = ns.NewTimer("health_checks_duration", "Time spent waiting, executing, and registering the result of a single healthcheck")
 	healthChecksFailedCounter = ns.NewCounter("health_checks_failed", "The total number of failed health checks")
 
 	stateCtr = newStateCounter(ns.NewDesc("container_states", "The count of containers in various states", metrics.Unit("containers"), "state"))

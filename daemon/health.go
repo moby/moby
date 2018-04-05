@@ -195,13 +195,27 @@ loop:
 			logrus.Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
 			return
 		case <-time.After(probeInterval):
+			// TODO(stevvooe): Something is greatly amiss with healthchecks.
+			// Under heavy load, we have seen both poor performance of
+			// healthchecks and dead locking behavior. To mitigate this
+			// siutation, we limit the concurrency with a weighted semaphore
+			// but this is likely only a stop gap.
+			//
+			// Remove this comment when it is proven wrong or we refactor the
+			// healthcheck code.
 			startTime := time.Now()
+			healthChecksWaiters.Inc()
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)
 			if err := d.healthcheckLimiter.Acquire(ctx, 1); err != nil {
+				healthChecksWaiters.Dec()
+				healthChecksWaitersFailedCounter.Inc()
 				// if we see this, we have ourselves a nasty bug
 				logrus.WithError(err).Warnf("Healthcheck semaphore acquisition failed", c.ID)
 				continue loop
 			}
+			healthChecksWaitDuration.UpdateSince(startTime)
+			healthChecksWaiters.Dec()
+			healthChecksActive.Inc()
 
 			logrus.Debugf("Running health check for container %s ...", c.ID)
 			results := make(chan *types.HealthcheckResult, 1)
@@ -223,6 +237,7 @@ loop:
 					results <- result
 				}
 				d.healthcheckLimiter.Release(1)
+				healthChecksActive.Dec()
 				close(results)
 			}()
 			select {
@@ -235,6 +250,7 @@ loop:
 				return
 			case result := <-results:
 				handleProbeResult(d, c, result, stop)
+				healthChecksDuration.UpdateSince(startTime)
 				// Stop timeout
 				cancelProbe()
 			case <-ctx.Done():
