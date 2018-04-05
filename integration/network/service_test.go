@@ -23,18 +23,16 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	hostName := "host"
 	var instances uint64 = 1
 	serviceName := "TestService"
-	serviceSpec := swarmServiceSpec(serviceName, instances)
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: hostName})
 
-	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
-		QueryRegistry: false,
-	})
-	assert.NilError(t, err)
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithNetwork(hostName),
+	)
 
-	serviceID := serviceResp.ID
 	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = client.ServiceRemove(context.Background(), serviceID)
@@ -53,26 +51,24 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	poll.WaitOn(t, swarmIngressReady(client), swarm.NetworkPoll)
 
 	var instances uint64 = 1
-	serviceSpec := swarmServiceSpec(t.Name()+"-service", instances)
-	serviceSpec.EndpointSpec = &swarmtypes.EndpointSpec{
-		Ports: []swarmtypes.PortConfig{
-			{
-				Protocol:    swarmtypes.PortConfigProtocolTCP,
-				TargetPort:  80,
-				PublishMode: swarmtypes.PortConfigPublishModeIngress,
+
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(t.Name()+"-service"),
+		swarm.ServiceWithEndpoint(&swarmtypes.EndpointSpec{
+			Ports: []swarmtypes.PortConfig{
+				{
+					Protocol:    swarmtypes.PortConfigProtocolTCP,
+					TargetPort:  80,
+					PublishMode: swarmtypes.PortConfigPublishModeIngress,
+				},
 			},
-		},
-	}
+		}),
+	)
 
-	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
-		QueryRegistry: false,
-	})
-	assert.NilError(t, err)
-
-	serviceID := serviceResp.ID
 	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = client.ServiceRemove(context.Background(), serviceID)
