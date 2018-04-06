@@ -36,8 +36,8 @@ func TestConfigList(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(configs), 0))
 
-	testName0 := "test0"
-	testName1 := "test1"
+	testName0 := "test0-" + t.Name()
+	testName1 := "test1-" + t.Name()
 	testNames := []string{testName0, testName1}
 	sort.Strings(testNames)
 
@@ -122,7 +122,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 
 	ctx := context.Background()
 
-	testName := "test_config"
+	testName := "test_config-" + t.Name()
 
 	// This test case is ported from the original TestConfigsCreate
 	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
@@ -150,7 +150,7 @@ func TestConfigsUpdate(t *testing.T) {
 
 	ctx := context.Background()
 
-	testName := "test_config"
+	testName := "test_config-" + t.Name()
 
 	// This test case is ported from the original TestConfigsCreate
 	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
@@ -200,27 +200,30 @@ func TestTemplatedConfig(t *testing.T) {
 	ctx := context.Background()
 	client := swarm.GetClient(t, d)
 
+	referencedSecretName := "referencedsecret-" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "referencedsecret",
+			Name: referencedSecretName,
 		},
 		Data: []byte("this is a secret"),
 	}
 	referencedSecret, err := client.SecretCreate(ctx, referencedSecretSpec)
 	assert.Check(t, err)
 
+	referencedConfigName := "referencedconfig-" + t.Name()
 	referencedConfigSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "referencedconfig",
+			Name: referencedConfigName,
 		},
 		Data: []byte("this is a config"),
 	}
 	referencedConfig, err := client.ConfigCreate(ctx, referencedConfigSpec)
 	assert.Check(t, err)
 
+	templatedConfigName := "templated_config-" + t.Name()
 	configSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "templated_config",
+			Name: templatedConfigName,
 		},
 		Templating: &swarmtypes.Driver{
 			Name: "golang",
@@ -237,13 +240,13 @@ func TestTemplatedConfig(t *testing.T) {
 		swarm.ServiceWithConfig(
 			&swarmtypes.ConfigReference{
 				File: &swarmtypes.ConfigReferenceFileTarget{
-					Name: "/templated_config",
+					Name: "/" + templatedConfigName,
 					UID:  "0",
 					GID:  "0",
 					Mode: 0600,
 				},
 				ConfigID:   templatedConfig.ID,
-				ConfigName: "templated_config",
+				ConfigName: templatedConfigName,
 			},
 		),
 		swarm.ServiceWithConfig(
@@ -255,7 +258,7 @@ func TestTemplatedConfig(t *testing.T) {
 					Mode: 0600,
 				},
 				ConfigID:   referencedConfig.ID,
-				ConfigName: "referencedconfig",
+				ConfigName: referencedConfigName,
 			},
 		),
 		swarm.ServiceWithSecret(
@@ -267,7 +270,7 @@ func TestTemplatedConfig(t *testing.T) {
 					Mode: 0600,
 				},
 				SecretID:   referencedSecret.ID,
-				SecretName: "referencedsecret",
+				SecretName: referencedSecretName,
 			},
 		),
 		swarm.ServiceWithName("svc"),
@@ -288,7 +291,7 @@ func TestTemplatedConfig(t *testing.T) {
 	})
 
 	attach := swarm.ExecTask(t, d, task, types.ExecConfig{
-		Cmd:          []string{"/bin/cat", "/templated_config"},
+		Cmd:          []string{"/bin/cat", "/" + templatedConfigName},
 		AttachStdout: true,
 		AttachStderr: true,
 	})
@@ -303,7 +306,7 @@ func TestTemplatedConfig(t *testing.T) {
 		AttachStdout: true,
 		AttachStderr: true,
 	})
-	assertAttachedStream(t, attach, "tmpfs on /templated_config type tmpfs")
+	assertAttachedStream(t, attach, "tmpfs on /"+templatedConfigName+" type tmpfs")
 }
 
 func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect string) {
