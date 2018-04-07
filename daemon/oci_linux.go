@@ -685,12 +685,10 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	}
 
 	if c.HostConfig.Privileged {
-		if !s.Root.Readonly {
-			// clear readonly for /sys
-			for i := range s.Mounts {
-				if s.Mounts[i].Destination == "/sys" {
-					clearReadOnly(&s.Mounts[i])
-				}
+		// clear readonly for /sys
+		for i := range s.Mounts {
+			if s.Mounts[i].Destination == "/sys" {
+				clearReadOnly(&s.Mounts[i])
 			}
 		}
 		s.Linux.ReadonlyPaths = nil
