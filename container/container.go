@@ -423,18 +423,21 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	}
 
 	if _, ok := l.(logger.LogReader); !ok {
-		logPath, err := container.GetRootResourcePath("container-cached.log")
-		if err != nil {
-			return nil, err
-		}
-		info.LogPath = logPath
+		if cache.ShouldUseCache(cfg.Config) {
+			logPath, err := container.GetRootResourcePath("container-cached.log")
+			if err != nil {
+				return nil, err
+			}
 
-		if !container.LocalLogCacheMeta.HaveNotifyEnabled {
-			logrus.WithField("container", container.ID).Info("Configured log driver does not support reads, enabling local file cache for container logs")
-		}
-		l, err = cache.WithLocalCache(l, info)
-		if err != nil {
-			return nil, errors.Wrap(err, "error setting up local container log cache")
+			if !container.LocalLogCacheMeta.HaveNotifyEnabled {
+				logrus.WithField("container", container.ID).WithField("driver", container.HostConfig.LogConfig.Type).Info("Configured log driver does not support reads, enabling local file cache for container logs")
+				container.LocalLogCacheMeta.HaveNotifyEnabled = true
+			}
+			info.LogPath = logPath
+			l, err = cache.WithLocalCache(l, info)
+			if err != nil {
+				return nil, errors.Wrap(err, "error setting up local container log cache")
+			}
 		}
 	}
 	return l, nil

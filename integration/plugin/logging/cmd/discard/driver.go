@@ -62,6 +62,7 @@ func handle(mux *http.ServeMux) {
 		if f := d.logs[req.File]; f != nil {
 			f.Close()
 		}
+		d.mu.Unlock()
 		respond(nil, w)
 	})
 
