@@ -40,7 +40,7 @@ type Network interface {
 	CreateEndpoint(name string, options ...EndpointOption) (Endpoint, error)
 
 	// Delete the network.
-	Delete() error
+	Delete(options ...NetworkDeleteOption) error
 
 	// Endpoints returns the list of Endpoint(s) in this network.
 	Endpoints() []Endpoint
@@ -875,6 +875,28 @@ func (n *network) processOptions(options ...NetworkOption) {
 	}
 }
 
+type networkDeleteParams struct {
+	rmLBEndpoint bool
+}
+
+// NetworkDeleteOption is a type for optional parameters to pass to the
+// network.Delete() function.
+type NetworkDeleteOption func(p *networkDeleteParams)
+
+// NetworkDeleteOptionRemoveLB informs a network.Delete() operation that should
+// remove the load balancer endpoint for this network.  Note that the Delete()
+// method will automatically remove a load balancing endpoint for most networks
+// when the network is otherwise empty.  However, this does not occur for some
+// networks.  In particular, networks marked as ingress (which are supposed to
+// be more permanent than other overlay networks) won't automatically remove
+// the LB endpoint on Delete().  This method allows for explicit removal of
+// such networks provided there are no other endpoints present in the network.
+// If the network still has non-LB endpoints present, Delete() will not
+// remove the LB endpoint and will return an error.
+func NetworkDeleteOptionRemoveLB(p *networkDeleteParams) {
+	p.rmLBEndpoint = true
+}
+
 func (n *network) resolveDriver(name string, load bool) (driverapi.Driver, *driverapi.Capability, error) {
 	c := n.getController()
 
@@ -938,11 +960,23 @@ func (n *network) driver(load bool) (driverapi.Driver, error) {
 	return d, nil
 }
 
-func (n *network) Delete() error {
-	return n.delete(false)
+func (n *network) Delete(options ...NetworkDeleteOption) error {
+	var params networkDeleteParams
+	for _, opt := range options {
+		opt(&params)
+	}
+	return n.delete(false, params.rmLBEndpoint)
 }
 
-func (n *network) delete(force bool) error {
+// This function gets called in 3 ways:
+//  * Delete() -- (false, false)
+//      remove if endpoint count == 0 or endpoint count == 1 and
+//      there is a load balancer IP
+//  * Delete(libnetwork.NetworkDeleteOptionRemoveLB) -- (false, true)
+//      remove load balancer and network if endpoint count == 1
+//  * controller.networkCleanup() -- (true, true)
+//      remove the network no matter what
+func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	n.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -957,10 +991,32 @@ func (n *network) delete(force bool) error {
 		return &UnknownNetworkError{name: name, id: id}
 	}
 
+	// Only remove ingress on force removal or explicit LB endpoint removal
+	if n.ingress && !force && !rmLBEndpoint {
+		return &ActiveEndpointsError{name: n.name, id: n.id}
+	}
+
+	// Check that the network is empty
+	var emptyCount uint64 = 0
 	if len(n.loadBalancerIP) != 0 {
-		endpoints := n.Endpoints()
-		if force || (len(endpoints) == 1 && !n.ingress) {
-			n.deleteLoadBalancerSandbox()
+		emptyCount = 1
+	}
+	if !force && n.getEpCnt().EndpointCnt() > emptyCount {
+		if n.configOnly {
+			return types.ForbiddenErrorf("configuration network %q is in use", n.Name())
+		}
+		return &ActiveEndpointsError{name: n.name, id: n.id}
+	}
+
+	if len(n.loadBalancerIP) != 0 {
+		// If we got to this point, then the following must hold:
+		//  * force is true OR endpoint count == 1
+		if err := n.deleteLoadBalancerSandbox(); err != nil {
+			if !force {
+				return err
+			}
+			// continue deletion when force is true even on error
+			logrus.Warnf("Error deleting load balancer sandbox: %v", err)
 		}
 		//Reload the network from the store to update the epcnt.
 		n, err = c.getNetworkFromStore(id)
@@ -969,12 +1025,10 @@ func (n *network) delete(force bool) error {
 		}
 	}
 
-	if !force && n.getEpCnt().EndpointCnt() != 0 {
-		if n.configOnly {
-			return types.ForbiddenErrorf("configuration network %q is in use", n.Name())
-		}
-		return &ActiveEndpointsError{name: n.name, id: n.id}
-	}
+	// Up to this point, errors that we returned were recoverable.
+	// From here on, any errors leave us in an inconsistent state.
+	// This is unfortunate, but there isn't a safe way to
+	// reconstitute a load-balancer endpoint after removing it.
 
 	// Mark the network for deletion
 	n.inDelete = true
@@ -2109,7 +2163,7 @@ func (n *network) createLoadBalancerSandbox() error {
 	return sb.EnableService()
 }
 
-func (n *network) deleteLoadBalancerSandbox() {
+func (n *network) deleteLoadBalancerSandbox() error {
 	n.Lock()
 	c := n.ctrlr
 	name := n.name
@@ -2141,6 +2195,7 @@ func (n *network) deleteLoadBalancerSandbox() {
 	}
 
 	if err := c.SandboxDestroy(sandboxName); err != nil {
-		logrus.Warnf("Failed to delete %s sandbox: %v", sandboxName, err)
+		return fmt.Errorf("Failed to delete %s sandbox: %v", sandboxName, err)
 	}
+	return nil
 }
