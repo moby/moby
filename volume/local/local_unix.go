@@ -27,6 +27,10 @@ var (
 		"o":      true, // generic mount options
 		"device": true, // device to mount from
 	}
+	mandatoryOpts = map[string]struct{}{
+		"device": {},
+		"type":   {},
+	}
 )
 
 type optsConfig struct {

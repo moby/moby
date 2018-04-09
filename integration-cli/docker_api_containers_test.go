@@ -1835,14 +1835,62 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 					Image: "busybox",
 				},
 				hostConfig: containertypes.HostConfig{
-					Mounts: []mounttypes.Mount{{
-						Type:   "volume",
-						Source: "hello3",
-						Target: destPath,
-						VolumeOptions: &mounttypes.VolumeOptions{
-							DriverConfig: &mounttypes.Driver{
-								Name:    "local",
-								Options: map[string]string{"o": "size=1"}}}}}},
+					Mounts: []mounttypes.Mount{
+						{
+							Type:   "volume",
+							Source: "missing-device-opt",
+							Target: destPath,
+							VolumeOptions: &mounttypes.VolumeOptions{
+								DriverConfig: &mounttypes.Driver{
+									Name:    "local",
+									Options: map[string]string{"type": "tmpfs"},
+								},
+							},
+						},
+					},
+				},
+				msg: `missing required option: "device"`,
+			},
+			{
+				config: containertypes.Config{
+					Image: "busybox",
+				},
+				hostConfig: containertypes.HostConfig{
+					Mounts: []mounttypes.Mount{
+						{
+							Type:   "volume",
+							Source: "missing-type-opt",
+							Target: destPath,
+							VolumeOptions: &mounttypes.VolumeOptions{
+								DriverConfig: &mounttypes.Driver{
+									Name:    "local",
+									Options: map[string]string{"device": "tmpfs"},
+								},
+							},
+						},
+					},
+				},
+				msg: `missing required option: "type"`,
+			},
+			{
+				config: containertypes.Config{
+					Image: "busybox",
+				},
+				hostConfig: containertypes.HostConfig{
+					Mounts: []mounttypes.Mount{
+						{
+							Type:   "volume",
+							Source: "hello4",
+							Target: destPath,
+							VolumeOptions: &mounttypes.VolumeOptions{
+								DriverConfig: &mounttypes.Driver{
+									Name:    "local",
+									Options: map[string]string{"o": "size=1", "type": "tmpfs", "device": "tmpfs"},
+								},
+							},
+						},
+					},
+				},
 				msg: "",
 			},
 			{
@@ -1869,7 +1917,6 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 						}}}},
 				msg: "",
 			},
-
 			{
 				config: containertypes.Config{
 					Image: "busybox",
