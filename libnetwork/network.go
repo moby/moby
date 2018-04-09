@@ -2056,8 +2056,20 @@ func (c *controller) getConfigNetwork(name string) (*network, error) {
 	return n.(*network), nil
 }
 
+func (n *network) lbSandboxName() string {
+	name := n.name + "-sbox"
+	if n.ingress {
+		name = "lb-" + n.name
+	}
+	return name
+}
+
+func (n *network) lbEndpointName() string {
+	return n.name + "-endpoint"
+}
+
 func (n *network) createLoadBalancerSandbox() error {
-	sandboxName := n.name + "-sbox"
+	sandboxName := n.lbSandboxName()
 	sbOptions := []SandboxOption{}
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
@@ -2074,7 +2086,7 @@ func (n *network) createLoadBalancerSandbox() error {
 		}
 	}()
 
-	endpointName := n.name + "-endpoint"
+	endpointName := n.lbEndpointName()
 	epOptions := []EndpointOption{
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
@@ -2103,8 +2115,8 @@ func (n *network) deleteLoadBalancerSandbox() {
 	name := n.name
 	n.Unlock()
 
-	endpointName := name + "-endpoint"
-	sandboxName := name + "-sbox"
+	sandboxName := n.lbSandboxName()
+	endpointName := n.lbEndpointName()
 
 	endpoint, err := n.EndpointByName(endpointName)
 	if err != nil {
