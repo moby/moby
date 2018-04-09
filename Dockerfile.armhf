@@ -64,7 +64,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install Go
 # IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.9.4
+ENV GO_VERSION 1.9.5
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-armv6l.tar.gz" \
 	| tar -xzC /usr/local
 ENV PATH /go/bin:/usr/local/go/bin:$PATH
