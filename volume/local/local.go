@@ -353,9 +353,17 @@ func (v *localVolume) unmount() error {
 }
 
 func validateOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
 	for opt := range opts {
 		if !validOpts[opt] {
 			return validationError(fmt.Sprintf("invalid option key: %q", opt))
+		}
+	}
+	for opt := range mandatoryOpts {
+		if _, ok := opts[opt]; !ok {
+			return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", opt))
 		}
 	}
 	return nil
