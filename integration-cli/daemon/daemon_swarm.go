@@ -644,18 +644,3 @@ func (d *Swarm) CheckLeader(c *check.C) (interface{}, check.CommentInterface) {
 	}
 	return fmt.Errorf("no leader"), check.Commentf("could not find leader")
 }
-
-// CmdRetryOutOfSequence tries the specified command against the current daemon for 10 times
-func (d *Swarm) CmdRetryOutOfSequence(args ...string) (string, error) {
-	for i := 0; ; i++ {
-		out, err := d.Cmd(args...)
-		if err != nil {
-			if strings.Contains(out, "update out of sequence") {
-				if i < 10 {
-					continue
-				}
-			}
-		}
-		return out, err
-	}
-}
