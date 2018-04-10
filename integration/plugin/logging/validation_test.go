@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
 )
@@ -17,7 +17,7 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	skip.IfCondition(t, testEnv.IsRemoteDaemon(), "cannot run daemon when remote daemon")
 	t.Parallel()
 
-	d := daemon.New(t, "", dockerdBinary, daemon.Config{})
+	d := daemon.New(t)
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 

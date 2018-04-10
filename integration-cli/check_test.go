@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/docker/docker/integration-cli/registry"
+	testdaemon "github.com/docker/docker/internal/test/daemon"
 	ienv "github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
@@ -100,7 +101,7 @@ func (s *DockerSuite) OnTimeout(c *check.C) {
 
 	daemonPid := int(rawPid)
 	if daemonPid > 0 {
-		daemon.SignalDaemonDump(daemonPid)
+		testdaemon.SignalDaemonDump(daemonPid)
 	}
 }
 
@@ -285,7 +286,7 @@ func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
-	filepath.Walk(daemon.SockRoot, func(path string, fi os.FileInfo, err error) error {
+	filepath.Walk(testdaemon.SockRoot, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			// ignore errors here
 			// not cleaning up sockets is not really an error
@@ -296,7 +297,7 @@ func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
 		}
 		return nil
 	})
-	os.RemoveAll(daemon.SockRoot)
+	os.RemoveAll(testdaemon.SockRoot)
 }
 
 const defaultSwarmPort = 2477
