@@ -40,7 +40,7 @@ const notaryHost = "localhost:4443"
 const notaryURL = "https://" + notaryHost
 
 var SuccessTagging = icmd.Expected{
-	Err: "Tagging",
+	Out: "Tagging",
 }
 
 var SuccessSigningAndPushing = icmd.Expected{
