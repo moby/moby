@@ -69,7 +69,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add secret
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--detach", "test", "--secret-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	out, err = d.Cmd("service", "update", "--detach", "test", "--secret-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
@@ -84,7 +84,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateSecrets(c *check.C) {
 	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
 
 	// remove
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--detach", "test", "--secret-rm", testName)
+	out, err = d.Cmd("service", "update", "--detach", "test", "--secret-rm", testName)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
@@ -111,7 +111,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateConfigs(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// add config
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--detach", "test", "--config-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
+	out, err = d.Cmd("service", "update", "--detach", "test", "--config-add", fmt.Sprintf("source=%s,target=%s", testName, testTarget))
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
@@ -126,7 +126,7 @@ func (s *DockerSwarmSuite) TestServiceUpdateConfigs(c *check.C) {
 	c.Assert(refs[0].File.Name, checker.Equals, testTarget)
 
 	// remove
-	out, err = d.CmdRetryOutOfSequence("service", "update", "--detach", "test", "--config-rm", testName)
+	out, err = d.Cmd("service", "update", "--detach", "test", "--config-rm", testName)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
