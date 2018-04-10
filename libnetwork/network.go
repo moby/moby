@@ -2122,7 +2122,7 @@ func (n *network) lbEndpointName() string {
 	return n.name + "-endpoint"
 }
 
-func (n *network) createLoadBalancerSandbox() error {
+func (n *network) createLoadBalancerSandbox() (retErr error) {
 	sandboxName := n.lbSandboxName()
 	sbOptions := []SandboxOption{}
 	if n.ingress {
@@ -2133,9 +2133,9 @@ func (n *network) createLoadBalancerSandbox() error {
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if e := n.ctrlr.SandboxDestroy(sandboxName); e != nil {
-				logrus.Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, err, e)
+				logrus.Warnf("could not delete sandbox %s on failure on failure (%v): %v", sandboxName, retErr, e)
 			}
 		}
 	}()
@@ -2150,9 +2150,9 @@ func (n *network) createLoadBalancerSandbox() error {
 		return err
 	}
 	defer func() {
-		if err != nil {
+		if retErr != nil {
 			if e := ep.Delete(true); e != nil {
-				logrus.Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, err, e)
+				logrus.Warnf("could not delete endpoint %s on failure on failure (%v): %v", endpointName, retErr, e)
 			}
 		}
 	}()
@@ -2160,6 +2160,7 @@ func (n *network) createLoadBalancerSandbox() error {
 	if err := ep.Join(sb, nil); err != nil {
 		return err
 	}
+
 	return sb.EnableService()
 }
 
