@@ -291,9 +291,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 
 	// Add loadbalancer service and backend in all sandboxes in
 	// the network only if vip is valid.
-	if len(vip) != 0 {
-		n.(*network).addLBBackend(ip, vip, lb, ingressPorts)
-	}
+	n.(*network).addLBBackend(ip, lb)
 
 	// Add the appropriate name resolutions
 	c.addEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, addService, "addServiceBinding")
@@ -368,8 +366,8 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
-	if len(vip) != 0 && entries == 0 {
-		n.(*network).rmLBBackend(ip, vip, lb, ingressPorts, rmService, fullRemove)
+	if entries == 0 {
+		n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)
 	}
 
 	// Delete the name resolutions
