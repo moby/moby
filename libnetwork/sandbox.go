@@ -744,7 +744,8 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 	ep.Unlock()
 
 	if len(vip) != 0 {
-		if err := osSbox.RemoveLoopbackAliasIP(&net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}); err != nil {
+		loopName := osSbox.GetLoopbackIfaceName()
+		if err := osSbox.RemoveAliasIP(loopName, &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}); err != nil {
 			logrus.Warnf("Remove virtual IP %v failed: %v", vip, err)
 		}
 	}
@@ -862,7 +863,8 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	}
 
 	if len(ep.virtualIP) != 0 {
-		err := sb.osSbox.AddLoopbackAliasIP(&net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)})
+		loopName := sb.osSbox.GetLoopbackIfaceName()
+		err := sb.osSbox.AddAliasIP(loopName, &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)})
 		if err != nil {
 			return fmt.Errorf("failed to add virtual IP %v: %v", ep.virtualIP, err)
 		}
