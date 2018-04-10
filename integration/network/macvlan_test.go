@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -24,7 +24,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
@@ -53,7 +53,7 @@ func TestDockerNetworkMacvlanOverlapParent(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
@@ -95,7 +95,7 @@ func TestDockerNetworkMacvlanSubinterface(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
@@ -131,7 +131,7 @@ func TestDockerNetworkMacvlanBridgeNilParent(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 	client, err := d.NewClient()
@@ -157,7 +157,7 @@ func TestDockerNetworkMacvlanBridgeInternal(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 	client, err := d.NewClient()
@@ -191,7 +191,7 @@ func TestDockerNetworkMacvlanMultiSubnet(t *testing.T) {
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 	t.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
 
-	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 	client, err := d.NewClient()

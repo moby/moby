@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/test/daemon"
 
 	"github.com/gotestyourself/gotestyourself/assert"
 )
@@ -33,7 +33,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 		t.Skip("systemd not available")
 	}
 
-	d := daemon.New(t, "docker", "dockerd", daemon.Config{})
+	d := daemon.New(t)
 	client, err := d.NewClient()
 	assert.NilError(t, err)
 	d.StartWithBusybox(t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")
