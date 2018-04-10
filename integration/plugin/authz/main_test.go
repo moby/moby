@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/integration-cli/daemon"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/plugins"
@@ -24,8 +24,6 @@ var (
 	d       *daemon.Daemon
 	server  *httptest.Server
 )
-
-const dockerdBinary = "dockerd"
 
 func TestMain(m *testing.M) {
 	var err error
@@ -52,9 +50,7 @@ func setupTest(t *testing.T) func() {
 	skip.IfCondition(t, testEnv.IsRemoteDaemon(), "cannot run daemon when remote daemon")
 	environment.ProtectAll(t, testEnv)
 
-	d = daemon.New(t, "", dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	d = daemon.New(t, daemon.WithExperimental)
 
 	return func() {
 		if d != nil {

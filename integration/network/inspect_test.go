@@ -16,7 +16,6 @@ import (
 )
 
 const defaultSwarmPort = 2477
-const dockerdBinary = "dockerd"
 
 func TestInspectNetwork(t *testing.T) {
 	defer setupTest(t)()

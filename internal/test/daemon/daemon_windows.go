@@ -1,10 +1,9 @@
-package daemon // import "github.com/docker/docker/integration-cli/daemon"
+package daemon // import "github.com/docker/docker/internal/test/daemon"
 
 import (
 	"fmt"
 	"strconv"
 
-	"github.com/go-check/check"
 	"golang.org/x/sys/windows"
 )
 
@@ -22,5 +21,5 @@ func signalDaemonReload(pid int) error {
 	return fmt.Errorf("daemon reload not supported")
 }
 
-func cleanupExecRoot(c *check.C, execRoot string) {
+func cleanupExecRoot(t testingT, execRoot string) {
 }

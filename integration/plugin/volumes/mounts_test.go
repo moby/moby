@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
@@ -17,7 +17,7 @@ import (
 func TestPluginWithDevMounts(t *testing.T) {
 	t.Parallel()
 
-	d := daemon.New(t, "", dockerdBinary, daemon.Config{})
+	d := daemon.New(t)
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 

@@ -1,16 +1,15 @@
 // +build !windows
 
-package daemon // import "github.com/docker/docker/integration-cli/daemon"
+package daemon // import "github.com/docker/docker/internal/test/daemon"
 
 import (
 	"os"
 	"path/filepath"
 
-	"github.com/go-check/check"
 	"golang.org/x/sys/unix"
 )
 
-func cleanupExecRoot(c *check.C, execRoot string) {
+func cleanupExecRoot(t testingT, execRoot string) {
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting
@@ -19,7 +18,7 @@ func cleanupExecRoot(c *check.C, execRoot string) {
 	netnsPath := filepath.Join(execRoot, "netns")
 	filepath.Walk(netnsPath, func(path string, info os.FileInfo, err error) error {
 		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
-			c.Logf("unmount of %s failed: %v", path, err)
+			t.Logf("unmount of %s failed: %v", path, err)
 		}
 		os.Remove(path)
 		return nil

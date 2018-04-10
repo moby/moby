@@ -12,8 +12,6 @@ var (
 	testEnv *environment.Execution
 )
 
-const dockerdBinary = "dockerd"
-
 func TestMain(m *testing.M) {
 	var err error
 	testEnv, err = environment.New()
