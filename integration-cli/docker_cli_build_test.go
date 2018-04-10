@@ -4120,7 +4120,6 @@ func (s *DockerTrustSuite) TestBuildContextDirIsSymlink(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
-	c.Skip("Blacklisting for Docker CE")
 	testRequires(c, NotaryHosting)
 
 	latestTag := s.setupTrustedImage(c, "trusted-build-releases-role")
@@ -4152,7 +4151,6 @@ func (s *DockerTrustSuite) TestTrustedBuildTagFromReleasesRole(c *check.C) {
 }
 
 func (s *DockerTrustSuite) TestTrustedBuildTagIgnoresOtherDelegationRoles(c *check.C) {
-	c.Skip("Blacklisting for Docker CE")
 	testRequires(c, NotaryHosting)
 
 	latestTag := s.setupTrustedImage(c, "trusted-build-releases-role")
