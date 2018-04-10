@@ -540,6 +540,12 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 		}
 	}()
 
+	// Load balancing endpoints should never have a default gateway nor
+	// should they alter the status of a network's default gateway
+	if ep.loadBalancer && !sb.ingress {
+		return nil
+	}
+
 	if sb.needDefaultGW() && sb.getEndpointInGWNetwork() == nil {
 		return sb.setupDefaultGW()
 	}

@@ -128,9 +128,6 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		return
 	}
 
-	vip := lb.vip
-	ingressPorts := lb.service.ingressPorts
-
 	if system.GetOSVersion().Build > 16236 {
 		if numEnabledBackends(lb) > 0 {
 			//Reprogram HNS (actually VFP) with the existing backends.
@@ -169,7 +166,7 @@ func numEnabledBackends(lb *loadBalancer) int {
 	return nEnabled
 }
 
-func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
+func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
 }
 
 func arrangeIngressFilterRule() {

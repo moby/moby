@@ -997,8 +997,8 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 	}
 
 	// Check that the network is empty
-	var emptyCount uint64 = 0
-	if len(n.loadBalancerIP) != 0 {
+	var emptyCount uint64
+	if n.hasLoadBalancerEndpoint() {
 		emptyCount = 1
 	}
 	if !force && n.getEpCnt().EndpointCnt() > emptyCount {
@@ -1008,7 +1008,7 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 		return &ActiveEndpointsError{name: n.name, id: n.id}
 	}
 
-	if len(n.loadBalancerIP) != 0 {
+	if n.hasLoadBalancerEndpoint() {
 		// If we got to this point, then the following must hold:
 		//  * force is true OR endpoint count == 1
 		if err := n.deleteLoadBalancerSandbox(); err != nil {
@@ -1076,9 +1076,6 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 
 	// Cleanup the service discovery for this network
 	c.cleanupServiceDiscovery(n.ID())
-
-	// Cleanup the load balancer
-	c.cleanupServiceBindings(n.ID())
 
 removeFromStore:
 	// deleteFromStore performs an atomic delete operation and the
@@ -1931,6 +1928,10 @@ func (n *network) hasSpecialDriver() bool {
 	return n.Type() == "host" || n.Type() == "null"
 }
 
+func (n *network) hasLoadBalancerEndpoint() bool {
+	return len(n.loadBalancerIP) != 0
+}
+
 func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	var ipv6Miss bool
 
@@ -2111,9 +2112,9 @@ func (c *controller) getConfigNetwork(name string) (*network, error) {
 }
 
 func (n *network) lbSandboxName() string {
-	name := n.name + "-sbox"
+	name := "lb-" + n.name
 	if n.ingress {
-		name = "lb-" + n.name
+		name = n.name + "-sbox"
 	}
 	return name
 }
@@ -2144,6 +2145,10 @@ func (n *network) createLoadBalancerSandbox() (retErr error) {
 	epOptions := []EndpointOption{
 		CreateOptionIpam(n.loadBalancerIP, nil, nil, nil),
 		CreateOptionLoadBalancer(),
+	}
+	if n.hasLoadBalancerEndpoint() && !n.ingress {
+		// Mark LB endpoints as anonymous so they don't show up in DNS
+		epOptions = append(epOptions, CreateOptionAnonymous())
 	}
 	ep, err := n.createEndpoint(endpointName, epOptions...)
 	if err != nil {

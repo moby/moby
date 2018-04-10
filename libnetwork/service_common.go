@@ -289,8 +289,7 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		logrus.Warnf("addServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
-	// Add loadbalancer service and backend in all sandboxes in
-	// the network only if vip is valid.
+	// Add loadbalancer service and backend to the network
 	n.(*network).addLBBackend(ip, lb)
 
 	// Add the appropriate name resolutions
@@ -304,11 +303,6 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
 
 	var rmService bool
-
-	n, err := c.NetworkByID(nID)
-	if err != nil {
-		return err
-	}
 
 	skey := serviceKey{
 		id:    svcID,
@@ -367,7 +361,14 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
 	if entries == 0 {
-		n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)
+		// The network may well have been deleted before the last
+		// of the service bindings.  That's ok, because removing
+		// the network sandbox implicitly removes the backend
+		// service bindings.
+		n, err := c.NetworkByID(nID)
+		if err == nil {
+			n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)
+		}
 	}
 
 	// Delete the name resolutions
