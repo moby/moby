@@ -67,6 +67,13 @@ type Daemon struct {
 	experimental  bool
 	dockerdBinary string
 	log           logT
+
+	// swarm related field
+	swarmListenAddr string
+	SwarmPort       int // FIXME(vdemeester) should probably not be exported
+
+	// cached information
+	CachedInfo types.Info
 }
 
 // New returns a Daemon instance to be used for testing.
@@ -98,14 +105,16 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		}
 	}
 	d := &Daemon{
-		id:            id,
-		Folder:        daemonFolder,
-		Root:          daemonRoot,
-		storageDriver: storageDriver,
-		userlandProxy: userlandProxy,
-		execRoot:      filepath.Join(os.TempDir(), "docker-execroot", id),
-		dockerdBinary: defaultDockerdBinary,
-		log:           t,
+		id:              id,
+		Folder:          daemonFolder,
+		Root:            daemonRoot,
+		storageDriver:   storageDriver,
+		userlandProxy:   userlandProxy,
+		execRoot:        filepath.Join(os.TempDir(), "docker-execroot", id),
+		dockerdBinary:   defaultDockerdBinary,
+		swarmListenAddr: defaultSwarmListenAddr,
+		SwarmPort:       defaultSwarmPort,
+		log:             t,
 	}
 
 	for _, op := range ops {
@@ -150,10 +159,21 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 }
 
 // NewClient creates new client based on daemon's socket path
+// FIXME(vdemeester): replace NewClient with NewClientT
 func (d *Daemon) NewClient() (*client.Client, error) {
 	return client.NewClientWithOpts(
 		client.FromEnv,
 		client.WithHost(d.Sock()))
+}
+
+// NewClientT creates new client based on daemon's socket path
+// FIXME(vdemeester): replace NewClient with NewClientT
+func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
+	c, err := client.NewClientWithOpts(
+		client.FromEnv,
+		client.WithHost(d.Sock()))
+	assert.NilError(t, err, "cannot create daemon client")
+	return c
 }
 
 // CleanupExecRoot cleans the daemon exec root (network namespaces, ...)
@@ -610,7 +630,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 
 // Info returns the info struct for this daemon
 func (d *Daemon) Info(t assert.TestingT) types.Info {
-	apiclient, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
+	apiclient, err := d.NewClient()
 	assert.NilError(t, err)
 	info, err := apiclient.Info(context.Background())
 	assert.NilError(t, err)

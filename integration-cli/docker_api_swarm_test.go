@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/request"
+	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/swarmkit/ca"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -35,30 +36,30 @@ var defaultReconciliationTimeout = 30 * time.Second
 func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	// todo: should find a better way to verify that components are running than /info
 	d1 := s.AddDaemon(c, true, true)
-	info, err := d1.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d1.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 	c.Assert(info.Cluster.RootRotationInProgress, checker.False)
 
 	d2 := s.AddDaemon(c, true, false)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// Leaving cluster
-	c.Assert(d2.Leave(false), checker.IsNil)
+	c.Assert(d2.SwarmLeave(false), checker.IsNil)
 
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: d1.JoinTokens(c).Worker, RemoteAddrs: []string{d1.ListenAddr}}), checker.IsNil)
+	d2.SwarmJoin(c, swarm.JoinRequest{
+		ListenAddr:  d1.SwarmListenAddr(),
+		JoinToken:   d1.JoinTokens(c).Worker,
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
@@ -69,93 +70,100 @@ func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	d1.Start(c)
 	d2.Start(c)
 
-	info, err = d1.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d1.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
-	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
+	d1.SwarmInit(c, swarm.InitRequest{})
 
 	// todo: error message differs depending if some components of token are valid
 
 	d2 := s.AddDaemon(c, false, false)
-	err := d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.ListenAddr}})
+	c2 := d2.NewClientT(c)
+	err := c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
-	info, err := d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	err = d2.Join(swarm.JoinRequest{JoinToken: "foobaz", RemoteAddrs: []string{d1.ListenAddr}})
+	err = c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		JoinToken:   "foobaz",
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "invalid join token")
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	workerToken := d1.JoinTokens(c).Worker
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.ListenAddr}}), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	d2.SwarmJoin(c, swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		JoinToken:   workerToken,
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.Leave(false), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	// change tokens
 	d1.RotateTokens(c)
 
-	err = d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.ListenAddr}})
+	err = c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		JoinToken:   workerToken,
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	workerToken = d1.JoinTokens(c).Worker
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.ListenAddr}}), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	d2.SwarmJoin(c, swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.SwarmListenAddr()}})
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.Leave(false), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
 	// change spec, don't change tokens
 	d1.UpdateSwarm(c, func(s *swarm.Spec) {})
 
-	err = d2.Join(swarm.JoinRequest{RemoteAddrs: []string{d1.ListenAddr}})
+	err = c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "join token is necessary")
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
-	c.Assert(d2.Join(swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.ListenAddr}}), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	d2.SwarmJoin(c, swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.SwarmListenAddr()}})
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.Leave(false), checker.IsNil)
-	info, err = d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
 
 func (s *DockerSwarmSuite) TestUpdateSwarmAddExternalCA(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
-	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
+	d1.SwarmInit(c, swarm.InitRequest{})
 	d1.UpdateSwarm(c, func(s *swarm.Spec) {
 		s.CAConfig.ExternalCAs = []*swarm.ExternalCA{
 			{
@@ -169,8 +177,7 @@ func (s *DockerSwarmSuite) TestUpdateSwarmAddExternalCA(c *check.C) {
 			},
 		}
 	})
-	info, err := d1.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d1.SwarmInfo(c)
 	c.Assert(info.Cluster.Spec.CAConfig.ExternalCAs, checker.HasLen, 2)
 	c.Assert(info.Cluster.Spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, "")
 	c.Assert(info.Cluster.Spec.CAConfig.ExternalCAs[1].CACert, checker.Equals, "cacert")
@@ -182,28 +189,32 @@ func (s *DockerSwarmSuite) TestAPISwarmCAHash(c *check.C) {
 	splitToken := strings.Split(d1.JoinTokens(c).Worker, "-")
 	splitToken[2] = "1kxftv4ofnc6mt30lmgipg6ngf9luhwqopfk1tz6bdmnkubg0e"
 	replacementToken := strings.Join(splitToken, "-")
-	err := d2.Join(swarm.JoinRequest{JoinToken: replacementToken, RemoteAddrs: []string{d1.ListenAddr}})
+	c2 := d2.NewClientT(c)
+	err := c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
+		JoinToken:   replacementToken,
+		RemoteAddrs: []string{d1.SwarmListenAddr()},
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "remote CA does not match fingerprint")
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	d1 := s.AddDaemon(c, false, false)
-	c.Assert(d1.Init(swarm.InitRequest{}), checker.IsNil)
+	d1.SwarmInit(c, swarm.InitRequest{})
 	d2 := s.AddDaemon(c, true, false)
 
-	info, err := d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleManager
 	})
 
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckControlAvailable, checker.True)
 
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleWorker
 	})
 
@@ -228,7 +239,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	}, checker.Equals, "swarm-worker")
 
 	// Demoting last node should fail
-	node := d1.GetNode(c, d1.NodeID)
+	node := d1.GetNode(c, d1.NodeID())
 	node.Spec.Role = swarm.NodeRoleWorker
 	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
 	res, body, err := request.DoOnHost(d1.Sock(), url, request.Method("POST"), request.JSONBody(node.Spec))
@@ -246,13 +257,12 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	if !strings.Contains(string(b), "last manager of the swarm") {
 		c.Assert(string(b), checker.Contains, "this would result in a loss of quorum")
 	}
-	info, err = d1.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info = d1.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 	c.Assert(info.ControlAvailable, checker.True)
 
 	// Promote already demoted node
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Role = swarm.NodeRoleManager
 	})
 
@@ -278,7 +288,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderProxy(c *check.C) {
 
 	// 3 services should be started now, because the requests were proxied to leader
 	// query each node and make sure it returns 3 services
-	for _, d := range []*daemon.Swarm{d1, d2, d3} {
+	for _, d := range []*daemon.Daemon{d1, d2, d3} {
 		services := d.ListServices(c)
 		c.Assert(services, checker.HasLen, 3)
 	}
@@ -291,23 +301,23 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	d3 := s.AddDaemon(c, true, true)
 
 	// assert that the first node we made is the leader, and the other two are followers
-	c.Assert(d1.GetNode(c, d1.NodeID).ManagerStatus.Leader, checker.True)
-	c.Assert(d1.GetNode(c, d2.NodeID).ManagerStatus.Leader, checker.False)
-	c.Assert(d1.GetNode(c, d3.NodeID).ManagerStatus.Leader, checker.False)
+	c.Assert(d1.GetNode(c, d1.NodeID()).ManagerStatus.Leader, checker.True)
+	c.Assert(d1.GetNode(c, d2.NodeID()).ManagerStatus.Leader, checker.False)
+	c.Assert(d1.GetNode(c, d3.NodeID()).ManagerStatus.Leader, checker.False)
 
 	d1.Stop(c)
 
 	var (
-		leader    *daemon.Swarm   // keep track of leader
-		followers []*daemon.Swarm // keep track of followers
+		leader    *daemon.Daemon   // keep track of leader
+		followers []*daemon.Daemon // keep track of followers
 	)
-	checkLeader := func(nodes ...*daemon.Swarm) checkF {
+	checkLeader := func(nodes ...*daemon.Daemon) checkF {
 		return func(c *check.C) (interface{}, check.CommentInterface) {
 			// clear these out before each run
 			leader = nil
 			followers = nil
 			for _, d := range nodes {
-				if d.GetNode(c, d.NodeID).ManagerStatus.Leader {
+				if d.GetNode(c, d.NodeID()).ManagerStatus.Leader {
 					leader = d
 				} else {
 					followers = append(followers, d)
@@ -344,7 +354,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	c.Assert(leader, checker.NotNil)
 	c.Assert(followers, checker.HasLen, 2)
 	// and that after we added d1 back, the leader hasn't changed
-	c.Assert(leader.NodeID, checker.Equals, stableleader.NodeID)
+	c.Assert(leader.NodeID(), checker.Equals, stableleader.NodeID())
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
@@ -400,8 +410,8 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances+1)
 
-	c.Assert(d.Leave(false), checker.NotNil)
-	c.Assert(d.Leave(true), checker.IsNil)
+	c.Assert(d.SwarmLeave(false), checker.NotNil)
+	c.Assert(d.SwarmLeave(true), checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
@@ -420,17 +430,18 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	id = strings.TrimSpace(id)
 
-	err = d2.Join(swarm.JoinRequest{
+	c2 := d2.NewClientT(c)
+	err = c2.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d2.SwarmListenAddr(),
 		RemoteAddrs: []string{"123.123.123.123:1234"},
 	})
 	c.Assert(err, check.NotNil)
 	c.Assert(err.Error(), checker.Contains, "Timeout was reached")
 
-	info, err := d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
-	c.Assert(d2.Leave(true), checker.IsNil)
+	c.Assert(d2.SwarmLeave(true), checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 1)
 
@@ -443,7 +454,9 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
 	testRequires(c, Network)
 	d := s.AddDaemon(c, false, false)
-	err := d.Join(swarm.JoinRequest{
+	client := d.NewClientT(c)
+	err := client.SwarmJoin(context.Background(), swarm.JoinRequest{
+		ListenAddr:  d.SwarmListenAddr(),
 		RemoteAddrs: []string{"123.123.123.123:1234"},
 	})
 	c.Assert(err, check.NotNil)
@@ -454,8 +467,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
 	d.Stop(c)
 	d.Start(c)
 
-	info, err := d.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
 
@@ -539,7 +551,7 @@ func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
 
 	// drain d2, all containers should move to d1
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityDrain
 	})
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances)
@@ -547,16 +559,15 @@ func (s *DockerSwarmSuite) TestAPISwarmForceNewCluster(c *check.C) {
 
 	d2.Stop(c)
 
-	c.Assert(d1.Init(swarm.InitRequest{
+	d1.SwarmInit(c, swarm.InitRequest{
 		ForceNewCluster: true,
 		Spec:            swarm.Spec{},
-	}), checker.IsNil)
+	})
 
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances)
 
 	d3 := s.AddDaemon(c, true, true)
-	info, err := d3.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := d3.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.True)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
@@ -622,7 +633,7 @@ func serviceForUpdate(s *swarm.Service) {
 	s.Spec.Name = "updatetest"
 }
 
-func setInstances(replicas int) daemon.ServiceConstructor {
+func setInstances(replicas int) testdaemon.ServiceConstructor {
 	ureplicas := uint64(replicas)
 	return func(s *swarm.Service) {
 		s.Spec.Mode = swarm.ServiceMode{
@@ -633,7 +644,7 @@ func setInstances(replicas int) daemon.ServiceConstructor {
 	}
 }
 
-func setUpdateOrder(order string) daemon.ServiceConstructor {
+func setUpdateOrder(order string) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.UpdateConfig == nil {
 			s.Spec.UpdateConfig = &swarm.UpdateConfig{}
@@ -642,7 +653,7 @@ func setUpdateOrder(order string) daemon.ServiceConstructor {
 	}
 }
 
-func setRollbackOrder(order string) daemon.ServiceConstructor {
+func setRollbackOrder(order string) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.RollbackConfig == nil {
 			s.Spec.RollbackConfig = &swarm.UpdateConfig{}
@@ -651,7 +662,7 @@ func setRollbackOrder(order string) daemon.ServiceConstructor {
 	}
 }
 
-func setImage(image string) daemon.ServiceConstructor {
+func setImage(image string) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.TaskTemplate.ContainerSpec == nil {
 			s.Spec.TaskTemplate.ContainerSpec = &swarm.ContainerSpec{}
@@ -660,25 +671,25 @@ func setImage(image string) daemon.ServiceConstructor {
 	}
 }
 
-func setFailureAction(failureAction string) daemon.ServiceConstructor {
+func setFailureAction(failureAction string) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.UpdateConfig.FailureAction = failureAction
 	}
 }
 
-func setMaxFailureRatio(maxFailureRatio float32) daemon.ServiceConstructor {
+func setMaxFailureRatio(maxFailureRatio float32) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.UpdateConfig.MaxFailureRatio = maxFailureRatio
 	}
 }
 
-func setParallelism(parallelism uint64) daemon.ServiceConstructor {
+func setParallelism(parallelism uint64) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		s.Spec.UpdateConfig.Parallelism = parallelism
 	}
 }
 
-func setConstraints(constraints []string) daemon.ServiceConstructor {
+func setConstraints(constraints []string) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.TaskTemplate.Placement == nil {
 			s.Spec.TaskTemplate.Placement = &swarm.Placement{}
@@ -687,7 +698,7 @@ func setConstraints(constraints []string) daemon.ServiceConstructor {
 	}
 }
 
-func setPlacementPrefs(prefs []swarm.PlacementPreference) daemon.ServiceConstructor {
+func setPlacementPrefs(prefs []swarm.PlacementPreference) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.TaskTemplate.Placement == nil {
 			s.Spec.TaskTemplate.Placement = &swarm.Placement{}
@@ -702,18 +713,19 @@ func setGlobalMode(s *swarm.Service) {
 	}
 }
 
-func checkClusterHealth(c *check.C, cl []*daemon.Swarm, managerCount, workerCount int) {
+func checkClusterHealth(c *check.C, cl []*daemon.Daemon, managerCount, workerCount int) {
 	var totalMCount, totalWCount int
 
 	for _, d := range cl {
 		var (
 			info swarm.Info
-			err  error
 		)
 
 		// check info in a waitAndAssert, because if the cluster doesn't have a leader, `info` will return an error
 		checkInfo := func(c *check.C) (interface{}, check.CommentInterface) {
-			info, err = d.SwarmInfo()
+			client := d.NewClientT(c)
+			daemonInfo, err := client.Info(context.Background())
+			info = daemonInfo.Swarm
 			return err, check.Commentf("cluster not ready in time")
 		}
 		waitAndAssert(c, defaultReconciliationTimeout, checkInfo, checker.IsNil)
@@ -733,7 +745,7 @@ func checkClusterHealth(c *check.C, cl []*daemon.Swarm, managerCount, workerCoun
 				}
 				nn := d.GetNode(c, n.ID)
 				n = *nn
-				return n.Status.State == swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.Info.NodeID)
+				return n.Status.State == swarm.NodeStateReady, check.Commentf("state of node %s, reported by %s", n.ID, d.NodeID())
 			}
 			waitAndAssert(c, defaultReconciliationTimeout, waitReady, checker.True)
 
@@ -743,18 +755,18 @@ func checkClusterHealth(c *check.C, cl []*daemon.Swarm, managerCount, workerCoun
 				}
 				nn := d.GetNode(c, n.ID)
 				n = *nn
-				return n.Spec.Availability == swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.Info.NodeID)
+				return n.Spec.Availability == swarm.NodeAvailabilityActive, check.Commentf("availability of node %s, reported by %s", n.ID, d.NodeID())
 			}
 			waitAndAssert(c, defaultReconciliationTimeout, waitActive, checker.True)
 
 			if n.Spec.Role == swarm.NodeRoleManager {
-				c.Assert(n.ManagerStatus, checker.NotNil, check.Commentf("manager status of node %s (manager), reported by %s", n.ID, d.Info.NodeID))
+				c.Assert(n.ManagerStatus, checker.NotNil, check.Commentf("manager status of node %s (manager), reported by %s", n.ID, d.NodeID()))
 				if n.ManagerStatus.Leader {
 					leaderFound = true
 				}
 				mCount++
 			} else {
-				c.Assert(n.ManagerStatus, checker.IsNil, check.Commentf("manager status of node %s (worker), reported by %s", n.ID, d.Info.NodeID))
+				c.Assert(n.ManagerStatus, checker.IsNil, check.Commentf("manager status of node %s (worker), reported by %s", n.ID, d.NodeID()))
 				wCount++
 			}
 		}
@@ -769,11 +781,10 @@ func checkClusterHealth(c *check.C, cl []*daemon.Swarm, managerCount, workerCoun
 func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 	mCount, wCount := 5, 1
 
-	var nodes []*daemon.Swarm
+	var nodes []*daemon.Daemon
 	for i := 0; i < mCount; i++ {
 		manager := s.AddDaemon(c, true, true)
-		info, err := manager.SwarmInfo()
-		c.Assert(err, checker.IsNil)
+		info := manager.SwarmInfo(c)
 		c.Assert(info.ControlAvailable, checker.True)
 		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 		nodes = append(nodes, manager)
@@ -781,8 +792,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 
 	for i := 0; i < wCount; i++ {
 		worker := s.AddDaemon(c, true, false)
-		info, err := worker.SwarmInfo()
-		c.Assert(err, checker.IsNil)
+		info := worker.SwarmInfo(c)
 		c.Assert(info.ControlAvailable, checker.False)
 		c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 		nodes = append(nodes, worker)
@@ -795,7 +805,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 		errs := make(chan error, len(nodes))
 
 		for _, d := range nodes {
-			go func(daemon *daemon.Swarm) {
+			go func(daemon *daemon.Daemon) {
 				defer wg.Done()
 				if err := daemon.StopWithError(); err != nil {
 					errs <- err
@@ -820,7 +830,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 		errs := make(chan error, len(nodes))
 
 		for _, d := range nodes {
-			go func(daemon *daemon.Swarm) {
+			go func(daemon *daemon.Daemon) {
 				defer wg.Done()
 				if err := daemon.StartWithError("--iptables=false"); err != nil {
 					errs <- err
@@ -859,7 +869,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *check.C) {
 // Unlocking an unlocked swarm results in an error
 func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	err := d.Unlock(swarm.UnlockRequest{UnlockKey: "wrong-key"})
+	err := d.SwarmUnlock(swarm.UnlockRequest{UnlockKey: "wrong-key"})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "swarm is not locked")
 }
@@ -870,7 +880,10 @@ func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer ln.Close()
 	d := s.AddDaemon(c, false, false)
-	err = d.Init(swarm.InitRequest{})
+	client := d.NewClientT(c)
+	_, err = client.SwarmInit(context.Background(), swarm.InitRequest{
+		ListenAddr: d.SwarmListenAddr(),
+	})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "address already in use")
 }
@@ -940,13 +953,13 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 	m := s.AddDaemon(c, true, true)
 	w := s.AddDaemon(c, true, false)
 
-	info, err := m.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	info := m.SwarmInfo(c)
 
 	currentTrustRoot := info.Cluster.TLSInfo.TrustRoot
 
 	// rotate multiple times
 	for i := 0; i < 4; i++ {
+		var err error
 		var cert, key []byte
 		if i%2 != 0 {
 			cert, _, key, err = initca.New(&csr.CertificateRequest{
@@ -966,8 +979,7 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 		// poll to make sure update succeeds
 		var clusterTLSInfo swarm.TLSInfo
 		for j := 0; j < 18; j++ {
-			info, err := m.SwarmInfo()
-			c.Assert(err, checker.IsNil)
+			info := m.SwarmInfo(c)
 
 			// the desired CA cert and key is always redacted
 			c.Assert(info.Cluster.Spec.CAConfig.SigningCAKey, checker.Equals, "")
@@ -989,8 +1001,8 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 		// could take another second or two for the nodes to trust the new roots after they've all gotten
 		// new TLS certificates
 		for j := 0; j < 18; j++ {
-			mInfo := m.GetNode(c, m.NodeID).Description.TLSInfo
-			wInfo := m.GetNode(c, w.NodeID).Description.TLSInfo
+			mInfo := m.GetNode(c, m.NodeID()).Description.TLSInfo
+			wInfo := m.GetNode(c, w.NodeID()).Description.TLSInfo
 
 			if mInfo.TrustRoot == clusterTLSInfo.TrustRoot && wInfo.TrustRoot == clusterTLSInfo.TrustRoot {
 				break
@@ -1000,8 +1012,8 @@ func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {
 			time.Sleep(250 * time.Millisecond)
 		}
 
-		c.Assert(m.GetNode(c, m.NodeID).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
-		c.Assert(m.GetNode(c, w.NodeID).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
+		c.Assert(m.GetNode(c, m.NodeID()).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
+		c.Assert(m.GetNode(c, w.NodeID()).Description.TLSInfo, checker.DeepEquals, clusterTLSInfo)
 		currentTrustRoot = clusterTLSInfo.TrustRoot
 	}
 }
