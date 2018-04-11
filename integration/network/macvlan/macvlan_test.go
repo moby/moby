@@ -1,8 +1,7 @@
-package network
+package macvlan
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -11,11 +10,9 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
+	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/gotestyourself/gotestyourself/skip"
 )
 
@@ -30,8 +27,8 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	defer d.Stop(t)
 
 	master := "dm-dummy0"
-	createMasterDummy(t, master)
-	defer deleteInterface(t, master)
+	n.CreateMasterDummy(t, master)
+	defer n.DeleteInterface(t, master)
 
 	client, err := d.NewClient()
 	assert.NilError(t, err)
@@ -43,9 +40,9 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	assert.Check(t, isNetworkAvailable(client, "dm-persist"))
+	assert.Check(t, n.IsNetworkAvailable(client, "dm-persist"))
 	d.Restart(t)
-	assert.Check(t, isNetworkAvailable(client, "dm-persist"))
+	assert.Check(t, n.IsNetworkAvailable(client, "dm-persist"))
 }
 
 func TestDockerNetworkMacvlan(t *testing.T) {
@@ -91,8 +88,8 @@ func testMacvlanOverlapParent(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// verify the same parent interface cannot be used if already in use by an existing network
 		master := "dm-dummy0"
-		createMasterDummy(t, master)
-		defer deleteInterface(t, master)
+		n.CreateMasterDummy(t, master)
+		defer n.DeleteInterface(t, master)
 
 		_, err := client.NetworkCreate(context.Background(), "dm-subinterface", types.NetworkCreate{
 			Driver: "macvlan",
@@ -101,7 +98,7 @@ func testMacvlanOverlapParent(client client.APIClient) func(*testing.T) {
 			},
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dm-subinterface"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dm-subinterface"))
 
 		_, err = client.NetworkCreate(context.Background(), "dm-parent-net-overlap", types.NetworkCreate{
 			Driver: "macvlan",
@@ -114,9 +111,9 @@ func testMacvlanOverlapParent(client client.APIClient) func(*testing.T) {
 		err = client.NetworkRemove(context.Background(), "dm-subinterface")
 		assert.NilError(t, err)
 
-		assert.Check(t, isNetworkNotAvailable(client, "dm-subinterface"))
+		assert.Check(t, n.IsNetworkNotAvailable(client, "dm-subinterface"))
 		// verify the network delete did not delete the predefined link
-		linkExists(t, "dm-dummy0")
+		n.LinkExists(t, "dm-dummy0")
 	}
 }
 
@@ -124,9 +121,9 @@ func testMacvlanSubinterface(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// verify the same parent interface cannot be used if already in use by an existing network
 		master := "dm-dummy0"
-		createMasterDummy(t, master)
-		defer deleteInterface(t, master)
-		createVlanInterface(t, master, "dm-dummy0.20", "20")
+		n.CreateMasterDummy(t, master)
+		defer n.DeleteInterface(t, master)
+		n.CreateVlanInterface(t, master, "dm-dummy0.20", "20")
 
 		_, err := client.NetworkCreate(context.Background(), "dm-subinterface", types.NetworkCreate{
 			Driver: "macvlan",
@@ -135,15 +132,15 @@ func testMacvlanSubinterface(client client.APIClient) func(*testing.T) {
 			},
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dm-subinterface"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dm-subinterface"))
 
 		// delete the network while preserving the parent link
 		err = client.NetworkRemove(context.Background(), "dm-subinterface")
 		assert.NilError(t, err)
 
-		assert.Check(t, isNetworkNotAvailable(client, "dm-subinterface"))
+		assert.Check(t, n.IsNetworkNotAvailable(client, "dm-subinterface"))
 		// verify the network delete did not delete the predefined link
-		linkExists(t, "dm-dummy0.20")
+		n.LinkExists(t, "dm-dummy0.20")
 	}
 }
 
@@ -154,7 +151,7 @@ func testMacvlanNilParent(client client.APIClient) func(*testing.T) {
 			Driver: "macvlan",
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dm-nil-parent"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dm-nil-parent"))
 
 		ctx := context.Background()
 		id1 := container.Run(t, ctx, client, container.WithNetworkMode("dm-nil-parent"))
@@ -173,7 +170,7 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 			Internal: true,
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dm-internal"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dm-internal"))
 
 		ctx := context.Background()
 		id1 := container.Run(t, ctx, client, container.WithNetworkMode("dm-internal"))
@@ -193,7 +190,6 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 
 func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
-		// t.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
 		_, err := client.NetworkCreate(context.Background(), "dualstackbridge", types.NetworkCreate{
 			Driver:     "macvlan",
 			EnableIPv6: true,
@@ -221,7 +217,7 @@ func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 			},
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dualstackbridge"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dualstackbridge"))
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 		ctx := context.Background()
@@ -301,7 +297,7 @@ func testMacvlanAddressing(client client.APIClient) func(*testing.T) {
 			},
 		})
 		assert.NilError(t, err)
-		assert.Check(t, isNetworkAvailable(client, "dualstackbridge"))
+		assert.Check(t, n.IsNetworkAvailable(client, "dualstackbridge"))
 
 		ctx := context.Background()
 		id1 := container.Run(t, ctx, client,
@@ -319,72 +315,7 @@ func testMacvlanAddressing(client client.APIClient) func(*testing.T) {
 	}
 }
 
-func isNetworkAvailable(c client.NetworkAPIClient, name string) cmp.Comparison {
-	return func() cmp.Result {
-		networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
-		if err != nil {
-			return cmp.ResultFromError(err)
-		}
-		for _, network := range networks {
-			if network.Name == name {
-				return cmp.ResultSuccess
-			}
-		}
-		return cmp.ResultFailure(fmt.Sprintf("could not find network %s", name))
-	}
-}
-
-func isNetworkNotAvailable(c client.NetworkAPIClient, name string) cmp.Comparison {
-	return func() cmp.Result {
-		networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
-		if err != nil {
-			return cmp.ResultFromError(err)
-		}
-		for _, network := range networks {
-			if network.Name == name {
-				return cmp.ResultFailure(fmt.Sprintf("network %s is still present", name))
-			}
-		}
-		return cmp.ResultSuccess
-	}
-}
-
-func createMasterDummy(t *testing.T, master string) {
-	// ip link add <dummy_name> type dummy
-	icmd.RunCommand("ip", "link", "add", master, "type", "dummy").Assert(t, icmd.Success)
-	icmd.RunCommand("ip", "link", "set", master, "up").Assert(t, icmd.Success)
-}
-
-func createVlanInterface(t *testing.T, master, slave, id string) {
-	// ip link add link <master> name <master>.<VID> type vlan id <VID>
-	icmd.RunCommand("ip", "link", "add", "link", master, "name", slave, "type", "vlan", "id", id).Assert(t, icmd.Success)
-	// ip link set <sub_interface_name> up
-	icmd.RunCommand("ip", "link", "set", slave, "up").Assert(t, icmd.Success)
-}
-
-func deleteInterface(t *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
-}
-
-func linkExists(t *testing.T, master string) {
-	// verify the specified link exists, ip link show <link_name>
-	icmd.RunCommand("ip", "link", "show", master).Assert(t, icmd.Success)
-}
-
 // ensure Kernel version is >= v3.9 for macvlan support
 func macvlanKernelSupport() bool {
-	return checkKernelMajorVersionGreaterOrEqualThen(3, 9)
-}
-
-func checkKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion int) bool {
-	kv, err := kernel.GetKernelVersion()
-	if err != nil {
-		return false
-	}
-	if kv.Kernel < kernelVersion || (kv.Kernel == kernelVersion && kv.Major < majorVersion) {
-		return false
-	}
-	return true
+	return n.CheckKernelMajorVersionGreaterOrEqualThen(3, 9)
 }
