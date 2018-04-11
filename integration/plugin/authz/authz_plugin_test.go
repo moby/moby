@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/environment"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -380,6 +381,56 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	err = imageImport(client, exportedImagePath)
 	assert.NilError(t, err)
+}
+
+func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
+	defer setupTestV1(t)()
+	ctrl.reqRes.Allow = true
+	ctrl.resRes.Allow = true
+	d.StartWithBusybox(t, "--authorization-plugin="+testAuthZPlugin, "--authorization-plugin="+testAuthZPlugin)
+
+	dir, err := ioutil.TempDir("", t.Name())
+	assert.Assert(t, err)
+	defer os.RemoveAll(dir)
+
+	f, err := ioutil.TempFile(dir, "send")
+	assert.Assert(t, err)
+	defer f.Close()
+
+	buf := make([]byte, 1024)
+	fileSize := len(buf) * 1024 * 10
+	for written := 0; written < fileSize; {
+		n, err := f.Write(buf)
+		assert.Assert(t, err)
+		written += n
+	}
+
+	ctx := context.Background()
+	client, err := d.NewClient()
+	assert.Assert(t, err)
+
+	cID := container.Run(t, ctx, client)
+	defer client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+
+	_, err = f.Seek(0, io.SeekStart)
+	assert.Assert(t, err)
+
+	srcInfo, err := archive.CopyInfoSourcePath(f.Name(), false)
+	assert.Assert(t, err)
+	srcArchive, err := archive.TarResource(srcInfo)
+	assert.Assert(t, err)
+	defer srcArchive.Close()
+
+	dstDir, preparedArchive, err := archive.PrepareArchiveCopy(srcArchive, srcInfo, archive.CopyInfo{Path: "/test"})
+	assert.Assert(t, err)
+
+	err = client.CopyToContainer(ctx, cID, dstDir, preparedArchive, types.CopyToContainerOptions{})
+	assert.Assert(t, err)
+
+	rdr, _, err := client.CopyFromContainer(ctx, cID, "/test")
+	assert.Assert(t, err)
+	_, err = io.Copy(ioutil.Discard, rdr)
+	assert.Assert(t, err)
 }
 
 func imageSave(client client.APIClient, path, image string) error {
