@@ -47,6 +47,8 @@ func NewResponseModifier(rw http.ResponseWriter) ResponseModifier {
 	return &responseModifier{rw: rw, header: make(http.Header)}
 }
 
+const maxBufferSize = 64 * 1024
+
 // responseModifier is used as an adapter to http.ResponseWriter in order to manipulate and explore
 // the http request/response from docker daemon
 type responseModifier struct {
@@ -116,11 +118,13 @@ func (rm *responseModifier) OverrideHeader(b []byte) error {
 
 // Write stores the byte array inside content
 func (rm *responseModifier) Write(b []byte) (int, error) {
-
 	if rm.hijacked {
 		return rm.rw.Write(b)
 	}
 
+	if len(rm.body)+len(b) > maxBufferSize {
+		rm.Flush()
+	}
 	rm.body = append(rm.body, b...)
 	return len(b), nil
 }
@@ -192,11 +196,14 @@ func (rm *responseModifier) FlushAll() error {
 	var err error
 	if len(rm.body) > 0 {
 		// Write body
-		_, err = rm.rw.Write(rm.body)
+		var n int
+		n, err = rm.rw.Write(rm.body)
+		// TODO(@cpuguy83): there is now a relatively small buffer limit, instead of discarding our buffer here and
+		// allocating again later this should just keep using the same buffer and track the buffer position (like a bytes.Buffer with a fixed size)
+		rm.body = rm.body[n:]
 	}
 
 	// Clean previous data
-	rm.body = nil
 	rm.statusCode = 0
 	rm.header = http.Header{}
 	return err
