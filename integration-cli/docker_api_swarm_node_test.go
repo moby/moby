@@ -21,8 +21,8 @@ func (s *DockerSwarmSuite) TestAPISwarmListNodes(c *check.C) {
 
 loop0:
 	for _, n := range nodes {
-		for _, d := range []*daemon.Swarm{d1, d2, d3} {
-			if n.ID == d.NodeID {
+		for _, d := range []*daemon.Daemon{d1, d2, d3} {
+			if n.ID == d.NodeID() {
 				continue loop0
 			}
 		}
@@ -53,8 +53,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
 	c.Assert(len(nodes), checker.Equals, 3, check.Commentf("nodes: %#v", nodes))
 
 	// Getting the info so we can take the NodeID
-	d2Info, err := d2.SwarmInfo()
-	c.Assert(err, checker.IsNil)
+	d2Info := d2.SwarmInfo(c)
 
 	// forceful removal of d2 should work
 	d1.RemoveNode(c, d2Info.NodeID, true)
@@ -88,14 +87,14 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
 
 	// drain d2, all containers should move to d1
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityDrain
 	})
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.Equals, instances)
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 0)
 
 	// set d2 back to active
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityActive
 	})
 
@@ -115,7 +114,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *check.C) {
 	d2ContainerCount := len(d2.ActiveContainers())
 
 	// set d2 to paused, scale service up, only d1 gets new tasks
-	d1.UpdateNode(c, d2.NodeID, func(n *swarm.Node) {
+	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {
 		n.Spec.Availability = swarm.NodeAvailabilityPause
 	})
 

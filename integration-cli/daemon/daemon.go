@@ -38,10 +38,8 @@ type Config struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, dockerBinary string, dockerdBinary string, config Config) *Daemon {
-	ops := []func(*daemon.Daemon){
-		daemon.WithDockerdBinary(dockerdBinary),
-	}
+func New(t testingT, dockerBinary string, dockerdBinary string, config Config, ops ...func(*daemon.Daemon)) *Daemon {
+	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
 	if config.Experimental {
 		ops = append(ops, daemon.WithExperimental)
 	}
@@ -148,6 +146,21 @@ func (d *Daemon) CheckActiveContainerCount(c *check.C) (interface{}, check.Comme
 func (d *Daemon) WaitRun(contID string) error {
 	args := []string{"--host", d.Sock()}
 	return WaitInspectWithArgs(d.dockerBinary, contID, "{{.State.Running}}", "true", 10*time.Second, args...)
+}
+
+// CmdRetryOutOfSequence tries the specified command against the current daemon for 10 times
+func (d *Daemon) CmdRetryOutOfSequence(args ...string) (string, error) {
+	for i := 0; ; i++ {
+		out, err := d.Cmd(args...)
+		if err != nil {
+			if strings.Contains(out, "update out of sequence") {
+				if i < 10 {
+					continue
+				}
+			}
+		}
+		return out, err
+	}
 }
 
 // WaitInspectWithArgs waits for the specified expression to be equals to the specified expected string in the given time.

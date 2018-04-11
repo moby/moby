@@ -311,7 +311,7 @@ func init() {
 type DockerSwarmSuite struct {
 	server      *httptest.Server
 	ds          *DockerSuite
-	daemons     []*daemon.Swarm
+	daemons     []*daemon.Daemon
 	daemonsLock sync.Mutex // protect access to daemons
 	portIndex   int
 }
@@ -328,14 +328,10 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
 }
 
-func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Swarm {
-	d := &daemon.Swarm{
-		Daemon: daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-			Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-		}),
-		Port: defaultSwarmPort + s.portIndex,
-	}
-	d.ListenAddr = fmt.Sprintf("0.0.0.0:%d", d.Port)
+func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Daemon {
+	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
+		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
+	}, testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex))
 	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"} // avoid networking conflicts
 	d.StartWithBusybox(c, args...)
 
@@ -346,12 +342,12 @@ func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemo
 			if manager {
 				token = tokens.Manager
 			}
-			c.Assert(d.Join(swarm.JoinRequest{
-				RemoteAddrs: []string{s.daemons[0].ListenAddr},
+			d.SwarmJoin(c, swarm.JoinRequest{
+				RemoteAddrs: []string{s.daemons[0].SwarmListenAddr()},
 				JoinToken:   token,
-			}), check.IsNil)
+			})
 		} else {
-			c.Assert(d.Init(swarm.InitRequest{}), check.IsNil)
+			d.SwarmInit(c, swarm.InitRequest{})
 		}
 	}
 

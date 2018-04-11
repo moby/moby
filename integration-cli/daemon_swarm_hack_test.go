@@ -5,11 +5,11 @@ import (
 	"github.com/go-check/check"
 )
 
-func (s *DockerSwarmSuite) getDaemon(c *check.C, nodeID string) *daemon.Swarm {
+func (s *DockerSwarmSuite) getDaemon(c *check.C, nodeID string) *daemon.Daemon {
 	s.daemonsLock.Lock()
 	defer s.daemonsLock.Unlock()
 	for _, d := range s.daemons {
-		if d.NodeID == nodeID {
+		if d.NodeID() == nodeID {
 			return d
 		}
 	}

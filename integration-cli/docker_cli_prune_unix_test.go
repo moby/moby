@@ -16,7 +16,7 @@ import (
 	"github.com/go-check/check"
 )
 
-func pruneNetworkAndVerify(c *check.C, d *daemon.Swarm, kept, pruned []string) {
+func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
 	c.Assert(err, checker.IsNil)
 
