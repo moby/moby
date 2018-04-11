@@ -507,11 +507,11 @@ func (s *DockerSwarmSuite) TestAPISwarmScaleNoRollingUpdate(c *check.C) {
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
-	containers := d.ActiveContainers()
+	containers := d.ActiveContainers(c)
 	instances = 4
 	d.UpdateService(c, d.GetService(c, id), setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
-	containers2 := d.ActiveContainers()
+	containers2 := d.ActiveContainers(c)
 
 loop0:
 	for _, c1 := range containers {
@@ -943,7 +943,7 @@ func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
-	containers := d.ActiveContainers()
+	containers := d.ActiveContainers(c)
 
 	out, err = d.Cmd("exec", containers[0], "ping", "-c1", "-W3", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))

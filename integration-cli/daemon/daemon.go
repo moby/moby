@@ -70,18 +70,6 @@ func (d *Daemon) GetIDByName(name string) (string, error) {
 	return d.inspectFieldWithError(name, "Id")
 }
 
-// ActiveContainers returns the list of ids of the currently running containers
-func (d *Daemon) ActiveContainers() (ids []string) {
-	// FIXME(vdemeester) shouldn't ignore the error
-	out, _ := d.Cmd("ps", "-q")
-	for _, id := range strings.Split(out, "\n") {
-		if id = strings.TrimSpace(id); id != "" {
-			ids = append(ids, id)
-		}
-	}
-	return
-}
-
 // InspectField returns the field filter by 'filter'
 func (d *Daemon) InspectField(name, filter string) (string, error) {
 	return d.inspectFilter(name, filter)
@@ -98,15 +86,6 @@ func (d *Daemon) inspectFilter(name, filter string) (string, error) {
 
 func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 	return d.inspectFilter(name, fmt.Sprintf(".%s", field))
-}
-
-// FindContainerIP returns the ip of the specified container
-func (d *Daemon) FindContainerIP(id string) (string, error) {
-	out, err := d.Cmd("inspect", "--format='{{ .NetworkSettings.Networks.bridge.IPAddress }}'", id)
-	if err != nil {
-		return "", err
-	}
-	return strings.Trim(out, " \r\n'"), nil
 }
 
 // BuildImageWithOut builds an image with the specified dockerfile and options and returns the output

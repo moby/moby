@@ -556,7 +556,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	getContainers := func() map[string]*daemon.Daemon {
 		m := make(map[string]*daemon.Daemon)
 		for _, d := range []*daemon.Daemon{d1, d2, d3} {
-			for _, id := range d.ActiveContainers() {
+			for _, id := range d.ActiveContainers(c) {
 				m[id] = d
 			}
 		}

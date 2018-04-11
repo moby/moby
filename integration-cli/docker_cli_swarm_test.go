@@ -177,7 +177,7 @@ func (s *DockerSwarmSuite) TestSwarmServiceTemplatingHostname(c *check.C) {
 	// make sure task has been deployed.
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
-	containers := d.ActiveContainers()
+	containers := d.ActiveContainers(c)
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.Config.Hostname}}", containers[0])
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.Split(out, "\n")[0], checker.Equals, "test-1-"+strings.Split(hostname, "\n")[0], check.Commentf("hostname with templating invalid"))
@@ -1675,7 +1675,7 @@ func (s *DockerSwarmSuite) TestSwarmReadonlyRootfs(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 
-	containers := d.ActiveContainers()
+	containers := d.ActiveContainers(c)
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.HostConfig.ReadonlyRootfs}}", containers[0])
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
@@ -1762,7 +1762,7 @@ func (s *DockerSwarmSuite) TestSwarmStopSignal(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "SIGHUP")
 
-	containers := d.ActiveContainers()
+	containers := d.ActiveContainers(c)
 	out, err = d.Cmd("inspect", "--type", "container", "--format", "{{.Config.StopSignal}}", containers[0])
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "SIGHUP")
