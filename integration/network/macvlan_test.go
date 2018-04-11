@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"fmt"
+	"strings"
 	"testing"
 	"time"
 
@@ -163,6 +164,8 @@ func TestDockerNetworkMacvlanBridgeInternal(t *testing.T) {
 	client, err := d.NewClient()
 	assert.NilError(t, err)
 
+	t.Log(icmd.RunCommand("ip", "addr").Combined())
+
 	_, err = client.NetworkCreate(context.Background(), "dm-internal", types.NetworkCreate{
 		Driver:   "macvlan",
 		Internal: true,
@@ -189,7 +192,7 @@ func TestDockerNetworkMacvlanMultiSubnet(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
-	t.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
+	// t.Skip("Temporarily skipping while investigating sporadic v6 CI issues")
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
@@ -281,6 +284,56 @@ func TestDockerNetworkMacvlanMultiSubnet(t *testing.T) {
 	assert.Equal(t, c3.NetworkSettings.Networks["dualstackbridge"].Gateway, "172.28.102.254")
 	// Inspect the v6 gateway to ensure the proper explicitly assigned default GW was assigned
 	assert.Equal(t, c3.NetworkSettings.Networks["dualstackbridge"].IPv6Gateway, "2001:db8.abc4::254")
+}
+
+func TestDockerNetworkMacvlanAddressing(t *testing.T) {
+	// Ensure the default gateways, next-hops and default dev devices are properly set
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
+
+	d := daemon.New(t, "", "dockerd", daemon.Config{})
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
+	client, err := d.NewClient()
+	assert.NilError(t, err)
+	_, err = client.NetworkCreate(context.Background(), "dualstackbridge", types.NetworkCreate{
+		Driver:     "macvlan",
+		EnableIPv6: true,
+		Options: map[string]string{
+			"macvlan_mode": "bridge",
+		},
+		IPAM: &network.IPAM{
+			Config: []network.IPAMConfig{
+				{
+					Subnet:     "172.28.130.0/24",
+					AuxAddress: map[string]string{},
+				},
+				{
+					Subnet:     "2001:db8:abca::/64",
+					Gateway:    "2001:db8:abca::254",
+					AuxAddress: map[string]string{},
+				},
+			},
+		},
+	})
+	assert.NilError(t, err)
+	assert.Check(t, isNetworkAvailable(client, "dualstackbridge"))
+
+	ctx := context.Background()
+	id1 := container.Run(t, ctx, client,
+		container.WithNetworkMode("dualstackbridge"),
+		container.WithName(t.Name()+"first"),
+	)
+
+	// Validate macvlan bridge mode defaults gateway sets the default IPAM next-hop inferred from the subnet
+	result, err := container.Exec(ctx, client, id1, []string{"ip", "route"})
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(result.Combined(), "default via 172.28.130.1 dev eth0"))
+	// Validate macvlan bridge mode sets the v6 gateway to the user specified default gateway/next-hop
+	result, err = container.Exec(ctx, client, id1, []string{"ip", "-6", "route"})
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(result.Combined(), "default via 2001:db8:abca::254 dev eth0"))
 }
 
 func isNetworkAvailable(c client.NetworkAPIClient, name string) cmp.Comparison {
