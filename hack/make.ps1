@@ -251,10 +251,10 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
         if ($LASTEXITCODE -ne 0) { Throw "Failed go list for dependencies on $file" }
         $imports = $imports -Replace "\[" -Replace "\]", "" -Split(" ") | Sort-Object | Get-Unique
         # Filter out what we are looking for
-        $imports = $imports -NotMatch "^github.com/docker/docker/pkg/" `
-                            -NotMatch "^github.com/docker/docker/vendor" `
-                            -Match "^github.com/docker/docker" `
-                            -Replace "`n", ""
+        $imports = @() + $imports -NotMatch "^github.com/docker/docker/pkg/" `
+                                  -NotMatch "^github.com/docker/docker/vendor" `
+                                  -Match "^github.com/docker/docker" `
+                                  -Replace "`n", ""
         $imports | % { $badFiles+="$file imports $_`n" }
     }
     if ($badFiles.Length -eq 0) {
