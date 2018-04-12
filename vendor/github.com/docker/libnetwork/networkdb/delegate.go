@@ -21,8 +21,8 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// time.
 	nDB.networkClock.Witness(nEvent.LTime)
 
-	nDB.RLock()
-	defer nDB.RUnlock()
+	nDB.Lock()
+	defer nDB.Unlock()
 
 	// check if the node exists
 	n, _, _ := nDB.findNode(nEvent.NodeName)
