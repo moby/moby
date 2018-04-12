@@ -1,0 +1,99 @@
+EXTRA_FLAGS?=
+DOCKERFILE?=Dockerfile
+DOCKER_IMAGE?=docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+CODECOV_TOKEN?=02f32798-f710-46b7-b6b6-fe0bbc2b6f57
+GITCOMMIT?=$(shell git rev-parse --short HEAD)
+BUILD_IMAGE?=0
+RUN:=docker run --rm -t --privileged \
+	-v "$(CURDIR)/bundles":/go/src/github.com/docker/docker/bundles \
+	-e DOCKER_GITCOMMIT=$(GITCOMMIT) \
+	-e DOCKER_GRAPHDRIVER=vfs \
+	-e DOCKER_EXECDRIVER=native \
+
+clean:
+	-docker rm -vf docker-pr$(BUILD_NUMBER)
+	-docker rmi -f docker:$(GITCOMMIT)
+	docker run --rm -v "$(CURDIR)":/v busybox chown -R "$$(id -u):$$(id -g)" /v
+
+%-bundles.tar.gz:
+	-find bundles -name '*.log' | xargs tar -czf $@
+
+.PHONY: test-integration-cli
+test-integration-cli: hack/make/test-integration-cli
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		-e TESTFLAGS='-check.f $(TEST_SUITE).*' \
+		$(DOCKER_IMAGE) \
+		./hack/make.sh dynbinary test-integration-cli
+
+.PHONY: test-integration
+test-integration: hack/make/test-integration
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		$(DOCKER_IMAGE) \
+		./hack/make.sh dynbinary test-integration
+
+.PHONY: test-unit
+test-unit: hack/test/unit
+	@export CODECOV_TOKEN="$(CODECOV_TOKEN)"
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		$(DOCKER_IMAGE) \
+		$<
+
+.PHONY: dynbinary
+dynbinary: hack/make/dynbinary
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		$(DOCKER_IMAGE) \
+		./hack/make.sh dynbinary
+
+.PHONY: binary
+binary: hack/make/binary
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		$(DOCKER_IMAGE) \
+		./hack/make.sh binary
+
+.PHONY: validate
+validate: hack/validate/all
+	if test "$(BUILD_IMAGE)" = "1"; then \
+		docker build -t $(DOCKER_IMAGE) -f $(DOCKERFILE) .; \
+	fi; \
+	$(RUN) \
+		$(EXTRA_FLAGS) \
+		-e GIT_SHA1="$$(git rev-parse HEAD)" \
+		-v "$(CURDIR)/.git":/go/src/github.com/docker/docker/.git \
+		--name docker-pr$(BUILD_NUMBER) \
+		$(DOCKER_IMAGE) \
+		$<
