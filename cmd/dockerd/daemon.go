@@ -123,74 +123,15 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}()
 	}
 
-	// TODO: extract to newApiServerConfig()
-	serverConfig := &apiserver.Config{
-		Logging:     true,
-		SocketGroup: cli.Config.SocketGroup,
-		Version:     dockerversion.Version,
-		CorsHeaders: cli.Config.CorsHeaders,
+	serverConfig, err := newAPIServerConfig(cli)
+	if err != nil {
+		return fmt.Errorf("Failed to create API server: %v", err)
 	}
-
-	if cli.Config.TLS {
-		tlsOptions := tlsconfig.Options{
-			CAFile:             cli.Config.CommonTLSOptions.CAFile,
-			CertFile:           cli.Config.CommonTLSOptions.CertFile,
-			KeyFile:            cli.Config.CommonTLSOptions.KeyFile,
-			ExclusiveRootPools: true,
-		}
-
-		if cli.Config.TLSVerify {
-			// server requires and verifies client's certificate
-			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
-		}
-		tlsConfig, err := tlsconfig.Server(tlsOptions)
-		if err != nil {
-			return err
-		}
-		serverConfig.TLSConfig = tlsConfig
-	}
-
-	if len(cli.Config.Hosts) == 0 {
-		cli.Config.Hosts = make([]string, 1)
-	}
-
 	cli.api = apiserver.New(serverConfig)
 
-	var hosts []string
-
-	for i := 0; i < len(cli.Config.Hosts); i++ {
-		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
-			return fmt.Errorf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
-		}
-
-		protoAddr := cli.Config.Hosts[i]
-		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
-		if len(protoAddrParts) != 2 {
-			return fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
-		}
-
-		proto := protoAddrParts[0]
-		addr := protoAddrParts[1]
-
-		// It's a bad idea to bind to TCP without tlsverify.
-		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
-			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting --tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
-		}
-		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
-		if err != nil {
-			return err
-		}
-		ls = wrapListeners(proto, ls)
-		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
-		if proto == "tcp" {
-			if err := allocateDaemonPort(addr); err != nil {
-				return err
-			}
-		}
-		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
-		hosts = append(hosts, protoAddrParts[1])
-		cli.api.Accept(addr, ls...)
+	hosts, err := loadListeners(cli, serverConfig)
+	if err != nil {
+		return fmt.Errorf("Failed to load listeners: %v", err)
 	}
 
 	registryService, err := registry.NewService(cli.Config.ServiceOptions)
@@ -200,7 +141,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	rOpts, err := cli.getRemoteOptions()
 	if err != nil {
-		return fmt.Errorf("Failed to generate containerd options: %s", err)
+		return fmt.Errorf("Failed to generate containerd options: %v", err)
 	}
 	containerdRemote, err := libcontainerd.New(filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), rOpts...)
 	if err != nil {
@@ -242,31 +183,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}
 	}
 
-	// TODO: createAndStartCluster()
-	name, _ := os.Hostname()
-
-	// Use a buffered channel to pass changes from store watch API to daemon
-	// A buffer allows store watch API and daemon processing to not wait for each other
-	watchStream := make(chan *swarmapi.WatchMessage, 32)
-
-	c, err := cluster.New(cluster.Config{
-		Root:                   cli.Config.Root,
-		Name:                   name,
-		Backend:                d,
-		ImageBackend:           d.ImageService(),
-		PluginBackend:          d.PluginManager(),
-		NetworkSubnetsProvider: d,
-		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
-		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
-		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
-		RuntimeRoot:            cli.getSwarmRunRoot(),
-		WatchStream:            watchStream,
-	})
-	if err != nil {
-		logrus.Fatalf("Error creating cluster component: %v", err)
-	}
-	d.SetCluster(c)
-	err = c.Start()
+	c, err := createAndStartCluster(cli, d)
 	if err != nil {
 		logrus.Fatalf("Error starting cluster component: %v", err)
 	}
@@ -292,7 +209,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	// process cluster change notifications
 	watchCtx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	go d.ProcessClusterNotifications(watchCtx, watchStream)
+	go d.ProcessClusterNotifications(watchCtx, c.GetWatchStream())
 
 	cli.setupConfigReloadTrap()
 
@@ -567,6 +484,109 @@ func (cli *DaemonCli) getRemoteOptions() ([]libcontainerd.RemoteOption, error) {
 	}
 	opts = append(opts, pOpts...)
 	return opts, nil
+}
+
+func newAPIServerConfig(cli *DaemonCli) (*apiserver.Config, error) {
+	serverConfig := &apiserver.Config{
+		Logging:     true,
+		SocketGroup: cli.Config.SocketGroup,
+		Version:     dockerversion.Version,
+		CorsHeaders: cli.Config.CorsHeaders,
+	}
+
+	if cli.Config.TLS {
+		tlsOptions := tlsconfig.Options{
+			CAFile:             cli.Config.CommonTLSOptions.CAFile,
+			CertFile:           cli.Config.CommonTLSOptions.CertFile,
+			KeyFile:            cli.Config.CommonTLSOptions.KeyFile,
+			ExclusiveRootPools: true,
+		}
+
+		if cli.Config.TLSVerify {
+			// server requires and verifies client's certificate
+			tlsOptions.ClientAuth = tls.RequireAndVerifyClientCert
+		}
+		tlsConfig, err := tlsconfig.Server(tlsOptions)
+		if err != nil {
+			return nil, err
+		}
+		serverConfig.TLSConfig = tlsConfig
+	}
+
+	if len(cli.Config.Hosts) == 0 {
+		cli.Config.Hosts = make([]string, 1)
+	}
+
+	return serverConfig, nil
+}
+
+func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, error) {
+	var hosts []string
+	for i := 0; i < len(cli.Config.Hosts); i++ {
+		var err error
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
+			return nil, fmt.Errorf("error parsing -H %s : %v", cli.Config.Hosts[i], err)
+		}
+
+		protoAddr := cli.Config.Hosts[i]
+		protoAddrParts := strings.SplitN(protoAddr, "://", 2)
+		if len(protoAddrParts) != 2 {
+			return nil, fmt.Errorf("bad format %s, expected PROTO://ADDR", protoAddr)
+		}
+
+		proto := protoAddrParts[0]
+		addr := protoAddrParts[1]
+
+		// It's a bad idea to bind to TCP without tlsverify.
+		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
+			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting --tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+		}
+		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
+		if err != nil {
+			return nil, err
+		}
+		ls = wrapListeners(proto, ls)
+		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
+		if proto == "tcp" {
+			if err := allocateDaemonPort(addr); err != nil {
+				return nil, err
+			}
+		}
+		logrus.Debugf("Listener created for HTTP on %s (%s)", proto, addr)
+		hosts = append(hosts, protoAddrParts[1])
+		cli.api.Accept(addr, ls...)
+	}
+
+	return hosts, nil
+}
+
+func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, error) {
+	name, _ := os.Hostname()
+
+	// Use a buffered channel to pass changes from store watch API to daemon
+	// A buffer allows store watch API and daemon processing to not wait for each other
+	watchStream := make(chan *swarmapi.WatchMessage, 32)
+
+	c, err := cluster.New(cluster.Config{
+		Root:                   cli.Config.Root,
+		Name:                   name,
+		Backend:                d,
+		ImageBackend:           d.ImageService(),
+		PluginBackend:          d.PluginManager(),
+		NetworkSubnetsProvider: d,
+		DefaultAdvertiseAddr:   cli.Config.SwarmDefaultAdvertiseAddr,
+		RaftHeartbeatTick:      cli.Config.SwarmRaftHeartbeatTick,
+		RaftElectionTick:       cli.Config.SwarmRaftElectionTick,
+		RuntimeRoot:            cli.getSwarmRunRoot(),
+		WatchStream:            watchStream,
+	})
+	if err != nil {
+		return nil, err
+	}
+	d.SetCluster(c)
+	err = c.Start()
+
+	return c, err
 }
 
 // validates that the plugins requested with the --authorization-plugin flag are valid AuthzDriver

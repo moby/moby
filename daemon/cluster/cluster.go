@@ -305,6 +305,13 @@ func (c *Cluster) GetRemoteAddressList() []string {
 	return c.getRemoteAddressList()
 }
 
+// GetWatchStream returns the channel to pass changes from store watch API
+func (c *Cluster) GetWatchStream() chan *swarmapi.WatchMessage {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.watchStream
+}
+
 func (c *Cluster) getRemoteAddressList() []string {
 	state := c.currentNodeState()
 	if state.swarmNode == nil {
