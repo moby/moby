@@ -57,7 +57,7 @@ RUN apt-get update && apt-get install -y \
 	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
 	&& make \
-	&& make PREFIX=/opt/criu install-criu
+	&& make PREFIX=/build/ install-criu
 
 FROM base AS registry
 # Install two versions of the registry. The first is an older version that
@@ -71,12 +71,12 @@ RUN set -x \
 	&& git clone https://github.com/docker/distribution.git "$GOPATH/src/github.com/docker/distribution" \
 	&& (cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT") \
 	&& GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH" \
-		go build -buildmode=pie -o /usr/local/bin/registry-v2 github.com/docker/distribution/cmd/registry \
+		go build -buildmode=pie -o /build/registry-v2 github.com/docker/distribution/cmd/registry \
 	&& case $(dpkg --print-architecture) in \
 		amd64|ppc64*|s390x) \
 		(cd "$GOPATH/src/github.com/docker/distribution" && git checkout -q "$REGISTRY_COMMIT_SCHEMA1"); \
 		GOPATH="$GOPATH/src/github.com/docker/distribution/Godeps/_workspace:$GOPATH"; \
-			go build -buildmode=pie -o /usr/local/bin/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
+			go build -buildmode=pie -o /build/registry-v2-schema1 github.com/docker/distribution/cmd/registry; \
 		;; \
 	   esac \
 	&& rm -rf "$GOPATH"
@@ -86,8 +86,8 @@ RUN set -x \
 FROM base AS docker-py
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
-RUN git clone https://github.com/docker/docker-py.git /docker-py \
-	&& cd /docker-py \
+RUN git clone https://github.com/docker/docker-py.git /build \
+	&& cd /build \
 	&& git checkout -q $DOCKER_PY_COMMIT
 
 
@@ -99,7 +99,7 @@ RUN set -x \
 	&& export GOPATH="$(mktemp -d)" \
 	&& git clone https://github.com/go-swagger/go-swagger.git "$GOPATH/src/github.com/go-swagger/go-swagger" \
 	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
-	&& go build -o /usr/local/bin/swagger github.com/go-swagger/go-swagger/cmd/swagger \
+	&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
 	&& rm -rf "$GOPATH"
 
 
@@ -107,7 +107,7 @@ FROM base AS frozen-images
 RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
-RUN /download-frozen-image-v2.sh /docker-frozen-images \
+RUN /download-frozen-image-v2.sh /build \
 	buildpack-deps:jessie@sha256:dd86dced7c9cd2a724e779730f0a53f93b7ef42228d4344b25ce9a42a1486251 \
 	busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0 \
 	busybox:glibc@sha256:0b55a30394294ab23b9afd58fab94e61a923f5834fba7ddbae7f8e0c11ba85e6 \
@@ -126,51 +126,51 @@ FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS vndr
 ENV INSTALL_BINARY_NAME=vndr
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS containerd
 RUN apt-get update && apt-get install -y btrfs-tools
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS gometalinter
 ENV INSTALL_BINARY_NAME=gometalinter
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM runtime-dev AS runc
 ENV INSTALL_BINARY_NAME=runc
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS tini
 RUN apt-get update && apt-get install -y cmake vim-common
 COPY hack/dockerfile/install/install.sh ./install.sh
 ENV INSTALL_BINARY_NAME=tini
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/opt/$INSTALL_BINARY_NAME ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 
 
@@ -214,19 +214,19 @@ RUN apt-get update && apt-get install -y \
 	bzip2 \
 	xz-utils \
 	--no-install-recommends
-COPY --from=swagger /usr/local/bin/swagger* /usr/local/bin/
-COPY --from=frozen-images /docker-frozen-images /docker-frozen-images
-COPY --from=gometalinter /opt/gometalinter/ /usr/local/bin/
-COPY --from=tomlv /opt/tomlv/ /usr/local/bin/
-COPY --from=vndr /opt/vndr/ /usr/local/bin/
-COPY --from=tini /opt/tini/ /usr/local/bin/
-COPY --from=runc /opt/runc/ /usr/local/bin/
-COPY --from=containerd /opt/containerd/ /usr/local/bin/
-COPY --from=proxy /opt/proxy/ /usr/local/bin/
-COPY --from=dockercli /opt/dockercli /usr/local/cli
-COPY --from=registry /usr/local/bin/registry* /usr/local/bin/
-COPY --from=criu /opt/criu/ /usr/local/
-COPY --from=docker-py /docker-py /docker-py
+COPY --from=swagger /build/swagger* /usr/local/bin/
+COPY --from=frozen-images /build/ /docker-frozen-images
+COPY --from=gometalinter /build/ /usr/local/bin/
+COPY --from=tomlv /build/ /usr/local/bin/
+COPY --from=vndr /build/ /usr/local/bin/
+COPY --from=tini /build/ /usr/local/bin/
+COPY --from=runc /build/ /usr/local/bin/
+COPY --from=containerd /build/ /usr/local/bin/
+COPY --from=proxy /build/ /usr/local/bin/
+COPY --from=dockercli /build/ /usr/local/cli
+COPY --from=registry /build/registry* /usr/local/bin/
+COPY --from=criu /build/ /usr/local/
+COPY --from=docker-py /build/ /docker-py
 # TODO: This is for the docker-py tests, which shouldn't really be needed for
 # this image, but currently CI is expecting to run this image. This should be
 # split out into a separate image, including all the `python-*` deps installed
