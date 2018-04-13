@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/integration-cli/registry"
+package registry // import "github.com/docker/docker/internal/test/registry"
 
 import (
 	"fmt"
@@ -7,16 +7,23 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/opencontainers/go-digest"
 )
 
 const (
-	v2binary        = "registry-v2"
-	v2binarySchema1 = "registry-v2-schema1"
+	// V2binary is the name of the registry v2 binary
+	V2binary = "registry-v2"
+	// V2binarySchema1 is the name of the registry that serve schema1
+	V2binarySchema1 = "registry-v2-schema1"
+	// DefaultURL is the default url that will be used by the registry (if not specified otherwise)
+	DefaultURL = "127.0.0.1:5000"
 )
 
 type testingT interface {
+	assert.TestingT
 	logT
 	Fatal(...interface{})
 	Fatalf(string, ...interface{})
@@ -37,12 +44,24 @@ type V2 struct {
 	email       string
 }
 
+// Config contains the test registry configuration
+type Config struct {
+	schema1     bool
+	auth        string
+	tokenURL    string
+	registryURL string
+}
+
 // NewV2 creates a v2 registry server
-func NewV2(schema1 bool, auth, tokenURL, registryURL string) (*V2, error) {
-	tmp, err := ioutil.TempDir("", "registry-test-")
-	if err != nil {
-		return nil, err
+func NewV2(t testingT, ops ...func(*Config)) *V2 {
+	c := &Config{
+		registryURL: DefaultURL,
 	}
+	for _, op := range ops {
+		op(c)
+	}
+	tmp, err := ioutil.TempDir("", "registry-test-")
+	assert.NilError(t, err)
 	template := `version: 0.1
 loglevel: debug
 storage:
@@ -57,7 +76,7 @@ http:
 		password     string
 		email        string
 	)
-	switch auth {
+	switch c.auth {
 	case "htpasswd":
 		htpasswdPath := filepath.Join(tmp, "htpasswd")
 		// generated with: htpasswd -Bbn testuser testpassword
@@ -65,9 +84,8 @@ http:
 		username = "testuser"
 		password = "testpassword"
 		email = "test@test.org"
-		if err := ioutil.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644)); err != nil {
-			return nil, err
-		}
+		err := ioutil.WriteFile(htpasswdPath, []byte(userpasswd), os.FileMode(0644))
+		assert.NilError(t, err)
 		authTemplate = fmt.Sprintf(`auth:
     htpasswd:
         realm: basic-realm
@@ -80,39 +98,51 @@ http:
         service: "registry"
         issuer: "auth-registry"
         rootcertbundle: "fixtures/registry/cert.pem"
-`, tokenURL)
+`, c.tokenURL)
 	}
 
 	confPath := filepath.Join(tmp, "config.yaml")
 	config, err := os.Create(confPath)
-	if err != nil {
-		return nil, err
-	}
+	assert.NilError(t, err)
 	defer config.Close()
 
-	if _, err := fmt.Fprintf(config, template, tmp, registryURL, authTemplate); err != nil {
+	if _, err := fmt.Fprintf(config, template, tmp, c.registryURL, authTemplate); err != nil {
+		// FIXME(vdemeester) use a defer/clean func
 		os.RemoveAll(tmp)
-		return nil, err
+		t.Fatal(err)
 	}
 
-	binary := v2binary
-	if schema1 {
-		binary = v2binarySchema1
+	binary := V2binary
+	if c.schema1 {
+		binary = V2binarySchema1
 	}
 	cmd := exec.Command(binary, confPath)
 	if err := cmd.Start(); err != nil {
+		// FIXME(vdemeester) use a defer/clean func
 		os.RemoveAll(tmp)
-		return nil, err
+		t.Fatal(err)
 	}
 	return &V2{
 		cmd:         cmd,
 		dir:         tmp,
-		auth:        auth,
+		auth:        c.auth,
 		username:    username,
 		password:    password,
 		email:       email,
-		registryURL: registryURL,
-	}, nil
+		registryURL: c.registryURL,
+	}
+}
+
+// WaitReady waits for the registry to be ready to serve requests (or fail after a while)
+func (r *V2) WaitReady(t testingT) {
+	var err error
+	for i := 0; i != 50; i++ {
+		if err = r.Ping(); err == nil {
+			return
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
+	t.Fatalf("timeout waiting for test registry to become available: %v", err)
 }
 
 // Ping sends an http request to the current registry, and fail if it doesn't respond correctly
@@ -152,30 +182,24 @@ func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 }
 
 // ReadBlobContents read the file corresponding to the specified digest
-func (r *V2) ReadBlobContents(t testingT, blobDigest digest.Digest) []byte {
+func (r *V2) ReadBlobContents(t assert.TestingT, blobDigest digest.Digest) []byte {
 	// Load the target manifest blob.
 	manifestBlob, err := ioutil.ReadFile(r.getBlobFilename(blobDigest))
-	if err != nil {
-		t.Fatalf("unable to read blob: %s", err)
-	}
-
+	assert.NilError(t, err, "unable to read blob")
 	return manifestBlob
 }
 
 // WriteBlobContents write the file corresponding to the specified digest with the given content
-func (r *V2) WriteBlobContents(t testingT, blobDigest digest.Digest, data []byte) {
-	if err := ioutil.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644)); err != nil {
-		t.Fatalf("unable to write malicious data blob: %s", err)
-	}
+func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data []byte) {
+	err := ioutil.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644))
+	assert.NilError(t, err, "unable to write malicious data blob")
 }
 
 // TempMoveBlobData moves the existing data file aside, so that we can replace it with a
 // malicious blob of data for example.
 func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()) {
 	tempFile, err := ioutil.TempFile("", "registry-temp-blob-")
-	if err != nil {
-		t.Fatalf("unable to get temporary blob file: %s", err)
-	}
+	assert.NilError(t, err, "unable to get temporary blob file")
 	tempFile.Close()
 
 	blobFilename := r.getBlobFilename(blobDigest)
@@ -183,6 +207,7 @@ func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()
 	// Move the existing data file aside, so that we can replace it with a
 	// another blob of data.
 	if err := os.Rename(blobFilename, tempFile.Name()); err != nil {
+		// FIXME(vdemeester) use a defer/clean func
 		os.Remove(tempFile.Name())
 		t.Fatalf("unable to move data blob: %s", err)
 	}
