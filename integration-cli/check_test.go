@@ -20,9 +20,9 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
-	"github.com/docker/docker/integration-cli/registry"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	ienv "github.com/docker/docker/internal/test/environment"
+	"github.com/docker/docker/internal/test/registry"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
@@ -30,7 +30,7 @@ import (
 
 const (
 	// the private registry to use for tests
-	privateRegistryURL = "127.0.0.1:5000"
+	privateRegistryURL = registry.DefaultURL
 
 	// path to containerd's ctr binary
 	ctrBinary = "docker-containerd-ctr"
@@ -126,8 +126,9 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
-	s.reg = setupRegistry(c, false, "", "")
+	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
+	s.reg = registry.NewV2(c)
+	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
@@ -160,8 +161,9 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting, NotArm64, SameHostDaemon)
-	s.reg = setupRegistry(c, true, "", "")
+	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, SameHostDaemon)
+	s.reg = registry.NewV2(c, registry.Schema1)
+	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
@@ -194,8 +196,9 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
-	s.reg = setupRegistry(c, false, "htpasswd", "")
+	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
+	s.reg = registry.NewV2(c, registry.Htpasswd)
+	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
@@ -230,7 +233,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
 		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
 	})
@@ -252,7 +255,8 @@ func (s *DockerRegistryAuthTokenSuite) setupRegistryWithTokenService(c *check.C,
 	if s == nil {
 		c.Fatal("registry suite isn't initialized")
 	}
-	s.reg = setupRegistry(c, false, "token", tokenURL)
+	s.reg = registry.NewV2(c, registry.Token(tokenURL))
+	s.reg.WaitReady(c)
 }
 
 func init() {
@@ -405,8 +409,9 @@ func (ps *DockerPluginSuite) getPluginRepoWithTag() string {
 }
 
 func (ps *DockerPluginSuite) SetUpSuite(c *check.C) {
-	testRequires(c, DaemonIsLinux, registry.Hosting)
-	ps.registry = setupRegistry(c, false, "", "")
+	testRequires(c, DaemonIsLinux, RegistryHosting)
+	ps.registry = registry.NewV2(c)
+	ps.registry.WaitReady(c)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()

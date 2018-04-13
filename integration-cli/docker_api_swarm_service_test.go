@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/internal/test/registry"
 	"github.com/go-check/check"
 	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
@@ -615,7 +616,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 func (s *DockerSwarmSuite) TestAPISwarmServicesPlugin(c *check.C) {
 	testRequires(c, ExperimentalDaemon, DaemonIsLinux, IsAmd64)
 
-	reg := setupRegistry(c, false, "", "")
+	reg := registry.NewV2(c)
 	defer reg.Close()
 
 	repo := path.Join(privateRegistryURL, "swarm", "test:v1")

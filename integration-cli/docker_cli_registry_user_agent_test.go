@@ -7,7 +7,7 @@ import (
 	"os"
 	"regexp"
 
-	"github.com/docker/docker/integration-cli/registry"
+	"github.com/docker/docker/internal/test/registry"
 	"github.com/go-check/check"
 )
 

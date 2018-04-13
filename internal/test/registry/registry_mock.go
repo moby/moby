@@ -1,4 +1,4 @@
-package registry // import "github.com/docker/docker/integration-cli/registry"
+package registry // import "github.com/docker/docker/internal/test/registry"
 
 import (
 	"net/http"
