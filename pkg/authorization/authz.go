@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"strings"
 
@@ -153,7 +154,12 @@ func sendBody(url string, header http.Header) bool {
 	}
 
 	// body is sent only for text or json messages
-	return header.Get("Content-Type") == "application/json"
+	contentType, _, err := mime.ParseMediaType(header.Get("Content-Type"))
+	if err != nil {
+		return false
+	}
+
+	return contentType == "application/json"
 }
 
 // headers returns flatten version of the http headers excluding authorization
