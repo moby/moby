@@ -14,6 +14,32 @@ const (
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
+// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
+func (d *Daemon) StartAndSwarmInit(t testingT) {
+	// avoid networking conflicts
+	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+	d.StartWithBusybox(t, args...)
+
+	d.SwarmInit(t, swarm.InitRequest{})
+}
+
+// StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
+func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
+	// avoid networking conflicts
+	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+	d.StartWithBusybox(t, args...)
+
+	tokens := leader.JoinTokens(t)
+	token := tokens.Worker
+	if manager {
+		token = tokens.Manager
+	}
+	d.SwarmJoin(t, swarm.JoinRequest{
+		RemoteAddrs: []string{leader.SwarmListenAddr()},
+		JoinToken:   token,
+	})
+}
+
 // SpecConstructor defines a swarm spec constructor
 type SpecConstructor func(*swarm.Spec)
 

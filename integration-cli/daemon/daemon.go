@@ -30,21 +30,12 @@ type Daemon struct {
 	dockerBinary string
 }
 
-// Config holds docker daemon integration configuration
-type Config struct {
-	Experimental bool
-}
-
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, dockerBinary string, dockerdBinary string, config Config, ops ...func(*daemon.Daemon)) *Daemon {
+func New(t testingT, dockerBinary string, dockerdBinary string, ops ...func(*daemon.Daemon)) *Daemon {
 	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
-	if config.Experimental {
-		ops = append(ops, daemon.WithExperimental)
-	}
 	d := daemon.New(t, ops...)
-
 	return &Daemon{
 		Daemon:       d,
 		dockerBinary: dockerBinary,

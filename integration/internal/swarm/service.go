@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -55,11 +54,7 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...func(*daemon.
 		ops = append(ops, daemon.WithExperimental)
 	}
 	d := daemon.New(t, ops...)
-	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
-
-	d.SwarmInit(t, swarmtypes.InitRequest{})
+	d.StartAndSwarmInit(t)
 	return d
 }
 
@@ -73,7 +68,8 @@ func CreateService(t *testing.T, d *daemon.Daemon, opts ...ServiceSpecOpt) strin
 		o(&spec)
 	}
 
-	client := GetClient(t, d)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	resp, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
 	assert.NilError(t, err, "error creating service")
@@ -140,7 +136,8 @@ func ServiceWithName(name string) ServiceSpecOpt {
 
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmtypes.Task {
-	client := GetClient(t, d)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("desired-state", "running")
@@ -156,7 +153,8 @@ func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmty
 
 // ExecTask runs the passed in exec config on the given task
 func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
-	client := GetClient(t, d)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 	resp, err := client.ContainerExecCreate(ctx, task.Status.ContainerStatus.ContainerID, config)
@@ -172,11 +170,4 @@ func ensureContainerSpec(spec *swarmtypes.ServiceSpec) {
 	if spec.TaskTemplate.ContainerSpec == nil {
 		spec.TaskTemplate.ContainerSpec = &swarmtypes.ContainerSpec{}
 	}
-}
-
-// GetClient creates a new client for the passed in swarm daemon.
-func GetClient(t *testing.T, d *daemon.Daemon) client.APIClient {
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
-	return client
 }

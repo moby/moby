@@ -1,5 +1,7 @@
 package daemon
 
+import "github.com/docker/docker/internal/test/environment"
+
 // WithExperimental sets the daemon in experimental mode
 func WithExperimental(d *Daemon) {
 	d.experimental = true
@@ -23,5 +25,14 @@ func WithSwarmPort(port int) func(*Daemon) {
 func WithSwarmListenAddr(listenAddr string) func(*Daemon) {
 	return func(d *Daemon) {
 		d.swarmListenAddr = listenAddr
+	}
+}
+
+// WithEnvironment sets options from internal/test/environment.Execution struct
+func WithEnvironment(e environment.Execution) func(*Daemon) {
+	return func(d *Daemon) {
+		if e.DaemonInfo.ExperimentalBuild {
+			d.experimental = true
+		}
 	}
 }

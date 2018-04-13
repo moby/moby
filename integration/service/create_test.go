@@ -20,8 +20,8 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	overlayName := "overlay1"
 	networkCreate := types.NetworkCreate{
@@ -78,8 +78,8 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	name := "foo"
 	networkCreate := types.NetworkCreate{
@@ -140,8 +140,8 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 	secretResp, err := client.SecretCreate(ctx, swarmtypes.SecretSpec{
@@ -221,8 +221,8 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 	configResp, err := client.ConfigCreate(ctx, swarmtypes.ConfigSpec{

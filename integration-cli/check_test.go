@@ -13,7 +13,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
@@ -129,9 +128,7 @@ func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
 	s.reg = registry.NewV2(c)
 	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
@@ -164,9 +161,7 @@ func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, SameHostDaemon)
 	s.reg = registry.NewV2(c, registry.Schema1)
 	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
@@ -199,9 +194,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
 	s.reg = registry.NewV2(c, registry.Htpasswd)
 	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
@@ -234,9 +227,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
@@ -276,9 +267,7 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, SameHostDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
@@ -333,26 +322,18 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Daemon {
-	d := daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	}, testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex))
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"} // avoid networking conflicts
-	d.StartWithBusybox(c, args...)
-
+	d := daemon.New(c, dockerBinary, dockerdBinary,
+		testdaemon.WithEnvironment(testEnv.Execution),
+		testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex),
+	)
 	if joinSwarm {
 		if len(s.daemons) > 0 {
-			tokens := s.daemons[0].JoinTokens(c)
-			token := tokens.Worker
-			if manager {
-				token = tokens.Manager
-			}
-			d.SwarmJoin(c, swarm.JoinRequest{
-				RemoteAddrs: []string{s.daemons[0].SwarmListenAddr()},
-				JoinToken:   token,
-			})
+			d.StartAndSwarmJoin(c, s.daemons[0].Daemon, manager)
 		} else {
-			d.SwarmInit(c, swarm.InitRequest{})
+			d.StartAndSwarmInit(c)
 		}
+	} else {
+		d.StartWithBusybox(c, "--iptables=false", "--swarm-default-advertise-addr=lo")
 	}
 
 	s.portIndex++
