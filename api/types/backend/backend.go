@@ -25,17 +25,27 @@ type ContainerAttachConfig struct {
 	MuxStreams bool
 }
 
+// PartialLogMetaData provides meta data for a partial log message. Messages
+// exceeding a predefined size are split into chunks with this metadata. The
+// expectation is for the logger endpoints to assemble the chunks using this
+// metadata.
+type PartialLogMetaData struct {
+	Last    bool   //true if this message is last of a partial
+	ID      string // identifies group of messages comprising a single record
+	Ordinal int    // ordering of message in partial group
+}
+
 // LogMessage is datastructure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
 // changes to this struct need to be reflect in the reset method in
 // daemon/logger/logger.go
 type LogMessage struct {
-	Line      []byte
-	Source    string
-	Timestamp time.Time
-	Attrs     []LogAttr
-	Partial   bool
+	Line         []byte
+	Source       string
+	Timestamp    time.Time
+	Attrs        []LogAttr
+	PLogMetaData *PartialLogMetaData
 
 	// Err is an error associated with a message. Completeness of a message
 	// with Err is not expected, tho it may be partially complete (fields may

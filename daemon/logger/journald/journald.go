@@ -108,7 +108,7 @@ func (s *journald) Log(msg *logger.Message) error {
 	for k, v := range s.vars {
 		vars[k] = v
 	}
-	if msg.Partial {
+	if msg.PLogMetaData != nil {
 		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
 	}
 

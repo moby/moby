@@ -60,7 +60,7 @@ func (m *Message) reset() {
 	m.Line = m.Line[:0]
 	m.Source = ""
 	m.Attrs = nil
-	m.Partial = false
+	m.PLogMetaData = nil
 
 	m.Err = nil
 }

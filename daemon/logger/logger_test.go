@@ -6,9 +6,9 @@ import (
 
 func (m *Message) copy() *Message {
 	msg := &Message{
-		Source:    m.Source,
-		Partial:   m.Partial,
-		Timestamp: m.Timestamp,
+		Source:       m.Source,
+		PLogMetaData: m.PLogMetaData,
+		Timestamp:    m.Timestamp,
 	}
 
 	if m.Attrs != nil {
