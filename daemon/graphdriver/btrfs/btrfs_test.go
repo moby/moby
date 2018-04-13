@@ -53,7 +53,7 @@ func TestBtrfsSubvolDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	idir := path.Join(dir, "intermediate")
-	assert.NilError(t, os.Mkdir(idir, 0777), "Failed to create intermediate dir %s", idir)
+	assert.NilError(t, os.Mkdir(idir, 0777))
 
 	assert.NilError(t, subvolSnapshot("", idir, "subvoltest2"))
 
@@ -62,7 +62,7 @@ func TestBtrfsSubvolDelete(t *testing.T) {
 	assert.NilError(t, d.Remove("test"))
 
 	_, err = os.Stat(dir)
-	assert.ErrorType(t, err, os.IsNotExist, "expected not exist error on nested subvol")
+	assert.ErrorType(t, err, os.IsNotExist, "expected not exist error on subvol dir")
 }
 
 func TestBtrfsSubvolRO(t *testing.T) {
@@ -136,7 +136,7 @@ func TestBtrfsSubvolLongPath(t *testing.T) {
 		assert.NilError(t, err, "Failed to create file at %s", subvoldir)
 		assert.NilError(t, dfile.Close())
 		name := getMaxFilenameFormPattern(fmt.Sprintf("LongPathToFirstSubvol_LVL%d_", i))
-		assert.NilError(t, os.Mkdir(name, 0777), "Failed to create dir %s/%s", subvoldir, name)
+		assert.NilError(t, os.Mkdir(name, 0777))
 		assert.NilError(t, os.Chdir(name))
 		l += len(name)
 		subvoldir = path.Join(subvoldir, name)
@@ -151,7 +151,7 @@ func TestBtrfsSubvolLongPath(t *testing.T) {
 	i := 1
 	for l := 0; l < syscall.PathMax; i++ {
 		name := getMaxFilenameFormPattern(fmt.Sprintf("LongPathToNestedSub_1_LVL%d_", i))
-		assert.NilError(t, os.Mkdir(name, 0777), "Failed to create dir %s/%s", subvoldir, name)
+		assert.NilError(t, os.Mkdir(name, 0777))
 		assert.NilError(t, os.Chdir(name))
 		l += len(name)
 		subvoldir = path.Join(subvoldir, name)
@@ -166,7 +166,7 @@ func TestBtrfsSubvolLongPath(t *testing.T) {
 
 	for i, l := 1, 0; l < syscall.PathMax*2; i++ {
 		name := getMaxFilenameFormPattern(fmt.Sprintf("LongPathToNestedSub_2_LVL%d_", i))
-		assert.NilError(t, os.Mkdir(name, 0777), "Failed to create dir %s/%s", subvoldir, name)
+		assert.NilError(t, os.Mkdir(name, 0777))
 		assert.NilError(t, os.Chdir(name))
 		l += len(name)
 		subvoldir = path.Join(subvoldir, name)

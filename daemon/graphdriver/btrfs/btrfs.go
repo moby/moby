@@ -8,14 +8,20 @@ package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 #include <unistd.h>
 #include <btrfs/ctree.h>
 
-static int copy_subvolname_and_free(char* dest, char* name) {
-	int r = snprintf(dest, BTRFS_SUBVOL_NAME_MAX, "%s", name);
-	free(name);
-	return r;
+static int set_name_btrfs_ioctl_vol_args(struct btrfs_ioctl_vol_args* btrfs_struct, char* name) {
+    int r = snprintf(btrfs_struct->name,
+                     sizeof(btrfs_struct->name),
+                     "%s", name);
+    free(name);
+    return r;
 }
 
-static inline int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, char* name) {
-	return copy_subvolname_and_free(btrfs_struct->name, name);
+static int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, char* name) {
+    int r = snprintf(btrfs_struct->name,
+                     sizeof(btrfs_struct->name),
+                     "%s", name);
+    free(name);
+    return r;
 }
 
 static inline __u16 _le16toh(__le16 i) {return le16toh(i);}
@@ -212,7 +218,7 @@ func openDir(dirpath string) (*C.DIR, error) {
 	tail := dirpath[len(head)+1:]
 
 	closefd := func(fd C.int) {
-		if r, err := C.close(fd); r != 0 {
+		if r, err := C.close(fd); r < 0 {
 			logrus.Errorf("Failed to close %v: %v", fd, err)
 		}
 	}
@@ -253,7 +259,7 @@ func openDir(dirpath string) (*C.DIR, error) {
 }
 
 func closeDir(dir *C.DIR) {
-	if r, err := C.closedir(dir); r != 0 {
+	if r, err := C.closedir(dir); r < 0 {
 		logrus.Errorf("Failed to closedir: %v", err)
 	}
 }
@@ -382,7 +388,7 @@ func subvolDelete(dirpath, name string, subvolID C.__u64) error {
 
 	destroySnap := func() syscall.Errno {
 		var args C.struct_btrfs_ioctl_vol_args
-		if r, err := C.copy_subvolname_and_free((*C.char)(unsafe.Pointer(&args.name)), C.CString(name)); r < 0 {
+		if r, err := C.set_name_btrfs_ioctl_vol_args(&args, C.CString(name)); r < 0 {
 			return err.(syscall.Errno)
 		}
 		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
@@ -663,22 +669,22 @@ func subvolSetPropRO(path string, isReadOnly bool) error {
 	}
 	defer closeDir(dir)
 
-	var oldflags, newflags C.__u64
+	var oldFlags, newFlags C.__u64
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_GETFLAGS,
-		uintptr(unsafe.Pointer(&oldflags)))
+		uintptr(unsafe.Pointer(&oldFlags)))
 	if errno != 0 {
 		return fmt.Errorf("Failed to get btrfs subvolume flags for %s: %v", path, errno.Error())
 	}
 
 	if isReadOnly {
-		newflags = oldflags | C.BTRFS_SUBVOL_RDONLY
+		newFlags = oldFlags | C.BTRFS_SUBVOL_RDONLY
 	} else {
-		newflags = oldflags &^ C.BTRFS_SUBVOL_RDONLY
+		newFlags = oldFlags &^ C.BTRFS_SUBVOL_RDONLY
 	}
 
-	if newflags != oldflags {
+	if newFlags != oldFlags {
 		_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SUBVOL_SETFLAGS,
-			uintptr(unsafe.Pointer(&newflags)))
+			uintptr(unsafe.Pointer(&newFlags)))
 		if errno != 0 {
 			return fmt.Errorf("Failed to set btrfs subvolume flags for %s: %v", path, errno.Error())
 		}
@@ -905,8 +911,10 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	return containerfs.NewLocalContainerFS(dir), nil
 }
 
-// Put is return BTRFS subvolume to readonly state.
+// Put returns a subvolume to read-only state.
 func (d *Driver) Put(id string) error {
+	// Get() creates no runtime resources (like e.g. mounts),
+	// it only makes a subvolume read-write; revert it here.
 	return subvolSetPropRO(d.subvolumesDirID(id), true)
 }
 
