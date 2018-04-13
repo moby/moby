@@ -9,7 +9,7 @@ RUN zypper addrepo -n ppc64le-updates -f https://download.opensuse.org/ports/upd
 RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build
 RUN zypper --non-interactive install libbtrfs-devel device-mapper-devel glibc-static  libselinux-devel pkg-config selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim
 
-ENV GO_VERSION 1.9.5
+ENV GO_VERSION 1.10.1
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 

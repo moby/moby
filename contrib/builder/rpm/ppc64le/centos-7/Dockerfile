@@ -8,7 +8,7 @@ RUN yum groupinstall -y "Development Tools"
 RUN yum -y swap -- remove systemd-container systemd-container-libs -- install systemd systemd-libs
 RUN yum install -y btrfs-progs-devel device-mapper-devel glibc-static libseccomp-devel libselinux-devel pkgconfig selinux-policy selinux-policy-devel sqlite-devel systemd-devel tar git cmake vim-common
 
-ENV GO_VERSION 1.9.5
+ENV GO_VERSION 1.10.1
 RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-ppc64le.tar.gz" | tar xzC /usr/local
 ENV PATH $PATH:/usr/local/go/bin
 

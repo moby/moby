@@ -69,19 +69,19 @@ var testLayers = []testLayer{
 	{
 		// this tar has two files with the same path
 		filename: "testdata/collision/collision-0.tar",
-		tarsum:   "tarsum+sha256:08653904a68d3ab5c59e65ef58c49c1581caa3c34744f8d354b3f575ea04424a"},
+		tarsum:   "tarsum+sha256:7cabb5e9128bb4a93ff867b9464d7c66a644ae51ea2e90e6ef313f3bef93f077"},
 	{
 		// this tar has the same two files (with the same path), but reversed order. ensuring is has different hash than above
 		filename: "testdata/collision/collision-1.tar",
-		tarsum:   "tarsum+sha256:b51c13fbefe158b5ce420d2b930eef54c5cd55c50a2ee4abdddea8fa9f081e0d"},
+		tarsum:   "tarsum+sha256:805fd393cfd58900b10c5636cf9bab48b2406d9b66523122f2352620c85dc7f9"},
 	{
 		// this tar has newer of collider-0.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-2.tar",
-		tarsum:   "tarsum+sha256:381547080919bb82691e995508ae20ed33ce0f6948d41cafbeb70ce20c73ee8e"},
+		tarsum:   "tarsum+sha256:85d2b8389f077659d78aca898f9e632ed9161f553f144aef100648eac540147b"},
 	{
 		// this tar has newer of collider-1.tar, ensuring is has different hash
 		filename: "testdata/collision/collision-3.tar",
-		tarsum:   "tarsum+sha256:f886e431c08143164a676805205979cd8fa535dfcef714db5515650eea5a7c0f"},
+		tarsum:   "tarsum+sha256:cbe4dee79fe979d69c16c2bccd032e3205716a562f4a3c1ca1cbeed7b256eb19"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
 		tarsum:  "tarsum+md5:0d7529ec7a8360155b48134b8e599f53",
@@ -436,7 +436,7 @@ func TestIteration(t *testing.T) {
 			[]byte(""),
 		},
 		{
-			"tarsum.dev+sha256:b38166c059e11fb77bef30bf16fba7584446e80fcc156ff46d47e36c5305d8ef",
+			"tarsum.dev+sha256:862964db95e0fa7e42836ae4caab3576ab1df8d275720a45bdd01a5a3730cc63",
 			VersionDev,
 			&tar.Header{
 				Name:     "another.txt",
@@ -452,7 +452,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum.dev+sha256:4cc2e71ac5d31833ab2be9b4f7842a14ce595ec96a37af4ed08f87bc374228cd",
+			"tarsum.dev+sha256:4b1ba03544b49d96a32bacc77f8113220bd2f6a77e7e6d1e7b33cd87117d88e7",
 			VersionDev,
 			&tar.Header{
 				Name:     "xattrs.txt",
@@ -470,7 +470,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum.dev+sha256:65f4284fa32c0d4112dd93c3637697805866415b570587e4fd266af241503760",
+			"tarsum.dev+sha256:410b602c898bd4e82e800050f89848fc2cf20fd52aa59c1ce29df76b878b84a6",
 			VersionDev,
 			&tar.Header{
 				Name:     "xattrs.txt",
@@ -488,7 +488,7 @@ func TestIteration(t *testing.T) {
 			[]byte("test"),
 		},
 		{
-			"tarsum+sha256:c12bb6f1303a9ddbf4576c52da74973c00d14c109bcfa76b708d5da1154a07fa",
+			"tarsum+sha256:b1f97eab73abd7593c245e51070f9fbdb1824c6b00a0b7a3d7f0015cd05e9e86",
 			Version0,
 			&tar.Header{
 				Name:     "xattrs.txt",
