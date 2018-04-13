@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -17,12 +16,12 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
 
 	name := "test-alias"
-	_, err = client.NetworkCreate(ctx, name, types.NetworkCreate{
+	_, err := client.NetworkCreate(ctx, name, types.NetworkCreate{
 		Driver:     "overlay",
 		Attachable: true,
 	})

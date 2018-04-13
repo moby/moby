@@ -17,8 +17,8 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	hostName := "host"
 	var instances uint64 = 1
@@ -47,9 +47,8 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	poll.WaitOn(t, swarmIngressReady(client), swarm.NetworkPoll)
 
