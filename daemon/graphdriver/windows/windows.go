@@ -340,6 +340,11 @@ func (d *Driver) Remove(id string) error {
 	return nil
 }
 
+// GetLayerPath gets the layer path on host
+func (d *Driver) GetLayerPath(id string) (string, error) {
+	return d.dir(id), nil
+}
+
 // Get returns the rootfs path for the id. This will mount the dir at its given path.
 func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	logrus.Debugf("WindowsGraphDriver Get() id %s mountLabel %s", id, mountLabel)
