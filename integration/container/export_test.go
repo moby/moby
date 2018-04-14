@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	containerTypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/request"
@@ -70,15 +69,10 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	ctx := context.Background()
-	cfg := containerTypes.Config{
-		Image: "busybox",
-		Cmd:   []string{"top"},
-	}
-	ctr, err := client.ContainerCreate(ctx, &cfg, nil, nil, "")
-	assert.NilError(t, err)
+	ctrID := container.Create(t, ctx, client)
 
 	d.Restart(t)
 
-	_, err = client.ContainerExport(ctx, ctr.ID)
+	_, err = client.ContainerExport(ctx, ctrID)
 	assert.NilError(t, err)
 }
