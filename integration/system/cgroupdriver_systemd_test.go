@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
 
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -40,25 +40,17 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	defer d.Stop(t)
 
 	const mem = 64 * 1024 * 1024 // 64 MB
-	cfg := container.Config{
-		Image: "busybox",
-		Cmd:   []string{"top"},
-	}
-	hostcfg := container.HostConfig{
-		Resources: container.Resources{
-			Memory: mem,
-		},
-	}
 
 	ctx := context.Background()
-	ctr, err := client.ContainerCreate(ctx, &cfg, &hostcfg, nil, "")
-	assert.NilError(t, err)
-	defer client.ContainerRemove(ctx, ctr.ID, types.ContainerRemoveOptions{Force: true})
+	ctrID := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.HostConfig.Resources.Memory = mem
+	})
+	defer client.ContainerRemove(ctx, ctrID, types.ContainerRemoveOptions{Force: true})
 
-	err = client.ContainerStart(ctx, ctr.ID, types.ContainerStartOptions{})
+	err = client.ContainerStart(ctx, ctrID, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
-	s, err := client.ContainerInspect(ctx, ctr.ID)
+	s, err := client.ContainerInspect(ctx, ctrID)
 	assert.NilError(t, err)
 	assert.Equal(t, s.HostConfig.Memory, mem)
 }

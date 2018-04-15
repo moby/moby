@@ -46,7 +46,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 				&container.Config{Image: tc.image},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
-				"foo",
+				"",
 			)
 			testutil.ErrorContains(t, err, tc.expectedError)
 		})
@@ -86,7 +86,7 @@ func TestCreateWithInvalidEnv(t *testing.T) {
 				},
 				&container.HostConfig{},
 				&network.NetworkingConfig{},
-				"foo",
+				"",
 			)
 			testutil.ErrorContains(t, err, tc.expectedError)
 		})
