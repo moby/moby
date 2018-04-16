@@ -15,11 +15,11 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	ienv "github.com/docker/docker/internal/test/environment"
+	"github.com/docker/docker/internal/test/fakestorage"
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/internal/test/registry"
 	"github.com/docker/docker/pkg/reexec"

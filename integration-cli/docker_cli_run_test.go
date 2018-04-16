@@ -25,7 +25,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers/kernel"
