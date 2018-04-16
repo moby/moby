@@ -25,8 +25,8 @@ func TestSecretInspect(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 
@@ -48,9 +48,8 @@ func TestSecretList(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
-
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
 
 	testName0 := "test0"
@@ -135,16 +134,15 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
-
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
 
 	testName := "test_secret"
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	// create an already existin secret, daemon should return a status code of 409
-	_, err = client.SecretCreate(ctx, swarmtypes.SecretSpec{
+	_, err := client.SecretCreate(ctx, swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
 			Name: testName,
 		},
@@ -183,14 +181,12 @@ func TestSecretsUpdate(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
-
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
 
 	testName := "test_secret"
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
-	assert.NilError(t, err)
 
 	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
 	assert.NilError(t, err)
@@ -233,9 +229,9 @@ func TestSecretsUpdate(t *testing.T) {
 func TestTemplatedSecret(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
-	client := swarm.GetClient(t, d)
 
 	referencedSecretSpec := swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{

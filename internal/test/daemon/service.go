@@ -13,9 +13,7 @@ import (
 // ServiceConstructor defines a swarm service constructor function
 type ServiceConstructor func(*swarm.Service)
 
-// CreateServiceWithOptions creates a swarm service given the specified service constructors
-// and auth config
-func (d *Daemon) CreateServiceWithOptions(t assert.TestingT, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
+func (d *Daemon) createServiceWithOptions(t assert.TestingT, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
 	var service swarm.Service
 	for _, fn := range f {
 		fn(&service)
@@ -34,7 +32,7 @@ func (d *Daemon) CreateServiceWithOptions(t assert.TestingT, opts types.ServiceC
 
 // CreateService creates a swarm service given the specified service constructor
 func (d *Daemon) CreateService(t assert.TestingT, f ...ServiceConstructor) string {
-	return d.CreateServiceWithOptions(t, types.ServiceCreateOptions{}, f...)
+	return d.createServiceWithOptions(t, types.ServiceCreateOptions{}, f...)
 }
 
 // GetService returns the swarm service corresponding to the specified id

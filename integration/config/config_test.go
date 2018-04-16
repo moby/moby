@@ -26,8 +26,8 @@ func TestConfigList(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 
@@ -117,8 +117,8 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 
@@ -145,8 +145,8 @@ func TestConfigsUpdate(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 
@@ -196,9 +196,9 @@ func TestConfigsUpdate(t *testing.T) {
 func TestTemplatedConfig(t *testing.T) {
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-
+	client := d.NewClientT(t)
+	defer client.Close()
 	ctx := context.Background()
-	client := swarm.GetClient(t, d)
 
 	referencedSecretName := "referencedsecret-" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
@@ -338,8 +338,8 @@ func TestConfigInspect(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client, err := client.NewClientWithOpts(client.WithHost((d.Sock())))
-	assert.NilError(t, err)
+	client := d.NewClientT(t)
+	defer client.Close()
 
 	ctx := context.Background()
 

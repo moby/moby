@@ -9,8 +9,8 @@ import (
 
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/moby/buildkit/session"
@@ -19,9 +19,7 @@ import (
 )
 
 func TestBuildWithSession(t *testing.T) {
-	d := daemon.New(t, "", "dockerd", daemon.Config{
-		Experimental: true,
-	})
+	d := daemon.New(t, daemon.WithExperimental)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 

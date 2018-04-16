@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/vfs"
 	"github.com/docker/docker/integration-cli/daemon"
+	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/go-check/check"
@@ -52,9 +53,7 @@ type graphEventsCounter struct {
 }
 
 func (s *DockerExternalGraphdriverSuite) SetUpTest(c *check.C) {
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, daemon.Config{
-		Experimental: testEnv.DaemonInfo.ExperimentalBuild,
-	})
+	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerExternalGraphdriverSuite) OnTimeout(c *check.C) {
