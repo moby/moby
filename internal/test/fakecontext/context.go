@@ -1,4 +1,4 @@
-package fakecontext // import "github.com/docker/docker/integration-cli/cli/build/fakecontext"
+package fakecontext // import "github.com/docker/docker/internal/test/fakecontext"
 
 import (
 	"bytes"
@@ -73,7 +73,7 @@ func WithFiles(files map[string]string) func(*Fake) error {
 func WithBinaryFiles(files map[string]*bytes.Buffer) func(*Fake) error {
 	return func(fakeContext *Fake) error {
 		for file, content := range files {
-			if err := fakeContext.Add(file, string(content.Bytes())); err != nil {
+			if err := fakeContext.Add(file, content.String()); err != nil {
 				return err
 			}
 		}

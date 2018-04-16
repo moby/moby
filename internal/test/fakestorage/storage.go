@@ -1,20 +1,24 @@
-package fakestorage // import "github.com/docker/docker/integration-cli/cli/build/fakestorage"
+package fakestorage // import "github.com/docker/docker/internal/test/fakestorage"
 
 import (
+	"context"
 	"fmt"
-	"net"
+	"io"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"os"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/cli"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
+	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/internal/test/environment"
+	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/testutil"
+	"github.com/docker/go-connections/nat"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
@@ -62,7 +66,7 @@ func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fak
 	case testEnv.IsLocalDaemon():
 		return newLocalFakeStorage(ctx)
 	default:
-		return newRemoteFileServer(t, ctx)
+		return newRemoteFileServer(t, ctx, testEnv.APIClient())
 	}
 	return nil
 }
@@ -101,6 +105,7 @@ type remoteFileServer struct {
 	host      string // hostname/port web server is listening to on docker host e.g. 0.0.0.0:43712
 	container string
 	image     string
+	client    client.APIClient
 	ctx       *fakecontext.Fake
 }
 
@@ -121,18 +126,26 @@ func (f *remoteFileServer) Close() error {
 			f.ctx.Close()
 		}
 		if f.image != "" {
-			if err := cli.Docker(cli.Args("rmi", "-f", f.image)).Error; err != nil {
+			if _, err := f.client.ImageRemove(context.Background(), f.image, types.ImageRemoveOptions{
+				Force: true,
+			}); err != nil {
 				fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
 			}
+		}
+		if err := f.client.Close(); err != nil {
+			fmt.Fprintf(os.Stderr, "Error closing remote file server : %v\n", err)
 		}
 	}()
 	if f.container == "" {
 		return nil
 	}
-	return cli.Docker(cli.Args("rm", "-fv", f.container)).Error
+	return f.client.ContainerRemove(context.Background(), f.container, types.ContainerRemoveOptions{
+		Force:         true,
+		RemoveVolumes: true,
+	})
 }
 
-func newRemoteFileServer(t testingT, ctx *fakecontext.Fake) *remoteFileServer {
+func newRemoteFileServer(t testingT, ctx *fakecontext.Fake, c client.APIClient) *remoteFileServer {
 	var (
 		image     = fmt.Sprintf("fileserver-img-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
 		container = fmt.Sprintf("fileserver-cnt-%s", strings.ToLower(testutil.GenerateRandomAlphaOnlyString(10)))
@@ -145,31 +158,39 @@ func newRemoteFileServer(t testingT, ctx *fakecontext.Fake) *remoteFileServer {
 COPY . /static`); err != nil {
 		t.Fatal(err)
 	}
-	cli.BuildCmd(t, image, build.WithoutCache, build.WithExternalBuildContext(ctx))
+	resp, err := c.ImageBuild(context.Background(), ctx.AsTarReader(t), types.ImageBuildOptions{
+		NoCache: true,
+		Tags:    []string{image},
+	})
+	assert.NilError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	assert.NilError(t, err)
 
 	// Start the container
-	cli.DockerCmd(t, "run", "-d", "-P", "--name", container, image)
+	b, err := c.ContainerCreate(context.Background(), &containertypes.Config{
+		Image: image,
+	}, &containertypes.HostConfig{}, nil, container)
+	assert.NilError(t, err)
+	err = c.ContainerStart(context.Background(), b.ID, types.ContainerStartOptions{})
+	assert.NilError(t, err)
 
 	// Find out the system assigned port
-	out := cli.DockerCmd(t, "port", container, "80/tcp").Combined()
-	fileserverHostPort := strings.Trim(out, "\n")
-	_, port, err := net.SplitHostPort(fileserverHostPort)
-	if err != nil {
-		t.Fatalf("unable to parse file server host:port: %v", err)
+	i, err := c.ContainerInspect(context.Background(), b.ID)
+	assert.NilError(t, err)
+	newP, err := nat.NewPort("tcp", "80")
+	assert.NilError(t, err)
+	ports, exists := i.NetworkSettings.Ports[newP]
+	if !exists || len(ports) != 1 {
+		t.Fatalf("unable to find port 80/tcp for %s", container)
 	}
-
-	dockerHostURL, err := url.Parse(request.DaemonHost())
-	if err != nil {
-		t.Fatalf("unable to parse daemon host URL: %v", err)
-	}
-	host, _, err := net.SplitHostPort(dockerHostURL.Host)
-	if err != nil {
-		t.Fatalf("unable to parse docker daemon host:port: %v", err)
-	}
+	host := ports[0].HostIP
+	port := ports[0].HostPort
 
 	return &remoteFileServer{
 		container: container,
 		image:     image,
 		host:      fmt.Sprintf("%s:%s", host, port),
-		ctx:       ctx}
+		ctx:       ctx,
+		client:    c,
+	}
 }

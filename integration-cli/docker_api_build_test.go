@@ -13,10 +13,10 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	"github.com/docker/docker/integration-cli/cli/build/fakegit"
-	"github.com/docker/docker/integration-cli/cli/build/fakestorage"
 	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/internal/test/fakecontext"
+	"github.com/docker/docker/internal/test/fakegit"
+	"github.com/docker/docker/internal/test/fakestorage"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
