@@ -712,7 +712,7 @@ func verifyDaemonSettings(conf *config.Config) error {
 		conf.Runtimes = make(map[string]types.Runtime)
 	}
 	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeName}
-
+	conf.Runtimes[config.DefaultStockRuntimeName] = types.Runtime{Path: DefaultRuntimeName}
 	return nil
 }
 
