@@ -8,20 +8,27 @@ package btrfs // import "github.com/docker/docker/daemon/graphdriver/btrfs"
 #include <unistd.h>
 #include <btrfs/ctree.h>
 
-static int set_name_btrfs_ioctl_vol_args(struct btrfs_ioctl_vol_args* btrfs_struct, char* name) {
-    int r = snprintf(btrfs_struct->name,
-                     sizeof(btrfs_struct->name),
-                     "%s", name);
-    free(name);
-    return r;
+static int copy_GoString_to_CString(char *dst, size_t dst_size, const _GoString_ src) {
+    const size_t src_size = _GoStringLen(src);
+    if (src_size >= dst_size) {
+        errno = ENAMETOOLONG;
+        return -1;
+    }
+    const char *psrc = _GoStringPtr(src);
+    size_t i;
+    for (i = 0; i < src_size; i++) {
+        dst[i] = psrc[i];
+    }
+    dst[i] = '\0';
+    return i;
 }
 
-static int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, char* name) {
-    int r = snprintf(btrfs_struct->name,
-                     sizeof(btrfs_struct->name),
-                     "%s", name);
-    free(name);
-    return r;
+static inline int set_name_btrfs_ioctl_vol_args(struct btrfs_ioctl_vol_args* btrfs_struct, const _GoString_ name) {
+    return copy_GoString_to_CString(btrfs_struct->name, sizeof(btrfs_struct->name), name);
+}
+
+static inline int set_name_btrfs_ioctl_vol_args_v2(struct btrfs_ioctl_vol_args_v2* btrfs_struct, const _GoString_ name) {
+    return copy_GoString_to_CString(btrfs_struct->name, sizeof(btrfs_struct->name), name);
 }
 
 static inline __u16 _le16toh(__le16 i) {return le16toh(i);}
@@ -290,7 +297,7 @@ func subvolSnapshot(src, dest, name string) error {
 		args.fd = C.__s64(getDirFd(srcDir))
 	}
 
-	if r, err := C.set_name_btrfs_ioctl_vol_args_v2(&args, C.CString(name)); r < 0 {
+	if r, err := C.set_name_btrfs_ioctl_vol_args_v2(&args, name); r < 0 {
 		return fmt.Errorf("Failed to copy subvolume name %s to args struct: %v", name, err)
 	}
 
@@ -388,7 +395,7 @@ func subvolDelete(dirpath, name string, subvolID C.__u64) error {
 
 	destroySnap := func() syscall.Errno {
 		var args C.struct_btrfs_ioctl_vol_args
-		if r, err := C.set_name_btrfs_ioctl_vol_args(&args, C.CString(name)); r < 0 {
+		if r, err := C.set_name_btrfs_ioctl_vol_args(&args, name); r < 0 {
 			return err.(syscall.Errno)
 		}
 		_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.BTRFS_IOC_SNAP_DESTROY,
