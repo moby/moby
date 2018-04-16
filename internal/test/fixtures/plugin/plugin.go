@@ -1,4 +1,4 @@
-package plugin // import "github.com/docker/docker/integration-cli/fixtures/plugin"
+package plugin // import "github.com/docker/docker/internal/test/fixtures/plugin"
 
 import (
 	"encoding/json"
@@ -206,8 +206,9 @@ func ensureBasicPluginBin() (string, error) {
 		return "", err
 	}
 	installPath := filepath.Join(os.Getenv("GOPATH"), "bin", name)
-	cmd := exec.Command(goBin, "build", "-o", installPath, "./"+filepath.Join("fixtures", "plugin", "basic"))
-	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
+	sourcePath := filepath.Join("github.com", "docker", "docker", "internal", "test", "fixtures", "plugin", "basic")
+	cmd := exec.Command(goBin, "build", "-o", installPath, sourcePath)
+	cmd.Env = append(cmd.Env, "GOPATH="+os.Getenv("GOPATH"), "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.Wrapf(err, "error building basic plugin bin: %s", string(out))
 	}

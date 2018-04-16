@@ -332,7 +332,7 @@ func listTar(f io.Reader) ([]string, error) {
 func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
-	dockerCmd(c, "load", "-i", "fixtures/load/emptyLayer.tar")
+	dockerCmd(c, "load", "-i", "testdata/emptyLayer.tar")
 }
 
 func (s *DockerSuite) TestSaveLoadParents(c *check.C) {
