@@ -7,8 +7,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration-cli/fixtures/plugin"
 	"github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
