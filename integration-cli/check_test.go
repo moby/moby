@@ -350,14 +350,7 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	for _, d := range s.daemons {
 		if d != nil {
 			d.Stop(c)
-			// FIXME(vdemeester) should be handled by SwarmDaemon ?
-			// raft state file is quite big (64MB) so remove it after every test
-			walDir := filepath.Join(d.Root, "swarm/raft/wal")
-			if err := os.RemoveAll(walDir); err != nil {
-				c.Logf("error removing %v: %v", walDir, err)
-			}
-
-			d.CleanupExecRoot(c)
+			d.Cleanup(c)
 		}
 	}
 	s.daemons = nil
