@@ -3,7 +3,6 @@ package layer // import "github.com/docker/docker/layer"
 import (
 	"compress/gzip"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -16,6 +15,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -194,8 +194,8 @@ func (fms *fileMetadataStore) GetCacheID(layer ChainID) (string, error) {
 	}
 	content := strings.TrimSpace(string(contentBytes))
 
-	if !stringIDRegexp.MatchString(content) {
-		return "", errors.New("invalid cache id value")
+	if content == "" {
+		return "", errors.Errorf("invalid cache id value")
 	}
 
 	return content, nil
