@@ -9,7 +9,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/integration/internal/request"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/internal/testutil"
 )
 

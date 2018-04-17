@@ -1,6 +1,6 @@
 // +build !windows
 
-package request // import "github.com/docker/docker/integration-cli/request"
+package request
 
 import (
 	"net"

@@ -22,8 +22,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/integration-cli/request"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/swarmkit/ca"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -242,7 +242,7 @@ func (s *DockerSwarmSuite) TestAPISwarmPromoteDemote(c *check.C) {
 	node := d1.GetNode(c, d1.NodeID())
 	node.Spec.Role = swarm.NodeRoleWorker
 	url := fmt.Sprintf("/nodes/%s/update?version=%d", node.ID, node.Version.Index)
-	res, body, err := request.DoOnHost(d1.Sock(), url, request.Method("POST"), request.JSONBody(node.Spec))
+	res, body, err := request.Post(url, request.Host(d1.Sock()), request.JSONBody(node.Spec))
 	c.Assert(err, checker.IsNil)
 	b, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -529,7 +529,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *check.C) {
 	req := swarm.InitRequest{
 		ListenAddr: "",
 	}
-	res, _, err := request.DoOnHost(d.Sock(), "/swarm/init", request.Method("POST"), request.JSONBody(req))
+	res, _, err := request.Post("/swarm/init", request.Host(d.Sock()), request.JSONBody(req))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 
@@ -537,7 +537,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInvalidAddress(c *check.C) {
 		ListenAddr:  "0.0.0.0:2377",
 		RemoteAddrs: []string{""},
 	}
-	res, _, err = request.DoOnHost(d.Sock(), "/swarm/join", request.Method("POST"), request.JSONBody(req2))
+	res, _, err = request.Post("/swarm/join", request.Host(d.Sock()), request.JSONBody(req2))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
 }

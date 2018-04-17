@@ -118,21 +118,6 @@ func (d *Daemon) WaitRun(contID string) error {
 	return WaitInspectWithArgs(d.dockerBinary, contID, "{{.State.Running}}", "true", 10*time.Second, args...)
 }
 
-// CmdRetryOutOfSequence tries the specified command against the current daemon for 10 times
-func (d *Daemon) CmdRetryOutOfSequence(args ...string) (string, error) {
-	for i := 0; ; i++ {
-		out, err := d.Cmd(args...)
-		if err != nil {
-			if strings.Contains(out, "update out of sequence") {
-				if i < 10 {
-					continue
-				}
-			}
-		}
-		return out, err
-	}
-}
-
 // WaitInspectWithArgs waits for the specified expression to be equals to the specified expected string in the given time.
 // Deprecated: use cli.WaitCmd instead
 func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time.Duration, arg ...string) error {

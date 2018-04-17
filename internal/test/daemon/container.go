@@ -8,7 +8,7 @@ import (
 )
 
 // ActiveContainers returns the list of ids of the currently running containers
-func (d *Daemon) ActiveContainers(t testingT) []string {
+func (d *Daemon) ActiveContainers(t assert.TestingT) []string {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -23,7 +23,7 @@ func (d *Daemon) ActiveContainers(t testingT) []string {
 }
 
 // FindContainerIP returns the ip of the specified container
-func (d *Daemon) FindContainerIP(t testingT, id string) string {
+func (d *Daemon) FindContainerIP(t assert.TestingT, id string) string {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
