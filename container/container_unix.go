@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/volume"
+	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -61,7 +62,7 @@ func (container *Container) BuildHostnameFile() error {
 func (container *Container) NetworkMounts() []Mount {
 	var mounts []Mount
 	shared := container.HostConfig.NetworkMode.IsContainer()
-	parser := volume.NewParser(container.OS)
+	parser := volumemounts.NewParser(container.OS)
 	if container.ResolvConfPath != "" {
 		if _, err := os.Stat(container.ResolvConfPath); err != nil {
 			logrus.Warnf("ResolvConfPath set to %q, but can't stat this filename (err = %v); skipping", container.ResolvConfPath, err)
@@ -198,7 +199,7 @@ func (container *Container) UnmountIpcMount(unmount func(pth string) error) erro
 // IpcMounts returns the list of IPC mounts
 func (container *Container) IpcMounts() []Mount {
 	var mounts []Mount
-	parser := volume.NewParser(container.OS)
+	parser := volumemounts.NewParser(container.OS)
 
 	if container.HasMountFor("/dev/shm") {
 		return mounts
@@ -402,7 +403,7 @@ func copyExistingContents(source, destination string) error {
 
 // TmpfsMounts returns the list of tmpfs mounts
 func (container *Container) TmpfsMounts() ([]Mount, error) {
-	parser := volume.NewParser(container.OS)
+	parser := volumemounts.NewParser(container.OS)
 	var mounts []Mount
 	for dest, data := range container.HostConfig.Tmpfs {
 		mounts = append(mounts, Mount{

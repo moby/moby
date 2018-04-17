@@ -1,4 +1,4 @@
-package volume // import "github.com/docker/docker/volume"
+package mounts // import "github.com/docker/docker/volume/mounts"
 
 func (p *windowsParser) HasResource(m *MountPoint, absolutePath string) bool {
 	return false

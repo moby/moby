@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/volume"
 	"github.com/docker/docker/volume/drivers"
+	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/sirupsen/logrus"
 )
 
@@ -387,7 +388,7 @@ func (s *VolumeStore) create(name, driverName string, opts, labels map[string]st
 
 	// volume name validation is specific to the host os and not on container image
 	// windows/lcow should have an equivalent volumename validation logic so we create a parser for current host OS
-	parser := volume.NewParser(runtime.GOOS)
+	parser := volumemounts.NewParser(runtime.GOOS)
 	err := parser.ValidateVolumeName(name)
 	if err != nil {
 		return nil, err

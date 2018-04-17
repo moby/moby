@@ -1,6 +1,6 @@
 // +build linux freebsd darwin
 
-package volume // import "github.com/docker/docker/volume"
+package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"fmt"
