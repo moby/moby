@@ -52,9 +52,9 @@ func TestContainerStopTimeout(t *testing.T) {
 	c = &Container{
 		Config: &container.Config{StopTimeout: &stopTimeout},
 	}
-	s = c.StopSignal()
-	if s != 15 {
-		t.Fatalf("Expected 15, got %v", s)
+	s = c.StopTimeout()
+	if s != stopTimeout {
+		t.Fatalf("Expected %v, got %v", stopTimeout, s)
 	}
 }
 
