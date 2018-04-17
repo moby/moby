@@ -15,7 +15,6 @@ import (
 	"github.com/moby/buildkit/snapshot"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 var keyParent = []byte("parent")
@@ -121,8 +120,24 @@ func (s *snapshotter) getLayer(key string) (layer.Layer, error) {
 	if !ok {
 		id, ok := s.chainID(key)
 		if !ok {
-			s.mu.Unlock()
-			return nil, nil
+			if err := s.db.View(func(tx *bolt.Tx) error {
+				b := tx.Bucket([]byte(key))
+				if b == nil {
+					return nil
+				}
+				v := b.Get(keyChainID)
+				if v != nil {
+					id = layer.ChainID(v)
+				}
+				return nil
+			}); err != nil {
+				s.mu.Unlock()
+				return nil, err
+			}
+			if id == "" {
+				s.mu.Unlock()
+				return nil, nil
+			}
 		}
 		var err error
 		l, err = s.opt.LayerStore.Get(id)
@@ -132,7 +147,7 @@ func (s *snapshotter) getLayer(key string) (layer.Layer, error) {
 		}
 		s.refs[string(id)] = l
 		if err := s.db.Update(func(tx *bolt.Tx) error {
-			_, err := tx.CreateBucketIfNotExists([]byte(id))
+			_, err := tx.CreateBucketIfNotExists([]byte(key))
 			return err
 		}); err != nil {
 			s.mu.Unlock()
@@ -282,7 +297,8 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		return nil
 	}
 
-	return s.opt.GraphDriver.Remove(key)
+	id, _ := s.getGraphDriverID(key)
+	return s.opt.GraphDriver.Remove(id)
 }
 
 func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error {
@@ -298,7 +314,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 	}); err != nil {
 		return err
 	}
-	logrus.Debugf("committed %s as %s", name, key)
+	// logrus.Debugf("committed %s as %s", name, key));
 	return nil
 }
 
@@ -307,61 +323,62 @@ func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snap
 }
 
 func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapshots.Info) error) error {
-	allKeys := map[string]struct{}{}
-	commitedIDs := map[string]string{}
-	chainIDs := map[string]layer.ChainID{}
+	// allKeys := map[string]struct{}{}
+	// commitedIDs := map[string]string{}
+	// chainIDs := map[string]layer.ChainID{}
+	//
+	// if err := s.db.View(func(tx *bolt.Tx) error {
+	// 	tx.ForEach(func(name []byte, b *bolt.Bucket) error {
+	// 		allKeys[string(name)] = struct{}{}
+	// 		v := b.Get(keyCommitted)
+	// 		if v != nil {
+	// 			commitedIDs[string(v)] = string(name)
+	// 		}
+	//
+	// 		v = b.Get(keyChainID)
+	// 		if v != nil {
+	// 			logrus.Debugf("loaded layer %s %s", name, v)
+	// 			chainIDs[string(name)] = layer.ChainID(v)
+	// 		}
+	// 		return nil
+	// 	})
+	// 	return nil
+	// }); err != nil {
+	// 	return err
+	// }
+	//
+	// for k := range allKeys {
+	// 	if chainID, ok := chainIDs[k]; ok {
+	// 		s.mu.Lock()
+	// 		if _, ok := s.refs[k]; !ok {
+	// 			l, err := s.opt.LayerStore.Get(chainID)
+	// 			if err != nil {
+	// 				s.mu.Unlock()
+	// 				return err
+	// 			}
+	// 			s.refs[k] = l
+	// 		}
+	// 		s.mu.Unlock()
+	// 	}
+	// 	if _, ok := commitedIDs[k]; ok {
+	// 		continue
+	// 	}
+	//
+	// 	if _, err := s.getLayer(k); err != nil {
+	// 		s.Remove(ctx, k)
+	// 		continue
+	// 	}
+	// 	info, err := s.Stat(ctx, k)
+	// 	if err != nil {
+	// 		s.Remove(ctx, k)
+	// 		continue
+	// 	}
+	// 	if err := fn(ctx, info); err != nil {
+	// 		return err
+	// 	}
+	// }
 
-	if err := s.db.View(func(tx *bolt.Tx) error {
-		tx.ForEach(func(name []byte, b *bolt.Bucket) error {
-			allKeys[string(name)] = struct{}{}
-			v := b.Get(keyCommitted)
-			if v != nil {
-				commitedIDs[string(v)] = string(name)
-			}
-
-			v = b.Get(keyChainID)
-			if v != nil {
-				chainIDs[string(name)] = layer.ChainID(v)
-			}
-			return nil
-		})
-		return nil
-	}); err != nil {
-		return err
-	}
-
-	for k := range allKeys {
-		if _, ok := commitedIDs[k]; ok {
-			continue
-		}
-		if chainID, ok := chainIDs[k]; ok {
-			s.mu.Lock()
-			if _, ok := s.refs[k]; !ok {
-				l, err := s.opt.LayerStore.Get(chainID)
-				if err != nil {
-					s.mu.Unlock()
-					return err
-				}
-				s.refs[k] = l
-			}
-			s.mu.Unlock()
-		}
-
-		if _, err := s.getLayer(k); err != nil {
-			s.Remove(ctx, k)
-			continue
-		}
-		info, err := s.Stat(ctx, k)
-		if err != nil {
-			s.Remove(ctx, k)
-			continue
-		}
-		if err := fn(ctx, info); err != nil {
-			return err
-		}
-	}
-
-	return nil
+	return errors.Errorf("not-implemented")
 }
 
 func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpaths ...string) (snapshots.Info, error) {

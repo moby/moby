@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"runtime"
 	"sync"
 	"time"
@@ -22,7 +23,6 @@ import (
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/ioutils"
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
@@ -36,8 +36,8 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	netcontext "golang.org/x/net/context"
+	"golang.org/x/time/rate"
 )
 
 type SourceOpt struct {
@@ -92,23 +92,22 @@ func (is *imageSource) getCredentialsFromSession(ctx context.Context) func(strin
 }
 
 func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
-	// type t struct {
-	// 	dgst digest.Digest
-	// 	dt   []byte
-	// }
-	// res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-	// 	dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	return &t{dgst: dgst, dt: dt}, nil
-	// })
-	// if err != nil {
-	// 	return "", nil, err
-	// }
-	// typed := res.(*t)
-	// return typed.dgst, typed.dt, nil
-	return "", nil, errors.Errorf("not-implemented")
+	type t struct {
+		dgst digest.Digest
+		dt   []byte
+	}
+	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, "")
+		if err != nil {
+			return nil, err
+		}
+		return &t{dgst: dgst, dt: dt}, nil
+	})
+	if err != nil {
+		return "", nil, err
+	}
+	typed := res.(*t)
+	return typed.dgst, typed.dt, nil
 }
 
 func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
@@ -189,7 +188,17 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 
 	pctx, stopProgress := context.WithCancel(ctx)
 
-	go showProgress(pctx, ongoing, p.is.ContentStore)
+	pw, _, ctx := progress.FromContext(ctx)
+	defer pw.Close()
+
+	progressDone := make(chan struct{})
+	go func() {
+		showProgress(pctx, ongoing, p.is.ContentStore, pw)
+		close(progressDone)
+	}()
+	defer func() {
+		<-progressDone
+	}()
 
 	fetcher, err := p.resolver.Fetcher(ctx, p.ref)
 	if err != nil {
@@ -213,14 +222,33 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 			return nil, nil
 		}),
 	}
+	// var schema1Converter *schema1.Converter
+	// if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
+	// 	schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
+	// 	handlers = append(handlers, schema1Converter)
+	// } else {
+	// 	handlers = append(handlers,
+	// 		remotes.FetchHandler(p.is.ContentStore, fetcher),
+	//
+	// 		images.ChildrenHandler(p.is.ContentStore),
+	// 	)
+	// }
+	//
 	var schema1Converter *schema1.Converter
 	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
 		schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
 		handlers = append(handlers, schema1Converter)
 	} else {
+		// Get all the children for a descriptor
+		childrenHandler := images.ChildrenHandler(p.is.ContentStore)
+		// Set any children labels for that content
+		childrenHandler = images.SetChildrenLabels(p.is.ContentStore, childrenHandler)
+		// Filter the childen by the platform
+		childrenHandler = images.FilterPlatforms(childrenHandler, platforms.Default())
+
 		handlers = append(handlers,
 			remotes.FetchHandler(p.is.ContentStore, fetcher),
-			images.ChildrenHandler(p.is.ContentStore, platforms.Default()),
+			childrenHandler,
 		)
 	}
 
@@ -228,7 +256,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		stopProgress()
 		return nil, err
 	}
-	stopProgress()
+	defer stopProgress()
 
 	mfst, err := images.Manifest(ctx, p.is.ContentStore, p.desc, platforms.Default())
 	if err != nil {
@@ -255,16 +283,41 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	}
 
 	pchan := make(chan pkgprogress.Progress, 10)
+	defer close(pchan)
 
 	go func() {
+		m := map[string]struct {
+			st      time.Time
+			limiter *rate.Limiter
+		}{}
 		for p := range pchan {
-			logrus.Debugf("progress %+v", p)
+			if p.Action == "Extracting" {
+				st, ok := m[p.ID]
+				if !ok {
+					st.st = time.Now()
+					st.limiter = rate.NewLimiter(rate.Every(100*time.Millisecond), 1)
+					m[p.ID] = st
+				}
+				var end *time.Time
+				if p.LastUpdate || st.limiter.Allow() {
+					if p.LastUpdate {
+						tm := time.Now()
+						end = &tm
+					}
+					pw.Write("extracting "+p.ID, progress.Status{
+						Action:    "extract",
+						Started:   &st.st,
+						Completed: end,
+					})
+				}
+			}
 		}
 	}()
 
 	layers := make([]xfer.DownloadDescriptor, 0, len(mfst.Layers))
 
 	for i, desc := range mfst.Layers {
+		ongoing.add(desc)
 		layers = append(layers, &layerDescriptor{
 			desc:    desc,
 			diffID:  layer.DiffID(img.RootFS.DiffIDs[i]),
@@ -274,11 +327,19 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		})
 	}
 
+	defer func() {
+		<-progressDone
+		for _, desc := range mfst.Layers {
+			p.is.ContentStore.Delete(context.TODO(), desc.Digest)
+		}
+	}()
+
 	r := image.NewRootFS()
 	rootFS, release, err := p.is.DownloadManager.Download(ctx, *r, runtime.GOOS, layers, pkgprogress.ChanOutput(pchan))
 	if err != nil {
 		return nil, err
 	}
+	stopProgress()
 
 	ref, err := p.is.CacheAccessor.Get(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
 	release()
@@ -317,8 +378,9 @@ func (ld *layerDescriptor) Download(ctx netcontext.Context, progressOutput pkgpr
 	}
 	defer rc.Close()
 
-	// TODO: progress
-	if err := content.WriteBlob(ctx, ld.is.ContentStore, ld.desc.Digest.String(), rc, ld.desc.Size, ld.desc.Digest); err != nil {
+	refKey := remotes.MakeRefKey(ctx, ld.desc)
+
+	if err := content.WriteBlob(ctx, ld.is.ContentStore, refKey, rc, ld.desc.Size, ld.desc.Digest); err != nil {
 		return nil, 0, err
 	}
 
@@ -327,9 +389,7 @@ func (ld *layerDescriptor) Download(ctx netcontext.Context, progressOutput pkgpr
 		return nil, 0, err
 	}
 
-	return ioutils.NewReadCloserWrapper(content.NewReader(ra), func() error {
-		return ld.is.ContentStore.Delete(context.TODO(), ld.desc.Digest)
-	}), ld.desc.Size, nil
+	return ioutil.NopCloser(content.NewReader(ra)), ld.desc.Size, nil
 }
 
 func (ld *layerDescriptor) Close() {
@@ -341,16 +401,13 @@ func (ld *layerDescriptor) Registered(diffID layer.DiffID) {
 	ld.is.MetadataStore.Add(diffID, metadata.V2Metadata{Digest: ld.desc.Digest, SourceRepository: ld.ref.Locator})
 }
 
-func showProgress(ctx context.Context, ongoing *jobs, cs content.Store) {
+func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progress.Writer) {
 	var (
 		ticker   = time.NewTicker(100 * time.Millisecond)
 		statuses = map[string]statusInfo{}
 		done     bool
 	)
 	defer ticker.Stop()
-
-	pw, _, ctx := progress.FromContext(ctx)
-	defer pw.Close()
 
 	for {
 		select {
@@ -371,7 +428,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store) {
 		actives := make(map[string]statusInfo)
 
 		if !done {
-			active, err := cs.ListStatuses(ctx, "")
+			active, err := cs.ListStatuses(ctx)
 			if err != nil {
 				// log.G(ctx).WithError(err).Error("active check failed")
 				continue
@@ -407,9 +464,9 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store) {
 				info, err := cs.Info(context.TODO(), j.Digest)
 				if err != nil {
 					if errdefs.IsNotFound(err) {
-						pw.Write(j.Digest.String(), progress.Status{
-							Action: "waiting",
-						})
+						// pw.Write(j.Digest.String(), progress.Status{
+						// 	Action: "waiting",
+						// })
 						continue
 					}
 				} else {

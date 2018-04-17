@@ -65,12 +65,12 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History)
 	}
 	m["history"] = dt
 
-	now := time.Now()
-	dt, err = json.Marshal(&now)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal creation time")
-	}
-	m["created"] = dt
+	// now := time.Now()
+	// dt, err = json.Marshal(&now)
+	// if err != nil {
+	// 	return nil, errors.Wrap(err, "failed to marshal creation time")
+	// }
+	// m["created"] = dt
 
 	dt, err = json.Marshal(m)
 	return dt, errors.Wrap(err, "failed to marshal config after patch")
@@ -104,9 +104,9 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 	if len(diffs) > historyLayers {
 		// some history items are missing. add them based on the ref metadata
 		for _, msg := range getRefDesciptions(ref, len(diffs)-historyLayers) {
-			tm := time.Now().UTC()
+			// tm := time.Now().UTC()
 			history = append(history, ocispec.History{
-				Created:   &tm,
+				// Created:   &tm,
 				CreatedBy: msg,
 				Comment:   "buildkit.exporter.image.v0",
 			})

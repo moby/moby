@@ -27,6 +27,7 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
+	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/cli/debug"
@@ -270,7 +271,16 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		return opts, err
 	}
 
-	bb, err := buildbackend.NewBackend(daemon.ImageService(), manager, buildCache)
+	buildkit, err := buildkit.New(buildkit.Opt{
+		SessionManager: sm,
+		Root:           filepath.Join(config.Root, "buildkit"),
+		Dist:           daemon.DistributionServices(),
+	})
+	if err != nil {
+		return opts, err
+	}
+
+	bb, err := buildbackend.NewBackend(daemon.ImageService(), manager, buildCache, buildkit)
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}

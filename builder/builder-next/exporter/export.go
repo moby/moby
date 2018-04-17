@@ -23,10 +23,17 @@ type Differ interface {
 	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
 }
 
+// TODO: this needs to be handled differently (return from solve)
+type Result struct {
+	Ref string
+	ID  image.ID
+}
+
 type Opt struct {
 	ImageStore     image.Store
 	ReferenceStore reference.Store
 	Differ         Differ
+	Reporter       chan Result
 }
 
 type imageExporter struct {
@@ -50,6 +57,8 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 			i.targetName = ref
 		case exporterImageConfig:
 			i.config = []byte(v)
+		case "ref":
+			i.ref = v
 		default:
 			logrus.Warnf("image exporter: unknown option %s", k)
 		}
@@ -61,6 +70,7 @@ type imageExporterInstance struct {
 	*imageExporter
 	targetName distref.Named
 	config     []byte
+	ref        string
 }
 
 func (e *imageExporterInstance) Name() string {
@@ -129,6 +139,10 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 			}
 			tagDone(nil)
 		}
+	}
+
+	if e.opt.Reporter != nil {
+		e.opt.Reporter <- Result{ID: id, Ref: e.ref}
 	}
 
 	return nil

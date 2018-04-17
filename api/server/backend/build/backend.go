@@ -3,11 +3,13 @@ package build // import "github.com/docker/docker/api/server/backend/build"
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
@@ -30,24 +32,39 @@ type Backend struct {
 	builder        Builder
 	fsCache        *fscache.FSCache
 	imageComponent ImageComponent
+	buildkit       *buildkit.Builder
 }
 
 // NewBackend creates a new build backend from components
-func NewBackend(components ImageComponent, builder Builder, fsCache *fscache.FSCache) (*Backend, error) {
-	return &Backend{imageComponent: components, builder: builder, fsCache: fsCache}, nil
+func NewBackend(components ImageComponent, builder Builder, fsCache *fscache.FSCache, buildkit *buildkit.Builder) (*Backend, error) {
+	return &Backend{imageComponent: components, builder: builder, fsCache: fsCache, buildkit: buildkit}, nil
 }
 
 // Build builds an image from a Source
 func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string, error) {
 	options := config.Options
+	useBuildKit := false
+	if strings.HasPrefix(options.SessionID, "buildkit:") {
+		useBuildKit = true
+		options.SessionID = strings.TrimPrefix(options.SessionID, "buildkit:")
+	}
+
 	tagger, err := NewTagger(b.imageComponent, config.ProgressWriter.StdoutFormatter, options.Tags)
 	if err != nil {
 		return "", err
 	}
 
-	build, err := b.builder.Build(ctx, config)
-	if err != nil {
-		return "", err
+	var build *builder.Result
+	if useBuildKit {
+		build, err = b.buildkit.Build(ctx, config)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		build, err = b.builder.Build(ctx, config)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	var imageID = build.ImageID
