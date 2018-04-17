@@ -59,7 +59,7 @@ message Node {
 	// component, if the node is a manager.
 	ManagerStatus manager_status = 6;
 
-	// DEPRECATED: Use lb_attachments to find the ingress network
+	// DEPRECATED: Use Attachments to find the ingress network
 	// The node attachment to the ingress network.
 	NetworkAttachment attachment = 7 [deprecated=true];
 

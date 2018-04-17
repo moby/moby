@@ -57,7 +57,7 @@ type Node struct {
 	// ManagerStatus provides the current status of the node's manager
 	// component, if the node is a manager.
 	ManagerStatus *ManagerStatus `protobuf:"bytes,6,opt,name=manager_status,json=managerStatus" json:"manager_status,omitempty"`
-	// DEPRECATED: Use lb_attachments to find the ingress network
+	// DEPRECATED: Use Attachments to find the ingress network
 	// The node attachment to the ingress network.
 	Attachment *NetworkAttachment `protobuf:"bytes,7,opt,name=attachment" json:"attachment,omitempty"`
 	// Certificate is the TLS certificate issued for the node, if any.

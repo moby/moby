@@ -950,15 +950,13 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			}
 		}
 		// Create now the static predefined if the store does not contain predefined
-		//networks like bridge/host node-local networks which
+		// networks like bridge/host node-local networks which
 		// are known to be present in each cluster node. This is needed
 		// in order to allow running services on the predefined docker
 		// networks like `bridge` and `host`.
 		for _, p := range allocator.PredefinedNetworks() {
-			if store.GetNetwork(tx, p.Name) == nil {
-				if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil {
-					log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
-				}
+			if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != store.ErrNameConflict {
+				log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
 			}
 		}
 		return nil

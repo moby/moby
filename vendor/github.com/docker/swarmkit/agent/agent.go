@@ -579,6 +579,7 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.No
 			desc.Hostname = a.config.Hostname
 		}
 		desc.TLSInfo = tlsInfo
+		desc.FIPS = a.config.FIPS
 	}
 	return desc, err
 }

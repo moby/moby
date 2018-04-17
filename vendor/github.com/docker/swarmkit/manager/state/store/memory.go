@@ -129,10 +129,10 @@ func (m *timedMutex) Lock() {
 // for which it was locked in a metric.
 func (m *timedMutex) Unlock() {
 	unlockedTimestamp := m.lockedAt.Load()
+	m.lockedAt.Store(time.Time{})
 	m.Mutex.Unlock()
 	lockedFor := time.Since(unlockedTimestamp.(time.Time))
 	storeLockDurationTimer.Update(lockedFor)
-	m.lockedAt.Store(time.Time{})
 }
 
 func (m *timedMutex) LockedAt() time.Time {
