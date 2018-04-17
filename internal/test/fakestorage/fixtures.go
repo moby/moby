@@ -1,13 +1,17 @@
-package fakestorage // import "github.com/docker/docker/integration-cli/cli/build/fakestorage"
+package fakestorage // import "github.com/docker/docker/internal/test/fakestorage"
 
 import (
+	"context"
+	"io"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sync"
 
-	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 var ensureHTTPServerOnce sync.Once
@@ -70,5 +74,15 @@ func ensureHTTPServerImage(t testingT) {
 		t.Fatalf("could not build http server: %v", string(out))
 	}
 
-	cli.DockerCmd(t, "build", "-q", "-t", "httpserver", tmp)
+	c := testEnv.APIClient()
+	reader, err := archive.TarWithOptions(tmp, &archive.TarOptions{})
+	assert.NilError(t, err)
+	resp, err := c.ImageBuild(context.Background(), reader, types.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        []string{"httpserver"},
+	})
+	assert.NilError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	assert.NilError(t, err)
 }
