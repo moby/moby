@@ -35,6 +35,7 @@ func NodeFromGRPC(n swarmapi.Node) types.Node {
 	//Description
 	if n.Description != nil {
 		node.Description.Hostname = n.Description.Hostname
+		node.Description.FIPS = n.Description.FIPS
 		if n.Description.Platform != nil {
 			node.Description.Platform.Architecture = n.Description.Platform.Architecture
 			node.Description.Platform.OS = n.Description.Platform.OS

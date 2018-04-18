@@ -2068,6 +2068,11 @@ definitions:
         $ref: "#/definitions/EngineDescription"
       TLSInfo:
         $ref: "#/definitions/TLSInfo"
+      FIPS:
+        type: "boolean"
+        example: true
+        default: false
+        description: Indicates whether the node is running in FIPS mode
 
   Platform:
     description: |
