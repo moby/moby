@@ -10,6 +10,7 @@ type ClusterInfo struct {
 	Spec                   Spec
 	TLSInfo                TLSInfo
 	RootRotationInProgress bool
+	MandatoryFIPS          bool
 }
 
 // Swarm represents a swarm.

@@ -2421,6 +2421,12 @@ definitions:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
         example: false
+        default: false
+      MandatoryFips:
+        description: "Whether this cluster requires that all nodes be in FIPS mode"
+        type: "boolean"
+        example: true
+        default: false
 
   JoinTokens:
     description: |
