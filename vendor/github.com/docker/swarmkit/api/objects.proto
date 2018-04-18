@@ -336,6 +336,12 @@ message Cluster {
 	// If the key is empty, the node will be unlocked (will not require a key
 	// to start up from a shut down state).
 	repeated EncryptionKey unlock_keys = 9;
+
+	// FIPS specifies whether this cluster should be in FIPS mode.  This changes
+	// the format of the join tokens, and nodes that are not FIPS-enabled should
+	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
+	// should be rejected from the cluster.
+	bool fips = 10 [(gogoproto.customname) = "FIPS"];
 }
 
 // Secret represents a secret that should be passed to a container or a node,

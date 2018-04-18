@@ -122,10 +122,6 @@ func (d *driver) Lstat(p string) (os.FileInfo, error) {
 	return os.Lstat(p)
 }
 
-func (d *driver) Readlink(p string) (string, error) {
-	return os.Readlink(p)
-}
-
 func (d *driver) Mkdir(p string, mode os.FileMode) error {
 	return os.Mkdir(p, mode)
 }

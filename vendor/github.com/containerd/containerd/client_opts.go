@@ -24,6 +24,7 @@ import (
 
 type clientOpts struct {
 	defaultns   string
+	services    *services
 	dialOptions []grpc.DialOption
 }
 
@@ -49,8 +50,34 @@ func WithDialOpts(opts []grpc.DialOption) ClientOpt {
 	}
 }
 
+// WithServices sets services used by the client.
+func WithServices(opts ...ServicesOpt) ClientOpt {
+	return func(c *clientOpts) error {
+		c.services = &services{}
+		for _, o := range opts {
+			o(c.services)
+		}
+		return nil
+	}
+}
+
 // RemoteOpt allows the caller to set distribution options for a remote
 type RemoteOpt func(*Client, *RemoteContext) error
+
+// WithPlatform allows the caller to specify a platform to retrieve
+// content for
+func WithPlatform(platform string) RemoteOpt {
+	return func(_ *Client, c *RemoteContext) error {
+		for _, p := range c.Platforms {
+			if p == platform {
+				return nil
+			}
+		}
+
+		c.Platforms = append(c.Platforms, platform)
+		return nil
+	}
+}
 
 // WithPullUnpack is used to unpack an image after pull. This
 // uses the snapshotter, content store, and diff service

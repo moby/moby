@@ -19,10 +19,10 @@ package containerd
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
@@ -31,22 +31,26 @@ import (
 	eventsapi "github.com/containerd/containerd/api/services/events/v1"
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
 	introspectionapi "github.com/containerd/containerd/api/services/introspection/v1"
+	leasesapi "github.com/containerd/containerd/api/services/leases/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
 	snapshotsapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	versionservice "github.com/containerd/containerd/api/services/version/v1"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/dialer"
+	contentproxy "github.com/containerd/containerd/content/proxy"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
 	"github.com/containerd/containerd/snapshots"
+	snproxy "github.com/containerd/containerd/snapshots/proxy"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -75,54 +79,79 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 			return nil, err
 		}
 	}
-	gopts := []grpc.DialOption{
-		grpc.WithBlock(),
-		grpc.WithInsecure(),
-		grpc.WithTimeout(60 * time.Second),
-		grpc.FailOnNonTempDialError(true),
-		grpc.WithBackoffMaxDelay(3 * time.Second),
-		grpc.WithDialer(dialer.Dialer),
+	c := &Client{
+		runtime: fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
 	}
-	if len(copts.dialOptions) > 0 {
-		gopts = copts.dialOptions
+	if copts.services != nil {
+		c.services = *copts.services
 	}
-	if copts.defaultns != "" {
-		unary, stream := newNSInterceptors(copts.defaultns)
-		gopts = append(gopts,
-			grpc.WithUnaryInterceptor(unary),
-			grpc.WithStreamInterceptor(stream),
-		)
-	}
-	connector := func() (*grpc.ClientConn, error) {
-		conn, err := grpc.Dial(dialer.DialAddress(address), gopts...)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to dial %q", address)
+	if address != "" {
+		gopts := []grpc.DialOption{
+			grpc.WithBlock(),
+			grpc.WithInsecure(),
+			grpc.FailOnNonTempDialError(true),
+			grpc.WithBackoffMaxDelay(3 * time.Second),
+			grpc.WithDialer(dialer.Dialer),
+
+			// TODO(stevvooe): We may need to allow configuration of this on the client.
+			grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+			grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
 		}
-		return conn, nil
+		if len(copts.dialOptions) > 0 {
+			gopts = copts.dialOptions
+		}
+		if copts.defaultns != "" {
+			unary, stream := newNSInterceptors(copts.defaultns)
+			gopts = append(gopts,
+				grpc.WithUnaryInterceptor(unary),
+				grpc.WithStreamInterceptor(stream),
+			)
+		}
+		connector := func() (*grpc.ClientConn, error) {
+			ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+			defer cancel()
+			conn, err := grpc.DialContext(ctx, dialer.DialAddress(address), gopts...)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to dial %q", address)
+			}
+			return conn, nil
+		}
+		conn, err := connector()
+		if err != nil {
+			return nil, err
+		}
+		c.conn, c.connector = conn, connector
 	}
-	conn, err := connector()
-	if err != nil {
-		return nil, err
+	if copts.services == nil && c.conn == nil {
+		return nil, errors.New("no grpc connection or services is available")
 	}
-	return &Client{
-		conn:      conn,
-		connector: connector,
-		runtime:   fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
-	}, nil
+	return c, nil
 }
 
 // NewWithConn returns a new containerd client that is connected to the containerd
 // instance provided by the connection
 func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
-	return &Client{
+	var copts clientOpts
+	for _, o := range opts {
+		if err := o(&copts); err != nil {
+			return nil, err
+		}
+	}
+	c := &Client{
 		conn:    conn,
 		runtime: fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
-	}, nil
+	}
+	if copts.services != nil {
+		c.services = *copts.services
+	}
+	return c, nil
 }
 
 // Client is the client to interact with containerd and its various services
 // using a uniform interface
 type Client struct {
+	services
+	connMu    sync.Mutex
 	conn      *grpc.ClientConn
 	runtime   string
 	connector func() (*grpc.ClientConn, error)
@@ -133,6 +162,8 @@ func (c *Client) Reconnect() error {
 	if c.connector == nil {
 		return errors.New("unable to reconnect to containerd, no connector available")
 	}
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
 	c.conn.Close()
 	conn, err := c.connector()
 	if err != nil {
@@ -149,6 +180,12 @@ func (c *Client) Reconnect() error {
 // connection. A timeout can be set in the context to ensure it returns
 // early.
 func (c *Client) IsServing(ctx context.Context) (bool, error) {
+	c.connMu.Lock()
+	if c.conn == nil {
+		c.connMu.Unlock()
+		return false, errors.New("no grpc connection available")
+	}
+	c.connMu.Unlock()
 	r, err := c.HealthService().Check(ctx, &grpc_health_v1.HealthCheckRequest{}, grpc.FailFast(false))
 	if err != nil {
 		return false, err
@@ -176,7 +213,7 @@ func (c *Client) NewContainer(ctx context.Context, id string, opts ...NewContain
 	if err != nil {
 		return nil, err
 	}
-	defer done()
+	defer done(ctx)
 
 	container := containers.Container{
 		ID: id,
@@ -211,6 +248,10 @@ type RemoteContext struct {
 	// Resolver is used to resolve names to objects, fetchers, and pushers.
 	// If no resolver is provided, defaults to Docker registry resolver.
 	Resolver remotes.Resolver
+
+	// Platforms defines which platforms to handle when doing the image operation.
+	// If this field is empty, content for all platforms will be pulled.
+	Platforms []string
 
 	// Unpack is done after an image is pulled to extract into a snapshotter.
 	// If an image is not unpacked on pull, it can be unpacked any time
@@ -257,12 +298,13 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	if err != nil {
 		return nil, err
 	}
-	defer done()
+	defer done(ctx)
 
 	name, desc, err := pullCtx.Resolver.Resolve(ctx, ref)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to resolve reference %q", ref)
 	}
+
 	fetcher, err := pullCtx.Resolver.Fetcher(ctx, name)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get fetcher for %q", name)
@@ -280,8 +322,8 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 		childrenHandler := images.ChildrenHandler(store)
 		// Set any children labels for that content
 		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
-		// Filter the childen by the platform
-		childrenHandler = images.FilterPlatform(platforms.Default(), childrenHandler)
+		// Filter children by platforms
+		childrenHandler = images.FilterPlatforms(childrenHandler, pullCtx.Platforms...)
 
 		handler = images.Handlers(append(pullCtx.BaseHandlers,
 			remotes.FetchHandler(store, fetcher),
@@ -299,38 +341,43 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 		}
 	}
 
-	imgrec := images.Image{
-		Name:   name,
-		Target: desc,
-		Labels: pullCtx.Labels,
+	img := &image{
+		client: c,
+		i: images.Image{
+			Name:   name,
+			Target: desc,
+			Labels: pullCtx.Labels,
+		},
+	}
+
+	if pullCtx.Unpack {
+		if err := img.Unpack(ctx, pullCtx.Snapshotter); err != nil {
+			return nil, errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
+		}
 	}
 
 	is := c.ImageService()
-	if created, err := is.Create(ctx, imgrec); err != nil {
-		if !errdefs.IsAlreadyExists(err) {
-			return nil, err
-		}
+	for {
+		if created, err := is.Create(ctx, img.i); err != nil {
+			if !errdefs.IsAlreadyExists(err) {
+				return nil, err
+			}
 
-		updated, err := is.Update(ctx, imgrec)
-		if err != nil {
-			return nil, err
-		}
+			updated, err := is.Update(ctx, img.i)
+			if err != nil {
+				// if image was removed, try create again
+				if errdefs.IsNotFound(err) {
+					continue
+				}
+				return nil, err
+			}
 
-		imgrec = updated
-	} else {
-		imgrec = created
-	}
-
-	img := &image{
-		client: c,
-		i:      imgrec,
-	}
-	if pullCtx.Unpack {
-		if err := img.Unpack(ctx, pullCtx.Snapshotter); err != nil {
-			errors.Wrapf(err, "failed to unpack image on snapshotter %s", pullCtx.Snapshotter)
+			img.i = updated
+		} else {
+			img.i = created
 		}
+		return img, nil
 	}
-	return img, nil
 }
 
 // Push uploads the provided content to a remote resource
@@ -347,7 +394,7 @@ func (c *Client) Push(ctx context.Context, ref string, desc ocispec.Descriptor, 
 		return err
 	}
 
-	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.BaseHandlers...)
+	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.Platforms, pushCtx.BaseHandlers...)
 }
 
 // GetImage returns an existing image
@@ -385,82 +432,73 @@ func (c *Client) ListImages(ctx context.Context, filters ...string) ([]Image, er
 //
 // The subscriber can stop receiving events by canceling the provided context.
 // The errs channel will be closed and return a nil error.
-func (c *Client) Subscribe(ctx context.Context, filters ...string) (ch <-chan *eventsapi.Envelope, errs <-chan error) {
-	var (
-		evq  = make(chan *eventsapi.Envelope)
-		errq = make(chan error, 1)
-	)
-
-	errs = errq
-	ch = evq
-
-	session, err := c.EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
-		Filters: filters,
-	})
-	if err != nil {
-		errq <- err
-		close(errq)
-		return
-	}
-
-	go func() {
-		defer close(errq)
-
-		for {
-			ev, err := session.Recv()
-			if err != nil {
-				errq <- err
-				return
-			}
-
-			select {
-			case evq <- ev:
-			case <-ctx.Done():
-				return
-			}
-		}
-	}()
-
-	return ch, errs
+func (c *Client) Subscribe(ctx context.Context, filters ...string) (ch <-chan *events.Envelope, errs <-chan error) {
+	return c.EventService().Subscribe(ctx, filters...)
 }
 
 // Close closes the clients connection to containerd
 func (c *Client) Close() error {
-	return c.conn.Close()
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	if c.conn != nil {
+		return c.conn.Close()
+	}
+	return nil
 }
 
 // NamespaceService returns the underlying Namespaces Store
 func (c *Client) NamespaceService() namespaces.Store {
+	if c.namespaceStore != nil {
+		return c.namespaceStore
+	}
 	return NewNamespaceStoreFromClient(namespacesapi.NewNamespacesClient(c.conn))
 }
 
 // ContainerService returns the underlying container Store
 func (c *Client) ContainerService() containers.Store {
+	if c.containerStore != nil {
+		return c.containerStore
+	}
 	return NewRemoteContainerStore(containersapi.NewContainersClient(c.conn))
 }
 
 // ContentStore returns the underlying content Store
 func (c *Client) ContentStore() content.Store {
-	return NewContentStoreFromClient(contentapi.NewContentClient(c.conn))
+	if c.contentStore != nil {
+		return c.contentStore
+	}
+	return contentproxy.NewContentStore(contentapi.NewContentClient(c.conn))
 }
 
 // SnapshotService returns the underlying snapshotter for the provided snapshotter name
 func (c *Client) SnapshotService(snapshotterName string) snapshots.Snapshotter {
-	return NewSnapshotterFromClient(snapshotsapi.NewSnapshotsClient(c.conn), snapshotterName)
+	if c.snapshotters != nil {
+		return c.snapshotters[snapshotterName]
+	}
+	return snproxy.NewSnapshotter(snapshotsapi.NewSnapshotsClient(c.conn), snapshotterName)
 }
 
 // TaskService returns the underlying TasksClient
 func (c *Client) TaskService() tasks.TasksClient {
+	if c.taskService != nil {
+		return c.taskService
+	}
 	return tasks.NewTasksClient(c.conn)
 }
 
 // ImageService returns the underlying image Store
 func (c *Client) ImageService() images.Store {
+	if c.imageStore != nil {
+		return c.imageStore
+	}
 	return NewImageStoreFromClient(imagesapi.NewImagesClient(c.conn))
 }
 
 // DiffService returns the underlying Differ
 func (c *Client) DiffService() DiffService {
+	if c.diffService != nil {
+		return c.diffService
+	}
 	return NewDiffServiceFromClient(diffapi.NewDiffClient(c.conn))
 }
 
@@ -469,14 +507,25 @@ func (c *Client) IntrospectionService() introspectionapi.IntrospectionClient {
 	return introspectionapi.NewIntrospectionClient(c.conn)
 }
 
+// LeasesService returns the underlying Leases Client
+func (c *Client) LeasesService() leasesapi.LeasesClient {
+	if c.leasesService != nil {
+		return c.leasesService
+	}
+	return leasesapi.NewLeasesClient(c.conn)
+}
+
 // HealthService returns the underlying GRPC HealthClient
 func (c *Client) HealthService() grpc_health_v1.HealthClient {
 	return grpc_health_v1.NewHealthClient(c.conn)
 }
 
-// EventService returns the underlying EventsClient
-func (c *Client) EventService() eventsapi.EventsClient {
-	return eventsapi.NewEventsClient(c.conn)
+// EventService returns the underlying event service
+func (c *Client) EventService() EventService {
+	if c.eventService != nil {
+		return c.eventService
+	}
+	return NewEventServiceFromClient(eventsapi.NewEventsClient(c.conn))
 }
 
 // VersionService returns the underlying VersionClient
@@ -494,6 +543,12 @@ type Version struct {
 
 // Version returns the version of containerd that the client is connected to
 func (c *Client) Version(ctx context.Context) (Version, error) {
+	c.connMu.Lock()
+	if c.conn == nil {
+		c.connMu.Unlock()
+		return Version{}, errors.New("no grpc connection available")
+	}
+	c.connMu.Unlock()
 	response, err := c.VersionService().Version(ctx, &ptypes.Empty{})
 	if err != nil {
 		return Version{}, err
@@ -502,99 +557,4 @@ func (c *Client) Version(ctx context.Context) (Version, error) {
 		Version:  response.Version,
 		Revision: response.Revision,
 	}, nil
-}
-
-type importOpts struct {
-}
-
-// ImportOpt allows the caller to specify import specific options
-type ImportOpt func(c *importOpts) error
-
-func resolveImportOpt(opts ...ImportOpt) (importOpts, error) {
-	var iopts importOpts
-	for _, o := range opts {
-		if err := o(&iopts); err != nil {
-			return iopts, err
-		}
-	}
-	return iopts, nil
-}
-
-// Import imports an image from a Tar stream using reader.
-// Caller needs to specify importer. Future version may use oci.v1 as the default.
-// Note that unreferrenced blobs may be imported to the content store as well.
-func (c *Client) Import(ctx context.Context, importer images.Importer, reader io.Reader, opts ...ImportOpt) ([]Image, error) {
-	_, err := resolveImportOpt(opts...) // unused now
-	if err != nil {
-		return nil, err
-	}
-
-	ctx, done, err := c.WithLease(ctx)
-	if err != nil {
-		return nil, err
-	}
-	defer done()
-
-	imgrecs, err := importer.Import(ctx, c.ContentStore(), reader)
-	if err != nil {
-		// is.Update() is not called on error
-		return nil, err
-	}
-
-	is := c.ImageService()
-	var images []Image
-	for _, imgrec := range imgrecs {
-		if updated, err := is.Update(ctx, imgrec, "target"); err != nil {
-			if !errdefs.IsNotFound(err) {
-				return nil, err
-			}
-
-			created, err := is.Create(ctx, imgrec)
-			if err != nil {
-				return nil, err
-			}
-
-			imgrec = created
-		} else {
-			imgrec = updated
-		}
-
-		images = append(images, &image{
-			client: c,
-			i:      imgrec,
-		})
-	}
-	return images, nil
-}
-
-type exportOpts struct {
-}
-
-// ExportOpt allows the caller to specify export-specific options
-type ExportOpt func(c *exportOpts) error
-
-func resolveExportOpt(opts ...ExportOpt) (exportOpts, error) {
-	var eopts exportOpts
-	for _, o := range opts {
-		if err := o(&eopts); err != nil {
-			return eopts, err
-		}
-	}
-	return eopts, nil
-}
-
-// Export exports an image to a Tar stream.
-// OCI format is used by default.
-// It is up to caller to put "org.opencontainers.image.ref.name" annotation to desc.
-// TODO(AkihiroSuda): support exporting multiple descriptors at once to a single archive stream.
-func (c *Client) Export(ctx context.Context, exporter images.Exporter, desc ocispec.Descriptor, opts ...ExportOpt) (io.ReadCloser, error) {
-	_, err := resolveExportOpt(opts...) // unused now
-	if err != nil {
-		return nil, err
-	}
-	pr, pw := io.Pipe()
-	go func() {
-		pw.CloseWithError(exporter.Export(ctx, c.ContentStore(), desc, pw))
-	}()
-	return pr, nil
 }

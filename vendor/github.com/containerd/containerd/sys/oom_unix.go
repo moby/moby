@@ -38,7 +38,7 @@ func SetOOMScore(pid, score int) error {
 	}
 	defer f.Close()
 	if _, err = f.WriteString(strconv.Itoa(score)); err != nil {
-		if os.IsPermission(err) && system.RunningInUserNS() {
+		if os.IsPermission(err) && (system.RunningInUserNS() || RunningUnprivileged()) {
 			return nil
 		}
 		return err

@@ -20,7 +20,9 @@ import (
 	"context"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"sync"
+	"time"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/opencontainers/go-digest"
@@ -64,7 +66,7 @@ func ReadBlob(ctx context.Context, provider Provider, dgst digest.Digest) ([]byt
 //
 // Copy is buffered, so no need to wrap reader in buffered io.
 func WriteBlob(ctx context.Context, cs Ingester, ref string, r io.Reader, size int64, expected digest.Digest, opts ...Opt) error {
-	cw, err := cs.Writer(ctx, ref, size, expected)
+	cw, err := OpenWriter(ctx, cs, ref, size, expected)
 	if err != nil {
 		if !errdefs.IsAlreadyExists(err) {
 			return err
@@ -77,8 +79,45 @@ func WriteBlob(ctx context.Context, cs Ingester, ref string, r io.Reader, size i
 	return Copy(ctx, cw, r, size, expected, opts...)
 }
 
+// OpenWriter opens a new writer for the given reference, retrying if the writer
+// is locked until the reference is available or returns an error.
+func OpenWriter(ctx context.Context, cs Ingester, ref string, size int64, expected digest.Digest) (Writer, error) {
+	var (
+		cw    Writer
+		err   error
+		retry = 16
+	)
+	for {
+		cw, err = cs.Writer(ctx, ref, size, expected)
+		if err != nil {
+			if !errdefs.IsUnavailable(err) {
+				return nil, err
+			}
+
+			// TODO: Check status to determine if the writer is active,
+			// continue waiting while active, otherwise return lock
+			// error or abort. Requires asserting for an ingest manager
+
+			select {
+			case <-time.After(time.Millisecond * time.Duration(rand.Intn(retry))):
+				if retry < 2048 {
+					retry = retry << 1
+				}
+				continue
+			case <-ctx.Done():
+				// Propagate lock error
+				return nil, err
+			}
+
+		}
+		break
+	}
+
+	return cw, err
+}
+
 // Copy copies data with the expected digest from the reader into the
-// provided content store writer.
+// provided content store writer. This copy commits the writer.
 //
 // This is useful when the digest and size are known beforehand. When
 // the size or digest is unknown, these values may be empty.
@@ -97,10 +136,7 @@ func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected dige
 		}
 	}
 
-	buf := bufPool.Get().(*[]byte)
-	defer bufPool.Put(buf)
-
-	if _, err := io.CopyBuffer(cw, r, *buf); err != nil {
+	if _, err := copyWithBuffer(cw, r); err != nil {
 		return err
 	}
 
@@ -111,6 +147,18 @@ func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected dige
 	}
 
 	return nil
+}
+
+// CopyReaderAt copies to a writer from a given reader at for the given
+// number of bytes. This copy does not commit the writer.
+func CopyReaderAt(cw Writer, ra ReaderAt, n int64) error {
+	ws, err := cw.Status()
+	if err != nil {
+		return err
+	}
+
+	_, err = copyWithBuffer(cw, io.NewSectionReader(ra, ws.Offset, n))
+	return err
 }
 
 // seekReader attempts to seek the reader to the given offset, either by
@@ -140,10 +188,7 @@ func seekReader(r io.Reader, offset, size int64) (io.Reader, error) {
 	}
 
 	// well then, let's just discard up to the offset
-	buf := bufPool.Get().(*[]byte)
-	defer bufPool.Put(buf)
-
-	n, err := io.CopyBuffer(ioutil.Discard, io.LimitReader(r, offset), *buf)
+	n, err := copyWithBuffer(ioutil.Discard, io.LimitReader(r, offset))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to discard to offset")
 	}
@@ -152,4 +197,11 @@ func seekReader(r io.Reader, offset, size int64) (io.Reader, error) {
 	}
 
 	return r, nil
+}
+
+func copyWithBuffer(dst io.Writer, src io.Reader) (written int64, err error) {
+	buf := bufPool.Get().(*[]byte)
+	written, err = io.CopyBuffer(dst, src, *buf)
+	bufPool.Put(buf)
+	return
 }

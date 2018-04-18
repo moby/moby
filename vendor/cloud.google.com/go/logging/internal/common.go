@@ -28,3 +28,12 @@ func LogPath(parent, logID string) string {
 	logID = strings.Replace(logID, "/", "%2F", -1)
 	return fmt.Sprintf("%s/logs/%s", parent, logID)
 }
+
+func LogIDFromPath(parent, path string) string {
+	start := len(parent) + len("/logs/")
+	if len(path) < start {
+		return ""
+	}
+	logID := path[start:]
+	return strings.Replace(logID, "%2F", "/", -1)
+}

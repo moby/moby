@@ -20,6 +20,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"path"
 	"strings"
@@ -84,8 +85,9 @@ func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int
 	req.Header.Set("Accept", strings.Join([]string{mediatype, `*`}, ", "))
 
 	if offset > 0 {
-		// TODO(stevvooe): Only set this header in response to the
-		// "Accept-Ranges: bytes" header.
+		// Note: "Accept-Ranges: bytes" cannot be trusted as some endpoints
+		// will return the header without supporting the range. The content
+		// range must always be checked.
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", offset))
 	}
 
@@ -105,6 +107,30 @@ func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int
 			return nil, errors.Wrapf(errdefs.ErrNotFound, "content at %v not found", u)
 		}
 		return nil, errors.Errorf("unexpected status code %v: %v", u, resp.Status)
+	}
+	if offset > 0 {
+		cr := resp.Header.Get("content-range")
+		if cr != "" {
+			if !strings.HasPrefix(cr, fmt.Sprintf("bytes %d-", offset)) {
+				return nil, errors.Errorf("unhandled content range in response: %v", cr)
+
+			}
+		} else {
+			// TODO: Should any cases where use of content range
+			// without the proper header be considerd?
+			// 206 responses?
+
+			// Discard up to offset
+			// Could use buffer pool here but this case should be rare
+			n, err := io.Copy(ioutil.Discard, io.LimitReader(resp.Body, offset))
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to discard to offset")
+			}
+			if n != offset {
+				return nil, errors.Errorf("unable to discard to offset")
+			}
+
+		}
 	}
 
 	return resp.Body, nil

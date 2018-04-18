@@ -1,13 +1,12 @@
-# Google Cloud for Go
+# Google Cloud Client Libraries for Go
 
-[![Build Status](https://travis-ci.org/GoogleCloudPlatform/google-cloud-go.svg?branch=master)](https://travis-ci.org/GoogleCloudPlatform/google-cloud-go)
 [![GoDoc](https://godoc.org/cloud.google.com/go?status.svg)](https://godoc.org/cloud.google.com/go)
+
+Go packages for [Google Cloud Platform](https://cloud.google.com) services.
 
 ``` go
 import "cloud.google.com/go"
 ```
-
-Go packages for Google Cloud Platform services.
 
 To install the packages on your system,
 
@@ -15,145 +14,270 @@ To install the packages on your system,
 $ go get -u cloud.google.com/go/...
 ```
 
-**NOTE:** These packages are under development, and may occasionally make
-backwards-incompatible changes.
+**NOTE:** Some of these packages are under development, and may occasionally
+make backwards-incompatible changes.
 
 **NOTE:** Github repo is a mirror of [https://code.googlesource.com/gocloud](https://code.googlesource.com/gocloud).
 
+  * [News](#news)
+  * [Supported APIs](#supported-apis)
+  * [Go Versions Supported](#go-versions-supported)
+  * [Authorization](#authorization)
+  * [Cloud Datastore](#cloud-datastore-)
+  * [Cloud Storage](#cloud-storage-)
+  * [Cloud Pub/Sub](#cloud-pub-sub-)
+  * [Cloud BigQuery](#cloud-bigquery-)
+  * [Stackdriver Logging](#stackdriver-logging-)
+  * [Cloud Spanner](#cloud-spanner-)
+
+
 ## News
 
-_December 5, 2016_
+_May 18, 2018_
 
-More changes to BigQuery:
+*v0.23.0*
 
-* The `ValueList` type was removed. It is no longer necessary. Instead of
-   ```go
-   var v ValueList
-   ... it.Next(&v) ..
-   ```
-   use
+- bigquery: Add DDL stats to query statistics.
+- bigtable:
+  - cbt: Add cells-per-column limit for row lookup.
+  - cbt: Make it possible to combine read filters.
+- dlp: v2beta2 client removed. Use the v2 client instead.
+- firestore, spanner: Fix compilation errors due to protobuf changes.
 
-   ```go
-   var v []Value
-   ... it.Next(&v) ...
-   ```
+_May 8, 2018_
 
-* Previously, repeatedly calling `RowIterator.Next` on the same `[]Value` or
-  `ValueList` would append to the slice. Now each call resets the size to zero first.
+*v0.22.0*
 
-* Schema inference will infer the SQL type BYTES for a struct field of
-  type []byte. Previously it inferred STRING.
+- bigtable:
+  - cbt: Support cells per column limit for row read.
+  - bttest: Correctly handle empty RowSet.
+  - Fix ReadModifyWrite operation in emulator.
+  - Fix API path in GetCluster.
 
-* The types `uint`, `uint64` and `uintptr` are no longer supported in schema
-  inference. BigQuery's integer type is INT64, and those types may hold values
-  that are not correctly represented in a 64-bit signed integer.
+- bigquery:
+  - BEHAVIOR CHANGE: Retry on 503 status code.
+  - Add dataset.DeleteWithContents.
+  - Add SchemaUpdateOptions for query jobs.
+  - Add Timeline to QueryStatistics.
+  - Add more stats to ExplainQueryStage.
+  - Support Parquet data format.
 
-* The SQL types DATE, TIME and DATETIME are now supported. They correspond to
-  the `Date`, `Time` and `DateTime` types in the new `cloud.google.com/go/civil`
-  package.
+- datastore:
+  - Support omitempty for times.
 
-_November 17, 2016_
+- dlp:
+  - **BREAKING CHANGE:** Remove v1beta1 client. Please migrate to the v2 client,
+  which is now out of beta.
+  - Add v2 client.
 
-Change to BigQuery: values from INTEGER columns will now be returned as int64,
-not int. This will avoid errors arising from large values on 32-bit systems.
+- firestore:
+  - BEHAVIOR CHANGE: Treat set({}, MergeAll) as valid.
 
-_November 8, 2016_
+- iam:
+  - Support JWT signing via SignJwt callopt.
 
-New datastore feature: datastore now encodes your nested Go structs as Entity values,
-instead of a flattened list of the embedded struct's fields.
-This means that you may now have twice-nested slices, eg.
-```go
-type State struct {
-  Cities  []struct{
-    Populations []int
-  }
-}
-```
+- profiler:
+  - BEHAVIOR CHANGE: PollForSerialOutput returns an error when context.Done.
+  - BEHAVIOR CHANGE: Increase the initial backoff to 1 minute.
+  - Avoid returning empty serial port output.
 
-See [the announcement](https://groups.google.com/forum/#!topic/google-api-go-announce/79jtrdeuJAg) for
-more details.
+- pubsub:
+  - BEHAVIOR CHANGE: Don't backoff during next retryable error once stream is healthy.
+  - BEHAVIOR CHANGE: Don't backoff on EOF.
+  - pstest: Support Acknowledge and ModifyAckDeadline RPCs.
 
-_November 8, 2016_
+- redis:
+  - Add v1 beta Redis client.
 
-Breaking changes to datastore: contexts no longer hold namespaces; instead you
-must set a key's namespace explicitly. Also, key functions have been changed
-and renamed.
+- spanner:
+  - Support SessionLabels.
 
-* The WithNamespace function has been removed. To specify a namespace in a Query, use the Query.Namespace method:
-  ```go
-  q := datastore.NewQuery("Kind").Namespace("ns")
-  ```
+- speech:
+  - Add api v1 beta1 client.
 
-* All the fields of Key are exported. That means you can construct any Key with a struct literal:
-  ```go
-  k := &Key{Kind: "Kind",  ID: 37, Namespace: "ns"}
-  ```
+- storage:
+  - BEHAVIOR CHANGE: Retry reads when retryable error occurs.
+  - Fix delete of object in requester-pays bucket.
+  - Support KMS integration.
 
-* As a result of the above, the Key methods Kind, ID, d.Name, Parent, SetParent and Namespace have been removed.
+_April 9, 2018_
 
-* `NewIncompleteKey` has been removed, replaced by `IncompleteKey`. Replace
-  ```go
-  NewIncompleteKey(ctx, kind, parent)
-  ```
-  with
-  ```go
-  IncompleteKey(kind, parent)
-  ```
-  and if you do use namespaces, make sure you set the namespace on the returned key.
+*v0.21.0*
 
-* `NewKey` has been removed, replaced by `NameKey` and `IDKey`. Replace
-  ```go
-  NewKey(ctx, kind, name, 0, parent)
-  NewKey(ctx, kind, "", id, parent)
-  ```
-  with
-  ```go
-  NameKey(kind, name, parent)
-  IDKey(kind, id, parent)
-  ```
-  and if you do use namespaces, make sure you set the namespace on the returned key.
+- bigquery:
+  - Add OpenCensus tracing.
 
-* The `Done` variable has been removed. Replace `datastore.Done` with `iterator.Done`, from the package `google.golang.org/api/iterator`.
+- firestore:
+  - **BREAKING CHANGE:** If a document does not exist, return a DocumentSnapshot
+    whose Exists method returns false. DocumentRef.Get and Transaction.Get
+    return the non-nil DocumentSnapshot in addition to a NotFound error.
+    **DocumentRef.GetAll and Transaction.GetAll return a non-nil
+    DocumentSnapshot instead of nil.**
+  - Add DocumentIterator.Stop. **Call Stop whenever you are done with a
+    DocumentIterator.**
+  - Added Query.Snapshots and DocumentRef.Snapshots, which provide realtime
+    notification of updates. See https://cloud.google.com/firestore/docs/query-data/listen.
+  - Canceling an RPC now always returns a grpc.Status with codes.Canceled.
 
-* The `Client.Close` method will have a return type of error. It will return the result of closing the underlying gRPC connection.
+- spanner:
+  - Add `CommitTimestamp`, which supports inserting the commit timestamp of a
+    transaction into a column.
 
-See [the announcement](https://groups.google.com/forum/#!topic/google-api-go-announce/hqXtM_4Ix-0) for
-more details.
+_March 22, 2018_
 
-_October 27, 2016_
+*v0.20.0*
 
-Breaking change to bigquery: `NewGCSReference` is now a function,
-not a method on `Client`.
+- bigquery: Support SchemaUpdateOptions for load jobs.
 
-New bigquery feature: `Table.LoaderFrom` now accepts a `ReaderSource`, enabling
-loading data into a table from a file or any `io.Reader`.
+- bigtable:
+  - Add SampleRowKeys.
+  - cbt: Support union, intersection GCPolicy.
+  - Retry admin RPCS.
+  - Add trace spans to retries.
 
-_October 21, 2016_
+- datastore: Add OpenCensus tracing.
 
-Breaking change to pubsub: removed `pubsub.Done`.
+- firestore:
+  - Fix queries involving Null and NaN.
+  - Allow Timestamp protobuffers for time values.
 
-Use `iterator.Done` instead, where `iterator` is the package
-`google.golang.org/api/iterator`.
+- logging: Add a WriteTimeout option.
+
+- spanner: Support Batch API.
+
+- storage: Add OpenCensus tracing.
+
+
+_February 26, 2018_
+
+*v0.19.0*
+
+- bigquery:
+  - Support customer-managed encryption keys.
+
+- bigtable:
+  - Improved emulator support.
+  - Support GetCluster.
+
+- datastore:
+  - Add general mutations.
+  - Support pointer struct fields.
+  - Support transaction options.
+
+- firestore:
+  - Add Transaction.GetAll.
+  - Support document cursors.
+
+- logging:
+  - Support concurrent RPCs to the service.
+  - Support per-entry resources.
+
+- profiler:
+  - Add config options to disable heap and thread profiling.
+  - Read the project ID from $GOOGLE_CLOUD_PROJECT when it's set.
+
+- pubsub:
+  - BEHAVIOR CHANGE: Release flow control after ack/nack (instead of after the
+    callback returns).
+  - Add SubscriptionInProject.
+  - Add OpenCensus instrumentation for streaming pull.
+
+- storage:
+  - Support CORS.
+
+
+_January 18, 2018_
+
+*v0.18.0*
+
+- bigquery:
+  - Marked stable.
+  - Schema inference of nullable fields supported.
+  - Added TimePartitioning to QueryConfig.
+
+- firestore: Data provided to DocumentRef.Set with a Merge option can contain
+  Delete sentinels.
+
+- logging: Clients can accept parent resources other than projects.
+
+- pubsub:
+  - pubsub/pstest: A lighweight fake for pubsub. Experimental; feedback welcome.
+  - Support updating more subscription metadata: AckDeadline,
+    RetainAckedMessages and RetentionDuration.
+
+- oslogin/apiv1beta: New client for the Cloud OS Login API.
+
+- rpcreplay: A package for recording and replaying gRPC traffic.
+
+- spanner:
+  - Add a ReadWithOptions that supports a row limit, as well as an index.
+  - Support query plan and execution statistics.
+  - Added [OpenCensus](http://opencensus.io) support.
+
+- storage: Clarify checksum validation for gzipped files (it is not validated
+  when the file is served uncompressed).
+
+
+_December 11, 2017_
+
+*v0.17.0*
+
+- firestore BREAKING CHANGES:
+  - Remove UpdateMap and UpdateStruct; rename UpdatePaths to Update.
+    Change
+        `docref.UpdateMap(ctx, map[string]interface{}{"a.b", 1})`
+    to
+        `docref.Update(ctx, []firestore.Update{{Path: "a.b", Value: 1}})`
+
+    Change
+        `docref.UpdateStruct(ctx, []string{"Field"}, aStruct)`
+    to
+        `docref.Update(ctx, []firestore.Update{{Path: "Field", Value: aStruct.Field}})`
+  - Rename MergePaths to Merge; require args to be FieldPaths
+  - A value stored as an integer can be read into a floating-point field, and vice versa.
+- bigtable/cmd/cbt:
+  - Support deleting a column.
+  - Add regex option for row read.
+- spanner: Mark stable.
+- storage:
+  - Add Reader.ContentEncoding method.
+  - Fix handling of SignedURL headers.
+- bigquery:
+  - If Uploader.Put is called with no rows, it returns nil without making a
+    call.
+  - Schema inference supports the "nullable" option in struct tags for
+    non-required fields.
+  - TimePartitioning supports "Field".
 
 
 [Older news](https://github.com/GoogleCloudPlatform/google-cloud-go/blob/master/old-news.md)
 
 ## Supported APIs
 
-Google API                     | Status       | Package
--------------------------------|--------------|-----------------------------------------------------------
-[Datastore][cloud-datastore]   | beta         | [`cloud.google.com/go/datastore`][cloud-datastore-ref]
-[Storage][cloud-storage]       | beta         | [`cloud.google.com/go/storage`][cloud-storage-ref]
-[Bigtable][cloud-bigtable]     | beta         | [`cloud.google.com/go/bigtable`][cloud-bigtable-ref]
-[BigQuery][cloud-bigquery]     | beta         | [`cloud.google.com/go/bigquery`][cloud-bigquery-ref]
-[Logging][cloud-logging]       | beta         | [`cloud.google.com/go/logging`][cloud-logging-ref]
-[Pub/Sub][cloud-pubsub]        | experimental | [`cloud.google.com/go/pubsub`][cloud-pubsub-ref]
-[Vision][cloud-vision]         | experimental | [`cloud.google.com/go/vision`][cloud-vision-ref]
-[Language][cloud-language]     | experimental | [`cloud.google.com/go/language/apiv1beta1`][cloud-language-ref]
-[Speech][cloud-speech]         | experimental | [`cloud.google.com/go/speech/apiv1beta`][cloud-speech-ref]
+Google API                       | Status       | Package
+---------------------------------|--------------|-----------------------------------------------------------
+[BigQuery][cloud-bigquery]       | stable       | [`cloud.google.com/go/bigquery`][cloud-bigquery-ref]
+[Bigtable][cloud-bigtable]       | stable       | [`cloud.google.com/go/bigtable`][cloud-bigtable-ref]
+[Container][cloud-container]     | alpha        | [`cloud.google.com/go/container/apiv1`][cloud-container-ref]
+[Data Loss Prevention][cloud-dlp]| alpha        | [`cloud.google.com/go/dlp/apiv2beta1`][cloud-dlp-ref]
+[Datastore][cloud-datastore]     | stable       | [`cloud.google.com/go/datastore`][cloud-datastore-ref]
+[Debugger][cloud-debugger]       | alpha        | [`cloud.google.com/go/debugger/apiv2`][cloud-debugger-ref]
+[ErrorReporting][cloud-errors]   | alpha        | [`cloud.google.com/go/errorreporting`][cloud-errors-ref]
+[Firestore][cloud-firestore]     | beta         | [`cloud.google.com/go/firestore`][cloud-firestore-ref]
+[Language][cloud-language]       | stable       | [`cloud.google.com/go/language/apiv1`][cloud-language-ref]
+[Logging][cloud-logging]         | stable       | [`cloud.google.com/go/logging`][cloud-logging-ref]
+[Monitoring][cloud-monitoring]   | beta         | [`cloud.google.com/go/monitoring/apiv3`][cloud-monitoring-ref]
+[OS Login][cloud-oslogin]        | alpha        | [`cloud.google.com/compute/docs/oslogin/rest`][cloud-oslogin-ref]
+[Pub/Sub][cloud-pubsub]          | beta         | [`cloud.google.com/go/pubsub`][cloud-pubsub-ref]
+[Spanner][cloud-spanner]         | stable       | [`cloud.google.com/go/spanner`][cloud-spanner-ref]
+[Speech][cloud-speech]           | stable       | [`cloud.google.com/go/speech/apiv1`][cloud-speech-ref]
+[Storage][cloud-storage]         | stable       | [`cloud.google.com/go/storage`][cloud-storage-ref]
+[Translation][cloud-translation] | stable       | [`cloud.google.com/go/translate`][cloud-translation-ref]
+[Video Intelligence][cloud-video]| beta         | [`cloud.google.com/go/videointelligence/apiv1beta1`][cloud-video-ref]
+[Vision][cloud-vision]           | stable       | [`cloud.google.com/go/vision/apiv1`][cloud-vision-ref]
 
 
-> **Experimental status**: the API is still being actively developed. As a
+> **Alpha status**: the API is still being actively developed. As a
 > result, it might change in backward-incompatible ways and is not recommended
 > for production use.
 >
@@ -184,12 +308,18 @@ By default, each API will use [Google Application Default Credentials][default-c
 for authorization credentials used in calling the API endpoints. This will allow your
 application to run in many environments without requiring explicit configuration.
 
+[snip]:# (auth)
+```go
+client, err := storage.NewClient(ctx)
+```
+
 To authorize using a
 [JSON key file](https://cloud.google.com/iam/docs/managing-service-account-keys),
 pass
 [`option.WithServiceAccountFile`](https://godoc.org/google.golang.org/api/option#WithServiceAccountFile)
 to the `NewClient` function of the desired package. For example:
 
+[snip]:# (auth-JSON)
 ```go
 client, err := storage.NewClient(ctx, option.WithServiceAccountFile("path/to/keyfile.json"))
 ```
@@ -199,6 +329,7 @@ You can exert more control over authorization by using the
 create an `oauth2.TokenSource`. Then pass
 [`option.WithTokenSource`](https://godoc.org/google.golang.org/api/option#WithTokenSource)
 to the `NewClient` function:
+[snip]:# (auth-ts)
 ```go
 tokenSource := ...
 client, err := storage.NewClient(ctx, option.WithTokenSource(tokenSource))
@@ -216,6 +347,7 @@ client, err := storage.NewClient(ctx, option.WithTokenSource(tokenSource))
 
 First create a `datastore.Client` to use throughout your application:
 
+[snip]:# (datastore-1)
 ```go
 client, err := datastore.NewClient(ctx, "my-project-id")
 if err != nil {
@@ -225,6 +357,7 @@ if err != nil {
 
 Then use that client to interact with the API:
 
+[snip]:# (datastore-2)
 ```go
 type Post struct {
 	Title       string
@@ -232,8 +365,8 @@ type Post struct {
 	PublishedAt time.Time
 }
 keys := []*datastore.Key{
-	datastore.NewKey(ctx, "Post", "post1", 0, nil),
-	datastore.NewKey(ctx, "Post", "post2", 0, nil),
+	datastore.NameKey("Post", "post1", nil),
+	datastore.NameKey("Post", "post2", nil),
 }
 posts := []*Post{
 	{Title: "Post 1", Body: "...", PublishedAt: time.Now()},
@@ -255,6 +388,7 @@ if _, err := client.PutMulti(ctx, keys, posts); err != nil {
 
 First create a `storage.Client` to use throughout your application:
 
+[snip]:# (storage-1)
 ```go
 client, err := storage.NewClient(ctx)
 if err != nil {
@@ -262,6 +396,7 @@ if err != nil {
 }
 ```
 
+[snip]:# (storage-2)
 ```go
 // Read the object1 from bucket.
 rc, err := client.Bucket("bucket").Object("object1").NewReader(ctx)
@@ -286,6 +421,7 @@ if err != nil {
 
 First create a `pubsub.Client` to use throughout your application:
 
+[snip]:# (pubsub-1)
 ```go
 client, err := pubsub.NewClient(ctx, "project-id")
 if err != nil {
@@ -293,35 +429,31 @@ if err != nil {
 }
 ```
 
+Then use the client to publish and subscribe:
+
+[snip]:# (pubsub-2)
 ```go
 // Publish "hello world" on topic1.
 topic := client.Topic("topic1")
-msgIDs, err := topic.Publish(ctx, &pubsub.Message{
+res := topic.Publish(ctx, &pubsub.Message{
 	Data: []byte("hello world"),
 })
+// The publish happens asynchronously.
+// Later, you can get the result from res:
+...
+msgID, err := res.Get(ctx)
 if err != nil {
 	log.Fatal(err)
 }
 
-// Create an iterator to pull messages via subscription1.
-it, err := client.Subscription("subscription1").Pull(ctx)
+// Use a callback to receive messages via subscription1.
+sub := client.Subscription("subscription1")
+err = sub.Receive(ctx, func(ctx context.Context, m *pubsub.Message) {
+	fmt.Println(m.Data)
+	m.Ack() // Acknowledge that we've consumed the message.
+})
 if err != nil {
 	log.Println(err)
-}
-defer it.Stop()
-
-// Consume N messages from the iterator.
-for i := 0; i < N; i++ {
-	msg, err := it.Next()
-	if err == iterator.Done {
-		break
-	}
-	if err != nil {
-		log.Fatalf("Failed to retrieve message: %v", err)
-	}
-
-	fmt.Printf("Message %d: %s\n", i, msg.Data)
-	msg.Done(true) // Acknowledge that we've consumed the message.
 }
 ```
 
@@ -335,13 +467,16 @@ for i := 0; i < N; i++ {
 ### Example Usage
 
 First create a `bigquery.Client` to use throughout your application:
+[snip]:# (bq-1)
 ```go
 c, err := bigquery.NewClient(ctx, "my-project-ID")
 if err != nil {
-    // TODO: Handle error.
+	// TODO: Handle error.
 }
 ```
+
 Then use that client to interact with the API:
+[snip]:# (bq-2)
 ```go
 // Construct a query.
 q := c.Query(`
@@ -354,19 +489,19 @@ q := c.Query(`
 // Execute the query.
 it, err := q.Read(ctx)
 if err != nil {
-    // TODO: Handle error.
+	// TODO: Handle error.
 }
 // Iterate through the results.
 for {
-    var values bigquery.ValueList
-    err := it.Next(&values)
-    if err == iterator.Done {
-        break
-    }
-    if err != nil {
-        // TODO: Handle error.
-    }
-    fmt.Println(values)
+	var values []bigquery.Value
+	err := it.Next(&values)
+	if err == iterator.Done {
+		break
+	}
+	if err != nil {
+		// TODO: Handle error.
+	}
+	fmt.Println(values)
 }
 ```
 
@@ -381,27 +516,67 @@ for {
 ### Example Usage
 
 First create a `logging.Client` to use throughout your application:
-
+[snip]:# (logging-1)
 ```go
 ctx := context.Background()
 client, err := logging.NewClient(ctx, "my-project")
 if err != nil {
-    // TODO: Handle error.
+	// TODO: Handle error.
 }
 ```
+
 Usually, you'll want to add log entries to a buffer to be periodically flushed
 (automatically and asynchronously) to the Stackdriver Logging service.
+[snip]:# (logging-2)
 ```go
 logger := client.Logger("my-log")
 logger.Log(logging.Entry{Payload: "something happened!"})
 ```
+
 Close your client before your program exits, to flush any buffered log entries.
+[snip]:# (logging-3)
 ```go
 err = client.Close()
 if err != nil {
-    // TODO: Handle error.
+	// TODO: Handle error.
 }
 ```
+
+## Cloud Spanner [![GoDoc](https://godoc.org/cloud.google.com/go/spanner?status.svg)](https://godoc.org/cloud.google.com/go/spanner)
+
+- [About Cloud Spanner][cloud-spanner]
+- [API documentation][cloud-spanner-docs]
+- [Go client documentation](https://godoc.org/cloud.google.com/go/spanner)
+
+### Example Usage
+
+First create a `spanner.Client` to use throughout your application:
+
+[snip]:# (spanner-1)
+```go
+client, err := spanner.NewClient(ctx, "projects/P/instances/I/databases/D")
+if err != nil {
+	log.Fatal(err)
+}
+```
+
+[snip]:# (spanner-2)
+```go
+// Simple Reads And Writes
+_, err = client.Apply(ctx, []*spanner.Mutation{
+	spanner.Insert("Users",
+		[]string{"name", "email"},
+		[]interface{}{"alice", "a@example.com"})})
+if err != nil {
+	log.Fatal(err)
+}
+row, err := client.Single().ReadRow(ctx, "Users",
+	spanner.Key{"alice"}, []string{"email"})
+if err != nil {
+	log.Fatal(err)
+}
+```
+
 
 ## Contributing
 
@@ -419,6 +594,11 @@ for more information.
 [cloud-datastore-ref]: https://godoc.org/cloud.google.com/go/datastore
 [cloud-datastore-docs]: https://cloud.google.com/datastore/docs
 [cloud-datastore-activation]: https://cloud.google.com/datastore/docs/activate
+
+[cloud-firestore]: https://cloud.google.com/firestore/
+[cloud-firestore-ref]: https://godoc.org/cloud.google.com/go/firestore
+[cloud-firestore-docs]: https://cloud.google.com/firestore/docs
+[cloud-firestore-activation]: https://cloud.google.com/firestore/docs/activate
 
 [cloud-pubsub]: https://cloud.google.com/pubsub/
 [cloud-pubsub-ref]: https://godoc.org/cloud.google.com/go/pubsub
@@ -440,13 +620,41 @@ for more information.
 [cloud-logging-docs]: https://cloud.google.com/logging/docs
 [cloud-logging-ref]: https://godoc.org/cloud.google.com/go/logging
 
-[cloud-vision]: https://cloud.google.com/vision/
-[cloud-vision-ref]: https://godoc.org/cloud.google.com/go/vision
+[cloud-monitoring]: https://cloud.google.com/monitoring/
+[cloud-monitoring-ref]: https://godoc.org/cloud.google.com/go/monitoring/apiv3
+
+[cloud-vision]: https://cloud.google.com/vision
+[cloud-vision-ref]: https://godoc.org/cloud.google.com/go/vision/apiv1
 
 [cloud-language]: https://cloud.google.com/natural-language
-[cloud-language-ref]: https://godoc.org/cloud.google.com/go/language/apiv1beta1
+[cloud-language-ref]: https://godoc.org/cloud.google.com/go/language/apiv1
+
+[cloud-oslogin]: https://cloud.google.com/compute/docs/oslogin/rest
+[cloud-oslogin-ref]: https://cloud.google.com/compute/docs/oslogin/rest
 
 [cloud-speech]: https://cloud.google.com/speech
-[cloud-speech-ref]: https://godoc.org/cloud.google.com/go/speech/apiv1beta1
+[cloud-speech-ref]: https://godoc.org/cloud.google.com/go/speech/apiv1
+
+[cloud-spanner]: https://cloud.google.com/spanner/
+[cloud-spanner-ref]: https://godoc.org/cloud.google.com/go/spanner
+[cloud-spanner-docs]: https://cloud.google.com/spanner/docs
+
+[cloud-translation]: https://cloud.google.com/translation
+[cloud-translation-ref]: https://godoc.org/cloud.google.com/go/translation
+
+[cloud-video]: https://cloud.google.com/video-intelligence/
+[cloud-video-ref]: https://godoc.org/cloud.google.com/go/videointelligence/apiv1beta1
+
+[cloud-errors]: https://cloud.google.com/error-reporting/
+[cloud-errors-ref]: https://godoc.org/cloud.google.com/go/errorreporting
+
+[cloud-container]: https://cloud.google.com/containers/
+[cloud-container-ref]: https://godoc.org/cloud.google.com/go/container/apiv1
+
+[cloud-debugger]: https://cloud.google.com/debugger/
+[cloud-debugger-ref]: https://godoc.org/cloud.google.com/go/debugger/apiv2
+
+[cloud-dlp]: https://cloud.google.com/dlp/
+[cloud-dlp-ref]: https://godoc.org/cloud.google.com/go/dlp/apiv2beta1
 
 [default-creds]: https://developers.google.com/identity/protocols/application-default-credentials

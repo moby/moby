@@ -27,6 +27,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/images"
@@ -253,12 +254,12 @@ func (r *dockerResolver) Pusher(ctx context.Context, ref string) (remotes.Pusher
 type dockerBase struct {
 	refspec reference.Spec
 	base    url.URL
-	token   string
 
-	client   *http.Client
-	useBasic bool
-	username string
-	secret   string
+	client           *http.Client
+	useBasic         bool
+	username, secret string
+	token            string
+	mu               sync.Mutex
 }
 
 func (r *dockerResolver) base(refspec reference.Spec) (*dockerBase, error) {
@@ -300,6 +301,23 @@ func (r *dockerResolver) base(refspec reference.Spec) (*dockerBase, error) {
 	}, nil
 }
 
+func (r *dockerBase) getToken() string {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	return r.token
+}
+
+func (r *dockerBase) setToken(token string) bool {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	changed := r.token != token
+	r.token = token
+
+	return changed
+}
+
 func (r *dockerBase) url(ps ...string) string {
 	url := r.base
 	url.Path = path.Join(url.Path, path.Join(ps...))
@@ -307,10 +325,11 @@ func (r *dockerBase) url(ps ...string) string {
 }
 
 func (r *dockerBase) authorize(req *http.Request) {
+	token := r.getToken()
 	if r.useBasic {
 		req.SetBasicAuth(r.username, r.secret)
-	} else if r.token != "" {
-		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", r.token))
+	} else if token != "" {
+		req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 	}
 }
 
@@ -358,7 +377,7 @@ func (r *dockerBase) retryRequest(ctx context.Context, req *http.Request, respon
 		for _, c := range parseAuthHeader(last.Header) {
 			if c.scheme == bearerAuth {
 				if err := invalidAuthorization(c, responses); err != nil {
-					r.token = ""
+					r.setToken("")
 					return nil, err
 				}
 				if err := r.setTokenAuth(ctx, c.parameters); err != nil {
@@ -443,19 +462,22 @@ func (r *dockerBase) setTokenAuth(ctx context.Context, params map[string]string)
 	if len(to.scopes) == 0 {
 		return errors.Errorf("no scope specified for token auth challenge")
 	}
+
+	var token string
 	if r.secret != "" {
 		// Credential information is provided, use oauth POST endpoint
-		r.token, err = r.fetchTokenWithOAuth(ctx, to)
+		token, err = r.fetchTokenWithOAuth(ctx, to)
 		if err != nil {
 			return errors.Wrap(err, "failed to fetch oauth token")
 		}
 	} else {
 		// Do request anonymously
-		r.token, err = r.getToken(ctx, to)
+		token, err = r.fetchToken(ctx, to)
 		if err != nil {
 			return errors.Wrap(err, "failed to fetch anonymous token")
 		}
 	}
+	r.setToken(token)
 
 	return nil
 }
@@ -498,8 +520,9 @@ func (r *dockerBase) fetchTokenWithOAuth(ctx context.Context, to tokenOptions) (
 
 	// Registries without support for POST may return 404 for POST /v2/token.
 	// As of September 2017, GCR is known to return 404.
-	if (resp.StatusCode == 405 && r.username != "") || resp.StatusCode == 404 {
-		return r.getToken(ctx, to)
+	// As of February 2018, JFrog Artifactory is known to return 401.
+	if (resp.StatusCode == 405 && r.username != "") || resp.StatusCode == 404 || resp.StatusCode == 401 {
+		return r.fetchToken(ctx, to)
 	} else if resp.StatusCode < 200 || resp.StatusCode >= 400 {
 		b, _ := ioutil.ReadAll(io.LimitReader(resp.Body, 64000)) // 64KB
 		log.G(ctx).WithFields(logrus.Fields{
@@ -529,7 +552,7 @@ type getTokenResponse struct {
 }
 
 // getToken fetches a token using a GET request
-func (r *dockerBase) getToken(ctx context.Context, to tokenOptions) (string, error) {
+func (r *dockerBase) fetchToken(ctx context.Context, to tokenOptions) (string, error) {
 	req, err := http.NewRequest("GET", to.realm, nil)
 	if err != nil {
 		return "", err

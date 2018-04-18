@@ -48,7 +48,7 @@ func (f Fernet) Decrypt(record api.MaybeEncryptedRecord) ([]byte, error) {
 	out := fernet.VerifyAndDecrypt(record.Data, -1, []*fernet.Key{&f.key})
 	// VerifyandDecrypt returns a nil message if it can't be verified and decrypted
 	if out == nil {
-		return nil, fmt.Errorf("decryption error using Fernet")
+		return nil, fmt.Errorf("no decryption key for record encrypted with %s", f.Algorithm())
 	}
 	return out, nil
 }

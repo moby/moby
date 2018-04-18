@@ -25,7 +25,6 @@ import (
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
-	"github.com/containerd/containerd/snapshots"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -53,6 +52,14 @@ type Image interface {
 }
 
 var _ = (Image)(&image{})
+
+// NewImage returns a client image object from the metadata image
+func NewImage(client *Client, i images.Image) Image {
+	return &image{
+		client: client,
+		i:      i,
+	}
+}
 
 type image struct {
 	client *Client
@@ -108,7 +115,7 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
 	if err != nil {
 		return err
 	}
-	defer done()
+	defer done(ctx)
 
 	layers, err := i.getLayers(ctx, platforms.Default())
 	if err != nil {
@@ -124,13 +131,23 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
 		unpacked bool
 	)
 	for _, layer := range layers {
-		labels := map[string]string{
-			"containerd.io/uncompressed": layer.Diff.Digest.String(),
-		}
-
-		unpacked, err = rootfs.ApplyLayer(ctx, layer, chain, sn, a, snapshots.WithLabels(labels))
+		unpacked, err = rootfs.ApplyLayer(ctx, layer, chain, sn, a)
 		if err != nil {
 			return err
+		}
+
+		if unpacked {
+			// Set the uncompressed label after the uncompressed
+			// digest has been verified through apply.
+			cinfo := content.Info{
+				Digest: layer.Blob.Digest,
+				Labels: map[string]string{
+					"containerd.io/uncompressed": layer.Diff.Digest.String(),
+				},
+			}
+			if _, err := cs.Update(ctx, cinfo, "labels.containerd.io/uncompressed"); err != nil {
+				return err
+			}
 		}
 
 		chain = append(chain, layer.Diff.Digest)

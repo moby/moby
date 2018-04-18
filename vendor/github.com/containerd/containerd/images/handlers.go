@@ -182,9 +182,9 @@ func SetChildrenLabels(manager content.Manager, f HandlerFunc) HandlerFunc {
 	}
 }
 
-// FilterPlatform is a handler wrapper which limits the descriptors returned
-// by a handler to a single platform.
-func FilterPlatform(platform string, f HandlerFunc) HandlerFunc {
+// FilterPlatforms is a handler wrapper which limits the descriptors returned
+// by a handler to the specified platforms.
+func FilterPlatforms(f HandlerFunc, platformList ...string) HandlerFunc {
 	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		children, err := f(ctx, desc)
 		if err != nil {
@@ -192,31 +192,25 @@ func FilterPlatform(platform string, f HandlerFunc) HandlerFunc {
 		}
 
 		var descs []ocispec.Descriptor
-		if platform != "" && isMultiPlatform(desc.MediaType) {
-			matcher, err := platforms.Parse(platform)
-			if err != nil {
-				return nil, err
-			}
 
-			for _, d := range children {
-				if d.Platform == nil || matcher.Match(*d.Platform) {
-					descs = append(descs, d)
+		if len(platformList) == 0 {
+			descs = children
+		} else {
+			for _, platform := range platformList {
+				p, err := platforms.Parse(platform)
+				if err != nil {
+					return nil, err
+				}
+				matcher := platforms.NewMatcher(p)
+
+				for _, d := range children {
+					if d.Platform == nil || matcher.Match(*d.Platform) {
+						descs = append(descs, d)
+					}
 				}
 			}
-		} else {
-			descs = children
 		}
 
 		return descs, nil
-	}
-
-}
-
-func isMultiPlatform(mediaType string) bool {
-	switch mediaType {
-	case MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
-		return true
-	default:
-		return false
 	}
 }

@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package internal contains support packages for oauth2 package.
 package internal
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -18,9 +18,10 @@ import (
 	"time"
 
 	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
-// Token represents the crendentials used to authorize
+// Token represents the credentials used to authorize
 // the requests to access protected resources on the OAuth 2.0
 // provider's backend.
 //
@@ -91,6 +92,7 @@ func (e *expirationTime) UnmarshalJSON(b []byte) error {
 
 var brokenAuthHeaderProviders = []string{
 	"https://accounts.google.com/",
+	"https://api.codeswholesale.com/oauth/token",
 	"https://api.dropbox.com/",
 	"https://api.dropboxapi.com/",
 	"https://api.instagram.com/",
@@ -101,8 +103,11 @@ var brokenAuthHeaderProviders = []string{
 	"https://api.twitch.tv/",
 	"https://app.box.com/",
 	"https://connect.stripe.com/",
+	"https://login.mailchimp.com/",
 	"https://login.microsoftonline.com/",
 	"https://login.salesforce.com/",
+	"https://login.windows.net",
+	"https://login.live.com/",
 	"https://oauth.sandbox.trainingpeaks.com/",
 	"https://oauth.trainingpeaks.com/",
 	"https://oauth.vk.com/",
@@ -118,7 +123,20 @@ var brokenAuthHeaderProviders = []string{
 	"https://www.wunderlist.com/oauth/",
 	"https://api.patreon.com/",
 	"https://sandbox.codeswholesale.com/oauth/token",
-	"https://api.codeswholesale.com/oauth/token",
+	"https://api.sipgate.com/v1/authorization/oauth",
+	"https://api.medium.com/v1/tokens",
+	"https://log.finalsurge.com/oauth/token",
+	"https://multisport.todaysplan.com.au/rest/oauth/access_token",
+	"https://whats.todaysplan.com.au/rest/oauth/access_token",
+}
+
+// brokenAuthHeaderDomains lists broken providers that issue dynamic endpoints.
+var brokenAuthHeaderDomains = []string{
+	".auth0.com",
+	".force.com",
+	".myshopify.com",
+	".okta.com",
+	".oktapreview.com",
 }
 
 func RegisterBrokenAuthHeaderProvider(tokenURL string) {
@@ -141,6 +159,14 @@ func providerAuthHeaderWorks(tokenURL string) bool {
 		}
 	}
 
+	if u, err := url.Parse(tokenURL); err == nil {
+		for _, s := range brokenAuthHeaderDomains {
+			if strings.HasSuffix(u.Host, s) {
+				return false
+			}
+		}
+	}
+
 	// Assume the provider implements the spec properly
 	// otherwise. We can add more exceptions as they're
 	// discovered. We will _not_ be adding configurable hooks
@@ -149,14 +175,14 @@ func providerAuthHeaderWorks(tokenURL string) bool {
 }
 
 func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string, v url.Values) (*Token, error) {
-	hc, err := ContextClient(ctx)
-	if err != nil {
-		return nil, err
-	}
-	v.Set("client_id", clientID)
 	bustedAuth := !providerAuthHeaderWorks(tokenURL)
-	if bustedAuth && clientSecret != "" {
-		v.Set("client_secret", clientSecret)
+	if bustedAuth {
+		if clientID != "" {
+			v.Set("client_id", clientID)
+		}
+		if clientSecret != "" {
+			v.Set("client_secret", clientSecret)
+		}
 	}
 	req, err := http.NewRequest("POST", tokenURL, strings.NewReader(v.Encode()))
 	if err != nil {
@@ -164,9 +190,9 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	if !bustedAuth {
-		req.SetBasicAuth(clientID, clientSecret)
+		req.SetBasicAuth(url.QueryEscape(clientID), url.QueryEscape(clientSecret))
 	}
-	r, err := hc.Do(req)
+	r, err := ctxhttp.Do(ctx, ContextClient(ctx), req)
 	if err != nil {
 		return nil, err
 	}
@@ -176,7 +202,10 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 		return nil, fmt.Errorf("oauth2: cannot fetch token: %v", err)
 	}
 	if code := r.StatusCode; code < 200 || code > 299 {
-		return nil, fmt.Errorf("oauth2: cannot fetch token: %v\nResponse: %s", r.Status, body)
+		return nil, &RetrieveError{
+			Response: r,
+			Body:     body,
+		}
 	}
 
 	var token *Token
@@ -223,5 +252,17 @@ func RetrieveToken(ctx context.Context, clientID, clientSecret, tokenURL string,
 	if token.RefreshToken == "" {
 		token.RefreshToken = v.Get("refresh_token")
 	}
+	if token.AccessToken == "" {
+		return token, errors.New("oauth2: server response missing access_token")
+	}
 	return token, nil
+}
+
+type RetrieveError struct {
+	Response *http.Response
+	Body     []byte
+}
+
+func (r *RetrieveError) Error() string {
+	return fmt.Sprintf("oauth2: cannot fetch token: %v\nResponse: %s", r.Response.Status, r.Body)
 }

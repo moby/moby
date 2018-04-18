@@ -24,7 +24,6 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"google.golang.org/grpc/transport"
 )
 
 const (
@@ -1268,16 +1267,6 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 
 	// disconnectNode is a helper forcibly shutdown connection
 	disconnectNode := func() error {
-		// force disconnect by shutting down the stream.
-		transportStream, ok := transport.StreamFromContext(stream.Context())
-		if ok {
-			// if we have the transport stream, we can signal a disconnect
-			// in the client.
-			if err := transportStream.ServerTransport().Close(); err != nil {
-				log.WithError(err).Error("session end")
-			}
-		}
-
 		log.Infof("dispatcher session dropped, marking node %s down", nodeID)
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DISCONNECTED, "node is currently trying to find new manager"); err != nil {
 			log.WithError(err).Error("failed to remove node")

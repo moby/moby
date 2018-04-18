@@ -141,8 +141,18 @@ func openFifos(ctx context.Context, fifos *FIFOSet) (pipes, error) {
 // NewDirectIO returns an IO implementation that exposes the IO streams as io.ReadCloser
 // and io.WriteCloser.
 func NewDirectIO(ctx context.Context, fifos *FIFOSet) (*DirectIO, error) {
+	return newDirectIO(ctx, fifos, false)
+}
+
+// NewDirectIOWithTerminal returns an IO implementation that exposes the streams with terminal enabled
+func NewDirectIOWithTerminal(ctx context.Context, fifos *FIFOSet) (*DirectIO, error) {
+	return newDirectIO(ctx, fifos, true)
+}
+
+func newDirectIO(ctx context.Context, fifos *FIFOSet, terminal bool) (*DirectIO, error) {
 	ctx, cancel := context.WithCancel(ctx)
 	pipes, err := openFifos(ctx, fifos)
+	fifos.Config.Terminal = terminal
 	return &DirectIO{
 		pipes: pipes,
 		cio: cio{

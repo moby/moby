@@ -16,18 +16,17 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/api/events"
-	eventsapi "github.com/containerd/containerd/api/services/events/v1"
+	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/archive"
 	"github.com/containerd/containerd/cio"
 	"github.com/containerd/containerd/content"
 	containerderrors "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/typeurl"
@@ -729,137 +728,123 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 
 func (c *client) processEventStream(ctx context.Context) {
 	var (
-		err         error
-		eventStream eventsapi.Events_SubscribeClient
-		ev          *eventsapi.Envelope
-		et          EventType
-		ei          EventInfo
-		ctr         *container
+		err error
+		ev  *events.Envelope
+		et  EventType
+		ei  EventInfo
+		ctr *container
 	)
-	defer func() {
-		if err != nil {
-			select {
-			case <-ctx.Done():
-				c.logger.WithError(ctx.Err()).
-					Info("stopping event stream following graceful shutdown")
-			default:
-				go c.processEventStream(ctx)
-			}
-		}
-	}()
 
-	eventStream, err = c.getRemote().EventService().Subscribe(ctx, &eventsapi.SubscribeRequest{
-		Filters: []string{
-			// Filter on both namespace *and* topic. To create an "and" filter,
-			// this must be a single, comma-separated string
-			"namespace==" + c.namespace + ",topic~=|^/tasks/|",
-		},
-	}, grpc.FailFast(false))
-	if err != nil {
-		return
-	}
+	// Filter on both namespace *and* topic. To create an "and" filter,
+	// this must be a single, comma-separated string
+	eventStream, errC := c.getRemote().EventService().Subscribe(ctx, "namespace=="+c.namespace+",topic~=|^/tasks/|")
 
 	c.logger.WithField("namespace", c.namespace).Debug("processing event stream")
 
 	var oomKilled bool
 	for {
-		ev, err = eventStream.Recv()
-		if err != nil {
-			errStatus, ok := status.FromError(err)
-			if !ok || errStatus.Code() != codes.Canceled {
-				c.logger.WithError(err).Error("failed to get event")
+		select {
+		case err = <-errC:
+			if err != nil {
+				errStatus, ok := status.FromError(err)
+				if !ok || errStatus.Code() != codes.Canceled {
+					c.logger.WithError(err).Error("failed to get event")
+					go c.processEventStream(ctx)
+				} else {
+					c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
+				}
 			}
 			return
+		case ev = <-eventStream:
+			if ev.Event == nil {
+				c.logger.WithField("event", ev).Warn("invalid event")
+				continue
+			}
+
+			v, err := typeurl.UnmarshalAny(ev.Event)
+			if err != nil {
+				c.logger.WithError(err).WithField("event", ev).Warn("failed to unmarshal event")
+				continue
+			}
+
+			c.logger.WithField("topic", ev.Topic).Debug("event")
+
+			switch t := v.(type) {
+			case *apievents.TaskCreate:
+				et = EventCreate
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ContainerID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskStart:
+				et = EventStart
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ContainerID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskExit:
+				et = EventExit
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ID,
+					Pid:         t.Pid,
+					ExitCode:    t.ExitStatus,
+					ExitedAt:    t.ExitedAt,
+				}
+			case *apievents.TaskOOM:
+				et = EventOOM
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					OOMKilled:   true,
+				}
+				oomKilled = true
+			case *apievents.TaskExecAdded:
+				et = EventExecAdded
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ExecID,
+				}
+			case *apievents.TaskExecStarted:
+				et = EventExecStarted
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+					ProcessID:   t.ExecID,
+					Pid:         t.Pid,
+				}
+			case *apievents.TaskPaused:
+				et = EventPaused
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+				}
+			case *apievents.TaskResumed:
+				et = EventResumed
+				ei = EventInfo{
+					ContainerID: t.ContainerID,
+				}
+			default:
+				c.logger.WithFields(logrus.Fields{
+					"topic": ev.Topic,
+					"type":  reflect.TypeOf(t)},
+				).Info("ignoring event")
+				continue
+			}
+
+			ctr = c.getContainer(ei.ContainerID)
+			if ctr == nil {
+				c.logger.WithField("container", ei.ContainerID).Warn("unknown container")
+				continue
+			}
+
+			if oomKilled {
+				ctr.setOOMKilled(true)
+				oomKilled = false
+			}
+			ei.OOMKilled = ctr.getOOMKilled()
+
+			c.processEvent(ctr, et, ei)
 		}
-
-		if ev.Event == nil {
-			c.logger.WithField("event", ev).Warn("invalid event")
-			continue
-		}
-
-		v, err := typeurl.UnmarshalAny(ev.Event)
-		if err != nil {
-			c.logger.WithError(err).WithField("event", ev).Warn("failed to unmarshal event")
-			continue
-		}
-
-		c.logger.WithField("topic", ev.Topic).Debug("event")
-
-		switch t := v.(type) {
-		case *events.TaskCreate:
-			et = EventCreate
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ContainerID,
-				Pid:         t.Pid,
-			}
-		case *events.TaskStart:
-			et = EventStart
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ContainerID,
-				Pid:         t.Pid,
-			}
-		case *events.TaskExit:
-			et = EventExit
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ID,
-				Pid:         t.Pid,
-				ExitCode:    t.ExitStatus,
-				ExitedAt:    t.ExitedAt,
-			}
-		case *events.TaskOOM:
-			et = EventOOM
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				OOMKilled:   true,
-			}
-			oomKilled = true
-		case *events.TaskExecAdded:
-			et = EventExecAdded
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ExecID,
-			}
-		case *events.TaskExecStarted:
-			et = EventExecStarted
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-				ProcessID:   t.ExecID,
-				Pid:         t.Pid,
-			}
-		case *events.TaskPaused:
-			et = EventPaused
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-			}
-		case *events.TaskResumed:
-			et = EventResumed
-			ei = EventInfo{
-				ContainerID: t.ContainerID,
-			}
-		default:
-			c.logger.WithFields(logrus.Fields{
-				"topic": ev.Topic,
-				"type":  reflect.TypeOf(t)},
-			).Info("ignoring event")
-			continue
-		}
-
-		ctr = c.getContainer(ei.ContainerID)
-		if ctr == nil {
-			c.logger.WithField("container", ei.ContainerID).Warn("unknown container")
-			continue
-		}
-
-		if oomKilled {
-			ctr.setOOMKilled(true)
-			oomKilled = false
-		}
-		ei.OOMKilled = ctr.getOOMKilled()
-
-		c.processEvent(ctr, et, ei)
 	}
 }
 

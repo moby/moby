@@ -23,7 +23,7 @@ import google_protobuf2 "github.com/gogo/protobuf/types"
 
 import time "time"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
@@ -182,8 +182,8 @@ func (m *Process) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x52
 	i++
-	i = encodeVarintTask(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)))
-	n1, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
+	i = encodeVarintTask(dAtA, i, uint64(types.SizeOfStdTime(m.ExitedAt)))
+	n1, err := types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -268,7 +268,7 @@ func (m *Process) Size() (n int) {
 	if m.ExitStatus != 0 {
 		n += 1 + sovTask(uint64(m.ExitStatus))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)
+	l = types.SizeOfStdTime(m.ExitedAt)
 	n += 1 + l + sovTask(uint64(l))
 	return n
 }
@@ -614,7 +614,7 @@ func (m *Process) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

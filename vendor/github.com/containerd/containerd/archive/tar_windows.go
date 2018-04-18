@@ -19,6 +19,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"bufio"
 	"context"
 	"encoding/base64"
@@ -34,9 +35,7 @@ import (
 
 	"github.com/Microsoft/go-winio"
 	"github.com/Microsoft/hcsshim"
-	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/sys"
-	"github.com/dmcgowan/go-tar"
 )
 
 const (
@@ -180,8 +179,12 @@ func applyWindowsLayer(ctx context.Context, root string, tr *tar.Reader, options
 		return 0, err
 	}
 	defer func() {
-		if err := w.Close(); err != nil {
-			log.G(ctx).Errorf("failed to close layer writer: %v", err)
+		if err2 := w.Close(); err2 != nil {
+			// This error should not be discarded as a failure here
+			// could result in an invalid layer on disk
+			if err == nil {
+				err = err2
+			}
 		}
 	}()
 

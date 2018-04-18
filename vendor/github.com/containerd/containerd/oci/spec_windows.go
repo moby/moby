@@ -22,8 +22,8 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-func createDefaultSpec(ctx context.Context, id string) (*specs.Spec, error) {
-	return &specs.Spec{
+func createDefaultSpec(ctx context.Context, id string) (*Spec, error) {
+	return &Spec{
 		Version: specs.Version,
 		Root:    &specs.Root{},
 		Process: &specs.Process{

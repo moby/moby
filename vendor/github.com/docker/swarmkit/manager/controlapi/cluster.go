@@ -123,10 +123,10 @@ func (s *Server) UpdateCluster(ctx context.Context, request *api.UpdateClusterRe
 		expireBlacklistedCerts(cluster)
 
 		if request.Rotation.WorkerJoinToken {
-			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(&rootCA)
+			cluster.RootCA.JoinTokens.Worker = ca.GenerateJoinToken(&rootCA, cluster.FIPS)
 		}
 		if request.Rotation.ManagerJoinToken {
-			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(&rootCA)
+			cluster.RootCA.JoinTokens.Manager = ca.GenerateJoinToken(&rootCA, cluster.FIPS)
 		}
 
 		updatedRootCA, err := validateCAConfig(ctx, s.securityConfig, cluster)

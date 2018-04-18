@@ -34,6 +34,7 @@ func (n *Node) readFromDisk(ctx context.Context) (*raftpb.Snapshot, storage.WALD
 	n.raftLogger = &storage.EncryptedRaftLogger{
 		StateDir:      n.opts.StateDir,
 		EncryptionKey: keys.CurrentDEK,
+		FIPS:          n.opts.FIPS,
 	}
 	if keys.PendingDEK != nil {
 		n.raftLogger.EncryptionKey = keys.PendingDEK

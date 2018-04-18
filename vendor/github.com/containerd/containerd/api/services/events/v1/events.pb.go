@@ -27,14 +27,12 @@ import _ "github.com/gogo/protobuf/types"
 
 import time "time"
 
-import github_com_containerd_typeurl "github.com/containerd/typeurl"
+import typeurl "github.com/containerd/typeurl"
 
-import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
+import context "golang.org/x/net/context"
+import grpc "google.golang.org/grpc"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
@@ -110,7 +108,7 @@ func (m *Envelope) Field(fieldpath []string) (string, bool) {
 	case "topic":
 		return string(m.Topic), len(m.Topic) > 0
 	case "event":
-		decoded, err := github_com_containerd_typeurl.UnmarshalAny(m.Event)
+		decoded, err := typeurl.UnmarshalAny(m.Event)
 		if err != nil {
 			return "", false
 		}
@@ -434,8 +432,8 @@ func (m *Envelope) MarshalTo(dAtA []byte) (int, error) {
 	_ = l
 	dAtA[i] = 0xa
 	i++
-	i = encodeVarintEvents(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)))
-	n3, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.Timestamp, dAtA[i:])
+	i = encodeVarintEvents(dAtA, i, uint64(types.SizeOfStdTime(m.Timestamp)))
+	n3, err := types.StdTimeMarshalTo(m.Timestamp, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -513,7 +511,7 @@ func (m *SubscribeRequest) Size() (n int) {
 func (m *Envelope) Size() (n int) {
 	var l int
 	_ = l
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)
+	l = types.SizeOfStdTime(m.Timestamp)
 	n += 1 + l + sovEvents(uint64(l))
 	l = len(m.Namespace)
 	if l > 0 {
@@ -924,7 +922,7 @@ func (m *Envelope) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

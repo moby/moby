@@ -33,16 +33,14 @@ import _ "github.com/gogo/protobuf/types"
 
 import time "time"
 
-import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
+import context "golang.org/x/net/context"
+import grpc "google.golang.org/grpc"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
-import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+import sortkeys "github.com/gogo/protobuf/sortkeys"
 
 import io "io"
 
@@ -516,16 +514,16 @@ func (m *Container) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x42
 	i++
-	i = encodeVarintContainers(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.CreatedAt)))
-	n3, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.CreatedAt, dAtA[i:])
+	i = encodeVarintContainers(dAtA, i, uint64(types.SizeOfStdTime(m.CreatedAt)))
+	n3, err := types.StdTimeMarshalTo(m.CreatedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
 	i += n3
 	dAtA[i] = 0x4a
 	i++
-	i = encodeVarintContainers(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.UpdatedAt)))
-	n4, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.UpdatedAt, dAtA[i:])
+	i = encodeVarintContainers(dAtA, i, uint64(types.SizeOfStdTime(m.UpdatedAt)))
+	n4, err := types.StdTimeMarshalTo(m.UpdatedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -888,9 +886,9 @@ func (m *Container) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovContainers(uint64(l))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.CreatedAt)
+	l = types.SizeOfStdTime(m.CreatedAt)
 	n += 1 + l + sovContainers(uint64(l))
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.UpdatedAt)
+	l = types.SizeOfStdTime(m.UpdatedAt)
 	n += 1 + l + sovContainers(uint64(l))
 	if len(m.Extensions) > 0 {
 		for k, v := range m.Extensions {
@@ -1027,7 +1025,7 @@ func (this *Container) String() string {
 	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sortkeys.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])
@@ -1037,7 +1035,7 @@ func (this *Container) String() string {
 	for k, _ := range this.Extensions {
 		keysForExtensions = append(keysForExtensions, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForExtensions)
+	sortkeys.Strings(keysForExtensions)
 	mapStringForExtensions := "map[string]google_protobuf1.Any{"
 	for _, k := range keysForExtensions {
 		mapStringForExtensions += fmt.Sprintf("%v: %v,", k, this.Extensions[k])
@@ -1523,7 +1521,7 @@ func (m *Container) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.CreatedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.CreatedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1553,7 +1551,7 @@ func (m *Container) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.UpdatedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.UpdatedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

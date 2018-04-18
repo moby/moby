@@ -17,13 +17,13 @@
 package rootfs
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/containerd/containerd/diff"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/net/context"
 )
 
 // CreateDiff creates a layer diff for the given snapshot identifier from the

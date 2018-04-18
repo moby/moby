@@ -79,7 +79,7 @@ func init() {
 	})
 }
 
-var _ = (runtime.Runtime)(&Runtime{})
+var _ = (runtime.PlatformRuntime)(&Runtime{})
 
 // Config options for the runtime
 type Config struct {
@@ -186,7 +186,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		}
 	}()
 
-	shimopt := ShimLocal(r.events)
+	shimopt := ShimLocal(r.config, r.events)
 	if !r.config.NoShim {
 		var cgroup string
 		if opts.Options != nil {
@@ -200,7 +200,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 			log.G(ctx).WithField("id", id).Info("shim reaped")
 			t, err := r.tasks.Get(ctx, id)
 			if err != nil {
-				// Task was never started or was already sucessfully deleted
+				// Task was never started or was already successfully deleted
 				return
 			}
 			lc := t.(*Task)
@@ -224,7 +224,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 				}).Warn("failed to clen up after killed shim")
 			}
 		}
-		shimopt = ShimRemote(r.config.Shim, r.address, cgroup, r.config.ShimDebug, exitHandler)
+		shimopt = ShimRemote(r.config, r.address, cgroup, exitHandler)
 	}
 
 	s, err := bundle.NewShimClient(ctx, namespace, shimopt, ropts)
@@ -396,7 +396,7 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		)
 		ctx = namespaces.WithNamespace(ctx, ns)
 		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile))
-		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(func() {
+		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(r.config, func() {
 			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
 			if err != nil {
 				log.G(ctx).WithError(err).WithField("bundle", bundle.path).
@@ -510,6 +510,7 @@ func (r *Runtime) getRuntime(ctx context.Context, ns, id string) (*runc.Runc, er
 		LogFormat:    runc.JSON,
 		PdeathSignal: unix.SIGKILL,
 		Root:         filepath.Join(root, ns),
+		Debug:        r.config.ShimDebug,
 	}, nil
 }
 

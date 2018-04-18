@@ -613,14 +613,23 @@ func validateSnapshot(info *snapshots.Info) error {
 	return nil
 }
 
+type cleaner interface {
+	Cleanup(ctx context.Context) error
+}
+
 func (s *snapshotter) garbageCollect(ctx context.Context) (d time.Duration, err error) {
 	s.l.Lock()
 	t1 := time.Now()
 	defer func() {
+		s.l.Unlock()
+		if err == nil {
+			if c, ok := s.Snapshotter.(cleaner); ok {
+				err = c.Cleanup(ctx)
+			}
+		}
 		if err == nil {
 			d = time.Now().Sub(t1)
 		}
-		s.l.Unlock()
 	}()
 
 	seen := map[string]struct{}{}

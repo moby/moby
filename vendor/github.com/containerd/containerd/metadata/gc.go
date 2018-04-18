@@ -17,6 +17,7 @@
 package metadata
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"strings"
@@ -345,7 +346,10 @@ func sendSnapshotRefs(ns string, bkt *bolt.Bucket, fn func(gc.Node)) error {
 		lc := lbkt.Cursor()
 
 		for k, v := lc.Seek(labelGCSnapRef); k != nil && strings.HasPrefix(string(k), string(labelGCSnapRef)); k, v = lc.Next() {
-			snapshotter := string(k[len(labelGCSnapRef):])
+			snapshotter := k[len(labelGCSnapRef):]
+			if i := bytes.IndexByte(snapshotter, '/'); i >= 0 {
+				snapshotter = snapshotter[:i]
+			}
 			fn(gcnode(ResourceSnapshot, ns, fmt.Sprintf("%s/%s", snapshotter, v)))
 		}
 	}
@@ -361,8 +365,8 @@ func sendContentRefs(ns string, bkt *bolt.Bucket, fn func(gc.Node)) error {
 		labelRef := string(labelGCContentRef)
 		for k, v := lc.Seek(labelGCContentRef); k != nil && strings.HasPrefix(string(k), labelRef); k, v = lc.Next() {
 			if ks := string(k); ks != labelRef {
-				// Allow reference naming, ignore names
-				if ks[len(labelRef)] != '.' {
+				// Allow reference naming separated by . or /, ignore names
+				if ks[len(labelRef)] != '.' && ks[len(labelRef)] != '/' {
 					continue
 				}
 			}

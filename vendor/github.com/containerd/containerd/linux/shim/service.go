@@ -34,7 +34,6 @@ import (
 	shimapi "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
-	"github.com/containerd/containerd/reaper"
 	"github.com/containerd/containerd/runtime"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
@@ -81,7 +80,7 @@ func NewService(config Config, publisher events.Publisher) (*Service, error) {
 		context:   ctx,
 		processes: make(map[string]proc.Process),
 		events:    make(chan interface{}, 128),
-		ec:        reaper.Default.Subscribe(),
+		ec:        Default.Subscribe(),
 	}
 	go s.processExits()
 	if err := s.initPlatform(); err != nil {

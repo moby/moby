@@ -36,7 +36,7 @@ type Lease struct {
 
 // CreateLease creates a new lease
 func (c *Client) CreateLease(ctx context.Context) (Lease, error) {
-	lapi := leasesapi.NewLeasesClient(c.conn)
+	lapi := c.LeasesService()
 	resp, err := lapi.Create(ctx, &leasesapi.CreateRequest{})
 	if err != nil {
 		return Lease{}, err
@@ -50,7 +50,7 @@ func (c *Client) CreateLease(ctx context.Context) (Lease, error) {
 
 // ListLeases lists active leases
 func (c *Client) ListLeases(ctx context.Context) ([]Lease, error) {
-	lapi := leasesapi.NewLeasesClient(c.conn)
+	lapi := c.LeasesService()
 	resp, err := lapi.List(ctx, &leasesapi.ListRequest{})
 	if err != nil {
 		return nil, err
@@ -68,10 +68,10 @@ func (c *Client) ListLeases(ctx context.Context) ([]Lease, error) {
 }
 
 // WithLease attaches a lease on the context
-func (c *Client) WithLease(ctx context.Context) (context.Context, func() error, error) {
+func (c *Client) WithLease(ctx context.Context) (context.Context, func(context.Context) error, error) {
 	_, ok := leases.Lease(ctx)
 	if ok {
-		return ctx, func() error {
+		return ctx, func(context.Context) error {
 			return nil
 		}, nil
 	}
@@ -82,7 +82,7 @@ func (c *Client) WithLease(ctx context.Context) (context.Context, func() error, 
 	}
 
 	ctx = leases.WithLease(ctx, l.ID())
-	return ctx, func() error {
+	return ctx, func(ctx context.Context) error {
 		return l.Delete(ctx)
 	}, nil
 }
@@ -100,7 +100,7 @@ func (l Lease) CreatedAt() time.Time {
 // Delete deletes the lease, removing the reference to all resources created
 // during the lease.
 func (l Lease) Delete(ctx context.Context) error {
-	lapi := leasesapi.NewLeasesClient(l.client.conn)
+	lapi := l.client.LeasesService()
 	_, err := lapi.Delete(ctx, &leasesapi.DeleteRequest{
 		ID: l.id,
 	})

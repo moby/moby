@@ -92,7 +92,7 @@ var Always FilterFunc = func(adaptor Adaptor) bool {
 	return true
 }
 
-// Any allows multiple filters to be matched aginst the object
+// Any allows multiple filters to be matched against the object
 type Any []Filter
 
 // Match returns true if any of the provided filters are true
@@ -106,7 +106,7 @@ func (m Any) Match(adaptor Adaptor) bool {
 	return false
 }
 
-// All allows multiple filters to be matched aginst the object
+// All allows multiple filters to be matched against the object
 type All []Filter
 
 // Match only returns true if all filters match the object

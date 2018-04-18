@@ -67,7 +67,7 @@ func (n NACLSecretbox) Decrypt(record api.MaybeEncryptedRecord) ([]byte, error) 
 	// appended to.  Since we don't want to append anything, we pass nil.
 	decrypted, ok := secretbox.Open(nil, record.Data, &decryptNonce, &n.key)
 	if !ok {
-		return nil, fmt.Errorf("decryption error using NACL secretbox")
+		return nil, fmt.Errorf("no decryption key for record encrypted with %s", n.Algorithm())
 	}
 	return decrypted, nil
 }
