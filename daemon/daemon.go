@@ -179,11 +179,6 @@ func (daemon *Daemon) restore() error {
 			delete(containers, id)
 			continue
 		}
-		// verify that all volumes valid and have been migrated from the pre-1.7 layout
-		if err := daemon.verifyVolumesInfo(c); err != nil {
-			// don't skip the container due to error
-			logrus.Errorf("Failed to verify volumes for container '%s': %v", c.ID, err)
-		}
 		if err := daemon.Register(c); err != nil {
 			logrus.Errorf("Failed to register container %s: %s", c.ID, err)
 			delete(containers, id)
@@ -1150,17 +1145,15 @@ func setDefaultMtu(conf *config.Config) {
 }
 
 func (daemon *Daemon) configureVolumes(rootIDs idtools.IDPair) (*store.VolumeStore, error) {
-	volumesDriver, err := local.New(daemon.configStore.Root, rootIDs)
+	volumeDriver, err := local.New(daemon.configStore.Root, rootIDs)
 	if err != nil {
 		return nil, err
 	}
-
-	volumedrivers.RegisterPluginGetter(daemon.PluginStore)
-
-	if !volumedrivers.Register(volumesDriver, volumesDriver.Name()) {
+	drivers := volumedrivers.NewStore(daemon.PluginStore)
+	if !drivers.Register(volumeDriver, volumeDriver.Name()) {
 		return nil, errors.New("local volume driver could not be registered")
 	}
-	return store.New(daemon.configStore.Root)
+	return store.New(daemon.configStore.Root, drivers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
