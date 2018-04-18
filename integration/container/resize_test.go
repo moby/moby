@@ -7,9 +7,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	req "github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/integration/internal/request"
+	"github.com/docker/docker/internal/test/request"
+	req "github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"

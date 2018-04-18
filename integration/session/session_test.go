@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"testing"
 
-	req "github.com/docker/docker/integration-cli/request"
+	req "github.com/docker/docker/internal/test/request"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -15,11 +15,11 @@ func TestSessionCreate(t *testing.T) {
 
 	defer setupTest(t)()
 
-	res, body, err := req.Post("/session", func(r *http.Request) error {
+	res, body, err := req.Post("/session", req.With(func(r *http.Request) error {
 		r.Header.Set("X-Docker-Expose-Session-Uuid", "testsessioncreate") // so we don't block default name if something else is using it
 		r.Header.Set("Upgrade", "h2c")
 		return nil
-	})
+	}))
 	assert.NilError(t, err)
 	assert.NilError(t, body.Close())
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusSwitchingProtocols))
@@ -36,10 +36,10 @@ func TestSessionCreateWithBadUpgrade(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(buf), "no upgrade"))
 
-	res, body, err = req.Post("/session", func(r *http.Request) error {
+	res, body, err = req.Post("/session", req.With(func(r *http.Request) error {
 		r.Header.Set("Upgrade", "foo")
 		return nil
-	})
+	}))
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusBadRequest))
 	buf, err = req.ReadBody(body)

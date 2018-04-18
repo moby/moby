@@ -111,7 +111,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeDrainPause(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckActiveContainerCount, checker.GreaterThan, 0)
 	waitAndAssert(c, defaultReconciliationTimeout*2, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, instances)
 
-	d2ContainerCount := len(d2.ActiveContainers())
+	d2ContainerCount := len(d2.ActiveContainers(c))
 
 	// set d2 to paused, scale service up, only d1 gets new tasks
 	d1.UpdateNode(c, d2.NodeID(), func(n *swarm.Node) {

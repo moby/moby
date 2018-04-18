@@ -604,8 +604,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	_, err = d.Cmd("run", "-d", "--name", "ExtContainer", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIP, err := d.FindContainerIP("ExtContainer")
-	c.Assert(err, checker.IsNil)
+	containerIP := d.FindContainerIP(c, "ExtContainer")
 	ip := net.ParseIP(containerIP)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
@@ -676,8 +675,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	_, err := d.Cmd("run", "-d", "--name", "test", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	containerIP, err := d.FindContainerIP("test")
-	c.Assert(err, checker.IsNil)
+	containerIP := d.FindContainerIP(c, "test")
 	ip = net.ParseIP(containerIP)
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
@@ -947,10 +945,8 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 	_, err = s.d.Cmd("run", "-d", "--name", "parent", "--link", "child:http", "busybox", "top")
 	c.Assert(err, check.IsNil)
 
-	childIP, err := s.d.FindContainerIP("child")
-	c.Assert(err, checker.IsNil)
-	parentIP, err := s.d.FindContainerIP("parent")
-	c.Assert(err, checker.IsNil)
+	childIP := s.d.FindContainerIP(c, "child")
+	parentIP := s.d.FindContainerIP(c, "parent")
 
 	sourceRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
 	destinationRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}

@@ -8,9 +8,9 @@ import (
 	"testing"
 
 	dclient "github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/request"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/fakecontext"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/moby/buildkit/session"
@@ -65,8 +65,9 @@ func TestBuildWithSession(t *testing.T) {
 	// rebuild with regular tar, confirm cache still applies
 	fctx.Add("Dockerfile", dockerfile)
 	// FIXME(vdemeester) use sock here
-	res, body, err := request.DoOnHost(d.Sock(),
+	res, body, err := request.Do(
 		"/build",
+		request.Host(d.Sock()),
 		request.Method(http.MethodPost),
 		request.RawContent(fctx.AsTarReader(t)),
 		request.ContentType("application/x-tar"))
@@ -103,14 +104,14 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonSock str
 
 	g.Go(func() error {
 		// FIXME use sock here
-		res, body, err := request.DoOnHost(
-			daemonSock,
+		res, body, err := request.Do(
 			"/build?remote=client-session&session="+sess.ID(),
+			request.Host(daemonSock),
 			request.Method(http.MethodPost),
-			func(req *http.Request) error {
+			request.With(func(req *http.Request) error {
 				req.Body = ioutil.NopCloser(strings.NewReader(dockerfile))
 				return nil
-			},
+			}),
 		)
 		if err != nil {
 			return err
