@@ -123,6 +123,9 @@ type Config struct {
 
 	// PluginGetter provides access to docker's plugin inventory.
 	PluginGetter plugingetter.PluginGetter
+
+	// FIPS is a boolean stating whether the node is FIPS enabled
+	FIPS bool
 }
 
 // Node implements the primary node functionality for a member of a swarm
@@ -609,6 +612,7 @@ waitPeer:
 			CertIssuerPublicKey: issuer.PublicKey,
 			CertIssuerSubject:   issuer.Subject,
 		},
+		FIPS: n.config.FIPS,
 	}
 	// if a join address has been specified, then if the agent fails to connect
 	// due to a TLS error, fail fast - don't keep re-trying to join

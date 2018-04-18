@@ -47,6 +47,9 @@ type Config struct {
 	// SessionTracker, if provided, will have its SessionClosed and SessionError methods called
 	// when sessions close and error.
 	SessionTracker SessionTracker
+
+	// FIPS returns whether the node is FIPS-enabled
+	FIPS bool
 }
 
 func (c *Config) validate() error {
