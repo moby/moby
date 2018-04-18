@@ -8,11 +8,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/builder/dockerfile/command"
 	"github.com/docker/docker/builder/dockerfile/parser"
-	"github.com/docker/docker/pkg/system"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -276,13 +277,24 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
+
+	SpecPlatform := &specs.Platform{}
+	if len(strings.TrimSpace(flPlatform.Value)) != 0 {
+		m, err := platforms.Parse(flPlatform.Value)
+		if err != nil {
+			return nil, err
+		}
+		sp := m.Spec()
+		SpecPlatform = &sp
+	}
+
 	code := strings.TrimSpace(req.original)
 	return &Stage{
 		BaseName:   req.args[0],
 		Name:       stageName,
 		SourceCode: code,
 		Commands:   []Command{},
-		Platform:   *system.ParsePlatform(flPlatform.Value),
+		Platform:   *SpecPlatform,
 	}, nil
 
 }

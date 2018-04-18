@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -152,13 +153,18 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	if err := system.ValidatePlatform(&cmd.Platform); err != nil {
-		return err
+
+	if len(strings.TrimSpace(cmd.Platform.OS)) != 0 {
+		if _, err := platforms.Parse(cmd.Platform.OS); err != nil {
+			return err
+		}
 	}
+
 	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.Platform.OS)
 	if err != nil {
 		return err
 	}
+
 	state := d.state
 	if err := state.beginStage(cmd.Name, image); err != nil {
 		return err

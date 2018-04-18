@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -22,7 +23,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/system"
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -71,11 +71,13 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.RemoteContext = r.FormValue("remote")
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		apiPlatform := r.FormValue("platform")
-		p := system.ParsePlatform(apiPlatform)
-		if err := system.ValidatePlatform(p); err != nil {
-			return nil, errdefs.InvalidParameter(errors.Errorf("invalid platform: %s", err))
+		if len(strings.TrimSpace(apiPlatform)) != 0 {
+			m, err := platforms.Parse(apiPlatform)
+			if err != nil {
+				return nil, err
+			}
+			options.Platform = m.Spec().OS
 		}
-		options.Platform = p.OS
 	}
 
 	if r.Form.Get("shmsize") != "" {
