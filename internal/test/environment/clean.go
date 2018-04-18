@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/internal/test"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"golang.org/x/net/context"
 )
@@ -25,6 +26,9 @@ type logT interface {
 // and removing everything else. It's meant to run after any tests so that they don't
 // depend on each others.
 func (e *Execution) Clean(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	client := e.APIClient()
 
 	platform := e.OSType
@@ -41,6 +45,9 @@ func (e *Execution) Clean(t testingT) {
 }
 
 func unpauseAllContainers(t assert.TestingT, client client.ContainerAPIClient) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	ctx := context.Background()
 	containers := getPausedContainers(ctx, t, client)
 	if len(containers) > 0 {
@@ -52,6 +59,9 @@ func unpauseAllContainers(t assert.TestingT, client client.ContainerAPIClient) {
 }
 
 func getPausedContainers(ctx context.Context, t assert.TestingT, client client.ContainerAPIClient) []types.Container {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	filter := filters.NewArgs()
 	filter.Add("status", "paused")
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
@@ -66,6 +76,9 @@ func getPausedContainers(ctx context.Context, t assert.TestingT, client client.C
 var alreadyExists = regexp.MustCompile(`Error response from daemon: removal of container (\w+) is already in progress`)
 
 func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient, protectedContainers map[string]struct{}) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	ctx := context.Background()
 	containers := getAllContainers(ctx, t, apiclient)
 	if len(containers) == 0 {
@@ -88,6 +101,9 @@ func deleteAllContainers(t assert.TestingT, apiclient client.ContainerAPIClient,
 }
 
 func getAllContainers(ctx context.Context, t assert.TestingT, client client.ContainerAPIClient) []types.Container {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	containers, err := client.ContainerList(ctx, types.ContainerListOptions{
 		Quiet: true,
 		All:   true,
@@ -97,6 +113,9 @@ func getAllContainers(ctx context.Context, t assert.TestingT, client client.Cont
 }
 
 func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	images, err := apiclient.ImageList(context.Background(), types.ImageListOptions{})
 	assert.Check(t, err, "failed to list images")
 
@@ -119,6 +138,9 @@ func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImage
 }
 
 func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageAPIClient, ref string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	_, err := apiclient.ImageRemove(ctx, ref, types.ImageRemoveOptions{
 		Force: true,
 	})
@@ -129,6 +151,9 @@ func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageA
 }
 
 func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	volumes, err := c.VolumeList(context.Background(), filters.Args{})
 	assert.Check(t, err, "failed to list volumes")
 
@@ -146,6 +171,9 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 }
 
 func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatform string, protectedNetworks map[string]struct{}) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	networks, err := c.NetworkList(context.Background(), types.NetworkListOptions{})
 	assert.Check(t, err, "failed to list networks")
 
@@ -166,6 +194,9 @@ func deleteAllNetworks(t assert.TestingT, c client.NetworkAPIClient, daemonPlatf
 }
 
 func deleteAllPlugins(t assert.TestingT, c client.PluginAPIClient, protectedPlugins map[string]struct{}) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	plugins, err := c.PluginList(context.Background(), filters.Args{})
 	// Docker EE does not allow cluster-wide plugin management.
 	if client.IsErrNotImplemented(err) {

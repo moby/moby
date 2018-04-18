@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/docker/docker/internal/test"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/opencontainers/go-digest"
 )
@@ -54,6 +55,9 @@ type Config struct {
 
 // NewV2 creates a v2 registry server
 func NewV2(t testingT, ops ...func(*Config)) *V2 {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	c := &Config{
 		registryURL: DefaultURL,
 	}
@@ -135,6 +139,9 @@ http:
 
 // WaitReady waits for the registry to be ready to serve requests (or fail after a while)
 func (r *V2) WaitReady(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	var err error
 	for i := 0; i != 50; i++ {
 		if err = r.Ping(); err == nil {
@@ -183,6 +190,9 @@ func (r *V2) getBlobFilename(blobDigest digest.Digest) string {
 
 // ReadBlobContents read the file corresponding to the specified digest
 func (r *V2) ReadBlobContents(t assert.TestingT, blobDigest digest.Digest) []byte {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	// Load the target manifest blob.
 	manifestBlob, err := ioutil.ReadFile(r.getBlobFilename(blobDigest))
 	assert.NilError(t, err, "unable to read blob")
@@ -191,6 +201,9 @@ func (r *V2) ReadBlobContents(t assert.TestingT, blobDigest digest.Digest) []byt
 
 // WriteBlobContents write the file corresponding to the specified digest with the given content
 func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data []byte) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	err := ioutil.WriteFile(r.getBlobFilename(blobDigest), data, os.FileMode(0644))
 	assert.NilError(t, err, "unable to write malicious data blob")
 }
@@ -198,6 +211,9 @@ func (r *V2) WriteBlobContents(t assert.TestingT, blobDigest digest.Digest, data
 // TempMoveBlobData moves the existing data file aside, so that we can replace it with a
 // malicious blob of data for example.
 func (r *V2) TempMoveBlobData(t testingT, blobDigest digest.Digest) (undo func()) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	tempFile, err := ioutil.TempFile("", "registry-temp-blob-")
 	assert.NilError(t, err, "unable to get temporary blob file")
 	tempFile.Close()

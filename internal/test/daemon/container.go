@@ -4,11 +4,15 @@ import (
 	"context"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/internal/test"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
 // ActiveContainers returns the list of ids of the currently running containers
 func (d *Daemon) ActiveContainers(t assert.TestingT) []string {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -24,6 +28,9 @@ func (d *Daemon) ActiveContainers(t assert.TestingT) []string {
 
 // FindContainerIP returns the ip of the specified container
 func (d *Daemon) FindContainerIP(t assert.TestingT, id string) string {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 

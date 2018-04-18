@@ -13,6 +13,7 @@ import (
 // HasHubConnectivity checks to see if https://hub.docker.com is
 // accessible from the present environment
 func HasHubConnectivity(t *testing.T) bool {
+	t.Helper()
 	// Set a timeout on the GET at 15s
 	var timeout = 15 * time.Second
 	var url = "https://hub.docker.com"

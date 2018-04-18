@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/request"
@@ -56,6 +57,9 @@ func SetTestEnvironment(env *environment.Execution) {
 
 // New returns a static file server that will be use as build context.
 func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fake {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	if testEnv == nil {
 		t.Fatal("fakstorage package requires SetTestEnvironment() to be called before use.")
 	}
