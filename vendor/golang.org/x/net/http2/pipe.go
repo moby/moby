@@ -50,7 +50,7 @@ func (p *pipe) Read(d []byte) (n int, err error) {
 		if p.breakErr != nil {
 			return 0, p.breakErr
 		}
-		if p.b.Len() > 0 {
+		if p.b != nil && p.b.Len() > 0 {
 			return p.b.Read(d)
 		}
 		if p.err != nil {
