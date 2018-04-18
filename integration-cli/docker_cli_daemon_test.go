@@ -31,6 +31,7 @@ import (
 	moby_daemon "github.com/docker/docker/daemon"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/opts"
@@ -1156,14 +1157,16 @@ func (s *DockerDaemonSuite) TestDaemonLoggingDriverNoneLogsError(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonLoggingDriverShouldBeIgnoredForBuild(c *check.C) {
 	s.d.StartWithBusybox(c, "--log-driver=splunk")
 
-	out, err := s.d.Cmd("build")
-	out, code, err := s.d.BuildImageWithOut("busyboxs", `
+	result := cli.BuildCmd(c, "busyboxs", cli.Daemon(s.d),
+		build.WithDockerfile(`
         FROM busybox
-        RUN echo foo`, false)
-	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(code, check.Equals, 0, comment)
-	c.Assert(out, checker.Contains, "foo", comment)
+        RUN echo foo`),
+		build.WithoutCache,
+	)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
+	c.Assert(result.Error, check.IsNil, comment)
+	c.Assert(result.ExitCode, check.Equals, 0, comment)
+	c.Assert(result.Combined(), checker.Contains, "foo", comment)
 }
 
 func (s *DockerDaemonSuite) TestDaemonUnixSockCleanedUp(c *check.C) {
@@ -2404,12 +2407,16 @@ func (s *DockerDaemonSuite) TestDaemonMaxConcurrencyWithConfigFileReload(c *chec
 
 func (s *DockerDaemonSuite) TestBuildOnDisabledBridgeNetworkDaemon(c *check.C) {
 	s.d.StartWithBusybox(c, "-b=none", "--iptables=false")
-	out, code, err := s.d.BuildImageWithOut("busyboxs",
-		`FROM busybox
-                RUN cat /etc/hosts`, false)
-	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", out, code, err)
-	c.Assert(err, check.IsNil, comment)
-	c.Assert(code, check.Equals, 0, comment)
+
+	result := cli.BuildCmd(c, "busyboxs", cli.Daemon(s.d),
+		build.WithDockerfile(`
+        FROM busybox
+        RUN cat /etc/hosts`),
+		build.WithoutCache,
+	)
+	comment := check.Commentf("Failed to build image. output %s, exitCode %d, err %v", result.Combined(), result.ExitCode, result.Error)
+	c.Assert(result.Error, check.IsNil, comment)
+	c.Assert(result.ExitCode, check.Equals, 0, comment)
 }
 
 // Test case for #21976

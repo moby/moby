@@ -12,8 +12,10 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) {
@@ -79,13 +81,15 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	out, _, err := s.d.BuildImageWithOut("test",
-		`FROM busybox
-                 LABEL foo=bar`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id := strings.TrimSpace(out)
+	result := cli.BuildCmd(c, "test", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL foo=bar`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id := strings.TrimSpace(result.Combined())
 
-	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	out, err := s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id)
 
@@ -266,20 +270,24 @@ func (s *DockerSuite) TestPruneNetworkLabel(c *check.C) {
 func (s *DockerDaemonSuite) TestPruneImageLabel(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	out, _, err := s.d.BuildImageWithOut("test1",
-		`FROM busybox
-                 LABEL foo=bar`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id1 := strings.TrimSpace(out)
-	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	result := cli.BuildCmd(c, "test1", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL foo=bar`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id1 := strings.TrimSpace(result.Combined())
+	out, err := s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id1)
 
-	out, _, err = s.d.BuildImageWithOut("test2",
-		`FROM busybox
-                 LABEL bar=foo`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id2 := strings.TrimSpace(out)
+	result = cli.BuildCmd(c, "test2", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL bar=foo`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id2 := strings.TrimSpace(result.Combined())
 	out, err = s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id2)

@@ -9,7 +9,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func cleanupExecRoot(t testingT, execRoot string) {
+func cleanupNetworkNamespace(t testingT, execRoot string) {
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting

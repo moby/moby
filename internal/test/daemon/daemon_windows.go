@@ -21,5 +21,5 @@ func signalDaemonReload(pid int) error {
 	return fmt.Errorf("daemon reload not supported")
 }
 
-func cleanupExecRoot(t testingT, execRoot string) {
+func cleanupNetworkNamespace(t testingT, execRoot string) {
 }

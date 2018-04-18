@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 	"time"
 
@@ -88,19 +87,6 @@ func (d *Daemon) inspectFieldWithError(name, field string) (string, error) {
 	return d.inspectFilter(name, fmt.Sprintf(".%s", field))
 }
 
-// BuildImageWithOut builds an image with the specified dockerfile and options and returns the output
-func (d *Daemon) BuildImageWithOut(name, dockerfile string, useCache bool, buildFlags ...string) (string, int, error) {
-	buildCmd := BuildImageCmdWithHost(d.dockerBinary, name, dockerfile, d.Sock(), useCache, buildFlags...)
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: buildCmd.Args,
-		Env:     buildCmd.Env,
-		Dir:     buildCmd.Dir,
-		Stdin:   buildCmd.Stdin,
-		Stdout:  buildCmd.Stdout,
-	})
-	return result.Combined(), result.ExitCode, result.Error
-}
-
 // CheckActiveContainerCount returns the number of active containers
 // FIXME(vdemeester) should re-use ActivateContainers in some way
 func (d *Daemon) CheckActiveContainerCount(c *check.C) (interface{}, check.CommentInterface) {
@@ -154,23 +140,4 @@ func WaitInspectWithArgs(dockerBinary, name, expr, expected string, timeout time
 		time.Sleep(100 * time.Millisecond)
 	}
 	return nil
-}
-
-// BuildImageCmdWithHost create a build command with the specified arguments.
-// Deprecated
-// FIXME(vdemeester) move this away
-func BuildImageCmdWithHost(dockerBinary, name, dockerfile, host string, useCache bool, buildFlags ...string) *exec.Cmd {
-	args := []string{}
-	if host != "" {
-		args = append(args, "--host", host)
-	}
-	args = append(args, "build", "-t", name)
-	if !useCache {
-		args = append(args, "--no-cache")
-	}
-	args = append(args, buildFlags...)
-	args = append(args, "-")
-	buildCmd := exec.Command(dockerBinary, args...)
-	buildCmd.Stdin = strings.NewReader(dockerfile)
-	return buildCmd
 }

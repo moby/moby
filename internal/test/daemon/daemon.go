@@ -179,11 +179,8 @@ func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testingT) {
 	// Cleanup swarmkit wal files if present
-	walDir := filepath.Join(d.Root, "swarm/raft/wal")
-	if err := os.RemoveAll(walDir); err != nil {
-		t.Logf("error removing %v: %v", walDir, err)
-	}
-	cleanupExecRoot(t, d.execRoot)
+	cleanupRaftDir(t, d.Root)
+	cleanupNetworkNamespace(t, d.execRoot)
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
@@ -639,4 +636,11 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 	info, err := apiclient.Info(context.Background())
 	assert.NilError(t, err)
 	return info
+}
+
+func cleanupRaftDir(t testingT, rootPath string) {
+	walDir := filepath.Join(rootPath, "swarm/raft/wal")
+	if err := os.RemoveAll(walDir); err != nil {
+		t.Logf("error removing %v: %v", walDir, err)
+	}
 }

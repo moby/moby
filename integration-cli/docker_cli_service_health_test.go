@@ -9,7 +9,10 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
+	"github.com/gotestyourself/gotestyourself/icmd"
 )
 
 // start a service, and then make its task unhealthy during running
@@ -20,15 +23,14 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	// build image with health-check
-	// note: use `daemon.buildImageWithOut` to build, do not use `buildImage` to build
 	imageName := "testhealth"
-	_, _, err := d.BuildImageWithOut(imageName,
-		`FROM busybox
+	result := cli.BuildCmd(c, imageName, cli.Daemon(d),
+		build.WithDockerfile(`FROM busybox
 		RUN touch /status
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1\
-		  CMD cat /status`,
-		true)
-	c.Check(err, check.IsNil)
+		  CMD cat /status`),
+	)
+	result.Assert(c, icmd.Success)
 
 	serviceName := "healthServiceRun"
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--name", serviceName, imageName, "top")
@@ -84,12 +86,12 @@ func (s *DockerSwarmSuite) TestServiceHealthStart(c *check.C) {
 
 	// service started from this image won't pass health check
 	imageName := "testhealth"
-	_, _, err := d.BuildImageWithOut(imageName,
-		`FROM busybox
+	result := cli.BuildCmd(c, imageName, cli.Daemon(d),
+		build.WithDockerfile(`FROM busybox
 		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
-		  CMD cat /status`,
-		true)
-	c.Check(err, check.IsNil)
+		  CMD cat /status`),
+	)
+	result.Assert(c, icmd.Success)
 
 	serviceName := "healthServiceStart"
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--name", serviceName, imageName, "top")
