@@ -10,7 +10,8 @@ import (
 )
 
 const (
-	defaultSwarmPort       = 2477
+	// DefaultSwarmPort is the default port use for swarm in the tests
+	DefaultSwarmPort       = 2477
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
