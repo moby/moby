@@ -212,6 +212,7 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 // correctly after request pass through by the authorization plugin
 func TestAuthZPluginAllowEventStream(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTestV1(t)()
 	ctrl.reqRes.Allow = true

@@ -51,6 +51,7 @@ func ContainerPoll(config *poll.Settings) {
 func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...func(*daemon.Daemon)) *daemon.Daemon {
 	t.Helper()
 	skip.If(t, testEnv.IsRemoteDaemon)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	if testEnv.DaemonInfo.ExperimentalBuild {
 		ops = append(ops, daemon.WithExperimental)
 	}

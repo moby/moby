@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/internal/test/daemon"
 
 	"gotest.tools/assert"
+	"gotest.tools/skip"
 )
 
 // hasSystemd checks whether the host was booted with systemd as its init
@@ -27,6 +28,7 @@ func hasSystemd() bool {
 // memory limit can be set when using systemd cgroupdriver.
 //  https://github.com/moby/moby/issues/35123
 func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
 	if !hasSystemd() {
