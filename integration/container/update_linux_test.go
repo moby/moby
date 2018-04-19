@@ -17,7 +17,7 @@ import (
 )
 
 func TestUpdateMemory(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !testEnv.DaemonInfo.MemoryLimit)
 	skip.If(t, !testEnv.DaemonInfo.SwapLimit)
 
