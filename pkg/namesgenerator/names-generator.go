@@ -299,6 +299,9 @@ var (
 		// Margaret Hamilton - Director of the Software Engineering Division of the MIT Instrumentation Laboratory, which developed on-board flight software for the Apollo space program. https://en.wikipedia.org/wiki/Margaret_Hamilton_(scientist)
 		"hamilton",
 
+		//Harish-Chandra - An Indian American mathematician and physicist who did fundamental work in representation theory, especially harmonic analysis on semisimple Lie groups - https://en.wikipedia.org/wiki/Harish-Chandra
+		"chandra",
+
 		// Stephen Hawking pioneered the field of cosmology by combining general relativity and quantum mechanics. https://en.wikipedia.org/wiki/Stephen_Hawking
 		"hawking",
 
@@ -452,6 +455,9 @@ var (
 		// Ian Murdock - founder of the Debian project - https://en.wikipedia.org/wiki/Ian_Murdock
 		"murdock",
 
+		// Jayant Vishnu Narlikar - is an Indian astrophysicist, who developed with Sir Fred Hoyle the conformal gravity theory, known as Hoyle–Narlikar theory - https://en.wikipedia.org/wiki/Jayant_Narlikar
+		"narlikar",
+
 		// John von Neumann - todays computer architectures are based on the von Neumann architecture. https://en.wikipedia.org/wiki/Von_Neumann_architecture
 		"neumann",
 
@@ -472,6 +478,9 @@ var (
 
 		// Robert Noyce invented silicone integrated circuits and gave Silicon Valley its name. - https://en.wikipedia.org/wiki/Robert_Noyce
 		"noyce",
+
+		// Thanu Padmanabhan is an Indian theoretical physicist and cosmologist whose research spans a wide variety of topics in Gravitation - https://en.wikipedia.org/wiki/Thanu_Padmanabhan
+		"padmanabhan",
 
 		// Panini - Ancient Indian linguist and grammarian from 4th century CE who worked on the world's first formal system - https://en.wikipedia.org/wiki/P%C4%81%E1%B9%87ini#Comparison_with_modern_formal_systems
 		"panini",
@@ -503,11 +512,17 @@ var (
 		// Claudius Ptolemy - a Greco-Egyptian writer of Alexandria, known as a mathematician, astronomer, geographer, astrologer, and poet of a single epigram in the Greek Anthology - https://en.wikipedia.org/wiki/Ptolemy
 		"ptolemy",
 
+		// G.N. Ramachandran, was an Indian physicist who was known for his work that led to his creation of the Ramachandran plot for understanding peptide structure - https://en.wikipedia.org/wiki/G._N._Ramachandran
+		"ramachandran",
+
 		// C. V. Raman - Indian physicist who won the Nobel Prize in 1930 for proposing the Raman effect. - https://en.wikipedia.org/wiki/C._V._Raman
 		"raman",
 
 		// Srinivasa Ramanujan - Indian mathematician and autodidact who made extraordinary contributions to mathematical analysis, number theory, infinite series, and continued fractions. - https://en.wikipedia.org/wiki/Srinivasa_Ramanujan
 		"ramanujan",
+
+		// C. N. R. Rao - An Indian chemist who has worked mainly in solid-state and structural chemistry - https://en.wikipedia.org/wiki/C._N._R._Rao
+		"rao",
 
 		// Sally Kristen Ride was an American physicist and astronaut. She was the first American woman in space, and the youngest American astronaut. https://en.wikipedia.org/wiki/Sally_Ride
 		"ride",
@@ -529,6 +544,9 @@ var (
 
 		// Jean E. Sammet developed FORMAC, the first widely used computer language for symbolic manipulation of mathematical formulas. https://en.wikipedia.org/wiki/Jean_E._Sammet
 		"sammet",
+
+		// Vikram Ambalal Sarabhai - An Indian scientist and innovator widely regarded as the father of India's space programme - https://en.wikipedia.org/wiki/Vikram_Sarabhai
+		"sarabhai",
 
 		// Carol Shaw - Originally an Atari employee, Carol Shaw is said to be the first female video game designer. https://en.wikipedia.org/wiki/Carol_Shaw_(video_game_designer)
 		"shaw",
