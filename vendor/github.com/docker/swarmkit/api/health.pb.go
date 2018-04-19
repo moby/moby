@@ -290,7 +290,7 @@ func NewRaftProxyHealthServer(local HealthServer, connSelector raftselector.Conn
 			return ctx, status.Errorf(codes.InvalidArgument, "remote addr is not found in context")
 		}
 		addr := s.ServerTransport().RemoteAddr().String()
-		md, ok := metadata.FromContext(ctx)
+		md, ok := metadata.FromIncomingContext(ctx)
 		if ok && len(md["redirect"]) != 0 {
 			return ctx, status.Errorf(codes.ResourceExhausted, "more than one redirect to leader from: %s", md["redirect"])
 		}
@@ -298,7 +298,7 @@ func NewRaftProxyHealthServer(local HealthServer, connSelector raftselector.Conn
 			md = metadata.New(map[string]string{})
 		}
 		md["redirect"] = append(md["redirect"], addr)
-		return metadata.NewContext(ctx, md), nil
+		return metadata.NewOutgoingContext(ctx, md), nil
 	}
 	remoteMods := []func(context.Context) (context.Context, error){redirectChecker}
 	remoteMods = append(remoteMods, remoteCtxMod)
