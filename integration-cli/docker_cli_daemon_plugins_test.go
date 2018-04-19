@@ -231,24 +231,6 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 }
 
-func (s *DockerDaemonSuite) TestGraphdriverPlugin(c *check.C) {
-	testRequires(c, Network, IsAmd64, DaemonIsLinux, overlay2Supported, ExperimentalDaemon)
-
-	s.d.Start(c)
-
-	// install the plugin
-	plugin := "cpuguy83/docker-overlay2-graphdriver-plugin"
-	out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", plugin)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-
-	// restart the daemon with the plugin set as the storage driver
-	s.d.Restart(c, "-s", plugin, "--storage-opt", "overlay2.override_kernel_check=1")
-
-	// run a container
-	out, err = s.d.Cmd("run", "--rm", "busybox", "true") // this will pull busybox using the plugin
-	c.Assert(err, checker.IsNil, check.Commentf(out))
-}
-
 func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network, IsAmd64)
 
