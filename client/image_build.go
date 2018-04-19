@@ -133,5 +133,8 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	if options.Platform != "" {
 		query.Set("platform", strings.ToLower(options.Platform))
 	}
+	if options.BuildID != "" {
+		query.Set("buildid", options.BuildID)
+	}
 	return query, nil
 }

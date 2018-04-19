@@ -145,6 +145,7 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.CacheFrom = cacheFrom
 	}
 	options.SessionID = r.FormValue("session")
+	options.BuildID = r.FormValue("buildid")
 
 	return options, nil
 }
@@ -155,6 +156,17 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return err
 	}
 	return httputils.WriteJSON(w, http.StatusOK, report)
+}
+
+func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.FormValue("id")
+	if id == "" {
+		return errors.Errorf("build ID not provided")
+	}
+
+	return br.backend.Cancel(ctx, id)
 }
 
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

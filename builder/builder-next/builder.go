@@ -59,6 +59,9 @@ type Opt struct {
 type Builder struct {
 	controller *control.Controller
 	results    *results
+
+	mu   sync.Mutex
+	jobs map[string]func()
 }
 
 func New(opt Opt) (*Builder, error) {
@@ -71,11 +74,30 @@ func New(opt Opt) (*Builder, error) {
 	b := &Builder{
 		controller: c,
 		results:    results,
+		jobs:       map[string]func(){},
 	}
 	return b, nil
 }
 
+func (b *Builder) Cancel(ctx context.Context, id string) error {
+	b.mu.Lock()
+	if cancel, ok := b.jobs[id]; ok {
+		cancel()
+	}
+	b.mu.Unlock()
+	return nil
+}
+
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
+	if buildID := opt.Options.BuildID; buildID != "" {
+		b.mu.Lock()
+		ctx, b.jobs[buildID] = context.WithCancel(ctx)
+		b.mu.Unlock()
+		defer func() {
+			delete(b.jobs, buildID)
+		}()
+	}
+
 	id := identity.NewID()
 
 	attrs := map[string]string{

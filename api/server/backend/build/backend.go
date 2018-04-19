@@ -79,8 +79,10 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 		}
 	}
 
-	stdout := config.ProgressWriter.StdoutFormatter
-	fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
+	if !useBuildKit {
+		stdout := config.ProgressWriter.StdoutFormatter
+		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
+	}
 	err = tagger.TagImages(image.ID(imageID))
 	return imageID, err
 }
@@ -92,6 +94,10 @@ func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport,
 		return nil, errors.Wrap(err, "failed to prune build cache")
 	}
 	return &types.BuildCachePruneReport{SpaceReclaimed: size}, nil
+}
+
+func (b *Backend) Cancel(ctx context.Context, id string) error {
+	return b.buildkit.Cancel(ctx, id)
 }
 
 func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {
