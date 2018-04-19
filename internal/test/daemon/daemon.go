@@ -113,7 +113,7 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		execRoot:        filepath.Join(os.TempDir(), "docker-execroot", id),
 		dockerdBinary:   defaultDockerdBinary,
 		swarmListenAddr: defaultSwarmListenAddr,
-		SwarmPort:       defaultSwarmPort,
+		SwarmPort:       DefaultSwarmPort,
 		log:             t,
 	}
 

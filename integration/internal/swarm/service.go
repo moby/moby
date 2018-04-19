@@ -19,10 +19,10 @@ import (
 // ServicePoll tweaks the pollSettings for `service`
 func ServicePoll(config *poll.Settings) {
 	// Override the default pollSettings for `service` resource here ...
-
+	config.Timeout = 30 * time.Second
+	config.Delay = 100 * time.Millisecond
 	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
 		config.Timeout = 1 * time.Minute
-		config.Delay = 100 * time.Millisecond
 	}
 }
 
