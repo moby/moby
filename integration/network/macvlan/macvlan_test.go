@@ -1,3 +1,5 @@
+// +build !windows
+
 package macvlan
 
 import (
@@ -17,7 +19,7 @@ import (
 
 func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (dm-dummy0.60)
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
@@ -42,7 +44,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 }
 
 func TestDockerNetworkMacvlan(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !macvlanKernelSupport(), "Kernel doesn't support macvlan")
 
