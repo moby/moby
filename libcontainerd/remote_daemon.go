@@ -311,20 +311,17 @@ func (r *remote) monitorConnection(monitor *containerd.Client) {
 			<-r.daemonWaitCh
 		}
 
-		monitor.Close()
 		os.Remove(r.GRPC.Address)
 		if err := r.startContainerd(); err != nil {
 			r.logger.WithError(err).Error("failed restarting containerd")
 			continue
 		}
 
-		newMonitor, err := containerd.New(r.GRPC.Address)
-		if err != nil {
+		if err := monitor.Reconnect(); err != nil {
 			r.logger.WithError(err).Error("failed connect to containerd")
 			continue
 		}
 
-		monitor = newMonitor
 		var wg sync.WaitGroup
 
 		for _, c := range r.clients {
@@ -333,18 +330,12 @@ func (r *remote) monitorConnection(monitor *containerd.Client) {
 			go func(c *client) {
 				defer wg.Done()
 				c.logger.WithField("namespace", c.namespace).Debug("creating new containerd remote client")
-				c.remote.Close()
-
-				remote, err := containerd.New(r.GRPC.Address, containerd.WithDefaultNamespace(c.namespace))
-				if err != nil {
+				if err := c.reconnect(); err != nil {
 					r.logger.WithError(err).Error("failed to connect to containerd")
 					// TODO: Better way to handle this?
 					// This *shouldn't* happen, but this could wind up where the daemon
 					// is not able to communicate with an eventually up containerd
-					return
 				}
-
-				c.setRemote(remote)
 			}(c)
 
 			wg.Wait()

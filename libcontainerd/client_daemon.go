@@ -114,6 +114,13 @@ type client struct {
 	containers map[string]*container
 }
 
+func (c *client) reconnect() error {
+	c.Lock()
+	err := c.remote.Reconnect()
+	c.Unlock()
+	return err
+}
+
 func (c *client) setRemote(remote *containerd.Client) {
 	c.Lock()
 	c.remote = remote

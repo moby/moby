@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package cio
 
 import (
@@ -47,7 +63,11 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 				log.L.WithError(err).Errorf("failed to accept stdin connection on %s", fifos.Stdin)
 				return
 			}
-			io.Copy(c, ioset.Stdin)
+
+			p := bufPool.Get().(*[]byte)
+			defer bufPool.Put(p)
+
+			io.CopyBuffer(c, ioset.Stdin, *p)
 			c.Close()
 			l.Close()
 		}()
@@ -73,7 +93,11 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 				log.L.WithError(err).Errorf("failed to accept stdout connection on %s", fifos.Stdout)
 				return
 			}
-			io.Copy(ioset.Stdout, c)
+
+			p := bufPool.Get().(*[]byte)
+			defer bufPool.Put(p)
+
+			io.CopyBuffer(ioset.Stdout, c, *p)
 			c.Close()
 			l.Close()
 		}()
@@ -99,7 +123,11 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 				log.L.WithError(err).Errorf("failed to accept stderr connection on %s", fifos.Stderr)
 				return
 			}
-			io.Copy(ioset.Stderr, c)
+
+			p := bufPool.Get().(*[]byte)
+			defer bufPool.Put(p)
+
+			io.CopyBuffer(ioset.Stderr, c, *p)
 			c.Close()
 			l.Close()
 		}()

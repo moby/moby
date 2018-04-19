@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package archive
 
 import (
@@ -13,18 +29,20 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/fs"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/continuity/fs"
 	"github.com/dmcgowan/go-tar"
 	"github.com/pkg/errors"
 )
 
-var bufferPool = &sync.Pool{
+var bufPool = &sync.Pool{
 	New: func() interface{} {
 		buffer := make([]byte, 32*1024)
 		return &buffer
 	},
 }
+
+var errInvalidArchive = errors.New("invalid archive")
 
 // Diff returns a tar stream of the computed filesystem
 // difference between the provided directories.
@@ -87,12 +105,23 @@ const (
 
 // Apply applies a tar stream of an OCI style diff tar.
 // See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
-func Apply(ctx context.Context, root string, r io.Reader) (int64, error) {
+func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int64, error) {
 	root = filepath.Clean(root)
 
+	var options ApplyOptions
+	for _, opt := range opts {
+		if err := opt(&options); err != nil {
+			return 0, errors.Wrap(err, "failed to apply option")
+		}
+	}
+
+	return apply(ctx, root, tar.NewReader(r), options)
+}
+
+// applyNaive applies a tar stream of an OCI style diff tar.
+// See https://github.com/opencontainers/image-spec/blob/master/layer.md#applying-changesets
+func applyNaive(ctx context.Context, root string, tr *tar.Reader, options ApplyOptions) (size int64, err error) {
 	var (
-		tr   = tar.NewReader(r)
-		size int64
 		dirs []*tar.Header
 
 		// Used for handling opaque directory markers which
@@ -220,6 +249,15 @@ func Apply(ctx context.Context, root string, r io.Reader) (int64, error) {
 
 			originalBase := base[len(whiteoutPrefix):]
 			originalPath := filepath.Join(dir, originalBase)
+
+			// Ensure originalPath is under dir
+			if dir[len(dir)-1] != filepath.Separator {
+				dir += string(filepath.Separator)
+			}
+			if !strings.HasPrefix(originalPath, dir) {
+				return 0, errors.Wrapf(errInvalidArchive, "invalid whiteout name: %v", base)
+			}
+
 			if err := os.RemoveAll(originalPath); err != nil {
 				return 0, err
 			}
@@ -283,163 +321,6 @@ func Apply(ctx context.Context, root string, r io.Reader) (int64, error) {
 	}
 
 	return size, nil
-}
-
-type changeWriter struct {
-	tw        *tar.Writer
-	source    string
-	whiteoutT time.Time
-	inodeSrc  map[uint64]string
-	inodeRefs map[uint64][]string
-}
-
-func newChangeWriter(w io.Writer, source string) *changeWriter {
-	return &changeWriter{
-		tw:        tar.NewWriter(w),
-		source:    source,
-		whiteoutT: time.Now(),
-		inodeSrc:  map[uint64]string{},
-		inodeRefs: map[uint64][]string{},
-	}
-}
-
-func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
-	if err != nil {
-		return err
-	}
-	if k == fs.ChangeKindDelete {
-		whiteOutDir := filepath.Dir(p)
-		whiteOutBase := filepath.Base(p)
-		whiteOut := filepath.Join(whiteOutDir, whiteoutPrefix+whiteOutBase)
-		hdr := &tar.Header{
-			Name:       whiteOut[1:],
-			Size:       0,
-			ModTime:    cw.whiteoutT,
-			AccessTime: cw.whiteoutT,
-			ChangeTime: cw.whiteoutT,
-		}
-		if err := cw.tw.WriteHeader(hdr); err != nil {
-			return errors.Wrap(err, "failed to write whiteout header")
-		}
-	} else {
-		var (
-			link   string
-			err    error
-			source = filepath.Join(cw.source, p)
-		)
-
-		if f.Mode()&os.ModeSymlink != 0 {
-			if link, err = os.Readlink(source); err != nil {
-				return err
-			}
-		}
-
-		hdr, err := tar.FileInfoHeader(f, link)
-		if err != nil {
-			return err
-		}
-
-		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
-
-		name := p
-		if strings.HasPrefix(name, string(filepath.Separator)) {
-			name, err = filepath.Rel(string(filepath.Separator), name)
-			if err != nil {
-				return errors.Wrap(err, "failed to make path relative")
-			}
-		}
-		name, err = tarName(name)
-		if err != nil {
-			return errors.Wrap(err, "cannot canonicalize path")
-		}
-		// suffix with '/' for directories
-		if f.IsDir() && !strings.HasSuffix(name, "/") {
-			name += "/"
-		}
-		hdr.Name = name
-
-		if err := setHeaderForSpecialDevice(hdr, name, f); err != nil {
-			return errors.Wrap(err, "failed to set device headers")
-		}
-
-		// additionalLinks stores file names which must be linked to
-		// this file when this file is added
-		var additionalLinks []string
-		inode, isHardlink := fs.GetLinkInfo(f)
-		if isHardlink {
-			// If the inode has a source, always link to it
-			if source, ok := cw.inodeSrc[inode]; ok {
-				hdr.Typeflag = tar.TypeLink
-				hdr.Linkname = source
-				hdr.Size = 0
-			} else {
-				if k == fs.ChangeKindUnmodified {
-					cw.inodeRefs[inode] = append(cw.inodeRefs[inode], name)
-					return nil
-				}
-				cw.inodeSrc[inode] = name
-				additionalLinks = cw.inodeRefs[inode]
-				delete(cw.inodeRefs, inode)
-			}
-		} else if k == fs.ChangeKindUnmodified && !f.IsDir() {
-			// Nothing to write to diff
-			// Unmodified directories should still be written to keep
-			// directory permissions correct on direct unpack
-			return nil
-		}
-
-		if capability, err := getxattr(source, "security.capability"); err != nil {
-			return errors.Wrap(err, "failed to get capabilities xattr")
-		} else if capability != nil {
-			if hdr.PAXRecords == nil {
-				hdr.PAXRecords = map[string]string{}
-			}
-			hdr.PAXRecords[paxSchilyXattr+"security.capability"] = string(capability)
-		}
-
-		if err := cw.tw.WriteHeader(hdr); err != nil {
-			return errors.Wrap(err, "failed to write file header")
-		}
-
-		if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
-			file, err := open(source)
-			if err != nil {
-				return errors.Wrapf(err, "failed to open path: %v", source)
-			}
-			defer file.Close()
-
-			buf := bufferPool.Get().(*[]byte)
-			n, err := io.CopyBuffer(cw.tw, file, *buf)
-			bufferPool.Put(buf)
-			if err != nil {
-				return errors.Wrap(err, "failed to copy")
-			}
-			if n != hdr.Size {
-				return errors.New("short write copying file")
-			}
-		}
-
-		if additionalLinks != nil {
-			source = hdr.Name
-			for _, extra := range additionalLinks {
-				hdr.Name = extra
-				hdr.Typeflag = tar.TypeLink
-				hdr.Linkname = source
-				hdr.Size = 0
-				if err := cw.tw.WriteHeader(hdr); err != nil {
-					return errors.Wrap(err, "failed to write file header")
-				}
-			}
-		}
-	}
-	return nil
-}
-
-func (cw *changeWriter) Close() error {
-	if err := cw.tw.Close(); err != nil {
-		return errors.Wrap(err, "failed to close tar writer")
-	}
-	return nil
 }
 
 func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header, reader io.Reader) error {
@@ -535,9 +416,201 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 	return chtimes(path, boundTime(latestTime(hdr.AccessTime, hdr.ModTime)), boundTime(hdr.ModTime))
 }
 
+type changeWriter struct {
+	tw        *tar.Writer
+	source    string
+	whiteoutT time.Time
+	inodeSrc  map[uint64]string
+	inodeRefs map[uint64][]string
+	addedDirs map[string]struct{}
+}
+
+func newChangeWriter(w io.Writer, source string) *changeWriter {
+	return &changeWriter{
+		tw:        tar.NewWriter(w),
+		source:    source,
+		whiteoutT: time.Now(),
+		inodeSrc:  map[uint64]string{},
+		inodeRefs: map[uint64][]string{},
+		addedDirs: map[string]struct{}{},
+	}
+}
+
+func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, err error) error {
+	if err != nil {
+		return err
+	}
+	if k == fs.ChangeKindDelete {
+		whiteOutDir := filepath.Dir(p)
+		whiteOutBase := filepath.Base(p)
+		whiteOut := filepath.Join(whiteOutDir, whiteoutPrefix+whiteOutBase)
+		hdr := &tar.Header{
+			Typeflag:   tar.TypeReg,
+			Name:       whiteOut[1:],
+			Size:       0,
+			ModTime:    cw.whiteoutT,
+			AccessTime: cw.whiteoutT,
+			ChangeTime: cw.whiteoutT,
+		}
+		if err := cw.includeParents(hdr); err != nil {
+			return err
+		}
+		if err := cw.tw.WriteHeader(hdr); err != nil {
+			return errors.Wrap(err, "failed to write whiteout header")
+		}
+	} else {
+		var (
+			link   string
+			err    error
+			source = filepath.Join(cw.source, p)
+		)
+
+		if f.Mode()&os.ModeSymlink != 0 {
+			if link, err = os.Readlink(source); err != nil {
+				return err
+			}
+		}
+
+		hdr, err := tar.FileInfoHeader(f, link)
+		if err != nil {
+			return err
+		}
+
+		hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
+
+		name := p
+		if strings.HasPrefix(name, string(filepath.Separator)) {
+			name, err = filepath.Rel(string(filepath.Separator), name)
+			if err != nil {
+				return errors.Wrap(err, "failed to make path relative")
+			}
+		}
+		name, err = tarName(name)
+		if err != nil {
+			return errors.Wrap(err, "cannot canonicalize path")
+		}
+		// suffix with '/' for directories
+		if f.IsDir() && !strings.HasSuffix(name, "/") {
+			name += "/"
+		}
+		hdr.Name = name
+
+		if err := setHeaderForSpecialDevice(hdr, name, f); err != nil {
+			return errors.Wrap(err, "failed to set device headers")
+		}
+
+		// additionalLinks stores file names which must be linked to
+		// this file when this file is added
+		var additionalLinks []string
+		inode, isHardlink := fs.GetLinkInfo(f)
+		if isHardlink {
+			// If the inode has a source, always link to it
+			if source, ok := cw.inodeSrc[inode]; ok {
+				hdr.Typeflag = tar.TypeLink
+				hdr.Linkname = source
+				hdr.Size = 0
+			} else {
+				if k == fs.ChangeKindUnmodified {
+					cw.inodeRefs[inode] = append(cw.inodeRefs[inode], name)
+					return nil
+				}
+				cw.inodeSrc[inode] = name
+				additionalLinks = cw.inodeRefs[inode]
+				delete(cw.inodeRefs, inode)
+			}
+		} else if k == fs.ChangeKindUnmodified {
+			// Nothing to write to diff
+			return nil
+		}
+
+		if capability, err := getxattr(source, "security.capability"); err != nil {
+			return errors.Wrap(err, "failed to get capabilities xattr")
+		} else if capability != nil {
+			if hdr.PAXRecords == nil {
+				hdr.PAXRecords = map[string]string{}
+			}
+			hdr.PAXRecords[paxSchilyXattr+"security.capability"] = string(capability)
+		}
+
+		if err := cw.includeParents(hdr); err != nil {
+			return err
+		}
+		if err := cw.tw.WriteHeader(hdr); err != nil {
+			return errors.Wrap(err, "failed to write file header")
+		}
+
+		if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
+			file, err := open(source)
+			if err != nil {
+				return errors.Wrapf(err, "failed to open path: %v", source)
+			}
+			defer file.Close()
+
+			n, err := copyBuffered(context.TODO(), cw.tw, file)
+			if err != nil {
+				return errors.Wrap(err, "failed to copy")
+			}
+			if n != hdr.Size {
+				return errors.New("short write copying file")
+			}
+		}
+
+		if additionalLinks != nil {
+			source = hdr.Name
+			for _, extra := range additionalLinks {
+				hdr.Name = extra
+				hdr.Typeflag = tar.TypeLink
+				hdr.Linkname = source
+				hdr.Size = 0
+
+				if err := cw.includeParents(hdr); err != nil {
+					return err
+				}
+				if err := cw.tw.WriteHeader(hdr); err != nil {
+					return errors.Wrap(err, "failed to write file header")
+				}
+			}
+		}
+	}
+	return nil
+}
+
+func (cw *changeWriter) Close() error {
+	if err := cw.tw.Close(); err != nil {
+		return errors.Wrap(err, "failed to close tar writer")
+	}
+	return nil
+}
+
+func (cw *changeWriter) includeParents(hdr *tar.Header) error {
+	name := strings.TrimRight(hdr.Name, "/")
+	fname := filepath.Join(cw.source, name)
+	parent := filepath.Dir(name)
+	pname := filepath.Join(cw.source, parent)
+
+	// Do not include root directory as parent
+	if fname != cw.source && pname != cw.source {
+		_, ok := cw.addedDirs[parent]
+		if !ok {
+			cw.addedDirs[parent] = struct{}{}
+			fi, err := os.Stat(pname)
+			if err != nil {
+				return err
+			}
+			if err := cw.HandleChange(fs.ChangeKindModify, parent, fi, nil); err != nil {
+				return err
+			}
+		}
+	}
+	if hdr.Typeflag == tar.TypeDir {
+		cw.addedDirs[name] = struct{}{}
+	}
+	return nil
+}
+
 func copyBuffered(ctx context.Context, dst io.Writer, src io.Reader) (written int64, err error) {
-	buf := bufferPool.Get().(*[]byte)
-	defer bufferPool.Put(buf)
+	buf := bufPool.Get().(*[]byte)
+	defer bufPool.Put(buf)
 
 	for {
 		select {

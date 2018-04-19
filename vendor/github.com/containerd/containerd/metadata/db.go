@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package metadata
 
 import (
@@ -204,7 +220,7 @@ func (m *DB) Update(fn func(*bolt.Tx) error) error {
 // RegisterMutationCallback registers a function to be called after a metadata
 // mutations has been performed.
 //
-// The callback function in an argument for whether a deletion has occurred
+// The callback function is an argument for whether a deletion has occurred
 // since the last garbage collection.
 func (m *DB) RegisterMutationCallback(fn func(bool)) {
 	m.dirtyL.Lock()
@@ -219,15 +235,20 @@ type GCStats struct {
 	SnapshotD map[string]time.Duration
 }
 
+// Elapsed returns the duration which elapsed during a collection
+func (s GCStats) Elapsed() time.Duration {
+	return s.MetaD
+}
+
 // GarbageCollect starts garbage collection
-func (m *DB) GarbageCollect(ctx context.Context) (stats GCStats, err error) {
+func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 	m.wlock.Lock()
 	t1 := time.Now()
 
 	marked, err := m.getMarked(ctx)
 	if err != nil {
 		m.wlock.Unlock()
-		return GCStats{}, err
+		return nil, err
 	}
 
 	m.dirtyL.Lock()
@@ -259,9 +280,10 @@ func (m *DB) GarbageCollect(ctx context.Context) (stats GCStats, err error) {
 	}); err != nil {
 		m.dirtyL.Unlock()
 		m.wlock.Unlock()
-		return GCStats{}, err
+		return nil, err
 	}
 
+	var stats GCStats
 	var wg sync.WaitGroup
 
 	if len(m.dirtySS) > 0 {
@@ -303,7 +325,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (stats GCStats, err error) {
 
 	wg.Wait()
 
-	return
+	return stats, err
 }
 
 func (m *DB) getMarked(ctx context.Context) (map[gc.Node]struct{}, error) {

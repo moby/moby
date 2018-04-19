@@ -1,5 +1,21 @@
 // +build !windows
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package client
 
 import (
@@ -23,7 +39,6 @@ import (
 	"github.com/containerd/containerd/linux/shim"
 	shimapi "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/reaper"
 	"github.com/containerd/containerd/sys"
 	ptypes "github.com/gogo/protobuf/types"
 )
@@ -51,8 +66,7 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		if err != nil {
 			return nil, nil, err
 		}
-		ec, err := reaper.Default.Start(cmd)
-		if err != nil {
+		if err := cmd.Start(); err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to start shim")
 		}
 		defer func() {
@@ -61,7 +75,7 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 			}
 		}()
 		go func() {
-			reaper.Default.Wait(cmd, ec)
+			cmd.Wait()
 			exitHandler()
 		}()
 		log.G(ctx).WithFields(logrus.Fields{
@@ -82,7 +96,7 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		if err = sys.SetOOMScore(cmd.Process.Pid, sys.OOMScoreMaxKillable); err != nil {
 			return nil, nil, errors.Wrap(err, "failed to set OOM Score on shim")
 		}
-		c, clo, err := WithConnect(address)(ctx, config)
+		c, clo, err := WithConnect(address, func() {})(ctx, config)
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to connect")
 		}
@@ -151,13 +165,15 @@ func annonDialer(address string, timeout time.Duration) (net.Conn, error) {
 }
 
 // WithConnect connects to an existing shim
-func WithConnect(address string) Opt {
+func WithConnect(address string, onClose func()) Opt {
 	return func(ctx context.Context, config shim.Config) (shimapi.ShimService, io.Closer, error) {
 		conn, err := connect(address, annonDialer)
 		if err != nil {
 			return nil, nil, err
 		}
-		return shimapi.NewShimClient(ttrpc.NewClient(conn)), conn, nil
+		client := ttrpc.NewClient(conn)
+		client.OnClose(onClose)
+		return shimapi.NewShimClient(client), conn, nil
 	}
 }
 

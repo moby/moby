@@ -1,5 +1,21 @@
 // +build linux
 
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package linux
 
 import (
@@ -26,9 +42,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
-	"github.com/containerd/containerd/reaper"
 	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/containerd/sys"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -159,9 +173,6 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		return nil, err
 	}
 
-	ec := reaper.Default.Subscribe()
-	defer reaper.Default.Unsubscribe(ec)
-
 	bundle, err := newBundle(id,
 		filepath.Join(r.state, namespace),
 		filepath.Join(r.root, namespace),
@@ -206,10 +217,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 				"id":        id,
 				"namespace": namespace,
 			}).Warn("cleaning up after killed shim")
-			err = r.cleanupAfterDeadShim(context.Background(), bundle, namespace, id, lc.pid, ec)
-			if err == nil {
-				r.tasks.Delete(ctx, lc)
-			} else {
+			if err = r.cleanupAfterDeadShim(context.Background(), bundle, namespace, id, lc.pid); err != nil {
 				log.G(ctx).WithError(err).WithFields(logrus.Fields{
 					"id":        id,
 					"namespace": namespace,
@@ -313,12 +321,12 @@ func (r *Runtime) Delete(ctx context.Context, c runtime.Task) (*runtime.Exit, er
 
 	rsp, err := lc.shim.Delete(ctx, empty)
 	if err != nil {
-		if cerr := r.cleanupAfterDeadShim(ctx, bundle, namespace, c.ID(), lc.pid, nil); cerr != nil {
+		if cerr := r.cleanupAfterDeadShim(ctx, bundle, namespace, c.ID(), lc.pid); cerr != nil {
 			log.G(ctx).WithError(err).Error("unable to cleanup task")
 		}
 		return nil, errdefs.FromGRPC(err)
 	}
-	r.tasks.Delete(ctx, lc)
+	r.tasks.Delete(ctx, lc.id)
 	if err := lc.shim.KillShim(ctx); err != nil {
 		log.G(ctx).WithError(err).Error("failed to kill shim")
 	}
@@ -388,13 +396,19 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		)
 		ctx = namespaces.WithNamespace(ctx, ns)
 		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile))
-		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(), nil)
+		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(func() {
+			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("bundle", bundle.path).
+					Error("cleaning up after dead shim")
+			}
+		}), nil)
 		if err != nil {
 			log.G(ctx).WithError(err).WithFields(logrus.Fields{
 				"id":        id,
 				"namespace": ns,
 			}).Error("connecting to shim")
-			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid, nil)
+			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
 			if err != nil {
 				log.G(ctx).WithError(err).WithField("bundle", bundle.path).
 					Error("cleaning up after dead shim")
@@ -419,24 +433,13 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 	return o, nil
 }
 
-func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, id string, pid int, ec chan runc.Exit) error {
+func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, id string, pid int) error {
 	ctx = namespaces.WithNamespace(ctx, ns)
 	if err := r.terminate(ctx, bundle, ns, id); err != nil {
 		if r.config.ShimDebug {
 			return errors.Wrap(err, "failed to terminate task, leaving bundle for debugging")
 		}
 		log.G(ctx).WithError(err).Warn("failed to terminate task")
-	}
-
-	if ec != nil {
-		// if sub-reaper is set, reap our new child
-		if v, err := sys.GetSubreaper(); err == nil && v == 1 {
-			for e := range ec {
-				if e.Pid == pid {
-					break
-				}
-			}
-		}
 	}
 
 	// Notify Client
@@ -449,6 +452,7 @@ func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, 
 		ExitedAt:    exitedAt,
 	})
 
+	r.tasks.Delete(ctx, id)
 	if err := bundle.Delete(); err != nil {
 		log.G(ctx).WithError(err).Error("delete bundle")
 	}
@@ -464,12 +468,10 @@ func (r *Runtime) cleanupAfterDeadShim(ctx context.Context, bundle *bundle, ns, 
 }
 
 func (r *Runtime) terminate(ctx context.Context, bundle *bundle, ns, id string) error {
-	ctx = namespaces.WithNamespace(ctx, ns)
 	rt, err := r.getRuntime(ctx, ns, id)
 	if err != nil {
 		return err
 	}
-
 	if err := rt.Delete(ctx, id, &runc.DeleteOpts{
 		Force: true,
 	}); err != nil {
