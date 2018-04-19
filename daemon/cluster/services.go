@@ -1,6 +1,7 @@
 package cluster // import "github.com/docker/docker/daemon/cluster"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -22,7 +23,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // GetServices returns all services of a managed swarm cluster.

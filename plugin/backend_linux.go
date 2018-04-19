@@ -3,6 +3,7 @@ package plugin // import "github.com/docker/docker/plugin"
 import (
 	"archive/tar"
 	"compress/gzip"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -36,7 +37,6 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 var acceptedPluginFilterTags = map[string]bool{

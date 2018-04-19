@@ -1,6 +1,7 @@
 package network // import "github.com/docker/docker/integration/network"
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/poll"
-	"golang.org/x/net/context"
 )
 
 const defaultSwarmPort = 2477

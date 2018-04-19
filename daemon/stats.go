@@ -1,12 +1,11 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"runtime"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"

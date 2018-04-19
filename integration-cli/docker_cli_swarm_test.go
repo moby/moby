@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
@@ -29,7 +30,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/fs"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/vishvananda/netlink"
-	"golang.org/x/net/context"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {

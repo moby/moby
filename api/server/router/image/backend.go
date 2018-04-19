@@ -1,13 +1,13 @@
 package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
+	"context"
 	"io"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/registry"
-	"golang.org/x/net/context"
 )
 
 // Backend is all the methods that need to be implemented

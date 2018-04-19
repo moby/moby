@@ -1,11 +1,11 @@
 package container
 
 import (
+	"context"
 	"strings"
 
 	"github.com/docker/docker/client"
 	"github.com/gotestyourself/gotestyourself/poll"
-	"golang.org/x/net/context"
 )
 
 // IsStopped verifies the container is in stopped state.

@@ -1,6 +1,7 @@
 package image // import "github.com/docker/docker/api/server/router/image"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -19,7 +20,6 @@ import (
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // Creates an image from Pull or from Import

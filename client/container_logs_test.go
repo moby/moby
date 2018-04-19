@@ -12,10 +12,10 @@ import (
 	"testing"
 	"time"
 
+	"context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/testutil"
-
-	"golang.org/x/net/context"
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {

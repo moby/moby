@@ -1,6 +1,7 @@
 package xfer // import "github.com/docker/docker/distribution/xfer"
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const maxUploadAttempts = 5

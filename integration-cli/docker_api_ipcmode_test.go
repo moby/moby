@@ -3,6 +3,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
-	"golang.org/x/net/context"
 )
 
 /* testIpcCheckDevExists checks whether a given mount (identified by its

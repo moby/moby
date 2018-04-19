@@ -1,6 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -9,8 +10,6 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 )

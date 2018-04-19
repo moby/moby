@@ -1,10 +1,10 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"path"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental", "OS-Type" & "API-Version" headers

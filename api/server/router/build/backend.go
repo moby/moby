@@ -1,9 +1,10 @@
 package build // import "github.com/docker/docker/api/server/router/build"
 
 import (
+	"context"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"golang.org/x/net/context"
 )
 
 // Backend abstracts an image builder whose only purpose is to build an image referenced by an imageID.

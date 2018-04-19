@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
@@ -17,7 +18,6 @@ import (
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
-	"golang.org/x/net/context"
 	"golang.org/x/sys/unix"
 )
 

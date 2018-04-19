@@ -1,10 +1,10 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 // ContainerExecCreate creates a new exec configuration to run an exec process.

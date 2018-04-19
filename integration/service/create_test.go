@@ -1,6 +1,7 @@
 package service // import "github.com/docker/docker/integration/service"
 
 import (
+	"context"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
-	"golang.org/x/net/context"
 )
 
 func TestCreateServiceMultipleTimes(t *testing.T) {

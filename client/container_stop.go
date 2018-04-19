@@ -1,11 +1,11 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"net/url"
 	"time"
 
 	timetypes "github.com/docker/docker/api/types/time"
-	"golang.org/x/net/context"
 )
 
 // ContainerStop stops a container without terminating the process.

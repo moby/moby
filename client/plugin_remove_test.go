@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"context"
 
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types"
 )
 
 func TestPluginRemoveError(t *testing.T) {

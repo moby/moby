@@ -1,6 +1,6 @@
 package client // import "github.com/docker/docker/client"
 
-import "golang.org/x/net/context"
+import "context"
 
 // SecretRemove removes a Secret.
 func (cli *Client) SecretRemove(ctx context.Context, id string) error {

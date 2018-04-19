@@ -1,6 +1,7 @@
 package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strings"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"golang.org/x/net/context"
 )
 
 // Implement io.Reader

@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
-	"golang.org/x/net/context"
 )
 
 // ImageTypes represents the schema2 config types for images

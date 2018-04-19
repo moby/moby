@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,6 @@ import (
 	"github.com/docker/libtrust"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
-	"golang.org/x/net/context"
 )
 
 // Config stores configuration for communicating

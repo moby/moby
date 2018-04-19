@@ -1,10 +1,10 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/docker/docker/api/types/swarm"
-	"golang.org/x/net/context"
 )
 
 // SwarmInspect inspects the swarm.

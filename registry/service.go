@@ -1,13 +1,12 @@
 package registry // import "github.com/docker/docker/registry"
 
 import (
+	"context"
 	"crypto/tls"
 	"net/http"
 	"net/url"
 	"strings"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/auth"

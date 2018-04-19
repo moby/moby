@@ -1,6 +1,7 @@
 package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	pkgerrors "github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

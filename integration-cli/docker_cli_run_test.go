@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -36,7 +37,6 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
-	"golang.org/x/net/context"
 )
 
 // "test123" should be printed by docker run

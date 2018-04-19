@@ -1,10 +1,9 @@
 package debug // import "github.com/docker/docker/api/server/router/debug"
 
 import (
+	"context"
 	"net/http"
 	"net/http/pprof"
-
-	"golang.org/x/net/context"
 )
 
 func handlePprof(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

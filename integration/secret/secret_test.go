@@ -2,6 +2,7 @@ package secret // import "github.com/docker/docker/integration/secret"
 
 import (
 	"bytes"
+	"context"
 	"sort"
 	"testing"
 	"time"
@@ -16,7 +17,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"golang.org/x/net/context"
 )
 
 func TestSecretInspect(t *testing.T) {

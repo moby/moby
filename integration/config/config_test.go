@@ -2,6 +2,7 @@ package config // import "github.com/docker/docker/integration/config"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"sort"
 	"testing"
@@ -17,7 +18,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"golang.org/x/net/context"
 )
 
 func TestConfigList(t *testing.T) {

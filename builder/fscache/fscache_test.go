@@ -1,6 +1,7 @@
 package fscache // import "github.com/docker/docker/builder/fscache"
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -10,7 +11,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/moby/buildkit/session/filesync"
-	"golang.org/x/net/context"
 )
 
 func TestFSCache(t *testing.T) {

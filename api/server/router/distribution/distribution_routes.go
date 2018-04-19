@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/api/server/router/distribution"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func (s *distributionRouter) getDistributionInfo(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

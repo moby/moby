@@ -1,6 +1,7 @@
 package volume // import "github.com/docker/docker/api/server/router/volume"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
-	"golang.org/x/net/context"
 )
 
 func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

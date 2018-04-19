@@ -1,6 +1,7 @@
 package xfer // import "github.com/docker/docker/distribution/xfer"
 
 import (
+	"context"
 	"errors"
 	"sync/atomic"
 	"testing"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/progress"
-	"golang.org/x/net/context"
 )
 
 const maxUploadConcurrency = 3

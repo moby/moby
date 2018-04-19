@@ -1,11 +1,11 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 
 	registrytypes "github.com/docker/docker/api/types/registry"
-	"golang.org/x/net/context"
 )
 
 // DistributionInspect returns the image digest with full Manifest

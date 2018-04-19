@@ -2,6 +2,7 @@ package fscache // import "github.com/docker/docker/builder/fscache"
 
 import (
 	"archive/tar"
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"hash"
@@ -22,7 +23,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/singleflight"
 )
 

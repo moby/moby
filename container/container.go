@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/container"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -47,7 +48,6 @@ import (
 	agentexec "github.com/docker/swarmkit/agent/exec"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const configFileName = "config.v2.json"

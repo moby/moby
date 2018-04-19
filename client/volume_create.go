@@ -1,11 +1,11 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
 
 	"github.com/docker/docker/api/types"
 	volumetypes "github.com/docker/docker/api/types/volume"
-	"golang.org/x/net/context"
 )
 
 // VolumeCreate creates a volume in the docker host.

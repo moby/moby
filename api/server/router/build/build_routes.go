@@ -2,6 +2,7 @@ package build // import "github.com/docker/docker/api/server/router/build"
 
 import (
 	"bytes"
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -25,7 +26,6 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 type invalidIsolationError string
