@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"net"
 	"net/http"
-	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -809,10 +808,6 @@ func (s *DockerSwarmSuite) TestAPISwarmRestartCluster(c *check.C) {
 				defer wg.Done()
 				if err := daemon.StopWithError(); err != nil {
 					errs <- err
-				}
-				// FIXME(vdemeester) This is duplicated…
-				if root := os.Getenv("DOCKER_REMAP_ROOT"); root != "" {
-					daemon.Root = filepath.Dir(daemon.Root)
 				}
 			}(d)
 		}

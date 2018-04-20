@@ -176,9 +176,11 @@ func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
 	return c
 }
 
-// CleanupExecRoot cleans the daemon exec root (network namespaces, ...)
-func (d *Daemon) CleanupExecRoot(t testingT) {
-	cleanupExecRoot(t, d.execRoot)
+// Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
+func (d *Daemon) Cleanup(t testingT) {
+	// Cleanup swarmkit wal files if present
+	cleanupRaftDir(t, d.Root)
+	cleanupNetworkNamespace(t, d.execRoot)
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
@@ -201,6 +203,7 @@ func (d *Daemon) StartWithError(args ...string) error {
 
 // StartWithLogFile will start the daemon and attach its streams to a given file.
 func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
+	d.handleUserns()
 	dockerdBinary, err := exec.LookPath(d.dockerdBinary)
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
@@ -446,7 +449,6 @@ out2:
 // If an error occurs while starting the daemon, the test will fail.
 func (d *Daemon) Restart(t testingT, args ...string) {
 	d.Stop(t)
-	d.handleUserns()
 	d.Start(t, args...)
 }
 
@@ -455,7 +457,6 @@ func (d *Daemon) RestartWithError(arg ...string) error {
 	if err := d.StopWithError(); err != nil {
 		return err
 	}
-	d.handleUserns()
 	return d.StartWithError(arg...)
 }
 
@@ -635,4 +636,11 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 	info, err := apiclient.Info(context.Background())
 	assert.NilError(t, err)
 	return info
+}
+
+func cleanupRaftDir(t testingT, rootPath string) {
+	walDir := filepath.Join(rootPath, "swarm/raft/wal")
+	if err := os.RemoveAll(walDir); err != nil {
+		t.Logf("error removing %v: %v", walDir, err)
+	}
 }
