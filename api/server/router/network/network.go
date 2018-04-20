@@ -2,18 +2,17 @@ package network // import "github.com/docker/docker/api/server/router/network"
 
 import (
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/daemon/cluster"
 )
 
 // networkRouter is a router to talk with the network controller
 type networkRouter struct {
 	backend Backend
-	cluster *cluster.Cluster
+	cluster ClusterBackend
 	routes  []router.Route
 }
 
 // NewRouter initializes a new network router
-func NewRouter(b Backend, c *cluster.Cluster) router.Router {
+func NewRouter(b Backend, c ClusterBackend) router.Router {
 	r := &networkRouter{
 		backend: b,
 		cluster: c,
