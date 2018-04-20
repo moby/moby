@@ -79,7 +79,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, p.Timeout())
 		if err != nil {
 			c.restart = false
-			shutdownPlugin(p, c, pm.executor)
+			shutdownPlugin(p, c.exitChan, pm.executor)
 			return errors.WithStack(err)
 		}
 
@@ -106,7 +106,7 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 			c.restart = false
 			// While restoring plugins, we need to explicitly set the state to disabled
 			pm.config.Store.SetState(p, false)
-			shutdownPlugin(p, c, pm.executor)
+			shutdownPlugin(p, c.exitChan, pm.executor)
 			return err
 		}
 
@@ -117,16 +117,15 @@ func (pm *Manager) pluginPostStart(p *v2.Plugin, c *controller) error {
 	return pm.save(p)
 }
 
-func (pm *Manager) restore(p *v2.Plugin) error {
+func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
 	stdout, stderr := makeLoggerStreams(p.GetID())
-	if err := pm.executor.Restore(p.GetID(), stdout, stderr); err != nil {
+	alive, err := pm.executor.Restore(p.GetID(), stdout, stderr)
+	if err != nil {
 		return err
 	}
 
 	if pm.config.LiveRestoreEnabled {
-		c := &controller{}
-		if isRunning, _ := pm.executor.IsRunning(p.GetID()); !isRunning {
-			// plugin is not running, so follow normal startup procedure
+		if !alive {
 			return pm.enable(p, c, true)
 		}
 
@@ -138,10 +137,16 @@ func (pm *Manager) restore(p *v2.Plugin) error {
 		return pm.pluginPostStart(p, c)
 	}
 
+	if alive {
+		// TODO(@cpuguy83): Should we always just re-attach to the running plugin instead of doing this?
+		c.restart = false
+		shutdownPlugin(p, c.exitChan, pm.executor)
+	}
+
 	return nil
 }
 
-func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
+func shutdownPlugin(p *v2.Plugin, ec chan bool, executor Executor) {
 	pluginID := p.GetID()
 
 	err := executor.Signal(pluginID, int(unix.SIGTERM))
@@ -149,7 +154,7 @@ func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 		logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 	} else {
 		select {
-		case <-c.exitChan:
+		case <-ec:
 			logrus.Debug("Clean shutdown of plugin")
 		case <-time.After(time.Second * 10):
 			logrus.Debug("Force shutdown plugin")
@@ -157,7 +162,7 @@ func shutdownPlugin(p *v2.Plugin, c *controller, executor Executor) {
 				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 			}
 			select {
-			case <-c.exitChan:
+			case <-ec:
 				logrus.Debug("SIGKILL plugin shutdown")
 			case <-time.After(time.Second * 10):
 				logrus.Debug("Force shutdown plugin FAILED")
@@ -172,7 +177,7 @@ func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
 	}
 
 	c.restart = false
-	shutdownPlugin(p, c, pm.executor)
+	shutdownPlugin(p, c.exitChan, pm.executor)
 	pm.config.Store.SetState(p, false)
 	return pm.save(p)
 }
@@ -191,7 +196,7 @@ func (pm *Manager) Shutdown() {
 		}
 		if pm.executor != nil && p.IsEnabled() {
 			c.restart = false
-			shutdownPlugin(p, c, pm.executor)
+			shutdownPlugin(p, c.exitChan, pm.executor)
 		}
 	}
 	if err := mount.RecursiveUnmount(pm.config.Root); err != nil {
