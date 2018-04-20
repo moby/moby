@@ -1,7 +1,8 @@
 package distribution
 
 import (
-	"github.com/docker/distribution/context"
+	"context"
+
 	"github.com/docker/distribution/reference"
 )
 
@@ -68,6 +69,21 @@ type WithTagOption struct{ Tag string }
 
 // Apply conforms to the ManifestServiceOption interface
 func (o WithTagOption) Apply(m ManifestService) error {
+	// no implementation
+	return nil
+}
+
+// WithManifestMediaTypes lists the media types the client wishes
+// the server to provide.
+func WithManifestMediaTypes(mediaTypes []string) ManifestServiceOption {
+	return WithManifestMediaTypesOption{mediaTypes}
+}
+
+// WithManifestMediaTypesOption holds a list of accepted media types
+type WithManifestMediaTypesOption struct{ MediaTypes []string }
+
+// Apply conforms to the ManifestServiceOption interface
+func (o WithManifestMediaTypesOption) Apply(m ManifestService) error {
 	// no implementation
 	return nil
 }

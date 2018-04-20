@@ -131,7 +131,7 @@ func NewV2Repository(ctx context.Context, repoInfo *registry.RepositoryInfo, end
 		}
 	}
 
-	repo, err = client.NewRepository(ctx, repoNameRef, endpoint.URL.String(), tr)
+	repo, err = client.NewRepository(repoNameRef, endpoint.URL.String(), tr)
 	if err != nil {
 		err = fallbackError{
 			err:         err,

@@ -1,13 +1,13 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"reflect"
 	"testing"
 
 	"github.com/docker/distribution"
-	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
