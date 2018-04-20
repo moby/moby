@@ -284,7 +284,7 @@ func TestGetRootUIDGID(t *testing.T) {
 
 	uid, gid, err := GetRootUIDGID(uidMap, gidMap)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(os.Getegid(), uid))
+	assert.Check(t, is.Equal(os.Geteuid(), uid))
 	assert.Check(t, is.Equal(os.Getegid(), gid))
 
 	uidMapError := []IDMap{
