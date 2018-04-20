@@ -18,7 +18,7 @@ import (
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/volume"
+	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
@@ -580,7 +580,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 		if m.Source == "tmpfs" {
 			data := m.Data
-			parser := volume.NewParser("linux")
+			parser := volumemounts.NewParser("linux")
 			options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
 			if data != "" {
 				options = append(options, strings.Split(data, ",")...)

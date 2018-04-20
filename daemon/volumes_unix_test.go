@@ -11,7 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/volume"
+	volumemounts "github.com/docker/docker/volume/mounts"
 )
 
 func TestBackportMountSpec(t *testing.T) {
@@ -19,7 +19,7 @@ func TestBackportMountSpec(t *testing.T) {
 
 	c := &container.Container{
 		State: &container.State{},
-		MountPoints: map[string]*volume.MountPoint{
+		MountPoints: map[string]*volumemounts.MountPoint{
 			"/apple":      {Destination: "/apple", Source: "/var/lib/docker/volumes/12345678", Name: "12345678", RW: true, CopyData: true}, // anonymous volume
 			"/banana":     {Destination: "/banana", Source: "/var/lib/docker/volumes/data", Name: "data", RW: true, CopyData: true},        // named volume
 			"/cherry":     {Destination: "/cherry", Source: "/var/lib/docker/volumes/data", Name: "data", CopyData: true},                  // RO named volume
@@ -73,7 +73,7 @@ func TestBackportMountSpec(t *testing.T) {
 	d.containers.Add("1", &container.Container{
 		State: &container.State{},
 		ID:    "1",
-		MountPoints: map[string]*volume.MountPoint{
+		MountPoints: map[string]*volumemounts.MountPoint{
 			"/kumquat": {Destination: "/kumquat", Name: "data", RW: false, CopyData: true},
 		},
 		HostConfig: &containertypes.HostConfig{
@@ -84,11 +84,11 @@ func TestBackportMountSpec(t *testing.T) {
 	})
 
 	type expected struct {
-		mp      *volume.MountPoint
+		mp      *volumemounts.MountPoint
 		comment string
 	}
 
-	pretty := func(mp *volume.MountPoint) string {
+	pretty := func(mp *volumemounts.MountPoint) string {
 		b, err := json.MarshalIndent(mp, "\t", "    ")
 		if err != nil {
 			return fmt.Sprintf("%#v", mp)
@@ -98,7 +98,7 @@ func TestBackportMountSpec(t *testing.T) {
 
 	for _, x := range []expected{
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/apple",
 				RW:          true,
@@ -114,7 +114,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "anonymous volume",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/banana",
 				RW:          true,
@@ -130,7 +130,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "named volume",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/cherry",
 				Name:        "data",
@@ -146,7 +146,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "read-only named volume",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/dates",
 				Name:        "data",
@@ -162,7 +162,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "named volume with nocopy",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/elderberry",
 				Name:        "data",
@@ -178,7 +178,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "masks an anonymous volume",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeBind,
 				Destination: "/fig",
 				Source:      "/data",
@@ -192,7 +192,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "bind mount with read/write",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeBind,
 				Destination: "/guava",
 				Source:      "/data",
@@ -209,7 +209,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "bind mount with read/write + shared propagation",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/honeydew",
 				Source:      "/var/lib/docker/volumes/data",
@@ -229,7 +229,7 @@ func TestBackportMountSpec(t *testing.T) {
 			comment: "volume defined in mounts API",
 		},
 		{
-			mp: &volume.MountPoint{
+			mp: &volumemounts.MountPoint{
 				Type:        mounttypes.TypeVolume,
 				Destination: "/kumquat",
 				Source:      "/var/lib/docker/volumes/data",

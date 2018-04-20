@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/volume"
+	volumemounts "github.com/docker/docker/volume/mounts"
 )
 
 // setupMounts iterates through each of the mount points for a container and
@@ -40,7 +40,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		// mount the socket the daemon is listening on. During daemon shutdown, the socket
 		// (/var/run/docker.sock by default) doesn't exist anymore causing the call to m.Setup to
 		// create at directory instead. This in turn will prevent the daemon to restart.
-		checkfunc := func(m *volume.MountPoint) error {
+		checkfunc := func(m *volumemounts.MountPoint) error {
 			if _, exist := daemon.hosts[m.Source]; exist && daemon.IsShuttingDown() {
 				return fmt.Errorf("Could not mount %q to container while the daemon is shutting down", m.Source)
 			}
@@ -102,7 +102,7 @@ func sortMounts(m []container.Mount) []container.Mount {
 // setBindModeIfNull is platform specific processing to ensure the
 // shared mode is set to 'z' if it is null. This is called in the case
 // of processing a named volume and not a typical bind.
-func setBindModeIfNull(bind *volume.MountPoint) {
+func setBindModeIfNull(bind *volumemounts.MountPoint) {
 	if bind.Mode == "" {
 		bind.Mode = "z"
 	}

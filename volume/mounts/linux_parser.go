@@ -1,4 +1,4 @@
-package volume // import "github.com/docker/docker/volume"
+package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/volume"
 )
 
 type linuxParser struct {
@@ -405,7 +406,7 @@ func (p *linuxParser) ValidateVolumeName(name string) error {
 }
 
 func (p *linuxParser) IsBackwardCompatible(m *MountPoint) bool {
-	return len(m.Source) > 0 || m.Driver == DefaultDriverName
+	return len(m.Source) > 0 || m.Driver == volume.DefaultDriverName
 }
 
 func (p *linuxParser) ValidateTmpfsMountDestination(dest string) error {

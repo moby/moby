@@ -33,7 +33,7 @@ import (
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
+	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/libnetwork"
 	nwconfig "github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/drivers/bridge"
@@ -626,7 +626,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, fmt.Errorf("Unknown runtime specified %s", hostConfig.Runtime)
 	}
 
-	parser := volume.NewParser(runtime.GOOS)
+	parser := volumemounts.NewParser(runtime.GOOS)
 	for dest := range hostConfig.Tmpfs {
 		if err := parser.ValidateTmpfsMountDestination(dest); err != nil {
 			return warnings, err
