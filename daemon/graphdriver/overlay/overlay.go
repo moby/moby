@@ -139,7 +139,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	switch fsMagic {
 	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs, graphdriver.FsMagicNfsFs, graphdriver.FsMagicOverlay, graphdriver.FsMagicZfs:
-		logrus.Errorf("'overlay' is not supported over %s", backingFs)
+		logrus.WithField("storage-driver", "overlay").Errorf("'overlay' is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -152,7 +152,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, overlayutils.ErrDTypeNotSupported("overlay", backingFs)
 		}
 		// allow running without d_type only for existing setups (#27443)
-		logrus.Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
+		logrus.WithField("storage-driver", "overlay").Warn(overlayutils.ErrDTypeNotSupported("overlay", backingFs))
 	}
 
 	rootUID, rootGID, err := idtools.GetRootUIDGID(uidMaps, gidMaps)
@@ -193,7 +193,7 @@ func supportsOverlay() error {
 			return nil
 		}
 	}
-	logrus.Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
+	logrus.WithField("storage-driver", "overlay").Error("'overlay' not found as a supported filesystem on this host. Please ensure kernel is new enough and has overlay support loaded.")
 	return graphdriver.ErrNotSupported
 }
 
@@ -369,11 +369,11 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, err erro
 		if err != nil {
 			if c := d.ctr.Decrement(mergedDir); c <= 0 {
 				if mntErr := unix.Unmount(mergedDir, 0); mntErr != nil {
-					logrus.Debugf("Failed to unmount %s: %v: %v", id, mntErr, err)
+					logrus.WithField("storage-driver", "overlay").Debugf("Failed to unmount %s: %v: %v", id, mntErr, err)
 				}
 				// Cleanup the created merged directory; see the comment in Put's rmdir
 				if rmErr := unix.Rmdir(mergedDir); rmErr != nil && !os.IsNotExist(rmErr) {
-					logrus.Warnf("Failed to remove %s: %v: %v", id, rmErr, err)
+					logrus.WithField("storage-driver", "overlay").Warnf("Failed to remove %s: %v: %v", id, rmErr, err)
 				}
 			}
 		}
@@ -417,11 +417,12 @@ func (d *Driver) Put(id string) error {
 		return nil
 	}
 	mountpoint := path.Join(d.dir(id), "merged")
+	logger := logrus.WithField("storage-driver", "overlay")
 	if count := d.ctr.Decrement(mountpoint); count > 0 {
 		return nil
 	}
 	if err := unix.Unmount(mountpoint, unix.MNT_DETACH); err != nil {
-		logrus.Debugf("Failed to unmount %s overlay: %v", id, err)
+		logger.Debugf("Failed to unmount %s overlay: %v", id, err)
 	}
 
 	// Remove the mountpoint here. Removing the mountpoint (in newer kernels)
@@ -432,7 +433,7 @@ func (d *Driver) Put(id string) error {
 	// fail on older kernels which don't have
 	// torvalds/linux@8ed936b5671bfb33d89bc60bdcc7cf0470ba52fe applied.
 	if err := unix.Rmdir(mountpoint); err != nil {
-		logrus.Debugf("Failed to remove %s overlay: %v", id, err)
+		logger.Debugf("Failed to remove %s overlay: %v", id, err)
 	}
 	return nil
 }

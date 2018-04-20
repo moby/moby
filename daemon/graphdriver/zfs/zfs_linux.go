@@ -16,7 +16,7 @@ func checkRootdirFs(rootDir string) error {
 	}
 
 	if fsMagic != graphdriver.FsMagicZfs {
-		logrus.WithField("root", rootDir).WithField("backingFS", backingFS).WithField("driver", "zfs").Error("No zfs dataset found for root")
+		logrus.WithField("root", rootDir).WithField("backingFS", backingFS).WithField("storage-driver", "zfs").Error("No zfs dataset found for root")
 		return graphdriver.ErrPrerequisites
 	}
 
