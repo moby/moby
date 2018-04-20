@@ -6,10 +6,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/internal/test"
 	"golang.org/x/sys/unix"
 )
 
 func cleanupNetworkNamespace(t testingT, execRoot string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	// Cleanup network namespaces in the exec root of this
 	// daemon because this exec root is specific to this
 	// daemon instance and has no chance of getting

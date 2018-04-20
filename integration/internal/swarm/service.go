@@ -49,6 +49,7 @@ func ContainerPoll(config *poll.Settings) {
 
 // NewSwarm creates a swarm daemon for testing
 func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...func(*daemon.Daemon)) *daemon.Daemon {
+	t.Helper()
 	skip.IfCondition(t, testEnv.IsRemoteDaemon())
 	if testEnv.DaemonInfo.ExperimentalBuild {
 		ops = append(ops, daemon.WithExperimental)
@@ -63,6 +64,7 @@ type ServiceSpecOpt func(*swarmtypes.ServiceSpec)
 
 // CreateService creates a service on the passed in swarm daemon.
 func CreateService(t *testing.T, d *daemon.Daemon, opts ...ServiceSpecOpt) string {
+	t.Helper()
 	spec := defaultServiceSpec()
 	for _, o := range opts {
 		o(&spec)
@@ -136,6 +138,7 @@ func ServiceWithName(name string) ServiceSpecOpt {
 
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmtypes.Task {
+	t.Helper()
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -153,6 +156,7 @@ func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmty
 
 // ExecTask runs the passed in exec config on the given task
 func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types.ExecConfig) types.HijackedResponse {
+	t.Helper()
 	client := d.NewClientT(t)
 	defer client.Close()
 

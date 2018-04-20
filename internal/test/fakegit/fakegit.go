@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/fakestorage"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -63,6 +64,9 @@ func (g *FakeGit) Close() {
 
 // New create a fake git server that can be used for git related tests
 func New(c testingT, name string, files map[string]string, enforceLocalServer bool) *FakeGit {
+	if ht, ok := c.(test.HelperT); ok {
+		ht.Helper()
+	}
 	ctx := fakecontext.New(c, "", fakecontext.WithFiles(files))
 	defer ctx.Close()
 	curdir, err := os.Getwd()

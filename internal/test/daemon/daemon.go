@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/ioutils"
@@ -80,6 +81,9 @@ type Daemon struct {
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
 func New(t testingT, ops ...func(*Daemon)) *Daemon {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
@@ -169,6 +173,9 @@ func (d *Daemon) NewClient() (*client.Client, error) {
 // NewClientT creates new client based on daemon's socket path
 // FIXME(vdemeester): replace NewClient with NewClientT
 func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	c, err := client.NewClientWithOpts(
 		client.FromEnv,
 		client.WithHost(d.Sock()))
@@ -178,6 +185,9 @@ func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
 
 // Cleanup cleans the daemon files : exec root (network namespaces, ...), swarmkit files
 func (d *Daemon) Cleanup(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
@@ -185,6 +195,9 @@ func (d *Daemon) Cleanup(t testingT) {
 
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testingT, args ...string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	if err := d.StartWithError(args...); err != nil {
 		t.Fatalf("Error starting daemon with arguments: %v", args)
 	}
@@ -316,6 +329,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 // StartWithBusybox will first start the daemon with Daemon.Start()
 // then save the busybox image from the main daemon and load it into this Daemon instance.
 func (d *Daemon) StartWithBusybox(t testingT, arg ...string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	d.Start(t, arg...)
 	d.LoadBusybox(t)
 }
@@ -372,6 +388,9 @@ func (d *Daemon) DumpStackAndQuit() {
 // instantiate a new one with NewDaemon.
 // If an error occurs while starting the daemon, the test will fail.
 func (d *Daemon) Stop(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	err := d.StopWithError()
 	if err != nil {
 		if err != errDaemonNotStarted {
@@ -448,6 +467,9 @@ out2:
 // Restart will restart the daemon by first stopping it and the starting it.
 // If an error occurs while starting the daemon, the test will fail.
 func (d *Daemon) Restart(t testingT, args ...string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	d.Stop(t)
 	d.Start(t, args...)
 }
@@ -521,6 +543,9 @@ func (d *Daemon) ReloadConfig() error {
 
 // LoadBusybox image into the daemon
 func (d *Daemon) LoadBusybox(t assert.TestingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	clientHost, err := client.NewEnvClient()
 	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
@@ -631,6 +656,9 @@ func (d *Daemon) queryRootDir() (string, error) {
 
 // Info returns the info struct for this daemon
 func (d *Daemon) Info(t assert.TestingT) types.Info {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	apiclient, err := d.NewClient()
 	assert.NilError(t, err)
 	info, err := apiclient.Info(context.Background())
@@ -639,6 +667,9 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 }
 
 func cleanupRaftDir(t testingT, rootPath string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	walDir := filepath.Join(rootPath, "swarm/raft/wal")
 	if err := os.RemoveAll(walDir); err != nil {
 		t.Logf("error removing %v: %v", walDir, err)

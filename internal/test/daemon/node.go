@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/internal/test"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
@@ -15,6 +16,9 @@ type NodeConstructor func(*swarm.Node)
 
 // GetNode returns a swarm node identified by the specified id
 func (d *Daemon) GetNode(t assert.TestingT, id string) *swarm.Node {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -26,6 +30,9 @@ func (d *Daemon) GetNode(t assert.TestingT, id string) *swarm.Node {
 
 // RemoveNode removes the specified node
 func (d *Daemon) RemoveNode(t assert.TestingT, id string, force bool) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -38,6 +45,9 @@ func (d *Daemon) RemoveNode(t assert.TestingT, id string, force bool) {
 
 // UpdateNode updates a swarm node with the specified node constructor
 func (d *Daemon) UpdateNode(t assert.TestingT, id string, f ...NodeConstructor) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -59,6 +69,9 @@ func (d *Daemon) UpdateNode(t assert.TestingT, id string, f ...NodeConstructor) 
 
 // ListNodes returns the list of the current swarm nodes
 func (d *Daemon) ListNodes(t assert.TestingT) []swarm.Node {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 

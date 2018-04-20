@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/internal/test"
 	"github.com/gotestyourself/gotestyourself/assert"
 )
 
@@ -13,6 +14,9 @@ type SecretConstructor func(*swarm.Secret)
 
 // CreateSecret creates a secret given the specified spec
 func (d *Daemon) CreateSecret(t assert.TestingT, secretSpec swarm.SecretSpec) string {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -24,6 +28,9 @@ func (d *Daemon) CreateSecret(t assert.TestingT, secretSpec swarm.SecretSpec) st
 
 // ListSecrets returns the list of the current swarm secrets
 func (d *Daemon) ListSecrets(t assert.TestingT) []swarm.Secret {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -34,6 +41,9 @@ func (d *Daemon) ListSecrets(t assert.TestingT) []swarm.Secret {
 
 // GetSecret returns a swarm secret identified by the specified id
 func (d *Daemon) GetSecret(t assert.TestingT, id string) *swarm.Secret {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -44,6 +54,9 @@ func (d *Daemon) GetSecret(t assert.TestingT, id string) *swarm.Secret {
 
 // DeleteSecret removes the swarm secret identified by the specified id
 func (d *Daemon) DeleteSecret(t assert.TestingT, id string) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -54,6 +67,9 @@ func (d *Daemon) DeleteSecret(t assert.TestingT, id string) {
 // UpdateSecret updates the swarm secret identified by the specified id
 // Currently, only label update is supported.
 func (d *Daemon) UpdateSecret(t assert.TestingT, id string, f ...SecretConstructor) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
