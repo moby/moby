@@ -18,6 +18,7 @@ import (
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/containerd/containerd/remotes/docker/schema1"
+	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -40,6 +41,8 @@ import (
 	"golang.org/x/time/rate"
 )
 
+const preferLocal = true // FIXME: make this optional from the op
+
 type SourceOpt struct {
 	SessionManager  *session.Manager
 	ContentStore    content.Store
@@ -47,6 +50,7 @@ type SourceOpt struct {
 	ReferenceStore  reference.Store
 	DownloadManager distribution.RootFSDownloadManager
 	MetadataStore   metadata.V2MetadataService
+	ImageStore      image.Store
 }
 
 type imageSource struct {
@@ -91,7 +95,30 @@ func (is *imageSource) getCredentialsFromSession(ctx context.Context) func(strin
 	}
 }
 
+func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
+	ref, err := distreference.ParseNormalizedNamed(refStr)
+	if err != nil {
+		return nil, err
+	}
+	dgst, err := is.ReferenceStore.Get(ref)
+	if err != nil {
+		return nil, err
+	}
+	img, err := is.ImageStore.Get(image.ID(dgst))
+	if err != nil {
+		return nil, err
+	}
+	return img.RawJSON(), nil
+}
+
 func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
+	if preferLocal {
+		dt, err := is.resolveLocal(ref)
+		if err == nil {
+			return "", dt, nil
+		}
+	}
+
 	type t struct {
 		dgst digest.Digest
 		dt   []byte
@@ -132,41 +159,84 @@ type puller struct {
 	ref         string
 	resolveErr  error
 	resolver    remotes.Resolver
+	imageID     image.ID
+	cacheKey    digest.Digest
 }
 
 func (p *puller) resolve(ctx context.Context) error {
 	p.resolveOnce.Do(func() {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
 
-		dgst := p.src.Reference.Digest()
-		if dgst != "" {
-			info, err := p.is.ContentStore.Info(ctx, dgst)
+		// dgst := p.src.Reference.Digest()
+		// if dgst != "" {
+		// 	info, err := p.is.ContentStore.Info(ctx, dgst)
+		// 	if err == nil {
+		// 		p.ref = p.src.Reference.String()
+		// 		ra, err := p.is.ContentStore.ReaderAt(ctx, dgst)
+		// 		if err == nil {
+		// 			mt, err := imageutil.DetectManifestMediaType(ra)
+		// 			if err == nil {
+		// 				p.desc = ocispec.Descriptor{
+		// 					Size:      info.Size,
+		// 					Digest:    dgst,
+		// 					MediaType: mt,
+		// 				}
+		// 				resolveProgressDone(nil)
+		// 				return
+		// 			}
+		// 		}
+		// 	}
+		// }
+
+		// ref, desc, err := p.resolver.Resolve(ctx, p.src.Reference.String())
+		// if err != nil {
+		// 	p.resolveErr = err
+		// 	resolveProgressDone(err)
+		// 	return
+		// }
+
+		if preferLocal {
+			dt, err := p.is.resolveLocal(p.src.Reference.String())
 			if err == nil {
-				p.ref = p.src.Reference.String()
-				ra, err := p.is.ContentStore.ReaderAt(ctx, dgst)
-				if err == nil {
-					mt, err := imageutil.DetectManifestMediaType(ra)
-					if err == nil {
-						p.desc = ocispec.Descriptor{
-							Size:      info.Size,
-							Digest:    dgst,
-							MediaType: mt,
-						}
-						resolveProgressDone(nil)
-						return
-					}
-				}
+				dgst := digest.FromBytes(dt)
+				p.imageID = image.ID(dgst)
+				p.cacheKey = dgst
+				resolveProgressDone(nil)
+				return
 			}
+
 		}
 
-		ref, desc, err := p.resolver.Resolve(ctx, p.src.Reference.String())
+		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
+		if err != nil {
+			p.resolveErr = err
+			resolveProgressDone(err)
+			return
+		}
+
+		outRef, desc, err := p.resolver.Resolve(ctx, p.src.Reference.String())
+		if err != nil {
+			p.resolveErr = err
+			resolveProgressDone(err)
+			return
+		}
+
+		ref, err = distreference.WithDigest(ref, desc.Digest)
+		if err != nil {
+			p.resolveErr = err
+			resolveProgressDone(err)
+			return
+		}
+
+		_, dt, err := p.is.ResolveImageConfig(ctx, ref.String())
 		if err != nil {
 			p.resolveErr = err
 			resolveProgressDone(err)
 			return
 		}
 		p.desc = desc
-		p.ref = ref
+		p.cacheKey = digest.FromBytes(dt)
+		p.ref = outRef
 		resolveProgressDone(nil)
 	})
 	return p.resolveErr
@@ -176,12 +246,24 @@ func (p *puller) CacheKey(ctx context.Context) (string, error) {
 	if err := p.resolve(ctx); err != nil {
 		return "", err
 	}
-	return p.desc.Digest.String(), nil
+	return p.cacheKey.String(), nil
 }
 
 func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	if err := p.resolve(ctx); err != nil {
 		return nil, err
+	}
+
+	if p.imageID != "" {
+		img, err := p.is.ImageStore.Get(p.imageID)
+		if err != nil {
+			return nil, err
+		}
+		ref, err := p.is.CacheAccessor.Get(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
+		if err != nil {
+			return nil, err
+		}
+		return ref, nil
 	}
 
 	ongoing := newJobs(p.ref)
@@ -393,7 +475,7 @@ func (ld *layerDescriptor) Download(ctx netcontext.Context, progressOutput pkgpr
 }
 
 func (ld *layerDescriptor) Close() {
-	ld.is.ContentStore.Delete(context.TODO(), ld.desc.Digest)
+	// ld.is.ContentStore.Delete(context.TODO(), ld.desc.Digest))
 }
 
 func (ld *layerDescriptor) Registered(diffID layer.DiffID) {

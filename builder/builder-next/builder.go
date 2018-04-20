@@ -21,6 +21,7 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/cache/cacheimport"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/executor/runcexecutor"
@@ -116,6 +117,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	if opt.Options.RemoteContext != "" {
 		frontendAttrs["context"] = opt.Options.RemoteContext
+	}
+
+	if len(opt.Options.CacheFrom) > 0 {
+		frontendAttrs["cache-from"] = opt.Options.CacheFrom[0]
 	}
 
 	logrus.Debugf("frontend: %+v", frontendAttrs)
@@ -255,6 +260,8 @@ func newController(opt Opt, reporter chan containerimageexp.Result) (*control.Co
 		ContentStore:    store,
 		DownloadManager: dist.DownloadManager,
 		MetadataStore:   dist.V2MetadataService,
+		ImageStore:      dist.ImageStore,
+		ReferenceStore:  dist.ReferenceStore,
 	})
 	if err != nil {
 		return nil, err
@@ -311,14 +318,16 @@ func newController(opt Opt, reporter chan containerimageexp.Result) (*control.Co
 	// }
 
 	wopt := mobyworker.WorkerOpt{
-		ID:             "moby",
-		SessionManager: opt.SessionManager,
-		MetadataStore:  md,
-		ContentStore:   store,
-		CacheManager:   cm,
-		Snapshotter:    snapshotter,
-		Executor:       exec,
-		ImageSource:    src,
+		ID:                "moby",
+		SessionManager:    opt.SessionManager,
+		MetadataStore:     md,
+		ContentStore:      store,
+		CacheManager:      cm,
+		Snapshotter:       snapshotter,
+		Executor:          exec,
+		ImageSource:       src,
+		DownloadManager:   dist.DownloadManager,
+		V2MetadataService: dist.V2MetadataService,
 		Exporters: map[string]exporter.Exporter{
 			"image": exp,
 		},
@@ -331,13 +340,18 @@ func newController(opt Opt, reporter chan containerimageexp.Result) (*control.Co
 	}
 	wc.Add(w)
 
+	ci := cacheimport.NewCacheImporter(cacheimport.ImportOpt{
+		Worker:         w,
+		SessionManager: opt.SessionManager,
+	})
+
 	return control.NewController(control.Opt{
 		SessionManager:   opt.SessionManager,
 		WorkerController: wc,
 		Frontends:        frontends,
 		CacheKeyStorage:  cacheStorage,
 		// CacheExporter:    ce,
-		// CacheImporter:    ci,
+		CacheImporter: ci,
 	})
 }
 
