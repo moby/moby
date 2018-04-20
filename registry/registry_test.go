@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -13,6 +14,7 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 var (
@@ -53,6 +55,7 @@ func spawnTestRegistrySession(t *testing.T) *Session {
 }
 
 func TestPingRegistryEndpoint(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	testPing := func(index *registrytypes.IndexInfo, expectedStandalone bool, assertMessage string) {
 		ep, err := NewV1Endpoint(index, "", nil)
 		if err != nil {
@@ -72,6 +75,7 @@ func TestPingRegistryEndpoint(t *testing.T) {
 }
 
 func TestEndpoint(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// Simple wrapper to fail test if err != nil
 	expandEndpoint := func(index *registrytypes.IndexInfo) *V1Endpoint {
 		endpoint, err := NewV1Endpoint(index, "", nil)
@@ -661,6 +665,7 @@ func TestNewIndexInfo(t *testing.T) {
 }
 
 func TestMirrorEndpointLookup(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	containsMirror := func(endpoints []APIEndpoint) bool {
 		for _, pe := range endpoints {
 			if pe.URL.Host == "my.mirror" {

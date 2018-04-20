@@ -11,11 +11,13 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin/v2"
+	"github.com/gotestyourself/gotestyourself/skip"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
 func TestManagerWithPluginMounts(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	root, err := ioutil.TempDir("", "test-store-with-plugin-mounts")
 	if err != nil {
 		t.Fatal(err)

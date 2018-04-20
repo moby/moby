@@ -12,6 +12,7 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
+	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/spf13/pflag"
 )
 
@@ -432,6 +433,7 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 // TestReloadDefaultConfigNotExist tests that if the default configuration file
 // doesn't exist the daemon still will be reloaded.
 func TestReloadDefaultConfigNotExist(t *testing.T) {
+	skip.IfCondition(t, os.Getuid() != 0, "skipping test that requires root")
 	reloaded := false
 	configFile := "/etc/docker/daemon.json"
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)

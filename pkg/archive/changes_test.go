@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func max(x, y int) int {
@@ -480,6 +481,7 @@ func TestChangesSize(t *testing.T) {
 }
 
 func checkChanges(expectedChanges, changes []Change, t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	sort.Sort(changesByPath(expectedChanges))
 	sort.Sort(changesByPath(changes))
 	for i := 0; i < max(len(changes), len(expectedChanges)); i++ {

@@ -11,6 +11,7 @@ import (
 
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestGetAddress(t *testing.T) {
@@ -30,11 +31,8 @@ func TestGetAddress(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	// TODO Windows: Investigate why this test fails on Windows under CI
-	//               but passes locally.
-	if runtime.GOOS == "windows" {
-		t.Skip("Test failing on Windows CI")
-	}
+	skip.If(t, runtime.GOOS == "windows", "FIXME: investigate why this test fails on CI")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
@@ -77,6 +75,7 @@ func TestRemove(t *testing.T) {
 }
 
 func TestInitializeWithVolumes(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
@@ -109,6 +108,7 @@ func TestInitializeWithVolumes(t *testing.T) {
 }
 
 func TestCreate(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
@@ -181,13 +181,8 @@ func TestValidateName(t *testing.T) {
 }
 
 func TestCreateWithOpts(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip()
-	}
-	if os.Getuid() != 0 {
-		t.Skip("root required")
-	}
-
+	skip.If(t, runtime.GOOS == "windows")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
@@ -284,7 +279,8 @@ func TestCreateWithOpts(t *testing.T) {
 	}
 }
 
-func TestRealodNoOpts(t *testing.T) {
+func TestRelaodNoOpts(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	rootDir, err := ioutil.TempDir("", "volume-test-reload-no-opts")
 	if err != nil {
 		t.Fatal(err)

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/mount"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestEnsureRemoveAllNotExist(t *testing.T) {
@@ -40,9 +41,8 @@ func TestEnsureRemoveAllWithFile(t *testing.T) {
 }
 
 func TestEnsureRemoveAllWithMount(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("mount not supported on Windows")
-	}
+	skip.If(t, runtime.GOOS == "windows", "mount not supported on Windows")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 
 	dir1, err := ioutil.TempDir("", "test-ensure-removeall-with-dir1")
 	if err != nil {

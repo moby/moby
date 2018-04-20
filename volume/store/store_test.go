@@ -15,9 +15,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestCreate(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	s, cleanup := setupTest(t)
@@ -47,6 +49,7 @@ func TestCreate(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	s, cleanup := setupTest(t)
@@ -125,6 +128,7 @@ func TestList(t *testing.T) {
 }
 
 func TestFilterByDriver(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 	s, cleanup := setupTest(t)
 	defer cleanup()
@@ -152,6 +156,7 @@ func TestFilterByDriver(t *testing.T) {
 }
 
 func TestFilterByUsed(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 	s, cleanup := setupTest(t)
 	defer cleanup()
@@ -189,6 +194,7 @@ func TestFilterByUsed(t *testing.T) {
 }
 
 func TestDerefMultipleOfSameRef(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 	s, cleanup := setupTest(t)
 	defer cleanup()
@@ -210,6 +216,7 @@ func TestDerefMultipleOfSameRef(t *testing.T) {
 }
 
 func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 	s, cleanup := setupTest(t)
 	defer cleanup()
@@ -238,6 +245,7 @@ func TestCreateKeepOptsLabelsWhenExistsRemotely(t *testing.T) {
 }
 
 func TestDefererencePluginOnCreateError(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	var (
@@ -284,6 +292,7 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 }
 
 func TestRefDerefRemove(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	driverName := "test-ref-deref-remove"
@@ -304,6 +313,7 @@ func TestRefDerefRemove(t *testing.T) {
 }
 
 func TestGet(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	driverName := "test-get"
@@ -330,6 +340,7 @@ func TestGet(t *testing.T) {
 }
 
 func TestGetWithRef(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	t.Parallel()
 
 	driverName := "test-get-with-ref"
