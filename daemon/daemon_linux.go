@@ -89,8 +89,16 @@ func (daemon *Daemon) cleanupMounts() error {
 		return nil
 	}
 
+	unmountFile := getUnmountOnShutdownPath(daemon.configStore)
+	if _, err := os.Stat(unmountFile); err != nil {
+		return nil
+	}
+
 	logrus.WithField("mountpoint", daemon.root).Debug("unmounting daemon root")
-	return mount.Unmount(daemon.root)
+	if err := mount.Unmount(daemon.root); err != nil {
+		return err
+	}
+	return os.Remove(unmountFile)
 }
 
 func getCleanPatterns(id string) (regexps []*regexp.Regexp) {

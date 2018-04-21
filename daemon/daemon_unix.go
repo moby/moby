@@ -1177,12 +1177,55 @@ func setupDaemonRoot(config *config.Config, rootDir string, rootIDs idtools.IDPa
 		}
 	}
 
-	if err := ensureSharedOrSlave(config.Root); err != nil {
-		if err := mount.MakeShared(config.Root); err != nil {
-			logrus.WithError(err).WithField("dir", config.Root).Warn("Could not set daemon root propagation to shared, this is not generally critical but may cause some functionality to not work or fallback to less desirable behavior")
-		}
+	if err := setupDaemonRootPropagation(config); err != nil {
+		logrus.WithError(err).WithField("dir", config.Root).Warn("Error while setting daemon root propagation, this is not generally critical but may cause some functionality to not work or fallback to less desirable behavior")
 	}
 	return nil
+}
+
+func setupDaemonRootPropagation(cfg *config.Config) error {
+	rootParentMount, options, err := getSourceMount(cfg.Root)
+	if err != nil {
+		return errors.Wrap(err, "error getting daemon root's parent mount")
+	}
+
+	var cleanupOldFile bool
+	cleanupFile := getUnmountOnShutdownPath(cfg)
+	defer func() {
+		if !cleanupOldFile {
+			return
+		}
+		if err := os.Remove(cleanupFile); err != nil && !os.IsNotExist(err) {
+			logrus.WithError(err).WithField("file", cleanupFile).Warn("could not clean up old root propagation unmount file")
+		}
+	}()
+
+	if hasMountinfoOption(options, sharedPropagationOption, slavePropagationOption) {
+		cleanupOldFile = true
+		return nil
+	}
+
+	if err := mount.MakeShared(cfg.Root); err != nil {
+		return errors.Wrap(err, "could not setup daemon root propagation to shared")
+	}
+
+	// check the case where this may have already been a mount to itself.
+	// If so then the daemon only performed a remount and should not try to unmount this later.
+	if rootParentMount == cfg.Root {
+		cleanupOldFile = true
+		return nil
+	}
+
+	if err := ioutil.WriteFile(cleanupFile, nil, 0600); err != nil {
+		return errors.Wrap(err, "error writing file to signal mount cleanup on shutdown")
+	}
+	return nil
+}
+
+// getUnmountOnShutdownPath generates the path to used when writing the file that signals to the daemon that on shutdown
+// the daemon root should be unmounted.
+func getUnmountOnShutdownPath(config *config.Config) string {
+	return filepath.Join(config.ExecRoot, "unmount-on-shutdown")
 }
 
 // registerLinks writes the links to a file.
