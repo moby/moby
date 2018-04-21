@@ -260,7 +260,7 @@ func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
 }
 
 func existsMountpointWithPrefix(mountpointPrefix string) (bool, error) {
-	mounts, err := mount.GetMounts()
+	mounts, err := mount.GetMounts(nil)
 	if err != nil {
 		return false, err
 	}

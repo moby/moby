@@ -121,7 +121,7 @@ func ensureUnmount(t *testing.T, mnt string) {
 
 // validateMount checks that mnt has the given options
 func validateMount(t *testing.T, mnt string, opts, optional, vfs string) {
-	info, err := GetMounts()
+	info, err := GetMounts(nil)
 	if err != nil {
 		t.Fatal(err)
 	}

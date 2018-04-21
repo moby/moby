@@ -3,32 +3,64 @@ package mount // import "github.com/docker/docker/pkg/mount"
 import (
 	"sort"
 	"strings"
-
 	"syscall"
 
 	"github.com/sirupsen/logrus"
 )
 
-// GetMounts retrieves a list of mounts for the current running process.
-func GetMounts() ([]*Info, error) {
-	return parseMountTable()
+// FilterFunc is a type defining a callback function
+// to filter out unwanted entries. It takes a pointer
+// to an Info struct (not fully populated, currently
+// only Mountpoint is filled in), and returns two booleans:
+//  - skip: true if the entry should be skipped
+//  - stop: true if parsing should be stopped after the entry
+type FilterFunc func(*Info) (skip, stop bool)
+
+// PrefixFilter discards all entries whose mount points
+// do not start with a prefix specified
+func PrefixFilter(prefix string) FilterFunc {
+	return func(m *Info) (bool, bool) {
+		skip := !strings.HasPrefix(m.Mountpoint, prefix)
+		return skip, false
+	}
+}
+
+// SingleEntryFilter looks for a specific entry
+func SingleEntryFilter(mp string) FilterFunc {
+	return func(m *Info) (bool, bool) {
+		if m.Mountpoint == mp {
+			return false, true // don't skip, stop now
+		}
+		return true, false // skip, keep going
+	}
+}
+
+// ParentsFilter returns all entries whose mount points
+// can be parents of a path specified, discarding others.
+// For example, given `/var/lib/docker/something`, entries
+// like `/var/lib/docker`, `/var` and `/` are returned.
+func ParentsFilter(path string) FilterFunc {
+	return func(m *Info) (bool, bool) {
+		skip := !strings.HasPrefix(path, m.Mountpoint)
+		return skip, false
+	}
+}
+
+// GetMounts retrieves a list of mounts for the current running process,
+// with an optional filter applied (use nil for no filter).
+func GetMounts(f FilterFunc) ([]*Info, error) {
+	return parseMountTable(f)
 }
 
 // Mounted determines if a specified mountpoint has been mounted.
 // On Linux it looks at /proc/self/mountinfo.
 func Mounted(mountpoint string) (bool, error) {
-	entries, err := parseMountTable()
+	entries, err := GetMounts(SingleEntryFilter(mountpoint))
 	if err != nil {
 		return false, err
 	}
 
-	// Search the table for the mountpoint
-	for _, e := range entries {
-		if e.Mountpoint == mountpoint {
-			return true, nil
-		}
-	}
-	return false, nil
+	return len(entries) > 0, nil
 }
 
 // Mount will mount filesystem according to the specified configuration, on the
@@ -57,16 +89,18 @@ func ForceMount(device, target, mType, options string) error {
 // Unmount lazily unmounts a filesystem on supported platforms, otherwise
 // does a normal unmount.
 func Unmount(target string) error {
-	if mounted, err := Mounted(target); err != nil || !mounted {
-		return err
+	err := unmount(target, mntDetach)
+	if err == syscall.EINVAL {
+		// ignore "not mounted" error
+		err = nil
 	}
-	return unmount(target, mntDetach)
+	return err
 }
 
 // RecursiveUnmount unmounts the target and all mounts underneath, starting with
 // the deepsest mount first.
 func RecursiveUnmount(target string) error {
-	mounts, err := GetMounts()
+	mounts, err := parseMountTable(PrefixFilter(target))
 	if err != nil {
 		return err
 	}
@@ -77,9 +111,6 @@ func RecursiveUnmount(target string) error {
 	})
 
 	for i, m := range mounts {
-		if !strings.HasPrefix(m.Mountpoint, target) {
-			continue
-		}
 		logrus.Debugf("Trying to unmount %s", m.Mountpoint)
 		err = unmount(m.Mountpoint, mntDetach)
 		if err != nil {

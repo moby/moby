@@ -184,12 +184,6 @@ func TestShouldUnmountRoot(t *testing.T) {
 			expect: true,
 		},
 		{
-			desc:   "not a mountpoint",
-			root:   "/docker",
-			info:   nil,
-			expect: false,
-		},
-		{
 			desc:   "root is at in a submount from `/`",
 			root:   "/foo/docker",
 			info:   &mount.Info{Root: "/docker", Mountpoint: "/foo/docker"},
@@ -199,12 +193,6 @@ func TestShouldUnmountRoot(t *testing.T) {
 			desc:   "root is mounted in from a parent mount namespace same root dir", // dind is an example of this
 			root:   "/docker",
 			info:   &mount.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/docker"},
-			expect: false,
-		},
-		{
-			desc:   "root is mounted in from a parent mount namespace different root dir",
-			root:   "/foo/bar",
-			info:   &mount.Info{Root: "/docker/volumes/1234657/_data", Mountpoint: "/foo/bar"},
 			expect: false,
 		},
 	} {

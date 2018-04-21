@@ -184,6 +184,10 @@ func TestCreateWithOpts(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip()
 	}
+	if os.Getuid() != 0 {
+		t.Skip("root required")
+	}
+
 	rootDir, err := ioutil.TempDir("", "local-volume-test")
 	if err != nil {
 		t.Fatal(err)
@@ -215,33 +219,27 @@ func TestCreateWithOpts(t *testing.T) {
 		}
 	}()
 
-	mountInfos, err := mount.GetMounts()
+	mountInfos, err := mount.GetMounts(mount.SingleEntryFilter(dir))
 	if err != nil {
 		t.Fatal(err)
 	}
-
-	var found bool
-	for _, info := range mountInfos {
-		if info.Mountpoint == dir {
-			found = true
-			if info.Fstype != "tmpfs" {
-				t.Fatalf("expected tmpfs mount, got %q", info.Fstype)
-			}
-			if info.Source != "tmpfs" {
-				t.Fatalf("expected tmpfs mount, got %q", info.Source)
-			}
-			if !strings.Contains(info.VfsOpts, "uid=1000") {
-				t.Fatalf("expected mount info to have uid=1000: %q", info.VfsOpts)
-			}
-			if !strings.Contains(info.VfsOpts, "size=1024k") {
-				t.Fatalf("expected mount info to have size=1024k: %q", info.VfsOpts)
-			}
-			break
-		}
+	if len(mountInfos) != 1 {
+		t.Fatalf("expected 1 mount, found %d: %+v", len(mountInfos), mountInfos)
 	}
 
-	if !found {
-		t.Fatal("mount not found")
+	info := mountInfos[0]
+	t.Logf("%+v", info)
+	if info.Fstype != "tmpfs" {
+		t.Fatalf("expected tmpfs mount, got %q", info.Fstype)
+	}
+	if info.Source != "tmpfs" {
+		t.Fatalf("expected tmpfs mount, got %q", info.Source)
+	}
+	if !strings.Contains(info.VfsOpts, "uid=1000") {
+		t.Fatalf("expected mount info to have uid=1000: %q", info.VfsOpts)
+	}
+	if !strings.Contains(info.VfsOpts, "size=1024k") {
+		t.Fatalf("expected mount info to have size=1024k: %q", info.VfsOpts)
 	}
 
 	if v.active.count != 1 {

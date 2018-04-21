@@ -129,7 +129,7 @@ func TestMountReadonly(t *testing.T) {
 }
 
 func TestGetMounts(t *testing.T) {
-	mounts, err := GetMounts()
+	mounts, err := GetMounts(nil)
 	if err != nil {
 		t.Fatal(err)
 	}
