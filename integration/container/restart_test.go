@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/internal/test/daemon"
+	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
 )
 
@@ -40,9 +41,8 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 		for _, liveRestoreEnabled := range []bool{false, true} {
 			for fnName, stopDaemon := range map[string]func(*testing.T, *daemon.Daemon){
 				"kill-daemon": func(t *testing.T, d *daemon.Daemon) {
-					if err := d.Kill(); err != nil {
-						t.Fatal(err)
-					}
+					err := d.Kill()
+					assert.NilError(t, err)
 				},
 				"stop-daemon": func(t *testing.T, d *daemon.Daemon) {
 					d.Stop(t)
@@ -57,9 +57,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 					d := daemon.New(t)
 					client, err := d.NewClient()
-					if err != nil {
-						t.Fatal(err)
-					}
+					assert.NilError(t, err)
 
 					args := []string{"--iptables=false"}
 					if liveRestoreEnabled {
@@ -71,14 +69,11 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					ctx := context.Background()
 
 					resp, err := client.ContainerCreate(ctx, c.config, c.hostConfig, nil, "")
-					if err != nil {
-						t.Fatal(err)
-					}
+					assert.NilError(t, err)
 					defer client.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
 
-					if err := client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{}); err != nil {
-						t.Fatal(err)
-					}
+					err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+					assert.NilError(t, err)
 
 					stopDaemon(t, d)
 					d.Start(t, args...)
@@ -91,9 +86,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					var running bool
 					for i := 0; i < 30; i++ {
 						inspect, err := client.ContainerInspect(ctx, resp.ID)
-						if err != nil {
-							t.Fatal(err)
-						}
+						assert.NilError(t, err)
 
 						running = inspect.State.Running
 						if running == expected {
@@ -102,10 +95,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 						time.Sleep(2 * time.Second)
 
 					}
-
-					if running != expected {
-						t.Fatalf("got unexpected running state, expected %v, got: %v", expected, running)
-					}
+					assert.Equal(t, expected, running, "got unexpected running state, expected %v, got: %v", expected, running)
 					// TODO(cpuguy83): test pause states... this seems to be rather undefined currently
 				})
 			}
