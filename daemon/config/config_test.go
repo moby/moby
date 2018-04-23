@@ -192,6 +192,40 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	}
 }
 
+func TestValidateReservedNamespaceLabels(t *testing.T) {
+	for _, validLabels := range [][]string{
+		nil, // no error if there are no labels
+		{ // no error if there aren't any reserved namespace labels
+			"hello=world",
+			"label=me",
+		},
+		{ // only reserved namespaces that end with a dot are invalid
+			"com.dockerpsychnotreserved.label=value",
+			"io.dockerproject.not=reserved",
+			"org.docker.not=reserved",
+		},
+	} {
+		assert.Check(t, ValidateReservedNamespaceLabels(validLabels))
+	}
+
+	for _, invalidLabel := range []string{
+		"com.docker.feature=enabled",
+		"io.docker.configuration=0",
+		"org.dockerproject.setting=on",
+		// casing doesn't matter
+		"COM.docker.feature=enabled",
+		"io.DOCKER.CONFIGURATION=0",
+		"Org.Dockerproject.Setting=on",
+	} {
+		err := ValidateReservedNamespaceLabels([]string{
+			"valid=label",
+			invalidLabel,
+			"another=valid",
+		})
+		assert.Check(t, is.ErrorContains(err, invalidLabel))
+	}
+}
+
 func TestValidateConfigurationErrors(t *testing.T) {
 	minusNumber := -10
 	testCases := []struct {

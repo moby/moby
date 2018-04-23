@@ -284,29 +284,41 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 }
 
 func (cli *DaemonCli) reloadConfig() {
-	reload := func(config *config.Config) {
+	reload := func(c *config.Config) {
 
 		// Revalidate and reload the authorization plugins
-		if err := validateAuthzPlugins(config.AuthorizationPlugins, cli.d.PluginStore); err != nil {
+		if err := validateAuthzPlugins(c.AuthorizationPlugins, cli.d.PluginStore); err != nil {
 			logrus.Fatalf("Error validating authorization plugin: %v", err)
 			return
 		}
-		cli.authzMiddleware.SetPlugins(config.AuthorizationPlugins)
+		cli.authzMiddleware.SetPlugins(c.AuthorizationPlugins)
 
-		if err := cli.d.Reload(config); err != nil {
+		// The namespaces com.docker.*, io.docker.*, org.dockerproject.* have been documented
+		// to be reserved for Docker's internal use, but this was never enforced.  Allowing
+		// configured labels to use these namespaces are deprecated for 18.05.
+		//
+		// The following will check the usage of such labels, and report a warning for deprecation.
+		//
+		// TODO: At the next stable release, the validation should be folded into the other
+		// configuration validation functions and an error will be returned instead, and this
+		// block should be deleted.
+		if err := config.ValidateReservedNamespaceLabels(c.Labels); err != nil {
+			logrus.Warnf("Configured labels using reserved namespaces is deprecated: %s", err)
+		}
+
+		if err := cli.d.Reload(c); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
 
-		if config.IsValueSet("debug") {
+		if c.IsValueSet("debug") {
 			debugEnabled := debug.IsEnabled()
 			switch {
-			case debugEnabled && !config.Debug: // disable debug
+			case debugEnabled && !c.Debug: // disable debug
 				debug.Disable()
-			case config.Debug && !debugEnabled: // enable debug
+			case c.Debug && !debugEnabled: // enable debug
 				debug.Enable()
 			}
-
 		}
 	}
 
@@ -405,6 +417,18 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	newLabels, err := config.GetConflictFreeLabels(conf.Labels)
 	if err != nil {
 		return nil, err
+	}
+	// The namespaces com.docker.*, io.docker.*, org.dockerproject.* have been documented
+	// to be reserved for Docker's internal use, but this was never enforced.  Allowing
+	// configured labels to use these namespaces are deprecated for 18.05.
+	//
+	// The following will check the usage of such labels, and report a warning for deprecation.
+	//
+	// TODO: At the next stable release, the validation should be folded into the other
+	// configuration validation functions and an error will be returned instead, and this
+	// block should be deleted.
+	if err := config.ValidateReservedNamespaceLabels(newLabels); err != nil {
+		logrus.Warnf("Configured labels using reserved namespaces is deprecated: %s", err)
 	}
 	conf.Labels = newLabels
 
