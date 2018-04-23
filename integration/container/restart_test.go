@@ -22,6 +22,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 		xRunning            bool
 		xRunningLiveRestore bool
+		xStart              bool
 	}
 
 	for _, c := range []testCase{
@@ -29,6 +30,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 			desc:                "container without restart policy",
 			config:              &container.Config{Image: "busybox", Cmd: []string{"top"}},
 			xRunningLiveRestore: true,
+			xStart:              true,
 		},
 		{
 			desc:                "container with restart=always",
@@ -36,6 +38,12 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 			hostConfig:          &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}},
 			xRunning:            true,
 			xRunningLiveRestore: true,
+			xStart:              true,
+		},
+		{
+			desc:       "container created should not be restarted",
+			config:     &container.Config{Image: "busybox", Cmd: []string{"top"}},
+			hostConfig: &container.HostConfig{RestartPolicy: container.RestartPolicy{Name: "always"}},
 		},
 	} {
 		for _, liveRestoreEnabled := range []bool{false, true} {
@@ -72,8 +80,10 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					assert.NilError(t, err)
 					defer client.ContainerRemove(ctx, resp.ID, types.ContainerRemoveOptions{Force: true})
 
-					err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
-					assert.NilError(t, err)
+					if c.xStart {
+						err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+						assert.NilError(t, err)
+					}
 
 					stopDaemon(t, d)
 					d.Start(t, args...)
