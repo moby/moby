@@ -9,7 +9,9 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/exec"
 	"github.com/docker/docker/api/types/versions"
+	execpkg "github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/sirupsen/logrus"
@@ -146,4 +148,45 @@ func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.Re
 	}
 
 	return s.backend.ContainerExecResize(vars["name"], height, width)
+}
+
+func (s *containerRouter) postContainerExecWait(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	// The wait condition defaults to "running".
+	waitCondition := execpkg.WaitConditionRunning
+	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	switch exec.WaitCondition(r.Form.Get("condition")) {
+	case exec.WaitConditionExited:
+		waitCondition = execpkg.WaitConditionExited
+	}
+
+	// Note: the context should get canceled if the client closes the
+	// connection since this handler has been wrapped by the
+	// router.WithCancel() wrapper.
+	waitC, err := s.backend.ContainerExecWait(ctx, vars["name"], waitCondition)
+	if err != nil {
+		return err
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+
+	// Write response header immediately.
+	w.WriteHeader(http.StatusOK)
+	if flusher, ok := w.(http.Flusher); ok {
+		flusher.Flush()
+	}
+
+	// Block on the result of the wait operation.
+	status := <-waitC
+
+	var waitError *exec.ExecWaitOKBodyError
+	if status.Err() != nil {
+		waitError = &exec.ExecWaitOKBodyError{Message: status.Err().Error()}
+	}
+
+	return json.NewEncoder(w).Encode(&exec.ExecWaitOKBody{
+		StatusCode: int64(status.ExitCode()),
+		Error:      waitError,
+	})
 }

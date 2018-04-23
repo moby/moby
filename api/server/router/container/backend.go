@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	containerpkg "github.com/docker/docker/container"
+	execpkg "github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/pkg/archive"
 )
 
@@ -19,6 +20,7 @@ type execBackend interface {
 	ContainerExecInspect(id string) (*backend.ExecInspect, error)
 	ContainerExecResize(name string, height, width int) error
 	ContainerExecStart(ctx context.Context, name string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error
+	ContainerExecWait(ctx context.Context, name string, cond execpkg.WaitCondition) (<-chan execpkg.Status, error)
 	ExecExists(name string) (bool, error)
 }
 

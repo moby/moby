@@ -34,8 +34,9 @@ type State struct {
 	FinishedAt        time.Time
 	Health            *Health
 
-	waitStop   chan struct{}
-	waitRemove chan struct{}
+	waitStop    chan struct{}
+	waitRemove  chan struct{}
+	waitRunning chan struct{}
 }
 
 // StateStatus is used to return container wait results.
@@ -61,8 +62,9 @@ func (s StateStatus) Err() error {
 // NewState creates a default state object with a fresh channel for state changes.
 func NewState() *State {
 	return &State{
-		waitStop:   make(chan struct{}),
-		waitRemove: make(chan struct{}),
+		waitStop:    make(chan struct{}),
+		waitRemove:  make(chan struct{}),
+		waitRunning: make(chan struct{}),
 	}
 }
 
@@ -165,10 +167,13 @@ type WaitCondition int
 // or is removed.
 //
 // WaitConditionRemoved is used to wait for the container to be removed.
+//
+// WaitConditionRunning is used to wait for the container to be running.
 const (
 	WaitConditionNotRunning WaitCondition = iota
 	WaitConditionNextExit
 	WaitConditionRemoved
+	WaitConditionRunning
 )
 
 // Wait waits until the container is in a certain state indicated by the given
@@ -196,6 +201,12 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 		return resultC
 	}
 
+	// If we are not waiting for the running state, leave the channel nil
+	var waitRunning chan struct{}
+	if condition == WaitConditionRunning {
+		waitRunning = s.waitRunning
+	}
+
 	// If we are waiting only for removal, the waitStop channel should
 	// remain nil and block forever.
 	var waitStop chan struct{}
@@ -221,6 +232,9 @@ func (s *State) Wait(ctx context.Context, condition WaitCondition) <-chan StateS
 			return
 		case <-waitStop:
 		case <-waitRemove:
+		case <-waitRunning:
+			resultC <- StateStatus{}
+			return
 		}
 
 		s.Lock()
@@ -278,6 +292,8 @@ func (s *State) SetRunning(pid int, initial bool) {
 	if initial {
 		s.StartedAt = time.Now().UTC()
 	}
+	close(s.waitRunning)
+	s.waitRunning = make(chan struct{})
 }
 
 // SetStopped sets the container state to "stopped" without locking.
