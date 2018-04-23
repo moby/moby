@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 var tmp string
@@ -304,6 +305,7 @@ func TestUntarPathWithInvalidSrc(t *testing.T) {
 }
 
 func TestUntarPath(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tmpFolder, err := ioutil.TempDir("", "docker-archive-test")
 	assert.NilError(t, err)
 	defer os.RemoveAll(tmpFolder)
@@ -434,6 +436,7 @@ func TestCopyWithTarInvalidSrc(t *testing.T) {
 }
 
 func TestCopyWithTarInexistentDestWillCreateIt(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	tempFolder, err := ioutil.TempDir("", "docker-archive-test")
 	if err != nil {
 		t.Fatal(nil)
@@ -968,9 +971,8 @@ func TestUntarInvalidFilenames(t *testing.T) {
 
 func TestUntarHardlinkToSymlink(t *testing.T) {
 	// TODO Windows. There may be a way of running this, but turning off for now
-	if runtime.GOOS == "windows" {
-		t.Skip("hardlinks on Windows")
-	}
+	skip.If(t, runtime.GOOS == "windows", "hardlinks on Windows")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	for i, headers := range [][]*tar.Header{
 		{
 			{
@@ -1252,6 +1254,7 @@ func TestReplaceFileTarWrapper(t *testing.T) {
 // TestPrefixHeaderReadable tests that files that could be created with the
 // version of this package that was built with <=go17 are still readable.
 func TestPrefixHeaderReadable(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	// https://gist.github.com/stevvooe/e2a790ad4e97425896206c0816e1a882#file-out-go
 	var testFile = []byte("\x1f\x8b\x08\x08\x44\x21\x68\x59\x00\x03\x74\x2e\x74\x61\x72\x00\x4b\xcb\xcf\x67\xa0\x35\x30\x80\x00\x86\x06\x10\x47\x01\xc1\x37\x40\x00\x54\xb6\xb1\xa1\xa9\x99\x09\x48\x25\x1d\x40\x69\x71\x49\x62\x91\x02\xe5\x76\xa1\x79\x84\x21\x91\xd6\x80\x72\xaf\x8f\x82\x51\x30\x0a\x46\x36\x00\x00\xf0\x1c\x1e\x95\x00\x06\x00\x00")
 
@@ -1309,6 +1312,7 @@ func appendModifier(path string, header *tar.Header, content io.Reader) (*tar.He
 }
 
 func readFileFromArchive(t *testing.T, archive io.ReadCloser, name string, expectedCount int, doc string) string {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	destDir, err := ioutil.TempDir("", "docker-test-destDir")
 	assert.NilError(t, err)
 	defer os.RemoveAll(destDir)

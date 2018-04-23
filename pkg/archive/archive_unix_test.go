@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 	"golang.org/x/sys/unix"
 )
 
@@ -183,6 +184,7 @@ func getInode(path string) (uint64, error) {
 }
 
 func TestTarWithBlockCharFifo(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	origin, err := ioutil.TempDir("", "docker-test-tar-hardlink")
 	assert.NilError(t, err)
 
@@ -223,6 +225,7 @@ func TestTarWithBlockCharFifo(t *testing.T) {
 
 // TestTarUntarWithXattr is Unix as Lsetxattr is not supported on Windows
 func TestTarUntarWithXattr(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 	origin, err := ioutil.TempDir("", "docker-test-untar-origin")
 	assert.NilError(t, err)
 	defer os.RemoveAll(origin)

@@ -284,7 +284,7 @@ func TestGetRootUIDGID(t *testing.T) {
 
 	uid, gid, err := GetRootUIDGID(uidMap, gidMap)
 	assert.Check(t, err)
-	assert.Check(t, is.Equal(os.Getegid(), uid))
+	assert.Check(t, is.Equal(os.Geteuid(), uid))
 	assert.Check(t, is.Equal(os.Getegid(), gid))
 
 	uidMapError := []IDMap{
@@ -393,5 +393,5 @@ func TestMkdirIsNotDir(t *testing.T) {
 }
 
 func RequiresRoot(t *testing.T) {
-	skip.IfCondition(t, os.Getuid() != 0, "skipping test that requires root")
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
 }
