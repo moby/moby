@@ -504,7 +504,8 @@ func validateAddr(addr string) (string, error) {
 }
 
 func initClusterSpec(node *swarmnode.Node, spec types.Spec) error {
-	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
 	for conn := range node.ListenControlSocket(ctx) {
 		if ctx.Err() != nil {
 			return ctx.Err()
