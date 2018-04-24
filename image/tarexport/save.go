@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime"
 	"time"
@@ -158,6 +159,9 @@ func (l *tarexporter) takeLayerReference(id image.ID, imgDescr *imageDescriptor)
 	if os == "" {
 		os = runtime.GOOS
 	}
+	if !system.IsOSSupported(os) {
+		return fmt.Errorf("os %q is not supported", os)
+	}
 	layer, err := l.lss[os].Get(topLayerID)
 	if err != nil {
 		return err
@@ -216,7 +220,11 @@ func (s *saveSession) save(outStream io.Writer) error {
 		}
 
 		for _, l := range imageDescr.layers {
-			layers = append(layers, filepath.Join(l, legacyLayerFileName))
+			// IMPORTANT: We use path, not filepath here to ensure the layers
+			// in the manifest use Unix-style forward-slashes. Otherwise, a
+			// Linux image saved from LCOW won't be able to be imported on
+			// LCOL.
+			layers = append(layers, path.Join(l, legacyLayerFileName))
 		}
 
 		manifest = append(manifest, manifestItem{
@@ -313,6 +321,7 @@ func (s *saveSession) saveImage(id image.ID) (map[layer.DiffID]distribution.Desc
 			v1Img.Parent = parent.Hex()
 		}
 
+		v1Img.OS = img.OS
 		src, err := s.saveLayer(rootFS.ChainID(), v1Img, img.Created)
 		if err != nil {
 			return nil, err
