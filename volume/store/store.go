@@ -80,7 +80,7 @@ func New(rootPath string, drivers *drivers.Store) (*VolumeStore, error) {
 	if rootPath != "" {
 		// initialize metadata store
 		volPath := filepath.Join(rootPath, volumeDataDir)
-		if err := os.MkdirAll(volPath, 750); err != nil {
+		if err := os.MkdirAll(volPath, 0750); err != nil {
 			return nil, err
 		}
 
