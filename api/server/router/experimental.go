@@ -1,9 +1,8 @@
 package router // import "github.com/docker/docker/api/server/router"
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/server/httputils"
 )

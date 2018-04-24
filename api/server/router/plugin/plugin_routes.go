@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"net/http"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func parseHeaders(headers http.Header) (map[string][]string, *types.AuthConfig) {

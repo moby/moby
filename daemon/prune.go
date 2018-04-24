@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"regexp"
 	"sync/atomic"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 var (

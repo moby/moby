@@ -1,6 +1,7 @@
 package system // import "github.com/docker/docker/integration/system"
 
 import (
+	"context"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -9,7 +10,6 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"golang.org/x/net/context"
 )
 
 // Test case for GitHub 22244

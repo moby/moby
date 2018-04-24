@@ -1,9 +1,8 @@
 package session // import "github.com/docker/docker/api/server/router/session"
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 // Backend abstracts an session receiver from an http request.

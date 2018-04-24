@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -28,7 +29,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"golang.org/x/time/rate"
 )
 

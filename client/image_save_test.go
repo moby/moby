@@ -2,13 +2,12 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"reflect"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"strings"
 )

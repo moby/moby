@@ -1,6 +1,7 @@
 package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -8,8 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"

@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/api/types"
+	"context"
 
-	"golang.org/x/net/context"
+	"github.com/docker/docker/api/types"
 )
 
 func TestServiceLogsError(t *testing.T) {

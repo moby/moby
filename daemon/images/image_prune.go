@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"fmt"
 	"sync/atomic"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 var imagesAcceptedFilters = map[string]bool{

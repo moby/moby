@@ -1,6 +1,6 @@
 package client // import "github.com/docker/docker/client"
 
-import "golang.org/x/net/context"
+import "context"
 
 // NetworkRemove removes an existent network from the docker host.
 func (cli *Client) NetworkRemove(ctx context.Context, networkID string) error {

@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/integration-cli/daemon"
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/assert"
-	"golang.org/x/net/context"
 )
 
 // CheckServiceTasksInState returns the number of tasks with a matching state,

@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/daemon/cluster/controllers/plugin"
 
 import (
+	"context"
 	"io"
 	"io/ioutil"
 	"net/http"
@@ -15,7 +16,6 @@ import (
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // Controller is the controller for the plugin backend.

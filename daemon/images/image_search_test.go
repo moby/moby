@@ -1,11 +1,10 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"errors"
 	"strings"
 	"testing"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"

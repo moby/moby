@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/api/server/router/container"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"golang.org/x/net/websocket"
 )
 

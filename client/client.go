@@ -42,6 +42,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"net/http"
@@ -57,7 +58,6 @@ import (
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // ErrRedirect is the error returned by checkRedirect when the request is non-GET.

@@ -1,6 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"errors"
 	"io/ioutil"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"golang.org/x/net/context"
 )
 
 // TestPingFail tests that when a server sends a non-successful response that we

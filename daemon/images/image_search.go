@@ -1,9 +1,8 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"strconv"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"

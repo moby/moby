@@ -3,6 +3,7 @@
 package plugin // import "github.com/docker/docker/plugin"
 
 import (
+	"context"
 	"errors"
 	"io"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"golang.org/x/net/context"
 )
 
 var errNotSupported = errors.New("plugins are not supported on this platform")

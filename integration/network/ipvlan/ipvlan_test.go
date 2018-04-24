@@ -1,6 +1,7 @@
 package ipvlan
 
 import (
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
-	"golang.org/x/net/context"
 )
 
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {

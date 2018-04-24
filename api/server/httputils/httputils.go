@@ -1,6 +1,7 @@
 package httputils // import "github.com/docker/docker/api/server/httputils"
 
 import (
+	"context"
 	"io"
 	"mime"
 	"net/http"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 type contextKey string

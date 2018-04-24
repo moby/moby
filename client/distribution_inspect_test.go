@@ -1,13 +1,13 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 func TestDistributionInspectUnsupported(t *testing.T) {

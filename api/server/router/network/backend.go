@@ -1,7 +1,7 @@
 package network // import "github.com/docker/docker/api/server/router/network"
 
 import (
-	"golang.org/x/net/context"
+	"context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"

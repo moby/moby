@@ -1,13 +1,13 @@
 package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
+	"context"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
-	"golang.org/x/net/context"
 )
 
 // Backend is the methods that need to be implemented to provide

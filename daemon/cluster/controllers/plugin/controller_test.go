@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/daemon/cluster/controllers/plugin"
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/ioutil"
@@ -16,7 +17,6 @@ import (
 	"github.com/docker/docker/plugin"
 	"github.com/docker/docker/plugin/v2"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 const (

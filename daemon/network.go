@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"runtime"
@@ -21,7 +22,6 @@ import (
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 // PredefinedNetworkError is returned when user tries to create predefined network that already exists.

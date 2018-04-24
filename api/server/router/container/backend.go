@@ -1,9 +1,8 @@
 package container // import "github.com/docker/docker/api/server/router/container"
 
 import (
+	"context"
 	"io"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"

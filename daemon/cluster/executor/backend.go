@@ -1,6 +1,7 @@
 package executor // import "github.com/docker/docker/daemon/cluster/executor"
 
 import (
+	"context"
 	"io"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/libnetwork/cluster"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/docker/swarmkit/agent/exec"
-	"golang.org/x/net/context"
 )
 
 // Backend defines the executor component for a swarm agent.

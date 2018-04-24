@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bufio"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"net"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // tlsClientCon holds tls information and a dialed connection.

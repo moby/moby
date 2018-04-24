@@ -1,6 +1,7 @@
 package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import (
+	"context"
 	"io"
 	"net/http"
 
@@ -8,7 +9,6 @@ import (
 	enginetypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/plugin"
-	"golang.org/x/net/context"
 )
 
 // Backend for Plugin

@@ -1,6 +1,7 @@
 package middleware // import "github.com/docker/docker/api/server/middleware"
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"runtime"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"golang.org/x/net/context"
 )
 
 func TestVersionMiddlewareVersion(t *testing.T) {

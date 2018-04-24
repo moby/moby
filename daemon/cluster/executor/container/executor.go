@@ -1,6 +1,7 @@
 package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strings"
@@ -21,7 +22,6 @@ import (
 	"github.com/docker/swarmkit/api/naming"
 	"github.com/docker/swarmkit/template"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 )
 
 type executor struct {

@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"io"
 
 	"github.com/docker/distribution/manifest/schema2"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/pkg/progress"
-	"golang.org/x/net/context"
 )
 
 // PushImage initiates a push operation on the repository named localName.

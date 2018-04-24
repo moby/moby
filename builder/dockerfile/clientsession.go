@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"time"
 
 	"github.com/docker/docker/builder/fscache"
@@ -8,7 +9,6 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const sessionConnectTimeout = 5 * time.Second

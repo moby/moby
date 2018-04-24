@@ -1,10 +1,10 @@
 package router // import "github.com/docker/docker/api/server/router"
 
 import (
+	"context"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
-	"golang.org/x/net/context"
 )
 
 // RouteWrapper wraps a route with extra functionality.

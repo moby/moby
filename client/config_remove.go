@@ -1,6 +1,6 @@
 package client // import "github.com/docker/docker/client"
 
-import "golang.org/x/net/context"
+import "context"
 
 // ConfigRemove removes a Config.
 func (cli *Client) ConfigRemove(ctx context.Context, id string) error {

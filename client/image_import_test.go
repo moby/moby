@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 func TestImageImportError(t *testing.T) {

@@ -1,10 +1,9 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"net"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 // DialSession returns a connection that can be used communication with daemon
