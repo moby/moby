@@ -53,6 +53,7 @@ type NodeDescription struct {
 	Resources Resources         `json:",omitempty"`
 	Engine    EngineDescription `json:",omitempty"`
 	TLSInfo   TLSInfo           `json:",omitempty"`
+	FIPS      bool              `json:",omitempty"`
 }
 
 // Platform represents the platform (Arch/OS).
