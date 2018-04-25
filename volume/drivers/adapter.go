@@ -17,7 +17,7 @@ type volumeDriverAdapter struct {
 	name         string
 	scopePath    func(s string) string
 	capabilities *volume.Capability
-	proxy        *volumeDriverProxy
+	proxy        volumeDriver
 }
 
 func (a *volumeDriverAdapter) Name() string {
@@ -114,7 +114,7 @@ func (a *volumeDriverAdapter) getCapabilities() volume.Capability {
 }
 
 type volumeAdapter struct {
-	proxy      *volumeDriverProxy
+	proxy      volumeDriver
 	name       string
 	scopePath  func(string) string
 	driverName string

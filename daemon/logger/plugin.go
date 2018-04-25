@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types/plugins/logdriver"
 	getter "github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 )
@@ -37,11 +38,32 @@ func getPlugin(name string, mode int) (Creator, error) {
 		return nil, fmt.Errorf("error looking up logging plugin %s: %v", name, err)
 	}
 
-	d := &logPluginProxy{p.Client()}
-	return makePluginCreator(name, d, p.ScopedPath), nil
+	client, err := makePluginClient(p)
+	if err != nil {
+		return nil, err
+	}
+	return makePluginCreator(name, client, p.ScopedPath), nil
 }
 
-func makePluginCreator(name string, l *logPluginProxy, scopePath func(s string) string) Creator {
+func makePluginClient(p getter.CompatPlugin) (logPlugin, error) {
+	pa, ok := p.(getter.PluginAddr)
+	if !ok {
+		return &logPluginProxy{p.Client()}, nil
+	}
+
+	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+		return nil, errors.Errorf("plugin protocol not supported: %s", p)
+	}
+
+	addr := pa.Addr()
+	c, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
+	if err != nil {
+		return nil, errors.Wrap(err, "error making plugin client")
+	}
+	return &logPluginProxy{c}, nil
+}
+
+func makePluginCreator(name string, l logPlugin, scopePath func(s string) string) Creator {
 	return func(logCtx Info) (logger Logger, err error) {
 		defer func() {
 			if err != nil {

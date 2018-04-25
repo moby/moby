@@ -10,18 +10,13 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/locker"
 	getter "github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 const extName = "VolumeDriver"
-
-// NewVolumeDriver returns a driver has the given name mapped on the given client.
-func NewVolumeDriver(name string, scopePath func(string) string, c client) volume.Driver {
-	proxy := &volumeDriverProxy{c}
-	return &volumeDriverAdapter{name: name, scopePath: scopePath, proxy: proxy}
-}
 
 // volumeDriver defines the available functions that volume plugins must implement.
 // This interface is only defined to generate the proxy objects.
@@ -93,7 +88,10 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 			return nil, errors.Wrap(err, "error looking up volume plugin "+name)
 		}
 
-		d := NewVolumeDriver(p.Name(), p.ScopedPath, p.Client())
+		d, err := makePluginAdapter(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "error making plugin client")
+		}
 		if err := validateDriver(d); err != nil {
 			if mode > 0 {
 				// Undo any reference count changes from the initial `Get`
@@ -201,11 +199,33 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 			continue
 		}
 
-		ext := NewVolumeDriver(name, p.ScopedPath, p.Client())
+		ext, err := makePluginAdapter(p)
+		if err != nil {
+			return nil, errors.Wrap(err, "error making plugin client")
+		}
 		if p.IsV1() {
 			s.extensions[name] = ext
 		}
 		ds = append(ds, ext)
 	}
 	return ds, nil
+}
+
+func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
+	pa, ok := p.(getter.PluginAddr)
+	if !ok {
+		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{p.Client()}}, nil
+	}
+
+	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+		return nil, errors.Errorf("plugin protocol not supported: %s", p)
+	}
+
+	addr := pa.Addr()
+	client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating plugin client")
+	}
+
+	return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{client}}, nil
 }

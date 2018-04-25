@@ -31,6 +31,9 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// ProtocolSchemeHTTPV1 is the name of the protocol used for interacting with plugins using this package.
+const ProtocolSchemeHTTPV1 = "moby.plugins.http/v1"
+
 var (
 	// ErrNotImplements is returned if the plugin does not implement the requested driver.
 	ErrNotImplements = errors.New("Plugin does not implement the requested driver")
@@ -86,6 +89,11 @@ func (p *Plugin) Name() string {
 // Client returns a ready-to-use plugin client that can be used to communicate with the plugin.
 func (p *Plugin) Client() *Client {
 	return p.client
+}
+
+// Protocol returns the protocol name/version used for plugins in this package.
+func (p *Plugin) Protocol() string {
+	return ProtocolSchemeHTTPV1
 }
 
 // IsV1 returns true for V1 plugins and false otherwise.

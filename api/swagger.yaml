@@ -1859,6 +1859,13 @@ definitions:
                 type: "string"
                 x-nullable: false
                 example: "plugins.sock"
+              ProtocolScheme:
+                type: "string"
+                example: "some.protocol/v1.0"
+                description: "Protocol to use for clients connecting to the plugin."
+                enum:
+                  - ""
+                  - "moby.plugins.http/v1"
           Entrypoint:
             type: "array"
             items:
