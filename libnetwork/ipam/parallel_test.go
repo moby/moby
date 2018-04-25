@@ -3,9 +3,13 @@ package ipam
 import (
 	"context"
 	"fmt"
+	"math/rand"
 	"net"
+	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/stretchr/testify/assert"
@@ -30,7 +34,7 @@ type testContext struct {
 }
 
 func newTestContext(t *testing.T, mask int, options map[string]string) *testContext {
-	a, err := getAllocator(true)
+	a, err := getAllocator(false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -65,6 +69,68 @@ func TestDebug(t *testing.T) {
 	tctx := newTestContext(t, 23, map[string]string{ipamapi.AllocSerialPrefix: "true"})
 	tctx.a.RequestAddress(tctx.pid, nil, map[string]string{ipamapi.AllocSerialPrefix: "true"})
 	tctx.a.RequestAddress(tctx.pid, nil, map[string]string{ipamapi.AllocSerialPrefix: "true"})
+}
+
+type op struct {
+	id   int32
+	add  bool
+	name string
+}
+
+func (o *op) String() string {
+	return fmt.Sprintf("%+v", *o)
+}
+
+func TestRequestPoolParallel(t *testing.T) {
+	a, err := getAllocator(false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var operationIndex int32
+	ch := make(chan *op, 240)
+	for i := 0; i < 120; i++ {
+		go func(t *testing.T, a *Allocator, ch chan *op) {
+			name, _, _, err := a.RequestPool("GlobalDefault", "", "", nil, false)
+			if err != nil {
+				t.Fatalf("request error %v", err)
+			}
+			idx := atomic.AddInt32(&operationIndex, 1)
+			ch <- &op{idx, true, name}
+			time.Sleep(time.Duration(rand.Intn(100)) * time.Millisecond)
+			idx = atomic.AddInt32(&operationIndex, 1)
+			err = a.ReleasePool(name)
+			if err != nil {
+				t.Fatalf("relase error %v", err)
+			}
+			ch <- &op{idx, false, name}
+		}(t, a, ch)
+	}
+
+	// map of events
+	m := make(map[string][]*op)
+	for i := 0; i < 240; i++ {
+		x := <-ch
+		ops, ok := m[x.name]
+		if !ok {
+			ops = make([]*op, 0, 10)
+		}
+		ops = append(ops, x)
+		m[x.name] = ops
+	}
+
+	// Post processing to avoid event reordering on the channel
+	for pool, ops := range m {
+		sort.Slice(ops[:], func(i, j int) bool {
+			return ops[i].id < ops[j].id
+		})
+		expected := true
+		for _, op := range ops {
+			if op.add != expected {
+				t.Fatalf("Operations for %v not valid %v, operations %v", pool, op, ops)
+			}
+			expected = !expected
+		}
+	}
 }
 
 func TestFullAllocateRelease(t *testing.T) {
