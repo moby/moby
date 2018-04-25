@@ -16,9 +16,11 @@ import (
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()

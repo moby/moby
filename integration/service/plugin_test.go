@@ -21,6 +21,7 @@ import (
 )
 
 func TestServicePlugin(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTest(t)()
