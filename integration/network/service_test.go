@@ -39,6 +39,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	err = client.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
+	// Test comment
 }
 
 const ingressNet = "ingress"
