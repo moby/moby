@@ -422,7 +422,7 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 func (container *Container) GetProcessLabel() string {
 	// even if we have a process label return "" if we are running
 	// in privileged mode
-	if container.HostConfig.Privileged {
+	if container.HostConfig != nil && container.HostConfig.Privileged {
 		return ""
 	}
 	return container.ProcessLabel

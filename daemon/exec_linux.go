@@ -54,13 +54,14 @@ func (daemon *Daemon) execSetPlatformOpt(c *container.Container, ec *exec.Config
 		}
 		p.ApparmorProfile = appArmorProfile
 	}
-	if !ec.Privileged {
-		// Do not use c.GetProcessLabel() here, because exec "Privileged" is
-		// separate from the containers' "HostConfig.Privileged"
-		p.SelinuxLabel = c.ProcessLabel
-		p.NoNewPrivileges = c.NoNewPrivileges
-	}
 
-	daemon.setRlimits(&specs.Spec{Process: p}, c)
-	return nil
+	// `docker exec --privileged` inherits Privileged configuration
+	// of the container, so SELinux is disabled if the container is
+	// running with `--privileged`.
+	if c.HostConfig == nil || !c.HostConfig.Privileged {
+		p.SelinuxLabel = c.GetProcessLabel()
+	}
+	p.NoNewPrivileges = c.NoNewPrivileges
+
+	return daemon.setRlimits(&specs.Spec{Process: p}, c)
 }

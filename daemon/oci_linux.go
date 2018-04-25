@@ -135,18 +135,19 @@ func (daemon *Daemon) setDevices(s *specs.Spec, c *container.Container) error {
 func (daemon *Daemon) setRlimits(s *specs.Spec, c *container.Container) error {
 	var rlimits []specs.POSIXRlimit
 
-	// We want to leave the original HostConfig alone so make a copy here
-	hostConfig := *c.HostConfig
-	// Merge with the daemon defaults
-	daemon.mergeUlimits(&hostConfig)
-	for _, ul := range hostConfig.Ulimits {
-		rlimits = append(rlimits, specs.POSIXRlimit{
-			Type: "RLIMIT_" + strings.ToUpper(ul.Name),
-			Soft: uint64(ul.Soft),
-			Hard: uint64(ul.Hard),
-		})
+	if c.HostConfig != nil {
+		// We want to leave the original HostConfig alone so make a copy here
+		hostConfig := *c.HostConfig
+		// Merge with the daemon defaults
+		daemon.mergeUlimits(&hostConfig)
+		for _, ul := range hostConfig.Ulimits {
+			rlimits = append(rlimits, specs.POSIXRlimit{
+				Type: "RLIMIT_" + strings.ToUpper(ul.Name),
+				Soft: uint64(ul.Soft),
+				Hard: uint64(ul.Hard),
+			})
+		}
 	}
-
 	s.Process.Rlimits = rlimits
 	return nil
 }
