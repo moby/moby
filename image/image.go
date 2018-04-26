@@ -96,6 +96,15 @@ func (img *Image) RunConfig() *container.Config {
 	return img.Config
 }
 
+// BaseImgArch returns the image's architecture. If not populated, defaults to the host runtime arch.
+func (img *Image) BaseImgArch() string {
+	arch := img.Architecture
+	if arch == "" {
+		arch = runtime.GOARCH
+	}
+	return arch
+}
+
 // OperatingSystem returns the image's operating system. If not populated, defaults to the host runtime OS.
 func (img *Image) OperatingSystem() string {
 	os := img.OS
@@ -157,7 +166,7 @@ func NewChildImage(img *Image, child ChildConfig, platform string) *Image {
 		V1Image: V1Image{
 			DockerVersion:   dockerversion.Version,
 			Config:          child.Config,
-			Architecture:    runtime.GOARCH,
+			Architecture:    img.BaseImgArch(),
 			OS:              platform,
 			Container:       child.ContainerID,
 			ContainerConfig: *child.ContainerConfig,
