@@ -430,8 +430,9 @@ const opWarnTime = 2 * time.Second
 
 func filterOutput(start time.Time, output []byte, args ...string) []byte {
 	// Flag operations that have taken a long time to complete
-	if time.Since(start) > opWarnTime {
-		logrus.Warnf("xtables contention detected while running [%s]: %q", strings.Join(args, " "), string(output))
+	opTime := time.Since(start)
+	if opTime > opWarnTime {
+		logrus.Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
 	}
 	// ignore iptables' message about xtables lock:
 	// it is a warning, not an error.
