@@ -438,7 +438,7 @@ func (d *driver) setKeys(keys []*key) error {
 	d.keys = keys
 	d.secMap = &encrMap{nodes: map[string][]*spi{}}
 	d.Unlock()
-	logrus.Debugf("Initial encryption keys: %v", d.keys)
+	logrus.Debugf("Initial encryption keys: %v", keys)
 	return nil
 }
 
@@ -458,6 +458,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	)
 
 	d.Lock()
+	defer d.Unlock()
+
 	// add new
 	if newKey != nil {
 		d.keys = append(d.keys, newKey)
@@ -471,7 +473,6 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 			delIdx = i
 		}
 	}
-	d.Unlock()
 
 	if (newKey != nil && newIdx == -1) ||
 		(primary != nil && priIdx == -1) ||
@@ -480,17 +481,18 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
 	}
 
+	if priIdx != -1 && priIdx == delIdx {
+		return types.BadRequestErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
+	}
+
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
 		rIP := net.ParseIP(rIPs)
 		return updateNodeKey(lIP, aIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
 	})
 
-	d.Lock()
 	// swap primary
 	if priIdx != -1 {
-		swp := d.keys[0]
-		d.keys[0] = d.keys[priIdx]
-		d.keys[priIdx] = swp
+		d.keys[0], d.keys[priIdx] = d.keys[priIdx], d.keys[0]
 	}
 	// prune
 	if delIdx != -1 {
@@ -499,7 +501,6 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		}
 		d.keys = append(d.keys[:delIdx], d.keys[delIdx+1:]...)
 	}
-	d.Unlock()
 
 	logrus.Debugf("Updated: %v", d.keys)
 
