@@ -390,7 +390,8 @@ func CurrentStage(s []Stage) (*Stage, error) {
 // HasStage looks for the presence of a given stage name
 func HasStage(s []Stage, name string) (int, bool) {
 	for i, stage := range s {
-		if stage.Name == name {
+		// Stage name is case-insensitive by design
+		if strings.EqualFold(stage.Name, name) {
 			return i, true
 		}
 	}

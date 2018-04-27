@@ -226,7 +226,7 @@ func (b *Builder) build(source builder.Source, dockerfile *parser.Result) (*buil
 		targetIx, found := instructions.HasStage(stages, b.options.Target)
 		if !found {
 			buildsFailed.WithValues(metricsBuildTargetNotReachableError).Inc()
-			return nil, errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target)
+			return nil, errdefs.InvalidParameter(errors.Errorf("failed to reach build target %s in Dockerfile", b.options.Target))
 		}
 		stages = stages[:targetIx+1]
 	}
