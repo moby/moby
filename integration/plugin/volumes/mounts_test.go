@@ -10,11 +10,13 @@ import (
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 // TestPluginWithDevMounts tests very specific regression caused by mounts ordering
 // (sorted in the daemon). See #36698
 func TestPluginWithDevMounts(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	t.Parallel()
 
 	d := daemon.New(t)

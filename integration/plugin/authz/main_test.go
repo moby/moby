@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 }
 
 func setupTest(t *testing.T) func() {
-	skip.IfCondition(t, testEnv.IsRemoteDaemon(), "cannot run daemon when remote daemon")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	environment.ProtectAll(t, testEnv)
 
 	d = daemon.New(t, daemon.WithExperimental)
