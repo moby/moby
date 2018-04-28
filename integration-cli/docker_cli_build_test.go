@@ -5965,8 +5965,14 @@ func (s *DockerSuite) TestBuildIntermediateTarget(c *check.C) {
 	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx),
 		cli.WithFlags("--target", "build-env"))
 
-	//res := inspectFieldJSON(c, "build1", "Config.Cmd")
 	res := cli.InspectCmd(c, "build1", cli.Format("json .Config.Cmd")).Combined()
+	c.Assert(strings.TrimSpace(res), checker.Equals, `["/dev"]`)
+
+	// Stage name is case-insensitive by design
+	cli.BuildCmd(c, "build1", build.WithExternalBuildContext(ctx),
+		cli.WithFlags("--target", "BUIld-EnV"))
+
+	res = cli.InspectCmd(c, "build1", cli.Format("json .Config.Cmd")).Combined()
 	c.Assert(strings.TrimSpace(res), checker.Equals, `["/dev"]`)
 
 	result := cli.Docker(cli.Build("build1"), build.WithExternalBuildContext(ctx),
