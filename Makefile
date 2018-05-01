@@ -1,4 +1,4 @@
-.PHONY: all binary dynbinary build cross deb help init-go-pkg-cache install manpages rpm run shell test test-docker-py test-integration test-unit validate win
+.PHONY: all binary dynbinary build cross help init-go-pkg-cache install manpages run shell test test-docker-py test-integration test-unit validate win
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
@@ -137,10 +137,6 @@ clean-pkg-cache-vol:
 cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
-deb: build  ## build the deb packages
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-deb
-
-
 help: ## this help
 	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
@@ -149,9 +145,6 @@ init-go-pkg-cache:
 
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
-
-rpm: build ## build the rpm packages
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary build-rpm
 
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
