@@ -38,6 +38,9 @@ type EncryptedRaftLogger struct {
 	StateDir      string
 	EncryptionKey []byte
 
+	// FIPS specifies whether the encryption should be FIPS-compliant
+	FIPS bool
+
 	// mutex is locked for writing only when we need to replace the wal object and snapshotter
 	// object, not when we're writing snapshots or wals (in which case it's locked for reading)
 	encoderMu   sync.RWMutex
@@ -53,11 +56,11 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 	walDir := e.walDir()
 	snapDir := e.snapDir()
 
-	encrypter, decrypter := encryption.Defaults(e.EncryptionKey)
+	encrypter, decrypter := encryption.Defaults(e.EncryptionKey, e.FIPS)
 	if oldEncryptionKeys != nil {
 		decrypters := []encryption.Decrypter{decrypter}
 		for _, key := range oldEncryptionKeys {
-			_, d := encryption.Defaults(key)
+			_, d := encryption.Defaults(key, e.FIPS)
 			decrypters = append(decrypters, d)
 		}
 		decrypter = encryption.NewMultiDecrypter(decrypters...)
@@ -141,7 +144,7 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 func (e *EncryptedRaftLogger) BootstrapNew(metadata []byte) error {
 	e.encoderMu.Lock()
 	defer e.encoderMu.Unlock()
-	encrypter, decrypter := encryption.Defaults(e.EncryptionKey)
+	encrypter, decrypter := encryption.Defaults(e.EncryptionKey, e.FIPS)
 	walFactory := NewWALFactory(encrypter, decrypter)
 
 	for _, dirpath := range []string{filepath.Dir(e.walDir()), e.snapDir()} {
@@ -184,7 +187,7 @@ func (e *EncryptedRaftLogger) RotateEncryptionKey(newKey []byte) {
 			panic(fmt.Errorf("EncryptedRaftLogger's WAL is not a wrappedWAL"))
 		}
 
-		wrapped.encrypter, wrapped.decrypter = encryption.Defaults(newKey)
+		wrapped.encrypter, wrapped.decrypter = encryption.Defaults(newKey, e.FIPS)
 
 		e.snapshotter = NewSnapFactory(wrapped.encrypter, wrapped.decrypter).New(e.snapDir())
 	}

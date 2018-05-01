@@ -73,19 +73,28 @@ func (e ErrInvalidKEK) Error() string {
 // KeyReadWriter is an object that knows how to read and write TLS keys and certs to disk,
 // optionally encrypted and optionally updating PEM headers.
 type KeyReadWriter struct {
-	mu         sync.Mutex
-	kekData    KEKData
-	paths      CertPaths
-	headersObj PEMKeyHeaders
+	mu           sync.Mutex
+	kekData      KEKData
+	paths        CertPaths
+	headersObj   PEMKeyHeaders
+	keyFormatter keyutils.Formatter
 }
 
 // NewKeyReadWriter creates a new KeyReadWriter
 func NewKeyReadWriter(paths CertPaths, kek []byte, headersObj PEMKeyHeaders) *KeyReadWriter {
 	return &KeyReadWriter{
-		kekData:    KEKData{KEK: kek},
-		paths:      paths,
-		headersObj: headersObj,
+		kekData:      KEKData{KEK: kek},
+		paths:        paths,
+		headersObj:   headersObj,
+		keyFormatter: keyutils.Default,
 	}
+}
+
+// SetKeyFormatter sets the keyformatter with which to encrypt and decrypt keys
+func (k *KeyReadWriter) SetKeyFormatter(kf keyutils.Formatter) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.keyFormatter = kf
 }
 
 // Migrate checks to see if a temporary key file exists.  Older versions of
@@ -324,8 +333,10 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 		return nil, ErrInvalidKEK{Wrapped: x509.IncorrectPasswordError}
 	}
 
-	derBytes, err := keyutils.DecryptPEMBlock(keyBlock, k.kekData.KEK)
-	if err != nil {
+	derBytes, err := k.keyFormatter.DecryptPEMBlock(keyBlock, k.kekData.KEK)
+	if err == keyutils.ErrFIPSUnsupportedKeyFormat {
+		return nil, err
+	} else if err != nil {
 		return nil, ErrInvalidKEK{Wrapped: err}
 	}
 
@@ -349,7 +360,7 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 // writing it to disk.  If the kek is nil, writes it to disk unencrypted.
 func (k *KeyReadWriter) writeKey(keyBlock *pem.Block, kekData KEKData, pkh PEMKeyHeaders) error {
 	if kekData.KEK != nil {
-		encryptedPEMBlock, err := keyutils.EncryptPEMBlock(keyBlock.Bytes, kekData.KEK)
+		encryptedPEMBlock, err := k.keyFormatter.EncryptPEMBlock(keyBlock.Bytes, kekData.KEK)
 		if err != nil {
 			return err
 		}
@@ -404,7 +415,7 @@ func (k *KeyReadWriter) DowngradeKey() error {
 	}
 
 	if k.kekData.KEK != nil {
-		newBlock, err = keyutils.EncryptPEMBlock(newBlock.Bytes, k.kekData.KEK)
+		newBlock, err = k.keyFormatter.EncryptPEMBlock(newBlock.Bytes, k.kekData.KEK)
 		if err != nil {
 			return err
 		}
