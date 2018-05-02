@@ -107,7 +107,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 	# _keep_ us lean by effectively running "apt-get clean" after every install
 	aptGetClean='"rm -f /var/cache/apt/archives/*.deb /var/cache/apt/archives/partial/*.deb /var/cache/apt/*.bin || true";'
 	echo >&2 "+ cat > '$rootfsDir/etc/apt/apt.conf.d/docker-clean'"
-	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-clean" <<-EOF
+	cat > "$rootfsDir/etc/apt/apt.conf.d/docker-clean" <<-'EOF'
 		# Since for most Docker users, package installs happen in "docker build" steps,
 		# they essentially become individual layers due to the way Docker handles
 		# layering, especially using CoW filesystems.  What this means for us is that
