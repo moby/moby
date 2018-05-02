@@ -8,6 +8,6 @@ It creates a single bridge, called `docker0` by default, and attaches a `veth pa
 
 The bridge driver supports configuration through the Docker Daemon flags. 
 
-## Usage
+## Usage
 
 This driver is supported for the default "bridge" network only and it cannot be used for any other networks.
