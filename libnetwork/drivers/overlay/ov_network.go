@@ -203,6 +203,12 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		n.subnets = append(n.subnets, s)
 	}
 
+	d.Lock()
+	defer d.Unlock()
+	if d.networks[n.id] != nil {
+		return fmt.Errorf("attempt to create overlay network %v that already exists", n.id)
+	}
+
 	if err := n.writeToStore(); err != nil {
 		return fmt.Errorf("failed to update data store for network %v: %v", n.id, err)
 	}
@@ -217,11 +223,13 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 
 	if nInfo != nil {
 		if err := nInfo.TableEventRegister(ovPeerTable, driverapi.EndpointObject); err != nil {
+			// XXX Undo writeToStore?  No method to so.  Why?
 			return err
 		}
 	}
 
-	d.addNetwork(n)
+	d.networks[id] = n
+
 	return nil
 }
 
@@ -235,7 +243,15 @@ func (d *driver) DeleteNetwork(nid string) error {
 		return err
 	}
 
-	n := d.network(nid)
+	d.Lock()
+	defer d.Unlock()
+
+	// This is similar to d.network(), but we need to keep holding the lock
+	// until we are done removing this network.
+	n, ok := d.networks[nid]
+	if !ok {
+		n = d.restoreNetworkFromStore(nid)
+	}
 	if n == nil {
 		return fmt.Errorf("could not find network with id %s", nid)
 	}
@@ -255,7 +271,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 	}
 	// flush the peerDB entries
 	d.peerFlush(nid)
-	d.deleteNetwork(nid)
+	delete(d.networks, nid)
 
 	vnis, err := n.releaseVxlanID()
 	if err != nil {
@@ -805,32 +821,25 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 	}
 }
 
-func (d *driver) addNetwork(n *network) {
-	d.Lock()
-	d.networks[n.id] = n
-	d.Unlock()
-}
-
-func (d *driver) deleteNetwork(nid string) {
-	d.Lock()
-	delete(d.networks, nid)
-	d.Unlock()
+// Restore a network from the store to the driver if it is present.
+// Must be called with the driver locked!
+func (d *driver) restoreNetworkFromStore(nid string) *network {
+	n := d.getNetworkFromStore(nid)
+	if n != nil {
+		n.driver = d
+		n.endpoints = endpointTable{}
+		n.once = &sync.Once{}
+		d.networks[nid] = n
+	}
+	return n
 }
 
 func (d *driver) network(nid string) *network {
 	d.Lock()
+	defer d.Unlock()
 	n, ok := d.networks[nid]
-	d.Unlock()
 	if !ok {
-		n = d.getNetworkFromStore(nid)
-		if n != nil {
-			n.driver = d
-			n.endpoints = endpointTable{}
-			n.once = &sync.Once{}
-			d.Lock()
-			d.networks[nid] = n
-			d.Unlock()
-		}
+		n = d.restoreNetworkFromStore(nid)
 	}
 
 	return n
