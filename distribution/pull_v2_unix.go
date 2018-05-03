@@ -18,11 +18,46 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 
 func filterManifests(manifests []manifestlist.ManifestDescriptor, os string) []manifestlist.ManifestDescriptor {
 	var matches []manifestlist.ManifestDescriptor
-	for _, manifestDescriptor := range manifests {
-		if manifestDescriptor.Platform.Architecture == runtime.GOARCH && manifestDescriptor.Platform.OS == os {
-			matches = append(matches, manifestDescriptor)
+	arch := runtime.GOARCH
+	if arch == "arm" || arch == "arm64" {
+		for _, manifestDescriptor := range manifests {
+			if manifestDescriptor.Platform.Architecture == arch && manifestDescriptor.Platform.OS == os && manifestDescriptor.Platform.Variant == GOARM {
+				matches = append(matches, manifestDescriptor)
 
-			logrus.Debugf("found match for %s/%s with media type %s, digest %s", os, runtime.GOARCH, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+				logrus.Debugf("found match for %s/%s/%s with media type %s, digest %s", os, arch, GOARM, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			}
+		}
+		if matches == nil { //failure mode
+			order := make(chan string)
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			go getOrderOfCompatibility(ctx, arch, GOARM, order)
+			for {
+				o, ok := <-order
+				if ok {
+					for _, manifestDescriptor := range manifests {
+						if manifestDescriptor.Platform.Architecture == arch && manifestDescriptor.Platform.OS == os && manifestDescriptor.Platform.Variant == o {
+							matches = append(matches, manifestDescriptor)
+
+							logrus.Debugf("found compatible match for %s/%s/%s with media type %s, digest %s", os, arch, o, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+						}
+					}
+					if matches != nil {
+						cancel()
+						break
+					}
+				} else {
+					break
+				}
+			}
+		}
+	} else {
+		for _, manifestDescriptor := range manifests {
+			if manifestDescriptor.Platform.Architecture == arch && manifestDescriptor.Platform.OS == os {
+				matches = append(matches, manifestDescriptor)
+
+				logrus.Debugf("found match for %s/%s with media type %s, digest %s", os, arch, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
+			}
 		}
 	}
 	return matches
