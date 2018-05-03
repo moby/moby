@@ -1,10 +1,10 @@
 package distribution
 
 import (
+	"context"
 	"fmt"
 	"mime"
 
-	"github.com/docker/distribution/context"
 	"github.com/opencontainers/go-digest"
 )
 
