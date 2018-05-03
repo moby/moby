@@ -833,6 +833,9 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		if err = n.Delete(); err != nil {
 			return nil, fmt.Errorf("could not delete the default bridge network: %v", err)
 		}
+		if len(config.NetworkConfig.DefaultAddressPools.Value()) > 0 && !daemon.configStore.LiveRestoreEnabled {
+			removeDefaultBridgeInterface()
+		}
 	}
 
 	if !config.DisableBridge {

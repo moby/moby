@@ -71,6 +71,12 @@ type commonBridgeConfig struct {
 	FixedCIDR string `json:"fixed-cidr,omitempty"`
 }
 
+// NetworkConfig stores the daemon-wide networking configurations
+type NetworkConfig struct {
+	// Default address pools for docker networks
+	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
+}
+
 // CommonTLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
@@ -173,6 +179,7 @@ type CommonConfig struct {
 
 	LogConfig
 	BridgeConfig // bridgeConfig holds bridge network specific configuration.
+	NetworkConfig
 	registry.ServiceOptions
 
 	sync.Mutex
