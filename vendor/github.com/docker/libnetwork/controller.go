@@ -49,6 +49,7 @@ import (
 	"net"
 	"path/filepath"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -1052,7 +1053,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 	if containerID == "" {
 		return nil, types.BadRequestErrorf("invalid container ID")
 	}
-
+	logrus.Debugf("SAANVIIIIII  %s", containerID)
+	debug.PrintStack()
 	var sb *sandbox
 	c.Lock()
 	for _, s := range c.sandboxes {

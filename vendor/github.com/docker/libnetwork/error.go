@@ -107,6 +107,16 @@ func (nnr NetworkNameError) Error() string {
 // Forbidden denotes the type of this error
 func (nnr NetworkNameError) Forbidden() {}
 
+// PredefinedNetworkError is returned when user tries to create predefined network that already exists.
+type PredefinedNetworkError string
+
+func (pnr PredefinedNetworkError) Error() string {
+	return fmt.Sprintf("operation is not permitted on predefined %s network ", string(pnr))
+}
+
+// Forbidden denotes the type of this error
+func (pnr PredefinedNetworkError) Forbidden() {}
+
 // UnknownNetworkError is returned when libnetwork could not find in its database
 // a network with the same name and id.
 type UnknownNetworkError struct {
