@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
@@ -24,12 +25,15 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartHostConfig(c *check.C) {
 	}
 	res, body, err := request.Post("/containers/"+name+"/start", request.JSONBody(config))
 	c.Assert(err, checker.IsNil)
-
-	buf, err := request.ReadBody(body)
-	c.Assert(err, checker.IsNil)
-
 	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
-	c.Assert(string(buf), checker.Contains, "was deprecated since API v1.22")
+	if versions.GreaterThanOrEqualTo(testEnv.DaemonAPIVersion(), "1.32") {
+		// assertions below won't work before 1.32
+		buf, err := request.ReadBody(body)
+		c.Assert(err, checker.IsNil)
+
+		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+		c.Assert(string(buf), checker.Contains, "was deprecated since API v1.22")
+	}
 }
 
 func (s *DockerSuite) TestDeprecatedContainerAPIStartVolumeBinds(c *check.C) {
@@ -88,7 +92,11 @@ func (s *DockerSuite) TestDeprecatedContainerAPIStartDupVolumeBinds(c *check.C) 
 	buf, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+	}
 	c.Assert(string(buf), checker.Contains, "Duplicate mount point", check.Commentf("Expected failure due to duplicate bind mounts to same path, instead got: %q with error: %v", string(buf), err))
 }
 
@@ -161,7 +169,11 @@ func (s *DockerSuite) TestDeprecatedStartWithTooLowMemoryLimit(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	b, err2 := request.ReadBody(body)
 	c.Assert(err2, checker.IsNil)
-	c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+	}
 	c.Assert(string(b), checker.Contains, "Minimum memory limit allowed is 4MB")
 }
 

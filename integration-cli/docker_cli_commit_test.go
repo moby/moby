@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
@@ -121,12 +122,14 @@ func (s *DockerSuite) TestCommitChange(c *check.C) {
 		"test", "test-commit")
 	imageID = strings.TrimSpace(imageID)
 
-	// The ordering here is due to `PATH` being overridden from the container's
-	// ENV.  On windows, the container doesn't have a `PATH` ENV variable so
-	// the ordering is the same as the cli.
-	expectedEnv := "[PATH=/foo DEBUG=true test=1]"
-	if testEnv.OSType == "windows" {
-		expectedEnv = "[DEBUG=true test=1 PATH=/foo]"
+	expectedEnv := "[DEBUG=true test=1 PATH=/foo]"
+	// bug fixed in 1.36, add min APi >= 1.36 requirement
+	// PR record https://github.com/moby/moby/pull/35582
+	if versions.GreaterThan(testEnv.DaemonAPIVersion(), "1.35") && testEnv.OSType != "windows" {
+		// The ordering here is due to `PATH` being overridden from the container's
+		// ENV.  On windows, the container doesn't have a `PATH` ENV variable so
+		// the ordering is the same as the cli.
+		expectedEnv = "[PATH=/foo DEBUG=true test=1]"
 	}
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()

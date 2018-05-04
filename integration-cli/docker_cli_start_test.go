@@ -103,7 +103,7 @@ func (s *DockerSuite) TestStartPausedContainer(c *check.C) {
 	// an error should have been shown that you cannot start paused container
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// an error should have been shown that you cannot start paused container
-	c.Assert(out, checker.Contains, "cannot start a paused container, try unpause instead")
+	c.Assert(strings.ToLower(out), checker.Contains, "cannot start a paused container, try unpause instead")
 }
 
 func (s *DockerSuite) TestStartMultipleContainers(c *check.C) {

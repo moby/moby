@@ -149,6 +149,7 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
 }
 
 func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
+	testRequires(c, MinimumAPIVersion("1.34"))
 	name := "logsuntil"
 	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
 

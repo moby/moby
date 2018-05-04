@@ -43,7 +43,8 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 }
 
 func TestDeleteDevicemapper(t *testing.T) {
-	skip.IfCondition(t, testEnv.DaemonInfo.Driver != "devicemapper")
+	skip.If(t, testEnv.DaemonInfo.Driver != "devicemapper")
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
 
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)

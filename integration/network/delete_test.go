@@ -5,9 +5,11 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func containsNetwork(nws []types.NetworkResource, nw types.NetworkCreateResponse) bool {
@@ -48,6 +50,7 @@ func createAmbiguousNetworks(t *testing.T) (types.NetworkCreateResponse, types.N
 // equal to another network's ID exists, the Network with the given
 // ID is removed, and not the network with the given name.
 func TestDockerNetworkDeletePreferID(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.34"), "broken in earlier versions")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
