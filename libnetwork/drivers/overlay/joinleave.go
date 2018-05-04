@@ -47,17 +47,9 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return fmt.Errorf("couldn't get vxlan id for %q: %v", s.subnetIP.String(), err)
 	}
 
-	if err := n.joinSandbox(false); err != nil {
+	if err := n.joinSandbox(s, false, true); err != nil {
 		return fmt.Errorf("network sandbox join failed: %v", err)
 	}
-
-	if err := n.joinSubnetSandbox(s, false); err != nil {
-		return fmt.Errorf("subnet sandbox join failed for %q: %v", s.subnetIP.String(), err)
-	}
-
-	// joinSubnetSandbox gets called when an endpoint comes up on a new subnet in the
-	// overlay network. Hence the Endpoint count should be updated outside joinSubnetSandbox
-	n.incEndpointCount()
 
 	sbox := n.sandbox()
 
