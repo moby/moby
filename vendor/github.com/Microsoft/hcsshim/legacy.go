@@ -127,7 +127,7 @@ func (r *legacyLayerReader) walkUntilCancelled() error {
 		// UTF16 to UTF8 in files which are left in the recycle bin. Os.Lstat
 		// which is called by filepath.Walk will fail when a filename contains
 		// unicode characters. Skip the recycle bin regardless which is goodness.
-		if path == filepath.Join(r.root, `Files\$Recycle.Bin`) && info.IsDir() {
+		if strings.EqualFold(path, filepath.Join(r.root, `Files\$Recycle.Bin`)) && info.IsDir() {
 			return filepath.SkipDir
 		}
 
