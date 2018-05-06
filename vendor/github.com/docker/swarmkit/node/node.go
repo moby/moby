@@ -14,6 +14,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/docker/swarmkit/ca/keyutils"
+
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
 	metrics "github.com/docker/go-metrics"
@@ -758,6 +760,10 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 	)
 
 	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+	// if FIPS is required, we want to make sure our key is stored in PKCS8 format
+	if n.config.FIPS {
+		krw.SetKeyFormatter(keyutils.FIPS)
+	}
 	if err := krw.Migrate(); err != nil {
 		return nil, nil, err
 	}

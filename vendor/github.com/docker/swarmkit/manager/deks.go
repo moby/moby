@@ -243,7 +243,7 @@ func (r *RaftDEKManager) MaybeUpdateKEK(candidateKEK ca.KEKData) (bool, bool, er
 func decodePEMHeaderValue(headerValue string, kek []byte) ([]byte, error) {
 	var decrypter encryption.Decrypter = encryption.NoopCrypter
 	if kek != nil {
-		_, decrypter = encryption.Defaults(kek)
+		_, decrypter = encryption.Defaults(kek, false)
 	}
 	valueBytes, err := base64.StdEncoding.DecodeString(headerValue)
 	if err != nil {
@@ -259,7 +259,7 @@ func decodePEMHeaderValue(headerValue string, kek []byte) ([]byte, error) {
 func encodePEMHeaderValue(headerValue []byte, kek []byte) (string, error) {
 	var encrypter encryption.Encrypter = encryption.NoopCrypter
 	if kek != nil {
-		encrypter, _ = encryption.Defaults(kek)
+		encrypter, _ = encryption.Defaults(kek, false)
 	}
 	encrypted, err := encryption.Encrypt(headerValue, encrypter)
 	if err != nil {

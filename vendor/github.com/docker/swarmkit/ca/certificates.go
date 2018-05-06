@@ -26,10 +26,8 @@ import (
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/ca/pkcs8"
 	"github.com/docker/swarmkit/connectionbroker"
-	"github.com/docker/swarmkit/fips"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
@@ -636,7 +634,7 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 	}
 
 	// The key should not be encrypted, but it could be in PKCS8 format rather than PKCS1
-	priv, err := keyutils.ParsePrivateKeyPEMWithPassword(keyBytes, nil)
+	priv, err := helpers.ParsePrivateKeyPEM(keyBytes)
 	if err != nil {
 		return nil, errors.Wrap(err, "malformed private key")
 	}
@@ -780,14 +778,6 @@ func CreateRootCA(rootCN string) (RootCA, error) {
 	cert, _, key, err := initca.New(&req)
 	if err != nil {
 		return RootCA{}, err
-	}
-
-	// Convert key to PKCS#8 in FIPS mode
-	if fips.Enabled() {
-		key, err = pkcs8.ConvertECPrivateKeyPEM(key)
-		if err != nil {
-			return RootCA{}, err
-		}
 	}
 
 	rootCA, err := NewRootCA(cert, cert, key, DefaultNodeCertExpiration, nil)

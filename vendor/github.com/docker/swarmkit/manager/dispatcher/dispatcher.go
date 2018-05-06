@@ -699,6 +699,7 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 				task.Status = *status
 				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
 				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
+				logger.Debugf("state for task %v updated to %v", task.GetID(), task.Status.State)
 				if err := store.UpdateTask(tx, task); err != nil {
 					logger.WithError(err).Error("failed to update task status")
 					return nil

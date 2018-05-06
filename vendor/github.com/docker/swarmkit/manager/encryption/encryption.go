@@ -8,7 +8,6 @@ import (
 	"strings"
 
 	"github.com/docker/swarmkit/api"
-	"github.com/docker/swarmkit/fips"
 	"github.com/gogo/protobuf/proto"
 	"github.com/pkg/errors"
 )
@@ -150,10 +149,11 @@ func Encrypt(plaintext []byte, encrypter Encrypter) ([]byte, error) {
 	return data, nil
 }
 
-// Defaults returns a default encrypter and decrypter
-func Defaults(key []byte) (Encrypter, Decrypter) {
+// Defaults returns a default encrypter and decrypter.  If the FIPS parameter is set to
+// true, the only algorithm supported on both the encrypter and decrypter will be fernet.
+func Defaults(key []byte, fips bool) (Encrypter, Decrypter) {
 	f := NewFernet(key)
-	if fips.Enabled() {
+	if fips {
 		return f, f
 	}
 	n := NewNACLSecretbox(key)
