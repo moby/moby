@@ -35,16 +35,13 @@ func TestInspectNetwork(t *testing.T) {
 
 	var instances uint64 = 4
 	serviceName := "TestService"
-	// FIXME(vdemeester) consolidate with swarm.CreateService
-	serviceSpec := swarmServiceSpec(serviceName, instances)
-	serviceSpec.TaskTemplate.Networks = append(serviceSpec.TaskTemplate.Networks, swarmtypes.NetworkAttachmentConfig{Target: overlayName})
 
-	serviceResp, err := client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
-		QueryRegistry: false,
-	})
-	assert.NilError(t, err)
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithNetwork(overlayName),
+	)
 
-	serviceID := serviceResp.ID
 	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
@@ -78,12 +75,12 @@ func TestInspectNetwork(t *testing.T) {
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
 	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
 
-	serviceResp, err = client.ServiceCreate(context.Background(), serviceSpec, types.ServiceCreateOptions{
-		QueryRegistry: false,
-	})
-	assert.NilError(t, err)
+	serviceID2 := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithNetwork(overlayName),
+	)
 
-	serviceID2 := serviceResp.ID
 	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
 
 	err = client.ServiceRemove(context.Background(), serviceID2)
@@ -96,25 +93,6 @@ func TestInspectNetwork(t *testing.T) {
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-}
-
-func swarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
-	return swarmtypes.ServiceSpec{
-		Annotations: swarmtypes.Annotations{
-			Name: name,
-		},
-		TaskTemplate: swarmtypes.TaskSpec{
-			ContainerSpec: &swarmtypes.ContainerSpec{
-				Image:   "busybox:latest",
-				Command: []string{"/bin/top"},
-			},
-		},
-		Mode: swarmtypes.ServiceMode{
-			Replicated: &swarmtypes.ReplicatedService{
-				Replicas: &replicas,
-			},
-		},
-	}
 }
 
 func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {

@@ -136,6 +136,21 @@ func ServiceWithName(name string) ServiceSpecOpt {
 	}
 }
 
+// ServiceWithNetwork sets the network of the service
+func ServiceWithNetwork(network string) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		spec.TaskTemplate.Networks = append(spec.TaskTemplate.Networks,
+			swarmtypes.NetworkAttachmentConfig{Target: network})
+	}
+}
+
+// ServiceWithEndpoint sets the Endpoint of the service
+func ServiceWithEndpoint(endpoint *swarmtypes.EndpointSpec) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		spec.EndpointSpec = endpoint
+	}
+}
+
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmtypes.Task {
 	t.Helper()
