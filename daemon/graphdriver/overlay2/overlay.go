@@ -485,12 +485,18 @@ func (d *Driver) dir(id string) string {
 
 // separate string which has path and mount-id
 func SeparateIdPath(raw string) map[string]string{
+	// check variable check if $ is in raw, actually if create called from CreateReadWrite or Create
+	check := 0
 	IdPathMap := make(map[string]string)
 	for i:=0; i<len(raw); i++{
 		if string(raw[i]) == "$"{
+			check = 1
 			IdPathMap["ContainerPath"] = string(raw[0:i])
 			IdPathMap["Id"] = string(raw[i+1:len(raw)])
 		}
+	}
+	if check == 0{
+		IdPathMap["Id"] = raw
 	}
 	return IdPathMap
 }
@@ -505,7 +511,7 @@ func (d *Driver) read_dir(rawid string) string {
 
 func (d *Driver) getLowerDirs(id string) ([]string, error) {
 	var lowersArray []string
-	lowers, err := ioutil.ReadFile(path.Join(d.dir(id), lowerFile))
+	lowers, err := ioutil.ReadFile(path.Join(d.read_dir(id), lowerFile))
 	if err == nil {
 		for _, s := range strings.Split(string(lowers), ":") {
 			lp, err := os.Readlink(path.Join(d.home, s))
@@ -662,6 +668,7 @@ func (d *Driver) Exists(id string) bool {
 func (d *Driver) isParent(id, parent string) bool {
 	lowers, err := d.getLowerDirs(id)
 	if err != nil {
+		logrus.Debugf("isParent going to return because error != nil")
 		return false
 	}
 	if parent == "" && len(lowers) > 0 {
