@@ -14,7 +14,7 @@ func strPtr(source string) *string {
 }
 
 func TestGetAllAllowed(t *testing.T) {
-	buildArgs := newBuildArgs(map[string]*string{
+	buildArgs := NewBuildArgs(map[string]*string{
 		"ArgNotUsedInDockerfile":              strPtr("fromopt1"),
 		"ArgOverriddenByOptions":              strPtr("fromopt2"),
 		"ArgNoDefaultInDockerfileFromOptions": strPtr("fromopt3"),
@@ -45,7 +45,7 @@ func TestGetAllAllowed(t *testing.T) {
 }
 
 func TestGetAllMeta(t *testing.T) {
-	buildArgs := newBuildArgs(map[string]*string{
+	buildArgs := NewBuildArgs(map[string]*string{
 		"ArgNotUsedInDockerfile":        strPtr("fromopt1"),
 		"ArgOverriddenByOptions":        strPtr("fromopt2"),
 		"ArgNoDefaultInMetaFromOptions": strPtr("fromopt3"),
@@ -67,7 +67,7 @@ func TestGetAllMeta(t *testing.T) {
 }
 
 func TestWarnOnUnusedBuildArgs(t *testing.T) {
-	buildArgs := newBuildArgs(map[string]*string{
+	buildArgs := NewBuildArgs(map[string]*string{
 		"ThisArgIsUsed":    strPtr("fromopt1"),
 		"ThisArgIsNotUsed": strPtr("fromopt2"),
 		"HTTPS_PROXY":      strPtr("referenced builtin"),
@@ -86,7 +86,7 @@ func TestWarnOnUnusedBuildArgs(t *testing.T) {
 }
 
 func TestIsUnreferencedBuiltin(t *testing.T) {
-	buildArgs := newBuildArgs(map[string]*string{
+	buildArgs := NewBuildArgs(map[string]*string{
 		"ThisArgIsUsed":    strPtr("fromopt1"),
 		"ThisArgIsNotUsed": strPtr("fromopt2"),
 		"HTTPS_PROXY":      strPtr("referenced builtin"),
