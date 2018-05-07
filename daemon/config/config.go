@@ -262,6 +262,25 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 	return newLabels, nil
 }
 
+// ValidateReservedNamespaceLabels errors if the reserved namespaces com.docker.*,
+// io.docker.*, org.dockerproject.* are used in a configured engine label.
+//
+// TODO: This is a separate function because we need to warn users first of the
+// deprecation.  When we return an error, this logic can be added to Validate
+// or GetConflictFreeLabels instead of being here.
+func ValidateReservedNamespaceLabels(labels []string) error {
+	for _, label := range labels {
+		lowered := strings.ToLower(label)
+		if strings.HasPrefix(lowered, "com.docker.") || strings.HasPrefix(lowered, "io.docker.") ||
+			strings.HasPrefix(lowered, "org.dockerproject.") {
+			return fmt.Errorf(
+				"label %s not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for Docker's internal use",
+				label)
+		}
+	}
+	return nil
+}
+
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
