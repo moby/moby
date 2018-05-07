@@ -110,17 +110,37 @@ type MaintainerCommand struct {
 	Maintainer string
 }
 
+// NewLabelCommand creates a new 'LABEL' command
+func NewLabelCommand(k string, v string, NoExp bool) *LabelCommand {
+	kvp := KeyValuePair{Key: k, Value: v}
+	c := "LABEL "
+	c += kvp.String()
+	nc := withNameAndCode{code: c, name: "label"}
+	cmd := &LabelCommand{
+		withNameAndCode: nc,
+		Labels: KeyValuePairs{
+			kvp,
+		},
+		noExpand: NoExp,
+	}
+	return cmd
+}
+
 // LabelCommand : LABEL some json data describing the image
 //
 // Sets the Label variable foo to bar,
 //
 type LabelCommand struct {
 	withNameAndCode
-	Labels KeyValuePairs // kvp slice instead of map to preserve ordering
+	Labels   KeyValuePairs // kvp slice instead of map to preserve ordering
+	noExpand bool
 }
 
 // Expand variables
 func (c *LabelCommand) Expand(expander SingleWordExpander) error {
+	if c.noExpand {
+		return nil
+	}
 	return expandKvpsInPlace(c.Labels, expander)
 }
 
