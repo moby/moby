@@ -350,15 +350,6 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 	return dispatchRequest.state, nil
 }
 
-func addNodesForLabelOption(dockerfile *parser.Node, labels map[string]string) {
-	if len(labels) == 0 {
-		return
-	}
-
-	node := parser.NodeFromLabels(labels)
-	dockerfile.Children = append(dockerfile.Children, node)
-}
-
 // BuildFromConfig builds directly from `changes`, treating it as if it were the contents of a Dockerfile
 // It will:
 // - Call parse.Parse() to get an AST root for the concatenated Dockerfile entries.
