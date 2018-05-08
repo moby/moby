@@ -18,6 +18,7 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/go-check/check"
+	"github.com/pkg/errors"
 	"golang.org/x/net/websocket"
 )
 
@@ -176,7 +177,6 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	expectTimeout(conn, br, "stdout")
 
 	// Test the client API
-	// Make sure we don't see "hello" if Logs is false
 	client, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
 	defer client.Close()
@@ -184,10 +184,13 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	cid, _ = dockerCmd(c, "run", "-di", "busybox", "/bin/sh", "-c", "echo hello; cat")
 	cid = strings.TrimSpace(cid)
 
+	// Make sure we don't see "hello" if Logs is false
 	attachOpts := types.ContainerAttachOptions{
 		Stream: true,
 		Stdin:  true,
 		Stdout: true,
+		Stderr: true,
+		Logs:   false,
 	}
 
 	resp, err := client.ContainerAttach(context.Background(), cid, attachOpts)
@@ -205,10 +208,15 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	_, err = resp.Conn.Write([]byte("success"))
 	c.Assert(err, checker.IsNil)
 
-	actualStdout := new(bytes.Buffer)
-	actualStderr := new(bytes.Buffer)
-	stdcopy.StdCopy(actualStdout, actualStderr, resp.Reader)
-	c.Assert(actualStdout.Bytes(), checker.DeepEquals, []byte("hello\nsuccess"), check.Commentf("Attach didn't return the expected data from stdout"))
+	var outBuf, errBuf bytes.Buffer
+	_, err = stdcopy.StdCopy(&outBuf, &errBuf, resp.Reader)
+	if err != nil && errors.Cause(err).(net.Error).Timeout() {
+		// ignore the timeout error as it is expected
+		err = nil
+	}
+	c.Assert(err, checker.IsNil)
+	c.Assert(errBuf.String(), checker.Equals, "")
+	c.Assert(outBuf.String(), checker.Equals, "hello\nsuccess")
 }
 
 // SockRequestHijack creates a connection to specified host (with method, contenttype, …) and returns a hijacked connection
