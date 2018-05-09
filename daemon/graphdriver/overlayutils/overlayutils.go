@@ -14,6 +14,11 @@ func ErrDTypeNotSupported(driver, backingFs string) error {
 	if backingFs == "xfs" {
 		msg += " Reformat the filesystem with ftype=1 to enable d_type support."
 	}
+
+	if backingFs == "extfs" {
+		msg += " Reformat the filesystem (or use tune2fs) with -O filetype flag to enable d_type support."
+	}
+
 	msg += " Backing filesystems without d_type support are not supported."
 
 	return graphdriver.NotSupportedError(msg)
