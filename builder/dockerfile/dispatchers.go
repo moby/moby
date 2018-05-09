@@ -399,7 +399,7 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 // remove any unreferenced built-in args from the environment variables.
 // These args are transparent so resulting image should be the same regardless
 // of the value.
-func prependEnvOnCmd(buildArgs *buildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
+func prependEnvOnCmd(buildArgs *BuildArgs, buildArgVars []string, cmd strslice.StrSlice) strslice.StrSlice {
 	var tmpBuildEnv []string
 	for _, env := range buildArgVars {
 		key := strings.SplitN(env, "=", 2)[0]
