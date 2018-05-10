@@ -174,7 +174,7 @@ func (daemon *Daemon) initializeNetworkingPaths(container *container.Container, 
 				continue
 			}
 
-			ep, err := nc.GetEndpointInNetwork(sn)
+			ep, err := getEndpointInNetwork(nc.Name, sn)
 			if err != nil {
 				continue
 			}
