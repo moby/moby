@@ -162,9 +162,19 @@ func noTasks(client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 // Check to see if Service and Tasks info are part of the inspect verbose response
 func validNetworkVerbose(network types.NetworkResource, service string, instances uint64) bool {
 	if service, ok := network.Services[service]; ok {
-		if len(service.Tasks) == int(instances) {
-			return true
+		if len(service.Tasks) != int(instances) {
+			return false
 		}
 	}
-	return false
+
+	if network.IPAM.Config == nil {
+		return false
+	}
+
+	for _, cfg := range network.IPAM.Config {
+		if cfg.Gateway == "" || cfg.Subnet == "" {
+			return false
+		}
+	}
+	return true
 }
