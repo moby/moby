@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/daemon/graphdriver/graphtest"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
-	"golang.org/x/sys/unix"
 )
 
 func init() {
@@ -21,17 +20,6 @@ func init() {
 	graphdriver.ApplyUncompressedLayer = archive.ApplyUncompressedLayer
 
 	reexec.Init()
-}
-
-func cdMountFrom(dir, device, target, mType, label string) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	os.Chdir(dir)
-	defer os.Chdir(wd)
-
-	return unix.Mount(device, target, mType, 0, label)
 }
 
 func skipIfNaive(t *testing.T) {
