@@ -44,29 +44,29 @@ func (d *Daemon) ExecExists(name string) (bool, error) {
 // with the exec instance is stopped or paused, it will return an error.
 func (d *Daemon) getExecConfig(name string) (*exec.Config, error) {
 	ec := d.execCommands.Get(name)
+	if ec == nil {
+		return nil, errExecNotFound(name)
+	}
 
 	// If the exec is found but its container is not in the daemon's list of
 	// containers then it must have been deleted, in which case instead of
 	// saying the container isn't running, we should return a 404 so that
 	// the user sees the same error now that they will after the
 	// 5 minute clean-up loop is run which erases old/dead execs.
-
-	if ec != nil {
-		if container := d.containers.Get(ec.ContainerID); container != nil {
-			if !container.IsRunning() {
-				return nil, fmt.Errorf("Container %s is not running: %s", container.ID, container.State.String())
-			}
-			if container.IsPaused() {
-				return nil, errExecPaused(container.ID)
-			}
-			if container.IsRestarting() {
-				return nil, errContainerIsRestarting(container.ID)
-			}
-			return ec, nil
-		}
+	container := d.containers.Get(ec.ContainerID)
+	if container == nil {
+		return nil, containerNotFound(name)
 	}
-
-	return nil, errExecNotFound(name)
+	if !container.IsRunning() {
+		return nil, fmt.Errorf("Container %s is not running: %s", container.ID, container.State.String())
+	}
+	if container.IsPaused() {
+		return nil, errExecPaused(container.ID)
+	}
+	if container.IsRestarting() {
+		return nil, errContainerIsRestarting(container.ID)
+	}
+	return ec, nil
 }
 
 func (d *Daemon) unregisterExecCommand(container *container.Container, execConfig *exec.Config) {
