@@ -32,6 +32,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /swarm/init` now accepts a `DataPathPort` property to set data path port number.
 * `GET /info` now returns information about `DataPathPort` that is currently used in swarm
 * `GET /swarm` endpoint now returns DataPathPort info
+* `POST /containers/create` now takes `KernelMemoryTCP` field to set hard limit for kernel TCP buffer memory.
 
 ## V1.39 API changes
 

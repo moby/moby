@@ -429,6 +429,10 @@ definitions:
         description: "Kernel memory limit in bytes."
         type: "integer"
         format: "int64"
+      KernelMemoryTCP:
+        description: "Sets hard limit for kernel TCP buffer memory."
+        type: "integer"
+        format: "int64"
       MemoryReservation:
         description: "Memory soft limit in bytes."
         type: "integer"
