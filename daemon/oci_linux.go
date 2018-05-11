@@ -405,13 +405,7 @@ func getSourceMount(source string) (string, string, error) {
 			idx = i
 		}
 	}
-	// and return it unless it's "/"
-	if mi[idx].Mountpoint != "/" {
-		return mi[idx].Mountpoint, mi[idx].Optional, nil
-	}
-
-	// If we are here, we did not find parent mount. Something is wrong.
-	return "", "", fmt.Errorf("Could not find source mount of %s", source)
+	return mi[idx].Mountpoint, mi[idx].Optional, nil
 }
 
 const (

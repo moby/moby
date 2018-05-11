@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"os"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -85,4 +86,17 @@ func TestIpcPrivateVsReadonly(t *testing.T) {
 		}
 		assert.Check(t, is.Equal(false, inSlice(m.Options, "ro")))
 	}
+}
+
+func TestGetSourceMount(t *testing.T) {
+	// must be able to find source mount for /
+	mnt, _, err := getSourceMount("/")
+	assert.NilError(t, err)
+	assert.Equal(t, mnt, "/")
+
+	// must be able to find source mount for current directory
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	_, _, err = getSourceMount(cwd)
+	assert.NilError(t, err)
 }
