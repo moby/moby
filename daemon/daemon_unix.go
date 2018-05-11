@@ -111,6 +111,10 @@ func getMemoryResources(config containertypes.Resources) *specs.LinuxMemory {
 		memory.Kernel = &config.KernelMemory
 	}
 
+	if config.KernelMemoryTCP != 0 {
+		memory.KernelTCP = &config.KernelMemoryTCP
+	}
+
 	return &memory
 }
 

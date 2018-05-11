@@ -20,6 +20,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.MemoryLimit = sysInfo.MemoryLimit
 	v.SwapLimit = sysInfo.SwapLimit
 	v.KernelMemory = sysInfo.KernelMemory
+	v.KernelMemoryTCP = sysInfo.KernelMemoryTCP
 	v.OomKillDisable = sysInfo.OomKillDisable
 	v.CPUCfsPeriod = sysInfo.CPUCfsPeriod
 	v.CPUCfsQuota = sysInfo.CPUCfsQuota
