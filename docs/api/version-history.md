@@ -15,7 +15,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 ## v1.37 API changes
 
-[Docker Engine API v1.37](https://docs.docker.com/engine/api/v1.36/) documentation
+[Docker Engine API v1.37](https://docs.docker.com/engine/api/v1.37/) documentation
 
 * `POST /containers/create` and `POST /services/create` now supports exposing SCTP ports.
 * `POST /configs/create` and `POST /configs/{id}/create` now accept a `Templating` driver.
