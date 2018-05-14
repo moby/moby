@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/swarmkit/ca/keyutils"
+	"github.com/docker/swarmkit/identity"
 
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -54,6 +55,9 @@ var (
 
 	// ErrInvalidUnlockKey is returned when we can't decrypt the TLS certificate
 	ErrInvalidUnlockKey = errors.New("node is locked, and needs a valid unlock key")
+
+	// ErrMandatoryFIPS is returned when the cluster we are joining mandates FIPS, but we are running in non-FIPS mode
+	ErrMandatoryFIPS = errors.New("node is not FIPS-enabled but cluster requires FIPS")
 )
 
 func init() {
@@ -753,13 +757,32 @@ func (n *Node) Remotes() []api.Peer {
 	return remotes
 }
 
+// Given a cluster ID, returns whether the cluster ID indicates that the cluster
+// mandates FIPS mode.  These cluster IDs start with "FIPS." as a prefix.
+func isMandatoryFIPSClusterID(securityConfig *ca.SecurityConfig) bool {
+	return strings.HasPrefix(securityConfig.ClientTLSCreds.Organization(), "FIPS.")
+}
+
+// Given a join token, returns whether it indicates that the cluster mandates FIPS
+// mode.
+func isMandatoryFIPSClusterJoinToken(joinToken string) bool {
+	if parsed, err := ca.ParseJoinToken(joinToken); err == nil {
+		return parsed.FIPS
+	}
+	return false
+}
+
+func generateFIPSClusterID() string {
+	return "FIPS." + identity.NewID()
+}
+
 func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigPaths) (*ca.SecurityConfig, func() error, error) {
 	var (
 		securityConfig *ca.SecurityConfig
 		cancel         func() error
 	)
 
-	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{FIPS: n.config.FIPS})
 	// if FIPS is required, we want to make sure our key is stored in PKCS8 format
 	if n.config.FIPS {
 		krw.SetKeyFormatter(keyutils.FIPS)
@@ -793,7 +816,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			if n.config.AutoLockManagers {
 				n.unlockKey = encryption.GenerateSecretKey()
 			}
-			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{FIPS: n.config.FIPS})
 			rootCA, err = ca.CreateRootCA(ca.DefaultRootCN)
 			if err != nil {
 				return nil, nil, err
@@ -803,6 +826,10 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			}
 			log.G(ctx).Debug("generated CA key and certificate")
 		} else if err == ca.ErrNoLocalRootCA { // from previous error loading the root CA from disk
+			// if we are attempting to join another cluster, which has a FIPS join token, and we are not FIPS, error
+			if n.config.JoinAddr != "" && isMandatoryFIPSClusterJoinToken(n.config.JoinToken) && !n.config.FIPS {
+				return nil, nil, ErrMandatoryFIPS
+			}
 			rootCA, err = ca.DownloadRootCA(ctx, paths.RootCA, n.config.JoinToken, n.connBroker)
 			if err != nil {
 				return nil, nil, err
@@ -827,16 +854,30 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			}
 			log.G(ctx).WithError(err).Debugf("no node credentials found in: %s", krw.Target())
 
-			securityConfig, cancel, err = rootCA.CreateSecurityConfig(ctx, krw, ca.CertificateRequestConfig{
+			// if we are attempting to join another cluster, which has a FIPS join token, and we are not FIPS, error
+			if n.config.JoinAddr != "" && isMandatoryFIPSClusterJoinToken(n.config.JoinToken) && !n.config.FIPS {
+				return nil, nil, ErrMandatoryFIPS
+			}
+
+			requestConfig := ca.CertificateRequestConfig{
 				Token:        n.config.JoinToken,
 				Availability: n.config.Availability,
 				ConnBroker:   n.connBroker,
-			})
+			}
+			// If this is a new cluster, we want to name the cluster ID "FIPS-something"
+			if n.config.FIPS {
+				requestConfig.Organization = generateFIPSClusterID()
+			}
+			securityConfig, cancel, err = rootCA.CreateSecurityConfig(ctx, krw, requestConfig)
 
 			if err != nil {
 				return nil, nil, err
 			}
 		}
+	}
+
+	if isMandatoryFIPSClusterID(securityConfig) && !n.config.FIPS {
+		return nil, nil, ErrMandatoryFIPS
 	}
 
 	n.Lock()
@@ -954,6 +995,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		Availability:     n.config.Availability,
 		PluginGetter:     n.config.PluginGetter,
 		RootCAPaths:      rootPaths,
+		FIPS:             n.config.FIPS,
 	})
 	if err != nil {
 		return false, err

@@ -55,6 +55,11 @@ var (
 	// GetCertRetryInterval is how long to wait before retrying a node
 	// certificate or root certificate request.
 	GetCertRetryInterval = 2 * time.Second
+
+	// errInvalidJoinToken is returned when attempting to parse an invalid join
+	// token (e.g. when attempting to get the version, fipsness, or the root ca
+	// digest)
+	errInvalidJoinToken = errors.New("invalid join token")
 )
 
 // SecurityConfig is used to represent a node's security configuration. It includes information about
@@ -85,6 +90,81 @@ type SecurityConfig struct {
 type CertificateUpdate struct {
 	Role string
 	Err  error
+}
+
+// ParsedJoinToken is the data from a join token, once parsed
+type ParsedJoinToken struct {
+	// Version is the version of the join token that is being parsed
+	Version int
+
+	// RootDigest is the digest of the root CA certificate of the cluster, which
+	// is always part of the join token so that the root CA can be verified
+	// upon initial node join
+	RootDigest digest.Digest
+
+	// Secret is the randomly-generated secret part of the join token - when
+	// rotating a join token, this is the value that is changed unless some other
+	// property of the cluster (like the root CA) is changed.
+	Secret string
+
+	// FIPS indicates whether the join token specifies that the cluster mandates
+	// that all nodes must have FIPS mode enabled.
+	FIPS bool
+}
+
+// ParseJoinToken parses a join token.  Current format is v2, but this is currently used only if the cluster requires
+// mandatory FIPS, in order to facilitate mixed version clusters.
+// v1: SWMTKN-1-<SHA256 digest of root CA cert in base 36, 0-left-padded to 50 chars>-<16-byte secret in base 36 0-left-padded to 25 chars>
+// v2: SWMTKN-2-<0/1 whether its FIPS or not>-<same rest of data as v1>
+func ParseJoinToken(token string) (*ParsedJoinToken, error) {
+	split := strings.Split(token, "-")
+	numParts := len(split)
+
+	// v1 has 4, v2 has 5
+	if numParts < 4 || split[0] != "SWMTKN" {
+		return nil, errInvalidJoinToken
+	}
+
+	var (
+		version int
+		fips    bool
+	)
+
+	switch split[1] {
+	case "1":
+		if numParts != 4 {
+			return nil, errInvalidJoinToken
+		}
+		version = 1
+	case "2":
+		if numParts != 5 || (split[2] != "0" && split[2] != "1") {
+			return nil, errInvalidJoinToken
+		}
+		version = 2
+		fips = split[2] == "1"
+	default:
+		return nil, errInvalidJoinToken
+	}
+
+	secret := split[numParts-1]
+	rootDigest := split[numParts-2]
+	if len(rootDigest) != base36DigestLen || len(secret) != maxGeneratedSecretLength {
+		return nil, errInvalidJoinToken
+	}
+
+	var digestInt big.Int
+	digestInt.SetString(rootDigest, joinTokenBase)
+
+	d, err := digest.Parse(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
+	if err != nil {
+		return nil, err
+	}
+	return &ParsedJoinToken{
+		Version:    version,
+		RootDigest: d,
+		Secret:     secret,
+		FIPS:       fips,
+	}, nil
 }
 
 func validateRootCAAndTLSCert(rootCA *RootCA, tlsKeyPair *tls.Certificate) error {
@@ -275,8 +355,14 @@ func NewConfigPaths(baseCertDir string) *SecurityConfigPaths {
 	}
 }
 
-// GenerateJoinToken creates a new join token.
-func GenerateJoinToken(rootCA *RootCA) string {
+// GenerateJoinToken creates a new join token. Current format is v2, but this is
+// currently used only if the cluster requires mandatory FIPS, in order to
+// facilitate mixed version clusters (the `fips` parameter is set to true).
+// Otherwise, v1 is used so as to maintain compatibility in mixed version
+// non-FIPS clusters.
+// v1: SWMTKN-1-<SHA256 digest of root CA cert in base 36, 0-left-padded to 50 chars>-<16-byte secret in base 36 0-left-padded to 25 chars>
+// v2: SWMTKN-2-<0/1 whether its FIPS or not>-<same rest of data as v1>
+func GenerateJoinToken(rootCA *RootCA, fips bool) string {
 	var secretBytes [generatedSecretEntropyBytes]byte
 
 	if _, err := cryptorand.Read(secretBytes[:]); err != nil {
@@ -286,19 +372,13 @@ func GenerateJoinToken(rootCA *RootCA) string {
 	var nn, digest big.Int
 	nn.SetBytes(secretBytes[:])
 	digest.SetString(rootCA.Digest.Hex(), 16)
-	return fmt.Sprintf("SWMTKN-1-%0[1]*s-%0[3]*s", base36DigestLen, digest.Text(joinTokenBase), maxGeneratedSecretLength, nn.Text(joinTokenBase))
-}
 
-func getCAHashFromToken(token string) (digest.Digest, error) {
-	split := strings.Split(token, "-")
-	if len(split) != 4 || split[0] != "SWMTKN" || split[1] != "1" || len(split[2]) != base36DigestLen || len(split[3]) != maxGeneratedSecretLength {
-		return "", errors.New("invalid join token")
+	fmtString := "SWMTKN-1-%0[1]*s-%0[3]*s"
+	if fips {
+		fmtString = "SWMTKN-2-1-%0[1]*s-%0[3]*s"
 	}
-
-	var digestInt big.Int
-	digestInt.SetString(split[2], joinTokenBase)
-
-	return digest.Parse(fmt.Sprintf("sha256:%0[1]*s", 64, digestInt.Text(16)))
+	return fmt.Sprintf(fmtString, base36DigestLen,
+		digest.Text(joinTokenBase), maxGeneratedSecretLength, nn.Text(joinTokenBase))
 }
 
 // DownloadRootCA tries to retrieve a remote root CA and matches the digest against the provided token.
@@ -312,10 +392,11 @@ func DownloadRootCA(ctx context.Context, paths CertPaths, token string, connBrok
 		err error
 	)
 	if token != "" {
-		d, err = getCAHashFromToken(token)
+		parsed, err := ParseJoinToken(token)
 		if err != nil {
 			return RootCA{}, err
 		}
+		d = parsed.RootDigest
 	}
 	// Get the remote CA certificate, verify integrity with the
 	// hash provided. Retry up to 5 times, in case the manager we
@@ -414,6 +495,10 @@ type CertificateRequestConfig struct {
 	NodeCertificateStatusRequestTimeout time.Duration
 	// RetryInterval specifies how long to delay between retries, if non-zero.
 	RetryInterval time.Duration
+	// Organization is the organization to use for a TLS certificate when creating
+	// a security config from scratch.  If not provided, a random ID is generated.
+	// For swarm certificates, the organization is the cluster ID.
+	Organization string
 }
 
 // CreateSecurityConfig creates a new key and cert for this node, either locally
@@ -423,7 +508,10 @@ func (rootCA RootCA) CreateSecurityConfig(ctx context.Context, krw *KeyReadWrite
 
 	// Create a new random ID for this certificate
 	cn := identity.NewID()
-	org := identity.NewID()
+	org := config.Organization
+	if config.Organization == "" {
+		org = identity.NewID()
+	}
 
 	proposedRole := ManagerRole
 	tlsKeyPair, issuerInfo, err := rootCA.IssueAndSaveNewCertificates(krw, cn, proposedRole, org)

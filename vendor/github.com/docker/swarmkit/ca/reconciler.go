@@ -229,8 +229,8 @@ func (r *rootRotationReconciler) finishRootRotation(tx store.Tx, expectedRootCA 
 		CAKey:      cluster.RootCA.RootRotation.CAKey,
 		CACertHash: updatedRootCA.Digest.String(),
 		JoinTokens: api.JoinTokens{
-			Worker:  GenerateJoinToken(&updatedRootCA),
-			Manager: GenerateJoinToken(&updatedRootCA),
+			Worker:  GenerateJoinToken(&updatedRootCA, cluster.FIPS),
+			Manager: GenerateJoinToken(&updatedRootCA, cluster.FIPS),
 		},
 		LastForcedRotation: cluster.RootCA.LastForcedRotation,
 	}
