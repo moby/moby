@@ -140,13 +140,13 @@ func swarmPortConfigToAPIPortConfig(portConfig *swarmapi.PortConfig) types.PortC
 func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 	spec := n.Spec
 	var ipam networktypes.IPAM
-	if spec.IPAM != nil {
-		if spec.IPAM.Driver != nil {
-			ipam.Driver = spec.IPAM.Driver.Name
-			ipam.Options = spec.IPAM.Driver.Options
+	if n.IPAM != nil {
+		if n.IPAM.Driver != nil {
+			ipam.Driver = n.IPAM.Driver.Name
+			ipam.Options = n.IPAM.Driver.Options
 		}
-		ipam.Config = make([]networktypes.IPAMConfig, 0, len(spec.IPAM.Configs))
-		for _, ic := range spec.IPAM.Configs {
+		ipam.Config = make([]networktypes.IPAMConfig, 0, len(n.IPAM.Configs))
+		for _, ic := range n.IPAM.Configs {
 			ipamConfig := networktypes.IPAMConfig{
 				Subnet:     ic.Subnet,
 				IPRange:    ic.Range,
