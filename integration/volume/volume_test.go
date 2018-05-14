@@ -26,7 +26,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name()
-	vol, err := client.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
+	vol, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{
 		Name: name,
 	})
 	assert.NilError(t, err)
@@ -83,7 +83,7 @@ func TestVolumesInspect(t *testing.T) {
 	now := time.Now().Truncate(time.Minute)
 
 	name := t.Name()
-	_, err := client.VolumeCreate(ctx, volumetypes.VolumesCreateBody{
+	_, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{
 		Name: name,
 	})
 	assert.NilError(t, err)

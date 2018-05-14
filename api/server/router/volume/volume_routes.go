@@ -22,7 +22,7 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 	if err != nil {
 		return err
 	}
-	return httputils.WriteJSON(w, http.StatusOK, &volumetypes.VolumesListOKBody{Volumes: volumes, Warnings: warnings})
+	return httputils.WriteJSON(w, http.StatusOK, &volumetypes.VolumeListOKBody{Volumes: volumes, Warnings: warnings})
 }
 
 func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -46,7 +46,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	var req volumetypes.VolumesCreateBody
+	var req volumetypes.VolumeCreateBody
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
