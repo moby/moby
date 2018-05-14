@@ -17,7 +17,6 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
-	netcontext "golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
@@ -184,7 +183,7 @@ func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
 }
 
-func (sp *statusProxy) Context() netcontext.Context {
+func (sp *statusProxy) Context() context.Context {
 	return sp.ctx
 }
 func (sp *statusProxy) SendMsg(m interface{}) error {

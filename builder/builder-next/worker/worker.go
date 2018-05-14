@@ -36,7 +36,6 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	netcontext "golang.org/x/net/context"
 )
 
 // WorkerOpt is specific to a worker.
@@ -243,7 +242,7 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.diffID, nil
 }
 
-func (ld *layerDescriptor) Download(ctx netcontext.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
+func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
 	done := oneOffProgress(ld.pctx, fmt.Sprintf("pulling %s", ld.desc.Digest))
 	if err := contentutil.Copy(ctx, ld.w.ContentStore, ld.provider, ld.desc); err != nil {
 		return nil, 0, done(err)

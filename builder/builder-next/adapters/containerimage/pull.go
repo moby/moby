@@ -35,9 +35,9 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
-	netcontext "golang.org/x/net/context"
 	"golang.org/x/time/rate"
 )
 
@@ -152,60 +152,66 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (sourc
 }
 
 type puller struct {
-	is          *imageSource
-	resolveOnce sync.Once
-	src         *source.ImageIdentifier
-	desc        ocispec.Descriptor
-	ref         string
-	resolveErr  error
-	resolver    remotes.Resolver
-	imageID     image.ID
-	cacheKey    digest.Digest
+	is               *imageSource
+	resolveOnce      sync.Once
+	resolveLocalOnce sync.Once
+	src              *source.ImageIdentifier
+	desc             ocispec.Descriptor
+	ref              string
+	resolveErr       error
+	resolver         remotes.Resolver
+	config           []byte
+}
+
+func (p *puller) mainManifestKey(dgst digest.Digest) (digest.Digest, error) {
+	dt, err := json.Marshal(struct {
+		Digest digest.Digest
+		OS     string
+		Arch   string
+	}{
+		Digest: p.desc.Digest,
+		OS:     runtime.GOOS,
+		Arch:   runtime.GOARCH,
+	})
+	if err != nil {
+		return "", err
+	}
+	return digest.FromBytes(dt), nil
+}
+
+func (p *puller) resolveLocal() {
+	p.resolveLocalOnce.Do(func() {
+		dgst := p.src.Reference.Digest()
+		if dgst != "" {
+			info, err := p.is.ContentStore.Info(context.TODO(), dgst)
+			if err == nil {
+				p.ref = p.src.Reference.String()
+				ra, err := p.is.ContentStore.ReaderAt(context.TODO(), dgst)
+				if err == nil {
+					mt, err := imageutil.DetectManifestMediaType(ra)
+					if err == nil {
+						p.desc = ocispec.Descriptor{
+							Size:      info.Size,
+							Digest:    dgst,
+							MediaType: mt,
+						}
+					}
+				}
+			}
+		}
+
+		if preferLocal {
+			dt, err := p.is.resolveLocal(p.src.Reference.String())
+			if err == nil {
+				p.config = dt
+			}
+		}
+	})
 }
 
 func (p *puller) resolve(ctx context.Context) error {
 	p.resolveOnce.Do(func() {
 		resolveProgressDone := oneOffProgress(ctx, "resolve "+p.src.Reference.String())
-
-		// dgst := p.src.Reference.Digest()
-		// if dgst != "" {
-		// 	info, err := p.is.ContentStore.Info(ctx, dgst)
-		// 	if err == nil {
-		// 		p.ref = p.src.Reference.String()
-		// 		ra, err := p.is.ContentStore.ReaderAt(ctx, dgst)
-		// 		if err == nil {
-		// 			mt, err := imageutil.DetectManifestMediaType(ra)
-		// 			if err == nil {
-		// 				p.desc = ocispec.Descriptor{
-		// 					Size:      info.Size,
-		// 					Digest:    dgst,
-		// 					MediaType: mt,
-		// 				}
-		// 				resolveProgressDone(nil)
-		// 				return
-		// 			}
-		// 		}
-		// 	}
-		// }
-
-		// ref, desc, err := p.resolver.Resolve(ctx, p.src.Reference.String())
-		// if err != nil {
-		// 	p.resolveErr = err
-		// 	resolveProgressDone(err)
-		// 	return
-		// }
-
-		if preferLocal {
-			dt, err := p.is.resolveLocal(p.src.Reference.String())
-			if err == nil {
-				dgst := digest.FromBytes(dt)
-				p.imageID = image.ID(dgst)
-				p.cacheKey = dgst
-				resolveProgressDone(nil)
-				return
-			}
-
-		}
 
 		ref, err := distreference.ParseNormalizedNamed(p.src.Reference.String())
 		if err != nil {
@@ -214,52 +220,82 @@ func (p *puller) resolve(ctx context.Context) error {
 			return
 		}
 
-		outRef, desc, err := p.resolver.Resolve(ctx, p.src.Reference.String())
-		if err != nil {
-			p.resolveErr = err
-			resolveProgressDone(err)
-			return
+		if p.desc.Digest == "" && p.config == nil {
+			origRef, desc, err := p.resolver.Resolve(ctx, ref.String())
+			if err != nil {
+				p.resolveErr = err
+				resolveProgressDone(err)
+				return
+			}
+
+			p.desc = desc
+			p.ref = origRef
 		}
 
-		ref, err = distreference.WithDigest(ref, desc.Digest)
-		if err != nil {
-			p.resolveErr = err
-			resolveProgressDone(err)
-			return
-		}
+		if p.config == nil {
+			ref, err := distreference.WithDigest(ref, p.desc.Digest)
+			if err != nil {
+				p.resolveErr = err
+				resolveProgressDone(err)
+				return
+			}
 
-		_, dt, err := p.is.ResolveImageConfig(ctx, ref.String())
-		if err != nil {
-			p.resolveErr = err
-			resolveProgressDone(err)
-			return
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String())
+			if err != nil {
+				p.resolveErr = err
+				resolveProgressDone(err)
+				return
+			}
+
+			p.config = dt
 		}
-		p.desc = desc
-		p.cacheKey = digest.FromBytes(dt)
-		p.ref = outRef
 		resolveProgressDone(nil)
 	})
 	return p.resolveErr
 }
 
 func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) {
+	p.resolveLocal()
+
+	if p.desc.Digest != "" && index == 0 {
+		dgst, err := p.mainManifestKey(p.desc.Digest)
+		if err != nil {
+			return "", false, err
+		}
+		return dgst.String(), false, nil
+	}
+
+	if p.config != nil {
+		return cacheKeyFromConfig(p.config).String(), true, nil
+	}
+
 	if err := p.resolve(ctx); err != nil {
 		return "", false, err
 	}
-	return p.cacheKey.String(), true, nil
+
+	if p.desc.Digest != "" && index == 0 {
+		dgst, err := p.mainManifestKey(p.desc.Digest)
+		if err != nil {
+			return "", false, err
+		}
+		return dgst.String(), false, nil
+	}
+
+	return cacheKeyFromConfig(p.config).String(), true, nil
 }
 
 func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
+	p.resolveLocal()
 	if err := p.resolve(ctx); err != nil {
 		return nil, err
 	}
 
-	if p.imageID != "" {
-		img, err := p.is.ImageStore.Get(p.imageID)
+	if p.config != nil {
+		img, err := p.is.ImageStore.Get(image.ID(digest.Digest(p.config)))
 		if err != nil {
 			return nil, err
 		}
-		ref, err := p.is.CacheAccessor.Get(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
+		ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
 		if err != nil {
 			return nil, err
 		}
@@ -423,7 +459,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	}
 	stopProgress()
 
-	ref, err := p.is.CacheAccessor.Get(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
+	ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("pulled from %s", p.ref)))
 	release()
 	if err != nil {
 		return nil, err
@@ -453,7 +489,7 @@ func (ld *layerDescriptor) DiffID() (layer.DiffID, error) {
 	return ld.diffID, nil
 }
 
-func (ld *layerDescriptor) Download(ctx netcontext.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
+func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogress.Output) (io.ReadCloser, int64, error) {
 	rc, err := ld.fetcher.Fetch(ctx, ld.desc)
 	if err != nil {
 		return nil, 0, err
@@ -653,4 +689,18 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 		pw.Close()
 		return err
 	}
+}
+
+// cacheKeyFromConfig returns a stable digest from image config. If image config
+// is a known oci image we will use chainID of layers.
+func cacheKeyFromConfig(dt []byte) digest.Digest {
+	var img ocispec.Image
+	err := json.Unmarshal(dt, &img)
+	if err != nil {
+		return digest.FromBytes(dt)
+	}
+	if img.RootFS.Type != "layers" {
+		return digest.FromBytes(dt)
+	}
+	return identity.ChainID(img.RootFS.DiffIDs)
 }
