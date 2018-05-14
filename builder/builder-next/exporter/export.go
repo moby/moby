@@ -23,17 +23,10 @@ type Differ interface {
 	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
 }
 
-// TODO: this needs to be handled differently (return from solve)
-type Result struct {
-	Ref string
-	ID  image.ID
-}
-
 type Opt struct {
 	ImageStore     image.Store
 	ReferenceStore reference.Store
 	Differ         Differ
-	Reporter       chan Result
 }
 
 type imageExporter struct {
@@ -57,8 +50,6 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 			i.targetName = ref
 		case exporterImageConfig:
 			i.config = []byte(v)
-		case "ref":
-			i.ref = v
 		default:
 			logrus.Warnf("image exporter: unknown option %s", k)
 		}
@@ -70,14 +61,13 @@ type imageExporterInstance struct {
 	*imageExporter
 	targetName distref.Named
 	config     []byte
-	ref        string
 }
 
 func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableRef, opt map[string][]byte) error {
+func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableRef, opt map[string][]byte) (map[string]string, error) {
 	if config, ok := opt[exporterImageConfig]; ok {
 		e.config = config
 	}
@@ -86,12 +76,12 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 	layersDone := oneOffProgress(ctx, "exporting layers")
 
 	if err := ref.Finalize(ctx); err != nil {
-		return err
+		return nil, err
 	}
 
 	diffIDs, err := e.opt.Differ.EnsureLayer(ctx, ref.ID())
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	diffs := make([]digest.Digest, len(diffIDs))
@@ -105,20 +95,20 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 		var err error
 		config, err = emptyImageConfig()
 		if err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	history, err := parseHistoryFromConfig(config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	diffs, history = normalizeLayersAndHistory(diffs, history, ref)
 
 	config, err = patchImageConfig(config, diffs, history)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	configDigest := digest.FromBytes(config)
@@ -126,7 +116,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 	configDone := oneOffProgress(ctx, fmt.Sprintf("writing image %s", configDigest))
 	id, err := e.opt.ImageStore.Create(config)
 	if err != nil {
-		return configDone(err)
+		return nil, configDone(err)
 	}
 	configDone(nil)
 
@@ -135,15 +125,13 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 			tagDone := oneOffProgress(ctx, "naming to "+e.targetName.String())
 
 			if err := e.opt.ReferenceStore.AddTag(e.targetName, digest.Digest(id), true); err != nil {
-				return tagDone(err)
+				return nil, tagDone(err)
 			}
 			tagDone(nil)
 		}
 	}
 
-	if e.opt.Reporter != nil {
-		e.opt.Reporter <- Result{ID: id, Ref: e.ref}
-	}
-
-	return nil
+	return map[string]string{
+		"containerimage.digest": id.String(),
+	}, nil
 }

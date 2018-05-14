@@ -24,8 +24,8 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/snapshot"
-	"github.com/moby/buildkit/solver-next"
-	"github.com/moby/buildkit/solver-next/llbsolver/ops"
+	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver/ops"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	"github.com/moby/buildkit/source/git"
@@ -38,8 +38,6 @@ import (
 	"github.com/pkg/errors"
 	netcontext "golang.org/x/net/context"
 )
-
-// TODO: this file should be removed. containerd defines ContainerdWorker, oci defines OCIWorker. There is no base worker.
 
 // WorkerOpt is specific to a worker.
 // See also CommonOpt.
@@ -56,7 +54,6 @@ type WorkerOpt struct {
 	Exporters         map[string]exporter.Exporter
 	DownloadManager   distribution.RootFSDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
-	// ImageStore     images.Store // optional
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -64,8 +61,6 @@ type WorkerOpt struct {
 type Worker struct {
 	WorkerOpt
 	SourceManager *source.Manager
-	// Exporters     map[string]exporter.Exporter
-	// ImageSource source.Source
 }
 
 // NewWorker instantiates a local worker
@@ -177,36 +172,7 @@ func (w *Worker) Exporter(name string) (exporter.Exporter, error) {
 	return exp, nil
 }
 
-func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef) (*solver.Remote, error) {
-	// diffPairs, err := blobs.GetDiffPairs(ctx, w.ContentStore, w.Snapshotter, w.Differ, ref)
-	// if err != nil {
-	// 	return nil, errors.Wrap(err, "failed calculaing diff pairs for exported snapshot")
-	// }
-	// if len(diffPairs) == 0 {
-	// 	return nil, nil
-	// }
-	//
-	// descs := make([]ocispec.Descriptor, len(diffPairs))
-	//
-	// for i, dp := range diffPairs {
-	// 	info, err := w.ContentStore.Info(ctx, dp.Blobsum)
-	// 	if err != nil {
-	// 		return nil, err
-	// 	}
-	// 	descs[i] = ocispec.Descriptor{
-	// 		Digest:    dp.Blobsum,
-	// 		Size:      info.Size,
-	// 		MediaType: schema2.MediaTypeLayer,
-	// 		Annotations: map[string]string{
-	// 			"containerd.io/uncompressed": dp.DiffID.String(),
-	// 		},
-	// 	}
-	// }
-	//
-	// return &solver.Remote{
-	// 	Descriptors: descs,
-	// 	Provider:    w.ContentStore,
-	// }, nil
+func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error) {
 	return nil, errors.Errorf("getremote not implemented")
 }
 
@@ -226,7 +192,6 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 			provider: remote.Provider,
 			w:        w,
 			pctx:     ctx,
-			// ref:      l.Blob.Digest.String(),
 		})
 	}
 
@@ -243,72 +208,12 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	}
 	defer release()
 
-	ref, err := w.CacheManager.Get(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("imported %s", remote.Descriptors[len(remote.Descriptors)-1].Digest)))
+	ref, err := w.CacheManager.GetFromSnapshotter(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("imported %s", remote.Descriptors[len(remote.Descriptors)-1].Digest)))
 	if err != nil {
 		return nil, err
 	}
-
-	// eg, gctx := errgroup.WithContext(ctx)
-	// for _, desc := range remote.Descriptors {
-	// 	func(desc ocispec.Descriptor) {
-	// 		eg.Go(func() error {
-	// 			done := oneOffProgress(ctx, fmt.Sprintf("pulling %s", desc.Digest))
-	// 			return done(contentutil.Copy(gctx, w.ContentStore, remote.Provider, desc))
-	// 		})
-	// 	}(desc)
-	// }
-	//
-	// if err := eg.Wait(); err != nil {
-	// 	return nil, err
-	// }
-	//
-	// csh, release := snapshot.NewCompatibilitySnapshotter(w.Snapshotter)
-	// defer release()
-	//
-	// unpackProgressDone := oneOffProgress(ctx, "unpacking")
-	// chainID, err := w.unpack(ctx, remote.Descriptors, csh)
-	// if err != nil {
-	// 	return nil, unpackProgressDone(err)
-	// }
-	// unpackProgressDone(nil)
-	//
-	// return w.CacheManager.Get(ctx, chainID, cache.WithDescription(fmt.Sprintf("imported %s", remote.Descriptors[len(remote.Descriptors)-1].Digest)))
-	// return nil, errors.Errorf("fromremote not implemented")
 	return ref, nil
 }
-
-// utility function. could be moved to the constructor logic?
-// func Labels(executor, snapshotter string) map[string]string {
-// 	hostname, err := os.Hostname()
-// 	if err != nil {
-// 		hostname = "unknown"
-// 	}
-// 	labels := map[string]string{
-// 		worker.LabelOS:          runtime.GOOS,
-// 		worker.LabelArch:        runtime.GOOSARCH,
-// 		worker.LabelExecutor:    executor,
-// 		worker.LabelSnapshotter: snapshotter,
-// 		worker.LabelHostname:    hostname,
-// 	}
-// 	return labels
-// }
-//
-// // ID reads the worker id from the `workerid` file.
-// // If not exist, it creates a random one,
-// func ID(root string) (string, error) {
-// 	f := filepath.Join(root, "workerid")
-// 	b, err := ioutil.ReadFile(f)
-// 	if err != nil {
-// 		if os.IsNotExist(err) {
-// 			id := identity.NewID()
-// 			err := ioutil.WriteFile(f, []byte(id), 0400)
-// 			return id, err
-// 		} else {
-// 			return "", err
-// 		}
-// 	}
-// 	return string(b), nil
-// }
 
 type discardProgress struct{}
 

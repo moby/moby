@@ -219,7 +219,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 	return inf, nil
 }
 
-func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.MountFactory, error) {
+func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountable, error) {
 	l, err := s.getLayer(key)
 	if err != nil {
 		return nil, err
@@ -239,7 +239,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.MountFac
 			Type:    "bind",
 			Options: []string{"rbind"},
 		}}
-		return &constMountFactory{
+		return &constMountable{
 			mounts: mnt,
 			release: func() error {
 				_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
@@ -259,7 +259,7 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.MountFac
 		Type:    "bind",
 		Options: []string{"rbind"},
 	}}
-	return &constMountFactory{
+	return &constMountable{
 		mounts: mnt,
 		release: func() error {
 			return s.opt.GraphDriver.Put(id)
@@ -314,70 +314,14 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 	}); err != nil {
 		return err
 	}
-	// logrus.Debugf("committed %s as %s", name, key));
 	return nil
 }
 
-func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (snapshot.MountFactory, error) {
+func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (snapshot.Mountable, error) {
 	return s.Mounts(ctx, parent)
 }
 
 func (s *snapshotter) Walk(ctx context.Context, fn func(context.Context, snapshots.Info) error) error {
-	// allKeys := map[string]struct{}{}
-	// commitedIDs := map[string]string{}
-	// chainIDs := map[string]layer.ChainID{}
-	//
-	// if err := s.db.View(func(tx *bolt.Tx) error {
-	// 	tx.ForEach(func(name []byte, b *bolt.Bucket) error {
-	// 		allKeys[string(name)] = struct{}{}
-	// 		v := b.Get(keyCommitted)
-	// 		if v != nil {
-	// 			commitedIDs[string(v)] = string(name)
-	// 		}
-	//
-	// 		v = b.Get(keyChainID)
-	// 		if v != nil {
-	// 			logrus.Debugf("loaded layer %s %s", name, v)
-	// 			chainIDs[string(name)] = layer.ChainID(v)
-	// 		}
-	// 		return nil
-	// 	})
-	// 	return nil
-	// }); err != nil {
-	// 	return err
-	// }
-	//
-	// for k := range allKeys {
-	// 	if chainID, ok := chainIDs[k]; ok {
-	// 		s.mu.Lock()
-	// 		if _, ok := s.refs[k]; !ok {
-	// 			l, err := s.opt.LayerStore.Get(chainID)
-	// 			if err != nil {
-	// 				s.mu.Unlock()
-	// 				return err
-	// 			}
-	// 			s.refs[k] = l
-	// 		}
-	// 		s.mu.Unlock()
-	// 	}
-	// 	if _, ok := commitedIDs[k]; ok {
-	// 		continue
-	// 	}
-	//
-	// 	if _, err := s.getLayer(k); err != nil {
-	// 		s.Remove(ctx, k)
-	// 		continue
-	// 	}
-	// 	info, err := s.Stat(ctx, k)
-	// 	if err != nil {
-	// 		s.Remove(ctx, k)
-	// 		continue
-	// 	}
-	// 	if err := fn(ctx, info); err != nil {
-	// 		return err
-	// 	}
-	// }
-
 	return errors.Errorf("not-implemented")
 }
 
@@ -394,15 +338,18 @@ func (s *snapshotter) Close() error {
 	return s.db.Close()
 }
 
-type constMountFactory struct {
+type constMountable struct {
 	mounts  []mount.Mount
 	release func() error
 }
 
-func (mf *constMountFactory) Mount() ([]mount.Mount, func() error, error) {
-	release := mf.release
-	if release == nil {
-		release = func() error { return nil }
+func (m *constMountable) Mount() ([]mount.Mount, error) {
+	return m.mounts, nil
+}
+
+func (m *constMountable) Release() error {
+	if m.release == nil {
+		return nil
 	}
-	return mf.mounts, release, nil
+	return m.release()
 }
