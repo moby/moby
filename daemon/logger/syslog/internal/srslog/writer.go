@@ -71,6 +71,11 @@ func (w *Writer) SetFramer(f Framer) {
 	w.framer = f
 }
 
+// SetHostname changes the hostname for syslog messages if needed.
+func (w *Writer) SetHostname(hostname string) {
+	w.hostname = hostname
+}
+
 // Write sends a log message to the syslog daemon using the default priority
 // passed into `srslog.New` or the `srslog.Dial*` functions.
 func (w *Writer) Write(b []byte) (int, error) {

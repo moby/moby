@@ -26,6 +26,38 @@ func TestWriteAndRetryFails(t *testing.T) {
 	}
 }
 
+func TestSetHostname(t *testing.T) {
+	customHostname := "kubernetesCluster"
+	expected := customHostname
+
+	done := make(chan string)
+	addr, sock, srvWG := startServer("udp", "", done)
+	defer sock.Close()
+	defer srvWG.Wait()
+
+	w := Writer{
+		priority: LOG_ERR,
+		network:  "udp",
+		raddr:    addr,
+	}
+
+	_, err := w.connect()
+	if err != nil {
+		t.Errorf("failed to connect: %v", err)
+	}
+	defer w.Close()
+
+	if strings.Split(w.hostname, ":")[0] != "127.0.0.1" {
+		t.Errorf("expected hostname: %s, got %s", "127.0.0.1", strings.Split(w.hostname, ":")[0])
+	}
+
+	w.SetHostname(customHostname)
+	if w.hostname != expected {
+		t.Errorf("expected hostname: %s, got %s", expected, w.hostname)
+	}
+	<-done
+}
+
 func TestWriteFormatters(t *testing.T) {
 	tests := []struct {
 		name string
