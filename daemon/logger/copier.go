@@ -81,6 +81,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 				read, err := src.Read(buf[n:upto])
 				if err != nil {
 					if err != io.EOF {
+						logReadsFailedCount.Inc(1)
 						logrus.Errorf("Error scanning log stream: %s", err)
 						return
 					}
@@ -120,6 +121,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					}
 
 					if logErr := c.dst.Log(msg); logErr != nil {
+						logWritesFailedCount.Inc(1)
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
 					}
 				}
@@ -143,6 +145,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 						partialid = stringid.GenerateRandomID()
 						ordinal = 1
 						firstPartial = false
+						totalPartialLogs.Inc(1)
 					} else {
 						msg.Timestamp = partialTS
 					}
@@ -151,6 +154,7 @@ func (c *Copier) copySrc(name string, src io.Reader) {
 					hasMorePartial = true
 
 					if logErr := c.dst.Log(msg); logErr != nil {
+						logWritesFailedCount.Inc(1)
 						logrus.Errorf("Failed to log msg %q for logger %s: %s", msg.Line, c.dst.Name(), logErr)
 					}
 					p = 0
