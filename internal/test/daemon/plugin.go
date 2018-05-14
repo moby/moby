@@ -38,7 +38,7 @@ func (d *Daemon) PluginIsNotPresent(name string) func(poll.LogT) poll.Result {
 		if err != nil {
 			return poll.Error(err)
 		}
-		return poll.Continue("plugin %q exists")
+		return poll.Continue("plugin %q exists", name)
 	})
 }
 
