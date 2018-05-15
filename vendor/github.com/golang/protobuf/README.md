@@ -1,5 +1,8 @@
 # Go support for Protocol Buffers
 
+[![Build Status](https://travis-ci.org/golang/protobuf.svg?branch=master)](https://travis-ci.org/golang/protobuf)
+[![GoDoc](https://godoc.org/github.com/golang/protobuf?status.svg)](https://godoc.org/github.com/golang/protobuf)
+
 Google's data interchange format.
 Copyright 2010 The Go Authors.
 https://github.com/golang/protobuf
@@ -104,12 +107,12 @@ for a protocol buffer variable v:
 When the .proto file specifies `syntax="proto3"`, there are some differences:
 
   - Non-repeated fields of non-message type are values instead of pointers.
-  - Getters are only generated for message and oneof fields.
   - Enum types do not get an Enum method.
 
 Consider file test.proto, containing
 
 ```proto
+	syntax = "proto2";
 	package example;
 	
 	enum FOO { X = 17; };

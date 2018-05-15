@@ -269,7 +269,7 @@ func New(config *Config) (*Manager, error) {
 		grpc.Creds(config.SecurityConfig.ServerTLSCreds),
 		grpc.StreamInterceptor(streamInterceptorWrapper),
 		grpc.UnaryInterceptor(unaryInterceptorWrapper),
-		grpc.MaxMsgSize(transport.GRPCMaxMsgSize),
+		grpc.MaxRecvMsgSize(transport.GRPCMaxMsgSize),
 	}
 
 	m := &Manager{

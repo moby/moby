@@ -38,6 +38,7 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -1291,13 +1292,49 @@ func (fs *firstSessionErrorTracker) SessionError(err error) {
 	fs.mu.Unlock()
 }
 
+// SessionClosed returns an error if we haven't yet established a session, and
+// we get a gprc error as a result of an X509 failure.
 func (fs *firstSessionErrorTracker) SessionClosed() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	// unfortunately grpc connection errors are type grpc.rpcError, which are not exposed, and we can't get at the underlying error type
-	if !fs.pastFirstSession && grpc.Code(fs.err) == codes.Internal &&
-		strings.HasPrefix(grpc.ErrorDesc(fs.err), "connection error") && strings.Contains(grpc.ErrorDesc(fs.err), "transport: x509:") {
-		return fs.err
+
+	// if we've successfully established at least 1 session, never return
+	// errors
+	if fs.pastFirstSession {
+		return nil
 	}
-	return nil
+
+	// get the GRPC status from the error, because we only care about GRPC
+	// errors
+	grpcStatus, ok := status.FromError(fs.err)
+	// if this isn't a GRPC error, it's not an error we return from this method
+	if !ok {
+		return nil
+	}
+
+	// additionally, the error we're looking for is an internal error
+	if grpcStatus.Code() != codes.Internal {
+		return nil
+	}
+
+	// NOTE(dperny): grpc does not expose the error type, which means we have
+	// to string matching to figure out if it's an x509 error.
+	//
+	// the error we're looking for starts with "connection error:", then says
+	// "transport:" and finally has "x509:"
+	// specifically, it reads:
+	//
+	//   transport: authentication handshake failed: x509: certificate signed by unknown authority
+	//
+	// this string matching has caused trouble in the past. specifically, at
+	// some point between grpc versions 1.3.0 and 1.7.5, the string we were
+	// matching changed from "transport: x509" to "transport: authentication
+	// handshake failed: x509", which was an issue because we were matching for
+	// string "transport: x509:".
+	if !strings.HasPrefix(grpcStatus.Message(), "connection error") &&
+		!strings.Contains(grpcStatus.Message(), "transport:") &&
+		!strings.Contains(grpcStatus.Message(), "x509:") {
+		return nil
+	}
+	return fs.err
 }

@@ -53,6 +53,16 @@ option go_package = "plugin_go";
 
 import "google/protobuf/descriptor.proto";
 
+// The version number of protocol compiler.
+message Version {
+  optional int32 major = 1;
+  optional int32 minor = 2;
+  optional int32 patch = 3;
+  // A suffix for alpha, beta or rc release, e.g., "alpha-1", "rc2". It should
+  // be empty for mainline stable releases.
+  optional string suffix = 4;
+}
+
 // An encoded CodeGeneratorRequest is written to the plugin's stdin.
 message CodeGeneratorRequest {
   // The .proto files that were explicitly listed on the command-line.  The
@@ -74,7 +84,14 @@ message CodeGeneratorRequest {
   // the entire set into memory at once.  However, as of this writing, this
   // is not similarly optimized on protoc's end -- it will store all fields in
   // memory at once before sending them to the plugin.
+  //
+  // Type names of fields and extensions in the FileDescriptorProto are always
+  // fully qualified.
   repeated FileDescriptorProto proto_file = 15;
+
+  // The version number of protocol compiler.
+  optional Version compiler_version = 3;
+
 }
 
 // The plugin writes an encoded CodeGeneratorResponse to stdout.
