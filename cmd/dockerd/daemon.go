@@ -239,7 +239,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
-	buildCache     *fscache.FSCache
+	buildCache     *fscache.FSCache // legacy
+	buildkit       *buildkit.Builder
 	daemon         *daemon.Daemon
 	api            *apiserver.Server
 	cluster        *cluster.Cluster
@@ -289,6 +290,7 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		sessionManager: sm,
 		buildBackend:   bb,
 		buildCache:     buildCache,
+		buildkit:       buildkit,
 		daemon:         daemon,
 	}, nil
 }
@@ -462,7 +464,7 @@ func initRouter(opts routerOptions) {
 		checkpointrouter.NewRouter(opts.daemon, decoder),
 		container.NewRouter(opts.daemon, decoder),
 		image.NewRouter(opts.daemon.ImageService()),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache, opts.buildkit),
 		volume.NewRouter(opts.daemon.VolumesService()),
 		build.NewRouter(opts.buildBackend, opts.daemon),
 		sessionrouter.NewRouter(opts.sessionManager),

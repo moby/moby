@@ -2,6 +2,7 @@ package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
 	"github.com/docker/docker/api/server/router"
+	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/fscache"
 )
 
@@ -11,15 +12,17 @@ type systemRouter struct {
 	backend Backend
 	cluster ClusterBackend
 	routes  []router.Route
-	builder *fscache.FSCache
+	fscache *fscache.FSCache // legacy
+	builder *buildkit.Builder
 }
 
 // NewRouter initializes a new system router
-func NewRouter(b Backend, c ClusterBackend, fscache *fscache.FSCache) router.Router {
+func NewRouter(b Backend, c ClusterBackend, fscache *fscache.FSCache, builder *buildkit.Builder) router.Router {
 	r := &systemRouter{
 		backend: b,
 		cluster: c,
-		builder: fscache,
+		fscache: fscache,
+		builder: builder,
 	}
 
 	r.routes = []router.Route{

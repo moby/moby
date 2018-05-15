@@ -8,6 +8,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/content"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/images"
@@ -53,6 +54,30 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 	}
 	b.mu.Unlock()
 	return nil
+}
+
+func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
+	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	var items []*types.BuildCache
+	for _, r := range duResp.Record {
+		items = append(items, &types.BuildCache{
+			ID:      r.ID,
+			Mutable: r.Mutable,
+			InUse:   r.InUse,
+			Size:    r.Size_,
+
+			CreatedAt:   r.CreatedAt,
+			LastUsedAt:  r.LastUsedAt,
+			UsageCount:  int(r.UsageCount),
+			Parent:      r.Parent,
+			Description: r.Description,
+		})
+	}
+	return items, nil
 }
 
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
