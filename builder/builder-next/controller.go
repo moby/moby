@@ -15,7 +15,6 @@ import (
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/control"
-	"github.com/moby/buildkit/executor/runcexecutor"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/dockerfile"
@@ -89,10 +88,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	exec, err := runcexecutor.New(runcexecutor.Opt{
-		Root:              filepath.Join(root, "executor"),
-		CommandCandidates: []string{"docker-runc", "runc"},
-	})
+	exec, err := newExecutor(root)
 	if err != nil {
 		return nil, err
 	}
