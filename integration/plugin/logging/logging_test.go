@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -29,10 +28,6 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	assert.Assert(t, client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30}))
 	cancel()
 	defer client.PluginRemove(context.Background(), "test", types.PluginRemoveOptions{Force: true})
-
-	v, err := client.VolumeCreate(context.Background(), volume.VolumesCreateBody{})
-	assert.Assert(t, err)
-	defer client.VolumeRemove(context.Background(), v.Name, true)
 
 	ctx, cancel = context.WithTimeout(context.Background(), 60*time.Second)
 
