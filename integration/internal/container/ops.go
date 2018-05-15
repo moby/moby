@@ -116,3 +116,21 @@ func WithIPv6(network, ip string) func(*TestContainerConfig) {
 		c.NetworkingConfig.EndpointsConfig[network].IPAMConfig.IPv6Address = ip
 	}
 }
+
+// WithLogDriver sets the log driver to use for the container
+func WithLogDriver(driver string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.LogConfig.Type = driver
+	}
+}
+
+// WithAutoRemove sets the container to be removed on exit
+func WithAutoRemove(c *TestContainerConfig) {
+	if c.HostConfig == nil {
+		c.HostConfig = &containertypes.HostConfig{}
+	}
+	c.HostConfig.AutoRemove = true
+}
