@@ -67,7 +67,7 @@ type PageInfo struct {
 	// be silently truncated.
 	fetch func(pageSize int, pageToken string) (nextPageToken string, err error)
 
-	// Function that clears the iterator's buffer, returning any currently buffered items.
+	// Function that returns the number of currently buffered items.
 	bufLen func() int
 
 	// Function that returns the buffer, after setting the buffer variable to nil.

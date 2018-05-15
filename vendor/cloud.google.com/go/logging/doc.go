@@ -20,7 +20,8 @@ see package cloud.google.com/go/logging/logadmin.
 This client uses Logging API v2.
 See https://cloud.google.com/logging/docs/api/v2/ for an introduction to the API.
 
-This package is experimental and subject to API changes.
+
+Note: This package is in beta.  Some backwards-incompatible changes may occur.
 
 
 Creating a Client
@@ -37,7 +38,7 @@ Use a Client to interact with the Stackdriver Logging API.
 
 Basic Usage
 
-For most use-cases, you'll want to add log entries to a buffer to be periodically
+For most use cases, you'll want to add log entries to a buffer to be periodically
 flushed (automatically and asynchronously) to the Stackdriver Logging service.
 
 	// Initialize a logger
@@ -62,9 +63,26 @@ Synchronous Logging
 
 For critical errors, you may want to send your log entries immediately.
 LogSync is slow and will block until the log entry has been sent, so it is
-not recommended for basic use.
+not recommended for normal use.
 
 	lg.LogSync(ctx, logging.Entry{Payload: "ALERT! Something critical happened!"})
+
+
+Payloads
+
+An entry payload can be a string, as in the examples above. It can also be any value
+that can be marshaled to a JSON object, like a map[string]interface{} or a struct:
+
+	type MyEntry struct {
+		Name  string
+		Count int
+	}
+	lg.Log(logging.Entry{Payload: MyEntry{Name: "Bob", Count: 3}})
+
+If you have a []byte of JSON, wrap it in json.RawMessage:
+
+	j := []byte(`{"Name": "Bob", "Count": 3}`)
+	lg.Log(logging.Entry{Payload: json.RawMessage(j)})
 
 
 The Standard Logger Interface
@@ -84,6 +102,16 @@ An Entry may have one of a number of severity levels associated with it.
 		Payload: "something terrible happened!",
 		Severity: logging.Critical,
 	}
+
+
+Viewing Logs
+
+You can view Stackdriver logs for projects at
+https://console.cloud.google.com/logs/viewer. Use the dropdown at the top left. When
+running from a Google Cloud Platform VM, select "GCE VM Instance". Otherwise, select
+"Google Project" and then the project ID. Logs for organizations, folders and billing
+accounts can be viewed on the command line with the "gcloud logging read" command.
+
 
 */
 package logging // import "cloud.google.com/go/logging"

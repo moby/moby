@@ -1,4 +1,4 @@
-// Copyright 2016 Google Inc. All Rights Reserved.
+// Copyright 2018 Google Inc. All Rights Reserved.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -12,23 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-// +build appengine
+// +build go1.9
 
 package transport
 
 import (
-	"net"
-	"time"
-
 	"golang.org/x/net/context"
-	"google.golang.org/appengine/socket"
-	"google.golang.org/grpc"
+	"golang.org/x/oauth2/google"
+	"google.golang.org/api/internal"
+	"google.golang.org/api/option"
 )
 
-func init() {
-	appengineDialerHook = func(ctx context.Context) grpc.DialOption {
-		return grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
-			return socket.DialTimeout(ctx, "tcp", addr, timeout)
-		})
+// Creds constructs a google.Credentials from the information in the options,
+// or obtains the default credentials in the same way as google.FindDefaultCredentials.
+func Creds(ctx context.Context, opts ...option.ClientOption) (*google.Credentials, error) {
+	var ds internal.DialSettings
+	for _, opt := range opts {
+		opt.Apply(&ds)
 	}
+	return internal.Creds(ctx, &ds)
 }
