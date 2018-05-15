@@ -97,7 +97,7 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 		p = bp.picker
 		bp.mu.Unlock()
 
-		subConn, put, err := p.Pick(ctx, opts)
+		subConn, done, err := p.Pick(ctx, opts)
 
 		if err != nil {
 			switch err {
@@ -120,7 +120,7 @@ func (bp *pickerWrapper) pick(ctx context.Context, failfast bool, opts balancer.
 			continue
 		}
 		if t, ok := acw.getAddrConn().getReadyTransport(); ok {
-			return t, put, nil
+			return t, done, nil
 		}
 		grpclog.Infof("blockingPicker: the picked transport is not ready, loop back to repick")
 		// If ok == false, ac.state is not READY.

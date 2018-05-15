@@ -45,6 +45,7 @@ option java_package = "com.google.protobuf";
 option java_outer_classname = "DescriptorProtos";
 option csharp_namespace = "Google.Protobuf.Reflection";
 option objc_class_prefix = "GPB";
+option cc_enable_arenas = true;
 
 // descriptor.proto must be optimized for speed because reflection-based
 // algorithms don't work during bootstrapping.
@@ -225,6 +226,26 @@ message EnumDescriptorProto {
   repeated EnumValueDescriptorProto value = 2;
 
   optional EnumOptions options = 3;
+
+  // Range of reserved numeric values. Reserved values may not be used by
+  // entries in the same enum. Reserved ranges may not overlap.
+  //
+  // Note that this is distinct from DescriptorProto.ReservedRange in that it
+  // is inclusive such that it can appropriately represent the entire int32
+  // domain.
+  message EnumReservedRange {
+    optional int32 start = 1; // Inclusive.
+    optional int32 end = 2;   // Inclusive.
+  }
+
+  // Range of reserved numeric values. Reserved numeric values may not be used
+  // by enum values in the same enum declaration. Reserved ranges may not
+  // overlap.
+  repeated EnumReservedRange reserved_range = 4;
+
+  // Reserved enum value names, which may not be reused. A given name may only
+  // be reserved once.
+  repeated string reserved_name = 5;
 }
 
 // Describes a value within an enum.
@@ -361,7 +382,7 @@ message FileOptions {
   optional bool cc_generic_services = 16 [default=false];
   optional bool java_generic_services = 17 [default=false];
   optional bool py_generic_services = 18 [default=false];
-  optional bool php_generic_services = 19 [default=false];
+  optional bool php_generic_services = 42 [default=false];
 
   // Is this file deprecated?
   // Depending on the target platform, this can emit Deprecated annotations
