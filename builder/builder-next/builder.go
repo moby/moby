@@ -80,6 +80,34 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	return items, nil
 }
 
+func (b *Builder) Prune(ctx context.Context) (int64, error) {
+	ch := make(chan *controlapi.UsageRecord)
+
+	eg, ctx := errgroup.WithContext(ctx)
+
+	eg.Go(func() error {
+		defer close(ch)
+		return b.controller.Prune(&controlapi.PruneRequest{}, &pruneProxy{
+			streamProxy: streamProxy{ctx: ctx},
+			ch:          ch,
+		})
+	})
+
+	var size int64
+	eg.Go(func() error {
+		for r := range ch {
+			size += r.Size_
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return 0, err
+	}
+
+	return size, nil
+}
+
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
 	var out builder.Result
 
@@ -149,7 +177,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		defer close(ch)
 		return b.controller.Status(&controlapi.StatusRequest{
 			Ref: id,
-		}, &statusProxy{ctx: ctx, ch: ch})
+		}, &statusProxy{streamProxy: streamProxy{ctx: ctx}, ch: ch})
 	})
 
 	eg.Go(func() error {
@@ -188,28 +216,35 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	return &out, nil
 }
 
-type statusProxy struct {
+type streamProxy struct {
 	ctx context.Context
-	ch  chan *controlapi.StatusResponse
 }
 
-func (sp *statusProxy) SetHeader(_ grpcmetadata.MD) error {
+func (sp *streamProxy) SetHeader(_ grpcmetadata.MD) error {
 	return nil
 }
 
-func (sp *statusProxy) SendHeader(_ grpcmetadata.MD) error {
+func (sp *streamProxy) SendHeader(_ grpcmetadata.MD) error {
 	return nil
 }
 
-func (sp *statusProxy) SetTrailer(_ grpcmetadata.MD) {
+func (sp *streamProxy) SetTrailer(_ grpcmetadata.MD) {
+}
+
+func (sp *streamProxy) Context() context.Context {
+	return sp.ctx
+}
+func (sp *streamProxy) RecvMsg(m interface{}) error {
+	return io.EOF
+}
+
+type statusProxy struct {
+	streamProxy
+	ch chan *controlapi.StatusResponse
 }
 
 func (sp *statusProxy) Send(resp *controlapi.StatusResponse) error {
 	return sp.SendMsg(resp)
-}
-
-func (sp *statusProxy) Context() context.Context {
-	return sp.ctx
 }
 func (sp *statusProxy) SendMsg(m interface{}) error {
 	if sr, ok := m.(*controlapi.StatusResponse); ok {
@@ -217,8 +252,20 @@ func (sp *statusProxy) SendMsg(m interface{}) error {
 	}
 	return nil
 }
-func (sp *statusProxy) RecvMsg(m interface{}) error {
-	return io.EOF
+
+type pruneProxy struct {
+	streamProxy
+	ch chan *controlapi.UsageRecord
+}
+
+func (sp *pruneProxy) Send(resp *controlapi.UsageRecord) error {
+	return sp.SendMsg(resp)
+}
+func (sp *pruneProxy) SendMsg(m interface{}) error {
+	if sr, ok := m.(*controlapi.UsageRecord); ok {
+		sp.ch <- sr
+	}
+	return nil
 }
 
 type contentStoreNoLabels struct {

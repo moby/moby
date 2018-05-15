@@ -13,7 +13,7 @@ import (
 )
 
 func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error) {
-	if l, err := s.getLayer(key); err != nil {
+	if l, err := s.getLayer(key, true); err != nil {
 		return nil, err
 	} else if l != nil {
 		return getDiffChain(l), nil
@@ -57,7 +57,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 	eg.Go(func() error {
 		parent := ""
 		if p := info.Parent; p != "" {
-			if l, err := s.getLayer(p); err != nil {
+			if l, err := s.getLayer(p, true); err != nil {
 				return err
 			} else if l != nil {
 				parent, err = getGraphID(l)

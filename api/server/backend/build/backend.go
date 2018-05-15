@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 )
 
 // ImageComponent provides an interface for working with images
@@ -89,11 +90,33 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 
 // PruneCache removes all cached build sources
 func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport, error) {
-	size, err := b.fsCache.Prune(ctx)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to prune build cache")
+	eg, ctx := errgroup.WithContext(ctx)
+
+	var fsCacheSize uint64
+	eg.Go(func() error {
+		var err error
+		fsCacheSize, err = b.fsCache.Prune(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to prune fscache")
+		}
+		return nil
+	})
+
+	var buildCacheSize int64
+	eg.Go(func() error {
+		var err error
+		buildCacheSize, err = b.buildkit.Prune(ctx)
+		if err != nil {
+			return errors.Wrap(err, "failed to prune build cache")
+		}
+		return nil
+	})
+
+	if err := eg.Wait(); err != nil {
+		return nil, err
 	}
-	return &types.BuildCachePruneReport{SpaceReclaimed: size}, nil
+
+	return &types.BuildCachePruneReport{SpaceReclaimed: fsCacheSize + uint64(buildCacheSize)}, nil
 }
 
 func (b *Backend) Cancel(ctx context.Context, id string) error {

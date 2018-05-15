@@ -74,7 +74,7 @@ func NewSnapshotter(opt Opt) (snapshot.SnapshotterBase, error) {
 func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
 	origParent := parent
 	if parent != "" {
-		if l, err := s.getLayer(parent); err != nil {
+		if l, err := s.getLayer(parent, false); err != nil {
 			return err
 		} else if l != nil {
 			parent, err = getGraphID(l)
@@ -115,12 +115,16 @@ func (s *snapshotter) chainID(key string) (layer.ChainID, bool) {
 	return "", false
 }
 
-func (s *snapshotter) getLayer(key string) (layer.Layer, error) {
+func (s *snapshotter) getLayer(key string, withCommitted bool) (layer.Layer, error) {
 	s.mu.Lock()
 	l, ok := s.refs[key]
 	if !ok {
 		id, ok := s.chainID(key)
 		if !ok {
+			if !withCommitted {
+				s.mu.Unlock()
+				return nil, nil
+			}
 			if err := s.db.View(func(tx *bolt.Tx) error {
 				b := tx.Bucket([]byte(key))
 				if b == nil {
@@ -146,7 +150,7 @@ func (s *snapshotter) getLayer(key string) (layer.Layer, error) {
 			s.mu.Unlock()
 			return nil, err
 		}
-		s.refs[string(id)] = l
+		s.refs[key] = l
 		if err := s.db.Update(func(tx *bolt.Tx) error {
 			_, err := tx.CreateBucketIfNotExists([]byte(key))
 			return err
@@ -179,23 +183,26 @@ func (s *snapshotter) getGraphDriverID(key string) (string, bool) {
 }
 
 func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, error) {
-	if l, err := s.getLayer(key); err != nil {
-		return snapshots.Info{}, err
-	} else if l != nil {
-		var parentID string
-		if p := l.Parent(); p != nil {
-			parentID = p.ChainID().String()
-		}
-		info := snapshots.Info{
-			Kind:   snapshots.KindCommitted,
-			Name:   key,
-			Parent: parentID,
-		}
-		return info, nil
-	}
-
 	inf := snapshots.Info{
 		Kind: snapshots.KindActive,
+	}
+
+	l, err := s.getLayer(key, false)
+	if err != nil {
+		return snapshots.Info{}, err
+	}
+	if l != nil {
+		if p := l.Parent(); p != nil {
+			inf.Parent = p.ChainID().String()
+		}
+		inf.Kind = snapshots.KindCommitted
+		inf.Name = string(key)
+		return inf, nil
+	}
+
+	l, err = s.getLayer(key, true)
+	if err != nil {
+		return snapshots.Info{}, err
 	}
 
 	id, committed := s.getGraphDriverID(key)
@@ -205,13 +212,22 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 
 	if err := s.db.View(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte(id))
-		if b == nil {
-			return errors.Errorf("not found") // TODO: typed
+		if b == nil && l == nil {
+			return errors.Errorf("snapshot %s not found", id) // TODO: typed
 		}
 		inf.Name = string(key)
-		v := b.Get(keyParent)
-		if v != nil {
-			inf.Parent = string(v)
+		if b != nil {
+			v := b.Get(keyParent)
+			if v != nil {
+				inf.Parent = string(v)
+				return nil
+			}
+		}
+		if l != nil {
+			if p := l.Parent(); p != nil {
+				inf.Parent = p.ChainID().String()
+			}
+			inf.Kind = snapshots.KindCommitted
 		}
 		return nil
 	}); err != nil {
@@ -221,7 +237,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 }
 
 func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountable, error) {
-	l, err := s.getLayer(key)
+	l, err := s.getLayer(key, true)
 	if err != nil {
 		return nil, err
 	}
@@ -269,16 +285,17 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 }
 
 func (s *snapshotter) Remove(ctx context.Context, key string) error {
-	l, err := s.getLayer(key)
+	l, err := s.getLayer(key, true)
 	if err != nil {
 		return err
 	}
+
+	id, _ := s.getGraphDriverID(key)
 
 	var found bool
 	if err := s.db.Update(func(tx *bolt.Tx) error {
 		found = tx.Bucket([]byte(key)) != nil
 		if found {
-			id, _ := s.getGraphDriverID(key)
 			tx.DeleteBucket([]byte(key))
 			if id != key {
 				tx.DeleteBucket([]byte(id))
@@ -298,7 +315,6 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 		return nil
 	}
 
-	id, _ := s.getGraphDriverID(key)
 	return s.opt.GraphDriver.Remove(id)
 }
 
@@ -331,9 +347,9 @@ func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpath
 	return s.Stat(ctx, info.Name)
 }
 
-func (s *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
+func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage, retErr error) {
 	usage := snapshots.Usage{}
-	if l, err := s.getLayer(key); err != nil {
+	if l, err := s.getLayer(key, true); err != nil {
 		return usage, err
 	} else if l != nil {
 		s, err := l.DiffSize()
@@ -376,7 +392,16 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, e
 	}
 	var parent string
 	if info.Parent != "" {
-		parent, _ = s.getGraphDriverID(info.Parent)
+		if l, err := s.getLayer(info.Parent, false); err != nil {
+			return usage, err
+		} else if l != nil {
+			parent, err = getGraphID(l)
+			if err != nil {
+				return usage, err
+			}
+		} else {
+			parent, _ = s.getGraphDriverID(info.Parent)
+		}
 	}
 
 	diffSize, err := s.opt.GraphDriver.DiffSize(id, parent)
