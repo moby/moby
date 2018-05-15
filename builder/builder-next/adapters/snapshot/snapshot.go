@@ -3,6 +3,7 @@ package snapshot
 import (
 	"context"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 
@@ -331,7 +332,69 @@ func (s *snapshotter) Update(ctx context.Context, info snapshots.Info, fieldpath
 }
 
 func (s *snapshotter) Usage(ctx context.Context, key string) (snapshots.Usage, error) {
-	return snapshots.Usage{}, nil
+	usage := snapshots.Usage{}
+	if l, err := s.getLayer(key); err != nil {
+		return usage, err
+	} else if l != nil {
+		s, err := l.DiffSize()
+		if err != nil {
+			return usage, err
+		}
+		usage.Size = s
+		return usage, nil
+	}
+
+	size := int64(-1)
+	if err := s.db.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(key))
+		if b == nil {
+			return nil
+		}
+		v := b.Get(keySize)
+		if v != nil {
+			s, err := strconv.Atoi(string(v))
+			if err != nil {
+				return err
+			}
+			size = int64(s)
+		}
+		return nil
+	}); err != nil {
+		return usage, err
+	}
+
+	if size != -1 {
+		usage.Size = size
+		return usage, nil
+	}
+
+	id, _ := s.getGraphDriverID(key)
+
+	info, err := s.Stat(ctx, key)
+	if err != nil {
+		return usage, err
+	}
+	var parent string
+	if info.Parent != "" {
+		parent, _ = s.getGraphDriverID(info.Parent)
+	}
+
+	diffSize, err := s.opt.GraphDriver.DiffSize(id, parent)
+	if err != nil {
+		return usage, err
+	}
+
+	if err := s.db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(key))
+		if err != nil {
+			return err
+		}
+		return b.Put(keySize, []byte(strconv.Itoa(int(diffSize))))
+	}); err != nil {
+		return usage, err
+	}
+	usage.Size = int64(diffSize)
+	return usage, nil
 }
 
 func (s *snapshotter) Close() error {
