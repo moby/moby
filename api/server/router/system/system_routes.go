@@ -97,7 +97,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 		var err error
 		buildCache, err = s.builder.DiskUsage(ctx)
 		if err != nil {
-			return pkgerrors.Wrap(err, "error getting fscache build cache usage")
+			return pkgerrors.Wrap(err, "error getting build cache usage")
 		}
 		return nil
 	})

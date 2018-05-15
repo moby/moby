@@ -109,6 +109,15 @@ func (b *Builder) Prune(ctx context.Context) (int64, error) {
 }
 
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
+	if buildID := opt.Options.BuildID; buildID != "" {
+		b.mu.Lock()
+		ctx, b.jobs[buildID] = context.WithCancel(ctx)
+		b.mu.Unlock()
+		defer func() {
+			delete(b.jobs, buildID)
+		}()
+	}
+
 	var out builder.Result
 
 	id := identity.NewID()

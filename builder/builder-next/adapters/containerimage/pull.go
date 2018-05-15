@@ -291,15 +291,14 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	}
 
 	if p.config != nil {
-		img, err := p.is.ImageStore.Get(image.ID(digest.Digest(p.config)))
-		if err != nil {
-			return nil, err
+		img, err := p.is.ImageStore.Get(image.ID(digest.FromBytes(p.config)))
+		if err == nil {
+			ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
+			if err != nil {
+				return nil, err
+			}
+			return ref, nil
 		}
-		ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
-		if err != nil {
-			return nil, err
-		}
-		return ref, nil
 	}
 
 	ongoing := newJobs(p.ref)

@@ -307,6 +307,9 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 	}
 
 	if l != nil {
+		s.mu.Lock()
+		delete(s.refs, key)
+		s.mu.Unlock()
 		_, err := s.opt.LayerStore.Release(l)
 		return err
 	}

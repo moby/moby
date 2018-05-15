@@ -73,23 +73,26 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 	}
 	config := e.config
 
-	layersDone := oneOffProgress(ctx, "exporting layers")
+	var diffs []digest.Digest
+	if ref != nil {
+		layersDone := oneOffProgress(ctx, "exporting layers")
 
-	if err := ref.Finalize(ctx); err != nil {
-		return nil, err
+		if err := ref.Finalize(ctx); err != nil {
+			return nil, err
+		}
+
+		diffIDs, err := e.opt.Differ.EnsureLayer(ctx, ref.ID())
+		if err != nil {
+			return nil, err
+		}
+
+		diffs = make([]digest.Digest, len(diffIDs))
+		for i := range diffIDs {
+			diffs[i] = digest.Digest(diffIDs[i])
+		}
+
+		layersDone(nil)
 	}
-
-	diffIDs, err := e.opt.Differ.EnsureLayer(ctx, ref.ID())
-	if err != nil {
-		return nil, err
-	}
-
-	diffs := make([]digest.Digest, len(diffIDs))
-	for i := range diffIDs {
-		diffs[i] = digest.Digest(diffIDs[i])
-	}
-
-	layersDone(nil)
 
 	if len(config) == 0 {
 		var err error
