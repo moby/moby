@@ -1,4 +1,4 @@
-// +build linux freebsd
+// +build !windows
 
 package container // import "github.com/docker/docker/container"
 
@@ -380,7 +380,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 	}
 
 	for _, mountPath := range mountPaths {
-		if err := detachMounted(mountPath); err != nil {
+		if err := mount.Unmount(mountPath); err != nil {
 			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount fo volume '%s': %v", container.ID, mountPath, err)
 		}
 	}

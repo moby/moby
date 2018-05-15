@@ -31,7 +31,7 @@ var (
 	// ErrRootFSReadOnly is returned when a container
 	// rootfs is marked readonly.
 	ErrRootFSReadOnly = errors.New("container rootfs is marked read-only")
-	getPortMapInfo    = container.GetSandboxPortMapInfo
+	getPortMapInfo    = getSandboxPortMapInfo
 )
 
 func (daemon *Daemon) getDNSSearchSettings(container *container.Container) []string {
@@ -288,7 +288,7 @@ func (daemon *Daemon) updateNetworkSettings(container *container.Container, n li
 }
 
 func (daemon *Daemon) updateEndpointNetworkSettings(container *container.Container, n libnetwork.Network, ep libnetwork.Endpoint) error {
-	if err := container.BuildEndpointInfo(n, ep); err != nil {
+	if err := buildEndpointInfo(container.NetworkSettings, n, ep); err != nil {
 		return err
 	}
 
@@ -572,7 +572,7 @@ func (daemon *Daemon) allocateNetwork(container *container.Container) error {
 			if err != nil {
 				return err
 			}
-			container.UpdateSandboxNetworkSettings(sb)
+			updateSandboxNetworkSettings(container, sb)
 			defer func() {
 				if err != nil {
 					sb.Delete()
@@ -740,7 +740,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	controller := daemon.netController
 	sb := daemon.getNetworkSandbox(container)
-	createOptions, err := container.BuildCreateEndpointOptions(n, endpointConfig, sb, daemon.configStore.DNS)
+	createOptions, err := buildCreateEndpointOptions(container, n, endpointConfig, sb, daemon.configStore.DNS)
 	if err != nil {
 		return err
 	}
@@ -779,10 +779,10 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 			return err
 		}
 
-		container.UpdateSandboxNetworkSettings(sb)
+		updateSandboxNetworkSettings(container, sb)
 	}
 
-	joinOptions, err := container.BuildJoinOptions(n)
+	joinOptions, err := buildJoinOptions(container.NetworkSettings, n)
 	if err != nil {
 		return err
 	}
@@ -798,7 +798,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		}
 	}
 
-	if err := container.UpdateJoinInfo(n, ep); err != nil {
+	if err := updateJoinInfo(container.NetworkSettings, n, ep); err != nil {
 		return fmt.Errorf("Updating join info failed: %v", err)
 	}
 
@@ -806,6 +806,37 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 
 	daemon.LogNetworkEventWithAttributes(n, "connect", map[string]string{"container": container.ID})
 	networkActions.WithValues("connect").UpdateSince(start)
+	return nil
+}
+
+func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error { // nolint: interfacer
+	if ep == nil {
+		return errors.New("invalid enppoint whhile building portmap info")
+	}
+
+	if networkSettings == nil {
+		return errors.New("invalid network settings while building port map info")
+	}
+
+	if len(networkSettings.Ports) == 0 {
+		pm, err := getEndpointPortMapInfo(ep)
+		if err != nil {
+			return err
+		}
+		networkSettings.Ports = pm
+	}
+
+	epInfo := ep.Info()
+	if epInfo == nil {
+		// It is not an error to get an empty endpoint info
+		return nil
+	}
+	if epInfo.Gateway() != nil {
+		networkSettings.Networks[n.Name()].Gateway = epInfo.Gateway().String()
+	}
+	if epInfo.GatewayIPv6().To16() != nil {
+		networkSettings.Networks[n.Name()].IPv6Gateway = epInfo.GatewayIPv6().String()
+	}
 	return nil
 }
 
@@ -1109,4 +1140,11 @@ func getNetworkID(name string, endpointSettings *networktypes.EndpointSettings) 
 		return endpointSettings.NetworkID
 	}
 	return name
+}
+
+// updateSandboxNetworkSettings updates the sandbox ID and Key.
+func updateSandboxNetworkSettings(c *container.Container, sb libnetwork.Sandbox) error {
+	c.NetworkSettings.SandboxID = sb.ID()
+	c.NetworkSettings.SandboxKey = sb.Key()
+	return nil
 }

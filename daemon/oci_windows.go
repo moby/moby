@@ -156,7 +156,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 				continue
 			}
 
-			ep, err := c.GetEndpointInNetwork(sn)
+			ep, err := getEndpointInNetwork(c.Name, sn)
 			if err != nil {
 				continue
 			}
