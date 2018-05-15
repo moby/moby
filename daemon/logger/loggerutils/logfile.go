@@ -97,7 +97,7 @@ type LogFile struct {
 
 type makeDecoderFunc func(rdr io.Reader) func() (*logger.Message, error)
 
-//NewLogFile creates new LogFile
+// NewLogFile creates new LogFile
 func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode) (*LogFile, error) {
 	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
@@ -201,6 +201,13 @@ func rotate(name string, maxFiles int, compress bool) error {
 	if compress {
 		extension = ".gz"
 	}
+
+	lastFile := fmt.Sprintf("%s.%d%s", name, maxFiles-1, extension)
+	err := os.Remove(lastFile)
+	if err != nil && !os.IsNotExist(err) {
+		return errors.Wrap(err, "error removing oldest log file")
+	}
+
 	for i := maxFiles - 1; i > 1; i-- {
 		toPath := name + "." + strconv.Itoa(i) + extension
 		fromPath := name + "." + strconv.Itoa(i-1) + extension
@@ -230,7 +237,7 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 		}
 	}()
 
-	outFile, err := os.OpenFile(fileName+".gz", os.O_CREATE|os.O_RDWR, 0640)
+	outFile, err := os.OpenFile(fileName+".gz", os.O_CREATE|os.O_TRUNC|os.O_RDWR, 0640)
 	if err != nil {
 		logrus.Errorf("Failed to open or create gzip log file: %v", err)
 		return
@@ -251,7 +258,7 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 	compressWriter.Header.Extra, err = json.Marshal(&extra)
 	if err != nil {
 		// Here log the error only and don't return since this is just an optimization.
-		logrus.Warningf("Failed to marshal JSON: %v", err)
+		logrus.Warningf("Failed to marshal gzip header as JSON: %v", err)
 	}
 
 	_, err = pools.Copy(compressWriter, file)
@@ -281,6 +288,9 @@ func (w *LogFile) Close() error {
 }
 
 // ReadLogs decodes entries from log files and sends them the passed in watcher
+//
+// Note: Using the follow option can become inconsistent in cases with very frequent rotations and max log files is 1.
+// TODO: Consider a different implementation which can effectively follow logs under frequent rotations.
 func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher) {
 	w.mu.RLock()
 	currentFile, err := os.Open(w.f.Name())
@@ -364,7 +374,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 		f, err := os.Open(fmt.Sprintf("%s.%d", w.f.Name(), i-1))
 		if err != nil {
 			if !os.IsNotExist(err) {
-				return nil, err
+				return nil, errors.Wrap(err, "error opening rotated log file")
 			}
 
 			fileName := fmt.Sprintf("%s.%d.gz", w.f.Name(), i-1)
@@ -377,8 +387,8 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 			})
 
 			if err != nil {
-				if !os.IsNotExist(err) {
-					return nil, err
+				if !os.IsNotExist(errors.Cause(err)) {
+					return nil, errors.Wrap(err, "error getting reference to decompressed log file")
 				}
 				continue
 			}
@@ -399,13 +409,13 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 func decompressfile(fileName, destFileName string, since time.Time) (*os.File, error) {
 	cf, err := os.Open(fileName)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error opening file for decompression")
 	}
 	defer cf.Close()
 
 	rc, err := gzip.NewReader(cf)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error making gzip reader for compressed log file")
 	}
 	defer rc.Close()
 
@@ -418,17 +428,17 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 
 	rs, err := os.OpenFile(destFileName, os.O_CREATE|os.O_RDWR, 0640)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "error creating file for copying decompressed log stream")
 	}
 
 	_, err = pools.Copy(rs, rc)
 	if err != nil {
 		rs.Close()
 		rErr := os.Remove(rs.Name())
-		if rErr != nil && os.IsNotExist(rErr) {
+		if rErr != nil && !os.IsNotExist(rErr) {
 			logrus.Errorf("Failed to remove the logfile %q: %v", rs.Name(), rErr)
 		}
-		return nil, err
+		return nil, errors.Wrap(err, "error while copying decompressed log stream to file")
 	}
 
 	return rs, nil
@@ -461,7 +471,7 @@ func tailFile(f io.ReadSeeker, watcher *logger.LogWatcher, createDecoder makeDec
 	for {
 		msg, err := decodeLogLine()
 		if err != nil {
-			if err != io.EOF {
+			if errors.Cause(err) != io.EOF {
 				watcher.Err <- err
 			}
 			return
@@ -569,7 +579,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 	}
 
 	handleDecodeErr := func(err error) error {
-		if err != io.EOF {
+		if errors.Cause(err) != io.EOF {
 			return err
 		}
 
