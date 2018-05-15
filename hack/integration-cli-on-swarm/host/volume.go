@@ -41,7 +41,7 @@ func createTar(data map[string][]byte) (io.Reader, error) {
 // which is attached to the container.
 func createVolumeWithData(cli *client.Client, volumeName string, data map[string][]byte, image string) error {
 	_, err := cli.VolumeCreate(context.Background(),
-		volume.VolumesCreateBody{
+		volume.VolumeCreateBody{
 			Driver: "local",
 			Name:   volumeName,
 		})

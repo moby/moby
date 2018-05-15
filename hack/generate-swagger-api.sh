@@ -23,5 +23,5 @@ swagger generate operation -f api/swagger.yaml \
     -n ContainerUpdate \
     -n ContainerWait \
     -n ImageHistory \
-    -n VolumesCreate \
-    -n VolumesList
+    -n VolumeCreate \
+    -n VolumeList

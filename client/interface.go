@@ -168,10 +168,10 @@ type SystemAPIClient interface {
 
 // VolumeAPIClient defines API client methods for the volumes
 type VolumeAPIClient interface {
-	VolumeCreate(ctx context.Context, options volumetypes.VolumesCreateBody) (types.Volume, error)
+	VolumeCreate(ctx context.Context, options volumetypes.VolumeCreateBody) (types.Volume, error)
 	VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error)
 	VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error)
-	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumesListOKBody, error)
+	VolumeList(ctx context.Context, filter filters.Args) (volumetypes.VolumeListOKBody, error)
 	VolumeRemove(ctx context.Context, volumeID string, force bool) error
 	VolumesPrune(ctx context.Context, pruneFilter filters.Args) (types.VolumesPruneReport, error)
 }

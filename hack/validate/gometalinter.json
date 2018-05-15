@@ -6,6 +6,7 @@
     ".*\\.pb\\.go",
     "dockerversion/version_autogen.go",
     "api/types/container/container_.*",
+    "api/types/volume/volume_.*",
     "integration-cli/"
   ],
   "Skip": ["integration-cli/"],
