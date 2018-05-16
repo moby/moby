@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	req "github.com/docker/docker/internal/test/request"
@@ -14,6 +15,7 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestResize(t *testing.T) {
@@ -33,6 +35,7 @@ func TestResize(t *testing.T) {
 }
 
 func TestResizeWithInvalidSize(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()

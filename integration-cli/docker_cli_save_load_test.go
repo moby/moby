@@ -330,7 +330,9 @@ func listTar(f io.Reader) ([]string, error) {
 // The layer.tar file is actually zero bytes, no padding or anything else.
 // See issue: 18170
 func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	// this will definitely not work if using remote daemon
+	// very weird test
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 
 	dockerCmd(c, "load", "-i", "testdata/emptyLayer.tar")
 }

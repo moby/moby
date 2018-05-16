@@ -28,7 +28,9 @@ func (s *DockerSuite) TestLinksInvalidContainerTarget(c *check.C) {
 	// an invalid container target should produce an error
 	c.Assert(err, checker.NotNil, check.Commentf("out: %s", out))
 	// an invalid container target should produce an error
-	c.Assert(out, checker.Contains, "could not get container")
+	// note: convert the output to lowercase first as the error string
+	// capitalization was changed after API version 1.32
+	c.Assert(strings.ToLower(out), checker.Contains, "could not get container")
 }
 
 func (s *DockerSuite) TestLinksPingLinkedContainers(c *check.C) {

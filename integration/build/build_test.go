@@ -136,6 +136,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 }
 
 func TestBuildMultiStageParentConfig(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
 	dockerfile := `
 		FROM busybox AS stage0
 		ENV WHO=parent
@@ -204,6 +205,7 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 // multiple subsequent stages
 // #35652
 func TestBuildMultiStageOnBuild(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.33"), "broken in earlier versions")
 	defer setupTest(t)()
 	// test both metadata and layer based commands as they may be implemented differently
 	dockerfile := `FROM busybox AS stage1

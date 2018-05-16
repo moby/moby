@@ -13,6 +13,7 @@ import (
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/gotestyourself/gotestyourself/poll"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 // delInterface removes given network interface
@@ -23,6 +24,7 @@ func delInterface(t *testing.T, ifName string) {
 }
 
 func TestDaemonRestartWithLiveRestore(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon())
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t)
@@ -42,6 +44,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
+	skip.If(t, testEnv.IsRemoteDaemon())
 	defaultNetworkBridge := "docker0"
 	delInterface(t, defaultNetworkBridge)
 	d := daemon.New(t)
@@ -86,6 +89,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon())
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
@@ -119,6 +123,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon())
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
@@ -174,6 +179,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon())
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	defer d.Stop(t)

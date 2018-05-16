@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
@@ -25,7 +26,11 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 
 	res, body, err := request.Post("/containers/create?name="+name, request.JSONBody(config))
 	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	}
 
 	buf, err := request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -49,7 +54,11 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	buf, err = request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
 
-	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	}
 	c.Assert(getErrorMessage(c, buf), checker.Contains, expected)
 
 	// test invalid Timeout in Healthcheck: less than 1ms
@@ -64,7 +73,11 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	res, body, err = request.Post("/containers/create?name="+name, request.JSONBody(config))
 	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	}
 
 	buf, err = request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -84,7 +97,11 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	res, body, err = request.Post("/containers/create?name="+name, request.JSONBody(config))
 	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	}
 
 	buf, err = request.ReadBody(body)
 	c.Assert(err, checker.IsNil)
@@ -105,7 +122,11 @@ func (s *DockerSuite) TestAPICreateWithInvalidHealthcheckParams(c *check.C) {
 	}
 	res, body, err = request.Post("/containers/create?name="+name, request.JSONBody(config))
 	c.Assert(err, check.IsNil)
-	c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, check.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, check.Equals, http.StatusBadRequest)
+	}
 
 	buf, err = request.ReadBody(body)
 	c.Assert(err, checker.IsNil)

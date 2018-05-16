@@ -463,5 +463,5 @@ func (s *DockerSuite) TestInspectInvalidReference(c *check.C) {
 	// This test should work on both Windows and Linux
 	out, _, err := dockerCmdWithError("inspect", "FooBar")
 	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "no such image: FooBar")
+	c.Assert(out, checker.Contains, "invalid reference format: repository name must be lowercase")
 }

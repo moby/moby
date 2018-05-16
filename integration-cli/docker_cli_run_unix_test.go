@@ -1165,7 +1165,7 @@ func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_CHOWN
@@ -1183,7 +1183,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_DAC_OVERRIDE
@@ -1196,7 +1196,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_FOWNER
@@ -1212,7 +1212,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
 // TODO CAP_KILL
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETUID
@@ -1230,7 +1230,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETGID
@@ -1250,7 +1250,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
 // TODO CAP_SETPCAP
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
@@ -1268,7 +1268,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) 
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_RAW
@@ -1286,7 +1286,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SYS_CHROOT
@@ -1304,7 +1304,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_MKNOD
