@@ -11,26 +11,33 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
+// CopyToContainerOptions holds information
+// about files to copy into a container
+type CopyToContainerOptions struct {
+	AllowOverwriteDirWithFile bool
+	CopyUIDGID                bool
+}
+
 // ContainerStatPath returns Stat information about a path inside the container filesystem.
-func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path string) (types.ContainerPathStat, error) {
+func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path string) (container.PathStat, error) {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
 	urlStr := "/containers/" + containerID + "/archive"
 	response, err := cli.head(ctx, urlStr, query, nil)
 	if err != nil {
-		return types.ContainerPathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+path)
+		return container.PathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+path)
 	}
 	defer ensureReaderClosed(response)
-	return getContainerPathStatFromHeader(response.header)
+	return getPathStatFromHeader(response.header)
 }
 
 // CopyToContainer copies content into the container filesystem.
 // Note that `content` must be a Reader for a TAR archive
-func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options types.CopyToContainerOptions) error {
+func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath string, content io.Reader, options CopyToContainerOptions) error {
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(dstPath)) // Normalize the paths used in the API.
 	// Do not allow for an existing directory to be overwritten by a non-directory and vice versa.
@@ -59,18 +66,18 @@ func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath str
 
 // CopyFromContainer gets the content from the container and returns it as a Reader
 // for a TAR archive to manipulate it in the host. It's up to the caller to close the reader.
-func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, types.ContainerPathStat, error) {
+func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath string) (io.ReadCloser, container.PathStat, error) {
 	query := make(url.Values, 1)
 	query.Set("path", filepath.ToSlash(srcPath)) // Normalize the paths used in the API.
 
 	apiPath := "/containers/" + containerID + "/archive"
 	response, err := cli.get(ctx, apiPath, query, nil)
 	if err != nil {
-		return nil, types.ContainerPathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+srcPath)
+		return nil, container.PathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+srcPath)
 	}
 
 	if response.statusCode != http.StatusOK {
-		return nil, types.ContainerPathStat{}, fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
+		return nil, container.PathStat{}, fmt.Errorf("unexpected status code from daemon: %d", response.statusCode)
 	}
 
 	// In order to get the copy behavior right, we need to know information
@@ -79,15 +86,15 @@ func (cli *Client) CopyFromContainer(ctx context.Context, containerID, srcPath s
 	// copy it locally. Along with the stat info about the local destination,
 	// we have everything we need to handle the multiple possibilities there
 	// can be when copying a file/dir from one location to another file/dir.
-	stat, err := getContainerPathStatFromHeader(response.header)
+	stat, err := getPathStatFromHeader(response.header)
 	if err != nil {
 		return nil, stat, fmt.Errorf("unable to get resource stat from response: %s", err)
 	}
 	return response.body, stat, err
 }
 
-func getContainerPathStatFromHeader(header http.Header) (types.ContainerPathStat, error) {
-	var stat types.ContainerPathStat
+func getPathStatFromHeader(header http.Header) (container.PathStat, error) {
+	var stat container.PathStat
 
 	encodedStat := header.Get("X-Docker-Container-Path-Stat")
 	statDecoder := base64.NewDecoder(base64.StdEncoding, strings.NewReader(encodedStat))

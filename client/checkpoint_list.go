@@ -5,12 +5,17 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 )
 
+// CheckpointListOptions holds parameters to list checkpoints for a container
+type CheckpointListOptions struct {
+	CheckpointDir string
+}
+
 // CheckpointList returns the checkpoints of the given container in the docker host
-func (cli *Client) CheckpointList(ctx context.Context, container string, options types.CheckpointListOptions) ([]types.Checkpoint, error) {
-	var checkpoints []types.Checkpoint
+func (cli *Client) CheckpointList(ctx context.Context, container string, options CheckpointListOptions) ([]containertypes.Checkpoint, error) {
+	var checkpoints []containertypes.Checkpoint
 
 	query := url.Values{}
 	if options.CheckpointDir != "" {

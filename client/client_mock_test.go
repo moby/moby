@@ -6,7 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client/types"
 )
 
 // transportFunc allows us to inject a mock transport for testing. We define it

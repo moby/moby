@@ -5,11 +5,17 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 )
 
+// ImageRemoveOptions holds parameters to remove images.
+type ImageRemoveOptions struct {
+	Force         bool
+	PruneChildren bool
+}
+
 // ImageRemove removes an image from the docker host.
-func (cli *Client) ImageRemove(ctx context.Context, imageID string, options types.ImageRemoveOptions) ([]types.ImageDeleteResponseItem, error) {
+func (cli *Client) ImageRemove(ctx context.Context, imageID string, options ImageRemoveOptions) ([]image.DeleteResponseItem, error) {
 	query := url.Values{}
 
 	if options.Force {
@@ -19,7 +25,7 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options type
 		query.Set("noprune", "1")
 	}
 
-	var dels []types.ImageDeleteResponseItem
+	var dels []image.DeleteResponseItem
 	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
 	if err != nil {
 		return dels, wrapResponseError(err, resp, "image", imageID)

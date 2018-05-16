@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 )
 
 // ContainerStats returns near realtime stats for a given container.
 // It's up to the caller to close the io.ReadCloser returned.
-func (cli *Client) ContainerStats(ctx context.Context, containerID string, stream bool) (types.ContainerStats, error) {
+func (cli *Client) ContainerStats(ctx context.Context, containerID string, stream bool) (container.Stats, error) {
 	query := url.Values{}
 	query.Set("stream", "0")
 	if stream {
@@ -18,9 +18,9 @@ func (cli *Client) ContainerStats(ctx context.Context, containerID string, strea
 
 	resp, err := cli.get(ctx, "/containers/"+containerID+"/stats", query, nil)
 	if err != nil {
-		return types.ContainerStats{}, err
+		return container.Stats{}, err
 	}
 
 	osType := getDockerOS(resp.header.Get("Server"))
-	return types.ContainerStats{Body: resp.body, OSType: osType}, err
+	return container.Stats{Body: resp.body, OSType: osType}, err
 }

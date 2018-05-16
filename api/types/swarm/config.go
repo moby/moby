@@ -33,3 +33,10 @@ type ConfigReference struct {
 	ConfigID   string
 	ConfigName string
 }
+
+// ConfigCreateResponse contains the information returned to a client
+// on the creation of a new config.
+type ConfigCreateResponse struct {
+	// ID is the id of the created config.
+	ID string
+}

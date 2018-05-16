@@ -12,7 +12,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/go-connections/sockets"
 	"github.com/pkg/errors"
 )
@@ -26,32 +25,32 @@ type tlsClientCon struct {
 func (c *tlsClientCon) CloseWrite() error {
 	// Go standard tls.Conn doesn't provide the CloseWrite() method so we do it
 	// on its underlying connection.
-	if conn, ok := c.rawConn.(types.CloseWriter); ok {
+	if conn, ok := c.rawConn.(CloseWriter); ok {
 		return conn.CloseWrite()
 	}
 	return nil
 }
 
 // postHijacked sends a POST request and hijacks the connection.
-func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (types.HijackedResponse, error) {
+func (cli *Client) postHijacked(ctx context.Context, path string, query url.Values, body interface{}, headers map[string][]string) (HijackedResponse, error) {
 	bodyEncoded, err := encodeData(body)
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 
 	apiPath := cli.getAPIPath(path, query)
 	req, err := http.NewRequest("POST", apiPath, bodyEncoded)
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 	req = cli.addHeaders(req, headers)
 
 	conn, err := cli.setupHijackConn(req, "tcp")
 	if err != nil {
-		return types.HijackedResponse{}, err
+		return HijackedResponse{}, err
 	}
 
-	return types.HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn)}, err
+	return HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn)}, err
 }
 
 func tlsDial(network, addr string, config *tls.Config) (net.Conn, error) {
@@ -191,7 +190,7 @@ func (cli *Client) setupHijackConn(req *http.Request, proto string) (net.Conn, e
 		// If there is buffered content, wrap the connection.  We return an
 		// object that implements CloseWrite iff the underlying connection
 		// implements it.
-		if _, ok := c.(types.CloseWriter); ok {
+		if _, ok := c.(CloseWriter); ok {
 			c = &hijackedConnCloseWriter{&hijackedConn{c, br}}
 		} else {
 			c = &hijackedConn{c, br}
@@ -224,9 +223,9 @@ type hijackedConnCloseWriter struct {
 	*hijackedConn
 }
 
-var _ types.CloseWriter = &hijackedConnCloseWriter{}
+var _ CloseWriter = &hijackedConnCloseWriter{}
 
 func (c *hijackedConnCloseWriter) CloseWrite() error {
-	conn := c.Conn.(types.CloseWriter)
+	conn := c.Conn.(CloseWriter)
 	return conn.CloseWrite()
 }

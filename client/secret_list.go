@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 )
 
+// SecretListOptions holds parameters to list secrets
+type SecretListOptions struct {
+	Filters filters.Args
+}
+
 // SecretList returns the list of secrets.
-func (cli *Client) SecretList(ctx context.Context, options types.SecretListOptions) ([]swarm.Secret, error) {
+func (cli *Client) SecretList(ctx context.Context, options SecretListOptions) ([]swarm.Secret, error) {
 	if err := cli.NewVersionError("1.25", "secret list"); err != nil {
 		return nil, err
 	}

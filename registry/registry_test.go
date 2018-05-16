@@ -11,7 +11,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -27,7 +27,7 @@ const (
 )
 
 func spawnTestRegistrySession(t *testing.T) *Session {
-	authConfig := &types.AuthConfig{}
+	authConfig := &auth.Config{}
 	endpoint, err := NewV1Endpoint(makeIndex("/v1/"), "", nil)
 	if err != nil {
 		t.Fatal(err)

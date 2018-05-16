@@ -7,14 +7,21 @@ import (
 	"net/http"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 )
 
+// ImageSearchOptions holds parameters to search images with.
+type ImageSearchOptions struct {
+	RegistryAuth  string
+	PrivilegeFunc RequestPrivilegeFunc
+	Filters       filters.Args
+	Limit         int
+}
+
 // ImageSearch makes the docker host to search by a term in a remote registry.
 // The list of results is not sorted in any fashion.
-func (cli *Client) ImageSearch(ctx context.Context, term string, options types.ImageSearchOptions) ([]registry.SearchResult, error) {
+func (cli *Client) ImageSearch(ctx context.Context, term string, options ImageSearchOptions) ([]registry.SearchResult, error) {
 	var results []registry.SearchResult
 	query := url.Values{}
 	query.Set("term", term)

@@ -6,22 +6,22 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/volume"
 )
 
 // VolumeInspect returns the information about a specific volume in the docker host.
-func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (types.Volume, error) {
+func (cli *Client) VolumeInspect(ctx context.Context, volumeID string) (volume.Volume, error) {
 	volume, _, err := cli.VolumeInspectWithRaw(ctx, volumeID)
 	return volume, err
 }
 
 // VolumeInspectWithRaw returns the information about a specific volume in the docker host and its raw representation
-func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (types.Volume, []byte, error) {
+func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (volume.Volume, []byte, error) {
 	if volumeID == "" {
-		return types.Volume{}, nil, objectNotFoundError{object: "volume", id: volumeID}
+		return volume.Volume{}, nil, objectNotFoundError{object: "volume", id: volumeID}
 	}
 
-	var volume types.Volume
+	var volume volume.Volume
 	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
 	if err != nil {
 		return volume, nil, wrapResponseError(err, resp, "volume", volumeID)

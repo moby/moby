@@ -5,13 +5,17 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 )
 
+// TaskListOptions holds parameters to list tasks with.
+type TaskListOptions struct {
+	Filters filters.Args
+}
+
 // TaskList returns the list of tasks.
-func (cli *Client) TaskList(ctx context.Context, options types.TaskListOptions) ([]swarm.Task, error) {
+func (cli *Client) TaskList(ctx context.Context, options TaskListOptions) ([]swarm.Task, error) {
 	query := url.Values{}
 
 	if options.Filters.Len() > 0 {

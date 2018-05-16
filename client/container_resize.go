@@ -4,17 +4,23 @@ import (
 	"context"
 	"net/url"
 	"strconv"
-
-	"github.com/docker/docker/api/types"
 )
 
+// ResizeOptions holds parameters to resize a tty.
+// It can be used to resize container ttys and
+// exec process ttys too.
+type ResizeOptions struct {
+	Height uint
+	Width  uint
+}
+
 // ContainerResize changes the size of the tty for a container.
-func (cli *Client) ContainerResize(ctx context.Context, containerID string, options types.ResizeOptions) error {
+func (cli *Client) ContainerResize(ctx context.Context, containerID string, options ResizeOptions) error {
 	return cli.resize(ctx, "/containers/"+containerID, options.Height, options.Width)
 }
 
 // ContainerExecResize changes the size of the tty for an exec process running inside a container.
-func (cli *Client) ContainerExecResize(ctx context.Context, execID string, options types.ResizeOptions) error {
+func (cli *Client) ContainerExecResize(ctx context.Context, execID string, options ResizeOptions) error {
 	return cli.resize(ctx, "/exec/"+execID, options.Height, options.Width)
 }
 

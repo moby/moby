@@ -7,12 +7,17 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 )
+
+// ImageCreateOptions holds information to create images.
+type ImageCreateOptions struct {
+	RegistryAuth string // RegistryAuth is the base64 encoded credentials for the registry.
+	Platform     string // Platform is the target platform of the image if it needs to be pulled from the registry.
+}
 
 // ImageCreate creates a new image based in the parent options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options types.ImageCreateOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageCreate(ctx context.Context, parentReference string, options ImageCreateOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(parentReference)
 	if err != nil {
 		return nil, err

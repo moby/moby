@@ -3,9 +3,17 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-
-	"github.com/docker/docker/api/types"
 )
+
+// ContainerAttachOptions holds parameters to attach to a container.
+type ContainerAttachOptions struct {
+	Stream     bool
+	Stdin      bool
+	Stdout     bool
+	Stderr     bool
+	DetachKeys string
+	Logs       bool
+}
 
 // ContainerAttach attaches a connection to a container in the server.
 // It returns a types.HijackedConnection with the hijacked connection
@@ -31,7 +39,7 @@ import (
 //
 // You can use github.com/docker/docker/pkg/stdcopy.StdCopy to demultiplex this
 // stream.
-func (cli *Client) ContainerAttach(ctx context.Context, container string, options types.ContainerAttachOptions) (types.HijackedResponse, error) {
+func (cli *Client) ContainerAttach(ctx context.Context, container string, options ContainerAttachOptions) (HijackedResponse, error) {
 	query := url.Values{}
 	if options.Stream {
 		query.Set("stream", "1")

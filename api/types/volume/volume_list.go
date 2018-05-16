@@ -7,15 +7,13 @@ package volume
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
-import "github.com/docker/docker/api/types"
-
 // VolumeListOKBody
 // swagger:model VolumeListOKBody
 type VolumeListOKBody struct {
 
 	// List of volumes
 	// Required: true
-	Volumes []*types.Volume `json:"Volumes"`
+	Volumes []*Volume `json:"Volumes"`
 
 	// Warnings that occurred when fetching the list of volumes
 	// Required: true

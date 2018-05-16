@@ -34,3 +34,10 @@ type SecretReference struct {
 	SecretID   string
 	SecretName string
 }
+
+// SecretCreateResponse contains the information returned to a client
+// on the creation of a new secret.
+type SecretCreateResponse struct {
+	// ID is the id of the created secret.
+	ID string
+}

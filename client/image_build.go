@@ -10,29 +10,76 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/auth"
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/image"
+	units "github.com/docker/go-units"
 )
+
+// ImageBuildOptions holds the information
+// necessary to build images.
+type ImageBuildOptions struct {
+	Tags           []string
+	SuppressOutput bool
+	RemoteContext  string
+	NoCache        bool
+	Remove         bool
+	ForceRemove    bool
+	PullParent     bool
+	Isolation      container.Isolation
+	CPUSetCPUs     string
+	CPUSetMems     string
+	CPUShares      int64
+	CPUQuota       int64
+	CPUPeriod      int64
+	Memory         int64
+	MemorySwap     int64
+	CgroupParent   string
+	NetworkMode    string
+	ShmSize        int64
+	Dockerfile     string
+	Ulimits        []*units.Ulimit
+	// BuildArgs needs to be a *string instead of just a string so that
+	// we can tell the difference between "" (empty string) and no value
+	// at all (nil). See the parsing of buildArgs in
+	// api/server/router/build/build_routes.go for even more info.
+	BuildArgs   map[string]*string
+	AuthConfigs map[string]auth.Config
+	Context     io.Reader
+	Labels      map[string]string
+	// squash the resulting image's layers to the parent
+	// preserves the original image and creates a new one from the parent with all
+	// the changes applied to a single layer
+	Squash bool
+	// CacheFrom specifies images that are used for matching cache. Images
+	// specified here do not need to have a valid parent chain to match cache.
+	CacheFrom   []string
+	SecurityOpt []string
+	ExtraHosts  []string // List of extra hosts
+	Target      string
+	SessionID   string
+	Platform    string
+}
 
 // ImageBuild sends request to the daemon to build images.
 // The Body in the response implement an io.ReadCloser and it's up to the caller to
 // close it.
-func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error) {
+func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, options ImageBuildOptions) (image.BuildResponse, error) {
 	query, err := cli.imageBuildOptionsToQuery(options)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return image.BuildResponse{}, err
 	}
 
 	headers := http.Header(make(map[string][]string))
 	buf, err := json.Marshal(options.AuthConfigs)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return image.BuildResponse{}, err
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
 	if options.Platform != "" {
 		if err := cli.NewVersionError("1.32", "platform"); err != nil {
-			return types.ImageBuildResponse{}, err
+			return image.BuildResponse{}, err
 		}
 		query.Set("platform", options.Platform)
 	}
@@ -40,18 +87,18 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 
 	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
 	if err != nil {
-		return types.ImageBuildResponse{}, err
+		return image.BuildResponse{}, err
 	}
 
 	osType := getDockerOS(serverResp.header.Get("Server"))
 
-	return types.ImageBuildResponse{
+	return image.BuildResponse{
 		Body:   serverResp.body,
 		OSType: osType,
 	}, nil
 }
 
-func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (url.Values, error) {
+func (cli *Client) imageBuildOptionsToQuery(options ImageBuildOptions) (url.Values, error) {
 	query := url.Values{
 		"t":           options.Tags,
 		"securityopt": options.SecurityOpt,

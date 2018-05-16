@@ -6,26 +6,26 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 )
 
 // ImageInspectWithRaw returns the image information and its raw representation.
-func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
+func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (image.Inspect, []byte, error) {
 	if imageID == "" {
-		return types.ImageInspect{}, nil, objectNotFoundError{object: "image", id: imageID}
+		return image.Inspect{}, nil, objectNotFoundError{object: "image", id: imageID}
 	}
 	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", nil, nil)
 	if err != nil {
-		return types.ImageInspect{}, nil, wrapResponseError(err, serverResp, "image", imageID)
+		return image.Inspect{}, nil, wrapResponseError(err, serverResp, "image", imageID)
 	}
 	defer ensureReaderClosed(serverResp)
 
 	body, err := ioutil.ReadAll(serverResp.body)
 	if err != nil {
-		return types.ImageInspect{}, nil, err
+		return image.Inspect{}, nil, err
 	}
 
-	var response types.ImageInspect
+	var response image.Inspect
 	rdr := bytes.NewReader(body)
 	err = json.NewDecoder(rdr).Decode(&response)
 	return response, body, err

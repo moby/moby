@@ -6,12 +6,12 @@ import (
 	"net/url"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugins"
 	"github.com/pkg/errors"
 )
 
 // PluginUpgrade upgrades a plugin
-func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+func (cli *Client) PluginUpgrade(ctx context.Context, name string, options PluginInstallOptions) (rc io.ReadCloser, err error) {
 	if err := cli.NewVersionError("1.26", "plugin upgrade"); err != nil {
 		return nil, err
 	}
@@ -33,7 +33,7 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 	return resp.body, nil
 }
 
-func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
+func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges plugins.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
 	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, headers)
 }

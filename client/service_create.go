@@ -7,14 +7,28 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
+// ServiceCreateOptions contains the options to use when creating a service.
+type ServiceCreateOptions struct {
+	// EncodedRegistryAuth is the encoded registry authorization credentials to
+	// use when updating the service.
+	//
+	// This field follows the format of the X-Registry-Auth header.
+	EncodedRegistryAuth string
+
+	// QueryRegistry indicates whether the service update requires
+	// contacting a registry. A registry may be contacted to retrieve
+	// the image digest and manifest, which in turn can be used to update
+	// platform or other information about the service.
+	QueryRegistry bool
+}
+
 // ServiceCreate creates a new Service.
-func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options types.ServiceCreateOptions) (types.ServiceCreateResponse, error) {
+func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec, options ServiceCreateOptions) (swarm.ServiceCreateResponse, error) {
 	var distErr error
 
 	headers := map[string][]string{
@@ -31,7 +45,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 	}
 
 	if err := validateServiceSpec(service); err != nil {
-		return types.ServiceCreateResponse{}, err
+		return swarm.ServiceCreateResponse{}, err
 	}
 
 	// ensure that the image is tagged
@@ -70,7 +84,7 @@ func (cli *Client) ServiceCreate(ctx context.Context, service swarm.ServiceSpec,
 		service.TaskTemplate.Placement.Platforms = imgPlatforms
 	}
 
-	var response types.ServiceCreateResponse
+	var response swarm.ServiceCreateResponse
 	resp, err := cli.post(ctx, "/services/create", nil, service, headers)
 	if err != nil {
 		return response, err

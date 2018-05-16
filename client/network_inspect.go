@@ -7,22 +7,28 @@ import (
 	"io/ioutil"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/network"
 )
 
+// NetworkInspectOptions holds parameters to inspect network
+type NetworkInspectOptions struct {
+	Scope   string
+	Verbose bool
+}
+
 // NetworkInspect returns the information for a specific network configured in the docker host.
-func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, error) {
+func (cli *Client) NetworkInspect(ctx context.Context, networkID string, options NetworkInspectOptions) (network.Resource, error) {
 	networkResource, _, err := cli.NetworkInspectWithRaw(ctx, networkID, options)
 	return networkResource, err
 }
 
 // NetworkInspectWithRaw returns the information for a specific network configured in the docker host and its raw representation.
-func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options types.NetworkInspectOptions) (types.NetworkResource, []byte, error) {
+func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, options NetworkInspectOptions) (network.Resource, []byte, error) {
 	if networkID == "" {
-		return types.NetworkResource{}, nil, objectNotFoundError{object: "network", id: networkID}
+		return network.Resource{}, nil, objectNotFoundError{object: "network", id: networkID}
 	}
 	var (
-		networkResource types.NetworkResource
+		networkResource network.Resource
 		resp            serverResponse
 		err             error
 	)

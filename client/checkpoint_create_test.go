@@ -9,15 +9,13 @@ import (
 	"net/http"
 	"strings"
 	"testing"
-
-	"github.com/docker/docker/api/types"
 )
 
 func TestCheckpointCreateError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	err := client.CheckpointCreate(context.Background(), "nothing", types.CheckpointCreateOptions{
+	err := client.CheckpointCreate(context.Background(), "nothing", CheckpointCreateOptions{
 		CheckpointID: "noting",
 		Exit:         true,
 	})
@@ -42,7 +40,7 @@ func TestCheckpointCreate(t *testing.T) {
 				return nil, fmt.Errorf("expected POST method, got %s", req.Method)
 			}
 
-			createOptions := &types.CheckpointCreateOptions{}
+			createOptions := &CheckpointCreateOptions{}
 			if err := json.NewDecoder(req.Body).Decode(createOptions); err != nil {
 				return nil, err
 			}
@@ -62,7 +60,7 @@ func TestCheckpointCreate(t *testing.T) {
 		}),
 	}
 
-	err := client.CheckpointCreate(context.Background(), expectedContainerID, types.CheckpointCreateOptions{
+	err := client.CheckpointCreate(context.Background(), expectedContainerID, CheckpointCreateOptions{
 		CheckpointID: expectedCheckpointID,
 		Exit:         true,
 	})
