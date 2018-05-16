@@ -411,7 +411,7 @@ func (d *Driver) terminateServiceVM(id, context string, force bool) (err error) 
 		svm.signalStopFinished(err)
 	}()
 
-	// Now it's possible that the serivce VM failed to start and now we are trying to terminate it.
+	// Now it's possible that the service VM failed to start and now we are trying to terminate it.
 	// In this case, we will relay the error to the goroutines waiting for this vm to stop.
 	if err := svm.getStartError(); err != nil {
 		logrus.Debugf("lcowdriver: terminateservicevm: %s had failed to start up: %s", id, err)

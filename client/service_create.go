@@ -136,7 +136,7 @@ func imageWithDigestString(image string, dgst digest.Digest) string {
 
 // imageWithTagString takes an image string, and returns a tagged image
 // string, adding a 'latest' tag if one was not provided. It returns an
-// emptry string if a canonical reference was provided
+// empty string if a canonical reference was provided
 func imageWithTagString(image string) string {
 	namedRef, err := reference.ParseNormalizedNamed(image)
 	if err == nil {
