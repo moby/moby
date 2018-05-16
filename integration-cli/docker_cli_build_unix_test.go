@@ -126,8 +126,12 @@ func (s *DockerSuite) TestBuildAddChangeOwnership(c *check.C) {
 // * Run a 1-year-long sleep from a docker build.
 // * When docker events sees container start, close the "docker build" command
 // * Wait for docker events to emit a dying event.
+//
+// TODO(buildkit): this test needs to be rewritten for buildkit.
+// It has been manually tested positive. Confirmed issue: docker build output parsing.
+// Potential issue: newEventObserver uses docker events, which is not hooked up to buildkit.
 func (s *DockerSuite) TestBuildCancellationKillsSleep(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, TODOBuildkit)
 	name := "testbuildcancellation"
 
 	observer, err := newEventObserver(c)
