@@ -245,7 +245,7 @@ func (jm *JSONMessage) Display(out io.Writer, termInfo termInfo) error {
 // DisplayJSONMessagesStream displays a json message stream from `in` to `out`, `isTerminal`
 // describes if `out` is a terminal. If this is the case, it will print `\n` at the end of
 // each line and move the cursor while displaying.
-func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(*json.RawMessage)) error {
+func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, isTerminal bool, auxCallback func(JSONMessage)) error {
 	var (
 		dec = json.NewDecoder(in)
 		ids = make(map[string]int)
@@ -277,7 +277,7 @@ func DisplayJSONMessagesStream(in io.Reader, out io.Writer, terminalFd uintptr, 
 
 		if jm.Aux != nil {
 			if auxCallback != nil {
-				auxCallback(jm.Aux)
+				auxCallback(jm)
 			}
 			continue
 		}
@@ -330,6 +330,6 @@ type stream interface {
 }
 
 // DisplayJSONMessagesToStream prints json messages to the output stream
-func DisplayJSONMessagesToStream(in io.Reader, stream stream, auxCallback func(*json.RawMessage)) error {
+func DisplayJSONMessagesToStream(in io.Reader, stream stream, auxCallback func(JSONMessage)) error {
 	return DisplayJSONMessagesStream(in, stream, stream.FD(), stream.IsTerminal(), auxCallback)
 }
