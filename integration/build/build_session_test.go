@@ -95,7 +95,6 @@ func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost str
 	sess.Allow(fsProvider)
 
 	g, ctx := errgroup.WithContext(context.Background())
-
 	g.Go(func() error {
 		return sess.Run(ctx, client.DialSession)
 	})
