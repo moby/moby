@@ -116,7 +116,7 @@ func TestNotCleanupMounts(t *testing.T) {
 }
 
 // TestTmpfsDevShmSizeOverride checks that user-specified /dev/tmpfs mount
-// size is not overriden by the default shmsize (that should only be used
+// size is not overridden by the default shmsize (that should only be used
 // for default /dev/shm (as in "shareable" and "private" ipc modes).
 // https://github.com/moby/moby/issues/35271
 func TestTmpfsDevShmSizeOverride(t *testing.T) {
