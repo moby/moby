@@ -257,7 +257,7 @@ func (p *Plugin) Release() {
 	p.AddRefCount(plugingetter.Release)
 }
 
-// SetSpecOptModifier sets the function to use to modify the the generated
+// SetSpecOptModifier sets the function to use to modify the generated
 // runtime spec.
 func (p *Plugin) SetSpecOptModifier(f func(*specs.Spec)) {
 	p.mu.Lock()
