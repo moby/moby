@@ -497,7 +497,10 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 
 	refKey := remotes.MakeRefKey(ctx, ld.desc)
 
+	ld.is.ContentStore.Abort(ctx, refKey)
+
 	if err := content.WriteBlob(ctx, ld.is.ContentStore, refKey, rc, ld.desc.Size, ld.desc.Digest); err != nil {
+		ld.is.ContentStore.Abort(ctx, refKey)
 		return nil, 0, err
 	}
 
