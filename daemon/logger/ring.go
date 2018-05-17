@@ -150,7 +150,7 @@ func newRing(maxBytes int64) *messageRing {
 }
 
 // Enqueue adds a message to the buffer queue
-// If the message is too big for the buffer it drops the oldest messages to make room
+// If the message is too big for the buffer it drops the new message.
 // If there are no messages in the queue and the message is still too big, it adds the message anyway.
 func (r *messageRing) Enqueue(m *Message) error {
 	mSize := int64(len(m.Line))
