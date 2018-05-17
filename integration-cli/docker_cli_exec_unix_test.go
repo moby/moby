@@ -25,7 +25,10 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 	c.Assert(err, checker.IsNil)
 
 	b := bytes.NewBuffer(nil)
-	go io.Copy(b, p)
+	go func() {
+		io.Copy(b, p)
+		p.Close()
+	}()
 
 	ch := make(chan error)
 	go func() { ch <- cmd.Wait() }()
@@ -33,9 +36,7 @@ func (s *DockerSuite) TestExecInteractiveStdinClose(c *check.C) {
 	select {
 	case err := <-ch:
 		c.Assert(err, checker.IsNil)
-		bs := b.Bytes()
-		bs = bytes.Trim(bs, "\x00")
-		output := string(bs[:])
+		output := b.String()
 		c.Assert(strings.TrimSpace(output), checker.Equals, "hello")
 	case <-time.After(5 * time.Second):
 		c.Fatal("timed out running docker exec")

@@ -22,7 +22,7 @@ func ServicePoll(config *poll.Settings) {
 	config.Timeout = 30 * time.Second
 	config.Delay = 100 * time.Millisecond
 	if runtime.GOARCH == "arm64" || runtime.GOARCH == "arm" {
-		config.Timeout = 1 * time.Minute
+		config.Timeout = 90 * time.Second
 	}
 }
 
