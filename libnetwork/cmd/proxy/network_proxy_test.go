@@ -2,7 +2,6 @@ package main
 
 import (
 	"bytes"
-	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,9 +11,9 @@ import (
 	"time"
 
 	"github.com/ishidawataru/sctp"
+	// this takes care of the incontainer flag
+	_ "github.com/docker/libnetwork/testutils"
 )
-
-var _ = flag.Bool("incontainer", false, "Indicates if the test is running in a container")
 
 var testBuf = []byte("Buffalo buffalo Buffalo buffalo buffalo buffalo Buffalo buffalo")
 var testBufSize = len(testBuf)

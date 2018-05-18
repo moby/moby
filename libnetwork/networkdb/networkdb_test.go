@@ -1,7 +1,6 @@
 package networkdb
 
 import (
-	"flag"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -18,12 +17,12 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	// this takes care of the incontainer flag
+	_ "github.com/docker/libnetwork/testutils"
 )
 
-var (
-	dbPort             int32 = 10000
-	runningInContainer       = flag.Bool("incontainer", false, "Indicates if the test is running in a container")
-)
+var dbPort int32 = 10000
 
 func TestMain(m *testing.M) {
 	ioutil.WriteFile("/proc/sys/net/ipv6/conf/lo/disable_ipv6", []byte{'0', '\n'}, 0644)

@@ -1,7 +1,6 @@
 package drvregistry
 
 import (
-	"flag"
 	"sort"
 	"testing"
 
@@ -13,10 +12,10 @@ import (
 	nullIpam "github.com/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
 	"github.com/stretchr/testify/assert"
-)
 
-var runningInContainer = flag.Bool("incontainer", false,
-	"Indicates if the test is running in a container")
+	// this takes care of the incontainer flag
+	_ "github.com/docker/libnetwork/testutils"
+)
 
 const mockDriverName = "mock-driver"
 
