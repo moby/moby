@@ -288,6 +288,42 @@ func TestAddSubnets(t *testing.T) {
 	}
 }
 
+// TestDoublePoolRelease tests that releasing a pool which has already
+// been released raises an error.
+func TestDoublePoolRelease(t *testing.T) {
+	for _, store := range []bool{false, true} {
+		for _, repeats := range []int{0, 1, 10} {
+			a, err := getAllocator(store)
+			assert.NoError(t, err)
+
+			// Request initial pool allocation
+			pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+			assert.NoError(t, err)
+
+			// Re-request the same pool
+			for i := 0; i < repeats; i++ {
+				pidN, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+				assert.NoError(t, err)
+				assert.Equal(t, pid0, pidN)
+			}
+
+			// Release the repeats
+			for i := 0; i < repeats; i++ {
+				err = a.ReleasePool(pid0)
+				assert.NoError(t, err)
+			}
+
+			// Release the initial request
+			err = a.ReleasePool(pid0)
+			assert.NoError(t, err)
+
+			// Releasing again fails
+			err = a.ReleasePool(pid0)
+			assert.Error(t, err)
+		}
+	}
+}
+
 func TestAddReleasePoolID(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
