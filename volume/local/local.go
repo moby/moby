@@ -211,7 +211,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if !r.scopedPath(realPath) {
-		return errdefs.System(errors.Errorf("Unable to remove a directory outside of the Docker root %s: %s", r.scope, realPath))
+		return errdefs.System(errors.Errorf("Unable to remove a directory outside of the local volume root %s: %s", r.scope, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {
