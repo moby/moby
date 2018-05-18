@@ -134,3 +134,6 @@ circle-ci-build: ${build_image}.created
 	@${cidocker} make build-local
 
 circle-ci: circle-ci-build circle-ci-check circle-ci-cross integration-tests
+
+shell:
+	@${docker} ${SHELL}
