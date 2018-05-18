@@ -17,6 +17,7 @@ import (
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	grpcmetadata "google.golang.org/grpc/metadata"
@@ -29,20 +30,24 @@ type Opt struct {
 }
 
 type Builder struct {
-	controller *control.Controller
+	controller     *control.Controller
+	reqBodyHandler *reqBodyHandler
 
 	mu   sync.Mutex
 	jobs map[string]func()
 }
 
 func New(opt Opt) (*Builder, error) {
-	c, err := newController(opt)
+	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
+
+	c, err := newController(reqHandler, opt)
 	if err != nil {
 		return nil, err
 	}
 	b := &Builder{
-		controller: c,
-		jobs:       map[string]func(){},
+		controller:     c,
+		reqBodyHandler: reqHandler,
+		jobs:           map[string]func(){},
 	}
 	return b, nil
 }
@@ -133,7 +138,13 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	}
 
 	if opt.Options.RemoteContext != "" {
-		frontendAttrs["context"] = opt.Options.RemoteContext
+		if opt.Options.RemoteContext != "client-session" {
+			frontendAttrs["context"] = opt.Options.RemoteContext
+		}
+	} else {
+		url, cancel := b.reqBodyHandler.newRequest(opt.Source)
+		defer cancel()
+		frontendAttrs["context"] = url
 	}
 
 	var cacheFrom []string

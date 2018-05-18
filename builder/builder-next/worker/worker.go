@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	nethttp "net/http"
 	"runtime"
 	"time"
 
@@ -53,6 +54,7 @@ type WorkerOpt struct {
 	Exporters         map[string]exporter.Exporter
 	DownloadManager   distribution.RootFSDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
+	Transport         nethttp.RoundTripper
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -85,6 +87,7 @@ func NewWorker(opt WorkerOpt) (*Worker, error) {
 	hs, err := http.NewSource(http.Opt{
 		CacheAccessor: cm,
 		MetadataStore: opt.MetadataStore,
+		Transport:     opt.Transport,
 	})
 	if err != nil {
 		return nil, err
@@ -125,7 +128,7 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solve
 	case *pb.Op_Source:
 		return ops.NewSourceOp(v, op, w.SourceManager, w)
 	case *pb.Op_Exec:
-		return ops.NewExecOp(v, op, w.CacheManager, w.Executor, w)
+		return ops.NewExecOp(v, op, w.CacheManager, w.MetadataStore, w.Executor, w)
 	case *pb.Op_Build:
 		return ops.NewBuildOp(v, op, s, w)
 	default:

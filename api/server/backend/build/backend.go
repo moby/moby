@@ -3,7 +3,6 @@ package build // import "github.com/docker/docker/api/server/backend/build"
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -44,11 +43,7 @@ func NewBackend(components ImageComponent, builder Builder, fsCache *fscache.FSC
 // Build builds an image from a Source
 func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string, error) {
 	options := config.Options
-	useBuildKit := false
-	if strings.HasPrefix(options.SessionID, "buildkit:") {
-		useBuildKit = true
-		options.SessionID = strings.TrimPrefix(options.SessionID, "buildkit:")
-	}
+	useBuildKit := options.Version == types.BuilderBuildKit
 
 	tagger, err := NewTagger(b.imageComponent, config.ProgressWriter.StdoutFormatter, options.Tags)
 	if err != nil {

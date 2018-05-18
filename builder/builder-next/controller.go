@@ -1,6 +1,7 @@
 package buildkit
 
 import (
+	"net/http"
 	"os"
 	"path/filepath"
 
@@ -24,7 +25,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func newController(opt Opt) (*control.Controller, error) {
+func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	if err := os.MkdirAll(opt.Root, 0700); err != nil {
 		return nil, err
 	}
@@ -133,6 +134,7 @@ func newController(opt Opt) (*control.Controller, error) {
 		Exporters: map[string]exporter.Exporter{
 			"moby": exp,
 		},
+		Transport: rt,
 	}
 
 	wc := &worker.Controller{}

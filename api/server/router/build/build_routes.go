@@ -146,8 +146,23 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	}
 	options.SessionID = r.FormValue("session")
 	options.BuildID = r.FormValue("buildid")
+	builderVersion, err := parseVersion(r.FormValue("version"))
+	if err != nil {
+		return nil, err
+	}
+	options.Version = builderVersion
 
 	return options, nil
+}
+
+func parseVersion(s string) (types.BuilderVersion, error) {
+	if s == "" || s == string(types.BuilderV1) {
+		return types.BuilderV1, nil
+	}
+	if s == string(types.BuilderBuildKit) {
+		return types.BuilderBuildKit, nil
+	}
+	return "", errors.Errorf("invalid version %s", s)
 }
 
 func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {

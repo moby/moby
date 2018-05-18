@@ -181,8 +181,17 @@ type ImageBuildOptions struct {
 	Target      string
 	SessionID   string
 	Platform    string
+	Version     BuilderVersion
 	BuildID     string
 }
+
+// BuilderVersion sets the version of underlying builder to use
+type BuilderVersion string
+
+const (
+	BuilderV1       BuilderVersion = "1"
+	BuilderBuildKit                = "2"
+)
 
 // ImageBuildResponse holds information
 // returned by a server after building

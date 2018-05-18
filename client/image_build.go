@@ -136,5 +136,6 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)
 	}
+	query.Set("version", string(options.Version))
 	return query, nil
 }
