@@ -31,6 +31,7 @@ func newDaemonCommand() *cobra.Command {
 			opts.flags = cmd.Flags()
 			return runDaemon(opts)
 		},
+		DisableFlagsInUseLine: true,
 	}
 	cli.SetupRootCommand(cmd)
 
