@@ -1,7 +1,6 @@
 package buildkit
 
 import (
-	"bufio"
 	"io"
 	"net/http"
 	"strings"
@@ -28,12 +27,9 @@ func newReqBodyHandler(rt http.RoundTripper) *reqBodyHandler {
 }
 
 func (h *reqBodyHandler) newRequest(rc io.ReadCloser) (string, func()) {
-	// handle expect-continue vs chunked output
-	r := bufio.NewReader(rc)
-	r.Peek(1)
 	id := identity.NewID()
 	h.mu.Lock()
-	h.requests[id] = &readCloser{Reader: r, Closer: rc}
+	h.requests[id] = rc
 	h.mu.Unlock()
 	return "http://" + urlPrefix + id, func() {
 		h.mu.Lock()
@@ -58,12 +54,14 @@ func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 			return nil, errors.Errorf("context not found")
 		}
 
-		return &http.Response{
+		resp := &http.Response{
 			Status:        "200 OK",
 			StatusCode:    200,
 			Body:          rc,
 			ContentLength: -1,
-		}, nil
+		}
+
+		return resp, nil
 	}
 	return h.rt.RoundTrip(req)
 }
