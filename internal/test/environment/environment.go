@@ -121,7 +121,7 @@ func (e *Execution) IsRemoteDaemon() bool {
 	return !e.IsLocalDaemon()
 }
 
-// DaemonAPIVersion returns the negociated daemon api version
+// DaemonAPIVersion returns the negotiated daemon api version
 func (e *Execution) DaemonAPIVersion() string {
 	version, err := e.APIClient().ServerVersion(context.TODO())
 	if err != nil {
