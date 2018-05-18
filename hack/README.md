@@ -49,11 +49,6 @@ An example referenced from [Run targets inside a development container](https://
 refer to
 [Run tests and test documentation](https://docs.docker.com/opensource/project/test-and-docs/)
 
-## Release (release.sh)
-
-Releases any bundles built by `make` on a public AWS S3 bucket.
-For information regarding configuration, please view `release.sh`.
-
 ## Vendor (vendor.sh)
 
 A shell script that is a wrapper around Vndr. For information on how to use
