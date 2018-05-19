@@ -69,7 +69,7 @@ func (b *BuildArgs) MergeReferencedArgs(other *BuildArgs) {
 // WarnOnUnusedBuildArgs checks if there are any leftover build-args that were
 // passed but not consumed during build. Print a warning, if there are any.
 func (b *BuildArgs) WarnOnUnusedBuildArgs(out io.Writer) {
-	leftoverArgs := []string{}
+	var leftoverArgs []string
 	for arg := range b.argsFromOptions {
 		_, isReferenced := b.referencedArgs[arg]
 		_, isBuiltin := builtinAllowedBuildArgs[arg]

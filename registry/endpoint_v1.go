@@ -69,7 +69,7 @@ func validateEndpoint(endpoint *V1Endpoint) error {
 
 func newV1Endpoint(address url.URL, tlsConfig *tls.Config, userAgent string, metaHeaders http.Header) *V1Endpoint {
 	endpoint := &V1Endpoint{
-		IsSecure: (tlsConfig == nil || !tlsConfig.InsecureSkipVerify),
+		IsSecure: tlsConfig == nil || !tlsConfig.InsecureSkipVerify,
 		URL:      new(url.URL),
 	}
 

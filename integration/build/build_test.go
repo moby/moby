@@ -443,7 +443,7 @@ type buildLine struct {
 }
 
 func getImageIDsFromBuild(output []byte) ([]string, error) {
-	ids := []string{}
+	var ids []string
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		if len(line) == 0 {
 			continue

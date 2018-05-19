@@ -1,6 +1,7 @@
 package v1 // import "github.com/docker/docker/migrate/v1"
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -10,8 +11,6 @@ import (
 	"strconv"
 	"sync"
 	"time"
-
-	"encoding/json"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/distribution/metadata"

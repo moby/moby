@@ -46,7 +46,7 @@ func TestConfigList(t *testing.T) {
 	config1ID := createConfig(ctx, t, client, testName1, []byte("TESTINGDATA1"), map[string]string{"type": "production"})
 
 	names := func(entries []swarmtypes.Config) []string {
-		values := []string{}
+		var values []string
 		for _, entry := range entries {
 			values = append(values, entry.Spec.Name)
 		}

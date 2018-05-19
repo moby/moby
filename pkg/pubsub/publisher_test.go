@@ -20,7 +20,7 @@ func TestSendToOneSub(t *testing.T) {
 
 func TestSendToMultipleSubs(t *testing.T) {
 	p := NewPublisher(100*time.Millisecond, 10)
-	subs := []chan interface{}{}
+	var subs []chan interface{}
 	subs = append(subs, p.Subscribe(), p.Subscribe(), p.Subscribe())
 
 	p.Publish("hi")
@@ -52,7 +52,7 @@ func TestEvictOneSub(t *testing.T) {
 
 func TestClosePublisher(t *testing.T) {
 	p := NewPublisher(100*time.Millisecond, 10)
-	subs := []chan interface{}{}
+	var subs []chan interface{}
 	subs = append(subs, p.Subscribe(), p.Subscribe(), p.Subscribe())
 	p.Close()
 
@@ -99,7 +99,7 @@ func newTestSubscriber(p *Publisher) *testSubscriber {
 // for testing with -race
 func TestPubSubRace(t *testing.T) {
 	p := NewPublisher(0, 1024)
-	var subs [](*testSubscriber)
+	var subs []*testSubscriber
 	for j := 0; j < 50; j++ {
 		subs = append(subs, newTestSubscriber(p))
 	}
@@ -120,7 +120,7 @@ func BenchmarkPubSub(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		p := NewPublisher(0, 1024)
-		var subs [](*testSubscriber)
+		var subs []*testSubscriber
 		for j := 0; j < 50; j++ {
 			subs = append(subs, newTestSubscriber(p))
 		}

@@ -173,8 +173,8 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	out1, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
-	assert.Check(t, (out1.IPAM.Config[0].Subnet != networkip))
-	assert.Check(t, (out1.IPAM.Config[0].Subnet != networkip2))
+	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
+	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip2)
 	delInterface(t, defaultNetworkBridge)
 }
 

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	container "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"

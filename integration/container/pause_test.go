@@ -51,7 +51,7 @@ func TestPause(t *testing.T) {
 }
 
 func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
-	skip.If(t, (testEnv.DaemonInfo.OSType != "windows" || testEnv.DaemonInfo.Isolation != "process"))
+	skip.If(t, testEnv.DaemonInfo.OSType != "windows" || testEnv.DaemonInfo.Isolation != "process")
 
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
@@ -85,7 +85,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 }
 
 func getEventActions(t *testing.T, messages <-chan events.Message, errs <-chan error) []string {
-	actions := []string{}
+	var actions []string
 	for {
 		select {
 		case err := <-errs:

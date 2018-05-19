@@ -543,7 +543,7 @@ func TestNewIndexInfo(t *testing.T) {
 	}
 
 	config := emptyServiceConfig
-	noMirrors := []string{}
+	var noMirrors []string
 	expectedIndexInfos := map[string]*registrytypes.IndexInfo{
 		IndexName: {
 			Name:     IndexName,

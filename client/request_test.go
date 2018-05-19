@@ -61,7 +61,7 @@ func TestSetHostHeader(t *testing.T) {
 				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
-					Body:       ioutil.NopCloser(bytes.NewReader(([]byte("")))),
+					Body:       ioutil.NopCloser(bytes.NewReader([]byte(""))),
 				}, nil
 			}),
 

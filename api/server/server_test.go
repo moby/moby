@@ -1,12 +1,11 @@
 package server // import "github.com/docker/docker/api/server"
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
-
-	"context"
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/server/httputils"

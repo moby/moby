@@ -205,7 +205,7 @@ func TestMultiReadSeekerCurAfterSet(t *testing.T) {
 }
 
 func TestMultiReadSeekerSmallReads(t *testing.T) {
-	readers := []io.ReadSeeker{}
+	var readers []io.ReadSeeker
 	for i := 0; i < 10; i++ {
 		integer := make([]byte, 4)
 		binary.BigEndian.PutUint32(integer, uint32(i))

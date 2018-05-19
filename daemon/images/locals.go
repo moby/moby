@@ -3,7 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"fmt"
 
-	metrics "github.com/docker/go-metrics"
+	"github.com/docker/go-metrics"
 )
 
 type invalidFilter struct {

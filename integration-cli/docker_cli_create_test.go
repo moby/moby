@@ -26,13 +26,13 @@ func (s *DockerSuite) TestCreateArgs(c *check.C) {
 
 	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
-	containers := []struct {
+	var containers []struct {
 		ID      string
 		Created time.Time
 		Path    string
 		Args    []string
 		Image   string
-	}{}
+	}
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
@@ -87,11 +87,11 @@ func (s *DockerSuite) TestCreateHostConfig(c *check.C) {
 
 	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
-	containers := []struct {
+	var containers []struct {
 		HostConfig *struct {
 			PublishAllPorts bool
 		}
-	}{}
+	}
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
@@ -109,11 +109,11 @@ func (s *DockerSuite) TestCreateWithPortRange(c *check.C) {
 
 	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
-	containers := []struct {
+	var containers []struct {
 		HostConfig *struct {
 			PortBindings map[nat.Port][]nat.PortBinding
 		}
-	}{}
+	}
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))
 	c.Assert(containers, checker.HasLen, 1)
@@ -138,11 +138,11 @@ func (s *DockerSuite) TestCreateWithLargePortRange(c *check.C) {
 
 	out, _ = dockerCmd(c, "inspect", cleanedContainerID)
 
-	containers := []struct {
+	var containers []struct {
 		HostConfig *struct {
 			PortBindings map[nat.Port][]nat.PortBinding
 		}
-	}{}
+	}
 
 	err := json.Unmarshal([]byte(out), &containers)
 	c.Assert(err, check.IsNil, check.Commentf("Error inspecting the container: %s", err))

@@ -148,7 +148,7 @@ func changeManyFiles(drv graphdriver.Driver, layer string, count int, seed int64
 	}
 	defer drv.Put(layer)
 
-	changes := []archive.Change{}
+	var changes []archive.Change
 	for i := 0; i < count; i += 100 {
 		archiveRoot := fmt.Sprintf("/directory-%d", i)
 		if err := root.MkdirAll(root.Join(root.Path(), archiveRoot), 0755); err != nil {

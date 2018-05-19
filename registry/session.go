@@ -3,7 +3,6 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"bytes"
 	"crypto/sha256"
-	"sync"
 	// this is required for some certificates
 	_ "crypto/sha512"
 	"encoding/hex"
@@ -16,6 +15,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"

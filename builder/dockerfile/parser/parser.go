@@ -262,8 +262,7 @@ func Parse(rwc io.Reader) (*Result, error) {
 		}
 
 		if hasEmptyContinuationLine {
-			warning := "[WARNING]: Empty continuation line found in:\n    " + line
-			warnings = append(warnings, warning)
+			warnings = append(warnings, "[WARNING]: Empty continuation line found in:\n    "+line)
 		}
 
 		child, err := newNodeFromLine(line, d)

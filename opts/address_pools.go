@@ -65,7 +65,7 @@ func (p *PoolsOpt) Type() string {
 
 // String returns a string repr of this option
 func (p *PoolsOpt) String() string {
-	pools := []string{}
+	var pools []string
 	for _, pool := range p.values {
 		repr := fmt.Sprintf("%s %d", pool.Base, pool.Size)
 		pools = append(pools, repr)

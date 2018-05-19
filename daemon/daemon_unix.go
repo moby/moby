@@ -43,7 +43,7 @@ import (
 	lntypes "github.com/docker/libnetwork/types"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -67,8 +67,8 @@ const (
 	// It's not kernel limit, we want this 4M limit to supply a reasonable functional container
 	linuxMinMemory = 4194304
 	// constants for remapped root settings
-	defaultIDSpecifier string = "default"
-	defaultRemappedID  string = "dockremap"
+	defaultIDSpecifier = "default"
+	defaultRemappedID  = "dockremap"
 
 	// constant for cgroup drivers
 	cgroupFsDriver      = "cgroupfs"

@@ -4,7 +4,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	metrics "github.com/docker/go-metrics"
+	"github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/sirupsen/logrus"

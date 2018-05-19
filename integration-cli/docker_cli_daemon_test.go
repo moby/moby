@@ -6,6 +6,8 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -21,9 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"crypto/tls"
-	"crypto/x509"
-
 	"github.com/cloudflare/cfssl/helpers"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -36,7 +35,7 @@ import (
 	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
@@ -1828,8 +1827,8 @@ func (s *DockerDaemonSuite) TestDaemonNoSpaceLeftOnDeviceError(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	parent1Args := []string{}
-	parent2Args := []string{}
+	var parent1Args []string
+	var parent2Args []string
 	wg := sync.WaitGroup{}
 	maxChildren := 10
 	chErr := make(chan error, maxChildren)

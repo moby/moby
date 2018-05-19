@@ -48,7 +48,7 @@ func TestContinueOnError_NonMirrorEndpoint(t *testing.T) {
 }
 
 func TestContinueOnError_MirrorEndpoint(t *testing.T) {
-	errs := []error{}
+	var errs []error
 	errs = append(errs, alwaysContinue...)
 	errs = append(errs, continueFromMirrorEndpoint...)
 	for _, err := range errs {

@@ -27,7 +27,7 @@ import (
 func testPullImageWithAliases(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	repos := []string{}
+	var repos []string
 	for _, tag := range []string{"recent", "fresh"} {
 		repos = append(repos, fmt.Sprintf("%v:%v", repoName, tag))
 	}
@@ -63,7 +63,7 @@ func (s *DockerSchema1RegistrySuite) TestPullImageWithAliases(c *check.C) {
 func testConcurrentPullWholeRepo(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	repos := []string{}
+	var repos []string
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
 		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf(`
@@ -151,7 +151,7 @@ func (s *DockerSchema1RegistrySuite) testConcurrentFailingPull(c *check.C) {
 func testConcurrentPullMultipleTags(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	repos := []string{}
+	var repos []string
 	for _, tag := range []string{"recent", "fresh", "todays"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
 		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf(`

@@ -100,7 +100,7 @@ func TestLoadAllowNondistributableArtifacts(t *testing.T) {
 				t.Fatalf("expect no error, got '%s'", err)
 			}
 
-			cidrStrs := []string{}
+			var cidrStrs []string
 			for _, c := range config.AllowNondistributableArtifactsCIDRs {
 				cidrStrs = append(cidrStrs, c.String())
 			}

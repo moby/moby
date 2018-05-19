@@ -30,8 +30,8 @@ func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
 
 const (
-	subuidFileName string = "/etc/subuid"
-	subgidFileName string = "/etc/subgid"
+	subuidFileName = "/etc/subuid"
+	subgidFileName = "/etc/subgid"
 )
 
 // MkdirAllAndChown creates a directory (include any along the path) and then modifies

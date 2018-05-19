@@ -89,7 +89,7 @@ func TestDaemonReloadAllowNondistributableArtifacts(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	actual := []string{}
+	var actual []string
 	serviceConfig := daemon.RegistryService.ServiceConfig()
 	for _, value := range serviceConfig.AllowNondistributableArtifactsCIDRs {
 		actual = append(actual, value.String())

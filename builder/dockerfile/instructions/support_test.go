@@ -10,7 +10,7 @@ type testCase struct {
 }
 
 func initTestCases() []testCase {
-	testCases := []testCase{}
+	var testCases []testCase
 
 	testCases = append(testCases, testCase{
 		name:       "empty args",

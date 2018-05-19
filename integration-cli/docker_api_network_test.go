@@ -289,7 +289,7 @@ func isNetworkAvailable(c *check.C, name string) bool {
 	defer resp.Body.Close()
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 
-	nJSON := []types.NetworkResource{}
+	var nJSON []types.NetworkResource
 	err = json.NewDecoder(body).Decode(&nJSON)
 	c.Assert(err, checker.IsNil)
 
@@ -315,7 +315,7 @@ func getNetworkIDByName(c *check.C, name string) string {
 	c.Assert(resp.StatusCode, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
-	nJSON := []types.NetworkResource{}
+	var nJSON []types.NetworkResource
 	err = json.NewDecoder(body).Decode(&nJSON)
 	c.Assert(err, checker.IsNil)
 	var res string

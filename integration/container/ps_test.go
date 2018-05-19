@@ -22,7 +22,7 @@ func TestPsFilter(t *testing.T) {
 	next := container.Create(t, ctx, client)
 
 	containerIDs := func(containers []types.Container) []string {
-		entries := []string{}
+		var entries []string
 		for _, container := range containers {
 			entries = append(entries, container.ID)
 		}
