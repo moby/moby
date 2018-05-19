@@ -18,6 +18,7 @@ import (
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/dockerfile"
+	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/snapshot/blobmapping"
 	"github.com/moby/buildkit/solver/boltdbcachestorage"
 	"github.com/moby/buildkit/worker"
@@ -114,7 +115,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 
 	frontends := map[string]frontend.Frontend{}
 	frontends["dockerfile.v0"] = dockerfile.NewDockerfileFrontend()
-	// frontends["gateway.v0"] = gateway.NewGatewayFrontend()
+	frontends["gateway.v0"] = gateway.NewGatewayFrontend()
 
 	wopt := mobyworker.WorkerOpt{
 		ID:                "moby",
