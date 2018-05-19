@@ -200,7 +200,7 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		return nil, err
 	}
 	// Create the driver home dir
-	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, idtools.IDPair{rootUID, rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(path.Join(home, linkDir), 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 		return nil, err
 	}
 
@@ -581,7 +581,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	if err != nil {
 		return nil, err
 	}
-	if err := idtools.MkdirAndChown(mergedDir, 0700, idtools.IDPair{rootUID, rootGID}); err != nil {
+	if err := idtools.MkdirAndChown(mergedDir, 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
 		return nil, err
 	}
 

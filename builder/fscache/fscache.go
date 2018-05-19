@@ -615,7 +615,7 @@ func (s sortableCacheSources) Swap(i, j int) {
 }
 
 func newTarsumHash(stat *fsutil.Stat) (hash.Hash, error) {
-	fi := &fsutil.StatInfo{stat}
+	fi := &fsutil.StatInfo{Stat: stat}
 	p := stat.Path
 	if fi.IsDir() {
 		p += string(os.PathSeparator)
