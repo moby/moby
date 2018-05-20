@@ -10,7 +10,8 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
 )
 
@@ -104,7 +105,7 @@ func TestFixManifestLayersBadParent(t *testing.T) {
 	}
 
 	err := fixManifestLayers(&duplicateLayerManifest)
-	testutil.ErrorContains(t, err, "invalid parent ID")
+	assert.Check(t, is.ErrorContains(err, "invalid parent ID"))
 }
 
 // TestValidateManifest verifies the validateManifest function

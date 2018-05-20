@@ -13,7 +13,6 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -136,7 +135,7 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	assert.NilError(t, err)
 
 	insp, _, err = client.ConfigInspectWithRaw(ctx, configID)
-	testutil.ErrorContains(t, err, "No such config")
+	assert.Check(t, is.ErrorContains(err, "No such config"))
 }
 
 func TestConfigsUpdate(t *testing.T) {
@@ -190,7 +189,7 @@ func TestConfigsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateConfig
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = client.ConfigUpdate(ctx, configID, insp.Version, insp.Spec)
-	testutil.ErrorContains(t, err, "only updates to Labels are allowed")
+	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 
 func TestTemplatedConfig(t *testing.T) {

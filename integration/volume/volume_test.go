@@ -12,7 +12,6 @@ import (
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -63,7 +62,7 @@ func TestVolumesRemove(t *testing.T) {
 	vname := c.Mounts[0].Name
 
 	err = client.VolumeRemove(ctx, vname, false)
-	testutil.ErrorContains(t, err, "volume is in use")
+	assert.Check(t, is.ErrorContains(err, "volume is in use"))
 
 	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 		Force: true,

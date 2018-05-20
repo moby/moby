@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
@@ -22,7 +21,7 @@ func TestLoadOrCreateTrustKeyInvalidKeyFile(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = loadOrCreateTrustKey(tmpKeyFile.Name())
-	testutil.ErrorContains(t, err, "Error loading key file")
+	assert.Check(t, is.ErrorContains(err, "Error loading key file"))
 }
 
 func TestLoadOrCreateTrustKeyCreateKeyWhenFileDoesNotExist(t *testing.T) {

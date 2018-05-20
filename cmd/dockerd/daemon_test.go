@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/fs"
@@ -58,7 +57,7 @@ func TestLoadDaemonCliConfigWithConflicts(t *testing.T) {
 	assert.Check(t, flags.Set("label", "l2=baz"))
 
 	_, err := loadDaemonCliConfig(opts)
-	testutil.ErrorContains(t, err, "as a flag and in the configuration file: labels")
+	assert.Check(t, is.ErrorContains(err, "as a flag and in the configuration file: labels"))
 }
 
 func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
@@ -74,7 +73,7 @@ func TestLoadDaemonCliWithConflictingNodeGenericResources(t *testing.T) {
 	assert.Check(t, flags.Set("node-generic-resource", "r2=baz"))
 
 	_, err := loadDaemonCliConfig(opts)
-	testutil.ErrorContains(t, err, "as a flag and in the configuration file: node-generic-resources")
+	assert.Check(t, is.ErrorContains(err, "as a flag and in the configuration file: node-generic-resources"))
 }
 
 func TestLoadDaemonCliWithConflictingLabels(t *testing.T) {

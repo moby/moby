@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -89,7 +88,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	assert.Check(t, is.Equal("/"+newName, inspect.Name))
 
 	_, err = client.ContainerInspect(ctx, oldName)
-	testutil.ErrorContains(t, err, "No such container: "+oldName)
+	assert.Check(t, is.ErrorContains(err, "No such container: "+oldName))
 
 	cID = container.Run(t, ctx, client, container.WithName(oldName))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
@@ -109,7 +108,7 @@ func TestRenameInvalidName(t *testing.T) {
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerRename(ctx, oldName, "new:invalid")
-	testutil.ErrorContains(t, err, "Invalid container name")
+	assert.Check(t, is.ErrorContains(err, "Invalid container name"))
 
 	inspect, err := client.ContainerInspect(ctx, oldName)
 	assert.NilError(t, err)
@@ -179,9 +178,9 @@ func TestRenameContainerWithSameName(t *testing.T) {
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 	err := client.ContainerRename(ctx, oldName, oldName)
-	testutil.ErrorContains(t, err, "Renaming a container with the same name")
+	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
 	err = client.ContainerRename(ctx, cID, oldName)
-	testutil.ErrorContains(t, err, "Renaming a container with the same name")
+	assert.Check(t, is.ErrorContains(err, "Renaming a container with the same name"))
 }
 
 // Test case for GitHub issue 23973

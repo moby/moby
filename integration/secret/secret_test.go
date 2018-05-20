@@ -12,7 +12,6 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -148,17 +147,17 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 		},
 		Data: []byte("TESTINGDATA"),
 	})
-	testutil.ErrorContains(t, err, "already exists")
+	assert.Check(t, is.ErrorContains(err, "already exists"))
 
 	// Ported from original TestSecretsDelete
 	err = client.SecretRemove(ctx, secretID)
 	assert.NilError(t, err)
 
 	_, _, err = client.SecretInspectWithRaw(ctx, secretID)
-	testutil.ErrorContains(t, err, "No such secret")
+	assert.Check(t, is.ErrorContains(err, "No such secret"))
 
 	err = client.SecretRemove(ctx, "non-existin")
-	testutil.ErrorContains(t, err, "No such secret: non-existin")
+	assert.Check(t, is.ErrorContains(err, "No such secret: non-existin"))
 
 	// Ported from original TestSecretsCreteaWithLabels
 	testName = "test_secret_with_labels"
@@ -223,7 +222,7 @@ func TestSecretsUpdate(t *testing.T) {
 	// this test will produce an error in func UpdateSecret
 	insp.Spec.Data = []byte("TESTINGDATA2")
 	err = client.SecretUpdate(ctx, secretID, insp.Version, insp.Spec)
-	testutil.ErrorContains(t, err, "only updates to Labels are allowed")
+	assert.Check(t, is.ErrorContains(err, "only updates to Labels are allowed"))
 }
 
 func TestTemplatedSecret(t *testing.T) {

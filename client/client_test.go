@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/env"
@@ -162,7 +161,7 @@ func TestParseHostURL(t *testing.T) {
 	for _, testcase := range testcases {
 		actual, err := ParseHostURL(testcase.host)
 		if testcase.expectedErr != "" {
-			testutil.ErrorContains(t, err, testcase.expectedErr)
+			assert.Check(t, is.ErrorContains(err, testcase.expectedErr))
 		}
 		assert.Check(t, is.DeepEqual(testcase.expected, actual))
 	}

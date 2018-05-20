@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -12,10 +13,9 @@ import (
 	"testing"
 	"time"
 
-	"context"
-
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/testutil"
+	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func TestContainerLogsNotFoundError(t *testing.T) {
@@ -39,11 +39,11 @@ func TestContainerLogsError(t *testing.T) {
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Since: "2006-01-02TZ",
 	})
-	testutil.ErrorContains(t, err, `parsing time "2006-01-02TZ"`)
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 	_, err = client.ContainerLogs(context.Background(), "container_id", types.ContainerLogsOptions{
 		Until: "2006-01-02TZ",
 	})
-	testutil.ErrorContains(t, err, `parsing time "2006-01-02TZ"`)
+	assert.Check(t, is.ErrorContains(err, `parsing time "2006-01-02TZ"`))
 }
 
 func TestContainerLogs(t *testing.T) {
