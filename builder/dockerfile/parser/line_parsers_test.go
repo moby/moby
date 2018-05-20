@@ -42,32 +42,6 @@ func TestParseNameValNewFormat(t *testing.T) {
 	assert.DeepEqual(t, expected, node, cmpNodeOpt)
 }
 
-func TestNodeFromLabels(t *testing.T) {
-	labels := map[string]string{
-		"foo":   "bar",
-		"weird": "first' second",
-	}
-	expected := &Node{
-		Value:    "label",
-		Original: `LABEL "foo"='bar' "weird"='first' second'`,
-		Next: &Node{
-			Value: "foo",
-			Next: &Node{
-				Value: "'bar'",
-				Next: &Node{
-					Value: "weird",
-					Next: &Node{
-						Value: "'first' second'",
-					},
-				},
-			},
-		},
-	}
-
-	node := NodeFromLabels(labels)
-	assert.DeepEqual(t, expected, node, cmpNodeOpt)
-}
-
 func TestParseNameValWithoutVal(t *testing.T) {
 	directive := Directive{}
 	// In Config.Env, a variable without `=` is removed from the environment. (#31634)

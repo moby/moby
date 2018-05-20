@@ -10,12 +10,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
-
-	"github.com/docker/docker/builder/dockerfile/command"
 )
 
 var (
@@ -203,34 +200,6 @@ func parseEnv(rest string, d *Directive) (*Node, map[string]bool, error) {
 func parseLabel(rest string, d *Directive) (*Node, map[string]bool, error) {
 	node, err := parseNameVal(rest, commandLabel, d)
 	return node, nil, err
-}
-
-// NodeFromLabels returns a Node for the injected labels
-func NodeFromLabels(labels map[string]string) *Node {
-	keys := []string{}
-	for key := range labels {
-		keys = append(keys, key)
-	}
-	// Sort the label to have a repeatable order
-	sort.Strings(keys)
-
-	labelPairs := []string{}
-	var rootNode *Node
-	var prevNode *Node
-	for _, key := range keys {
-		value := labels[key]
-		labelPairs = append(labelPairs, fmt.Sprintf("%q='%s'", key, value))
-		// Value must be single quoted to prevent env variable expansion
-		// See https://github.com/docker/docker/issues/26027
-		node := newKeyValueNode(key, "'"+value+"'")
-		rootNode, prevNode = appendKeyValueNode(node, rootNode, prevNode)
-	}
-
-	return &Node{
-		Value:    command.Label,
-		Original: commandLabel + " " + strings.Join(labelPairs, " "),
-		Next:     rootNode,
-	}
 }
 
 // parses a statement containing one or more keyword definition(s) and/or

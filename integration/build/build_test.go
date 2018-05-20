@@ -173,6 +173,81 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	assert.Check(t, is.Contains(image.Config.Env, "WHO=parent"))
 }
 
+// Test cases in #36996
+func TestBuildLabelWithTargets(t *testing.T) {
+	bldName := "build-a"
+	testLabels := map[string]string{
+		"foo":  "bar",
+		"dead": "beef",
+	}
+
+	dockerfile := `
+		FROM busybox AS target-a
+		CMD ["/dev"]
+		LABEL label-a=inline-a
+		FROM busybox AS target-b
+		CMD ["/dist"]
+		LABEL label-b=inline-b
+		`
+
+	ctx := context.Background()
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(dockerfile))
+	defer source.Close()
+
+	apiclient := testEnv.APIClient()
+	// For `target-a` build
+	resp, err := apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{bldName},
+			Labels:      testLabels,
+			Target:      "target-a",
+		})
+	assert.NilError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+	assert.NilError(t, err)
+
+	image, _, err := apiclient.ImageInspectWithRaw(ctx, bldName)
+	assert.NilError(t, err)
+
+	testLabels["label-a"] = "inline-a"
+	for k, v := range testLabels {
+		x, ok := image.Config.Labels[k]
+		assert.Assert(t, ok)
+		assert.Assert(t, x == v)
+	}
+
+	// For `target-b` build
+	bldName = "build-b"
+	delete(testLabels, "label-a")
+	resp, err = apiclient.ImageBuild(ctx,
+		source.AsTarReader(t),
+		types.ImageBuildOptions{
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{bldName},
+			Labels:      testLabels,
+			Target:      "target-b",
+		})
+	assert.NilError(t, err)
+	_, err = io.Copy(ioutil.Discard, resp.Body)
+	resp.Body.Close()
+	assert.NilError(t, err)
+
+	image, _, err = apiclient.ImageInspectWithRaw(ctx, bldName)
+	assert.NilError(t, err)
+
+	testLabels["label-b"] = "inline-b"
+	for k, v := range testLabels {
+		x, ok := image.Config.Labels[k]
+		assert.Assert(t, ok)
+		assert.Assert(t, x == v)
+	}
+}
+
 func TestBuildWithEmptyLayers(t *testing.T) {
 	dockerfile := `
 		FROM    busybox
