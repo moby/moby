@@ -326,7 +326,6 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial 
 			}
 			h.Lock() // Acquire the lock back
 		}
-		logrus.Debugf("Received set for ordinal %v, start %v, end %v, any %t, release %t, serial:%v curr:%d \n", ordinal, start, end, any, release, serial, h.curr)
 		if serial {
 			curr = h.curr
 		}
@@ -466,8 +465,8 @@ func (h *Handle) Unselected() uint64 {
 func (h *Handle) String() string {
 	h.Lock()
 	defer h.Unlock()
-	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, bits: %d, unselected: %d, sequence: %s",
-		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
+	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, Bits: %d, Unselected: %d, Sequence: %s Curr:%d",
+		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString(), h.curr)
 }
 
 // MarshalJSON encodes Handle into json message

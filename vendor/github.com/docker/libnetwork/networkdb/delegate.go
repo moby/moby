@@ -38,16 +38,11 @@ func (nDB *NetworkDB) handleNodeEvent(nEvent *NodeEvent) bool {
 	// If we are here means that the event is fresher and the node is known. Update the laport time
 	n.ltime = nEvent.LTime
 
-	// If it is a node leave event for a manager and this is the only manager we
-	// know of we want the reconnect logic to kick in. In a single manager
-	// cluster manager's gossip can't be bootstrapped unless some other node
-	// connects to it.
-	if len(nDB.bootStrapIP) == 1 && nEvent.Type == NodeEventTypeLeave {
-		for _, ip := range nDB.bootStrapIP {
-			if ip.Equal(n.Addr) {
-				return true
-			}
-		}
+	// If the node is not known from memberlist we cannot process save any state of it else if it actually
+	// dies we won't receive any notification and we will remain stuck with it
+	if _, ok := nDB.nodes[nEvent.NodeName]; !ok {
+		logrus.Error("node: %s is unknown to memberlist", nEvent.NodeName)
+		return false
 	}
 
 	switch nEvent.Type {
