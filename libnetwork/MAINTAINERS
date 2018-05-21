@@ -11,13 +11,12 @@
 [Org]
 	[Org."Core maintainers"]
 		people = [
+			"abhi",
 			"aboch",
-			"LK4D4",
-			"icecrime",
-			"mavenugo",
-			"sanimej",
+			"ctelfer",
 			"chenchun",
-                        "fcrisciani",
+			"fcrisciani",
+			"mavenugo",
 		]
 
 [people]
@@ -28,15 +27,20 @@
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
 
+	[people.abhi]
+	Name = "Abhinandan Prativadi Bayankaram"
+	Email = "abhi@docker.com"
+	GitHub = "abhi"
+
 	[people.aboch]
 	Name = "Alessandro Boch"
 	Email = "aboch@docker.com"
 	GitHub = "aboch"
 
-	[people.LK4D4]
-	Name = "Alexandr Morozov"
-	Email = "lk4d4@docker.com"
-	GitHub = "LK4D4"
+	[people.ctelfer]
+	Name = "Christopher Telfer"
+	Email = "chris.telfer@docker.com"
+	GitHub = "ctelfer"
 
 	[people.chenchun]
 	Name = "Chun Chen"
@@ -48,17 +52,8 @@
 	Email = "flavio.crisciani@docker.com"
 	GitHub = "fcrisciani"
 
-	[people.icecrime]
-	Name = "Arnaud Porterie"
-	Email = "arnaud@docker.com"
-	GitHub = "icecrime"
-
 	[people.mavenugo]
 	Name = "Madhu Venugopal"
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
 
-	[people.sanimej]
-	Name = "Santhosh Manohar"
-	Email = "santhosh@docker.com"
-	GitHub = "sanimej"
