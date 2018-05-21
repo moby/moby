@@ -62,6 +62,8 @@ var (
 
 	enableDirpermLock sync.Once
 	enableDirperm     bool
+
+	logger = logrus.WithField("storage-driver", "aufs")
 )
 
 func init() {
@@ -84,9 +86,9 @@ type Driver struct {
 // Init returns a new AUFS driver.
 // An error is returned if AUFS is not supported.
 func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-
 	// Try to load the aufs kernel module
 	if err := supportsAufs(); err != nil {
+		logger.Error(err)
 		return nil, graphdriver.ErrNotSupported
 	}
 
@@ -109,7 +111,7 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 
 	switch fsMagic {
 	case graphdriver.FsMagicAufs, graphdriver.FsMagicBtrfs, graphdriver.FsMagicEcryptfs:
-		logrus.WithField("storage-driver", "aufs").Errorf("AUFS is not supported over %s", backingFs)
+		logger.Errorf("AUFS is not supported over %s", backingFs)
 		return nil, graphdriver.ErrIncompatibleFS
 	}
 
@@ -143,7 +145,6 @@ func Init(root string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 			return nil, err
 		}
 	}
-	logger := logrus.WithField("storage-driver", "aufs")
 
 	for _, path := range []string{"mnt", "diff"} {
 		p := filepath.Join(root, path)
@@ -306,10 +307,7 @@ func (a *Driver) Remove(id string) error {
 		mountpoint = a.getMountpoint(id)
 	}
 
-	logger := logrus.WithFields(logrus.Fields{
-		"storage-driver": "aufs",
-		"layer":          id,
-	})
+	logger := logger.WithField("layer", id)
 
 	var retries int
 	for {
@@ -439,7 +437,7 @@ func (a *Driver) Put(id string) error {
 
 	err := a.unmount(m)
 	if err != nil {
-		logrus.WithField("storage-driver", "aufs").Debugf("Failed to unmount %s aufs: %v", id, err)
+		logger.Debugf("Failed to unmount %s aufs: %v", id, err)
 	}
 	return err
 }
@@ -597,7 +595,7 @@ func (a *Driver) Cleanup() error {
 
 	for _, m := range dirs {
 		if err := a.unmount(m); err != nil {
-			logrus.WithField("storage-driver", "aufs").Debugf("error unmounting %s: %s", m, err)
+			logger.Debugf("error unmounting %s: %s", m, err)
 		}
 	}
 	return mountpk.RecursiveUnmount(a.root)
@@ -652,7 +650,6 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 // useDirperm checks dirperm1 mount option can be used with the current
 // version of aufs.
 func useDirperm() bool {
-	logger := logrus.WithField("storage-driver", "aufs")
 	enableDirpermLock.Do(func() {
 		base, err := ioutil.TempDir("", "docker-aufs-base")
 		if err != nil {
