@@ -598,16 +598,19 @@ func (c *containerConfig) networkCreateRequest(name string) (clustertypes.Networ
 		}
 	}
 
-	if na.Network.DriverState != nil {
-		options.Driver = na.Network.DriverState.Name
-		options.Options = na.Network.DriverState.Options
+	driverConfig := na.Network.Spec.DriverConfig
+	if driverConfig != nil {
+		options.Driver = driverConfig.Name
+		options.Options = driverConfig.Options
 	}
-	if na.Network.IPAM != nil {
+
+	ipamConfig := na.Network.Spec.IPAM
+	if ipamConfig != nil {
 		options.IPAM = &network.IPAM{
-			Driver:  na.Network.IPAM.Driver.Name,
-			Options: na.Network.IPAM.Driver.Options,
+			Driver:  ipamConfig.Driver.Name,
+			Options: ipamConfig.Driver.Options,
 		}
-		for _, ic := range na.Network.IPAM.Configs {
+		for _, ic := range ipamConfig.Configs {
 			c := network.IPAMConfig{
 				Subnet:  ic.Subnet,
 				IPRange: ic.Range,
