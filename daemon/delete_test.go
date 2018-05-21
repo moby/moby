@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
+	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
 
 func newDaemonWithTmpRoot(t *testing.T) (*Daemon, func()) {
@@ -30,7 +30,6 @@ func newContainerWithState(state *container.State) *container.Container {
 		State:  state,
 		Config: &containertypes.Config{},
 	}
-
 }
 
 // TestContainerDelete tests that a useful error message and instructions is
@@ -74,8 +73,8 @@ func TestContainerDelete(t *testing.T) {
 		d.containers.Add(c.ID, c)
 
 		err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: false})
-		testutil.ErrorContains(t, err, te.errMsg)
-		testutil.ErrorContains(t, err, te.fixMsg)
+		assert.Check(t, is.ErrorContains(err, te.errMsg))
+		assert.Check(t, is.ErrorContains(err, te.fixMsg))
 	}
 }
 
@@ -92,5 +91,5 @@ func TestContainerDoubleDelete(t *testing.T) {
 	// Try to remove the container when its state is removalInProgress.
 	// It should return an error indicating it is under removal progress.
 	err := d.ContainerRm(c.ID, &types.ContainerRmConfig{ForceRemove: true})
-	testutil.ErrorContains(t, err, fmt.Sprintf("removal of container %s is already in progress", c.ID))
+	assert.Check(t, is.ErrorContains(err, fmt.Sprintf("removal of container %s is already in progress", c.ID)))
 }

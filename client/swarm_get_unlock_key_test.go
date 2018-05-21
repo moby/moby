@@ -11,7 +11,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 )
@@ -22,7 +21,7 @@ func TestSwarmGetUnlockKeyError(t *testing.T) {
 	}
 
 	_, err := client.SwarmGetUnlockKey(context.Background())
-	testutil.ErrorContains(t, err, "Error response from daemon: Server error")
+	assert.Check(t, is.ErrorContains(err, "Error response from daemon: Server error"))
 }
 
 func TestSwarmGetUnlockKey(t *testing.T) {

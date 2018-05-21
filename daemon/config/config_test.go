@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/daemon/discovery"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/opts"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -62,10 +61,7 @@ func TestFindConfigurationConflicts(t *testing.T) {
 
 	flags.String("authorization-plugins", "", "")
 	assert.Check(t, flags.Set("authorization-plugins", "asdf"))
-
-	testutil.ErrorContains(t,
-		findConfigurationConflicts(config, flags),
-		"authorization-plugins: (from flag: asdf, from file: foobar)")
+	assert.Check(t, is.ErrorContains(findConfigurationConflicts(config, flags), "authorization-plugins: (from flag: asdf, from file: foobar)"))
 }
 
 func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
@@ -76,8 +72,7 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, opts.ValidateHost), "host", "H", "Daemon socket(s) to connect to")
 	assert.Check(t, flags.Set("host", "tcp://127.0.0.1:4444"))
 	assert.Check(t, flags.Set("host", "unix:///var/run/docker.sock"))
-
-	testutil.ErrorContains(t, findConfigurationConflicts(config, flags), "hosts")
+	assert.Check(t, is.ErrorContains(findConfigurationConflicts(config, flags), "hosts"))
 }
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
@@ -460,8 +455,7 @@ func TestReloadSetConfigFileNotExist(t *testing.T) {
 	flags.Set("config-file", configFile)
 
 	err := Reload(configFile, flags, func(c *Config) {})
-	assert.Check(t, is.ErrorContains(err, ""))
-	testutil.ErrorContains(t, err, "unable to configure the Docker daemon with file")
+	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
 // TestReloadDefaultConfigNotExist tests that if the default configuration file
@@ -494,8 +488,7 @@ func TestReloadBadDefaultConfig(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 	flags.String("config-file", configFile, "")
 	err = Reload(configFile, flags, func(c *Config) {})
-	assert.Check(t, is.ErrorContains(err, ""))
-	testutil.ErrorContains(t, err, "unable to configure the Docker daemon with file")
+	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
 }
 
 func TestReloadWithConflictingLabels(t *testing.T) {
@@ -508,7 +501,7 @@ func TestReloadWithConflictingLabels(t *testing.T) {
 	flags.String("config-file", configFile, "")
 	flags.StringSlice("labels", lbls, "")
 	err := Reload(configFile, flags, func(c *Config) {})
-	testutil.ErrorContains(t, err, "conflict labels for foo=baz and foo=bar")
+	assert.Check(t, is.ErrorContains(err, "conflict labels for foo=baz and foo=bar"))
 }
 
 func TestReloadWithDuplicateLabels(t *testing.T) {

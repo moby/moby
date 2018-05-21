@@ -8,7 +8,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/skip"
@@ -22,9 +21,9 @@ func TestCopyFromContainerPathDoesNotExist(t *testing.T) {
 	cid := container.Create(t, ctx, apiclient)
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/dne")
-	assert.Assert(t, client.IsErrNotFound(err))
+	assert.Check(t, client.IsErrNotFound(err))
 	expected := fmt.Sprintf("No such container:path: %s:%s", cid, "/dne")
-	testutil.ErrorContains(t, err, expected)
+	assert.Check(t, is.ErrorContains(err, expected))
 }
 
 func TestCopyFromContainerPathIsNotDir(t *testing.T) {
@@ -36,7 +35,7 @@ func TestCopyFromContainerPathIsNotDir(t *testing.T) {
 	cid := container.Create(t, ctx, apiclient)
 
 	_, _, err := apiclient.CopyFromContainer(ctx, cid, "/etc/passwd/")
-	assert.Assert(t, is.Contains(err.Error(), "not a directory"))
+	assert.Assert(t, is.ErrorContains(err, "not a directory"))
 }
 
 func TestCopyToContainerPathDoesNotExist(t *testing.T) {
@@ -48,9 +47,9 @@ func TestCopyToContainerPathDoesNotExist(t *testing.T) {
 	cid := container.Create(t, ctx, apiclient)
 
 	err := apiclient.CopyToContainer(ctx, cid, "/dne", nil, types.CopyToContainerOptions{})
-	assert.Assert(t, client.IsErrNotFound(err))
+	assert.Check(t, client.IsErrNotFound(err))
 	expected := fmt.Sprintf("No such container:path: %s:%s", cid, "/dne")
-	testutil.ErrorContains(t, err, expected)
+	assert.Check(t, is.ErrorContains(err, expected))
 }
 
 func TestCopyToContainerPathIsNotDir(t *testing.T) {
@@ -62,5 +61,5 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 	cid := container.Create(t, ctx, apiclient)
 
 	err := apiclient.CopyToContainer(ctx, cid, "/etc/passwd/", nil, types.CopyToContainerOptions{})
-	assert.Assert(t, is.Contains(err.Error(), "not a directory"))
+	assert.Assert(t, is.ErrorContains(err, "not a directory"))
 }

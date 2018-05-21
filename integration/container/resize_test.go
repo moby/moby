@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	req "github.com/docker/docker/internal/test/request"
-	"github.com/docker/docker/internal/testutil"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/gotestyourself/gotestyourself/poll"
@@ -63,5 +62,5 @@ func TestResizeWhenContainerNotStarted(t *testing.T) {
 		Height: 40,
 		Width:  40,
 	})
-	testutil.ErrorContains(t, err, "is not running")
+	assert.Check(t, is.ErrorContains(err, "is not running"))
 }
