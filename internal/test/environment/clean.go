@@ -25,7 +25,7 @@ type logT interface {
 // Clean the environment, preserving protected objects (images, containers, ...)
 // and removing everything else. It's meant to run after any tests so that they don't
 // depend on each others.
-func (e *Execution) Clean(t testingT) {
+func (e *Execution) Clean(t assert.TestingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -112,7 +112,7 @@ func getAllContainers(ctx context.Context, t assert.TestingT, client client.Cont
 	return containers
 }
 
-func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
+func deleteAllImages(t assert.TestingT, apiclient client.ImageAPIClient, protectedImages map[string]struct{}) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -123,15 +123,12 @@ func deleteAllImages(t testingT, apiclient client.ImageAPIClient, protectedImage
 	for _, image := range images {
 		tags := tagsFromImageSummary(image)
 		if len(tags) == 0 {
-			t.Logf("Removing image %s", image.ID)
 			removeImage(ctx, t, apiclient, image.ID)
 			continue
 		}
 		for _, tag := range tags {
 			if _, ok := protectedImages[tag]; !ok {
-				t.Logf("Removing image %s", tag)
 				removeImage(ctx, t, apiclient, tag)
-				continue
 			}
 		}
 	}
