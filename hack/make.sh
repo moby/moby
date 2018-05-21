@@ -159,7 +159,7 @@ ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 
 # Test timeout.
-if [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
+if [ "${DOCKER_ENGINE_GOARCH}" == "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
 	: ${TIMEOUT:=10m}
 elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
 	: ${TIMEOUT:=8m}
