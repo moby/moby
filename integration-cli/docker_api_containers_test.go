@@ -442,7 +442,8 @@ func (s *DockerSuite) TestContainerAPITop(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	top, err := cli.ContainerTop(context.Background(), id, []string{"aux"})
+	// sort by comm[andline] to make sure order stays the same in case of PID rollover
+	top, err := cli.ContainerTop(context.Background(), id, []string{"aux", "--sort=comm"})
 	c.Assert(err, checker.IsNil)
 	c.Assert(top.Titles, checker.HasLen, 11, check.Commentf("expected 11 titles, found %d: %v", len(top.Titles), top.Titles))
 
