@@ -526,6 +526,7 @@ func (a *Allocator) ReleaseAddress(poolID string, address net.IP) error {
 		return types.InternalErrorf("could not find bitmask in datastore for %s on address %v release from pool %s: %v",
 			k.String(), address, poolID, err)
 	}
+	defer logrus.Debugf("Released address PoolID:%s, Address:%v Sequence:%s", poolID, address, bm.String())
 
 	return bm.Unset(ipToUint64(h))
 }
@@ -537,6 +538,7 @@ func (a *Allocator) getAddress(nw *net.IPNet, bitmask *bitseq.Handle, prefAddres
 		base    *net.IPNet
 	)
 
+	logrus.Debugf("Request address PoolID:%v %s Serial:%v PrefAddress:%v ", nw, bitmask.String(), serial, prefAddress)
 	base = types.GetIPNetCopy(nw)
 
 	if bitmask.Unselected() <= 0 {

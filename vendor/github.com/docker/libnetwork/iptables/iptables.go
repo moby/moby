@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -45,7 +46,7 @@ var (
 	iptablesPath  string
 	supportsXlock = false
 	supportsCOpt  = false
-	xLockWaitMsg  = "Another app is currently holding the xtables lock; waiting"
+	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
@@ -423,12 +424,32 @@ func existsRaw(table Table, chain string, rule ...string) bool {
 	return strings.Contains(string(existingRules), ruleString)
 }
 
+// Maximum duration that an iptables operation can take
+// before flagging a warning.
+const opWarnTime = 2 * time.Second
+
+func filterOutput(start time.Time, output []byte, args ...string) []byte {
+	// Flag operations that have taken a long time to complete
+	opTime := time.Since(start)
+	if opTime > opWarnTime {
+		logrus.Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
+	}
+	// ignore iptables' message about xtables lock:
+	// it is a warning, not an error.
+	if strings.Contains(string(output), xLockWaitMsg) {
+		output = []byte("")
+	}
+	// Put further filters here if desired
+	return output
+}
+
 // Raw calls 'iptables' system command, passing supplied arguments.
 func Raw(args ...string) ([]byte, error) {
 	if firewalldRunning {
+		startTime := time.Now()
 		output, err := Passthrough(Iptables, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
-			return output, err
+			return filterOutput(startTime, output, args...), err
 		}
 	}
 	return raw(args...)
@@ -447,17 +468,13 @@ func raw(args ...string) ([]byte, error) {
 
 	logrus.Debugf("%s, %v", iptablesPath, args)
 
+	startTime := time.Now()
 	output, err := exec.Command(iptablesPath, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 
-	// ignore iptables' message about xtables lock
-	if strings.Contains(string(output), xLockWaitMsg) {
-		output = []byte("")
-	}
-
-	return output, err
+	return filterOutput(startTime, output, args...), err
 }
 
 // RawCombinedOutput inernally calls the Raw function and returns a non nil

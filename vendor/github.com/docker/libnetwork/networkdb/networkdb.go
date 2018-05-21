@@ -3,6 +3,7 @@ package networkdb
 //go:generate protoc -I.:../vendor/github.com/gogo/protobuf --gogo_out=import_path=github.com/docker/libnetwork/networkdb,Mgogoproto/gogo.proto=github.com/gogo/protobuf/gogoproto:. networkdb.proto
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"os"
@@ -77,9 +78,10 @@ type NetworkDB struct {
 	// Broadcast queue for node event gossip.
 	nodeBroadcasts *memberlist.TransmitLimitedQueue
 
-	// A central stop channel to stop all go routines running on
+	// A central context to stop all go routines running on
 	// behalf of the NetworkDB instance.
-	stopCh chan struct{}
+	ctx       context.Context
+	cancelCtx context.CancelFunc
 
 	// A central broadcaster for all local watchers watching table
 	// events.
