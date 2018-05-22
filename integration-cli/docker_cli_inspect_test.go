@@ -458,10 +458,3 @@ func (s *DockerSuite) TestInspectUnknownObject(c *check.C) {
 	c.Assert(out, checker.Contains, "Error: No such object: foobar")
 	c.Assert(err.Error(), checker.Contains, "Error: No such object: foobar")
 }
-
-func (s *DockerSuite) TestInspectInvalidReference(c *check.C) {
-	// This test should work on both Windows and Linux
-	out, _, err := dockerCmdWithError("inspect", "FooBar")
-	c.Assert(err, checker.NotNil)
-	c.Assert(out, checker.Contains, "invalid reference format: repository name must be lowercase")
-}

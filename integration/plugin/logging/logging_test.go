@@ -12,9 +12,11 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
+	"github.com/gotestyourself/gotestyourself/skip"
 )
 
 func TestContinueAfterPluginCrash(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon(), "test requires daemon on the same host")
 	t.Parallel()
 
 	d := daemon.New(t)
