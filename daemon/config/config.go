@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd/namespaces"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
@@ -195,9 +196,13 @@ type CommonConfig struct {
 	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
 	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 
-	// ContainerAddr is the address used to connect to containerd if we're
+	// ContainerdAddr is the address used to connect to containerd if we're
 	// not starting it ourselves
 	ContainerdAddr string `json:"containerd,omitempty"`
+
+	// ContainerdNamespace is the containerd namespace that moby should use
+	// to "isolate" its container from other potential user of containerd.
+	ContainerdNamespace string `json:"containerd-namespace,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -547,6 +552,11 @@ func Validate(config *Config) error {
 		}
 	}
 
+	if config.ContainerdNamespace != "" {
+		if err := namespaces.Validate(config.ContainerdNamespace); err != nil {
+			return err
+		}
+	}
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
 }

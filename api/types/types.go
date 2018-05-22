@@ -197,13 +197,14 @@ type Info struct {
 	// LiveRestoreEnabled determines whether containers should be kept
 	// running when the daemon is shutdown or upon daemon start if
 	// running containers are detected
-	LiveRestoreEnabled bool
-	Isolation          container.Isolation
-	InitBinary         string
-	ContainerdCommit   Commit
-	RuncCommit         Commit
-	InitCommit         Commit
-	SecurityOptions    []string
+	LiveRestoreEnabled  bool
+	Isolation           container.Isolation
+	InitBinary          string
+	ContainerdCommit    Commit
+	RuncCommit          Commit
+	InitCommit          Commit
+	SecurityOptions     []string
+	ContainerdNamespace string
 }
 
 // KeyValue holds a key/value pair

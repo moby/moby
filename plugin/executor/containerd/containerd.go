@@ -2,6 +2,7 @@ package containerd // import "github.com/docker/docker/plugin/executor/container
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"path/filepath"
 	"sync"
@@ -16,8 +17,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-// pluginNamespace is the name used for the plugins namespace
-const pluginNamespace = "plugins.moby"
+// pluginNamespacePrefix is the prefix name used for the plugins namespace
+const pluginNamespacePrefix = "plugins"
 
 // ExitHandler represents an object that is called when the exit event is received from containerd
 type ExitHandler interface {
@@ -38,11 +39,12 @@ type Client interface {
 }
 
 // New creates a new containerd plugin executor
-func New(rootDir string, remote libcontainerd.Remote, exitHandler ExitHandler) (*Executor, error) {
+func New(rootDir string, remote libcontainerd.Remote, namespace string, exitHandler ExitHandler) (*Executor, error) {
 	e := &Executor{
 		rootDir:     rootDir,
 		exitHandler: exitHandler,
 	}
+	pluginNamespace := fmt.Sprintf("%s.%s", pluginNamespacePrefix, namespace)
 	client, err := remote.NewClient(pluginNamespace, e)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating containerd exec client")

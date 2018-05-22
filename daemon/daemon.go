@@ -623,6 +623,10 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		os.Setenv("TMPDIR", realTmp)
 	}
 
+	if config.ContainerdNamespace == "" {
+		config.ContainerdNamespace = ContainersNamespace
+	}
+
 	d := &Daemon{
 		configStore: config,
 		PluginStore: pluginStore,
@@ -720,7 +724,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
-		return pluginexec.New(getPluginExecRoot(config.Root), containerdRemote, m)
+		return pluginexec.New(getPluginExecRoot(config.Root), containerdRemote, config.ContainerdNamespace, m)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -881,7 +885,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	go d.execCommandGC()
 
-	d.containerd, err = containerdRemote.NewClient(ContainersNamespace, d)
+	d.containerd, err = containerdRemote.NewClient(config.ContainerdNamespace, d)
 	if err != nil {
 		return nil, err
 	}

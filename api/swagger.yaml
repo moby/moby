@@ -3420,6 +3420,10 @@ definitions:
           > should not be considered stable.
         type: "string"
         example: "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS"
+      ContainerdNamespace:
+        description: "Namespace this daemon use with the underlying containerd"
+        type: "string"
+        example: "moby"
       Containers:
         description: "Total number of containers on the host."
         type: "integer"
