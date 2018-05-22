@@ -30,7 +30,6 @@ var (
 )
 
 type daemonOptions struct {
-	version      bool
 	configFile   string
 	daemonConfig *config.Config
 	flags        *pflag.FlagSet
