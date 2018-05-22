@@ -153,6 +153,10 @@ func TestValidContainerNames(t *testing.T) {
 }
 
 func TestContainerInitDNS(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("root required") // for chown
+	}
+
 	tmp, err := ioutil.TempDir("", "docker-container-test-")
 	if err != nil {
 		t.Fatal(err)

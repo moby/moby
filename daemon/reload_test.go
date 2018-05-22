@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"os"
 	"reflect"
 	"sort"
 	"testing"
@@ -499,6 +500,9 @@ func TestDaemonDiscoveryReloadOnlyClusterAdvertise(t *testing.T) {
 }
 
 func TestDaemonReloadNetworkDiagnosticPort(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("root required")
+	}
 	daemon := &Daemon{
 		imageService: images.NewImageService(images.ImageServiceConfig{}),
 	}
