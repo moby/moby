@@ -811,8 +811,8 @@ command line or Docker's Engine API are allowed or denied by the plugin.
 If you have multiple plugins installed, each plugin, in order, must
 allow the request for it to complete.
 
-For information about how to create an authorization plugin, see [authorization
-plugin](https://docs.docker.com/engine/extend/authorization/) section in the
+For information about how to create an authorization plugin, see [access authorization
+plugin](https://docs.docker.com/engine/extend/plugins_authorization/) section in the
 Docker extend section of this documentation.
 
 # RUNTIME EXECUTION OPTIONS
