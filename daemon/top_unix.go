@@ -70,6 +70,7 @@ func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody
 	for i, name := range procList.Titles {
 		if name == "PID" {
 			pidIndex = i
+			break
 		}
 	}
 	if pidIndex == -1 {
