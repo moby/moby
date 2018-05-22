@@ -4663,7 +4663,7 @@ paths:
               AppArmorProfile:
                 type: "string"
               ExecIDs:
-                type: "string"
+                type: "array"
               HostConfig:
                 $ref: "#/definitions/HostConfig"
               GraphDriver:
