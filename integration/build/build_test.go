@@ -175,6 +175,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 
 // Test cases in #36996
 func TestBuildLabelWithTargets(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "test added after 1.37")
 	bldName := "build-a"
 	testLabels := map[string]string{
 		"foo":  "bar",
