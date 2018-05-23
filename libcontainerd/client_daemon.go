@@ -102,38 +102,34 @@ func (c *container) getOOMKilled() bool {
 type client struct {
 	sync.RWMutex // protects containers map
 
-	remote   *containerd.Client
+	client   *containerd.Client
 	stateDir string
 	logger   *logrus.Entry
+	ns       string
 
-	namespace  string
 	backend    Backend
 	eventQ     queue
 	containers map[string]*container
 }
 
-func (c *client) reconnect() error {
-	c.Lock()
-	err := c.remote.Reconnect()
-	c.Unlock()
-	return err
-}
+// NewClient creates a new libcontainerd client from a containerd client
+func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b Backend) (Client, error) {
+	c := &client{
+		client:     cli,
+		stateDir:   stateDir,
+		logger:     logrus.WithField("module", "libcontainerd").WithField("namespace", ns),
+		ns:         ns,
+		backend:    b,
+		containers: make(map[string]*container),
+	}
 
-func (c *client) setRemote(remote *containerd.Client) {
-	c.Lock()
-	c.remote = remote
-	c.Unlock()
-}
+	go c.processEventStream(ctx, ns)
 
-func (c *client) getRemote() *containerd.Client {
-	c.RLock()
-	remote := c.remote
-	c.RUnlock()
-	return remote
+	return c, nil
 }
 
 func (c *client) Version(ctx context.Context) (containerd.Version, error) {
-	return c.getRemote().Version(ctx)
+	return c.client.Version(ctx)
 }
 
 // Restore loads the containerd container.
@@ -170,7 +166,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 		err = wrapError(err)
 	}()
 
-	ctr, err := c.getRemote().LoadContainer(ctx, id)
+	ctr, err := c.client.LoadContainer(ctx, id)
 	if err != nil {
 		return false, -1, errors.WithStack(wrapError(err))
 	}
@@ -225,7 +221,7 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
-	cdCtr, err := c.getRemote().NewContainer(ctx, id,
+	cdCtr, err := c.client.NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
 		// TODO(mlaventure): when containerd support lcow, revisit runtime value
 		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
@@ -268,7 +264,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		// remove the checkpoint when we're done
 		defer func() {
 			if cp != nil {
-				err := c.getRemote().ContentStore().Delete(context.Background(), cp.Digest)
+				err := c.client.ContentStore().Delete(context.Background(), cp.Digest)
 				if err != nil {
 					c.logger.WithError(err).WithFields(logrus.Fields{
 						"ref":    checkpointDir,
@@ -571,14 +567,14 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 	}
 	// Whatever happens, delete the checkpoint from containerd
 	defer func() {
-		err := c.getRemote().ImageService().Delete(context.Background(), img.Name())
+		err := c.client.ImageService().Delete(context.Background(), img.Name())
 		if err != nil {
 			c.logger.WithError(err).WithField("digest", img.Target().Digest).
 				Warnf("failed to delete checkpoint image")
 		}
 	}()
 
-	b, err := content.ReadBlob(ctx, c.getRemote().ContentStore(), img.Target())
+	b, err := content.ReadBlob(ctx, c.client.ContentStore(), img.Target())
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
@@ -598,7 +594,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
-	rat, err := c.getRemote().ContentStore().ReaderAt(ctx, *cpDesc)
+	rat, err := c.client.ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
@@ -735,7 +731,7 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 	})
 }
 
-func (c *client) processEventStream(ctx context.Context) {
+func (c *client) processEventStream(ctx context.Context, ns string) {
 	var (
 		err error
 		ev  *events.Envelope
@@ -746,9 +742,9 @@ func (c *client) processEventStream(ctx context.Context) {
 
 	// Filter on both namespace *and* topic. To create an "and" filter,
 	// this must be a single, comma-separated string
-	eventStream, errC := c.getRemote().EventService().Subscribe(ctx, "namespace=="+c.namespace+",topic~=|^/tasks/|")
+	eventStream, errC := c.client.EventService().Subscribe(ctx, "namespace=="+ns+",topic~=|^/tasks/|")
 
-	c.logger.WithField("namespace", c.namespace).Debug("processing event stream")
+	c.logger.Debug("processing event stream")
 
 	var oomKilled bool
 	for {
@@ -758,7 +754,7 @@ func (c *client) processEventStream(ctx context.Context) {
 				errStatus, ok := status.FromError(err)
 				if !ok || errStatus.Code() != codes.Canceled {
 					c.logger.WithError(err).Error("failed to get event")
-					go c.processEventStream(ctx)
+					go c.processEventStream(ctx, ns)
 				} else {
 					c.logger.WithError(ctx.Err()).Info("stopping event stream following graceful shutdown")
 				}
@@ -858,7 +854,7 @@ func (c *client) processEventStream(ctx context.Context) {
 }
 
 func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.Reader) (*types.Descriptor, error) {
-	writer, err := c.getRemote().ContentStore().Writer(ctx, content.WithRef(ref))
+	writer, err := c.client.ContentStore().Writer(ctx, content.WithRef(ref))
 	if err != nil {
 		return nil, err
 	}

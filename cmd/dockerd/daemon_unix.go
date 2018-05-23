@@ -13,7 +13,7 @@ import (
 	"github.com/containerd/containerd/runtime/linux"
 	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/libnetwork/portallocator"
 	"golang.org/x/sys/unix"
 )
@@ -36,28 +36,15 @@ func getDaemonConfDir(_ string) string {
 	return "/etc/docker"
 }
 
-func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
-	opts := []libcontainerd.RemoteOption{
-		libcontainerd.WithOOMScore(cli.Config.OOMScoreAdjust),
-		libcontainerd.WithPlugin("linux", &linux.Config{
+func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
+	opts := []supervisor.DaemonOpt{
+		supervisor.WithOOMScore(cli.Config.OOMScoreAdjust),
+		supervisor.WithPlugin("linux", &linux.Config{
 			Shim:        daemon.DefaultShimBinary,
 			Runtime:     daemon.DefaultRuntimeBinary,
 			RuntimeRoot: filepath.Join(cli.Config.Root, "runc"),
 			ShimDebug:   cli.Config.Debug,
 		}),
-	}
-	if cli.Config.Debug {
-		opts = append(opts, libcontainerd.WithLogLevel("debug"))
-	} else if cli.Config.LogLevel != "" {
-		opts = append(opts, libcontainerd.WithLogLevel(cli.Config.LogLevel))
-	}
-	if cli.Config.ContainerdAddr != "" {
-		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
-	} else {
-		opts = append(opts, libcontainerd.WithStartDaemon(true))
-	}
-	if !cli.Config.CriContainerd {
-		opts = append(opts, libcontainerd.WithPlugin("cri", nil))
 	}
 
 	return opts, nil

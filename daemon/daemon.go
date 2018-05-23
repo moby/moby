@@ -18,6 +18,11 @@ import (
 	"sync"
 	"time"
 
+	"google.golang.org/grpc"
+
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -94,6 +99,7 @@ type Daemon struct {
 	PluginStore           *plugin.Store // todo: remove
 	pluginManager         *plugin.Manager
 	linkIndex             *linkIndex
+	containerdCli         *containerd.Client
 	containerd            libcontainerd.Client
 	defaultIsolation      containertypes.Isolation // Default isolation mode on Windows
 	clusterProvider       cluster.Provider
@@ -565,8 +571,13 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 
 // NewDaemon sets up everything for the daemon to be able to service
 // requests from the webserver.
-func NewDaemon(config *config.Config, registryService registry.Service, containerdRemote libcontainerd.Remote, pluginStore *plugin.Store) (daemon *Daemon, err error) {
+func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
+
+	registryService, err := registry.NewService(config.ServiceOptions)
+	if err != nil {
+		return nil, err
+	}
 
 	// Ensure that we have a correct root key limit for launching containers.
 	if err := ModifyRootKeyLimit(); err != nil {
@@ -720,8 +731,35 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	}
 	registerMetricsPluginCallback(d.PluginStore, metricsSockPath)
 
+	gopts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithBackoffMaxDelay(3 * time.Second),
+		grpc.WithDialer(dialer.Dialer),
+
+		// TODO(stevvooe): We may need to allow configuration of this on the client.
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(defaults.DefaultMaxRecvMsgSize)),
+		grpc.WithDefaultCallOptions(grpc.MaxCallSendMsgSize(defaults.DefaultMaxSendMsgSize)),
+	}
+	if config.ContainerdAddr != "" {
+		d.containerdCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(ContainersNamespace), containerd.WithDialOpts(gopts))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+		}
+	}
+
 	createPluginExec := func(m *plugin.Manager) (plugin.Executor, error) {
-		return pluginexec.New(getPluginExecRoot(config.Root), containerdRemote, m)
+		var pluginCli *containerd.Client
+
+		// Windows is not currently using containerd, keep the
+		// client as nil
+		if config.ContainerdAddr != "" {
+			pluginCli, err = containerd.New(config.ContainerdAddr, containerd.WithDefaultNamespace(pluginexec.PluginNamespace), containerd.WithDialOpts(gopts))
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to dial %q", config.ContainerdAddr)
+			}
+		}
+
+		return pluginexec.New(ctx, getPluginExecRoot(config.Root), pluginCli, m)
 	}
 
 	// Plugin system initialization should happen before restore. Do not change order.
@@ -880,7 +918,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 
 	go d.execCommandGC()
 
-	d.containerd, err = containerdRemote.NewClient(ContainersNamespace, d)
+	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), ContainersNamespace, d)
 	if err != nil {
 		return nil, err
 	}
@@ -1035,6 +1073,10 @@ func (daemon *Daemon) Shutdown() error {
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
 		daemon.netController.Stop()
+	}
+
+	if daemon.containerdCli != nil {
+		daemon.containerdCli.Close()
 	}
 
 	return daemon.cleanupMounts()
