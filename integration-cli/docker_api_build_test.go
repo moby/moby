@@ -543,7 +543,7 @@ type buildLine struct {
 }
 
 func getImageIDsFromBuild(c *check.C, output []byte) []string {
-	ids := []string{}
+	var ids []string
 	for _, line := range bytes.Split(output, []byte("\n")) {
 		if len(line) == 0 {
 			continue

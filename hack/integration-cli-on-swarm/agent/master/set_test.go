@@ -8,7 +8,7 @@ import (
 )
 
 func generateInput(inputLen int) []string {
-	input := []string{}
+	var input []string
 	for i := 0; i < inputLen; i++ {
 		input = append(input, fmt.Sprintf("s%d", i))
 	}
@@ -21,7 +21,7 @@ func testChunkStrings(t *testing.T, inputLen, numChunks int) {
 	input := generateInput(inputLen)
 	result := chunkStrings(input, numChunks)
 	t.Logf("result has %d chunks", len(result))
-	inputReconstructedFromResult := []string{}
+	var inputReconstructedFromResult []string
 	for i, chunk := range result {
 		t.Logf("chunk %d has %d elements", i, len(chunk))
 		inputReconstructedFromResult = append(inputReconstructedFromResult, chunk...)

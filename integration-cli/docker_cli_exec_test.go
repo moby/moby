@@ -262,7 +262,7 @@ func (s *DockerSuite) TestExecCgroup(c *check.C) {
 
 	var wg sync.WaitGroup
 	var mu sync.Mutex
-	execCgroups := []sort.StringSlice{}
+	var execCgroups []sort.StringSlice
 	errChan := make(chan error)
 	// exec a few times concurrently to get consistent failure
 	for i := 0; i < 5; i++ {

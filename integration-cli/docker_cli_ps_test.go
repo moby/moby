@@ -172,7 +172,7 @@ func (s *DockerSuite) TestPsListContainersSize(c *check.C) {
 	idIndex := strings.Index(lines[0], "CONTAINER ID")
 	foundID := lines[1][idIndex : idIndex+12]
 	c.Assert(foundID, checker.Equals, id[:12], check.Commentf("Expected id %s, got %s", id[:12], foundID))
-	expectedSize := fmt.Sprintf("%dB", (2 + baseBytes))
+	expectedSize := fmt.Sprintf("%dB", 2+baseBytes)
 	foundSize := lines[1][sizeIndex:]
 	c.Assert(foundSize, checker.Contains, expectedSize, check.Commentf("Expected size %q, got %q", expectedSize, foundSize))
 }
@@ -377,7 +377,7 @@ func (s *DockerSuite) TestPsListContainersFilterAncestorImage(c *check.C) {
 }
 
 func checkPsAncestorFilterOutput(c *check.C, out string, filterName string, expectedIDs []string) {
-	actualIDs := []string{}
+	var actualIDs []string
 	if out != "" {
 		actualIDs = strings.Split(out[:len(out)-1], "\n")
 	}

@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/system"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 

@@ -63,7 +63,7 @@ func TestSecretList(t *testing.T) {
 	secret1ID := createSecret(ctx, t, client, testName1, []byte("TESTINGDATA1"), map[string]string{"type": "production"})
 
 	names := func(entries []swarmtypes.Secret) []string {
-		values := []string{}
+		var values []string
 		for _, entry := range entries {
 			values = append(values, entry.Spec.Name)
 		}

@@ -370,7 +370,7 @@ func getAddress(opts string) string {
 	optsList := strings.Split(opts, ",")
 	for i := 0; i < len(optsList); i++ {
 		if strings.HasPrefix(optsList[i], "addr=") {
-			addr := (strings.SplitN(optsList[i], "=", 2)[1])
+			addr := strings.SplitN(optsList[i], "=", 2)[1]
 			return addr
 		}
 	}

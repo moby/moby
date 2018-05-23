@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -18,13 +18,13 @@ import (
  * When the time comes to remove support for V1 plugins, flipping
  * this bool is all that will be needed.
  */
-const allowV1PluginsFallback bool = true
+const allowV1PluginsFallback = true
 
 /* defaultAPIVersion is the version of the plugin API for volume, network,
    IPAM and authz. This is a very stable API. When we update this API, then
    pluginType should include a version. e.g. "networkdriver/2.0".
 */
-const defaultAPIVersion string = "1.0"
+const defaultAPIVersion = "1.0"
 
 // GetV2Plugin retrieves a plugin by name, id or partial ID.
 func (ps *Store) GetV2Plugin(refOrID string) (*v2.Plugin, error) {

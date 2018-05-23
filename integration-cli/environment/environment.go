@@ -2,7 +2,6 @@ package environment // import "github.com/docker/docker/integration-cli/environm
 
 import (
 	"os"
-
 	"os/exec"
 
 	"github.com/docker/docker/internal/test/environment"

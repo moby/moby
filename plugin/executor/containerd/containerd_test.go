@@ -10,7 +10,7 @@ import (
 
 	"github.com/docker/docker/libcontainerd"
 	"github.com/gotestyourself/gotestyourself/assert"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 

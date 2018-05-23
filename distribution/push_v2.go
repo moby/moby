@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
 )
 

@@ -1139,8 +1139,8 @@ func TestCollectBatchWithDuplicateTimestamps(t *testing.T) {
 	close(d)
 	go stream.collectBatch(d)
 
+	var expectedEvents []*cloudwatchlogs.InputLogEvent
 	times := maximumLogEventsPerPut
-	expectedEvents := []*cloudwatchlogs.InputLogEvent{}
 	timestamp := time.Now()
 	for i := 0; i < times; i++ {
 		line := fmt.Sprintf("%d", i)

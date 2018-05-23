@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/internal/test/fakecontext"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
 )

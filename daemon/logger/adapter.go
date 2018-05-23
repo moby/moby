@@ -37,7 +37,7 @@ func (a *pluginAdapter) Log(msg *Message) error {
 
 	a.buf.Line = msg.Line
 	a.buf.TimeNano = msg.Timestamp.UnixNano()
-	a.buf.Partial = (msg.PLogMetaData != nil)
+	a.buf.Partial = msg.PLogMetaData != nil
 	a.buf.Source = msg.Source
 
 	err := a.enc.Encode(&a.buf)

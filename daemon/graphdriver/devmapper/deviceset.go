@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -50,8 +50,8 @@ var (
 	lvmSetupConfigForce          bool
 )
 
-const deviceSetMetaFile string = "deviceset-metadata"
-const transactionMetaFile string = "transaction-metadata"
+const deviceSetMetaFile = "deviceset-metadata"
+const transactionMetaFile = "transaction-metadata"
 
 type transaction struct {
 	OpenTransactionID uint64 `json:"open_transaction_id"`

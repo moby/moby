@@ -51,7 +51,7 @@ func hasManagementSubCommands(cmd *cobra.Command) bool {
 }
 
 func operationSubCommands(cmd *cobra.Command) []*cobra.Command {
-	cmds := []*cobra.Command{}
+	var cmds []*cobra.Command
 	for _, sub := range cmd.Commands() {
 		if sub.IsAvailableCommand() && !sub.HasSubCommands() {
 			cmds = append(cmds, sub)
@@ -69,7 +69,7 @@ func wrappedFlagUsages(cmd *cobra.Command) string {
 }
 
 func managementSubCommands(cmd *cobra.Command) []*cobra.Command {
-	cmds := []*cobra.Command{}
+	var cmds []*cobra.Command
 	for _, sub := range cmd.Commands() {
 		if sub.IsAvailableCommand() && sub.HasSubCommands() {
 			cmds = append(cmds, sub)

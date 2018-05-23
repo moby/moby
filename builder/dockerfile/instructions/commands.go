@@ -2,7 +2,6 @@ package instructions // import "github.com/docker/docker/builder/dockerfile/inst
 
 import (
 	"errors"
-
 	"strings"
 
 	"github.com/docker/docker/api/types/container"

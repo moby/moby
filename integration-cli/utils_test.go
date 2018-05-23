@@ -119,7 +119,7 @@ type elementListOptions struct {
 }
 
 func existingElements(c *check.C, opts elementListOptions) []string {
-	args := []string{}
+	var args []string
 	switch opts.element {
 	case "container":
 		args = append(args, "ps", "-a")
@@ -136,7 +136,7 @@ func existingElements(c *check.C, opts elementListOptions) []string {
 		args = append(args, "--format", opts.format)
 	}
 	out, _ := dockerCmd(c, args...)
-	lines := []string{}
+	var lines []string
 	for _, l := range strings.Split(out, "\n") {
 		if l != "" {
 			lines = append(lines, l)

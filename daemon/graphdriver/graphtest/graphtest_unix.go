@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/quota"
 	"github.com/docker/docker/pkg/stringid"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/sys/unix"

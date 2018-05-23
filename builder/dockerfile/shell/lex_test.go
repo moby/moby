@@ -71,8 +71,8 @@ func TestShellParser4Words(t *testing.T) {
 	}
 	defer file.Close()
 
+	var envs []string
 	shlex := NewLex('\\')
-	envs := []string{}
 	scanner := bufio.NewScanner(file)
 	lineNum := 0
 	for scanner.Scan() {

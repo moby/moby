@@ -387,7 +387,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 	b.Stderr = ioutil.Discard
 	b.disableCommit = true
 
-	commands := []instructions.Command{}
+	var commands []instructions.Command
 	for _, n := range dockerfile.AST.Children {
 		cmd, err := instructions.ParseCommand(n)
 		if err != nil {

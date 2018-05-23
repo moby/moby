@@ -340,7 +340,7 @@ func (v *memdbView) transform(container *Container) *Snapshot {
 	}
 
 	if len(container.Args) > 0 {
-		args := []string{}
+		var args []string
 		for _, arg := range container.Args {
 			if strings.Contains(arg, " ") {
 				args = append(args, fmt.Sprintf("'%s'", arg))

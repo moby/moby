@@ -7,9 +7,8 @@ import (
 	"io/ioutil"
 	"net/http"
 	"reflect"
-	"testing"
-
 	"strings"
+	"testing"
 )
 
 func TestImageSaveError(t *testing.T) {

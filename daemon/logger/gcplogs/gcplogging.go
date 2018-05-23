@@ -1,12 +1,11 @@
 package gcplogs // import "github.com/docker/docker/daemon/logger/gcplogs"
 
 import (
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
-
-	"context"
 
 	"github.com/docker/docker/daemon/logger"
 

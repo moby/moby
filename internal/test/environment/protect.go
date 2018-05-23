@@ -77,7 +77,7 @@ func getExistingContainers(t assert.TestingT, testEnv *Execution) []string {
 	})
 	assert.NilError(t, err, "failed to list containers")
 
-	containers := []string{}
+	var containers []string
 	for _, container := range containerList {
 		containers = append(containers, container.ID)
 	}
@@ -121,7 +121,7 @@ func getExistingImages(t assert.TestingT, testEnv *Execution) []string {
 	})
 	assert.NilError(t, err, "failed to list images")
 
-	images := []string{}
+	var images []string
 	for _, image := range imageList {
 		images = append(images, tagsFromImageSummary(image)...)
 	}
@@ -129,7 +129,7 @@ func getExistingImages(t assert.TestingT, testEnv *Execution) []string {
 }
 
 func tagsFromImageSummary(image types.ImageSummary) []string {
-	result := []string{}
+	var result []string
 	for _, tag := range image.RepoTags {
 		if tag != "<none>:<none>" {
 			result = append(result, tag)
@@ -172,7 +172,7 @@ func getExistingNetworks(t assert.TestingT, testEnv *Execution) []string {
 	networkList, err := client.NetworkList(context.Background(), types.NetworkListOptions{})
 	assert.NilError(t, err, "failed to list networks")
 
-	networks := []string{}
+	var networks []string
 	for _, network := range networkList {
 		networks = append(networks, network.ID)
 	}
@@ -211,7 +211,7 @@ func getExistingPlugins(t assert.TestingT, testEnv *Execution) []string {
 	}
 	assert.NilError(t, err, "failed to list plugins")
 
-	plugins := []string{}
+	var plugins []string
 	for _, plugin := range pluginList {
 		plugins = append(plugins, plugin.Name)
 	}
@@ -246,7 +246,7 @@ func getExistingVolumes(t assert.TestingT, testEnv *Execution) []string {
 	volumeList, err := client.VolumeList(context.Background(), filters.Args{})
 	assert.NilError(t, err, "failed to list volumes")
 
-	volumes := []string{}
+	var volumes []string
 	for _, volume := range volumeList.Volumes {
 		volumes = append(volumes, volume.Name)
 	}

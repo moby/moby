@@ -18,7 +18,7 @@ import (
 type conflictType int
 
 const (
-	conflictDependentChild conflictType = (1 << iota)
+	conflictDependentChild conflictType = 1 << iota
 	conflictRunningContainer
 	conflictActiveReference
 	conflictStoppedContainer
@@ -126,7 +126,7 @@ func (i *ImageService) ImageDelete(imageRef string, force, prune bool) ([]types.
 			}
 			if !foundRepoTagRef {
 				// Remove canonical references from same repository
-				remainingRefs := []reference.Named{}
+				var remainingRefs []reference.Named
 				for _, repoRef := range repoRefs {
 					if _, repoRefIsCanonical := repoRef.(reference.Canonical); repoRefIsCanonical && parsedRef.Name() == repoRef.Name() {
 						if _, err := i.removeImageRef(repoRef); err != nil {

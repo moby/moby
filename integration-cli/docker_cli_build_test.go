@@ -27,7 +27,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {
@@ -195,7 +195,7 @@ func (s *DockerSuite) TestBuildEnvironmentReplacementEnv(c *check.C) {
   RUN [ "$foo5" = 'abc\def' ]
   `))
 
-	envResult := []string{}
+	var envResult []string
 	inspectFieldAndUnmarshall(c, name, "Config.Env", &envResult)
 	found := false
 	envCount := 0
@@ -4979,7 +4979,7 @@ func (s *DockerSuite) TestBuildLabelMultiple(c *check.C) {
 		"foo": "bar",
 		"123": "456",
 	}
-	labelArgs := []string{}
+	var labelArgs []string
 	for k, v := range testLabels {
 		labelArgs = append(labelArgs, "--label", k+"="+v)
 	}

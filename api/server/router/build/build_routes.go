@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )

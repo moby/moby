@@ -19,7 +19,7 @@ import (
 
 const (
 	// DefaultDockerfileName is the Default filename with Docker commands, read by docker build
-	DefaultDockerfileName string = "Dockerfile"
+	DefaultDockerfileName = "Dockerfile"
 )
 
 // Source defines a location that can be used as a source for the ADD/COPY

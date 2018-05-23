@@ -155,7 +155,7 @@ func (s *DockerSchema1RegistrySuite) TestPushEmptyLayer(c *check.C) {
 func testConcurrentPush(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
 
-	repos := []string{}
+	var repos []string
 	for _, tag := range []string{"push1", "push2", "push3"} {
 		repo := fmt.Sprintf("%v:%v", repoName, tag)
 		buildImageSuccessfully(c, repo, build.WithDockerfile(fmt.Sprintf(`

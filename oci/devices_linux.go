@@ -8,7 +8,7 @@ import (
 
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/devices"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Device transforms a libcontainer configs.Device to a specs.LinuxDevice object.

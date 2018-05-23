@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Store manages the plugin inventory in memory and on-disk

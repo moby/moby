@@ -15,7 +15,7 @@ func loadIds(root string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := []string{}
+	var out []string
 	for _, d := range dirs {
 		if !d.IsDir() {
 			out = append(out, d.Name())
@@ -36,7 +36,7 @@ func getParentIDs(root, id string) ([]string, error) {
 	}
 	defer f.Close()
 
-	out := []string{}
+	var out []string
 	s := bufio.NewScanner(f)
 
 	for s.Scan() {

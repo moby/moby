@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
 	"github.com/gotestyourself/gotestyourself/icmd"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 )
 
 // save a repo using gz compression and try to load it using stdout
@@ -100,10 +100,10 @@ func (s *DockerSuite) TestSaveCheckTimes(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	repoName := "busybox:latest"
 	out, _ := dockerCmd(c, "inspect", repoName)
-	data := []struct {
+	var data []struct {
 		ID      string
 		Created time.Time
-	}{}
+	}
 	err := json.Unmarshal([]byte(out), &data)
 	c.Assert(err, checker.IsNil, check.Commentf("failed to marshal from %q: err %v", repoName, err))
 	c.Assert(len(data), checker.Not(checker.Equals), 0, check.Commentf("failed to marshal the data from %q", repoName))

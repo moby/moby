@@ -216,7 +216,7 @@ func dmGetNextTargetFct(task *cdmTask, next unsafe.Pointer, start, length *uint6
 }
 
 func dmUdevSetSyncSupportFct(syncWithUdev int) {
-	(C.dm_udev_set_sync_support(C.int(syncWithUdev)))
+	C.dm_udev_set_sync_support(C.int(syncWithUdev))
 }
 
 func dmUdevGetSyncSupportFct() int {

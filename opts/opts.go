@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 var (
@@ -52,7 +52,7 @@ func (opts *ListOpts) Set(value string) error {
 		}
 		value = v
 	}
-	(*opts.values) = append((*opts.values), value)
+	*opts.values = append(*opts.values, value)
 	return nil
 }
 
@@ -60,7 +60,7 @@ func (opts *ListOpts) Set(value string) error {
 func (opts *ListOpts) Delete(key string) {
 	for i, k := range *opts.values {
 		if k == key {
-			(*opts.values) = append((*opts.values)[:i], (*opts.values)[i+1:]...)
+			*opts.values = append((*opts.values)[:i], (*opts.values)[i+1:]...)
 			return
 		}
 	}
@@ -78,7 +78,7 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 
 // GetAll returns the values of slice.
 func (opts *ListOpts) GetAll() []string {
-	return (*opts.values)
+	return *opts.values
 }
 
 // GetAllOrEmpty returns the values of the slice
@@ -103,7 +103,7 @@ func (opts *ListOpts) Get(key string) bool {
 
 // Len returns the amount of element in the slice.
 func (opts *ListOpts) Len() int {
-	return len((*opts.values))
+	return len(*opts.values)
 }
 
 // Type returns a string name for this Option type

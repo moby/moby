@@ -16,7 +16,7 @@ import (
 func (s *DockerSuite) TestClientSetsTLSServerName(c *check.C) {
 	c.Skip("Flakey test")
 	// there may be more than one hit to the server for each registry request
-	serverNameReceived := []string{}
+	var serverNameReceived []string
 	var serverName string
 
 	virtualHostServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
