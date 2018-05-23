@@ -10,7 +10,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/auth/challenge"
 	"github.com/docker/distribution/registry/client/transport"
-	"github.com/docker/docker/api/types"
+	authtypes "github.com/docker/docker/api/types/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -23,7 +23,7 @@ const (
 )
 
 // loginV1 tries to register/login to the v1 registry server.
-func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV1(authConfig *authtypes.Config, apiEndpoint APIEndpoint, userAgent string) (string, string, error) {
 	registryEndpoint := apiEndpoint.ToV1Endpoint(userAgent, nil)
 	serverAddress := registryEndpoint.String()
 
@@ -68,7 +68,7 @@ func loginV1(authConfig *types.AuthConfig, apiEndpoint APIEndpoint, userAgent st
 }
 
 type loginCredentialStore struct {
-	authConfig *types.AuthConfig
+	authConfig *authtypes.Config
 }
 
 func (lcs loginCredentialStore) Basic(*url.URL) (string, string) {
@@ -84,12 +84,12 @@ func (lcs loginCredentialStore) SetRefreshToken(u *url.URL, service, token strin
 }
 
 type staticCredentialStore struct {
-	auth *types.AuthConfig
+	auth *authtypes.Config
 }
 
 // NewStaticCredentialStore returns a credential store
 // which always returns the same credential values.
-func NewStaticCredentialStore(auth *types.AuthConfig) auth.CredentialStore {
+func NewStaticCredentialStore(auth *authtypes.Config) auth.CredentialStore {
 	return staticCredentialStore{
 		auth: auth,
 	}
@@ -123,7 +123,7 @@ func (err fallbackError) Error() string {
 // loginV2 tries to login to the v2 registry server. The given registry
 // endpoint will be pinged to get authorization challenges. These challenges
 // will be used to authenticate against the registry to validate credentials.
-func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent string) (string, string, error) {
+func loginV2(authConfig *authtypes.Config, endpoint APIEndpoint, userAgent string) (string, string, error) {
 	logrus.Debugf("attempting v2 login to registry endpoint %s", strings.TrimRight(endpoint.URL.String(), "/")+"/v2/")
 
 	modifiers := Headers(userAgent, nil)
@@ -215,7 +215,7 @@ func ConvertToHostname(url string) string {
 }
 
 // ResolveAuthConfig matches an auth configuration to a server address or a URL
-func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registrytypes.IndexInfo) types.AuthConfig {
+func ResolveAuthConfig(authConfigs map[string]authtypes.Config, index *registrytypes.IndexInfo) authtypes.Config {
 	configKey := GetAuthConfigKey(index)
 	// First try the happy case
 	if c, found := authConfigs[configKey]; found || index.Official {
@@ -231,7 +231,7 @@ func ResolveAuthConfig(authConfigs map[string]types.AuthConfig, index *registryt
 	}
 
 	// When all else fails, return an empty auth config
-	return types.AuthConfig{}
+	return authtypes.Config{}
 }
 
 // PingResponseError is used when the response from a ping

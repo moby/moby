@@ -10,7 +10,7 @@ import (
 
 	"context"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client/types"
 )
 
 func TestPluginRemoveError(t *testing.T) {

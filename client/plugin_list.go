@@ -5,13 +5,13 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/plugins"
 )
 
 // PluginList returns the installed plugins
-func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (types.PluginsListResponse, error) {
-	var plugins types.PluginsListResponse
+func (cli *Client) PluginList(ctx context.Context, filter filters.Args) (plugins.PluginsListResponse, error) {
+	var plugins plugins.PluginsListResponse
 	query := url.Values{}
 
 	if filter.Len() > 0 {

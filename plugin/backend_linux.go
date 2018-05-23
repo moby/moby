@@ -18,6 +18,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	clienttypes "github.com/docker/docker/client"
 	"github.com/docker/docker/distribution"
 	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/distribution/xfer"
@@ -674,7 +675,7 @@ func (pm *Manager) Set(name string, args []string) error {
 
 // CreateFromContext creates a plugin from the given pluginDir which contains
 // both the rootfs and the config.json and a repoName with optional tag.
-func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *types.PluginCreateOptions) (err error) {
+func (pm *Manager) CreateFromContext(ctx context.Context, tarCtx io.ReadCloser, options *clienttypes.PluginCreateOptions) (err error) {
 	pm.muGC.RLock()
 	defer pm.muGC.RUnlock()
 

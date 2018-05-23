@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"
@@ -169,7 +168,7 @@ func TestViewWithHealthCheck(t *testing.T) {
 		one   = newContainer(t)
 	)
 	one.Health = &Health{
-		Health: types.Health{
+		Health: containertypes.Health{
 			Status: "starting",
 		},
 	}

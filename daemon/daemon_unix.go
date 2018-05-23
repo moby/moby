@@ -17,10 +17,10 @@ import (
 	"time"
 
 	containerd_cgroups "github.com/containerd/cgroups"
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/blkiodev"
 	pblkiodev "github.com/docker/docker/api/types/blkiodev"
 	containertypes "github.com/docker/docker/api/types/container"
+	systemtypes "github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/initlayer"
@@ -640,7 +640,7 @@ func (daemon *Daemon) loadRuntimes() error {
 	return daemon.initRuntimes(daemon.configStore.Runtimes)
 }
 
-func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error) {
+func (daemon *Daemon) initRuntimes(runtimes map[string]systemtypes.Runtime) (err error) {
 	runtimeDir := filepath.Join(daemon.configStore.Root, "runtimes")
 	// Remove old temp directory if any
 	os.RemoveAll(runtimeDir + "-old")
@@ -709,9 +709,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 		conf.DefaultRuntime = config.StockRuntimeName
 	}
 	if conf.Runtimes == nil {
-		conf.Runtimes = make(map[string]types.Runtime)
+		conf.Runtimes = make(map[string]systemtypes.Runtime)
 	}
-	conf.Runtimes[config.StockRuntimeName] = types.Runtime{Path: DefaultRuntimeName}
+	conf.Runtimes[config.StockRuntimeName] = systemtypes.Runtime{Path: DefaultRuntimeName}
 
 	return nil
 }
@@ -1279,10 +1279,10 @@ func (daemon *Daemon) conditionalUnmountOnCleanup(container *container.Container
 	return daemon.Unmount(container)
 }
 
-func copyBlkioEntry(entries []*containerd_cgroups.BlkIOEntry) []types.BlkioStatEntry {
-	out := make([]types.BlkioStatEntry, len(entries))
+func copyBlkioEntry(entries []*containerd_cgroups.BlkIOEntry) []systemtypes.BlkioStatEntry {
+	out := make([]systemtypes.BlkioStatEntry, len(entries))
 	for i, re := range entries {
-		out[i] = types.BlkioStatEntry{
+		out[i] = systemtypes.BlkioStatEntry{
 			Major: re.Major,
 			Minor: re.Minor,
 			Op:    re.Op,
@@ -1292,7 +1292,7 @@ func copyBlkioEntry(entries []*containerd_cgroups.BlkIOEntry) []types.BlkioStatE
 	return out
 }
 
-func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
+func (daemon *Daemon) stats(c *container.Container) (*systemtypes.StatsJSON, error) {
 	if !c.IsRunning() {
 		return nil, errNotRunning(c.ID)
 	}
@@ -1303,11 +1303,11 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 		return nil, err
 	}
-	s := &types.StatsJSON{}
+	s := &systemtypes.StatsJSON{}
 	s.Read = cs.Read
 	stats := cs.Metrics
 	if stats.Blkio != nil {
-		s.BlkioStats = types.BlkioStats{
+		s.BlkioStats = systemtypes.BlkioStats{
 			IoServiceBytesRecursive: copyBlkioEntry(stats.Blkio.IoServiceBytesRecursive),
 			IoServicedRecursive:     copyBlkioEntry(stats.Blkio.IoServicedRecursive),
 			IoQueuedRecursive:       copyBlkioEntry(stats.Blkio.IoQueuedRecursive),
@@ -1319,14 +1319,14 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 	}
 	if stats.CPU != nil {
-		s.CPUStats = types.CPUStats{
-			CPUUsage: types.CPUUsage{
+		s.CPUStats = systemtypes.CPUStats{
+			CPUUsage: systemtypes.CPUUsage{
 				TotalUsage:        stats.CPU.Usage.Total,
 				PercpuUsage:       stats.CPU.Usage.PerCPU,
 				UsageInKernelmode: stats.CPU.Usage.Kernel,
 				UsageInUsermode:   stats.CPU.Usage.User,
 			},
-			ThrottlingData: types.ThrottlingData{
+			ThrottlingData: systemtypes.ThrottlingData{
 				Periods:          stats.CPU.Throttling.Periods,
 				ThrottledPeriods: stats.CPU.Throttling.ThrottledPeriods,
 				ThrottledTime:    stats.CPU.Throttling.ThrottledTime,
@@ -1370,7 +1370,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		raw["total_unevictable"] = stats.Memory.TotalUnevictable
 
 		if stats.Memory.Usage != nil {
-			s.MemoryStats = types.MemoryStats{
+			s.MemoryStats = systemtypes.MemoryStats{
 				Stats:    raw,
 				Usage:    stats.Memory.Usage.Usage,
 				MaxUsage: stats.Memory.Usage.Max,
@@ -1378,7 +1378,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 				Failcnt:  stats.Memory.Usage.Failcnt,
 			}
 		} else {
-			s.MemoryStats = types.MemoryStats{
+			s.MemoryStats = systemtypes.MemoryStats{
 				Stats: raw,
 			}
 		}
@@ -1390,7 +1390,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 	}
 
 	if stats.Pids != nil {
-		s.PidsStats = types.PidsStats{
+		s.PidsStats = systemtypes.PidsStats{
 			Current: stats.Pids.Current,
 			Limit:   stats.Pids.Limit,
 		}

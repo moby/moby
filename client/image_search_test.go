@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/registry"
 )

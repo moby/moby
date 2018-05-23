@@ -6,12 +6,24 @@ import (
 	"net/url"
 	"strconv"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 )
 
+// ContainerListOptions holds parameters to list containers with.
+type ContainerListOptions struct {
+	Quiet   bool
+	Size    bool
+	All     bool
+	Latest  bool
+	Since   string
+	Before  string
+	Limit   int
+	Filters filters.Args
+}
+
 // ContainerList returns the list of containers in the docker host.
-func (cli *Client) ContainerList(ctx context.Context, options types.ContainerListOptions) ([]types.Container, error) {
+func (cli *Client) ContainerList(ctx context.Context, options ContainerListOptions) ([]container.Container, error) {
 	query := url.Values{}
 
 	if options.All {
@@ -49,7 +61,7 @@ func (cli *Client) ContainerList(ctx context.Context, options types.ContainerLis
 		return nil, err
 	}
 
-	var containers []types.Container
+	var containers []container.Container
 	err = json.NewDecoder(resp.body).Decode(&containers)
 	ensureReaderClosed(resp)
 	return containers, err

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client/types"
 )
 
 func TestImagePullReferenceParseError(t *testing.T) {

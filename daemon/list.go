@@ -8,6 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	clienttypes "github.com/docker/docker/client"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
@@ -68,7 +69,7 @@ func (daemon *Daemon) List() []*container.Container {
 }
 
 // listContext is the daemon generated filtering to iterate over containers.
-// This is created based on the user specification from types.ContainerListOptions.
+// This is created based on the user specification from clienttypes.ContainerListOptions.
 type listContext struct {
 	// idx is the container iteration index for this context
 	idx int
@@ -99,7 +100,7 @@ type listContext struct {
 	expose map[nat.Port]bool
 
 	// ContainerListOptions is the filters set by the user
-	*types.ContainerListOptions
+	*clienttypes.ContainerListOptions
 }
 
 // byCreatedDescending is a temporary type used to sort a list of containers by creation time.
@@ -112,7 +113,7 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
+func (daemon *Daemon) Containers(config *clienttypes.ContainerListOptions) ([]*types.Container, error) {
 	return daemon.reduceContainers(config, daemon.refreshImage)
 }
 
@@ -182,7 +183,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 }
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
+func (daemon *Daemon) reduceContainers(config *clienttypes.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -248,7 +249,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(view container.View, config *clienttypes.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filters
 
 	var filtExited []int

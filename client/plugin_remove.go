@@ -3,12 +3,15 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-
-	"github.com/docker/docker/api/types"
 )
 
+// PluginRemoveOptions holds parameters to remove plugins.
+type PluginRemoveOptions struct {
+	Force bool
+}
+
 // PluginRemove removes a plugin
-func (cli *Client) PluginRemove(ctx context.Context, name string, options types.PluginRemoveOptions) error {
+func (cli *Client) PluginRemove(ctx context.Context, name string, options PluginRemoveOptions) error {
 	query := url.Values{}
 	if options.Force {
 		query.Set("force", "1")

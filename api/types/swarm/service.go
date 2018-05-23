@@ -122,3 +122,20 @@ type UpdateConfig struct {
 	// started, or the new task is started before the old task is shut down.
 	Order string
 }
+
+// ServiceCreateResponse contains the information returned to a client
+// on the creation of a new service.
+type ServiceCreateResponse struct {
+	// ID is the ID of the created service.
+	ID string
+	// Warnings is a set of non-fatal warning messages to pass on to the user.
+	Warnings []string `json:",omitempty"`
+}
+
+// ServiceUpdateResponse service update response
+// swagger:model ServiceUpdateResponse
+type ServiceUpdateResponse struct {
+
+	// Optional warning messages
+	Warnings []string `json:"Warnings"`
+}

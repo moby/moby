@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/docker/docker/api/types"
+	clienttypes "github.com/docker/docker/client"
 	"github.com/docker/docker/daemon/names"
 )
 
@@ -53,7 +54,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 }
 
 // CheckpointCreate checkpoints the process running in a container with CRIU
-func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreateOptions) error {
+func (daemon *Daemon) CheckpointCreate(name string, config clienttypes.CheckpointCreateOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -88,7 +89,7 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 }
 
 // CheckpointDelete deletes the specified checkpoint
-func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDeleteOptions) error {
+func (daemon *Daemon) CheckpointDelete(name string, config clienttypes.CheckpointDeleteOptions) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -101,7 +102,7 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 }
 
 // CheckpointList lists all checkpoints of the specified container
-func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOptions) ([]types.Checkpoint, error) {
+func (daemon *Daemon) CheckpointList(name string, config clienttypes.CheckpointListOptions) ([]types.Checkpoint, error) {
 	var out []types.Checkpoint
 
 	container, err := daemon.GetContainer(name)

@@ -3,7 +3,7 @@ package container // import "github.com/docker/docker/container"
 import (
 	"os"
 
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
@@ -48,7 +48,7 @@ func (container *Container) ResolvePath(path string) (resolvedPath, absPath stri
 // be acquired before calling this method and the given path should be fully
 // resolved to a path on the host corresponding to the given absolute path
 // inside the container.
-func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.ContainerPathStat, err error) {
+func (container *Container) StatPath(resolvedPath, absPath string) (stat *containertypes.PathStat, err error) {
 	if container.BaseFS == nil {
 		return nil, errors.New("StatPath: BaseFS of container " + container.ID + " is unexpectedly nil")
 	}
@@ -76,7 +76,7 @@ func (container *Container) StatPath(resolvedPath, absPath string) (stat *types.
 		linkTarget = driver.Join(string(driver.Separator()), linkTarget)
 	}
 
-	return &types.ContainerPathStat{
+	return &containertypes.PathStat{
 		Name:       driver.Base(absPath),
 		Size:       lstat.Size(),
 		Mode:       lstat.Mode(),

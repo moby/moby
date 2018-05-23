@@ -7,12 +7,20 @@ import (
 	"strings"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 )
+
+// ImageImportOptions holds information to import images from the client host.
+type ImageImportOptions struct {
+	Tag      string   // Tag is the name to tag this image with. This attribute is deprecated.
+	Message  string   // Message is the message to tag the image with
+	Changes  []string // Changes are the raw changes to apply to this image
+	Platform string   // Platform is the target platform of the image
+}
 
 // ImageImport creates a new image based in the source options.
 // It returns the JSON content in the response body.
-func (cli *Client) ImageImport(ctx context.Context, source types.ImageImportSource, ref string, options types.ImageImportOptions) (io.ReadCloser, error) {
+func (cli *Client) ImageImport(ctx context.Context, source image.ImportSource, ref string, options ImageImportOptions) (io.ReadCloser, error) {
 	if ref != "" {
 		//Check if the given image name can be resolved
 		if _, err := reference.ParseNormalizedNamed(ref); err != nil {

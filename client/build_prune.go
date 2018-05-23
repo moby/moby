@@ -5,16 +5,16 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/image"
 )
 
 // BuildCachePrune requests the daemon to delete unused cache data
-func (cli *Client) BuildCachePrune(ctx context.Context) (*types.BuildCachePruneReport, error) {
+func (cli *Client) BuildCachePrune(ctx context.Context) (*image.BuildCachePruneReport, error) {
 	if err := cli.NewVersionError("1.31", "build prune"); err != nil {
 		return nil, err
 	}
 
-	report := types.BuildCachePruneReport{}
+	report := image.BuildCachePruneReport{}
 
 	serverResp, err := cli.post(ctx, "/build/prune", nil, nil, nil)
 	if err != nil {

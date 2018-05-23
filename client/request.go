@@ -1,6 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -13,11 +14,44 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/api/types"
+	errorstypes "github.com/docker/docker/api/types/errors"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context/ctxhttp"
 )
+
+// RequestPrivilegeFunc is a function interface that
+// clients can supply to retry operations after
+// getting an authorization error.
+// This function returns the registry authentication
+// header value in base 64 format, or an error
+// if the privilege request fails.
+type RequestPrivilegeFunc func() (string, error)
+
+// HijackedResponse holds connection information for a hijacked request.
+type HijackedResponse struct {
+	Conn   net.Conn
+	Reader *bufio.Reader
+}
+
+// Close closes the hijacked connection and reader.
+func (h *HijackedResponse) Close() {
+	h.Conn.Close()
+}
+
+// CloseWriter is an interface that implements structs
+// that close input streams to prevent from writing.
+type CloseWriter interface {
+	CloseWrite() error
+}
+
+// CloseWrite closes a readWriter for writing.
+func (h *HijackedResponse) CloseWrite() error {
+	if conn, ok := h.Conn.(CloseWriter); ok {
+		return conn.CloseWrite()
+	}
+	return nil
+}
 
 // serverResponse is a wrapper for http API responses.
 type serverResponse struct {
@@ -210,7 +244,7 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 
 	var errorMessage string
 	if (cli.version == "" || versions.GreaterThan(cli.version, "1.23")) && ct == "application/json" {
-		var errorResponse types.ErrorResponse
+		var errorResponse errorstypes.Response
 		if err := json.Unmarshal(body, &errorResponse); err != nil {
 			return fmt.Errorf("Error reading JSON: %v", err)
 		}

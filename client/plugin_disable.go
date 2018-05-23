@@ -3,12 +3,15 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-
-	"github.com/docker/docker/api/types"
 )
 
+// PluginDisableOptions holds parameters to disable plugins.
+type PluginDisableOptions struct {
+	Force bool
+}
+
 // PluginDisable disables a plugin
-func (cli *Client) PluginDisable(ctx context.Context, name string, options types.PluginDisableOptions) error {
+func (cli *Client) PluginDisable(ctx context.Context, name string, options PluginDisableOptions) error {
 	query := url.Values{}
 	if options.Force {
 		query.Set("force", "1")

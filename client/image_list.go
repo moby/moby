@@ -5,14 +5,20 @@ import (
 	"encoding/json"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/api/types/versions"
 )
 
+// ImageListOptions holds parameters to filter the list of images with.
+type ImageListOptions struct {
+	All     bool
+	Filters filters.Args
+}
+
 // ImageList returns a list of images in the docker host.
-func (cli *Client) ImageList(ctx context.Context, options types.ImageListOptions) ([]types.ImageSummary, error) {
-	var images []types.ImageSummary
+func (cli *Client) ImageList(ctx context.Context, options ImageListOptions) ([]image.Summary, error) {
+	var images []image.Summary
 	query := url.Values{}
 
 	optionFilters := options.Filters

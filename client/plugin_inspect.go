@@ -6,11 +6,11 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/plugins"
 )
 
 // PluginInspectWithRaw inspects an existing plugin
-func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*types.Plugin, []byte, error) {
+func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*plugins.Plugin, []byte, error) {
 	if name == "" {
 		return nil, nil, objectNotFoundError{object: "plugin", id: name}
 	}
@@ -24,7 +24,7 @@ func (cli *Client) PluginInspectWithRaw(ctx context.Context, name string) (*type
 	if err != nil {
 		return nil, nil, err
 	}
-	var p types.Plugin
+	var p plugins.Plugin
 	rdr := bytes.NewReader(body)
 	err = json.NewDecoder(rdr).Decode(&p)
 	return &p, body, err

@@ -8,12 +8,17 @@ import (
 	"io/ioutil"
 	"net/url"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 )
 
+// ServiceInspectOptions holds parameters related to the "service inspect"
+// operation.
+type ServiceInspectOptions struct {
+	InsertDefaults bool
+}
+
 // ServiceInspectWithRaw returns the service information and the raw data.
-func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts types.ServiceInspectOptions) (swarm.Service, []byte, error) {
+func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, opts ServiceInspectOptions) (swarm.Service, []byte, error) {
 	if serviceID == "" {
 		return swarm.Service{}, nil, objectNotFoundError{object: "service", id: serviceID}
 	}

@@ -5,10 +5,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	timetypes "github.com/docker/docker/api/types/time"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/errdefs"
@@ -22,7 +22,7 @@ import (
 //
 // if it returns nil, the config channel will be active and return log
 // messages until it runs out or the context is canceled.
-func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *types.ContainerLogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
+func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, config *client.ContainerLogsOptions) (messages <-chan *backend.LogMessage, isTTY bool, retErr error) {
 	lg := logrus.WithFields(logrus.Fields{
 		"module":    "daemon",
 		"method":    "(*Daemon).ContainerLogs",

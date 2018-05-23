@@ -3,15 +3,15 @@ package registry // import "github.com/docker/docker/registry"
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 )
 
-func buildAuthConfigs() map[string]types.AuthConfig {
-	authConfigs := map[string]types.AuthConfig{}
+func buildAuthConfigs() map[string]auth.Config {
+	authConfigs := map[string]auth.Config{}
 
 	for _, registry := range []string{"testIndex", IndexServer} {
-		authConfigs[registry] = types.AuthConfig{
+		authConfigs[registry] = auth.Config{
 			Username: "docker-user",
 			Password: "docker-pass",
 		}
@@ -55,21 +55,21 @@ func TestResolveAuthConfigIndexServer(t *testing.T) {
 func TestResolveAuthConfigFullURL(t *testing.T) {
 	authConfigs := buildAuthConfigs()
 
-	registryAuth := types.AuthConfig{
+	registryAuth := auth.Config{
 		Username: "foo-user",
 		Password: "foo-pass",
 	}
-	localAuth := types.AuthConfig{
+	localAuth := auth.Config{
 		Username: "bar-user",
 		Password: "bar-pass",
 	}
-	officialAuth := types.AuthConfig{
+	officialAuth := auth.Config{
 		Username: "baz-user",
 		Password: "baz-pass",
 	}
 	authConfigs[IndexServer] = officialAuth
 
-	expectedAuths := map[string]types.AuthConfig{
+	expectedAuths := map[string]auth.Config{
 		"registry.example.com": registryAuth,
 		"localhost:8000":       localAuth,
 		"registry.com":         localAuth,

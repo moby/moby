@@ -4,12 +4,15 @@ import (
 	"net/url"
 
 	"context"
-
-	"github.com/docker/docker/api/types"
 )
 
+// NodeRemoveOptions holds parameters to remove nodes with.
+type NodeRemoveOptions struct {
+	Force bool
+}
+
 // NodeRemove removes a Node.
-func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options types.NodeRemoveOptions) error {
+func (cli *Client) NodeRemove(ctx context.Context, nodeID string, options NodeRemoveOptions) error {
 	query := url.Values{}
 	if options.Force {
 		query.Set("force", "1")

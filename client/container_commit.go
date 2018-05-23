@@ -7,20 +7,30 @@ import (
 	"net/url"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 )
 
+// ContainerCommitOptions holds parameters to commit changes into a container.
+type ContainerCommitOptions struct {
+	Reference string
+	Comment   string
+	Author    string
+	Changes   []string
+	Pause     bool
+	Config    *containertypes.Config
+}
+
 // ContainerCommit applies changes into a container and creates a new tagged image.
-func (cli *Client) ContainerCommit(ctx context.Context, container string, options types.ContainerCommitOptions) (types.IDResponse, error) {
+func (cli *Client) ContainerCommit(ctx context.Context, container string, options ContainerCommitOptions) (containertypes.IDResponse, error) {
 	var repository, tag string
 	if options.Reference != "" {
 		ref, err := reference.ParseNormalizedNamed(options.Reference)
 		if err != nil {
-			return types.IDResponse{}, err
+			return containertypes.IDResponse{}, err
 		}
 
 		if _, isCanonical := ref.(reference.Canonical); isCanonical {
-			return types.IDResponse{}, errors.New("refusing to create a tag with a digest reference")
+			return containertypes.IDResponse{}, errors.New("refusing to create a tag with a digest reference")
 		}
 		ref = reference.TagNameOnly(ref)
 
@@ -43,7 +53,7 @@ func (cli *Client) ContainerCommit(ctx context.Context, container string, option
 		query.Set("pause", "0")
 	}
 
-	var response types.IDResponse
+	var response containertypes.IDResponse
 	resp, err := cli.post(ctx, "/commit", query, options.Config, nil)
 	if err != nil {
 		return response, err

@@ -2,7 +2,6 @@
 package v1p19 // import "github.com/docker/docker/api/types/versions/v1p19"
 
 import (
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/go-connections/nat"
@@ -11,7 +10,7 @@ import (
 // ContainerJSON is a backcompatibility struct for APIs prior to 1.20.
 // Note this is not used by the Windows daemon.
 type ContainerJSON struct {
-	*types.ContainerJSONBase
+	*container.ContainerJSONBase
 	Volumes         map[string]string
 	VolumesRW       map[string]bool
 	Config          *ContainerConfig

@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 )
 
 // DiskUsage requests the current data usage from the daemon
-func (cli *Client) DiskUsage(ctx context.Context) (types.DiskUsage, error) {
-	var du types.DiskUsage
+func (cli *Client) DiskUsage(ctx context.Context) (system.DiskUsage, error) {
+	var du system.DiskUsage
 
 	serverResp, err := cli.get(ctx, "/system/df", nil, nil)
 	if err != nil {

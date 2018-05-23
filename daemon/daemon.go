@@ -22,6 +22,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/builder"
+	clienttypes "github.com/docker/docker/client"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
@@ -981,7 +982,7 @@ func (daemon *Daemon) Shutdown() error {
 
 	if daemon.configStore.LiveRestoreEnabled && daemon.containers != nil {
 		// check if there are any running containers, if none we should do some cleanup
-		if ls, err := daemon.Containers(&types.ContainerListOptions{}); len(ls) != 0 || err != nil {
+		if ls, err := daemon.Containers(&clienttypes.ContainerListOptions{}); len(ls) != 0 || err != nil {
 			// metrics plugins still need some cleanup
 			daemon.cleanupMetricsPlugins()
 			return nil

@@ -7,6 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	clienttypes "github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/volume"
 	"github.com/sirupsen/logrus"
@@ -20,7 +21,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	defer atomic.StoreInt32(&daemon.diskUsageRunning, 0)
 
 	// Retrieve container list
-	allContainers, err := daemon.Containers(&types.ContainerListOptions{
+	allContainers, err := daemon.Containers(&clienttypes.ContainerListOptions{
 		Size: true,
 		All:  true,
 	})

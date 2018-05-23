@@ -8,14 +8,16 @@ import (
 	"net/url"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/api/types"
 )
+
+//ImagePushOptions holds information to push images.
+type ImagePushOptions ImagePullOptions
 
 // ImagePush requests the docker host to push an image to a remote registry.
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the io.ReadCloser and close it properly.
-func (cli *Client) ImagePush(ctx context.Context, image string, options types.ImagePushOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePush(ctx context.Context, image string, options ImagePushOptions) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err

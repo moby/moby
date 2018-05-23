@@ -19,7 +19,7 @@ import (
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/api/types"
+	authtypes "github.com/docker/docker/api/types/auth"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
@@ -42,13 +42,13 @@ type Session struct {
 	indexEndpoint *V1Endpoint
 	client        *http.Client
 	// TODO(tiborvass): remove authConfig
-	authConfig *types.AuthConfig
+	authConfig *authtypes.Config
 	id         string
 }
 
 type authTransport struct {
 	http.RoundTripper
-	*types.AuthConfig
+	*authtypes.Config
 
 	alwaysSetBasicAuth bool
 	token              []string
@@ -70,13 +70,13 @@ type authTransport struct {
 // If the server sends a token without the client having requested it, it is ignored.
 //
 // This RoundTripper also has a CancelRequest method important for correct timeout handling.
-func AuthTransport(base http.RoundTripper, authConfig *types.AuthConfig, alwaysSetBasicAuth bool) http.RoundTripper {
+func AuthTransport(base http.RoundTripper, authConfig *authtypes.Config, alwaysSetBasicAuth bool) http.RoundTripper {
 	if base == nil {
 		base = http.DefaultTransport
 	}
 	return &authTransport{
 		RoundTripper:       base,
-		AuthConfig:         authConfig,
+		Config:             authConfig,
 		alwaysSetBasicAuth: alwaysSetBasicAuth,
 		modReq:             make(map[*http.Request]*http.Request),
 	}
@@ -115,7 +115,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 	tr.mu.Unlock()
 
 	if tr.alwaysSetBasicAuth {
-		if tr.AuthConfig == nil {
+		if tr.Config == nil {
 			return nil, errors.New("unexpected error: empty auth config")
 		}
 		req.SetBasicAuth(tr.Username, tr.Password)
@@ -124,7 +124,7 @@ func (tr *authTransport) RoundTrip(orig *http.Request) (*http.Response, error) {
 
 	// Don't override
 	if req.Header.Get("Authorization") == "" {
-		if req.Header.Get("X-Docker-Token") == "true" && tr.AuthConfig != nil && len(tr.Username) > 0 {
+		if req.Header.Get("X-Docker-Token") == "true" && tr.Config != nil && len(tr.Username) > 0 {
 			req.SetBasicAuth(tr.Username, tr.Password)
 		} else if len(tr.token) > 0 {
 			req.Header.Set("Authorization", "Token "+strings.Join(tr.token, ","))
@@ -163,7 +163,7 @@ func (tr *authTransport) CancelRequest(req *http.Request) {
 	}
 }
 
-func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) error {
+func authorizeClient(client *http.Client, authConfig *authtypes.Config, endpoint *V1Endpoint) error {
 	var alwaysSetBasicAuth bool
 
 	// If we're working with a standalone private registry over HTTPS, send Basic Auth headers
@@ -192,7 +192,7 @@ func authorizeClient(client *http.Client, authConfig *types.AuthConfig, endpoint
 	return nil
 }
 
-func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) *Session {
+func newSession(client *http.Client, authConfig *authtypes.Config, endpoint *V1Endpoint) *Session {
 	return &Session{
 		authConfig:    authConfig,
 		client:        client,
@@ -203,7 +203,7 @@ func newSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1E
 
 // NewSession creates a new session
 // TODO(tiborvass): remove authConfig param once registry client v2 is vendored
-func NewSession(client *http.Client, authConfig *types.AuthConfig, endpoint *V1Endpoint) (*Session, error) {
+func NewSession(client *http.Client, authConfig *authtypes.Config, endpoint *V1Endpoint) (*Session, error) {
 	if err := authorizeClient(client, authConfig, endpoint); err != nil {
 		return nil, err
 	}

@@ -3,12 +3,16 @@ package client // import "github.com/docker/docker/client"
 import (
 	"context"
 	"net/url"
-
-	"github.com/docker/docker/api/types"
 )
 
+// ContainerStartOptions holds parameters to start containers.
+type ContainerStartOptions struct {
+	CheckpointID  string
+	CheckpointDir string
+}
+
 // ContainerStart sends a request to the docker daemon to start a container.
-func (cli *Client) ContainerStart(ctx context.Context, containerID string, options types.ContainerStartOptions) error {
+func (cli *Client) ContainerStart(ctx context.Context, containerID string, options ContainerStartOptions) error {
 	query := url.Values{}
 	if len(options.CheckpointID) != 0 {
 		query.Set("checkpoint", options.CheckpointID)

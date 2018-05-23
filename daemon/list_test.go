@@ -3,8 +3,8 @@ package daemon
 import (
 	"testing"
 
-	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/client/types"
 	"github.com/docker/docker/container"
 	"github.com/gotestyourself/gotestyourself/assert"
 	is "github.com/gotestyourself/gotestyourself/assert/cmp"

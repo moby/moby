@@ -4,12 +4,12 @@ import (
 	"context"
 	"path"
 
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental", "OS-Type" & "API-Version" headers
-func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
-	var ping types.Ping
+func (cli *Client) Ping(ctx context.Context) (system.Ping, error) {
+	var ping system.Ping
 	req, err := cli.buildRequest("GET", path.Join(cli.basePath, "/_ping"), nil, nil)
 	if err != nil {
 		return ping, err

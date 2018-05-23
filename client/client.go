@@ -18,7 +18,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 		"context"
 		"fmt"
 
-		"github.com/docker/docker/api/types"
+		"github.com/docker/docker/client/types"
 		"github.com/docker/docker/client"
 	)
 
@@ -53,7 +53,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api"
-	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/system"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -330,7 +330,7 @@ func (cli *Client) NegotiateAPIVersion(ctx context.Context) {
 
 // NegotiateAPIVersionPing updates the client version to match the Ping.APIVersion
 // if the ping version is less than the default version.
-func (cli *Client) NegotiateAPIVersionPing(p types.Ping) {
+func (cli *Client) NegotiateAPIVersionPing(p system.Ping) {
 	if cli.manualOverride {
 		return
 	}
