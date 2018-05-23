@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -25,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/session"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/syncmap"
@@ -105,7 +107,16 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 	}
 
 	os := ""
-	apiPlatform := system.ParsePlatform(config.Options.Platform)
+	apiPlatform := &specs.Platform{}
+	if len(strings.TrimSpace(config.Options.Platform)) != 0 {
+		m, err := platforms.Parse(config.Options.Platform)
+		if err != nil {
+			return nil, err
+		}
+		sp := m.Spec()
+		apiPlatform = &sp
+	}
+
 	if apiPlatform.OS != "" {
 		os = apiPlatform.OS
 	}
