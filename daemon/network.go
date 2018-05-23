@@ -12,6 +12,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/container"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -26,6 +27,7 @@ import (
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/networkdb"
 	"github.com/docker/libnetwork/options"
 	networktypes "github.com/docker/libnetwork/types"
 	"github.com/pkg/errors"
@@ -89,7 +91,7 @@ func (daemon *Daemon) FindNetwork(term string) (libnetwork.Network, error) {
 func (daemon *Daemon) GetNetworkByID(id string) (libnetwork.Network, error) {
 	c := daemon.netController
 	if c == nil {
-		return nil, libnetwork.ErrNoSuchNetwork(id)
+		return nil, errors.Wrap(libnetwork.ErrNoSuchNetwork(id), "netcontroller is nil")
 	}
 	return c.NetworkByID(id)
 }
@@ -507,7 +509,7 @@ func (daemon *Daemon) DeleteManagedNetwork(networkID string) error {
 func (daemon *Daemon) DeleteNetwork(networkID string) error {
 	n, err := daemon.GetNetworkByID(networkID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "could not find network by ID")
 	}
 	return daemon.deleteNetwork(n, false)
 }
@@ -560,7 +562,7 @@ func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
 	}
 
 	if err := nw.Delete(); err != nil {
-		return err
+		return errors.Wrap(err, "error while removing network")
 	}
 
 	// If this is not a configuration only network, we need to
@@ -576,8 +578,212 @@ func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {
 }
 
 // GetNetworks returns a list of all networks
-func (daemon *Daemon) GetNetworks() []libnetwork.Network {
-	return daemon.getAllNetworks()
+func (daemon *Daemon) GetNetworks(filter filters.Args, config types.NetworkListConfig) ([]types.NetworkResource, error) {
+	networks := daemon.getAllNetworks()
+
+	list := make([]types.NetworkResource, 0, len(networks))
+	var idx map[string]libnetwork.Network
+	if config.Detailed {
+		idx = make(map[string]libnetwork.Network)
+	}
+
+	for _, n := range networks {
+		nr := buildNetworkResource(n)
+		list = append(list, nr)
+		if config.Detailed {
+			idx[nr.ID] = n
+		}
+	}
+
+	var err error
+	list, err = internalnetwork.FilterNetworks(list, filter)
+	if err != nil {
+		return nil, err
+	}
+
+	if config.Detailed {
+		for i, n := range list {
+			np := &n
+			buildDetailedNetworkResources(np, idx[n.ID], config.Verbose)
+			list[i] = *np
+		}
+	}
+
+	return list, nil
+}
+
+func buildNetworkResource(nw libnetwork.Network) types.NetworkResource {
+	r := types.NetworkResource{}
+	if nw == nil {
+		return r
+	}
+
+	info := nw.Info()
+	r.Name = nw.Name()
+	r.ID = nw.ID()
+	r.Created = info.Created()
+	r.Scope = info.Scope()
+	r.Driver = nw.Type()
+	r.EnableIPv6 = info.IPv6Enabled()
+	r.Internal = info.Internal()
+	r.Attachable = info.Attachable()
+	r.Ingress = info.Ingress()
+	r.Options = info.DriverOptions()
+	r.Containers = make(map[string]types.EndpointResource)
+	buildIpamResources(&r, info)
+	r.Labels = info.Labels()
+	r.ConfigOnly = info.ConfigOnly()
+
+	if cn := info.ConfigFrom(); cn != "" {
+		r.ConfigFrom = network.ConfigReference{Network: cn}
+	}
+
+	peers := info.Peers()
+	if len(peers) != 0 {
+		r.Peers = buildPeerInfoResources(peers)
+	}
+
+	return r
+}
+
+func buildDetailedNetworkResources(r *types.NetworkResource, nw libnetwork.Network, verbose bool) {
+	if nw == nil {
+		return
+	}
+
+	epl := nw.Endpoints()
+	for _, e := range epl {
+		ei := e.Info()
+		if ei == nil {
+			continue
+		}
+		sb := ei.Sandbox()
+		tmpID := e.ID()
+		key := "ep-" + tmpID
+		if sb != nil {
+			key = sb.ContainerID()
+		}
+
+		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
+	}
+	if !verbose {
+		return
+	}
+	services := nw.Info().Services()
+	r.Services = make(map[string]network.ServiceInfo)
+	for name, service := range services {
+		tasks := []network.Task{}
+		for _, t := range service.Tasks {
+			tasks = append(tasks, network.Task{
+				Name:       t.Name,
+				EndpointID: t.EndpointID,
+				EndpointIP: t.EndpointIP,
+				Info:       t.Info,
+			})
+		}
+		r.Services[name] = network.ServiceInfo{
+			VIP:          service.VIP,
+			Ports:        service.Ports,
+			Tasks:        tasks,
+			LocalLBIndex: service.LocalLBIndex,
+		}
+	}
+}
+
+func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
+	peerInfo := make([]network.PeerInfo, 0, len(peers))
+	for _, peer := range peers {
+		peerInfo = append(peerInfo, network.PeerInfo{
+			Name: peer.Name,
+			IP:   peer.IP,
+		})
+	}
+	return peerInfo
+}
+
+func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
+	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
+
+	ipv4Info, ipv6Info := nwInfo.IpamInfo()
+
+	r.IPAM.Driver = id
+
+	r.IPAM.Options = opts
+
+	r.IPAM.Config = []network.IPAMConfig{}
+	for _, ip4 := range ipv4conf {
+		if ip4.PreferredPool == "" {
+			continue
+		}
+		iData := network.IPAMConfig{}
+		iData.Subnet = ip4.PreferredPool
+		iData.IPRange = ip4.SubPool
+		iData.Gateway = ip4.Gateway
+		iData.AuxAddress = ip4.AuxAddresses
+		r.IPAM.Config = append(r.IPAM.Config, iData)
+	}
+
+	if len(r.IPAM.Config) == 0 {
+		for _, ip4Info := range ipv4Info {
+			iData := network.IPAMConfig{}
+			iData.Subnet = ip4Info.IPAMData.Pool.String()
+			if ip4Info.IPAMData.Gateway != nil {
+				iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
+			}
+			r.IPAM.Config = append(r.IPAM.Config, iData)
+		}
+	}
+
+	hasIpv6Conf := false
+	for _, ip6 := range ipv6conf {
+		if ip6.PreferredPool == "" {
+			continue
+		}
+		hasIpv6Conf = true
+		iData := network.IPAMConfig{}
+		iData.Subnet = ip6.PreferredPool
+		iData.IPRange = ip6.SubPool
+		iData.Gateway = ip6.Gateway
+		iData.AuxAddress = ip6.AuxAddresses
+		r.IPAM.Config = append(r.IPAM.Config, iData)
+	}
+
+	if !hasIpv6Conf {
+		for _, ip6Info := range ipv6Info {
+			if ip6Info.IPAMData.Pool == nil {
+				continue
+			}
+			iData := network.IPAMConfig{}
+			iData.Subnet = ip6Info.IPAMData.Pool.String()
+			iData.Gateway = ip6Info.IPAMData.Gateway.String()
+			r.IPAM.Config = append(r.IPAM.Config, iData)
+		}
+	}
+}
+
+func buildEndpointResource(id string, name string, info libnetwork.EndpointInfo) types.EndpointResource {
+	er := types.EndpointResource{}
+
+	er.EndpointID = id
+	er.Name = name
+	ei := info
+	if ei == nil {
+		return er
+	}
+
+	if iface := ei.Iface(); iface != nil {
+		if mac := iface.MacAddress(); mac != nil {
+			er.MacAddress = mac.String()
+		}
+		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
+			er.IPv4Address = ip.String()
+		}
+
+		if ipv6 := iface.AddressIPv6(); ipv6 != nil && len(ipv6.IP) > 0 {
+			er.IPv6Address = ipv6.String()
+		}
+	}
+	return er
 }
 
 // clearAttachableNetworks removes the attachable networks

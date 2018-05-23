@@ -15,20 +15,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/libnetwork"
 	netconst "github.com/docker/libnetwork/datastore"
-	"github.com/docker/libnetwork/networkdb"
 	"github.com/pkg/errors"
-)
-
-var (
-	// acceptedNetworkFilters is a list of acceptable filters
-	acceptedNetworkFilters = map[string]bool{
-		"driver": true,
-		"type":   true,
-		"name":   true,
-		"id":     true,
-		"label":  true,
-		"scope":  true,
-	}
 )
 
 func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -36,49 +23,46 @@ func (n *networkRouter) getNetworksList(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	filter := r.Form.Get("filters")
-	netFilters, err := filters.FromJSON(filter)
+	filter, err := filters.FromJSON(r.Form.Get("filters"))
 	if err != nil {
 		return err
 	}
 
-	if err := netFilters.Validate(acceptedNetworkFilters); err != nil {
+	if err := network.ValidateFilters(filter); err != nil {
 		return err
 	}
 
-	list := []types.NetworkResource{}
-
-	if nr, err := n.cluster.GetNetworks(); err == nil {
-		list = append(list, nr...)
+	var list []types.NetworkResource
+	nr, err := n.cluster.GetNetworks(filter)
+	if err == nil {
+		list = nr
 	}
 
 	// Combine the network list returned by Docker daemon if it is not already
 	// returned by the cluster manager
-SKIP:
-	for _, nw := range n.backend.GetNetworks() {
-		for _, nl := range list {
-			if nl.ID == nw.ID() {
-				continue SKIP
-			}
-		}
-
-		var nr *types.NetworkResource
-		// Versions < 1.28 fetches all the containers attached to a network
-		// in a network list api call. It is a heavy weight operation when
-		// run across all the networks. Starting API version 1.28, this detailed
-		// info is available for network specific GET API (equivalent to inspect)
-		if versions.LessThan(httputils.VersionFromContext(ctx), "1.28") {
-			nr = n.buildDetailedNetworkResources(nw, false)
-		} else {
-			nr = n.buildNetworkResource(nw)
-		}
-		list = append(list, *nr)
-	}
-
-	list, err = filterNetworks(list, netFilters)
+	localNetworks, err := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: versions.LessThan(httputils.VersionFromContext(ctx), "1.28")})
 	if err != nil {
 		return err
 	}
+
+	var idx map[string]bool
+	if len(list) > 0 {
+		idx = make(map[string]bool, len(list))
+		for _, n := range list {
+			idx[n.ID] = true
+		}
+	}
+	for _, n := range localNetworks {
+		if idx[n.ID] {
+			continue
+		}
+		list = append(list, n)
+	}
+
+	if list == nil {
+		list = []types.NetworkResource{}
+	}
+
 	return httputils.WriteJSON(w, http.StatusOK, list)
 }
 
@@ -121,13 +105,6 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	}
 	scope := r.URL.Query().Get("scope")
 
-	isMatchingScope := func(scope, term string) bool {
-		if term != "" {
-			return scope == term
-		}
-		return true
-	}
-
 	// In case multiple networks have duplicate names, return error.
 	// TODO (yongtang): should we wrap with version here for backward compatibility?
 
@@ -139,20 +116,26 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 	listByFullName := map[string]types.NetworkResource{}
 	listByPartialID := map[string]types.NetworkResource{}
 
-	nw := n.backend.GetNetworks()
+	// TODO(@cpuguy83): All this logic for figuring out which network to return does not belong here
+	// Instead there should be a backend function to just get one network.
+	filter := filters.NewArgs(filters.Arg("idOrName", term))
+	if scope != "" {
+		filter.Add("scope", scope)
+	}
+	nw, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true, Verbose: verbose})
 	for _, network := range nw {
-		if network.ID() == term && isMatchingScope(network.Info().Scope(), scope) {
-			return httputils.WriteJSON(w, http.StatusOK, *n.buildDetailedNetworkResources(network, verbose))
+		if network.ID == term {
+			return httputils.WriteJSON(w, http.StatusOK, network)
 		}
-		if network.Name() == term && isMatchingScope(network.Info().Scope(), scope) {
+		if network.Name == term {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
+			listByFullName[network.ID] = network
 		}
-		if strings.HasPrefix(network.ID(), term) && isMatchingScope(network.Info().Scope(), scope) {
+		if strings.HasPrefix(network.ID, term) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, verbose)
+			listByPartialID[network.ID] = network
 		}
 	}
 
@@ -174,12 +157,12 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 		}
 	}
 
-	nr, _ := n.cluster.GetNetworks()
+	nr, _ := n.cluster.GetNetworks(filter)
 	for _, network := range nr {
-		if network.ID == term && isMatchingScope(network.Scope, scope) {
+		if network.ID == term {
 			return httputils.WriteJSON(w, http.StatusOK, network)
 		}
-		if network.Name == term && isMatchingScope(network.Scope, scope) {
+		if network.Name == term {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByFullName) may have already had a
 			// network with the same ID (from local scope previously)
@@ -187,7 +170,7 @@ func (n *networkRouter) getNetwork(ctx context.Context, w http.ResponseWriter, r
 				listByFullName[network.ID] = network
 			}
 		}
-		if strings.HasPrefix(network.ID, term) && isMatchingScope(network.Scope, scope) {
+		if strings.HasPrefix(network.ID, term) {
 			// Check the ID collision as we are in swarm scope here, and
 			// the map (of the listByPartialID) may have already had a
 			// network with the same ID (from local scope previously)
@@ -327,182 +310,6 @@ func (n *networkRouter) deleteNetwork(ctx context.Context, w http.ResponseWriter
 	return nil
 }
 
-func (n *networkRouter) buildNetworkResource(nw libnetwork.Network) *types.NetworkResource {
-	r := &types.NetworkResource{}
-	if nw == nil {
-		return r
-	}
-
-	info := nw.Info()
-	r.Name = nw.Name()
-	r.ID = nw.ID()
-	r.Created = info.Created()
-	r.Scope = info.Scope()
-	r.Driver = nw.Type()
-	r.EnableIPv6 = info.IPv6Enabled()
-	r.Internal = info.Internal()
-	r.Attachable = info.Attachable()
-	r.Ingress = info.Ingress()
-	r.Options = info.DriverOptions()
-	r.Containers = make(map[string]types.EndpointResource)
-	buildIpamResources(r, info)
-	r.Labels = info.Labels()
-	r.ConfigOnly = info.ConfigOnly()
-
-	if cn := info.ConfigFrom(); cn != "" {
-		r.ConfigFrom = network.ConfigReference{Network: cn}
-	}
-
-	peers := info.Peers()
-	if len(peers) != 0 {
-		r.Peers = buildPeerInfoResources(peers)
-	}
-
-	return r
-}
-
-func (n *networkRouter) buildDetailedNetworkResources(nw libnetwork.Network, verbose bool) *types.NetworkResource {
-	if nw == nil {
-		return &types.NetworkResource{}
-	}
-
-	r := n.buildNetworkResource(nw)
-	epl := nw.Endpoints()
-	for _, e := range epl {
-		ei := e.Info()
-		if ei == nil {
-			continue
-		}
-		sb := ei.Sandbox()
-		tmpID := e.ID()
-		key := "ep-" + tmpID
-		if sb != nil {
-			key = sb.ContainerID()
-		}
-
-		r.Containers[key] = buildEndpointResource(tmpID, e.Name(), ei)
-	}
-	if !verbose {
-		return r
-	}
-	services := nw.Info().Services()
-	r.Services = make(map[string]network.ServiceInfo)
-	for name, service := range services {
-		tasks := []network.Task{}
-		for _, t := range service.Tasks {
-			tasks = append(tasks, network.Task{
-				Name:       t.Name,
-				EndpointID: t.EndpointID,
-				EndpointIP: t.EndpointIP,
-				Info:       t.Info,
-			})
-		}
-		r.Services[name] = network.ServiceInfo{
-			VIP:          service.VIP,
-			Ports:        service.Ports,
-			Tasks:        tasks,
-			LocalLBIndex: service.LocalLBIndex,
-		}
-	}
-	return r
-}
-
-func buildPeerInfoResources(peers []networkdb.PeerInfo) []network.PeerInfo {
-	peerInfo := make([]network.PeerInfo, 0, len(peers))
-	for _, peer := range peers {
-		peerInfo = append(peerInfo, network.PeerInfo{
-			Name: peer.Name,
-			IP:   peer.IP,
-		})
-	}
-	return peerInfo
-}
-
-func buildIpamResources(r *types.NetworkResource, nwInfo libnetwork.NetworkInfo) {
-	id, opts, ipv4conf, ipv6conf := nwInfo.IpamConfig()
-
-	ipv4Info, ipv6Info := nwInfo.IpamInfo()
-
-	r.IPAM.Driver = id
-
-	r.IPAM.Options = opts
-
-	r.IPAM.Config = []network.IPAMConfig{}
-	for _, ip4 := range ipv4conf {
-		if ip4.PreferredPool == "" {
-			continue
-		}
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip4.PreferredPool
-		iData.IPRange = ip4.SubPool
-		iData.Gateway = ip4.Gateway
-		iData.AuxAddress = ip4.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
-	}
-
-	if len(r.IPAM.Config) == 0 {
-		for _, ip4Info := range ipv4Info {
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip4Info.IPAMData.Pool.String()
-			if ip4Info.IPAMData.Gateway != nil {
-				iData.Gateway = ip4Info.IPAMData.Gateway.IP.String()
-			}
-			r.IPAM.Config = append(r.IPAM.Config, iData)
-		}
-	}
-
-	hasIpv6Conf := false
-	for _, ip6 := range ipv6conf {
-		if ip6.PreferredPool == "" {
-			continue
-		}
-		hasIpv6Conf = true
-		iData := network.IPAMConfig{}
-		iData.Subnet = ip6.PreferredPool
-		iData.IPRange = ip6.SubPool
-		iData.Gateway = ip6.Gateway
-		iData.AuxAddress = ip6.AuxAddresses
-		r.IPAM.Config = append(r.IPAM.Config, iData)
-	}
-
-	if !hasIpv6Conf {
-		for _, ip6Info := range ipv6Info {
-			if ip6Info.IPAMData.Pool == nil {
-				continue
-			}
-			iData := network.IPAMConfig{}
-			iData.Subnet = ip6Info.IPAMData.Pool.String()
-			iData.Gateway = ip6Info.IPAMData.Gateway.String()
-			r.IPAM.Config = append(r.IPAM.Config, iData)
-		}
-	}
-}
-
-func buildEndpointResource(id string, name string, info libnetwork.EndpointInfo) types.EndpointResource {
-	er := types.EndpointResource{}
-
-	er.EndpointID = id
-	er.Name = name
-	ei := info
-	if ei == nil {
-		return er
-	}
-
-	if iface := ei.Iface(); iface != nil {
-		if mac := iface.MacAddress(); mac != nil {
-			er.MacAddress = mac.String()
-		}
-		if ip := iface.Address(); ip != nil && len(ip.IP) > 0 {
-			er.IPv4Address = ip.String()
-		}
-
-		if ipv6 := iface.AddressIPv6(); ipv6 != nil && len(ipv6.IP) > 0 {
-			er.IPv6Address = ipv6.String()
-		}
-	}
-	return er
-}
-
 func (n *networkRouter) postNetworksPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
 		return err
@@ -532,25 +339,25 @@ func (n *networkRouter) findUniqueNetwork(term string) (types.NetworkResource, e
 	listByFullName := map[string]types.NetworkResource{}
 	listByPartialID := map[string]types.NetworkResource{}
 
-	nw := n.backend.GetNetworks()
+	filter := filters.NewArgs(filters.Arg("idOrName", term))
+	nw, _ := n.backend.GetNetworks(filter, types.NetworkListConfig{Detailed: true})
 	for _, network := range nw {
-		if network.ID() == term {
-			return *n.buildDetailedNetworkResources(network, false), nil
-
+		if network.ID == term {
+			return network, nil
 		}
-		if network.Name() == term && !network.Info().Ingress() {
+		if network.Name == term && !network.Ingress {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByFullName[network.ID()] = *n.buildDetailedNetworkResources(network, false)
+			listByFullName[network.ID] = network
 		}
-		if strings.HasPrefix(network.ID(), term) {
+		if strings.HasPrefix(network.ID, term) {
 			// No need to check the ID collision here as we are still in
 			// local scope and the network ID is unique in this scope.
-			listByPartialID[network.ID()] = *n.buildDetailedNetworkResources(network, false)
+			listByPartialID[network.ID] = network
 		}
 	}
 
-	nr, _ := n.cluster.GetNetworks()
+	nr, _ := n.cluster.GetNetworks(filter)
 	for _, network := range nr {
 		if network.ID == term {
 			return network, nil

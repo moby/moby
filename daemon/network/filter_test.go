@@ -1,6 +1,6 @@
 // +build !windows
 
-package network // import "github.com/docker/docker/api/server/router/network"
+package network // import "github.com/docker/docker/daemon/network"
 
 import (
 	"strings"
@@ -75,75 +75,89 @@ func TestFilterNetworks(t *testing.T) {
 		filter      filters.Args
 		resultCount int
 		err         string
+		name        string
 	}{
 		{
 			filter:      bridgeDriverFilters,
 			resultCount: 1,
 			err:         "",
+			name:        "bridge driver filters",
 		},
 		{
 			filter:      overlayDriverFilters,
 			resultCount: 1,
 			err:         "",
+			name:        "overlay driver filters",
 		},
 		{
 			filter:      nonameDriverFilters,
 			resultCount: 0,
 			err:         "",
+			name:        "no name driver filters",
 		},
 		{
 			filter:      customDriverFilters,
 			resultCount: 3,
 			err:         "",
+			name:        "custom driver filters",
 		},
 		{
 			filter:      builtinDriverFilters,
 			resultCount: 3,
 			err:         "",
+			name:        "builtin driver filters",
 		},
 		{
 			filter:      invalidDriverFilters,
 			resultCount: 0,
-			err:         "Invalid filter: 'type'='invalid'",
+			err:         "invalid filter: 'type'='invalid'",
+			name:        "invalid driver filters",
 		},
 		{
 			filter:      localScopeFilters,
 			resultCount: 4,
 			err:         "",
+			name:        "local scope filters",
 		},
 		{
 			filter:      swarmScopeFilters,
 			resultCount: 1,
 			err:         "",
+			name:        "swarm scope filters",
 		},
 		{
 			filter:      globalScopeFilters,
 			resultCount: 1,
 			err:         "",
+			name:        "global scope filters",
 		},
 	}
 
 	for _, testCase := range testCases {
-		result, err := filterNetworks(networks, testCase.filter)
-		if testCase.err != "" {
-			if err == nil {
-				t.Fatalf("expect error '%s', got no error", testCase.err)
+		t.Run(testCase.name, func(t *testing.T) {
+			ls := make([]types.NetworkResource, 0, len(networks))
+			ls = append(ls, networks...)
+			result, err := FilterNetworks(ls, testCase.filter)
+			if testCase.err != "" {
+				if err == nil {
+					t.Fatalf("expect error '%s', got no error", testCase.err)
 
-			} else if !strings.Contains(err.Error(), testCase.err) {
-				t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
-			}
-		} else {
-			if err != nil {
-				t.Fatalf("expect no error, got error '%s'", err)
-			}
-			// Make sure result is not nil
-			if result == nil {
-				t.Fatal("filterNetworks should not return nil")
-			}
+				} else if !strings.Contains(err.Error(), testCase.err) {
+					t.Fatalf("expect error '%s', got '%s'", testCase.err, err)
+				}
+			} else {
+				if err != nil {
+					t.Fatalf("expect no error, got error '%s'", err)
+				}
+				// Make sure result is not nil
+				if result == nil {
+					t.Fatal("filterNetworks should not return nil")
+				}
 
-			if len(result) != testCase.resultCount {
-				t.Fatalf("expect '%d' networks, got '%d' networks", testCase.resultCount, len(result))
+				if len(result) != testCase.resultCount {
+					t.Fatalf("expect '%d' networks, got '%d' networks", testCase.resultCount, len(result))
+				}
 			}
-		}
+		})
 	}
 }
