@@ -43,6 +43,7 @@ import (
 
 const preferLocal = true // FIXME: make this optional from the op
 
+// SourceOpt is options for creating the image source
 type SourceOpt struct {
 	SessionManager  *session.Manager
 	ContentStore    content.Store
@@ -58,6 +59,7 @@ type imageSource struct {
 	g flightcontrol.Group
 }
 
+// NewSource creates a new image source
 func NewSource(opt SourceOpt) (source.Source, error) {
 	is := &imageSource{
 		SourceOpt: opt,

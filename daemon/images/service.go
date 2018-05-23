@@ -76,6 +76,7 @@ type ImageService struct {
 	uploadManager             *xfer.LayerUploadManager
 }
 
+// DistributionServices provides daemon image storage services
 type DistributionServices struct {
 	DownloadManager   distribution.RootFSDownloadManager
 	V2MetadataService metadata.V2MetadataService
@@ -84,6 +85,7 @@ type DistributionServices struct {
 	ReferenceStore    dockerreference.Store
 }
 
+// DistributionServices return services controlling daemon image storage
 func (i *ImageService) DistributionServices() DistributionServices {
 	return DistributionServices{
 		DownloadManager:   i.downloadManager,

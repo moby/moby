@@ -24,12 +24,14 @@ import (
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
+// Opt is option struct required for creating the builder
 type Opt struct {
 	SessionManager *session.Manager
 	Root           string
 	Dist           images.DistributionServices
 }
 
+// Builder can build using BuildKit backend
 type Builder struct {
 	controller     *control.Controller
 	reqBodyHandler *reqBodyHandler
@@ -38,6 +40,7 @@ type Builder struct {
 	jobs map[string]*buildJob
 }
 
+// New creates a new builder
 func New(opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
 
@@ -53,6 +56,7 @@ func New(opt Opt) (*Builder, error) {
 	return b, nil
 }
 
+// Cancel cancels a build using ID
 func (b *Builder) Cancel(ctx context.Context, id string) error {
 	b.mu.Lock()
 	if j, ok := b.jobs[id]; ok && j.cancel != nil {
@@ -62,6 +66,7 @@ func (b *Builder) Cancel(ctx context.Context, id string) error {
 	return nil
 }
 
+// DiskUsage returns a report about space used by build cache
 func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	duResp, err := b.controller.DiskUsage(ctx, &controlapi.DiskUsageRequest{})
 	if err != nil {
@@ -86,6 +91,7 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	return items, nil
 }
 
+// Prune clears all reclaimable build cache
 func (b *Builder) Prune(ctx context.Context) (int64, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
@@ -114,6 +120,7 @@ func (b *Builder) Prune(ctx context.Context) (int64, error) {
 	return size, nil
 }
 
+// Build executes a build request
 func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.Result, error) {
 	var rc = opt.Source
 
@@ -181,10 +188,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["context"] = url
 	}
 
-	var cacheFrom []string
-	for _, v := range opt.Options.CacheFrom {
-		cacheFrom = append(cacheFrom, v)
-	}
+	cacheFrom := append([]string{}, opt.Options.CacheFrom...)
+
 	frontendAttrs["cache-from"] = strings.Join(cacheFrom, ",")
 
 	for k, v := range opt.Options.BuildArgs {

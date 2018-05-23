@@ -65,8 +65,3 @@ func (h *reqBodyHandler) RoundTrip(req *http.Request) (*http.Response, error) {
 	}
 	return h.rt.RoundTrip(req)
 }
-
-type readCloser struct {
-	io.Reader
-	io.Closer
-}

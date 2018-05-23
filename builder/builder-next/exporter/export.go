@@ -19,10 +19,12 @@ const (
 	exporterImageConfig = "containerimage.config"
 )
 
+// Differ can make a moby layer from a snapshot
 type Differ interface {
 	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
 }
 
+// Opt defines a struct for creating new exporter
 type Opt struct {
 	ImageStore     image.Store
 	ReferenceStore reference.Store
@@ -33,6 +35,7 @@ type imageExporter struct {
 	opt Opt
 }
 
+// New creates a new moby imagestore exporter
 func New(opt Opt) (exporter.Exporter, error) {
 	im := &imageExporter{opt: opt}
 	return im, nil

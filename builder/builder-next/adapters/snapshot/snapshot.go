@@ -23,6 +23,7 @@ var keyCommitted = []byte("committed")
 var keyChainID = []byte("chainid")
 var keySize = []byte("size")
 
+// Opt defines options for creating the snapshotter
 type Opt struct {
 	GraphDriver graphdriver.Driver
 	LayerStore  layer.Store
@@ -50,6 +51,7 @@ type snapshotter struct {
 
 var _ snapshot.SnapshotterBase = &snapshotter{}
 
+// NewSnapshotter creates a new snapshotter
 func NewSnapshotter(opt Opt) (snapshot.SnapshotterBase, error) {
 	dbPath := filepath.Join(opt.Root, "snapshots.db")
 	db, err := bolt.Open(dbPath, 0600, nil)
@@ -196,7 +198,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 			inf.Parent = p.ChainID().String()
 		}
 		inf.Kind = snapshots.KindCommitted
-		inf.Name = string(key)
+		inf.Name = key
 		return inf, nil
 	}
 
@@ -215,7 +217,7 @@ func (s *snapshotter) Stat(ctx context.Context, key string) (snapshots.Info, err
 		if b == nil && l == nil {
 			return errors.Errorf("snapshot %s not found", id) // TODO: typed
 		}
-		inf.Name = string(key)
+		inf.Name = key
 		if b != nil {
 			v := b.Get(keyParent)
 			if v != nil {
@@ -322,7 +324,7 @@ func (s *snapshotter) Remove(ctx context.Context, key string) error {
 }
 
 func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snapshots.Opt) error {
-	if err := s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(name))
 		if err != nil {
 			return err
@@ -331,10 +333,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 			return err
 		}
 		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+	})
 }
 
 func (s *snapshotter) View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (snapshot.Mountable, error) {
@@ -421,7 +420,7 @@ func (s *snapshotter) Usage(ctx context.Context, key string) (us snapshots.Usage
 	}); err != nil {
 		return usage, err
 	}
-	usage.Size = int64(diffSize)
+	usage.Size = diffSize
 	return usage, nil
 }
 

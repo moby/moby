@@ -39,9 +39,8 @@ import (
 	"github.com/pkg/errors"
 )
 
-// WorkerOpt is specific to a worker.
-// See also CommonOpt.
-type WorkerOpt struct {
+// Opt defines a structure for creating a worker.
+type Opt struct {
 	ID                string
 	Labels            map[string]string
 	SessionManager    *session.Manager
@@ -60,12 +59,12 @@ type WorkerOpt struct {
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
 // TODO: s/Worker/OpWorker/g ?
 type Worker struct {
-	WorkerOpt
+	Opt
 	SourceManager *source.Manager
 }
 
 // NewWorker instantiates a local worker
-func NewWorker(opt WorkerOpt) (*Worker, error) {
+func NewWorker(opt Opt) (*Worker, error) {
 	sm, err := source.NewManager()
 	if err != nil {
 		return nil, err
@@ -106,23 +105,27 @@ func NewWorker(opt WorkerOpt) (*Worker, error) {
 	sm.Register(ss)
 
 	return &Worker{
-		WorkerOpt:     opt,
+		Opt:           opt,
 		SourceManager: sm,
 	}, nil
 }
 
+// ID returns worker ID
 func (w *Worker) ID() string {
-	return w.WorkerOpt.ID
+	return w.Opt.ID
 }
 
+// Labels returns map of all worker labels
 func (w *Worker) Labels() map[string]string {
-	return w.WorkerOpt.Labels
+	return w.Opt.Labels
 }
 
+// LoadRef loads a reference by ID
 func (w *Worker) LoadRef(id string) (cache.ImmutableRef, error) {
 	return w.CacheManager.Get(context.TODO(), id)
 }
 
+// ResolveOp converts a LLB vertex into a LLB operation
 func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solver.Op, error) {
 	switch op := v.Sys().(type) {
 	case *pb.Op_Source:
@@ -136,6 +139,7 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solve
 	}
 }
 
+// ResolveImageConfig returns image config for an image
 func (w *Worker) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
 	// ImageSource is typically source/containerimage
 	resolveImageConfig, ok := w.ImageSource.(resolveImageConfig)
@@ -145,10 +149,7 @@ func (w *Worker) ResolveImageConfig(ctx context.Context, ref string) (digest.Dig
 	return resolveImageConfig.ResolveImageConfig(ctx, ref)
 }
 
-type resolveImageConfig interface {
-	ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error)
-}
-
+// Exec executes a process directly on a worker
 func (w *Worker) Exec(ctx context.Context, meta executor.Meta, rootFS cache.ImmutableRef, stdin io.ReadCloser, stdout, stderr io.WriteCloser) error {
 	active, err := w.CacheManager.New(ctx, rootFS)
 	if err != nil {
@@ -158,14 +159,17 @@ func (w *Worker) Exec(ctx context.Context, meta executor.Meta, rootFS cache.Immu
 	return w.Executor.Exec(ctx, meta, active, nil, stdin, stdout, stderr)
 }
 
+// DiskUsage returns disk usage report
 func (w *Worker) DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error) {
 	return w.CacheManager.DiskUsage(ctx, opt)
 }
 
+// Prune deletes reclaimable build cache
 func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo) error {
 	return w.CacheManager.Prune(ctx, ch)
 }
 
+// Exporter returns exporter by name
 func (w *Worker) Exporter(name string) (exporter.Exporter, error) {
 	exp, ok := w.Exporters[name]
 	if !ok {
@@ -174,10 +178,12 @@ func (w *Worker) Exporter(name string) (exporter.Exporter, error) {
 	return exp, nil
 }
 
+// GetRemote returns a remote snapshot reference for a local one
 func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error) {
 	return nil, errors.Errorf("getremote not implemented")
 }
 
+// FromRemote converts a remote snapshot reference to a local one
 func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error) {
 	rootfs, err := getLayers(ctx, remote.Descriptors)
 	if err != nil {
@@ -219,7 +225,7 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 
 type discardProgress struct{}
 
-func (_ *discardProgress) WriteProgress(_ pkgprogress.Progress) error {
+func (*discardProgress) WriteProgress(_ pkgprogress.Progress) error {
 	return nil
 }
 
@@ -308,4 +314,8 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 		pw.Close()
 		return err
 	}
+}
+
+type resolveImageConfig interface {
+	ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error)
 }

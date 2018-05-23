@@ -76,10 +76,7 @@ func (s *systemRouter) getDiskUsage(ctx context.Context, w http.ResponseWriter, 
 	eg.Go(func() error {
 		var err error
 		du, err = s.backend.SystemDiskUsage(ctx)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 
 	var builderSize int64 // legacy

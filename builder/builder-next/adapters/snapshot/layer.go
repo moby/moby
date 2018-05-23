@@ -69,10 +69,7 @@ func (s *snapshotter) EnsureLayer(ctx context.Context, key string) ([]layer.Diff
 			}
 		}
 		diffID, size, err = s.reg.ChecksumForGraphID(id, parent, "", tarSplitPath)
-		if err != nil {
-			return err
-		}
-		return nil
+		return err
 	})
 
 	if err := eg.Wait(); err != nil {

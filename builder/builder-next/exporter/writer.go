@@ -49,9 +49,8 @@ func patchImageConfig(dt []byte, dps []digest.Digest, history []ocispec.History)
 
 	var rootFS ocispec.RootFS
 	rootFS.Type = "layers"
-	for _, dp := range dps {
-		rootFS.DiffIDs = append(rootFS.DiffIDs, dp)
-	}
+	rootFS.DiffIDs = append(rootFS.DiffIDs, dps...)
+
 	dt, err := json.Marshal(rootFS)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal rootfs")
@@ -87,7 +86,7 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 	var historyLayers int
 	for _, h := range history {
 		if !h.EmptyLayer {
-			historyLayers += 1
+			historyLayers++
 		}
 	}
 	if historyLayers > len(diffs) {

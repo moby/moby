@@ -118,6 +118,7 @@ func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport,
 	return &types.BuildCachePruneReport{SpaceReclaimed: fsCacheSize + uint64(buildCacheSize)}, nil
 }
 
+// Cancel cancels the build by ID
 func (b *Backend) Cancel(ctx context.Context, id string) error {
 	return b.buildkit.Cancel(ctx, id)
 }

@@ -117,7 +117,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	frontends["dockerfile.v0"] = dockerfile.NewDockerfileFrontend()
 	frontends["gateway.v0"] = gateway.NewGatewayFrontend()
 
-	wopt := mobyworker.WorkerOpt{
+	wopt := mobyworker.Opt{
 		ID:                "moby",
 		SessionManager:    opt.SessionManager,
 		MetadataStore:     md,
