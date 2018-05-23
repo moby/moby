@@ -131,7 +131,7 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 
 		if stopChar != scanner.EOF && ch == stopChar {
 			sw.scanner.Next()
-			break
+			return result.String(), words.getWords(), nil
 		}
 		if fn, ok := charFuncMapping[ch]; ok {
 			// Call special processing func for certain chars
@@ -166,7 +166,9 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			result.WriteRune(ch)
 		}
 	}
-
+	if stopChar != scanner.EOF {
+		return "", []string{}, errors.Errorf("unexpected end of statement while looking for matching %s", string(stopChar))
+	}
 	return result.String(), words.getWords(), nil
 }
 
@@ -261,12 +263,17 @@ func (sw *shellWord) processDollar() (string, error) {
 	sw.scanner.Next()
 	name := sw.processName()
 	ch := sw.scanner.Peek()
-	if ch == '}' {
+	switch ch {
+	case '}':
 		// Normal ${xx} case
 		sw.scanner.Next()
 		return sw.getEnv(name), nil
-	}
-	if ch == ':' {
+	case '{':
+		// Invalid ${{xx} case
+		return "", errors.New("syntax error: bad substitution")
+	case scanner.EOF:
+		return "", errors.New("syntax error: missing '}'")
+	case ':':
 		// Special ${xx:...} format processing
 		// Yes it allows for recursive $'s in the ... spot
 
@@ -275,6 +282,9 @@ func (sw *shellWord) processDollar() (string, error) {
 
 		word, _, err := sw.processStopOn('}')
 		if err != nil {
+			if sw.scanner.Peek() == scanner.EOF {
+				return "", errors.New("syntax error: missing '}'")
+			}
 			return "", err
 		}
 

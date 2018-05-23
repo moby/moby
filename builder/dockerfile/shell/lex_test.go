@@ -53,7 +53,7 @@ func TestShellParser4EnvVars(t *testing.T) {
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
 			newWord, err := shlex.ProcessWord(source, envs)
 			if expected == "error" {
-				assert.Check(t, is.ErrorContains(err, ""))
+				assert.Check(t, is.ErrorContains(err, ""), "input: %q, result: %q", source, newWord)
 			} else {
 				assert.Check(t, err)
 				assert.Check(t, is.Equal(newWord, expected))

@@ -119,3 +119,14 @@ A|안녕${XXX:-\$PWD:}xx       |     안녕$PWD:xx
 A|안녕${XXX:-\${PWD}z}xx     |     안녕${PWDz}xx
 A|$KOREAN                    |     한국어
 A|안녕$KOREAN                |     안녕한국어
+A|${{aaa}                   |     error
+A|${aaa}}                   |     }
+A|${aaa                     |     error
+A|${{aaa:-bbb}              |     error
+A|${aaa:-bbb}}              |     bbb}
+A|${aaa:-bbb                |     error
+A|${aaa:-bbb}               |     bbb
+A|${aaa:-${bbb:-ccc}}       |     ccc
+A|${aaa:-bbb ${foo}         |     error
+A|${aaa:-bbb {foo}          |     bbb {foo
+
