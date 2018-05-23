@@ -90,7 +90,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	buildImageSuccessfully(c, "no_healthcheck", build.WithDockerfile(`FROM testhealth
 		HEALTHCHECK NONE`))
 
-	out, _ = dockerCmd(c, "inspect", "--format={{.ContainerConfig.Healthcheck.Test}}", "no_healthcheck")
+	out, _ = dockerCmd(c, "inspect", "--format={{.Config.Healthcheck.Test}}", "no_healthcheck")
 	c.Check(out, checker.Equals, "[NONE]\n")
 
 	// Enable the checks from the CLI
