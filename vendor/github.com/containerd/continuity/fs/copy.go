@@ -72,7 +72,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string) error {
 				if err := os.Link(link, target); err != nil {
 					return errors.Wrap(err, "failed to create hard link")
 				}
-			} else if err := copyFile(source, target); err != nil {
+			} else if err := CopyFile(target, source); err != nil {
 				return errors.Wrap(err, "failed to copy files")
 			}
 		case (fi.Mode() & os.ModeSymlink) == os.ModeSymlink:
@@ -103,7 +103,9 @@ func copyDirectory(dst, src string, inodes map[uint64]string) error {
 	return nil
 }
 
-func copyFile(source, target string) error {
+// CopyFile copies the source file to the target.
+// The most efficient means of copying is used for the platform.
+func CopyFile(target, source string) error {
 	src, err := os.Open(source)
 	if err != nil {
 		return errors.Wrapf(err, "failed to open source %s", source)
