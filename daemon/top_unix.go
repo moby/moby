@@ -3,6 +3,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os/exec"
@@ -11,6 +12,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 func validatePSArgs(psArgs string) error {
@@ -167,7 +170,14 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 		// so retry without it
 		output, err = exec.Command("ps", args...).Output()
 		if err != nil {
-			return nil, fmt.Errorf("Error running ps: %v", err)
+			if ee, ok := err.(*exec.ExitError); ok {
+				// first line of stderr shows why ps failed
+				line := bytes.SplitN(ee.Stderr, []byte{'\n'}, 2)
+				if len(line) > 0 && len(line[0]) > 0 {
+					err = errors.New(string(line[0]))
+				}
+			}
+			return nil, errdefs.System(errors.Wrap(err, "ps"))
 		}
 	}
 	procList, err := parsePSOutput(output, procs)
