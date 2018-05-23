@@ -293,6 +293,9 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 	if p.config != nil {
 		img, err := p.is.ImageStore.Get(image.ID(digest.FromBytes(p.config)))
 		if err == nil {
+			if len(img.RootFS.DiffIDs) == 0 {
+				return nil, nil
+			}
 			ref, err := p.is.CacheAccessor.GetFromSnapshotter(ctx, string(img.RootFS.ChainID()), cache.WithDescription(fmt.Sprintf("from local %s", p.ref)))
 			if err != nil {
 				return nil, err
@@ -430,6 +433,10 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 			}
 		}
 	}()
+
+	if len(mfst.Layers) == 0 {
+		return nil, nil
+	}
 
 	layers := make([]xfer.DownloadDescriptor, 0, len(mfst.Layers))
 
