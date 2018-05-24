@@ -216,7 +216,7 @@ func TestCompareIPMask(t *testing.T) {
 	}
 }
 
-func TestUtilGetHostPortionIP(t *testing.T) {
+func TestUtilGetHostPartIP(t *testing.T) {
 	input := []struct {
 		ip   net.IP
 		mask net.IPMask
