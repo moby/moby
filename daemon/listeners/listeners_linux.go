@@ -62,9 +62,9 @@ func listenFD(addr string, tlsConfig *tls.Config) ([]net.Listener, error) {
 	)
 	// socket activation
 	if tlsConfig != nil {
-		listeners, err = activation.TLSListeners(false, tlsConfig)
+		listeners, err = activation.TLSListeners(tlsConfig)
 	} else {
-		listeners, err = activation.Listeners(false)
+		listeners, err = activation.Listeners()
 	}
 	if err != nil {
 		return nil, err
