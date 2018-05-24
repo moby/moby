@@ -2,6 +2,7 @@ package types
 
 import (
 	"flag"
+	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
 )
@@ -26,21 +27,60 @@ func TestTransportPortConv(t *testing.T) {
 }
 
 func TestTransportPortBindingConv(t *testing.T) {
-	sform := "tcp/172.28.30.23:80/112.0.43.56:8001"
-	pb := &PortBinding{
-		Proto:    TCP,
-		IP:       net.IPv4(172, 28, 30, 23),
-		Port:     uint16(80),
-		HostIP:   net.IPv4(112, 0, 43, 56),
-		HostPort: uint16(8001),
+	input := []struct {
+		sform      string
+		pb         PortBinding
+		shouldFail bool
+	}{
+		{ // IPv4 -> IPv4
+			sform: "tcp/172.28.30.23:80/112.0.43.56:8001",
+			pb: PortBinding{
+				Proto:    TCP,
+				IP:       net.IPv4(172, 28, 30, 23),
+				Port:     uint16(80),
+				HostIP:   net.IPv4(112, 0, 43, 56),
+				HostPort: uint16(8001),
+			},
+		},
+		{ // IPv6 -> IPv4
+			sform: "tcp/[2001:db8::1]:80/112.0.43.56:8001",
+			pb: PortBinding{
+				Proto:    TCP,
+				IP:       net.IP{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+				Port:     uint16(80),
+				HostIP:   net.IPv4(112, 0, 43, 56),
+				HostPort: uint16(8001),
+			},
+		},
+		{ // IPv4inIPv6 -> IPv4
+			sform: "tcp/[::ffff:172.28.30.23]:80/112.0.43.56:8001",
+			pb: PortBinding{
+				Proto:    TCP,
+				IP:       net.IPv4(172, 28, 30, 23),
+				Port:     uint16(80),
+				HostIP:   net.IPv4(112, 0, 43, 56),
+				HostPort: uint16(8001),
+			},
+		},
+		{ // IPv4 -> IPv4 zoned
+			sform:      "tcp/172.28.30.23:80/169.254.0.23%eth0:8001",
+			shouldFail: true,
+		},
+		{ // IPv4 -> IPv6 zoned
+			sform:      "tcp/172.28.30.23:80/[fe80::1ff:fe23:4567:890a%eth0]:8001",
+			shouldFail: true,
+		},
 	}
 
-	rc := new(PortBinding)
-	if err := rc.FromString(sform); err != nil {
-		t.Fatal(err)
-	}
-	if !pb.Equal(rc) {
-		t.Fatalf("FromString() method failed")
+	for _, in := range input {
+		rc := new(PortBinding)
+		err := rc.FromString(in.sform)
+		if in.shouldFail {
+			require.Error(t, err, "Unexpected success parsing %s", in.sform)
+		} else {
+			require.NoError(t, err)
+			require.Equal(t, in.pb, *rc, "input %s: expected %#v, got %#v", in.sform, in.pb, rc)
+		}
 	}
 }
 
