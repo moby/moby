@@ -28,7 +28,21 @@ build-local:
 	@mkdir -p "bin"
 	go build -tags experimental -o "bin/dnet" ./cmd/dnet
 	go build -o "bin/docker-proxy" ./cmd/proxy
-	GOOS=linux go build -o "./cmd/diagnostic/diagnosticClient" ./cmd/diagnostic
+	CGO_ENABLED=0 go build -o "bin/diagnosticClient" ./cmd/diagnostic
+	CGO_ENABLED=0 go build -o "bin/testMain" ./cmd/networkdb-test/testMain.go
+
+build-images:
+	@echo "🐳 $@"
+	cp cmd/diagnostic/daemon.json ./bin
+	docker build -f cmd/diagnostic/Dockerfile.client -t dockereng/network-diagnostic:onlyclient bin/
+	docker build -f cmd/diagnostic/Dockerfile.dind -t dockereng/network-diagnostic:17.12-dind bin/
+	docker build -f cmd/networkdb-test/Dockerfile -t dockereng/e2e-networkdb bin/
+
+push-images: build-images
+	@echo "🐳 $@"
+	docker push dockereng/network-diagnostic:onlyclient
+	docker push dockereng/network-diagnostic:17.12-dind
+	docker push dockereng/e2e-networkdb
 
 clean:
 	@echo "🐳 $@"
