@@ -181,8 +181,12 @@ type ImageBuildOptions struct {
 	Target      string
 	SessionID   string
 	Platform    string
-	Version     BuilderVersion
-	BuildID     string
+	// Version specifies the version of the unerlying builder to use
+	Version BuilderVersion
+	// BuildID is an optional identifier that can be passed together with the
+	// build request. The same identifier can be used to gracefully cancel the
+	// build with the cancel request.
+	BuildID string
 }
 
 // BuilderVersion sets the version of underlying builder to use
