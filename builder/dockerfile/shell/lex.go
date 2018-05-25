@@ -318,7 +318,15 @@ func (sw *shellWord) processName() string {
 
 	for sw.scanner.Peek() != scanner.EOF {
 		ch := sw.scanner.Peek()
-		if name.Len() == 0 && (unicode.IsDigit(ch) || isSpecialParam(ch)) {
+		if name.Len() == 0 && unicode.IsDigit(ch) {
+			for sw.scanner.Peek() != scanner.EOF && unicode.IsDigit(sw.scanner.Peek()) {
+				// Keep reading until the first non-digit character, or EOF
+				ch = sw.scanner.Next()
+				name.WriteRune(ch)
+			}
+			return name.String()
+		}
+		if name.Len() == 0 && isSpecialParam(ch) {
 			ch = sw.scanner.Next()
 			return string(ch)
 		}
