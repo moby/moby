@@ -261,23 +261,22 @@ func (sw *shellWord) processDollar() (string, error) {
 	}
 
 	sw.scanner.Next()
+	switch sw.scanner.Peek() {
+	case scanner.EOF:
+		return "", errors.New("syntax error: missing '}'")
+	case '{', '}', ':':
+		// Invalid ${{xx}, ${:xx}, ${:}. ${} case
+		return "", errors.New("syntax error: bad substitution")
+	}
 	name := sw.processName()
-	ch := sw.scanner.Peek()
+	ch := sw.scanner.Next()
 	switch ch {
 	case '}':
 		// Normal ${xx} case
-		sw.scanner.Next()
 		return sw.getEnv(name), nil
-	case '{':
-		// Invalid ${{xx} case
-		return "", errors.New("syntax error: bad substitution")
-	case scanner.EOF:
-		return "", errors.New("syntax error: missing '}'")
 	case ':':
 		// Special ${xx:...} format processing
 		// Yes it allows for recursive $'s in the ... spot
-
-		sw.scanner.Next() // skip over :
 		modifier := sw.scanner.Next()
 
 		word, _, err := sw.processStopOn('}')

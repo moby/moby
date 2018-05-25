@@ -29,10 +29,14 @@ A|he\$PWD                  |     he$PWD
 A|he\\$PWD                 |     he\/home
 A|"he\$PWD"                |     he$PWD
 A|"he\\$PWD"               |     he\/home
+A|\${}                     |     ${}
+A|\${}aaa                  |     ${}aaa
 A|he\${}                   |     he${}
 A|he\${}xx                 |     he${}xx
-A|he${}                    |     he
-A|he${}xx                  |     hexx
+A|${}                      |     error
+A|${}aaa                   |     error
+A|he${}                    |     error
+A|he${}xx                  |     error
 A|he${hi}                  |     he
 A|he${hi}xx                |     hexx
 A|he${PWD}                 |     he/home
@@ -88,8 +92,8 @@ A|안녕\$PWD                  |     안녕$PWD
 A|안녕\\$PWD                 |     안녕\/home
 A|안녕\${}                   |     안녕${}
 A|안녕\${}xx                 |     안녕${}xx
-A|안녕${}                    |     안녕
-A|안녕${}xx                  |     안녕xx
+A|안녕${}                    |     error
+A|안녕${}xx                  |     error
 A|안녕${hi}                  |     안녕
 A|안녕${hi}xx                |     안녕xx
 A|안녕${PWD}                 |     안녕/home
@@ -129,4 +133,7 @@ A|${aaa:-bbb}               |     bbb
 A|${aaa:-${bbb:-ccc}}       |     ccc
 A|${aaa:-bbb ${foo}         |     error
 A|${aaa:-bbb {foo}          |     bbb {foo
+A|${:}                      |     error
+A|${:-bbb}                  |     error
+A|${:+bbb}                  |     error
 
