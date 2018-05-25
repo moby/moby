@@ -345,6 +345,11 @@ func (r *rcNotifier) Read(b []byte) (int, error) {
 	return n, err
 }
 
+func (r *rcNotifier) Close() error {
+	r.notify()
+	return r.Closer.Close()
+}
+
 type wcf struct {
 	writeCloseFlusher
 	mu      sync.Mutex
