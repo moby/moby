@@ -207,9 +207,16 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["no-cache"] = ""
 	}
 
+	exporterAttrs := map[string]string{}
+
+	if len(opt.Options.Tags) > 0 {
+		exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
+	}
+
 	req := &controlapi.SolveRequest{
 		Ref:           id,
 		Exporter:      "moby",
+		ExporterAttrs: exporterAttrs,
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
 		Session:       opt.Options.SessionID,
