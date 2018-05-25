@@ -135,5 +135,5 @@ circle-ci-build: ${build_image}.created
 
 circle-ci: circle-ci-build circle-ci-check circle-ci-cross integration-tests
 
-shell:
+shell: ${build_image}.created
 	@${docker} ${SHELL}
