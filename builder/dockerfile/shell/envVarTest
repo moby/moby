@@ -18,7 +18,6 @@ A|'hello\there'            |     hello\there
 A|'hello\\there'           |     hello\\there
 A|"''"                     |     ''
 A|$.                       |     $.
-A|$1                       |
 A|he$1x                    |     hex
 A|he$.x                    |     he$.x
 # Next one is different on Windows as $pwd==$PWD
@@ -137,3 +136,41 @@ A|${:}                      |     error
 A|${:-bbb}                  |     error
 A|${:+bbb}                  |     error
 
+# Positional parameters won't be set:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_01
+A|$1                        |
+A|${1}                      |
+A|${1:+bbb}                 |
+A|${1:-bbb}                 |     bbb
+A|$2                        |
+A|${2}                      |
+A|${2:+bbb}                 |
+A|${2:-bbb}                 |     bbb
+A|$3                        |
+A|${3}                      |
+A|${3:+bbb}                 |
+A|${3:-bbb}                 |     bbb
+A|$4                        |
+A|${4}                      |
+A|${4:+bbb}                 |
+A|${4:-bbb}                 |     bbb
+A|$5                        |
+A|${5}                      |
+A|${5:+bbb}                 |
+A|${5:-bbb}                 |     bbb
+A|$6                        |
+A|${6}                      |
+A|${6:+bbb}                 |
+A|${6:-bbb}                 |     bbb
+A|$7                        |
+A|${7}                      |
+A|${7:+bbb}                 |
+A|${7:-bbb}                 |     bbb
+A|$8                        |
+A|${8}                      |
+A|${8:+bbb}                 |
+A|${8:-bbb}                 |     bbb
+A|$9                        |
+A|${9}                      |
+A|${9:+bbb}                 |
+A|${9:-bbb}                 |     bbb
