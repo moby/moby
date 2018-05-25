@@ -26,13 +26,11 @@ func TestShellParser4EnvVars(t *testing.T) {
 		line := scanner.Text()
 		lineCount++
 
-		// Trim comments and blank lines
-		i := strings.Index(line, "#")
-		if i >= 0 {
-			line = line[:i]
+		// Skip comments and blank lines
+		if strings.HasPrefix(line, "#") {
+			continue
 		}
 		line = strings.TrimSpace(line)
-
 		if line == "" {
 			continue
 		}

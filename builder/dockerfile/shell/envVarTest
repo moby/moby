@@ -174,3 +174,38 @@ A|$9                        |
 A|${9}                      |
 A|${9:+bbb}                 |
 A|${9:-bbb}                 |     bbb
+
+# Special parameters won't be set in the Dockerfile:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+A|$@                        |
+A|${@}                      |
+A|${@:+bbb}                 |
+A|${@:-bbb}                 |     bbb
+A|$*                        |
+A|${*}                      |
+A|${*:+bbb}                 |
+A|${*:-bbb}                 |     bbb
+A|$#                        |
+A|${#}                      |
+A|${#:+bbb}                 |
+A|${#:-bbb}                 |     bbb
+A|$?                        |
+A|${?}                      |
+A|${?:+bbb}                 |
+A|${?:-bbb}                 |     bbb
+A|$-                        |
+A|${-}                      |
+A|${-:+bbb}                 |
+A|${-:-bbb}                 |     bbb
+A|$$                        |
+A|${$}                      |
+A|${$:+bbb}                 |
+A|${$:-bbb}                 |     bbb
+A|$!                        |
+A|${!}                      |
+A|${!:+bbb}                 |
+A|${!:-bbb}                 |     bbb
+A|$0                        |
+A|${0}                      |
+A|${0:+bbb}                 |
+A|${0:-bbb}                 |     bbb

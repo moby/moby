@@ -318,7 +318,7 @@ func (sw *shellWord) processName() string {
 
 	for sw.scanner.Peek() != scanner.EOF {
 		ch := sw.scanner.Peek()
-		if name.Len() == 0 && unicode.IsDigit(ch) {
+		if name.Len() == 0 && (unicode.IsDigit(ch) || isSpecialParam(ch)) {
 			ch = sw.scanner.Next()
 			return string(ch)
 		}
@@ -330,6 +330,18 @@ func (sw *shellWord) processName() string {
 	}
 
 	return name.String()
+}
+
+// isSpecialParam checks if the provided character is a special parameters,
+// as defined in http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+func isSpecialParam(char rune) bool {
+	switch char {
+	case '@', '*', '#', '?', '-', '$', '!', '0':
+		// Special parameters
+		// http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+		return true
+	}
+	return false
 }
 
 func (sw *shellWord) getEnv(name string) string {
