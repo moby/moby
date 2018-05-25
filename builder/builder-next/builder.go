@@ -137,7 +137,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			b.jobs[buildID] = newBuildJob()
 		}
 		j := b.jobs[buildID]
-		ctx, cancel := context.WithCancel(ctx)
+		var cancel func()
+		ctx, cancel = context.WithCancel(ctx)
 		j.cancel = cancel
 		b.mu.Unlock()
 
