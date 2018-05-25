@@ -55,8 +55,8 @@ func TestShellParser4EnvVars(t *testing.T) {
 			if expected == "error" {
 				assert.Check(t, is.ErrorContains(err, ""), "input: %q, result: %q", source, newWord)
 			} else {
-				assert.Check(t, err)
-				assert.Check(t, is.Equal(newWord, expected))
+				assert.Check(t, err, "at line %d of %s", lineCount, fn)
+				assert.Check(t, is.Equal(newWord, expected), "at line %d of %s", lineCount, fn)
 			}
 		}
 	}
