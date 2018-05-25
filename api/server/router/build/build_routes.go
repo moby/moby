@@ -244,6 +244,10 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
 	}
 
+	if buildOptions.Version == types.BuilderBuildKit && !br.daemon.HasExperimental() {
+		return errdefs.InvalidParameter(errors.New("buildkit is only supported with experimental mode"))
+	}
+
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
 	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
