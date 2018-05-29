@@ -2,7 +2,10 @@
 *.o
 *.a
 *.so
+*~
+.*
 bin/
+tags
 
 # Folders
 integration-tmp/

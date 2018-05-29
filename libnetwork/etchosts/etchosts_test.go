@@ -434,7 +434,7 @@ func TestConcurrentWrites(t *testing.T) {
 	var wg sync.WaitGroup
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go func() {
+		go func(i int) {
 			defer wg.Done()
 
 			rec := []Record{
@@ -453,7 +453,7 @@ func TestConcurrentWrites(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-		}()
+		}(i)
 	}
 
 	wg.Wait()

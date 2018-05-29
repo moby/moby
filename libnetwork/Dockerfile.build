@@ -1,4 +1,4 @@
-FROM golang:1.9.3
+FROM golang:1.10
 RUN apt-get update && apt-get -y install iptables
 
 RUN go get github.com/tools/godep \
