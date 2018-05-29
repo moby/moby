@@ -9,3 +9,5 @@ RUN go get github.com/golang/lint/golint \
 		honnef.co/go/tools/cmd/gosimple
 
 WORKDIR /go/src/github.com/docker/libnetwork
+
+COPY . .
