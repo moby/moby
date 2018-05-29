@@ -207,7 +207,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 
 	hostName := "host"
 	var instances uint64 = 1
-	serviceName := "TestService"
+	serviceName := "TestService" + t.Name()
 
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),

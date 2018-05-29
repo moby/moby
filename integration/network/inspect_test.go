@@ -34,7 +34,7 @@ func TestInspectNetwork(t *testing.T) {
 	overlayID := netResp.ID
 
 	var instances uint64 = 4
-	serviceName := "TestService"
+	serviceName := "TestService" + t.Name()
 
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
