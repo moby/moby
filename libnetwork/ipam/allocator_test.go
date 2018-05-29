@@ -1141,19 +1141,21 @@ func benchMarkRequest(subnet string, b *testing.B) {
 	}
 }
 
-func BenchmarkRequest_24(b *testing.B) {
-	a, _ := getAllocator(true)
-	benchmarkRequest(b, a, "10.0.0.0/24")
-}
+func BenchmarkRequest(b *testing.B) {
 
-func BenchmarkRequest_16(b *testing.B) {
-	a, _ := getAllocator(true)
-	benchmarkRequest(b, a, "10.0.0.0/16")
-}
+	subnets := []string{
+		"10.0.0.0/24",
+		"10.0.0.0/16",
+		"10.0.0.0/8",
+	}
 
-func BenchmarkRequest_8(b *testing.B) {
-	a, _ := getAllocator(true)
-	benchmarkRequest(b, a, "10.0.0.0/8")
+	for _, subnet := range subnets {
+		name := fmt.Sprintf("%vSubnet", subnet)
+		b.Run(name, func(b *testing.B) {
+			a, _ := getAllocator(true)
+			benchmarkRequest(b, a, subnet)
+		})
+	}
 }
 
 func TestAllocateRandomDeallocate(t *testing.T) {
