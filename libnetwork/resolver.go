@@ -111,7 +111,7 @@ func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSB
 }
 
 func (r *resolver) SetupFunc(port int) func() {
-	return (func() {
+	return func() {
 		var err error
 
 		// DNS operates primarily on UDP
@@ -138,7 +138,7 @@ func (r *resolver) SetupFunc(port int) func() {
 			return
 		}
 		r.err = nil
-	})
+	}
 }
 
 func (r *resolver) Start() error {
@@ -490,35 +490,36 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				continue
 			}
 			r.forwardQueryEnd()
-			if resp != nil {
-				if resp.Rcode == dns.RcodeServerFailure {
-					// for Server Failure response, continue to the next external DNS server
-					logrus.Debugf("[resolver] external DNS %s:%s responded with ServFail for %q", proto, extDNS.IPStr, name)
-					continue
-				}
-				answers := 0
-				for _, rr := range resp.Answer {
-					h := rr.Header()
-					switch h.Rrtype {
-					case dns.TypeA:
-						answers++
-						ip := rr.(*dns.A).A
-						logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-						r.backend.HandleQueryResp(h.Name, ip)
-					case dns.TypeAAAA:
-						answers++
-						ip := rr.(*dns.AAAA).AAAA
-						logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-						r.backend.HandleQueryResp(h.Name, ip)
-					}
-				}
-				if resp.Answer == nil || answers == 0 {
-					logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, queryType, name)
-				}
-				resp.Compress = true
-			} else {
+
+			if resp == nil {
 				logrus.Debugf("[resolver] external DNS %s:%s returned empty response for %q", proto, extDNS.IPStr, name)
+				break
 			}
+			if resp.Rcode == dns.RcodeServerFailure {
+				// for Server Failure response, continue to the next external DNS server
+				logrus.Debugf("[resolver] external DNS %s:%s responded with ServFail for %q", proto, extDNS.IPStr, name)
+				continue
+			}
+			answers := 0
+			for _, rr := range resp.Answer {
+				h := rr.Header()
+				switch h.Rrtype {
+				case dns.TypeA:
+					answers++
+					ip := rr.(*dns.A).A
+					logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+					r.backend.HandleQueryResp(h.Name, ip)
+				case dns.TypeAAAA:
+					answers++
+					ip := rr.(*dns.AAAA).AAAA
+					logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+					r.backend.HandleQueryResp(h.Name, ip)
+				}
+			}
+			if resp.Answer == nil || answers == 0 {
+				logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, queryType, name)
+			}
+			resp.Compress = true
 			break
 		}
 		if resp == nil {
