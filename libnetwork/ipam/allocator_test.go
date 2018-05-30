@@ -286,28 +286,17 @@ func TestAddSubnets(t *testing.T) {
 // been released raises an error.
 func TestDoublePoolRelease(t *testing.T) {
 	for _, store := range []bool{false, true} {
-		for _, repeats := range []int{0, 1, 10} {
-			a, err := getAllocator(store)
-			assert.NoError(t, err)
+		a, err := getAllocator(store)
+		assert.NoError(t, err)
 
-			// Request initial pool allocation
-			pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
-			assert.NoError(t, err)
+		pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+		assert.NoError(t, err)
 
-			// Re-request the same pool
-			for i := 0; i < repeats; i++ {
-				_, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
-				assert.Error(t, err)
-			}
+		err = a.ReleasePool(pid0)
+		assert.NoError(t, err)
 
-			// Release the initial request
-			err = a.ReleasePool(pid0)
-			assert.NoError(t, err)
-
-			// Releasing again fails
-			err = a.ReleasePool(pid0)
-			assert.Error(t, err)
-		}
+		err = a.ReleasePool(pid0)
+		assert.Error(t, err)
 	}
 }
 
@@ -984,6 +973,85 @@ func TestRequest(t *testing.T) {
 
 	for _, d := range input {
 		assertNRequests(t, d.subnet, d.numReq, d.lastIP)
+	}
+}
+
+// TestOverlappingRequests tests that overlapping subnets cannot be allocated.
+// Requests for subnets which are supersets or subsets of existing allocations,
+// or which overlap at the beginning or end, should not be permitted.
+func TestOverlappingRequests(t *testing.T) {
+	input := []struct {
+		environment []string
+		subnet      string
+		ok          bool
+	}{
+		// IPv4
+		// Previously allocated network does not overlap with request
+		{[]string{"10.0.0.0/8"}, "11.0.0.0/8", true},
+		{[]string{"74.0.0.0/7"}, "9.111.99.72/30", true},
+		{[]string{"110.192.0.0/10"}, "16.0.0.0/10", true},
+
+		// Previously allocated network entirely contains request
+		{[]string{"10.0.0.0/8"}, "10.0.0.0/8", false}, // exact overlap
+		{[]string{"0.0.0.0/1"}, "16.182.0.0/15", false},
+		{[]string{"16.0.0.0/4"}, "17.11.66.0/23", false},
+
+		// Previously allocated network overlaps beginning of request
+		{[]string{"0.0.0.0/1"}, "0.0.0.0/0", false},
+		{[]string{"64.0.0.0/6"}, "64.0.0.0/3", false},
+		{[]string{"112.0.0.0/6"}, "112.0.0.0/4", false},
+
+		// Previously allocated network overlaps end of request
+		{[]string{"96.0.0.0/3"}, "0.0.0.0/1", false},
+		{[]string{"192.0.0.0/2"}, "128.0.0.0/1", false},
+		{[]string{"95.0.0.0/8"}, "92.0.0.0/6", false},
+
+		// Previously allocated network entirely contained within request
+		{[]string{"10.0.0.0/8"}, "10.0.0.0/6", false}, // non-canonical
+		{[]string{"10.0.0.0/8"}, "8.0.0.0/6", false},  // canonical
+		{[]string{"25.173.144.0/20"}, "0.0.0.0/0", false},
+
+		// IPv6
+		// Previously allocated network entirely contains request
+		{[]string{"::/0"}, "f656:3484:c878:a05:e540:a6ed:4d70:3740/123", false},
+		{[]string{"8000::/1"}, "8fe8:e7c4:5779::/49", false},
+		{[]string{"f000::/4"}, "ffc7:6000::/19", false},
+
+		// Previously allocated network overlaps beginning of request
+		{[]string{"::/2"}, "::/0", false},
+		{[]string{"::/3"}, "::/1", false},
+		{[]string{"::/6"}, "::/5", false},
+
+		// Previously allocated network overlaps end of request
+		{[]string{"c000::/2"}, "8000::/1", false},
+		{[]string{"7c00::/6"}, "::/1", false},
+		{[]string{"cf80::/9"}, "c000::/4", false},
+
+		// Previously allocated network entirely contained within request
+		{[]string{"ff77:93f8::/29"}, "::/0", false},
+		{[]string{"9287:2e20:5134:fab6:9061:a0c6:bfe3:9400/119"}, "8000::/1", false},
+		{[]string{"3ea1:bfa9:8691:d1c6:8c46:519b:db6d:e700/120"}, "3000::/4", false},
+	}
+
+	for _, store := range []bool{false, true} {
+		for _, tc := range input {
+			a, err := getAllocator(store)
+			assert.NoError(t, err)
+
+			// Set up some existing allocations.  This should always succeed.
+			for _, env := range tc.environment {
+				_, _, _, err = a.RequestPool(localAddressSpace, env, "", nil, false)
+				assert.NoError(t, err)
+			}
+
+			// Make the test allocation.
+			_, _, _, err = a.RequestPool(localAddressSpace, tc.subnet, "", nil, false)
+			if tc.ok {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+			}
+		}
 	}
 }
 
