@@ -98,23 +98,23 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 }
 
 // Restore restores a container
-func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) error {
+func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
 	alive, _, err := e.client.Restore(context.Background(), id, attachStreamsFunc(stdout, stderr))
 	if err != nil && !errdefs.IsNotFound(err) {
-		return err
+		return false, err
 	}
 	if !alive {
 		_, _, err = e.client.DeleteTask(context.Background(), id)
 		if err != nil && !errdefs.IsNotFound(err) {
-			logrus.WithError(err).Errorf("failed to delete container plugin %s task from containerd", id)
+			logrus.WithError(err).WithField("id", id).Errorf("failed to delete plugin task from containerd")
 		}
 
 		err = e.client.Delete(context.Background(), id)
 		if err != nil && !errdefs.IsNotFound(err) {
-			logrus.WithError(err).Errorf("failed to delete container plugin %s from containerd", id)
+			logrus.WithError(err).WithField("id", id).Errorf("failed to delete plugin container from containerd")
 		}
 	}
-	return nil
+	return alive, nil
 }
 
 // IsRunning returns if the container with the given id is running
@@ -134,12 +134,12 @@ func (e *Executor) ProcessEvent(id string, et libcontainerd.EventType, ei libcon
 	switch et {
 	case libcontainerd.EventExit:
 		// delete task and container
-		if _, _, err := e.client.DeleteTask(context.Background(), id); err != nil {
-			logrus.WithError(err).Errorf("failed to delete container plugin %s task from containerd", id)
+		if _, _, err := e.client.DeleteTask(context.Background(), id); err != nil && !errdefs.IsNotFound(err) {
+			logrus.WithError(err).WithField("id", id).Error("failed to delete plugin task from containerd")
 		}
 
-		if err := e.client.Delete(context.Background(), id); err != nil {
-			logrus.WithError(err).Errorf("failed to delete container plugin %s from containerd", id)
+		if err := e.client.Delete(context.Background(), id); err != nil && !errdefs.IsNotFound(err) {
+			logrus.WithError(err).WithField("id", id).Error("failed to delete plugin container from containerd")
 		}
 		return e.exitHandler.HandleExitEvent(ei.ContainerID)
 	}
