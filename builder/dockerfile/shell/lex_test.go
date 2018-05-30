@@ -26,13 +26,11 @@ func TestShellParser4EnvVars(t *testing.T) {
 		line := scanner.Text()
 		lineCount++
 
-		// Trim comments and blank lines
-		i := strings.Index(line, "#")
-		if i >= 0 {
-			line = line[:i]
+		// Skip comments and blank lines
+		if strings.HasPrefix(line, "#") {
+			continue
 		}
 		line = strings.TrimSpace(line)
-
 		if line == "" {
 			continue
 		}
@@ -53,10 +51,10 @@ func TestShellParser4EnvVars(t *testing.T) {
 			((platform == "U" || platform == "A") && runtime.GOOS != "windows") {
 			newWord, err := shlex.ProcessWord(source, envs)
 			if expected == "error" {
-				assert.Check(t, is.ErrorContains(err, ""))
+				assert.Check(t, is.ErrorContains(err, ""), "input: %q, result: %q", source, newWord)
 			} else {
-				assert.Check(t, err)
-				assert.Check(t, is.Equal(newWord, expected))
+				assert.Check(t, err, "at line %d of %s", lineCount, fn)
+				assert.Check(t, is.Equal(newWord, expected), "at line %d of %s", lineCount, fn)
 			}
 		}
 	}

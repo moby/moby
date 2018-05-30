@@ -18,7 +18,6 @@ A|'hello\there'            |     hello\there
 A|'hello\\there'           |     hello\\there
 A|"''"                     |     ''
 A|$.                       |     $.
-A|$1                       |
 A|he$1x                    |     hex
 A|he$.x                    |     he$.x
 # Next one is different on Windows as $pwd==$PWD
@@ -29,10 +28,14 @@ A|he\$PWD                  |     he$PWD
 A|he\\$PWD                 |     he\/home
 A|"he\$PWD"                |     he$PWD
 A|"he\\$PWD"               |     he\/home
+A|\${}                     |     ${}
+A|\${}aaa                  |     ${}aaa
 A|he\${}                   |     he${}
 A|he\${}xx                 |     he${}xx
-A|he${}                    |     he
-A|he${}xx                  |     hexx
+A|${}                      |     error
+A|${}aaa                   |     error
+A|he${}                    |     error
+A|he${}xx                  |     error
 A|he${hi}                  |     he
 A|he${hi}xx                |     hexx
 A|he${PWD}                 |     he/home
@@ -88,8 +91,8 @@ A|안녕\$PWD                  |     안녕$PWD
 A|안녕\\$PWD                 |     안녕\/home
 A|안녕\${}                   |     안녕${}
 A|안녕\${}xx                 |     안녕${}xx
-A|안녕${}                    |     안녕
-A|안녕${}xx                  |     안녕xx
+A|안녕${}                    |     error
+A|안녕${}xx                  |     error
 A|안녕${hi}                  |     안녕
 A|안녕${hi}xx                |     안녕xx
 A|안녕${PWD}                 |     안녕/home
@@ -119,3 +122,111 @@ A|안녕${XXX:-\$PWD:}xx       |     안녕$PWD:xx
 A|안녕${XXX:-\${PWD}z}xx     |     안녕${PWDz}xx
 A|$KOREAN                    |     한국어
 A|안녕$KOREAN                |     안녕한국어
+A|${{aaa}                   |     error
+A|${aaa}}                   |     }
+A|${aaa                     |     error
+A|${{aaa:-bbb}              |     error
+A|${aaa:-bbb}}              |     bbb}
+A|${aaa:-bbb                |     error
+A|${aaa:-bbb}               |     bbb
+A|${aaa:-${bbb:-ccc}}       |     ccc
+A|${aaa:-bbb ${foo}         |     error
+A|${aaa:-bbb {foo}          |     bbb {foo
+A|${:}                      |     error
+A|${:-bbb}                  |     error
+A|${:+bbb}                  |     error
+
+# Positional parameters won't be set:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_01
+A|$1                        |
+A|${1}                      |
+A|${1:+bbb}                 |
+A|${1:-bbb}                 |     bbb
+A|$2                        |
+A|${2}                      |
+A|${2:+bbb}                 |
+A|${2:-bbb}                 |     bbb
+A|$3                        |
+A|${3}                      |
+A|${3:+bbb}                 |
+A|${3:-bbb}                 |     bbb
+A|$4                        |
+A|${4}                      |
+A|${4:+bbb}                 |
+A|${4:-bbb}                 |     bbb
+A|$5                        |
+A|${5}                      |
+A|${5:+bbb}                 |
+A|${5:-bbb}                 |     bbb
+A|$6                        |
+A|${6}                      |
+A|${6:+bbb}                 |
+A|${6:-bbb}                 |     bbb
+A|$7                        |
+A|${7}                      |
+A|${7:+bbb}                 |
+A|${7:-bbb}                 |     bbb
+A|$8                        |
+A|${8}                      |
+A|${8:+bbb}                 |
+A|${8:-bbb}                 |     bbb
+A|$9                        |
+A|${9}                      |
+A|${9:+bbb}                 |
+A|${9:-bbb}                 |     bbb
+A|$999                      |
+A|${999}                    |
+A|${999:+bbb}               |
+A|${999:-bbb}               |     bbb
+A|$999aaa                   |     aaa
+A|${999}aaa                 |     aaa
+A|${999:+bbb}aaa            |     aaa
+A|${999:-bbb}aaa            |     bbbaaa
+A|$001                      |
+A|${001}                    |
+A|${001:+bbb}               |
+A|${001:-bbb}               |     bbb
+A|$001aaa                   |     aaa
+A|${001}aaa                 |     aaa
+A|${001:+bbb}aaa            |     aaa
+A|${001:-bbb}aaa            |     bbbaaa
+
+# Special parameters won't be set in the Dockerfile:
+# http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+A|$@                        |
+A|${@}                      |
+A|${@:+bbb}                 |
+A|${@:-bbb}                 |     bbb
+A|$@@@                      |     @@
+A|$@aaa                     |     aaa
+A|${@}aaa                   |     aaa
+A|${@:+bbb}aaa              |     aaa
+A|${@:-bbb}aaa              |     bbbaaa
+A|$*                        |
+A|${*}                      |
+A|${*:+bbb}                 |
+A|${*:-bbb}                 |     bbb
+A|$#                        |
+A|${#}                      |
+A|${#:+bbb}                 |
+A|${#:-bbb}                 |     bbb
+A|$?                        |
+A|${?}                      |
+A|${?:+bbb}                 |
+A|${?:-bbb}                 |     bbb
+A|$-                        |
+A|${-}                      |
+A|${-:+bbb}                 |
+A|${-:-bbb}                 |     bbb
+A|$$                        |
+A|${$}                      |
+A|${$:+bbb}                 |
+A|${$:-bbb}                 |     bbb
+A|$!                        |
+A|${!}                      |
+A|${!:+bbb}                 |
+A|${!:-bbb}                 |     bbb
+A|$0                        |
+A|${0}                      |
+A|${0:+bbb}                 |
+A|${0:-bbb}                 |     bbb

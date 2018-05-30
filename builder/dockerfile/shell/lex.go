@@ -131,7 +131,7 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 
 		if stopChar != scanner.EOF && ch == stopChar {
 			sw.scanner.Next()
-			break
+			return result.String(), words.getWords(), nil
 		}
 		if fn, ok := charFuncMapping[ch]; ok {
 			// Call special processing func for certain chars
@@ -166,7 +166,9 @@ func (sw *shellWord) processStopOn(stopChar rune) (string, []string, error) {
 			result.WriteRune(ch)
 		}
 	}
-
+	if stopChar != scanner.EOF {
+		return "", []string{}, errors.Errorf("unexpected end of statement while looking for matching %s", string(stopChar))
+	}
 	return result.String(), words.getWords(), nil
 }
 
@@ -259,22 +261,29 @@ func (sw *shellWord) processDollar() (string, error) {
 	}
 
 	sw.scanner.Next()
-	name := sw.processName()
-	ch := sw.scanner.Peek()
-	if ch == '}' {
-		// Normal ${xx} case
-		sw.scanner.Next()
-		return sw.getEnv(name), nil
+	switch sw.scanner.Peek() {
+	case scanner.EOF:
+		return "", errors.New("syntax error: missing '}'")
+	case '{', '}', ':':
+		// Invalid ${{xx}, ${:xx}, ${:}. ${} case
+		return "", errors.New("syntax error: bad substitution")
 	}
-	if ch == ':' {
+	name := sw.processName()
+	ch := sw.scanner.Next()
+	switch ch {
+	case '}':
+		// Normal ${xx} case
+		return sw.getEnv(name), nil
+	case ':':
 		// Special ${xx:...} format processing
 		// Yes it allows for recursive $'s in the ... spot
-
-		sw.scanner.Next() // skip over :
 		modifier := sw.scanner.Next()
 
 		word, _, err := sw.processStopOn('}')
 		if err != nil {
+			if sw.scanner.Peek() == scanner.EOF {
+				return "", errors.New("syntax error: missing '}'")
+			}
 			return "", err
 		}
 
@@ -310,6 +319,14 @@ func (sw *shellWord) processName() string {
 	for sw.scanner.Peek() != scanner.EOF {
 		ch := sw.scanner.Peek()
 		if name.Len() == 0 && unicode.IsDigit(ch) {
+			for sw.scanner.Peek() != scanner.EOF && unicode.IsDigit(sw.scanner.Peek()) {
+				// Keep reading until the first non-digit character, or EOF
+				ch = sw.scanner.Next()
+				name.WriteRune(ch)
+			}
+			return name.String()
+		}
+		if name.Len() == 0 && isSpecialParam(ch) {
 			ch = sw.scanner.Next()
 			return string(ch)
 		}
@@ -321,6 +338,18 @@ func (sw *shellWord) processName() string {
 	}
 
 	return name.String()
+}
+
+// isSpecialParam checks if the provided character is a special parameters,
+// as defined in http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+func isSpecialParam(char rune) bool {
+	switch char {
+	case '@', '*', '#', '?', '-', '$', '!', '0':
+		// Special parameters
+		// http://pubs.opengroup.org/onlinepubs/009695399/utilities/xcu_chap02.html#tag_02_05_02
+		return true
+	}
+	return false
 }
 
 func (sw *shellWord) getEnv(name string) string {
