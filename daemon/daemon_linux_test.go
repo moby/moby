@@ -229,6 +229,10 @@ func checkMounted(t *testing.T, p string, expect bool) {
 }
 
 func TestRootMountCleanup(t *testing.T) {
+	if os.Getuid() != 0 {
+		t.Skip("root required")
+	}
+
 	t.Parallel()
 
 	testRoot, err := ioutil.TempDir("", t.Name())
