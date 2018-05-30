@@ -1,6 +1,9 @@
 package plugingetter // import "github.com/docker/docker/pkg/plugingetter"
 
 import (
+	"net"
+	"time"
+
 	"github.com/docker/docker/pkg/plugins"
 )
 
@@ -19,6 +22,14 @@ type CompatPlugin interface {
 	Name() string
 	ScopedPath(string) string
 	IsV1() bool
+}
+
+// PluginAddr is a plugin that exposes the socket address for creating custom clients rather than the built-in `*plugins.Client`
+type PluginAddr interface {
+	CompatPlugin
+	Addr() net.Addr
+	Timeout() time.Duration
+	Protocol() string
 }
 
 // CountedPlugin is a plugin which is reference counted.

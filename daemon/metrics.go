@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-metrics"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
@@ -118,7 +119,15 @@ func (d *Daemon) cleanupMetricsPlugins() {
 		p := plugin
 		go func() {
 			defer wg.Done()
-			pluginStopMetricsCollection(p)
+
+			adapter, err := makePluginAdapter(p)
+			if err != nil {
+				logrus.WithError(err).WithField("plugin", p.Name()).Error("Error creating metrics plugin adapater")
+				return
+			}
+			if err := adapter.StopMetrics(); err != nil {
+				logrus.WithError(err).WithField("plugin", p.Name()).Error("Error stopping plugin metrics collection")
+			}
 		}()
 	}
 	wg.Wait()
@@ -128,12 +137,39 @@ func (d *Daemon) cleanupMetricsPlugins() {
 	}
 }
 
-func pluginStartMetricsCollection(p plugingetter.CompatPlugin) error {
+type metricsPlugin interface {
+	StartMetrics() error
+	StopMetrics() error
+}
+
+func makePluginAdapter(p plugingetter.CompatPlugin) (metricsPlugin, error) {
+	pa, ok := p.(plugingetter.PluginAddr)
+	if !ok {
+		return &metricsPluginAdapter{p.Client(), p.Name()}, nil
+	}
+	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+		return nil, errors.Errorf("plugin protocol not supported: %s", pa.Protocol())
+	}
+
+	addr := pa.Addr()
+	client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating metrics plugin client")
+	}
+	return &metricsPluginAdapter{client, p.Name()}, nil
+}
+
+type metricsPluginAdapter struct {
+	c    *plugins.Client
+	name string
+}
+
+func (a *metricsPluginAdapter) StartMetrics() error {
 	type metricsPluginResponse struct {
 		Err string
 	}
 	var res metricsPluginResponse
-	if err := p.Client().Call(metricsPluginType+".StartMetrics", nil, &res); err != nil {
+	if err := a.c.Call(metricsPluginType+".StartMetrics", nil, &res); err != nil {
 		return errors.Wrap(err, "could not start metrics plugin")
 	}
 	if res.Err != "" {
@@ -142,8 +178,9 @@ func pluginStartMetricsCollection(p plugingetter.CompatPlugin) error {
 	return nil
 }
 
-func pluginStopMetricsCollection(p plugingetter.CompatPlugin) {
-	if err := p.Client().Call(metricsPluginType+".StopMetrics", nil, nil); err != nil {
-		logrus.WithError(err).WithField("name", p.Name()).Error("error stopping metrics collector")
+func (a *metricsPluginAdapter) StopMetrics() error {
+	if err := a.c.Call(metricsPluginType+".StopMetrics", nil, nil); err != nil {
+		return errors.Wrap(err, "error stopping metrics collector")
 	}
+	return nil
 }
