@@ -23,7 +23,8 @@ import (
 )
 
 const (
-	// DefaultStopTimeout is the timeout (in seconds) for the syscall signal used to stop a container.
+	// DefaultStopTimeout sets the default time, in seconds, to wait
+	// for the graceful container stop before forcefully terminating it.
 	DefaultStopTimeout = 10
 
 	containerSecretMountPath = "/run/secrets"
