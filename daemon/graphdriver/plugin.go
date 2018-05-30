@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/plugin/v2"
@@ -33,19 +34,22 @@ func newPluginDriver(name string, pl plugingetter.CompatPlugin, config Options) 
 
 	var proxy *graphDriverProxy
 
-	pa, ok := pl.(plugingetter.PluginAddr)
-	if !ok {
-		proxy = &graphDriverProxy{name, pl, Capabilities{}, pl.Client()}
-	} else {
-		if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
-			return nil, errors.Errorf("plugin protocol not supported: %s", pa.Protocol())
+	switch pt := pl.(type) {
+	case plugingetter.PluginWithV1Client:
+		proxy = &graphDriverProxy{name, pl, Capabilities{}, pt.Client()}
+	case plugingetter.PluginAddr:
+		if pt.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+			return nil, errors.Errorf("plugin protocol not supported: %s", pt.Protocol())
 		}
-		addr := pa.Addr()
-		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
+		addr := pt.Addr()
+		client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pt.Timeout())
 		if err != nil {
 			return nil, errors.Wrap(err, "error creating plugin client")
 		}
 		proxy = &graphDriverProxy{name, pl, Capabilities{}, client}
+	default:
+		return nil, errdefs.System(errors.Errorf("got unknown plugin type %T", pt))
 	}
+
 	return proxy, proxy.Init(filepath.Join(home, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 }
