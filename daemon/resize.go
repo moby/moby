@@ -37,5 +37,8 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 	if err != nil {
 		return err
 	}
-	return daemon.containerd.ResizeTerminal(context.Background(), ec.ContainerID, ec.ID, width, height)
+  ec.Lock()
+	err = daemon.containerd.ResizeTerminal(context.Background(), ec.ContainerID, ec.ID, width, height)
+  ec.Unlock()
+  return err
 }
