@@ -752,10 +752,8 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 		}
 	}
 
-	if ep.svcID != "" {
-		if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
-			logrus.Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
-		}
+	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
+		logrus.Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {
