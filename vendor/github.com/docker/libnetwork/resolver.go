@@ -491,9 +491,9 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 			r.forwardQueryEnd()
 			if resp != nil {
-				if resp.Rcode == dns.RcodeServerFailure {
-					// for Server Failure response, continue to the next external DNS server
-					logrus.Debugf("[resolver] external DNS %s:%s responded with ServFail for %q", proto, extDNS.IPStr, name)
+				if resp.Rcode == dns.RcodeServerFailure || resp.Rcode == dns.RcodeNameError || resp.Rcode == dns.RcodeRefused {
+					// for Server Failure, No Domain or Server Refusal responses, continue to the next external DNS server
+					logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, dns.RcodeToString[resp.Rcode], name)
 					continue
 				}
 				answers := 0
