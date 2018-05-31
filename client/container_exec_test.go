@@ -6,11 +6,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/pkg/errors"
+	"github.com/stretchr/testify/require"
 )
 
 func TestContainerExecCreateError(t *testing.T) {
@@ -75,6 +79,27 @@ func TestContainerExecStartError(t *testing.T) {
 	err := client.ContainerExecStart(context.Background(), "nothing", types.ExecStartCheck{})
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
+	}
+}
+
+func TestContainerExecAttachTimeout(t *testing.T) {
+	hostURL, err := ParseHostURL("tcp://0.0.0.0:4243")
+	require.NoError(t, err)
+
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, fmt.Errorf("")
+		}),
+
+		proto:    hostURL.Scheme,
+		addr:     hostURL.Host,
+		basePath: hostURL.Path,
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
+	defer cancel()
+	_, err = client.ContainerExecAttach(ctx, "nothing", types.ExecStartCheck{})
+	if err == nil || !errors.Cause(err).(net.Error).Timeout() {
+		t.Fatalf("expected a timeout error, got %v", err)
 	}
 }
 
