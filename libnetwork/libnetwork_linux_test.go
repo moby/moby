@@ -22,8 +22,6 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer"
-	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
@@ -521,14 +519,17 @@ func externalKeyTest(t *testing.T, reexec bool) {
 }
 
 func reexecSetKey(key string, containerID string, controllerID string) error {
+	type libcontainerState struct {
+		NamespacePaths map[string]string
+	}
 	var (
-		state libcontainer.State
+		state libcontainerState
 		b     []byte
 		err   error
 	)
 
-	state.NamespacePaths = make(map[configs.NamespaceType]string)
-	state.NamespacePaths[configs.NamespaceType("NEWNET")] = key
+	state.NamespacePaths = make(map[string]string)
+	state.NamespacePaths["NEWNET"] = key
 	if b, err = json.Marshal(state); err != nil {
 		return err
 	}
