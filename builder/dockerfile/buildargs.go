@@ -17,6 +17,8 @@ var builtinAllowedBuildArgs = map[string]bool{
 	"https_proxy": true,
 	"FTP_PROXY":   true,
 	"ftp_proxy":   true,
+	"ALL_PROXY":   true,
+	"all_proxy":   true,
 	"NO_PROXY":    true,
 	"no_proxy":    true,
 }
