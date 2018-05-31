@@ -212,9 +212,13 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 }
 
 func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
+	if pc, ok := p.(getter.PluginWithV1Client); ok {
+		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{pc.Client()}}, nil
+	}
+
 	pa, ok := p.(getter.PluginAddr)
 	if !ok {
-		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{p.Client()}}, nil
+		return nil, errdefs.System(errors.Errorf("got unknown plugin instance %T", p))
 	}
 
 	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {

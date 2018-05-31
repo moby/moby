@@ -18,15 +18,19 @@ const (
 
 // CompatPlugin is an abstraction to handle both v2(new) and v1(legacy) plugins.
 type CompatPlugin interface {
-	Client() *plugins.Client
 	Name() string
 	ScopedPath(string) string
 	IsV1() bool
+	PluginWithV1Client
+}
+
+// PluginWithV1Client is a plugin that directly utilizes the v1/http plugin client
+type PluginWithV1Client interface {
+	Client() *plugins.Client
 }
 
 // PluginAddr is a plugin that exposes the socket address for creating custom clients rather than the built-in `*plugins.Client`
 type PluginAddr interface {
-	CompatPlugin
 	Addr() net.Addr
 	Timeout() time.Duration
 	Protocol() string
