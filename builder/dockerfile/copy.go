@@ -172,7 +172,9 @@ func (o *copier) calcCopyInfo(origPath string, allowWildcards bool) ([]copyInfo,
 	// TODO: do this when creating copier. Requires validateCopySourcePath
 	// (and other below) to be aware of the difference sources. Why is it only
 	// done on image Source?
-	if imageSource != nil {
+	if imageSource != nil && o.activeLayer == nil {
+		// this needs to be protected against repeated calls as wildcard copy
+		// will call it multiple times for a single COPY
 		var err error
 		rwLayer, err := imageSource.NewRWLayer()
 		if err != nil {
