@@ -243,7 +243,7 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 		CloseStdin: true,
 	}
 	ec.StreamConfig.AttachStreams(&attachConfig)
-	attachErr := ec.StreamConfig.CopyStreams(ctx, &attachConfig)
+	attachErr := stream.CopyStreams(ctx, &attachConfig)
 
 	// Synchronize with libcontainerd event loop
 	ec.Lock()

@@ -17,7 +17,7 @@ import (
 )
 
 // ContainerAttach attaches to logs according to the config passed in. See ContainerAttachConfig.
-func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerAttachConfig) error {
+func (daemon *Daemon) ContainerAttach(ctx context.Context, prefixOrName string, c *backend.ContainerAttachConfig) error {
 	keys := []byte{}
 	var err error
 	if c.DetachKeys != "" {
@@ -71,14 +71,14 @@ func (daemon *Daemon) ContainerAttach(prefixOrName string, c *backend.ContainerA
 		cfg.Stderr = errStream
 	}
 
-	if err := daemon.containerAttach(container, &cfg, c.Logs, c.Stream); err != nil {
+	if err := daemon.containerAttach(ctx, container, &cfg, c.Logs, c.Stream); err != nil {
 		fmt.Fprintf(outStream, "Error attaching: %s\n", err)
 	}
 	return nil
 }
 
 // ContainerAttachRaw attaches the provided streams to the container's stdio
-func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
+func (daemon *Daemon) ContainerAttachRaw(ctx context.Context, prefixOrName string, stdin io.ReadCloser, stdout, stderr io.Writer, doStream bool, attached chan struct{}) error {
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -102,10 +102,10 @@ func (daemon *Daemon) ContainerAttachRaw(prefixOrName string, stdin io.ReadClose
 		cfg.Stderr = stderr
 	}
 
-	return daemon.containerAttach(container, &cfg, false, doStream)
+	return daemon.containerAttach(ctx, container, &cfg, false, doStream)
 }
 
-func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
+func (daemon *Daemon) containerAttach(ctx context.Context, c *container.Container, cfg *stream.AttachConfig, logs, doStream bool) error {
 	if logs {
 		logDriver, logCreated, err := daemon.getLogger(c)
 		if err != nil {
@@ -173,8 +173,25 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 		}()
 	}
 
-	ctx := c.InitAttachContext()
-	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
+	attachContext := c.InitAttachContext()
+	attachContext, cancel := context.WithCancel(attachContext)
+	defer cancel()
+
+	var err error
+	select {
+	case err = <-stream.CopyStreams(attachContext, cfg):
+	case <-ctx.Done():
+		if cfg.CStdout != nil {
+			cfg.CStdout.Close()
+		}
+		if cfg.CStderr != nil {
+			cfg.CStderr.Close()
+		}
+		if cfg.CStdin != nil {
+			cfg.CStdin.Close()
+		}
+		err = <-stream.CopyStreams(attachContext, cfg)
+	}
 	if err != nil {
 		if _, ok := errors.Cause(err).(term.EscapeError); ok || err == context.Canceled {
 			daemon.LogContainerEvent(c, "detach")

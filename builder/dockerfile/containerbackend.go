@@ -47,7 +47,7 @@ func (c *containerManager) Run(ctx context.Context, cID string, stdout, stderr i
 	attached := make(chan struct{})
 	errCh := make(chan error)
 	go func() {
-		errCh <- c.backend.ContainerAttachRaw(cID, nil, stdout, stderr, true, attached)
+		errCh <- c.backend.ContainerAttachRaw(ctx, cID, nil, stdout, stderr, true, attached)
 	}()
 	select {
 	case err := <-errCh:

@@ -2,7 +2,10 @@
 
 package hack // import "github.com/docker/docker/cmd/dockerd/hack"
 
-import "net"
+import (
+	"net"
+	"syscall"
+)
 
 // MalformedHostHeaderOverride is a wrapper to be able
 // to overcome the 400 Bad request coming from old docker
@@ -117,5 +120,20 @@ func (l *MalformedHostHeaderOverride) Accept() (net.Conn, error) {
 	if err != nil {
 		return c, err
 	}
-	return &MalformedHostHeaderOverrideConn{c, true}, nil
+
+	switch c.(type) {
+	case syscall.Conn:
+		return &syscallConnWrapper{&MalformedHostHeaderOverrideConn{c, true}}, nil
+	default:
+		return &MalformedHostHeaderOverrideConn{c, true}, nil
+	}
+}
+
+type syscallConnWrapper struct {
+	*MalformedHostHeaderOverrideConn
+}
+
+func (w *syscallConnWrapper) SyscallConn() (syscall.RawConn, error) {
+	conn := w.MalformedHostHeaderOverrideConn.Conn
+	return conn.(syscall.Conn).SyscallConn()
 }

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"reflect"
 	"strconv"
 	"syscall"
 
@@ -22,6 +23,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/websocket"
+	"golang.org/x/sys/unix"
 )
 
 func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -532,11 +534,70 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return errdefs.InvalidParameter(errors.Errorf("error attaching to container %s, hijack connection missing", containerName))
 	}
 
+	ctx, cancelStreams := context.WithCancel(ctx)
+	defer cancelStreams()
+
 	setupStreams := func() (io.ReadCloser, io.Writer, io.Writer, error) {
 		conn, _, err := hijacker.Hijack()
 		if err != nil {
 			return nil, nil, nil, err
 		}
+
+		func() {
+			sConnI, ok := conn.(syscall.Conn)
+			if !ok {
+				logrus.WithField("type", reflect.TypeOf(conn)).Warn("could not setup connection close notifier for attach client: conn does not support raw access")
+				return
+			}
+			sConn, err := sConnI.SyscallConn()
+			if err != nil {
+				logrus.WithError(err).Warn("could not setup connection close notifier for attach client: could not get raw conn")
+				return
+			}
+
+			ep, err := unix.EpollCreate(1)
+			if err != nil {
+				logrus.WithError(err).Error("error creating epoll fd to watch client attach stream")
+				return
+			}
+
+			go func() {
+				err := sConn.Control(func(fd uintptr) {
+					if err := unix.EpollCtl(ep, unix.EPOLL_CTL_ADD, int(fd), &unix.EpollEvent{
+						Events: unix.EPOLLET | unix.EPOLLONESHOT | unix.EPOLLRDHUP,
+						Fd:     int32(fd),
+					}); err != nil {
+						logrus.WithError(err).Warn("error adding client attach fd to epoll")
+					}
+					defer unix.Close(ep)
+					var events [1]unix.EpollEvent
+
+					for {
+						select {
+						case <-ctx.Done():
+							return
+						default:
+						}
+						nEvents, err := unix.EpollWait(ep, events[:], -1)
+						if err != nil {
+							logrus.WithError(err).Error("epoll: error waiting for client close event")
+							return
+						}
+
+						for i := 0; i < nEvents; i++ {
+							logrus.Debugf("%+v", events[i])
+							if events[i].Events&unix.EPOLLRDHUP > 0 || events[i].Events&unix.EPOLLHUP > 0 {
+								cancelStreams()
+								return
+							}
+						}
+					}
+				})
+				if err != nil {
+					logrus.WithError(err).Error("Error getting control of raw fd")
+				}
+			}()
+		}()
 
 		// set raw mode
 		conn.Write([]byte{})
@@ -565,7 +626,7 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		MuxStreams: true,
 	}
 
-	if err = s.backend.ContainerAttach(containerName, attachConfig); err != nil {
+	if err = s.backend.ContainerAttach(ctx, containerName, attachConfig); err != nil {
 		logrus.Errorf("Handler for %s %s returned error: %v", r.Method, r.URL.Path, err)
 		// Remember to close stream if error happens
 		conn, _, errHijack := hijacker.Hijack()
@@ -628,7 +689,7 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		MuxStreams: false, // TODO: this should be true since it's a single stream for both stdout and stderr
 	}
 
-	err = s.backend.ContainerAttach(containerName, attachConfig)
+	err = s.backend.ContainerAttach(ctx, containerName, attachConfig)
 	close(done)
 	select {
 	case <-started:
