@@ -29,7 +29,7 @@ func TestSecretInspect(t *testing.T) {
 
 	ctx := context.Background()
 
-	testName := "test_secret"
+	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	secret, _, err := client.SecretInspectWithRaw(context.Background(), secretID)
@@ -51,8 +51,8 @@ func TestSecretList(t *testing.T) {
 	defer client.Close()
 	ctx := context.Background()
 
-	testName0 := "test0"
-	testName1 := "test1"
+	testName0 := "test0_" + t.Name()
+	testName1 := "test1_" + t.Name()
 	testNames := []string{testName0, testName1}
 	sort.Strings(testNames)
 
@@ -137,7 +137,7 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	defer client.Close()
 	ctx := context.Background()
 
-	testName := "test_secret"
+	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	// create an already existin secret, daemon should return a status code of 409
@@ -160,7 +160,7 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	assert.Check(t, is.ErrorContains(err, "No such secret: non-existin"))
 
 	// Ported from original TestSecretsCreteaWithLabels
-	testName = "test_secret_with_labels"
+	testName = "test_secret_with_labels_" + t.Name()
 	secretID = createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), map[string]string{
 		"key1": "value1",
 		"key2": "value2",
@@ -184,7 +184,7 @@ func TestSecretsUpdate(t *testing.T) {
 	defer client.Close()
 	ctx := context.Background()
 
-	testName := "test_secret"
+	testName := "test_secret_" + t.Name()
 	secretID := createSecret(ctx, t, client, testName, []byte("TESTINGDATA"), nil)
 
 	insp, _, err := client.SecretInspectWithRaw(ctx, secretID)
@@ -232,27 +232,30 @@ func TestTemplatedSecret(t *testing.T) {
 	defer client.Close()
 	ctx := context.Background()
 
+	referencedSecretName := "referencedsecret_" + t.Name()
 	referencedSecretSpec := swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "referencedsecret",
+			Name: referencedSecretName,
 		},
 		Data: []byte("this is a secret"),
 	}
 	referencedSecret, err := client.SecretCreate(ctx, referencedSecretSpec)
 	assert.Check(t, err)
 
+	referencedConfigName := "referencedconfig_" + t.Name()
 	referencedConfigSpec := swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "referencedconfig",
+			Name: referencedConfigName,
 		},
 		Data: []byte("this is a config"),
 	}
 	referencedConfig, err := client.ConfigCreate(ctx, referencedConfigSpec)
 	assert.Check(t, err)
 
+	templatedSecretName := "templated_secret_" + t.Name()
 	secretSpec := swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "templated_secret",
+			Name: templatedSecretName,
 		},
 		Templating: &swarmtypes.Driver{
 			Name: "golang",
@@ -265,6 +268,7 @@ func TestTemplatedSecret(t *testing.T) {
 	templatedSecret, err := client.SecretCreate(ctx, secretSpec)
 	assert.Check(t, err)
 
+	serviceName := "svc_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithSecret(
 			&swarmtypes.SecretReference{
@@ -275,7 +279,7 @@ func TestTemplatedSecret(t *testing.T) {
 					Mode: 0600,
 				},
 				SecretID:   templatedSecret.ID,
-				SecretName: "templated_secret",
+				SecretName: templatedSecretName,
 			},
 		),
 		swarm.ServiceWithConfig(
@@ -287,7 +291,7 @@ func TestTemplatedSecret(t *testing.T) {
 					Mode: 0600,
 				},
 				ConfigID:   referencedConfig.ID,
-				ConfigName: "referencedconfig",
+				ConfigName: referencedConfigName,
 			},
 		),
 		swarm.ServiceWithSecret(
@@ -299,10 +303,10 @@ func TestTemplatedSecret(t *testing.T) {
 					Mode: 0600,
 				},
 				SecretID:   referencedSecret.ID,
-				SecretName: "referencedsecret",
+				SecretName: referencedSecretName,
 			},
 		),
-		swarm.ServiceWithName("svc"),
+		swarm.ServiceWithName(serviceName),
 	)
 
 	var tasks []swarmtypes.Task
@@ -325,7 +329,7 @@ func TestTemplatedSecret(t *testing.T) {
 		AttachStderr: true,
 	})
 
-	expect := "SERVICE_NAME=svc\n" +
+	expect := "SERVICE_NAME=" + serviceName + "\n" +
 		"this is a secret\n" +
 		"this is a config\n"
 	assertAttachedStream(t, attach, expect)
