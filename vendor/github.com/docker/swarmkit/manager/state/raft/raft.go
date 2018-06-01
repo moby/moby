@@ -152,10 +152,14 @@ type Node struct {
 	// to stop.
 	stopped chan struct{}
 
-	raftLogger          *storage.EncryptedRaftLogger
-	keyRotator          EncryptionKeyRotator
-	rotationQueued      bool
-	clearData           bool
+	raftLogger     *storage.EncryptedRaftLogger
+	keyRotator     EncryptionKeyRotator
+	rotationQueued bool
+	clearData      bool
+
+	// waitForAppliedIndex stores the index of the last log that was written using
+	// an raft DEK during a raft DEK rotation, so that we won't finish a rotation until
+	// a snapshot covering that index has been written encrypted with the new raft DEK
 	waitForAppliedIndex uint64
 	ticksWithNoLeader   uint32
 }

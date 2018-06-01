@@ -49,26 +49,20 @@ func copyFileContent(dst, src *os.File) error {
 		return errors.Wrap(err, "unable to stat source")
 	}
 
-	size := st.Size()
-	first := true
-	srcFd := int(src.Fd())
-	dstFd := int(dst.Fd())
-
-	for size > 0 {
-		n, err := unix.CopyFileRange(srcFd, nil, dstFd, nil, int(size), 0)
-		if err != nil {
-			if (err != unix.ENOSYS && err != unix.EXDEV) || !first {
-				return errors.Wrap(err, "copy file range failed")
-			}
-
-			buf := bufferPool.Get().(*[]byte)
-			_, err = io.CopyBuffer(dst, src, *buf)
-			bufferPool.Put(buf)
-			return errors.Wrap(err, "userspace copy failed")
+	n, err := unix.CopyFileRange(int(src.Fd()), nil, int(dst.Fd()), nil, int(st.Size()), 0)
+	if err != nil {
+		if err != unix.ENOSYS && err != unix.EXDEV {
+			return errors.Wrap(err, "copy file range failed")
 		}
 
-		first = false
-		size -= int64(n)
+		buf := bufferPool.Get().(*[]byte)
+		_, err = io.CopyBuffer(dst, src, *buf)
+		bufferPool.Put(buf)
+		return err
+	}
+
+	if int64(n) != st.Size() {
+		return errors.Wrapf(err, "short copy: %d of %d", int64(n), st.Size())
 	}
 
 	return nil

@@ -10,6 +10,10 @@ import (
 	"github.com/docker/swarmkit/manager/state/raft"
 )
 
+// This module contains the data structures and control flow to manage rotating the raft
+// DEK and also for interacting with KeyReadWriter to maintain the raft DEK information in
+// the PEM headers fo the TLS key for the node.
+
 const (
 	// the raft DEK (data encryption key) is stored in the TLS key as a header
 	// these are the header values
@@ -18,9 +22,14 @@ const (
 	pemHeaderRaftDEKNeedsRotation = "raft-dek-needs-rotation"
 )
 
-// RaftDEKData contains all the data stored in TLS pem headers
+// RaftDEKData contains all the data stored in TLS pem headers.
 type RaftDEKData struct {
+
+	// EncryptionKeys contain the current and pending raft DEKs
 	raft.EncryptionKeys
+
+	// NeedsRotation indicates whether another rotation needs to be happen after
+	// the current one.
 	NeedsRotation bool
 
 	// The FIPS boolean is not serialized, but is internal state which indicates how
@@ -28,7 +37,11 @@ type RaftDEKData struct {
 	FIPS bool
 }
 
-// UnmarshalHeaders loads the state of the DEK manager given the current TLS headers
+// RaftDEKData should implement the PEMKeyHeaders interface
+var _ ca.PEMKeyHeaders = RaftDEKData{}
+
+// UnmarshalHeaders loads the current state of the DEKs into a new RaftDEKData object (which is returned) given the
+// current TLS headers and the current KEK.
 func (r RaftDEKData) UnmarshalHeaders(headers map[string]string, kekData ca.KEKData) (ca.PEMKeyHeaders, error) {
 	var (
 		currentDEK, pendingDEK []byte
@@ -63,7 +76,8 @@ func (r RaftDEKData) UnmarshalHeaders(headers map[string]string, kekData ca.KEKD
 	}, nil
 }
 
-// MarshalHeaders returns new headers given the current KEK
+// MarshalHeaders returns new PEM headers given the current KEK - it uses the current KEK to
+// serialize/encrypt the current DEK state that is maintained in the current RaftDEKData object.
 func (r RaftDEKData) MarshalHeaders(kekData ca.KEKData) (map[string]string, error) {
 	headers := make(map[string]string)
 	for headerKey, contents := range map[string][]byte{
@@ -87,7 +101,7 @@ func (r RaftDEKData) MarshalHeaders(kekData ca.KEKData) (map[string]string, erro
 	return headers, nil
 }
 
-// UpdateKEK optionally sets NeedRotation to true if we go from unlocked to locked
+// UpdateKEK sets NeedRotation to true if we go from unlocked to locked.
 func (r RaftDEKData) UpdateKEK(oldKEK, candidateKEK ca.KEKData) ca.PEMKeyHeaders {
 	if _, unlockedToLocked, err := compareKEKs(oldKEK, candidateKEK); err == nil && unlockedToLocked {
 		return RaftDEKData{
@@ -114,7 +128,8 @@ func compareKEKs(oldKEK, candidateKEK ca.KEKData) (bool, bool, error) {
 	}
 }
 
-// RaftDEKManager manages the raft DEK keys using TLS headers
+// RaftDEKManager manages the raft DEK keys by interacting with KeyReadWriter, calling the necessary functions
+// to update the TLS headers when the raft DEK needs to change, or to re-encrypt everything when the KEK changes.
 type RaftDEKManager struct {
 	kw         ca.KeyWriter
 	rotationCh chan struct{}
