@@ -294,7 +294,8 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	t, err = ctr.ctr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(ctr.bundleDir, InitProcessName, withStdin, spec.Process.Terminal)
-			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
+
+			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio, spec.Process.Terminal)
 			return rio, err
 		},
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
@@ -365,7 +366,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	}()
 
 	p, err = t.Exec(ctx, processID, spec, func(id string) (cio.IO, error) {
-		rio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio)
+		rio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio, spec.Terminal)
 		return rio, err
 	})
 	if err != nil {
@@ -644,8 +645,16 @@ func (c *client) getProcess(containerID, processID string) (containerd.Process, 
 
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
-func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (cio.IO, error) {
-	io, err := cio.NewDirectIO(context.Background(), fifos)
+func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback, terminal bool) (cio.IO, error) {
+	var (
+		io  *cio.DirectIO
+		err error
+	)
+	if terminal {
+		io, err = cio.NewDirectIOWithTerminal(context.Background(), fifos)
+	} else {
+		io, err = cio.NewDirectIO(context.Background(), fifos)
+	}
 	if err != nil {
 		return nil, err
 	}
