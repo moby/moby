@@ -28,7 +28,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 )
 
 // ENV foo bar
@@ -305,10 +304,12 @@ func dispatchWorkdir(d dispatchRequest, c *instructions.WorkdirCommand) error {
 
 	comment := "WORKDIR " + runConfig.WorkingDir
 	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdCommentString(comment, d.state.operatingSystem))
+
 	containerID, err := d.builder.probeAndCreate(d.state, runConfigWithCommentCmd)
 	if err != nil || containerID == "" {
 		return err
 	}
+
 	if err := d.builder.docker.ContainerCreateWorkdir(containerID); err != nil {
 		return err
 	}
@@ -350,8 +351,7 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 	runConfigForCacheProbe := copyRunConfig(stateRunConfig,
 		withCmd(saveCmd),
 		withEntrypointOverride(saveCmd, nil))
-	hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe)
-	if err != nil || hit {
+	if hit, err := d.builder.probeCache(d.state, runConfigForCacheProbe); err != nil || hit {
 		return err
 	}
 
@@ -363,11 +363,11 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
 
-	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 	cID, err := d.builder.create(runConfig)
 	if err != nil {
 		return err
 	}
+
 	if err := d.builder.containerManager.Run(d.builder.clientCtx, cID, d.builder.Stdout, d.builder.Stderr); err != nil {
 		if err, ok := err.(*statusCodeError); ok {
 			// TODO: change error type, because jsonmessage.JSONError assumes HTTP

@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Archiver defines an interface for copying files from one destination to
@@ -84,12 +85,8 @@ func (b *Builder) commit(dispatchState *dispatchState, comment string) error {
 	}
 
 	runConfigWithCommentCmd := copyRunConfig(dispatchState.runConfig, withCmdComment(comment, dispatchState.operatingSystem))
-	hit, err := b.probeCache(dispatchState, runConfigWithCommentCmd)
-	if err != nil || hit {
-		return err
-	}
-	id, err := b.create(runConfigWithCommentCmd)
-	if err != nil {
+	id, err := b.probeAndCreate(dispatchState, runConfigWithCommentCmd)
+	if err != nil || id == "" {
 		return err
 	}
 
@@ -413,13 +410,11 @@ func (b *Builder) probeAndCreate(dispatchState *dispatchState, runConfig *contai
 	if hit, err := b.probeCache(dispatchState, runConfig); err != nil || hit {
 		return "", err
 	}
-	// Set a log config to override any default value set on the daemon
-	hostConfig := &container.HostConfig{LogConfig: defaultLogConfig}
-	container, err := b.containerManager.Create(runConfig, hostConfig)
-	return container.ID, err
+	return b.create(runConfig)
 }
 
 func (b *Builder) create(runConfig *container.Config) (string, error) {
+	logrus.Debugf("[BUILDER] Command to be executed: %v", runConfig.Cmd)
 	hostConfig := hostConfigFromOptions(b.options)
 	container, err := b.containerManager.Create(runConfig, hostConfig)
 	if err != nil {
