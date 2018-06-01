@@ -172,6 +172,14 @@ func (c *containerConfig) isolation() enginecontainer.Isolation {
 	return convert.IsolationFromGRPC(c.spec().Isolation)
 }
 
+func (c *containerConfig) init() *bool {
+	if c.spec().Init == nil {
+		return nil
+	}
+	init := c.spec().Init.GetValue()
+	return &init
+}
+
 func (c *containerConfig) exposedPorts() map[nat.Port]struct{} {
 	exposedPorts := make(map[nat.Port]struct{})
 	if c.task.Endpoint == nil {
@@ -355,6 +363,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Mounts:         c.mounts(),
 		ReadonlyRootfs: c.spec().ReadOnly,
 		Isolation:      c.isolation(),
+		Init:           c.init(),
 	}
 
 	if c.spec().DNSConfig != nil {

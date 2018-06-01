@@ -66,6 +66,7 @@ type Daemon struct {
 	userlandProxy bool
 	execRoot      string
 	experimental  bool
+	init          bool
 	dockerdBinary string
 	log           logT
 
@@ -229,7 +230,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
 	if d.experimental {
-		args = append(args, "--experimental", "--init")
+		args = append(args, "--experimental")
+	}
+	if d.init {
+		args = append(args, "--init")
 	}
 	if !(d.UseDefaultHost || d.UseDefaultTLSHost) {
 		args = append(args, []string{"--host", d.Sock()}...)

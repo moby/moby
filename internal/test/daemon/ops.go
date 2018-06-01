@@ -5,6 +5,12 @@ import "github.com/docker/docker/internal/test/environment"
 // WithExperimental sets the daemon in experimental mode
 func WithExperimental(d *Daemon) {
 	d.experimental = true
+	d.init = true
+}
+
+// WithInit sets the daemon init
+func WithInit(d *Daemon) {
+	d.init = true
 }
 
 // WithDockerdBinary sets the dockerd binary to the specified one
