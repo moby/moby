@@ -1,29 +1,31 @@
 [![Build Status](https://travis-ci.org/miekg/dns.svg?branch=master)](https://travis-ci.org/miekg/dns)
+[![Code Coverage](https://img.shields.io/codecov/c/github/miekg/dns/master.svg)](https://codecov.io/github/miekg/dns?branch=master)
+[![Go Report Card](https://goreportcard.com/badge/github.com/miekg/dns)](https://goreportcard.com/report/miekg/dns)
+[![](https://godoc.org/github.com/miekg/dns?status.svg)](https://godoc.org/github.com/miekg/dns)
 
 # Alternative (more granular) approach to a DNS library
 
 > Less is more.
 
-Complete and usable DNS library. All widely used Resource Records are
-supported, including the DNSSEC types. It follows a lean and mean philosophy.
-If there is stuff you should know as a DNS programmer there isn't a convenience
-function for it. Server side and client side programming is supported, i.e. you
-can build servers and resolvers with it.
+Complete and usable DNS library. All widely used Resource Records are supported, including the
+DNSSEC types. It follows a lean and mean philosophy. If there is stuff you should know as a DNS
+programmer there isn't a convenience function for it. Server side and client side programming is
+supported, i.e. you can build servers and resolvers with it.
 
-We try to keep the "master" branch as sane as possible and at the bleeding edge
-of standards, avoiding breaking changes wherever reasonable. We support the last
-two versions of Go, currently: 1.4 and 1.5.
+We try to keep the "master" branch as sane as possible and at the bleeding edge of standards,
+avoiding breaking changes wherever reasonable. We support the last two versions of Go.
 
 # Goals
 
 * KISS;
 * Fast;
-* Small API, if its easy to code in Go, don't make a function for it.
+* Small API. If it's easy to code in Go, don't make a function for it.
 
 # Users
 
 A not-so-up-to-date-list-that-may-be-actually-current:
 
+* https://github.com/coredns/coredns
 * https://cloudflare.com
 * https://github.com/abh/geodns
 * http://www.statdns.com/
@@ -33,6 +35,7 @@ A not-so-up-to-date-list-that-may-be-actually-current:
 * https://github.com/fcambus/rrda
 * https://github.com/kenshinx/godns
 * https://github.com/skynetservices/skydns
+* https://github.com/hashicorp/consul
 * https://github.com/DevelopersPL/godnsagent
 * https://github.com/duedil-ltd/discodns
 * https://github.com/StalkR/dns-reverse-proxy
@@ -42,10 +45,25 @@ A not-so-up-to-date-list-that-may-be-actually-current:
 * https://play.google.com/store/apps/details?id=com.turbobytes.dig
 * https://github.com/fcambus/statzone
 * https://github.com/benschw/dns-clb-go
-* https://github.com/corny/dnscheck for http://public-dns.tk/
+* https://github.com/corny/dnscheck for http://public-dns.info/
 * https://namesmith.io
 * https://github.com/miekg/unbound
 * https://github.com/miekg/exdns
+* https://dnslookup.org
+* https://github.com/looterz/grimd
+* https://github.com/phamhongviet/serf-dns
+* https://github.com/mehrdadrad/mylg
+* https://github.com/bamarni/dockness
+* https://github.com/fffaraz/microdns
+* http://kelda.io
+* https://github.com/ipdcode/hades (JD.COM)
+* https://github.com/StackExchange/dnscontrol/
+* https://www.dnsperf.com/
+* https://dnssectest.net/
+* https://dns.apebits.com
+* https://github.com/oif/apex
+* https://github.com/jedisct1/dnscrypt-proxy
+* https://github.com/jedisct1/rpdns
 
 Send pull request if you want to be listed here.
 
@@ -58,10 +76,11 @@ Send pull request if you want to be listed here.
     * Parsing RRs ~ 100K RR/s, that's 5M records in about 50 seconds;
 * Server side programming (mimicking the net/http package);
 * Client side programming;
-* DNSSEC: signing, validating and key generation for DSA, RSA and ECDSA;
-* EDNS0, NSID;
+* DNSSEC: signing, validating and key generation for DSA, RSA, ECDSA and Ed25519;
+* EDNS0, NSID, Cookies;
 * AXFR/IXFR;
 * TSIG, SIG(0);
+* DNS over TLS: optional encrypted connection between client and server;
 * DNS name compression;
 * Depends only on the standard library.
 
@@ -71,8 +90,8 @@ Miek Gieben  -  2010-2012  -  <miek@miek.nl>
 
 # Building
 
-Building is done with the `go` tool. If you have setup your GOPATH
-correctly, the following should work:
+Building is done with the `go` tool. If you have setup your GOPATH correctly, the following should
+work:
 
     go get github.com/miekg/dns
     go build github.com/miekg/dns
@@ -108,7 +127,6 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * 340{1,2,3} - NAPTR record
 * 3445 - Limiting the scope of (DNS)KEY
 * 3597 - Unknown RRs
-* 4025 - IPSECKEY
 * 403{3,4,5} - DNSSEC + validation functions
 * 4255 - SSHFP record
 * 4343 - Case insensitivity
@@ -134,8 +152,13 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * 6975 - Algorithm Understanding in DNSSEC
 * 7043 - EUI48/EUI64 records
 * 7314 - DNS (EDNS) EXPIRE Option
+* 7477 - CSYNC RR
+* 7828 - edns-tcp-keepalive EDNS0 Option
 * 7553 - URI record
-* xxxx - EDNS0 DNS Update Lease (draft)
+* 7858 - DNS over TLS: Initiation and Performance Considerations
+* 7871 - EDNS0 Client Subnet
+* 7873 - Domain Name System (DNS) Cookies (draft-ietf-dnsop-cookies)
+* 8080 - EdDSA for DNSSEC
 
 ## Loosely based upon
 
@@ -143,11 +166,3 @@ Example programs can be found in the `github.com/miekg/exdns` repository.
 * `NSD`
 * `Net::DNS`
 * `GRONG`
-
-## TODO
-
-* privatekey.Precompute() when signing?
-* Last remaining RRs: APL, ATMA, A6, NSAP and NXT.
-* Missing in parsing: ISDN, UNSPEC, NSAP and ATMA.
-* NSEC(3) cover/match/closest enclose.
-* Replies with TC bit are not parsed to the end.
