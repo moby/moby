@@ -368,22 +368,23 @@ func ParseHostURL(host string) (*url.URL, error) {
 	if len(protoAddrParts) == 1 {
 		return nil, fmt.Errorf("unable to parse docker host `%s`", host)
 	}
-
-	var basePath string
-	proto, addr := protoAddrParts[0], protoAddrParts[1]
-	if proto == "tcp" {
+	if proto, addr := protoAddrParts[0], protoAddrParts[1] ; proto == "tcp" {
 		parsed, err := url.Parse("tcp://" + addr)
 		if err != nil {
 			return nil, err
+		} else {
+			return &url.URL{
+				Scheme: proto,
+				Host:   parsed.Host,
+				Path:   parsed.Path,
+			}, nil
 		}
-		addr = parsed.Host
-		basePath = parsed.Path
+	} else {
+		return &url.URL{
+			Scheme: proto,
+			Host:   addr,
+		}, nil
 	}
-	return &url.URL{
-		Scheme: proto,
-		Host:   addr,
-		Path:   basePath,
-	}, nil
 }
 
 // CustomHTTPHeaders returns the custom http headers stored by the client.
