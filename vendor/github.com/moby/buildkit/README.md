@@ -5,7 +5,6 @@
 
 ## BuildKit
 
-<!-- godoc is mainly for LLB stuff -->
 [![GoDoc](https://godoc.org/github.com/moby/buildkit?status.svg)](https://godoc.org/github.com/moby/buildkit/client/llb)
 [![Build Status](https://travis-ci.org/moby/buildkit.svg?branch=master)](https://travis-ci.org/moby/buildkit)
 [![Go Report Card](https://goreportcard.com/badge/github.com/moby/buildkit)](https://goreportcard.com/report/github.com/moby/buildkit)
@@ -23,26 +22,58 @@ Key features:
 - Distributable workers
 - Multiple output formats
 - Pluggable architecture
+- Execution without root privileges
 
 
 Read the proposal from https://github.com/moby/moby/issues/32925
 
-#### Quick start
+Introductory blog post https://blog.mobyproject.org/introducing-buildkit-17e056cc5317
 
-BuildKit daemon can be built in two different versions: one that uses [containerd](https://github.com/containerd/containerd) for execution and distribution, and a standalone version that doesn't have other dependencies apart from [runc](https://github.com/opencontainers/runc). We are open for adding more backends. `buildd` is a CLI utility for serving the gRPC API. 
+### Quick start
+
+Dependencies:
+- [runc](https://github.com/opencontainers/runc)
+- [containerd](https://github.com/containerd/containerd) (if you want to use containerd worker)
+
+
+The following command installs `buildkitd` and `buildctl` to `/usr/local/bin`:
 
 ```bash
-# buildd daemon (choose one)
-go build -o buildd-containerd -tags containerd ./cmd/buildd
-go build -o buildd-standalone -tags standalone ./cmd/buildd
-
-# buildctl utility
-go build -o buildctl ./cmd/buildctl
+$ make && sudo make install
 ```
 
-You can also use `make binaries` that prepares all binaries into the `bin/` directory.
+You can also use `make binaries-all` to prepare `buildkitd.containerd_only` and `buildkitd.oci_only`.
 
-`examples/buildkit*` directory contains scripts that define how to build different configurations of BuildKit and its dependencies using the `client` package. Running one of these script generates a protobuf definition of a build graph. Note that the script itself does not execute any steps of the build.
+#### Starting the buildkitd daemon:
+
+```
+buildkitd --debug --root /var/lib/buildkit
+```
+
+The buildkitd daemon suppports two worker backends: OCI (runc) and containerd.
+
+By default, the OCI (runc) worker is used.
+You can set `--oci-worker=false --containerd-worker=true` to use the containerd worker.
+
+We are open to adding more backends.
+
+#### Exploring LLB
+
+BuildKit builds are based on a binary intermediate format called LLB that is used for defining the dependency graph for processes running part of your build. tl;dr: LLB is to Dockerfile what LLVM IR is to C.
+
+- Marshaled as Protobuf messages
+- Concurrently executable
+- Efficiently cacheable
+- Vendor-neutral (i.e. non-Dockerfile languages can be easily implemented)
+
+See [`solver/pb/ops.proto`](./solver/pb/ops.proto) for the format definition.
+
+Currently, following high-level languages has been implemented for LLB:
+
+- Dockerfile (See [Exploring Dockerfiles](#exploring-dockerfiles))
+- (open a PR to add your own language)
+
+For understanding the basics of LLB, `examples/buildkit*` directory contains scripts that define how to build different configurations of BuildKit itself and its dependencies using the `client` package. Running one of these scripts generates a protobuf definition of a build graph. Note that the script itself does not execute any steps of the build.
 
 You can use `buildctl debug dump-llb` to see what data is in this definition. Add `--dot` to generate dot layout.
 
@@ -50,7 +81,7 @@ You can use `buildctl debug dump-llb` to see what data is in this definition. Ad
 go run examples/buildkit0/buildkit.go | buildctl debug dump-llb | jq .
 ```
 
-To start building use `buildctl build` command. The example script accepts `--target` flag to choose between `containerd` and `standalone` configurations. In standalone mode BuildKit binaries are built together with `runc`. In containerd mode, the `containerd` binary is built as well from the upstream repo.
+To start building use `buildctl build` command. The example script accepts `--with-containerd` flag to choose if containerd binaries and support should be included in the end result as well. 
 
 ```bash
 go run examples/buildkit0/buildkit.go | buildctl build
@@ -68,37 +99,89 @@ Different versions of the example scripts show different ways of describing the 
 - `./examples/gobuild` - shows how to use nested invocation to generate LLB for Go package internal dependencies
 
 
-#### Examples
+#### Exploring Dockerfiles
 
-##### Starting the buildd daemon:
+Frontends are components that run inside BuildKit and convert any build definition to LLB. There is a special frontend called gateway (gateway.v0) that allows using any image as a frontend.
 
-```
-buildd-standalone --debug --root /var/lib/buildkit
-```
+During development, Dockerfile frontend (dockerfile.v0) is also part of the BuildKit repo. In the future, this will be moved out, and Dockerfiles can be built using an external image.
 
-##### Building a Dockerfile:
+##### Building a Dockerfile with `buildctl`
 
 ```
 buildctl build --frontend=dockerfile.v0 --local context=. --local dockerfile=.
+buildctl build --frontend=dockerfile.v0 --local context=. --local dockerfile=. --frontend-opt target=foo --frontend-opt build-arg:foo=bar
 ```
 
-`context` and `dockerfile` should point to local directories for build context and Dockerfile location.
+`--local` exposes local source files from client to the builder. `context` and `dockerfile` are the names Dockerfile frontend looks for build context and Dockerfile location.
 
+##### build-using-dockerfile utility
+
+For people familiar with `docker build` command, there is an example wrapper utility in `./examples/build-using-dockerfile` that allows building Dockerfiles with BuildKit using a syntax similar to `docker build`.
+
+```
+go build ./examples/build-using-dockerfile && sudo install build-using-dockerfile /usr/local/bin
+
+build-using-dockerfile -t myimage .
+build-using-dockerfile -t mybuildkit -f ./hack/dockerfiles/test.Dockerfile .
+
+# build-using-dockerfile will automatically load the resulting image to Docker
+docker inspect myimage
+```
+
+##### Building a Dockerfile using [external frontend](https://hub.docker.com/r/tonistiigi/dockerfile/tags/):
+
+During development, an external version of the Dockerfile frontend is pushed to https://hub.docker.com/r/tonistiigi/dockerfile that can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)).
+
+```
+buildctl build --frontend=gateway.v0 --frontend-opt=source=tonistiigi/dockerfile:v0 --local context=. --local dockerfile=.
+buildctl build --frontend gateway.v0 --frontend-opt=source=tonistiigi/dockerfile:v0 --frontend-opt=context=git://github.com/moby/moby --frontend-opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
+````
+
+### Exporters
+
+By default, the build result and intermediate cache will only remain internally in BuildKit. Exporter needs to be specified to retrieve the result.
 
 ##### Exporting resulting image to containerd
 
-Containerd version of buildd needs to be used
+The containerd worker needs to be used
 
 ```
 buildctl build ... --exporter=image --exporter-opt name=docker.io/username/image
 ctr --namespace=buildkit images ls
 ```
 
+##### Push resulting image to registry
+
+```
+buildctl build ... --exporter=image --exporter-opt name=docker.io/username/image --exporter-opt push=true
+```
+
+If credentials are required, `buildctl` will attempt to read Docker configuration file.
+
+
 ##### Exporting build result back to client
+
+The local client will copy the files directly to the client. This is useful if BuildKit is being used for building something else than container images.
 
 ```
 buildctl build ... --exporter=local --exporter-opt output=path/to/output-dir
 ```
+
+##### Exporting built image to Docker
+
+```
+# exported tarball is also compatible with OCI spec
+buildctl build ... --exporter=docker --exporter-opt name=myimage | docker load
+```
+
+##### Exporting [OCI Image Format](https://github.com/opencontainers/image-spec) tarball to client
+
+```
+buildctl build ... --exporter=oci --exporter-opt output=path/to/output.tar
+buildctl build ... --exporter=oci > output.tar
+```
+
+### Other
 
 #### View build cache
 
@@ -106,17 +189,67 @@ buildctl build ... --exporter=local --exporter-opt output=path/to/output-dir
 buildctl du -v
 ```
 
-#### Supported runc version
+#### Show enabled workers
 
-During development buildkit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/d1e11f17ec7b325f89608dd46c128300b8727d50/RUNC.md) for more information.
+```
+buildctl debug workers -v
+```
+
+### Running containerized buildkit
+
+BuildKit can also be used by running the `buildkitd` daemon inside a Docker container and accessing it remotely. The client tool `buildctl` is also available for Mac and Windows.
+
+To run daemon in a container:
+
+```
+docker run -d --privileged -p 1234:1234 tonistiigi/buildkit --addr tcp://0.0.0.0:1234
+export BUILDKIT_HOST=tcp://0.0.0.0:1234
+buildctl build --help
+```
+
+The `tonistiigi/buildkit` image can be built locally using the Dockerfile in `./hack/dockerfiles/test.Dockerfile`.
+
+### Opentracing support
+
+BuildKit supports opentracing for buildkitd gRPC API and buildctl commands. To capture the trace to [Jaeger](https://github.com/jaegertracing/jaeger), set `JAEGER_TRACE` environment variable to the collection address.
 
 
-#### Contributing
+```
+docker run -d -p6831:6831/udp -p16686:16686 jaegertracing/all-in-one:latest
+export JAEGER_TRACE=0.0.0.0:6831
+# restart buildkitd and buildctl so they know JAEGER_TRACE
+# any buildctl command should be traced to http://127.0.0.1:16686/
+```
+
+
+### Supported runc version
+
+During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.1.0/RUNC.md) for more information.
+
+### Running BuildKit without root privileges
+
+Please refer to [`docs/rootless.md`](docs/rootless.md).
+
+### Contributing
 
 Running tests:
 
 ```bash
 make test
+```
+
+This runs all unit and integration tests in a containerized environment. Locally, every package can be tested separately with standard Go tools, but integration tests are skipped if local user doesn't have enough permissions or worker binaries are not installed.
+
+```
+# test a specific package only
+make test TESTPKGS=./client
+
+# run a specific test with all worker combinations
+make test TESTPKGS=./client TESTFLAGS="--run /TestCallDiskUsage -v" 
+
+# run all integration tests with a specific worker
+# supported workers are oci and containerd
+make test TESTPKGS=./client TESTFLAGS="--run //worker=containerd -v" 
 ```
 
 Updating vendored dependencies:

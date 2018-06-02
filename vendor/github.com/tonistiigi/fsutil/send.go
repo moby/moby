@@ -57,7 +57,11 @@ func (s *sender) run(ctx context.Context) error {
 	defer s.updateProgress(0, true)
 
 	g.Go(func() error {
-		return s.walk(ctx)
+		err := s.walk(ctx)
+		if err != nil {
+			s.conn.SendMsg(&Packet{Type: PACKET_ERR, Data: []byte(err.Error())})
+		}
+		return err
 	})
 
 	for i := 0; i < 4; i++ {
@@ -90,6 +94,8 @@ func (s *sender) run(ctx context.Context) error {
 				return err
 			}
 			switch p.Type {
+			case PACKET_ERR:
+				return errors.Errorf("error from receiver: %s", p.Data)
 			case PACKET_REQ:
 				if err := s.queue(p.ID); err != nil {
 					return err
@@ -126,6 +132,7 @@ func (s *sender) queue(id uint32) error {
 func (s *sender) sendFile(h *sendHandle) error {
 	f, err := os.Open(filepath.Join(s.root, h.path))
 	if err == nil {
+		defer f.Close()
 		buf := bufPool.Get().([]byte)
 		defer bufPool.Put(buf)
 		if _, err := io.CopyBuffer(&fileSender{sender: s, id: h.id}, f, buf); err != nil {

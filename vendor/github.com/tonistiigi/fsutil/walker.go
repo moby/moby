@@ -39,14 +39,22 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 	}
 
+	var lastIncludedDir string
+	var includePatternPrefixes []string
+
 	seenFiles := make(map[uint64]string)
-	return filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
+	return filepath.Walk(root, func(path string, fi os.FileInfo, err error) (retErr error) {
 		if err != nil {
 			if os.IsNotExist(err) {
 				return filepath.SkipDir
 			}
 			return err
 		}
+		defer func() {
+			if retErr != nil && os.IsNotExist(errors.Cause(retErr)) {
+				retErr = filepath.SkipDir
+			}
+		}()
 		origpath := path
 		path, err = filepath.Rel(root, path)
 		if err != nil {
@@ -59,18 +67,34 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 
 		if opt != nil {
 			if opt.IncludePatterns != nil {
+				if includePatternPrefixes == nil {
+					includePatternPrefixes = patternPrefixes(opt.IncludePatterns)
+				}
 				matched := false
-				for _, p := range opt.IncludePatterns {
-					if m, _ := filepath.Match(p, path); m {
+				if lastIncludedDir != "" {
+					if strings.HasPrefix(path, lastIncludedDir+string(filepath.Separator)) {
 						matched = true
-						break
 					}
 				}
 				if !matched {
-					if fi.IsDir() {
-						return filepath.SkipDir
+					for _, p := range opt.IncludePatterns {
+						if m, _ := filepath.Match(p, path); m {
+							matched = true
+							break
+						}
 					}
-					return nil
+					if matched && fi.IsDir() {
+						lastIncludedDir = path
+					}
+				}
+				if !matched {
+					if !fi.IsDir() {
+						return nil
+					} else {
+						if noPossiblePrefixMatch(path, includePatternPrefixes) {
+							return filepath.SkipDir
+						}
+					}
 				}
 			}
 			if pm != nil {
@@ -173,4 +197,31 @@ func (s *StatInfo) IsDir() bool {
 }
 func (s *StatInfo) Sys() interface{} {
 	return s.Stat
+}
+
+func patternPrefixes(patterns []string) []string {
+	pfxs := make([]string, 0, len(patterns))
+	for _, ptrn := range patterns {
+		idx := strings.IndexFunc(ptrn, func(ch rune) bool {
+			return ch == '*' || ch == '?' || ch == '[' || ch == '\\'
+		})
+		if idx == -1 {
+			idx = len(ptrn)
+		}
+		pfxs = append(pfxs, ptrn[:idx])
+	}
+	return pfxs
+}
+
+func noPossiblePrefixMatch(p string, pfxs []string) bool {
+	for _, pfx := range pfxs {
+		chk := p
+		if len(pfx) < len(p) {
+			chk = p[:len(pfx)]
+		}
+		if strings.HasPrefix(pfx, chk) {
+			return false
+		}
+	}
+	return true
 }

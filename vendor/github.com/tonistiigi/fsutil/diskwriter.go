@@ -55,6 +55,7 @@ func NewDiskWriter(ctx context.Context, dest string, opt DiskWriterOpt) (*DiskWr
 		eg:     eg,
 		ctx:    ctx,
 		cancel: cancel,
+		filter: opt.Filter,
 	}, nil
 }
 

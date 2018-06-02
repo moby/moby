@@ -1,14 +1,15 @@
 package filesync
 
 import (
+	"context"
 	"fmt"
+	io "io"
 	"os"
 	"strings"
 
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 )
@@ -16,6 +17,7 @@ import (
 const (
 	keyOverrideExcludes = "override-excludes"
 	keyIncludePatterns  = "include-patterns"
+	keyExcludePatterns  = "exclude-patterns"
 	keyDirName          = "dir-name"
 )
 
@@ -54,7 +56,7 @@ func (sp *fsSyncProvider) TarStream(stream FileSync_TarStreamServer) error {
 	return sp.handle("tarstream", stream)
 }
 
-func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) error {
+func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retErr error) {
 	var pr *protocol
 	for _, p := range supportedProtocols {
 		if method == p.name && isProtoSupported(p.name) {
@@ -66,20 +68,21 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) error 
 		return errors.New("failed to negotiate protocol")
 	}
 
-	opts, _ := metadata.FromContext(stream.Context()) // if no metadata continue with empty object
+	opts, _ := metadata.FromIncomingContext(stream.Context()) // if no metadata continue with empty object
 
+	dirName := ""
 	name, ok := opts[keyDirName]
-	if !ok || len(name) != 1 {
-		return errors.New("no dir name in request")
+	if ok && len(name) > 0 {
+		dirName = name[0]
 	}
 
-	dir, ok := sp.dirs[name[0]]
+	dir, ok := sp.dirs[dirName]
 	if !ok {
-		return errors.Errorf("no access allowed to dir %q", name[0])
+		return errors.Errorf("no access allowed to dir %q", dirName)
 	}
 
-	var excludes []string
-	if len(opts[keyOverrideExcludes]) == 0 || opts[keyOverrideExcludes][0] != "true" {
+	excludes := opts[keyExcludePatterns]
+	if len(dir.Excludes) != 0 && (len(opts[keyOverrideExcludes]) == 0 || opts[keyOverrideExcludes][0] != "true") {
 		excludes = dir.Excludes
 	}
 	includes := opts[keyIncludePatterns]
@@ -138,7 +141,8 @@ var supportedProtocols = []protocol{
 type FSSendRequestOpt struct {
 	Name             string
 	IncludePatterns  []string
-	OverrideExcludes bool
+	ExcludePatterns  []string
+	OverrideExcludes bool // deprecated: this is used by docker/cli for automatically loading .dockerignore from the directory
 	DestDir          string
 	CacheUpdater     CacheUpdater
 	ProgressCb       func(int, bool)
@@ -173,6 +177,10 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 		opts[keyIncludePatterns] = opt.IncludePatterns
 	}
 
+	if opt.ExcludePatterns != nil {
+		opts[keyExcludePatterns] = opt.ExcludePatterns
+	}
+
 	opts[keyDirName] = []string{opt.Name}
 
 	ctx, cancel := context.WithCancel(ctx)
@@ -182,7 +190,7 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 
 	var stream grpc.ClientStream
 
-	ctx = metadata.NewContext(ctx, opts)
+	ctx = metadata.NewOutgoingContext(ctx, opts)
 
 	switch pr.name {
 	case "tarstream":
@@ -204,16 +212,25 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 	return pr.recvFn(stream, opt.DestDir, opt.CacheUpdater, opt.ProgressCb)
 }
 
-// NewFSSyncTarget allows writing into a directory
-func NewFSSyncTarget(outdir string) session.Attachable {
+// NewFSSyncTargetDir allows writing into a directory
+func NewFSSyncTargetDir(outdir string) session.Attachable {
 	p := &fsSyncTarget{
 		outdir: outdir,
 	}
 	return p
 }
 
+// NewFSSyncTarget allows writing into an io.WriteCloser
+func NewFSSyncTarget(w io.WriteCloser) session.Attachable {
+	p := &fsSyncTarget{
+		outfile: w,
+	}
+	return p
+}
+
 type fsSyncTarget struct {
-	outdir string
+	outdir  string
+	outfile io.WriteCloser
 }
 
 func (sp *fsSyncTarget) Register(server *grpc.Server) {
@@ -221,7 +238,14 @@ func (sp *fsSyncTarget) Register(server *grpc.Server) {
 }
 
 func (sp *fsSyncTarget) DiffCopy(stream FileSend_DiffCopyServer) error {
-	return syncTargetDiffCopy(stream, sp.outdir)
+	if sp.outdir != "" {
+		return syncTargetDiffCopy(stream, sp.outdir)
+	}
+	if sp.outfile == nil {
+		return errors.New("empty outfile and outdir")
+	}
+	defer sp.outfile.Close()
+	return writeTargetFile(stream, sp.outfile)
 }
 
 func CopyToCaller(ctx context.Context, srcPath string, c session.Caller, progress func(int, bool)) error {
@@ -238,4 +262,20 @@ func CopyToCaller(ctx context.Context, srcPath string, c session.Caller, progres
 	}
 
 	return sendDiffCopy(cc, srcPath, nil, nil, progress, nil)
+}
+
+func CopyFileWriter(ctx context.Context, c session.Caller) (io.WriteCloser, error) {
+	method := session.MethodURL(_FileSend_serviceDesc.ServiceName, "diffcopy")
+	if !c.Supports(method) {
+		return nil, errors.Errorf("method %s not supported by the client", method)
+	}
+
+	client := NewFileSendClient(c.Conn())
+
+	cc, err := client.DiffCopy(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	return newStreamWriter(cc), nil
 }

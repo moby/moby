@@ -1,13 +1,13 @@
 package session
 
 import (
+	"context"
 	"net"
 	"net/http"
 	"strings"
 	"sync"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )
 
@@ -150,6 +150,12 @@ func (sm *Manager) handleConn(ctx context.Context, conn net.Conn, opts map[strin
 
 // Get returns a session by ID
 func (sm *Manager) Get(ctx context.Context, id string) (Caller, error) {
+	// session prefix is used to identify vertexes with different contexts so
+	// they would not collide, but for lookup we don't need the prefix
+	if p := strings.SplitN(id, ":", 2); len(p) == 2 && len(p[1]) > 0 {
+		id = p[1]
+	}
+
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
