@@ -239,6 +239,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 		return nil, errNoDestinationArgument("ADD")
 	}
 	flChown := req.flags.AddString("chown", "")
+	flChmod := req.flags.AddString("chmod", "")
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -246,6 +247,7 @@ func parseAdd(req parseRequest) (*AddCommand, error) {
 		SourcesAndDest:  SourcesAndDest(req.args),
 		withNameAndCode: newWithNameAndCode(req),
 		Chown:           flChown.Value,
+		Chmod:           flChmod.Value,
 	}, nil
 }
 
@@ -255,6 +257,8 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 	}
 	flChown := req.flags.AddString("chown", "")
 	flFrom := req.flags.AddString("from", "")
+	flChmod := req.flags.AddString("chmod", "")
+
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
@@ -263,6 +267,7 @@ func parseCopy(req parseRequest) (*CopyCommand, error) {
 		From:            flFrom.Value,
 		withNameAndCode: newWithNameAndCode(req),
 		Chown:           flChown.Value,
+		Chmod:           flChmod.Value,
 	}, nil
 }
 

@@ -167,6 +167,7 @@ type AddCommand struct {
 	withNameAndCode
 	SourcesAndDest
 	Chown string
+	Chmod string
 }
 
 // Expand variables
@@ -183,6 +184,7 @@ type CopyCommand struct {
 	SourcesAndDest
 	From  string
 	Chown string
+	Chmod string
 }
 
 // Expand variables

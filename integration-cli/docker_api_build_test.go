@@ -435,6 +435,57 @@ func (s *DockerSuite) TestBuildChownOnCopy(c *check.C) {
 	assert.Check(c, is.Contains(string(out), "Successfully built"))
 }
 
+func (s *DockerSuite) TestBuildChmodOnCopy(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerfile := `FROM busybox
+		COPY --chmod=777 . /new_dir
+		RUN ls -l /
+		RUN [ $(stat /new_dir | grep "Access: (" | cut -d\( -f2 | cut -d\/ -f1 ) = '0777' ]
+	`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("test_file1", "some test content"),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+
+	out, err := request.ReadBody(body)
+	require.NoError(c, err)
+	assert.Contains(c, string(out), "Successfully built")
+}
+
+
+func (s *DockerSuite) TestBuildChmodOnAdd(c *check.C) {
+	testRequires(c, DaemonIsLinux)
+	dockerfile := `FROM busybox
+		ADD --chmod=777 . /new_dir
+		RUN ls -l /
+		RUN [ $(stat /new_dir | grep "Access: (" | cut -d\( -f2 | cut -d\/ -f1 ) = '0777' ]
+	`
+	ctx := fakecontext.New(c, "",
+		fakecontext.WithDockerfile(dockerfile),
+		fakecontext.WithFile("test_file1", "some test content"),
+	)
+	defer ctx.Close()
+
+	res, body, err := request.Post(
+		"/build",
+		request.RawContent(ctx.AsTarReader(c)),
+		request.ContentType("application/x-tar"))
+	c.Assert(err, checker.IsNil)
+	c.Assert(res.StatusCode, checker.Equals, http.StatusOK)
+
+	out, err := request.ReadBody(body)
+	require.NoError(c, err)
+	assert.Contains(c, string(out), "Successfully built")
+}
+
 func (s *DockerSuite) TestBuildCopyCacheOnFileChange(c *check.C) {
 
 	dockerfile := `FROM busybox

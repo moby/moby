@@ -101,6 +101,7 @@ func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
 		return err
 	}
 	copyInstruction.chownStr = c.Chown
+	copyInstruction.chmodStr = c.Chmod
 	copyInstruction.allowLocalDecompression = true
 
 	return d.builder.performCopy(d.state, copyInstruction)
@@ -126,6 +127,7 @@ func dispatchCopy(d dispatchRequest, c *instructions.CopyCommand) error {
 		return err
 	}
 	copyInstruction.chownStr = c.Chown
+	copyInstruction.chmodStr = c.Chmod
 
 	return d.builder.performCopy(d.state, copyInstruction)
 }

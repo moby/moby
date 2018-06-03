@@ -1,6 +1,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"fmt"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -47,6 +48,79 @@ func parseChownFlag(chown, ctrRootPath string, idMappings *idtools.IDMappings) (
 		return idtools.IDPair{}, errors.Wrapf(err, "unable to convert uid/gid to host mapping")
 	}
 	return chownPair, nil
+}
+
+func parseChmodFlag(chmodStr string) (uint16, error) {
+	parsedVal, err := strconv.ParseUint(chmodStr, 8, 64)
+	if err != nil {
+		return chmodSymbolsToInt(chmodStr)
+	}
+
+	return uint16(parsedVal), nil
+}
+
+func chmodSymbolsToInt(chmodStr string) (uint16, error) {
+	perms := map[string]uint{
+		"u": 0,
+		"g": 0,
+		"o": 0,
+	}
+
+	chmodBits := map[string]uint{
+		"r": 4, //100
+		"w": 2, //010
+		"x": 1, //001
+	}
+
+	tokenizers := []string{"=", "+", "-"}
+	for _, segment := range strings.Split(chmodStr, ",") {
+		for _, delimiter := range tokenizers {
+			values := strings.Split(segment, delimiter)
+			if len(values) == 1 {
+				continue
+			}
+
+			for _, subject := range strings.Split(values[0], "") {
+				for _, symbol := range strings.Split(values[1], "") {
+					val, ok := chmodBits[symbol]
+					if !ok {
+						return 0, errors.New("invalid chmod flags " + chmodStr)
+					}
+					switch delimiter {
+					case "=":
+						if subject == "a" {
+							perms["u"] = val
+							perms["g"] = val
+							perms["0"] = val
+						} else {
+							perms[subject] = val
+						}
+					case "+":
+						if subject == "a" {
+							perms["u"] |= val
+							perms["g"] |= val
+							perms["o"] |= val
+						} else {
+							perms[subject] |= val
+						}
+					case "-":
+						if subject == "a" {
+							perms["u"] &= ^val
+							perms["g"] &= ^val
+							perms["o"] &= ^val
+						} else {
+							perms[subject] &= ^val
+						}
+					default:
+						return 0, errors.New("invalid chmod flag " + chmodStr)
+					}
+				}
+			}
+		}
+	}
+
+	val, _ := strconv.ParseUint(fmt.Sprintf("%d%d%d", perms["u"], perms["g"], perms["o"]), 8, 64)
+	return uint16(val), nil
 }
 
 func lookupUser(userStr, filepath string) (int, error) {
