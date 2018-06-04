@@ -10,6 +10,7 @@ message Packet {
       PACKET_REQ = 1;
       PACKET_DATA = 2;
       PACKET_FIN = 3;
+      PACKET_ERR = 4;
     }
   PacketType type = 1;
   Stat stat = 2;

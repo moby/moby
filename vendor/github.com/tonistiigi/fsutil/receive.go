@@ -55,25 +55,33 @@ type receiver struct {
 
 type dynamicWalker struct {
 	walkChan chan *currentPath
-	closed   bool
+	err      error
+	closeCh  chan struct{}
 }
 
 func newDynamicWalker() *dynamicWalker {
 	return &dynamicWalker{
 		walkChan: make(chan *currentPath, 128),
+		closeCh:  make(chan struct{}),
 	}
 }
 
 func (w *dynamicWalker) update(p *currentPath) error {
-	if w.closed {
-		return errors.New("walker is closed")
+	select {
+	case <-w.closeCh:
+		return errors.Wrap(w.err, "walker is closed")
+	default:
 	}
 	if p == nil {
 		close(w.walkChan)
 		return nil
 	}
-	w.walkChan <- p
-	return nil
+	select {
+	case w.walkChan <- p:
+		return nil
+	case <-w.closeCh:
+		return errors.Wrap(w.err, "walker is closed")
+	}
 }
 
 func (w *dynamicWalker) fill(ctx context.Context, pathC chan<- *currentPath) error {
@@ -85,6 +93,8 @@ func (w *dynamicWalker) fill(ctx context.Context, pathC chan<- *currentPath) err
 			}
 			pathC <- p
 		case <-ctx.Done():
+			w.err = ctx.Err()
+			close(w.closeCh)
 			return ctx.Err()
 		}
 	}
@@ -106,7 +116,12 @@ func (r *receiver) run(ctx context.Context) error {
 
 	w := newDynamicWalker()
 
-	g.Go(func() error {
+	g.Go(func() (retErr error) {
+		defer func() {
+			if retErr != nil {
+				r.conn.SendMsg(&Packet{Type: PACKET_ERR, Data: []byte(retErr.Error())})
+			}
+		}()
 		destWalker := emptyWalker
 		if !r.merge {
 			destWalker = GetWalkerFn(r.dest)
@@ -143,6 +158,8 @@ func (r *receiver) run(ctx context.Context) error {
 			}
 
 			switch p.Type {
+			case PACKET_ERR:
+				return errors.Errorf("error from sender: %s", p.Data)
 			case PACKET_STAT:
 				if p.Stat == nil {
 					if err := w.update(nil); err != nil {
@@ -183,7 +200,15 @@ func (r *receiver) run(ctx context.Context) error {
 					}
 				}
 			case PACKET_FIN:
-				return nil
+				for {
+					var p Packet
+					if err := r.conn.RecvMsg(&p); err != nil {
+						if err == io.EOF {
+							return nil
+						}
+						return err
+					}
+				}
 			}
 		}
 	})
@@ -208,10 +233,13 @@ func (r *receiver) asyncDataFunc(ctx context.Context, p string, wc io.WriteClose
 		return err
 	}
 	err := wwc.Wait(ctx)
+	if err != nil {
+		return err
+	}
 	r.muPipes.Lock()
 	delete(r.pipes, id)
 	r.muPipes.Unlock()
-	return err
+	return nil
 }
 
 type wrappedWriteCloser struct {

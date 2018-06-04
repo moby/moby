@@ -85,7 +85,8 @@ func TestBuildWithSession(t *testing.T) {
 }
 
 func testBuildWithSession(t *testing.T, client dclient.APIClient, daemonHost string, dir, dockerfile string) (outStr string) {
-	sess, err := session.NewSession("foo1", "foo")
+	ctx := context.Background()
+	sess, err := session.NewSession(ctx, "foo1", "foo")
 	assert.Check(t, err)
 
 	fsProvider := filesync.NewFSSyncProvider([]filesync.SyncedDir{
