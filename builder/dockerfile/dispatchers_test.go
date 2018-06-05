@@ -352,6 +352,60 @@ func TestVolume(t *testing.T) {
 	assert.Check(t, is.Contains(sb.state.runConfig.Volumes, exposedVolume))
 }
 
+type PathVolTest struct {
+	volume     string
+	os         string
+	workingDir string
+	volumes    map[string]struct{}
+	err        string
+}
+
+var winVolumes = []PathVolTest{
+	{volume: "code", workingDir: "", os: "windows", volumes: nil, err: ""},
+	{volume: `C:\code`, workingDir: "", os: "windows", volumes: nil, err: ""},
+	{volume: `C:\`, workingDir: "", os: "windows", volumes: nil, err: "invalid mount config for type \"volume\": destination path cannot be `c:` or `c:\\`: c:\\"},
+}
+
+var unixVolumes = []PathVolTest{
+	{volume: "opt", workingDir: "", os: "linux", volumes: nil, err: ""},
+	{volume: "/opt", workingDir: "", os: "linux", volumes: map[string]struct{}{"/opt": {}}, err: "VOLUME '/opt' was specified more than once"},
+	{volume: "/opt", workingDir: "", os: "linux", volumes: nil, err: ""},
+	{volume: "/", workingDir: "", os: "linux", volumes: nil, err: "invalid mount config for type \"volume\": invalid specification: destination can't be '/'"},
+	{volume: "/opt/..", workingDir: "", os: "linux", volumes: nil, err: "invalid mount config for type \"volume\": invalid specification: destination can't be '/'"},
+	{volume: "/..", workingDir: "", os: "linux", volumes: nil, err: "invalid mount config for type \"volume\": invalid specification: destination can't be '/'"},
+	{volume: ".", workingDir: "", os: "linux", volumes: nil, err: "invalid mount config for type \"volume\": invalid specification: destination can't be '/'"},
+	{volume: ".", workingDir: "/hello", os: "linux", volumes: nil, err: ""},
+}
+
+func TestVolumeValidation(t *testing.T) {
+	testCases := unixVolumes
+	if runtime.GOOS == "windows" {
+		testCases = winVolumes
+	}
+
+	for _, c := range testCases {
+		b := newBuilderWithMockBackend()
+		sb := newDispatchRequest(b, '`', nil, newBuildArgs(make(map[string]*string)), newStagesBuildResults())
+		sb.state.operatingSystem = c.os
+		sb.state.runConfig.Volumes = c.volumes
+		sb.state.runConfig.WorkingDir = c.workingDir
+
+		cmd := &instructions.VolumeCommand{
+			Volumes: []string{c.volume},
+		}
+		err := dispatch(sb, cmd)
+		if c.err == "" {
+			require.NoError(t, err, "volume %q", c.volume)
+		} else {
+			if err == nil {
+				t.Errorf("expected to return error %q but got nil", c.err)
+				continue
+			}
+			require.Equal(t, c.err, err.Error())
+		}
+	}
+}
+
 func TestStopSignal(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Windows does not support stopsignal")
