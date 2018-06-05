@@ -706,8 +706,8 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
 
-		// Setup Loopback Adresses Routing
-		{!d.config.EnableUserlandProxy, setupLoopbackAdressesRouting},
+		// Setup Loopback Addresses Routing
+		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
 		// Setup IPTables.
 		{d.config.EnableIPTables, network.setupIPTables},

@@ -1,7 +1,6 @@
 package libnetwork
 
 import (
-	"container/heap"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -514,9 +513,7 @@ func (ep *endpoint) sbJoin(sb *sandbox, options ...EndpointOption) (err error) {
 	// Current endpoint providing external connectivity for the sandbox
 	extEp := sb.getGatewayEndpoint()
 
-	sb.Lock()
-	heap.Push(&sb.endpoints, ep)
-	sb.Unlock()
+	sb.addEndpoint(ep)
 	defer func() {
 		if err != nil {
 			sb.removeEndpoint(ep)
@@ -755,10 +752,8 @@ func (ep *endpoint) sbLeave(sb *sandbox, force bool, options ...EndpointOption) 
 		}
 	}
 
-	if ep.svcID != "" {
-		if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
-			logrus.Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
-		}
+	if err := ep.deleteServiceInfoFromCluster(sb, true, "sbLeave"); err != nil {
+		logrus.Warnf("Failed to clean up service info on container %s disconnect: %v", ep.name, err)
 	}
 
 	if err := sb.clearNetworkResources(ep); err != nil {

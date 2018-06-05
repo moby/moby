@@ -64,13 +64,13 @@ func setupGatewayIPv4(config *networkConfiguration, i *bridgeInterface) error {
 	return nil
 }
 
-func setupLoopbackAdressesRouting(config *networkConfiguration, i *bridgeInterface) error {
+func setupLoopbackAddressesRouting(config *networkConfiguration, i *bridgeInterface) error {
 	sysPath := filepath.Join("/proc/sys/net/ipv4/conf", config.BridgeName, "route_localnet")
 	ipv4LoRoutingData, err := ioutil.ReadFile(sysPath)
 	if err != nil {
 		return fmt.Errorf("Cannot read IPv4 local routing setup: %v", err)
 	}
-	// Enable loopback adresses routing only if it isn't already enabled
+	// Enable loopback addresses routing only if it isn't already enabled
 	if ipv4LoRoutingData[0] != '1' {
 		if err := ioutil.WriteFile(sysPath, []byte{'1', '\n'}, 0644); err != nil {
 			return fmt.Errorf("Unable to enable local routing for hairpin mode: %v", err)
