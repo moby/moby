@@ -36,7 +36,7 @@ import (
 )
 
 // A user defined call stub.
-type APICall func(context.Context) error
+type APICall func(context.Context, CallSettings) error
 
 // Invoke calls the given APICall,
 // performing retries as specified by opts, if any.
@@ -67,7 +67,7 @@ type sleeper func(ctx context.Context, d time.Duration) error
 func invoke(ctx context.Context, call APICall, settings CallSettings, sp sleeper) error {
 	var retryer Retryer
 	for {
-		err := call(ctx)
+		err := call(ctx, settings)
 		if err == nil {
 			return nil
 		}

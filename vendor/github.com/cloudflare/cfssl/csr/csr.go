@@ -47,8 +47,8 @@ type KeyRequest interface {
 
 // A BasicKeyRequest contains the algorithm and key size for a new private key.
 type BasicKeyRequest struct {
-	A string `json:"algo"`
-	S int    `json:"size"`
+	A string `json:"algo" yaml:"algo"`
+	S int    `json:"size" yaml:"size"`
 }
 
 // NewBasicKeyRequest returns a default BasicKeyRequest.
@@ -130,20 +130,21 @@ func (kr *BasicKeyRequest) SigAlgo() x509.SignatureAlgorithm {
 
 // CAConfig is a section used in the requests initialising a new CA.
 type CAConfig struct {
-	PathLength  int    `json:"pathlen"`
-	PathLenZero bool   `json:"pathlenzero"`
-	Expiry      string `json:"expiry"`
+	PathLength  int    `json:"pathlen" yaml:"pathlen"`
+	PathLenZero bool   `json:"pathlenzero" yaml:"pathlenzero"`
+	Expiry      string `json:"expiry" yaml:"expiry"`
+	Backdate    string `json:"backdate" yaml:"backdate"`
 }
 
 // A CertificateRequest encapsulates the API interface to the
 // certificate request functionality.
 type CertificateRequest struct {
 	CN           string
-	Names        []Name     `json:"names"`
-	Hosts        []string   `json:"hosts"`
-	KeyRequest   KeyRequest `json:"key,omitempty"`
-	CA           *CAConfig  `json:"ca,omitempty"`
-	SerialNumber string     `json:"serialnumber,omitempty"`
+	Names        []Name     `json:"names" yaml:"names"`
+	Hosts        []string   `json:"hosts" yaml:"hosts"`
+	KeyRequest   KeyRequest `json:"key,omitempty" yaml:"key,omitempty"`
+	CA           *CAConfig  `json:"ca,omitempty" yaml:"ca,omitempty"`
+	SerialNumber string     `json:"serialnumber,omitempty" yaml:"serialnumber,omitempty"`
 }
 
 // New returns a new, empty CertificateRequest with a
@@ -327,7 +328,7 @@ func (g *Generator) ProcessRequest(req *CertificateRequest) (csr, key []byte, er
 	err = g.Validator(req)
 	if err != nil {
 		log.Warningf("invalid request: %v", err)
-		return
+		return nil, nil, err
 	}
 
 	csr, key, err = ParseRequest(req)

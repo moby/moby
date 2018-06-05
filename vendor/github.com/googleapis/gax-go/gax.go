@@ -33,8 +33,6 @@
 // Application code will rarely need to use this library directly.
 // However, code generated automatically from API definition files can use it
 // to simplify code generation and to provide more convenient and idiomatic API surfaces.
-//
-// This project is currently experimental and not supported.
 package gax
 
-const Version = "0.1.0"
+const Version = "2.0.0"

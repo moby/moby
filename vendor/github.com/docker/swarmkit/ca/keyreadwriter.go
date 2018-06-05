@@ -27,29 +27,72 @@ const (
 	versionHeader = "kek-version"
 )
 
-// PEMKeyHeaders is something that needs to know about PEM headers when reading
-// or writing TLS keys.
+// PEMKeyHeaders is an interface for something that needs to know about PEM headers
+// when reading or writing TLS keys in order to keep them updated with the latest
+// KEK.
 type PEMKeyHeaders interface {
+
 	// UnmarshalHeaders loads the headers map given the current KEK
 	UnmarshalHeaders(map[string]string, KEKData) (PEMKeyHeaders, error)
+
 	// MarshalHeaders returns a header map given the current KEK
 	MarshalHeaders(KEKData) (map[string]string, error)
-	// UpdateKEK may get a new PEMKeyHeaders if the KEK changes
+
+	// UpdateKEK gets called whenever KeyReadWriter gets a KEK update.  This allows the
+	// PEMKeyHeaders to optionally update any internal state.  It should return an
+	// updated (if needed) versino of itself.
 	UpdateKEK(KEKData, KEKData) PEMKeyHeaders
 }
 
 // KeyReader reads a TLS cert and key from disk
 type KeyReader interface {
+
+	// Read reads and returns the certificate and the key PEM bytes that are on disk
 	Read() ([]byte, []byte, error)
+
+	// Target returns a string representation of where the cert data is being read from
 	Target() string
 }
 
 // KeyWriter writes a TLS key and cert to disk
 type KeyWriter interface {
+
+	// Write accepts a certificate and key in PEM format, as well as an optional KEKData object.
+	// If there is a current KEK, the key is encrypted using the current KEK.  If the KEKData object
+	// is provided (not nil), the key will be encrypted using the new KEK instead, and the current
+	// KEK in memory will be replaced by the provided KEKData.  The reason to allow changing key
+	// material and KEK in a single step, as opposed to two steps, is to prevent the key material
+	// from being written unencrypted or with an old KEK in the first place (when a node gets a
+	// certificate from the CA, it will also request the current KEK so it won't have to immediately
+	// do a KEK rotation after getting the key).
 	Write([]byte, []byte, *KEKData) error
+
+	// ViewAndUpdateHeaders is a function that reads and updates the headers of the key in a single
+	// transaction (e.g. within a lock).  It accepts a callback function which will be passed the
+	// current header management object, and which must return a new, updated, or same header
+	// management object.  KeyReadWriter then performs the following actions:
+	//    - uses the old header management object and the current KEK to deserialize/decrypt
+	//      the existing PEM headers
+	//    - uses the new header management object and the current KEK to to reserialize/encrypt
+	//      the PEM headers
+	//    - writes the new PEM headers, as well as the key material, unchanged, to disk
 	ViewAndUpdateHeaders(func(PEMKeyHeaders) (PEMKeyHeaders, error)) error
+
+	// ViewAndRotateKEK is a function that just re-encrypts the TLS key and headers in a single
+	// transaction (e.g. within a lock).  It accepts a callback unction which will be passed the
+	// current KEK and the current headers management object, and which should return a new
+	// KEK and header management object.  KeyReadWriter then performs the following actions:
+	//    - uses the old KEK and header management object to deserialize/decrypt the
+	//      TLS key and PEM headers
+	//    - uses the new KEK and header management object to serialize/encrypt the TLS key
+	//      and PEM headers
+	//    - writes the new PEM headers and newly encrypted TLS key to disk
 	ViewAndRotateKEK(func(KEKData, PEMKeyHeaders) (KEKData, PEMKeyHeaders, error)) error
+
+	// GetCurrentState returns the current header management object and the current KEK.
 	GetCurrentState() (PEMKeyHeaders, KEKData)
+
+	// Target returns a string representation of where the cert data is being read from
 	Target() string
 }
 
@@ -71,9 +114,18 @@ func (e ErrInvalidKEK) Error() string {
 }
 
 // KeyReadWriter is an object that knows how to read and write TLS keys and certs to disk,
-// optionally encrypted and optionally updating PEM headers.
+// optionally encrypted and optionally updating PEM headers.  It should be the only object which
+// can write the TLS key, to ensure that writes are serialized and that the TLS key, the
+// KEK (key encrypting key), and any headers which need to be written are never out of sync.
+// It accepts a PEMKeyHeaders object, which is used to serialize/encrypt and deserialize/decrypt
+// the PEM headers when given the current headers and the current KEK.
 type KeyReadWriter struct {
-	mu           sync.Mutex
+
+	// This lock is held whenever a key is read from or written to disk, or whenever the internal
+	// state of the KeyReadWriter (such as the KEK, the key formatter, or the PEM header management
+	// object changes.)
+	mu sync.Mutex
+
 	kekData      KEKData
 	paths        CertPaths
 	headersObj   PEMKeyHeaders

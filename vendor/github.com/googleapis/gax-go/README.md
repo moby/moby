@@ -12,8 +12,6 @@ Application code will rarely need to use this library directly,
 but the code generated automatically from API definition files can use it
 to simplify code generation and to provide more convenient and idiomatic API surface.
 
-**This project is currently experimental and not supported.**
-
 Go Versions
 ===========
 This library requires Go 1.6 or above.
