@@ -58,7 +58,23 @@ func dispatchEnv(d dispatchRequest, c *instructions.EnvCommand) error {
 			runConfig.Env = append(runConfig.Env, newVar)
 		}
 	}
-	return d.builder.commit(d.state, commitMessage.String())
+	runConfigWithCommentCmd := copyRunConfig(runConfig, withCmdComment(commitMessage.String(), d.state.operatingSystem))
+	hit, err := d.builder.probeCache(d.state, runConfigWithCommentCmd)
+	if err != nil || hit {
+		return err
+	}
+	imageMount, err := d.builder.imageSources.Get(d.state.imageID, true, d.state.operatingSystem)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get destination image %q", d.state.imageID)
+	}
+
+	rwLayer, err := imageMount.NewRWLayer()
+	if err != nil {
+		return err
+	}
+	defer rwLayer.Release()
+
+	return d.builder.exportImage(d.state, rwLayer, imageMount.Image(), runConfigWithCommentCmd)
 }
 
 // MAINTAINER some text <maybe@an.email.address>
