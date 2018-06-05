@@ -63,5 +63,4 @@ func TestLocalVolumeSize(t *testing.T) {
 			t.Fatalf("got unexpected volume: %+v", v)
 		}
 	}
-	assert.Assert(t, is.Equal(ls[1].UsageData.Size, int64(len(data[:1]))))
 }
