@@ -3,7 +3,6 @@ package volume // import "github.com/docker/docker/api/server/router/volume"
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 
@@ -11,6 +10,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	volumetypes "github.com/docker/docker/api/types/volume"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/volume/service/opts"
+	"github.com/pkg/errors"
 )
 
 func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -18,7 +19,11 @@ func (v *volumeRouter) getVolumesList(ctx context.Context, w http.ResponseWriter
 		return err
 	}
 
-	volumes, warnings, err := v.backend.Volumes(r.Form.Get("filters"))
+	filters, err := filters.FromJSON(r.Form.Get("filters"))
+	if err != nil {
+		return errdefs.InvalidParameter(errors.Wrap(err, "error reading volume filters"))
+	}
+	volumes, warnings, err := v.backend.List(ctx, filters)
 	if err != nil {
 		return err
 	}
@@ -30,7 +35,7 @@ func (v *volumeRouter) getVolumeByName(ctx context.Context, w http.ResponseWrite
 		return err
 	}
 
-	volume, err := v.backend.VolumeInspect(vars["name"])
+	volume, err := v.backend.Get(ctx, vars["name"], opts.WithGetResolveStatus)
 	if err != nil {
 		return err
 	}
@@ -54,7 +59,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		return err
 	}
 
-	volume, err := v.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels)
+	volume, err := v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
 	if err != nil {
 		return err
 	}
@@ -66,7 +71,7 @@ func (v *volumeRouter) deleteVolumes(ctx context.Context, w http.ResponseWriter,
 		return err
 	}
 	force := httputils.BoolValue(r, "force")
-	if err := v.backend.VolumeRm(vars["name"], force); err != nil {
+	if err := v.backend.Remove(ctx, vars["name"], opts.WithPurgeOnError(force)); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -83,7 +88,7 @@ func (v *volumeRouter) postVolumesPrune(ctx context.Context, w http.ResponseWrit
 		return err
 	}
 
-	pruneReport, err := v.backend.VolumesPrune(ctx, pruneFilters)
+	pruneReport, err := v.backend.Prune(ctx, pruneFilters)
 	if err != nil {
 		return err
 	}

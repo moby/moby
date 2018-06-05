@@ -13,9 +13,7 @@ import (
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/truncindex"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
+	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/go-connections/nat"
 	"github.com/docker/libnetwork"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -120,18 +118,10 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 		repository: tmp,
 		root:       tmp,
 	}
-	drivers := volumedrivers.NewStore(nil)
-	daemon.volumes, err = store.New(tmp, drivers)
+	daemon.volumes, err = volumesservice.NewVolumeService(tmp, nil, idtools.IDPair{UID: 0, GID: 0}, daemon)
 	if err != nil {
 		return nil, err
 	}
-
-	volumesDriver, err := local.New(tmp, idtools.IDPair{UID: 0, GID: 0})
-	if err != nil {
-		return nil, err
-	}
-	drivers.Register(volumesDriver, volumesDriver.Name())
-
 	return daemon, nil
 }
 

@@ -10,26 +10,22 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	timetypes "github.com/docker/docker/api/types/time"
-	"github.com/docker/docker/pkg/directory"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/runconfig"
-	"github.com/docker/docker/volume"
 	"github.com/docker/libnetwork"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 var (
 	// errPruneRunning is returned when a prune request is received while
 	// one is in progress
-	errPruneRunning = fmt.Errorf("a prune operation is already running")
+	errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 	containersAcceptedFilters = map[string]bool{
 		"label":  true,
 		"label!": true,
 		"until":  true,
-	}
-	volumesAcceptedFilters = map[string]bool{
-		"label":  true,
-		"label!": true,
 	}
 
 	networksAcceptedFilters = map[string]bool{
@@ -87,67 +83,6 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 			}
 			rep.ContainersDeleted = append(rep.ContainersDeleted, c.ID)
 		}
-	}
-
-	return rep, nil
-}
-
-// VolumesPrune removes unused local volumes
-func (daemon *Daemon) VolumesPrune(ctx context.Context, pruneFilters filters.Args) (*types.VolumesPruneReport, error) {
-	if !atomic.CompareAndSwapInt32(&daemon.pruneRunning, 0, 1) {
-		return nil, errPruneRunning
-	}
-	defer atomic.StoreInt32(&daemon.pruneRunning, 0)
-
-	// make sure that only accepted filters have been received
-	err := pruneFilters.Validate(volumesAcceptedFilters)
-	if err != nil {
-		return nil, err
-	}
-
-	rep := &types.VolumesPruneReport{}
-
-	volumes, err := daemon.volumes.FilterByDriver(volume.DefaultDriverName)
-	if err != nil {
-		return nil, err
-	}
-
-	for _, v := range volumes {
-		select {
-		case <-ctx.Done():
-			logrus.Debugf("VolumesPrune operation cancelled: %#v", *rep)
-			err := ctx.Err()
-			if err == context.Canceled {
-				return rep, nil
-			}
-			return rep, err
-		default:
-		}
-
-		name := v.Name()
-		refs := daemon.volumes.Refs(v)
-
-		if len(refs) == 0 {
-			detailedVolume, ok := v.(volume.DetailedVolume)
-			if ok {
-				if !matchLabels(pruneFilters, detailedVolume.Labels()) {
-					continue
-				}
-			}
-
-			vSize, err := directory.Size(ctx, v.Path())
-			if err != nil {
-				logrus.Warnf("could not determine size of volume %s: %v", name, err)
-			}
-			err = daemon.volumeRm(v)
-			if err != nil {
-				logrus.Warnf("could not remove volume %s: %v", name, err)
-				continue
-			}
-			rep.SpaceReclaimed += uint64(vSize)
-			rep.VolumesDeleted = append(rep.VolumesDeleted, name)
-		}
-
 	}
 
 	return rep, nil

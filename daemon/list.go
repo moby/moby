@@ -12,18 +12,10 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
-
-var acceptedVolumeFilterTags = map[string]bool{
-	"dangling": true,
-	"name":     true,
-	"driver":   true,
-	"label":    true,
-}
 
 var acceptedPsFilterTags = map[string]bool{
 	"ancestor":  true,
@@ -603,87 +595,6 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	}
 	c.Image = image
 	return &c, nil
-}
-
-// Volumes lists known volumes, using the filter to restrict the range
-// of volumes returned.
-func (daemon *Daemon) Volumes(filter string) ([]*types.Volume, []string, error) {
-	var (
-		volumesOut []*types.Volume
-	)
-	volFilters, err := filters.FromJSON(filter)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	if err := volFilters.Validate(acceptedVolumeFilterTags); err != nil {
-		return nil, nil, err
-	}
-
-	volumes, warnings, err := daemon.volumes.List()
-	if err != nil {
-		return nil, nil, err
-	}
-
-	filterVolumes, err := daemon.filterVolumes(volumes, volFilters)
-	if err != nil {
-		return nil, nil, err
-	}
-	for _, v := range filterVolumes {
-		apiV := volumeToAPIType(v)
-		if vv, ok := v.(interface {
-			CachedPath() string
-		}); ok {
-			apiV.Mountpoint = vv.CachedPath()
-		} else {
-			apiV.Mountpoint = v.Path()
-		}
-		volumesOut = append(volumesOut, apiV)
-	}
-	return volumesOut, warnings, nil
-}
-
-// filterVolumes filters volume list according to user specified filter
-// and returns user chosen volumes
-func (daemon *Daemon) filterVolumes(vols []volume.Volume, filter filters.Args) ([]volume.Volume, error) {
-	// if filter is empty, return original volume list
-	if filter.Len() == 0 {
-		return vols, nil
-	}
-
-	var retVols []volume.Volume
-	for _, vol := range vols {
-		if filter.Contains("name") {
-			if !filter.Match("name", vol.Name()) {
-				continue
-			}
-		}
-		if filter.Contains("driver") {
-			if !filter.ExactMatch("driver", vol.DriverName()) {
-				continue
-			}
-		}
-		if filter.Contains("label") {
-			v, ok := vol.(volume.DetailedVolume)
-			if !ok {
-				continue
-			}
-			if !filter.MatchKVList("label", v.Labels()) {
-				continue
-			}
-		}
-		retVols = append(retVols, vol)
-	}
-	danglingOnly := false
-	if filter.Contains("dangling") {
-		if filter.ExactMatch("dangling", "true") || filter.ExactMatch("dangling", "1") {
-			danglingOnly = true
-		} else if !filter.ExactMatch("dangling", "false") && !filter.ExactMatch("dangling", "0") {
-			return nil, invalidFilter{"dangling", filter.Get("dangling")}
-		}
-		retVols = daemon.volumes.FilterByUsed(retVols, !danglingOnly)
-	}
-	return retVols, nil
 }
 
 func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {

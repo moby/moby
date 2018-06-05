@@ -7,9 +7,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/pkg/directory"
-	"github.com/docker/docker/volume"
-	"github.com/sirupsen/logrus"
 )
 
 // SystemDiskUsage returns information about the daemon data disk usage
@@ -34,37 +31,9 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 		return nil, fmt.Errorf("failed to retrieve image list: %v", err)
 	}
 
-	volumes, err := daemon.volumes.FilterByDriver(volume.DefaultDriverName)
+	localVolumes, err := daemon.volumes.LocalVolumesSize(ctx)
 	if err != nil {
 		return nil, err
-	}
-
-	var allVolumes []*types.Volume
-	for _, v := range volumes {
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-		if d, ok := v.(volume.DetailedVolume); ok {
-			if len(d.Options()) > 0 {
-				// skip local volumes with mount options since these could have external
-				// mounted filesystems that will be slow to enumerate.
-				continue
-			}
-		}
-
-		name := v.Name()
-		refs := daemon.volumes.Refs(v)
-
-		tv := volumeToAPIType(v)
-		sz, err := directory.Size(ctx, v.Path())
-		if err != nil {
-			logrus.Warnf("failed to determine size of volume %v", name)
-			sz = -1
-		}
-		tv.UsageData = &types.VolumeUsageData{Size: sz, RefCount: int64(len(refs))}
-		allVolumes = append(allVolumes, tv)
 	}
 
 	allLayersSize, err := daemon.imageService.LayerDiskUsage(ctx)
@@ -75,7 +44,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	return &types.DiskUsage{
 		LayersSize: allLayersSize,
 		Containers: allContainers,
-		Volumes:    allVolumes,
+		Volumes:    localVolumes,
 		Images:     allImages,
 	}, nil
 }

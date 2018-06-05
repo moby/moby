@@ -128,7 +128,7 @@ func (container *Container) CopyImagePathContent(v volume.Volume, destination st
 		return err
 	}
 
-	if _, err = ioutil.ReadDir(rootfs); err != nil {
+	if _, err := os.Stat(rootfs); err != nil {
 		if os.IsNotExist(err) {
 			return nil
 		}

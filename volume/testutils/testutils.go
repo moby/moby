@@ -64,7 +64,9 @@ func (FakeVolume) Mount(_ string) (string, error) { return "fake", nil }
 func (FakeVolume) Unmount(_ string) error { return nil }
 
 // Status provides low-level details about the volume
-func (FakeVolume) Status() map[string]interface{} { return nil }
+func (FakeVolume) Status() map[string]interface{} {
+	return map[string]interface{}{"datakey": "datavalue"}
+}
 
 // CreatedAt provides the time the volume (directory) was created at
 func (FakeVolume) CreatedAt() (time.Time, error) { return time.Now(), nil }

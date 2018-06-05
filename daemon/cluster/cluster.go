@@ -85,6 +85,7 @@ type Config struct {
 	Backend                executorpkg.Backend
 	ImageBackend           executorpkg.ImageBackend
 	PluginBackend          plugin.Backend
+	VolumeBackend          executorpkg.VolumeBackend
 	NetworkSubnetsProvider NetworkSubnetsProvider
 
 	// DefaultAdvertiseAddr is the default host/IP or network interface to use

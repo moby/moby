@@ -13,7 +13,6 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
-	volumestore "github.com/docker/docker/volume/store"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -234,22 +233,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		DetachKeys:    e.DetachKeys,
 		Pid:           e.Pid,
 	}, nil
-}
-
-// VolumeInspect looks up a volume by name. An error is returned if
-// the volume cannot be found.
-func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
-	v, err := daemon.volumes.Get(name)
-	if err != nil {
-		if volumestore.IsNotExist(err) {
-			return nil, volumeNotFound(name)
-		}
-		return nil, errdefs.System(err)
-	}
-	apiV := volumeToAPIType(v)
-	apiV.Mountpoint = v.Path()
-	apiV.Status = v.Status()
-	return apiV, nil
 }
 
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {

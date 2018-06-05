@@ -18,10 +18,6 @@ func containerNotFound(id string) error {
 	return objNotFoundError{"container", id}
 }
 
-func volumeNotFound(id string) error {
-	return objNotFoundError{"volume", id}
-}
-
 type objNotFoundError struct {
 	object string
 	id     string

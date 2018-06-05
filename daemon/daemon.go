@@ -52,9 +52,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
-	volumedrivers "github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
+	volumesservice "github.com/docker/docker/volume/service"
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
@@ -83,7 +81,7 @@ type Daemon struct {
 	RegistryService   registry.Service
 	EventsService     *events.Events
 	netController     libnetwork.NetworkController
-	volumes           *store.VolumeStore
+	volumes           *volumesservice.VolumesService
 	discoveryWatcher  discovery.Reloader
 	root              string
 	seccompEnabled    bool
@@ -784,8 +782,7 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		return nil, err
 	}
 
-	// Configure the volumes driver
-	volStore, err := d.configureVolumes(rootIDs)
+	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
 	}
@@ -855,7 +852,6 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 	d.statsCollector = d.newStatsCollector(1 * time.Second)
 
 	d.EventsService = events.New()
-	d.volumes = volStore
 	d.root = config.Root
 	d.idMappings = idMappings
 	d.seccompEnabled = sysInfo.Seccomp
@@ -1142,18 +1138,6 @@ func setDefaultMtu(conf *config.Config) {
 		return
 	}
 	conf.Mtu = config.DefaultNetworkMtu
-}
-
-func (daemon *Daemon) configureVolumes(rootIDs idtools.IDPair) (*store.VolumeStore, error) {
-	volumeDriver, err := local.New(daemon.configStore.Root, rootIDs)
-	if err != nil {
-		return nil, err
-	}
-	drivers := volumedrivers.NewStore(daemon.PluginStore)
-	if !drivers.Register(volumeDriver, volumeDriver.Name()) {
-		return nil, errors.New("local volume driver could not be registered")
-	}
-	return store.New(daemon.configStore.Root, drivers)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
