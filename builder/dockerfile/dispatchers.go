@@ -552,14 +552,25 @@ func dispatchStopSignal(d dispatchRequest, c *instructions.StopSignalCommand) er
 // to builder using the --build-arg flag for expansion/substitution or passing to 'run'.
 // Dockerfile author may optionally set a default value of this variable.
 func dispatchArg(d dispatchRequest, c *instructions.ArgCommand) error {
-
-	commitStr := "ARG " + c.Key
-	if c.Value != nil {
-		commitStr += "=" + *c.Value
-	}
+	runConfig := d.state.runConfig
 
 	d.state.buildArgs.AddArg(c.Key, c.Value)
-	return d.builder.commit(d.state, commitStr)
+
+	if hit, err := d.builder.probeCache(d.state, runConfig); err != nil || hit {
+		return err
+	}
+
+	imageMount, err := d.builder.imageSources.Get(d.state.imageID, true, d.state.operatingSystem)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get destination image %q", d.state.imageID)
+	}
+
+	rwLayer, err := imageMount.NewRWLayer()
+	if err != nil {
+		return err
+	}
+	defer rwLayer.Release()
+	return d.builder.exportImage(d.state, rwLayer, imageMount.Image(), runConfig)
 }
 
 // SHELL powershell -command

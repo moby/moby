@@ -370,20 +370,6 @@ func TestStopSignal(t *testing.T) {
 	assert.Check(t, is.Equal(signal, sb.state.runConfig.StopSignal))
 }
 
-func TestArg(t *testing.T) {
-	b := newBuilderWithMockBackend()
-	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
-
-	argName := "foo"
-	argVal := "bar"
-	cmd := &instructions.ArgCommand{Key: argName, Value: &argVal}
-	err := dispatch(sb, cmd)
-	assert.NilError(t, err)
-
-	expected := map[string]string{argName: argVal}
-	assert.Check(t, is.DeepEqual(expected, sb.state.buildArgs.GetAllAllowed()))
-}
-
 func TestShell(t *testing.T) {
 	b := newBuilderWithMockBackend()
 	sb := newDispatchRequest(b, '`', nil, NewBuildArgs(make(map[string]*string)), newStagesBuildResults())
