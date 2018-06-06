@@ -32,11 +32,14 @@ type Sandbox interface {
 	// Unset the previously set default IPv6 gateway in the sandbox
 	UnsetGatewayIPv6() error
 
-	// AddLoopbackAliasIP adds the passed IP address to the sandbox loopback interface
-	AddLoopbackAliasIP(ip *net.IPNet) error
+	// GetLoopbackIfaceName returns the name of the loopback interface
+	GetLoopbackIfaceName() string
 
-	// RemoveLoopbackAliasIP removes the passed IP address from the sandbox loopback interface
-	RemoveLoopbackAliasIP(ip *net.IPNet) error
+	// AddAliasIP adds the passed IP address to the named interface
+	AddAliasIP(ifName string, ip *net.IPNet) error
+
+	// RemoveAliasIP removes the passed IP address from the named interface
+	RemoveAliasIP(ifName string, ip *net.IPNet) error
 
 	// Add a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
