@@ -52,7 +52,7 @@ var (
 	bucketKeyObjectSnapshots  = []byte("snapshots")  // stores snapshot references
 	bucketKeyObjectContent    = []byte("content")    // stores content references
 	bucketKeyObjectBlob       = []byte("blob")       // stores content links
-	bucketKeyObjectIngest     = []byte("ingest")     // stores ingest links
+	bucketKeyObjectIngests    = []byte("ingests")    // stores ingest objects
 	bucketKeyObjectLeases     = []byte("leases")     // stores leases
 
 	bucketKeyDigest      = []byte("digest")
@@ -70,6 +70,10 @@ var (
 	bucketKeyTarget      = []byte("target")
 	bucketKeyExtensions  = []byte("extensions")
 	bucketKeyCreatedAt   = []byte("createdat")
+	bucketKeyExpected    = []byte("expected")
+	bucketKeyRef         = []byte("ref")
+
+	deprecatedBucketKeyObjectIngest = []byte("ingest") // stores ingest links, deprecated in v1.2
 )
 
 func getBucket(tx *bolt.Tx, keys ...[]byte) *bolt.Bucket {
@@ -131,11 +135,7 @@ func getImagesBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {
 }
 
 func createContainersBucket(tx *bolt.Tx, namespace string) (*bolt.Bucket, error) {
-	bkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContainers)
-	if err != nil {
-		return nil, err
-	}
-	return bkt, nil
+	return createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContainers)
 }
 
 func getContainersBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {
@@ -178,14 +178,18 @@ func getBlobBucket(tx *bolt.Tx, namespace string, dgst digest.Digest) *bolt.Buck
 	return getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectBlob, []byte(dgst.String()))
 }
 
-func createIngestBucket(tx *bolt.Tx, namespace string) (*bolt.Bucket, error) {
-	bkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngest)
+func getIngestsBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {
+	return getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngests)
+}
+
+func createIngestBucket(tx *bolt.Tx, namespace, ref string) (*bolt.Bucket, error) {
+	bkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngests, []byte(ref))
 	if err != nil {
 		return nil, err
 	}
 	return bkt, nil
 }
 
-func getIngestBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {
-	return getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngest)
+func getIngestBucket(tx *bolt.Tx, namespace, ref string) *bolt.Bucket {
+	return getBucket(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectIngests, []byte(ref))
 }

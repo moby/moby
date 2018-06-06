@@ -43,7 +43,7 @@ const (
 	// dbVersion represents updates to the schema
 	// version which are additions and compatible with
 	// prior version of the same schema.
-	dbVersion = 1
+	dbVersion = 2
 )
 
 // DB represents a metadata database backed by a bolt
@@ -193,6 +193,15 @@ func (m *DB) Snapshotter(name string) snapshots.Snapshotter {
 		return nil
 	}
 	return sn
+}
+
+// Snapshotters returns all available snapshotters.
+func (m *DB) Snapshotters() map[string]snapshots.Snapshotter {
+	ss := make(map[string]snapshots.Snapshotter, len(m.ss))
+	for n, sn := range m.ss {
+		ss[n] = sn
+	}
+	return ss
 }
 
 // View runs a readonly transaction on the metadata store.

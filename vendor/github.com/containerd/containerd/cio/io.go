@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/containerd/containerd/defaults"
@@ -213,3 +214,44 @@ type DirectIO struct {
 }
 
 var _ IO = &DirectIO{}
+
+// LogFile creates a file on disk that logs the task's STDOUT,STDERR.
+// If the log file already exists, the logs will be appended to the file.
+func LogFile(path string) Creator {
+	return func(_ string) (IO, error) {
+		if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+			return nil, err
+		}
+		f, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		f.Close()
+		return &logIO{
+			config: Config{
+				Stdout: path,
+				Stderr: path,
+			},
+		}, nil
+	}
+}
+
+type logIO struct {
+	config Config
+}
+
+func (l *logIO) Config() Config {
+	return l.config
+}
+
+func (l *logIO) Cancel() {
+
+}
+
+func (l *logIO) Wait() {
+
+}
+
+func (l *logIO) Close() error {
+	return nil
+}

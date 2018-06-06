@@ -18,18 +18,16 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 import containerd_types "github.com/containerd/containerd/api/types"
-import google_rpc "github.com/containerd/containerd/protobuf/google/rpc"
+import google_rpc "github.com/gogo/googleapis/google/rpc"
 
 // skipping weak import gogoproto "github.com/gogo/protobuf/gogoproto"
 
-import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
+import context "golang.org/x/net/context"
+import grpc "google.golang.org/grpc"
 
 import strings "strings"
 import reflect "reflect"
-import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+import sortkeys "github.com/gogo/protobuf/sortkeys"
 
 import io "io"
 
@@ -460,7 +458,7 @@ func (this *Plugin) String() string {
 	for k, _ := range this.Exports {
 		keysForExports = append(keysForExports, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForExports)
+	sortkeys.Strings(keysForExports)
 	mapStringForExports := "map[string]string{"
 	for _, k := range keysForExports {
 		mapStringForExports += fmt.Sprintf("%v: %v,", k, this.Exports[k])

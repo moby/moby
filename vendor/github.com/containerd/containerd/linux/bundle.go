@@ -85,24 +85,25 @@ type bundle struct {
 type ShimOpt func(*bundle, string, *runctypes.RuncOptions) (shim.Config, client.Opt)
 
 // ShimRemote is a ShimOpt for connecting and starting a remote shim
-func ShimRemote(shimBinary, daemonAddress, cgroup string, debug bool, exitHandler func()) ShimOpt {
+func ShimRemote(c *Config, daemonAddress, cgroup string, exitHandler func()) ShimOpt {
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
-		return b.shimConfig(ns, ropts),
-			client.WithStart(shimBinary, b.shimAddress(ns), daemonAddress, cgroup, debug, exitHandler)
+		config := b.shimConfig(ns, c, ropts)
+		return config,
+			client.WithStart(c.Shim, b.shimAddress(ns), daemonAddress, cgroup, c.ShimDebug, exitHandler)
 	}
 }
 
 // ShimLocal is a ShimOpt for using an in process shim implementation
-func ShimLocal(exchange *exchange.Exchange) ShimOpt {
+func ShimLocal(c *Config, exchange *exchange.Exchange) ShimOpt {
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
-		return b.shimConfig(ns, ropts), client.WithLocal(exchange)
+		return b.shimConfig(ns, c, ropts), client.WithLocal(exchange)
 	}
 }
 
 // ShimConnect is a ShimOpt for connecting to an existing remote shim
-func ShimConnect(onClose func()) ShimOpt {
+func ShimConnect(c *Config, onClose func()) ShimOpt {
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
-		return b.shimConfig(ns, ropts), client.WithConnect(b.shimAddress(ns), onClose)
+		return b.shimConfig(ns, c, ropts), client.WithConnect(b.shimAddress(ns), onClose)
 	}
 }
 
@@ -130,16 +131,18 @@ func (b *bundle) shimAddress(namespace string) string {
 	return filepath.Join(string(filepath.Separator), "containerd-shim", namespace, b.id, "shim.sock")
 }
 
-func (b *bundle) shimConfig(namespace string, runcOptions *runctypes.RuncOptions) shim.Config {
+func (b *bundle) shimConfig(namespace string, c *Config, runcOptions *runctypes.RuncOptions) shim.Config {
 	var (
 		criuPath      string
-		runtimeRoot   string
+		runtimeRoot   = c.RuntimeRoot
 		systemdCgroup bool
 	)
 	if runcOptions != nil {
 		criuPath = runcOptions.CriuPath
 		systemdCgroup = runcOptions.SystemdCgroup
-		runtimeRoot = runcOptions.RuntimeRoot
+		if runcOptions.RuntimeRoot != "" {
+			runtimeRoot = runcOptions.RuntimeRoot
+		}
 	}
 	return shim.Config{
 		Path:          b.path,

@@ -48,11 +48,11 @@ import google_protobuf "github.com/gogo/protobuf/types"
 // skipping weak import gogoproto "github.com/gogo/protobuf/gogoproto"
 // skipping weak import containerd_plugin "github.com/containerd/containerd/protobuf/plugin"
 
-import github_com_containerd_typeurl "github.com/containerd/typeurl"
+import typeurl "github.com/containerd/typeurl"
 
 import strings "strings"
 import reflect "reflect"
-import github_com_gogo_protobuf_sortkeys "github.com/gogo/protobuf/sortkeys"
+import sortkeys "github.com/gogo/protobuf/sortkeys"
 
 import io "io"
 
@@ -153,7 +153,7 @@ func (m *ContainerCreate_Runtime) Field(fieldpath []string) (string, bool) {
 	case "name":
 		return string(m.Name), len(m.Name) > 0
 	case "options":
-		decoded, err := github_com_containerd_typeurl.UnmarshalAny(m.Options)
+		decoded, err := typeurl.UnmarshalAny(m.Options)
 		if err != nil {
 			return "", false
 		}
@@ -478,7 +478,7 @@ func (this *ContainerUpdate) String() string {
 	for k, _ := range this.Labels {
 		keysForLabels = append(keysForLabels, k)
 	}
-	github_com_gogo_protobuf_sortkeys.Strings(keysForLabels)
+	sortkeys.Strings(keysForLabels)
 	mapStringForLabels := "map[string]string{"
 	for _, k := range keysForLabels {
 		mapStringForLabels += fmt.Sprintf("%v: %v,", k, this.Labels[k])

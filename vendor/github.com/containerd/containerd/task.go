@@ -169,6 +169,11 @@ type task struct {
 	pid uint32
 }
 
+// ID of the task
+func (t *task) ID() string {
+	return t.id
+}
+
 // Pid returns the pid or process id for the task
 func (t *task) Pid() uint32 {
 	return t.pid
@@ -386,7 +391,7 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 	if err != nil {
 		return nil, err
 	}
-	defer done()
+	defer done(ctx)
 
 	request := &tasks.CheckpointTaskRequest{
 		ContainerID: t.id,

@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package runc
 
 import (
@@ -20,6 +36,15 @@ import (
 
 // Format is the type of log formatting options avaliable
 type Format string
+
+// TopBody represents the structured data of the full ps output
+type TopResults struct {
+	// Processes running in the container, where each is process is an array of values corresponding to the headers
+	Processes [][]string `json:"Processes"`
+
+	// Headers are the names of the columns
+	Headers []string `json:"Headers"`
+}
 
 const (
 	none Format = ""
@@ -379,6 +404,20 @@ func (r *Runc) Ps(context context.Context, id string) ([]int, error) {
 	return pids, nil
 }
 
+// Top lists all the processes inside the container returning the full ps data
+func (r *Runc) Top(context context.Context, id string, psOptions string) (*TopResults, error) {
+	data, err := cmdOutput(r.command(context, "ps", "--format", "table", id, psOptions), true)
+	if err != nil {
+		return nil, fmt.Errorf("%s: %s", err, data)
+	}
+
+	topResults, err := parsePSOutput(data)
+	if err != nil {
+		return nil, fmt.Errorf("%s: ", err)
+	}
+	return topResults, nil
+}
+
 type CheckpointOpts struct {
 	// ImagePath is the path for saving the criu image file
 	ImagePath string
@@ -473,10 +512,11 @@ type RestoreOpts struct {
 	CheckpointOpts
 	IO
 
-	Detach      bool
-	PidFile     string
-	NoSubreaper bool
-	NoPivot     bool
+	Detach        bool
+	PidFile       string
+	NoSubreaper   bool
+	NoPivot       bool
+	ConsoleSocket ConsoleSocket
 }
 
 func (o *RestoreOpts) args() ([]string, error) {
@@ -490,6 +530,9 @@ func (o *RestoreOpts) args() ([]string, error) {
 			return nil, err
 		}
 		out = append(out, "--pid-file", abs)
+	}
+	if o.ConsoleSocket != nil {
+		out = append(out, "--console-socket", o.ConsoleSocket.Path())
 	}
 	if o.NoPivot {
 		out = append(out, "--no-pivot")

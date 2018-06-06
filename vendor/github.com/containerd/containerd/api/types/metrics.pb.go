@@ -13,7 +13,7 @@ import _ "github.com/gogo/protobuf/types"
 
 import time "time"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types1 "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
@@ -56,8 +56,8 @@ func (m *Metric) MarshalTo(dAtA []byte) (int, error) {
 	_ = l
 	dAtA[i] = 0xa
 	i++
-	i = encodeVarintMetrics(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)))
-	n1, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.Timestamp, dAtA[i:])
+	i = encodeVarintMetrics(dAtA, i, uint64(types1.SizeOfStdTime(m.Timestamp)))
+	n1, err := types1.StdTimeMarshalTo(m.Timestamp, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -93,7 +93,7 @@ func encodeVarintMetrics(dAtA []byte, offset int, v uint64) int {
 func (m *Metric) Size() (n int) {
 	var l int
 	_ = l
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.Timestamp)
+	l = types1.SizeOfStdTime(m.Timestamp)
 	n += 1 + l + sovMetrics(uint64(l))
 	l = len(m.ID)
 	if l > 0 {
@@ -194,7 +194,7 @@ func (m *Metric) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types1.StdTimeUnmarshal(&m.Timestamp, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/docker/swarmkit/ca/keyutils"
+	"github.com/docker/swarmkit/identity"
 
 	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -35,8 +36,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -54,6 +55,9 @@ var (
 
 	// ErrInvalidUnlockKey is returned when we can't decrypt the TLS certificate
 	ErrInvalidUnlockKey = errors.New("node is locked, and needs a valid unlock key")
+
+	// ErrMandatoryFIPS is returned when the cluster we are joining mandates FIPS, but we are running in non-FIPS mode
+	ErrMandatoryFIPS = errors.New("node is not FIPS-enabled but cluster requires FIPS")
 )
 
 func init() {
@@ -248,7 +252,6 @@ func (n *Node) Start(ctx context.Context) error {
 		go n.run(ctx)
 		err = nil // clear error above, only once.
 	})
-
 	return err
 }
 
@@ -753,13 +756,32 @@ func (n *Node) Remotes() []api.Peer {
 	return remotes
 }
 
+// Given a cluster ID, returns whether the cluster ID indicates that the cluster
+// mandates FIPS mode.  These cluster IDs start with "FIPS." as a prefix.
+func isMandatoryFIPSClusterID(securityConfig *ca.SecurityConfig) bool {
+	return strings.HasPrefix(securityConfig.ClientTLSCreds.Organization(), "FIPS.")
+}
+
+// Given a join token, returns whether it indicates that the cluster mandates FIPS
+// mode.
+func isMandatoryFIPSClusterJoinToken(joinToken string) bool {
+	if parsed, err := ca.ParseJoinToken(joinToken); err == nil {
+		return parsed.FIPS
+	}
+	return false
+}
+
+func generateFIPSClusterID() string {
+	return "FIPS." + identity.NewID()
+}
+
 func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigPaths) (*ca.SecurityConfig, func() error, error) {
 	var (
 		securityConfig *ca.SecurityConfig
 		cancel         func() error
 	)
 
-	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+	krw := ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{FIPS: n.config.FIPS})
 	// if FIPS is required, we want to make sure our key is stored in PKCS8 format
 	if n.config.FIPS {
 		krw.SetKeyFormatter(keyutils.FIPS)
@@ -793,7 +815,7 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			if n.config.AutoLockManagers {
 				n.unlockKey = encryption.GenerateSecretKey()
 			}
-			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{})
+			krw = ca.NewKeyReadWriter(paths.Node, n.unlockKey, &manager.RaftDEKData{FIPS: n.config.FIPS})
 			rootCA, err = ca.CreateRootCA(ca.DefaultRootCN)
 			if err != nil {
 				return nil, nil, err
@@ -803,6 +825,10 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			}
 			log.G(ctx).Debug("generated CA key and certificate")
 		} else if err == ca.ErrNoLocalRootCA { // from previous error loading the root CA from disk
+			// if we are attempting to join another cluster, which has a FIPS join token, and we are not FIPS, error
+			if n.config.JoinAddr != "" && isMandatoryFIPSClusterJoinToken(n.config.JoinToken) && !n.config.FIPS {
+				return nil, nil, ErrMandatoryFIPS
+			}
 			rootCA, err = ca.DownloadRootCA(ctx, paths.RootCA, n.config.JoinToken, n.connBroker)
 			if err != nil {
 				return nil, nil, err
@@ -827,16 +853,30 @@ func (n *Node) loadSecurityConfig(ctx context.Context, paths *ca.SecurityConfigP
 			}
 			log.G(ctx).WithError(err).Debugf("no node credentials found in: %s", krw.Target())
 
-			securityConfig, cancel, err = rootCA.CreateSecurityConfig(ctx, krw, ca.CertificateRequestConfig{
+			// if we are attempting to join another cluster, which has a FIPS join token, and we are not FIPS, error
+			if n.config.JoinAddr != "" && isMandatoryFIPSClusterJoinToken(n.config.JoinToken) && !n.config.FIPS {
+				return nil, nil, ErrMandatoryFIPS
+			}
+
+			requestConfig := ca.CertificateRequestConfig{
 				Token:        n.config.JoinToken,
 				Availability: n.config.Availability,
 				ConnBroker:   n.connBroker,
-			})
+			}
+			// If this is a new cluster, we want to name the cluster ID "FIPS-something"
+			if n.config.FIPS {
+				requestConfig.Organization = generateFIPSClusterID()
+			}
+			securityConfig, cancel, err = rootCA.CreateSecurityConfig(ctx, krw, requestConfig)
 
 			if err != nil {
 				return nil, nil, err
 			}
 		}
+	}
+
+	if isMandatoryFIPSClusterID(securityConfig) && !n.config.FIPS {
+		return nil, nil, ErrMandatoryFIPS
 	}
 
 	n.Lock()
@@ -954,6 +994,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		Availability:     n.config.Availability,
 		PluginGetter:     n.config.PluginGetter,
 		RootCAPaths:      rootPaths,
+		FIPS:             n.config.FIPS,
 	})
 	if err != nil {
 		return false, err
@@ -1249,13 +1290,53 @@ func (fs *firstSessionErrorTracker) SessionError(err error) {
 	fs.mu.Unlock()
 }
 
+// SessionClosed returns an error if we haven't yet established a session, and
+// we get a gprc error as a result of an X509 failure.
 func (fs *firstSessionErrorTracker) SessionClosed() error {
 	fs.mu.Lock()
 	defer fs.mu.Unlock()
-	// unfortunately grpc connection errors are type grpc.rpcError, which are not exposed, and we can't get at the underlying error type
-	if !fs.pastFirstSession && grpc.Code(fs.err) == codes.Internal &&
-		strings.HasPrefix(grpc.ErrorDesc(fs.err), "connection error") && strings.Contains(grpc.ErrorDesc(fs.err), "transport: x509:") {
-		return fs.err
+
+	// if we've successfully established at least 1 session, never return
+	// errors
+	if fs.pastFirstSession {
+		return nil
 	}
-	return nil
+
+	// get the GRPC status from the error, because we only care about GRPC
+	// errors
+	grpcStatus, ok := status.FromError(fs.err)
+	// if this isn't a GRPC error, it's not an error we return from this method
+	if !ok {
+		return nil
+	}
+
+	// NOTE(dperny, cyli): grpc does not expose the error type, which means we have
+	// to string matching to figure out if it's an x509 error.
+	//
+	// The error we're looking for has "connection error:", then says
+	// "transport:" and finally has "x509:"
+	// specifically, the connection error description reads:
+	//
+	//   transport: authentication handshake failed: x509: certificate signed by unknown authority
+	//
+	// This string matching has caused trouble in the past. specifically, at
+	// some point between grpc versions 1.3.0 and 1.7.5, the string we were
+	// matching changed from "transport: x509" to "transport: authentication
+	// handshake failed: x509", which was an issue because we were matching for
+	// string "transport: x509:".
+	//
+	// In GRPC >= 1.10.x, transient errors like TLS errors became hidden by the
+	// load balancing that GRPC does.  In GRPC 1.11.x, they were exposed again
+	// (usually) in RPC calls, but the error string then became:
+	// rpc error: code = Unavailable desc = all SubConns are in TransientFailure, latest connection error: connection error: desc = "transport: authentication handshake failed: x509: certificate signed by unknown authority"
+	//
+	// It also went from an Internal error to an Unavailable error.  So we're just going
+	// to search for the string: "transport: authentication handshake failed: x509:" since
+	// we want to fail for ALL x509 failures, not just unknown authority errors.
+
+	if !strings.Contains(grpcStatus.Message(), "connection error") ||
+		!strings.Contains(grpcStatus.Message(), "transport: authentication handshake failed: x509:") {
+		return nil
+	}
+	return fs.err
 }

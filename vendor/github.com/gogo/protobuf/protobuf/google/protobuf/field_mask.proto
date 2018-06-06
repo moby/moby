@@ -32,12 +32,12 @@ syntax = "proto3";
 
 package google.protobuf;
 
-option csharp_namespace = "Google.Protobuf.WellKnownTypes"; option go_package = "types";
+option csharp_namespace = "Google.Protobuf.WellKnownTypes";
 option java_package = "com.google.protobuf";
 option java_outer_classname = "FieldMaskProto";
 option java_multiple_files = true;
 option objc_class_prefix = "GPB";
-option java_generate_equals_and_hash = true;
+option go_package = "types";
 
 // `FieldMask` represents a set of symbolic field paths, for example:
 //
@@ -82,7 +82,7 @@ option java_generate_equals_and_hash = true;
 //     }
 //
 // A repeated field is not allowed except at the last position of a
-// field mask.
+// paths string.
 //
 // If a FieldMask object is not present in a get operation, the
 // operation applies to all fields (as if a FieldMask of all fields
@@ -109,8 +109,8 @@ option java_generate_equals_and_hash = true;
 //
 // If a repeated field is specified for an update operation, the existing
 // repeated values in the target resource will be overwritten by the new values.
-// Note that a repeated field is only allowed in the last position of a field
-// mask.
+// Note that a repeated field is only allowed in the last position of a `paths`
+// string.
 //
 // If a sub-message is specified in the last position of the field mask for an
 // update operation, then the existing sub-message in the target resource is

@@ -75,7 +75,7 @@ func createInitLayer(ctx context.Context, parent, initName string, initFn func(s
 	// TODO: ensure not exist error once added to snapshot package
 
 	// Create tempdir
-	td, err := ioutil.TempDir("", "create-init-")
+	td, err := ioutil.TempDir(os.Getenv("XDG_RUNTIME_DIR"), "create-init-")
 	if err != nil {
 		return "", err
 	}

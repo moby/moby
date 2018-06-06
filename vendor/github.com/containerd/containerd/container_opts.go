@@ -26,7 +26,6 @@ import (
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
 
@@ -196,7 +195,7 @@ func WithNewSpec(opts ...oci.SpecOpts) NewContainerOpts {
 }
 
 // WithSpec sets the provided spec on the container
-func WithSpec(s *specs.Spec, opts ...oci.SpecOpts) NewContainerOpts {
+func WithSpec(s *oci.Spec, opts ...oci.SpecOpts) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		for _, o := range opts {
 			if err := o(ctx, client, c, s); err != nil {

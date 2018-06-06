@@ -18,7 +18,9 @@ package containerd
 
 import (
 	"context"
+	"errors"
 
+	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -28,4 +30,19 @@ func WithResources(resources *specs.LinuxResources) UpdateTaskOpts {
 		r.Resources = resources
 		return nil
 	}
+}
+
+// WithNoNewKeyring causes tasks not to be created with a new keyring for secret storage.
+// There is an upper limit on the number of keyrings in a linux system
+func WithNoNewKeyring(ctx context.Context, c *Client, ti *TaskInfo) error {
+	if ti.Options == nil {
+		ti.Options = &runctypes.CreateOptions{}
+	}
+	opts, ok := ti.Options.(*runctypes.CreateOptions)
+	if !ok {
+		return errors.New("could not cast TaskInfo Options to CreateOptions")
+	}
+
+	opts.NoNewKeyring = true
+	return nil
 }

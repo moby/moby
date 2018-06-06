@@ -44,13 +44,13 @@ import containerd_v1_types "github.com/containerd/containerd/api/types/task"
 
 import time "time"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
 
 import context "context"
-import github_com_stevvooe_ttrpc "github.com/stevvooe/ttrpc"
+import ttrpc "github.com/stevvooe/ttrpc"
 
 import io "io"
 
@@ -429,8 +429,8 @@ func (m *DeleteResponse) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x1a
 	i++
-	i = encodeVarintShim(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)))
-	n2, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
+	i = encodeVarintShim(dAtA, i, uint64(types.SizeOfStdTime(m.ExitedAt)))
+	n2, err := types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -672,8 +672,8 @@ func (m *StateResponse) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x52
 	i++
-	i = encodeVarintShim(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)))
-	n4, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
+	i = encodeVarintShim(dAtA, i, uint64(types.SizeOfStdTime(m.ExitedAt)))
+	n4, err := types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -992,8 +992,8 @@ func (m *WaitResponse) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x12
 	i++
-	i = encodeVarintShim(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)))
-	n7, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
+	i = encodeVarintShim(dAtA, i, uint64(types.SizeOfStdTime(m.ExitedAt)))
+	n7, err := types.StdTimeMarshalTo(m.ExitedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -1079,7 +1079,7 @@ func (m *DeleteResponse) Size() (n int) {
 	if m.ExitStatus != 0 {
 		n += 1 + sovShim(uint64(m.ExitStatus))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)
+	l = types.SizeOfStdTime(m.ExitedAt)
 	n += 1 + l + sovShim(uint64(l))
 	return n
 }
@@ -1190,7 +1190,7 @@ func (m *StateResponse) Size() (n int) {
 	if m.ExitStatus != 0 {
 		n += 1 + sovShim(uint64(m.ExitStatus))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)
+	l = types.SizeOfStdTime(m.ExitedAt)
 	n += 1 + l + sovShim(uint64(l))
 	return n
 }
@@ -1318,7 +1318,7 @@ func (m *WaitResponse) Size() (n int) {
 	if m.ExitStatus != 0 {
 		n += 1 + sovShim(uint64(m.ExitStatus))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.ExitedAt)
+	l = types.SizeOfStdTime(m.ExitedAt)
 	n += 1 + l + sovShim(uint64(l))
 	return n
 }
@@ -1597,8 +1597,8 @@ type ShimService interface {
 	Wait(ctx context.Context, req *WaitRequest) (*WaitResponse, error)
 }
 
-func RegisterShimService(srv *github_com_stevvooe_ttrpc.Server, svc ShimService) {
-	srv.Register("containerd.runtime.linux.shim.v1.Shim", map[string]github_com_stevvooe_ttrpc.Method{
+func RegisterShimService(srv *ttrpc.Server, svc ShimService) {
+	srv.Register("containerd.runtime.linux.shim.v1.Shim", map[string]ttrpc.Method{
 		"State": func(ctx context.Context, unmarshal func(interface{}) error) (interface{}, error) {
 			var req StateRequest
 			if err := unmarshal(&req); err != nil {
@@ -1715,10 +1715,10 @@ func RegisterShimService(srv *github_com_stevvooe_ttrpc.Server, svc ShimService)
 }
 
 type shimClient struct {
-	client *github_com_stevvooe_ttrpc.Client
+	client *ttrpc.Client
 }
 
-func NewShimClient(client *github_com_stevvooe_ttrpc.Client) ShimService {
+func NewShimClient(client *ttrpc.Client) ShimService {
 	return &shimClient{
 		client: client,
 	}
@@ -2379,7 +2379,7 @@ func (m *DeleteResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3225,7 +3225,7 @@ func (m *StateResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -4221,7 +4221,7 @@ func (m *WaitResponse) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.ExitedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

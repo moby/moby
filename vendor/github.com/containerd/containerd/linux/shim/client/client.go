@@ -145,7 +145,7 @@ func newCommand(binary, daemonAddress string, debug bool, config shim.Config, so
 
 func newSocket(address string) (*net.UnixListener, error) {
 	if len(address) > 106 {
-		return nil, errors.Errorf("%q: unix socket path too long (limit 106)", address)
+		return nil, errors.Errorf("%q: unix socket path too long (> 106)", address)
 	}
 	l, err := net.Listen("unix", "\x00"+address)
 	if err != nil {

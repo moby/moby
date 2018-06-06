@@ -45,7 +45,7 @@ option java_package = "com.google.protobuf";
 option java_outer_classname = "DescriptorProtos";
 option csharp_namespace = "Google.Protobuf.Reflection";
 option objc_class_prefix = "GPB";
-option java_generate_equals_and_hash = true;
+option cc_enable_arenas = true;
 
 // descriptor.proto must be optimized for speed because reflection-based
 // algorithms don't work during bootstrapping.
@@ -102,6 +102,8 @@ message DescriptorProto {
   message ExtensionRange {
     optional int32 start = 1;
     optional int32 end = 2;
+
+    optional ExtensionRangeOptions options = 3;
   }
   repeated ExtensionRange extension_range = 5;
 
@@ -122,6 +124,14 @@ message DescriptorProto {
   repeated string reserved_name = 10;
 }
 
+message ExtensionRangeOptions {
+  // The parser stores options it doesn't recognize here. See above.
+  repeated UninterpretedOption uninterpreted_option = 999;
+
+  // Clients can define custom options in extensions of this message. See above.
+  extensions 1000 to max;
+}
+
 // Describes a field within a message.
 message FieldDescriptorProto {
   enum Type {
@@ -140,7 +150,11 @@ message FieldDescriptorProto {
     TYPE_FIXED32        = 7;
     TYPE_BOOL           = 8;
     TYPE_STRING         = 9;
-    TYPE_GROUP          = 10;  // Tag-delimited aggregate.
+    // Tag-delimited aggregate.
+    // Group type is deprecated and not supported in proto3. However, Proto3
+    // implementations should still be able to parse the group wire format and
+    // treat group fields as unknown fields.
+    TYPE_GROUP          = 10;
     TYPE_MESSAGE        = 11;  // Length-delimited aggregate.
 
     // New in version 2.
@@ -158,7 +172,6 @@ message FieldDescriptorProto {
     LABEL_OPTIONAL      = 1;
     LABEL_REQUIRED      = 2;
     LABEL_REPEATED      = 3;
-    // TODO(sanjay): Should we add LABEL_MAP?
   };
 
   optional string name = 1;
@@ -213,6 +226,26 @@ message EnumDescriptorProto {
   repeated EnumValueDescriptorProto value = 2;
 
   optional EnumOptions options = 3;
+
+  // Range of reserved numeric values. Reserved values may not be used by
+  // entries in the same enum. Reserved ranges may not overlap.
+  //
+  // Note that this is distinct from DescriptorProto.ReservedRange in that it
+  // is inclusive such that it can appropriately represent the entire int32
+  // domain.
+  message EnumReservedRange {
+    optional int32 start = 1; // Inclusive.
+    optional int32 end = 2;   // Inclusive.
+  }
+
+  // Range of reserved numeric values. Reserved numeric values may not be used
+  // by enum values in the same enum declaration. Reserved ranges may not
+  // overlap.
+  repeated EnumReservedRange reserved_range = 4;
+
+  // Reserved enum value names, which may not be reused. A given name may only
+  // be reserved once.
+  repeated string reserved_name = 5;
 }
 
 // Describes a value within an enum.
@@ -306,19 +339,8 @@ message FileOptions {
   // top-level extensions defined in the file.
   optional bool java_multiple_files = 10 [default=false];
 
-  // If set true, then the Java code generator will generate equals() and
-  // hashCode() methods for all messages defined in the .proto file.
-  // This increases generated code size, potentially substantially for large
-  // protos, which may harm a memory-constrained application.
-  // - In the full runtime this is a speed optimization, as the
-  // AbstractMessage base class includes reflection-based implementations of
-  // these methods.
-  // - In the lite runtime, setting this option changes the semantics of
-  // equals() and hashCode() to more closely match those of the full runtime;
-  // the generated methods compute their results based on field values rather
-  // than object identity. (Implementations should not assume that hashcodes
-  // will be consistent across runtimes or versions of the protocol compiler.)
-  optional bool java_generate_equals_and_hash = 20 [default=false];
+  // This option does nothing.
+  optional bool java_generate_equals_and_hash = 20 [deprecated=true];
 
   // If set true, then the Java2 code generator will generate code that
   // throws an exception whenever an attempt is made to assign a non-UTF-8
@@ -360,6 +382,7 @@ message FileOptions {
   optional bool cc_generic_services = 16 [default=false];
   optional bool java_generic_services = 17 [default=false];
   optional bool py_generic_services = 18 [default=false];
+  optional bool php_generic_services = 42 [default=false];
 
   // Is this file deprecated?
   // Depending on the target platform, this can emit Deprecated annotations
@@ -378,6 +401,21 @@ message FileOptions {
 
   // Namespace for generated classes; defaults to the package.
   optional string csharp_namespace = 37;
+
+  // By default Swift generators will take the proto package and CamelCase it
+  // replacing '.' with underscore and use that to prefix the types/symbols
+  // defined. When this options is provided, they will use this value instead
+  // to prefix the types/symbols defined.
+  optional string swift_prefix = 39;
+
+  // Sets the php class prefix which is prepended to all php generated classes
+  // from this .proto. Default is empty.
+  optional string php_class_prefix = 40;
+
+  // Use this option to change the namespace of php generated classes. Default
+  // is empty. When this option is empty, the package name will be used for
+  // determining the namespace.
+  optional string php_namespace = 41;
 
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;
@@ -443,6 +481,9 @@ message MessageOptions {
   // parser.
   optional bool map_entry = 7;
 
+  //reserved 8;  // javalite_serializable
+  //reserved 9;  // javanano_as_lite
+
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;
 
@@ -471,16 +512,17 @@ message FieldOptions {
   // false will avoid using packed encoding.
   optional bool packed = 2;
 
-
   // The jstype option determines the JavaScript type used for values of the
   // field.  The option is permitted only for 64 bit integral and fixed types
-  // (int64, uint64, sint64, fixed64, sfixed64).  By default these types are
-  // represented as JavaScript strings.  This avoids loss of precision that can
-  // happen when a large value is converted to a floating point JavaScript
-  // numbers.  Specifying JS_NUMBER for the jstype causes the generated
-  // JavaScript code to use the JavaScript "number" type instead of strings.
-  // This option is an enum to permit additional types to be added,
-  // e.g. goog.math.Integer.
+  // (int64, uint64, sint64, fixed64, sfixed64).  A field with jstype JS_STRING
+  // is represented as JavaScript string, which avoids loss of precision that
+  // can happen when a large value is converted to a floating point JavaScript.
+  // Specifying JS_NUMBER for the jstype causes the generated JavaScript code to
+  // use the JavaScript "number" type.  The behavior of the default option
+  // JS_NORMAL is implementation dependent.
+  //
+  // This option is an enum to permit additional types to be added, e.g.
+  // goog.math.Integer.
   optional JSType jstype = 6 [default = JS_NORMAL];
   enum JSType {
     // Use the default type.
@@ -512,7 +554,7 @@ message FieldOptions {
   //
   //
   // Note that implementations may choose not to check required fields within
-  // a lazy sub-message.  That is, calling IsInitialized() on the outher message
+  // a lazy sub-message.  That is, calling IsInitialized() on the outer message
   // may return true even if the inner message has missing required fields.
   // This is necessary because otherwise the inner message would have to be
   // parsed in order to perform the check, defeating the purpose of lazy
@@ -538,6 +580,8 @@ message FieldOptions {
 
   // Clients can define custom options in extensions of this message. See above.
   extensions 1000 to max;
+
+  //reserved 4;  // removed jtype
 }
 
 message OneofOptions {
@@ -559,6 +603,8 @@ message EnumOptions {
   // for the enum, or it will be completely ignored; in the very least, this
   // is a formalization for deprecating enums.
   optional bool deprecated = 3 [default=false];
+
+  //reserved 5;  // javanano_as_lite
 
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;
@@ -613,6 +659,17 @@ message MethodOptions {
   // for the method, or it will be completely ignored; in the very least,
   // this is a formalization for deprecating methods.
   optional bool deprecated = 33 [default=false];
+
+  // Is this method side-effect-free (or safe in HTTP parlance), or idempotent,
+  // or neither? HTTP based RPC implementation may choose GET verb for safe
+  // methods, and PUT verb for idempotent methods instead of the default POST.
+  enum IdempotencyLevel {
+    IDEMPOTENCY_UNKNOWN = 0;
+    NO_SIDE_EFFECTS     = 1; // implies idempotent
+    IDEMPOTENT          = 2; // idempotent, but may have side effects
+  }
+  optional IdempotencyLevel idempotency_level =
+      34 [default=IDEMPOTENCY_UNKNOWN];
 
   // The parser stores options it doesn't recognize here. See above.
   repeated UninterpretedOption uninterpreted_option = 999;

@@ -194,10 +194,23 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 	p := s.p
+	sio := p.stdio
+
+	var (
+		err    error
+		socket *runc.Socket
+	)
+	if sio.Terminal {
+		if socket, err = runc.NewTempConsoleSocket(); err != nil {
+			return errors.Wrap(err, "failed to create OCI runtime console socket")
+		}
+		defer socket.Close()
+		s.opts.ConsoleSocket = socket
+	}
+
 	if _, err := s.p.runtime.Restore(ctx, p.id, p.bundle, s.opts); err != nil {
 		return p.runtimeError(err, "OCI runtime restore failed")
 	}
-	sio := p.stdio
 	if sio.Stdin != "" {
 		sc, err := fifo.OpenFifo(ctx, sio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
@@ -207,7 +220,17 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		p.closers = append(p.closers, sc)
 	}
 	var copyWaitGroup sync.WaitGroup
-	if !sio.IsNull() {
+	if socket != nil {
+		console, err := socket.ReceiveMaster()
+		if err != nil {
+			return errors.Wrap(err, "failed to retrieve console master")
+		}
+		console, err = p.platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup)
+		if err != nil {
+			return errors.Wrap(err, "failed to start console copy")
+		}
+		p.console = console
+	} else if !sio.IsNull() {
 		if err := copyPipes(ctx, p.io, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup); err != nil {
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
@@ -219,7 +242,6 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
 	p.pid = pid
-
 	return s.transition("running")
 }
 

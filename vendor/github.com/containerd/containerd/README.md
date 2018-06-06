@@ -1,4 +1,4 @@
-![banner](/docs/images/containerd-dark.png?raw=true)
+![banner](/docs/static/img/containerd-dark.png?raw=true)
 
 [![GoDoc](https://godoc.org/github.com/containerd/containerd?status.svg)](https://godoc.org/github.com/containerd/containerd)
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)
@@ -211,6 +211,5 @@ __If you are reporting a security issue, please reach out discreetly at security
 
 The containerd codebase is released under the [Apache 2.0 license](LICENSE.code).
 The README.md file, and files in the "docs" folder are licensed under the
-Creative Commons Attribution 4.0 International License under the terms and
-conditions set forth in the file "[LICENSE.docs](LICENSE.docs)". You may obtain a duplicate
-copy of the same license, titled CC-BY-4.0, at http://creativecommons.org/licenses/by/4.0/.
+Creative Commons Attribution 4.0 International License. You may obtain a
+copy of the license, titled CC-BY-4.0, at http://creativecommons.org/licenses/by/4.0/.

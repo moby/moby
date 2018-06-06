@@ -50,7 +50,7 @@ You can also use `make binaries-all` to prepare `buildkitd.containerd_only` and 
 buildkitd --debug --root /var/lib/buildkit
 ```
 
-The buildkitd daemon suppports two worker backends: OCI (runc) and containerd.
+The buildkitd daemon supports two worker backends: OCI (runc) and containerd.
 
 By default, the OCI (runc) worker is used.
 You can set `--oci-worker=false --containerd-worker=true` to use the containerd worker.

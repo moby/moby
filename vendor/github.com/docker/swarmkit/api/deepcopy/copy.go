@@ -44,6 +44,9 @@ func Copy(dst, src interface{}) {
 	case *types.Timestamp:
 		src := src.(*types.Timestamp)
 		*dst = *src
+	case *types.BoolValue:
+		src := src.(*types.BoolValue)
+		*dst = *src
 	case CopierFrom:
 		dst.CopyFrom(src)
 	default:

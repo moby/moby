@@ -164,19 +164,11 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 
 	if len(fieldpaths) == 0 {
 		// only allow updates to these field on full replace.
-		fieldpaths = []string{"labels", "spec", "extensions"}
+		fieldpaths = []string{"labels", "spec", "extensions", "image", "snapshotkey"}
 
 		// Fields that are immutable must cause an error when no field paths
 		// are provided. This allows these fields to become mutable in the
 		// future.
-		if updated.Image != container.Image {
-			return containers.Container{}, errors.Wrapf(errdefs.ErrInvalidArgument, "container.Image field is immutable")
-		}
-
-		if updated.SnapshotKey != container.SnapshotKey {
-			return containers.Container{}, errors.Wrapf(errdefs.ErrInvalidArgument, "container.SnapshotKey field is immutable")
-		}
-
 		if updated.Snapshotter != container.Snapshotter {
 			return containers.Container{}, errors.Wrapf(errdefs.ErrInvalidArgument, "container.Snapshotter field is immutable")
 		}
@@ -215,6 +207,10 @@ func (s *containerStore) Update(ctx context.Context, container containers.Contai
 			updated.Spec = container.Spec
 		case "extensions":
 			updated.Extensions = container.Extensions
+		case "image":
+			updated.Image = container.Image
+		case "snapshotkey":
+			updated.SnapshotKey = container.SnapshotKey
 		default:
 			return containers.Container{}, errors.Wrapf(errdefs.ErrInvalidArgument, "cannot update %q field on %q", path, container.ID)
 		}

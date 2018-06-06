@@ -163,7 +163,10 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 		return e.parent.runtimeError(err, "OCI runtime exec failed")
 	}
 	if e.stdio.Stdin != "" {
-		sc, err := fifo.OpenFifo(ctx, e.stdio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		fifoCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+
+		sc, err := fifo.OpenFifo(fifoCtx, e.stdio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open stdin fifo %s", e.stdio.Stdin)
 		}
@@ -180,7 +183,10 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 			return errors.Wrap(err, "failed to start console copy")
 		}
 	} else if !e.stdio.IsNull() {
-		if err := copyPipes(ctx, e.io, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
+		fifoCtx, cancel := context.WithTimeout(ctx, 15*time.Second)
+		defer cancel()
+
+		if err := copyPipes(fifoCtx, e.io, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}

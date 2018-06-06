@@ -17,11 +17,11 @@
 package namespaces
 
 import (
+	"context"
 	"os"
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (

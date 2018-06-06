@@ -1,3 +1,17 @@
+// Copyright 2017 Google Inc. All Rights Reserved.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//      http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 // Package option contains options for Google API clients.
 package option
 
@@ -26,19 +40,25 @@ func (w withTokenSource) Apply(o *internal.DialSettings) {
 	o.TokenSource = w.ts
 }
 
-// WithServiceAccountFile returns a ClientOption that uses a Google service
-// account credentials file to authenticate.
-// Use WithTokenSource with a token source created from
-// golang.org/x/oauth2/google.JWTConfigFromJSON
-// if reading the file from disk is not an option.
-func WithServiceAccountFile(filename string) ClientOption {
-	return withServiceAccountFile(filename)
+type withCredFile string
+
+func (w withCredFile) Apply(o *internal.DialSettings) {
+	o.CredentialsFile = string(w)
 }
 
-type withServiceAccountFile string
+// WithCredentialsFile returns a ClientOption that authenticates
+// API calls with the given service account or refresh token JSON
+// credentials file.
+func WithCredentialsFile(filename string) ClientOption {
+	return withCredFile(filename)
+}
 
-func (w withServiceAccountFile) Apply(o *internal.DialSettings) {
-	o.ServiceAccountJSONFilename = string(w)
+// WithServiceAccountFile returns a ClientOption that uses a Google service
+// account credentials file to authenticate.
+//
+// Deprecated: Use WithCredentialsFile instead.
+func WithServiceAccountFile(filename string) ClientOption {
+	return WithCredentialsFile(filename)
 }
 
 // WithEndpoint returns a ClientOption that overrides the default endpoint
@@ -140,3 +160,16 @@ func WithAPIKey(apiKey string) ClientOption {
 type withAPIKey string
 
 func (w withAPIKey) Apply(o *internal.DialSettings) { o.APIKey = string(w) }
+
+// WithoutAuthentication returns a ClientOption that specifies that no
+// authentication should be used. It is suitable only for testing and for
+// accessing public resources, like public Google Cloud Storage buckets.
+// It is an error to provide both WithoutAuthentication and any of WithAPIKey,
+// WithTokenSource, WithCredentialsFile or WithServiceAccountFile.
+func WithoutAuthentication() ClientOption {
+	return withoutAuthentication{}
+}
+
+type withoutAuthentication struct{}
+
+func (w withoutAuthentication) Apply(o *internal.DialSettings) { o.NoAuth = true }

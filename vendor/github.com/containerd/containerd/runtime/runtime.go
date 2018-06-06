@@ -53,9 +53,9 @@ type Exit struct {
 	Timestamp time.Time
 }
 
-// Runtime is responsible for the creation of containers for a certain platform,
-// arch, or custom usage.
-type Runtime interface {
+// PlatformRuntime is responsible for the creation and management of
+// tasks and processes for a platform.
+type PlatformRuntime interface {
 	// ID of the runtime
 	ID() string
 	// Create creates a task with the provided id and options.

@@ -17,6 +17,7 @@
 package archive
 
 import (
+	"archive/tar"
 	"context"
 	"fmt"
 	"io"
@@ -31,7 +32,6 @@ import (
 
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/continuity/fs"
-	"github.com/dmcgowan/go-tar"
 	"github.com/pkg/errors"
 )
 
@@ -199,7 +199,7 @@ func applyNaive(ctx context.Context, root string, tr *tar.Reader, options ApplyO
 				basename := filepath.Base(hdr.Name)
 				aufsHardlinks[basename] = hdr
 				if aufsTempdir == "" {
-					if aufsTempdir, err = ioutil.TempDir("", "dockerplnk"); err != nil {
+					if aufsTempdir, err = ioutil.TempDir(os.Getenv("XDG_RUNTIME_DIR"), "dockerplnk"); err != nil {
 						return 0, err
 					}
 					defer os.RemoveAll(aufsTempdir)
@@ -465,7 +465,10 @@ func (cw *changeWriter) HandleChange(k fs.ChangeKind, p string, f os.FileInfo, e
 			source = filepath.Join(cw.source, p)
 		)
 
-		if f.Mode()&os.ModeSymlink != 0 {
+		switch {
+		case f.Mode()&os.ModeSocket != 0:
+			return nil // ignore sockets
+		case f.Mode()&os.ModeSymlink != 0:
 			if link, err = os.Readlink(source); err != nil {
 				return err
 			}

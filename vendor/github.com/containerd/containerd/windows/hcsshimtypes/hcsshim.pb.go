@@ -23,7 +23,7 @@ import _ "github.com/gogo/protobuf/types"
 
 import time "time"
 
-import github_com_gogo_protobuf_types "github.com/gogo/protobuf/types"
+import types "github.com/gogo/protobuf/types"
 
 import strings "strings"
 import reflect "reflect"
@@ -89,8 +89,8 @@ func (m *CreateOptions) MarshalTo(dAtA []byte) (int, error) {
 	_ = l
 	dAtA[i] = 0xa
 	i++
-	i = encodeVarintHcsshim(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdDuration(m.TerminateDuration)))
-	n1, err := github_com_gogo_protobuf_types.StdDurationMarshalTo(m.TerminateDuration, dAtA[i:])
+	i = encodeVarintHcsshim(dAtA, i, uint64(types.SizeOfStdDuration(m.TerminateDuration)))
+	n1, err := types.StdDurationMarshalTo(m.TerminateDuration, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -121,8 +121,8 @@ func (m *ProcessDetails) MarshalTo(dAtA []byte) (int, error) {
 	}
 	dAtA[i] = 0x12
 	i++
-	i = encodeVarintHcsshim(dAtA, i, uint64(github_com_gogo_protobuf_types.SizeOfStdTime(m.CreatedAt)))
-	n2, err := github_com_gogo_protobuf_types.StdTimeMarshalTo(m.CreatedAt, dAtA[i:])
+	i = encodeVarintHcsshim(dAtA, i, uint64(types.SizeOfStdTime(m.CreatedAt)))
+	n2, err := types.StdTimeMarshalTo(m.CreatedAt, dAtA[i:])
 	if err != nil {
 		return 0, err
 	}
@@ -178,7 +178,7 @@ func encodeVarintHcsshim(dAtA []byte, offset int, v uint64) int {
 func (m *CreateOptions) Size() (n int) {
 	var l int
 	_ = l
-	l = github_com_gogo_protobuf_types.SizeOfStdDuration(m.TerminateDuration)
+	l = types.SizeOfStdDuration(m.TerminateDuration)
 	n += 1 + l + sovHcsshim(uint64(l))
 	return n
 }
@@ -190,7 +190,7 @@ func (m *ProcessDetails) Size() (n int) {
 	if l > 0 {
 		n += 1 + l + sovHcsshim(uint64(l))
 	}
-	l = github_com_gogo_protobuf_types.SizeOfStdTime(m.CreatedAt)
+	l = types.SizeOfStdTime(m.CreatedAt)
 	n += 1 + l + sovHcsshim(uint64(l))
 	if m.KernelTime_100Ns != 0 {
 		n += 1 + sovHcsshim(uint64(m.KernelTime_100Ns))
@@ -321,7 +321,7 @@ func (m *CreateOptions) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdDurationUnmarshal(&m.TerminateDuration, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdDurationUnmarshal(&m.TerminateDuration, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -430,7 +430,7 @@ func (m *ProcessDetails) Unmarshal(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			if err := github_com_gogo_protobuf_types.StdTimeUnmarshal(&m.CreatedAt, dAtA[iNdEx:postIndex]); err != nil {
+			if err := types.StdTimeUnmarshal(&m.CreatedAt, dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

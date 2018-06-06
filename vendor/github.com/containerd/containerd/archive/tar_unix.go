@@ -19,13 +19,13 @@
 package archive
 
 import (
+	"archive/tar"
 	"context"
 	"os"
 	"sync"
 	"syscall"
 
 	"github.com/containerd/continuity/sysx"
-	"github.com/dmcgowan/go-tar"
 	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
@@ -87,10 +87,6 @@ func mkdir(path string, perm os.FileMode) error {
 	return os.Chmod(path, perm)
 }
 
-func skipFile(*tar.Header) bool {
-	return false
-}
-
 var (
 	inUserNS bool
 	nsOnce   sync.Once
@@ -100,15 +96,22 @@ func setInUserNS() {
 	inUserNS = system.RunningInUserNS()
 }
 
-// handleTarTypeBlockCharFifo is an OS-specific helper function used by
-// createTarFile to handle the following types of header: Block; Char; Fifo
-func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
-	nsOnce.Do(setInUserNS)
-	if inUserNS {
+func skipFile(hdr *tar.Header) bool {
+	switch hdr.Typeflag {
+	case tar.TypeBlock, tar.TypeChar:
 		// cannot create a device if running in user namespace
-		return nil
+		nsOnce.Do(setInUserNS)
+		return inUserNS
+	default:
+		return false
 	}
+}
 
+// handleTarTypeBlockCharFifo is an OS-specific helper function used by
+// createTarFile to handle the following types of header: Block; Char; Fifo.
+// This function must not be called for Block and Char when running in userns.
+// (skipFile() should return true for them.)
+func handleTarTypeBlockCharFifo(hdr *tar.Header, path string) error {
 	mode := uint32(hdr.Mode & 07777)
 	switch hdr.Typeflag {
 	case tar.TypeBlock:

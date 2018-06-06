@@ -23,11 +23,16 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
 // CreateUnixSocket creates a unix socket and returns the listener
 func CreateUnixSocket(path string) (net.Listener, error) {
+	// BSDs have a 104 limit
+	if len(path) > 104 {
+		return nil, errors.Errorf("%q: unix socket path too long (> 104)", path)
+	}
 	if err := os.MkdirAll(filepath.Dir(path), 0660); err != nil {
 		return nil, err
 	}
