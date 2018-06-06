@@ -358,16 +358,20 @@ func (n *networkNamespace) loopbackUp() error {
 	return n.nlHandle.LinkSetUp(iface)
 }
 
-func (n *networkNamespace) AddLoopbackAliasIP(ip *net.IPNet) error {
-	iface, err := n.nlHandle.LinkByName("lo")
+func (n *networkNamespace) GetLoopbackIfaceName() string {
+	return "lo"
+}
+
+func (n *networkNamespace) AddAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
 		return err
 	}
 	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
 }
 
-func (n *networkNamespace) RemoveLoopbackAliasIP(ip *net.IPNet) error {
-	iface, err := n.nlHandle.LinkByName("lo")
+func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
 		return err
 	}

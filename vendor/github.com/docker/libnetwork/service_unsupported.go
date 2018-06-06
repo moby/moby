@@ -18,7 +18,7 @@ func (c *controller) rmServiceBinding(name, sid, nid, eid string, vip net.IP, in
 	return fmt.Errorf("not supported")
 }
 
-func (sb *sandbox) populateLoadbalancers(ep *endpoint) {
+func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
 }
 
 func arrangeIngressFilterRule() {
