@@ -234,7 +234,12 @@ func (p *puller) resolve(ctx context.Context) error {
 			p.ref = origRef
 		}
 
-		if p.config == nil {
+		// Schema 1 manifests cannot be resolved to an image config
+		// since the conversion must take place after all the content
+		// has been read.
+		// It may be possible to have a mapping between schema 1 manifests
+		// and the schema 2 manifests they are converted to.
+		if p.config == nil && p.desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ref, err := distreference.WithDigest(ref, p.desc.Digest)
 			if err != nil {
 				p.resolveErr = err
@@ -328,11 +333,22 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 
-	// TODO: need a wrapper snapshot interface that combines content
-	// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
-	// or 2) cachemanager should manage the contentstore
-	handlers := []images.Handler{
-		images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	var (
+		schema1Converter *schema1.Converter
+		handlers         []images.Handler
+	)
+	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
+		schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
+		handlers = append(handlers, schema1Converter)
+
+		// TODO: Optimize to do dispatch and integrate pulling with download manager,
+		// leverage existing blob mapping and layer storage
+	} else {
+
+		// TODO: need a wrapper snapshot interface that combines content
+		// and snapshots as 1) buildkit shouldn't have a dependency on contentstore
+		// or 2) cachemanager should manage the contentstore
+		handlers = append(handlers, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			switch desc.MediaType {
 			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
 				images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex,
@@ -342,25 +358,8 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 			}
 			ongoing.add(desc)
 			return nil, nil
-		}),
-	}
-	// var schema1Converter *schema1.Converter
-	// if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-	// 	schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
-	// 	handlers = append(handlers, schema1Converter)
-	// } else {
-	// 	handlers = append(handlers,
-	// 		remotes.FetchHandler(p.is.ContentStore, fetcher),
-	//
-	// 		images.ChildrenHandler(p.is.ContentStore),
-	// 	)
-	// }
-	//
-	var schema1Converter *schema1.Converter
-	if p.desc.MediaType == images.MediaTypeDockerSchema1Manifest {
-		schema1Converter = schema1.NewConverter(p.is.ContentStore, fetcher)
-		handlers = append(handlers, schema1Converter)
-	} else {
+		}))
+
 		// Get all the children for a descriptor
 		childrenHandler := images.ChildrenHandler(p.is.ContentStore)
 		// Set any children labels for that content
@@ -379,6 +378,13 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 	defer stopProgress()
+
+	if schema1Converter != nil {
+		p.desc, err = schema1Converter.Convert(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
 
 	mfst, err := images.Manifest(ctx, p.is.ContentStore, p.desc, platforms.Default())
 	if err != nil {
