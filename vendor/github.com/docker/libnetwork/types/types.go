@@ -145,7 +145,7 @@ func (p *PortBinding) String() string {
 	return ret
 }
 
-// FromString reads the TransportPort structure from string
+// FromString reads the PortBinding structure from string
 func (p *PortBinding) FromString(s string) error {
 	ps := strings.Split(s, "/")
 	if len(ps) != 3 {
