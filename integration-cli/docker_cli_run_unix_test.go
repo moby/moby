@@ -620,7 +620,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 	go func() {
 		defer close(errChan)
 		// memory limit lower than 8MB will raise an error of "device or resource busy" from docker-runc.
-		out, exitCode, _ := dockerCmdWithError("run", "-m", "8MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
+		out, exitCode, _ := dockerCmdWithError("run", "-m", "10MB", "busybox", "sh", "-c", "x=a; while true; do x=$x$x$x$x; done")
 		if expected := 137; exitCode != expected {
 			errChan <- fmt.Errorf("wrong exit code for OOM container: expected %d, got %d (output: %q)", expected, exitCode, out)
 		}
