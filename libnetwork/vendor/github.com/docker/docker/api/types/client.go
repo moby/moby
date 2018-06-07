@@ -1,4 +1,4 @@
-package types
+package types // import "github.com/docker/docker/api/types"
 
 import (
 	"bufio"
@@ -7,7 +7,7 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 // CheckpointCreateOptions holds parameters to create a checkpoint from a container
@@ -74,6 +74,7 @@ type ContainerLogsOptions struct {
 	ShowStdout bool
 	ShowStderr bool
 	Since      string
+	Until      string
 	Timestamps bool
 	Follow     bool
 	Tail       string

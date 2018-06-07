@@ -5,6 +5,7 @@ package libcontainer
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -40,6 +41,7 @@ type linuxContainer struct {
 	config               *configs.Config
 	cgroupManager        cgroups.Manager
 	intelRdtManager      intelrdt.Manager
+	initPath             string
 	initArgs             []string
 	initProcess          parentProcess
 	initProcessStartTime uint64
@@ -266,20 +268,71 @@ func (c *linuxContainer) Exec() error {
 
 func (c *linuxContainer) exec() error {
 	path := filepath.Join(c.root, execFifoFilename)
-	f, err := os.OpenFile(path, os.O_RDONLY, 0)
-	if err != nil {
-		return newSystemErrorWithCause(err, "open exec fifo for reading")
+
+	fifoOpen := make(chan struct{})
+	select {
+	case <-awaitProcessExit(c.initProcess.pid(), fifoOpen):
+		return errors.New("container process is already dead")
+	case result := <-awaitFifoOpen(path):
+		close(fifoOpen)
+		if result.err != nil {
+			return result.err
+		}
+		f := result.file
+		defer f.Close()
+		if err := readFromExecFifo(f); err != nil {
+			return err
+		}
+		return os.Remove(path)
 	}
-	defer f.Close()
-	data, err := ioutil.ReadAll(f)
+}
+
+func readFromExecFifo(execFifo io.Reader) error {
+	data, err := ioutil.ReadAll(execFifo)
 	if err != nil {
 		return err
 	}
-	if len(data) > 0 {
-		os.Remove(path)
-		return nil
+	if len(data) <= 0 {
+		return fmt.Errorf("cannot start an already running container")
 	}
-	return fmt.Errorf("cannot start an already running container")
+	return nil
+}
+
+func awaitProcessExit(pid int, exit <-chan struct{}) <-chan struct{} {
+	isDead := make(chan struct{})
+	go func() {
+		for {
+			select {
+			case <-exit:
+				return
+			case <-time.After(time.Millisecond * 100):
+				stat, err := system.Stat(pid)
+				if err != nil || stat.State == system.Zombie {
+					close(isDead)
+					return
+				}
+			}
+		}
+	}()
+	return isDead
+}
+
+func awaitFifoOpen(path string) <-chan openResult {
+	fifoOpened := make(chan openResult)
+	go func() {
+		f, err := os.OpenFile(path, os.O_RDONLY, 0)
+		if err != nil {
+			fifoOpened <- openResult{err: newSystemErrorWithCause(err, "open exec fifo for reading")}
+			return
+		}
+		fifoOpened <- openResult{file: f}
+	}()
+	return fifoOpened
+}
+
+type openResult struct {
+	file *os.File
+	err  error
 }
 
 func (c *linuxContainer) start(process *Process, isInit bool) error {
@@ -289,7 +342,7 @@ func (c *linuxContainer) start(process *Process, isInit bool) error {
 	}
 	if err := parent.start(); err != nil {
 		// terminate the process to ensure that it properly is reaped.
-		if err := parent.terminate(); err != nil {
+		if err := ignoreTerminateErrors(parent.terminate()); err != nil {
 			logrus.Warn(err)
 		}
 		return newSystemErrorWithCause(err, "starting container process")
@@ -307,15 +360,17 @@ func (c *linuxContainer) start(process *Process, isInit bool) error {
 		c.initProcessStartTime = state.InitProcessStartTime
 
 		if c.config.Hooks != nil {
+			bundle, annotations := utils.Annotations(c.config.Labels)
 			s := configs.HookState{
-				Version: c.config.Version,
-				ID:      c.id,
-				Pid:     parent.pid(),
-				Bundle:  utils.SearchLabels(c.config.Labels, "bundle"),
+				Version:     c.config.Version,
+				ID:          c.id,
+				Pid:         parent.pid(),
+				Bundle:      bundle,
+				Annotations: annotations,
 			}
 			for i, hook := range c.config.Hooks.Poststart {
 				if err := hook.Run(s); err != nil {
-					if err := parent.terminate(); err != nil {
+					if err := ignoreTerminateErrors(parent.terminate()); err != nil {
 						logrus.Warn(err)
 					}
 					return newSystemErrorWithCausef(err, "running poststart hook %d", i)
@@ -413,7 +468,8 @@ func (c *linuxContainer) newParentProcess(p *Process, doInit bool) (parentProces
 }
 
 func (c *linuxContainer) commandTemplate(p *Process, childPipe *os.File) (*exec.Cmd, error) {
-	cmd := exec.Command(c.initArgs[0], c.initArgs[1:]...)
+	cmd := exec.Command(c.initPath, c.initArgs[1:]...)
+	cmd.Args[0] = c.initArgs[0]
 	cmd.Stdin = p.Stdin
 	cmd.Stdout = p.Stdout
 	cmd.Stderr = p.Stderr
@@ -522,6 +578,8 @@ func (c *linuxContainer) newInitConfig(process *Process) *initConfig {
 		cfg.Rlimits = process.Rlimits
 	}
 	cfg.CreateConsole = process.ConsoleSocket != nil
+	cfg.ConsoleWidth = process.ConsoleWidth
+	cfg.ConsoleHeight = process.ConsoleHeight
 	return cfg
 }
 
@@ -1432,11 +1490,13 @@ func (c *linuxContainer) criuNotifications(resp *criurpc.CriuResp, process *Proc
 		}
 	case notify.GetScript() == "setup-namespaces":
 		if c.config.Hooks != nil {
+			bundle, annotations := utils.Annotations(c.config.Labels)
 			s := configs.HookState{
-				Version: c.config.Version,
-				ID:      c.id,
-				Pid:     int(notify.GetPid()),
-				Bundle:  utils.SearchLabels(c.config.Labels, "bundle"),
+				Version:     c.config.Version,
+				ID:          c.id,
+				Pid:         int(notify.GetPid()),
+				Bundle:      bundle,
+				Annotations: annotations,
 			}
 			for i, hook := range c.config.Hooks.Prestart {
 				if err := hook.Run(s); err != nil {
@@ -1744,7 +1804,7 @@ func (c *linuxContainer) bootstrapData(cloneFlags uintptr, nsMaps map[configs.Na
 			// The following only applies if we are root.
 			if !c.config.Rootless {
 				// check if we have CAP_SETGID to setgroup properly
-				pid, err := capability.NewPid(os.Getpid())
+				pid, err := capability.NewPid(0)
 				if err != nil {
 					return nil, err
 				}
@@ -1771,4 +1831,19 @@ func (c *linuxContainer) bootstrapData(cloneFlags uintptr, nsMaps map[configs.Na
 	})
 
 	return bytes.NewReader(r.Serialize()), nil
+}
+
+// ignoreTerminateErrors returns nil if the given err matches an error known
+// to indicate that the terminate occurred successfully or err was nil, otherwise
+// err is returned unaltered.
+func ignoreTerminateErrors(err error) error {
+	if err == nil {
+		return nil
+	}
+	s := err.Error()
+	switch {
+	case strings.Contains(s, "process already finished"), strings.Contains(s, "Wait was already called"):
+		return nil
+	}
+	return err
 }

@@ -1,4 +1,4 @@
-package container
+package container // import "github.com/docker/docker/api/types/container"
 
 import (
 	"strings"
@@ -19,6 +19,27 @@ type Isolation string
 func (i Isolation) IsDefault() bool {
 	return strings.ToLower(string(i)) == "default" || string(i) == ""
 }
+
+// IsHyperV indicates the use of a Hyper-V partition for isolation
+func (i Isolation) IsHyperV() bool {
+	return strings.ToLower(string(i)) == "hyperv"
+}
+
+// IsProcess indicates the use of process isolation
+func (i Isolation) IsProcess() bool {
+	return strings.ToLower(string(i)) == "process"
+}
+
+const (
+	// IsolationEmpty is unspecified (same behavior as default)
+	IsolationEmpty = Isolation("")
+	// IsolationDefault is the default isolation mode on current daemon
+	IsolationDefault = Isolation("default")
+	// IsolationProcess is process isolation mode
+	IsolationProcess = Isolation("process")
+	// IsolationHyperV is HyperV isolation mode
+	IsolationHyperV = Isolation("hyperv")
+)
 
 // IpcMode represents the container ipc stack.
 type IpcMode string
@@ -379,6 +400,12 @@ type HostConfig struct {
 
 	// Mounts specs used by the container
 	Mounts []mount.Mount `json:",omitempty"`
+
+	// MaskedPaths is the list of paths to be masked inside the container (this overrides the default set of paths)
+	MaskedPaths []string
+
+	// ReadonlyPaths is the list of paths to be set as read-only inside the container (this overrides the default set of paths)
+	ReadonlyPaths []string
 
 	// Run a custom init inside the container, if null, use the daemon's configured settings
 	Init *bool `json:",omitempty"`

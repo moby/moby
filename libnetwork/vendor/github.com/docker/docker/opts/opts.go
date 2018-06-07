@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 	"regexp"
 	"strings"
 
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 )
 
 var (
@@ -52,7 +52,7 @@ func (opts *ListOpts) Set(value string) error {
 		}
 		value = v
 	}
-	(*opts.values) = append((*opts.values), value)
+	*opts.values = append(*opts.values, value)
 	return nil
 }
 
@@ -60,7 +60,7 @@ func (opts *ListOpts) Set(value string) error {
 func (opts *ListOpts) Delete(key string) {
 	for i, k := range *opts.values {
 		if k == key {
-			(*opts.values) = append((*opts.values)[:i], (*opts.values)[i+1:]...)
+			*opts.values = append((*opts.values)[:i], (*opts.values)[i+1:]...)
 			return
 		}
 	}
@@ -78,7 +78,7 @@ func (opts *ListOpts) GetMap() map[string]struct{} {
 
 // GetAll returns the values of slice.
 func (opts *ListOpts) GetAll() []string {
-	return (*opts.values)
+	return *opts.values
 }
 
 // GetAllOrEmpty returns the values of the slice
@@ -103,7 +103,7 @@ func (opts *ListOpts) Get(key string) bool {
 
 // Len returns the amount of element in the slice.
 func (opts *ListOpts) Len() int {
-	return len((*opts.values))
+	return len(*opts.values)
 }
 
 // Type returns a string name for this Option type
@@ -259,6 +259,16 @@ func validateDomain(val string) (string, error) {
 func ValidateLabel(val string) (string, error) {
 	if strings.Count(val, "=") < 1 {
 		return "", fmt.Errorf("bad attribute format: %s", val)
+	}
+	return val, nil
+}
+
+// ValidateSingleGenericResource validates that a single entry in the
+// generic resource list is valid.
+// i.e 'GPU=UID1' is valid however 'GPU:UID1' or 'UID1' isn't
+func ValidateSingleGenericResource(val string) (string, error) {
+	if strings.Count(val, "=") < 1 {
+		return "", fmt.Errorf("invalid node-generic-resource format `%s` expected `name=value`", val)
 	}
 	return val, nil
 }

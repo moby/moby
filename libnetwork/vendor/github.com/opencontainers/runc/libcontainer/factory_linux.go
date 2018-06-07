@@ -11,14 +11,13 @@ import (
 	"runtime/debug"
 	"strconv"
 
-	"github.com/docker/docker/pkg/mount"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/cgroups/fs"
-	"github.com/opencontainers/runc/libcontainer/cgroups/rootless"
 	"github.com/opencontainers/runc/libcontainer/cgroups/systemd"
 	"github.com/opencontainers/runc/libcontainer/configs"
 	"github.com/opencontainers/runc/libcontainer/configs/validate"
 	"github.com/opencontainers/runc/libcontainer/intelrdt"
+	"github.com/opencontainers/runc/libcontainer/mount"
 	"github.com/opencontainers/runc/libcontainer/utils"
 
 	"golang.org/x/sys/unix"
@@ -73,20 +72,6 @@ func Cgroupfs(l *LinuxFactory) error {
 	return nil
 }
 
-// RootlessCgroups is an options func to configure a LinuxFactory to
-// return containers that use the "rootless" cgroup manager, which will
-// fail to do any operations not possible to do with an unprivileged user.
-// It should only be used in conjunction with rootless containers.
-func RootlessCgroups(l *LinuxFactory) error {
-	l.NewCgroupsManager = func(config *configs.Cgroup, paths map[string]string) cgroups.Manager {
-		return &rootless.Manager{
-			Cgroups: config,
-			Paths:   paths,
-		}
-	}
-	return nil
-}
-
 // IntelRdtfs is an options func to configure a LinuxFactory to return
 // containers that use the Intel RDT "resource control" filesystem to
 // create and manage Intel Xeon platform shared resources (e.g., L3 cache).
@@ -134,7 +119,8 @@ func New(root string, options ...func(*LinuxFactory) error) (Factory, error) {
 	}
 	l := &LinuxFactory{
 		Root:      root,
-		InitArgs:  []string{"/proc/self/exe", "init"},
+		InitPath:  "/proc/self/exe",
+		InitArgs:  []string{os.Args[0], "init"},
 		Validator: validate.New(),
 		CriuPath:  "criu",
 	}
@@ -154,6 +140,10 @@ func New(root string, options ...func(*LinuxFactory) error) (Factory, error) {
 type LinuxFactory struct {
 	// Root directory for the factory to store state.
 	Root string
+
+	// InitPath is the path for calling the init responsibilities for spawning
+	// a container.
+	InitPath string
 
 	// InitArgs are arguments for calling the init responsibilities for spawning
 	// a container.
@@ -200,21 +190,18 @@ func (l *LinuxFactory) Create(id string, config *configs.Config) (Container, err
 	if err := os.Chown(containerRoot, unix.Geteuid(), unix.Getegid()); err != nil {
 		return nil, newGenericError(err, SystemError)
 	}
-	if config.Rootless {
-		RootlessCgroups(l)
-	}
 	c := &linuxContainer{
 		id:            id,
 		root:          containerRoot,
 		config:        config,
+		initPath:      l.InitPath,
 		initArgs:      l.InitArgs,
 		criuPath:      l.CriuPath,
 		newuidmapPath: l.NewuidmapPath,
 		newgidmapPath: l.NewgidmapPath,
 		cgroupManager: l.NewCgroupsManager(config.Cgroups, nil),
 	}
-	c.intelRdtManager = nil
-	if intelrdt.IsEnabled() && c.config.IntelRdt != nil {
+	if intelrdt.IsEnabled() {
 		c.intelRdtManager = l.NewIntelRdtManager(config, id, "")
 	}
 	c.state = &stoppedState{c: c}
@@ -235,15 +222,12 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 		processStartTime: state.InitProcessStartTime,
 		fds:              state.ExternalDescriptors,
 	}
-	// We have to use the RootlessManager.
-	if state.Rootless {
-		RootlessCgroups(l)
-	}
 	c := &linuxContainer{
 		initProcess:          r,
 		initProcessStartTime: state.InitProcessStartTime,
 		id:                   id,
 		config:               &state.Config,
+		initPath:             l.InitPath,
 		initArgs:             l.InitArgs,
 		criuPath:             l.CriuPath,
 		newuidmapPath:        l.NewuidmapPath,
@@ -256,8 +240,7 @@ func (l *LinuxFactory) Load(id string) (Container, error) {
 	if err := c.refreshState(); err != nil {
 		return nil, err
 	}
-	c.intelRdtManager = nil
-	if intelrdt.IsEnabled() && c.config.IntelRdt != nil {
+	if intelrdt.IsEnabled() {
 		c.intelRdtManager = l.NewIntelRdtManager(&state.Config, id, state.IntelRdtPath)
 	}
 	return c, nil

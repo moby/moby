@@ -1,9 +1,9 @@
 // +build !windows
 
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
-// BasePath returns the path to which all paths returned by the plugin are relative to.
-// For v1 plugins, this always returns the host's root directory.
-func (p *Plugin) BasePath() string {
-	return "/"
+// ScopedPath returns the path scoped to the plugin's rootfs.
+// For v1 plugins, this always returns the path unchanged as v1 plugins run directly on the host.
+func (p *Plugin) ScopedPath(s string) string {
+	return s
 }

@@ -85,8 +85,7 @@ func (p *setnsProcess) start() (err error) {
 	if err = p.execSetns(); err != nil {
 		return newSystemErrorWithCause(err, "executing setns process")
 	}
-	// We can't join cgroups if we're in a rootless container.
-	if !p.config.Rootless && len(p.cgroupPaths) > 0 {
+	if len(p.cgroupPaths) > 0 {
 		if err := cgroups.EnterPid(p.cgroupPaths, p.pid()); err != nil {
 			return newSystemErrorWithCausef(err, "adding pid %d to cgroups", p.pid())
 		}
@@ -342,11 +341,13 @@ func (p *initProcess) start() error {
 				}
 
 				if p.config.Config.Hooks != nil {
+					bundle, annotations := utils.Annotations(p.container.config.Labels)
 					s := configs.HookState{
-						Version: p.container.config.Version,
-						ID:      p.container.id,
-						Pid:     p.pid(),
-						Bundle:  utils.SearchLabels(p.config.Config.Labels, "bundle"),
+						Version:     p.container.config.Version,
+						ID:          p.container.id,
+						Pid:         p.pid(),
+						Bundle:      bundle,
+						Annotations: annotations,
 					}
 					for i, hook := range p.config.Config.Hooks.Prestart {
 						if err := hook.Run(s); err != nil {
@@ -371,11 +372,13 @@ func (p *initProcess) start() error {
 				}
 			}
 			if p.config.Config.Hooks != nil {
+				bundle, annotations := utils.Annotations(p.container.config.Labels)
 				s := configs.HookState{
-					Version: p.container.config.Version,
-					ID:      p.container.id,
-					Pid:     p.pid(),
-					Bundle:  utils.SearchLabels(p.config.Config.Labels, "bundle"),
+					Version:     p.container.config.Version,
+					ID:          p.container.id,
+					Pid:         p.pid(),
+					Bundle:      bundle,
+					Annotations: annotations,
 				}
 				for i, hook := range p.config.Config.Hooks.Prestart {
 					if err := hook.Run(s); err != nil {

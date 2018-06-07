@@ -141,6 +141,10 @@ type Fsid struct {
 }
 
 const (
+	PathMax = 0x400
+)
+
+const (
 	FADV_NORMAL     = 0x0
 	FADV_RANDOM     = 0x1
 	FADV_SEQUENTIAL = 0x2
@@ -516,6 +520,34 @@ const (
 	AT_SYMLINK_NOFOLLOW = 0x200
 )
 
+type PollFd struct {
+	Fd      int32
+	Events  int16
+	Revents int16
+}
+
+const (
+	POLLERR      = 0x8
+	POLLHUP      = 0x10
+	POLLIN       = 0x1
+	POLLINIGNEOF = 0x2000
+	POLLNVAL     = 0x20
+	POLLOUT      = 0x4
+	POLLPRI      = 0x2
+	POLLRDBAND   = 0x80
+	POLLRDNORM   = 0x40
+	POLLWRBAND   = 0x100
+	POLLWRNORM   = 0x4
+)
+
 type CapRights struct {
 	Rights [2]uint64
+}
+
+type Utsname struct {
+	Sysname  [256]byte
+	Nodename [256]byte
+	Release  [256]byte
+	Version  [256]byte
+	Machine  [256]byte
 }

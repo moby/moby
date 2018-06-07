@@ -213,7 +213,7 @@ func SetFileLabel(path string, label string) error {
 	return lsetxattr(path, xattrNameSelinux, []byte(label), 0)
 }
 
-// Filecon returns the SELinux label for this path or returns an error.
+// FileLabel returns the SELinux label for this path or returns an error.
 func FileLabel(path string) (string, error) {
 	label, err := lgetxattr(path, xattrNameSelinux)
 	if err != nil {
@@ -331,7 +331,7 @@ func EnforceMode() int {
 }
 
 /*
-SetEnforce sets the current SELinux mode Enforcing, Permissive.
+SetEnforceMode sets the current SELinux mode Enforcing, Permissive.
 Disabled is not valid, since this needs to be set at boot time.
 */
 func SetEnforceMode(mode int) error {

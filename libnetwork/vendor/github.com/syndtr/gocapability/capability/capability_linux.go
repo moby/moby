@@ -114,10 +114,6 @@ func newPid(pid int) (c Capabilities, err error) {
 		err = errUnknownVers
 		return
 	}
-	err = c.Load()
-	if err != nil {
-		c = nil
-	}
 	return
 }
 
@@ -492,10 +488,6 @@ func (c *capsV3) Apply(kind CapType) (err error) {
 
 func newFile(path string) (c Capabilities, err error) {
 	c = &capsFile{path: path}
-	err = c.Load()
-	if err != nil {
-		c = nil
-	}
 	return
 }
 

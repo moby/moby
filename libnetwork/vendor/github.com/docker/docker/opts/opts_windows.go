@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 // TODO Windows. Identify bug in GOLang 1.5.1+ and/or Windows Server 2016 TP5.
 // @jhowardmsft, @swernli.

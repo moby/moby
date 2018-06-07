@@ -1,12 +1,10 @@
-// +build windows
-
-package kernel
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
 	"fmt"
-	"unsafe"
 
 	"golang.org/x/sys/windows"
+	"golang.org/x/sys/windows/registry"
 )
 
 // VersionInfo holds information about the kernel.
@@ -24,41 +22,24 @@ func (k *VersionInfo) String() string {
 // GetKernelVersion gets the current kernel version.
 func GetKernelVersion() (*VersionInfo, error) {
 
-	var (
-		h         windows.Handle
-		dwVersion uint32
-		err       error
-	)
-
 	KVI := &VersionInfo{"Unknown", 0, 0, 0}
 
-	if err = windows.RegOpenKeyEx(windows.HKEY_LOCAL_MACHINE,
-		windows.StringToUTF16Ptr(`SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\`),
-		0,
-		windows.KEY_READ,
-		&h); err != nil {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+	if err != nil {
 		return KVI, err
 	}
-	defer windows.RegCloseKey(h)
+	defer k.Close()
 
-	var buf [1 << 10]uint16
-	var typ uint32
-	n := uint32(len(buf) * 2) // api expects array of bytes, not uint16
-
-	if err = windows.RegQueryValueEx(h,
-		windows.StringToUTF16Ptr("BuildLabEx"),
-		nil,
-		&typ,
-		(*byte)(unsafe.Pointer(&buf[0])),
-		&n); err != nil {
+	blex, _, err := k.GetStringValue("BuildLabEx")
+	if err != nil {
 		return KVI, err
 	}
-
-	KVI.kvi = windows.UTF16ToString(buf[:])
+	KVI.kvi = blex
 
 	// Important - docker.exe MUST be manifested for this API to return
 	// the correct information.
-	if dwVersion, err = windows.GetVersion(); err != nil {
+	dwVersion, err := windows.GetVersion()
+	if err != nil {
 		return KVI, err
 	}
 

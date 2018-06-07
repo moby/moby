@@ -1,4 +1,4 @@
-package types
+package types // import "github.com/docker/docker/api/types"
 
 import (
 	"errors"
@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // RootFS returns Image's RootFS description including the layer IDs.
@@ -108,9 +107,21 @@ type Ping struct {
 	Experimental bool
 }
 
+// ComponentVersion describes the version information for a specific component.
+type ComponentVersion struct {
+	Name    string
+	Version string
+	Details map[string]string `json:",omitempty"`
+}
+
 // Version contains response of Engine API:
 // GET "/version"
 type Version struct {
+	Platform   struct{ Name string } `json:",omitempty"`
+	Components []ComponentVersion    `json:",omitempty"`
+
+	// The following fields are deprecated, they relate to the Engine component and are kept for backwards compatibility
+
 	Version       string
 	APIVersion    string `json:"ApiVersion"`
 	MinAPIVersion string `json:"MinAPIVersion,omitempty"`
@@ -328,7 +339,7 @@ type ContainerJSONBase struct {
 	Name            string
 	RestartCount    int
 	Driver          string
-	Platform        specs.Platform
+	Platform        string
 	MountLabel      string
 	ProcessLabel    string
 	AppArmorProfile string

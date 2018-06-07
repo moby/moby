@@ -1,4 +1,4 @@
-// Copyright 2015 CoreOS, Inc.
+// Copyright 2015, 2018 CoreOS, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@ package dbus
 
 import (
 	"errors"
+	"fmt"
 	"path"
 	"strconv"
 
@@ -148,14 +149,27 @@ func (c *Conn) ResetFailedUnit(name string) error {
 	return c.sysobj.Call("org.freedesktop.systemd1.Manager.ResetFailedUnit", 0, name).Store()
 }
 
-// getProperties takes the unit name and returns all of its dbus object properties, for the given dbus interface
-func (c *Conn) getProperties(unit string, dbusInterface string) (map[string]interface{}, error) {
+// SystemState returns the systemd state. Equivalent to `systemctl is-system-running`.
+func (c *Conn) SystemState() (*Property, error) {
+	var err error
+	var prop dbus.Variant
+
+	obj := c.sysconn.Object("org.freedesktop.systemd1", "/org/freedesktop/systemd1")
+	err = obj.Call("org.freedesktop.DBus.Properties.Get", 0, "org.freedesktop.systemd1.Manager", "SystemState").Store(&prop)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Property{Name: "SystemState", Value: prop}, nil
+}
+
+// getProperties takes the unit path and returns all of its dbus object properties, for the given dbus interface
+func (c *Conn) getProperties(path dbus.ObjectPath, dbusInterface string) (map[string]interface{}, error) {
 	var err error
 	var props map[string]dbus.Variant
 
-	path := unitPath(unit)
 	if !path.IsValid() {
-		return nil, errors.New("invalid unit name: " + unit)
+		return nil, fmt.Errorf("invalid unit name: %v", path)
 	}
 
 	obj := c.sysconn.Object("org.freedesktop.systemd1", path)
@@ -172,9 +186,15 @@ func (c *Conn) getProperties(unit string, dbusInterface string) (map[string]inte
 	return out, nil
 }
 
-// GetUnitProperties takes the unit name and returns all of its dbus object properties.
+// GetUnitProperties takes the (unescaped) unit name and returns all of its dbus object properties.
 func (c *Conn) GetUnitProperties(unit string) (map[string]interface{}, error) {
-	return c.getProperties(unit, "org.freedesktop.systemd1.Unit")
+	path := unitPath(unit)
+	return c.getProperties(path, "org.freedesktop.systemd1.Unit")
+}
+
+// GetUnitProperties takes the (escaped) unit path and returns all of its dbus object properties.
+func (c *Conn) GetUnitPathProperties(path dbus.ObjectPath) (map[string]interface{}, error) {
+	return c.getProperties(path, "org.freedesktop.systemd1.Unit")
 }
 
 func (c *Conn) getProperty(unit string, dbusInterface string, propertyName string) (*Property, error) {
@@ -199,11 +219,17 @@ func (c *Conn) GetUnitProperty(unit string, propertyName string) (*Property, err
 	return c.getProperty(unit, "org.freedesktop.systemd1.Unit", propertyName)
 }
 
+// GetServiceProperty returns property for given service name and property name
+func (c *Conn) GetServiceProperty(service string, propertyName string) (*Property, error) {
+	return c.getProperty(service, "org.freedesktop.systemd1.Service", propertyName)
+}
+
 // GetUnitTypeProperties returns the extra properties for a unit, specific to the unit type.
 // Valid values for unitType: Service, Socket, Target, Device, Mount, Automount, Snapshot, Timer, Swap, Path, Slice, Scope
 // return "dbus.Error: Unknown interface" if the unitType is not the correct type of the unit
 func (c *Conn) GetUnitTypeProperties(unit string, unitType string) (map[string]interface{}, error) {
-	return c.getProperties(unit, "org.freedesktop.systemd1."+unitType)
+	path := unitPath(unit)
+	return c.getProperties(path, "org.freedesktop.systemd1."+unitType)
 }
 
 // SetUnitProperties() may be used to modify certain unit properties at runtime.
@@ -221,12 +247,24 @@ func (c *Conn) GetUnitTypeProperty(unit string, unitType string, propertyName st
 	return c.getProperty(unit, "org.freedesktop.systemd1."+unitType, propertyName)
 }
 
-// ListUnits returns an array with all currently loaded units. Note that
-// units may be known by multiple names at the same time, and hence there might
-// be more unit names loaded than actual units behind them.
-func (c *Conn) ListUnits() ([]UnitStatus, error) {
+type UnitStatus struct {
+	Name        string          // The primary unit name as string
+	Description string          // The human readable description string
+	LoadState   string          // The load state (i.e. whether the unit file has been loaded successfully)
+	ActiveState string          // The active state (i.e. whether the unit is currently started or not)
+	SubState    string          // The sub state (a more fine-grained version of the active state that is specific to the unit type, which the active state is not)
+	Followed    string          // A unit that is being followed in its state by this unit, if there is any, otherwise the empty string.
+	Path        dbus.ObjectPath // The unit object path
+	JobId       uint32          // If there is a job queued for the job unit the numeric job id, 0 otherwise
+	JobType     string          // The job type as string
+	JobPath     dbus.ObjectPath // The job object path
+}
+
+type storeFunc func(retvalues ...interface{}) error
+
+func (c *Conn) listUnitsInternal(f storeFunc) ([]UnitStatus, error) {
 	result := make([][]interface{}, 0)
-	err := c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnits", 0).Store(&result)
+	err := f(&result)
 	if err != nil {
 		return nil, err
 	}
@@ -250,17 +288,75 @@ func (c *Conn) ListUnits() ([]UnitStatus, error) {
 	return status, nil
 }
 
-type UnitStatus struct {
-	Name        string          // The primary unit name as string
-	Description string          // The human readable description string
-	LoadState   string          // The load state (i.e. whether the unit file has been loaded successfully)
-	ActiveState string          // The active state (i.e. whether the unit is currently started or not)
-	SubState    string          // The sub state (a more fine-grained version of the active state that is specific to the unit type, which the active state is not)
-	Followed    string          // A unit that is being followed in its state by this unit, if there is any, otherwise the empty string.
-	Path        dbus.ObjectPath // The unit object path
-	JobId       uint32          // If there is a job queued for the job unit the numeric job id, 0 otherwise
-	JobType     string          // The job type as string
-	JobPath     dbus.ObjectPath // The job object path
+// ListUnits returns an array with all currently loaded units. Note that
+// units may be known by multiple names at the same time, and hence there might
+// be more unit names loaded than actual units behind them.
+func (c *Conn) ListUnits() ([]UnitStatus, error) {
+	return c.listUnitsInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnits", 0).Store)
+}
+
+// ListUnitsFiltered returns an array with units filtered by state.
+// It takes a list of units' statuses to filter.
+func (c *Conn) ListUnitsFiltered(states []string) ([]UnitStatus, error) {
+	return c.listUnitsInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnitsFiltered", 0, states).Store)
+}
+
+// ListUnitsByPatterns returns an array with units.
+// It takes a list of units' statuses and names to filter.
+// Note that units may be known by multiple names at the same time,
+// and hence there might be more unit names loaded than actual units behind them.
+func (c *Conn) ListUnitsByPatterns(states []string, patterns []string) ([]UnitStatus, error) {
+	return c.listUnitsInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnitsByPatterns", 0, states, patterns).Store)
+}
+
+// ListUnitsByNames returns an array with units. It takes a list of units'
+// names and returns an UnitStatus array. Comparing to ListUnitsByPatterns
+// method, this method returns statuses even for inactive or non-existing
+// units. Input array should contain exact unit names, but not patterns.
+// Note: Requires systemd v230 or higher
+func (c *Conn) ListUnitsByNames(units []string) ([]UnitStatus, error) {
+	return c.listUnitsInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnitsByNames", 0, units).Store)
+}
+
+type UnitFile struct {
+	Path string
+	Type string
+}
+
+func (c *Conn) listUnitFilesInternal(f storeFunc) ([]UnitFile, error) {
+	result := make([][]interface{}, 0)
+	err := f(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	resultInterface := make([]interface{}, len(result))
+	for i := range result {
+		resultInterface[i] = result[i]
+	}
+
+	files := make([]UnitFile, len(result))
+	fileInterface := make([]interface{}, len(files))
+	for i := range files {
+		fileInterface[i] = &files[i]
+	}
+
+	err = dbus.Store(resultInterface, fileInterface...)
+	if err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+// ListUnitFiles returns an array of all available units on disk.
+func (c *Conn) ListUnitFiles() ([]UnitFile, error) {
+	return c.listUnitFilesInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnitFiles", 0).Store)
+}
+
+// ListUnitFilesByPatterns returns an array of all available units on disk matched the patterns.
+func (c *Conn) ListUnitFilesByPatterns(states []string, patterns []string) ([]UnitFile, error) {
+	return c.listUnitFilesInternal(c.sysobj.Call("org.freedesktop.systemd1.Manager.ListUnitFilesByPatterns", 0, states, patterns).Store)
 }
 
 type LinkUnitFileChange EnableUnitFileChange
@@ -399,6 +495,87 @@ type DisableUnitFileChange struct {
 	Destination string // Destination of the symlink
 }
 
+// MaskUnitFiles masks one or more units in the system
+//
+// It takes three arguments:
+//   * list of units to mask (either just file names or full
+//     absolute paths if the unit files are residing outside
+//     the usual unit search paths)
+//   * runtime to specify whether the unit was enabled for runtime
+//     only (true, /run/systemd/..), or persistently (false, /etc/systemd/..)
+//   * force flag
+func (c *Conn) MaskUnitFiles(files []string, runtime bool, force bool) ([]MaskUnitFileChange, error) {
+	result := make([][]interface{}, 0)
+	err := c.sysobj.Call("org.freedesktop.systemd1.Manager.MaskUnitFiles", 0, files, runtime, force).Store(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	resultInterface := make([]interface{}, len(result))
+	for i := range result {
+		resultInterface[i] = result[i]
+	}
+
+	changes := make([]MaskUnitFileChange, len(result))
+	changesInterface := make([]interface{}, len(changes))
+	for i := range changes {
+		changesInterface[i] = &changes[i]
+	}
+
+	err = dbus.Store(resultInterface, changesInterface...)
+	if err != nil {
+		return nil, err
+	}
+
+	return changes, nil
+}
+
+type MaskUnitFileChange struct {
+	Type        string // Type of the change (one of symlink or unlink)
+	Filename    string // File name of the symlink
+	Destination string // Destination of the symlink
+}
+
+// UnmaskUnitFiles unmasks one or more units in the system
+//
+// It takes two arguments:
+//   * list of unit files to mask (either just file names or full
+//     absolute paths if the unit files are residing outside
+//     the usual unit search paths)
+//   * runtime to specify whether the unit was enabled for runtime
+//     only (true, /run/systemd/..), or persistently (false, /etc/systemd/..)
+func (c *Conn) UnmaskUnitFiles(files []string, runtime bool) ([]UnmaskUnitFileChange, error) {
+	result := make([][]interface{}, 0)
+	err := c.sysobj.Call("org.freedesktop.systemd1.Manager.UnmaskUnitFiles", 0, files, runtime).Store(&result)
+	if err != nil {
+		return nil, err
+	}
+
+	resultInterface := make([]interface{}, len(result))
+	for i := range result {
+		resultInterface[i] = result[i]
+	}
+
+	changes := make([]UnmaskUnitFileChange, len(result))
+	changesInterface := make([]interface{}, len(changes))
+	for i := range changes {
+		changesInterface[i] = &changes[i]
+	}
+
+	err = dbus.Store(resultInterface, changesInterface...)
+	if err != nil {
+		return nil, err
+	}
+
+	return changes, nil
+}
+
+type UnmaskUnitFileChange struct {
+	Type        string // Type of the change (one of symlink or unlink)
+	Filename    string // File name of the symlink
+	Destination string // Destination of the symlink
+}
+
 // Reload instructs systemd to scan for and reload unit files. This is
 // equivalent to a 'systemctl daemon-reload'.
 func (c *Conn) Reload() error {
@@ -407,4 +584,9 @@ func (c *Conn) Reload() error {
 
 func unitPath(name string) dbus.ObjectPath {
 	return dbus.ObjectPath("/org/freedesktop/systemd1/unit/" + PathBusEscape(name))
+}
+
+// unitName returns the unescaped base element of the supplied escaped path
+func unitName(dpath dbus.ObjectPath) string {
+	return pathBusUnescape(path.Base(string(dpath)))
 }
