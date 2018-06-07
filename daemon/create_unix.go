@@ -11,6 +11,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/stringid"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -27,6 +28,16 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	rootIDs := daemon.idMappings.RootPair()
 	if err := container.SetupWorkingDirectory(rootIDs); err != nil {
 		return err
+	}
+
+	// Set the default masked and readonly paths with regard to the host config options if they are not set.
+	if hostConfig.MaskedPaths == nil && !hostConfig.Privileged {
+		hostConfig.MaskedPaths = oci.DefaultSpec().Linux.MaskedPaths // Set it to the default if nil
+		container.HostConfig.MaskedPaths = hostConfig.MaskedPaths
+	}
+	if hostConfig.ReadonlyPaths == nil && !hostConfig.Privileged {
+		hostConfig.ReadonlyPaths = oci.DefaultSpec().Linux.ReadonlyPaths // Set it to the default if nil
+		container.HostConfig.ReadonlyPaths = hostConfig.ReadonlyPaths
 	}
 
 	for spec := range config.Volumes {
