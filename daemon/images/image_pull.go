@@ -5,6 +5,7 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"time"
 
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
@@ -20,6 +21,7 @@ import (
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
 func (i *ImageService) PullImage(ctx context.Context, image, tag, os string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	start := time.Now()
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
 	// compatibility.
@@ -44,7 +46,9 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag, os string, met
 		}
 	}
 
-	return i.pullImageWithReference(ctx, ref, os, metaHeaders, authConfig, outStream)
+	err = i.pullImageWithReference(ctx, ref, os, metaHeaders, authConfig, outStream)
+	imageActions.WithValues("pull").UpdateSince(start)
+	return err
 }
 
 func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, os string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
