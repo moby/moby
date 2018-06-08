@@ -118,18 +118,16 @@ func normalizeLayersAndHistory(diffs []digest.Digest, history []ocispec.History,
 		}
 	}
 
-	// var layerIndex int
-	// for i, h := range history {
-	// 	if !h.EmptyLayer {
-	// 		if diffs[layerIndex] == emptyGZLayer { // TODO: fixme
-	// 			h.EmptyLayer = true
-	// 			diffs = append(diffs[:layerIndex], diffs[layerIndex+1:]...)
-	// 		} else {
-	// 			layerIndex++
-	// 		}
-	// 	}
-	// 	history[i] = h
-	// }
+	var layerIndex int
+	for i, h := range history {
+		if !h.EmptyLayer {
+			if h.Created == nil {
+				h.Created = &refMeta[layerIndex].createdAt
+			}
+			layerIndex++
+		}
+		history[i] = h
+	}
 
 	return diffs, history
 }
