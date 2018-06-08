@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/term"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -249,6 +249,9 @@ func (d *Daemon) ContainerExecStart(ctx context.Context, name string, stdin io.R
 	ec.Lock()
 	c.ExecCommands.Lock()
 	systemPid, err := d.containerd.Exec(ctx, c.ID, ec.ID, p, cStdin != nil, ec.InitializeStdio)
+	// the exec context should be ready, or error happened.
+	// close the chan to notify readiness
+	close(ec.Started)
 	if err != nil {
 		c.ExecCommands.Unlock()
 		ec.Unlock()
