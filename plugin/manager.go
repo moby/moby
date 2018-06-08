@@ -37,14 +37,14 @@ var validFullID = regexp.MustCompile(`^([a-f0-9]{64})$`)
 // Executor is the interface that the plugin manager uses to interact with for starting/stopping plugins
 type Executor interface {
 	Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error
-	Restore(id string, stdout, stderr io.WriteCloser) error
 	IsRunning(id string) (bool, error)
+	Restore(id string, stdout, stderr io.WriteCloser) (alive bool, err error)
 	Signal(id string, signal int) error
 }
 
-func (pm *Manager) restorePlugin(p *v2.Plugin) error {
+func (pm *Manager) restorePlugin(p *v2.Plugin, c *controller) error {
 	if p.IsEnabled() {
-		return pm.restore(p)
+		return pm.restore(p, c)
 	}
 	return nil
 }
@@ -143,12 +143,15 @@ func (pm *Manager) HandleExitEvent(id string) error {
 		return err
 	}
 
-	os.RemoveAll(filepath.Join(pm.config.ExecRoot, id))
+	if err := os.RemoveAll(filepath.Join(pm.config.ExecRoot, id)); err != nil && !os.IsNotExist(err) {
+		logrus.WithError(err).WithField("id", id).Error("Could not remove plugin bundle dir")
+	}
 
 	pm.mu.RLock()
 	c := pm.cMap[p]
 	if c.exitChan != nil {
 		close(c.exitChan)
+		c.exitChan = nil // ignore duplicate events (containerd issue #2299)
 	}
 	restart := c.restart
 	pm.mu.RUnlock()
@@ -205,12 +208,15 @@ func (pm *Manager) reload() error { // todo: restore
 	var wg sync.WaitGroup
 	wg.Add(len(plugins))
 	for _, p := range plugins {
-		c := &controller{} // todo: remove this
+		c := &controller{exitChan: make(chan bool)}
+		pm.mu.Lock()
 		pm.cMap[p] = c
+		pm.mu.Unlock()
+
 		go func(p *v2.Plugin) {
 			defer wg.Done()
-			if err := pm.restorePlugin(p); err != nil {
-				logrus.Errorf("failed to restore plugin '%s': %s", p.Name(), err)
+			if err := pm.restorePlugin(p, c); err != nil {
+				logrus.WithError(err).WithField("id", p.GetID()).Error("Failed to restore plugin")
 				return
 			}
 
@@ -248,7 +254,7 @@ func (pm *Manager) reload() error { // todo: restore
 			if requiresManualRestore {
 				// if liveRestore is not enabled, the plugin will be stopped now so we should enable it
 				if err := pm.enable(p, c, true); err != nil {
-					logrus.Errorf("failed to enable plugin '%s': %s", p.Name(), err)
+					logrus.WithError(err).WithField("id", p.GetID()).Error("failed to enable plugin")
 				}
 			}
 		}(p)
