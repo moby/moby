@@ -15,6 +15,7 @@ import (
 // examined both during and after completion.
 type Config struct {
 	sync.Mutex
+	Started      chan struct{}
 	StreamConfig *stream.Config
 	ID           string
 	Running      bool
@@ -40,6 +41,7 @@ func NewConfig() *Config {
 	return &Config{
 		ID:           stringid.GenerateNonCryptoID(),
 		StreamConfig: stream.NewConfig(),
+		Started:      make(chan struct{}),
 	}
 }
 
