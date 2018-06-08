@@ -23,7 +23,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	overlayName := "overlay1"
+	overlayName := "overlay1_" + t.Name()
 	networkCreate := types.NetworkCreate{
 		CheckDuplicate: true,
 		Driver:         "overlay",
@@ -35,9 +35,10 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 
 	var instances uint64 = 4
 
+	serviceName := "TestService_" + t.Name()
 	serviceSpec := []swarm.ServiceSpecOpt{
 		swarm.ServiceWithReplicas(instances),
-		swarm.ServiceWithName("TestService"),
+		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithNetwork(overlayName),
 	}
 
@@ -75,7 +76,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	client := d.NewClientT(t)
 	defer client.Close()
 
-	name := "foo"
+	name := "foo_" + t.Name()
 	networkCreate := types.NetworkCreate{
 		CheckDuplicate: false,
 		Driver:         "bridge",
@@ -95,9 +96,10 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	// Create Service with the same name
 	var instances uint64 = 1
 
+	serviceName := "top_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
-		swarm.ServiceWithName("top"),
+		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithNetwork(name),
 	)
 
@@ -138,18 +140,20 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
+	secretName := "TestSecret_" + t.Name()
 	secretResp, err := client.SecretCreate(ctx, swarmtypes.SecretSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "TestSecret",
+			Name: secretName,
 		},
 		Data: []byte("TESTSECRET"),
 	})
 	assert.NilError(t, err)
 
 	var instances uint64 = 1
+	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
-		swarm.ServiceWithName("TestService"),
+		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/secret || /bin/top"}),
 		swarm.ServiceWithSecret(&swarmtypes.SecretReference{
 			File: &swarmtypes.SecretReferenceFileTarget{
@@ -159,7 +163,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 				Mode: 0777,
 			},
 			SecretID:   secretResp.ID,
-			SecretName: "TestSecret",
+			SecretName: secretName,
 		}),
 	)
 
@@ -189,7 +193,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
 	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
 
-	err = client.SecretRemove(ctx, "TestSecret")
+	err = client.SecretRemove(ctx, secretName)
 	assert.NilError(t, err)
 }
 
@@ -201,17 +205,19 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	defer client.Close()
 
 	ctx := context.Background()
+	configName := "TestConfig_" + t.Name()
 	configResp, err := client.ConfigCreate(ctx, swarmtypes.ConfigSpec{
 		Annotations: swarmtypes.Annotations{
-			Name: "TestConfig",
+			Name: configName,
 		},
 		Data: []byte("TESTCONFIG"),
 	})
 	assert.NilError(t, err)
 
 	var instances uint64 = 1
+	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d,
-		swarm.ServiceWithName("TestService"),
+		swarm.ServiceWithName(serviceName),
 		swarm.ServiceWithCommand([]string{"/bin/sh", "-c", "ls -l /etc/config || /bin/top"}),
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithConfig(&swarmtypes.ConfigReference{
@@ -222,7 +228,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 				Mode: 0777,
 			},
 			ConfigID:   configResp.ID,
-			ConfigName: "TestConfig",
+			ConfigName: configName,
 		}),
 	)
 
@@ -252,7 +258,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID))
 	poll.WaitOn(t, noTasks(client))
 
-	err = client.ConfigRemove(ctx, "TestConfig")
+	err = client.ConfigRemove(ctx, configName)
 	assert.NilError(t, err)
 }
 
