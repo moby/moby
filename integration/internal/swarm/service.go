@@ -86,6 +86,14 @@ func defaultServiceSpec() swarmtypes.ServiceSpec {
 	return spec
 }
 
+// ServiceWithInit sets whether the service should use init or not
+func ServiceWithInit(b *bool) func(*swarmtypes.ServiceSpec) {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Init = b
+	}
+}
+
 // ServiceWithImage sets the image to use for the service
 func ServiceWithImage(image string) func(*swarmtypes.ServiceSpec) {
 	return func(spec *swarmtypes.ServiceSpec) {

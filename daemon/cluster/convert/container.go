@@ -35,6 +35,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		Secrets:    secretReferencesFromGRPC(c.Secrets),
 		Configs:    configReferencesFromGRPC(c.Configs),
 		Isolation:  IsolationFromGRPC(c.Isolation),
+		Init:       initFromGRPC(c.Init),
 	}
 
 	if c.DNSConfig != nil {
@@ -117,6 +118,21 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 	}
 
 	return containerSpec
+}
+
+func initFromGRPC(v *gogotypes.BoolValue) *bool {
+	if v == nil {
+		return nil
+	}
+	value := v.GetValue()
+	return &value
+}
+
+func initToGRPC(v *bool) *gogotypes.BoolValue {
+	if v == nil {
+		return nil
+	}
+	return &gogotypes.BoolValue{Value: *v}
 }
 
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
@@ -234,6 +250,7 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		Secrets:    secretReferencesToGRPC(c.Secrets),
 		Configs:    configReferencesToGRPC(c.Configs),
 		Isolation:  isolationToGRPC(c.Isolation),
+		Init:       initToGRPC(c.Init),
 	}
 
 	if c.DNSConfig != nil {
