@@ -93,7 +93,7 @@ can take over 15 minutes to complete.
 
 1. Open a terminal.
 
-   For [Docker Toolbox](../../toolbox/overview.md) users, use `docker-machine status your_vm_name` to make sure your VM is running. You
+   For [Docker Toolbox](https://github.com/docker/toolbox) users, use `docker-machine status your_vm_name` to make sure your VM is running. You
    may need to run `eval "$(docker-machine env your_vm_name)"` to initialize your
    shell environment. If you use Docker for Mac or Docker for Windows, you do not need
    to use Docker Machine.
