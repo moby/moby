@@ -176,7 +176,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 	ctx := c.InitAttachContext()
 	err := <-c.StreamConfig.CopyStreams(ctx, cfg)
 	if err != nil {
-		if _, ok := err.(term.EscapeError); ok {
+		if _, ok := errors.Cause(err).(term.EscapeError); ok || err == context.Canceled {
 			daemon.LogContainerEvent(c, "detach")
 		} else {
 			logrus.Errorf("attach failed with error: %v", err)
