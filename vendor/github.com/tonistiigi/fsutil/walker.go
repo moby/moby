@@ -1,6 +1,7 @@
 package fsutil
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,13 +10,15 @@ import (
 
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 type WalkOpt struct {
 	IncludePatterns []string
 	ExcludePatterns []string
-	Map             func(*Stat) bool
+	// FollowPaths contains symlinks that are resolved into include patterns
+	// before performing the fs walk
+	FollowPaths []string
+	Map         func(*Stat) bool
 }
 
 func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) error {
@@ -39,8 +42,25 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 	}
 
+	var includePatterns []string
+	if opt != nil && opt.IncludePatterns != nil {
+		includePatterns = make([]string, len(opt.IncludePatterns))
+		for k := range opt.IncludePatterns {
+			includePatterns[k] = filepath.Clean(opt.IncludePatterns[k])
+		}
+	}
+	if opt != nil && opt.FollowPaths != nil {
+		targets, err := FollowLinks(p, opt.FollowPaths)
+		if err != nil {
+			return err
+		}
+		if targets != nil {
+			includePatterns = append(includePatterns, targets...)
+			includePatterns = dedupePaths(includePatterns)
+		}
+	}
+
 	var lastIncludedDir string
-	var includePatternPrefixes []string
 
 	seenFiles := make(map[uint64]string)
 	return filepath.Walk(root, func(path string, fi os.FileInfo, err error) (retErr error) {
@@ -66,34 +86,34 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		}
 
 		if opt != nil {
-			if opt.IncludePatterns != nil {
-				if includePatternPrefixes == nil {
-					includePatternPrefixes = patternPrefixes(opt.IncludePatterns)
-				}
-				matched := false
+			if includePatterns != nil {
+				skip := false
 				if lastIncludedDir != "" {
 					if strings.HasPrefix(path, lastIncludedDir+string(filepath.Separator)) {
-						matched = true
+						skip = true
 					}
 				}
-				if !matched {
-					for _, p := range opt.IncludePatterns {
-						if m, _ := filepath.Match(p, path); m {
+
+				if !skip {
+					matched := false
+					partial := true
+					for _, p := range includePatterns {
+						if ok, p := matchPrefix(p, path); ok {
 							matched = true
-							break
+							if !p {
+								partial = false
+								break
+							}
 						}
 					}
-					if matched && fi.IsDir() {
-						lastIncludedDir = path
-					}
-				}
-				if !matched {
-					if !fi.IsDir() {
-						return nil
-					} else {
-						if noPossiblePrefixMatch(path, includePatternPrefixes) {
+					if !matched {
+						if fi.IsDir() {
 							return filepath.SkipDir
 						}
+						return nil
+					}
+					if !partial && fi.IsDir() {
+						lastIncludedDir = path
 					}
 				}
 			}
@@ -131,13 +151,13 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 		stat := &Stat{
 			Path:    path,
 			Mode:    uint32(fi.Mode()),
-			Size_:   fi.Size(),
 			ModTime: fi.ModTime().UnixNano(),
 		}
 
 		setUnixOpt(fi, stat, path, seenFiles)
 
 		if !fi.IsDir() {
+			stat.Size_ = fi.Size()
 			if fi.Mode()&os.ModeSymlink != 0 {
 				link, err := os.Readlink(origpath)
 				if err != nil {
@@ -199,29 +219,28 @@ func (s *StatInfo) Sys() interface{} {
 	return s.Stat
 }
 
-func patternPrefixes(patterns []string) []string {
-	pfxs := make([]string, 0, len(patterns))
-	for _, ptrn := range patterns {
-		idx := strings.IndexFunc(ptrn, func(ch rune) bool {
-			return ch == '*' || ch == '?' || ch == '[' || ch == '\\'
-		})
-		if idx == -1 {
-			idx = len(ptrn)
-		}
-		pfxs = append(pfxs, ptrn[:idx])
+func matchPrefix(pattern, name string) (bool, bool) {
+	count := strings.Count(name, string(filepath.Separator))
+	partial := false
+	if strings.Count(pattern, string(filepath.Separator)) > count {
+		pattern = trimUntilIndex(pattern, string(filepath.Separator), count)
+		partial = true
 	}
-	return pfxs
+	m, _ := filepath.Match(pattern, name)
+	return m, partial
 }
 
-func noPossiblePrefixMatch(p string, pfxs []string) bool {
-	for _, pfx := range pfxs {
-		chk := p
-		if len(pfx) < len(p) {
-			chk = p[:len(pfx)]
-		}
-		if strings.HasPrefix(pfx, chk) {
-			return false
+func trimUntilIndex(str, sep string, count int) string {
+	s := str
+	i := 0
+	c := 0
+	for {
+		idx := strings.Index(s, sep)
+		s = s[idx+len(sep):]
+		i += idx + len(sep)
+		c++
+		if c > count {
+			return str[:i-len(sep)]
 		}
 	}
-	return true
 }

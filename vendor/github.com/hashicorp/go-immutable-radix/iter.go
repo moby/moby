@@ -9,11 +9,13 @@ type Iterator struct {
 	stack []edges
 }
 
-// SeekPrefix is used to seek the iterator to a given prefix
-func (i *Iterator) SeekPrefix(prefix []byte) {
+// SeekPrefixWatch is used to seek the iterator to a given prefix
+// and returns the watch channel of the finest granularity
+func (i *Iterator) SeekPrefixWatch(prefix []byte) (watch <-chan struct{}) {
 	// Wipe the stack
 	i.stack = nil
 	n := i.node
+	watch = n.mutateCh
 	search := prefix
 	for {
 		// Check for key exhaution
@@ -29,6 +31,9 @@ func (i *Iterator) SeekPrefix(prefix []byte) {
 			return
 		}
 
+		// Update to the finest granularity as the search makes progress
+		watch = n.mutateCh
+
 		// Consume the search prefix
 		if bytes.HasPrefix(search, n.prefix) {
 			search = search[len(n.prefix):]
@@ -41,6 +46,11 @@ func (i *Iterator) SeekPrefix(prefix []byte) {
 			return
 		}
 	}
+}
+
+// SeekPrefix is used to seek the iterator to a given prefix
+func (i *Iterator) SeekPrefix(prefix []byte) {
+	i.SeekPrefixWatch(prefix)
 }
 
 // Next returns the next node in order

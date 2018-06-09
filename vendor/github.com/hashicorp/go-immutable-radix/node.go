@@ -12,8 +12,9 @@ type WalkFn func(k []byte, v interface{}) bool
 
 // leafNode is used to represent a value
 type leafNode struct {
-	key []byte
-	val interface{}
+	mutateCh chan struct{}
+	key      []byte
+	val      interface{}
 }
 
 // edge is used to represent an edge node
@@ -24,6 +25,9 @@ type edge struct {
 
 // Node is an immutable node in the radix tree
 type Node struct {
+	// mutateCh is closed if this node is modified
+	mutateCh chan struct{}
+
 	// leaf is used to store possible leaf
 	leaf *leafNode
 
@@ -87,31 +91,14 @@ func (n *Node) delEdge(label byte) {
 	}
 }
 
-func (n *Node) mergeChild() {
-	e := n.edges[0]
-	child := e.node
-	n.prefix = concat(n.prefix, child.prefix)
-	if child.leaf != nil {
-		n.leaf = new(leafNode)
-		*n.leaf = *child.leaf
-	} else {
-		n.leaf = nil
-	}
-	if len(child.edges) != 0 {
-		n.edges = make([]edge, len(child.edges))
-		copy(n.edges, child.edges)
-	} else {
-		n.edges = nil
-	}
-}
-
-func (n *Node) Get(k []byte) (interface{}, bool) {
+func (n *Node) GetWatch(k []byte) (<-chan struct{}, interface{}, bool) {
 	search := k
+	watch := n.mutateCh
 	for {
-		// Check for key exhaution
+		// Check for key exhaustion
 		if len(search) == 0 {
 			if n.isLeaf() {
-				return n.leaf.val, true
+				return n.leaf.mutateCh, n.leaf.val, true
 			}
 			break
 		}
@@ -122,6 +109,9 @@ func (n *Node) Get(k []byte) (interface{}, bool) {
 			break
 		}
 
+		// Update to the finest granularity as the search makes progress
+		watch = n.mutateCh
+
 		// Consume the search prefix
 		if bytes.HasPrefix(search, n.prefix) {
 			search = search[len(n.prefix):]
@@ -129,7 +119,12 @@ func (n *Node) Get(k []byte) (interface{}, bool) {
 			break
 		}
 	}
-	return nil, false
+	return watch, nil, false
+}
+
+func (n *Node) Get(k []byte) (interface{}, bool) {
+	_, val, ok := n.GetWatch(k)
+	return val, ok
 }
 
 // LongestPrefix is like Get, but instead of an
@@ -204,6 +199,14 @@ func (n *Node) Iterator() *Iterator {
 	return &Iterator{node: n}
 }
 
+// rawIterator is used to return a raw iterator at the given node to walk the
+// tree.
+func (n *Node) rawIterator() *rawIterator {
+	iter := &rawIterator{node: n}
+	iter.Next()
+	return iter
+}
+
 // Walk is used to walk the tree
 func (n *Node) Walk(fn WalkFn) {
 	recursiveWalk(n, fn)
@@ -269,6 +272,66 @@ func (n *Node) WalkPath(path []byte, fn WalkFn) {
 			break
 		}
 	}
+}
+
+func (n *Node) Seek(prefix []byte) *Seeker {
+	search := prefix
+	p := &pos{n: n}
+	for {
+		// Check for key exhaution
+		if len(search) == 0 {
+			return &Seeker{p}
+		}
+
+		num := len(n.edges)
+		idx := sort.Search(num, func(i int) bool {
+			return n.edges[i].label >= search[0]
+		})
+		p.current = idx
+		if idx < len(n.edges) {
+			n = n.edges[idx].node
+			if bytes.HasPrefix(search, n.prefix) && len(n.edges) > 0 {
+				search = search[len(n.prefix):]
+				p.current++
+				p = &pos{n: n, prev: p}
+				continue
+			}
+		}
+		p.current++
+		return &Seeker{p}
+	}
+}
+
+type Seeker struct {
+	*pos
+}
+
+type pos struct {
+	n       *Node
+	current int
+	prev    *pos
+	isLeaf  bool
+}
+
+func (s *Seeker) Next() (k []byte, v interface{}, ok bool) {
+	if s.current >= len(s.n.edges) {
+		if s.prev == nil {
+			return nil, nil, false
+		}
+		s.pos = s.prev
+		return s.Next()
+	}
+
+	edge := s.n.edges[s.current]
+	s.current++
+	if edge.node.leaf != nil && !s.isLeaf {
+		s.isLeaf = true
+		s.current--
+		return edge.node.leaf.key, edge.node.leaf.val, true
+	}
+	s.isLeaf = false
+	s.pos = &pos{n: edge.node, prev: s.pos}
+	return s.Next()
 }
 
 // recursiveWalk is used to do a pre-order walk of a node

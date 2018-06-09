@@ -1,12 +1,12 @@
 package fsutil
 
 import (
+	"context"
 	"io"
 	"os"
 	"sync"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 

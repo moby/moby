@@ -1,0 +1,137 @@
+syntax = "proto3";
+
+// Package pb provides the protobuf definition of LLB: low-level builder instruction.
+// LLB is DAG-structured; Op represents a vertex, and Definition represents a graph.
+package pb;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+
+// Op represents a vertex of the LLB DAG.
+message Op {
+	// inputs is a set of input edges.
+	repeated Input inputs = 1;
+	oneof op {
+		ExecOp exec = 2;
+		SourceOp source = 3;
+		CopyOp copy = 4;
+		BuildOp build = 5;
+	 }
+}
+
+// Input represents an input edge for an Op.
+message Input {
+	// digest of the marshaled input Op
+	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	// output index of the input Op
+	int64 index = 2 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+}
+
+// ExecOp executes a command in a container.
+message ExecOp {
+	Meta meta = 1;
+	repeated Mount mounts = 2;
+}
+
+// Meta is a set of arguments for ExecOp.
+// Meta is unrelated to LLB metadata.
+// FIXME: rename (ExecContext? ExecArgs?)
+message Meta {
+	repeated string args = 1;
+	repeated string env = 2;
+	string cwd = 3;
+	string user = 4;
+	ProxyEnv proxy_env = 5;
+}
+
+// Mount specifies how to mount an input Op as a filesystem.
+message Mount {
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	string selector = 2;
+	string dest = 3;
+	int64 output = 4 [(gogoproto.customtype) = "OutputIndex", (gogoproto.nullable) = false];
+	bool readonly = 5;
+	MountType mountType = 6;
+	CacheOpt cacheOpt = 20;
+}
+
+enum MountType {
+	BIND = 0;
+	SECRET = 1;
+	SSH = 2;
+	CACHE = 3;
+	TMPFS = 4;
+}
+
+message CacheOpt {
+	string ID = 1;
+}
+
+// CopyOp copies files across Ops.
+message CopyOp {
+	repeated CopySource src = 1;
+	string dest = 2;
+}
+
+// CopySource specifies a source for CopyOp.
+message CopySource {
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	string selector = 2;
+}
+
+// SourceOp specifies a source such as build contexts and images.
+message SourceOp {
+	// TODO: use source type or any type instead of URL protocol.
+	// identifier e.g. local://, docker-image://, git://, https://...
+	string identifier = 1;
+	// attrs are defined in attr.go
+	map<string, string> attrs = 2;
+}
+
+// BuildOp is used for nested build invocation.
+message BuildOp {
+	int64 builder = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+	map<string, BuildInput> inputs = 2;
+	Definition def = 3;
+	map<string, string> attrs = 4;
+	// outputs
+}
+
+// BuildInput is used for BuildOp.
+message BuildInput {
+	int64 input = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
+}
+
+// OpMetadata is a per-vertex metadata entry, which can be defined for arbitrary Op vertex and overridable on the run time.
+message OpMetadata {
+	// ignore_cache specifies to ignore the cache for this Op.
+	bool ignore_cache = 1;
+	// Description can be used for keeping any text fields that builder doesn't parse
+	map<string, string> description = 2;  
+	WorkerConstraint worker_constraint = 3;
+	ExportCache export_cache = 4;
+}
+
+message ExportCache {
+	bool Value = 1;
+}
+
+message ProxyEnv {
+	string http_proxy = 1;
+	string https_proxy = 2;
+	string ftp_proxy = 3;
+	string no_proxy = 4;
+}
+
+// WorkerConstraint is experimental and likely to be changed.
+message WorkerConstraint {
+	repeated string filter = 1; // containerd-style filter
+}
+
+// Definition is the LLB definition structure with per-vertex metadata entries
+message Definition {
+	// def is a list of marshaled Op messages
+	repeated bytes def = 1;
+	// metadata contains metadata for the each of the Op messages.
+	// A key must be an LLB op digest string. Currently, empty string is not expected as a key, but it may change in the future.
+	map<string, OpMetadata> metadata = 2 [(gogoproto.castkey) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+}

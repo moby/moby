@@ -1,6 +1,7 @@
 package fsutil
 
 import (
+	"context"
 	"hash"
 	"io"
 	"os"
@@ -9,9 +10,8 @@ import (
 	"sync"
 	"time"
 
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -80,9 +80,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		}
 	}()
 
-	p = filepath.FromSlash(p)
-
-	destPath := filepath.Join(dw.dest, p)
+	destPath := filepath.Join(dw.dest, filepath.FromSlash(p))
 
 	if kind == ChangeKindDelete {
 		// todo: no need to validate if diff is trusted but is it always?
@@ -102,8 +100,10 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		return errors.Errorf("%s invalid change without stat information", p)
 	}
 
+	statCopy := *stat
+
 	if dw.filter != nil {
-		if ok := dw.filter(stat); !ok {
+		if ok := dw.filter(&statCopy); !ok {
 			return nil
 		}
 	}
@@ -122,7 +122,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	}
 
 	if oldFi != nil && fi.IsDir() && oldFi.IsDir() {
-		if err := rewriteMetadata(destPath, stat); err != nil {
+		if err := rewriteMetadata(destPath, &statCopy); err != nil {
 			return errors.Wrapf(err, "error setting dir metadata for %s", destPath)
 		}
 		return nil
@@ -141,16 +141,16 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 			return errors.Wrapf(err, "failed to create dir %s", newPath)
 		}
 	case fi.Mode()&os.ModeDevice != 0 || fi.Mode()&os.ModeNamedPipe != 0:
-		if err := handleTarTypeBlockCharFifo(newPath, stat); err != nil {
+		if err := handleTarTypeBlockCharFifo(newPath, &statCopy); err != nil {
 			return errors.Wrapf(err, "failed to create device %s", newPath)
 		}
 	case fi.Mode()&os.ModeSymlink != 0:
-		if err := os.Symlink(stat.Linkname, newPath); err != nil {
+		if err := os.Symlink(statCopy.Linkname, newPath); err != nil {
 			return errors.Wrapf(err, "failed to symlink %s", newPath)
 		}
-	case stat.Linkname != "":
-		if err := os.Link(filepath.Join(dw.dest, stat.Linkname), newPath); err != nil {
-			return errors.Wrapf(err, "failed to link %s to %s", newPath, stat.Linkname)
+	case statCopy.Linkname != "":
+		if err := os.Link(filepath.Join(dw.dest, statCopy.Linkname), newPath); err != nil {
+			return errors.Wrapf(err, "failed to link %s to %s", newPath, statCopy.Linkname)
 		}
 	default:
 		isRegularFile = true
@@ -170,7 +170,7 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 		}
 	}
 
-	if err := rewriteMetadata(newPath, stat); err != nil {
+	if err := rewriteMetadata(newPath, &statCopy); err != nil {
 		return errors.Wrapf(err, "error setting metadata for %s", newPath)
 	}
 
@@ -272,14 +272,27 @@ func (hw *hashedWriter) Digest() digest.Digest {
 }
 
 type lazyFileWriter struct {
-	dest string
-	ctx  context.Context
-	f    *os.File
+	dest     string
+	ctx      context.Context
+	f        *os.File
+	fileMode *os.FileMode
 }
 
 func (lfw *lazyFileWriter) Write(dt []byte) (int, error) {
 	if lfw.f == nil {
 		file, err := os.OpenFile(lfw.dest, os.O_WRONLY, 0) //todo: windows
+		if os.IsPermission(err) {
+			// retry after chmod
+			fi, er := os.Stat(lfw.dest)
+			if er == nil {
+				mode := fi.Mode()
+				lfw.fileMode = &mode
+				er = os.Chmod(lfw.dest, mode|0222)
+				if er == nil {
+					file, err = os.OpenFile(lfw.dest, os.O_WRONLY, 0)
+				}
+			}
+		}
 		if err != nil {
 			return 0, errors.Wrapf(err, "failed to open %s", lfw.dest)
 		}
@@ -289,10 +302,14 @@ func (lfw *lazyFileWriter) Write(dt []byte) (int, error) {
 }
 
 func (lfw *lazyFileWriter) Close() error {
+	var err error
 	if lfw.f != nil {
-		return lfw.f.Close()
+		err = lfw.f.Close()
 	}
-	return nil
+	if err == nil && lfw.fileMode != nil {
+		err = os.Chmod(lfw.dest, *lfw.fileMode)
+	}
+	return err
 }
 
 func mkdev(major int64, minor int64) uint32 {

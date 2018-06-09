@@ -1,10 +1,10 @@
 package fsutil
 
 import (
+	"context"
 	"os"
 	"strings"
 
-	"golang.org/x/net/context"
 	"golang.org/x/sync/errgroup"
 )
 

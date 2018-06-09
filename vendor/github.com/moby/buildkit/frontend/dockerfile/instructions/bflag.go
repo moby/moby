@@ -11,6 +11,7 @@ type FlagType int
 const (
 	boolType FlagType = iota
 	stringType
+	stringsType
 )
 
 // BFlags contains all flags information for the builder
@@ -23,10 +24,11 @@ type BFlags struct {
 
 // Flag contains all information for a flag
 type Flag struct {
-	bf       *BFlags
-	name     string
-	flagType FlagType
-	Value    string
+	bf           *BFlags
+	name         string
+	flagType     FlagType
+	Value        string
+	StringValues []string
 }
 
 // NewBFlags returns the new BFlags struct
@@ -67,6 +69,15 @@ func (bf *BFlags) AddString(name string, def string) *Flag {
 		return nil
 	}
 	flag.Value = def
+	return flag
+}
+
+// AddString adds a string flag to BFlags that can match multiple values
+func (bf *BFlags) AddStrings(name string) *Flag {
+	flag := bf.addFlag(name, stringsType)
+	if flag == nil {
+		return nil
+	}
 	return flag
 }
 
@@ -145,7 +156,7 @@ func (bf *BFlags) Parse() error {
 			return fmt.Errorf("Unknown flag: %s", arg)
 		}
 
-		if _, ok = bf.used[arg]; ok {
+		if _, ok = bf.used[arg]; ok && flag.flagType != stringsType {
 			return fmt.Errorf("Duplicate flag specified: %s", arg)
 		}
 
@@ -172,6 +183,12 @@ func (bf *BFlags) Parse() error {
 				return fmt.Errorf("Missing a value on flag: %s", arg)
 			}
 			flag.Value = value
+
+		case stringsType:
+			if index < 0 {
+				return fmt.Errorf("Missing a value on flag: %s", arg)
+			}
+			flag.StringValues = append(flag.StringValues, value)
 
 		default:
 			panic("No idea what kind of flag we have! Should never get here!")

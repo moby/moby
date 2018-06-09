@@ -233,6 +233,7 @@ type ShellDependantCmdLine struct {
 //
 type RunCommand struct {
 	withNameAndCode
+	withExternalData
 	ShellDependantCmdLine
 }
 
@@ -415,4 +416,19 @@ func HasStage(s []Stage, name string) (int, bool) {
 		}
 	}
 	return -1, false
+}
+
+type withExternalData struct {
+	m map[interface{}]interface{}
+}
+
+func (c *withExternalData) getExternalValue(k interface{}) interface{} {
+	return c.m[k]
+}
+
+func (c *withExternalData) setExternalValue(k, v interface{}) {
+	if c.m == nil {
+		c.m = map[interface{}]interface{}{}
+	}
+	c.m[k] = v
 }

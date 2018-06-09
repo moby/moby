@@ -18,6 +18,7 @@ const (
 	keyOverrideExcludes = "override-excludes"
 	keyIncludePatterns  = "include-patterns"
 	keyExcludePatterns  = "exclude-patterns"
+	keyFollowPaths      = "followpaths"
 	keyDirName          = "dir-name"
 )
 
@@ -87,6 +88,8 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retEr
 	}
 	includes := opts[keyIncludePatterns]
 
+	followPaths := opts[keyFollowPaths]
+
 	var progress progressCb
 	if sp.p != nil {
 		progress = sp.p
@@ -98,7 +101,7 @@ func (sp *fsSyncProvider) handle(method string, stream grpc.ServerStream) (retEr
 		doneCh = sp.doneCh
 		sp.doneCh = nil
 	}
-	err := pr.sendFn(stream, dir.Dir, includes, excludes, progress, dir.Map)
+	err := pr.sendFn(stream, dir.Dir, includes, excludes, followPaths, progress, dir.Map)
 	if doneCh != nil {
 		if err != nil {
 			doneCh <- err
@@ -117,7 +120,7 @@ type progressCb func(int, bool)
 
 type protocol struct {
 	name   string
-	sendFn func(stream grpc.Stream, srcDir string, includes, excludes []string, progress progressCb, _map func(*fsutil.Stat) bool) error
+	sendFn func(stream grpc.Stream, srcDir string, includes, excludes, followPaths []string, progress progressCb, _map func(*fsutil.Stat) bool) error
 	recvFn func(stream grpc.Stream, destDir string, cu CacheUpdater, progress progressCb) error
 }
 
@@ -142,6 +145,7 @@ type FSSendRequestOpt struct {
 	Name             string
 	IncludePatterns  []string
 	ExcludePatterns  []string
+	FollowPaths      []string
 	OverrideExcludes bool // deprecated: this is used by docker/cli for automatically loading .dockerignore from the directory
 	DestDir          string
 	CacheUpdater     CacheUpdater
@@ -179,6 +183,10 @@ func FSSync(ctx context.Context, c session.Caller, opt FSSendRequestOpt) error {
 
 	if opt.ExcludePatterns != nil {
 		opts[keyExcludePatterns] = opt.ExcludePatterns
+	}
+
+	if opt.FollowPaths != nil {
+		opts[keyFollowPaths] = opt.FollowPaths
 	}
 
 	opts[keyDirName] = []string{opt.Name}
@@ -261,7 +269,7 @@ func CopyToCaller(ctx context.Context, srcPath string, c session.Caller, progres
 		return err
 	}
 
-	return sendDiffCopy(cc, srcPath, nil, nil, progress, nil)
+	return sendDiffCopy(cc, srcPath, nil, nil, nil, progress, nil)
 }
 
 func CopyFileWriter(ctx context.Context, c session.Caller) (io.WriteCloser, error) {

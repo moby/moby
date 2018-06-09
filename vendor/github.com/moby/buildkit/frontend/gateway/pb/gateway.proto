@@ -1,0 +1,60 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.frontend;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service LLBBridge {
+	rpc ResolveImageConfig(ResolveImageConfigRequest) returns (ResolveImageConfigResponse);
+	rpc Solve(SolveRequest) returns (SolveResponse);
+	rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+	rpc Ping(PingRequest) returns (PongResponse);
+}
+
+message ResolveImageConfigRequest {
+	string Ref = 1;
+}
+
+message ResolveImageConfigResponse {
+	string Digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	bytes Config = 2;
+}
+
+message SolveRequest {
+	pb.Definition Definition = 1;
+	string Frontend = 2;
+	map<string, string> FrontendOpt = 3;
+	repeated string ImportCacheRefs = 4;
+	bool Final = 10;
+	bytes ExporterAttr = 11;
+}
+
+message SolveResponse {
+	string Ref = 1; // can be used by readfile request
+	bytes ExporterAttr = 2;
+}
+
+message ReadFileRequest {
+	string Ref = 1;
+	string FilePath = 2;
+	FileRange Range = 3;
+}
+
+message FileRange {
+	int64 Offset = 1;
+	int64 Length = 2;
+}
+
+message ReadFileResponse {
+	bytes Data = 1;
+}
+
+message PingRequest{
+}
+message PongResponse{
+}
