@@ -31,6 +31,7 @@ import (
 	"golang.org/x/sys/unix"
 
 	"github.com/containerd/console"
+	"github.com/containerd/containerd/runtime/proc"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -40,7 +41,7 @@ import (
 type execProcess struct {
 	wg sync.WaitGroup
 
-	State
+	proc.State
 
 	mu      sync.Mutex
 	id      string
@@ -51,7 +52,7 @@ type execProcess struct {
 	pid     int
 	closers []io.Closer
 	stdin   io.Closer
-	stdio   Stdio
+	stdio   proc.Stdio
 	path    string
 	spec    specs.Process
 
@@ -127,7 +128,7 @@ func (e *execProcess) Stdin() io.Closer {
 	return e.stdin
 }
 
-func (e *execProcess) Stdio() Stdio {
+func (e *execProcess) Stdio() proc.Stdio {
 	return e.stdio
 }
 

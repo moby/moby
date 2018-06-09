@@ -31,9 +31,10 @@ import (
 	"time"
 
 	"github.com/containerd/console"
-	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/containerd/containerd/runtime/proc"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
@@ -63,7 +64,7 @@ type Init struct {
 	id       string
 	bundle   string
 	console  console.Console
-	platform Platform
+	platform proc.Platform
 	io       runc.IO
 	runtime  *runc.Runc
 	status   int
@@ -71,7 +72,7 @@ type Init struct {
 	pid      int
 	closers  []io.Closer
 	stdin    io.Closer
-	stdio    Stdio
+	stdio    proc.Stdio
 	rootfs   string
 	IoUID    int
 	IoGID    int
@@ -94,7 +95,7 @@ func NewRunc(root, path, namespace, runtime, criu string, systemd bool) *runc.Ru
 }
 
 // New returns a new init process
-func New(context context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform Platform, r *CreateConfig) (*Init, error) {
+func New(context context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform proc.Platform, r *CreateConfig) (*Init, error) {
 	var success bool
 
 	var options runctypes.CreateOptions
@@ -134,7 +135,7 @@ func New(context context.Context, path, workDir, runtimeRoot, namespace, criu st
 		bundle:   r.Bundle,
 		runtime:  runtime,
 		platform: platform,
-		stdio: Stdio{
+		stdio: proc.Stdio{
 			Stdin:    r.Stdin,
 			Stdout:   r.Stdout,
 			Stderr:   r.Stderr,
@@ -363,7 +364,7 @@ func (p *Init) Runtime() *runc.Runc {
 }
 
 // exec returns a new exec'd process
-func (p *Init) exec(context context.Context, path string, r *ExecConfig) (Process, error) {
+func (p *Init) exec(context context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	// process exec request
 	var spec specs.Process
 	if err := json.Unmarshal(r.Spec.Value, &spec); err != nil {
@@ -376,7 +377,7 @@ func (p *Init) exec(context context.Context, path string, r *ExecConfig) (Proces
 		path:   path,
 		parent: p,
 		spec:   spec,
-		stdio: Stdio{
+		stdio: proc.Stdio{
 			Stdin:    r.Stdin,
 			Stdout:   r.Stdout,
 			Stderr:   r.Stderr,
@@ -430,7 +431,7 @@ func (p *Init) update(context context.Context, r *google_protobuf.Any) error {
 }
 
 // Stdio of the process
-func (p *Init) Stdio() Stdio {
+func (p *Init) Stdio() proc.Stdio {
 	return p.stdio
 }
 

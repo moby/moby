@@ -20,7 +20,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/containerd/containerd/linux/runctypes"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
 

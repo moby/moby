@@ -29,12 +29,13 @@ import (
 	"github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
-	"github.com/containerd/containerd/linux/proc"
-	"github.com/containerd/containerd/linux/runctypes"
-	shimapi "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/runtime"
+	"github.com/containerd/containerd/runtime/linux/proc"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
+	rproc "github.com/containerd/containerd/runtime/proc"
+	shimapi "github.com/containerd/containerd/runtime/shim/v1"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -78,7 +79,7 @@ func NewService(config Config, publisher events.Publisher) (*Service, error) {
 	s := &Service{
 		config:    config,
 		context:   ctx,
-		processes: make(map[string]proc.Process),
+		processes: make(map[string]rproc.Process),
 		events:    make(chan interface{}, 128),
 		ec:        Default.Subscribe(),
 	}
@@ -96,9 +97,9 @@ type Service struct {
 
 	config    Config
 	context   context.Context
-	processes map[string]proc.Process
+	processes map[string]rproc.Process
 	events    chan interface{}
-	platform  proc.Platform
+	platform  rproc.Platform
 	ec        chan runc.Exit
 
 	// Filled by Create()

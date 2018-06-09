@@ -21,8 +21,8 @@ import (
 	"syscall"
 
 	"github.com/containerd/containerd/errdefs"
-	"github.com/containerd/containerd/linux/runctypes"
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
 )
 
 // NewTaskOpts allows the caller to set options on a new task

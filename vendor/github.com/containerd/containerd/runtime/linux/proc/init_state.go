@@ -25,6 +25,7 @@ import (
 
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/runtime/proc"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
 	google_protobuf "github.com/gogo/protobuf/types"
@@ -32,13 +33,13 @@ import (
 )
 
 type initState interface {
-	State
+	proc.State
 
 	Pause(context.Context) error
 	Resume(context.Context) error
 	Update(context.Context, *google_protobuf.Any) error
 	Checkpoint(context.Context, *CheckpointConfig) error
-	Exec(context.Context, string, *ExecConfig) (Process, error)
+	Exec(context.Context, string, *ExecConfig) (proc.Process, error)
 }
 
 type createdState struct {
@@ -130,7 +131,7 @@ func (s *createdState) SetExited(status int) {
 	}
 }
 
-func (s *createdState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
+func (s *createdState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 	return s.p.exec(ctx, path, r)
@@ -272,7 +273,7 @@ func (s *createdCheckpointState) SetExited(status int) {
 	}
 }
 
-func (s *createdCheckpointState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
+func (s *createdCheckpointState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 
@@ -364,7 +365,7 @@ func (s *runningState) SetExited(status int) {
 	}
 }
 
-func (s *runningState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
+func (s *runningState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 	return s.p.exec(ctx, path, r)
@@ -456,7 +457,7 @@ func (s *pausedState) SetExited(status int) {
 	}
 }
 
-func (s *pausedState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
+func (s *pausedState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 
@@ -536,7 +537,7 @@ func (s *stoppedState) SetExited(status int) {
 	// no op
 }
 
-func (s *stoppedState) Exec(ctx context.Context, path string, r *ExecConfig) (Process, error) {
+func (s *stoppedState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	s.p.mu.Lock()
 	defer s.p.mu.Unlock()
 

@@ -34,6 +34,7 @@ import (
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/log"
 	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -119,15 +120,15 @@ func (s *store) info(dgst digest.Digest, fi os.FileInfo, labels map[string]strin
 }
 
 // ReaderAt returns an io.ReaderAt for the blob.
-func (s *store) ReaderAt(ctx context.Context, dgst digest.Digest) (content.ReaderAt, error) {
-	p := s.blobPath(dgst)
+func (s *store) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+	p := s.blobPath(desc.Digest)
 	fi, err := os.Stat(p)
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, err
 		}
 
-		return nil, errors.Wrapf(errdefs.ErrNotFound, "blob %s expected at %s", dgst, p)
+		return nil, errors.Wrapf(errdefs.ErrNotFound, "blob %s expected at %s", desc.Digest, p)
 	}
 
 	fp, err := os.Open(p)
@@ -136,7 +137,7 @@ func (s *store) ReaderAt(ctx context.Context, dgst digest.Digest) (content.Reade
 			return nil, err
 		}
 
-		return nil, errors.Wrapf(errdefs.ErrNotFound, "blob %s expected at %s", dgst, p)
+		return nil, errors.Wrapf(errdefs.ErrNotFound, "blob %s expected at %s", desc.Digest, p)
 	}
 
 	return sizeReaderAt{size: fi.Size(), fp: fp}, nil
@@ -400,11 +401,22 @@ func (s *store) total(ingestPath string) int64 {
 // ref at a time.
 //
 // The argument `ref` is used to uniquely identify a long-lived writer transaction.
-func (s *store) Writer(ctx context.Context, ref string, total int64, expected digest.Digest) (content.Writer, error) {
+func (s *store) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	var wOpts content.WriterOpts
+	for _, opt := range opts {
+		if err := opt(&wOpts); err != nil {
+			return nil, err
+		}
+	}
+	// TODO(AkihiroSuda): we could create a random string or one calculated based on the context
+	// https://github.com/containerd/containerd/issues/2129#issuecomment-380255019
+	if wOpts.Ref == "" {
+		return nil, errors.Wrap(errdefs.ErrInvalidArgument, "ref must not be empty")
+	}
 	var lockErr error
 	for count := uint64(0); count < 10; count++ {
 		time.Sleep(time.Millisecond * time.Duration(rand.Intn(1<<count)))
-		if err := tryLock(ref); err != nil {
+		if err := tryLock(wOpts.Ref); err != nil {
 			if !errdefs.IsUnavailable(err) {
 				return nil, err
 			}
@@ -420,9 +432,9 @@ func (s *store) Writer(ctx context.Context, ref string, total int64, expected di
 		return nil, lockErr
 	}
 
-	w, err := s.writer(ctx, ref, total, expected)
+	w, err := s.writer(ctx, wOpts.Ref, wOpts.Desc.Size, wOpts.Desc.Digest)
 	if err != nil {
-		unlock(ref)
+		unlock(wOpts.Ref)
 		return nil, err
 	}
 

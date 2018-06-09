@@ -22,8 +22,8 @@ import (
 	"context"
 	"path/filepath"
 
-	shimapi "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/mount"
+	shimapi "github.com/containerd/containerd/runtime/shim/v1"
 	ptypes "github.com/gogo/protobuf/types"
 )
 

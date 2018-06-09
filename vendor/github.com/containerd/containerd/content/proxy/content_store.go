@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	protobuftypes "github.com/gogo/protobuf/types"
 	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type proxyContentStore struct {
@@ -88,15 +89,16 @@ func (pcs *proxyContentStore) Delete(ctx context.Context, dgst digest.Digest) er
 	return nil
 }
 
-func (pcs *proxyContentStore) ReaderAt(ctx context.Context, dgst digest.Digest) (content.ReaderAt, error) {
-	i, err := pcs.Info(ctx, dgst)
+// ReaderAt ignores MediaType.
+func (pcs *proxyContentStore) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
+	i, err := pcs.Info(ctx, desc.Digest)
 	if err != nil {
 		return nil, err
 	}
 
 	return &remoteReaderAt{
 		ctx:    ctx,
-		digest: dgst,
+		digest: desc.Digest,
 		size:   i.Size,
 		client: pcs.client,
 	}, nil
@@ -157,14 +159,21 @@ func (pcs *proxyContentStore) ListStatuses(ctx context.Context, filters ...strin
 	return statuses, nil
 }
 
-func (pcs *proxyContentStore) Writer(ctx context.Context, ref string, size int64, expected digest.Digest) (content.Writer, error) {
-	wrclient, offset, err := pcs.negotiate(ctx, ref, size, expected)
+// Writer ignores MediaType.
+func (pcs *proxyContentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (content.Writer, error) {
+	var wOpts content.WriterOpts
+	for _, opt := range opts {
+		if err := opt(&wOpts); err != nil {
+			return nil, err
+		}
+	}
+	wrclient, offset, err := pcs.negotiate(ctx, wOpts.Ref, wOpts.Desc.Size, wOpts.Desc.Digest)
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
 	}
 
 	return &remoteWriter{
-		ref:    ref,
+		ref:    wOpts.Ref,
 		client: wrclient,
 		offset: offset,
 	}, nil
