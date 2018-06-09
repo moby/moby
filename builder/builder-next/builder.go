@@ -260,7 +260,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			}
 			auxJSON := new(json.RawMessage)
 			*auxJSON = auxJSONBytes
-			msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{ID: "buildkit-trace", Aux: auxJSON})
+			msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{ID: "moby.buildkit.trace", Aux: auxJSON})
 			if err != nil {
 				return err
 			}
