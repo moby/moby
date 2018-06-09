@@ -258,7 +258,7 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 	}
 	done(nil)
 
-	ra, err := ld.w.ContentStore.ReaderAt(ctx, ld.desc.Digest)
+	ra, err := ld.w.ContentStore.ReaderAt(ctx, ld.desc)
 	if err != nil {
 		return nil, 0, err
 	}

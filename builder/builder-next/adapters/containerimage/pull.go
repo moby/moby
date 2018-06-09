@@ -188,15 +188,16 @@ func (p *puller) resolveLocal() {
 			info, err := p.is.ContentStore.Info(context.TODO(), dgst)
 			if err == nil {
 				p.ref = p.src.Reference.String()
-				ra, err := p.is.ContentStore.ReaderAt(context.TODO(), dgst)
+				desc := ocispec.Descriptor{
+					Size:   info.Size,
+					Digest: dgst,
+				}
+				ra, err := p.is.ContentStore.ReaderAt(context.TODO(), desc)
 				if err == nil {
 					mt, err := imageutil.DetectManifestMediaType(ra)
 					if err == nil {
-						p.desc = ocispec.Descriptor{
-							Size:      info.Size,
-							Digest:    dgst,
-							MediaType: mt,
-						}
+						desc.MediaType = mt
+						p.desc = desc
 					}
 				}
 			}
@@ -396,7 +397,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 
-	dt, err := content.ReadBlob(ctx, p.is.ContentStore, config.Digest)
+	dt, err := content.ReadBlob(ctx, p.is.ContentStore, config)
 	if err != nil {
 		return nil, err
 	}
@@ -514,12 +515,12 @@ func (ld *layerDescriptor) Download(ctx context.Context, progressOutput pkgprogr
 
 	ld.is.ContentStore.Abort(ctx, refKey)
 
-	if err := content.WriteBlob(ctx, ld.is.ContentStore, refKey, rc, ld.desc.Size, ld.desc.Digest); err != nil {
+	if err := content.WriteBlob(ctx, ld.is.ContentStore, refKey, rc, ld.desc); err != nil {
 		ld.is.ContentStore.Abort(ctx, refKey)
 		return nil, 0, err
 	}
 
-	ra, err := ld.is.ContentStore.ReaderAt(ctx, ld.desc.Digest)
+	ra, err := ld.is.ContentStore.ReaderAt(ctx, ld.desc)
 	if err != nil {
 		return nil, 0, err
 	}
