@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ReaderAt extends the standard io.ReaderAt interface with reporting of Size and io.Closer
@@ -33,12 +34,16 @@ type ReaderAt interface {
 
 // Provider provides a reader interface for specific content
 type Provider interface {
-	ReaderAt(ctx context.Context, dgst digest.Digest) (ReaderAt, error)
+	// ReaderAt only requires desc.Digest to be set.
+	// Other fields in the descriptor may be used internally for resolving
+	// the location of the actual data.
+	ReaderAt(ctx context.Context, dec ocispec.Descriptor) (ReaderAt, error)
 }
 
 // Ingester writes content
 type Ingester interface {
-	Writer(ctx context.Context, ref string, size int64, expected digest.Digest) (Writer, error)
+	// Some implementations require WithRef to be included in opts.
+	Writer(ctx context.Context, opts ...WriterOpt) (Writer, error)
 }
 
 // Info holds content specific information
@@ -139,6 +144,36 @@ type Opt func(*Info) error
 func WithLabels(labels map[string]string) Opt {
 	return func(info *Info) error {
 		info.Labels = labels
+		return nil
+	}
+}
+
+// WriterOpts is internally used by WriterOpt.
+type WriterOpts struct {
+	Ref  string
+	Desc ocispec.Descriptor
+}
+
+// WriterOpt is used for passing options to Ingester.Writer.
+type WriterOpt func(*WriterOpts) error
+
+// WithDescriptor specifies an OCI descriptor.
+// Writer may optionally use the descriptor internally for resolving
+// the location of the actual data.
+// Write does not require any field of desc to be set.
+// If the data size is unknown, desc.Size should be set to 0.
+// Some implementations may also accept negative values as "unknown".
+func WithDescriptor(desc ocispec.Descriptor) WriterOpt {
+	return func(opts *WriterOpts) error {
+		opts.Desc = desc
+		return nil
+	}
+}
+
+// WithRef specifies a ref string.
+func WithRef(ref string) WriterOpt {
+	return func(opts *WriterOpts) error {
+		opts.Ref = ref
 		return nil
 	}
 }

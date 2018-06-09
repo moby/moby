@@ -1,5 +1,3 @@
-// +build !windows
-
 /*
    Copyright The containerd Authors.
 
@@ -25,11 +23,7 @@ import (
 	"time"
 
 	"github.com/containerd/console"
-	"github.com/pkg/errors"
 )
-
-// RuncRoot is the path to the root runc state directory
-const RuncRoot = "/run/containerd/runc"
 
 // Stdio of a process
 type Stdio struct {
@@ -44,7 +38,7 @@ func (s Stdio) IsNull() bool {
 	return s.Stdin == "" && s.Stdout == "" && s.Stderr == ""
 }
 
-// Process on a linux system
+// Process on a system
 type Process interface {
 	State
 	// ID returns the id for the process
@@ -77,22 +71,6 @@ type State interface {
 	Kill(context.Context, uint32, bool) error
 	// SetExited sets the exit status for the process
 	SetExited(status int)
-}
-
-func stateName(v interface{}) string {
-	switch v.(type) {
-	case *runningState, *execRunningState:
-		return "running"
-	case *createdState, *execCreatedState, *createdCheckpointState:
-		return "created"
-	case *pausedState:
-		return "paused"
-	case *deletedState:
-		return "deleted"
-	case *stoppedState:
-		return "stopped"
-	}
-	panic(errors.Errorf("invalid state %v", v))
 }
 
 // Platform handles platform-specific behavior that may differs across

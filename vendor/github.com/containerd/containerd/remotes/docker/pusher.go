@@ -155,9 +155,18 @@ func (p dockerPusher) Push(ctx context.Context, desc ocispec.Descriptor) (conten
 		location := resp.Header.Get("Location")
 		// Support paths without host in location
 		if strings.HasPrefix(location, "/") {
-			u := p.base
-			u.Path = location
-			location = u.String()
+			// Support location string containing path and query
+			qmIndex := strings.Index(location, "?")
+			if qmIndex > 0 {
+				u := p.base
+				u.Path = location[:qmIndex]
+				u.RawQuery = location[qmIndex+1:]
+				location = u.String()
+			} else {
+				u := p.base
+				u.Path = location
+				location = u.String()
+			}
 		}
 
 		req, err = http.NewRequest(http.MethodPut, location, nil)

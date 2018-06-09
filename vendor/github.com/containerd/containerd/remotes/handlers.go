@@ -81,7 +81,7 @@ func FetchHandler(ingester content.Ingester, fetcher Fetcher) images.HandlerFunc
 func fetch(ctx context.Context, ingester content.Ingester, fetcher Fetcher, desc ocispec.Descriptor) error {
 	log.G(ctx).Debug("fetch")
 
-	cw, err := content.OpenWriter(ctx, ingester, MakeRefKey(ctx, desc), desc.Size, desc.Digest)
+	cw, err := content.OpenWriter(ctx, ingester, content.WithRef(MakeRefKey(ctx, desc)), content.WithDescriptor(desc))
 	if err != nil {
 		if errdefs.IsAlreadyExists(err) {
 			return nil
@@ -141,7 +141,7 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 	}
 	defer cw.Close()
 
-	ra, err := provider.ReaderAt(ctx, desc.Digest)
+	ra, err := provider.ReaderAt(ctx, desc)
 	if err != nil {
 		return err
 	}

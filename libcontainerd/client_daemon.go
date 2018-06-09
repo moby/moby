@@ -16,9 +16,6 @@ import (
 	"syscall"
 	"time"
 
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
@@ -28,14 +25,16 @@ import (
 	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/linux/runctypes"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // InitProcessName is the name given to the first process of a
@@ -295,7 +294,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		func(id string) (cio.IO, error) {
 			fifos := newFIFOSet(ctr.bundleDir, InitProcessName, withStdin, spec.Process.Terminal)
 
-			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio, spec.Process.Terminal)
+			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
 			return rio, err
 		},
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
@@ -366,7 +365,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	}()
 
 	p, err = t.Exec(ctx, processID, spec, func(id string) (cio.IO, error) {
-		rio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio, spec.Terminal)
+		rio, err = c.createIO(fifos, containerID, processID, stdinCloseSync, attachStdio)
 		return rio, err
 	})
 	if err != nil {
@@ -575,7 +574,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		}
 	}()
 
-	b, err := content.ReadBlob(ctx, c.getRemote().ContentStore(), img.Target().Digest)
+	b, err := content.ReadBlob(ctx, c.getRemote().ContentStore(), img.Target())
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to retrieve checkpoint data"))
 	}
@@ -595,7 +594,7 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		return errdefs.System(errors.Wrapf(err, "invalid checkpoint"))
 	}
 
-	rat, err := c.getRemote().ContentStore().ReaderAt(ctx, cpDesc.Digest)
+	rat, err := c.getRemote().ContentStore().ReaderAt(ctx, *cpDesc)
 	if err != nil {
 		return errdefs.System(errors.Wrapf(err, "failed to get checkpoint reader"))
 	}
@@ -645,16 +644,13 @@ func (c *client) getProcess(containerID, processID string) (containerd.Process, 
 
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
-func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback, terminal bool) (cio.IO, error) {
+func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (cio.IO, error) {
 	var (
 		io  *cio.DirectIO
 		err error
 	)
-	if terminal {
-		io, err = cio.NewDirectIOWithTerminal(context.Background(), fifos)
-	} else {
-		io, err = cio.NewDirectIO(context.Background(), fifos)
-	}
+
+	io, err = cio.NewDirectIO(context.Background(), fifos)
 	if err != nil {
 		return nil, err
 	}
@@ -858,7 +854,7 @@ func (c *client) processEventStream(ctx context.Context) {
 }
 
 func (c *client) writeContent(ctx context.Context, mediaType, ref string, r io.Reader) (*types.Descriptor, error) {
-	writer, err := c.getRemote().ContentStore().Writer(ctx, ref, 0, "")
+	writer, err := c.getRemote().ContentStore().Writer(ctx, content.WithRef(ref))
 	if err != nil {
 		return nil, err
 	}

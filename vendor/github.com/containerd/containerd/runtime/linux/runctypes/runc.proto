@@ -4,7 +4,7 @@ package containerd.linux.runc;
 
 import weak "gogoproto/gogo.proto";
 
-option go_package = "github.com/containerd/containerd/linux/runctypes;runctypes";
+option go_package = "github.com/containerd/containerd/runtime/linux/runctypes;runctypes";
 
 message RuncOptions {
 	string runtime = 1;

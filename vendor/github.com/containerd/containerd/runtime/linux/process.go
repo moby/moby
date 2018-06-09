@@ -24,8 +24,8 @@ import (
 	eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
-	shim "github.com/containerd/containerd/linux/shim/v1"
 	"github.com/containerd/containerd/runtime"
+	shim "github.com/containerd/containerd/runtime/shim/v1"
 	"github.com/pkg/errors"
 	"github.com/stevvooe/ttrpc"
 )

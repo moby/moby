@@ -25,9 +25,9 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/events/exchange"
-	"github.com/containerd/containerd/linux/runctypes"
-	"github.com/containerd/containerd/linux/shim"
-	"github.com/containerd/containerd/linux/shim/client"
+	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/containerd/containerd/runtime/shim"
+	"github.com/containerd/containerd/runtime/shim/client"
 	"github.com/pkg/errors"
 )
 

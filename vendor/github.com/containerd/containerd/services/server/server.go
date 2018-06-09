@@ -66,12 +66,18 @@ func New(ctx context.Context, config *Config) (*Server, error) {
 	if err != nil {
 		return nil, err
 	}
-	rpc := grpc.NewServer(
-		grpc.MaxRecvMsgSize(config.GRPC.MaxRecvMsgSize),
-		grpc.MaxSendMsgSize(config.GRPC.MaxSendMsgSize),
+
+	serverOpts := []grpc.ServerOption{
 		grpc.UnaryInterceptor(grpc_prometheus.UnaryServerInterceptor),
 		grpc.StreamInterceptor(grpc_prometheus.StreamServerInterceptor),
-	)
+	}
+	if config.GRPC.MaxRecvMsgSize > 0 {
+		serverOpts = append(serverOpts, grpc.MaxRecvMsgSize(config.GRPC.MaxRecvMsgSize))
+	}
+	if config.GRPC.MaxSendMsgSize > 0 {
+		serverOpts = append(serverOpts, grpc.MaxSendMsgSize(config.GRPC.MaxSendMsgSize))
+	}
+	rpc := grpc.NewServer(serverOpts...)
 	var (
 		services []plugin.Service
 		s        = &Server{
