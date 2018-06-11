@@ -34,6 +34,21 @@ var (
 	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
 
+// These values are copy from k8s.io/kubernets/pkg/kubelet/dockershim types
+const (
+	anntotaionPrefix = "annotation."
+
+	// Internal docker labels used to identify whether a container is a sandbox
+	// or a regular container.
+	// TODO: This is not backward compatible with older containers. We will
+	// need to add filtering based on names.
+	containerTypeLabelKey    = "io.kubernetes.docker.type"
+	containerLogPathLabelKey = "io.kubernetes.container.logpath"
+	sandboxIDLabelKey        = "io.kubernetes.sandbox.id"
+)
+
+var internalLabelKeys = []string{containerTypeLabelKey, containerLogPathLabelKey, sandboxIDLabelKey}
+
 func setResources(s *specs.Spec, r containertypes.Resources) error {
 	weightDevices, err := getBlkioWeightDevices(r)
 	if err != nil {
@@ -909,6 +924,31 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	if c.HostConfig.ReadonlyPaths != nil {
 		s.Linux.ReadonlyPaths = c.HostConfig.ReadonlyPaths
+	}
+
+	// We just need to passthrough two types of annotations to runtime
+	// first is user specific annotations which with prefix of `annotations.`
+	// the other is labels for docker used which is marked as internal.
+	for k, v := range c.Config.Labels {
+		logrus.Info(k)
+		if oldValue, ok := s.Annotations[k]; ok {
+			return nil, fmt.Errorf("Key %q already exisit in Annotations, the new value will be ignored,"+
+				"oldvalue is %q, new value is %q", k, oldValue, v)
+		}
+		// user specific annotations
+		if strings.HasPrefix(k, anntotaionPrefix) {
+			key := strings.TrimPrefix(k, anntotaionPrefix)
+			logrus.Info(key)
+			s.Annotations[key] = v
+		}
+
+		// interl labels for docker
+		for _, internalKey := range internalLabelKeys {
+			if k == internalKey {
+				s.Annotations[k] = v
+				break
+			}
+		}
 	}
 
 	return &s, nil
