@@ -436,7 +436,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 		"(allow-nondistributable-artifacts=[",
 		" cluster-advertise=, ",
 		" cluster-store=, ",
-		" cluster-store-opts={",
+		" cluster-store-opts=",
 		" debug=true, ",
 		" default-ipc-mode=",
 		" default-runtime=",
