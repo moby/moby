@@ -106,7 +106,7 @@ func TestAuxFormatterEmit(t *testing.T) {
 	sampleAux := &struct {
 		Data string
 	}{"Additional data"}
-	err := aux.Emit(sampleAux)
+	err := aux.Emit("", sampleAux)
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(`{"aux":{"Data":"Additional data"}}`+streamNewline, b.String()))
 }
