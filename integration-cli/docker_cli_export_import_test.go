@@ -6,7 +6,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 // TODO: Move this test to docker/cli, as it is essentially the same test

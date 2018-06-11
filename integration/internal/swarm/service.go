@@ -11,9 +11,9 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/environment"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/poll"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 // ServicePoll tweaks the pollSettings for `service`

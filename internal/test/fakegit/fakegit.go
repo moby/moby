@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/fakestorage"
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 type testingT interface {

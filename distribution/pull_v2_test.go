@@ -10,9 +10,9 @@ import (
 
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/reference"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // TestFixManifestLayers checks that fixManifestLayers removes a duplicate

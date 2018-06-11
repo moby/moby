@@ -16,9 +16,9 @@ import (
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
@@ -385,7 +385,7 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
-	skip.IfCondition(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
 

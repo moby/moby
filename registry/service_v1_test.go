@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/skip"
 )
 
 func TestLookupV1Endpoints(t *testing.T) {

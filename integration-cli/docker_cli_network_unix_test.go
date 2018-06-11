@@ -27,9 +27,9 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/vishvananda/netlink"
 	"golang.org/x/sys/unix"
+	"gotest.tools/icmd"
 )
 
 const dummyNetworkDriver = "dummy-network-driver"

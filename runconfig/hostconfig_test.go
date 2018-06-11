@@ -10,8 +10,8 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/sysinfo"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // TODO Windows: This will need addressing for a Windows daemon.

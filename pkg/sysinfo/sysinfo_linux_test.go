@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
 	"golang.org/x/sys/unix"
+	"gotest.tools/assert"
 )
 
 func TestReadProcBool(t *testing.T) {

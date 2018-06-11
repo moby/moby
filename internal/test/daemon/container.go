@@ -5,7 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/test"
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 // ActiveContainers returns the list of ids of the currently running containers

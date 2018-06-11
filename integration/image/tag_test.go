@@ -7,8 +7,8 @@ import (
 
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/internal/testutil"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // tagging a named image in a new unprefixed repo should work

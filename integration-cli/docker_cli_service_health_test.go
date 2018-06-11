@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 // start a service, and then make its task unhealthy during running

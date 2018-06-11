@@ -16,7 +16,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 func removeAllPaths(paths ...string) {

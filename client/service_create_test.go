@@ -13,10 +13,10 @@ import (
 	"github.com/docker/docker/api/types"
 	registrytypes "github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/specs-go/v1"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestServiceCreateError(t *testing.T) {

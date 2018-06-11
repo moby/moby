@@ -9,7 +9,7 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 // hasSystemd checks whether the host was booted with systemd as its init

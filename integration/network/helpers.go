@@ -8,8 +8,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/assert/cmp"
+	"gotest.tools/icmd"
 )
 
 // CreateMasterDummy creates a dummy network interface

@@ -10,7 +10,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 // TestSetHostHeader should set fake host for local communications, set real host

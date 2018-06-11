@@ -5,9 +5,9 @@ import (
 	"testing"
 
 	req "github.com/docker/docker/internal/test/request"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 func TestSessionCreate(t *testing.T) {

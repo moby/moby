@@ -20,8 +20,8 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 // NewAPIClient returns a docker API client configured from environment variables

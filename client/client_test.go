@@ -10,10 +10,10 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/env"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/env"
+	"gotest.tools/skip"
 )
 
 func TestNewEnvClient(t *testing.T) {

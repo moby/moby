@@ -7,7 +7,7 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 // HasHubConnectivity checks to see if https://hub.docker.com is

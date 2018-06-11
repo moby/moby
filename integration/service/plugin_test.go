@@ -15,9 +15,9 @@ import (
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/internal/test/registry"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/poll"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 func TestServicePlugin(t *testing.T) {

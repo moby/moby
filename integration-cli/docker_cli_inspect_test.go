@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 func checkValidGraphDriver(c *check.C, name string) {

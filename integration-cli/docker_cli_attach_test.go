@@ -12,7 +12,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 const attachWait = 5 * time.Second

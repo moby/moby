@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/opts"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/spf13/pflag"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {

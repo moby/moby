@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/moby/buildkit/session/filesync"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestFSCache(t *testing.T) {

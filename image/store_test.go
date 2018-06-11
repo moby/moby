@@ -6,9 +6,9 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 )
 
 func TestRestore(t *testing.T) {

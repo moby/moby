@@ -13,8 +13,8 @@ import (
 	"github.com/docker/docker/volume/local"
 	"github.com/docker/docker/volume/service/opts"
 	"github.com/docker/docker/volume/testutils"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestLocalVolumeSize(t *testing.T) {

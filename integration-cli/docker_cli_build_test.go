@@ -16,7 +16,6 @@ import (
 	"text/template"
 	"time"
 
-	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -26,8 +25,9 @@ import (
 	"github.com/docker/docker/internal/testutil"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/icmd"
 )
 
 func (s *DockerSuite) TestBuildJSONEmptyRun(c *check.C) {

@@ -15,10 +15,10 @@ import (
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/go-connections/nat"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/poll"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 func TestNetworkNat(t *testing.T) {

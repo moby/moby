@@ -13,9 +13,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/system"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"golang.org/x/sys/unix"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestCopy(t *testing.T) {

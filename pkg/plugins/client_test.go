@@ -14,9 +14,9 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 var (

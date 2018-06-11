@@ -4,7 +4,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 func TestSerialization(t *testing.T) {

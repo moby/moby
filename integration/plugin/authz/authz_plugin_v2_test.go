@@ -16,8 +16,8 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/requirement"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	"gotest.tools/skip"
 )
 
 var (
@@ -29,8 +29,8 @@ var (
 )
 
 func setupTestV2(t *testing.T) func() {
-	skip.IfCondition(t, testEnv.DaemonInfo.OSType != "linux")
-	skip.IfCondition(t, !requirement.HasHubConnectivity(t))
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, !requirement.HasHubConnectivity(t))
 
 	teardown := setupTest(t)
 
@@ -40,7 +40,7 @@ func setupTestV2(t *testing.T) func() {
 }
 
 func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
-	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()
@@ -64,7 +64,7 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 }
 
 func TestAuthZPluginV2Disable(t *testing.T) {
-	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()
@@ -91,7 +91,7 @@ func TestAuthZPluginV2Disable(t *testing.T) {
 }
 
 func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
-	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()
@@ -127,7 +127,7 @@ func TestAuthZPluginV2RejectVolumeRequests(t *testing.T) {
 }
 
 func TestAuthZPluginV2BadManifestFailsDaemonStart(t *testing.T) {
-	skip.IfCondition(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
+	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTestV2(t)()
 
 	client, err := d.NewClient()

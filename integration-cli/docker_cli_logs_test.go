@@ -12,7 +12,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 // This used to work, it test a log of PageSize-1 (gh#4851)

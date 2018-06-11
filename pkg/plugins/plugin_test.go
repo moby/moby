@@ -14,8 +14,8 @@ import (
 
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 const (

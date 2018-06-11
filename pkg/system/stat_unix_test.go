@@ -7,7 +7,7 @@ import (
 	"syscall"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 // TestFromStatT tests fromStatT for a tempfile

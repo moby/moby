@@ -9,9 +9,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/libcontainerd"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 func TestLifeCycle(t *testing.T) {

@@ -12,8 +12,8 @@ import (
 	net "github.com/docker/docker/integration/internal/network"
 	n "github.com/docker/docker/integration/network"
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	"gotest.tools/skip"
 )
 
 func TestDockerNetworkMacvlanPersistance(t *testing.T) {

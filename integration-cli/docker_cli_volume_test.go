@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 func (s *DockerSuite) TestVolumeCLICreate(c *check.C) {

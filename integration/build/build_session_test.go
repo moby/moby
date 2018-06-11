@@ -10,12 +10,12 @@ import (
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/skip"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"golang.org/x/sync/errgroup"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 func TestBuildWithSession(t *testing.T) {

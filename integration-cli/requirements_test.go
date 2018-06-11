@@ -60,7 +60,7 @@ func OnlyDefaultNetworks() bool {
 	return true
 }
 
-// Deprecated: use skip.IfCondition(t, !testEnv.DaemonInfo.ExperimentalBuild)
+// Deprecated: use skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 func ExperimentalDaemon() bool {
 	return testEnv.DaemonInfo.ExperimentalBuild
 }
