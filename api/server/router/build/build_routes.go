@@ -243,6 +243,10 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return errdefs.InvalidParameter(errors.New("squash is only supported with experimental mode"))
 	}
 
+	if buildOptions.Version == types.BuilderBuildKit && !br.daemon.HasExperimental() {
+		return errdefs.InvalidParameter(errors.New("buildkit is only supported with experimental mode"))
+	}
+
 	out := io.Writer(output)
 	if buildOptions.SuppressOutput {
 		out = notVerboseBuffer
@@ -253,10 +257,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	createProgressReader := func(in io.ReadCloser) io.ReadCloser {
 		progressOutput := streamformatter.NewJSONProgressOutput(out, true)
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
-	}
-
-	if buildOptions.Version == types.BuilderBuildKit && !br.daemon.HasExperimental() {
-		return errdefs.InvalidParameter(errors.New("buildkit is only supported with experimental mode"))
 	}
 
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")

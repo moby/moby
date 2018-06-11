@@ -257,7 +257,7 @@ func emitImageID(aux *streamformatter.AuxFormatter, state *dispatchState) error 
 	if aux == nil || state.imageID == "" {
 		return nil
 	}
-	return aux.Emit(types.BuildResult{ID: state.imageID})
+	return aux.Emit("", types.BuildResult{ID: state.imageID})
 }
 
 func processMetaArg(meta instructions.ArgCommand, shlex *shell.Lex, args *BuildArgs) error {
