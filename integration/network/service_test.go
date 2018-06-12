@@ -9,6 +9,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/gotestyourself/gotestyourself/assert"
@@ -66,24 +67,18 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 
 	// Create a bridge network and verify its subnet is the second default pool
 	name := "elango"
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.0.0/24")
 
 	// Create a bridge network and verify its subnet is the third default pool
 	name = "saanvi"
-	networkCreate = types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.1.0/24")
@@ -105,12 +100,9 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 
 	// Create a bridge network
 	name := "elango"
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip := out.IPAM.Config[0].Subnet
@@ -140,24 +132,18 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 	// Create a bridge network
 	name := "elango"
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip := out.IPAM.Config[0].Subnet
 
 	// Create a bridge network
 	name = "sthira"
-	networkCreate = types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip2 := out.IPAM.Config[0].Subnet
@@ -169,12 +155,9 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 	// Create a bridge network
 	name = "saanvi"
-	networkCreate = types.NetworkCreate{
-		CheckDuplicate: false,
-	}
-	networkCreate.Driver = "bridge"
-	_, err = cli.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("bridge"),
+	)
 	out1, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
