@@ -34,6 +34,12 @@ func (df dialerFunctionWrapper) Call() (serverConn, string, error) {
 // value), and adding a new network type is as easy as writing the dialer
 // function and adding it to the map.
 func (w *Writer) getDialer() dialerFunctionWrapper {
+	if w.cdialer != nil {
+		// we use 'customDialer' as the name, since the custom dialer can technically
+		// override any network we pass in anyways
+		return dialerFunctionWrapper{"customDialer", w.customDialer}
+	}
+
 	dialers := map[string]dialerFunctionWrapper{
 		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
 		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
@@ -75,6 +81,22 @@ func (w *Writer) tlsDialer() (serverConn, string, error) {
 // UDP connections.
 func (w *Writer) basicDialer() (serverConn, string, error) {
 	c, err := net.Dial(w.network, w.raddr)
+	var sc serverConn
+	hostname := w.hostname
+	if err == nil {
+		sc = &netConn{conn: c}
+		if hostname == "" {
+			hostname = c.LocalAddr().String()
+		}
+	}
+	return sc, hostname, err
+}
+
+// customDialer uses the custom dialer when the Writer was created
+// giving developers total control over how connections are made and returned.
+// Note it does not check if cdialer is nil, as it should only be referenced from getDialer.
+func (w *Writer) customDialer() (serverConn, string, error) {
+	c, err := w.cdialer(w.network, w.raddr)
 	var sc serverConn
 	hostname := w.hostname
 	if err == nil {

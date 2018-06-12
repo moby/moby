@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"io/ioutil"
 	"log"
+	"net"
 	"os"
 )
 
@@ -29,6 +30,14 @@ func New(priority Priority, tag string) (w *Writer, err error) {
 // If network is empty, Dial will connect to the local syslog server.
 func Dial(network, raddr string, priority Priority, tag string) (*Writer, error) {
 	return DialWithTLSConfig(network, raddr, priority, tag, nil)
+}
+
+// DialWithCustomDialer establishes a connection by calling cdialer.
+// Each write to the returned Writer sends a log message with the given facility, severity and tag.
+// While network and raddr will be passed to cdialer, it is allowed for cdialer to ignore them.
+// If cdialer is nil, this function behaves like Dial.
+func DialWithCustomDialer(network, raddr string, priority Priority, tag string, cdialer func(string, string) (net.Conn, error)) (*Writer, error) {
+	return dialAllParameters(network, raddr, priority, tag, nil, cdialer)
 }
 
 // DialWithTLSCertPath establishes a secure connection to a log daemon by connecting to
@@ -59,6 +68,11 @@ func DialWithTLSCert(network, raddr string, priority Priority, tag string, serve
 // DialWithTLSConfig establishes a secure connection to a log daemon by connecting to
 // address raddr on the specified network. It uses tlsConfig to configure the secure connection.
 func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config) (*Writer, error) {
+	return dialAllParameters(network, raddr, priority, tag, tlsConfig, nil)
+}
+
+// implementation of the various functions above
+func dialAllParameters(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config, cdialer func(string, string) (net.Conn, error)) (*Writer, error) {
 	if err := validatePriority(priority); err != nil {
 		return nil, err
 	}
@@ -75,6 +89,7 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 		network:   network,
 		raddr:     raddr,
 		tlsConfig: tlsConfig,
+		cdialer:   cdialer,
 	}
 
 	_, err := w.connect()

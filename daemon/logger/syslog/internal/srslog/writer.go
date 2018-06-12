@@ -2,6 +2,7 @@ package srslog
 
 import (
 	"crypto/tls"
+	"net"
 	"strings"
 	"sync"
 )
@@ -16,6 +17,9 @@ type Writer struct {
 	tlsConfig *tls.Config
 	framer    Framer
 	formatter Formatter
+
+	//non-nil if custom dialer set, used in getDialer
+	cdialer func(string, string) (net.Conn, error)
 
 	mu   sync.RWMutex // guards conn
 	conn serverConn

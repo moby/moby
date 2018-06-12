@@ -3,7 +3,9 @@ package srslog
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
+	"net"
 	"testing"
 )
 
@@ -43,6 +45,12 @@ func TestGetDialer(t *testing.T) {
 	dialer = w.getDialer()
 	if "basicDialer" != dialer.Name {
 		t.Errorf("should get basicDialer, got: %v", dialer)
+	}
+
+	w.cdialer = func(string, string) (net.Conn, error) { return nil, nil }
+	dialer = w.getDialer()
+	if "customDialer" != dialer.Name {
+		t.Errorf("should get customDialer, got: %v", dialer)
 	}
 }
 
@@ -195,4 +203,79 @@ func TestUDPDialer(t *testing.T) {
 	if hostname != "my other hostname" {
 		t.Errorf("should not interfere with hostname")
 	}
+}
+
+func TestCustomDialer(t *testing.T) {
+	// A custom dialer can really be anything, so we don't test an actual connection
+	// instead we test the behavior of this code path
+
+	// a dialer implementation may still consult the passed network and address
+	// so make sure we don't change them before being passed in
+
+	nwork, addr := "custom_network_to_pass", "custom_addr_to_pass"
+	w := Writer{
+		priority: LOG_ERR,
+		tag:      "tag",
+		hostname: "",
+		network:  nwork,
+		raddr:    addr,
+		cdialer: func(n string, a string) (net.Conn, error) {
+			if n != nwork || a != addr {
+				return nil, errors.New("Unexpected network or address, expected: (" +
+					nwork + ":" + addr + ") but received (" + n + ":" + a + ")")
+			}
+			return fakeConn{addr: &fakeAddr{nwork, addr}}, nil
+		},
+	}
+
+	_, hostname, err := w.customDialer()
+
+	if err != nil {
+		t.Errorf("failed to dial: %v", err)
+	}
+
+	if hostname == "" {
+		t.Errorf("should set default hostname")
+	}
+
+	w.hostname = "my other hostname"
+
+	_, hostname, err = w.customDialer()
+
+	if err != nil {
+		t.Errorf("failed to dial: %v", err)
+	}
+
+	if hostname != "my other hostname" {
+		t.Errorf("should not interfere with hostname")
+	}
+}
+
+type fakeConn struct {
+	net.Conn
+	addr net.Addr
+}
+
+func (fc fakeConn) Close() error {
+	return nil
+}
+
+func (fc fakeConn) Write(p []byte) (int, error) {
+	return len(p), nil
+}
+
+func (fc fakeConn) LocalAddr() net.Addr {
+	return fc.addr
+}
+
+type fakeAddr struct {
+	nwork, addr string
+}
+
+func (fa *fakeAddr) Network() string {
+	return fa.nwork
+}
+
+func (fa *fakeAddr) String() string {
+	return fa.addr
 }
