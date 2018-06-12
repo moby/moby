@@ -505,7 +505,8 @@ void join_namespaces(char *nslist)
 
 		ns->fd = fd;
 		ns->ns = nsflag(namespace);
-		strncpy(ns->path, path, PATH_MAX);
+		strncpy(ns->path, path, PATH_MAX - 1);
+		ns->path[PATH_MAX - 1] = '\0';
 	} while ((namespace = strtok_r(NULL, ",", &saveptr)) != NULL);
 
 	/*
@@ -678,17 +679,15 @@ void nsexec(void)
 					/*
 					 * Enable setgroups(2) if we've been asked to. But we also
 					 * have to explicitly disable setgroups(2) if we're
-					 * creating a rootless container (this is required since
-					 * Linux 3.19).
+					 * creating a rootless container for single-entry mapping.
+					 * i.e. config.is_setgroup == false.
+					 * (this is required since Linux 3.19).
+					 *
+					 * For rootless multi-entry mapping, config.is_setgroup shall be true and
+					 * newuidmap/newgidmap shall be used.
 					 */
-					if (config.is_rootless && config.is_setgroup) {
-						kill(child, SIGKILL);
-						bail("cannot allow setgroup in an unprivileged user namespace setup");
-					}
 
-					if (config.is_setgroup)
-						update_setgroups(child, SETGROUPS_ALLOW);
-					if (config.is_rootless)
+					if (config.is_rootless && !config.is_setgroup)
 						update_setgroups(child, SETGROUPS_DENY);
 
 					/* Set up mappings. */
@@ -810,24 +809,29 @@ void nsexec(void)
 				join_namespaces(config.namespaces);
 
 			/*
-			 * Unshare all of the namespaces. Now, it should be noted that this
-			 * ordering might break in the future (especially with rootless
-			 * containers). But for now, it's not possible to split this into
-			 * CLONE_NEWUSER + [the rest] because of some RHEL SELinux issues.
-			 *
-			 * Note that we don't merge this with clone() because there were
-			 * some old kernel versions where clone(CLONE_PARENT | CLONE_NEWPID)
-			 * was broken, so we'll just do it the long way anyway.
-			 */
-			if (unshare(config.cloneflags) < 0)
-				bail("failed to unshare namespaces");
-
-			/*
 			 * Deal with user namespaces first. They are quite special, as they
 			 * affect our ability to unshare other namespaces and are used as
 			 * context for privilege checks.
+			 *
+			 * We don't unshare all namespaces in one go. The reason for this
+			 * is that, while the kernel documentation may claim otherwise,
+			 * there are certain cases where unsharing all namespaces at once
+			 * will result in namespace objects being owned incorrectly.
+			 * Ideally we should just fix these kernel bugs, but it's better to
+			 * be safe than sorry, and fix them separately.
+			 *
+			 * A specific case of this is that the SELinux label of the
+			 * internal kern-mount that mqueue uses will be incorrect if the
+			 * UTS namespace is cloned before the USER namespace is mapped.
+			 * I've also heard of similar problems with the network namespace
+			 * in some scenarios. This also mirrors how LXC deals with this
+			 * problem.
 			 */
 			if (config.cloneflags & CLONE_NEWUSER) {
+				if (unshare(CLONE_NEWUSER) < 0)
+					bail("failed to unshare user namespace");
+				config.cloneflags &= ~CLONE_NEWUSER;
+
 				/*
 				 * We don't have the privileges to do any mapping here (see the
 				 * clone_parent rant). So signal our parent to hook us up.
@@ -853,7 +857,20 @@ void nsexec(void)
 					if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) < 0)
 						bail("failed to set process as dumpable");
 				}
+
+				/* Become root in the namespace proper. */
+				if (setresuid(0, 0, 0) < 0)
+					bail("failed to become root in user namespace");
 			}
+
+			/*
+			 * Unshare all of the namespaces. Note that we don't merge this
+			 * with clone() because there were some old kernel versions where
+			 * clone(CLONE_PARENT | CLONE_NEWPID) was broken, so we'll just do
+			 * it the long way.
+			 */
+			if (unshare(config.cloneflags) < 0)
+				bail("failed to unshare namespaces");
 
 			/*
 			 * TODO: What about non-namespace clone flags that we're dropping here?

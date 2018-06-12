@@ -54,6 +54,10 @@ func (rl *roLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
 	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID)
 }
 
+func (rl *roLayer) CacheID() string {
+	return rl.cacheID
+}
+
 func (rl *roLayer) ChainID() ChainID {
 	return rl.chainID
 }

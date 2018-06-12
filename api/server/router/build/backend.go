@@ -15,6 +15,8 @@ type Backend interface {
 
 	// Prune build cache
 	PruneCache(context.Context) (*types.BuildCachePruneReport, error)
+
+	Cancel(context.Context, string) error
 }
 
 type experimentalProvider interface {

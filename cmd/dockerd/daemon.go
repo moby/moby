@@ -27,6 +27,7 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
+	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/cli/debug"
@@ -238,7 +239,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
-	buildCache     *fscache.FSCache
+	buildCache     *fscache.FSCache // legacy
+	buildkit       *buildkit.Builder
 	daemon         *daemon.Daemon
 	api            *apiserver.Server
 	cluster        *cluster.Cluster
@@ -270,7 +272,16 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		return opts, err
 	}
 
-	bb, err := buildbackend.NewBackend(daemon.ImageService(), manager, buildCache)
+	buildkit, err := buildkit.New(buildkit.Opt{
+		SessionManager: sm,
+		Root:           filepath.Join(config.Root, "buildkit"),
+		Dist:           daemon.DistributionServices(),
+	})
+	if err != nil {
+		return opts, err
+	}
+
+	bb, err := buildbackend.NewBackend(daemon.ImageService(), manager, buildCache, buildkit)
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
@@ -279,6 +290,7 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		sessionManager: sm,
 		buildBackend:   bb,
 		buildCache:     buildCache,
+		buildkit:       buildkit,
 		daemon:         daemon,
 	}, nil
 }
@@ -452,7 +464,7 @@ func initRouter(opts routerOptions) {
 		checkpointrouter.NewRouter(opts.daemon, decoder),
 		container.NewRouter(opts.daemon, decoder),
 		image.NewRouter(opts.daemon.ImageService()),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache, opts.buildkit),
 		volume.NewRouter(opts.daemon.VolumesService()),
 		build.NewRouter(opts.buildBackend, opts.daemon),
 		sessionrouter.NewRouter(opts.sessionManager),

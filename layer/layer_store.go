@@ -121,6 +121,10 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) 
 	return ls, nil
 }
 
+func (ls *layerStore) Driver() graphdriver.Driver {
+	return ls.driver
+}
+
 func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 	cl, ok := ls.layerMap[layer]
 	if ok {

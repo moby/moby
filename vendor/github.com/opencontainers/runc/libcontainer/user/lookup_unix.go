@@ -114,3 +114,29 @@ func CurrentUser() (User, error) {
 func CurrentGroup() (Group, error) {
 	return LookupGid(unix.Getgid())
 }
+
+func CurrentUserSubUIDs() ([]SubID, error) {
+	u, err := CurrentUser()
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubIDFileFilter("/etc/subuid",
+		func(entry SubID) bool { return entry.Name == u.Name })
+}
+
+func CurrentGroupSubGIDs() ([]SubID, error) {
+	g, err := CurrentGroup()
+	if err != nil {
+		return nil, err
+	}
+	return ParseSubIDFileFilter("/etc/subgid",
+		func(entry SubID) bool { return entry.Name == g.Name })
+}
+
+func CurrentProcessUIDMap() ([]IDMap, error) {
+	return ParseIDMapFile("/proc/self/uid_map")
+}
+
+func CurrentProcessGIDMap() ([]IDMap, error) {
+	return ParseIDMapFile("/proc/self/gid_map")
+}

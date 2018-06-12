@@ -24,6 +24,9 @@ type parseRequest struct {
 	original   string
 }
 
+var parseRunPreHooks []func(*RunCommand, parseRequest) error
+var parseRunPostHooks []func(*RunCommand, parseRequest) error
+
 func nodeArgs(node *parser.Node) []string {
 	result := []string{}
 	for ; node.Next != nil; node = node.Next {
@@ -355,15 +358,28 @@ func parseShellDependentCommand(req parseRequest, emptyAsNil bool) ShellDependan
 }
 
 func parseRun(req parseRequest) (*RunCommand, error) {
+	cmd := &RunCommand{}
+
+	for _, fn := range parseRunPreHooks {
+		if err := fn(cmd, req); err != nil {
+			return nil, err
+		}
+	}
 
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
-	return &RunCommand{
-		ShellDependantCmdLine: parseShellDependentCommand(req, false),
-		withNameAndCode:       newWithNameAndCode(req),
-	}, nil
 
+	cmd.ShellDependantCmdLine = parseShellDependentCommand(req, false)
+	cmd.withNameAndCode = newWithNameAndCode(req)
+
+	for _, fn := range parseRunPostHooks {
+		if err := fn(cmd, req); err != nil {
+			return nil, err
+		}
+	}
+
+	return cmd, nil
 }
 
 func parseCmd(req parseRequest) (*CmdCommand, error) {

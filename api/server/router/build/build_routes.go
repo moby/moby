@@ -1,6 +1,7 @@
 package build // import "github.com/docker/docker/api/server/router/build"
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -145,8 +146,24 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		options.CacheFrom = cacheFrom
 	}
 	options.SessionID = r.FormValue("session")
+	options.BuildID = r.FormValue("buildid")
+	builderVersion, err := parseVersion(r.FormValue("version"))
+	if err != nil {
+		return nil, err
+	}
+	options.Version = builderVersion
 
 	return options, nil
+}
+
+func parseVersion(s string) (types.BuilderVersion, error) {
+	if s == "" || s == string(types.BuilderV1) {
+		return types.BuilderV1, nil
+	}
+	if s == string(types.BuilderBuildKit) {
+		return types.BuilderBuildKit, nil
+	}
+	return "", errors.Errorf("invalid version %s", s)
 }
 
 func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
@@ -157,6 +174,17 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 	return httputils.WriteJSON(w, http.StatusOK, report)
 }
 
+func (br *buildRouter) postCancel(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	w.Header().Set("Content-Type", "application/json")
+
+	id := r.FormValue("id")
+	if id == "" {
+		return errors.Errorf("build ID not provided")
+	}
+
+	return br.backend.Cancel(ctx, id)
+}
+
 func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	var (
 		notVerboseBuffer = bytes.NewBuffer(nil)
@@ -165,18 +193,34 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 
 	w.Header().Set("Content-Type", "application/json")
 
-	output := ioutils.NewWriteFlusher(w)
+	body := r.Body
+	var ww io.Writer = w
+	if body != nil {
+		// there is a possibility that output is written before request body
+		// has been fully read so we need to protect against it.
+		// this can be removed when
+		// https://github.com/golang/go/issues/15527
+		// https://github.com/golang/go/issues/22209
+		// has been fixed
+		body, ww = wrapOutputBufferedUntilRequestRead(body, ww)
+	}
+
+	output := ioutils.NewWriteFlusher(ww)
 	defer output.Close()
+
 	errf := func(err error) error {
+
 		if httputils.BoolValue(r, "q") && notVerboseBuffer.Len() > 0 {
 			output.Write(notVerboseBuffer.Bytes())
 		}
+
+		logrus.Debugf("isflushed %v", output.Flushed())
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an internal error.
 		if !output.Flushed() {
 			return err
 		}
-		_, err = w.Write(streamformatter.FormatError(err))
+		_, err = output.Write(streamformatter.FormatError(err))
 		if err != nil {
 			logrus.Warnf("could not write error response: %v", err)
 		}
@@ -205,10 +249,14 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return progress.NewProgressReader(in, progressOutput, r.ContentLength, "Downloading context", buildOptions.RemoteContext)
 	}
 
+	if buildOptions.Version == types.BuilderBuildKit && !br.daemon.HasExperimental() {
+		return errdefs.InvalidParameter(errors.New("buildkit is only supported with experimental mode"))
+	}
+
 	wantAux := versions.GreaterThanOrEqualTo(version, "1.30")
 
 	imgID, err := br.backend.Build(ctx, backend.BuildConfig{
-		Source:         r.Body,
+		Source:         body,
 		Options:        buildOptions,
 		ProgressWriter: buildProgressWriter(out, wantAux, createProgressReader),
 	})
@@ -266,4 +314,103 @@ func buildProgressWriter(out io.Writer, wantAux bool, createProgressReader func(
 		AuxFormatter:       aux,
 		ProgressReaderFunc: createProgressReader,
 	}
+}
+
+type flusher interface {
+	Flush()
+}
+
+func wrapOutputBufferedUntilRequestRead(rc io.ReadCloser, out io.Writer) (io.ReadCloser, io.Writer) {
+	var fl flusher = &ioutils.NopFlusher{}
+	if f, ok := out.(flusher); ok {
+		fl = f
+	}
+
+	w := &wcf{
+		buf:     bytes.NewBuffer(nil),
+		Writer:  out,
+		flusher: fl,
+	}
+	r := bufio.NewReader(rc)
+	_, err := r.Peek(1)
+	if err != nil {
+		return rc, out
+	}
+	rc = &rcNotifier{
+		Reader: r,
+		Closer: rc,
+		notify: w.notify,
+	}
+	return rc, w
+}
+
+type rcNotifier struct {
+	io.Reader
+	io.Closer
+	notify func()
+}
+
+func (r *rcNotifier) Read(b []byte) (int, error) {
+	n, err := r.Reader.Read(b)
+	if err != nil {
+		r.notify()
+	}
+	return n, err
+}
+
+func (r *rcNotifier) Close() error {
+	r.notify()
+	return r.Closer.Close()
+}
+
+type wcf struct {
+	io.Writer
+	flusher
+	mu      sync.Mutex
+	ready   bool
+	buf     *bytes.Buffer
+	flushed bool
+}
+
+func (w *wcf) Flush() {
+	w.mu.Lock()
+	w.flushed = true
+	if !w.ready {
+		w.mu.Unlock()
+		return
+	}
+	w.mu.Unlock()
+	w.flusher.Flush()
+}
+
+func (w *wcf) Flushed() bool {
+	w.mu.Lock()
+	b := w.flushed
+	w.mu.Unlock()
+	return b
+}
+
+func (w *wcf) Write(b []byte) (int, error) {
+	w.mu.Lock()
+	if !w.ready {
+		n, err := w.buf.Write(b)
+		w.mu.Unlock()
+		return n, err
+	}
+	w.mu.Unlock()
+	return w.Writer.Write(b)
+}
+
+func (w *wcf) notify() {
+	w.mu.Lock()
+	if !w.ready {
+		if w.buf.Len() > 0 {
+			io.Copy(w.Writer, w.buf)
+		}
+		if w.flushed {
+			w.flusher.Flush()
+		}
+		w.ready = true
+	}
+	w.mu.Unlock()
 }

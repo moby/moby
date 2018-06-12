@@ -141,9 +141,10 @@ type Config struct {
 
 	// OomScoreAdj specifies the adjustment to be made by the kernel when calculating oom scores
 	// for a process. Valid values are between the range [-1000, '1000'], where processes with
-	// higher scores are preferred for being killed.
+	// higher scores are preferred for being killed. If it is unset then we don't touch the current
+	// value.
 	// More information about kernel oom score calculation here: https://lwn.net/Articles/317814/
-	OomScoreAdj int `json:"oom_score_adj"`
+	OomScoreAdj *int `json:"oom_score_adj,omitempty"`
 
 	// UidMappings is an array of User ID mappings for User Namespaces
 	UidMappings []IDMap `json:"uid_mappings"`

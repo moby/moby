@@ -1,0 +1,121 @@
+syntax = "proto3";
+
+package moby.buildkit.v1;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "google/protobuf/timestamp.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+service Control {
+	rpc DiskUsage(DiskUsageRequest) returns (DiskUsageResponse);
+	rpc Prune(PruneRequest) returns (stream UsageRecord);
+	rpc Solve(SolveRequest) returns (SolveResponse);
+	rpc Status(StatusRequest) returns (stream StatusResponse);
+	rpc Session(stream BytesMessage) returns (stream BytesMessage);
+	rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+}
+
+message PruneRequest {
+	// TODO: filter
+}
+
+message DiskUsageRequest {
+	string filter = 1; // FIXME: this should be containerd-compatible repeated string?
+}
+
+message DiskUsageResponse {
+	repeated UsageRecord record = 1;
+}
+
+message UsageRecord {
+	string ID = 1;
+	bool Mutable = 2;
+	bool InUse = 3;
+	int64 Size = 4;
+	string Parent = 5;
+	google.protobuf.Timestamp CreatedAt = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp LastUsedAt = 7 [(gogoproto.stdtime) = true];
+	int64 UsageCount = 8;
+	string Description = 9;
+}
+
+message SolveRequest {
+	string Ref = 1;
+	pb.Definition Definition = 2;
+	string Exporter = 3;
+	map<string, string> ExporterAttrs = 4;
+	string Session = 5;
+	string Frontend = 6;
+	map<string, string> FrontendAttrs = 7;
+	CacheOptions Cache = 8 [(gogoproto.nullable) = false];
+}
+
+message CacheOptions {
+	string ExportRef = 1;
+	repeated string ImportRefs = 2;
+	map<string, string> ExportAttrs = 3;
+}
+
+message SolveResponse {
+	map<string, string> ExporterResponse = 1;
+}
+
+message StatusRequest {
+	string Ref = 1;
+}
+
+message StatusResponse {
+	repeated Vertex vertexes = 1;
+	repeated VertexStatus statuses = 2;
+	repeated VertexLog logs = 3;
+}
+
+message Vertex {
+	string digest = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	repeated string inputs = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string name = 3;
+	bool cached = 4;
+	google.protobuf.Timestamp started = 5 [(gogoproto.stdtime) = true ];
+	google.protobuf.Timestamp completed = 6 [(gogoproto.stdtime) = true ];
+	string error = 7; // typed errors?
+}
+
+message VertexStatus {
+	string ID = 1;
+	string vertex = 2 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	string name = 3;
+	int64 current = 4;
+	int64 total = 5;
+	// TODO: add started, completed
+	google.protobuf.Timestamp timestamp = 6 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	google.protobuf.Timestamp started = 7 [(gogoproto.stdtime) = true ];
+	google.protobuf.Timestamp completed = 8 [(gogoproto.stdtime) = true ];
+}
+
+message VertexLog {
+	string vertex = 1 [(gogoproto.customtype) = "github.com/opencontainers/go-digest.Digest", (gogoproto.nullable) = false];
+	google.protobuf.Timestamp timestamp = 2 [(gogoproto.stdtime) = true, (gogoproto.nullable) = false];
+	int64 stream = 3;
+	bytes msg = 4;
+}
+
+message BytesMessage {
+	bytes data = 1;
+}
+
+message ListWorkersRequest {
+	repeated string filter = 1; // containerd style
+}
+
+message ListWorkersResponse {
+	repeated WorkerRecord record = 1;
+}
+
+message WorkerRecord {
+	string ID = 1;
+	map<string, string> Labels = 2;
+}
