@@ -19,6 +19,13 @@ func WithIPv6() func(*types.NetworkCreate) {
 	}
 }
 
+// WithCheckDuplicate enables CheckDuplicate on the create network request
+func WithCheckDuplicate() func(*types.NetworkCreate) {
+	return func(n *types.NetworkCreate) {
+		n.CheckDuplicate = true
+	}
+}
+
 // WithMacvlan sets the network as macvlan with the specified parent
 func WithMacvlan(parent string) func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
