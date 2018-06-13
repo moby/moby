@@ -8,7 +8,7 @@ process](docs/contributing/).
 
 This page contains information about reporting issues as well as some tips and
 guidelines useful to experienced open source contributors. Finally, make sure
-you read our [community guidelines](#docker-community-guidelines) before you
+you read our [community guidelines](#moby-community-guidelines) before you
 start participating.
 
 ## Topics
@@ -17,7 +17,7 @@ start participating.
 * [Design and Cleanup Proposals](#design-and-cleanup-proposals)
 * [Reporting Issues](#reporting-other-issues)
 * [Quick Contribution Tips and Guidelines](#quick-contribution-tips-and-guidelines)
-* [Community Guidelines](#docker-community-guidelines)
+* [Community Guidelines](#moby-community-guidelines)
 
 ## Reporting security issues
 
