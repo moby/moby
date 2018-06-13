@@ -23,8 +23,8 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 type testingT interface {

@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 const (

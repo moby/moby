@@ -21,7 +21,7 @@ import (
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/go-units"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 func (s *DockerSuite) TestBuildResourceConstraintsAreUsed(c *check.C) {

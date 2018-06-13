@@ -8,9 +8,9 @@ import (
 
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/docker/docker/integration-cli/environment"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
+	"gotest.tools/icmd"
 )
 
 var testEnv *environment.Execution

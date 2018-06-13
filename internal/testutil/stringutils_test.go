@@ -3,8 +3,8 @@ package testutil // import "github.com/docker/docker/internal/testutil"
 import (
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func testLengthHelper(generator func(int) string, t *testing.T) {

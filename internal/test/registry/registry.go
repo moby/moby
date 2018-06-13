@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/test"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
 )
 
 const (

@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/term"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestError(t *testing.T) {

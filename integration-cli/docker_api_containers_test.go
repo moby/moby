@@ -33,9 +33,9 @@ import (
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/poll"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/poll"
 )
 
 func (s *DockerSuite) TestContainerAPIGetAll(c *check.C) {

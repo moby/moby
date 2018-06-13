@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
+	"gotest.tools/icmd"
 )
 
 func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) {

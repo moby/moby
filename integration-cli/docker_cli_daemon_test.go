@@ -39,9 +39,9 @@ import (
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
+	"gotest.tools/icmd"
 )
 
 // TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon

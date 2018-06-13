@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/opencontainers/go-digest"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func defaultFSStoreBackend(t *testing.T) (StoreBackend, func()) {

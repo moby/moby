@@ -6,7 +6,7 @@ import (
 	"io"
 	"testing"
 
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 func TestGenerateEmptyFile(t *testing.T) {

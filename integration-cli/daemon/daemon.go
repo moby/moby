@@ -8,9 +8,9 @@ import (
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
+	"gotest.tools/icmd"
 )
 
 type testingT interface {

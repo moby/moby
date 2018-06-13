@@ -8,9 +8,9 @@ import (
 
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
 	"github.com/pborman/uuid"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 var root string

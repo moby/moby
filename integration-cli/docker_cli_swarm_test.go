@@ -27,9 +27,9 @@ import (
 	remoteipam "github.com/docker/libnetwork/ipams/remote/api"
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/fs"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/vishvananda/netlink"
+	"gotest.tools/fs"
+	"gotest.tools/icmd"
 )
 
 func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {

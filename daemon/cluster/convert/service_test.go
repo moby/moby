@@ -8,7 +8,7 @@ import (
 	"github.com/docker/docker/api/types/swarm/runtime"
 	swarmapi "github.com/docker/swarmkit/api"
 	google_protobuf3 "github.com/gogo/protobuf/types"
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 func TestServiceConvertFromGRPCRuntimeContainer(t *testing.T) {

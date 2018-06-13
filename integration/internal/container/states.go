@@ -5,7 +5,7 @@ import (
 	"strings"
 
 	"github.com/docker/docker/client"
-	"github.com/gotestyourself/gotestyourself/poll"
+	"gotest.tools/poll"
 )
 
 // IsStopped verifies the container is in stopped state.

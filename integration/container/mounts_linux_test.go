@@ -13,10 +13,10 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/system"
-	"github.com/gotestyourself/gotestyourself/assert"
-	is "github.com/gotestyourself/gotestyourself/assert/cmp"
-	"github.com/gotestyourself/gotestyourself/fs"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/fs"
+	"gotest.tools/skip"
 )
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {

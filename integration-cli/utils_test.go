@@ -9,8 +9,8 @@ import (
 
 	"github.com/docker/docker/internal/testutil"
 	"github.com/go-check/check"
-	"github.com/gotestyourself/gotestyourself/icmd"
 	"github.com/pkg/errors"
+	"gotest.tools/icmd"
 )
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
@@ -21,7 +21,7 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 }
 
 // TODO: update code to call cmd.RunCmd directly, and remove this function
-// Deprecated: use gotestyourself/gotestyourself/icmd
+// Deprecated: use gotest.tools/icmd
 func runCommandWithOutput(execCmd *exec.Cmd) (string, int, error) {
 	result := icmd.RunCmd(transformCmd(execCmd))
 	return result.Combined(), result.ExitCode, result.Error

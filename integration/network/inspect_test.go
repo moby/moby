@@ -10,8 +10,8 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/poll"
+	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 const defaultSwarmPort = 2477

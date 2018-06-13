@@ -25,8 +25,8 @@ import (
 	"github.com/docker/docker/internal/test/environment"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
-	"github.com/gotestyourself/gotestyourself/assert"
-	"github.com/gotestyourself/gotestyourself/skip"
+	"gotest.tools/assert"
+	"gotest.tools/skip"
 )
 
 const (
@@ -211,7 +211,7 @@ func TestAuthZPluginDenyResponse(t *testing.T) {
 // TestAuthZPluginAllowEventStream verifies event stream propagates
 // correctly after request pass through by the authorization plugin
 func TestAuthZPluginAllowEventStream(t *testing.T) {
-	skip.IfCondition(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTestV1(t)()
 	ctrl.reqRes.Allow = true

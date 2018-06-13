@@ -6,7 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
-	"github.com/gotestyourself/gotestyourself/assert"
+	"gotest.tools/assert"
 )
 
 func TestV1IDService(t *testing.T) {

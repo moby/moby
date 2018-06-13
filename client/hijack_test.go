@@ -11,9 +11,9 @@ import (
 
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
-	"github.com/gotestyourself/gotestyourself/assert"
 	"github.com/pkg/errors"
 	"golang.org/x/net/context"
+	"gotest.tools/assert"
 )
 
 func TestTLSCloseWriter(t *testing.T) {
