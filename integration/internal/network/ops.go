@@ -26,7 +26,7 @@ func WithCheckDuplicate() func(*types.NetworkCreate) {
 	}
 }
 
-// WithInternal sets the Internal flag on the network
+// WithInternal enables Internal flag on the create network request
 func WithInternal() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
 		n.Internal = true
