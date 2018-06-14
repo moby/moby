@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/test/daemon"
 	"gotest.tools/assert"
@@ -78,14 +79,10 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	defer client.Close()
 
 	overlayName := "overlay1_" + t.Name()
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: true,
-		Driver:         "overlay",
-	}
-
-	netResp, err := client.NetworkCreate(context.Background(), overlayName, networkCreate)
-	assert.NilError(t, err)
-	overlayID := netResp.ID
+	overlayID := network.CreateNoError(t, context.Background(), client, overlayName,
+		network.WithCheckDuplicate(),
+		network.WithDriver("overlay"),
+	)
 
 	var instances uint64 = 4
 
@@ -99,7 +96,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	serviceID := swarm.CreateService(t, d, serviceSpec...)
 	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err = client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
 	err = client.ServiceRemove(context.Background(), serviceID)
@@ -131,21 +128,17 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	defer client.Close()
 
 	name := "foo_" + t.Name()
-	networkCreate := types.NetworkCreate{
-		CheckDuplicate: false,
-		Driver:         "bridge",
-	}
-
-	n1, err := client.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
-
-	n2, err := client.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	n1 := network.CreateNoError(t, context.Background(), client, name,
+		network.WithDriver("bridge"),
+	)
+	n2 := network.CreateNoError(t, context.Background(), client, name,
+		network.WithDriver("bridge"),
+	)
 
 	// Dupliates with name but with different driver
-	networkCreate.Driver = "overlay"
-	n3, err := client.NetworkCreate(context.Background(), name, networkCreate)
-	assert.NilError(t, err)
+	n3 := network.CreateNoError(t, context.Background(), client, name,
+		network.WithDriver("overlay"),
+	)
 
 	// Create Service with the same name
 	var instances uint64 = 1
@@ -161,7 +154,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 
 	resp, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(n3.ID, resp.Spec.TaskTemplate.Networks[0].Target))
+	assert.Check(t, is.Equal(n3, resp.Spec.TaskTemplate.Networks[0].Target))
 
 	// Remove Service
 	err = client.ServiceRemove(context.Background(), serviceID)
@@ -171,19 +164,19 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
 
 	// Remove networks
-	err = client.NetworkRemove(context.Background(), n3.ID)
+	err = client.NetworkRemove(context.Background(), n3)
 	assert.NilError(t, err)
 
-	err = client.NetworkRemove(context.Background(), n2.ID)
+	err = client.NetworkRemove(context.Background(), n2)
 	assert.NilError(t, err)
 
-	err = client.NetworkRemove(context.Background(), n1.ID)
+	err = client.NetworkRemove(context.Background(), n1)
 	assert.NilError(t, err)
 
 	// Make sure networks have been destroyed.
-	poll.WaitOn(t, networkIsRemoved(client, n3.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, networkIsRemoved(client, n2.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, networkIsRemoved(client, n1.ID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, n3), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, n2), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, networkIsRemoved(client, n1), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func TestCreateServiceSecretFileMode(t *testing.T) {
