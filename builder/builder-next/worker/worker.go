@@ -37,6 +37,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Opt defines a structure for creating a worker.
@@ -77,32 +78,33 @@ func NewWorker(opt Opt) (*Worker, error) {
 		CacheAccessor: cm,
 		MetadataStore: opt.MetadataStore,
 	})
-	if err != nil {
-		return nil, err
+	if err == nil {
+		sm.Register(gs)
+	} else {
+		logrus.Warnf("Could not register builder git source: %s", err)
 	}
-
-	sm.Register(gs)
 
 	hs, err := http.NewSource(http.Opt{
 		CacheAccessor: cm,
 		MetadataStore: opt.MetadataStore,
 		Transport:     opt.Transport,
 	})
-	if err != nil {
-		return nil, err
+	if err == nil {
+		sm.Register(hs)
+	} else {
+		logrus.Warnf("Could not register builder http source: %s", err)
 	}
-
-	sm.Register(hs)
 
 	ss, err := local.NewSource(local.Opt{
 		SessionManager: opt.SessionManager,
 		CacheAccessor:  cm,
 		MetadataStore:  opt.MetadataStore,
 	})
-	if err != nil {
-		return nil, err
+	if err == nil {
+		sm.Register(ss)
+	} else {
+		logrus.Warnf("Could not register builder local source: %s", err)
 	}
-	sm.Register(ss)
 
 	return &Worker{
 		Opt:           opt,
