@@ -49,13 +49,14 @@ else
     NETINSPECT_VERBOSE_SUPPORT=""
 fi
 
-echo "Host Configuration"
+echo "Host iptables"
 echo_and_run ${IPTABLES} -w1 -n -v -L -t filter | grep -v '^$'
 echo_and_run ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
 echo_and_run ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
 printf "\n"
 
-echo "Host addresses and routes"
+echo "Host links addresses and routes"
+echo_and_run ${IP} -o link show
 echo_and_run ${IP} -o -4 address show
 echo_and_run ${IP} -4 route show
 printf "\n"
