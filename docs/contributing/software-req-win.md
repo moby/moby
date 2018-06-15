@@ -100,8 +100,8 @@ To build Moby, run:
 Copy out the resulting Windows Moby Engine binary to `dockerd.exe` in the
 current directory:
 
-    docker cp binaries:C:\go\src\github.com\moby\moby\bundles\docker.exe docker.exe
-    docker cp binaries:C:\go\src\github.com\moby\moby\bundles\dockerd.exe dockerd.exe
+    docker cp binaries:C:\go\src\github.com\docker\docker\bundles\docker.exe docker.exe
+    docker cp binaries:C:\go\src\github.com\docker\docker\bundles\dockerd.exe dockerd.exe
 
 To test it, stop the system Docker daemon and start the one you just built:
 
