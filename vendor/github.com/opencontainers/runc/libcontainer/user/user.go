@@ -78,15 +78,15 @@ func groupFromOS(g *user.Group) (Group, error) {
 // SubID represents an entry in /etc/sub{u,g}id
 type SubID struct {
 	Name  string
-	SubID int
-	Count int
+	SubID int64
+	Count int64
 }
 
 // IDMap represents an entry in /proc/PID/{u,g}id_map
 type IDMap struct {
-	ID       int
-	ParentID int
-	Count    int
+	ID       int64
+	ParentID int64
+	Count    int64
 }
 
 func parseLine(line string, v ...interface{}) {
@@ -113,6 +113,8 @@ func parseParts(parts []string, v ...interface{}) {
 		case *int:
 			// "numbers", with conversion errors ignored because of some misbehaving configuration files.
 			*e, _ = strconv.Atoi(p)
+		case *int64:
+			*e, _ = strconv.ParseInt(p, 10, 64)
 		case *[]string:
 			// Comma-separated lists.
 			if p != "" {
@@ -122,7 +124,7 @@ func parseParts(parts []string, v ...interface{}) {
 			}
 		default:
 			// Someone goof'd when writing code using this function. Scream so they can hear us.
-			panic(fmt.Sprintf("parseLine only accepts {*string, *int, *[]string} as arguments! %#v is not a pointer!", e))
+			panic(fmt.Sprintf("parseLine only accepts {*string, *int, *int64, *[]string} as arguments! %#v is not a pointer!", e))
 		}
 	}
 }

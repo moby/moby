@@ -83,7 +83,7 @@ func ToRootlessWithContext(ctx RootlessContext, spec *specs.Spec, opts *Rootless
 
 	// Add mappings for the current user.
 	if ctx.InUserNS {
-		uNextContainerID := 0
+		uNextContainerID := int64(0)
 		sort.Sort(idmapSorter(ctx.UIDMap))
 		for _, uidmap := range ctx.UIDMap {
 			spec.Linux.UIDMappings = append(spec.Linux.UIDMappings,
@@ -94,7 +94,7 @@ func ToRootlessWithContext(ctx RootlessContext, spec *specs.Spec, opts *Rootless
 				})
 			uNextContainerID += uidmap.Count
 		}
-		gNextContainerID := 0
+		gNextContainerID := int64(0)
 		sort.Sort(idmapSorter(ctx.GIDMap))
 		for _, gidmap := range ctx.GIDMap {
 			spec.Linux.GIDMappings = append(spec.Linux.GIDMappings,
@@ -118,7 +118,7 @@ func ToRootlessWithContext(ctx RootlessContext, spec *specs.Spec, opts *Rootless
 			Size:        1,
 		}}
 		if opts.MapSubUIDGID {
-			uNextContainerID := 1
+			uNextContainerID := int64(1)
 			sort.Sort(subIDSorter(ctx.SubUIDs))
 			for _, subuid := range ctx.SubUIDs {
 				spec.Linux.UIDMappings = append(spec.Linux.UIDMappings,
@@ -129,7 +129,7 @@ func ToRootlessWithContext(ctx RootlessContext, spec *specs.Spec, opts *Rootless
 					})
 				uNextContainerID += subuid.Count
 			}
-			gNextContainerID := 1
+			gNextContainerID := int64(1)
 			sort.Sort(subIDSorter(ctx.SubGIDs))
 			for _, subgid := range ctx.SubGIDs {
 				spec.Linux.GIDMappings = append(spec.Linux.GIDMappings,

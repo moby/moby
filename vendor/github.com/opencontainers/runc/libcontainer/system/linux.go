@@ -123,8 +123,8 @@ func UIDMapInUserNS(uidmap []user.IDMap) bool {
 }
 
 // GetParentNSeuid returns the euid within the parent user namespace
-func GetParentNSeuid() int {
-	euid := os.Geteuid()
+func GetParentNSeuid() int64 {
+	euid := int64(os.Geteuid())
 	uidmap, err := user.CurrentProcessUIDMap()
 	if err != nil {
 		// This kernel-provided file only exists if user namespaces are supported
