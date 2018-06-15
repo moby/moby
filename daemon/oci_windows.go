@@ -347,6 +347,11 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	if err := setCapabilities(s, c); err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
 	}
+	devPermissions, err := appendDevicePermissionsFromCgroupRules(nil, c.HostConfig.DeviceCgroupRules)
+	if err != nil {
+		return fmt.Errorf("linux runtime spec devices: %v", err)
+	}
+	s.Linux.Resources.Devices = devPermissions
 	return nil
 }
 
