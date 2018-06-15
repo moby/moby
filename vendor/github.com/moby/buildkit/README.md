@@ -1,5 +1,3 @@
-### Important: This repository is in an early development phase
-
 [![asciicinema example](https://asciinema.org/a/gPEIEo1NzmDTUu2bEPsUboqmU.png)](https://asciinema.org/a/gPEIEo1NzmDTUu2bEPsUboqmU)
 
 
@@ -28,6 +26,16 @@ Key features:
 Read the proposal from https://github.com/moby/moby/issues/32925
 
 Introductory blog post https://blog.mobyproject.org/introducing-buildkit-17e056cc5317
+
+### Used by
+
+[Moby](https://github.com/moby/moby/pull/37151)
+
+[img](https://github.com/genuinetools/img)
+
+[OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
+
+[container build interface](https://github.com/containerbuilding/cbi)
 
 ### Quick start
 
