@@ -44,6 +44,24 @@ func createAmbiguousNetworks(t *testing.T) (string, string, string) {
 	return testNet, idPrefixNet, fullIDNet
 }
 
+func TestNetworkCreateDelete(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+
+	netName := "testnetwork_" + t.Name()
+	network.CreateNoError(t, ctx, client, netName,
+		network.WithCheckDuplicate(),
+	)
+	assert.Check(t, IsNetworkAvailable(client, netName))
+
+	// delete the network and make sure it is deleted
+	err := client.NetworkRemove(ctx, netName)
+	assert.NilError(t, err)
+	assert.Check(t, IsNetworkNotAvailable(client, netName))
+}
+
 // TestDockerNetworkDeletePreferID tests that if a network with a name
 // equal to another network's ID exists, the Network with the given
 // ID is removed, and not the network with the given name.
