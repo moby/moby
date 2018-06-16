@@ -250,45 +250,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	// First boot optimization
 	s.Windows.IgnoreFlushesDuringBoot = !c.HasBeenStartedBefore
 
-	// In s.Windows.Resources
-	cpuShares := uint16(c.HostConfig.CPUShares)
-	cpuMaximum := uint16(c.HostConfig.CPUPercent) * 100
-	cpuCount := uint64(c.HostConfig.CPUCount)
-	if c.HostConfig.NanoCPUs > 0 {
-		if isHyperV {
-			cpuCount = uint64(c.HostConfig.NanoCPUs / 1e9)
-			leftoverNanoCPUs := c.HostConfig.NanoCPUs % 1e9
-			if leftoverNanoCPUs != 0 {
-				cpuCount++
-				cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(cpuCount) / (1e9 / 10000))
-				if cpuMaximum < 1 {
-					// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
-					cpuMaximum = 1
-				}
-			}
-		} else {
-			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(sysinfo.NumCPU()) / (1e9 / 10000))
-			if cpuMaximum < 1 {
-				// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
-				cpuMaximum = 1
-			}
-		}
-	}
-	memoryLimit := uint64(c.HostConfig.Memory)
-	s.Windows.Resources = &specs.WindowsResources{
-		CPU: &specs.WindowsCPUResources{
-			Maximum: &cpuMaximum,
-			Shares:  &cpuShares,
-			Count:   &cpuCount,
-		},
-		Memory: &specs.WindowsMemoryResources{
-			Limit: &memoryLimit,
-		},
-		Storage: &specs.WindowsStorageResources{
-			Bps:  &c.HostConfig.IOMaximumBandwidth,
-			Iops: &c.HostConfig.IOMaximumIOps,
-		},
-	}
+	setResourcesInSpec(c, s, isHyperV)
 
 	// Read and add credentials from the security options if a credential spec has been provided.
 	if c.HostConfig.SecurityOpt != nil {
@@ -369,6 +331,9 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	}
 	s.Root.Path = "rootfs"
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
+
+	setResourcesInSpec(c, s, true) // LCOW is Hyper-V only
+
 	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
 	if err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
@@ -382,6 +347,48 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	}
 	s.Linux.Resources.Devices = devPermissions
 	return nil
+}
+
+func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
+	// In s.Windows.Resources
+	cpuShares := uint16(c.HostConfig.CPUShares)
+	cpuMaximum := uint16(c.HostConfig.CPUPercent) * 100
+	cpuCount := uint64(c.HostConfig.CPUCount)
+	if c.HostConfig.NanoCPUs > 0 {
+		if isHyperV {
+			cpuCount = uint64(c.HostConfig.NanoCPUs / 1e9)
+			leftoverNanoCPUs := c.HostConfig.NanoCPUs % 1e9
+			if leftoverNanoCPUs != 0 {
+				cpuCount++
+				cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(cpuCount) / (1e9 / 10000))
+				if cpuMaximum < 1 {
+					// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
+					cpuMaximum = 1
+				}
+			}
+		} else {
+			cpuMaximum = uint16(c.HostConfig.NanoCPUs / int64(sysinfo.NumCPU()) / (1e9 / 10000))
+			if cpuMaximum < 1 {
+				// The requested NanoCPUs is so small that we rounded to 0, use 1 instead
+				cpuMaximum = 1
+			}
+		}
+	}
+	memoryLimit := uint64(c.HostConfig.Memory)
+	s.Windows.Resources = &specs.WindowsResources{
+		CPU: &specs.WindowsCPUResources{
+			Maximum: &cpuMaximum,
+			Shares:  &cpuShares,
+			Count:   &cpuCount,
+		},
+		Memory: &specs.WindowsMemoryResources{
+			Limit: &memoryLimit,
+		},
+		Storage: &specs.WindowsStorageResources{
+			Bps:  &c.HostConfig.IOMaximumBandwidth,
+			Iops: &c.HostConfig.IOMaximumIOps,
+		},
+	}
 }
 
 func escapeArgs(args []string) []string {
