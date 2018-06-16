@@ -1,6 +1,6 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-code check-format unit-tests check-local
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests
 SHELL=/bin/bash
-Dockerfile ?= Dockerfile.build
+dockerbuildargs ?= - < Dockerfile.build
 dockerargs ?= --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 build_image=libnetworkbuild
 container_env = -e "INSIDECONTAINER=-incontainer=true"
@@ -9,12 +9,12 @@ CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
 export PATH := $(CURDIR)/bin:$(PATH)
 
-all: ${build_image}.created build check clean
+all: build check clean
 
 all-local: build-local check-local clean
 
 builder:
-	docker build -f ${Dockerfile} -t ${build_image} .
+	docker build -t ${build_image} ${dockerbuildargs}
 
 build: builder
 	@echo "🐳 $@"
@@ -44,13 +44,9 @@ push-images: build-images
 clean:
 	@echo "🐳 $@"
 	@if [ -d bin ]; then \
-		echo "Removing dnet and proxy binaries"; \
+		echo "Removing binaries"; \
 		rm -rf bin; \
 	fi
-
-force-clean: clean
-	@echo "🐳 $@"
-	@rm -rf ${build_image}.created
 
 cross: builder
 	@mkdir -p "bin"
@@ -68,12 +64,7 @@ cross-local:
 check: builder
 	@${docker} make check-local
 
-check-lint: builder
-	@${docker} make check-local-lint
-
-check-local-lint: check-format check-code
-
-check-local: check-format check-code unit-tests-local
+check-local: check-code check-format
 
 check-code: lint gosimple vet ineffassign
 
@@ -90,7 +81,7 @@ unit-tests-local:
 	if ls $$dir/*.go &> /dev/null; then \
 		pushd . &> /dev/null ; \
 		cd $$dir ; \
-		go test ${INSIDECONTAINER} -test.v -test.parallel 5 -covermode=count -coverprofile=./profile.tmp ; \
+		go test ${INSIDECONTAINER} -test.parallel 5 -test.v -covermode=count -coverprofile=./profile.tmp ; \
 		ret=$$? ;\
 		if [ $$ret -ne 0 ]; then exit $$ret; fi ;\
 		popd &> /dev/null; \
@@ -109,7 +100,7 @@ vet: ## run go vet
 
 misspell:
 	@echo "🐳 $@"
-	@test -z "$$(find . -type f | grep -v vendor/ | grep -v bin/ | grep -v .git/ | grep -v MAINTAINERS | xargs misspell | tee /dev/stderr)"
+	@test -z "$$(find . -type f | grep -v vendor/ | grep "\.go\|\.md" | xargs misspell -error | tee /dev/stderr)"
 
 fmt: ## run go fmt
 	@echo "🐳 $@"
@@ -128,5 +119,5 @@ gosimple: ## run gosimple
 	@echo "🐳 $@"
 	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
 
-shell: ${build_image}.created
+shell: builder
 	@${docker} ${SHELL}

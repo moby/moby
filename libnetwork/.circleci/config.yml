@@ -5,7 +5,7 @@ defaults: &defaults
   docker:
     - image: 'circleci/golang:1.10'
       environment:
-          Dockerfile: Dockerfile.ci
+          dockerbuildargs: -f Dockerfile.ci .
           dockerargs:  --privileged -e CIRCLECI
 
 jobs:
@@ -34,7 +34,7 @@ jobs:
       - setup_remote_docker:
           reusable: true
           exclusive: false
-      - run: make check-lint
+      - run: make check
 
   cross:
     <<: *defaults
