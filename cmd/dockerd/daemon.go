@@ -374,6 +374,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	conf.LogLevel = opts.LogLevel
 	conf.TLS = opts.TLS
 	conf.TLSVerify = opts.TLSVerify
+	conf.InsecureHostBind = opts.InsecureHostBind
 	conf.CommonTLSOptions = config.CommonTLSOptions{}
 
 	if opts.TLSOptions != nil {
@@ -573,9 +574,13 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 		proto := protoAddrParts[0]
 		addr := protoAddrParts[1]
 
-		// It's a bad idea to bind to TCP without tlsverify.
+		// It's a *very* bad idea to bind to TCP without tlsverify.
 		if proto == "tcp" && (serverConfig.TLSConfig == nil || serverConfig.TLSConfig.ClientAuth != tls.RequireAndVerifyClientCert) {
-			logrus.Warn("[!] DON'T BIND ON ANY IP ADDRESS WITHOUT setting --tlsverify IF YOU DON'T KNOW WHAT YOU'RE DOING [!]")
+			if !cli.Config.InsecureHostBind {
+				return nil, fmt.Errorf("refusing to bind to an IP address without --tlsverify configured: use --give-the-internet-root-access to ignore this error")
+			}
+			logrus.Warn("[!]    WARNING: IT IS ALMOST ALWAYS UNSAFE TO BIND TO AN IP ADDRESS WITHOUT --tlsverify AS IT    [!]")
+			logrus.Warn("[!] POTENTIALLY GIVES ANYONE ON YOUR NETWORK ROOT ACCESS TO YOUR MACHINE WITHOUT AUTHENTICATION! [!]")
 		}
 		ls, err := listeners.Init(proto, addr, serverConfig.SocketGroup, serverConfig.TLSConfig)
 		if err != nil {

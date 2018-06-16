@@ -30,15 +30,16 @@ var (
 )
 
 type daemonOptions struct {
-	configFile   string
-	daemonConfig *config.Config
-	flags        *pflag.FlagSet
-	Debug        bool
-	Hosts        []string
-	LogLevel     string
-	TLS          bool
-	TLSVerify    bool
-	TLSOptions   *tlsconfig.Options
+	configFile       string
+	daemonConfig     *config.Config
+	flags            *pflag.FlagSet
+	Debug            bool
+	Hosts            []string
+	LogLevel         string
+	TLS              bool
+	TLSVerify        bool
+	InsecureHostBind bool
+	TLSOptions       *tlsconfig.Options
 }
 
 // newDaemonOptions returns a new daemonFlags
@@ -72,7 +73,8 @@ func (o *daemonOptions) InstallFlags(flags *pflag.FlagSet) {
 	flags.Var(opts.NewQuotedString(&tlsOptions.KeyFile), "tlskey", "Path to TLS key file")
 
 	hostOpt := opts.NewNamedListOptsRef("hosts", &o.Hosts, opts.ValidateHost)
-	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to connect to")
+	flags.VarP(hostOpt, "host", "H", "Daemon socket(s) to bind to")
+	flags.BoolVar(&o.InsecureHostBind, "give-the-internet-root-access", false, "Allow -H to bind to a TCP address without --tlsverify (this could allow anyone on your network to get root access to your *host*)")
 }
 
 // SetDefaultOptions sets default values for options after flag parsing is

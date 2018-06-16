@@ -37,7 +37,7 @@ func (s *DockerDaemonSuite) TestCLIProxyProxyTCPSock(c *check.C) {
 
 	c.Assert(ip, checker.Not(checker.Equals), "")
 
-	s.d.Start(c, "-H", "tcp://"+ip+":2375")
+	s.d.Start(c, "-H", "tcp://"+ip+":2375", "--give-the-internet-root-access")
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "info"},

@@ -530,7 +530,7 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 
 	cmdArgs := make([]string, 0, len(listeningPorts)*2)
 	for _, hostDirective := range listeningPorts {
-		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]))
+		cmdArgs = append(cmdArgs, "--host", fmt.Sprintf("tcp://%s:%s", hostDirective[0], hostDirective[2]), "--give-the-internet-root-access")
 	}
 
 	s.d.StartWithBusybox(c, cmdArgs...)
@@ -1568,7 +1568,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 // tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
 func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *check.C) {
 	host := "tcp://localhost:4271"
-	s.d.Start(c, "-H", host)
+	s.d.Start(c, "-H", host, "--give-the-internet-root-access")
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "-H", host, "info"},
 		Env:     []string{"DOCKER_TLS_VERIFY=1", "DOCKER_CERT_PATH=fixtures/https"},
