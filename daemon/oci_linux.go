@@ -678,7 +678,15 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	s.Process.Cwd = cwd
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	s.Process.Terminal = c.Config.Tty
-	s.Hostname = c.FullHostname()
+
+	s.Hostname = c.Config.Hostname
+	// There isn't a field in the OCI for the NIS domainname, but luckily there
+	// is a sysctl which has an identical effect to setdomainname(2) so there's
+	// no explicit need for runtime support.
+	s.Linux.Sysctl = make(map[string]string)
+	if c.Config.Domainname != "" {
+		s.Linux.Sysctl["kernel.domainname"] = c.Config.Domainname
+	}
 
 	return nil
 }
@@ -714,7 +722,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
 	}
-	s.Linux.Sysctl = c.HostConfig.Sysctls
+	// We merge the sysctls injected above with the HostConfig (latter takes
+	// precedence for backwards-compatibility reasons).
+	for k, v := range c.HostConfig.Sysctls {
+		s.Linux.Sysctl[k] = v
+	}
 
 	p := s.Linux.CgroupsPath
 	if useSystemd {
