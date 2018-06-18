@@ -555,6 +555,45 @@ func TestGetSameAddress(t *testing.T) {
 	}
 }
 
+func TestPoolAllocationReuse(t *testing.T) {
+	for _, store := range []bool{false, true} {
+		a, err := getAllocator(store)
+		assert.NoError(t, err)
+
+		// First get all pools until they are exhausted to
+		pList := []string{}
+		pool, _, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+		for err == nil {
+			pList = append(pList, pool)
+			pool, _, _, err = a.RequestPool(localAddressSpace, "", "", nil, false)
+		}
+		nPools := len(pList)
+		for _, pool := range pList {
+			if err := a.ReleasePool(pool); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		// Now try to allocate then free nPool pools sequentially.
+		// Verify that we don't see any repeat networks even though
+		// we have freed them.
+		seen := map[string]bool{}
+		for i := 0; i < nPools; i++ {
+			pool, nw, _, err := a.RequestPool(localAddressSpace, "", "", nil, false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, ok := seen[nw.String()]; ok {
+				t.Fatalf("Network %s was reused before exhausing the pool list", nw.String())
+			}
+			seen[nw.String()] = true
+			if err := a.ReleasePool(pool); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+}
+
 func TestGetAddressSubPoolEqualPool(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
