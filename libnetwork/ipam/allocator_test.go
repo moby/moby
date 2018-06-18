@@ -241,12 +241,9 @@ func TestAddSubnets(t *testing.T) {
 			t.Fatal("returned same pool id for same subnets in different namespaces")
 		}
 
-		pid, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
-		if err != nil {
-			t.Fatalf("Unexpected failure requesting existing subnet: %v", err)
-		}
-		if pid != pid1 {
-			t.Fatal("returned different pool id for same subnet requests")
+		_, _, _, err = a.RequestPool("abc", "10.0.0.0/8", "", nil, false)
+		if err == nil {
+			t.Fatalf("Expected failure requesting existing subnet")
 		}
 
 		_, _, _, err = a.RequestPool("abc", "10.128.0.0/9", "", nil, false)
@@ -254,16 +251,13 @@ func TestAddSubnets(t *testing.T) {
 			t.Fatal("Expected failure on adding overlapping base subnet")
 		}
 
-		pid2, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
+		_, _, _, err = a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
 		if err != nil {
 			t.Fatalf("Unexpected failure on adding sub pool: %v", err)
 		}
-		pid3, _, _, err := a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
-		if err != nil {
-			t.Fatalf("Unexpected failure on adding overlapping sub pool: %v", err)
-		}
-		if pid2 != pid3 {
-			t.Fatal("returned different pool id for same sub pool requests")
+		_, _, _, err = a.RequestPool("abc", "10.0.0.0/8", "10.128.0.0/9", nil, false)
+		if err == nil {
+			t.Fatalf("Expected failure on adding overlapping sub pool")
 		}
 
 		_, _, _, err = a.RequestPool(localAddressSpace, "10.20.2.0/24", "", nil, false)
@@ -329,7 +323,7 @@ func TestAddReleasePoolID(t *testing.T) {
 		a, err := getAllocator(store)
 		assert.NoError(t, err)
 
-		var k0, k1, k2 SubnetKey
+		var k0, k1 SubnetKey
 		aSpace, err := a.getAddrSpace(localAddressSpace)
 		if err != nil {
 			t.Fatal(err)
@@ -362,6 +356,10 @@ func TestAddReleasePoolID(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		if pid0 == pid1 {
+			t.Fatalf("Incorrect poolIDs returned %s, %s", pid0, pid1)
+		}
+
 		aSpace, err = a.getAddrSpace(localAddressSpace)
 		if err != nil {
 			t.Fatal(err)
@@ -372,15 +370,9 @@ func TestAddReleasePoolID(t *testing.T) {
 			t.Fatalf("Unexpected ref count for %s: %d", k1, subnets[k1].RefCount)
 		}
 
-		pid2, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
-		if err != nil {
-			t.Fatal("Unexpected failure in adding sub pool")
-		}
-		if pid0 == pid1 || pid0 == pid2 || pid1 != pid2 {
-			t.Fatalf("Incorrect poolIDs returned %s, %s, %s", pid0, pid1, pid2)
-		}
-		if err := k2.FromString(pid2); err != nil {
-			t.Fatal(err)
+		_, _, _, err = a.RequestPool(localAddressSpace, "10.0.0.0/8", "10.0.0.0/16", nil, false)
+		if err == nil {
+			t.Fatal("Expected failure in adding sub pool")
 		}
 
 		aSpace, err = a.getAddrSpace(localAddressSpace)
@@ -389,11 +381,8 @@ func TestAddReleasePoolID(t *testing.T) {
 		}
 
 		subnets = aSpace.subnets
-		if subnets[k2].RefCount != 2 {
-			t.Fatalf("Unexpected ref count for %s: %d", k2, subnets[k2].RefCount)
-		}
 
-		if subnets[k0].RefCount != 3 {
+		if subnets[k0].RefCount != 2 {
 			t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 		}
 
@@ -407,21 +396,11 @@ func TestAddReleasePoolID(t *testing.T) {
 		}
 
 		subnets = aSpace.subnets
-		if subnets[k0].RefCount != 2 {
+		if subnets[k0].RefCount != 1 {
 			t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 		}
 		if err := a.ReleasePool(pid0); err != nil {
 			t.Fatal(err)
-		}
-
-		aSpace, err = a.getAddrSpace(localAddressSpace)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		subnets = aSpace.subnets
-		if subnets[k0].RefCount != 1 {
-			t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
 		}
 
 		pid00, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
@@ -430,20 +409,6 @@ func TestAddReleasePoolID(t *testing.T) {
 		}
 		if pid00 != pid0 {
 			t.Fatal("main pool should still exist")
-		}
-
-		aSpace, err = a.getAddrSpace(localAddressSpace)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		subnets = aSpace.subnets
-		if subnets[k0].RefCount != 2 {
-			t.Fatalf("Unexpected ref count for %s: %d", k0, subnets[k0].RefCount)
-		}
-
-		if err := a.ReleasePool(pid2); err != nil {
-			t.Fatal(err)
 		}
 
 		aSpace, err = a.getAddrSpace(localAddressSpace)
