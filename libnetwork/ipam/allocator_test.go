@@ -296,15 +296,8 @@ func TestDoublePoolRelease(t *testing.T) {
 
 			// Re-request the same pool
 			for i := 0; i < repeats; i++ {
-				pidN, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
-				assert.NoError(t, err)
-				assert.Equal(t, pid0, pidN)
-			}
-
-			// Release the repeats
-			for i := 0; i < repeats; i++ {
-				err = a.ReleasePool(pid0)
-				assert.NoError(t, err)
+				_, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
+				assert.Error(t, err)
 			}
 
 			// Release the initial request
