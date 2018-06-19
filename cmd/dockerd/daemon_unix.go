@@ -56,6 +56,9 @@ func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, 
 	} else {
 		opts = append(opts, libcontainerd.WithStartDaemon(true))
 	}
+	if !cli.Config.CriContainerd {
+		opts = append(opts, libcontainerd.WithPlugin("cri", nil))
+	}
 
 	return opts, nil
 }

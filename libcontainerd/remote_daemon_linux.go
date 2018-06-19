@@ -31,6 +31,14 @@ func (r *remote) setDefaults() {
 	if r.OOMScore == 0 {
 		r.OOMScore = -999
 	}
+
+	for key, conf := range r.pluginConfs.Plugins {
+		if conf == nil {
+			r.DisabledPlugins = append(r.DisabledPlugins, key)
+			delete(r.pluginConfs.Plugins, key)
+		}
+	}
+
 	if r.snapshotter == "" {
 		r.snapshotter = "overlay"
 	}

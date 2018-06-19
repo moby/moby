@@ -198,6 +198,11 @@ type CommonConfig struct {
 	// ContainerAddr is the address used to connect to containerd if we're
 	// not starting it ourselves
 	ContainerdAddr string `json:"containerd,omitempty"`
+
+	// CriContainerd determines whether a supervised containerd instance
+	// should be configured with the CRI plugin enabled. This allows using
+	// Docker's containerd instance directly with a Kubernetes kubelet.
+	CriContainerd bool `json:"cri-containerd,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
