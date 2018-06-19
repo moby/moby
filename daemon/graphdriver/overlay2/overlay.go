@@ -754,16 +754,5 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 // Changes produces a list of changes between the specified layer and its
 // parent layer. If parent is "", then all changes will be ADD changes.
 func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
-	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.Changes(id, parent)
-	}
-	// Overlay doesn't have snapshots, so we need to get changes from all parent
-	// layers.
-	diffPath := d.getDiffPath(id)
-	layers, err := d.getLowerDirs(id)
-	if err != nil {
-		return nil, err
-	}
-
-	return archive.OverlayChanges(layers, diffPath)
+	return d.naiveDiff.Changes(id, parent)
 }
