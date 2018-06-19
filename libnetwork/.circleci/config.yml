@@ -1,0 +1,73 @@
+version: 2
+
+defaults: &defaults
+  working_directory: ~/go/src/github.com/docker/libnetwork
+  docker:
+    - image: 'circleci/golang:1.10'
+      environment:
+          dockerbuildargs: -f Dockerfile.ci .
+          dockerargs:  --privileged -e CIRCLECI
+
+jobs:
+  builder:
+    <<: *defaults
+    steps:
+      - checkout
+      - setup_remote_docker:
+          reusable: true
+          exclusive: false
+      - run: make builder
+
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+      - setup_remote_docker:
+          reusable: true
+          exclusive: false
+      - run: make build
+
+  lint:
+    <<: *defaults
+    steps:
+      - checkout
+      - setup_remote_docker:
+          reusable: true
+          exclusive: false
+      - run: make check
+
+  cross:
+    <<: *defaults
+    steps:
+      - checkout
+      - setup_remote_docker:
+          reusable: true
+          exclusive: false
+      - run: make cross
+
+  unit-tests:
+    <<: *defaults
+    steps:
+      - checkout
+      - setup_remote_docker:
+          reusable: true
+          exclusive: false
+      - run: make unit-tests
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - builder
+      - build:
+          requires:
+            - builder
+      - lint:
+          requires:
+            - builder
+      - cross:
+          requires:
+            - builder
+      - unit-tests:
+          requires:
+            - builder
