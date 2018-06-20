@@ -225,6 +225,13 @@ func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.
 func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
 	var addService bool
 
+	// Failure to lock the network ID on add can result in racing
+	// racing against network deletion resulting in inconsistent
+	// state in the c.serviceBindings map and it's sub-maps. Also,
+	// always lock network ID before services to avoid deadlock.
+	c.networkLocker.Lock(nID)
+	defer c.networkLocker.Unlock(nID)
+
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
