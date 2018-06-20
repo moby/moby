@@ -1,5 +1,3 @@
-// +build !windows
-
 package caps // import "github.com/docker/docker/daemon/caps"
 
 import (

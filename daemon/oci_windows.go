@@ -211,7 +211,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		if !system.LCOWSupported() {
 			return nil, fmt.Errorf("Linux containers on Windows are not supported")
 		}
-		daemon.createSpecLinuxFields(c, &s)
+		if err := daemon.createSpecLinuxFields(c, &s); err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
 	}
@@ -336,12 +338,21 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 // Sets the Linux-specific fields of the OCI spec
 // TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
 // be pulled in from oci_linux.go.
-func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) {
+func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) error {
 	if len(s.Process.Cwd) == 0 {
 		s.Process.Cwd = `/`
 	}
 	s.Root.Path = "rootfs"
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
+	if err := setCapabilities(s, c); err != nil {
+		return fmt.Errorf("linux spec capabilities: %v", err)
+	}
+	devPermissions, err := appendDevicePermissionsFromCgroupRules(nil, c.HostConfig.DeviceCgroupRules)
+	if err != nil {
+		return fmt.Errorf("linux runtime spec devices: %v", err)
+	}
+	s.Linux.Resources.Devices = devPermissions
+	return nil
 }
 
 func escapeArgs(args []string) []string {

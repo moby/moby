@@ -6,14 +6,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/caps"
 	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
@@ -27,11 +25,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
-)
-
-// nolint: gosimple
-var (
-	deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\*) ([rwm]{1,3})$")
 )
 
 func setResources(s *specs.Spec, r containertypes.Resources) error {
@@ -115,39 +108,10 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 			devPermissions = append(devPermissions, dPermissions...)
 		}
 
-		for _, deviceCgroupRule := range c.HostConfig.DeviceCgroupRules {
-			ss := deviceCgroupRuleRegex.FindAllStringSubmatch(deviceCgroupRule, -1)
-			if len(ss[0]) != 5 {
-				return fmt.Errorf("invalid device cgroup rule format: '%s'", deviceCgroupRule)
-			}
-			matches := ss[0]
-
-			dPermissions := specs.LinuxDeviceCgroup{
-				Allow:  true,
-				Type:   matches[1],
-				Access: matches[4],
-			}
-			if matches[2] == "*" {
-				major := int64(-1)
-				dPermissions.Major = &major
-			} else {
-				major, err := strconv.ParseInt(matches[2], 10, 64)
-				if err != nil {
-					return fmt.Errorf("invalid major value in device cgroup rule format: '%s'", deviceCgroupRule)
-				}
-				dPermissions.Major = &major
-			}
-			if matches[3] == "*" {
-				minor := int64(-1)
-				dPermissions.Minor = &minor
-			} else {
-				minor, err := strconv.ParseInt(matches[3], 10, 64)
-				if err != nil {
-					return fmt.Errorf("invalid minor value in device cgroup rule format: '%s'", deviceCgroupRule)
-				}
-				dPermissions.Minor = &minor
-			}
-			devPermissions = append(devPermissions, dPermissions)
+		var err error
+		devPermissions, err = appendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
+		if err != nil {
+			return err
 		}
 	}
 
@@ -247,30 +211,6 @@ func setNamespace(s *specs.Spec, ns specs.LinuxNamespace) {
 		}
 	}
 	s.Linux.Namespaces = append(s.Linux.Namespaces, ns)
-}
-
-func setCapabilities(s *specs.Spec, c *container.Container) error {
-	var caplist []string
-	var err error
-	if c.HostConfig.Privileged {
-		caplist = caps.GetAllCapabilities()
-	} else {
-		caplist, err = caps.TweakCapabilities(s.Process.Capabilities.Bounding, c.HostConfig.CapAdd, c.HostConfig.CapDrop)
-		if err != nil {
-			return err
-		}
-	}
-	s.Process.Capabilities.Effective = caplist
-	s.Process.Capabilities.Bounding = caplist
-	s.Process.Capabilities.Permitted = caplist
-	s.Process.Capabilities.Inheritable = caplist
-	// setUser has already been executed here
-	// if non root drop capabilities in the way execve does
-	if s.Process.User.UID != 0 {
-		s.Process.Capabilities.Effective = []string{}
-		s.Process.Capabilities.Permitted = []string{}
-	}
-	return nil
 }
 
 func setNamespaces(daemon *Daemon, s *specs.Spec, c *container.Container) error {
