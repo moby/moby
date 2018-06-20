@@ -1,6 +1,6 @@
 .PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests
 SHELL=/bin/bash
-dockerbuildargs ?= - < Dockerfile.build
+dockerbuildargs ?= --target dev - < Dockerfile
 dockerargs ?= --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 build_image=libnetworkbuild
 container_env = -e "INSIDECONTAINER=-incontainer=true"
