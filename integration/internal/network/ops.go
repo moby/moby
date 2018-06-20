@@ -26,6 +26,13 @@ func WithCheckDuplicate() func(*types.NetworkCreate) {
 	}
 }
 
+// WithInternal sets the Internal flag on the network
+func WithInternal() func(*types.NetworkCreate) {
+	return func(n *types.NetworkCreate) {
+		n.Internal = true
+	}
+}
+
 // WithMacvlan sets the network as macvlan with the specified parent
 func WithMacvlan(parent string) func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
@@ -34,6 +41,22 @@ func WithMacvlan(parent string) func(*types.NetworkCreate) {
 			n.Options = map[string]string{
 				"parent": parent,
 			}
+		}
+	}
+}
+
+// WithIPvlan sets the network as ipvlan with the specified parent and mode
+func WithIPvlan(parent, mode string) func(*types.NetworkCreate) {
+	return func(n *types.NetworkCreate) {
+		n.Driver = "ipvlan"
+		if n.Options == nil {
+			n.Options = map[string]string{}
+		}
+		if parent != "" {
+			n.Options["parent"] = parent
+		}
+		if mode != "" {
+			n.Options["ipvlan_mode"] = mode
 		}
 	}
 }
