@@ -34,12 +34,14 @@ build-images:
 	docker build -f cmd/diagnostic/Dockerfile.client -t dockereng/network-diagnostic:onlyclient bin/
 	docker build -f cmd/diagnostic/Dockerfile.dind -t dockereng/network-diagnostic:17.12-dind bin/
 	docker build -f cmd/networkdb-test/Dockerfile -t dockereng/e2e-networkdb bin/
+	docker build -t dockereng/network-diagnostic:support.sh support/
 
 push-images: build-images
 	@echo "🐳 $@"
 	docker push dockereng/network-diagnostic:onlyclient
 	docker push dockereng/network-diagnostic:17.12-dind
 	docker push dockereng/e2e-networkdb
+	docker push dockereng/network-diagnostic:support.sh
 
 clean:
 	@echo "🐳 $@"
