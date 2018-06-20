@@ -95,13 +95,10 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	}
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {
-		logrus.Errorf("error in addLBBackend for %s/%s for %v", n.ID(), n.Name(), err)
+		logrus.Errorf("addLBBackend %s/%s: %v", n.ID(), n.Name(), err)
 		return
 	}
 	if sb.osSbox == nil {
-		return
-	}
-	if n.ingress && !sb.ingress {
 		return
 	}
 
@@ -181,13 +178,10 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 	}
 	ep, sb, err := n.findLBEndpointSandbox()
 	if err != nil {
-		logrus.Errorf("error in rmLBBackend for %s/%s for %v", n.ID(), n.Name(), err)
+		logrus.Debugf("rmLBBackend for %s/%s: %v -- probably transient state", n.ID(), n.Name(), err)
 		return
 	}
 	if sb.osSbox == nil {
-		return
-	}
-	if n.ingress && !sb.ingress {
 		return
 	}
 
