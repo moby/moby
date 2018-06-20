@@ -123,3 +123,14 @@ gosimple: ## run gosimple
 
 shell: builder
 	@${docker} ${SHELL}
+
+# Rebuild protocol buffers.
+# These may need to be rebuilt after vendoring updates, so .pb.go files are declared .PHONY so they are always rebuilt.
+PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
+PB_FILES=$(PROTO_FILES:.proto=.pb.go)
+
+%.pb.go: %.proto
+	${docker} protoc -I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf --gogo_out=./ $<
+
+.PHONY: protobuf $(PROTO_FILES)
+protobuf: builder $(PB_FILES)
