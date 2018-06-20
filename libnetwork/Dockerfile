@@ -1,4 +1,4 @@
-FROM golang:1.10
+FROM golang:1.10.2 as dev
 RUN apt-get update && apt-get -y install iptables
 
 RUN go get github.com/golang/lint/golint \
@@ -9,5 +9,7 @@ RUN go get github.com/golang/lint/golint \
 		honnef.co/go/tools/cmd/gosimple
 
 WORKDIR /go/src/github.com/docker/libnetwork
+
+FROM dev
 
 COPY . .

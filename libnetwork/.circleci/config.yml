@@ -5,7 +5,7 @@ defaults: &defaults
   docker:
     - image: 'circleci/golang:1.10'
       environment:
-          dockerbuildargs: -f Dockerfile.ci .
+          dockerbuildargs: .
           dockerargs:  --privileged -e CIRCLECI
 
 jobs:
@@ -14,6 +14,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
+          version: 18.05.0-ce
           reusable: true
           exclusive: false
       - run: make builder
@@ -23,6 +24,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
+          version: 18.05.0-ce
           reusable: true
           exclusive: false
       - run: make build
@@ -32,6 +34,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
+          version: 18.05.0-ce
           reusable: true
           exclusive: false
       - run: make check
@@ -41,6 +44,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
+          version: 18.05.0-ce
           reusable: true
           exclusive: false
       - run: make cross
@@ -50,6 +54,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
+          version: 18.05.0-ce
           reusable: true
           exclusive: false
       - run: make unit-tests

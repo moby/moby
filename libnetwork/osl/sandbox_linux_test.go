@@ -76,7 +76,7 @@ func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 	intf1.address = addr
 	intf1.address.IP = ip4
 
-	ip6, addrv6, err := net.ParseCIDR("2001:DB8::ABCD/48")
+	ip6, addrv6, err := net.ParseCIDR("fe80::2/64")
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,6 @@ func newInfo(hnd *netlink.Handle, t *testing.T) (Sandbox, error) {
 	info := &networkNamespace{iFaces: []*nwIface{intf1, intf2, intf3}}
 
 	info.gw = net.ParseIP("192.168.1.1")
-	// sinfo.GatewayIPv6 = net.ParseIP("2001:DB8::1")
 	info.gwv6 = net.ParseIP("fe80::1")
 
 	return info, nil
