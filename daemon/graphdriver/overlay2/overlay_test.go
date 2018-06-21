@@ -62,7 +62,7 @@ func TestOverlayDiffApply10Files(t *testing.T) {
 }
 
 func TestOverlayChanges(t *testing.T) {
-	skipIfNaive(t)
+	t.Skipf("Cannot run test with naive change algorithm")
 	graphtest.DriverTestChanges(t, driverName)
 }
 
