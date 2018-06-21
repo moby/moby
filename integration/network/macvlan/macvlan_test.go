@@ -184,10 +184,10 @@ func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netName,
 			net.WithMacvlan(""),
 			net.WithIPv6(),
-			net.WithIPAM("172.28.100.0/24", ""),
-			net.WithIPAM("172.28.102.0/24", "172.28.102.254"),
-			net.WithIPAM("2001:db8:abc2::/64", ""),
-			net.WithIPAM("2001:db8:abc4::/64", "2001:db8:abc4::254"),
+			net.WithIPAM("", "172.28.100.0/24", "", ""),
+			net.WithIPAM("", "172.28.102.0/24", "172.28.102.254", ""),
+			net.WithIPAM("", "2001:db8:abc2::/64", "", ""),
+			net.WithIPAM("", "2001:db8:abc4::/64", "2001:db8:abc4::254", ""),
 		)
 
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -254,8 +254,8 @@ func testMacvlanAddressing(client client.APIClient) func(*testing.T) {
 			net.WithMacvlan(""),
 			net.WithIPv6(),
 			net.WithOption("macvlan_mode", "bridge"),
-			net.WithIPAM("172.28.130.0/24", ""),
-			net.WithIPAM("2001:db8:abca::/64", "2001:db8:abca::254"),
+			net.WithIPAM("", "172.28.130.0/24", "", ""),
+			net.WithIPAM("", "2001:db8:abca::/64", "2001:db8:abca::254", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 

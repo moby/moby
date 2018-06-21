@@ -189,8 +189,8 @@ func testIpvlanL3NilParent(client dclient.APIClient) func(*testing.T) {
 		netName := "di-nil-parent-l3"
 		net.CreateNoError(t, context.Background(), client, netName,
 			net.WithIPvlan("", "l3"),
-			net.WithIPAM("172.28.230.0/24", ""),
-			net.WithIPAM("172.28.220.0/24", ""),
+			net.WithIPAM("", "172.28.230.0/24", "", ""),
+			net.WithIPAM("", "172.28.220.0/24", "", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
@@ -215,8 +215,8 @@ func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netName,
 			net.WithIPvlan("", "l3"),
 			net.WithInternal(),
-			net.WithIPAM("172.28.230.0/24", ""),
-			net.WithIPAM("172.28.220.0/24", ""),
+			net.WithIPAM("", "172.28.230.0/24", "", ""),
+			net.WithIPAM("", "172.28.220.0/24", "", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
@@ -248,10 +248,10 @@ func testIpvlanL2MultiSubnet(client dclient.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netName,
 			net.WithIPvlan("", ""),
 			net.WithIPv6(),
-			net.WithIPAM("172.28.200.0/24", ""),
-			net.WithIPAM("172.28.202.0/24", "172.28.202.254"),
-			net.WithIPAM("2001:db8:abc8::/64", ""),
-			net.WithIPAM("2001:db8:abc6::/64", "2001:db8:abc6::254"),
+			net.WithIPAM("", "172.28.200.0/24", "", ""),
+			net.WithIPAM("", "172.28.202.0/24", "172.28.202.254", ""),
+			net.WithIPAM("", "2001:db8:abc8::/64", "", ""),
+			net.WithIPAM("", "2001:db8:abc6::/64", "2001:db8:abc6::254", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
@@ -315,10 +315,10 @@ func testIpvlanL3MultiSubnet(client dclient.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netName,
 			net.WithIPvlan("", "l3"),
 			net.WithIPv6(),
-			net.WithIPAM("172.28.10.0/24", ""),
-			net.WithIPAM("172.28.12.0/24", "172.28.12.254"),
-			net.WithIPAM("2001:db8:abc9::/64", ""),
-			net.WithIPAM("2001:db8:abc7::/64", "2001:db8:abc7::254"),
+			net.WithIPAM("", "172.28.10.0/24", "", ""),
+			net.WithIPAM("", "172.28.12.0/24", "172.28.12.254", ""),
+			net.WithIPAM("", "2001:db8:abc9::/64", "", ""),
+			net.WithIPAM("", "2001:db8:abc7::/64", "2001:db8:abc7::254", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
@@ -384,8 +384,8 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netNameL2,
 			net.WithIPvlan("", "l2"),
 			net.WithIPv6(),
-			net.WithIPAM("172.28.140.0/24", "172.28.140.254"),
-			net.WithIPAM("2001:db8:abcb::/64", ""),
+			net.WithIPAM("", "172.28.140.0/24", "172.28.140.254", ""),
+			net.WithIPAM("", "2001:db8:abcb::/64", "", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netNameL2))
 
@@ -407,8 +407,8 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 		net.CreateNoError(t, context.Background(), client, netNameL3,
 			net.WithIPvlan("", "l3"),
 			net.WithIPv6(),
-			net.WithIPAM("172.28.160.0/24", "172.28.160.254"),
-			net.WithIPAM("2001:db8:abcd::/64", "2001:db8:abcd::254"),
+			net.WithIPAM("", "172.28.160.0/24", "172.28.160.254", ""),
+			net.WithIPAM("", "2001:db8:abcd::/64", "2001:db8:abcd::254", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netNameL3))
 
