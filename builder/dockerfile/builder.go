@@ -306,7 +306,7 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 
 	stagesResults := newStagesBuildResults()
 
-	for _, stage := range parseResult {
+	for s, stage := range parseResult {
 		if err := stagesResults.checkStageNameAvailable(stage.Name); err != nil {
 			return nil, err
 		}
@@ -344,6 +344,12 @@ func (b *Builder) dispatchDockerfileWithCancellation(parseResult []instructions.
 		buildArgs.MergeReferencedArgs(dispatchRequest.state.buildArgs)
 		if err := commitStage(dispatchRequest.state, stagesResults); err != nil {
 			return nil, err
+		}
+
+		if len(dispatchRequest.state.stageName) > 0 {
+			fmt.Fprintf(b.Stdout, "Successfully built %s (stage: %s)\n", stringid.TruncateID(dispatchRequest.state.imageID), dispatchRequest.state.stageName)
+		} else if len(parseResult) > 1 {
+			fmt.Fprintf(b.Stdout, "Successfully built %s (stage: %v)\n", stringid.TruncateID(dispatchRequest.state.imageID), s)
 		}
 	}
 	buildArgs.WarnOnUnusedBuildArgs(b.Stdout)
