@@ -310,19 +310,33 @@ func doJoin(ips []string) {
 	close(doneCh)
 }
 
-// cluster-peers expectedNumberPeers
+// cluster-peers expectedNumberPeers maxRetry
 func doClusterPeers(ips []string, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	expectedPeers, _ := strconv.Atoi(args[0])
-	// check all the nodes
-	for _, ip := range ips {
-		go clusterPeersNumber(ip, servicePort, doneCh)
-	}
-	// wait for the readiness of all nodes
-	for i := len(ips); i > 0; i-- {
-		node := <-doneCh
-		if node.result != expectedPeers {
-			log.Fatalf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+	maxRetry, _ := strconv.Atoi(args[1])
+	for retry := 0; retry < maxRetry; retry++ {
+		// check all the nodes
+		for _, ip := range ips {
+			go clusterPeersNumber(ip, servicePort, doneCh)
+		}
+		var failed bool
+		// wait for the readiness of all nodes
+		for i := len(ips); i > 0; i-- {
+			node := <-doneCh
+			if node.result != expectedPeers {
+				failed = true
+				if retry == maxRetry-1 {
+					log.Fatalf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+				} else {
+					logrus.Warnf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+				}
+				time.Sleep(1 * time.Second)
+			}
+		}
+		// check if needs retry
+		if !failed {
+			break
 		}
 	}
 	close(doneCh)
@@ -356,7 +370,7 @@ func doLeaveNetwork(ips []string, args []string) {
 	close(doneCh)
 }
 
-// cluster-peers networkName expectedNumberPeers maxRetry
+// network-peers networkName expectedNumberPeers maxRetry
 func doNetworkPeers(ips []string, args []string) {
 	doneCh := make(chan resultTuple, len(ips))
 	networkName := args[0]
@@ -367,10 +381,12 @@ func doNetworkPeers(ips []string, args []string) {
 		for _, ip := range ips {
 			go networkPeersNumber(ip, servicePort, networkName, doneCh)
 		}
+		var failed bool
 		// wait for the readiness of all nodes
 		for i := len(ips); i > 0; i-- {
 			node := <-doneCh
 			if node.result != expectedPeers {
+				failed = true
 				if retry == maxRetry-1 {
 					log.Fatalf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
 				} else {
@@ -378,6 +394,10 @@ func doNetworkPeers(ips []string, args []string) {
 				}
 				time.Sleep(1 * time.Second)
 			}
+		}
+		// check if needs retry
+		if !failed {
+			break
 		}
 	}
 	close(doneCh)
@@ -618,8 +638,9 @@ var cmdArgChec = map[string]int{
 	"leave":                    2,
 	"join-network":             3,
 	"leave-network":            3,
-	"cluster-peers":            3,
-	"write-delete-unique-keys": 4,
+	"cluster-peers":            5,
+	"network-peers":            5,
+	"write-delete-unique-keys": 7,
 }
 
 // Client is a client
@@ -628,7 +649,7 @@ func Client(args []string) {
 	command := args[0]
 
 	if len(args) < cmdArgChec[command] {
-		log.Fatalf("Command %s requires %d arguments, aborting...", command, cmdArgChec[command])
+		log.Fatalf("Command %s requires %d arguments, passed %d, aborting...", command, cmdArgChec[command], len(args))
 	}
 
 	switch command {
@@ -656,7 +677,7 @@ func Client(args []string) {
 	case "leave":
 
 	case "cluster-peers":
-		// cluster-peers
+		// cluster-peers maxRetry
 		doClusterPeers(ips, commandArgs)
 
 	case "join-network":
