@@ -51,7 +51,7 @@ func (rl *roLayer) TarStreamFrom(parent ChainID) (io.ReadCloser, error) {
 	if parent != ChainID("") && parentCacheID == "" {
 		return nil, fmt.Errorf("layer ID '%s' is not a parent of the specified layer: cannot provide diff to non-parent", parent)
 	}
-	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID)
+	return rl.layerStore.driver.Diff(rl.cacheID, parentCacheID, "")
 }
 
 func (rl *roLayer) CacheID() string {

@@ -207,7 +207,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 		t.Fatal(err)
 	}
 
-	diffSize, err := driver.DiffSize(upper, "")
+	diffSize, err := driver.DiffSize(upper, "", "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -225,7 +225,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 		t.Fatal(err)
 	}
 
-	arch, err := driver.Diff(upper, base)
+	arch, err := driver.Diff(upper, base, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -238,7 +238,7 @@ func DriverTestDiffApply(t testing.TB, fileCount int, drivername string, driverO
 		t.Fatal(err)
 	}
 
-	applyDiffSize, err := driver.ApplyDiff(diff, base, bytes.NewReader(buf.Bytes()))
+	applyDiffSize, err := driver.ApplyDiff(diff, base, "", bytes.NewReader(buf.Bytes()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -283,7 +283,7 @@ func DriverTestChanges(t testing.TB, drivername string, driverOptions ...string)
 		t.Fatal(err)
 	}
 
-	changes, err := driver.Changes(upper, base)
+	changes, err := driver.Changes(upper, base, "")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -72,7 +72,7 @@ func DriverBenchDiffBase(b *testing.B, drivername string, driveroptions ...strin
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		arch, err := driver.Diff(base, "")
+		arch, err := driver.Diff(base, "", "")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -108,7 +108,7 @@ func DriverBenchDiffN(b *testing.B, bottom, top int, drivername string, driverop
 	}
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		arch, err := driver.Diff(upper, "")
+		arch, err := driver.Diff(upper, "", "")
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -141,7 +141,7 @@ func DriverBenchDiffApplyN(b *testing.B, fileCount int, drivername string, drive
 	if err := addManyFiles(driver, upper, fileCount, 6); err != nil {
 		b.Fatal(err)
 	}
-	diffSize, err := driver.DiffSize(upper, "")
+	diffSize, err := driver.DiffSize(upper, "", "")
 	if err != nil {
 		b.Fatal(err)
 	}
@@ -159,12 +159,12 @@ func DriverBenchDiffApplyN(b *testing.B, fileCount int, drivername string, drive
 
 		b.StartTimer()
 
-		arch, err := driver.Diff(upper, "")
+		arch, err := driver.Diff(upper, "", "")
 		if err != nil {
 			b.Fatal(err)
 		}
 
-		applyDiffSize, err := driver.ApplyDiff(diff, "", arch)
+		applyDiffSize, err := driver.ApplyDiff(diff, "", "", arch)
 		if err != nil {
 			b.Fatal(err)
 		}
@@ -203,7 +203,7 @@ func DriverBenchDeepLayerDiff(b *testing.B, layerCount int, drivername string, d
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		arch, err := driver.Diff(topLayer, "")
+		arch, err := driver.Diff(topLayer, "", "")
 		if err != nil {
 			b.Fatal(err)
 		}

@@ -13,6 +13,7 @@ type mountedLayer struct {
 	initID     string
 	parent     *roLayer
 	path       string
+	mountLabel string
 	layerStore *layerStore
 
 	references map[RWLayer]*referencedRWLayer
@@ -29,7 +30,7 @@ func (ml *mountedLayer) cacheParent() string {
 }
 
 func (ml *mountedLayer) TarStream() (io.ReadCloser, error) {
-	return ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent())
+	return ml.layerStore.driver.Diff(ml.mountID, ml.cacheParent(), ml.mountLabel)
 }
 
 func (ml *mountedLayer) Name() string {
@@ -47,11 +48,11 @@ func (ml *mountedLayer) Parent() Layer {
 }
 
 func (ml *mountedLayer) Size() (int64, error) {
-	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent())
+	return ml.layerStore.driver.DiffSize(ml.mountID, ml.cacheParent(), ml.mountLabel)
 }
 
 func (ml *mountedLayer) Changes() ([]archive.Change, error) {
-	return ml.layerStore.driver.Changes(ml.mountID, ml.cacheParent())
+	return ml.layerStore.driver.Changes(ml.mountID, ml.cacheParent(), ml.mountLabel)
 }
 
 func (ml *mountedLayer) Metadata() (map[string]string, error) {

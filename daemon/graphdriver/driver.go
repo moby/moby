@@ -84,19 +84,19 @@ type ProtoDriver interface {
 type DiffDriver interface {
 	// Diff produces an archive of the changes between the specified
 	// layer and its parent layer which may be "".
-	Diff(id, parent string) (io.ReadCloser, error)
+	Diff(id, parent, mountLabel string) (io.ReadCloser, error)
 	// Changes produces a list of changes between the specified layer
 	// and its parent layer. If parent is "", then all changes will be ADD changes.
-	Changes(id, parent string) ([]archive.Change, error)
+	Changes(id, parent, mountLabel string) ([]archive.Change, error)
 	// ApplyDiff extracts the changeset from the given diff into the
 	// layer with the specified id and parent, returning the size of the
 	// new layer in bytes.
 	// The archive.Reader must be an uncompressed stream.
-	ApplyDiff(id, parent string, diff io.Reader) (size int64, err error)
+	ApplyDiff(id, parent, mountLabel string, diff io.Reader) (size int64, err error)
 	// DiffSize calculates the changes between the specified id
 	// and its parent and returns the size in bytes of the changes
 	// relative to its base filesystem directory.
-	DiffSize(id, parent string) (size int64, err error)
+	DiffSize(id, parent, mountLabel string) (size int64, err error)
 }
 
 // Driver is the interface for layered/snapshot file system drivers.

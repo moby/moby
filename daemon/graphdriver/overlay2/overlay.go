@@ -697,9 +697,9 @@ func (d *Driver) isParent(id, parent string) bool {
 }
 
 // ApplyDiff applies the new layer into a root
-func (d *Driver) ApplyDiff(id string, parent string, diff io.Reader) (size int64, err error) {
+func (d *Driver) ApplyDiff(id, parent, mountLabel string, diff io.Reader) (size int64, err error) {
 	if !d.isParent(id, parent) {
-		return d.naiveDiff.ApplyDiff(id, parent, diff)
+		return d.naiveDiff.ApplyDiff(id, parent, mountLabel, diff)
 	}
 
 	applyDir := d.getDiffPath(id)
@@ -727,18 +727,18 @@ func (d *Driver) getDiffPath(id string) string {
 // DiffSize calculates the changes between the specified id
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+func (d *Driver) DiffSize(id, parent, mountLabel string) (size int64, err error) {
 	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.DiffSize(id, parent)
+		return d.naiveDiff.DiffSize(id, parent, mountLabel)
 	}
 	return directory.Size(context.TODO(), d.getDiffPath(id))
 }
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
-func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
+func (d *Driver) Diff(id, parent, mountLabel string) (io.ReadCloser, error) {
 	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.Diff(id, parent)
+		return d.naiveDiff.Diff(id, parent, mountLabel)
 	}
 
 	diffPath := d.getDiffPath(id)
@@ -753,6 +753,6 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 
 // Changes produces a list of changes between the specified layer and its
 // parent layer. If parent is "", then all changes will be ADD changes.
-func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
-	return d.naiveDiff.Changes(id, parent)
+func (d *Driver) Changes(id, parent, mountLabel string) ([]archive.Change, error) {
+	return d.naiveDiff.Changes(id, parent, mountLabel)
 }

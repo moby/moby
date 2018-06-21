@@ -753,7 +753,7 @@ func (d *Driver) Cleanup() error {
 // of this function dictate that the layer is already mounted.
 // However, as we do lazy mounting as a performance optimisation,
 // this will likely not be the case.
-func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
+func (d *Driver) Diff(id, parent, label string) (io.ReadCloser, error) {
 	title := fmt.Sprintf("lcowdriver: diff: %s", id)
 
 	// Get VHDX info
@@ -811,7 +811,7 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 // new layer in bytes. The layer should not be mounted when calling
 // this function. Another way of describing this is that ApplyDiff writes
 // to a new layer (a VHD in LCOW) the contents of a tarstream it's given.
-func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent, label string, diff io.Reader) (int64, error) {
 	logrus.Debugf("lcowdriver: applydiff: id %s", id)
 
 	svm, err := d.startServiceVMIfNotRunning(id, nil, fmt.Sprintf("applydiff %s", id))
@@ -845,7 +845,7 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 // The layer should not be mounted when calling this function.
-func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
+func (d *Driver) Changes(id, parent, label string) ([]archive.Change, error) {
 	logrus.Debugf("lcowdriver: changes: id %s parent %s", id, parent)
 	// TODO @gupta-ak. Needs implementation with assistance from service VM
 	return nil, nil
@@ -854,7 +854,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+func (d *Driver) DiffSize(id, parent, label string) (size int64, err error) {
 	logrus.Debugf("lcowdriver: diffsize: id %s", id)
 	// TODO @gupta-ak. Needs implementation with assistance from service VM
 	return 0, nil

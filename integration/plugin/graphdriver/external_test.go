@@ -285,7 +285,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			return
 		}
 
-		diff, err := driver.Diff(req.ID, req.Parent)
+		diff, err := driver.Diff(req.ID, req.Parent, req.MountLabel)
 		if err != nil {
 			respond(w, err)
 			return
@@ -300,7 +300,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			return
 		}
 
-		changes, err := driver.Changes(req.ID, req.Parent)
+		changes, err := driver.Changes(req.ID, req.Parent, req.MountLabel)
 		if err != nil {
 			respond(w, err)
 			return
@@ -313,6 +313,10 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 		diff := r.Body
 		defer r.Body.Close()
 
+		var req graphDriverRequest
+		if err := decReq(r.Body, &req, w); err != nil {
+			return
+		}
 		id := r.URL.Query().Get("id")
 		parent := r.URL.Query().Get("parent")
 
@@ -320,7 +324,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			http.Error(w, fmt.Sprintf("missing id"), 409)
 		}
 
-		size, err := driver.ApplyDiff(id, parent, diff)
+		size, err := driver.ApplyDiff(id, parent, req.MountLabel, diff)
 		if err != nil {
 			respond(w, err)
 			return
@@ -336,7 +340,7 @@ func setupPlugin(t *testing.T, ec map[string]*graphEventsCounter, ext string, mu
 			return
 		}
 
-		size, err := driver.DiffSize(req.ID, req.Parent)
+		size, err := driver.DiffSize(req.ID, req.Parent, req.MountLabel)
 		if err != nil {
 			respond(w, err)
 			return

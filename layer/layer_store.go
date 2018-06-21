@@ -252,7 +252,7 @@ func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent
 		}
 	}
 
-	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, rdr)
+	applySize, err := ls.driver.ApplyDiff(layer.cacheID, parent, "", rdr)
 	if err != nil {
 		return err
 	}
@@ -520,6 +520,7 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		name:       name,
 		parent:     p,
 		mountID:    ls.mountID(name),
+		mountLabel: mountLabel,
 		layerStore: ls,
 		references: map[RWLayer]*referencedRWLayer{},
 	}
@@ -653,7 +654,7 @@ func (ls *layerStore) initMount(graphID, parent, mountLabel string, initFunc Mou
 	if err := ls.driver.CreateReadWrite(initID, parent, createOpts); err != nil {
 		return "", err
 	}
-	p, err := ls.driver.Get(initID, "")
+	p, err := ls.driver.Get(initID, mountLabel)
 	if err != nil {
 		return "", err
 	}
@@ -677,7 +678,7 @@ func (ls *layerStore) getTarStream(rl *roLayer) (io.ReadCloser, error) {
 			parentCacheID = rl.parent.cacheID
 		}
 
-		return ls.driver.Diff(rl.cacheID, parentCacheID)
+		return ls.driver.Diff(rl.cacheID, parentCacheID, "")
 	}
 
 	r, err := ls.store.TarSplitReader(rl.chainID)

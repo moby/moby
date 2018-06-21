@@ -462,7 +462,7 @@ func (d *Driver) Cleanup() error {
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 // The layer should be mounted when calling this function
-func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
+func (d *Driver) Diff(id, parent, mountLabel string) (_ io.ReadCloser, err error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return
@@ -498,7 +498,7 @@ func (d *Driver) Diff(id, parent string) (_ io.ReadCloser, err error) {
 // Changes produces a list of changes between the specified layer
 // and its parent layer. If parent is "", then all changes will be ADD changes.
 // The layer should not be mounted when calling this function.
-func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
+func (d *Driver) Changes(id, parent, mountLabel string) ([]archive.Change, error) {
 	rID, err := d.resolveID(id)
 	if err != nil {
 		return nil, err
@@ -553,7 +553,7 @@ func (d *Driver) Changes(id, parent string) ([]archive.Change, error) {
 // layer with the specified id and parent, returning the size of the
 // new layer in bytes.
 // The layer should not be mounted when calling this function
-func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
+func (d *Driver) ApplyDiff(id, parent, mountLabel string, diff io.Reader) (int64, error) {
 	var layerChain []string
 	if parent != "" {
 		rPId, err := d.resolveID(parent)
@@ -587,13 +587,13 @@ func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 // DiffSize calculates the changes between the specified layer
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
-func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
+func (d *Driver) DiffSize(id, parent, mountLabel string) (size int64, err error) {
 	rPId, err := d.resolveID(parent)
 	if err != nil {
 		return
 	}
 
-	changes, err := d.Changes(id, rPId)
+	changes, err := d.Changes(id, rPId, mountLabel)
 	if err != nil {
 		return
 	}
