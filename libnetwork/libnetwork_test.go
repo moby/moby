@@ -210,7 +210,7 @@ func TestUnknownDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if errdefs.IsNotFound(err) {
+	if !errdefs.IsNotFound(err) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
