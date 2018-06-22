@@ -31,6 +31,12 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+func launchNode(t *testing.T, conf Config) *NetworkDB {
+	db, err := New(&conf)
+	require.NoError(t, err)
+	return db
+}
+
 func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Config) []*NetworkDB {
 	var dbs []*NetworkDB
 	for i := 0; i < num; i++ {
@@ -38,12 +44,9 @@ func createNetworkDBInstances(t *testing.T, num int, namePrefix string, conf *Co
 		localConfig.Hostname = fmt.Sprintf("%s%d", namePrefix, i+1)
 		localConfig.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
 		localConfig.BindPort = int(atomic.AddInt32(&dbPort, 1))
-		db, err := New(&localConfig)
-		require.NoError(t, err)
-
+		db := launchNode(t, localConfig)
 		if i != 0 {
-			err = db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)})
-			assert.NoError(t, err)
+			assert.NoError(t, db.Join([]string{fmt.Sprintf("localhost:%d", db.config.BindPort-1)}))
 		}
 
 		dbs = append(dbs, db)
@@ -802,4 +805,61 @@ func TestParallelDelete(t *testing.T) {
 	assert.Equal(t, int32(1), success)
 
 	closeNetworkDBInstances(dbs)
+}
+
+func TestNetworkDBIslands(t *testing.T) {
+	logrus.SetLevel(logrus.DebugLevel)
+	dbs := createNetworkDBInstances(t, 5, "node", DefaultConfig())
+
+	// Get the node IP used currently
+	node, _ := dbs[0].nodes[dbs[0].config.NodeID]
+	baseIPStr := node.Addr.String()
+	// Node 0,1,2 are going to be the 3 bootstrap nodes
+	members := []string{fmt.Sprintf("%s:%d", baseIPStr, dbs[0].config.BindPort),
+		fmt.Sprintf("%s:%d", baseIPStr, dbs[1].config.BindPort),
+		fmt.Sprintf("%s:%d", baseIPStr, dbs[2].config.BindPort)}
+	// Rejoining will update the list of the bootstrap members
+	for i := 3; i < 5; i++ {
+		assert.NoError(t, dbs[i].Join(members))
+	}
+
+	// Now the 3 bootstrap nodes will cleanly leave, and will be properly removed from the other 2 nodes
+	for i := 0; i < 3; i++ {
+		logrus.Infof("node %d leaving", i)
+		dbs[i].Close()
+		time.Sleep(2 * time.Second)
+	}
+
+	// Give some time to let the system propagate the messages and free up the ports
+	time.Sleep(10 * time.Second)
+
+	// Verify that the nodes are actually all gone and marked appropiately
+	for i := 3; i < 5; i++ {
+		assert.Len(t, dbs[i].leftNodes, 3)
+		assert.Len(t, dbs[i].failedNodes, 0)
+	}
+
+	// Spawn again the first 3 nodes with different names but same IP:port
+	for i := 0; i < 3; i++ {
+		logrus.Infof("node %d coming back", i)
+		dbs[i].config.NodeID = stringid.TruncateID(stringid.GenerateRandomID())
+		dbs[i] = launchNode(t, *dbs[i].config)
+		time.Sleep(2 * time.Second)
+	}
+
+	// Give some time for the reconnect routine to run, it runs every 60s
+	time.Sleep(50 * time.Second)
+
+	// Verify that the cluster is again all connected. Note that the 3 previous node did not do any join
+	for i := 0; i < 5; i++ {
+		assert.Len(t, dbs[i].nodes, 5)
+		assert.Len(t, dbs[i].failedNodes, 0)
+		if i < 3 {
+			// nodes from 0 to 3 has no left nodes
+			assert.Len(t, dbs[i].leftNodes, 0)
+		} else {
+			// nodes from 4 to 5 has the 3 previous left nodes
+			assert.Len(t, dbs[i].leftNodes, 3)
+		}
+	}
 }

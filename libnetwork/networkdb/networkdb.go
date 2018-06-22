@@ -5,7 +5,6 @@ package networkdb
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"strings"
 	"sync"
@@ -96,7 +95,7 @@ type NetworkDB struct {
 
 	// bootStrapIP is the list of IPs that can be used to bootstrap
 	// the gossip.
-	bootStrapIP []net.IP
+	bootStrapIP []string
 
 	// lastStatsTimestamp is the last timestamp when the stats got printed
 	lastStatsTimestamp time.Time
@@ -268,10 +267,8 @@ func New(c *Config) (*NetworkDB, error) {
 // instances passed by the caller in the form of addr:port
 func (nDB *NetworkDB) Join(members []string) error {
 	nDB.Lock()
-	nDB.bootStrapIP = make([]net.IP, 0, len(members))
-	for _, m := range members {
-		nDB.bootStrapIP = append(nDB.bootStrapIP, net.ParseIP(m))
-	}
+	nDB.bootStrapIP = append([]string(nil), members...)
+	logrus.Infof("The new bootstrap node list is:%v", nDB.bootStrapIP)
 	nDB.Unlock()
 	return nDB.clusterJoin(members)
 }
