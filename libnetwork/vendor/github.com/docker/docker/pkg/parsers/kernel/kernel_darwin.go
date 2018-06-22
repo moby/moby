@@ -2,7 +2,7 @@
 
 // Package kernel provides helper function to get, parse and compare kernel
 // versions for different platforms.
-package kernel
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
 	"fmt"

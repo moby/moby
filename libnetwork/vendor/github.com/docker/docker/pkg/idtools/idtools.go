@@ -1,4 +1,4 @@
-package idtools
+package idtools // import "github.com/docker/docker/pkg/idtools"
 
 import (
 	"bufio"
@@ -30,43 +30,30 @@ func (e ranges) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
 func (e ranges) Less(i, j int) bool { return e[i].Start < e[j].Start }
 
 const (
-	subuidFileName string = "/etc/subuid"
-	subgidFileName string = "/etc/subgid"
+	subuidFileName = "/etc/subuid"
+	subgidFileName = "/etc/subgid"
 )
-
-// MkdirAllAs creates a directory (include any along the path) and then modifies
-// ownership to the requested uid/gid.  If the directory already exists, this
-// function will still change ownership to the requested uid/gid pair.
-// Deprecated: Use MkdirAllAndChown
-func MkdirAllAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
-	return mkdirAs(path, mode, ownerUID, ownerGID, true, true)
-}
-
-// MkdirAs creates a directory and then modifies ownership to the requested uid/gid.
-// If the directory already exists, this function still changes ownership
-// Deprecated: Use MkdirAndChown with a IDPair
-func MkdirAs(path string, mode os.FileMode, ownerUID, ownerGID int) error {
-	return mkdirAs(path, mode, ownerUID, ownerGID, false, true)
-}
 
 // MkdirAllAndChown creates a directory (include any along the path) and then modifies
 // ownership to the requested uid/gid.  If the directory already exists, this
 // function will still change ownership to the requested uid/gid pair.
-func MkdirAllAndChown(path string, mode os.FileMode, ids IDPair) error {
-	return mkdirAs(path, mode, ids.UID, ids.GID, true, true)
+func MkdirAllAndChown(path string, mode os.FileMode, owner IDPair) error {
+	return mkdirAs(path, mode, owner.UID, owner.GID, true, true)
 }
 
 // MkdirAndChown creates a directory and then modifies ownership to the requested uid/gid.
-// If the directory already exists, this function still changes ownership
-func MkdirAndChown(path string, mode os.FileMode, ids IDPair) error {
-	return mkdirAs(path, mode, ids.UID, ids.GID, false, true)
+// If the directory already exists, this function still changes ownership.
+// Note that unlike os.Mkdir(), this function does not return IsExist error
+// in case path already exists.
+func MkdirAndChown(path string, mode os.FileMode, owner IDPair) error {
+	return mkdirAs(path, mode, owner.UID, owner.GID, false, true)
 }
 
 // MkdirAllAndChownNew creates a directory (include any along the path) and then modifies
 // ownership ONLY of newly created directories to the requested uid/gid. If the
 // directories along the path exist, no change of ownership will be performed
-func MkdirAllAndChownNew(path string, mode os.FileMode, ids IDPair) error {
-	return mkdirAs(path, mode, ids.UID, ids.GID, true, false)
+func MkdirAllAndChownNew(path string, mode os.FileMode, owner IDPair) error {
+	return mkdirAs(path, mode, owner.UID, owner.GID, true, false)
 }
 
 // GetRootUIDGID retrieves the remapped root uid/gid pair from the set of maps.

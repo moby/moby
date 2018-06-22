@@ -23,7 +23,7 @@ type VethPairName struct {
 type CriuOpts struct {
 	ImagesDirectory         string             // directory for storing image files
 	WorkDirectory           string             // directory to cd and write logs/pidfiles/stats to
-	ParentImage             string             // direcotry for storing parent image files in pre-dump and dump
+	ParentImage             string             // directory for storing parent image files in pre-dump and dump
 	LeaveRunning            bool               // leave container in running state after checkpoint
 	TcpEstablished          bool               // checkpoint/restore established TCP connections
 	ExternalUnixConnections bool               // allow external unix connections

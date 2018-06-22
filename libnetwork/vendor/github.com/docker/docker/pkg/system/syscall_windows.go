@@ -1,6 +1,7 @@
-package system
+package system // import "github.com/docker/docker/pkg/system"
 
 import (
+	"fmt"
 	"unsafe"
 
 	"github.com/sirupsen/logrus"
@@ -51,6 +52,10 @@ func GetOSVersion() OSVersion {
 	osv.MinorVersion = uint8(osv.Version >> 8 & 0xFF)
 	osv.Build = uint16(osv.Version >> 16)
 	return osv
+}
+
+func (osv OSVersion) ToString() string {
+	return fmt.Sprintf("%d.%d.%d", osv.MajorVersion, osv.MinorVersion, osv.Build)
 }
 
 // IsWindowsClient returns true if the SKU is client

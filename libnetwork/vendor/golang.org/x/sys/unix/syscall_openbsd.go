@@ -13,10 +13,12 @@
 package unix
 
 import (
+	"sort"
 	"syscall"
 	"unsafe"
 )
 
+// SockaddrDatalink implements the Sockaddr interface for AF_LINK type sockets.
 type SockaddrDatalink struct {
 	Len    uint8
 	Family uint8
@@ -32,37 +34,13 @@ type SockaddrDatalink struct {
 func Syscall9(trap, a1, a2, a3, a4, a5, a6, a7, a8, a9 uintptr) (r1, r2 uintptr, err syscall.Errno)
 
 func nametomib(name string) (mib []_C_int, err error) {
-
-	// Perform lookup via a binary search
-	left := 0
-	right := len(sysctlMib) - 1
-	for {
-		idx := left + (right-left)/2
-		switch {
-		case name == sysctlMib[idx].ctlname:
-			return sysctlMib[idx].ctloid, nil
-		case name > sysctlMib[idx].ctlname:
-			left = idx + 1
-		default:
-			right = idx - 1
-		}
-		if left > right {
-			break
-		}
+	i := sort.Search(len(sysctlMib), func(i int) bool {
+		return sysctlMib[i].ctlname >= name
+	})
+	if i < len(sysctlMib) && sysctlMib[i].ctlname == name {
+		return sysctlMib[i].ctloid, nil
 	}
 	return nil, EINVAL
-}
-
-func direntIno(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Fileno), unsafe.Sizeof(Dirent{}.Fileno))
-}
-
-func direntReclen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Reclen), unsafe.Sizeof(Dirent{}.Reclen))
-}
-
-func direntNamlen(buf []byte) (uint64, bool) {
-	return readInt(buf, unsafe.Offsetof(Dirent{}.Namlen), unsafe.Sizeof(Dirent{}.Namlen))
 }
 
 //sysnb pipe(p *[2]_C_int) (err error)
@@ -80,6 +58,23 @@ func Pipe(p []int) (err error) {
 //sys getdents(fd int, buf []byte) (n int, err error)
 func Getdirentries(fd int, buf []byte, basep *uintptr) (n int, err error) {
 	return getdents(fd, buf)
+}
+
+const ImplementsGetwd = true
+
+//sys	Getcwd(buf []byte) (n int, err error) = SYS___GETCWD
+
+func Getwd() (string, error) {
+	var buf [PathMax]byte
+	_, err := Getcwd(buf[0:])
+	if err != nil {
+		return "", err
+	}
+	n := clen(buf[:])
+	if n < 1 {
+		return "", EINVAL
+	}
+	return string(buf[:n]), nil
 }
 
 // TODO
@@ -100,6 +95,96 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 		err = e1
 	}
 	return
+}
+
+func setattrlistTimes(path string, times []Timespec, flags int) error {
+	// used on Darwin for UtimesNano
+	return ENOSYS
+}
+
+//sys	ioctl(fd int, req uint, arg uintptr) (err error)
+
+// ioctl itself should not be exposed directly, but additional get/set
+// functions for specific types are permissible.
+
+// IoctlSetInt performs an ioctl operation which sets an integer value
+// on fd, using the specified request number.
+func IoctlSetInt(fd int, req uint, value int) error {
+	return ioctl(fd, req, uintptr(value))
+}
+
+func IoctlSetWinsize(fd int, req uint, value *Winsize) error {
+	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+}
+
+func IoctlSetTermios(fd int, req uint, value *Termios) error {
+	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
+}
+
+// IoctlGetInt performs an ioctl operation which gets an integer value
+// from fd, using the specified request number.
+func IoctlGetInt(fd int, req uint) (int, error) {
+	var value int
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return value, err
+}
+
+func IoctlGetWinsize(fd int, req uint) (*Winsize, error) {
+	var value Winsize
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+}
+
+func IoctlGetTermios(fd int, req uint) (*Termios, error) {
+	var value Termios
+	err := ioctl(fd, req, uintptr(unsafe.Pointer(&value)))
+	return &value, err
+}
+
+func Uname(uname *Utsname) error {
+	mib := []_C_int{CTL_KERN, KERN_OSTYPE}
+	n := unsafe.Sizeof(uname.Sysname)
+	if err := sysctl(mib, &uname.Sysname[0], &n, nil, 0); err != nil {
+		return err
+	}
+
+	mib = []_C_int{CTL_KERN, KERN_HOSTNAME}
+	n = unsafe.Sizeof(uname.Nodename)
+	if err := sysctl(mib, &uname.Nodename[0], &n, nil, 0); err != nil {
+		return err
+	}
+
+	mib = []_C_int{CTL_KERN, KERN_OSRELEASE}
+	n = unsafe.Sizeof(uname.Release)
+	if err := sysctl(mib, &uname.Release[0], &n, nil, 0); err != nil {
+		return err
+	}
+
+	mib = []_C_int{CTL_KERN, KERN_VERSION}
+	n = unsafe.Sizeof(uname.Version)
+	if err := sysctl(mib, &uname.Version[0], &n, nil, 0); err != nil {
+		return err
+	}
+
+	// The version might have newlines or tabs in it, convert them to
+	// spaces.
+	for i, b := range uname.Version {
+		if b == '\n' || b == '\t' {
+			if i == len(uname.Version)-1 {
+				uname.Version[i] = 0
+			} else {
+				uname.Version[i] = ' '
+			}
+		}
+	}
+
+	mib = []_C_int{CTL_HW, HW_MACHINE}
+	n = unsafe.Sizeof(uname.Machine)
+	if err := sysctl(mib, &uname.Machine[0], &n, nil, 0); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 /*
@@ -222,7 +307,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 // getresuid
 // getrtable
 // getthrid
-// ioctl
 // ktrace
 // lfs_bmapv
 // lfs_markv
@@ -243,7 +327,6 @@ func Getfsstat(buf []Statfs_t, flags int) (n int, err error) {
 // nfssvc
 // nnpfspioctl
 // openat
-// poll
 // preadv
 // profil
 // pwritev

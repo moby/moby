@@ -1,7 +1,8 @@
-package plugins
+package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -9,6 +10,7 @@ import (
 	"net/url"
 	"time"
 
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/plugins/transport"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -82,16 +84,33 @@ type Client struct {
 	requestFactory transport.RequestFactory
 }
 
+// RequestOpts is the set of options that can be passed into a request
+type RequestOpts struct {
+	Timeout time.Duration
+}
+
+// WithRequestTimeout sets a timeout duration for plugin requests
+func WithRequestTimeout(t time.Duration) func(*RequestOpts) {
+	return func(o *RequestOpts) {
+		o.Timeout = t
+	}
+}
+
 // Call calls the specified method with the specified arguments for the plugin.
 // It will retry for 30 seconds if a failure occurs when calling.
-func (c *Client) Call(serviceMethod string, args interface{}, ret interface{}) error {
+func (c *Client) Call(serviceMethod string, args, ret interface{}) error {
+	return c.CallWithOptions(serviceMethod, args, ret)
+}
+
+// CallWithOptions is just like call except it takes options
+func (c *Client) CallWithOptions(serviceMethod string, args interface{}, ret interface{}, opts ...func(*RequestOpts)) error {
 	var buf bytes.Buffer
 	if args != nil {
 		if err := json.NewEncoder(&buf).Encode(args); err != nil {
 			return err
 		}
 	}
-	body, err := c.callWithRetry(serviceMethod, &buf, true)
+	body, err := c.callWithRetry(serviceMethod, &buf, true, opts...)
 	if err != nil {
 		return err
 	}
@@ -128,9 +147,14 @@ func (c *Client) SendFile(serviceMethod string, data io.Reader, ret interface{})
 	return nil
 }
 
-func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool) (io.ReadCloser, error) {
+func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool, reqOpts ...func(*RequestOpts)) (io.ReadCloser, error) {
 	var retries int
 	start := time.Now()
+
+	var opts RequestOpts
+	for _, o := range reqOpts {
+		o(&opts)
+	}
 
 	for {
 		req, err := c.requestFactory.NewRequest(serviceMethod, data)
@@ -138,8 +162,16 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 			return nil, err
 		}
 
+		cancelRequest := func() {}
+		if opts.Timeout > 0 {
+			var ctx context.Context
+			ctx, cancelRequest = context.WithTimeout(req.Context(), opts.Timeout)
+			req = req.WithContext(ctx)
+		}
+
 		resp, err := c.http.Do(req)
 		if err != nil {
+			cancelRequest()
 			if !retry {
 				return nil, err
 			}
@@ -157,6 +189,7 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 		if resp.StatusCode != http.StatusOK {
 			b, err := ioutil.ReadAll(resp.Body)
 			resp.Body.Close()
+			cancelRequest()
 			if err != nil {
 				return nil, &statusError{resp.StatusCode, serviceMethod, err.Error()}
 			}
@@ -176,7 +209,11 @@ func (c *Client) callWithRetry(serviceMethod string, data io.Reader, retry bool)
 			// old way...
 			return nil, &statusError{resp.StatusCode, serviceMethod, string(b)}
 		}
-		return resp.Body, nil
+		return ioutils.NewReadCloserWrapper(resp.Body, func() error {
+			err := resp.Body.Close()
+			cancelRequest()
+			return err
+		}), nil
 	}
 }
 

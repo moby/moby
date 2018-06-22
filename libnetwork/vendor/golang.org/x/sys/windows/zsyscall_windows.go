@@ -178,6 +178,25 @@ var (
 	procSetEvent                           = modkernel32.NewProc("SetEvent")
 	procResetEvent                         = modkernel32.NewProc("ResetEvent")
 	procPulseEvent                         = modkernel32.NewProc("PulseEvent")
+	procDefineDosDeviceW                   = modkernel32.NewProc("DefineDosDeviceW")
+	procDeleteVolumeMountPointW            = modkernel32.NewProc("DeleteVolumeMountPointW")
+	procFindFirstVolumeW                   = modkernel32.NewProc("FindFirstVolumeW")
+	procFindFirstVolumeMountPointW         = modkernel32.NewProc("FindFirstVolumeMountPointW")
+	procFindNextVolumeW                    = modkernel32.NewProc("FindNextVolumeW")
+	procFindNextVolumeMountPointW          = modkernel32.NewProc("FindNextVolumeMountPointW")
+	procFindVolumeClose                    = modkernel32.NewProc("FindVolumeClose")
+	procFindVolumeMountPointClose          = modkernel32.NewProc("FindVolumeMountPointClose")
+	procGetDriveTypeW                      = modkernel32.NewProc("GetDriveTypeW")
+	procGetLogicalDrives                   = modkernel32.NewProc("GetLogicalDrives")
+	procGetLogicalDriveStringsW            = modkernel32.NewProc("GetLogicalDriveStringsW")
+	procGetVolumeInformationW              = modkernel32.NewProc("GetVolumeInformationW")
+	procGetVolumeInformationByHandleW      = modkernel32.NewProc("GetVolumeInformationByHandleW")
+	procGetVolumeNameForVolumeMountPointW  = modkernel32.NewProc("GetVolumeNameForVolumeMountPointW")
+	procGetVolumePathNameW                 = modkernel32.NewProc("GetVolumePathNameW")
+	procGetVolumePathNamesForVolumeNameW   = modkernel32.NewProc("GetVolumePathNamesForVolumeNameW")
+	procQueryDosDeviceW                    = modkernel32.NewProc("QueryDosDeviceW")
+	procSetVolumeLabelW                    = modkernel32.NewProc("SetVolumeLabelW")
+	procSetVolumeMountPointW               = modkernel32.NewProc("SetVolumeMountPointW")
 	procWSAStartup                         = modws2_32.NewProc("WSAStartup")
 	procWSACleanup                         = modws2_32.NewProc("WSACleanup")
 	procWSAIoctl                           = modws2_32.NewProc("WSAIoctl")
@@ -227,6 +246,7 @@ var (
 	procAllocateAndInitializeSid           = modadvapi32.NewProc("AllocateAndInitializeSid")
 	procFreeSid                            = modadvapi32.NewProc("FreeSid")
 	procEqualSid                           = modadvapi32.NewProc("EqualSid")
+	procCheckTokenMembership               = modadvapi32.NewProc("CheckTokenMembership")
 	procOpenProcessToken                   = modadvapi32.NewProc("OpenProcessToken")
 	procGetTokenInformation                = modadvapi32.NewProc("GetTokenInformation")
 	procGetUserProfileDirectoryW           = moduserenv.NewProc("GetUserProfileDirectoryW")
@@ -1843,6 +1863,233 @@ func PulseEvent(event Handle) (err error) {
 	return
 }
 
+func DefineDosDevice(flags uint32, deviceName *uint16, targetPath *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procDefineDosDeviceW.Addr(), 3, uintptr(flags), uintptr(unsafe.Pointer(deviceName)), uintptr(unsafe.Pointer(targetPath)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func DeleteVolumeMountPoint(volumeMountPoint *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procDeleteVolumeMountPointW.Addr(), 1, uintptr(unsafe.Pointer(volumeMountPoint)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindFirstVolume(volumeName *uint16, bufferLength uint32) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procFindFirstVolumeW.Addr(), 2, uintptr(unsafe.Pointer(volumeName)), uintptr(bufferLength), 0)
+	handle = Handle(r0)
+	if handle == InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindFirstVolumeMountPoint(rootPathName *uint16, volumeMountPoint *uint16, bufferLength uint32) (handle Handle, err error) {
+	r0, _, e1 := syscall.Syscall(procFindFirstVolumeMountPointW.Addr(), 3, uintptr(unsafe.Pointer(rootPathName)), uintptr(unsafe.Pointer(volumeMountPoint)), uintptr(bufferLength))
+	handle = Handle(r0)
+	if handle == InvalidHandle {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindNextVolume(findVolume Handle, volumeName *uint16, bufferLength uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procFindNextVolumeW.Addr(), 3, uintptr(findVolume), uintptr(unsafe.Pointer(volumeName)), uintptr(bufferLength))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindNextVolumeMountPoint(findVolumeMountPoint Handle, volumeMountPoint *uint16, bufferLength uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procFindNextVolumeMountPointW.Addr(), 3, uintptr(findVolumeMountPoint), uintptr(unsafe.Pointer(volumeMountPoint)), uintptr(bufferLength))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindVolumeClose(findVolume Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procFindVolumeClose.Addr(), 1, uintptr(findVolume), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func FindVolumeMountPointClose(findVolumeMountPoint Handle) (err error) {
+	r1, _, e1 := syscall.Syscall(procFindVolumeMountPointClose.Addr(), 1, uintptr(findVolumeMountPoint), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetDriveType(rootPathName *uint16) (driveType uint32) {
+	r0, _, _ := syscall.Syscall(procGetDriveTypeW.Addr(), 1, uintptr(unsafe.Pointer(rootPathName)), 0, 0)
+	driveType = uint32(r0)
+	return
+}
+
+func GetLogicalDrives() (drivesBitMask uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetLogicalDrives.Addr(), 0, 0, 0, 0)
+	drivesBitMask = uint32(r0)
+	if drivesBitMask == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetLogicalDriveStrings(bufferLength uint32, buffer *uint16) (n uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procGetLogicalDriveStringsW.Addr(), 2, uintptr(bufferLength), uintptr(unsafe.Pointer(buffer)), 0)
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetVolumeInformation(rootPathName *uint16, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) {
+	r1, _, e1 := syscall.Syscall9(procGetVolumeInformationW.Addr(), 8, uintptr(unsafe.Pointer(rootPathName)), uintptr(unsafe.Pointer(volumeNameBuffer)), uintptr(volumeNameSize), uintptr(unsafe.Pointer(volumeNameSerialNumber)), uintptr(unsafe.Pointer(maximumComponentLength)), uintptr(unsafe.Pointer(fileSystemFlags)), uintptr(unsafe.Pointer(fileSystemNameBuffer)), uintptr(fileSystemNameSize), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetVolumeInformationByHandle(file Handle, volumeNameBuffer *uint16, volumeNameSize uint32, volumeNameSerialNumber *uint32, maximumComponentLength *uint32, fileSystemFlags *uint32, fileSystemNameBuffer *uint16, fileSystemNameSize uint32) (err error) {
+	r1, _, e1 := syscall.Syscall9(procGetVolumeInformationByHandleW.Addr(), 8, uintptr(file), uintptr(unsafe.Pointer(volumeNameBuffer)), uintptr(volumeNameSize), uintptr(unsafe.Pointer(volumeNameSerialNumber)), uintptr(unsafe.Pointer(maximumComponentLength)), uintptr(unsafe.Pointer(fileSystemFlags)), uintptr(unsafe.Pointer(fileSystemNameBuffer)), uintptr(fileSystemNameSize), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetVolumeNameForVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16, bufferlength uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetVolumeNameForVolumeMountPointW.Addr(), 3, uintptr(unsafe.Pointer(volumeMountPoint)), uintptr(unsafe.Pointer(volumeName)), uintptr(bufferlength))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetVolumePathName(fileName *uint16, volumePathName *uint16, bufferLength uint32) (err error) {
+	r1, _, e1 := syscall.Syscall(procGetVolumePathNameW.Addr(), 3, uintptr(unsafe.Pointer(fileName)), uintptr(unsafe.Pointer(volumePathName)), uintptr(bufferLength))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func GetVolumePathNamesForVolumeName(volumeName *uint16, volumePathNames *uint16, bufferLength uint32, returnLength *uint32) (err error) {
+	r1, _, e1 := syscall.Syscall6(procGetVolumePathNamesForVolumeNameW.Addr(), 4, uintptr(unsafe.Pointer(volumeName)), uintptr(unsafe.Pointer(volumePathNames)), uintptr(bufferLength), uintptr(unsafe.Pointer(returnLength)), 0, 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func QueryDosDevice(deviceName *uint16, targetPath *uint16, max uint32) (n uint32, err error) {
+	r0, _, e1 := syscall.Syscall(procQueryDosDeviceW.Addr(), 3, uintptr(unsafe.Pointer(deviceName)), uintptr(unsafe.Pointer(targetPath)), uintptr(max))
+	n = uint32(r0)
+	if n == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetVolumeLabel(rootPathName *uint16, volumeName *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetVolumeLabelW.Addr(), 2, uintptr(unsafe.Pointer(rootPathName)), uintptr(unsafe.Pointer(volumeName)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
+func SetVolumeMountPoint(volumeMountPoint *uint16, volumeName *uint16) (err error) {
+	r1, _, e1 := syscall.Syscall(procSetVolumeMountPointW.Addr(), 2, uintptr(unsafe.Pointer(volumeMountPoint)), uintptr(unsafe.Pointer(volumeName)), 0)
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
+	return
+}
+
 func WSAStartup(verreq uint32, data *WSAData) (sockerr error) {
 	r0, _, _ := syscall.Syscall(procWSAStartup.Addr(), 2, uintptr(verreq), uintptr(unsafe.Pointer(data)), 0)
 	if r0 != 0 {
@@ -2388,6 +2635,18 @@ func FreeSid(sid *SID) (err error) {
 func EqualSid(sid1 *SID, sid2 *SID) (isEqual bool) {
 	r0, _, _ := syscall.Syscall(procEqualSid.Addr(), 2, uintptr(unsafe.Pointer(sid1)), uintptr(unsafe.Pointer(sid2)), 0)
 	isEqual = r0 != 0
+	return
+}
+
+func checkTokenMembership(tokenHandle Token, sidToCheck *SID, isMember *int32) (err error) {
+	r1, _, e1 := syscall.Syscall(procCheckTokenMembership.Addr(), 3, uintptr(tokenHandle), uintptr(unsafe.Pointer(sidToCheck)), uintptr(unsafe.Pointer(isMember)))
+	if r1 == 0 {
+		if e1 != 0 {
+			err = errnoErr(e1)
+		} else {
+			err = syscall.EINVAL
+		}
+	}
 	return
 }
 

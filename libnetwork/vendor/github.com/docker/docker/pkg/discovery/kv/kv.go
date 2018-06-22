@@ -1,4 +1,4 @@
-package kv
+package kv // import "github.com/docker/docker/pkg/discovery/kv"
 
 import (
 	"fmt"
