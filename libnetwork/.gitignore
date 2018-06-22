@@ -3,9 +3,10 @@
 *.a
 *.so
 *~
-.*
+.gtm
 bin/
 tags
+.DS_Store
 
 # Folders
 integration-tmp/
