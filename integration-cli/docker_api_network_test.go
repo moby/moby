@@ -26,24 +26,6 @@ func (s *DockerSuite) TestAPINetworkGetDefaults(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestAPINetworkCreateDelete(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	// Create a network
-	name := "testnetwork"
-	config := types.NetworkCreateRequest{
-		Name: name,
-		NetworkCreate: types.NetworkCreate{
-			CheckDuplicate: true,
-		},
-	}
-	id := createNetwork(c, config, http.StatusCreated)
-	c.Assert(isNetworkAvailable(c, name), checker.Equals, true)
-
-	// delete the network and make sure it is deleted
-	deleteNetwork(c, id, true)
-	c.Assert(isNetworkAvailable(c, name), checker.Equals, false)
-}
-
 func (s *DockerSuite) TestAPINetworkCreateCheckDuplicate(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	name := "testcheckduplicate"
