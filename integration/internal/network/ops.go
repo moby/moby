@@ -19,7 +19,7 @@ func WithIPv6() func(*types.NetworkCreate) {
 	}
 }
 
-// WithCheckDuplicate enables CheckDuplicate on the create network request
+// WithCheckDuplicate sets the CheckDuplicate field on create network request
 func WithCheckDuplicate() func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
 		n.CheckDuplicate = true
