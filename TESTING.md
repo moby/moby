@@ -47,6 +47,24 @@ Bugs fixes should include a unit test case which exercises the bug.
 A bug fix may also include new assertions in an existing integration tests for the
 API endpoint.
 
+### Integration tests environment considerations
+
+When adding new tests or modifying existing test under `integration/`, testing 
+environment should be properly considered. `skip.If` from 
+[gotest.tools/skip](https://godoc.org/gotest.tools/skip) can be used to make the 
+test run conditionally. Full testing environment conditions can be found at 
+[environment.go](https://github.com/moby/moby/blob/cb37987ee11655ed6bbef663d245e55922354c68/internal/test/environment/environment.go)
+
+Here is a quick example. If the test needs to interact with a docker daemon on 
+the same host, the following condition should be checked within the test code
+
+```go
+skip.If(t, testEnv.IsRemoteDaemon())
+// your integration test code
+```
+
+If a remote daemon is detected, the test will be skipped.
+
 ## Running tests
 
 To run the unit test suite:
