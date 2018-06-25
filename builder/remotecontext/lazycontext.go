@@ -3,6 +3,7 @@ package remotecontext // import "github.com/docker/docker/builder/remotecontext"
 import (
 	"encoding/hex"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/builder"
@@ -45,7 +46,17 @@ func (c *lazySource) Hash(path string) (string, error) {
 		return "", errors.WithStack(convertPathError(err, cleanPath))
 	}
 
-	fi, err := os.Lstat(fullPath)
+	var isLCOW = runtime.GOOS == "windows" && c.root.OS() == "linux"
+	var fi os.FileInfo
+
+	// LCOW files are not stored on the OS filesystem directly.
+	// Use the ContainerFS instance to get the file.
+	if isLCOW {
+		fi, err = c.root.Lstat(fullPath)
+	} else {
+		fi, err = os.Lstat(fullPath)
+	}
+
 	if err != nil {
 		// Backwards compatibility: a missing file returns a path as hash.
 		// This is reached in the case of a broken symlink.
