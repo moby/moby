@@ -456,7 +456,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 	// is too small for builder scenarios where many users are
 	// using RUN statements to install large amounts of data.
 	// Use 127GB as that's the default size of a VHD in Hyper-V.
-	if runtime.GOOS == "windows" && options.Platform == "windows" {
+	if runtime.GOOS == "windows" && options.Platform.OS == "windows" {
 		hc.StorageOpt = make(map[string]string)
 		hc.StorageOpt["size"] = "127GB"
 	}

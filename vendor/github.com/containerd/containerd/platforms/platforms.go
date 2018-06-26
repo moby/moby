@@ -221,6 +221,11 @@ func Parse(specifier string) (specs.Platform, error) {
 	return specs.Platform{}, errors.Wrapf(errdefs.ErrInvalidArgument, "%q: cannot parse platform specifier", specifier)
 }
 
+// TODO(@arm64b): place holder for the sanity check of the spec platform
+func ValidatePlatform(platform *specs.Platform) error {
+	return nil
+}
+
 // Format returns a string specifier from the provided platform specification.
 func Format(platform specs.Platform) string {
 	if platform.OS == "" {

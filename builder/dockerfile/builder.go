@@ -104,13 +104,6 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		source = src
 	}
 
-	os := ""
-	apiPlatform := system.ParsePlatform(config.Options.Platform)
-	if apiPlatform.OS != "" {
-		os = apiPlatform.OS
-	}
-	config.Options.Platform = os
-
 	builderOptions := builderOptions{
 		Options:        config.Options,
 		ProgressWriter: config.ProgressWriter,
