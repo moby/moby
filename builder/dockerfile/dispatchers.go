@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -151,9 +152,11 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	if err := system.ValidatePlatform(&cmd.Platform); err != nil {
+	//TODO(@arm64b): Leave the sanity check of the spec platform to the containerd code
+	if err := platforms.ValidatePlatform(&cmd.Platform); err != nil {
 		return err
 	}
+
 	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.Platform.OS)
 	if err != nil {
 		return err
@@ -223,10 +226,10 @@ func (d *dispatchRequest) getOsFromFlagsAndStage(stageOS string) string {
 	switch {
 	case stageOS != "":
 		return stageOS
-	case d.builder.options.Platform != "":
+	case d.builder.options.Platform.OS != "":
 		// Note this is API "platform", but by this point, as the daemon is not
 		// multi-arch aware yet, it is guaranteed to only hold the OS part here.
-		return d.builder.options.Platform
+		return d.builder.options.Platform.OS
 	default:
 		return "" // Auto-select
 	}

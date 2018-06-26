@@ -422,8 +422,6 @@ func checkCompatibleOS(imageOS string) error {
 		return fmt.Errorf("cannot load %s image on %s", imageOS, runtime.GOOS)
 	}
 	// Finally, check the image OS is supported for the platform.
-	if err := system.ValidatePlatform(system.ParsePlatform(imageOS)); err != nil {
-		return fmt.Errorf("cannot load %s image on %s: %s", imageOS, runtime.GOOS, err)
-	}
+	// TODO(@arm64b): Leave this sanity check to the containerd code in the future
 	return nil
 }

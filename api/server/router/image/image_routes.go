@@ -4,11 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -45,9 +44,12 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		apiPlatform := r.FormValue("platform")
-		platform = system.ParsePlatform(apiPlatform)
-		if err = system.ValidatePlatform(platform); err != nil {
-			err = fmt.Errorf("invalid platform: %s", err)
+		if len(strings.TrimSpace(apiPlatform)) != 0 {
+			sp, err := platforms.Parse(apiPlatform)
+			if err != nil {
+				return err
+			}
+			platform = &sp
 		}
 	}
 
