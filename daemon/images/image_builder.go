@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"io"
+	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -14,6 +15,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -137,7 +139,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 }
 
 // TODO: could this use the regular daemon PullImage ?
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, os string) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -156,7 +158,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		pullRegistryAuth = &resolvedConfig
 	}
 
-	if err := i.pullImageWithReference(ctx, ref, os, nil, pullRegistryAuth, output); err != nil {
+	if err := i.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
 		return nil, err
 	}
 	return i.GetImage(name)
@@ -167,10 +169,14 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 // leaking of layers.
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // ie FROM scratch
-		if !system.IsOSSupported(opts.OS) {
+		os := runtime.GOOS
+		if opts.Platform != nil {
+			os = opts.Platform.OS
+		}
+		if !system.IsOSSupported(os) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, i.layerStores[opts.OS])
+		layer, err := newROLayerForImage(nil, i.layerStores[os])
 		return nil, layer, err
 	}
 
@@ -189,7 +195,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		}
 	}
 
-	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.OS)
+	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
 	if err != nil {
 		return nil, nil, err
 	}

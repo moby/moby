@@ -6,6 +6,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -22,15 +23,17 @@ import (
 
 func newBuilderWithMockBackend() *Builder {
 	mockBackend := &MockBackend{}
+	defaultPlatform := platforms.DefaultSpec()
+	opts := &types.ImageBuildOptions{Platform: &defaultPlatform}
 	ctx := context.Background()
 	b := &Builder{
-		options:       &types.ImageBuildOptions{Platform: runtime.GOOS},
+		options:       opts,
 		docker:        mockBackend,
 		Stdout:        new(bytes.Buffer),
 		clientCtx:     ctx,
 		disableCommit: true,
 		imageSources: newImageSources(ctx, builderOptions{
-			Options: &types.ImageBuildOptions{Platform: runtime.GOOS},
+			Options: opts,
 			Backend: mockBackend,
 		}),
 		imageProber:      newImageProber(mockBackend, nil, false),

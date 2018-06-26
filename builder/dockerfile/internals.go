@@ -150,7 +150,8 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	return nil
 }
 
-func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error {
+func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
+	state := req.state
 	srcHash := getSourceHashFromInfos(inst.infos)
 
 	var chownComment string
@@ -168,7 +169,7 @@ func (b *Builder) performCopy(state *dispatchState, inst copyInstruction) error 
 		return err
 	}
 
-	imageMount, err := b.imageSources.Get(state.imageID, true, state.operatingSystem)
+	imageMount, err := b.imageSources.Get(state.imageID, true, req.builder.options.Platform)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get destination image %q", state.imageID)
 	}
@@ -456,7 +457,7 @@ func hostConfigFromOptions(options *types.ImageBuildOptions) *container.HostConf
 	// is too small for builder scenarios where many users are
 	// using RUN statements to install large amounts of data.
 	// Use 127GB as that's the default size of a VHD in Hyper-V.
-	if runtime.GOOS == "windows" && options.Platform.OS == "windows" {
+	if runtime.GOOS == "windows" && options.Platform != nil && options.Platform.OS == "windows" {
 		hc.StorageOpt = make(map[string]string)
 		hc.StorageOpt["size"] = "127GB"
 	}

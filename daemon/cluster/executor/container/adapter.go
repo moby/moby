@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"runtime"
 	"strings"
 	"syscall"
 	"time"
@@ -97,8 +96,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	go func() {
 		// TODO @jhowardmsft LCOW Support: This will need revisiting as
 		// the stack is built up to include LCOW support for swarm.
-		platform := runtime.GOOS
-		err := c.imageBackend.PullImage(ctx, c.container.image(), "", platform, metaHeaders, authConfig, pw)
+		err := c.imageBackend.PullImage(ctx, c.container.image(), "", nil, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 

@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
-	"runtime"
 	"strings"
 	"testing"
 
@@ -84,7 +83,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	logrus.Debug("About to pull")
 	// We expect it to fail, since we haven't mock'd the full registry exchange in our handler above
 	tag, _ := reference.WithTag(n, "tag_goes_here")
-	_ = p.pullV2Repository(ctx, tag, runtime.GOOS)
+	_ = p.pullV2Repository(ctx, tag, nil)
 }
 
 func TestTokenPassThru(t *testing.T) {

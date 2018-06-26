@@ -96,8 +96,14 @@ func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstr
 	last := len(args) - 1
 
 	// Work in platform-specific filepath semantics
-	inst.dest = fromSlash(args[last], o.platform.OS)
-	separator := string(separator(o.platform.OS))
+	// TODO: This OS switch for paths is NOT correct and should not be supported.
+	// Maintained for backwards compatibility
+	pathOS := runtime.GOOS
+	if o.platform != nil {
+		pathOS = o.platform.OS
+	}
+	inst.dest = fromSlash(args[last], pathOS)
+	separator := string(separator(pathOS))
 	infos, err := o.getCopyInfosForSourcePaths(args[0:last], inst.dest)
 	if err != nil {
 		return inst, errors.Wrapf(err, "%s failed", cmdName)
