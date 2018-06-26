@@ -73,7 +73,7 @@ type copier struct {
 	source      builder.Source
 	pathCache   pathCache
 	download    sourceDownloader
-	platform    specs.Platform
+	platform    *specs.Platform
 	// for cleanup. TODO: having copier.cleanup() is error prone and hard to
 	// follow. Code calling performCopy should manage the lifecycle of its params.
 	// Copier should take override source as input, not imageMount.

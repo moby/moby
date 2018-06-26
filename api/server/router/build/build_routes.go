@@ -72,12 +72,12 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 	options.RemoteContext = r.FormValue("remote")
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		apiPlatform := r.FormValue("platform")
-		if len(strings.TrimSpace(apiPlatform)) != 0 {
+		if apiPlatform != "" {
 			sp, err := platforms.Parse(apiPlatform)
 			if err != nil {
 				return nil, err
 			}
-			options.Platform = sp
+			options.Platform = &sp
 		}
 	}
 

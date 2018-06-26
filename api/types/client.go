@@ -181,7 +181,7 @@ type ImageBuildOptions struct {
 	ExtraHosts  []string // List of extra hosts
 	Target      string
 	SessionID   string
-	Platform    specs.Platform
+	Platform    *specs.Platform
 	// Version specifies the version of the unerlying builder to use
 	Version BuilderVersion
 	// BuildID is an optional identifier that can be passed together with the

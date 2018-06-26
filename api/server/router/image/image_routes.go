@@ -44,7 +44,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 	version := httputils.VersionFromContext(ctx)
 	if versions.GreaterThanOrEqualTo(version, "1.32") {
 		apiPlatform := r.FormValue("platform")
-		if len(strings.TrimSpace(apiPlatform)) != 0 {
+		if apiPlatform != "" {
 			sp, err := platforms.Parse(apiPlatform)
 			if err != nil {
 				return err
