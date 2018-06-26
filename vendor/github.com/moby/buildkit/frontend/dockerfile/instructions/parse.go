@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/pkg/system"
 	"github.com/moby/buildkit/frontend/dockerfile/command"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/pkg/errors"
@@ -279,13 +278,14 @@ func parseFrom(req parseRequest) (*Stage, error) {
 	if err := req.flags.Parse(); err != nil {
 		return nil, err
 	}
+
 	code := strings.TrimSpace(req.original)
 	return &Stage{
 		BaseName:   req.args[0],
 		Name:       stageName,
 		SourceCode: code,
 		Commands:   []Command{},
-		Platform:   *system.ParsePlatform(flPlatform.Value),
+		Platform:   flPlatform.Value,
 	}, nil
 
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -30,9 +31,10 @@ type Solver struct {
 	resolveWorker ResolveWorkerFunc
 	frontends     map[string]frontend.Frontend
 	ci            *remotecache.CacheImporter
+	platforms     []specs.Platform
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cacheStore solver.CacheKeyStorage, ci *remotecache.CacheImporter) *Solver {
+func New(wc *worker.Controller, f map[string]frontend.Frontend, cacheStore solver.CacheKeyStorage, ci *remotecache.CacheImporter) (*Solver, error) {
 	s := &Solver{
 		resolveWorker: defaultResolver(wc),
 		frontends:     f,
@@ -43,11 +45,18 @@ func New(wc *worker.Controller, f map[string]frontend.Frontend, cacheStore solve
 
 	cache := solver.NewCacheManager("local", cacheStore, results)
 
+	// executing is currently only allowed on default worker
+	w, err := wc.GetDefault()
+	if err != nil {
+		return nil, err
+	}
+	s.platforms = w.Platforms()
+
 	s.solver = solver.NewSolver(solver.SolverOpt{
 		ResolveOpFunc: s.resolver(),
 		DefaultCache:  cache,
 	})
-	return s
+	return s, nil
 }
 
 func (s *Solver) resolver() solver.ResolveOpFunc {
@@ -67,6 +76,7 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 		resolveWorker: s.resolveWorker,
 		ci:            s.ci,
 		cms:           map[string]solver.CacheManager{},
+		platforms:     s.platforms,
 	}
 }
 

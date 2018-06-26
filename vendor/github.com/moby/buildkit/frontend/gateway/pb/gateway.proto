@@ -18,6 +18,7 @@ service LLBBridge {
 
 message ResolveImageConfigRequest {
 	string Ref = 1;
+	pb.Platform Platform = 2;
 }
 
 message ResolveImageConfigResponse {

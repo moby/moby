@@ -1,12 +1,11 @@
 package dockerfile2llb
 
 import (
-	"runtime"
 	"time"
 
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/moby/buildkit/util/system"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // HealthConfig holds configuration settings for the HEALTHCHECK feature.
@@ -31,7 +30,7 @@ type HealthConfig struct {
 }
 
 type ImageConfig struct {
-	ocispec.ImageConfig
+	specs.ImageConfig
 
 	Healthcheck *HealthConfig `json:",omitempty"` // Healthcheck describes how to check the container is healthy
 	ArgsEscaped bool          `json:",omitempty"` // True if command is already escaped (Windows specific)
@@ -46,7 +45,7 @@ type ImageConfig struct {
 // Image is the JSON structure which describes some basic information about the image.
 // This provides the `application/vnd.oci.image.config.v1+json` mediatype when marshalled to JSON.
 type Image struct {
-	ocispec.Image
+	specs.Image
 
 	// Config defines the execution parameters which should be used as a base when running a container using the image.
 	Config ImageConfig `json:"config,omitempty"`
@@ -61,11 +60,11 @@ func clone(src Image) Image {
 	return img
 }
 
-func emptyImage() Image {
+func emptyImage(platform specs.Platform) Image {
 	img := Image{
-		Image: ocispec.Image{
-			Architecture: runtime.GOARCH,
-			OS:           runtime.GOOS,
+		Image: specs.Image{
+			Architecture: platform.Architecture,
+			OS:           platform.OS,
 		},
 	}
 	img.RootFS.Type = "layers"

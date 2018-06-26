@@ -118,4 +118,5 @@ message ListWorkersResponse {
 message WorkerRecord {
 	string ID = 1;
 	map<string, string> Labels = 2;
+	repeated pb.Platform platforms = 3 [(gogoproto.nullable) = false];
 }

@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	errLocked   = errors.New("locked")
+	ErrLocked   = errors.New("locked")
 	errNotFound = errors.New("not found")
 	errInvalid  = errors.New("invalid")
 )
@@ -122,7 +122,7 @@ func (cm *cacheManager) get(ctx context.Context, id string, fromSnapshotter bool
 
 	if rec.mutable {
 		if len(rec.refs) != 0 {
-			return nil, errors.Wrapf(errLocked, "%s is locked", id)
+			return nil, errors.Wrapf(ErrLocked, "%s is locked", id)
 		}
 		if rec.equalImmutable != nil {
 			return rec.equalImmutable.ref(), nil
@@ -279,12 +279,12 @@ func (cm *cacheManager) GetMutable(ctx context.Context, id string) (MutableRef, 
 	}
 
 	if len(rec.refs) != 0 {
-		return nil, errors.Wrapf(errLocked, "%s is locked", id)
+		return nil, errors.Wrapf(ErrLocked, "%s is locked", id)
 	}
 
 	if rec.equalImmutable != nil {
 		if len(rec.equalImmutable.refs) != 0 {
-			return nil, errors.Wrapf(errLocked, "%s is locked", id)
+			return nil, errors.Wrapf(ErrLocked, "%s is locked", id)
 		}
 		delete(cm.records, rec.equalImmutable.ID())
 		if err := rec.equalImmutable.remove(ctx, false); err != nil {
@@ -513,7 +513,7 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 }
 
 func IsLocked(err error) bool {
-	return errors.Cause(err) == errLocked
+	return errors.Cause(err) == ErrLocked
 }
 
 func IsNotFound(err error) bool {

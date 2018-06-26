@@ -12,6 +12,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/go-connections/nat"
@@ -20,7 +21,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -30,7 +31,7 @@ const (
 	localNameContext = "context"
 	historyComment   = "buildkit.dockerfile.v0"
 
-	CopyImage = "tonistiigi/copy:v0.1.3@sha256:87c46e7b413cdd2c2702902b481b390ce263ac9d942253d366f3b1a3c16f96d6"
+	CopyImage = "tonistiigi/copy:v0.1.3@sha256:e57a3b4d6240f55bac26b655d2cfb751f8b9412d6f7bb1f787e946391fb4b21b"
 )
 
 type ConvertOpt struct {
@@ -46,11 +47,25 @@ type ConvertOpt struct {
 	IgnoreCache []string
 	// CacheIDNamespace scopes the IDs for different cache mounts
 	CacheIDNamespace string
+	TargetPlatform   *specs.Platform
+	BuildPlatforms   []specs.Platform
 }
 
 func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State, *Image, error) {
 	if len(dt) == 0 {
 		return nil, nil, errors.Errorf("the Dockerfile cannot be empty")
+	}
+
+	if opt.TargetPlatform != nil && opt.BuildPlatforms == nil {
+		opt.BuildPlatforms = []specs.Platform{*opt.TargetPlatform}
+	}
+	if len(opt.BuildPlatforms) == 0 {
+		opt.BuildPlatforms = []specs.Platform{platforms.DefaultSpec()}
+	}
+	implicitTargetPlatform := false
+	if opt.TargetPlatform == nil {
+		implicitTargetPlatform = true
+		opt.TargetPlatform = &opt.BuildPlatforms[0]
 	}
 
 	dockerfile, err := parser.Parse(bytes.NewReader(dt))
@@ -92,6 +107,20 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			deps:     make(map[*dispatchState]struct{}),
 			ctxPaths: make(map[string]struct{}),
 		}
+
+		if v := st.Platform; v != "" {
+			v, err := shlex.ProcessWord(v, toEnvList(metaArgs, nil))
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "failed to process arguments for platform %s", v)
+			}
+
+			p, err := platforms.Parse(v)
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "failed to parse platform %s", v)
+			}
+			ds.platform = &p
+		}
+
 		if d, ok := dispatchStatesByName[st.BaseName]; ok {
 			ds.base = d
 		}
@@ -150,7 +179,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		if d.base == nil {
 			if d.stage.BaseName == emptyImageName {
 				d.state = llb.Scratch()
-				d.image = emptyImage()
+				d.image = emptyImage(*opt.TargetPlatform)
 				continue
 			}
 			func(i int, d *dispatchState) {
@@ -159,16 +188,25 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					if err != nil {
 						return err
 					}
+					platform := d.platform
+					if platform == nil {
+						platform = opt.TargetPlatform
+					}
 					d.stage.BaseName = reference.TagNameOnly(ref).String()
 					var isScratch bool
 					if metaResolver != nil && reachable {
-						dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName)
+						dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, platform)
 						if err == nil { // handle the error while builder is actually running
 							var img Image
 							if err := json.Unmarshal(dt, &img); err != nil {
 								return err
 							}
 							img.Created = nil
+							// if there is no explicit target platform, try to match based on image config
+							if d.platform == nil && implicitTargetPlatform {
+								p := autoDetectPlatform(img, *platform, opt.BuildPlatforms)
+								platform = &p
+							}
 							d.image = img
 							if dgst != "" {
 								ref, err = reference.WithDigest(ref, dgst)
@@ -186,7 +224,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					if isScratch {
 						d.state = llb.Scratch()
 					} else {
-						d.state = llb.Image(d.stage.BaseName, dfCmd(d.stage.SourceCode))
+						d.state = llb.Image(d.stage.BaseName, dfCmd(d.stage.SourceCode), llb.Platform(*platform))
 					}
 					return nil
 				})
@@ -242,6 +280,8 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			buildContext:         llb.NewState(buildContext),
 			proxyEnv:             proxyEnv,
 			cacheIDNamespace:     opt.CacheIDNamespace,
+			buildPlatforms:       opt.BuildPlatforms,
+			targetPlatform:       *opt.TargetPlatform,
 		}
 
 		if err = dispatchOnBuild(d, d.image.Config.OnBuild, opt); err != nil {
@@ -280,7 +320,14 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	}
 	buildContext.Output = bc.Output()
 
-	return &target.state, &target.image, nil
+	st := target.state.SetMarhalDefaults(llb.Platform(*opt.TargetPlatform))
+
+	if !implicitTargetPlatform {
+		target.image.OS = opt.TargetPlatform.OS
+		target.image.Architecture = opt.TargetPlatform.Architecture
+	}
+
+	return &st, &target.image, nil
 }
 
 func toCommand(ic instructions.Command, dispatchStatesByName map[string]*dispatchState, allDispatchStates []*dispatchState) (command, error) {
@@ -325,6 +372,8 @@ type dispatchOpt struct {
 	buildContext         llb.State
 	proxyEnv             *llb.ProxyEnv
 	cacheIDNamespace     string
+	targetPlatform       specs.Platform
+	buildPlatforms       []specs.Platform
 }
 
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
@@ -348,7 +397,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	case *instructions.WorkdirCommand:
 		err = dispatchWorkdir(d, c, true)
 	case *instructions.AddCommand:
-		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, "")
+		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, "", opt)
 		if err == nil {
 			for _, src := range c.Sources() {
 				d.ctxPaths[path.Join("/", filepath.ToSlash(src))] = struct{}{}
@@ -381,7 +430,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		if len(cmd.sources) != 0 {
 			l = cmd.sources[0].state
 		}
-		err = dispatchCopy(d, c.SourcesAndDest, l, false, c, c.Chown)
+		err = dispatchCopy(d, c.SourcesAndDest, l, false, c, c.Chown, opt)
 		if err == nil && len(cmd.sources) == 0 {
 			for _, src := range c.Sources() {
 				d.ctxPaths[path.Join("/", filepath.ToSlash(src))] = struct{}{}
@@ -395,6 +444,7 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 type dispatchState struct {
 	state        llb.State
 	image        Image
+	platform     *specs.Platform
 	stage        instructions.Stage
 	base         *dispatchState
 	deps         map[*dispatchState]struct{}
@@ -467,7 +517,11 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		opt = append(opt, llb.WithProxy(*proxy))
 	}
 
-	opt = append(opt, dispatchRunMounts(d, c, sources, dopt)...)
+	runMounts, err := dispatchRunMounts(d, c, sources, dopt)
+	if err != nil {
+		return err
+	}
+	opt = append(opt, runMounts...)
 
 	d.state = d.state.Run(opt...).Root()
 	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs), true, &d.state)
@@ -486,9 +540,9 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 	return nil
 }
 
-func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint interface{}, chown string) error {
+func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint interface{}, chown string, opt dispatchOpt) error {
 	// TODO: this should use CopyOp instead. Current implementation is inefficient
-	img := llb.Image(CopyImage)
+	img := llb.Image(CopyImage, llb.Platform(opt.buildPlatforms[0]))
 
 	dest := path.Join(".", pathRelativeToWorkingDir(d.state, c.Dest()))
 	if c.Dest() == "." || c.Dest()[len(c.Dest())-1] == filepath.Separator {
@@ -554,12 +608,12 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 		args = append(args[:1], append([]string{"--unpack"}, args[1:]...)...)
 	}
 
-	opt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint)}
+	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint)}
 	if d.ignoreCache {
-		opt = append(opt, llb.IgnoreCache)
+		runOpt = append(runOpt, llb.IgnoreCache)
 	}
-	run := img.Run(append(opt, mounts...)...)
-	d.state = run.AddMount("/dest", d.state)
+	run := img.Run(append(runOpt, mounts...)...)
+	d.state = run.AddMount("/dest", d.state).Platform(opt.targetPlatform)
 
 	return commitToHistory(&d.image, commitMessage.String(), true, &d.state)
 }
@@ -767,7 +821,7 @@ func getArgValue(arg instructions.ArgCommand) string {
 	return v
 }
 
-func dfCmd(cmd interface{}) llb.MetadataOpt {
+func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 	// TODO: add fmt.Stringer to instructions.Command to remove interface{}
 	var cmdStr string
 	if cmd, ok := cmd.(fmt.Stringer); ok {
@@ -798,7 +852,7 @@ func commitToHistory(img *Image, msg string, withLayer bool, st *llb.State) erro
 		msg += " # buildkit"
 	}
 
-	img.History = append(img.History, ocispec.History{
+	img.History = append(img.History, specs.History{
 		CreatedBy:  msg,
 		Comment:    historyComment,
 		EmptyLayer: !withLayer,
@@ -929,4 +983,18 @@ func withShell(img Image, args []string) []string {
 		shell = defaultShell()
 	}
 	return append(shell, strings.Join(args, " "))
+}
+
+func autoDetectPlatform(img Image, target specs.Platform, supported []specs.Platform) specs.Platform {
+	os := img.OS
+	arch := img.Architecture
+	if target.OS == os && target.Architecture == arch {
+		return target
+	}
+	for _, p := range supported {
+		if p.OS == os && p.Architecture == arch {
+			return p
+		}
+	}
+	return target
 }

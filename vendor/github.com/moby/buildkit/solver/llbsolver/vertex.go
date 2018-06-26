@@ -3,10 +3,12 @@ package llbsolver
 import (
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -38,11 +40,44 @@ func (v *vertex) Name() string {
 	return v.name
 }
 
-type LoadOpt func(*solver.VertexOptions)
+type LoadOpt func(*pb.Op, *pb.OpMetadata, *solver.VertexOptions) error
 
 func WithCacheSources(cms []solver.CacheManager) LoadOpt {
-	return func(opt *solver.VertexOptions) {
+	return func(_ *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
 		opt.CacheSources = cms
+		return nil
+	}
+}
+
+func RuntimePlatforms(p []specs.Platform) LoadOpt {
+	var defaultPlatform *pb.Platform
+	for i := range p {
+		p[i] = platforms.Normalize(p[i])
+	}
+	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
+		if op.Platform == nil {
+			if defaultPlatform == nil {
+				p := platforms.DefaultSpec()
+				defaultPlatform = &pb.Platform{
+					OS:           p.OS,
+					Architecture: p.Architecture,
+				}
+			}
+			op.Platform = defaultPlatform
+		}
+		if _, ok := op.Op.(*pb.Op_Exec); ok {
+			var found bool
+			for _, pp := range p {
+				if pp.OS == op.Platform.OS && pp.Architecture == op.Platform.Architecture && pp.Variant == op.Platform.Variant {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return errors.Errorf("runtime execution on platform %s not supported", platforms.Format(specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}))
+			}
+		}
+		return nil
 	}
 }
 
@@ -67,9 +102,11 @@ func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(d
 		}
 	}
 	for _, fn := range opts {
-		fn(&opt)
+		if err := fn(op, opMeta, &opt); err != nil {
+			return nil, err
+		}
 	}
-	vtx := &vertex{sys: op.Op, options: opt, digest: dgst, name: llbOpName(op)}
+	vtx := &vertex{sys: op, options: opt, digest: dgst, name: llbOpName(op)}
 	for _, in := range op.Inputs {
 		sub, err := load(in.Digest)
 		if err != nil {
@@ -129,7 +166,7 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 func llbOpName(op *pb.Op) string {
 	switch op := op.Op.(type) {
 	case *pb.Op_Source:
-		if id, err := source.FromLLB(op); err == nil {
+		if id, err := source.FromLLB(op, nil); err == nil {
 			if id, ok := id.(*source.LocalIdentifier); ok {
 				if len(id.IncludePatterns) == 1 {
 					return op.Source.Identifier + " (" + id.IncludePatterns[0] + ")"
