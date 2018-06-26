@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
@@ -206,6 +207,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	if opt.Options.NoCache {
 		frontendAttrs["no-cache"] = ""
+	}
+
+	if opt.Options.Platform != nil {
+		frontendAttrs["platform"] = platforms.Format(*opt.Options.Platform)
 	}
 
 	exporterAttrs := map[string]string{}

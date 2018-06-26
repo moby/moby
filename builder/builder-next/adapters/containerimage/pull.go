@@ -113,7 +113,7 @@ func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
 	return img.RawJSON(), nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
+func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error) {
 	if preferLocal {
 		dt, err := is.resolveLocal(ref)
 		if err == nil {
@@ -126,7 +126,7 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string) (dige
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, nil)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, platform)
 		if err != nil {
 			return nil, err
 		}
@@ -145,10 +145,16 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (sourc
 		return nil, errors.Errorf("invalid image identifier %v", id)
 	}
 
+	platform := platforms.DefaultSpec()
+	if imageIdentifier.Platform != nil {
+		platform = *imageIdentifier.Platform
+	}
+
 	p := &puller{
 		src:      imageIdentifier,
 		is:       is,
 		resolver: is.getResolver(ctx),
+		platform: platform,
 	}
 	return p, nil
 }
@@ -163,17 +169,20 @@ type puller struct {
 	resolveErr       error
 	resolver         remotes.Resolver
 	config           []byte
+	platform         ocispec.Platform
 }
 
-func (p *puller) mainManifestKey(dgst digest.Digest) (digest.Digest, error) {
+func (p *puller) mainManifestKey(dgst digest.Digest, platform ocispec.Platform) (digest.Digest, error) {
 	dt, err := json.Marshal(struct {
-		Digest digest.Digest
-		OS     string
-		Arch   string
+		Digest  digest.Digest
+		OS      string
+		Arch    string
+		Variant string `json:",omitempty"`
 	}{
-		Digest: p.desc.Digest,
-		OS:     runtime.GOOS,
-		Arch:   runtime.GOARCH,
+		Digest:  p.desc.Digest,
+		OS:      platform.OS,
+		Arch:    platform.Architecture,
+		Variant: platform.Variant,
 	})
 	if err != nil {
 		return "", err
@@ -248,7 +257,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				return
 			}
 
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String())
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), &p.platform)
 			if err != nil {
 				p.resolveErr = err
 				resolveProgressDone(err)
@@ -266,7 +275,7 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 	p.resolveLocal()
 
 	if p.desc.Digest != "" && index == 0 {
-		dgst, err := p.mainManifestKey(p.desc.Digest)
+		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
 		if err != nil {
 			return "", false, err
 		}
@@ -282,7 +291,7 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 	}
 
 	if p.desc.Digest != "" && index == 0 {
-		dgst, err := p.mainManifestKey(p.desc.Digest)
+		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
 		if err != nil {
 			return "", false, err
 		}
