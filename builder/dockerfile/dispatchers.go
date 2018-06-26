@@ -152,12 +152,23 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	//TODO(@arm64b): Leave the sanity check of the spec platform to the containerd code
-	if err := platforms.ValidatePlatform(&cmd.Platform); err != nil {
-		return err
-	}
 
-	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.Platform.OS)
+	// TODO: pass *platform instead, allow autodetect
+	platform := platforms.DefaultSpec()
+	if v := cmd.Platform; v != "" {
+		// TODO:
+		// v, err := shlex.ProcessWord(v, toEnvList(metaArgs, nil))
+		// if err != nil {
+		// 	return nil, nil, errors.Wrapf(err, "failed to process arguments for platform %s", v)
+		// }
+
+		p, err := platforms.Parse(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse platform %s", v)
+		}
+		platform = p
+	}
+	image, err := d.getFromImage(d.shlex, cmd.BaseName, platform.OS)
 	if err != nil {
 		return err
 	}

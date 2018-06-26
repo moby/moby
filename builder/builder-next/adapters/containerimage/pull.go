@@ -126,7 +126,7 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string) (dige
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, "")
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, nil)
 		if err != nil {
 			return nil, err
 		}
