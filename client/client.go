@@ -55,6 +55,8 @@ import (
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	dcontext "github.com/docker/docker/client/context"
+	"github.com/docker/docker/pkg/contextstore"
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
@@ -148,6 +150,37 @@ func FromEnv(c *Client) error {
 		c.manualOverride = true
 	}
 	return nil
+}
+
+// WithContextStoreOrEnv applies a context store config, or classic docker env if detected
+// Heuristic to use either context store or legacy DOCKER_* variables is:
+// if contextNameOverride is set -> load this context from context store
+// if DOCKER_CONTEXT env variable is set -> load this context from context store
+// if DOCKER_HOST is set -> fallback to FromEnv
+// if a current context is set in the store -> load this context
+// fallback to "default" client
+func WithContextStoreOrEnv(contextStoreDir, contextNameOverride string) func(*Client) error {
+	return func(c *Client) error {
+		s, err := contextstore.NewStore(contextStoreDir)
+		if err != nil {
+			return err
+		}
+		ctxName := contextNameOverride
+		if ctxName == "" {
+			ctxName = os.Getenv(dcontext.DockerContextEnvVar)
+		}
+		if ctxName != "" {
+			return loadContext(c, s, ctxName)
+		}
+		if host := os.Getenv("DOCKER_HOST"); host != "" {
+			return FromEnv(c)
+		}
+		ctxName = s.GetCurrentContext()
+		if ctxName != "" {
+			return loadContext(c, s, ctxName)
+		}
+		return nil
+	}
 }
 
 // WithTLSClientConfig applies a tls config to the client transport.

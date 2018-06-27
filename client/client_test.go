@@ -2,6 +2,7 @@ package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
@@ -10,6 +11,8 @@ import (
 
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client/context"
+	"github.com/docker/docker/pkg/contextstore"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/env"
@@ -101,6 +104,100 @@ func TestNewEnvClient(t *testing.T) {
 			assert.Assert(t, tr.TLSClientConfig != nil, c.doc)
 			assert.Check(t, is.Equal(tr.TLSClientConfig.InsecureSkipVerify, false), c.doc)
 		}
+	}
+}
+
+func TestClientWithContext(t *testing.T) {
+	caBytes, err := ioutil.ReadFile("testdata/ca.pem")
+	assert.Check(t, err)
+	certBytes, err := ioutil.ReadFile("testdata/cert.pem")
+	assert.Check(t, err)
+	keyBytes, err := ioutil.ReadFile("testdata/key.pem")
+	assert.Check(t, err)
+	storeDir, err := ioutil.TempDir("", "test-client-with-context")
+	assert.Check(t, err)
+	defer os.RemoveAll(storeDir)
+	type contextDef struct {
+		name          string
+		host          string
+		apiVersion    string
+		ca            []byte
+		cert          []byte
+		key           []byte
+		skipTLSVerify bool
+	}
+	contexts := []contextDef{
+		{
+			name: "all-default",
+		},
+		{
+			name: "host-only",
+			host: "https://notunixsocket",
+		},
+		{
+			name:       "apiversion-only",
+			apiVersion: "1.22",
+		},
+		{
+			name: "with-tls",
+			host: "https://notunixsocket",
+			ca:   caBytes,
+			key:  keyBytes,
+			cert: certBytes,
+		},
+		{
+			name:          "with-tls-skipverify",
+			host:          "https://notunixsocket",
+			ca:            caBytes,
+			key:           keyBytes,
+			cert:          certBytes,
+			skipTLSVerify: true,
+		},
+		{
+			name:          "with-skipverify-only",
+			host:          "https://notunixsocket",
+			skipTLSVerify: true,
+		},
+	}
+	s, err := contextstore.NewStore(storeDir)
+	assert.Check(t, err)
+	for _, c := range contexts {
+		t.Run(c.name, func(t *testing.T) {
+			err = context.SetDockerEndpoint(s, c.name, c.host, c.apiVersion, c.ca, c.cert, c.key, c.skipTLSVerify)
+			assert.Check(t, err)
+			client, err := NewClientWithOpts(WithContextStoreOrEnv(storeDir, c.name))
+			assert.Check(t, err)
+			if c.host == "" {
+				assert.Equal(t, client.host, DefaultDockerHost)
+			} else {
+				assert.Equal(t, client.host, c.host)
+				// assume https
+				tr := client.client.Transport.(*http.Transport)
+				if c.ca == nil && c.cert == nil && c.key == nil && !c.skipTLSVerify {
+					assert.Check(t, tr.TLSClientConfig == nil)
+				} else {
+					assert.Check(t, tr.TLSClientConfig != nil)
+					if c.skipTLSVerify {
+						assert.Check(t, tr.TLSClientConfig.InsecureSkipVerify)
+					}
+					if c.ca != nil {
+						assert.Check(t, tr.TLSClientConfig.RootCAs != nil)
+					} else {
+						assert.Check(t, tr.TLSClientConfig.RootCAs == nil)
+					}
+					if c.cert != nil && c.key != nil {
+						assert.Check(t, tr.TLSClientConfig.Certificates != nil)
+					} else {
+						assert.Check(t, tr.TLSClientConfig.Certificates == nil)
+					}
+				}
+			}
+			if c.apiVersion == "" {
+				assert.Equal(t, client.ClientVersion(), api.DefaultVersion)
+			} else {
+				assert.Equal(t, client.ClientVersion(), c.apiVersion)
+			}
+		})
 	}
 }
 
