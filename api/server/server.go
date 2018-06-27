@@ -149,7 +149,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 }
 
 // InitRouter initializes the list of routers for the server.
-// This method also enables the Go profiler if enableProfiler is true.
+// This method also enables the Go profiler.
 func (s *Server) InitRouter(routers ...router.Router) {
 	s.routers = append(s.routers, routers...)
 
