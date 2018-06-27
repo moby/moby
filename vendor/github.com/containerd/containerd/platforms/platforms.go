@@ -135,7 +135,7 @@ type Matcher interface {
 // Applications should opt to use `Match` over directly parsing specifiers.
 func NewMatcher(platform specs.Platform) Matcher {
 	return &matcher{
-		Platform: platform,
+		Platform: Normalize(platform),
 	}
 }
 
@@ -197,6 +197,9 @@ func Parse(specifier string) (specs.Platform, error) {
 		}
 
 		p.Architecture, p.Variant = normalizeArch(parts[0], "")
+		if p.Architecture == "arm" && p.Variant == "v7" {
+			p.Variant = ""
+		}
 		if isKnownArch(p.Architecture) {
 			p.OS = runtime.GOOS
 			return p, nil
@@ -208,12 +211,18 @@ func Parse(specifier string) (specs.Platform, error) {
 		// about whether or not we know of the platform.
 		p.OS = normalizeOS(parts[0])
 		p.Architecture, p.Variant = normalizeArch(parts[1], "")
+		if p.Architecture == "arm" && p.Variant == "v7" {
+			p.Variant = ""
+		}
 
 		return p, nil
 	case 3:
 		// we have a fully specified variant, this is rare
 		p.OS = normalizeOS(parts[0])
 		p.Architecture, p.Variant = normalizeArch(parts[1], parts[2])
+		if p.Architecture == "arm64" && p.Variant == "" {
+			p.Variant = "v8"
+		}
 
 		return p, nil
 	}
