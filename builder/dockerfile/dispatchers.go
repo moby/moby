@@ -165,6 +165,9 @@ func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 		if err != nil {
 			return errors.Wrapf(err, "failed to parse platform %s", v)
 		}
+		if err := system.ValidatePlatform(p); err != nil {
+			return err
+		}
 		platform = &p
 	}
 

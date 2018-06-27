@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -47,6 +48,9 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 		if apiPlatform != "" {
 			sp, err := platforms.Parse(apiPlatform)
 			if err != nil {
+				return err
+			}
+			if err := system.ValidatePlatform(sp); err != nil {
 				return err
 			}
 			platform = &sp

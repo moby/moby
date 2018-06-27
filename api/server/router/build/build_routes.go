@@ -24,6 +24,7 @@ import (
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -75,6 +76,9 @@ func newImageBuildOptions(ctx context.Context, r *http.Request) (*types.ImageBui
 		if apiPlatform != "" {
 			sp, err := platforms.Parse(apiPlatform)
 			if err != nil {
+				return nil, err
+			}
+			if err := system.ValidatePlatform(sp); err != nil {
 				return nil, err
 			}
 			options.Platform = &sp
