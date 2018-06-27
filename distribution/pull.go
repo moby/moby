@@ -3,7 +3,6 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
@@ -113,11 +112,6 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 		if err != nil {
 			lastErr = err
 			continue
-		}
-
-		// Make sure we default the OS if it hasn't been supplied
-		if imagePullConfig.OS == "" {
-			imagePullConfig.OS = runtime.GOOS
 		}
 
 		if err := puller.Pull(ctx, ref, imagePullConfig.OS); err != nil {

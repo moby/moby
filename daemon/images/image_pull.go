@@ -3,7 +3,6 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 
@@ -64,11 +63,6 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
 	}()
-
-	// Default to the host OS platform in case it hasn't been populated with an explicit value.
-	if os == "" {
-		os = runtime.GOOS
-	}
 
 	imagePullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
