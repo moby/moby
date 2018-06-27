@@ -18,10 +18,11 @@ func (ld *v2LayerDescriptor) open(ctx context.Context) (distribution.ReadSeekClo
 }
 
 func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platform) []manifestlist.ManifestDescriptor {
-	p = withDefault(p)
+	p = platforms.Normalize(withDefault(p))
+	m := platforms.NewMatcher(p)
 	var matches []manifestlist.ManifestDescriptor
 	for _, desc := range manifests {
-		if compareNormalized(toOCIPlatform(desc.Platform), p) {
+		if m.Match(toOCIPlatform(desc.Platform)) {
 			matches = append(matches, desc)
 			logrus.Debugf("found match for %s with media type %s, digest %s", platforms.Format(p), desc.MediaType, desc.Digest.String())
 		}
@@ -29,7 +30,7 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 
 	// deprecated: backwards compatibility with older versions that didn't compare variant
 	if len(matches) == 0 && p.Architecture == "arm" {
-		p = normalize(p)
+		p = platforms.Normalize(p)
 		for _, desc := range manifests {
 			if desc.Platform.OS == p.OS && desc.Platform.Architecture == p.Architecture {
 				matches = append(matches, desc)
@@ -54,29 +55,6 @@ func withDefault(p specs.Platform) specs.Platform {
 	if p.Architecture == "" {
 		p.Architecture = def.Architecture
 		p.Variant = def.Variant
-	}
-	return p
-}
-
-func compareNormalized(p1, p2 specs.Platform) bool {
-	// remove after https://github.com/containerd/containerd/pull/2414
-	return p1.OS == p2.OS &&
-		p1.Architecture == p2.Architecture &&
-		p1.Variant == p2.Variant
-}
-
-func normalize(p specs.Platform) specs.Platform {
-	p = platforms.Normalize(p)
-	// remove after https://github.com/containerd/containerd/pull/2414
-	if p.Architecture == "arm" {
-		if p.Variant == "" {
-			p.Variant = "v7"
-		}
-	}
-	if p.Architecture == "arm64" {
-		if p.Variant == "" {
-			p.Variant = "v8"
-		}
 	}
 	return p
 }
