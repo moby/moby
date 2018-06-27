@@ -667,7 +667,9 @@ func NewDaemon(config *config.Config, registryService registry.Service, containe
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
-	if err := ensureDefaultAppArmorProfile(); err != nil {
+	// Make sure we clobber any pre-existing docker-default profile to ensure
+	// that upgrades to the profile actually work smoothly.
+	if err := clobberDefaultAppArmorProfile(); err != nil {
 		logrus.Errorf(err.Error())
 	}
 
