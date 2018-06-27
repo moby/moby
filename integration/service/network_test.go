@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/integration/internal/container"
+	net "github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -21,11 +22,10 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name() + "test-alias"
-	_, err := client.NetworkCreate(ctx, name, types.NetworkCreate{
-		Driver:     "overlay",
-		Attachable: true,
-	})
-	assert.NilError(t, err)
+	net.CreateNoError(t, ctx, client, name,
+		net.WithDriver("overlay"),
+		net.WithAttachable(),
+	)
 
 	cID1 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
@@ -35,7 +35,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 		}
 	})
 
-	err = client.NetworkConnect(ctx, name, cID1, &network.EndpointSettings{
+	err := client.NetworkConnect(ctx, name, cID1, &network.EndpointSettings{
 		Aliases: []string{
 			"aaa",
 		},

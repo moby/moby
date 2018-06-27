@@ -33,6 +33,13 @@ func WithInternal() func(*types.NetworkCreate) {
 	}
 }
 
+// WithAttachable sets Attachable flag on the create network request
+func WithAttachable() func(*types.NetworkCreate) {
+	return func(n *types.NetworkCreate) {
+		n.Attachable = true
+	}
+}
+
 // WithMacvlan sets the network as macvlan with the specified parent
 func WithMacvlan(parent string) func(*types.NetworkCreate) {
 	return func(n *types.NetworkCreate) {
