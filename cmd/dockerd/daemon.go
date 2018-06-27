@@ -377,7 +377,7 @@ func newRouterOptions(ctx context.Context, config *config.Config, d *daemon.Daem
 		Rootless:            daemon.Rootless(config),
 		IdentityMapping:     d.IdentityMapping(),
 		DNSConfig:           config.DNSConfig,
-		ApparmorProfile:     daemon.DefaultApparmorProfile(),
+		ApparmorProfile:     daemon.DefaultAppArmorProfile(),
 		UseSnapshotter:      d.UsesSnapshotter(),
 		Snapshotter:         d.ImageService().StorageDriver(),
 		ContainerdAddress:   config.ContainerdAddr,
