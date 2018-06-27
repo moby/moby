@@ -129,11 +129,14 @@ func (image *Image) Size(ctx context.Context, provider content.Provider, platfor
 // this direction because this abstraction is not needed.`
 func Manifest(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform string) (ocispec.Manifest, error) {
 	var (
-		matcher platforms.Matcher
-		m       *ocispec.Manifest
+		matcher  platforms.Matcher
+		m        *ocispec.Manifest
+		p        ocispec.Platform
+		wasIndex bool
 	)
 	if platform != "" {
-		p, err := platforms.Parse(platform)
+		var err error
+		p, err = platforms.Parse(platform)
 		if err != nil {
 			return ocispec.Manifest{}, err
 		}
@@ -201,6 +204,8 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 				}
 			}
 
+			wasIndex = true
+
 			return descs, nil
 
 		}
@@ -210,7 +215,11 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 	}
 
 	if m == nil {
-		return ocispec.Manifest{}, errors.Wrapf(errdefs.ErrNotFound, "manifest %v", image.Digest)
+		err := errors.Wrapf(errdefs.ErrNotFound, "manifest %v", image.Digest)
+		if wasIndex {
+			err = errors.Wrapf(errdefs.ErrNotFound, "no match for current platform %s in manifest %v", platforms.Format(p), image.Digest)
+		}
+		return ocispec.Manifest{}, err
 	}
 
 	return *m, nil
