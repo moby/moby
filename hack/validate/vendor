@@ -10,9 +10,8 @@ validate_vendor_diff(){
 
 	if [ ${#files[@]} -gt 0 ]; then
 		# Remove vendor/ first so  that anything not included in vendor.conf will
-		# cause the validation to fail. archive/tar is a special case, see vendor.conf
-		# for details.
-		ls -d vendor/* | grep -v vendor/archive | xargs rm -rf
+		# cause the validation to fail.
+		ls -d vendor/* | xargs rm -rf
 		# run vndr to recreate vendor/
 		vndr
 		# check if any files have changed
