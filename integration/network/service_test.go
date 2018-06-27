@@ -66,7 +66,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.30.0.0/16")
 
 	// Create a bridge network and verify its subnet is the second default pool
-	name := "elango"
+	name := "elango" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
@@ -75,7 +75,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.0.0/24")
 
 	// Create a bridge network and verify its subnet is the third default pool
-	name = "saanvi"
+	name = "saanvi" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
@@ -99,7 +99,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	defer cli.Close()
 
 	// Create a bridge network
-	name := "elango"
+	name := "elango" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
@@ -131,7 +131,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	defer cli.Close()
 
 	// Create a bridge network
-	name := "elango"
+	name := "elango" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
@@ -140,7 +140,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	networkip := out.IPAM.Config[0].Subnet
 
 	// Create a bridge network
-	name = "sthira"
+	name = "sthira" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
@@ -154,7 +154,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 		"--default-address-pool", "base=175.19.0.0/16,size=24")
 
 	// Create a bridge network
-	name = "saanvi"
+	name = "saanvi" + t.Name()
 	network.CreateNoError(t, context.Background(), cli, name,
 		network.WithDriver("bridge"),
 	)
