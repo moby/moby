@@ -10,6 +10,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork"
@@ -209,7 +210,7 @@ func TestUnknownDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if _, ok := err.(types.NotFoundError); !ok {
+	if !errdefs.IsNotFound(err) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -221,7 +222,7 @@ func TestNilRemoteDriver(t *testing.T) {
 		t.Fatal("Expected to fail. But instead succeeded")
 	}
 
-	if _, ok := err.(types.NotFoundError); !ok {
+	if !errdefs.IsNotFound(err) {
 		t.Fatalf("Did not fail with expected error. Actual error: %v", err)
 	}
 }
@@ -1396,7 +1397,7 @@ func TestValidRemoteDriver(t *testing.T) {
 		libnetwork.NetworkOptionGeneric(getEmptyGenericOption()))
 	if err != nil {
 		// Only fail if we could not find the plugin driver
-		if _, ok := err.(types.NotFoundError); ok {
+		if errdefs.IsNotFound(err) {
 			t.Fatal(err)
 		}
 		return

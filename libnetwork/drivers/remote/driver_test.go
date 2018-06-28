@@ -219,7 +219,11 @@ func TestGetEmptyCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, p.Client())
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := newDriver(plugin, client)
 	if d.Type() != plugin {
 		t.Fatal("Driver type does not match that given")
 	}
@@ -249,7 +253,11 @@ func TestGetExtraCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, p.Client())
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := newDriver(plugin, client)
 	if d.Type() != plugin {
 		t.Fatal("Driver type does not match that given")
 	}
@@ -281,7 +289,11 @@ func TestGetInvalidCapabilities(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, p.Client())
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := newDriver(plugin, client)
 	if d.Type() != plugin {
 		t.Fatal("Driver type does not match that given")
 	}
@@ -395,7 +407,11 @@ func TestRemoteDriver(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	d := newDriver(plugin, p.Client())
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d := newDriver(plugin, client)
 	if d.Type() != plugin {
 		t.Fatal("Driver type does not match that given")
 	}
@@ -473,7 +489,11 @@ func TestDriverError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver := newDriver(plugin, p.Client())
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := newDriver(plugin, client)
 
 	if err := driver.CreateEndpoint("dummy", "dummy", &testEndpoint{t: t}, map[string]interface{}{}); err == nil {
 		t.Fatal("Expected error from driver")
@@ -505,7 +525,12 @@ func TestMissingValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver := newDriver(plugin, p.Client())
+
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := newDriver(plugin, client)
 
 	if err := driver.CreateEndpoint("dummy", "dummy", ep, map[string]interface{}{}); err != nil {
 		t.Fatal(err)
@@ -566,7 +591,12 @@ func TestRollback(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	driver := newDriver(plugin, p.Client())
+
+	client, err := getPluginClient(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	driver := newDriver(plugin, client)
 
 	ep := &rollbackEndpoint{}
 
