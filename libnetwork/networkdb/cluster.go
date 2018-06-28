@@ -285,18 +285,35 @@ func (nDB *NetworkDB) rejoinClusterBootStrap() {
 		return
 	}
 
+	myself, _ := nDB.nodes[nDB.config.NodeID]
 	bootStrapIPs := make([]string, 0, len(nDB.bootStrapIP))
 	for _, bootIP := range nDB.bootStrapIP {
-		for _, node := range nDB.nodes {
-			if node.Addr.Equal(bootIP) {
-				// One of the bootstrap nodes is part of the cluster, return
-				nDB.RUnlock()
-				return
-			}
+		// botostrap IPs are usually IP:port from the Join
+		var bootstrapIP net.IP
+		ipStr, _, err := net.SplitHostPort(bootIP)
+		if err != nil {
+			// try to parse it as an IP with port
+			// Note this seems to be the case for swarm that do not specify any port
+			ipStr = bootIP
 		}
-		bootStrapIPs = append(bootStrapIPs, bootIP.String())
+		bootstrapIP = net.ParseIP(ipStr)
+		if bootstrapIP != nil {
+			for _, node := range nDB.nodes {
+				if node.Addr.Equal(bootstrapIP) && !node.Addr.Equal(myself.Addr) {
+					// One of the bootstrap nodes (and not myself) is part of the cluster, return
+					nDB.RUnlock()
+					return
+				}
+			}
+			bootStrapIPs = append(bootStrapIPs, bootIP)
+		}
 	}
 	nDB.RUnlock()
+	if len(bootStrapIPs) == 0 {
+		// this will also avoid to call the Join with an empty list erasing the current bootstrap ip list
+		logrus.Debug("rejoinClusterBootStrap did not find any valid IP")
+		return
+	}
 	// None of the bootStrap nodes are in the cluster, call memberlist join
 	logrus.Debugf("rejoinClusterBootStrap, calling cluster join with bootStrap %v", bootStrapIPs)
 	ctx, cancel := context.WithTimeout(nDB.ctx, rejoinClusterDuration)
