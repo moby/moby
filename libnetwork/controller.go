@@ -871,7 +871,7 @@ addToStore:
 		}
 	}()
 
-	if len(network.loadBalancerIP) != 0 {
+	if network.hasLoadBalancerEndpoint() {
 		if err = network.createLoadBalancerSandbox(); err != nil {
 			return nil, err
 		}
