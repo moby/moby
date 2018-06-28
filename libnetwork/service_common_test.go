@@ -62,8 +62,8 @@ func TestDNSOptions(t *testing.T) {
 	currRC, err := resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList := resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:0", dnsOptionsList[0], "The option must be ndots:0 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:0", dnsOptionsList[0])
 
 	sb.(*sandbox).config.dnsOptionsList = []string{"ndots:5"}
 	err = sb.(*sandbox).setupDNS()
@@ -71,14 +71,14 @@ func TestDNSOptions(t *testing.T) {
 	currRC, err = resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:5", dnsOptionsList[0], "The option must be ndots:5 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:5", dnsOptionsList[0])
 
 	err = sb.(*sandbox).rebuildDNS()
 	require.NoError(t, err)
 	currRC, err = resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:5", dnsOptionsList[0], "The option must be ndots:5 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:5", dnsOptionsList[0])
 }
