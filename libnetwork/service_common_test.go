@@ -97,4 +97,10 @@ func TestDNSOptions(t *testing.T) {
 	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
 	assert.Equal(t, 1, len(dnsOptionsList))
 	assert.Equal(t, "ndots:0", dnsOptionsList[0])
+
+	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:foobar"}
+	err = sb2.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb2.(*sandbox).rebuildDNS()
+	require.EqualError(t, err, "invalid number for ndots option: foobar")
 }

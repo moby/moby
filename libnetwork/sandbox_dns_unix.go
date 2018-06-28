@@ -369,7 +369,7 @@ dnsOpt:
 						return fmt.Errorf("invalid ndots option %v", option)
 					}
 					if num, err := strconv.Atoi(parts[1]); err != nil {
-						return fmt.Errorf("invalid number for ndots option %v", option)
+						return fmt.Errorf("invalid number for ndots option: %v", parts[1])
 					} else if num >= 0 {
 						// if the user sets ndots, use the user setting
 						sb.ndotsSet = true
