@@ -103,4 +103,10 @@ func TestDNSOptions(t *testing.T) {
 	require.NoError(t, err)
 	err = sb2.(*sandbox).rebuildDNS()
 	require.EqualError(t, err, "invalid number for ndots option: foobar")
+
+	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:-1"}
+	err = sb2.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb2.(*sandbox).rebuildDNS()
+	require.EqualError(t, err, "invalid number for ndots option: -1")
 }

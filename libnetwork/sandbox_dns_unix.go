@@ -374,6 +374,8 @@ dnsOpt:
 						// if the user sets ndots, use the user setting
 						sb.ndotsSet = true
 						break dnsOpt
+					} else {
+						return fmt.Errorf("invalid number for ndots option: %v", num)
 					}
 				}
 			}
