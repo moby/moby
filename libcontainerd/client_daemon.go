@@ -561,7 +561,11 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 		return err
 	}
 
-	img, err := p.(containerd.Task).Checkpoint(ctx)
+	opts := []containerd.CheckpointTaskOpts{}
+	if exit {
+		opts = append(opts, containerd.WithExit)
+	}
+	img, err := p.(containerd.Task).Checkpoint(ctx, opts...)
 	if err != nil {
 		return wrapError(err)
 	}
