@@ -367,11 +367,7 @@ func FileInfoHeader(name string, fi os.FileInfo, link string) (*tar.Header, erro
 	hdr.AccessTime = time.Time{}
 	hdr.ChangeTime = time.Time{}
 	hdr.Mode = fillGo18FileTypeBits(int64(chmodTarEntry(os.FileMode(hdr.Mode))), fi)
-	name, err = canonicalTarName(name, fi.IsDir())
-	if err != nil {
-		return nil, fmt.Errorf("tar: cannot canonicalize path: %v", err)
-	}
-	hdr.Name = name
+	hdr.Name = canonicalTarName(name, fi.IsDir())
 	if err := setHeaderForSpecialDevice(hdr, name, fi.Sys()); err != nil {
 		return nil, err
 	}
@@ -447,17 +443,14 @@ func newTarAppender(idMapping *idtools.IDMappings, writer io.Writer, chownOpts *
 
 // canonicalTarName provides a platform-independent and consistent posix-style
 //path for files and directories to be archived regardless of the platform.
-func canonicalTarName(name string, isDir bool) (string, error) {
-	name, err := CanonicalTarNameForPath(name)
-	if err != nil {
-		return "", err
-	}
+func canonicalTarName(name string, isDir bool) string {
+	name = CanonicalTarNameForPath(name)
 
 	// suffix with '/' for directories
 	if isDir && !strings.HasSuffix(name, "/") {
 		name += "/"
 	}
-	return name, nil
+	return name
 }
 
 // addTarFile adds to the tar archive a file from `path` as `name`
