@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/distribution"
 	distmetadata "github.com/docker/docker/distribution/metadata"
@@ -122,6 +123,12 @@ func (w *Worker) Labels() map[string]string {
 	return w.Opt.Labels
 }
 
+// Platforms returns one or more platforms supported by the image.
+func (w *Worker) Platforms() []ocispec.Platform {
+	// does not handle lcow
+	return []ocispec.Platform{platforms.DefaultSpec()}
+}
+
 // LoadRef loads a reference by ID
 func (w *Worker) LoadRef(id string) (cache.ImmutableRef, error) {
 	return w.CacheManager.Get(context.TODO(), id)
@@ -129,26 +136,27 @@ func (w *Worker) LoadRef(id string) (cache.ImmutableRef, error) {
 
 // ResolveOp converts a LLB vertex into a LLB operation
 func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solver.Op, error) {
-	switch op := v.Sys().(type) {
-	case *pb.Op_Source:
-		return ops.NewSourceOp(v, op, w.SourceManager, w)
-	case *pb.Op_Exec:
-		return ops.NewExecOp(v, op, w.CacheManager, w.MetadataStore, w.Executor, w)
-	case *pb.Op_Build:
-		return ops.NewBuildOp(v, op, s, w)
-	default:
-		return nil, errors.Errorf("could not resolve %v", v)
+	if baseOp, ok := v.Sys().(*pb.Op); ok {
+		switch op := baseOp.Op.(type) {
+		case *pb.Op_Source:
+			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, w)
+		case *pb.Op_Exec:
+			return ops.NewExecOp(v, op, w.CacheManager, w.MetadataStore, w.Executor, w)
+		case *pb.Op_Build:
+			return ops.NewBuildOp(v, op, s, w)
+		}
 	}
+	return nil, errors.Errorf("could not resolve %v", v)
 }
 
 // ResolveImageConfig returns image config for an image
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error) {
 	// ImageSource is typically source/containerimage
 	resolveImageConfig, ok := w.ImageSource.(resolveImageConfig)
 	if !ok {
 		return "", nil, errors.Errorf("worker %q does not implement ResolveImageConfig", w.ID())
 	}
-	return resolveImageConfig.ResolveImageConfig(ctx, ref)
+	return resolveImageConfig.ResolveImageConfig(ctx, ref, platform)
 }
 
 // Exec executes a process directly on a worker
@@ -319,5 +327,5 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 }
 
 type resolveImageConfig interface {
-	ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error)
 }

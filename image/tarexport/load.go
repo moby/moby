@@ -11,6 +11,7 @@ import (
 	"reflect"
 	"runtime"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/image"
@@ -421,9 +422,11 @@ func checkCompatibleOS(imageOS string) error {
 	if runtime.GOOS != "windows" && imageOS == "windows" {
 		return fmt.Errorf("cannot load %s image on %s", imageOS, runtime.GOOS)
 	}
-	// Finally, check the image OS is supported for the platform.
-	if err := system.ValidatePlatform(system.ParsePlatform(imageOS)); err != nil {
-		return fmt.Errorf("cannot load %s image on %s: %s", imageOS, runtime.GOOS, err)
+
+	p, err := platforms.Parse(imageOS)
+	if err != nil {
+		return err
 	}
-	return nil
+
+	return system.ValidatePlatform(p)
 }

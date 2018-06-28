@@ -11,6 +11,6 @@ func detectRunMount(cmd *command, dispatchStatesByName map[string]*dispatchState
 	return false
 }
 
-func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*dispatchState, opt dispatchOpt) []llb.RunOption {
-	return nil
+func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*dispatchState, opt dispatchOpt) ([]llb.RunOption, error) {
+	return nil, nil
 }

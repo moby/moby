@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/moby/buildkit/solver/pb"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -50,10 +51,19 @@ func FromString(s string) (Identifier, error) {
 		return nil, errors.Wrapf(errNotFound, "unknown schema %s", parts[0])
 	}
 }
-func FromLLB(op *pb.Op_Source) (Identifier, error) {
+func FromLLB(op *pb.Op_Source, platform *pb.Platform) (Identifier, error) {
 	id, err := FromString(op.Source.Identifier)
 	if err != nil {
 		return nil, err
+	}
+	if id, ok := id.(*ImageIdentifier); ok && platform != nil {
+		id.Platform = &specs.Platform{
+			OS:           platform.OS,
+			Architecture: platform.Architecture,
+			Variant:      platform.Variant,
+			OSVersion:    platform.OSVersion,
+			OSFeatures:   platform.OSFeatures,
+		}
 	}
 	if id, ok := id.(*GitIdentifier); ok {
 		for k, v := range op.Source.Attrs {
@@ -136,6 +146,7 @@ func FromLLB(op *pb.Op_Source) (Identifier, error) {
 
 type ImageIdentifier struct {
 	Reference reference.Spec
+	Platform  *specs.Platform
 }
 
 func NewImageIdentifier(str string) (*ImageIdentifier, error) {

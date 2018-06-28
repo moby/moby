@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
@@ -27,6 +28,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -102,7 +104,7 @@ func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
 	copyInstruction.chownStr = c.Chown
 	copyInstruction.allowLocalDecompression = true
 
-	return d.builder.performCopy(d.state, copyInstruction)
+	return d.builder.performCopy(d, copyInstruction)
 }
 
 // COPY foo /path
@@ -126,7 +128,7 @@ func dispatchCopy(d dispatchRequest, c *instructions.CopyCommand) error {
 	}
 	copyInstruction.chownStr = c.Chown
 
-	return d.builder.performCopy(d.state, copyInstruction)
+	return d.builder.performCopy(d, copyInstruction)
 }
 
 func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error) {
@@ -144,17 +146,32 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 		imageRefOrID = stage.Image
 		localOnly = true
 	}
-	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.state.operatingSystem)
+	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.builder.options.Platform)
 }
 
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
 //
 func initializeStage(d dispatchRequest, cmd *instructions.Stage) error {
 	d.builder.imageProber.Reset()
-	if err := system.ValidatePlatform(&cmd.Platform); err != nil {
-		return err
+
+	var platform *specs.Platform
+	if v := cmd.Platform; v != "" {
+		v, err := d.getExpandedString(d.shlex, v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to process arguments for platform %s", v)
+		}
+
+		p, err := platforms.Parse(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse platform %s", v)
+		}
+		if err := system.ValidatePlatform(p); err != nil {
+			return err
+		}
+		platform = &p
 	}
-	image, err := d.getFromImage(d.shlex, cmd.BaseName, cmd.Platform.OS)
+
+	image, err := d.getFromImage(d.shlex, cmd.BaseName, platform)
 	if err != nil {
 		return err
 	}
@@ -200,82 +217,72 @@ func dispatchTriggeredOnBuild(d dispatchRequest, triggers []string) error {
 	return nil
 }
 
-func (d *dispatchRequest) getExpandedImageName(shlex *shell.Lex, name string) (string, error) {
+func (d *dispatchRequest) getExpandedString(shlex *shell.Lex, str string) (string, error) {
 	substitutionArgs := []string{}
 	for key, value := range d.state.buildArgs.GetAllMeta() {
 		substitutionArgs = append(substitutionArgs, key+"="+value)
 	}
 
-	name, err := shlex.ProcessWord(name, substitutionArgs)
+	name, err := shlex.ProcessWord(str, substitutionArgs)
 	if err != nil {
 		return "", err
 	}
 	return name, nil
 }
 
-// getOsFromFlagsAndStage calculates the operating system if we need to pull an image.
-// stagePlatform contains the value supplied by optional `--platform=` on
-// a current FROM statement. b.builder.options.Platform contains the operating
-// system part of the optional flag passed in the API call (or CLI flag
-// through `docker build --platform=...`). Precedence is for an explicit
-// platform indication in the FROM statement.
-func (d *dispatchRequest) getOsFromFlagsAndStage(stageOS string) string {
-	switch {
-	case stageOS != "":
-		return stageOS
-	case d.builder.options.Platform != "":
-		// Note this is API "platform", but by this point, as the daemon is not
-		// multi-arch aware yet, it is guaranteed to only hold the OS part here.
-		return d.builder.options.Platform
-	default:
-		return runtime.GOOS
-	}
-}
-
-func (d *dispatchRequest) getImageOrStage(name string, stageOS string) (builder.Image, error) {
+func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform) (builder.Image, error) {
 	var localOnly bool
 	if im, ok := d.stages.getByName(name); ok {
 		name = im.Image
 		localOnly = true
 	}
 
-	os := d.getOsFromFlagsAndStage(stageOS)
+	if platform == nil {
+		platform = d.builder.options.Platform
+	}
 
 	// Windows cannot support a container with no base image unless it is LCOW.
 	if name == api.NoBaseImageSpecifier {
+		p := platforms.DefaultSpec()
+		if platform != nil {
+			p = *platform
+		}
 		imageImage := &image.Image{}
-		imageImage.OS = runtime.GOOS
+		imageImage.OS = p.OS
+
+		// old windows scratch handling
+		// TODO: scratch should not have an os. It should be nil image.
+		// Windows supports scratch. What is not supported is running containers
+		// from it.
 		if runtime.GOOS == "windows" {
-			switch os {
-			case "windows", "":
-				return nil, errors.New("Windows does not support FROM scratch")
-			case "linux":
+			if platform == nil || platform.OS == "linux" {
 				if !system.LCOWSupported() {
 					return nil, errors.New("Linux containers are not supported on this system")
 				}
 				imageImage.OS = "linux"
-			default:
-				return nil, errors.Errorf("operating system %q is not supported", os)
+			} else if platform.OS == "windows" {
+				return nil, errors.New("Windows does not support FROM scratch")
+			} else {
+				return nil, errors.Errorf("platform %s is not supported", platforms.Format(p))
 			}
 		}
 		return builder.Image(imageImage), nil
 	}
-	imageMount, err := d.builder.imageSources.Get(name, localOnly, os)
+	imageMount, err := d.builder.imageSources.Get(name, localOnly, platform)
 	if err != nil {
 		return nil, err
 	}
 	return imageMount.Image(), nil
 }
-func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string, stageOS string) (builder.Image, error) {
-	name, err := d.getExpandedImageName(shlex, name)
+func (d *dispatchRequest) getFromImage(shlex *shell.Lex, name string, platform *specs.Platform) (builder.Image, error) {
+	name, err := d.getExpandedString(shlex, name)
 	if err != nil {
 		return nil, err
 	}
-	return d.getImageOrStage(name, stageOS)
+	return d.getImageOrStage(name, platform)
 }
 
 func dispatchOnbuild(d dispatchRequest, c *instructions.OnbuildCommand) error {
-
 	d.state.runConfig.OnBuild = append(d.state.runConfig.OnBuild, c.Expression)
 	return d.builder.commit(d.state, "ONBUILD "+c.Expression)
 }

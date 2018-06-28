@@ -14,18 +14,20 @@ import (
 const sourceCacheType = "buildkit.source.v0"
 
 type sourceOp struct {
-	mu  sync.Mutex
-	op  *pb.Op_Source
-	sm  *source.Manager
-	src source.SourceInstance
-	w   worker.Worker
+	mu       sync.Mutex
+	op       *pb.Op_Source
+	platform *pb.Platform
+	sm       *source.Manager
+	src      source.SourceInstance
+	w        worker.Worker
 }
 
-func NewSourceOp(_ solver.Vertex, op *pb.Op_Source, sm *source.Manager, w worker.Worker) (solver.Op, error) {
+func NewSourceOp(_ solver.Vertex, op *pb.Op_Source, platform *pb.Platform, sm *source.Manager, w worker.Worker) (solver.Op, error) {
 	return &sourceOp{
-		op: op,
-		sm: sm,
-		w:  w,
+		op:       op,
+		sm:       sm,
+		w:        w,
+		platform: platform,
 	}, nil
 }
 
@@ -35,7 +37,7 @@ func (s *sourceOp) instance(ctx context.Context) (source.SourceInstance, error) 
 	if s.src != nil {
 		return s.src, nil
 	}
-	id, err := source.FromLLB(s.op)
+	id, err := source.FromLLB(s.op, s.platform)
 	if err != nil {
 		return nil, err
 	}

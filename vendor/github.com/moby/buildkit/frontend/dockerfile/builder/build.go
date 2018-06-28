@@ -8,10 +8,12 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -28,13 +30,25 @@ const (
 	buildArgPrefix        = "build-arg:"
 	labelPrefix           = "label:"
 	keyNoCache            = "no-cache"
+	keyTargetPlatform     = "platform"
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
-var gitUrlPathWithFragmentSuffix = regexp.MustCompile(".git(?:#.+)?$")
+var gitUrlPathWithFragmentSuffix = regexp.MustCompile("\\.git(?:#.+)?$")
 
 func Build(ctx context.Context, c client.Client) error {
 	opts := c.Opts()
+
+	// TODO: read buildPlatforms from workers
+	buildPlatforms := []specs.Platform{platforms.DefaultSpec()}
+	targetPlatform := platforms.DefaultSpec()
+	if v := opts[keyTargetPlatform]; v != "" {
+		var err error
+		targetPlatform, err = platforms.Parse(v)
+		if err != nil {
+			return errors.Wrapf(err, "failed to parse target platform %s", v)
+		}
+	}
 
 	filename := opts[keyFilename]
 	if filename == "" {
@@ -166,14 +180,16 @@ func Build(ctx context.Context, c client.Client) error {
 	}
 
 	st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
-		Target:       opts[keyTarget],
-		MetaResolver: c,
-		BuildArgs:    filter(opts, buildArgPrefix),
-		Labels:       filter(opts, labelPrefix),
-		SessionID:    c.SessionID(),
-		BuildContext: buildContext,
-		Excludes:     excludes,
-		IgnoreCache:  ignoreCache,
+		Target:         opts[keyTarget],
+		MetaResolver:   c,
+		BuildArgs:      filter(opts, buildArgPrefix),
+		Labels:         filter(opts, labelPrefix),
+		SessionID:      c.SessionID(),
+		BuildContext:   buildContext,
+		Excludes:       excludes,
+		IgnoreCache:    ignoreCache,
+		TargetPlatform: &targetPlatform,
+		BuildPlatforms: buildPlatforms,
 	})
 
 	if err != nil {

@@ -3,7 +3,6 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 
@@ -16,11 +15,12 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (i *ImageService) PullImage(ctx context.Context, image, tag, os string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	start := time.Now()
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
@@ -46,12 +46,12 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag, os string, met
 		}
 	}
 
-	err = i.pullImageWithReference(ctx, ref, os, metaHeaders, authConfig, outStream)
+	err = i.pullImageWithReference(ctx, ref, platform, metaHeaders, authConfig, outStream)
 	imageActions.WithValues("pull").UpdateSince(start)
 	return err
 }
 
-func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, os string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	progressChan := make(chan progress.Progress, 100)
@@ -64,11 +64,6 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
 		close(writesDone)
 	}()
-
-	// Default to the host OS platform in case it hasn't been populated with an explicit value.
-	if os == "" {
-		os = runtime.GOOS
-	}
 
 	imagePullConfig := &distribution.ImagePullConfig{
 		Config: distribution.Config{
@@ -83,7 +78,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		},
 		DownloadManager: i.downloadManager,
 		Schema2Types:    distribution.ImageTypes,
-		OS:              os,
+		Platform:        platform,
 	}
 
 	err := distribution.Pull(ctx, ref, imagePullConfig)

@@ -4,16 +4,19 @@ import (
 	"fmt"
 	"path"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/google/shlex"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type contextKeyT string
 
 var (
-	keyArgs = contextKeyT("llb.exec.args")
-	keyDir  = contextKeyT("llb.exec.dir")
-	keyEnv  = contextKeyT("llb.exec.env")
-	keyUser = contextKeyT("llb.exec.user")
+	keyArgs     = contextKeyT("llb.exec.args")
+	keyDir      = contextKeyT("llb.exec.dir")
+	keyEnv      = contextKeyT("llb.exec.env")
+	keyUser     = contextKeyT("llb.exec.user")
+	keyPlatform = contextKeyT("llb.platform")
 )
 
 func addEnv(key, value string) StateOption {
@@ -104,6 +107,21 @@ func shlexf(str string, v ...interface{}) StateOption {
 		}
 		return args(arg...)(s)
 	}
+}
+
+func platform(p specs.Platform) StateOption {
+	return func(s State) State {
+		return s.WithValue(keyPlatform, platforms.Normalize(p))
+	}
+}
+
+func getPlatform(s State) *specs.Platform {
+	v := s.Value(keyPlatform)
+	if v != nil {
+		p := v.(specs.Platform)
+		return &p
+	}
+	return nil
 }
 
 type EnvList []KeyValue

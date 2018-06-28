@@ -76,7 +76,8 @@ func (is *store) restore() error {
 		var l layer.Layer
 		if chainID := img.RootFS.ChainID(); chainID != "" {
 			if !system.IsOSSupported(img.OperatingSystem()) {
-				return system.ErrNotSupportedOperatingSystem
+				logrus.Errorf("not restoring image with unsupported operating system %v, %v, %s", dgst, chainID, img.OperatingSystem())
+				return nil
 			}
 			l, err = is.lss[img.OperatingSystem()].Get(chainID)
 			if err != nil {

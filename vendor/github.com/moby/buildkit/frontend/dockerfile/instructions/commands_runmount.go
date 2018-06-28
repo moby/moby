@@ -20,6 +20,16 @@ var allowedMountTypes = map[string]struct{}{
 	MountTypeTmpfs: {},
 }
 
+const MountSharingShared = "shared"
+const MountSharingPrivate = "private"
+const MountSharingLocked = "locked"
+
+var allowedSharingTypes = map[string]struct{}{
+	MountSharingShared:  {},
+	MountSharingPrivate: {},
+	MountSharingLocked:  {},
+}
+
 type mountsKeyT string
 
 var mountsKey = mountsKeyT("dockerfile/run/mounts")
@@ -76,12 +86,13 @@ type mountState struct {
 }
 
 type Mount struct {
-	Type     string
-	From     string
-	Source   string
-	Target   string
-	ReadOnly bool
-	CacheID  string
+	Type         string
+	From         string
+	Source       string
+	Target       string
+	ReadOnly     bool
+	CacheID      string
+	CacheSharing string
 }
 
 func parseMount(value string) (*Mount, error) {
@@ -120,7 +131,7 @@ func parseMount(value string) (*Mount, error) {
 		switch key {
 		case "type":
 			if !isValidMountType(strings.ToLower(value)) {
-				return nil, errors.Errorf("invalid mount type %q", value)
+				return nil, errors.Errorf("unsupported mount type %q", value)
 			}
 			m.Type = strings.ToLower(value)
 		case "from":
@@ -144,6 +155,11 @@ func parseMount(value string) (*Mount, error) {
 			roAuto = false
 		case "id":
 			m.CacheID = value
+		case "sharing":
+			if _, ok := allowedSharingTypes[strings.ToLower(value)]; !ok {
+				return nil, errors.Errorf("unsupported sharing value %q", value)
+			}
+			m.CacheSharing = strings.ToLower(value)
 		default:
 			return nil, errors.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
@@ -155,6 +171,10 @@ func parseMount(value string) (*Mount, error) {
 		} else {
 			m.ReadOnly = true
 		}
+	}
+
+	if m.CacheSharing != "" && m.Type != MountTypeCache {
+		return nil, errors.Errorf("invalid cache sharing set for %v mount", m.Type)
 	}
 
 	return m, nil

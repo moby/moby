@@ -12,6 +12,7 @@ import (
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/imageutil"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 var defaultImageMetaResolver llb.ImageMetaResolver
@@ -22,12 +23,12 @@ var WithDefault = llb.ImageOptionFunc(func(ii *llb.ImageInfo) {
 })
 
 type imageMetaResolverOpts struct {
-	platform string
+	platform *specs.Platform
 }
 
 type ImageMetaResolverOpt func(o *imageMetaResolverOpts)
 
-func WithPlatform(p string) ImageMetaResolverOpt {
+func WithDefaultPlatform(p *specs.Platform) ImageMetaResolverOpt {
 	return func(o *imageMetaResolverOpts) {
 		o.platform = p
 	}
@@ -59,7 +60,7 @@ func Default() llb.ImageMetaResolver {
 type imageMetaResolver struct {
 	resolver remotes.Resolver
 	buffer   contentutil.Buffer
-	platform string
+	platform *specs.Platform
 	locker   *locker.Locker
 	cache    map[string]resolveResult
 }
@@ -69,7 +70,7 @@ type resolveResult struct {
 	dgst   digest.Digest
 }
 
-func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string) (digest.Digest, []byte, error) {
+func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, platform *specs.Platform) (digest.Digest, []byte, error) {
 	imr.locker.Lock(ref)
 	defer imr.locker.Unlock(ref)
 
@@ -77,7 +78,11 @@ func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string
 		return res.dgst, res.config, nil
 	}
 
-	dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, imr.platform)
+	if platform == nil {
+		platform = imr.platform
+	}
+
+	dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, platform)
 	if err != nil {
 		return "", nil, err
 	}

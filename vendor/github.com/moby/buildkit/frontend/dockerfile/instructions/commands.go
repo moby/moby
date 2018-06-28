@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // KeyValuePair represent an arbitrary named value (useful in slice instead of map[string] string to preserve ordering)
@@ -382,7 +381,7 @@ type Stage struct {
 	Commands   []Command
 	BaseName   string
 	SourceCode string
-	Platform   specs.Platform
+	Platform   string
 }
 
 // AddCommand to the stage

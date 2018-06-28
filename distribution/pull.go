@@ -3,7 +3,6 @@ package distribution // import "github.com/docker/docker/distribution"
 import (
 	"context"
 	"fmt"
-	"runtime"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api"
@@ -12,6 +11,7 @@ import (
 	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -21,7 +21,7 @@ type Puller interface {
 	// Pull tries to pull the image referenced by `tag`
 	// Pull returns an error if any, as well as a boolean that determines whether to retry Pull on the next configured endpoint.
 	//
-	Pull(ctx context.Context, ref reference.Named, os string) error
+	Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) error
 }
 
 // newPuller returns a Puller interface that will pull from either a v1 or v2
@@ -115,12 +115,7 @@ func Pull(ctx context.Context, ref reference.Named, imagePullConfig *ImagePullCo
 			continue
 		}
 
-		// Make sure we default the OS if it hasn't been supplied
-		if imagePullConfig.OS == "" {
-			imagePullConfig.OS = runtime.GOOS
-		}
-
-		if err := puller.Pull(ctx, ref, imagePullConfig.OS); err != nil {
+		if err := puller.Pull(ctx, ref, imagePullConfig.Platform); err != nil {
 			// Was this pull cancelled? If so, don't try to fall
 			// back.
 			fallback := false

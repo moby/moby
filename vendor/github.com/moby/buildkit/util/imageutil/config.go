@@ -10,7 +10,7 @@ import (
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
 	digest "github.com/opencontainers/go-digest"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -19,16 +19,18 @@ type IngesterProvider interface {
 	content.Provider
 }
 
-func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester IngesterProvider, platform string) (digest.Digest, []byte, error) {
-	if platform == "" {
-		platform = platforms.Default()
+func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester IngesterProvider, platform *specs.Platform) (digest.Digest, []byte, error) {
+	// TODO: fix containerd to take struct instead of string
+	platformStr := platforms.Default()
+	if platform != nil {
+		platformStr = platforms.Format(*platform)
 	}
 	ref, err := reference.Parse(str)
 	if err != nil {
 		return "", nil, errors.WithStack(err)
 	}
 
-	desc := ocispec.Descriptor{
+	desc := specs.Descriptor{
 		Digest: ref.Digest(),
 	}
 	if desc.Digest != "" {
@@ -56,12 +58,12 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester
 
 	handlers := []images.Handler{
 		remotes.FetchHandler(ingester, fetcher),
-		childrenConfigHandler(ingester, platform),
+		childrenConfigHandler(ingester, platformStr),
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
 		return "", nil, err
 	}
-	config, err := images.Config(ctx, ingester, desc, platform)
+	config, err := images.Config(ctx, ingester, desc, platformStr)
 	if err != nil {
 		return "", nil, err
 	}
@@ -75,10 +77,10 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester
 }
 
 func childrenConfigHandler(provider content.Provider, platform string) images.HandlerFunc {
-	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
-		var descs []ocispec.Descriptor
+	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		var descs []specs.Descriptor
 		switch desc.MediaType {
-		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+		case images.MediaTypeDockerSchema2Manifest, specs.MediaTypeImageManifest:
 			p, err := content.ReadBlob(ctx, provider, desc)
 			if err != nil {
 				return nil, err
@@ -86,19 +88,19 @@ func childrenConfigHandler(provider content.Provider, platform string) images.Ha
 
 			// TODO(stevvooe): We just assume oci manifest, for now. There may be
 			// subtle differences from the docker version.
-			var manifest ocispec.Manifest
+			var manifest specs.Manifest
 			if err := json.Unmarshal(p, &manifest); err != nil {
 				return nil, err
 			}
 
 			descs = append(descs, manifest.Config)
-		case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		case images.MediaTypeDockerSchema2ManifestList, specs.MediaTypeImageIndex:
 			p, err := content.ReadBlob(ctx, provider, desc)
 			if err != nil {
 				return nil, err
 			}
 
-			var index ocispec.Index
+			var index specs.Index
 			if err := json.Unmarshal(p, &index); err != nil {
 				return nil, err
 			}
@@ -118,7 +120,7 @@ func childrenConfigHandler(provider content.Provider, platform string) images.Ha
 			} else {
 				descs = append(descs, index.Manifests...)
 			}
-		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+		case images.MediaTypeDockerSchema2Config, specs.MediaTypeImageConfig:
 			// childless data types.
 			return nil, nil
 		default:
@@ -129,7 +131,7 @@ func childrenConfigHandler(provider content.Provider, platform string) images.Ha
 	}
 }
 
-// ocispec.MediaTypeImageManifest, // TODO: detect schema1/manifest-list
+// specs.MediaTypeImageManifest, // TODO: detect schema1/manifest-list
 func DetectManifestMediaType(ra content.ReaderAt) (string, error) {
 	// TODO: schema1
 

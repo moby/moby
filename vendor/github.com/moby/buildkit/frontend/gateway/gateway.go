@@ -8,6 +8,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -21,7 +22,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/worker"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
@@ -62,7 +63,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	sid := session.FromContext(ctx)
 
 	_, isDevel := opts[keyDevel]
-	var img ocispec.Image
+	var img specs.Image
 	var rootFS cache.ImmutableRef
 	var readonly bool // TODO: try to switch to read-only by default.
 
@@ -94,7 +95,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 			return nil, nil, err
 		}
 
-		dgst, config, err := llbBridge.ResolveImageConfig(ctx, reference.TagNameOnly(sourceRef).String())
+		dgst, config, err := llbBridge.ResolveImageConfig(ctx, reference.TagNameOnly(sourceRef).String(), nil) // TODO:
 		if err != nil {
 			return nil, nil, err
 		}
@@ -103,9 +104,11 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 			return nil, nil, err
 		}
 
-		sourceRef, err = reference.WithDigest(sourceRef, dgst)
-		if err != nil {
-			return nil, nil, err
+		if dgst != "" {
+			sourceRef, err = reference.WithDigest(sourceRef, dgst)
+			if err != nil {
+				return nil, nil, err
+			}
 		}
 
 		src := llb.Image(sourceRef.String())
@@ -248,6 +251,7 @@ func (d dummyAddr) String() string {
 }
 
 type llbBridgeForwarder struct {
+	mu           sync.Mutex
 	callCtx      context.Context
 	llbBridge    frontend.FrontendLLBBridge
 	refs         map[string]solver.Result
@@ -258,7 +262,17 @@ type llbBridgeForwarder struct {
 
 func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.ResolveImageConfigRequest) (*pb.ResolveImageConfigResponse, error) {
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
-	dgst, dt, err := lbf.llbBridge.ResolveImageConfig(ctx, req.Ref)
+	var platform *specs.Platform
+	if p := req.Platform; p != nil {
+		platform = &specs.Platform{
+			OS:           p.OS,
+			Architecture: p.Architecture,
+			Variant:      p.Variant,
+			OSVersion:    p.OSVersion,
+			OSFeatures:   p.OSFeatures,
+		}
+	}
+	dgst, dt, err := lbf.llbBridge.ResolveImageConfig(ctx, req.Ref, platform)
 	if err != nil {
 		return nil, err
 	}
@@ -292,7 +306,9 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 	}
 
 	id := identity.NewID()
+	lbf.mu.Lock()
 	lbf.refs[id] = ref
+	lbf.mu.Unlock()
 	if req.Final {
 		lbf.lastRef = ref
 		lbf.exporterAttr = exp
@@ -304,7 +320,9 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 }
 func (lbf *llbBridgeForwarder) ReadFile(ctx context.Context, req *pb.ReadFileRequest) (*pb.ReadFileResponse, error) {
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
+	lbf.mu.Lock()
 	ref, ok := lbf.refs[req.Ref]
+	lbf.mu.Unlock()
 	if !ok {
 		return nil, errors.Errorf("no such ref: %v", req.Ref)
 	}

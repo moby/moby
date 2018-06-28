@@ -15,7 +15,18 @@ message Op {
 		SourceOp source = 3;
 		CopyOp copy = 4;
 		BuildOp build = 5;
-	 }
+	}
+	Platform platform = 10;
+	WorkerConstraints constraints = 11;
+}
+
+// Platform is github.com/opencontainers/image-spec/specs-go/v1.Platform
+message Platform {
+	string Architecture = 1;
+	string OS = 2;
+	string Variant = 3;
+	string OSVersion = 4; // unused
+	repeated string OSFeatures = 5; // unused
 }
 
 // Input represents an input edge for an Op.
@@ -54,6 +65,7 @@ message Mount {
 	CacheOpt cacheOpt = 20;
 }
 
+// MountType defines a type of a mount from a supported set
 enum MountType {
 	BIND = 0;
 	SECRET = 1;
@@ -62,8 +74,22 @@ enum MountType {
 	TMPFS = 4;
 }
 
+// CacheOpt defines options specific to cache mounts
 message CacheOpt {
+	// ID is an optional namespace for the mount
 	string ID = 1;
+	// Sharing is the sharing mode for the mount 
+	CacheSharingOpt sharing = 2;
+}
+
+// CacheSharingOpt defines different sharing modes for cache mount
+enum CacheSharingOpt {
+	// SHARED cache mount can be used concurrently by multiple writers
+	SHARED = 0;
+	// PRIVATE creates a new mount if there are multiple writers
+	PRIVATE = 1;
+	// LOCKED pauses second writer until first one releases the mount
+	LOCKED = 2;
 }
 
 // CopyOp copies files across Ops.
@@ -106,8 +132,9 @@ message OpMetadata {
 	// ignore_cache specifies to ignore the cache for this Op.
 	bool ignore_cache = 1;
 	// Description can be used for keeping any text fields that builder doesn't parse
-	map<string, string> description = 2;  
-	WorkerConstraint worker_constraint = 3;
+	map<string, string> description = 2; 
+	// index 3 reserved for WorkerConstraint in previous versions
+	// WorkerConstraint worker_constraint = 3;
 	ExportCache export_cache = 4;
 }
 
@@ -122,8 +149,8 @@ message ProxyEnv {
 	string no_proxy = 4;
 }
 
-// WorkerConstraint is experimental and likely to be changed.
-message WorkerConstraint {
+// WorkerConstraints defines conditions for the worker
+message WorkerConstraints {
 	repeated string filter = 1; // containerd-style filter
 }
 
