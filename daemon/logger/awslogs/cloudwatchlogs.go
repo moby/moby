@@ -29,6 +29,7 @@ import (
 const (
 	name                   = "awslogs"
 	regionKey              = "awslogs-region"
+	endpointKey            = "awslogs-endpoint"
 	regionEnvKey           = "AWS_REGION"
 	logGroupKey            = "awslogs-group"
 	logStreamKey           = "awslogs-stream"
@@ -111,11 +112,11 @@ type eventBatch struct {
 
 // New creates an awslogs logger using the configuration passed in on the
 // context.  Supported context configuration variables are awslogs-region,
-// awslogs-group, awslogs-stream, awslogs-create-group, awslogs-multiline-pattern
-// and awslogs-datetime-format.  When available, configuration is
-// also taken from environment variables AWS_REGION, AWS_ACCESS_KEY_ID,
-// AWS_SECRET_ACCESS_KEY, the shared credentials file (~/.aws/credentials), and
-// the EC2 Instance Metadata Service.
+// awslogs-endpoint, awslogs-group, awslogs-stream, awslogs-create-group,
+// awslogs-multiline-pattern and awslogs-datetime-format.
+// When available, configuration is also taken from environment variables
+// AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, the shared credentials
+// file (~/.aws/credentials), and the EC2 Instance Metadata Service.
 func New(info logger.Info) (logger.Logger, error) {
 	logGroupName := info.Config[logGroupKey]
 	logStreamName, err := loggerutils.ParseLogTag(info, "{{.FullID}}")
@@ -262,12 +263,15 @@ var newSDKEndpoint = credentialsEndpoint
 // User-Agent string and automatic region detection using the EC2 Instance
 // Metadata Service when region is otherwise unspecified.
 func newAWSLogsClient(info logger.Info) (api, error) {
-	var region *string
+	var region, endpoint *string
 	if os.Getenv(regionEnvKey) != "" {
 		region = aws.String(os.Getenv(regionEnvKey))
 	}
 	if info.Config[regionKey] != "" {
 		region = aws.String(info.Config[regionKey])
+	}
+	if info.Config[endpointKey] != "" {
+		endpoint = aws.String(info.Config[endpointKey])
 	}
 	if region == nil || *region == "" {
 		logrus.Info("Trying to get region from EC2 Metadata")
@@ -289,6 +293,11 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 
 	// attach region to cloudwatchlogs config
 	sess.Config.Region = region
+
+	// attach endpoint to cloudwatchlogs config
+	if endpoint != nil {
+		sess.Config.Endpoint = endpoint
+	}
 
 	if uri, ok := info.Config[credentialsEndpointKey]; ok {
 		logrus.Debugf("Trying to get credentials from awslogs-credentials-endpoint")
@@ -606,7 +615,7 @@ func (l *logStream) putLogEvents(events []*cloudwatchlogs.InputLogEvent, sequenc
 	return resp.NextSequenceToken, nil
 }
 
-// ValidateLogOpt looks for awslogs-specific log options awslogs-region,
+// ValidateLogOpt looks for awslogs-specific log options awslogs-region, awslogs-endpoint
 // awslogs-group, awslogs-stream, awslogs-create-group, awslogs-datetime-format,
 // awslogs-multiline-pattern
 func ValidateLogOpt(cfg map[string]string) error {
@@ -616,6 +625,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case logStreamKey:
 		case logCreateGroupKey:
 		case regionKey:
+		case endpointKey:
 		case tagKey:
 		case datetimeFormatKey:
 		case multilinePatternKey:
