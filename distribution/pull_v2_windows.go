@@ -74,11 +74,14 @@ func filterManifests(manifests []manifestlist.ManifestDescriptor, p specs.Platfo
 		if (manifestDescriptor.Platform.Architecture == runtime.GOARCH) &&
 			((p.OS != "" && manifestDescriptor.Platform.OS == p.OS) || // Explicit user request for an OS we know we support
 				(p.OS == "" && system.IsOSSupported(manifestDescriptor.Platform.OS))) { // No user requested OS, but one we can support
-			matches = append(matches, manifestDescriptor)
-			logrus.Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 			if strings.EqualFold("windows", manifestDescriptor.Platform.OS) {
+				if err := checkImageCompatibility("windows", manifestDescriptor.Platform.OSVersion); err != nil {
+					continue
+				}
 				foundWindowsMatch = true
 			}
+			matches = append(matches, manifestDescriptor)
+			logrus.Debugf("found match %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, runtime.GOARCH, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		} else {
 			logrus.Debugf("ignoring %s/%s %s with media type %s, digest %s", manifestDescriptor.Platform.OS, manifestDescriptor.Platform.Architecture, manifestDescriptor.Platform.OSVersion, manifestDescriptor.MediaType, manifestDescriptor.Digest.String())
 		}
@@ -103,7 +106,8 @@ func (mbv manifestsByVersion) Less(i, j int) bool {
 	// TODO: Split version by parts and compare
 	// TODO: Prefer versions which have a greater version number
 	// Move compatible versions to the top, with no other ordering changes
-	return versionMatch(mbv.list[i].Platform.OSVersion, mbv.version) && !versionMatch(mbv.list[j].Platform.OSVersion, mbv.version)
+	return (strings.EqualFold("windows", mbv.list[i].Platform.OS) && !strings.EqualFold("windows", mbv.list[j].Platform.OS)) ||
+		(versionMatch(mbv.list[i].Platform.OSVersion, mbv.version) && !versionMatch(mbv.list[j].Platform.OSVersion, mbv.version))
 }
 
 func (mbv manifestsByVersion) Len() int {
