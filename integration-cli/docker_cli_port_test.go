@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"net"
 	"regexp"
@@ -8,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
 )
 
@@ -348,4 +351,15 @@ func (s *DockerSuite) TestPortBindingOnSandbox(c *check.C) {
 	c.Assert(err, check.IsNil,
 		check.Commentf("Port mapping on the new network is expected to succeed"))
 
+}
+
+func getNetworkResource(c *check.C, id string) *types.NetworkResource {
+	_, obj, err := request.Get("/networks/" + id)
+	c.Assert(err, checker.IsNil)
+
+	nr := types.NetworkResource{}
+	err = json.NewDecoder(obj).Decode(&nr)
+	c.Assert(err, checker.IsNil)
+
+	return &nr
 }

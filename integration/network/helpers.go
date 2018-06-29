@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 )
@@ -82,4 +83,13 @@ func CheckKernelMajorVersionGreaterOrEqualThen(kernelVersion int, majorVersion i
 		return false
 	}
 	return true
+}
+
+// FindContainerIP returns the IP address for the container with ID 'id' on the network
+func FindContainerIP(t *testing.T, client client.ContainerAPIClient, id, network string) string {
+	c, err := client.ContainerInspect(context.Background(), id)
+	assert.NilError(t, err)
+	net, ok := c.NetworkSettings.Networks[network]
+	assert.Check(t, ok)
+	return net.IPAddress
 }

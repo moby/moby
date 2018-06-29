@@ -59,6 +59,11 @@ func NewSwarm(t *testing.T, testEnv *environment.Execution, ops ...func(*daemon.
 	return d
 }
 
+// IsSwarmInactive checks whether a swarm is active
+func IsSwarmInactive(testEnv *environment.Execution) bool {
+	return testEnv.DaemonInfo.Swarm.LocalNodeState == swarmtypes.LocalNodeStateInactive
+}
+
 // ServiceSpecOpt is used with `CreateService` to pass in service spec modifiers
 type ServiceSpecOpt func(*swarmtypes.ServiceSpec)
 

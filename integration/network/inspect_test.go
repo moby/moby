@@ -2,6 +2,7 @@ package network // import "github.com/docker/docker/integration/network"
 
 import (
 	"context"
+	"net"
 	"testing"
 	"time"
 
@@ -9,13 +10,109 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 const defaultSwarmPort = 2477
+
+func TestNetworkFilter(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+
+	netName1 := "foo_" + t.Name()
+	netName2 := "bar_" + t.Name()
+
+	network.CreateNoError(t, context.Background(), client, netName1)
+	defer client.NetworkRemove(context.Background(), netName1)
+	network.CreateNoError(t, context.Background(), client, netName2)
+	defer client.NetworkRemove(context.Background(), netName2)
+
+	filter := filters.NewArgs()
+	filter.Add("name", netName1)
+	networkList, err := client.NetworkList(context.Background(), types.NetworkListOptions{
+		Filters: filter,
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Equal(1, len(networkList)))
+
+	netID := networkList[0].ID
+	assert.Assert(t, 0 != len(netID))
+
+	nr, err := client.NetworkInspect(context.Background(), netName1, types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(nr.ID, netID))
+}
+
+func TestNetworkInspectBridge(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+
+	// Inspect default bridge network
+	nr, err := client.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("bridge", nr.Name))
+
+	// run a container and attach it to the default bridge network
+	containerID := container.Run(t, context.Background(), client, container.WithName("test_"+t.Name()),
+		container.WithCmd("top"),
+	)
+	containerIP := FindContainerIP(t, client, containerID, "bridge")
+
+	// inspect default bridge network again and make sure the container is connected
+	nr, err = client.NetworkInspect(context.Background(), nr.ID, types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+
+	assert.Check(t, is.Equal("bridge", nr.Driver))
+	assert.Check(t, is.Equal("local", nr.Scope))
+	assert.Check(t, is.Equal(false, nr.Internal))
+	assert.Check(t, is.Equal(false, nr.EnableIPv6))
+	assert.Check(t, is.Equal("default", nr.IPAM.Driver))
+	_, ok := nr.Containers[containerID]
+	assert.Check(t, ok)
+
+	ip, _, err := net.ParseCIDR(nr.Containers[containerID].IPv4Address)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(containerIP, ip.String()))
+}
+
+func TestNetworkInspectUserDefinedNetwork(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+
+	netName := "br0_" + t.Name()
+	id0 := network.CreateNoError(t, context.Background(), client, netName,
+		network.WithDriver("bridge"),
+		network.WithIPAM("default", "172.28.0.0/16", "172.28.5.254", "172.28.5.0/24"),
+		network.WithOption("foo", "bar"),
+		network.WithOption("opts", "dopts"),
+	)
+
+	assert.Check(t, IsNetworkAvailable(client, netName))
+
+	nr, err := client.NetworkInspect(context.Background(), id0, types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(1, len(nr.IPAM.Config)))
+	assert.Check(t, is.Equal("172.28.0.0/16", nr.IPAM.Config[0].Subnet))
+	assert.Check(t, is.Equal("172.28.5.0/24", nr.IPAM.Config[0].IPRange))
+	assert.Check(t, is.Equal("172.28.5.254", nr.IPAM.Config[0].Gateway))
+	assert.Check(t, is.Equal("bar", nr.Options["foo"]))
+	assert.Check(t, is.Equal("dopts", nr.Options["opts"]))
+
+	// delete the network and make sure it is deleted
+	err = client.NetworkRemove(context.Background(), id0)
+	assert.NilError(t, err)
+	assert.Check(t, IsNetworkNotAvailable(client, netName))
+}
 
 func TestInspectNetwork(t *testing.T) {
 	defer setupTest(t)()
