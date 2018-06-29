@@ -170,6 +170,8 @@ RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 FROM runtime-dev AS dev
 RUN groupadd -r docker
 RUN useradd --create-home --gid docker unprivilegeduser
+# Let us use a .bashrc file
+RUN ln -sfv /go/src/github.com/docker/docker/.bashrc ~/.bashrc
 # Activate bash completion and include Docker's completion if mounted with DOCKER_BASH_COMPLETION_PATH
 RUN echo "source /usr/share/bash-completion/bash_completion" >> /etc/bash.bashrc
 RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
