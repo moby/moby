@@ -1,13 +1,23 @@
 package sockaddr
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"math/big"
 	"net"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
+)
+
+var (
+	// Centralize all regexps and regexp.Copy() where necessary.
+	signRE       *regexp.Regexp = regexp.MustCompile(`^[\s]*[+-]`)
+	whitespaceRE *regexp.Regexp = regexp.MustCompile(`[\s]+`)
+	ifNameRE     *regexp.Regexp = regexp.MustCompile(`^(?:Ethernet|Wireless LAN) adapter ([^:]+):`)
+	ipAddrRE     *regexp.Regexp = regexp.MustCompile(`^   IPv[46] Address\. \. \. \. \. \. \. \. \. \. \. : ([^\s]+)`)
 )
 
 // IfAddrs is a slice of IfAddr
@@ -91,6 +101,40 @@ func AscIfAddress(p1Ptr, p2Ptr *IfAddr) int {
 	return AscAddress(&p1Ptr.SockAddr, &p2Ptr.SockAddr)
 }
 
+// AscIfDefault is a sorting function to sort IfAddrs by whether or not they
+// have a default route or not.  Non-equal types are deferred in the sort.
+//
+// FIXME: This is a particularly expensive sorting operation because of the
+// non-memoized calls to NewRouteInfo().  In an ideal world the routeInfo data
+// once at the start of the sort and pass it along as a context or by wrapping
+// the IfAddr type with this information (this would also solve the inability to
+// return errors and the possibility of failing silently).  Fortunately,
+// N*log(N) where N = 3 is only ~6.2 invocations.  Not ideal, but not worth
+// optimizing today.  The common case is this gets called once or twice.
+// Patches welcome.
+func AscIfDefault(p1Ptr, p2Ptr *IfAddr) int {
+	ri, err := NewRouteInfo()
+	if err != nil {
+		return sortDeferDecision
+	}
+
+	defaultIfName, err := ri.GetDefaultInterfaceName()
+	if err != nil {
+		return sortDeferDecision
+	}
+
+	switch {
+	case p1Ptr.Interface.Name == defaultIfName && p2Ptr.Interface.Name == defaultIfName:
+		return sortDeferDecision
+	case p1Ptr.Interface.Name == defaultIfName:
+		return sortReceiverBeforeArg
+	case p2Ptr.Interface.Name == defaultIfName:
+		return sortArgBeforeReceiver
+	default:
+		return sortDeferDecision
+	}
+}
+
 // AscIfName is a sorting function to sort IfAddrs by their interface names.
 func AscIfName(p1Ptr, p2Ptr *IfAddr) int {
 	return strings.Compare(p1Ptr.Name, p2Ptr.Name)
@@ -125,6 +169,11 @@ func AscIfType(p1Ptr, p2Ptr *IfAddr) int {
 // DescIfAddress is identical to AscIfAddress but reverse ordered.
 func DescIfAddress(p1Ptr, p2Ptr *IfAddr) int {
 	return -1 * AscAddress(&p1Ptr.SockAddr, &p2Ptr.SockAddr)
+}
+
+// DescIfDefault is identical to AscIfDefault but reverse ordered.
+func DescIfDefault(p1Ptr, p2Ptr *IfAddr) int {
+	return -1 * AscIfDefault(p1Ptr, p2Ptr)
 }
 
 // DescIfName is identical to AscIfName but reverse ordered.
@@ -169,7 +218,15 @@ func FilterIfByType(ifAddrs IfAddrs, type_ SockAddrType) (matchedIfs, excludedIf
 
 // IfAttr forwards the selector to IfAttr.Attr() for resolution.  If there is
 // more than one IfAddr, only the first IfAddr is used.
-func IfAttr(selectorName string, ifAddrs IfAddrs) (string, error) {
+func IfAttr(selectorName string, ifAddr IfAddr) (string, error) {
+	attrName := AttrName(strings.ToLower(selectorName))
+	attrVal, err := ifAddr.Attr(attrName)
+	return attrVal, err
+}
+
+// IfAttrs forwards the selector to IfAttrs.Attr() for resolution.  If there is
+// more than one IfAddr, only the first IfAddr is used.
+func IfAttrs(selectorName string, ifAddrs IfAddrs) (string, error) {
 	if len(ifAddrs) == 0 {
 		return "", nil
 	}
@@ -243,10 +300,10 @@ func GetDefaultInterfaces() (IfAddrs, error) {
 // the `eval` equivalent of:
 //
 // ```
-// $ sockaddr eval -r '{{GetDefaultInterfaces | include "type" "ip" | include "flags" "forwardable|up" | sort "type,size" | include "RFC" "6890" }}'
+// $ sockaddr eval -r '{{GetAllInterfaces | include "type" "ip" | include "flags" "forwardable" | include "flags" "up" | sort "default,type,size" | include "RFC" "6890" }}'
 /// ```
 func GetPrivateInterfaces() (IfAddrs, error) {
-	privateIfs, err := GetDefaultInterfaces()
+	privateIfs, err := GetAllInterfaces()
 	if err != nil {
 		return IfAddrs{}, err
 	}
@@ -259,15 +316,21 @@ func GetPrivateInterfaces() (IfAddrs, error) {
 		return IfAddrs{}, nil
 	}
 
-	privateIfs, _, err = IfByFlag("forwardable|up", privateIfs)
+	privateIfs, _, err = IfByFlag("forwardable", privateIfs)
 	if err != nil {
 		return IfAddrs{}, err
 	}
+
+	privateIfs, _, err = IfByFlag("up", privateIfs)
+	if err != nil {
+		return IfAddrs{}, err
+	}
+
 	if len(privateIfs) == 0 {
 		return IfAddrs{}, nil
 	}
 
-	OrderedIfAddrBy(AscIfType, AscIfNetworkSize).Sort(privateIfs)
+	OrderedIfAddrBy(AscIfDefault, AscIfType, AscIfNetworkSize).Sort(privateIfs)
 
 	privateIfs, _, err = IfByRFC("6890", privateIfs)
 	if err != nil {
@@ -285,10 +348,10 @@ func GetPrivateInterfaces() (IfAddrs, error) {
 // function is the `eval` equivalent of:
 //
 // ```
-// $ sockaddr eval -r '{{GetDefaultInterfaces | include "type" "ip" | include "flags" "forwardable|up" | sort "type,size" | exclude "RFC" "6890" }}'
+// $ sockaddr eval -r '{{GetAllInterfaces | include "type" "ip" | include "flags" "forwardable" | include "flags" "up" | sort "default,type,size" | exclude "RFC" "6890" }}'
 /// ```
 func GetPublicInterfaces() (IfAddrs, error) {
-	publicIfs, err := GetDefaultInterfaces()
+	publicIfs, err := GetAllInterfaces()
 	if err != nil {
 		return IfAddrs{}, err
 	}
@@ -301,15 +364,21 @@ func GetPublicInterfaces() (IfAddrs, error) {
 		return IfAddrs{}, nil
 	}
 
-	publicIfs, _, err = IfByFlag("forwardable|up", publicIfs)
+	publicIfs, _, err = IfByFlag("forwardable", publicIfs)
 	if err != nil {
 		return IfAddrs{}, err
 	}
+
+	publicIfs, _, err = IfByFlag("up", publicIfs)
+	if err != nil {
+		return IfAddrs{}, err
+	}
+
 	if len(publicIfs) == 0 {
 		return IfAddrs{}, nil
 	}
 
-	OrderedIfAddrBy(AscIfType, AscIfNetworkSize).Sort(publicIfs)
+	OrderedIfAddrBy(AscIfDefault, AscIfType, AscIfNetworkSize).Sort(publicIfs)
 
 	_, publicIfs, err = IfByRFC("6890", publicIfs)
 	if err != nil {
@@ -652,6 +721,245 @@ func IfByNetwork(selectorParam string, inputIfAddrs IfAddrs) (IfAddrs, IfAddrs, 
 	return includedIfs, excludedIfs, nil
 }
 
+// IfAddrMath will return a new IfAddr struct with a mutated value.
+func IfAddrMath(operation, value string, inputIfAddr IfAddr) (IfAddr, error) {
+	// Regexp used to enforce the sign being a required part of the grammar for
+	// some values.
+	signRe := signRE.Copy()
+
+	switch strings.ToLower(operation) {
+	case "address":
+		// "address" operates on the IP address and is allowed to overflow or
+		// underflow networks, however it will wrap along the underlying address's
+		// underlying type.
+
+		if !signRe.MatchString(value) {
+			return IfAddr{}, fmt.Errorf("sign (+/-) is required for operation %q", operation)
+		}
+
+		switch sockType := inputIfAddr.SockAddr.Type(); sockType {
+		case TypeIPv4:
+			// 33 == Accept any uint32 value
+			// TODO(seanc@): Add the ability to parse hex
+			i, err := strconv.ParseInt(value, 10, 33)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			ipv4 := *ToIPv4Addr(inputIfAddr.SockAddr)
+			ipv4Uint32 := uint32(ipv4.Address)
+			ipv4Uint32 += uint32(i)
+			return IfAddr{
+				SockAddr: IPv4Addr{
+					Address: IPv4Address(ipv4Uint32),
+					Mask:    ipv4.Mask,
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		case TypeIPv6:
+			// 64 == Accept any int32 value
+			// TODO(seanc@): Add the ability to parse hex.  Also parse a bignum int.
+			i, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			ipv6 := *ToIPv6Addr(inputIfAddr.SockAddr)
+			ipv6BigIntA := new(big.Int)
+			ipv6BigIntA.Set(ipv6.Address)
+			ipv6BigIntB := big.NewInt(i)
+
+			ipv6Addr := ipv6BigIntA.Add(ipv6BigIntA, ipv6BigIntB)
+			ipv6Addr.And(ipv6Addr, ipv6HostMask)
+
+			return IfAddr{
+				SockAddr: IPv6Addr{
+					Address: IPv6Address(ipv6Addr),
+					Mask:    ipv6.Mask,
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		default:
+			return IfAddr{}, fmt.Errorf("unsupported type for operation %q: %T", operation, sockType)
+		}
+	case "network":
+		// "network" operates on the network address.  Positive values start at the
+		// network address and negative values wrap at the network address, which
+		// means a "-1" value on a network will be the broadcast address after
+		// wrapping is applied.
+
+		if !signRe.MatchString(value) {
+			return IfAddr{}, fmt.Errorf("sign (+/-) is required for operation %q", operation)
+		}
+
+		switch sockType := inputIfAddr.SockAddr.Type(); sockType {
+		case TypeIPv4:
+			// 33 == Accept any uint32 value
+			// TODO(seanc@): Add the ability to parse hex
+			i, err := strconv.ParseInt(value, 10, 33)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			ipv4 := *ToIPv4Addr(inputIfAddr.SockAddr)
+			ipv4Uint32 := uint32(ipv4.NetworkAddress())
+
+			// Wrap along network mask boundaries.  EZ-mode wrapping made possible by
+			// use of int64 vs a uint.
+			var wrappedMask int64
+			if i >= 0 {
+				wrappedMask = i
+			} else {
+				wrappedMask = 1 + i + int64(^uint32(ipv4.Mask))
+			}
+
+			ipv4Uint32 = ipv4Uint32 + (uint32(wrappedMask) &^ uint32(ipv4.Mask))
+
+			return IfAddr{
+				SockAddr: IPv4Addr{
+					Address: IPv4Address(ipv4Uint32),
+					Mask:    ipv4.Mask,
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		case TypeIPv6:
+			// 64 == Accept any int32 value
+			// TODO(seanc@): Add the ability to parse hex.  Also parse a bignum int.
+			i, err := strconv.ParseInt(value, 10, 64)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			ipv6 := *ToIPv6Addr(inputIfAddr.SockAddr)
+			ipv6BigInt := new(big.Int)
+			ipv6BigInt.Set(ipv6.NetworkAddress())
+
+			mask := new(big.Int)
+			mask.Set(ipv6.Mask)
+			if i > 0 {
+				wrappedMask := new(big.Int)
+				wrappedMask.SetInt64(i)
+
+				wrappedMask.AndNot(wrappedMask, mask)
+				ipv6BigInt.Add(ipv6BigInt, wrappedMask)
+			} else {
+				// Mask off any bits that exceed the network size.  Subtract the
+				// wrappedMask from the last usable - 1
+				wrappedMask := new(big.Int)
+				wrappedMask.SetInt64(-1 * i)
+				wrappedMask.Sub(wrappedMask, big.NewInt(1))
+
+				wrappedMask.AndNot(wrappedMask, mask)
+
+				lastUsable := new(big.Int)
+				lastUsable.Set(ipv6.LastUsable().(IPv6Addr).Address)
+
+				ipv6BigInt = lastUsable.Sub(lastUsable, wrappedMask)
+			}
+
+			return IfAddr{
+				SockAddr: IPv6Addr{
+					Address: IPv6Address(ipv6BigInt),
+					Mask:    ipv6.Mask,
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		default:
+			return IfAddr{}, fmt.Errorf("unsupported type for operation %q: %T", operation, sockType)
+		}
+	case "mask":
+		// "mask" operates on the IP address and returns the IP address on
+		// which the given integer mask has been applied. If the applied mask
+		// corresponds to a larger network than the mask of the IP address,
+		// the latter will be replaced by the former.
+		switch sockType := inputIfAddr.SockAddr.Type(); sockType {
+		case TypeIPv4:
+			i, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			if i > 32 {
+				return IfAddr{}, fmt.Errorf("parameter for operation %q on ipv4 addresses must be between 0 and 32", operation)
+			}
+
+			ipv4 := *ToIPv4Addr(inputIfAddr.SockAddr)
+
+			ipv4Mask := net.CIDRMask(int(i), 32)
+			ipv4MaskUint32 := binary.BigEndian.Uint32(ipv4Mask)
+
+			maskedIpv4 := ipv4.NetIP().Mask(ipv4Mask)
+			maskedIpv4Uint32 := binary.BigEndian.Uint32(maskedIpv4)
+
+			maskedIpv4MaskUint32 := uint32(ipv4.Mask)
+
+			if ipv4MaskUint32 < maskedIpv4MaskUint32 {
+				maskedIpv4MaskUint32 = ipv4MaskUint32
+			}
+
+			return IfAddr{
+				SockAddr: IPv4Addr{
+					Address: IPv4Address(maskedIpv4Uint32),
+					Mask:    IPv4Mask(maskedIpv4MaskUint32),
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		case TypeIPv6:
+			i, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return IfAddr{}, fmt.Errorf("unable to convert %q to int for operation %q: %v", value, operation, err)
+			}
+
+			if i > 128 {
+				return IfAddr{}, fmt.Errorf("parameter for operation %q on ipv6 addresses must be between 0 and 64", operation)
+			}
+
+			ipv6 := *ToIPv6Addr(inputIfAddr.SockAddr)
+
+			ipv6Mask := net.CIDRMask(int(i), 128)
+			ipv6MaskBigInt := new(big.Int)
+			ipv6MaskBigInt.SetBytes(ipv6Mask)
+
+			maskedIpv6 := ipv6.NetIP().Mask(ipv6Mask)
+			maskedIpv6BigInt := new(big.Int)
+			maskedIpv6BigInt.SetBytes(maskedIpv6)
+
+			maskedIpv6MaskBigInt := new(big.Int)
+			maskedIpv6MaskBigInt.Set(ipv6.Mask)
+
+			if ipv6MaskBigInt.Cmp(maskedIpv6MaskBigInt) == -1 {
+				maskedIpv6MaskBigInt = ipv6MaskBigInt
+			}
+
+			return IfAddr{
+				SockAddr: IPv6Addr{
+					Address: IPv6Address(maskedIpv6BigInt),
+					Mask:    IPv6Mask(maskedIpv6MaskBigInt),
+				},
+				Interface: inputIfAddr.Interface,
+			}, nil
+		default:
+			return IfAddr{}, fmt.Errorf("unsupported type for operation %q: %T", operation, sockType)
+		}
+	default:
+		return IfAddr{}, fmt.Errorf("unsupported math operation: %q", operation)
+	}
+}
+
+// IfAddrsMath will apply an IfAddrMath operation each IfAddr struct.  Any
+// failure will result in zero results.
+func IfAddrsMath(operation, value string, inputIfAddrs IfAddrs) (IfAddrs, error) {
+	outputAddrs := make(IfAddrs, 0, len(inputIfAddrs))
+	for _, ifAddr := range inputIfAddrs {
+		result, err := IfAddrMath(operation, value, ifAddr)
+		if err != nil {
+			return IfAddrs{}, fmt.Errorf("unable to perform an IPMath operation on %s: %v", ifAddr, err)
+		}
+		outputAddrs = append(outputAddrs, result)
+	}
+	return outputAddrs, nil
+}
+
 // IncludeIfs returns an IfAddrs based on the passed in selector.
 func IncludeIfs(selectorName, selectorParam string, inputIfAddrs IfAddrs) (IfAddrs, error) {
 	var includedIfs IfAddrs
@@ -736,6 +1044,10 @@ func SortIfBy(selectorParam string, inputIfAddrs IfAddrs) (IfAddrs, error) {
 			sortFuncs[i] = AscIfAddress
 		case "-address":
 			sortFuncs[i] = DescIfAddress
+		case "+default", "default":
+			sortFuncs[i] = AscIfDefault
+		case "-default":
+			sortFuncs[i] = DescIfDefault
 		case "+name", "name":
 			// The "name" selector returns an array of IfAddrs
 			// ordered by the interface name.
@@ -886,7 +1198,7 @@ func parseDefaultIfNameFromRoute(routeOut string) (string, error) {
 // Linux.
 func parseDefaultIfNameFromIPCmd(routeOut string) (string, error) {
 	lines := strings.Split(routeOut, "\n")
-	re := regexp.MustCompile(`[\s]+`)
+	re := whitespaceRE.Copy()
 	for _, line := range lines {
 		kvs := re.Split(line, -1)
 		if len(kvs) < 5 {
@@ -929,7 +1241,7 @@ func parseDefaultIfNameWindows(routeOut, ipconfigOut string) (string, error) {
 // support added.
 func parseDefaultIPAddrWindowsRoute(routeOut string) (string, error) {
 	lines := strings.Split(routeOut, "\n")
-	re := regexp.MustCompile(`[\s]+`)
+	re := whitespaceRE.Copy()
 	for _, line := range lines {
 		kvs := re.Split(strings.TrimSpace(line), -1)
 		if len(kvs) < 3 {
@@ -949,17 +1261,17 @@ func parseDefaultIPAddrWindowsRoute(routeOut string) (string, error) {
 // interface name forwarding traffic to the default gateway.
 func parseDefaultIfNameWindowsIPConfig(defaultIPAddr, routeOut string) (string, error) {
 	lines := strings.Split(routeOut, "\n")
-	ifNameRE := regexp.MustCompile(`^Ethernet adapter ([^\s:]+):`)
-	ipAddrRE := regexp.MustCompile(`^   IPv[46] Address\. \. \. \. \. \. \. \. \. \. \. : ([^\s]+)`)
+	ifNameRe := ifNameRE.Copy()
+	ipAddrRe := ipAddrRE.Copy()
 	var ifName string
 	for _, line := range lines {
-		switch ifNameMatches := ifNameRE.FindStringSubmatch(line); {
+		switch ifNameMatches := ifNameRe.FindStringSubmatch(line); {
 		case len(ifNameMatches) > 1:
 			ifName = ifNameMatches[1]
 			continue
 		}
 
-		switch ipAddrMatches := ipAddrRE.FindStringSubmatch(line); {
+		switch ipAddrMatches := ipAddrRe.FindStringSubmatch(line); {
 		case len(ipAddrMatches) > 1 && ipAddrMatches[1] == defaultIPAddr:
 			return ifName, nil
 		}

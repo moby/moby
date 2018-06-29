@@ -58,7 +58,8 @@ func NewIPv4Addr(ipv4Str string) (IPv4Addr, error) {
 	// Strip off any bogus hex-encoded netmasks that will be mis-parsed by Go.  In
 	// particular, clients with the Barracuda VPN client will see something like:
 	// `192.168.3.51/00ffffff` as their IP address.
-	if match := trailingHexNetmaskRE.FindStringIndex(ipv4Str); match != nil {
+	trailingHexNetmaskRe := trailingHexNetmaskRE.Copy()
+	if match := trailingHexNetmaskRe.FindStringIndex(ipv4Str); match != nil {
 		ipv4Str = ipv4Str[:match[0]]
 	}
 
