@@ -62,8 +62,8 @@ func TestDNSOptions(t *testing.T) {
 	currRC, err := resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList := resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:0", dnsOptionsList[0], "The option must be ndots:0 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:0", dnsOptionsList[0])
 
 	sb.(*sandbox).config.dnsOptionsList = []string{"ndots:5"}
 	err = sb.(*sandbox).setupDNS()
@@ -71,14 +71,42 @@ func TestDNSOptions(t *testing.T) {
 	currRC, err = resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:5", dnsOptionsList[0], "The option must be ndots:5 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:5", dnsOptionsList[0])
 
 	err = sb.(*sandbox).rebuildDNS()
 	require.NoError(t, err)
 	currRC, err = resolvconf.GetSpecific(sb.(*sandbox).config.resolvConfPath)
 	require.NoError(t, err)
 	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
-	assert.Equal(t, 1, len(dnsOptionsList), "There should be only 1 option instead:", dnsOptionsList)
-	assert.Equal(t, "ndots:5", dnsOptionsList[0], "The option must be ndots:5 instead:", dnsOptionsList[0])
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:5", dnsOptionsList[0])
+
+	sb2, err := c.(*controller).NewSandbox("cnt2", nil)
+	require.NoError(t, err)
+	defer sb2.Delete()
+	sb2.(*sandbox).startResolver(false)
+
+	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:0"}
+	err = sb2.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb2.(*sandbox).rebuildDNS()
+	require.NoError(t, err)
+	currRC, err = resolvconf.GetSpecific(sb2.(*sandbox).config.resolvConfPath)
+	require.NoError(t, err)
+	dnsOptionsList = resolvconf.GetOptions(currRC.Content)
+	assert.Equal(t, 1, len(dnsOptionsList))
+	assert.Equal(t, "ndots:0", dnsOptionsList[0])
+
+	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:foobar"}
+	err = sb2.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb2.(*sandbox).rebuildDNS()
+	require.EqualError(t, err, "invalid number for ndots option: foobar")
+
+	sb2.(*sandbox).config.dnsOptionsList = []string{"ndots:-1"}
+	err = sb2.(*sandbox).setupDNS()
+	require.NoError(t, err)
+	err = sb2.(*sandbox).rebuildDNS()
+	require.EqualError(t, err, "invalid number for ndots option: -1")
 }
