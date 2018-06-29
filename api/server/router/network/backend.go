@@ -13,7 +13,7 @@ import (
 // to provide network specific functionality.
 type Backend interface {
 	FindNetwork(idName string) (libnetwork.Network, error)
-	GetNetworks() []libnetwork.Network
+	GetNetworks(filters.Args, types.NetworkListConfig) ([]types.NetworkResource, error)
 	CreateNetwork(nc types.NetworkCreateRequest) (*types.NetworkCreateResponse, error)
 	ConnectContainerToNetwork(containerName, networkName string, endpointConfig *network.EndpointSettings) error
 	DisconnectContainerFromNetwork(containerName string, networkName string, force bool) error
@@ -24,7 +24,7 @@ type Backend interface {
 // ClusterBackend is all the methods that need to be implemented
 // to provide cluster network specific functionality.
 type ClusterBackend interface {
-	GetNetworks() ([]types.NetworkResource, error)
+	GetNetworks(filters.Args) ([]types.NetworkResource, error)
 	GetNetwork(name string) (types.NetworkResource, error)
 	GetNetworksByName(name string) ([]types.NetworkResource, error)
 	CreateNetwork(nc types.NetworkCreateRequest) (string, error)

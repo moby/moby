@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	apitypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	lncluster "github.com/docker/libnetwork/cluster"
 )
 
@@ -21,6 +22,6 @@ type ClusterStatus interface {
 // NetworkManager provides methods to manage networks
 type NetworkManager interface {
 	GetNetwork(input string) (apitypes.NetworkResource, error)
-	GetNetworks() ([]apitypes.NetworkResource, error)
+	GetNetworks(filters.Args) ([]apitypes.NetworkResource, error)
 	RemoveNetwork(input string) error
 }
