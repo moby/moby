@@ -3,6 +3,7 @@ package sockaddr
 // ForwardingBlacklist is a faux RFC that includes a list of non-forwardable IP
 // blocks.
 const ForwardingBlacklist = 4294967295
+const ForwardingBlacklistRFC = "4294967295"
 
 // IsRFC tests to see if an SockAddr matches the specified RFC
 func IsRFC(rfcNum uint, sa SockAddr) bool {
