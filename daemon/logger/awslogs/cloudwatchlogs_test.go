@@ -67,13 +67,11 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	}
 
 	client, err := newAWSLogsClient(info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
+
 	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
-	if !ok {
-		t.Fatal("Could not cast client to cloudwatchlogs.CloudWatchLogs")
-	}
+	assert.Check(t, ok, "Could not cast client to cloudwatchlogs.CloudWatchLogs")
+
 	buildHandlerList := realClient.Handlers.Build
 	request := &request.Request{
 		HTTPRequest: &http.Request{
@@ -90,6 +88,26 @@ func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
 	}
 }
 
+func TestNewAWSLogsClientAWSLogsEndpoint(t *testing.T) {
+	endpoint := "mock-endpoint"
+	info := logger.Info{
+		Config: map[string]string{
+			regionKey:   "us-east-1",
+			endpointKey: endpoint,
+		},
+	}
+
+	client, err := newAWSLogsClient(info)
+	assert.NilError(t, err)
+
+	realClient, ok := client.(*cloudwatchlogs.CloudWatchLogs)
+	assert.Check(t, ok, "Could not cast client to cloudwatchlogs.CloudWatchLogs")
+
+	endpointWithScheme := realClient.Endpoint
+	expectedEndpointWithScheme := "https://" + endpoint
+	assert.Equal(t, endpointWithScheme, expectedEndpointWithScheme, "Wrong endpoint")
+}
+
 func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 	info := logger.Info{
 		Config: map[string]string{},
@@ -104,9 +122,7 @@ func TestNewAWSLogsClientRegionDetect(t *testing.T) {
 	}
 
 	_, err := newAWSLogsClient(info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestCreateSuccess(t *testing.T) {
@@ -196,9 +212,7 @@ func TestCreateAlreadyExists(t *testing.T) {
 
 	err := stream.create()
 
-	if err != nil {
-		t.Fatal("Expected nil err")
-	}
+	assert.NilError(t, err)
 }
 
 func TestLogClosed(t *testing.T) {
@@ -242,9 +256,8 @@ func TestLogBlocking(t *testing.T) {
 	}
 	select {
 	case err := <-errorCh:
-		if err != nil {
-			t.Fatal(err)
-		}
+		assert.NilError(t, err)
+
 	case <-time.After(30 * time.Second):
 		t.Fatal("timed out waiting for read")
 	}
@@ -258,9 +271,7 @@ func TestLogNonBlockingBufferEmpty(t *testing.T) {
 		logNonBlocking: true,
 	}
 	err := stream.Log(&logger.Message{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func TestLogNonBlockingBufferFull(t *testing.T) {
@@ -1246,9 +1257,7 @@ func TestCreateTagSuccess(t *testing.T) {
 
 	err := stream.create()
 
-	if err != nil {
-		t.Errorf("Received unexpected err: %v\n", err)
-	}
+	assert.NilError(t, err)
 	argument := <-mockClient.createLogStreamArgument
 
 	if *argument.LogStreamName != "test-container/container-abcdefghijklmnopqrstuvwxyz01234567890" {
@@ -1340,7 +1349,6 @@ func TestNewAWSLogsClientCredentialEnvironmentVariable(t *testing.T) {
 
 	assert.Check(t, is.Equal(expectedAccessKeyID, creds.AccessKeyID))
 	assert.Check(t, is.Equal(expectedSecretAccessKey, creds.SecretAccessKey))
-
 }
 
 func TestNewAWSLogsClientCredentialSharedFile(t *testing.T) {
