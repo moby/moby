@@ -24,6 +24,9 @@ const (
 	retryInterval         = 1 * time.Second
 	nodeReapInterval      = 24 * time.Hour
 	nodeReapPeriod        = 2 * time.Hour
+	// considering a cluster with > 20 nodes and a drain speed of 100 msg/s
+	// the following is roughly 1 minute
+	maxQueueLenBroadcastOnSync = 500
 )
 
 type logWriter struct{}
@@ -572,6 +575,7 @@ func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 
 	var err error
 	var networks []string
+	var success bool
 	for _, node := range nodes {
 		if node == nDB.config.NodeID {
 			continue
@@ -579,21 +583,25 @@ func (nDB *NetworkDB) bulkSync(nodes []string, all bool) ([]string, error) {
 		logrus.Debugf("%v(%v): Initiating bulk sync with node %v", nDB.config.Hostname, nDB.config.NodeID, node)
 		networks = nDB.findCommonNetworks(node)
 		err = nDB.bulkSyncNode(networks, node, true)
-		// if its periodic bulksync stop after the first successful sync
-		if !all && err == nil {
-			break
-		}
 		if err != nil {
 			err = fmt.Errorf("bulk sync to node %s failed: %v", node, err)
 			logrus.Warn(err.Error())
+		} else {
+			// bulk sync succeeded
+			success = true
+			// if its periodic bulksync stop after the first successful sync
+			if !all {
+				break
+			}
 		}
 	}
 
-	if err != nil {
-		return nil, err
+	if success {
+		// if at least one node sync succeeded
+		return networks, nil
 	}
 
-	return networks, nil
+	return nil, err
 }
 
 // Bulk sync all the table entries belonging to a set of networks to a
