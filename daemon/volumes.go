@@ -215,6 +215,10 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			}
 		}
 
+		if mp.Type == mounttypes.TypeBind {
+			mp.SkipMountpointCreation = true
+		}
+
 		binds[mp.Destination] = true
 		dereferenceIfExists(mp.Destination)
 		mountPoints[mp.Destination] = mp
