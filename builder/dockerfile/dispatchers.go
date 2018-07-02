@@ -89,7 +89,7 @@ func dispatchLabel(d dispatchRequest, c *instructions.LabelCommand) error {
 
 // ADD foo /path
 //
-// Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
+// Add the file 'foo' to '/path'. Tarball and Remote URL (http, https) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
 func dispatchAdd(d dispatchRequest, c *instructions.AddCommand) error {
