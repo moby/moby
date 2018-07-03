@@ -139,14 +139,14 @@ type AuxFormatter struct {
 }
 
 // Emit emits the given interface as an aux progress message
-func (sf *AuxFormatter) Emit(aux interface{}) error {
+func (sf *AuxFormatter) Emit(id string, aux interface{}) error {
 	auxJSONBytes, err := json.Marshal(aux)
 	if err != nil {
 		return err
 	}
 	auxJSON := new(json.RawMessage)
 	*auxJSON = auxJSONBytes
-	msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{Aux: auxJSON})
+	msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{ID: id, Aux: auxJSON})
 	if err != nil {
 		return err
 	}

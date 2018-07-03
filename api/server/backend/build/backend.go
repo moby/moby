@@ -73,7 +73,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 			return "", err
 		}
 		if config.ProgressWriter.AuxFormatter != nil {
-			if err = config.ProgressWriter.AuxFormatter.Emit(types.BuildResult{ID: imageID}); err != nil {
+			if err = config.ProgressWriter.AuxFormatter.Emit("moby.image.id", types.BuildResult{ID: imageID}); err != nil {
 				return "", err
 			}
 		}
