@@ -9,7 +9,6 @@ import (
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/docker/distribution/manifest"
 	v1 "github.com/moby/buildkit/cache/remotecache/v1"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
@@ -17,6 +16,7 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/push"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -46,7 +46,9 @@ func (ce *CacheExporter) Finalize(ctx context.Context, cc *v1.CacheChains, targe
 
 	// own type because oci type can't be pushed and docker type doesn't have annotations
 	type manifestList struct {
-		manifest.Versioned
+		specs.Versioned
+
+		MediaType string `json:"mediaType,omitempty"`
 
 		// Manifests references platform specific manifests.
 		Manifests []ocispec.Descriptor `json:"manifests"`
