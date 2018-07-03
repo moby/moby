@@ -630,6 +630,18 @@ func DefaultProfile() *types.Seccomp {
 				Caps: []string{"CAP_SYS_TTY_CONFIG"},
 			},
 		},
+		{
+			Names: []string{
+				"get_mempolicy",
+				"mbind",
+				"set_mempolicy",
+			},
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+			Includes: types.Filter{
+				Caps: []string{"CAP_SYS_NICE"},
+			},
+		},
 	}
 
 	return &types.Seccomp{
