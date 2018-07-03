@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local check-protobuf
 SHELL=/bin/bash
 
 dockerbuildargs ?= --target dev - < Dockerfile
@@ -90,8 +90,15 @@ cross-local:
 PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
 PB_FILES=$(PROTO_FILES:.proto=.pb.go)
 
+# Pattern rule for protoc.   If PROTOC_CHECK is defined, it checks
+# whether the generated files are up to date and fails if they are not
 %.pb.go: %.proto
-	protoc ${PROTOC_FLAGS} --gogo_out=./ $<
+	if [ ${PROTOC_CHECK} ]; then \
+	protoc ${PROTOC_FLAGS} --gogo_out=/tmp $< ; \
+	diff -q $@ /tmp/$@ >/dev/null || (echo "👹 $@ is out of date; please run 'make protobuf' and check in updates" && exit 1) ; \
+	else \
+	protoc ${PROTOC_FLAGS} --gogo_out=./ $< ; \
+	fi
 
 .PHONY: $(PROTO_FILES)
 protobuf: builder
@@ -108,7 +115,7 @@ check: builder
 
 check-local: check-code check-format
 
-check-code: lint gosimple vet ineffassign
+check-code: check-protobuf lint gosimple vet ineffassign
 
 check-format: fmt misspell
 
@@ -160,6 +167,11 @@ ineffassign: ## run ineffassign
 gosimple: ## run gosimple
 	@echo "🐳 $@"
 	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
+
+# check-protobuf rebuilds .pb.go files and fails if they have changed
+check-protobuf: PROTOC_CHECK=1
+check-protobuf: $(PB_FILES)
+	@echo "🐳 $@"
 
 
 ###########################################################################
