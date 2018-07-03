@@ -1,6 +1,7 @@
 package sockaddr
 
 import (
+	"encoding/json"
 	"fmt"
 	"strings"
 )
@@ -175,4 +176,31 @@ func sockAddrInit() {
 // UnixSockAttrs returns a list of attributes supported by the UnixSock type
 func SockAddrAttrs() []AttrName {
 	return sockAddrAttrs
+}
+
+// Although this is pretty trivial to do in a program, having the logic here is
+// useful all around. Note that this marshals into a *string* -- the underlying
+// string representation of the sockaddr. If you then unmarshal into this type
+// in Go, all will work as expected, but externally you can take what comes out
+// and use the string value directly.
+type SockAddrMarshaler struct {
+	SockAddr
+}
+
+func (s *SockAddrMarshaler) MarshalJSON() ([]byte, error) {
+	return json.Marshal(s.SockAddr.String())
+}
+
+func (s *SockAddrMarshaler) UnmarshalJSON(in []byte) error {
+	var str string
+	err := json.Unmarshal(in, &str)
+	if err != nil {
+		return err
+	}
+	sa, err := NewSockAddr(str)
+	if err != nil {
+		return err
+	}
+	s.SockAddr = sa
+	return nil
 }
