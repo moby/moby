@@ -610,17 +610,17 @@ func (s *DockerNetworkSuite) TestDockerNetworkIPAMMultipleNetworks(c *check.C) {
 	// test network with multiple subnets
 	// bridge network doesn't support multiple subnets. hence, use a dummy driver that supports
 
-	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "--subnet=192.168.0.0/16", "--subnet=192.170.0.0/16", "test6")
+	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver, "--subnet=192.170.0.0/16", "--subnet=192.171.0.0/16", "test6")
 	assertNwIsAvailable(c, "test6")
 
 	// test network with multiple subnets with valid ipam combinations
 	// also check same subnet across networks when the driver supports it.
 	dockerCmd(c, "network", "create", "-d", dummyNetworkDriver,
-		"--subnet=192.168.0.0/16", "--subnet=192.170.0.0/16",
-		"--gateway=192.168.0.100", "--gateway=192.170.0.100",
-		"--ip-range=192.168.1.0/24",
-		"--aux-address", "a=192.168.1.5", "--aux-address", "b=192.168.1.6",
-		"--aux-address", "c=192.170.1.5", "--aux-address", "d=192.170.1.6",
+		"--subnet=192.172.0.0/16", "--subnet=192.173.0.0/16",
+		"--gateway=192.172.0.100", "--gateway=192.173.0.100",
+		"--ip-range=192.172.1.0/24",
+		"--aux-address", "a=192.172.1.5", "--aux-address", "b=192.172.1.6",
+		"--aux-address", "c=192.173.1.5", "--aux-address", "d=192.173.1.6",
 		"test7")
 	assertNwIsAvailable(c, "test7")
 

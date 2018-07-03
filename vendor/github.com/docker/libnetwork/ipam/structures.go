@@ -262,12 +262,13 @@ func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *Addr
 	defer aSpace.Unlock()
 
 	// Check if already allocated
-	if p, ok := aSpace.subnets[k]; ok {
+	if _, ok := aSpace.subnets[k]; ok {
 		if pdf {
 			return nil, types.InternalMaskableErrorf("predefined pool %s is already reserved", nw)
 		}
-		aSpace.incRefCount(p, 1)
-		return func() error { return nil }, nil
+		// This means the same pool is already allocated. updatePoolDBOnAdd is called when there
+		// is request for a pool/subpool. It should ensure there is no overlap with existing pools
+		return nil, ipamapi.ErrPoolOverlap
 	}
 
 	// If master pool, check for overlap
