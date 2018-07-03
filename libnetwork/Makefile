@@ -1,18 +1,39 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf
 SHELL=/bin/bash
+
 dockerbuildargs ?= --target dev - < Dockerfile
 dockerargs ?= --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 build_image=libnetworkbuild
 container_env = -e "INSIDECONTAINER=-incontainer=true"
 docker = docker run --rm -it --init ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
+
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
+
 export PATH := $(CURDIR)/bin:$(PATH)
+
+
+# Several targets in this Makefile expect to run within the
+# libnetworkbuild container.   In general, a target named '<target>-local'
+# relies on utilities inside the build container.   Usually there is also
+# a wrapper called '<target>' which starts a container and runs
+# 'make <target>-local' inside it.
+
+###########################################################################
+# Top level targets
+###########################################################################
 
 all: build check clean
 
 all-local: build-local check-local clean
 
+
+###########################################################################
+# Build targets
+###########################################################################
+
+# builder builds the libnetworkbuild container.  All wrapper targets
+# must depend on this to ensure that the container exists.
 builder:
 	docker build -t ${build_image} ${dockerbuildargs}
 
@@ -62,6 +83,22 @@ cross-local:
 	@echo "🐳 $@"
 	go build -o "bin/dnet-$$GOOS-$$GOARCH" ./cmd/dnet
 	go build -o "bin/docker-proxy-$$GOOS-$$GOARCH" ./cmd/proxy
+
+# Rebuild protocol buffers.
+# These may need to be rebuilt after vendoring updates, so .proto files are declared .PHONY so they are always rebuilt.
+PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
+PB_FILES=$(PROTO_FILES:.proto=.pb.go)
+
+%.pb.go: %.proto
+	${docker} protoc -I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf --gogo_out=./ $<
+
+.PHONY: $(PROTO_FILES)
+protobuf: builder $(PB_FILES)
+
+
+###########################################################################
+# Test targets
+###########################################################################
 
 check: builder
 	@${docker} make check-local
@@ -121,16 +158,10 @@ gosimple: ## run gosimple
 	@echo "🐳 $@"
 	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
 
+
+###########################################################################
+# Utility targets
+###########################################################################
+
 shell: builder
 	@${docker} ${SHELL}
-
-# Rebuild protocol buffers.
-# These may need to be rebuilt after vendoring updates, so .pb.go files are declared .PHONY so they are always rebuilt.
-PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
-PB_FILES=$(PROTO_FILES:.proto=.pb.go)
-
-%.pb.go: %.proto
-	${docker} protoc -I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf --gogo_out=./ $<
-
-.PHONY: protobuf $(PROTO_FILES)
-protobuf: builder $(PB_FILES)
