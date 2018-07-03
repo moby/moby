@@ -1,13 +1,13 @@
 package types
 
 import (
-	"flag"
-	"github.com/stretchr/testify/require"
 	"net"
 	"testing"
-)
 
-var runningInContainer = flag.Bool("incontainer", false, "Indicates if the test is running in a container")
+	"github.com/stretchr/testify/require"
+
+	_ "github.com/docker/libnetwork/testutils"
+)
 
 func TestTransportPortConv(t *testing.T) {
 	sform := "tcp/23"
