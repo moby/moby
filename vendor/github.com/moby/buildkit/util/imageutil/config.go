@@ -141,13 +141,17 @@ func DetectManifestMediaType(ra content.ReaderAt) (string, error) {
 	}
 
 	var mfst struct {
-		Config json.RawMessage `json:"config"`
+		MediaType string          `json:"mediaType"`
+		Config    json.RawMessage `json:"config"`
 	}
 
 	if err := json.Unmarshal(p, &mfst); err != nil {
 		return "", err
 	}
 
+	if mfst.MediaType != "" {
+		return mfst.MediaType, nil
+	}
 	if mfst.Config != nil {
 		return images.MediaTypeDockerSchema2Manifest, nil
 	}

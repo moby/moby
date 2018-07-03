@@ -5,14 +5,13 @@ package dockerfile2llb
 import (
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/pkg/errors"
 )
 
-func detectRunMount(cmd *command, dispatchStatesByName map[string]*dispatchState, allDispatchStates []*dispatchState) bool {
+func detectRunMount(cmd *command, allDispatchStates *dispatchStates) bool {
 	if c, ok := cmd.Command.(*instructions.RunCommand); ok {
 		mounts := instructions.GetMounts(c)
 		sources := make([]*dispatchState, len(mounts))
@@ -24,7 +23,7 @@ func detectRunMount(cmd *command, dispatchStatesByName map[string]*dispatchState
 			if from == "" || mount.Type == instructions.MountTypeTmpfs {
 				continue
 			}
-			stn, ok := dispatchStatesByName[strings.ToLower(from)]
+			stn, ok := allDispatchStates.findStateByName(from)
 			if !ok {
 				stn = &dispatchState{
 					stage:        instructions.Stage{BaseName: from},

@@ -159,7 +159,7 @@ func (s SourcesAndDest) Dest() string {
 
 // AddCommand : ADD foo /path
 //
-// Add the file 'foo' to '/path'. Tarball and Remote URL (git, http) handling
+// Add the file 'foo' to '/path'. Tarball and Remote URL (http, https) handling
 // exist here. If you do not wish to have this automatic handling, use COPY.
 //
 type AddCommand struct {
