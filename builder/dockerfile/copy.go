@@ -87,7 +87,7 @@ func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, i
 		pathCache:   req.builder.pathCache,
 		download:    download,
 		imageSource: imageSource,
-		platform:    req.builder.options.Platform,
+		platform:    req.builder.platform,
 	}
 }
 

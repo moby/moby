@@ -6,7 +6,6 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -23,8 +22,7 @@ import (
 
 func newBuilderWithMockBackend() *Builder {
 	mockBackend := &MockBackend{}
-	defaultPlatform := platforms.DefaultSpec()
-	opts := &types.ImageBuildOptions{Platform: &defaultPlatform}
+	opts := &types.ImageBuildOptions{}
 	ctx := context.Background()
 	b := &Builder{
 		options:       opts,
@@ -116,7 +114,7 @@ func TestFromScratch(t *testing.T) {
 	err := initializeStage(sb, cmd)
 
 	if runtime.GOOS == "windows" && !system.LCOWSupported() {
-		assert.Check(t, is.Error(err, "Windows does not support FROM scratch"))
+		assert.Check(t, is.Error(err, "Linux containers are not supported on this system"))
 		return
 	}
 
