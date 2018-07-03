@@ -22,8 +22,7 @@ import (
 const ClientSessionRemote = "client-session"
 
 // Detect returns a context and dockerfile from remote location or local
-// archive. progressReader is only used if remoteURL is actually a URL
-// (not empty, and not a Git endpoint).
+// archive.
 func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *parser.Result, err error) {
 	remoteURL := config.Options.RemoteContext
 	dockerfilePath := config.Options.Dockerfile
