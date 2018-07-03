@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local
 SHELL=/bin/bash
 
 dockerbuildargs ?= --target dev - < Dockerfile
@@ -9,6 +9,7 @@ docker = docker run --rm -it --init ${dockerargs} $$EXTRA_ARGS ${container_env} 
 
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
+PROTOC_FLAGS=-I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf
 
 export PATH := $(CURDIR)/bin:$(PATH)
 
@@ -90,10 +91,12 @@ PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
 PB_FILES=$(PROTO_FILES:.proto=.pb.go)
 
 %.pb.go: %.proto
-	${docker} protoc -I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf --gogo_out=./ $<
+	protoc ${PROTOC_FLAGS} --gogo_out=./ $<
 
 .PHONY: $(PROTO_FILES)
-protobuf: builder $(PB_FILES)
+protobuf: builder
+	@${docker} make protobuf-local
+protobuf-local: $(PB_FILES)
 
 
 ###########################################################################
