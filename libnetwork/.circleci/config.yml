@@ -3,7 +3,8 @@ version: 2
 defaults: &defaults
   working_directory: ~/go/src/github.com/docker/libnetwork
   docker:
-    - image: 'circleci/golang:1.10'
+    # the following image is irrelevant for the build, everything is built inside a container, check the Makefile
+    - image: 'circleci/golang:latest'
       environment:
           dockerbuildargs: .
           dockerargs:  --privileged -e CIRCLECI
