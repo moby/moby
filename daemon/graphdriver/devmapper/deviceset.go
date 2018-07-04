@@ -1528,8 +1528,8 @@ func getDeviceMajorMinor(file *os.File) (uint64, uint64, error) {
 	}
 
 	dev := stat.Rdev
-	majorNum := major(dev)
-	minorNum := minor(dev)
+	majorNum := major(uint64(dev))
+	minorNum := minor(uint64(dev))
 
 	logrus.WithField("storage-driver", "devicemapper").Debugf("Major:Minor for device: %s is:%v:%v", file.Name(), majorNum, minorNum)
 	return majorNum, minorNum, nil
@@ -1738,7 +1738,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	//	- Managed by docker
 	//	- The target of this device is at major <maj> and minor <min>
 	//	- If <inode> is defined, use that file inside the device as a loopback image. Otherwise use the device itself.
-	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(st.Dev), minor(st.Dev), st.Ino)
+	devices.devicePrefix = fmt.Sprintf("docker-%d:%d-%d", major(uint64(st.Dev)), minor(uint64(st.Dev)), st.Ino)
 	logger.Debugf("Generated prefix: %s", devices.devicePrefix)
 
 	// Check for the existence of the thin-pool device
