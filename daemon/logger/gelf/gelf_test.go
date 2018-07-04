@@ -156,7 +156,7 @@ func TestNewGELFTCPWriter(t *testing.T) {
 			"gelf-address":             url,
 			"gelf-tcp-max-reconnect":   "0",
 			"gelf-tcp-reconnect-delay": "0",
-			"tag": "{{.ID}}",
+			"tag":                      "{{.ID}}",
 		},
 		ContainerID: "12345678901234567890",
 	}

@@ -168,9 +168,9 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, runtimeO
 func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) error {
 	logger := c.logger.WithField("container", id)
 	configuration := &hcsshim.ContainerConfig{
-		SystemType: "Container",
-		Name:       id,
-		Owner:      defaultOwner,
+		SystemType:              "Container",
+		Name:                    id,
+		Owner:                   defaultOwner,
 		IgnoreFlushesDuringBoot: spec.Windows.IgnoreFlushesDuringBoot,
 		HostName:                spec.Hostname,
 		HvPartition:             false,
@@ -377,11 +377,11 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 	}
 
 	configuration := &hcsshim.ContainerConfig{
-		HvPartition:   true,
-		Name:          id,
-		SystemType:    "container",
-		ContainerType: "linux",
-		Owner:         defaultOwner,
+		HvPartition:                 true,
+		Name:                        id,
+		SystemType:                  "container",
+		ContainerType:               "linux",
+		Owner:                       defaultOwner,
 		TerminateOnLastHandleClosed: true,
 	}
 
