@@ -7,7 +7,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 )
 
-func detectRunMount(cmd *command, dispatchStatesByName map[string]*dispatchState, allDispatchStates []*dispatchState) bool {
+func detectRunMount(cmd *command, allDispatchStates *dispatchStates) bool {
 	return false
 }
 

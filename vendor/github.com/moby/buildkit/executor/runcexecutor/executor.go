@@ -133,7 +133,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	}
 	defer mount.Unmount(rootFSPath, 0)
 
-	uid, gid, err := oci.GetUser(ctx, rootFSPath, meta.User)
+	uid, gid, sgids, err := oci.GetUser(ctx, rootFSPath, meta.User)
 	if err != nil {
 		return err
 	}
@@ -143,7 +143,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		return err
 	}
 	defer f.Close()
-	opts := []containerdoci.SpecOpts{containerdoci.WithUIDGID(uid, gid)}
+	opts := []containerdoci.SpecOpts{oci.WithUIDGID(uid, gid, sgids)}
 	if system.SeccompSupported() {
 		opts = append(opts, seccomp.WithDefaultProfile())
 	}
@@ -170,9 +170,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	}
 
 	if w.rootless {
-		specconv.ToRootless(spec, &specconv.RootlessOpts{
-			MapSubUIDGID: true,
-		})
+		specconv.ToRootless(spec, nil)
 		// TODO(AkihiroSuda): keep Cgroups enabled if /sys/fs/cgroup/cpuset/buildkit exists and writable
 		spec.Linux.CgroupsPath = ""
 		// TODO(AkihiroSuda): ToRootless removes netns, but we should readd netns here

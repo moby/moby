@@ -644,7 +644,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 // featured.
 type jobs struct {
 	name     string
-	added    map[digest.Digest]job
+	added    map[digest.Digest]*job
 	mu       sync.Mutex
 	resolved bool
 }
@@ -658,7 +658,7 @@ type job struct {
 func newJobs(name string) *jobs {
 	return &jobs{
 		name:  name,
-		added: make(map[digest.Digest]job),
+		added: make(map[digest.Digest]*job),
 	}
 }
 
@@ -669,17 +669,17 @@ func (j *jobs) add(desc ocispec.Descriptor) {
 	if _, ok := j.added[desc.Digest]; ok {
 		return
 	}
-	j.added[desc.Digest] = job{
+	j.added[desc.Digest] = &job{
 		Descriptor: desc,
 		started:    time.Now(),
 	}
 }
 
-func (j *jobs) jobs() []job {
+func (j *jobs) jobs() []*job {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	descs := make([]job, 0, len(j.added))
+	descs := make([]*job, 0, len(j.added))
 	for _, j := range j.added {
 		descs = append(descs, j)
 	}
