@@ -1,6 +1,6 @@
 #!/bin/sh
 
-GOMETALINTER_COMMIT=bfcc1d6942136fd86eb6f1a6fb328de8398fbd80
+GOMETALINTER_COMMIT=v2.0.6
 
 install_gometalinter() {
 	echo "Installing gometalinter version $GOMETALINTER_COMMIT"
