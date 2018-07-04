@@ -6,7 +6,8 @@ import (
 	"testing"
 
 	_ "github.com/docker/libnetwork/testutils"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func initBroadPredefinedNetworks() []*net.IPNet {
@@ -54,11 +55,11 @@ func TestDefaultNetwork(t *testing.T) {
 	}
 	for _, nw := range PredefinedBroadNetworks {
 		_, ok := m[nw.String()]
-		assert.True(t, ok)
+		assert.Check(t, ok)
 		delete(m, nw.String())
 	}
 
-	assert.Len(t, m, 0)
+	assert.Check(t, is.Len(m, 0))
 
 	originalGranularNets := initGranularPredefinedNetworks()
 
@@ -68,11 +69,11 @@ func TestDefaultNetwork(t *testing.T) {
 	}
 	for _, nw := range PredefinedGranularNetworks {
 		_, ok := m[nw.String()]
-		assert.True(t, ok)
+		assert.Check(t, ok)
 		delete(m, nw.String())
 	}
 
-	assert.Len(t, m, 0)
+	assert.Check(t, is.Len(m, 0))
 }
 
 func TestInitAddressPools(t *testing.T) {
@@ -80,11 +81,11 @@ func TestInitAddressPools(t *testing.T) {
 	InitNetworks([]*NetworkToSplit{{"172.80.0.0/16", 24}, {"172.90.0.0/16", 24}})
 
 	// Check for Random IPAddresses in PredefinedBroadNetworks  ex: first , last and middle
-	assert.Len(t, PredefinedBroadNetworks, 512, "Failed to find PredefinedBroadNetworks")
-	assert.Equal(t, PredefinedBroadNetworks[0].String(), "172.80.0.0/24")
-	assert.Equal(t, PredefinedBroadNetworks[127].String(), "172.80.127.0/24")
-	assert.Equal(t, PredefinedBroadNetworks[255].String(), "172.80.255.0/24")
-	assert.Equal(t, PredefinedBroadNetworks[256].String(), "172.90.0.0/24")
-	assert.Equal(t, PredefinedBroadNetworks[383].String(), "172.90.127.0/24")
-	assert.Equal(t, PredefinedBroadNetworks[511].String(), "172.90.255.0/24")
+	assert.Check(t, is.Len(PredefinedBroadNetworks, 512), "Failed to find PredefinedBroadNetworks")
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[0].String(), "172.80.0.0/24"))
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[127].String(), "172.80.127.0/24"))
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[255].String(), "172.80.255.0/24"))
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[256].String(), "172.90.0.0/24"))
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[383].String(), "172.90.127.0/24"))
+	assert.Check(t, is.Equal(PredefinedBroadNetworks[511].String(), "172.90.255.0/24"))
 }

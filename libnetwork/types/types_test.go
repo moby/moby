@@ -4,9 +4,9 @@ import (
 	"net"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	_ "github.com/docker/libnetwork/testutils"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestTransportPortConv(t *testing.T) {
@@ -76,10 +76,10 @@ func TestTransportPortBindingConv(t *testing.T) {
 		rc := new(PortBinding)
 		err := rc.FromString(in.sform)
 		if in.shouldFail {
-			require.Error(t, err, "Unexpected success parsing %s", in.sform)
+			assert.Assert(t, is.ErrorContains(err, ""), "Unexpected success parsing %s", in.sform)
 		} else {
-			require.NoError(t, err)
-			require.Equal(t, in.pb, *rc, "input %s: expected %#v, got %#v", in.sform, in.pb, rc)
+			assert.NilError(t, err)
+			assert.Assert(t, is.DeepEqual(in.pb, *rc), "input %s: expected %#v, got %#v", in.sform, in.pb, rc)
 		}
 	}
 }
