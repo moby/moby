@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
@@ -30,12 +30,6 @@ func (cli *Client) ImageBuild(ctx context.Context, buildContext io.Reader, optio
 	}
 	headers.Add("X-Registry-Config", base64.URLEncoding.EncodeToString(buf))
 
-	if options.Platform != nil {
-		if err := cli.NewVersionError("1.32", "platform"); err != nil {
-			return types.ImageBuildResponse{}, err
-		}
-		query.Set("platform", platforms.Format(*options.Platform))
-	}
 	headers.Set("Content-Type", "application/x-tar")
 
 	serverResp, err := cli.postRaw(ctx, "/build", query, buildContext, headers)
@@ -130,8 +124,11 @@ func (cli *Client) imageBuildOptionsToQuery(options types.ImageBuildOptions) (ur
 	if options.SessionID != "" {
 		query.Set("session", options.SessionID)
 	}
-	if options.Platform != nil {
-		query.Set("platform", platforms.Format(*options.Platform))
+	if options.Platform != "" {
+		if err := cli.NewVersionError("1.32", "platform"); err != nil {
+			return query, err
+		}
+		query.Set("platform", strings.ToLower(options.Platform))
 	}
 	if options.BuildID != "" {
 		query.Set("buildid", options.BuildID)

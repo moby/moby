@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -25,6 +26,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	"github.com/moby/buildkit/session"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/syncmap"
@@ -111,7 +113,11 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		PathCache:      bm.pathCache,
 		IDMappings:     bm.idMappings,
 	}
-	return newBuilder(ctx, builderOptions).build(source, dockerfile)
+	b, err := newBuilder(ctx, builderOptions)
+	if err != nil {
+		return nil, err
+	}
+	return b.build(source, dockerfile)
 }
 
 func (bm *BuildManager) initializeClientSession(ctx context.Context, cancel func(), options *types.ImageBuildOptions) (builder.Source, error) {
@@ -175,10 +181,11 @@ type Builder struct {
 	pathCache        pathCache
 	containerManager *containerManager
 	imageProber      ImageProber
+	platform         *specs.Platform
 }
 
 // newBuilder creates a new Dockerfile builder from an optional dockerfile and a Options.
-func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
+func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, error) {
 	config := options.Options
 	if config == nil {
 		config = new(types.ImageBuildOptions)
@@ -199,7 +206,20 @@ func newBuilder(clientCtx context.Context, options builderOptions) *Builder {
 		containerManager: newContainerManager(options.Backend),
 	}
 
-	return b
+	// same as in Builder.Build in builder/builder-next/builder.go
+	// TODO: remove once config.Platform is of type specs.Platform
+	if config.Platform != "" {
+		sp, err := platforms.Parse(config.Platform)
+		if err != nil {
+			return nil, err
+		}
+		if err := system.ValidatePlatform(sp); err != nil {
+			return nil, err
+		}
+		b.platform = &sp
+	}
+
+	return b, nil
 }
 
 // Build 'LABEL' command(s) from '--label' options and add to the last stage
@@ -365,9 +385,12 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	b := newBuilder(context.Background(), builderOptions{
+	b, err := newBuilder(context.Background(), builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
 	})
+	if err != nil {
+		return nil, err
+	}
 
 	// ensure that the commands are valid
 	for _, n := range dockerfile.AST.Children {
