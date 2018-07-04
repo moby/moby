@@ -11,6 +11,10 @@ With [Vundle](https://github.com/gmarik/Vundle.vim)
   
     Plugin 'docker/docker' , {'rtp': '/contrib/syntax/vim/'}
 
+With [vim-plug](https://github.com/junegunn/vim-plug)
+  
+    Plug 'docker/docker' , {'rtp': '/contrib/syntax/vim/'}   
+
 Features
 --------
 
