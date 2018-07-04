@@ -57,7 +57,7 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Scheme: "https",
 				Host:   hostname,
 			},
-			Version: APIVersion2,
+			Version:                        APIVersion2,
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			TLSConfig:                      tlsConfig,
@@ -70,7 +70,7 @@ func (s *DefaultService) lookupV2Endpoints(hostname string) (endpoints []APIEndp
 				Scheme: "http",
 				Host:   hostname,
 			},
-			Version: APIVersion2,
+			Version:                        APIVersion2,
 			AllowNondistributableArtifacts: ana,
 			TrimHostname:                   true,
 			// used to check if supposed to be secure via InsecureSkipVerify
