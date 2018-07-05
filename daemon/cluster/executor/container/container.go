@@ -285,6 +285,8 @@ func convertMount(m api.Mount) enginemount.Mount {
 		mount.Type = enginemount.TypeVolume
 	case api.MountTypeTmpfs:
 		mount.Type = enginemount.TypeTmpfs
+	case api.MountTypeNamedPipe:
+		mount.Type = enginemount.TypeNamedPipe
 	}
 
 	if m.BindOptions != nil {
