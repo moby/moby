@@ -43,7 +43,7 @@ pack() {
 	id=$(tar --numeric-owner -C $ROOTFS -c . | docker import - alpine:$REL)
 
 	docker tag $id alpine:latest
-	docker run -i -t --rm alpine printf 'alpine:%s with id=%s created!\n' $REL $id
+	docker run --rm alpine printf 'alpine:%s with id=%s created!\n' $REL $id
 }
 
 save() {
