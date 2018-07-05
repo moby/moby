@@ -137,10 +137,10 @@ func (d *driver) restoreEndpoints() error {
 		ep := kvo.(*endpoint)
 		n := d.network(ep.nid)
 		if n == nil {
-			logrus.Debugf("Network (%s) not found for restored endpoint (%s)", ep.nid[0:7], ep.id[0:7])
-			logrus.Debugf("Deleting stale overlay endpoint (%s) from store", ep.id[0:7])
+			logrus.Debugf("Network (%.7s) not found for restored endpoint (%.7s)", ep.nid, ep.id)
+			logrus.Debugf("Deleting stale overlay endpoint (%.7s) from store", ep.id)
 			if err := d.deleteEndpointFromStore(ep); err != nil {
-				logrus.Debugf("Failed to delete stale overlay endpoint (%s) from store", ep.id[0:7])
+				logrus.Debugf("Failed to delete stale overlay endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
