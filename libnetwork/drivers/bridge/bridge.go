@@ -614,9 +614,7 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 	return nil
 }
 
-func (d *driver) createNetwork(config *networkConfiguration) error {
-	var err error
-
+func (d *driver) createNetwork(config *networkConfiguration) (err error) {
 	defer osl.InitOSContext()()
 
 	networkList := d.getNetworks()
