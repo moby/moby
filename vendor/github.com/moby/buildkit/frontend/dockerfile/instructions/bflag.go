@@ -72,7 +72,7 @@ func (bf *BFlags) AddString(name string, def string) *Flag {
 	return flag
 }
 
-// AddString adds a string flag to BFlags that can match multiple values
+// AddStrings adds a string flag to BFlags that can match multiple values
 func (bf *BFlags) AddStrings(name string) *Flag {
 	flag := bf.addFlag(name, stringsType)
 	if flag == nil {
