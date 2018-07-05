@@ -17,11 +17,13 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ImageTypes represents the schema2 config types for images
 var ImageTypes = []string{
 	schema2.MediaTypeImageConfig,
+	ocispec.MediaTypeImageConfig,
 	// Handle unexpected values from https://github.com/docker/distribution/issues/1621
 	// (see also https://github.com/docker/docker/issues/22378,
 	// https://github.com/docker/docker/issues/30083)
