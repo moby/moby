@@ -120,3 +120,13 @@ type TablePeersResult struct {
 	TableObj
 	Elements []PeerEntryObj `json:"entries"`
 }
+
+// NetworkStatsResult network db stats related to entries and queue len for a network
+type NetworkStatsResult struct {
+	Entries  int `json:"entries"`
+	QueueLen int `jsoin:"qlen"`
+}
+
+func (n *NetworkStatsResult) String() string {
+	return fmt.Sprintf("entries: %d, qlen: %d\n", n.Entries, n.QueueLen)
+}
