@@ -52,7 +52,7 @@ func (l *logWriter) Write(p []byte) (int, error) {
 
 // SetKey adds a new key to the key ring
 func (nDB *NetworkDB) SetKey(key []byte) {
-	logrus.Debugf("Adding key %s", hex.EncodeToString(key)[0:5])
+	logrus.Debugf("Adding key %.5s", hex.EncodeToString(key))
 	nDB.Lock()
 	defer nDB.Unlock()
 	for _, dbKey := range nDB.config.Keys {
@@ -69,7 +69,7 @@ func (nDB *NetworkDB) SetKey(key []byte) {
 // SetPrimaryKey sets the given key as the primary key. This should have
 // been added apriori through SetKey
 func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
-	logrus.Debugf("Primary Key %s", hex.EncodeToString(key)[0:5])
+	logrus.Debugf("Primary Key %.5s", hex.EncodeToString(key))
 	nDB.RLock()
 	defer nDB.RUnlock()
 	for _, dbKey := range nDB.config.Keys {
@@ -85,7 +85,7 @@ func (nDB *NetworkDB) SetPrimaryKey(key []byte) {
 // RemoveKey removes a key from the key ring. The key being removed
 // can't be the primary key
 func (nDB *NetworkDB) RemoveKey(key []byte) {
-	logrus.Debugf("Remove Key %s", hex.EncodeToString(key)[0:5])
+	logrus.Debugf("Remove Key %.5s", hex.EncodeToString(key))
 	nDB.Lock()
 	defer nDB.Unlock()
 	for i, dbKey := range nDB.config.Keys {
@@ -123,7 +123,7 @@ func (nDB *NetworkDB) clusterInit() error {
 	var err error
 	if len(nDB.config.Keys) > 0 {
 		for i, key := range nDB.config.Keys {
-			logrus.Debugf("Encryption key %d: %s", i+1, hex.EncodeToString(key)[0:5])
+			logrus.Debugf("Encryption key %d: %.5s", i+1, hex.EncodeToString(key))
 		}
 		nDB.keyring, err = memberlist.NewKeyring(nDB.config.Keys, nDB.config.Keys[0])
 		if err != nil {

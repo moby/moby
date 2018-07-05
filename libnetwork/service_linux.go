@@ -43,7 +43,7 @@ func (sb *sandbox) populateLoadBalancers(ep *endpoint) {
 
 	if n.ingress {
 		if err := addRedirectRules(sb.Key(), eIP, ep.ingressPorts); err != nil {
-			logrus.Errorf("Failed to add redirect rules for ep %s (%s): %v", ep.Name(), ep.ID()[0:7], err)
+			logrus.Errorf("Failed to add redirect rules for ep %s (%.7s): %v", ep.Name(), ep.ID(), err)
 		}
 	}
 }
@@ -106,7 +106,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create an ipvs handle for sbox %s (%s,%s) for lb addition: %v", sb.ID()[0:7], sb.ContainerID()[0:7], sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb addition: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
 		return
 	}
 	defer i.Close()
@@ -142,14 +142,14 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 			}
 		}
 
-		logrus.Debugf("Creating service for vip %s fwMark %d ingressPorts %#v in sbox %s (%s)", lb.vip, lb.fwMark, lb.service.ingressPorts, sb.ID()[0:7], sb.ContainerID()[0:7])
+		logrus.Debugf("Creating service for vip %s fwMark %d ingressPorts %#v in sbox %.7s (%.7s)", lb.vip, lb.fwMark, lb.service.ingressPorts, sb.ID(), sb.ContainerID())
 		if err := invokeFWMarker(sb.Key(), lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, false); err != nil {
-			logrus.Errorf("Failed to add firewall mark rule in sbox %s (%s): %v", sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to add firewall mark rule in sbox %.7s (%.7s): %v", sb.ID(), sb.ContainerID(), err)
 			return
 		}
 
 		if err := i.NewService(s); err != nil && err != syscall.EEXIST {
-			logrus.Errorf("Failed to create a new service for vip %s fwmark %d in sbox %s (%s): %v", lb.vip, lb.fwMark, sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to create a new service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 			return
 		}
 	}
@@ -164,7 +164,7 @@ func (n *network) addLBBackend(ip net.IP, lb *loadBalancer) {
 	// destination.
 	s.SchedName = ""
 	if err := i.NewDestination(s, d); err != nil && err != syscall.EEXIST {
-		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d in sbox %s (%s): %v", ip, lb.vip, lb.fwMark, sb.ID()[0:7], sb.ContainerID()[0:7], err)
+		logrus.Errorf("Failed to create real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 	}
 }
 
@@ -189,7 +189,7 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 
 	i, err := ipvs.New(sb.Key())
 	if err != nil {
-		logrus.Errorf("Failed to create an ipvs handle for sbox %s (%s,%s) for lb removal: %v", sb.ID()[0:7], sb.ContainerID()[0:7], sb.Key(), err)
+		logrus.Errorf("Failed to create an ipvs handle for sbox %.7s (%.7s,%s) for lb removal: %v", sb.ID(), sb.ContainerID(), sb.Key(), err)
 		return
 	}
 	defer i.Close()
@@ -207,19 +207,19 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 
 	if fullRemove {
 		if err := i.DelDestination(s, d); err != nil && err != syscall.ENOENT {
-			logrus.Errorf("Failed to delete real server %s for vip %s fwmark %d in sbox %s (%s): %v", ip, lb.vip, lb.fwMark, sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to delete real server %s for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 		}
 	} else {
 		d.Weight = 0
 		if err := i.UpdateDestination(s, d); err != nil && err != syscall.ENOENT {
-			logrus.Errorf("Failed to set LB weight of real server %s to 0 for vip %s fwmark %d in sbox %s (%s): %v", ip, lb.vip, lb.fwMark, sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to set LB weight of real server %s to 0 for vip %s fwmark %d in sbox %.7s (%.7s): %v", ip, lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 		}
 	}
 
 	if rmService {
 		s.SchedName = ipvs.RoundRobin
 		if err := i.DelService(s); err != nil && err != syscall.ENOENT {
-			logrus.Errorf("Failed to delete service for vip %s fwmark %d in sbox %s (%s): %v", lb.vip, lb.fwMark, sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to delete service for vip %s fwmark %d in sbox %.7s (%.7s): %v", lb.vip, lb.fwMark, sb.ID(), sb.ContainerID(), err)
 		}
 
 		if sb.ingress {
@@ -234,7 +234,7 @@ func (n *network) rmLBBackend(ip net.IP, lb *loadBalancer, rmService bool, fullR
 		}
 
 		if err := invokeFWMarker(sb.Key(), lb.vip, lb.fwMark, lb.service.ingressPorts, eIP, true); err != nil {
-			logrus.Errorf("Failed to delete firewall mark rule in sbox %s (%s): %v", sb.ID()[0:7], sb.ContainerID()[0:7], err)
+			logrus.Errorf("Failed to delete firewall mark rule in sbox %.7s (%.7s): %v", sb.ID(), sb.ContainerID(), err)
 		}
 
 		// Remove IP alias from the VIP to the endpoint
