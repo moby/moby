@@ -180,7 +180,7 @@ func (p *Controller) Wait(ctx context.Context) error {
 		case <-ctx.Done():
 			return ctx.Err()
 		case e := <-events:
-			p.logger.Debugf("got event %#T", e)
+			p.logger.Debugf("got event %T", e)
 
 			switch e.(type) {
 			case plugin.EventEnable:
