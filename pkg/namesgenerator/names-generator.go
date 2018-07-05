@@ -365,6 +365,9 @@ var (
 		// Johannes Kepler, German astronomer known for his three laws of planetary motion - https://en.wikipedia.org/wiki/Johannes_Kepler
 		"kepler",
 
+		// Omar Khayyam, was a Persian mathematician, astronomer, and poet - https://en.wikipedia.org/wiki/Omar_Khayyam
+		"khayyam",
+
 		// Har Gobind Khorana - Indian-American biochemist who shared the 1968 Nobel Prize for Physiology - https://en.wikipedia.org/wiki/Har_Gobind_Khorana
 		"khorana",
 
