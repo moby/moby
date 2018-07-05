@@ -146,7 +146,7 @@ func (d *dispatchRequest) getImageMount(imageRefOrID string) (*imageMount, error
 		imageRefOrID = stage.Image
 		localOnly = true
 	}
-	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.builder.options.Platform)
+	return d.builder.imageSources.Get(imageRefOrID, localOnly, d.builder.platform)
 }
 
 // FROM [--platform=platform] imagename[:tag | @digest] [AS build-stage-name]
@@ -238,7 +238,7 @@ func (d *dispatchRequest) getImageOrStage(name string, platform *specs.Platform)
 	}
 
 	if platform == nil {
-		platform = d.builder.options.Platform
+		platform = d.builder.platform
 	}
 
 	// Windows cannot support a container with no base image unless it is LCOW.

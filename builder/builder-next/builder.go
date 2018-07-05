@@ -2,7 +2,6 @@ package buildkit
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"strings"
 	"sync"
@@ -14,7 +13,8 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/images"
-	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/system"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
@@ -209,8 +209,17 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["no-cache"] = ""
 	}
 
-	if opt.Options.Platform != nil {
-		frontendAttrs["platform"] = platforms.Format(*opt.Options.Platform)
+	if opt.Options.Platform != "" {
+		// same as in newBuilder in builder/dockerfile.builder.go
+		// TODO: remove once opt.Options.Platform is of type specs.Platform
+		sp, err := platforms.Parse(opt.Options.Platform)
+		if err != nil {
+			return nil, err
+		}
+		if err := system.ValidatePlatform(sp); err != nil {
+			return nil, err
+		}
+		frontendAttrs["platform"] = opt.Options.Platform
 	}
 
 	exporterAttrs := map[string]string{}
@@ -228,6 +237,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Session:       opt.Options.SessionID,
 	}
 
+	aux := streamformatter.AuxFormatter{opt.ProgressWriter.Output}
+
 	eg, ctx := errgroup.WithContext(ctx)
 
 	eg.Go(func() error {
@@ -240,7 +251,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			return errors.Errorf("missing image id")
 		}
 		out.ImageID = id
-		return nil
+		return aux.Emit("moby.image.id", types.BuildResult{ID: id})
 	})
 
 	ch := make(chan *controlapi.StatusResponse)
@@ -258,24 +269,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 			if err != nil {
 				return err
 			}
-
-			auxJSONBytes, err := json.Marshal(dt)
-			if err != nil {
+			if err := aux.Emit("moby.buildkit.trace", dt); err != nil {
 				return err
-			}
-			auxJSON := new(json.RawMessage)
-			*auxJSON = auxJSONBytes
-			msgJSON, err := json.Marshal(&jsonmessage.JSONMessage{ID: "moby.buildkit.trace", Aux: auxJSON})
-			if err != nil {
-				return err
-			}
-			msgJSON = append(msgJSON, []byte("\r\n")...)
-			n, err := opt.ProgressWriter.Output.Write(msgJSON)
-			if err != nil {
-				return err
-			}
-			if n != len(msgJSON) {
-				return io.ErrShortWrite
 			}
 		}
 		return nil
