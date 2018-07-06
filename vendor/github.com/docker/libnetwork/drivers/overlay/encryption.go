@@ -78,7 +78,7 @@ func (e *encrMap) String() string {
 }
 
 func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal, add bool) error {
-	logrus.Debugf("checkEncryption(%s, %v, %d, %t)", nid[0:7], rIP, vxlanID, isLocal)
+	logrus.Debugf("checkEncryption(%.7s, %v, %d, %t)", nid, rIP, vxlanID, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -101,7 +101,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 			}
 			return false
 		}); err != nil {
-			logrus.Warnf("Failed to retrieve list of participating nodes in overlay network %s: %v", nid[0:5], err)
+			logrus.Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
 		}
 	default:
 		if len(d.network(nid).endpoints) > 0 {

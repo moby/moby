@@ -332,6 +332,8 @@ func CompareIPNet(a, b *net.IPNet) bool {
 }
 
 // GetMinimalIP returns the address in its shortest form
+// If ip contains an IPv4-mapped IPv6 address, the 4-octet form of the IPv4 address will be returned.
+// Otherwise ip is returned unchanged.
 func GetMinimalIP(ip net.IP) net.IP {
 	if ip != nil && ip.To4() != nil {
 		return ip.To4()

@@ -62,7 +62,7 @@ func (d *driver) populateNetworks() error {
 		if err = d.createNetwork(ncfg); err != nil {
 			logrus.Warnf("could not create bridge network for id %s bridge name %s while booting up from persistent state: %v", ncfg.ID, ncfg.BridgeName, err)
 		}
-		logrus.Debugf("Network (%s) restored", ncfg.ID[0:7])
+		logrus.Debugf("Network (%.7s) restored", ncfg.ID)
 	}
 
 	return nil
@@ -82,16 +82,16 @@ func (d *driver) populateEndpoints() error {
 		ep := kvo.(*bridgeEndpoint)
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%s) not found for restored bridge endpoint (%s)", ep.nid[0:7], ep.id[0:7])
-			logrus.Debugf("Deleting stale bridge endpoint (%s) from store", ep.id[0:7])
+			logrus.Debugf("Network (%.7s) not found for restored bridge endpoint (%.7s)", ep.nid, ep.id)
+			logrus.Debugf("Deleting stale bridge endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale bridge endpoint (%s) from store", ep.id[0:7])
+				logrus.Debugf("Failed to delete stale bridge endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
 		n.restorePortAllocations(ep)
-		logrus.Debugf("Endpoint (%s) restored to network (%s)", ep.id[0:7], ep.nid[0:7])
+		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil
@@ -382,7 +382,7 @@ func (n *bridgeNetwork) restorePortAllocations(ep *bridgeEndpoint) {
 	ep.extConnConfig.PortBindings = ep.portMapping
 	_, err := n.allocatePorts(ep, n.config.DefaultBindingIP, n.driver.config.EnableUserlandProxy)
 	if err != nil {
-		logrus.Warnf("Failed to reserve existing port mapping for endpoint %s:%v", ep.id[0:7], err)
+		logrus.Warnf("Failed to reserve existing port mapping for endpoint %.7s:%v", ep.id, err)
 	}
 	ep.extConnConfig.PortBindings = tmp
 }

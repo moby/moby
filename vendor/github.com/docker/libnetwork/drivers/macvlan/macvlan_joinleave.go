@@ -78,7 +78,7 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 		return err
 	}
 	if err := d.storeUpdate(ep); err != nil {
-		return fmt.Errorf("failed to save macvlan endpoint %s to store: %v", ep.id[0:7], err)
+		return fmt.Errorf("failed to save macvlan endpoint %.7s to store: %v", ep.id, err)
 	}
 	return nil
 }

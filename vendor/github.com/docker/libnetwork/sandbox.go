@@ -83,6 +83,7 @@ type sandbox struct {
 	inDelete           bool
 	ingress            bool
 	ndotsSet           bool
+	oslTypes           []osl.SandboxType // slice of properties of this sandbox
 	sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
@@ -1162,6 +1163,15 @@ func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 func OptionIngress() SandboxOption {
 	return func(sb *sandbox) {
 		sb.ingress = true
+		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeIngress)
+	}
+}
+
+// OptionLoadBalancer function returns an option setter for marking a
+// sandbox as a load balancer sandbox.
+func OptionLoadBalancer() SandboxOption {
+	return func(sb *sandbox) {
+		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
 	}
 }
 
