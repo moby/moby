@@ -20,7 +20,8 @@ import (
 	"github.com/docker/libnetwork/ipamutils"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 const (
@@ -287,23 +288,23 @@ func TestAddSubnets(t *testing.T) {
 func TestDoublePoolRelease(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		pid0, _, _, err := a.RequestPool(localAddressSpace, "10.0.0.0/8", "", nil, false)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		err = a.ReleasePool(pid0)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		err = a.ReleasePool(pid0)
-		assert.Error(t, err)
+		assert.Check(t, is.ErrorContains(err, ""))
 	}
 }
 
 func TestAddReleasePoolID(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		var k0, k1 SubnetKey
 		aSpace, err := a.getAddrSpace(localAddressSpace)
@@ -437,7 +438,7 @@ func TestAddReleasePoolID(t *testing.T) {
 func TestPredefinedPool(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		if _, err := a.getPredefinedPool("blue", false); err == nil {
 			t.Fatal("Expected failure for non default addr space")
@@ -465,7 +466,7 @@ func TestPredefinedPool(t *testing.T) {
 func TestRemoveSubnet(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		a.addrSpaces["splane"] = &addrSpace{
 			id:      dsConfigKey + "/" + "splane",
@@ -509,7 +510,7 @@ func TestRemoveSubnet(t *testing.T) {
 func TestGetSameAddress(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		a.addrSpaces["giallo"] = &addrSpace{
 			id:      dsConfigKey + "/" + "giallo",
@@ -540,7 +541,7 @@ func TestGetSameAddress(t *testing.T) {
 func TestPoolAllocationReuse(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		// First get all pools until they are exhausted to
 		pList := []string{}
@@ -579,7 +580,7 @@ func TestPoolAllocationReuse(t *testing.T) {
 func TestGetAddressSubPoolEqualPool(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		// Requesting a subpool of same size of the master pool should not cause any problem on ip allocation
 		pid, _, _, err := a.RequestPool(localAddressSpace, "172.18.0.0/16", "172.18.0.0/16", nil, false)
@@ -597,7 +598,7 @@ func TestGetAddressSubPoolEqualPool(t *testing.T) {
 func TestRequestReleaseAddressFromSubPool(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		a.addrSpaces["rosso"] = &addrSpace{
 			id:      dsConfigKey + "/" + "rosso",
@@ -730,7 +731,7 @@ func TestSerializeRequestReleaseAddressFromSubPool(t *testing.T) {
 		ipamapi.AllocSerialPrefix: "true"}
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		a.addrSpaces["rosso"] = &addrSpace{
 			id:      dsConfigKey + "/" + "rosso",
@@ -880,7 +881,7 @@ func TestRequestSyntaxCheck(t *testing.T) {
 
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		a.addrSpaces[as] = &addrSpace{
 			id:      dsConfigKey + "/" + as,
@@ -1036,20 +1037,20 @@ func TestOverlappingRequests(t *testing.T) {
 	for _, store := range []bool{false, true} {
 		for _, tc := range input {
 			a, err := getAllocator(store)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 
 			// Set up some existing allocations.  This should always succeed.
 			for _, env := range tc.environment {
 				_, _, _, err = a.RequestPool(localAddressSpace, env, "", nil, false)
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 			}
 
 			// Make the test allocation.
 			_, _, _, err = a.RequestPool(localAddressSpace, tc.subnet, "", nil, false)
 			if tc.ok {
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err)
+				assert.Check(t, is.ErrorContains(err, ""))
 			}
 		}
 	}
@@ -1062,7 +1063,7 @@ func TestRelease(t *testing.T) {
 
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
 		if err != nil {
@@ -1170,7 +1171,7 @@ func assertNRequests(t *testing.T, subnet string, numReq int, lastExpectedIP str
 	lastIP := net.ParseIP(lastExpectedIP)
 	for _, store := range []bool{false, true} {
 		a, err := getAllocator(store)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		pid, _, _, err := a.RequestPool(localAddressSpace, subnet, "", nil, false)
 		if err != nil {
@@ -1232,7 +1233,7 @@ func TestAllocateRandomDeallocate(t *testing.T) {
 
 func testAllocateRandomDeallocate(t *testing.T, pool, subPool string, num int, store bool) {
 	ds, err := randomLocalStore(store)
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 
 	a, err := NewAllocator(ds, nil)
 	if err != nil {

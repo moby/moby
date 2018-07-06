@@ -4,7 +4,8 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 
 	_ "github.com/docker/libnetwork/testutils"
 )
@@ -23,11 +24,11 @@ func TestReadWriteKnobs(t *testing.T) {
 			continue
 		}
 		// Test the write
-		assert.NoError(t, writeSystemProperty(k, "10000"))
+		assert.Check(t, writeSystemProperty(k, "10000"))
 		newV, err := readSystemProperty(k)
-		assert.NoError(t, err)
-		assert.Equal(t, newV, "10000")
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(newV, "10000"))
 		// Restore value
-		assert.NoError(t, writeSystemProperty(k, v))
+		assert.Check(t, writeSystemProperty(k, v))
 	}
 }

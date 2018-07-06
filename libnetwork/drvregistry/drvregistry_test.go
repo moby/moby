@@ -11,7 +11,8 @@ import (
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
 	nullIpam "github.com/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 
 	// this takes care of the incontainer flag
 	_ "github.com/docker/libnetwork/testutils"
@@ -128,46 +129,46 @@ func TestAddDriver(t *testing.T) {
 	reg := getNew(t)
 
 	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestAddDuplicateDriver(t *testing.T) {
 	reg := getNew(t)
 
 	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 
 	// Try adding the same driver
 	err = reg.AddDriver(mockDriverName, mockDriverInit, nil)
-	assert.Error(t, err)
+	assert.Check(t, is.ErrorContains(err, ""))
 }
 
 func TestIPAMDefaultAddressSpaces(t *testing.T) {
 	reg := getNew(t)
 
 	as1, as2, err := reg.IPAMDefaultAddressSpaces("default")
-	assert.NoError(t, err)
-	assert.NotEqual(t, as1, "")
-	assert.NotEqual(t, as2, "")
+	assert.NilError(t, err)
+	assert.Check(t, as1 != "")
+	assert.Check(t, as2 != "")
 }
 
 func TestDriver(t *testing.T) {
 	reg := getNew(t)
 
 	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 
 	d, cap := reg.Driver(mockDriverName)
-	assert.NotEqual(t, d, nil)
-	assert.NotEqual(t, cap, nil)
+	assert.Check(t, d != nil)
+	assert.Check(t, cap != nil)
 }
 
 func TestIPAM(t *testing.T) {
 	reg := getNew(t)
 
 	i, cap := reg.IPAM("default")
-	assert.NotEqual(t, i, nil)
-	assert.NotEqual(t, cap, nil)
+	assert.Check(t, i != nil)
+	assert.Check(t, cap != nil)
 }
 
 func TestWalkIPAMs(t *testing.T) {
@@ -180,14 +181,14 @@ func TestWalkIPAMs(t *testing.T) {
 	})
 
 	sort.Strings(ipams)
-	assert.Equal(t, ipams, []string{"default", "null"})
+	assert.Check(t, is.DeepEqual(ipams, []string{"default", "null"}))
 }
 
 func TestWalkDrivers(t *testing.T) {
 	reg := getNew(t)
 
 	err := reg.AddDriver(mockDriverName, mockDriverInit, nil)
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 
 	var driverName string
 	reg.WalkDrivers(func(name string, driver driverapi.Driver, capability driverapi.Capability) bool {
@@ -195,5 +196,5 @@ func TestWalkDrivers(t *testing.T) {
 		return false
 	})
 
-	assert.Equal(t, driverName, mockDriverName)
+	assert.Check(t, is.Equal(driverName, mockDriverName))
 }

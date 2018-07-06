@@ -12,8 +12,9 @@ import (
 	"time"
 
 	"github.com/docker/libnetwork/ipamapi"
-	"github.com/stretchr/testify/assert"
 	"golang.org/x/sync/semaphore"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 const (
@@ -217,7 +218,7 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 		tctx.ipMap[ip.String()] = true
 	}
 
-	assert.Len(t, tctx.ipList, tctx.maxIP)
+	assert.Check(t, is.Len(tctx.ipList, tctx.maxIP))
 	if len(tctx.ipList) != tctx.maxIP {
 		t.Fatal("missmatch number allocation")
 	}
@@ -281,12 +282,12 @@ func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) 
 
 		// check if it is really free
 		_, _, err := tctx.a.RequestAddress(tctx.pid, ip.IP, nil)
-		assert.NoError(t, err, "ip %v not properly released", ip)
+		assert.Check(t, err, "ip %v not properly released", ip)
 		if err != nil {
 			t.Fatalf("ip %v not properly released, error:%v", ip, err)
 		}
 		err = tctx.a.ReleaseAddress(tctx.pid, ip.IP)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 
 		if there, ok := tctx.ipMap[ip.String()]; !ok || !there {
 			t.Fatalf("ip %v got double deallocated", ip)
@@ -300,5 +301,5 @@ func release(t *testing.T, tctx *testContext, mode releaseMode, parallel int64) 
 		}
 	}
 
-	assert.Len(t, tctx.ipList, tctx.maxIP-length)
+	assert.Check(t, is.Len(tctx.ipList, tctx.maxIP-length))
 }

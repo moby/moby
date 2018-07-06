@@ -11,8 +11,8 @@ import (
 	"github.com/docker/libnetwork/netlabel"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func newDriver(t *testing.T) *driver {
@@ -21,7 +21,7 @@ func newDriver(t *testing.T) *driver {
 	}
 
 	vxlanIdm, err := idm.New(nil, "vxlan-id", vxlanIDStart, vxlanIDEnd)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	d.vxlanIdm = vxlanIdm
 	return d
@@ -29,7 +29,7 @@ func newDriver(t *testing.T) *driver {
 
 func parseCIDR(t *testing.T, ipnet string) *net.IPNet {
 	subnet, err := types.ParseCIDR(ipnet)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 	return subnet
 }
 
@@ -46,14 +46,14 @@ func TestNetworkAllocateFree(t *testing.T) {
 	}
 
 	vals, err := d.NetworkAllocate("testnetwork", nil, ipamData, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	vxlanIDs, ok := vals[netlabel.OverlayVxlanIDList]
-	assert.Equal(t, true, ok)
-	assert.Equal(t, 2, len(strings.Split(vxlanIDs, ",")))
+	assert.Check(t, is.Equal(true, ok))
+	assert.Check(t, is.Len(strings.Split(vxlanIDs, ","), 2))
 
 	err = d.NetworkFree("testnetwork")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestNetworkAllocateUserDefinedVNIs(t *testing.T) {
@@ -73,16 +73,16 @@ func TestNetworkAllocateUserDefinedVNIs(t *testing.T) {
 	options[netlabel.OverlayVxlanIDList] = fmt.Sprintf("%d,%d,%d", vxlanIDStart, vxlanIDStart+1, vxlanIDStart+2)
 
 	vals, err := d.NetworkAllocate("testnetwork", options, ipamData, nil)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	vxlanIDs, ok := vals[netlabel.OverlayVxlanIDList]
-	assert.Equal(t, true, ok)
+	assert.Check(t, is.Equal(true, ok))
 
 	// We should only get exactly the same number of vnis as
 	// subnets. No more, no less, even if we passed more vnis.
-	assert.Equal(t, 2, len(strings.Split(vxlanIDs, ",")))
-	assert.Equal(t, fmt.Sprintf("%d,%d", vxlanIDStart, vxlanIDStart+1), vxlanIDs)
+	assert.Check(t, is.Len(strings.Split(vxlanIDs, ","), 2))
+	assert.Check(t, is.Equal(fmt.Sprintf("%d,%d", vxlanIDStart, vxlanIDStart+1), vxlanIDs))
 
 	err = d.NetworkFree("testnetwork")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }

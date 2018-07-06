@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/testutils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 var (
@@ -58,7 +58,7 @@ func checkDestination(t *testing.T, i *Handle, s *Service, d *Destination, check
 	var dstFound bool
 
 	dstArray, err := i.GetDestinations(s)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	for _, dst := range dstArray {
 		if dst.Address.Equal(d.Address) && dst.Port == d.Port && lookupFwMethod(dst.ConnectionFlags) == lookupFwMethod(d.ConnectionFlags) {
@@ -84,7 +84,7 @@ func checkDestination(t *testing.T, i *Handle, s *Service, d *Destination, check
 func checkService(t *testing.T, i *Handle, s *Service, checkPresent bool) {
 
 	svcArray, err := i.GetServices()
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	var svcFound bool
 
@@ -116,8 +116,8 @@ func TestGetFamily(t *testing.T) {
 	}
 
 	id, err := getIPVSFamily()
-	require.NoError(t, err)
-	assert.NotEqual(t, 0, id)
+	assert.NilError(t, err)
+	assert.Check(t, 0 != id)
 }
 
 func TestService(t *testing.T) {
@@ -128,7 +128,7 @@ func TestService(t *testing.T) {
 	defer testutils.SetupTestOSContext(t)()
 
 	i, err := New("")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	for _, protocol := range protocols {
 		for _, schedMethod := range schedMethods {
@@ -153,7 +153,7 @@ func TestService(t *testing.T) {
 			}
 
 			err := i.NewService(&s)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkService(t, i, &s, true)
 			for _, updateSchedMethod := range schedMethods {
 				if updateSchedMethod == schedMethod {
@@ -162,18 +162,18 @@ func TestService(t *testing.T) {
 
 				s.SchedName = updateSchedMethod
 				err = i.UpdateService(&s)
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 				checkService(t, i, &s, true)
 
 				scopy, err := i.GetService(&s)
-				assert.NoError(t, err)
-				assert.Equal(t, (*scopy).Address.String(), s.Address.String())
-				assert.Equal(t, (*scopy).Port, s.Port)
-				assert.Equal(t, (*scopy).Protocol, s.Protocol)
+				assert.NilError(t, err)
+				assert.Check(t, is.Equal((*scopy).Address.String(), s.Address.String()))
+				assert.Check(t, is.Equal((*scopy).Port, s.Port))
+				assert.Check(t, is.Equal((*scopy).Protocol, s.Protocol))
 			}
 
 			err = i.DelService(&s)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkService(t, i, &s, false)
 		}
 	}
@@ -200,16 +200,16 @@ func TestService(t *testing.T) {
 	for _, svc := range svcs {
 		if !i.IsServicePresent(&svc) {
 			err = i.NewService(&svc)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkService(t, i, &svc, true)
 		} else {
 			t.Errorf("svc: %v exists", svc)
 		}
 	}
 	err = i.Flush()
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 	got, err := i.GetServices()
-	assert.NoError(t, err)
+	assert.NilError(t, err)
 	if len(got) != 0 {
 		t.Errorf("Unexpected services after flush")
 	}
@@ -227,19 +227,19 @@ func createDummyInterface(t *testing.T) {
 	}
 
 	err := netlink.LinkAdd(dummy)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	dummyLink, err := netlink.LinkByName("dummy")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ip, ipNet, err := net.ParseCIDR("10.1.1.1/24")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	ipNet.IP = ip
 
 	ipAddr := &netlink.Addr{IPNet: ipNet, Label: ""}
 	err = netlink.AddrAdd(dummyLink, ipAddr)
-	require.NoError(t, err)
+	assert.NilError(t, err)
 }
 
 func TestDestination(t *testing.T) {
@@ -247,7 +247,7 @@ func TestDestination(t *testing.T) {
 
 	createDummyInterface(t)
 	i, err := New("")
-	require.NoError(t, err)
+	assert.NilError(t, err)
 
 	for _, protocol := range protocols {
 
@@ -271,7 +271,7 @@ func TestDestination(t *testing.T) {
 		}
 
 		err := i.NewService(&s)
-		assert.NoError(t, err)
+		assert.NilError(t, err)
 		checkService(t, i, &s, true)
 
 		s.SchedName = ""
@@ -285,7 +285,7 @@ func TestDestination(t *testing.T) {
 			}
 
 			err := i.NewDestination(&s, &d1)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkDestination(t, i, &s, &d1, true)
 			d2 := Destination{
 				AddressFamily:   nl.FAMILY_V4,
@@ -296,7 +296,7 @@ func TestDestination(t *testing.T) {
 			}
 
 			err = i.NewDestination(&s, &d2)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkDestination(t, i, &s, &d2, true)
 
 			d3 := Destination{
@@ -308,7 +308,7 @@ func TestDestination(t *testing.T) {
 			}
 
 			err = i.NewDestination(&s, &d3)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkDestination(t, i, &s, &d3, true)
 
 			for _, updateFwdMethod := range fwdMethods {
@@ -317,26 +317,26 @@ func TestDestination(t *testing.T) {
 				}
 				d1.ConnectionFlags = updateFwdMethod
 				err = i.UpdateDestination(&s, &d1)
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 				checkDestination(t, i, &s, &d1, true)
 
 				d2.ConnectionFlags = updateFwdMethod
 				err = i.UpdateDestination(&s, &d2)
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 				checkDestination(t, i, &s, &d2, true)
 
 				d3.ConnectionFlags = updateFwdMethod
 				err = i.UpdateDestination(&s, &d3)
-				assert.NoError(t, err)
+				assert.NilError(t, err)
 				checkDestination(t, i, &s, &d3, true)
 			}
 
 			err = i.DelDestination(&s, &d1)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			err = i.DelDestination(&s, &d2)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			err = i.DelDestination(&s, &d3)
-			assert.NoError(t, err)
+			assert.NilError(t, err)
 			checkDestination(t, i, &s, &d3, false)
 
 		}
