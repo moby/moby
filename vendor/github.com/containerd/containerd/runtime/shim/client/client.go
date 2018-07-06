@@ -31,9 +31,9 @@ import (
 
 	"golang.org/x/sys/unix"
 
+	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"github.com/stevvooe/ttrpc"
 
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/log"
