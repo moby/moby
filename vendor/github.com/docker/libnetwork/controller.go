@@ -1144,6 +1144,11 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		}
 	}
 
+	if sb.osSbox != nil {
+		// Apply operating specific knobs on the load balancer sandbox
+		sb.osSbox.ApplyOSTweaks(sb.oslTypes)
+	}
+
 	c.Lock()
 	c.sandboxes[sb.id] = sb
 	c.Unlock()

@@ -7,6 +7,16 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
+// SandboxType specify the time of the sandbox, this can be used to apply special configs
+type SandboxType int
+
+const (
+	// SandboxTypeIngress indicates that the sandbox is for the ingress
+	SandboxTypeIngress = iota
+	// SandboxTypeLoadBalancer indicates that the sandbox is a load balancer
+	SandboxTypeLoadBalancer = iota
+)
+
 // Sandbox represents a network sandbox, identified by a specific key.  It
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
 type Sandbox interface {
@@ -70,6 +80,9 @@ type Sandbox interface {
 
 	// restore sandbox
 	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
+
+	// ApplyOSTweaks applies operating system specific knobs on the sandbox
+	ApplyOSTweaks([]SandboxType)
 }
 
 // NeighborOptionSetter interface defines the option setter methods for interface options
