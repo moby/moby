@@ -50,7 +50,7 @@ import strings "strings"
 import reflect "reflect"
 
 import context "context"
-import ttrpc "github.com/stevvooe/ttrpc"
+import ttrpc "github.com/containerd/ttrpc"
 
 import io "io"
 
