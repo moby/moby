@@ -40,6 +40,12 @@ type TaskReaper struct {
 	cleanup  []string
 	stopChan chan struct{}
 	doneChan chan struct{}
+
+	// tickSignal is a channel that, if non-nil and available, will be written
+	// to to signal that a tick has occurred. its sole purpose is for testing
+	// code, to verify that take cleanup attempts are happening when they
+	// should be.
+	tickSignal chan struct{}
 }
 
 // New creates a new TaskReaper.
@@ -115,7 +121,34 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 
 	// Clean up when we hit TaskHistoryRetentionLimit or when the timer expires,
 	// whichever happens first.
+	//
+	// Specifically, the way this should work:
+	// - Create a timer and immediately stop it. We don't want to fire the
+	//   cleanup routine yet, because we just did a cleanup as part of the
+	//   initialization above.
+	// - Launch into an event loop
+	// - When we receive an event, handle the event as needed
+	// - After receiving the event:
+	//   - If minimum batch size (maxDirty) is exceeded with dirty + cleanup,
+	//     then immediately launch into the cleanup routine
+	//   - Otherwise, if the timer is stopped, start it (reset).
+	// - If the timer expires and the timer channel is signaled, then Stop the
+	//   timer (so that it will be ready to be started again as needed), and
+	//   execute the cleanup routine (tick)
 	timer := time.NewTimer(reaperBatchingInterval)
+	timer.Stop()
+
+	// If stop is somehow called AFTER the timer has expired, there will be a
+	// value in the timer.C channel. If there is such a value, we should drain
+	// it out. This select statement allows us to drain that value if it's
+	// present, or continue straight through otherwise.
+	select {
+	case <-timer.C:
+	default:
+	}
+
+	// keep track with a boolean of whether the timer is currently stopped
+	isTimerStopped := true
 
 	// Watch for:
 	// 1. EventCreateTask for cleaning slots, which is the best time to cleanup that node/slot.
@@ -153,16 +186,35 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 			}
 
 			if len(tr.dirty)+len(tr.cleanup) > maxDirty {
+				// stop the timer, so we don't fire it. if we get another event
+				// after we do this cleaning, we will reset the timer then
 				timer.Stop()
+				// if the timer had fired, drain out the value.
+				select {
+				case <-timer.C:
+				default:
+				}
+				isTimerStopped = true
 				tr.tick()
 			} else {
-				timer.Reset(reaperBatchingInterval)
+				if isTimerStopped {
+					timer.Reset(reaperBatchingInterval)
+					isTimerStopped = false
+				}
 			}
 		case <-timer.C:
-			timer.Stop()
+			// we can safely ignore draining off of the timer channel, because
+			// we already know that the timer has expired.
+			isTimerStopped = true
 			tr.tick()
 		case <-tr.stopChan:
+			// even though this doesn't really matter in this context, it's
+			// good hygiene to drain the value.
 			timer.Stop()
+			select {
+			case <-timer.C:
+			default:
+			}
 			return
 		}
 	}
@@ -170,6 +222,16 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 
 // tick performs task history cleanup.
 func (tr *TaskReaper) tick() {
+	// this signals that a tick has occurred. it exists solely for testing.
+	if tr.tickSignal != nil {
+		// try writing to this channel, but if it's full, fall straight through
+		// and ignore it.
+		select {
+		case tr.tickSignal <- struct{}{}:
+		default:
+		}
+	}
+
 	if len(tr.dirty) == 0 && len(tr.cleanup) == 0 {
 		return
 	}
@@ -184,10 +246,24 @@ func (tr *TaskReaper) tick() {
 	}
 
 	// Check history of dirty tasks for cleanup.
+	// Note: Clean out the dirty set at the end of this tick iteration
+	// in all but one scenarios (documented below).
+	// When tick() finishes, the tasks in the slot were either cleaned up,
+	// or it was skipped because it didn't meet the criteria for cleaning.
+	// Either way, we can discard the dirty set because future events on
+	// that slot will cause the task to be readded to the dirty set
+	// at that point.
+	//
+	// The only case when we keep the slot dirty is when there are more
+	// than one running tasks present for a given slot.
+	// In that case, we need to keep the slot dirty to allow it to be
+	// cleaned when tick() is called next and one or more the tasks
+	// in that slot have stopped running.
 	tr.store.View(func(tx store.ReadTx) {
 		for dirty := range tr.dirty {
 			service := store.GetService(tx, dirty.ServiceID)
 			if service == nil {
+				delete(tr.dirty, dirty)
 				continue
 			}
 
@@ -211,6 +287,7 @@ func (tr *TaskReaper) tick() {
 
 			// Negative value for TaskHistoryRetentionLimit is an indication to never clean up task history.
 			if taskHistory < 0 {
+				delete(tr.dirty, dirty)
 				continue
 			}
 
@@ -240,6 +317,7 @@ func (tr *TaskReaper) tick() {
 			}
 
 			if int64(len(historicTasks)) <= taskHistory {
+				delete(tr.dirty, dirty)
 				continue
 			}
 
@@ -270,6 +348,12 @@ func (tr *TaskReaper) tick() {
 				}
 			}
 
+			// The only case when we keep the slot dirty at the end of tick()
+			// is when there are more than one running tasks present
+			// for a given slot.
+			// In that case, we keep the slot dirty to allow it to be
+			// cleaned when tick() is called next and one or more of
+			// the tasks in that slot have stopped running.
 			if runningTasks <= 1 {
 				delete(tr.dirty, dirty)
 			}
