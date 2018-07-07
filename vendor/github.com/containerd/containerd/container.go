@@ -307,6 +307,12 @@ func (c *container) get(ctx context.Context) (containers.Container, error) {
 
 // get the existing fifo paths from the task information stored by the daemon
 func attachExistingIO(response *tasks.GetResponse, ioAttach cio.Attach) (cio.IO, error) {
+	fifoSet := loadFifos(response)
+	return ioAttach(fifoSet)
+}
+
+// loadFifos loads the containers fifos
+func loadFifos(response *tasks.GetResponse) *cio.FIFOSet {
 	path := getFifoDir([]string{
 		response.Process.Stdin,
 		response.Process.Stdout,
@@ -315,13 +321,12 @@ func attachExistingIO(response *tasks.GetResponse, ioAttach cio.Attach) (cio.IO,
 	closer := func() error {
 		return os.RemoveAll(path)
 	}
-	fifoSet := cio.NewFIFOSet(cio.Config{
+	return cio.NewFIFOSet(cio.Config{
 		Stdin:    response.Process.Stdin,
 		Stdout:   response.Process.Stdout,
 		Stderr:   response.Process.Stderr,
 		Terminal: response.Process.Terminal,
 	}, closer)
-	return ioAttach(fifoSet)
 }
 
 // getFifoDir looks for any non-empty path for a stdio fifo

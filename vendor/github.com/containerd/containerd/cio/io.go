@@ -255,3 +255,14 @@ func (l *logIO) Wait() {
 func (l *logIO) Close() error {
 	return nil
 }
+
+// Load the io for a container but do not attach
+//
+// Allows io to be loaded on the task for deletion without
+// starting copy routines
+func Load(set *FIFOSet) (IO, error) {
+	return &cio{
+		config:  set.Config,
+		closers: []io.Closer{set},
+	}, nil
+}

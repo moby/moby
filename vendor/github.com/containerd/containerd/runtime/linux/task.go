@@ -32,9 +32,9 @@ import (
 	"github.com/containerd/containerd/runtime/shim/client"
 	shim "github.com/containerd/containerd/runtime/shim/v1"
 	runc "github.com/containerd/go-runc"
+	"github.com/containerd/ttrpc"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
-	"github.com/stevvooe/ttrpc"
 )
 
 // Task on a linux based system

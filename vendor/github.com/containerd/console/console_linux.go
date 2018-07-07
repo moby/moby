@@ -262,10 +262,14 @@ func (ec *EpollConsole) Shutdown(close func(int) error) error {
 
 // signalRead signals that the console is readable.
 func (ec *EpollConsole) signalRead() {
+	ec.readc.L.Lock()
 	ec.readc.Signal()
+	ec.readc.L.Unlock()
 }
 
 // signalWrite signals that the console is writable.
 func (ec *EpollConsole) signalWrite() {
+	ec.writec.L.Lock()
 	ec.writec.Signal()
+	ec.writec.L.Unlock()
 }
