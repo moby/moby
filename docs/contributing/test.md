@@ -153,7 +153,7 @@ $ TESTDIRS='opts' make test-unit
 
 You can also use the `TESTFLAGS` environment variable to run a single test. The
 flag's value is passed as arguments to the `go test` command. For example, from
-your local host you can run the `TestBuild` test with this command:
+your local host you can run the `TestValidateIPAddress` test with this command:
 
 ```bash
 $ TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
