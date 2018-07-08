@@ -365,7 +365,8 @@ func dispatchRun(d dispatchRequest, c *instructions.RunCommand) error {
 	runConfig := copyRunConfig(stateRunConfig,
 		withCmd(cmdFromArgs),
 		withEnv(append(stateRunConfig.Env, buildArgs...)),
-		withEntrypointOverride(saveCmd, strslice.StrSlice{""}))
+		withEntrypointOverride(saveCmd, strslice.StrSlice{""}),
+		withoutHealthcheck())
 
 	// set config as already being escaped, this prevents double escaping on windows
 	runConfig.ArgsEscaped = true
