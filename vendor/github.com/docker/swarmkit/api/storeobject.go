@@ -38,6 +38,21 @@ type Event interface {
 	Matches(events.Event) bool
 }
 
+// EventCreate is an interface implemented by every creation event type
+type EventCreate interface {
+	IsEventCreate() bool
+}
+
+// EventUpdate is an interface impelemented by every update event type
+type EventUpdate interface {
+	IsEventUpdate() bool
+}
+
+// EventDelete is an interface implemented by every delete event type
+type EventDelete interface {
+	IsEventDelete()
+}
+
 func customIndexer(kind string, annotations *Annotations) (bool, [][]byte, error) {
 	var converted [][]byte
 
