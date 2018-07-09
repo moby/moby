@@ -83,13 +83,13 @@ func dialAllParameters(network, raddr string, priority Priority, tag string, tls
 	hostname, _ := os.Hostname()
 
 	w := &Writer{
-		priority:  priority,
-		tag:       tag,
-		hostname:  hostname,
-		network:   network,
-		raddr:     raddr,
-		tlsConfig: tlsConfig,
-		cdialer:   cdialer,
+		priority:   priority,
+		tag:        tag,
+		hostname:   hostname,
+		network:    network,
+		raddr:      raddr,
+		tlsConfig:  tlsConfig,
+		customDial: cdialer,
 	}
 
 	_, err := w.connect()

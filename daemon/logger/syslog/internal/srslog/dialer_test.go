@@ -47,7 +47,7 @@ func TestGetDialer(t *testing.T) {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
-	w.cdialer = func(string, string) (net.Conn, error) { return nil, nil }
+	w.customDial = func(string, string) (net.Conn, error) { return nil, nil }
 	dialer = w.getDialer()
 	if "customDialer" != dialer.Name {
 		t.Errorf("should get customDialer, got: %v", dialer)
@@ -219,7 +219,7 @@ func TestCustomDialer(t *testing.T) {
 		hostname: "",
 		network:  nwork,
 		raddr:    addr,
-		cdialer: func(n string, a string) (net.Conn, error) {
+		customDial: func(n string, a string) (net.Conn, error) {
 			if n != nwork || a != addr {
 				return nil, errors.New("Unexpected network or address, expected: (" +
 					nwork + ":" + addr + ") but received (" + n + ":" + a + ")")

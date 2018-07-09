@@ -19,7 +19,7 @@ type Writer struct {
 	formatter Formatter
 
 	//non-nil if custom dialer set, used in getDialer
-	cdialer func(string, string) (net.Conn, error)
+	customDial func(string, string) (net.Conn, error)
 
 	mu   sync.RWMutex // guards conn
 	conn serverConn
