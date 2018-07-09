@@ -2,7 +2,6 @@ package srslog
 
 import (
 	"crypto/tls"
-	"net"
 	"strings"
 	"sync"
 )
@@ -19,7 +18,7 @@ type Writer struct {
 	formatter Formatter
 
 	//non-nil if custom dialer set, used in getDialer
-	customDial func(string, string) (net.Conn, error)
+	customDial DialFunc
 
 	mu   sync.RWMutex // guards conn
 	conn serverConn

@@ -16,6 +16,10 @@ type serverConn interface {
 	close() error
 }
 
+// DialFunc is the function signature to be used for a custom dialer callback
+// with DialWithCustomDialer
+type DialFunc func(string, string) (net.Conn, error)
+
 // New establishes a new connection to the system log daemon.  Each
 // write to the returned Writer sends a log message with the given
 // priority and prefix.
@@ -32,12 +36,12 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	return DialWithTLSConfig(network, raddr, priority, tag, nil)
 }
 
-// DialWithCustomDialer establishes a connection by calling cdialer.
+// DialWithCustomDialer establishes a connection by calling customDial.
 // Each write to the returned Writer sends a log message with the given facility, severity and tag.
-// While network and raddr will be passed to cdialer, it is allowed for cdialer to ignore them.
-// If cdialer is nil, this function behaves like Dial.
-func DialWithCustomDialer(network, raddr string, priority Priority, tag string, cdialer func(string, string) (net.Conn, error)) (*Writer, error) {
-	return dialAllParameters(network, raddr, priority, tag, nil, cdialer)
+// While network and raddr will be passed to customDial, it is allowed for customDial to ignore them.
+// If customDial is nil, this function behaves like Dial.
+func DialWithCustomDialer(network, raddr string, priority Priority, tag string, customDial DialFunc) (*Writer, error) {
+	return dialAllParameters(network, raddr, priority, tag, nil, customDial)
 }
 
 // DialWithTLSCertPath establishes a secure connection to a log daemon by connecting to
@@ -72,7 +76,7 @@ func DialWithTLSConfig(network, raddr string, priority Priority, tag string, tls
 }
 
 // implementation of the various functions above
-func dialAllParameters(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config, cdialer func(string, string) (net.Conn, error)) (*Writer, error) {
+func dialAllParameters(network, raddr string, priority Priority, tag string, tlsConfig *tls.Config, customDial DialFunc) (*Writer, error) {
 	if err := validatePriority(priority); err != nil {
 		return nil, err
 	}
@@ -89,7 +93,7 @@ func dialAllParameters(network, raddr string, priority Priority, tag string, tls
 		network:    network,
 		raddr:      raddr,
 		tlsConfig:  tlsConfig,
-		customDial: cdialer,
+		customDial: customDial,
 	}
 
 	_, err := w.connect()
