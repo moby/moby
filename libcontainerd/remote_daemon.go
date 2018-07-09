@@ -221,6 +221,11 @@ func (r *remote) startContainerd() error {
 	}
 
 	args := []string{"--config", configFile}
+
+	if r.Debug.Level != "" {
+		args = append(args, "--log-level", r.Debug.Level)
+	}
+
 	cmd := exec.Command(binaryName, args...)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout

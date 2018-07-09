@@ -48,6 +48,8 @@ func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, 
 	}
 	if cli.Config.Debug {
 		opts = append(opts, libcontainerd.WithLogLevel("debug"))
+	} else if cli.Config.LogLevel != "" {
+		opts = append(opts, libcontainerd.WithLogLevel(cli.Config.LogLevel))
 	}
 	if cli.Config.ContainerdAddr != "" {
 		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
