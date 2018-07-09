@@ -16,6 +16,7 @@ import (
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/ns"
+	"github.com/docker/libnetwork/osl/kernel"
 	"github.com/docker/libnetwork/types"
 	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
@@ -29,13 +30,18 @@ func init() {
 }
 
 var (
-	once             sync.Once
-	garbagePathMap   = make(map[string]bool)
-	gpmLock          sync.Mutex
-	gpmWg            sync.WaitGroup
-	gpmCleanupPeriod = 60 * time.Second
-	gpmChan          = make(chan chan struct{})
-	prefix           = defaultPrefix
+	once               sync.Once
+	garbagePathMap     = make(map[string]bool)
+	gpmLock            sync.Mutex
+	gpmWg              sync.WaitGroup
+	gpmCleanupPeriod   = 60 * time.Second
+	gpmChan            = make(chan chan struct{})
+	prefix             = defaultPrefix
+	loadBalancerConfig = map[string]*kernel.OSValue{
+		// expires connection from the IPVS connection table when the backend is not available
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L126:1
+		"net.ipv4.vs.expire_nodest_conn": {"1", nil},
+	}
 )
 
 // The networkNamespace type is the linux implementation of the Sandbox
@@ -358,16 +364,20 @@ func (n *networkNamespace) loopbackUp() error {
 	return n.nlHandle.LinkSetUp(iface)
 }
 
-func (n *networkNamespace) AddLoopbackAliasIP(ip *net.IPNet) error {
-	iface, err := n.nlHandle.LinkByName("lo")
+func (n *networkNamespace) GetLoopbackIfaceName() string {
+	return "lo"
+}
+
+func (n *networkNamespace) AddAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
 		return err
 	}
 	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
 }
 
-func (n *networkNamespace) RemoveLoopbackAliasIP(ip *net.IPNet) error {
-	iface, err := n.nlHandle.LinkByName("lo")
+func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
 	if err != nil {
 		return err
 	}
@@ -625,4 +635,14 @@ func setIPv6(path, iface string, enable bool) error {
 		return fmt.Errorf("reexec to set IPv6 failed: %v", err)
 	}
 	return nil
+}
+
+// ApplyOSTweaks applies linux configs on the sandbox
+func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
+	for _, t := range types {
+		switch t {
+		case SandboxTypeLoadBalancer:
+			kernel.ApplyOSTweaks(loadBalancerConfig)
+		}
+	}
 }

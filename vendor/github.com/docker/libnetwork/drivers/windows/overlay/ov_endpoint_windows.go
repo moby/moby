@@ -80,7 +80,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
 
 		if err != nil {
-			logrus.Debugf("Failed to delete stale overlay endpoint (%s) from hns", networkEndpoint.id[0:7])
+			logrus.Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
 		}
 	}
 }

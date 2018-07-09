@@ -49,9 +49,11 @@ func (sb *sandbox) setupDefaultGW() error {
 
 	createOptions := []EndpointOption{CreateOptionAnonymous()}
 
-	eplen := gwEPlen
-	if len(sb.containerID) < gwEPlen {
-		eplen = len(sb.containerID)
+	var gwName string
+	if len(sb.containerID) <= gwEPlen {
+		gwName = "gateway_" + sb.containerID
+	} else {
+		gwName = "gateway_" + sb.id[:gwEPlen]
 	}
 
 	sbLabels := sb.Labels()
@@ -69,7 +71,7 @@ func (sb *sandbox) setupDefaultGW() error {
 		createOptions = append(createOptions, epOption)
 	}
 
-	newEp, err := n.CreateEndpoint("gateway_"+sb.containerID[0:eplen], createOptions...)
+	newEp, err := n.CreateEndpoint(gwName, createOptions...)
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}

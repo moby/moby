@@ -1,16 +1,17 @@
 package remote
 
 import (
-	"errors"
 	"fmt"
 	"net"
 
+	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/drivers/remote/api"
 	"github.com/docker/libnetwork/types"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -49,12 +50,38 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 		handleFunc = pg.Handle
 		activePlugins := pg.GetAllManagedPluginsByCap(driverapi.NetworkPluginEndpointType)
 		for _, ap := range activePlugins {
-			newPluginHandler(ap.Name(), ap.Client())
+			client, err := getPluginClient(ap)
+			if err != nil {
+				return err
+			}
+			newPluginHandler(ap.Name(), client)
 		}
 	}
 	handleFunc(driverapi.NetworkPluginEndpointType, newPluginHandler)
 
 	return nil
+}
+
+func getPluginClient(p plugingetter.CompatPlugin) (*plugins.Client, error) {
+	if v1, ok := p.(plugingetter.PluginWithV1Client); ok {
+		return v1.Client(), nil
+	}
+
+	pa, ok := p.(plugingetter.PluginAddr)
+	if !ok {
+		return nil, errors.Errorf("unknown plugin type %T", p)
+	}
+
+	if pa.Protocol() != plugins.ProtocolSchemeHTTPV1 {
+		return nil, errors.Errorf("unsupported plugin protocol %s", pa.Protocol())
+	}
+
+	addr := pa.Addr()
+	client, err := plugins.NewClientWithTimeout(addr.Network()+"://"+addr.String(), nil, pa.Timeout())
+	if err != nil {
+		return nil, errors.Wrap(err, "error creating plugin client")
+	}
+	return client, nil
 }
 
 // Get capability from client

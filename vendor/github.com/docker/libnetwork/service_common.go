@@ -225,6 +225,13 @@ func makeServiceCleanupFunc(c *controller, s *service, nID, eID string, vip net.
 func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases, taskAliases []string, ip net.IP, method string) error {
 	var addService bool
 
+	// Failure to lock the network ID on add can result in racing
+	// racing against network deletion resulting in inconsistent
+	// state in the c.serviceBindings map and it's sub-maps. Also,
+	// always lock network ID before services to avoid deadlock.
+	c.networkLocker.Lock(nID)
+	defer c.networkLocker.Unlock(nID)
+
 	n, err := c.NetworkByID(nID)
 	if err != nil {
 		return err
@@ -289,11 +296,8 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 		logrus.Warnf("addServiceBinding %s possible transient state ok:%t entries:%d set:%t %s", eID, ok, entries, b, setStr)
 	}
 
-	// Add loadbalancer service and backend in all sandboxes in
-	// the network only if vip is valid.
-	if len(vip) != 0 {
-		n.(*network).addLBBackend(ip, vip, lb, ingressPorts)
-	}
+	// Add loadbalancer service and backend to the network
+	n.(*network).addLBBackend(ip, lb)
 
 	// Add the appropriate name resolutions
 	c.addEndpointNameResolution(svcName, svcID, nID, eID, containerName, vip, serviceAliases, taskAliases, ip, addService, "addServiceBinding")
@@ -306,11 +310,6 @@ func (c *controller) addServiceBinding(svcName, svcID, nID, eID, containerName s
 func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName string, vip net.IP, ingressPorts []*PortConfig, serviceAliases []string, taskAliases []string, ip net.IP, method string, deleteSvcRecords bool, fullRemove bool) error {
 
 	var rmService bool
-
-	n, err := c.NetworkByID(nID)
-	if err != nil {
-		return err
-	}
 
 	skey := serviceKey{
 		id:    svcID,
@@ -368,8 +367,15 @@ func (c *controller) rmServiceBinding(svcName, svcID, nID, eID, containerName st
 
 	// Remove loadbalancer service(if needed) and backend in all
 	// sandboxes in the network only if the vip is valid.
-	if len(vip) != 0 && entries == 0 {
-		n.(*network).rmLBBackend(ip, vip, lb, ingressPorts, rmService, fullRemove)
+	if entries == 0 {
+		// The network may well have been deleted before the last
+		// of the service bindings.  That's ok, because removing
+		// the network sandbox implicitly removes the backend
+		// service bindings.
+		n, err := c.NetworkByID(nID)
+		if err == nil {
+			n.(*network).rmLBBackend(ip, lb, rmService, fullRemove)
+		}
 	}
 
 	// Delete the name resolutions

@@ -110,7 +110,6 @@ type tableEventMessage struct {
 	tname string
 	key   string
 	msg   []byte
-	node  string
 }
 
 func (m *tableEventMessage) Invalidates(other memberlist.Broadcast) bool {
@@ -168,7 +167,6 @@ func (nDB *NetworkDB) sendTableEvent(event TableEvent_Type, nid string, tname st
 		id:    nid,
 		tname: tname,
 		key:   key,
-		node:  nDB.config.NodeID,
 	})
 	return nil
 }

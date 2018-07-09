@@ -83,6 +83,7 @@ type sandbox struct {
 	inDelete           bool
 	ingress            bool
 	ndotsSet           bool
+	oslTypes           []osl.SandboxType // slice of properties of this sandbox
 	sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
@@ -740,14 +741,7 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
-	vip := ep.virtualIP
 	ep.Unlock()
-
-	if len(vip) != 0 {
-		if err := osSbox.RemoveLoopbackAliasIP(&net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}); err != nil {
-			logrus.Warnf("Remove virtual IP %v failed: %v", vip, err)
-		}
-	}
 
 	if joinInfo == nil {
 		return
@@ -861,13 +855,6 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		}
 	}
 
-	if len(ep.virtualIP) != 0 {
-		err := sb.osSbox.AddLoopbackAliasIP(&net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)})
-		if err != nil {
-			return fmt.Errorf("failed to add virtual IP %v: %v", ep.virtualIP, err)
-		}
-	}
-
 	if joinInfo != nil {
 		// Set up non-interface routes.
 		for _, r := range joinInfo.StaticRoutes {
@@ -893,7 +880,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	// information including gateway and other routes so that
 	// loadbalancers are populated all the network state is in
 	// place in the sandbox.
-	sb.populateLoadbalancers(ep)
+	sb.populateLoadBalancers(ep)
 
 	// Only update the store if we did not come here as part of
 	// sandbox delete. If we came here as part of delete then do
@@ -1176,6 +1163,15 @@ func OptionPortMapping(portBindings []types.PortBinding) SandboxOption {
 func OptionIngress() SandboxOption {
 	return func(sb *sandbox) {
 		sb.ingress = true
+		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeIngress)
+	}
+}
+
+// OptionLoadBalancer function returns an option setter for marking a
+// sandbox as a load balancer sandbox.
+func OptionLoadBalancer() SandboxOption {
+	return func(sb *sandbox) {
+		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
 	}
 }
 
