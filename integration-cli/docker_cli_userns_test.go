@@ -61,12 +61,12 @@ func (s *DockerDaemonSuite) TestDaemonUserNamespaceRootSetting(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("Could not inspect running container: out: %q", pid))
 	// check the uid and gid maps for the PID to ensure root is remapped
 	// (cmd = cat /proc/<pid>/uid_map | grep -E '0\s+9999\s+1')
-	out, err = RunCommandPipelineWithOutput(
+	_, err = RunCommandPipelineWithOutput(
 		exec.Command("cat", "/proc/"+strings.TrimSpace(pid)+"/uid_map"),
 		exec.Command("grep", "-E", fmt.Sprintf("0[[:space:]]+%d[[:space:]]+", uid)))
 	c.Assert(err, check.IsNil)
 
-	out, err = RunCommandPipelineWithOutput(
+	_, err = RunCommandPipelineWithOutput(
 		exec.Command("cat", "/proc/"+strings.TrimSpace(pid)+"/gid_map"),
 		exec.Command("grep", "-E", fmt.Sprintf("0[[:space:]]+%d[[:space:]]+", gid)))
 	c.Assert(err, check.IsNil)

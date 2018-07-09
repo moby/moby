@@ -21,16 +21,16 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 	service2Args := append([]string{"service", "create", "--detach", "--no-resolve-image", "--name", service2Name, "--mode=global", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// Create services
-	out, err := d.Cmd(service1Args...)
+	_, err := d.Cmd(service1Args...)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd(service2Args...)
+	_, err = d.Cmd(service2Args...)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=2")
+	_, err = d.Cmd("service", "scale", "TestService1=2")
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=foobar")
+	out, err := d.Cmd("service", "scale", "TestService1=foobar")
 	c.Assert(err, checker.NotNil)
 
 	str := fmt.Sprintf("%s: invalid replicas value %s", service1Name, "foobar")

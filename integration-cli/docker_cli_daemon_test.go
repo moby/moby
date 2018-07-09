@@ -448,10 +448,10 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
 
-	out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
+	_, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "--mac-address", "AA:BB:CC:DD:EE:FF", "busybox")
 	c.Assert(err, checker.IsNil)
 
-	out, err = s.d.Cmd("inspect", "--format", "{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}", "ipv6test")
+	out, err := s.d.Cmd("inspect", "--format", "{{.NetworkSettings.Networks.bridge.GlobalIPv6Address}}", "ipv6test")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.Trim(out, " \r\n'"), checker.Equals, "2001:db8:1::aabb:ccdd:eeff")
 }
@@ -742,6 +742,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *check.C) {
 	defer d.Cmd("stop", "bb")
 
 	out, err = d.Cmd("exec", "bb", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
+	c.Assert(err, check.IsNil)
 	c.Assert(out, checker.Equals, "10.2.2.0\n")
 
 	out, err = d.Cmd("run", "--rm", "busybox", "/bin/sh", "-c", "ifconfig eth0 | awk '/inet addr/{print substr($2,6)}'")
@@ -1944,11 +1945,12 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithNames(c *check.C) {
 	test2ID := strings.TrimSpace(out)
 
 	out, err = s.d.Cmd("run", "-d", "--name=test3", "--link", "test2:abc", "busybox", "top")
+	c.Assert(err, check.IsNil)
 	test3ID := strings.TrimSpace(out)
 
 	s.d.Restart(c)
 
-	out, err = s.d.Cmd("create", "--name=test", "busybox")
+	_, err = s.d.Cmd("create", "--name=test", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf("expected error trying to create container with duplicate name"))
 	// this one is no longer needed, removing simplifies the remainder of the test
 	out, err = s.d.Cmd("rm", "-f", "test")
@@ -2615,6 +2617,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithAutoRemoveContainer(c *check.C)
 	c.Assert(err, checker.IsNil, check.Commentf("run top2: %v", out))
 
 	out, err = s.d.Cmd("ps")
+	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "top1", check.Commentf("top1 should be running"))
 	c.Assert(out, checker.Contains, "top2", check.Commentf("top2 should be running"))
 
@@ -2639,11 +2642,11 @@ func (s *DockerDaemonSuite) TestDaemonRestartSaveContainerExitCode(c *check.C) {
 	// captured, so `.State.Error` is empty.
 	// See the discussion on https://github.com/docker/docker/pull/30227#issuecomment-274161426,
 	// and https://github.com/docker/docker/pull/26061#r78054578 for more information.
-	out, err := s.d.Cmd("run", "--name", containerName, "--init=false", "busybox", "toto")
+	_, err := s.d.Cmd("run", "--name", containerName, "--init=false", "busybox", "toto")
 	c.Assert(err, checker.NotNil)
 
 	// Check that those values were saved on disk
-	out, err = s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", containerName)
+	out, err := s.d.Cmd("inspect", "-f", "{{.State.ExitCode}}", containerName)
 	out = strings.TrimSpace(out)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Equals, "127")

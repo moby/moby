@@ -348,7 +348,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkLsFilter(c *check.C) {
 	out, _ = dockerCmd(c, "network", "ls", "-f", "type=custom", "-f", "type=builtin")
 	assertNwList(c, out, []string{"bridge", "dev", "host", "none"})
 
-	out, _ = dockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
+	dockerCmd(c, "network", "create", "--label", testLabel+"="+testValue, testNet)
 	assertNwIsAvailable(c, testNet)
 
 	out, _ = dockerCmd(c, "network", "ls", "-f", "label="+testLabel)
@@ -880,8 +880,6 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 	out, _ = dockerCmd(c, "run", "-d", "--net", cstmBridgeNw, "busybox", "top")
 	cid2 := strings.TrimSpace(out)
 
-	hosts2 := readContainerFileWithExec(c, cid2, hostsFile)
-
 	// verify first container etc/hosts file has not changed
 	hosts1post := readContainerFileWithExec(c, cid1, hostsFile)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
@@ -894,7 +892,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
 
 	dockerCmd(c, "network", "connect", cstmBridgeNw1, cid2)
 
-	hosts2 = readContainerFileWithExec(c, cid2, hostsFile)
+	hosts2 := readContainerFileWithExec(c, cid2, hostsFile)
 	hosts1post = readContainerFileWithExec(c, cid1, hostsFile)
 	c.Assert(string(hosts1), checker.Equals, string(hosts1post),
 		check.Commentf("Unexpected %s change on container connect", hostsFile))

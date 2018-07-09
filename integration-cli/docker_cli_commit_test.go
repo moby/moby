@@ -46,8 +46,7 @@ func (s *DockerSuite) TestCommitPausedContainer(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	dockerCmd(c, "pause", cleanedContainerID)
-
-	out, _ = dockerCmd(c, "commit", cleanedContainerID)
+	dockerCmd(c, "commit", cleanedContainerID)
 
 	out = inspectField(c, cleanedContainerID, "State.Paused")
 	// commit should not unpause a paused container

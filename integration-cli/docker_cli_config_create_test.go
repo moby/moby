@@ -78,6 +78,7 @@ func (s *DockerSwarmSuite) TestConfigCreateResolve(c *check.C) {
 	c.Assert(out, checker.Contains, fake)
 
 	out, err = d.Cmd("config", "rm", id)
+	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, id)
 
 	// Fake one will remain
@@ -93,6 +94,7 @@ func (s *DockerSwarmSuite) TestConfigCreateResolve(c *check.C) {
 	// - Full Name
 	// - Partial ID (prefix)
 	out, err = d.Cmd("config", "rm", id[:5])
+	c.Assert(err, checker.Not(checker.IsNil))
 	c.Assert(out, checker.Not(checker.Contains), id)
 	out, err = d.Cmd("config", "ls")
 	c.Assert(err, checker.IsNil)
@@ -101,6 +103,7 @@ func (s *DockerSwarmSuite) TestConfigCreateResolve(c *check.C) {
 
 	// Remove based on ID prefix of the fake one should succeed
 	out, err = d.Cmd("config", "rm", fake[:5])
+	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, fake[:5])
 	out, err = d.Cmd("config", "ls")
 	c.Assert(err, checker.IsNil)

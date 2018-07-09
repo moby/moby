@@ -423,6 +423,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 
 	expected := readContainerFile(c, containerID, "resolv.conf")
 	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
+	c.Assert(err, checker.IsNil)
 
 	// Expected copied file to be duplicate of the container resolvconf
 	c.Assert(bytes.Equal(actual, expected), checker.True)
@@ -432,6 +433,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 
 	expected = readContainerFile(c, containerID, "hosts")
 	actual, err = ioutil.ReadFile(outDir + "/hosts")
+	c.Assert(err, checker.IsNil)
 
 	// Expected copied file to be duplicate of the container hosts
 	c.Assert(bytes.Equal(actual, expected), checker.True)
@@ -639,6 +641,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
 
 	expected := []byte(cpContainerContents)
 	actual, err := ioutil.ReadFile(expectedPath)
+	c.Assert(err, checker.IsNil)
 
 	if !bytes.Equal(actual, expected) {
 		c.Fatalf("Expected copied file to be duplicate of the container symbol link target")

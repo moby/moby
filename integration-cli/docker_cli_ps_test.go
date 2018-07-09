@@ -792,19 +792,14 @@ func (s *DockerSuite) TestPsListContainersFilterNetwork(c *check.C) {
 }
 
 func (s *DockerSuite) TestPsByOrder(c *check.C) {
-	name1 := "xyz-abc"
-	out := runSleepingContainer(c, "--name", name1)
+	out := runSleepingContainer(c, "--name", "xyz-abc")
 	container1 := strings.TrimSpace(out)
 
-	name2 := "xyz-123"
-	out = runSleepingContainer(c, "--name", name2)
+	out = runSleepingContainer(c, "--name", "xyz-123")
 	container2 := strings.TrimSpace(out)
 
-	name3 := "789-abc"
-	out = runSleepingContainer(c, "--name", name3)
-
-	name4 := "789-123"
-	out = runSleepingContainer(c, "--name", name4)
+	runSleepingContainer(c, "--name", "789-abc")
+	runSleepingContainer(c, "--name", "789-123")
 
 	// Run multiple time should have the same result
 	out = cli.DockerCmd(c, "ps", "--no-trunc", "-q", "-f", "name=xyz").Combined()

@@ -279,13 +279,13 @@ func (s *DockerSwarmSuite) TestSwarmPublishAdd(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	out, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", name)
+	_, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", name)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", name)
+	_, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", name)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", "--publish-add", "80:20", name)
+	_, err = d.Cmd("service", "update", "--detach", "--publish-add", "80:80", "--publish-add", "80:20", name)
 	c.Assert(err, checker.NotNil)
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ .Spec.EndpointSpec.Ports }}", name)
@@ -841,14 +841,14 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 
 	// Without --tty
 	expectedOutput := "none"
-	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", ttyCheck)
+	_, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "busybox", "sh", "-c", ttyCheck)
 	c.Assert(err, checker.IsNil)
 
 	// Make sure task has been deployed.
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
 	// We need to get the container id.
-	out, err = d.Cmd("ps", "-q", "--no-trunc")
+	out, err := d.Cmd("ps", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	id := strings.TrimSpace(out)
 
@@ -857,14 +857,14 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 	c.Assert(out, checker.Contains, expectedOutput, check.Commentf("Expected '%s', but got %q", expectedOutput, out))
 
 	// Remove service
-	out, err = d.Cmd("service", "rm", name)
+	_, err = d.Cmd("service", "rm", name)
 	c.Assert(err, checker.IsNil)
 	// Make sure container has been destroyed.
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
 
 	// With --tty
 	expectedOutput = "TTY"
-	out, err = d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "--tty", "busybox", "sh", "-c", ttyCheck)
+	_, err = d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "--tty", "busybox", "sh", "-c", ttyCheck)
 	c.Assert(err, checker.IsNil)
 
 	// Make sure task has been deployed.
@@ -1069,6 +1069,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	c.Assert(unlockKey, checker.Not(checker.Equals), "")
 
 	outs, err = d.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
@@ -1168,6 +1169,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	c.Assert(unlockKey, checker.Not(checker.Equals), "")
 
 	outs, err = d1.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	// The ones that got the cluster update should be set to locked
@@ -1234,6 +1236,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 	c.Assert(unlockKey, checker.Not(checker.Equals), "")
 
 	outs, err = d1.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	// joined workers start off unlocked
@@ -1306,6 +1309,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 	c.Assert(unlockKey, checker.Not(checker.Equals), "")
 
 	outs, err = d.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	// Rotate multiple times
@@ -1390,6 +1394,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 	c.Assert(unlockKey, checker.Not(checker.Equals), "")
 
 	outs, err = d1.Cmd("swarm", "unlock-key", "-q")
+	c.Assert(err, checker.IsNil)
 	c.Assert(outs, checker.Equals, unlockKey+"\n")
 
 	// Rotate multiple times

@@ -300,10 +300,10 @@ func (s *DockerSuite) TestVolumeCLICreateLabel(c *check.C) {
 	testLabel := "foo"
 	testValue := "bar"
 
-	out, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, testVol)
+	_, _, err := dockerCmdWithError("volume", "create", "--label", testLabel+"="+testValue, testVol)
 	c.Assert(err, check.IsNil)
 
-	out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+testLabel+" }}", testVol)
+	out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+testLabel+" }}", testVol)
 	c.Assert(strings.TrimSpace(out), check.Equals, testValue)
 }
 
@@ -325,25 +325,25 @@ func (s *DockerSuite) TestVolumeCLICreateLabelMultiple(c *check.C) {
 		args = append(args, "--label", k+"="+v)
 	}
 
-	out, _, err := dockerCmdWithError(args...)
+	_, _, err := dockerCmdWithError(args...)
 	c.Assert(err, check.IsNil)
 
 	for k, v := range testLabels {
-		out, _ = dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+k+" }}", testVol)
+		out, _ := dockerCmd(c, "volume", "inspect", "--format={{ .Labels."+k+" }}", testVol)
 		c.Assert(strings.TrimSpace(out), check.Equals, v)
 	}
 }
 
 func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *check.C) {
 	testVol1 := "testvolcreatelabel-1"
-	out, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", testVol1)
+	_, _, err := dockerCmdWithError("volume", "create", "--label", "foo=bar1", testVol1)
 	c.Assert(err, check.IsNil)
 
 	testVol2 := "testvolcreatelabel-2"
-	out, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", testVol2)
+	_, _, err = dockerCmdWithError("volume", "create", "--label", "foo=bar2", testVol2)
 	c.Assert(err, check.IsNil)
 
-	out, _ = dockerCmd(c, "volume", "ls", "--filter", "label=foo")
+	out, _ := dockerCmd(c, "volume", "ls", "--filter", "label=foo")
 
 	// filter with label=key
 	c.Assert(out, checker.Contains, "testvolcreatelabel-1\n", check.Commentf("expected volume 'testvolcreatelabel-1' in output"))
@@ -367,15 +367,15 @@ func (s *DockerSuite) TestVolumeCLILsFilterLabels(c *check.C) {
 func (s *DockerSuite) TestVolumeCLILsFilterDrivers(c *check.C) {
 	// using default volume driver local to create volumes
 	testVol1 := "testvol-1"
-	out, _, err := dockerCmdWithError("volume", "create", testVol1)
+	_, _, err := dockerCmdWithError("volume", "create", testVol1)
 	c.Assert(err, check.IsNil)
 
 	testVol2 := "testvol-2"
-	out, _, err = dockerCmdWithError("volume", "create", testVol2)
+	_, _, err = dockerCmdWithError("volume", "create", testVol2)
 	c.Assert(err, check.IsNil)
 
 	// filter with driver=local
-	out, _ = dockerCmd(c, "volume", "ls", "--filter", "driver=local")
+	out, _ := dockerCmd(c, "volume", "ls", "--filter", "driver=local")
 	c.Assert(out, checker.Contains, "testvol-1\n", check.Commentf("expected volume 'testvol-1' in output"))
 	c.Assert(out, checker.Contains, "testvol-2\n", check.Commentf("expected volume 'testvol-2' in output"))
 
@@ -434,7 +434,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *check.C) {
 	c.Assert(id, checker.Equals, name)
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
-	out, e := dockerCmd(c, "create", "-v", "testvolume:"+prefix+slash+"foo", "busybox")
+	out, _ = dockerCmd(c, "create", "-v", "testvolume:"+prefix+slash+"foo", "busybox")
 	cid := strings.TrimSpace(out)
 
 	_, _, err := dockerCmdWithError("volume", "rm", "-f", name)
@@ -454,7 +454,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceInUse(c *check.C) {
 	c.Assert(out, checker.Contains, name)
 
 	// Verify removing the volume after the container is removed works
-	_, e = dockerCmd(c, "rm", cid)
+	_, e := dockerCmd(c, "rm", cid)
 	c.Assert(e, check.Equals, 0)
 
 	_, e = dockerCmd(c, "volume", "rm", "-f", name)
