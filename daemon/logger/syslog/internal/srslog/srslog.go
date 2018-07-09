@@ -3,6 +3,7 @@ package srslog
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"io/ioutil"
 	"log"
 	"net"
@@ -36,11 +37,18 @@ func Dial(network, raddr string, priority Priority, tag string) (*Writer, error)
 	return DialWithTLSConfig(network, raddr, priority, tag, nil)
 }
 
+// ErrNilDialFunc is returned from DialWithCustomDialer when a nil DialFunc is passed,
+// avoiding a nil pointer deference panic.
+var ErrNilDialFunc = errors.New("srslog: nil DialFunc passed to DialWithCustomDialer")
+
 // DialWithCustomDialer establishes a connection by calling customDial.
 // Each write to the returned Writer sends a log message with the given facility, severity and tag.
 // While network and raddr will be passed to customDial, it is allowed for customDial to ignore them.
-// If customDial is nil, this function behaves like Dial.
+// If customDial is nil, this function returns ErrNilDialFunc.
 func DialWithCustomDialer(network, raddr string, priority Priority, tag string, customDial DialFunc) (*Writer, error) {
+	if customDial == nil {
+		return nil, ErrNilDialFunc
+	}
 	return dialAllParameters(network, raddr, priority, tag, nil, customDial)
 }
 
