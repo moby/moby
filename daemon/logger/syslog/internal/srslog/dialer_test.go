@@ -47,6 +47,7 @@ func TestGetDialer(t *testing.T) {
 		t.Errorf("should get basicDialer, got: %v", dialer)
 	}
 
+	w.network = "custom"
 	w.customDial = func(string, string) (net.Conn, error) { return nil, nil }
 	dialer = w.getDialer()
 	if "customDialer" != dialer.Name {
@@ -209,10 +210,7 @@ func TestCustomDialer(t *testing.T) {
 	// A custom dialer can really be anything, so we don't test an actual connection
 	// instead we test the behavior of this code path
 
-	// a dialer implementation may still consult the passed network and address
-	// so make sure we don't change them before being passed in
-
-	nwork, addr := "custom_network_to_pass", "custom_addr_to_pass"
+	nwork, addr := "custom", "custom_addr_to_pass"
 	w := Writer{
 		priority: LOG_ERR,
 		tag:      "tag",

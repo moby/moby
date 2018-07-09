@@ -34,15 +34,10 @@ func (df dialerFunctionWrapper) Call() (serverConn, string, error) {
 // value), and adding a new network type is as easy as writing the dialer
 // function and adding it to the map.
 func (w *Writer) getDialer() dialerFunctionWrapper {
-	if w.customDial != nil {
-		// we use 'customDialer' as the name, since the custom dialer can technically
-		// override any network we pass in anyways
-		return dialerFunctionWrapper{"customDialer", w.customDialer}
-	}
-
 	dialers := map[string]dialerFunctionWrapper{
 		"":        dialerFunctionWrapper{"unixDialer", w.unixDialer},
 		"tcp+tls": dialerFunctionWrapper{"tlsDialer", w.tlsDialer},
+		"custom":  dialerFunctionWrapper{"customDialer", w.customDialer},
 	}
 	dialer, ok := dialers[w.network]
 	if !ok {

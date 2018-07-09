@@ -43,6 +43,7 @@ var ErrNilDialFunc = errors.New("srslog: nil DialFunc passed to DialWithCustomDi
 
 // DialWithCustomDialer establishes a connection by calling customDial.
 // Each write to the returned Writer sends a log message with the given facility, severity and tag.
+// Network must be "custom" in order for this package to use customDial.
 // While network and raddr will be passed to customDial, it is allowed for customDial to ignore them.
 // If customDial is nil, this function returns ErrNilDialFunc.
 func DialWithCustomDialer(network, raddr string, priority Priority, tag string, customDial DialFunc) (*Writer, error) {
