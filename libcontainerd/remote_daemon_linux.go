@@ -28,9 +28,6 @@ func (r *remote) setDefaults() {
 	if r.Debug.Address == "" {
 		r.Debug.Address = filepath.Join(r.stateDir, debugSockFile)
 	}
-	if r.Debug.Level == "" {
-		r.Debug.Level = "info"
-	}
 	if r.OOMScore == 0 {
 		r.OOMScore = -999
 	}

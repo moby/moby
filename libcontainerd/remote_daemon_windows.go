@@ -18,9 +18,6 @@ func (r *remote) setDefaults() {
 	if r.Debug.Address == "" {
 		r.Debug.Address = debugPipeName
 	}
-	if r.Debug.Level == "" {
-		r.Debug.Level = "info"
-	}
 	if r.snapshotter == "" {
 		r.snapshotter = "naive" // TODO(mlaventure): switch to "windows" once implemented
 	}
