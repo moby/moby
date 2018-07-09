@@ -437,6 +437,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	testGraphDriver(t, client, ctx, plugin, nil)
 }
 
+// nolint: golint
 func testGraphDriver(t *testing.T, c client.APIClient, ctx context.Context, driverName string, afterContainerRunFn func(*testing.T)) { //nolint: golint
 	id := container.Run(t, ctx, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
 
