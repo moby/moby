@@ -1,3 +1,19 @@
+/*
+   Copyright The containerd Authors.
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not use this file except in compliance with the License.
+   You may obtain a copy of the License at
+
+       http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+*/
+
 package ttrpc
 
 import (
@@ -9,8 +25,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/containerd/containerd/log"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -51,12 +67,11 @@ func (s *Server) Register(name string, methods map[string]Method) {
 	s.services.register(name, methods)
 }
 
-func (s *Server) Serve(l net.Listener) error {
+func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 	s.addListener(l)
 	defer s.closeListener(l)
 
 	var (
-		ctx        = context.Background()
 		backoff    time.Duration
 		handshaker = s.config.handshaker
 	)
@@ -88,7 +103,7 @@ func (s *Server) Serve(l net.Listener) error {
 				}
 
 				sleep := time.Duration(rand.Int63n(int64(backoff)))
-				log.L.WithError(err).Errorf("ttrpc: failed accept; backoff %v", sleep)
+				logrus.WithError(err).Errorf("ttrpc: failed accept; backoff %v", sleep)
 				time.Sleep(sleep)
 				continue
 			}
@@ -100,7 +115,7 @@ func (s *Server) Serve(l net.Listener) error {
 
 		approved, handshake, err := handshaker.Handshake(ctx, conn)
 		if err != nil {
-			log.L.WithError(err).Errorf("ttrpc: refusing connection after handshake")
+			logrus.WithError(err).Errorf("ttrpc: refusing connection after handshake")
 			conn.Close()
 			continue
 		}
@@ -416,12 +431,12 @@ func (c *serverConn) run(sctx context.Context) {
 		case response := <-responses:
 			p, err := c.server.codec.Marshal(response.resp)
 			if err != nil {
-				log.L.WithError(err).Error("failed marshaling response")
+				logrus.WithError(err).Error("failed marshaling response")
 				return
 			}
 
 			if err := ch.send(ctx, response.id, messageTypeResponse, p); err != nil {
-				log.L.WithError(err).Error("failed sending message on channel")
+				logrus.WithError(err).Error("failed sending message on channel")
 				return
 			}
 
@@ -432,7 +447,7 @@ func (c *serverConn) run(sctx context.Context) {
 			// requests due to a terminal error.
 			recvErr = nil // connection is now "closing"
 			if err != nil && err != io.EOF {
-				log.L.WithError(err).Error("error receiving message")
+				logrus.WithError(err).Error("error receiving message")
 			}
 		case <-shutdown:
 			return
