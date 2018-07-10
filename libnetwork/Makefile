@@ -4,7 +4,7 @@ dockerbuildargs ?= --target dev - < Dockerfile
 dockerargs ?= --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 build_image=libnetworkbuild
 container_env = -e "INSIDECONTAINER=-incontainer=true"
-docker = docker run --rm -it ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
+docker = docker run --rm -it --init ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
 export PATH := $(CURDIR)/bin:$(PATH)
