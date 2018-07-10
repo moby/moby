@@ -64,7 +64,7 @@ func (d *driver) populateNetworks() error {
 		if err = d.createNetwork(ncfg); err != nil {
 			logrus.Warnf("could not create windows network for id %s hnsid %s while booting up from persistent state: %v", ncfg.ID, ncfg.HnsID, err)
 		}
-		logrus.Debugf("Network  %v (%s) restored", d.name, ncfg.ID[0:7])
+		logrus.Debugf("Network  %v (%.7s) restored", d.name, ncfg.ID)
 	}
 
 	return nil
@@ -87,15 +87,15 @@ func (d *driver) populateEndpoints() error {
 		}
 		n, ok := d.networks[ep.nid]
 		if !ok {
-			logrus.Debugf("Network (%s) not found for restored endpoint (%s)", ep.nid[0:7], ep.id[0:7])
-			logrus.Debugf("Deleting stale endpoint (%s) from store", ep.id[0:7])
+			logrus.Debugf("Network (%.7s) not found for restored endpoint (%.7s)", ep.nid, ep.id)
+			logrus.Debugf("Deleting stale endpoint (%.7s) from store", ep.id)
 			if err := d.storeDelete(ep); err != nil {
-				logrus.Debugf("Failed to delete stale endpoint (%s) from store", ep.id[0:7])
+				logrus.Debugf("Failed to delete stale endpoint (%.7s) from store", ep.id)
 			}
 			continue
 		}
 		n.endpoints[ep.id] = ep
-		logrus.Debugf("Endpoint (%s) restored to network (%s)", ep.id[0:7], ep.nid[0:7])
+		logrus.Debugf("Endpoint (%.7s) restored to network (%.7s)", ep.id, ep.nid)
 	}
 
 	return nil

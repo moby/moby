@@ -274,7 +274,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 
 		if err := d.deleteEndpointFromStore(ep); err != nil {
-			logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
+			logrus.Warnf("Failed to delete overlay endpoint %.7s from local store: %v", ep.id, err)
 		}
 	}
 	// flush the peerDB entries

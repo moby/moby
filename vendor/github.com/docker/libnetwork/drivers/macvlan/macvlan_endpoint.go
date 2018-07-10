@@ -58,7 +58,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if err := d.storeUpdate(ep); err != nil {
-		return fmt.Errorf("failed to save macvlan endpoint %s to store: %v", ep.id[0:7], err)
+		return fmt.Errorf("failed to save macvlan endpoint %.7s to store: %v", ep.id, err)
 	}
 
 	n.addEndpoint(ep)
@@ -87,7 +87,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		logrus.Warnf("Failed to remove macvlan endpoint %s from store: %v", ep.id[0:7], err)
+		logrus.Warnf("Failed to remove macvlan endpoint %.7s from store: %v", ep.id, err)
 	}
 
 	n.deleteEndpoint(ep.id)

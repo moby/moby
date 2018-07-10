@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"net"
-	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -230,9 +229,7 @@ func (daemon *Daemon) releaseIngress(id string) {
 		return
 	}
 
-	daemon.deleteLoadBalancerSandbox(n)
-
-	if err := n.Delete(); err != nil {
+	if err := n.Delete(libnetwork.NetworkDeleteOptionRemoveLB); err != nil {
 		logrus.Errorf("Failed to delete ingress network %s: %v", n.ID(), err)
 		return
 	}
@@ -349,7 +346,7 @@ func (daemon *Daemon) createNetwork(create types.NetworkCreateRequest, id string
 		nwOptions = append(nwOptions, libnetwork.NetworkOptionConfigFrom(create.ConfigFrom.Network))
 	}
 
-	if agent && driver == "overlay" && (create.Ingress || runtime.GOOS == "windows") {
+	if agent && driver == "overlay" {
 		nodeIP, exists := daemon.GetAttachmentStore().GetIPForNetwork(id)
 		if !exists {
 			return nil, fmt.Errorf("Failed to find a load balancer IP to use for network: %v", id)
@@ -510,37 +507,6 @@ func (daemon *Daemon) DeleteNetwork(networkID string) error {
 		return err
 	}
 	return daemon.deleteNetwork(n, false)
-}
-
-func (daemon *Daemon) deleteLoadBalancerSandbox(n libnetwork.Network) {
-	controller := daemon.netController
-
-	//The only endpoint left should be the LB endpoint (nw.Name() + "-endpoint")
-	endpoints := n.Endpoints()
-	if len(endpoints) == 1 {
-		sandboxName := n.Name() + "-sbox"
-
-		info := endpoints[0].Info()
-		if info != nil {
-			sb := info.Sandbox()
-			if sb != nil {
-				if err := sb.DisableService(); err != nil {
-					logrus.Warnf("Failed to disable service on sandbox %s: %v", sandboxName, err)
-					//Ignore error and attempt to delete the load balancer endpoint
-				}
-			}
-		}
-
-		if err := endpoints[0].Delete(true); err != nil {
-			logrus.Warnf("Failed to delete endpoint %s (%s) in %s: %v", endpoints[0].Name(), endpoints[0].ID(), sandboxName, err)
-			//Ignore error and attempt to delete the sandbox.
-		}
-
-		if err := controller.SandboxDestroy(sandboxName); err != nil {
-			logrus.Warnf("Failed to delete %s sandbox: %v", sandboxName, err)
-			//Ignore error and attempt to delete the network.
-		}
-	}
 }
 
 func (daemon *Daemon) deleteNetwork(nw libnetwork.Network, dynamic bool) error {

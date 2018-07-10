@@ -142,7 +142,7 @@ func (nDB *NetworkDB) handleNetworkEvent(nEvent *NetworkEvent) bool {
 	return true
 }
 
-func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
+func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent, isBulkSync bool) bool {
 	// Update our local clock if the received messages has newer time.
 	nDB.tableClock.Witness(tEvent.LTime)
 
@@ -175,6 +175,14 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 			nDB.Unlock()
 			return false
 		}
+	} else if tEvent.Type == TableEventTypeDelete && !isBulkSync {
+		nDB.Unlock()
+		// We don't know the entry, the entry is being deleted and the message is an async message
+		// In this case the safest approach is to ignore it, it is possible that the queue grew so much to
+		// exceed the garbage collection time (the residual reap time that is in the message is not being
+		// updated, to avoid inserting too many messages in the queue).
+		// Instead the messages coming from TCP bulk sync are safe with the latest value for the garbage collection time
+		return false
 	}
 
 	e = &entry{
@@ -197,11 +205,17 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	nDB.Unlock()
 
 	if err != nil && tEvent.Type == TableEventTypeDelete {
-		// If it is a delete event and we did not have a state for it, don't propagate to the application
+		// Again we don't know the entry but this is coming from a TCP sync so the message body is up to date.
+		// We had saved the state so to speed up convergence and be able to avoid accepting create events.
+		// Now we will rebroadcast the message if 2 conditions are met:
+		// 1) we had already synced this network (during the network join)
+		// 2) the residual reapTime is higher than 1/6 of the total reapTime.
 		// If the residual reapTime is lower or equal to 1/6 of the total reapTime don't bother broadcasting it around
-		// most likely the cluster is already aware of it, if not who will sync with this node will catch the state too.
-		// This also avoids that deletion of entries close to their garbage collection ends up circuling around forever
-		return e.reapTime > nDB.config.reapEntryInterval/6
+		// most likely the cluster is already aware of it
+		// This also reduce the possibility that deletion of entries close to their garbage collection ends up circuling around
+		// forever
+		//logrus.Infof("exiting on delete not knowing the obj with rebroadcast:%t", network.inSync)
+		return network.inSync && e.reapTime > nDB.config.reapEntryInterval/6
 	}
 
 	var op opType
@@ -215,7 +229,7 @@ func (nDB *NetworkDB) handleTableEvent(tEvent *TableEvent) bool {
 	}
 
 	nDB.broadcaster.Write(makeEvent(op, tEvent.TableName, tEvent.NetworkID, tEvent.Key, tEvent.Value))
-	return true
+	return network.inSync
 }
 
 func (nDB *NetworkDB) handleCompound(buf []byte, isBulkSync bool) {
@@ -244,7 +258,7 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 		return
 	}
 
-	if rebroadcast := nDB.handleTableEvent(&tEvent); rebroadcast {
+	if rebroadcast := nDB.handleTableEvent(&tEvent, isBulkSync); rebroadcast {
 		var err error
 		buf, err = encodeRawMessage(MessageTypeTableEvent, buf)
 		if err != nil {
@@ -261,12 +275,16 @@ func (nDB *NetworkDB) handleTableMessage(buf []byte, isBulkSync bool) {
 			return
 		}
 
+		// if the queue is over the threshold, avoid distributing information coming from TCP sync
+		if isBulkSync && n.tableBroadcasts.NumQueued() > maxQueueLenBroadcastOnSync {
+			return
+		}
+
 		n.tableBroadcasts.QueueBroadcast(&tableEventMessage{
 			msg:   buf,
 			id:    tEvent.NetworkID,
 			tname: tEvent.TableName,
 			key:   tEvent.Key,
-			node:  tEvent.NodeName,
 		})
 	}
 }

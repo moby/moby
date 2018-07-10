@@ -203,6 +203,10 @@ func (a *Allocator) GetDefaultAddressSpaces() (string, string, error) {
 }
 
 // RequestPool returns an address pool along with its unique id.
+// addressSpace must be a valid address space name and must not be the empty string.
+// If pool is the empty string then the default predefined pool for addressSpace will be used, otherwise pool must be a valid IP address and length in CIDR notation.
+// If subPool is not empty, it must be a valid IP address and length in CIDR notation which is a sub-range of pool.
+// subPool must be empty if pool is empty.
 func (a *Allocator) RequestPool(addressSpace, pool, subPool string, options map[string]string, v6 bool) (string, *net.IPNet, map[string]string, error) {
 	logrus.Debugf("RequestPool(%s, %s, %s, %v, %t)", addressSpace, pool, subPool, options, v6)
 
@@ -283,8 +287,8 @@ retry:
 	return remove()
 }
 
-// Given the address space, returns the local or global PoolConfig based on the
-// address space is local or global. AddressSpace locality is being registered with IPAM out of band.
+// Given the address space, returns the local or global PoolConfig based on whether the
+// address space is local or global. AddressSpace locality is registered with IPAM out of band.
 func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	a.Lock()
 	defer a.Unlock()
@@ -295,6 +299,8 @@ func (a *Allocator) getAddrSpace(as string) (*addrSpace, error) {
 	return aSpace, nil
 }
 
+// parsePoolRequest parses and validates a request to create a new pool under addressSpace and returns
+// a SubnetKey, network and range describing the request.
 func (a *Allocator) parsePoolRequest(addressSpace, pool, subPool string, v6 bool) (*SubnetKey, *net.IPNet, *AddressRange, error) {
 	var (
 		nw  *net.IPNet

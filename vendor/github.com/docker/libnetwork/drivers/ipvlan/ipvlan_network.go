@@ -156,7 +156,7 @@ func (d *driver) DeleteNetwork(nid string) error {
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove ipvlan endpoint %s from store: %v", ep.id[0:7], err)
+			logrus.Warnf("Failed to remove ipvlan endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 	// delete the *network

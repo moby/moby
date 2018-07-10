@@ -257,6 +257,7 @@ func (aSpace *addrSpace) New() datastore.KVObject {
 	}
 }
 
+// updatePoolDBOnAdd returns a closure which will add the subnet k to the address space when executed.
 func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *AddressRange, pdf bool) (func() error, error) {
 	aSpace.Lock()
 	defer aSpace.Unlock()
@@ -281,7 +282,7 @@ func (aSpace *addrSpace) updatePoolDBOnAdd(k SubnetKey, nw *net.IPNet, ipr *Addr
 		return func() error { return aSpace.alloc.insertBitMask(k, nw) }, nil
 	}
 
-	// This is a new non-master pool
+	// This is a new non-master pool (subPool)
 	p := &PoolData{
 		ParentKey: SubnetKey{AddressSpace: k.AddressSpace, Subnet: k.Subnet},
 		Pool:      nw,
