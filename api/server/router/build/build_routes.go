@@ -208,7 +208,6 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 			output.Write(notVerboseBuffer.Bytes())
 		}
 
-		logrus.Debugf("isflushed %v", output.Flushed())
 		// Do not write the error in the http output if it's still empty.
 		// This prevents from writing a 200(OK) when there is an internal error.
 		if !output.Flushed() {
