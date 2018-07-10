@@ -874,6 +874,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		netlabel.DriverMTU:        strconv.Itoa(config.Mtu),
 		bridge.EnableIPMasquerade: strconv.FormatBool(config.BridgeConfig.EnableIPMasq),
 		bridge.EnableICC:          strconv.FormatBool(config.BridgeConfig.InterContainerCommunication),
+		bridge.InhibitIPv4:        strconv.FormatBool(false),
 	}
 
 	// --ip processing
