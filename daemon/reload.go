@@ -186,7 +186,7 @@ func (daemon *Daemon) reloadClusterDiscovery(conf *config.Config, attributes map
 	}
 	netOptions, err := daemon.networkOptions(daemon.configStore, daemon.PluginStore, nil)
 	if err != nil {
-		logrus.WithError(err).Warnf("failed to get options with network controller")
+		logrus.WithError(err).Warn("failed to get options with network controller")
 		return nil
 	}
 	err = daemon.netController.ReloadConfiguration(netOptions...)

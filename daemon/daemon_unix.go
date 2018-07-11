@@ -646,13 +646,13 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 	os.RemoveAll(runtimeDir + "-old")
 	tmpDir, err := ioutils.TempDir(daemon.configStore.Root, "gen-runtimes")
 	if err != nil {
-		return errors.Wrapf(err, "failed to get temp dir to generate runtime scripts")
+		return errors.Wrap(err, "failed to get temp dir to generate runtime scripts")
 	}
 	defer func() {
 		if err != nil {
 			if err1 := os.RemoveAll(tmpDir); err1 != nil {
 				logrus.WithError(err1).WithField("dir", tmpDir).
-					Warnf("failed to remove tmp dir")
+					Warn("failed to remove tmp dir")
 			}
 			return
 		}
@@ -661,12 +661,12 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 			return
 		}
 		if err = os.Rename(tmpDir, runtimeDir); err != nil {
-			err = errors.Wrapf(err, "failed to setup runtimes dir, new containers may not start")
+			err = errors.Wrap(err, "failed to setup runtimes dir, new containers may not start")
 			return
 		}
 		if err = os.RemoveAll(runtimeDir + "-old"); err != nil {
 			logrus.WithError(err).WithField("dir", tmpDir).
-				Warnf("failed to remove old runtimes dir")
+				Warn("failed to remove old runtimes dir")
 		}
 	}()
 
@@ -1126,7 +1126,7 @@ func setupRemappedRoot(config *config.Config) (*idtools.IDMappings, error) {
 
 		mappings, err := idtools.NewIDMappings(username, groupname)
 		if err != nil {
-			return nil, errors.Wrapf(err, "Can't create ID mappings: %v")
+			return nil, errors.Wrap(err, "Can't create ID mappings")
 		}
 		return mappings, nil
 	}

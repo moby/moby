@@ -108,7 +108,7 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 	if unpause {
 		// above kill signal will be sent once resume is finished
 		if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
-			logrus.Warn("Cannot unpause container %s: %s", container.ID, err)
+			logrus.Warnf("Cannot unpause container %s: %s", container.ID, err)
 		}
 	}
 

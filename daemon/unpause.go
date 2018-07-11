@@ -37,7 +37,7 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 	daemon.LogContainerEvent(container, "unpause")
 
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
-		logrus.WithError(err).Warnf("could not save container to disk")
+		logrus.WithError(err).Warn("could not save container to disk")
 	}
 
 	return nil
