@@ -1,18 +1,40 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests
+.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local check-protobuf
 SHELL=/bin/bash
+
 dockerbuildargs ?= --target dev - < Dockerfile
 dockerargs ?= --privileged -v $(shell pwd):/go/src/github.com/docker/libnetwork -w /go/src/github.com/docker/libnetwork
 build_image=libnetworkbuild
 container_env = -e "INSIDECONTAINER=-incontainer=true"
 docker = docker run --rm -it --init ${dockerargs} $$EXTRA_ARGS ${container_env} ${build_image}
+
 CROSS_PLATFORMS = linux/amd64 linux/386 linux/arm windows/amd64
 PACKAGES=$(shell go list ./... | grep -v /vendor/)
+PROTOC_FLAGS=-I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf
+
 export PATH := $(CURDIR)/bin:$(PATH)
+
+
+# Several targets in this Makefile expect to run within the
+# libnetworkbuild container.   In general, a target named '<target>-local'
+# relies on utilities inside the build container.   Usually there is also
+# a wrapper called '<target>' which starts a container and runs
+# 'make <target>-local' inside it.
+
+###########################################################################
+# Top level targets
+###########################################################################
 
 all: build check clean
 
 all-local: build-local check-local clean
 
+
+###########################################################################
+# Build targets
+###########################################################################
+
+# builder builds the libnetworkbuild container.  All wrapper targets
+# must depend on this to ensure that the container exists.
 builder:
 	docker build -t ${build_image} ${dockerbuildargs}
 
@@ -63,12 +85,37 @@ cross-local:
 	go build -o "bin/dnet-$$GOOS-$$GOARCH" ./cmd/dnet
 	go build -o "bin/docker-proxy-$$GOOS-$$GOARCH" ./cmd/proxy
 
+# Rebuild protocol buffers.
+# These may need to be rebuilt after vendoring updates, so .proto files are declared .PHONY so they are always rebuilt.
+PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
+PB_FILES=$(PROTO_FILES:.proto=.pb.go)
+
+# Pattern rule for protoc.   If PROTOC_CHECK is defined, it checks
+# whether the generated files are up to date and fails if they are not
+%.pb.go: %.proto
+	if [ ${PROTOC_CHECK} ]; then \
+	protoc ${PROTOC_FLAGS} --gogo_out=/tmp $< ; \
+	diff -q $@ /tmp/$@ >/dev/null || (echo "👹 $@ is out of date; please run 'make protobuf' and check in updates" && exit 1) ; \
+	else \
+	protoc ${PROTOC_FLAGS} --gogo_out=./ $< ; \
+	fi
+
+.PHONY: $(PROTO_FILES)
+protobuf: builder
+	@${docker} make protobuf-local
+protobuf-local: $(PB_FILES)
+
+
+###########################################################################
+# Test targets
+###########################################################################
+
 check: builder
 	@${docker} make check-local
 
 check-local: check-code check-format
 
-check-code: lint gosimple vet ineffassign
+check-code: check-protobuf lint gosimple vet ineffassign
 
 check-format: fmt misspell
 
@@ -121,16 +168,15 @@ gosimple: ## run gosimple
 	@echo "🐳 $@"
 	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
 
+# check-protobuf rebuilds .pb.go files and fails if they have changed
+check-protobuf: PROTOC_CHECK=1
+check-protobuf: $(PB_FILES)
+	@echo "🐳 $@"
+
+
+###########################################################################
+# Utility targets
+###########################################################################
+
 shell: builder
 	@${docker} ${SHELL}
-
-# Rebuild protocol buffers.
-# These may need to be rebuilt after vendoring updates, so .pb.go files are declared .PHONY so they are always rebuilt.
-PROTO_FILES=$(shell find . -path ./vendor -prune -o -name \*.proto -print)
-PB_FILES=$(PROTO_FILES:.proto=.pb.go)
-
-%.pb.go: %.proto
-	${docker} protoc -I=. -I=/go/src -I=/go/src/github.com/gogo/protobuf -I=/go/src/github.com/gogo/protobuf/protobuf --gogo_out=./ $<
-
-.PHONY: protobuf $(PROTO_FILES)
-protobuf: builder $(PB_FILES)
