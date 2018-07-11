@@ -473,3 +473,64 @@ func TestRunWithBuildArgs(t *testing.T) {
 	// Check that runConfig.Cmd has not been modified by run
 	assert.Check(t, is.DeepEqual(origCmd, sb.state.runConfig.Cmd))
 }
+
+func TestRunIgnoresHealthcheck(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	args := NewBuildArgs(make(map[string]*string))
+	sb := newDispatchRequest(b, '`', nil, args, newStagesBuildResults())
+	b.disableCommit = false
+
+	origCmd := strslice.StrSlice([]string{"cmd", "in", "from", "image"})
+
+	imageCache := &mockImageCache{
+		getCacheFunc: func(parentID string, cfg *container.Config) (string, error) {
+			return "", nil
+		},
+	}
+
+	mockBackend := b.docker.(*MockBackend)
+	mockBackend.makeImageCacheFunc = func(_ []string) builder.ImageCache {
+		return imageCache
+	}
+	b.imageProber = newImageProber(mockBackend, nil, false)
+	mockBackend.getImageFunc = func(_ string) (builder.Image, builder.ROLayer, error) {
+		return &mockImage{
+			id:     "abcdef",
+			config: &container.Config{Cmd: origCmd},
+		}, nil, nil
+	}
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+		return container.ContainerCreateCreatedBody{ID: "12345"}, nil
+	}
+	mockBackend.commitFunc = func(cfg backend.CommitConfig) (image.ID, error) {
+		return "", nil
+	}
+	from := &instructions.Stage{BaseName: "abcdef"}
+	err := initializeStage(sb, from)
+	assert.NilError(t, err)
+
+	expectedTest := []string{"CMD-SHELL", "curl -f http://localhost/ || exit 1"}
+	cmd := &instructions.HealthCheckCommand{
+		Health: &container.HealthConfig{
+			Test: expectedTest,
+		},
+	}
+	assert.NilError(t, dispatch(sb, cmd))
+	assert.Assert(t, sb.state.runConfig.Healthcheck != nil)
+
+	mockBackend.containerCreateFunc = func(config types.ContainerCreateConfig) (container.ContainerCreateCreatedBody, error) {
+		// Check the Healthcheck is disabled.
+		assert.Check(t, is.DeepEqual([]string{"NONE"}, config.Config.Healthcheck.Test))
+		return container.ContainerCreateCreatedBody{ID: "123456"}, nil
+	}
+
+	sb.state.buildArgs.AddArg("one", strPtr("two"))
+	run := &instructions.RunCommand{
+		ShellDependantCmdLine: instructions.ShellDependantCmdLine{
+			CmdLine:      strslice.StrSlice{"echo foo"},
+			PrependShell: true,
+		},
+	}
+	assert.NilError(t, dispatch(sb, run))
+	assert.Check(t, is.DeepEqual(expectedTest, sb.state.runConfig.Healthcheck.Test))
+}

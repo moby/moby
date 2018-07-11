@@ -343,6 +343,18 @@ func withEntrypointOverride(cmd []string, entrypoint []string) runConfigModifier
 	}
 }
 
+// withoutHealthcheck disables healthcheck.
+//
+// The dockerfile RUN instruction expect to run without healthcheck
+// so the runConfig Healthcheck needs to be disabled.
+func withoutHealthcheck() runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.Healthcheck = &container.HealthConfig{
+			Test: []string{"NONE"},
+		}
+	}
+}
+
 func copyRunConfig(runConfig *container.Config, modifiers ...runConfigModifier) *container.Config {
 	copy := *runConfig
 	copy.Cmd = copyStringSlice(runConfig.Cmd)
