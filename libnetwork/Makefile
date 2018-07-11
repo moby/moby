@@ -93,7 +93,7 @@ PB_FILES=$(PROTO_FILES:.proto=.pb.go)
 # Pattern rule for protoc.   If PROTOC_CHECK is defined, it checks
 # whether the generated files are up to date and fails if they are not
 %.pb.go: %.proto
-	if [ ${PROTOC_CHECK} ]; then \
+	@if [ ${PROTOC_CHECK} ]; then \
 	protoc ${PROTOC_FLAGS} --gogo_out=/tmp $< ; \
 	diff -q $@ /tmp/$@ >/dev/null || (echo "👹 $@ is out of date; please run 'make protobuf' and check in updates" && exit 1) ; \
 	else \
