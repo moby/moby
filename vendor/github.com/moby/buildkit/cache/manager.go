@@ -225,7 +225,7 @@ func (cm *cacheManager) New(ctx context.Context, s ImmutableRef, opts ...RefOpti
 		if err != nil {
 			return nil, err
 		}
-		if err := parent.Finalize(ctx); err != nil {
+		if err := parent.Finalize(ctx, true); err != nil {
 			return nil, err
 		}
 		parentID = parent.ID()

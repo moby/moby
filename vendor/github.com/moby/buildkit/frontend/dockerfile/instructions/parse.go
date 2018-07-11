@@ -580,10 +580,7 @@ func parseArg(req parseRequest) (*ArgCommand, error) {
 		return nil, errExactlyOneArgument("ARG")
 	}
 
-	var (
-		name     string
-		newValue *string
-	)
+	kvpo := KeyValuePairOptional{}
 
 	arg := req.args[0]
 	// 'arg' can just be a name or name-value pair. Note that this is different
@@ -597,16 +594,15 @@ func parseArg(req parseRequest) (*ArgCommand, error) {
 			return nil, errBlankCommandNames("ARG")
 		}
 
-		name = parts[0]
-		newValue = &parts[1]
+		kvpo.Key = parts[0]
+		kvpo.Value = &parts[1]
 	} else {
-		name = arg
+		kvpo.Key = arg
 	}
 
 	return &ArgCommand{
-		Key:             name,
-		Value:           newValue,
-		withNameAndCode: newWithNameAndCode(req),
+		KeyValuePairOptional: kvpo,
+		withNameAndCode:      newWithNameAndCode(req),
 	}, nil
 }
 

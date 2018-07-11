@@ -80,8 +80,9 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		return nil, nil, err
 	}
 
-	for i := range metaArgs {
-		metaArgs[i] = setBuildArgValue(metaArgs[i], opt.BuildArgs)
+	optMetaArgs := []instructions.KeyValuePairOptional{}
+	for _, metaArg := range metaArgs {
+		optMetaArgs = append(optMetaArgs, setKVValue(metaArg.KeyValuePairOptional, opt.BuildArgs))
 	}
 
 	shlex := shell.NewLex(dockerfile.EscapeToken)
@@ -95,7 +96,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 	// set base state for every image
 	for _, st := range stages {
-		name, err := shlex.ProcessWord(st.BaseName, toEnvList(metaArgs, nil))
+		name, err := shlex.ProcessWord(st.BaseName, toEnvList(optMetaArgs, nil))
 		if err != nil {
 			return nil, nil, err
 		}
@@ -111,7 +112,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		}
 
 		if v := st.Platform; v != "" {
-			v, err := shlex.ProcessWord(v, toEnvList(metaArgs, nil))
+			v, err := shlex.ProcessWord(v, toEnvList(optMetaArgs, nil))
 			if err != nil {
 				return nil, nil, errors.Wrapf(err, "failed to process arguments for platform %s", v)
 			}
@@ -268,7 +269,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 
 		opt := dispatchOpt{
 			allDispatchStates: allDispatchStates,
-			metaArgs:          metaArgs,
+			metaArgs:          optMetaArgs,
 			buildArgValues:    opt.BuildArgs,
 			shlex:             shlex,
 			sessionID:         opt.SessionID,
@@ -359,7 +360,7 @@ func toCommand(ic instructions.Command, allDispatchStates *dispatchStates) (comm
 
 type dispatchOpt struct {
 	allDispatchStates *dispatchStates
-	metaArgs          []instructions.ArgCommand
+	metaArgs          []instructions.KeyValuePairOptional
 	buildArgValues    map[string]string
 	shlex             *shell.Lex
 	sessionID         string
@@ -442,7 +443,7 @@ type dispatchState struct {
 	stage        instructions.Stage
 	base         *dispatchState
 	deps         map[*dispatchState]struct{}
-	buildArgs    []instructions.ArgCommand
+	buildArgs    []instructions.KeyValuePairOptional
 	commands     []command
 	ctxPaths     map[string]struct{}
 	ignoreCache  bool
@@ -538,7 +539,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	}
 	opt := []llb.RunOption{llb.Args(args)}
 	for _, arg := range d.buildArgs {
-		opt = append(opt, llb.AddEnv(arg.Key, getArgValue(arg)))
+		opt = append(opt, llb.AddEnv(arg.Key, arg.ValueString()))
 	}
 	opt = append(opt, dfCmd(c))
 	if d.ignoreCache {
@@ -770,20 +771,22 @@ func dispatchShell(d *dispatchState, c *instructions.ShellCommand) error {
 	return commitToHistory(&d.image, fmt.Sprintf("SHELL %v", c.Shell), false, nil)
 }
 
-func dispatchArg(d *dispatchState, c *instructions.ArgCommand, metaArgs []instructions.ArgCommand, buildArgValues map[string]string) error {
+func dispatchArg(d *dispatchState, c *instructions.ArgCommand, metaArgs []instructions.KeyValuePairOptional, buildArgValues map[string]string) error {
 	commitStr := "ARG " + c.Key
+	buildArg := setKVValue(c.KeyValuePairOptional, buildArgValues)
+
 	if c.Value != nil {
 		commitStr += "=" + *c.Value
 	}
-	if c.Value == nil {
+	if buildArg.Value == nil {
 		for _, ma := range metaArgs {
-			if ma.Key == c.Key {
-				c.Value = ma.Value
+			if ma.Key == buildArg.Key {
+				buildArg.Value = ma.Value
 			}
 		}
 	}
 
-	d.buildArgs = append(d.buildArgs, setBuildArgValue(*c, buildArgValues))
+	d.buildArgs = append(d.buildArgs, buildArg)
 	return commitToHistory(&d.image, commitStr, false, nil)
 }
 
@@ -834,26 +837,18 @@ func addEnv(env []string, k, v string, override bool) []string {
 	return env
 }
 
-func setBuildArgValue(c instructions.ArgCommand, values map[string]string) instructions.ArgCommand {
-	if v, ok := values[c.Key]; ok {
-		c.Value = &v
+func setKVValue(kvpo instructions.KeyValuePairOptional, values map[string]string) instructions.KeyValuePairOptional {
+	if v, ok := values[kvpo.Key]; ok {
+		kvpo.Value = &v
 	}
-	return c
+	return kvpo
 }
 
-func toEnvList(args []instructions.ArgCommand, env []string) []string {
+func toEnvList(args []instructions.KeyValuePairOptional, env []string) []string {
 	for _, arg := range args {
-		env = addEnv(env, arg.Key, getArgValue(arg), false)
+		env = addEnv(env, arg.Key, arg.ValueString(), false)
 	}
 	return env
-}
-
-func getArgValue(arg instructions.ArgCommand) string {
-	v := ""
-	if arg.Value != nil {
-		v = *arg.Value
-	}
-	return v
 }
 
 func dfCmd(cmd interface{}) llb.ConstraintsOpt {
@@ -870,10 +865,10 @@ func dfCmd(cmd interface{}) llb.ConstraintsOpt {
 	})
 }
 
-func runCommandString(args []string, buildArgs []instructions.ArgCommand) string {
+func runCommandString(args []string, buildArgs []instructions.KeyValuePairOptional) string {
 	var tmpBuildEnv []string
 	for _, arg := range buildArgs {
-		tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+getArgValue(arg))
+		tmpBuildEnv = append(tmpBuildEnv, arg.Key+"="+arg.ValueString())
 	}
 	if len(tmpBuildEnv) > 0 {
 		tmpBuildEnv = append([]string{fmt.Sprintf("|%d", len(tmpBuildEnv))}, tmpBuildEnv...)
