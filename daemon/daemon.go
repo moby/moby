@@ -538,7 +538,7 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 		select {
 		case <-done:
 		case <-time.After(5 * time.Second):
-			logrus.Warnf("timeout while waiting for ingress network removal")
+			logrus.Warn("timeout while waiting for ingress network removal")
 		}
 	} else {
 		logrus.Warnf("failed to initiate ingress network removal: %v", err)

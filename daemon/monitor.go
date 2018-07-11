@@ -138,7 +138,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 				"container": c.ID,
 				"exec-id":   ei.ProcessID,
 				"exec-pid":  ei.Pid,
-			}).Warnf("Ignoring Exit Event, no such exec command found")
+			}).Warn("Ignoring Exit Event, no such exec command found")
 		}
 	case libcontainerd.EventStart:
 		c.Lock()

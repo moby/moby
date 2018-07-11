@@ -332,7 +332,7 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 			if strings.HasSuffix(fileName, tmpLogfileSuffix) {
 				err := w.filesRefCounter.Dereference(fileName)
 				if err != nil {
-					logrus.Errorf("Failed to dereference the log file %q: %v", fileName, err)
+					logrus.Errorf("Failed to dereference log file %q: %v", fileName, err)
 				}
 			}
 		}
@@ -364,7 +364,7 @@ func (w *LogFile) openRotatedFiles(config logger.ReadConfig) (files []*os.File, 
 			if strings.HasSuffix(f.Name(), tmpLogfileSuffix) {
 				err := os.Remove(f.Name())
 				if err != nil && !os.IsNotExist(err) {
-					logrus.Warningf("Failed to remove the logfile %q: %v", f.Name, err)
+					logrus.Warnf("Failed to remove logfile: %v", err)
 				}
 			}
 		}
@@ -436,7 +436,7 @@ func decompressfile(fileName, destFileName string, since time.Time) (*os.File, e
 		rs.Close()
 		rErr := os.Remove(rs.Name())
 		if rErr != nil && !os.IsNotExist(rErr) {
-			logrus.Errorf("Failed to remove the logfile %q: %v", rs.Name(), rErr)
+			logrus.Errorf("Failed to remove logfile: %v", rErr)
 		}
 		return nil, errors.Wrap(err, "error while copying decompressed log stream to file")
 	}
@@ -561,7 +561,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 			}
 			return errRetry
 		case err := <-fileWatcher.Errors():
-			logrus.Debug("logger got error watching file: %v", err)
+			logrus.Debugf("logger got error watching file: %v", err)
 			// Something happened, let's try and stay alive and create a new watcher
 			if retries <= 5 {
 				fileWatcher.Close()
