@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package moby.buildkit.v1.types;
+
+import "github.com/gogo/protobuf/gogoproto/gogo.proto";
+import "github.com/moby/buildkit/solver/pb/ops.proto";
+
+option (gogoproto.sizer_all) = true;
+option (gogoproto.marshaler_all) = true;
+option (gogoproto.unmarshaler_all) = true;
+
+message WorkerRecord {
+	string ID = 1;
+	map<string, string> Labels = 2;
+	repeated pb.Platform platforms = 3 [(gogoproto.nullable) = false];
+}

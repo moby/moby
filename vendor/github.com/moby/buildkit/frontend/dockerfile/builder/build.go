@@ -36,17 +36,21 @@ const (
 var httpPrefix = regexp.MustCompile("^https?://")
 var gitUrlPathWithFragmentSuffix = regexp.MustCompile("\\.git(?:#.+)?$")
 
-func Build(ctx context.Context, c client.Client) error {
-	opts := c.Opts()
+func Build(ctx context.Context, c client.Client) (*client.Result, error) {
+	opts := c.BuildOpts().Opts
 
-	// TODO: read buildPlatforms from workers
-	buildPlatforms := []specs.Platform{platforms.DefaultSpec()}
+	defaultBuildPlatform := platforms.DefaultSpec()
+	if workers := c.BuildOpts().Workers; len(workers) > 0 && len(workers[0].Platforms) > 0 {
+		defaultBuildPlatform = workers[0].Platforms[0]
+	}
+
+	buildPlatforms := []specs.Platform{defaultBuildPlatform}
 	targetPlatform := platforms.DefaultSpec()
 	if v := opts[keyTargetPlatform]; v != "" {
 		var err error
 		targetPlatform, err = platforms.Parse(v)
 		if err != nil {
-			return errors.Wrapf(err, "failed to parse target platform %s", v)
+			return nil, errors.Wrapf(err, "failed to parse target platform %s", v)
 		}
 	}
 
@@ -66,7 +70,7 @@ func Build(ctx context.Context, c client.Client) error {
 
 	src := llb.Local(LocalNameDockerfile,
 		llb.IncludePatterns([]string{filename}),
-		llb.SessionID(c.SessionID()),
+		llb.SessionID(c.BuildOpts().SessionID),
 		llb.SharedKeyHint(defaultDockerfileName),
 	)
 	var buildContext *llb.State
@@ -78,13 +82,18 @@ func Build(ctx context.Context, c client.Client) error {
 		httpContext := llb.HTTP(opts[LocalNameContext], llb.Filename("context"))
 		def, err := httpContext.Marshal()
 		if err != nil {
-			return err
+			return nil, errors.Wrapf(err, "failed to marshal httpcontext")
 		}
-		ref, err := c.Solve(ctx, client.SolveRequest{
+		res, err := c.Solve(ctx, client.SolveRequest{
 			Definition: def.ToPB(),
-		}, nil, false)
+		})
 		if err != nil {
-			return err
+			return nil, errors.Wrapf(err, "failed to resolve httpcontext")
+		}
+
+		ref, err := res.SingleRef()
+		if err != nil {
+			return nil, err
 		}
 
 		dt, err := ref.ReadFile(ctx, client.ReadRequest{
@@ -94,7 +103,7 @@ func Build(ctx context.Context, c client.Client) error {
 			},
 		})
 		if err != nil {
-			return err
+			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
 			unpack := llb.Image(dockerfile2llb.CopyImage).
@@ -112,15 +121,20 @@ func Build(ctx context.Context, c client.Client) error {
 
 	def, err := src.Marshal()
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err, "failed to marshal local source")
 	}
 
 	eg, ctx2 := errgroup.WithContext(ctx)
 	var dtDockerfile []byte
 	eg.Go(func() error {
-		ref, err := c.Solve(ctx2, client.SolveRequest{
+		res, err := c.Solve(ctx2, client.SolveRequest{
 			Definition: def.ToPB(),
-		}, nil, false)
+		})
+		if err != nil {
+			return errors.Wrapf(err, "failed to resolve dockerfile")
+		}
+
+		ref, err := res.SingleRef()
 		if err != nil {
 			return err
 		}
@@ -129,7 +143,7 @@ func Build(ctx context.Context, c client.Client) error {
 			Filename: filename,
 		})
 		if err != nil {
-			return err
+			return errors.Wrapf(err, "failed to read dockerfile")
 		}
 		return nil
 	})
@@ -139,7 +153,7 @@ func Build(ctx context.Context, c client.Client) error {
 			dockerignoreState := buildContext
 			if dockerignoreState == nil {
 				st := llb.Local(LocalNameContext,
-					llb.SessionID(c.SessionID()),
+					llb.SessionID(c.BuildOpts().SessionID),
 					llb.IncludePatterns([]string{dockerignoreFilename}),
 					llb.SharedKeyHint(dockerignoreFilename),
 				)
@@ -149,9 +163,13 @@ func Build(ctx context.Context, c client.Client) error {
 			if err != nil {
 				return err
 			}
-			ref, err := c.Solve(ctx2, client.SolveRequest{
+			res, err := c.Solve(ctx2, client.SolveRequest{
 				Definition: def.ToPB(),
-			}, nil, false)
+			})
+			if err != nil {
+				return err
+			}
+			ref, err := res.SingleRef()
 			if err != nil {
 				return err
 			}
@@ -169,10 +187,10 @@ func Build(ctx context.Context, c client.Client) error {
 	}
 
 	if err := eg.Wait(); err != nil {
-		return err
+		return nil, err
 	}
 
-	if _, ok := c.Opts()["cmdline"]; !ok {
+	if _, ok := opts["cmdline"]; !ok {
 		ref, cmdline, ok := dockerfile2llb.DetectSyntax(bytes.NewBuffer(dtDockerfile))
 		if ok {
 			return forwardGateway(ctx, c, ref, cmdline)
@@ -184,7 +202,7 @@ func Build(ctx context.Context, c client.Client) error {
 		MetaResolver:   c,
 		BuildArgs:      filter(opts, buildArgPrefix),
 		Labels:         filter(opts, labelPrefix),
-		SessionID:      c.SessionID(),
+		SessionID:      c.BuildOpts().SessionID,
 		BuildContext:   buildContext,
 		Excludes:       excludes,
 		IgnoreCache:    ignoreCache,
@@ -193,17 +211,17 @@ func Build(ctx context.Context, c client.Client) error {
 	})
 
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err, "failed to create LLB definition")
 	}
 
 	def, err = st.Marshal()
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err, "failed to marshal LLB definition")
 	}
 
 	config, err := json.Marshal(img)
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err, "failed to marshal image config")
 	}
 
 	var cacheFrom []string
@@ -211,30 +229,30 @@ func Build(ctx context.Context, c client.Client) error {
 		cacheFrom = strings.Split(cacheFromStr, ",")
 	}
 
-	_, err = c.Solve(ctx, client.SolveRequest{
+	res, err := c.Solve(ctx, client.SolveRequest{
 		Definition:      def.ToPB(),
 		ImportCacheRefs: cacheFrom,
-	}, map[string][]byte{
-		exporterImageConfig: config,
-	}, true)
+	})
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return nil
+
+	res.AddMeta(exporterImageConfig, config)
+
+	return res, nil
 }
 
-func forwardGateway(ctx context.Context, c client.Client, ref string, cmdline string) error {
-	opts := c.Opts()
+func forwardGateway(ctx context.Context, c client.Client, ref string, cmdline string) (*client.Result, error) {
+	opts := c.BuildOpts().Opts
 	if opts == nil {
 		opts = map[string]string{}
 	}
 	opts["cmdline"] = cmdline
 	opts["source"] = ref
-	_, err := c.Solve(ctx, client.SolveRequest{
+	return c.Solve(ctx, client.SolveRequest{
 		Frontend:    "gateway.v0",
 		FrontendOpt: opts,
-	}, nil, true)
-	return err
+	})
 }
 
 func filter(opt map[string]string, key string) map[string]string {

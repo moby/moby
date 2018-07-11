@@ -256,7 +256,7 @@ make test TESTPKGS=./client
 make test TESTPKGS=./client TESTFLAGS="--run /TestCallDiskUsage -v" 
 
 # run all integration tests with a specific worker
-# supported workers are oci and containerd
+# supported workers: oci, oci-rootless, containerd, containerd-1.0
 make test TESTPKGS=./client TESTFLAGS="--run //worker=containerd -v" 
 ```
 

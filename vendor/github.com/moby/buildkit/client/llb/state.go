@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/platforms"
+	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/system"
 	digest "github.com/opencontainers/go-digest"
@@ -78,7 +79,8 @@ func (s State) Marshal(co ...ConstraintsOpt) (*Definition, error) {
 
 	defaultPlatform := platforms.Normalize(platforms.DefaultSpec())
 	c := &Constraints{
-		Platform: &defaultPlatform,
+		Platform:      &defaultPlatform,
+		LocalUniqueID: identity.NewID(),
 	}
 	for _, o := range append(s.opts, co...) {
 		o.SetConstraintsOption(c)
@@ -358,11 +360,18 @@ type Constraints struct {
 	Platform          *specs.Platform
 	WorkerConstraints []string
 	Metadata          pb.OpMetadata
+	LocalUniqueID     string
 }
 
 func Platform(p specs.Platform) ConstraintsOpt {
 	return constraintsOptFunc(func(c *Constraints) {
 		c.Platform = &p
+	})
+}
+
+func LocalUniqueID(v string) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		c.LocalUniqueID = v
 	})
 }
 
