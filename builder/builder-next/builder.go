@@ -237,7 +237,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Session:       opt.Options.SessionID,
 	}
 
-	aux := streamformatter.AuxFormatter{opt.ProgressWriter.Output}
+	aux := streamformatter.AuxFormatter{Writer: opt.ProgressWriter.Output}
 
 	eg, ctx := errgroup.WithContext(ctx)
 
