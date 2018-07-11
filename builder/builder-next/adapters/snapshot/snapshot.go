@@ -245,21 +245,23 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 	}
 	if l != nil {
 		id := identity.NewID()
-		rwlayer, err := s.opt.LayerStore.CreateRWLayer(id, l.ChainID(), nil)
-		if err != nil {
-			return nil, err
-		}
-		rootfs, err := rwlayer.Mount("")
-		if err != nil {
-			return nil, err
-		}
-		mnt := []mount.Mount{{
-			Source:  rootfs.Path(),
-			Type:    "bind",
-			Options: []string{"rbind"},
-		}}
-		return &constMountable{
-			mounts: mnt,
+		var rwlayer layer.RWLayer
+		return &mountable{
+			acquire: func() ([]mount.Mount, error) {
+				rwlayer, err = s.opt.LayerStore.CreateRWLayer(id, l.ChainID(), nil)
+				if err != nil {
+					return nil, err
+				}
+				rootfs, err := rwlayer.Mount("")
+				if err != nil {
+					return nil, err
+				}
+				return []mount.Mount{{
+					Source:  rootfs.Path(),
+					Type:    "bind",
+					Options: []string{"rbind"},
+				}}, nil
+			},
 			release: func() error {
 				_, err := s.opt.LayerStore.ReleaseRWLayer(rwlayer)
 				return err
@@ -269,17 +271,18 @@ func (s *snapshotter) Mounts(ctx context.Context, key string) (snapshot.Mountabl
 
 	id, _ := s.getGraphDriverID(key)
 
-	rootfs, err := s.opt.GraphDriver.Get(id, "")
-	if err != nil {
-		return nil, err
-	}
-	mnt := []mount.Mount{{
-		Source:  rootfs.Path(),
-		Type:    "bind",
-		Options: []string{"rbind"},
-	}}
-	return &constMountable{
-		mounts: mnt,
+	return &mountable{
+		acquire: func() ([]mount.Mount, error) {
+			rootfs, err := s.opt.GraphDriver.Get(id, "")
+			if err != nil {
+				return nil, err
+			}
+			return []mount.Mount{{
+				Source:  rootfs.Path(),
+				Type:    "bind",
+				Options: []string{"rbind"},
+			}}, nil
+		},
 		release: func() error {
 			return s.opt.GraphDriver.Put(id)
 		},
@@ -428,18 +431,37 @@ func (s *snapshotter) Close() error {
 	return s.db.Close()
 }
 
-type constMountable struct {
+type mountable struct {
+	mu      sync.Mutex
 	mounts  []mount.Mount
+	acquire func() ([]mount.Mount, error)
 	release func() error
 }
 
-func (m *constMountable) Mount() ([]mount.Mount, error) {
+func (m *mountable) Mount() ([]mount.Mount, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	if m.mounts != nil {
+		return m.mounts, nil
+	}
+
+	mounts, err := m.acquire()
+	if err != nil {
+		return nil, err
+	}
+	m.mounts = mounts
+
 	return m.mounts, nil
 }
 
-func (m *constMountable) Release() error {
+func (m *mountable) Release() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	if m.release == nil {
 		return nil
 	}
+
+	m.mounts = nil
 	return m.release()
 }
