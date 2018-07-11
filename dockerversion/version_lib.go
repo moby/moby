@@ -14,4 +14,5 @@ const (
 	RuncCommitID       = "library-import"
 	InitCommitID       = "library-import"
 	PlatformName       = ""
+	ProductName        = ""
 )

@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/term"
+	"github.com/moby/buildkit/util/apicaps"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 )
@@ -40,6 +41,12 @@ func newDaemonCommand() *cobra.Command {
 	installServiceFlags(flags)
 
 	return cmd
+}
+
+func init() {
+	if dockerversion.ProductName != "" {
+		apicaps.ExportedProduct = dockerversion.ProductName
+	}
 }
 
 func main() {
