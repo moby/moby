@@ -616,6 +616,15 @@ func reexecSetIPv6() {
 		value = byte('0')
 	}
 
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			logrus.Warnf("file does not exist: %s : %v Has IPv6 been disabled in this node's kernel?", path, err)
+			os.Exit(0)
+		}
+		logrus.Errorf("failed to stat %s : %v", path, err)
+		os.Exit(5)
+	}
+
 	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
 		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
 		os.Exit(4)
