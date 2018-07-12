@@ -147,6 +147,8 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 			daemon.logNodeEvent(event.Action, v.Node, event.OldObject.GetNode())
 		case *swarmapi.Object_Service:
 			daemon.logServiceEvent(event.Action, v.Service, event.OldObject.GetService())
+		case *swarmapi.Object_Task:
+			daemon.logTaskEvent(event.Action, v.Task, event.OldObject.GetTask())
 		case *swarmapi.Object_Network:
 			daemon.logNetworkEvent(event.Action, v.Network, event.OldObject.GetNetwork())
 		case *swarmapi.Object_Secret:
@@ -226,6 +228,21 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 	}
 
 	daemon.logClusterEvent(action, node.ID, "node", attributes, eventTime)
+}
+
+func (daemon *Daemon) logTaskEvent(action swarmapi.WatchActionKind, task *swarmapi.Task, oldtask *swarmapi.Task) {
+	attributes := map[string]string{
+		"service": task.ServiceID,
+	}
+	eventTime := eventTimestamp(task.Meta, action)
+	if action == swarmapi.WatchActionKindUpdate {
+		if task.Status.Err != "" {
+			attributes["err"] = task.Status.Err
+		}
+		attributes["message"] = task.Status.Message
+		attributes["state"] = task.Status.State.String()
+	}
+	daemon.logClusterEvent(action, task.ID, "task", attributes, eventTime)
 }
 
 func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *swarmapi.Service, oldService *swarmapi.Service) {
