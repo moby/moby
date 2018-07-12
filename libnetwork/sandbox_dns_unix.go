@@ -241,7 +241,7 @@ func (sb *sandbox) setupDNS() error {
 		sb.setExternalResolvers(newRC.Content, types.IPv4, false)
 	} else {
 		// If the host resolv.conf file has 127.0.0.x container should
-		// use the host restolver for queries. This is supported by the
+		// use the host resolver for queries. This is supported by the
 		// docker embedded DNS server. Hence save the external resolvers
 		// before filtering it out.
 		sb.setExternalResolvers(currRC.Content, types.IPv4, true)

@@ -68,7 +68,7 @@ func (d *driver) CreateNetwork(nid string, option map[string]interface{}, nInfo 
 	err = d.storeUpdate(config)
 	if err != nil {
 		d.deleteNetwork(config.ID)
-		logrus.Debugf("encoutered an error rolling back a network create for %s : %v", config.ID, err)
+		logrus.Debugf("encountered an error rolling back a network create for %s : %v", config.ID, err)
 		return err
 	}
 
@@ -92,7 +92,7 @@ func (d *driver) createNetwork(config *configuration) error {
 				return err
 			}
 			config.CreatedSlaveLink = true
-			// notify the user in logs they have limited comunicatins
+			// notify the user in logs they have limited communications
 			if config.Parent == getDummyName(stringid.TruncateID(config.ID)) {
 				logrus.Debugf("Empty -o parent= and --internal flags limit communications to other containers inside of network: %s",
 					config.Parent)

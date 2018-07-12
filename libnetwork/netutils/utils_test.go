@@ -12,7 +12,7 @@ import (
 	"github.com/vishvananda/netlink"
 )
 
-func TestNonOverlapingNameservers(t *testing.T) {
+func TestNonOverlappingNameservers(t *testing.T) {
 	network := &net.IPNet{
 		IP:   []byte{192, 168, 0, 1},
 		Mask: []byte{255, 255, 255, 0},
@@ -26,7 +26,7 @@ func TestNonOverlapingNameservers(t *testing.T) {
 	}
 }
 
-func TestOverlapingNameservers(t *testing.T) {
+func TestOverlappingNameservers(t *testing.T) {
 	network := &net.IPNet{
 		IP:   []byte{192, 168, 0, 1},
 		Mask: []byte{255, 255, 255, 0},
@@ -260,7 +260,7 @@ func TestNetworkRequest(t *testing.T) {
 		t.Fatal(err)
 	}
 	if !types.CompareIPNet(exp, nw) {
-		t.Fatalf("exected %s. got %s", exp, nw)
+		t.Fatalf("expected %s. got %s", exp, nw)
 	}
 }
 

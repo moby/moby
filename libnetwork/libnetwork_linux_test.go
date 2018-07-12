@@ -919,7 +919,7 @@ func runParallelTests(t *testing.T, thrNumber int) {
 			t.Fatal(err)
 		}
 	}
-	defer netns.Set(origns)
+	defer netns.Set(origins)
 
 	net1, err := controller.NetworkByName("testhost")
 	if err != nil {
