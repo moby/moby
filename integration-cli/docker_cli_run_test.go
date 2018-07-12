@@ -3948,6 +3948,7 @@ func (s *DockerSuite) TestRunAttachFailedNoLeak(c *check.C) {
 	// TODO Windows Post TP5. Fix the error message string
 	c.Assert(strings.Contains(string(out), "port is already allocated") ||
 		strings.Contains(string(out), "were not connected because a duplicate name exists") ||
+		strings.Contains(string(out), "The specified port already exists") ||
 		strings.Contains(string(out), "HNS failed with error : Failed to create endpoint") ||
 		strings.Contains(string(out), "HNS failed with error : The object already exists"), checker.Equals, true, check.Commentf("Output: %s", out))
 	dockerCmd(c, "rm", "-f", "test")
