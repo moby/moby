@@ -62,9 +62,10 @@ func (s *DockerSwarmSuite) TestSwarmUpdate(c *check.C) {
 	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
 	c.Assert(err, checker.IsNil)
 
-	spec = getSpec()
+	sw := d.GetSwarm(c)
+	spec = sw.Spec
 	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 2)
-	c.Assert(spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, "")
+	c.Assert(spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, sw.TLSInfo.TrustRoot)
 	c.Assert(spec.CAConfig.ExternalCAs[1].CACert, checker.Equals, string(expected))
 
 	// passing an invalid external CA fails
@@ -108,11 +109,12 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 	expected, err := ioutil.ReadFile("fixtures/https/ca.pem")
 	c.Assert(err, checker.IsNil)
 
-	spec := getSpec()
+	sw := d.GetSwarm(c)
+	spec := sw.Spec
 	c.Assert(spec.CAConfig.NodeCertExpiry, checker.Equals, 30*time.Hour)
 	c.Assert(spec.Dispatcher.HeartbeatPeriod, checker.Equals, 11*time.Second)
 	c.Assert(spec.CAConfig.ExternalCAs, checker.HasLen, 2)
-	c.Assert(spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, "")
+	c.Assert(spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, sw.TLSInfo.TrustRoot)
 	c.Assert(spec.CAConfig.ExternalCAs[1].CACert, checker.Equals, string(expected))
 
 	c.Assert(d.SwarmLeave(true), checker.IsNil)
