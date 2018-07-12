@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"strconv"
 	"testing"
 	"time"
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/oci"
@@ -299,5 +301,90 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 		poll.WaitOn(t, ctr.IsInState(ctx, client, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 		checkInspect(t, ctx, name, tc.expected)
+	}
+}
+
+func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
+	defer setupTest(t)()
+
+	testCases := []struct {
+		doc         string
+		interval    time.Duration
+		timeout     time.Duration
+		retries     int
+		startPeriod time.Duration
+		expectedErr string
+	}{
+		{
+			doc:         "test invalid Interval in Healthcheck: less than 0s",
+			interval:    -10 * time.Millisecond,
+			timeout:     time.Second,
+			retries:     1000,
+			expectedErr: fmt.Sprintf("Interval in Healthcheck cannot be less than %s", container.MinimumDuration),
+		},
+		{
+			doc:         "test invalid Interval in Healthcheck: larger than 0s but less than 1ms",
+			interval:    500 * time.Microsecond,
+			timeout:     time.Second,
+			retries:     1000,
+			expectedErr: fmt.Sprintf("Interval in Healthcheck cannot be less than %s", container.MinimumDuration),
+		},
+		{
+			doc:         "test invalid Timeout in Healthcheck: less than 1ms",
+			interval:    time.Second,
+			timeout:     -100 * time.Millisecond,
+			retries:     1000,
+			expectedErr: fmt.Sprintf("Timeout in Healthcheck cannot be less than %s", container.MinimumDuration),
+		},
+		{
+			doc:         "test invalid Retries in Healthcheck: less than 0",
+			interval:    time.Second,
+			timeout:     time.Second,
+			retries:     -10,
+			expectedErr: "Retries in Healthcheck cannot be negative",
+		},
+		{
+			doc:         "test invalid StartPeriod in Healthcheck: not 0 and less than 1ms",
+			interval:    time.Second,
+			timeout:     time.Second,
+			retries:     1000,
+			startPeriod: 100 * time.Microsecond,
+			expectedErr: fmt.Sprintf("StartPeriod in Healthcheck cannot be less than %s", container.MinimumDuration),
+		},
+	}
+
+	for i, tc := range testCases {
+		i := i
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			healthCheck := map[string]interface{}{
+				"Interval": tc.interval,
+				"Timeout":  tc.timeout,
+				"Retries":  tc.retries,
+			}
+			if tc.startPeriod != 0 {
+				healthCheck["StartPeriod"] = tc.startPeriod
+			}
+
+			config := map[string]interface{}{
+				"Image":       "busybox",
+				"Healthcheck": healthCheck,
+			}
+
+			res, body, err := request.Post("/containers/create?name="+fmt.Sprintf("test_%d_", i)+t.Name(), request.JSONBody(config))
+			assert.NilError(t, err)
+
+			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+				assert.Check(t, is.Equal(http.StatusInternalServerError, res.StatusCode))
+			} else {
+				assert.Check(t, is.Equal(http.StatusBadRequest, res.StatusCode))
+			}
+
+			buf, err := request.ReadBody(body)
+			assert.NilError(t, err)
+
+			assert.Check(t, is.Contains(string(buf), tc.expectedErr))
+		})
 	}
 }
