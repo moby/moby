@@ -181,14 +181,14 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
-	out, _ := dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
 	// Extract one timestamp from the log file to give us a starting point for
 	// our `--since` argument. Because the log producer runs in the background,
 	// we need to check repeatedly for some output to be produced.
 	var timestamp string
 	for i := 0; i != 100 && timestamp == ""; i++ {
-		if out, _ = dockerCmd(c, "logs", "-t", name); out == "" {
+		if out, _ := dockerCmd(c, "logs", "-t", name); out == "" {
 			time.Sleep(time.Millisecond * 100) // Retry
 		} else {
 			timestamp = strings.Split(strings.Split(out, "\n")[0], " ")[0]
@@ -200,7 +200,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	since := t.Unix() + 2
-	out, _ = dockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name)
+	out, _ := dockerCmd(c, "logs", "-t", "-f", fmt.Sprintf("--since=%v", since), name)
 	c.Assert(out, checker.Not(checker.HasLen), 0, check.Commentf("cannot read from empty log"))
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for _, v := range lines {

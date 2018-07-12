@@ -81,7 +81,7 @@ func (s *DockerSuite) TestHealth(c *check.C) {
 	dockerCmd(c, "rm", "-f", name)
 
 	// Disable the check from the CLI
-	out, _ = dockerCmd(c, "create", "--name=noh", "--no-healthcheck", imageName)
+	dockerCmd(c, "create", "--name=noh", "--no-healthcheck", imageName)
 	out, _ = dockerCmd(c, "inspect", "--format={{.Config.Healthcheck.Test}}", "noh")
 	c.Check(out, checker.Equals, "[NONE]\n")
 	dockerCmd(c, "rm", "noh")

@@ -224,6 +224,7 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	err = waitInspect("second", "{{.State.Status}}", "running", 5*time.Second)
+	c.Assert(err, check.IsNil)
 
 	// ping to first and its alias foo must still succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")

@@ -90,20 +90,13 @@ func (s *snapshotter) Prepare(ctx context.Context, key, parent string, opts ...s
 	if err := s.opt.GraphDriver.Create(key, parent, nil); err != nil {
 		return err
 	}
-	if err := s.db.Update(func(tx *bolt.Tx) error {
+	return s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(key))
 		if err != nil {
 			return err
 		}
-
-		if err := b.Put(keyParent, []byte(origParent)); err != nil {
-			return err
-		}
-		return nil
-	}); err != nil {
-		return err
-	}
-	return nil
+		return b.Put(keyParent, []byte(origParent))
+	})
 }
 
 func (s *snapshotter) chainID(key string) (layer.ChainID, bool) {
@@ -332,10 +325,7 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 		if err != nil {
 			return err
 		}
-		if err := b.Put(keyCommitted, []byte(key)); err != nil {
-			return err
-		}
-		return nil
+		return b.Put(keyCommitted, []byte(key))
 	})
 }
 

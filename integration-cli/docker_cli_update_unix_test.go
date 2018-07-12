@@ -324,7 +324,7 @@ func (s *DockerSuite) TestUpdateWithNanoCPUs(c *check.C) {
 	c.Assert(err, checker.NotNil)
 	c.Assert(out, checker.Contains, "Conflicting options: CPU Quota cannot be updated as NanoCPUs has already been set")
 
-	out, _ = dockerCmd(c, "update", "--cpus", "0.8", "top")
+	dockerCmd(c, "update", "--cpus", "0.8", "top")
 	inspect, err = clt.ContainerInspect(context.Background(), "top")
 	c.Assert(err, checker.IsNil)
 	c.Assert(inspect.HostConfig.NanoCPUs, checker.Equals, int64(800000000))

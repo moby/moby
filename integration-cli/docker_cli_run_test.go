@@ -623,6 +623,7 @@ func (s *DockerSuite) TestRunCreateVolumeWithSymlink(c *check.C) {
 	// Cannot run on Windows as relies on Linux-specific functionality (sh -c mount...)
 	testRequires(c, DaemonIsLinux)
 	workingDirectory, err := ioutil.TempDir("", "TestRunCreateVolumeWithSymlink")
+	c.Assert(err, checker.IsNil)
 	image := "docker-test-createvolumewithsymlink"
 
 	buildCmd := exec.Command(dockerBinary, "build", "-t", image, "-")

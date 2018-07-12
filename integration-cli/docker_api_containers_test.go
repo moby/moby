@@ -1265,6 +1265,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 	c.Assert(waitRun(id), checker.IsNil)
 
 	source, err := inspectMountSourceField(id, vol)
+	c.Assert(err, checker.IsNil)
 	_, err = os.Stat(source)
 	c.Assert(err, checker.IsNil)
 
@@ -2201,6 +2202,7 @@ func (s *DockerSuite) TestContainerKillCustomStopSignal(c *check.C) {
 	defer res.Body.Close()
 
 	b, err := ioutil.ReadAll(res.Body)
+	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusNoContent, check.Commentf(string(b)))
 	err = waitInspect(id, "{{.State.Running}} {{.State.Restarting}}", "false false", 30*time.Second)
 	c.Assert(err, checker.IsNil)
