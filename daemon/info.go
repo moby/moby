@@ -69,7 +69,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	// Retrieve platform specific info
-	daemon.FillPlatformInfo(v, sysInfo)
+	daemon.fillPlatformInfo(v, sysInfo)
 	daemon.fillDriverInfo(v)
 	daemon.fillPluginsInfo(v)
 	daemon.fillSecurityOptions(v, sysInfo)
