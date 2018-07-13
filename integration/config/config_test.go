@@ -45,19 +45,10 @@ func TestConfigList(t *testing.T) {
 
 	config1ID := createConfig(ctx, t, client, testName1, []byte("TESTINGDATA1"), map[string]string{"type": "production"})
 
-	names := func(entries []swarmtypes.Config) []string {
-		var values []string
-		for _, entry := range entries {
-			values = append(values, entry.Spec.Name)
-		}
-		sort.Strings(values)
-		return values
-	}
-
 	// test by `config ls`
 	entries, err := client.ConfigList(ctx, types.ConfigListOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.DeepEqual(names(entries), testNames))
+	assert.Check(t, is.DeepEqual(configNamesFromList(entries), testNames))
 
 	testCases := []struct {
 		filters  filters.Args
@@ -92,7 +83,7 @@ func TestConfigList(t *testing.T) {
 			Filters: tc.filters,
 		})
 		assert.NilError(t, err)
-		assert.Check(t, is.DeepEqual(names(entries), tc.expected))
+		assert.Check(t, is.DeepEqual(configNamesFromList(entries), tc.expected))
 
 	}
 }
@@ -353,4 +344,90 @@ func TestConfigInspect(t *testing.T) {
 	err = json.Unmarshal(body, &config)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(config, insp))
+}
+
+func TestConfigCreateWithLabels(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+
+	ctx := context.Background()
+
+	labels := map[string]string{
+		"key1": "value1",
+		"key2": "value2",
+	}
+	testName := t.Name()
+	configID := createConfig(ctx, t, client, testName, []byte("TESTINGDATA"), labels)
+
+	insp, _, err := client.ConfigInspectWithRaw(ctx, configID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(insp.Spec.Name, testName))
+	assert.Check(t, is.Equal(2, len(insp.Spec.Labels)))
+	assert.Check(t, is.Equal("value1", insp.Spec.Labels["key1"]))
+	assert.Check(t, is.Equal("value2", insp.Spec.Labels["key2"]))
+}
+
+// Test case for 28884
+func TestConfigCreateResolve(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+
+	ctx := context.Background()
+
+	configName := "test_config_" + t.Name()
+
+	configID := createConfig(ctx, t, client, configName, []byte("foo"), nil)
+	fakeName := configID
+	fakeID := createConfig(ctx, t, client, fakeName, []byte("fake foo"), nil)
+
+	entries, err := client.ConfigList(ctx, types.ConfigListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Contains(configNamesFromList(entries), configName))
+	assert.Assert(t, is.Contains(configNamesFromList(entries), fakeName))
+
+	err = client.ConfigRemove(ctx, configID)
+	assert.NilError(t, err)
+
+	// Fake one will remain
+	entries, err = client.ConfigList(ctx, types.ConfigListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.DeepEqual(configNamesFromList(entries), []string{fakeName}))
+
+	// Remove based on name prefix of the fake one
+	// (which is the same as the ID of foo one) should not work
+	// as search is only done based on:
+	// - Full ID
+	// - Full Name
+	// - Partial ID (prefix)
+	err = client.ConfigRemove(ctx, configID[:5])
+	assert.Assert(t, nil != err)
+	entries, err = client.ConfigList(ctx, types.ConfigListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.DeepEqual(configNamesFromList(entries), []string{fakeName}))
+
+	// Remove based on ID prefix of the fake one should succeed
+	err = client.ConfigRemove(ctx, fakeID[:5])
+	assert.NilError(t, err)
+	entries, err = client.ConfigList(ctx, types.ConfigListOptions{})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Equal(0, len(entries)))
+}
+
+func configNamesFromList(entries []swarmtypes.Config) []string {
+	var values []string
+	for _, entry := range entries {
+		values = append(values, entry.Spec.Name)
+	}
+	sort.Strings(values)
+	return values
 }
