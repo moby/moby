@@ -1,6 +1,6 @@
-// +build !linux,!solaris,!freebsd
+// +build !linux,!freebsd
 
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"errors"

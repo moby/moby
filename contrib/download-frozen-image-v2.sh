@@ -6,7 +6,6 @@ set -eo pipefail
 
 # debian                           latest              f6fab3b798be        10 weeks ago        85.1 MB
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
-
 if ! command -v curl &> /dev/null; then
 	echo >&2 'error: "curl" not found!'
 	exit 1
@@ -44,6 +43,145 @@ if [ "$(go env GOHOSTOS)" = 'windows' ]; then
 	fi
 fi
 
+registryBase='https://registry-1.docker.io'
+authBase='https://auth.docker.io'
+authService='registry.docker.io'
+
+# https://github.com/moby/moby/issues/33700
+fetch_blob() {
+	local token="$1"; shift
+	local image="$1"; shift
+	local digest="$1"; shift
+	local targetFile="$1"; shift
+	local curlArgs=( "$@" )
+
+	local curlHeaders="$(
+		curl -S "${curlArgs[@]}" \
+			-H "Authorization: Bearer $token" \
+			"$registryBase/v2/$image/blobs/$digest" \
+			-o "$targetFile" \
+			-D-
+	)"
+	curlHeaders="$(echo "$curlHeaders" | tr -d '\r')"
+	if grep -qE "^HTTP/[0-9].[0-9] 3" <<<"$curlHeaders"; then
+		rm -f "$targetFile"
+
+		local blobRedirect="$(echo "$curlHeaders" | awk -F ': ' 'tolower($1) == "location" { print $2; exit }')"
+		if [ -z "$blobRedirect" ]; then
+			echo >&2 "error: failed fetching '$image' blob '$digest'"
+			echo "$curlHeaders" | head -1 >&2
+			return 1
+		fi
+
+		curl -fSL "${curlArgs[@]}" \
+			"$blobRedirect" \
+			-o "$targetFile"
+	fi
+}
+
+# handle 'application/vnd.docker.distribution.manifest.v2+json' manifest
+handle_single_manifest_v2() {
+	local manifestJson="$1"; shift
+
+	local configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
+	local imageId="${configDigest#*:}" # strip off "sha256:"
+
+	local configFile="$imageId.json"
+	fetch_blob "$token" "$image" "$configDigest" "$dir/$configFile" -s
+
+	local layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
+	local IFS="$newlineIFS"
+	local layers=( $layersFs )
+	unset IFS
+
+	echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
+	local layerId=
+	local layerFiles=()
+	for i in "${!layers[@]}"; do
+		local layerMeta="${layers[$i]}"
+
+		local layerMediaType="$(echo "$layerMeta" | jq --raw-output '.mediaType')"
+		local layerDigest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+
+		# save the previous layer's ID
+		local parentId="$layerId"
+		# create a new fake layer ID based on this layer's digest and the previous layer's fake ID
+		layerId="$(echo "$parentId"$'\n'"$layerDigest" | sha256sum | cut -d' ' -f1)"
+		# this accounts for the possibility that an image contains the same layer twice (and thus has a duplicate digest value)
+
+		mkdir -p "$dir/$layerId"
+		echo '1.0' > "$dir/$layerId/VERSION"
+
+		if [ ! -s "$dir/$layerId/json" ]; then
+			local parentJson="$(printf ', parent: "%s"' "$parentId")"
+			local addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
+			# this starter JSON is taken directly from Docker's own "docker save" output for unimportant layers
+			jq "$addJson + ." > "$dir/$layerId/json" <<-'EOJSON'
+				{
+					"created": "0001-01-01T00:00:00Z",
+					"container_config": {
+						"Hostname": "",
+						"Domainname": "",
+						"User": "",
+						"AttachStdin": false,
+						"AttachStdout": false,
+						"AttachStderr": false,
+						"Tty": false,
+						"OpenStdin": false,
+						"StdinOnce": false,
+						"Env": null,
+						"Cmd": null,
+						"Image": "",
+						"Volumes": null,
+						"WorkingDir": "",
+						"Entrypoint": null,
+						"OnBuild": null,
+						"Labels": null
+					}
+				}
+			EOJSON
+		fi
+
+		case "$layerMediaType" in
+			application/vnd.docker.image.rootfs.diff.tar.gzip)
+				local layerTar="$layerId/layer.tar"
+				layerFiles=( "${layerFiles[@]}" "$layerTar" )
+				# TODO figure out why "-C -" doesn't work here
+				# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
+				# "HTTP/1.1 416 Requested Range Not Satisfiable"
+				if [ -f "$dir/$layerTar" ]; then
+					# TODO hackpatch for no -C support :'(
+					echo "skipping existing ${layerId:0:12}"
+					continue
+				fi
+				local token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+				fetch_blob "$token" "$image" "$layerDigest" "$dir/$layerTar" --progress
+				;;
+
+			*)
+				echo >&2 "error: unknown layer mediaType ($imageIdentifier, $layerDigest): '$layerMediaType'"
+				exit 1
+				;;
+		esac
+	done
+
+	# change "$imageId" to be the ID of the last layer we added (needed for old-style "repositories" file which is created later -- specifically for older Docker daemons)
+	imageId="$layerId"
+
+	# munge the top layer image manifest to have the appropriate image configuration for older daemons
+	local imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
+	jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" > "$dir/$imageId/json"
+
+	local manifestJsonEntry="$(
+		echo '{}' | jq --raw-output '. + {
+			Config: "'"$configFile"'",
+			RepoTags: ["'"${image#library\/}:$tag"'"],
+			Layers: '"$(echo '[]' | jq --raw-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
+		}'
+	)"
+	manifestJsonEntries=( "${manifestJsonEntries[@]}" "$manifestJsonEntry" )
+}
+
 while [ $# -gt 0 ]; do
 	imageTag="$1"
 	shift
@@ -59,14 +197,15 @@ while [ $# -gt 0 ]; do
 
 	imageFile="${image//\//_}" # "/" can't be in filenames :)
 
-	token="$(curl -fsSL "https://auth.docker.io/token?service=registry.docker.io&scope=repository:$image:pull" | jq --raw-output '.token')"
+	token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
 
 	manifestJson="$(
 		curl -fsSL \
 			-H "Authorization: Bearer $token" \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+			-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
 			-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
-			"https://registry-1.docker.io/v2/$image/manifests/$digest"
+			"$registryBase/v2/$image/manifests/$digest"
 	)"
 	if [ "${manifestJson:0:1}" != '{' ]; then
 		echo >&2 "error: /v2/$image/manifests/$digest returned something unexpected:"
@@ -83,110 +222,40 @@ while [ $# -gt 0 ]; do
 
 			case "$mediaType" in
 				application/vnd.docker.distribution.manifest.v2+json)
-					configDigest="$(echo "$manifestJson" | jq --raw-output '.config.digest')"
-					imageId="${configDigest#*:}" # strip off "sha256:"
-
-					configFile="$imageId.json"
-					curl -fsSL \
-						-H "Authorization: Bearer $token" \
-						"https://registry-1.docker.io/v2/$image/blobs/$configDigest" \
-						-o "$dir/$configFile"
-
-					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.layers[]')"
+					handle_single_manifest_v2 "$manifestJson"
+					;;
+				application/vnd.docker.distribution.manifest.list.v2+json)
+					layersFs="$(echo "$manifestJson" | jq --raw-output --compact-output '.manifests[]')"
 					IFS="$newlineIFS"
 					layers=( $layersFs )
 					unset IFS
 
-					echo "Downloading '$imageIdentifier' (${#layers[@]} layers)..."
-					layerId=
-					layerFiles=()
+					found=""
+					# parse first level multi-arch manifest
 					for i in "${!layers[@]}"; do
 						layerMeta="${layers[$i]}"
-
-						layerMediaType="$(echo "$layerMeta" | jq --raw-output '.mediaType')"
-						layerDigest="$(echo "$layerMeta" | jq --raw-output '.digest')"
-
-						# save the previous layer's ID
-						parentId="$layerId"
-						# create a new fake layer ID based on this layer's digest and the previous layer's fake ID
-						layerId="$(echo "$parentId"$'\n'"$layerDigest" | sha256sum | cut -d' ' -f1)"
-						# this accounts for the possibility that an image contains the same layer twice (and thus has a duplicate digest value)
-
-						mkdir -p "$dir/$layerId"
-						echo '1.0' > "$dir/$layerId/VERSION"
-
-						if [ ! -s "$dir/$layerId/json" ]; then
-							parentJson="$(printf ', parent: "%s"' "$parentId")"
-							addJson="$(printf '{ id: "%s"%s }' "$layerId" "${parentId:+$parentJson}")"
-							# this starter JSON is taken directly from Docker's own "docker save" output for unimportant layers
-							jq "$addJson + ." > "$dir/$layerId/json" <<-'EOJSON'
-								{
-									"created": "0001-01-01T00:00:00Z",
-									"container_config": {
-										"Hostname": "",
-										"Domainname": "",
-										"User": "",
-										"AttachStdin": false,
-										"AttachStdout": false,
-										"AttachStderr": false,
-										"Tty": false,
-										"OpenStdin": false,
-										"StdinOnce": false,
-										"Env": null,
-										"Cmd": null,
-										"Image": "",
-										"Volumes": null,
-										"WorkingDir": "",
-										"Entrypoint": null,
-										"OnBuild": null,
-										"Labels": null
-									}
-								}
-							EOJSON
-						fi
-
-						case "$layerMediaType" in
-							application/vnd.docker.image.rootfs.diff.tar.gzip)
-								layerTar="$layerId/layer.tar"
-								layerFiles=( "${layerFiles[@]}" "$layerTar" )
-								# TODO figure out why "-C -" doesn't work here
-								# "curl: (33) HTTP server doesn't seem to support byte ranges. Cannot resume."
-								# "HTTP/1.1 416 Requested Range Not Satisfiable"
-								if [ -f "$dir/$layerTar" ]; then
-									# TODO hackpatch for no -C support :'(
-									echo "skipping existing ${layerId:0:12}"
-									continue
-								fi
-								curl -fSL --progress \
+						maniArch="$(echo "$layerMeta" | jq --raw-output '.platform.architecture')"
+						if [ "$maniArch" = "$(go env GOARCH)" ]; then
+							digest="$(echo "$layerMeta" | jq --raw-output '.digest')"
+							# get second level single manifest
+							submanifestJson="$(
+								curl -fsSL \
 									-H "Authorization: Bearer $token" \
-									"https://registry-1.docker.io/v2/$image/blobs/$layerDigest" \
-									-o "$dir/$layerTar"
-								;;
-
-							*)
-								echo >&2 "error: unknown layer mediaType ($imageIdentifier, $layerDigest): '$layerMediaType'"
-								exit 1
-								;;
-						esac
+									-H 'Accept: application/vnd.docker.distribution.manifest.v2+json' \
+									-H 'Accept: application/vnd.docker.distribution.manifest.list.v2+json' \
+									-H 'Accept: application/vnd.docker.distribution.manifest.v1+json' \
+									"$registryBase/v2/$image/manifests/$digest"
+							)"
+							handle_single_manifest_v2 "$submanifestJson"
+							found="found"
+							break
+						fi
 					done
-
-					# change "$imageId" to be the ID of the last layer we added (needed for old-style "repositories" file which is created later -- specifically for older Docker daemons)
-					imageId="$layerId"
-
-					# munge the top layer image manifest to have the appropriate image configuration for older daemons
-					imageOldConfig="$(jq --raw-output --compact-output '{ id: .id } + if .parent then { parent: .parent } else {} end' "$dir/$imageId/json")"
-					jq --raw-output "$imageOldConfig + del(.history, .rootfs)" "$dir/$configFile" > "$dir/$imageId/json"
-
-					manifestJsonEntry="$(
-						echo '{}' | jq --raw-output '. + {
-							Config: "'"$configFile"'",
-							RepoTags: ["'"${image#library\/}:$tag"'"],
-							Layers: '"$(echo '[]' | jq --raw-output ".$(for layerFile in "${layerFiles[@]}"; do echo " + [ \"$layerFile\" ]"; done)")"'
-						}'
-					)"
-					manifestJsonEntries=( "${manifestJsonEntries[@]}" "$manifestJsonEntry" )
+					if [ -z "$found" ]; then
+						echo >&2 "error: manifest for $maniArch is not found"
+						exit 1
+					fi
 					;;
-
 				*)
 					echo >&2 "error: unknown manifest mediaType ($imageIdentifier): '$mediaType'"
 					exit 1
@@ -229,7 +298,8 @@ while [ $# -gt 0 ]; do
 					echo "skipping existing ${layerId:0:12}"
 					continue
 				fi
-				curl -fSL --progress -H "Authorization: Bearer $token" "https://registry-1.docker.io/v2/$image/blobs/$imageLayer" -o "$dir/$layerId/layer.tar" # -C -
+				token="$(curl -fsSL "$authBase/token?service=$authService&scope=repository:$image:pull" | jq --raw-output '.token')"
+				fetch_blob "$token" "$image" "$imageLayer" "$dir/$layerId/layer.tar" --progress
 			done
 			;;
 

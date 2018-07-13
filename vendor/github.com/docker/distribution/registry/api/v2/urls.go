@@ -1,10 +1,9 @@
 package v2
 
 import (
-	"net"
+	"fmt"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 
 	"github.com/docker/distribution/reference"
@@ -48,66 +47,42 @@ func NewURLBuilderFromString(root string, relative bool) (*URLBuilder, error) {
 // NewURLBuilderFromRequest uses information from an *http.Request to
 // construct the root url.
 func NewURLBuilderFromRequest(r *http.Request, relative bool) *URLBuilder {
-	var scheme string
-
-	forwardedProto := r.Header.Get("X-Forwarded-Proto")
-	// TODO: log the error
-	forwardedHeader, _, _ := parseForwardedHeader(r.Header.Get("Forwarded"))
-
-	switch {
-	case len(forwardedProto) > 0:
-		scheme = forwardedProto
-	case len(forwardedHeader["proto"]) > 0:
-		scheme = forwardedHeader["proto"]
-	case r.TLS != nil:
-		scheme = "https"
-	case len(r.URL.Scheme) > 0:
-		scheme = r.URL.Scheme
-	default:
+	var (
 		scheme = "http"
+		host   = r.Host
+	)
+
+	if r.TLS != nil {
+		scheme = "https"
+	} else if len(r.URL.Scheme) > 0 {
+		scheme = r.URL.Scheme
 	}
 
-	host := r.Host
-
-	if forwardedHost := r.Header.Get("X-Forwarded-Host"); len(forwardedHost) > 0 {
-		// According to the Apache mod_proxy docs, X-Forwarded-Host can be a
-		// comma-separated list of hosts, to which each proxy appends the
-		// requested host. We want to grab the first from this comma-separated
-		// list.
-		hosts := strings.SplitN(forwardedHost, ",", 2)
-		host = strings.TrimSpace(hosts[0])
-	} else if addr, exists := forwardedHeader["for"]; exists {
-		host = addr
-	} else if h, exists := forwardedHeader["host"]; exists {
-		host = h
-	}
-
-	portLessHost, port := host, ""
-	if !isIPv6Address(portLessHost) {
-		// with go 1.6, this would treat the last part of IPv6 address as a port
-		portLessHost, port, _ = net.SplitHostPort(host)
-	}
-	if forwardedPort := r.Header.Get("X-Forwarded-Port"); len(port) == 0 && len(forwardedPort) > 0 {
-		ports := strings.SplitN(forwardedPort, ",", 2)
-		forwardedPort = strings.TrimSpace(ports[0])
-		if _, err := strconv.ParseInt(forwardedPort, 10, 32); err == nil {
-			port = forwardedPort
+	// Handle fowarded headers
+	// Prefer "Forwarded" header as defined by rfc7239 if given
+	// see https://tools.ietf.org/html/rfc7239
+	if forwarded := r.Header.Get("Forwarded"); len(forwarded) > 0 {
+		forwardedHeader, _, err := parseForwardedHeader(forwarded)
+		if err == nil {
+			if fproto := forwardedHeader["proto"]; len(fproto) > 0 {
+				scheme = fproto
+			}
+			if fhost := forwardedHeader["host"]; len(fhost) > 0 {
+				host = fhost
+			}
 		}
-	}
-
-	if len(portLessHost) > 0 {
-		host = portLessHost
-	}
-	if len(port) > 0 {
-		// remove enclosing brackets of ipv6 address otherwise they will be duplicated
-		if len(host) > 1 && host[0] == '[' && host[len(host)-1] == ']' {
-			host = host[1 : len(host)-1]
+	} else {
+		if forwardedProto := r.Header.Get("X-Forwarded-Proto"); len(forwardedProto) > 0 {
+			scheme = forwardedProto
 		}
-		// JoinHostPort properly encloses ipv6 addresses in square brackets
-		host = net.JoinHostPort(host, port)
-	} else if isIPv6Address(host) && host[0] != '[' {
-		// ipv6 needs to be enclosed in square brackets in urls
-		host = "[" + host + "]"
+		if forwardedHost := r.Header.Get("X-Forwarded-Host"); len(forwardedHost) > 0 {
+			// According to the Apache mod_proxy docs, X-Forwarded-Host can be a
+			// comma-separated list of hosts, to which each proxy appends the
+			// requested host. We want to grab the first from this comma-separated
+			// list.
+			hosts := strings.SplitN(forwardedHost, ",", 2)
+			host = strings.TrimSpace(hosts[0])
+		}
 	}
 
 	basePath := routeDescriptorsMap[RouteNameBase].Path
@@ -175,6 +150,8 @@ func (ub *URLBuilder) BuildManifestURL(ref reference.Named) (string, error) {
 		tagOrDigest = v.Tag()
 	case reference.Digested:
 		tagOrDigest = v.Digest().String()
+	default:
+		return "", fmt.Errorf("reference must have a tag or digest")
 	}
 
 	manifestURL, err := route.URL("name", ref.Name(), "reference", tagOrDigest)
@@ -286,29 +263,4 @@ func appendValues(u string, values ...url.Values) string {
 	}
 
 	return appendValuesURL(up, values...).String()
-}
-
-// isIPv6Address returns true if given string is a valid IPv6 address. No port is allowed. The address may be
-// enclosed in square brackets.
-func isIPv6Address(host string) bool {
-	if len(host) > 1 && host[0] == '[' && host[len(host)-1] == ']' {
-		host = host[1 : len(host)-1]
-	}
-	// The IPv6 scoped addressing zone identifier starts after the last percent sign.
-	if i := strings.LastIndexByte(host, '%'); i > 0 {
-		host = host[:i]
-	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return false
-	}
-	if ip.To16() == nil {
-		return false
-	}
-	if ip.To4() == nil {
-		return true
-	}
-	// dot can be present in ipv4-mapped address, it needs to come after a colon though
-	i := strings.IndexAny(host, ":.")
-	return i >= 0 && host[i] == ':'
 }

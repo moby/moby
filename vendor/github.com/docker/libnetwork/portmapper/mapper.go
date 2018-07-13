@@ -6,9 +6,10 @@ import (
 	"net"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/portallocator"
+	"github.com/ishidawataru/sctp"
+	"github.com/sirupsen/logrus"
 )
 
 type mapping struct {
@@ -27,6 +28,8 @@ var (
 	ErrPortMappedForIP = errors.New("port is already mapped to ip")
 	// ErrPortNotMapped refers to an unmapped port
 	ErrPortNotMapped = errors.New("port is not mapped")
+	// ErrSCTPAddrNoIP refers to a SCTP address without IP address.
+	ErrSCTPAddrNoIP = errors.New("sctp address does not contain any IP address")
 )
 
 // PortMapper manages the network address translation
@@ -98,7 +101,10 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 				return nil, err
 			}
 		} else {
-			m.userlandProxy = newDummyProxy(proto, hostIP, allocatedHostPort)
+			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
+			if err != nil {
+				return nil, err
+			}
 		}
 	case *net.UDPAddr:
 		proto = "udp"
@@ -118,7 +124,37 @@ func (pm *PortMapper) MapRange(container net.Addr, hostIP net.IP, hostPortStart,
 				return nil, err
 			}
 		} else {
-			m.userlandProxy = newDummyProxy(proto, hostIP, allocatedHostPort)
+			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
+			if err != nil {
+				return nil, err
+			}
+		}
+	case *sctp.SCTPAddr:
+		proto = "sctp"
+		if allocatedHostPort, err = pm.Allocator.RequestPortInRange(hostIP, proto, hostPortStart, hostPortEnd); err != nil {
+			return nil, err
+		}
+
+		m = &mapping{
+			proto:     proto,
+			host:      &sctp.SCTPAddr{IP: []net.IP{hostIP}, Port: allocatedHostPort},
+			container: container,
+		}
+
+		if useProxy {
+			sctpAddr := container.(*sctp.SCTPAddr)
+			if len(sctpAddr.IP) == 0 {
+				return nil, ErrSCTPAddrNoIP
+			}
+			m.userlandProxy, err = newProxy(proto, hostIP, allocatedHostPort, sctpAddr.IP[0], sctpAddr.Port, pm.proxyPath)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			m.userlandProxy, err = newDummyProxy(proto, hostIP, allocatedHostPort)
+			if err != nil {
+				return nil, err
+			}
 		}
 	default:
 		return nil, ErrUnknownBackendAddressType
@@ -195,8 +231,13 @@ func (pm *PortMapper) Unmap(host net.Addr) error {
 		return pm.Allocator.ReleasePort(a.IP, "tcp", a.Port)
 	case *net.UDPAddr:
 		return pm.Allocator.ReleasePort(a.IP, "udp", a.Port)
+	case *sctp.SCTPAddr:
+		if len(a.IP) == 0 {
+			return ErrSCTPAddrNoIP
+		}
+		return pm.Allocator.ReleasePort(a.IP[0], "sctp", a.Port)
 	}
-	return nil
+	return ErrUnknownBackendAddressType
 }
 
 //ReMapAll will re-apply all port mappings
@@ -219,6 +260,12 @@ func getKey(a net.Addr) string {
 		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "tcp")
 	case *net.UDPAddr:
 		return fmt.Sprintf("%s:%d/%s", t.IP.String(), t.Port, "udp")
+	case *sctp.SCTPAddr:
+		if len(t.IP) == 0 {
+			logrus.Error(ErrSCTPAddrNoIP)
+			return ""
+		}
+		return fmt.Sprintf("%s:%d/%s", t.IP[0].String(), t.Port, "sctp")
 	}
 	return ""
 }
@@ -229,6 +276,12 @@ func getIPAndPort(a net.Addr) (net.IP, int) {
 		return t.IP, t.Port
 	case *net.UDPAddr:
 		return t.IP, t.Port
+	case *sctp.SCTPAddr:
+		if len(t.IP) == 0 {
+			logrus.Error(ErrSCTPAddrNoIP)
+			return nil, 0
+		}
+		return t.IP[0], t.Port
 	}
 	return nil, 0
 }

@@ -6,6 +6,7 @@ import (
 
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -48,9 +49,11 @@ func (sb *sandbox) setupDefaultGW() error {
 
 	createOptions := []EndpointOption{CreateOptionAnonymous()}
 
-	eplen := gwEPlen
-	if len(sb.containerID) < gwEPlen {
-		eplen = len(sb.containerID)
+	var gwName string
+	if len(sb.containerID) <= gwEPlen {
+		gwName = "gateway_" + sb.containerID
+	} else {
+		gwName = "gateway_" + sb.id[:gwEPlen]
 	}
 
 	sbLabels := sb.Labels()
@@ -68,13 +71,23 @@ func (sb *sandbox) setupDefaultGW() error {
 		createOptions = append(createOptions, epOption)
 	}
 
-	newEp, err := n.CreateEndpoint("gateway_"+sb.containerID[0:eplen], createOptions...)
+	newEp, err := n.CreateEndpoint(gwName, createOptions...)
 	if err != nil {
 		return fmt.Errorf("container %s: endpoint create on GW Network failed: %v", sb.containerID, err)
 	}
+
+	defer func() {
+		if err != nil {
+			if err2 := newEp.Delete(true); err2 != nil {
+				logrus.Warnf("Failed to remove gw endpoint for container %s after failing to join the gateway network: %v",
+					sb.containerID, err2)
+			}
+		}
+	}()
+
 	epLocal := newEp.(*endpoint)
 
-	if err := epLocal.sbJoin(sb); err != nil {
+	if err = epLocal.sbJoin(sb); err != nil {
 		return fmt.Errorf("container %s: endpoint join on GW Network failed: %v", sb.containerID, err)
 	}
 

@@ -8,7 +8,8 @@ package fsnotify
 
 import (
 	"errors"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 type fdPoller struct {
@@ -39,32 +40,32 @@ func newFdPoller(fd int) (*fdPoller, error) {
 	poller.fd = fd
 
 	// Create epoll fd
-	poller.epfd, errno = syscall.EpollCreate1(0)
+	poller.epfd, errno = unix.EpollCreate1(0)
 	if poller.epfd == -1 {
 		return nil, errno
 	}
 	// Create pipe; pipe[0] is the read end, pipe[1] the write end.
-	errno = syscall.Pipe2(poller.pipe[:], syscall.O_NONBLOCK)
+	errno = unix.Pipe2(poller.pipe[:], unix.O_NONBLOCK)
 	if errno != nil {
 		return nil, errno
 	}
 
 	// Register inotify fd with epoll
-	event := syscall.EpollEvent{
+	event := unix.EpollEvent{
 		Fd:     int32(poller.fd),
-		Events: syscall.EPOLLIN,
+		Events: unix.EPOLLIN,
 	}
-	errno = syscall.EpollCtl(poller.epfd, syscall.EPOLL_CTL_ADD, poller.fd, &event)
+	errno = unix.EpollCtl(poller.epfd, unix.EPOLL_CTL_ADD, poller.fd, &event)
 	if errno != nil {
 		return nil, errno
 	}
 
 	// Register pipe fd with epoll
-	event = syscall.EpollEvent{
+	event = unix.EpollEvent{
 		Fd:     int32(poller.pipe[0]),
-		Events: syscall.EPOLLIN,
+		Events: unix.EPOLLIN,
 	}
-	errno = syscall.EpollCtl(poller.epfd, syscall.EPOLL_CTL_ADD, poller.pipe[0], &event)
+	errno = unix.EpollCtl(poller.epfd, unix.EPOLL_CTL_ADD, poller.pipe[0], &event)
 	if errno != nil {
 		return nil, errno
 	}
@@ -80,11 +81,11 @@ func (poller *fdPoller) wait() (bool, error) {
 	// I don't know whether epoll_wait returns the number of events returned,
 	// or the total number of events ready.
 	// I decided to catch both by making the buffer one larger than the maximum.
-	events := make([]syscall.EpollEvent, 7)
+	events := make([]unix.EpollEvent, 7)
 	for {
-		n, errno := syscall.EpollWait(poller.epfd, events, -1)
+		n, errno := unix.EpollWait(poller.epfd, events, -1)
 		if n == -1 {
-			if errno == syscall.EINTR {
+			if errno == unix.EINTR {
 				continue
 			}
 			return false, errno
@@ -103,31 +104,31 @@ func (poller *fdPoller) wait() (bool, error) {
 		epollin := false
 		for _, event := range ready {
 			if event.Fd == int32(poller.fd) {
-				if event.Events&syscall.EPOLLHUP != 0 {
+				if event.Events&unix.EPOLLHUP != 0 {
 					// This should not happen, but if it does, treat it as a wakeup.
 					epollhup = true
 				}
-				if event.Events&syscall.EPOLLERR != 0 {
+				if event.Events&unix.EPOLLERR != 0 {
 					// If an error is waiting on the file descriptor, we should pretend
-					// something is ready to read, and let syscall.Read pick up the error.
+					// something is ready to read, and let unix.Read pick up the error.
 					epollerr = true
 				}
-				if event.Events&syscall.EPOLLIN != 0 {
+				if event.Events&unix.EPOLLIN != 0 {
 					// There is data to read.
 					epollin = true
 				}
 			}
 			if event.Fd == int32(poller.pipe[0]) {
-				if event.Events&syscall.EPOLLHUP != 0 {
+				if event.Events&unix.EPOLLHUP != 0 {
 					// Write pipe descriptor was closed, by us. This means we're closing down the
 					// watcher, and we should wake up.
 				}
-				if event.Events&syscall.EPOLLERR != 0 {
+				if event.Events&unix.EPOLLERR != 0 {
 					// If an error is waiting on the pipe file descriptor.
 					// This is an absolute mystery, and should never ever happen.
 					return false, errors.New("Error on the pipe descriptor.")
 				}
-				if event.Events&syscall.EPOLLIN != 0 {
+				if event.Events&unix.EPOLLIN != 0 {
 					// This is a regular wakeup, so we have to clear the buffer.
 					err := poller.clearWake()
 					if err != nil {
@@ -147,9 +148,9 @@ func (poller *fdPoller) wait() (bool, error) {
 // Close the write end of the poller.
 func (poller *fdPoller) wake() error {
 	buf := make([]byte, 1)
-	n, errno := syscall.Write(poller.pipe[1], buf)
+	n, errno := unix.Write(poller.pipe[1], buf)
 	if n == -1 {
-		if errno == syscall.EAGAIN {
+		if errno == unix.EAGAIN {
 			// Buffer is full, poller will wake.
 			return nil
 		}
@@ -161,9 +162,9 @@ func (poller *fdPoller) wake() error {
 func (poller *fdPoller) clearWake() error {
 	// You have to be woken up a LOT in order to get to 100!
 	buf := make([]byte, 100)
-	n, errno := syscall.Read(poller.pipe[0], buf)
+	n, errno := unix.Read(poller.pipe[0], buf)
 	if n == -1 {
-		if errno == syscall.EAGAIN {
+		if errno == unix.EAGAIN {
 			// Buffer is empty, someone else cleared our wake.
 			return nil
 		}
@@ -175,12 +176,12 @@ func (poller *fdPoller) clearWake() error {
 // Close all poller file descriptors, but not the one passed to it.
 func (poller *fdPoller) close() {
 	if poller.pipe[1] != -1 {
-		syscall.Close(poller.pipe[1])
+		unix.Close(poller.pipe[1])
 	}
 	if poller.pipe[0] != -1 {
-		syscall.Close(poller.pipe[0])
+		unix.Close(poller.pipe[0])
 	}
 	if poller.epfd != -1 {
-		syscall.Close(poller.epfd)
+		unix.Close(poller.epfd)
 	}
 }

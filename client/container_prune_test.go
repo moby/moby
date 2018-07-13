@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestContainersPruneError(t *testing.T) {
@@ -24,7 +25,7 @@ func TestContainersPruneError(t *testing.T) {
 	filters := filters.NewArgs()
 
 	_, err := client.ContainersPrune(context.Background(), filters)
-	assert.EqualError(t, err, "Error response from daemon: Server error")
+	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
 }
 
 func TestContainersPrune(t *testing.T) {
@@ -99,7 +100,7 @@ func TestContainersPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, expected, actual)
+					assert.Check(t, is.Equal(expected, actual))
 				}
 				content, err := json.Marshal(types.ContainersPruneReport{
 					ContainersDeleted: []string{"container_id1", "container_id2"},
@@ -117,8 +118,8 @@ func TestContainersPrune(t *testing.T) {
 		}
 
 		report, err := client.ContainersPrune(context.Background(), listCase.filters)
-		assert.NoError(t, err)
-		assert.Len(t, report.ContainersDeleted, 2)
-		assert.Equal(t, uint64(9999), report.SpaceReclaimed)
+		assert.Check(t, err)
+		assert.Check(t, is.Len(report.ContainersDeleted, 2))
+		assert.Check(t, is.Equal(uint64(9999), report.SpaceReclaimed))
 	}
 }

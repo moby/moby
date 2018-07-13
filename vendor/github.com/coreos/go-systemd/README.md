@@ -6,9 +6,11 @@
 Go bindings to systemd. The project has several packages:
 
 - `activation` - for writing and using socket activation from Go
+- `daemon` - for notifying systemd of service status changes
 - `dbus` - for starting/stopping/inspecting running services and units
 - `journal` - for writing to systemd's logging service, journald
 - `sdjournal` - for reading from journald by wrapping its C API
+- `login1` - for integration with the systemd logind API
 - `machine1` - for registering machines/containers with systemd
 - `unit` - for (de)serialization and comparison of unit files
 
@@ -18,10 +20,9 @@ An example HTTP server using socket activation can be quickly set up by followin
 
 https://github.com/coreos/go-systemd/tree/master/examples/activation/httpserver
 
-## Journal
+## systemd Service Notification
 
-Using the pure-Go `journal` package you can submit journal entries directly to systemd's journal, taking advantage of features like indexed key/value pairs for each log entry.
-The `sdjournal` package provides read access to the journal by wrapping around journald's native C API; consequently it requires cgo and the journal headers to be available.
+The `daemon` package is an implementation of the [sd_notify protocol](https://www.freedesktop.org/software/systemd/man/sd_notify.html#Description). It can be used to inform systemd of service start-up completion, watchdog events, and other status changes.
 
 ## D-Bus
 
@@ -44,6 +45,20 @@ Create `/etc/dbus-1/system-local.conf` that looks like this:
     </policy>
 </busconfig>
 ```
+
+## Journal
+
+### Writing to the Journal
+
+Using the pure-Go `journal` package you can submit journal entries directly to systemd's journal, taking advantage of features like indexed key/value pairs for each log entry.
+
+### Reading from the Journal
+
+The `sdjournal` package provides read access to the journal by wrapping around journald's native C API; consequently it requires cgo and the journal headers to be available.
+
+## logind
+
+The `login1` package provides functions to integrate with the [systemd logind API](http://www.freedesktop.org/wiki/Software/systemd/logind/).
 
 ## machined
 

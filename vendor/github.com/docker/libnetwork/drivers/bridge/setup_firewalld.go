@@ -9,7 +9,7 @@ func (n *bridgeNetwork) setupFirewalld(config *networkConfiguration, i *bridgeIn
 	d.Unlock()
 
 	// Sanity check.
-	if driverConfig.EnableIPTables == false {
+	if !driverConfig.EnableIPTables {
 		return IPTableCfgError(config.BridgeName)
 	}
 

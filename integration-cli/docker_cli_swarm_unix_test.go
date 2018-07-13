@@ -15,17 +15,18 @@ import (
 func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
-	out, err := d.Cmd("service", "create", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// Make sure task stays pending before plugin is available
-	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInState("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
+	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
 
 	plugin := newVolumePlugin(c, "customvolumedriver")
 	defer plugin.Close()
 
 	// create a dummy volume to trigger lazy loading of the plugin
 	out, err = d.Cmd("volume", "create", "-d", "customvolumedriver", "hello")
+	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// TODO(aaronl): It will take about 15 seconds for swarm to realize the
 	// plugin was loaded. Switching the test over to plugin v2 would avoid
@@ -74,7 +75,7 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 
 	// create a global service to ensure that both nodes will have an instance
 	serviceName := "my-service"
-	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
+	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, "busybox", "top")
 	c.Assert(err, checker.IsNil)
 
 	// wait for tasks ready
@@ -94,9 +95,9 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 
 	time.Sleep(20 * time.Second)
 
-	image := "busybox"
+	image := "busybox:latest"
 	// create a new global service again.
-	_, err = d1.Cmd("service", "create", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
+	_, err = d1.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--mode=global", "--network", networkName, image, "top")
 	c.Assert(err, checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckRunningTaskImages, checker.DeepEquals,

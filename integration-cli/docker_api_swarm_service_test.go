@@ -3,19 +3,25 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
+	testdaemon "github.com/docker/docker/internal/test/daemon"
 	"github.com/go-check/check"
+	"golang.org/x/sys/unix"
+	"gotest.tools/icmd"
 )
 
-func setPortConfig(portConfig []swarm.PortConfig) daemon.ServiceConstructor {
+func setPortConfig(portConfig []swarm.PortConfig) testdaemon.ServiceConstructor {
 	return func(s *swarm.Service) {
 		if s.Spec.EndpointSpec == nil {
 			s.Spec.EndpointSpec = &swarm.EndpointSpec{}
@@ -60,14 +66,22 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
-	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	_, out, err := d.SockRequest("GET", "/services/"+id+"?insertDefaults=true", nil)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
-	c.Assert(string(out), checker.Contains, "UpdateConfig")
+	cli, err := d.NewClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	options := types.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	_, out, err = d.SockRequest("GET", "/services/top?insertDefaults=true", nil)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	resp, _, err := cli.ServiceInspectWithRaw(context.Background(), id, options)
+	out := fmt.Sprintf("%+v", resp)
+	c.Assert(err, checker.IsNil)
+	c.Assert(out, checker.Contains, "UpdateConfig")
+
+	// insertDefaults inserts UpdateConfig when service is fetched by ID
+	resp, _, err = cli.ServiceInspectWithRaw(context.Background(), "top", options)
+	out = fmt.Sprintf("%+v", resp)
+	c.Assert(err, checker.IsNil)
 	c.Assert(string(out), checker.Contains, "UpdateConfig")
 
 	service := d.GetService(c, id)
@@ -127,7 +141,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreateGlobal(c *check.C) {
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 	const nodeCount = 3
-	var daemons [nodeCount]*daemon.Swarm
+	var daemons [nodeCount]*daemon.Daemon
 	for i := 0; i < nodeCount; i++ {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
@@ -173,7 +187,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdate(c *check.C) {
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback used to be a client-side operation.
-	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
+	out, err := daemons[0].Cmd("service", "update", "--detach", "--rollback", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// first batch
@@ -191,15 +205,15 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
 	// service image at start
 	image1 := "busybox:latest"
 	// target image in update
-	image2 := "testhealth"
+	image2 := "testhealth:latest"
 
 	// service started from this image won't pass health check
-	_, _, err := d.BuildImageWithOut(image2,
-		`FROM busybox
-		HEALTHCHECK --interval=1s --timeout=1s --retries=1024\
-		  CMD cat /status`,
-		true)
-	c.Check(err, check.IsNil)
+	result := cli.BuildCmd(c, image2, cli.Daemon(d),
+		build.WithDockerfile(`FROM busybox
+		HEALTHCHECK --interval=1s --timeout=30s --retries=1024 \
+		  CMD cat /status`),
+	)
+	result.Assert(c, icmd.Success)
 
 	// create service
 	instances := 5
@@ -282,7 +296,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback is a client-side operation.
-	out, err := d.Cmd("service", "update", "--rollback", id)
+	out, err := d.Cmd("service", "update", "--detach", "--rollback", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	// first batch
@@ -296,7 +310,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateStartFirst(c *check.C) {
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *check.C) {
 	const nodeCount = 3
-	var daemons [nodeCount]*daemon.Swarm
+	var daemons [nodeCount]*daemon.Daemon
 	for i := 0; i < nodeCount; i++ {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
@@ -327,7 +341,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *check.C) {
 
 	// Roll back to the previous version. This uses the CLI because
 	// rollback used to be a client-side operation.
-	out, err := daemons[0].Cmd("service", "update", "--rollback", id)
+	out, err := daemons[0].Cmd("service", "update", "--detach", "--rollback", id)
 	c.Assert(err, checker.IsNil, check.Commentf(out))
 
 	waitAndAssert(c, defaultReconciliationTimeout, daemons[0].CheckRunningTaskImages, checker.DeepEquals,
@@ -336,7 +350,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesFailedUpdate(c *check.C) {
 
 func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 	const nodeCount = 3
-	var daemons [nodeCount]*daemon.Swarm
+	var daemons [nodeCount]*daemon.Daemon
 	for i := 0; i < nodeCount; i++ {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
@@ -388,7 +402,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 
 func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 	const nodeCount = 3
-	var daemons [nodeCount]*daemon.Swarm
+	var daemons [nodeCount]*daemon.Daemon
 	for i := 0; i < nodeCount; i++ {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
@@ -483,7 +497,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 
 func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *check.C) {
 	const nodeCount = 3
-	var daemons [nodeCount]*daemon.Swarm
+	var daemons [nodeCount]*daemon.Daemon
 	for i := 0; i < nodeCount; i++ {
 		daemons[i] = s.AddDaemon(c, true, i == 0)
 	}
@@ -538,10 +552,10 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount, d3.CheckActiveContainerCount), checker.Equals, instances)
 
-	getContainers := func() map[string]*daemon.Swarm {
-		m := make(map[string]*daemon.Swarm)
-		for _, d := range []*daemon.Swarm{d1, d2, d3} {
-			for _, id := range d.ActiveContainers() {
+	getContainers := func() map[string]*daemon.Daemon {
+		m := make(map[string]*daemon.Daemon)
+		for _, d := range []*daemon.Daemon{d1, d2, d3} {
+			for _, id := range d.ActiveContainers(c) {
 				m[id] = d
 			}
 		}
@@ -580,7 +594,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	pid, err := strconv.Atoi(strings.TrimSpace(pidStr))
 	c.Assert(err, checker.IsNil)
-	c.Assert(syscall.Kill(pid, syscall.SIGKILL), checker.IsNil)
+	c.Assert(unix.Kill(pid, unix.SIGKILL), checker.IsNil)
 
 	time.Sleep(time.Second) // give some time to handle the signal
 

@@ -59,6 +59,62 @@ func (n noopCrypter) Algorithm() api.MaybeEncryptedRecord_Algorithm {
 // decrypt any data
 var NoopCrypter = noopCrypter{}
 
+// specificDecryptor represents a specific type of Decrypter, like NaclSecretbox or Fernet.
+// It does not apply to a more general decrypter like MultiDecrypter.
+type specificDecrypter interface {
+	Decrypter
+	Algorithm() api.MaybeEncryptedRecord_Algorithm
+}
+
+// MultiDecrypter is a decrypter that will attempt to decrypt with multiple decrypters.  It
+// references them by algorithm, so that only the relevant decrypters are checked instead of
+// every single one. The reason for multiple decrypters per algorithm is to support hitless
+// encryption key rotation.
+//
+// For raft encryption for instance, during an encryption key rotation, it's possible to have
+// some raft logs encrypted with the old key and some encrypted with the new key, so we need a
+// decrypter that can decrypt both.
+type MultiDecrypter struct {
+	decrypters map[api.MaybeEncryptedRecord_Algorithm][]Decrypter
+}
+
+// Decrypt tries to decrypt using any decrypters that match the given algorithm.
+func (m MultiDecrypter) Decrypt(r api.MaybeEncryptedRecord) ([]byte, error) {
+	decrypters, ok := m.decrypters[r.Algorithm]
+	if !ok {
+		return nil, fmt.Errorf("cannot decrypt record encrypted using %s",
+			api.MaybeEncryptedRecord_Algorithm_name[int32(r.Algorithm)])
+	}
+	var rerr error
+	for _, d := range decrypters {
+		result, err := d.Decrypt(r)
+		if err == nil {
+			return result, nil
+		}
+		rerr = err
+	}
+	return nil, rerr
+}
+
+// NewMultiDecrypter returns a new MultiDecrypter given multiple Decrypters.  If any of
+// the Decrypters are also MultiDecrypters, they are flattened into a single map, but
+// it does not deduplicate any decrypters.
+// Note that if something is neither a MultiDecrypter nor a specificDecrypter, it is
+// ignored.
+func NewMultiDecrypter(decrypters ...Decrypter) MultiDecrypter {
+	m := MultiDecrypter{decrypters: make(map[api.MaybeEncryptedRecord_Algorithm][]Decrypter)}
+	for _, d := range decrypters {
+		if md, ok := d.(MultiDecrypter); ok {
+			for algo, dec := range md.decrypters {
+				m.decrypters[algo] = append(m.decrypters[algo], dec...)
+			}
+		} else if sd, ok := d.(specificDecrypter); ok {
+			m.decrypters[sd.Algorithm()] = append(m.decrypters[sd.Algorithm()], sd)
+		}
+	}
+	return m
+}
+
 // Decrypt turns a slice of bytes serialized as an MaybeEncryptedRecord into a slice of plaintext bytes
 func Decrypt(encryptd []byte, decrypter Decrypter) ([]byte, error) {
 	if decrypter == nil {
@@ -95,10 +151,15 @@ func Encrypt(plaintext []byte, encrypter Encrypter) ([]byte, error) {
 	return data, nil
 }
 
-// Defaults returns a default encrypter and decrypter
-func Defaults(key []byte) (Encrypter, Decrypter) {
+// Defaults returns a default encrypter and decrypter.  If the FIPS parameter is set to
+// true, the only algorithm supported on both the encrypter and decrypter will be fernet.
+func Defaults(key []byte, fips bool) (Encrypter, Decrypter) {
+	f := NewFernet(key)
+	if fips {
+		return f, f
+	}
 	n := NewNACLSecretbox(key)
-	return n, n
+	return n, NewMultiDecrypter(n, f)
 }
 
 // GenerateSecretKey generates a secret key that can be used for encrypting data

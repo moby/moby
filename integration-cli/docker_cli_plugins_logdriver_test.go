@@ -1,8 +1,10 @@
 package main
 
 import (
+	"context"
 	"strings"
 
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 )
@@ -24,4 +26,23 @@ func (s *DockerSuite) TestPluginLogDriver(c *check.C) {
 	dockerCmd(c, "rm", "test")
 	dockerCmd(c, "plugin", "disable", pluginName)
 	dockerCmd(c, "plugin", "rm", pluginName)
+}
+
+// Make sure log drivers are listed in info, and v2 plugins are not.
+func (s *DockerSuite) TestPluginLogDriverInfoList(c *check.C) {
+	testRequires(c, IsAmd64, DaemonIsLinux)
+	pluginName := "cpuguy83/docker-logdriver-test"
+
+	dockerCmd(c, "plugin", "install", pluginName)
+
+	cli, err := client.NewEnvClient()
+	c.Assert(err, checker.IsNil)
+	defer cli.Close()
+
+	info, err := cli.Info(context.Background())
+	c.Assert(err, checker.IsNil)
+
+	drivers := strings.Join(info.Plugins.Log, " ")
+	c.Assert(drivers, checker.Contains, "json-file")
+	c.Assert(drivers, checker.Not(checker.Contains), pluginName)
 }

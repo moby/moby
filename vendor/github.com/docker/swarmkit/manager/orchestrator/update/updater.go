@@ -378,16 +378,13 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 	startThenStop := false
 	var delayStartCh <-chan struct{}
 	// Atomically create the updated task and bring down the old one.
-	_, err := u.store.Batch(func(batch *store.Batch) error {
+	err := u.store.Batch(func(batch *store.Batch) error {
 		err := batch.Update(func(tx store.Tx) error {
 			if store.GetService(tx, updated.ServiceID) == nil {
 				return errors.New("service was deleted")
 			}
 
-			if err := store.CreateTask(tx, updated); err != nil {
-				return err
-			}
-			return nil
+			return store.CreateTask(tx, updated)
 		})
 		if err != nil {
 			return err
@@ -430,8 +427,8 @@ func (u *Updater) updateTask(ctx context.Context, slot orchestrator.Slot, update
 				u.updatedTasks[updated.ID] = time.Now()
 				u.updatedTasksMu.Unlock()
 
-				if startThenStop {
-					_, err := u.store.Batch(func(batch *store.Batch) error {
+				if startThenStop && updated.Status.State == api.TaskStateRunning {
+					err := u.store.Batch(func(batch *store.Batch) error {
 						_, err := u.removeOldTasks(ctx, batch, slot)
 						if err != nil {
 							log.G(ctx).WithError(err).WithField("task.id", updated.ID).Warning("failed to remove old task after starting replacement")
@@ -457,7 +454,7 @@ func (u *Updater) useExistingTask(ctx context.Context, slot orchestrator.Slot, e
 	}
 	if len(removeTasks) != 0 || existing.DesiredState != api.TaskStateRunning {
 		var delayStartCh <-chan struct{}
-		_, err := u.store.Batch(func(batch *store.Batch) error {
+		err := u.store.Batch(func(batch *store.Batch) error {
 			var oldTask *api.Task
 			if len(removeTasks) != 0 {
 				var err error
@@ -496,6 +493,9 @@ func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, remove
 		removedTask *api.Task
 	)
 	for _, original := range removeTasks {
+		if original.DesiredState > api.TaskStateRunning {
+			continue
+		}
 		err := batch.Update(func(tx store.Tx) error {
 			t := store.GetTask(tx, original.ID)
 			if t == nil {
@@ -521,7 +521,11 @@ func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, remove
 }
 
 func (u *Updater) isTaskDirty(t *api.Task) bool {
-	return orchestrator.IsTaskDirty(u.newService, t)
+	var n *api.Node
+	u.store.View(func(tx store.ReadTx) {
+		n = store.GetNode(tx, t.NodeID)
+	})
+	return orchestrator.IsTaskDirty(u.newService, t, n)
 }
 
 func (u *Updater) isSlotDirty(slot orchestrator.Slot) bool {
@@ -583,9 +587,8 @@ func (u *Updater) pauseUpdate(ctx context.Context, serviceID, message string) {
 func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string) {
 	log.G(ctx).Debugf("starting rollback of service %s", serviceID)
 
-	var service *api.Service
 	err := u.store.Update(func(tx store.Tx) error {
-		service = store.GetService(tx, serviceID)
+		service := store.GetService(tx, serviceID)
 		if service == nil {
 			return nil
 		}
@@ -601,7 +604,9 @@ func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string)
 			return errors.New("cannot roll back service because no previous spec is available")
 		}
 		service.Spec = *service.PreviousSpec
+		service.SpecVersion = service.PreviousSpecVersion.Copy()
 		service.PreviousSpec = nil
+		service.PreviousSpecVersion = nil
 
 		return store.UpdateService(tx, service)
 	})

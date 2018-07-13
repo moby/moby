@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Entrypoint for jenkins janky CI build
+set -eu -o pipefail
+
+hack/validate/default
+hack/test/unit
+bash <(curl -s https://codecov.io/bash) \
+    -f coverage.txt \
+    -C "$GIT_SHA1" || \
+    echo 'Codecov failed to upload'
+
+hack/make.sh \
+	binary-daemon \
+	dynbinary \
+	test-docker-py \
+	test-integration \
+	cross

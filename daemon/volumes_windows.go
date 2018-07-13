@@ -1,12 +1,12 @@
-// +build windows
-
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"sort"
 
+	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/volume"
+	"github.com/docker/docker/pkg/idtools"
+	volumemounts "github.com/docker/docker/volume/mounts"
 )
 
 // setupMounts configures the mount points for a container by appending each
@@ -20,11 +20,11 @@ import (
 
 func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, error) {
 	var mnts []container.Mount
-	for _, mount := range c.MountPoints { // type is volume.MountPoint
+	for _, mount := range c.MountPoints { // type is volumemounts.MountPoint
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		s, err := mount.Setup(c.MountLabel, 0, 0)
+		s, err := mount.Setup(c.MountLabel, idtools.IDPair{UID: 0, GID: 0}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -42,6 +42,10 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 
 // setBindModeIfNull is platform specific processing which is a no-op on
 // Windows.
-func setBindModeIfNull(bind *volume.MountPoint) {
+func setBindModeIfNull(bind *volumemounts.MountPoint) {
 	return
+}
+
+func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
+	return false, nil
 }

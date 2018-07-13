@@ -1,11 +1,11 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
+	"context"
 	"encoding/json"
 	"net/url"
 
 	"github.com/docker/docker/api/types/image"
-	"golang.org/x/net/context"
 )
 
 // ImageHistory returns the changes in an image in history format.

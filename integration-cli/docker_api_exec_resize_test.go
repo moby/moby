@@ -9,8 +9,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
 )
 
@@ -20,9 +21,13 @@ func (s *DockerSuite) TestExecResizeAPIHeightWidthNoInt(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	endpoint := "/exec/" + cleanedContainerID + "/resize?h=foo&w=bar"
-	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
+	res, _, err := request.Post(endpoint)
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusInternalServerError)
+	if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusInternalServerError)
+	} else {
+		c.Assert(res.StatusCode, checker.Equals, http.StatusBadRequest)
+	}
 }
 
 // Part of #14845
@@ -36,16 +41,19 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 			"Cmd":         []string{"/bin/sh"},
 		}
 		uri := fmt.Sprintf("/containers/%s/exec", name)
-		status, body, err := request.SockRequest("POST", uri, data, daemonHost())
+		res, body, err := request.Post(uri, request.JSONBody(data))
 		if err != nil {
 			return err
 		}
-		if status != http.StatusCreated {
-			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, status)
+		if res.StatusCode != http.StatusCreated {
+			return fmt.Errorf("POST %s is expected to return %d, got %d", uri, http.StatusCreated, res.StatusCode)
 		}
 
+		buf, err := request.ReadBody(body)
+		c.Assert(err, checker.IsNil)
+
 		out := map[string]string{}
-		err = json.Unmarshal(body, &out)
+		err = json.Unmarshal(buf, &out)
 		if err != nil {
 			return fmt.Errorf("ExecCreate returned invalid json. Error: %q", err.Error())
 		}
@@ -56,23 +64,24 @@ func (s *DockerSuite) TestExecResizeImmediatelyAfterExecStart(c *check.C) {
 		}
 
 		payload := bytes.NewBufferString(`{"Tty":true}`)
-		conn, _, err := request.SockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", daemonHost())
+		conn, _, err := sockRequestHijack("POST", fmt.Sprintf("/exec/%s/start", execID), payload, "application/json", daemonHost())
 		if err != nil {
 			return fmt.Errorf("Failed to start the exec: %q", err.Error())
 		}
 		defer conn.Close()
 
 		_, rc, err := request.Post(fmt.Sprintf("/exec/%s/resize?h=24&w=80", execID), request.ContentType("text/plain"))
-		// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
-		if err == io.ErrUnexpectedEOF {
-			return fmt.Errorf("The daemon might have crashed.")
+		if err != nil {
+			// It's probably a panic of the daemon if io.ErrUnexpectedEOF is returned.
+			if err == io.ErrUnexpectedEOF {
+				return fmt.Errorf("The daemon might have crashed.")
+			}
+			// Other error happened, should be reported.
+			return fmt.Errorf("Fail to exec resize immediately after start. Error: %q", err.Error())
 		}
 
-		if err == nil {
-			rc.Close()
-		}
+		rc.Close()
 
-		// We only interested in the io.ErrUnexpectedEOF error, so we return nil otherwise.
 		return nil
 	}
 

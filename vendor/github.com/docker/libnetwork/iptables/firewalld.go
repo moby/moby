@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/godbus/dbus"
+	"github.com/sirupsen/logrus"
 )
 
 // IPV defines the table string

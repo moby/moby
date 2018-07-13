@@ -1,23 +1,22 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io/ioutil"
-	"net/http"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
 )
 
 // ImageInspectWithRaw returns the image information and its raw representation.
 func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (types.ImageInspect, []byte, error) {
+	if imageID == "" {
+		return types.ImageInspect{}, nil, objectNotFoundError{object: "image", id: imageID}
+	}
 	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", nil, nil)
 	if err != nil {
-		if serverResp.statusCode == http.StatusNotFound {
-			return types.ImageInspect{}, nil, imageNotFoundError{imageID}
-		}
-		return types.ImageInspect{}, nil, err
+		return types.ImageInspect{}, nil, wrapResponseError(err, serverResp, "image", imageID)
 	}
 	defer ensureReaderClosed(serverResp)
 

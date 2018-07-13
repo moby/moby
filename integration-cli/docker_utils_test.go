@@ -1,12 +1,12 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -15,13 +15,13 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/daemon"
-	"github.com/docker/docker/integration-cli/registry"
-	"github.com/docker/docker/integration-cli/request"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
+	"gotest.tools/icmd"
 )
 
 // Deprecated
@@ -201,12 +201,6 @@ func buildImage(name string, cmdOperators ...cli.CmdOperator) *icmd.Result {
 	return cli.Docker(cli.Build(name), cmdOperators...)
 }
 
-// Deprecated: use trustedcmd
-func trustedBuild(cmd *icmd.Cmd) func() {
-	trustedCmd(cmd)
-	return nil
-}
-
 // Write `content` to the file at path `dst`, creating it if necessary,
 // as well as any missing directories.
 // The file is truncated if it already exists.
@@ -232,7 +226,7 @@ func readFile(src string, c *check.C) (content string) {
 }
 
 func containerStorageFile(containerID, basename string) string {
-	return filepath.Join(testEnv.ContainerStoragePath(), containerID, basename)
+	return filepath.Join(testEnv.PlatformDefaults.ContainerStoragePath, containerID, basename)
 }
 
 // docker commands that use this function must be run with the '-d' switch.
@@ -264,20 +258,15 @@ func readContainerFileWithExec(c *check.C, containerID, filename string) []byte 
 
 // daemonTime provides the current time on the daemon host
 func daemonTime(c *check.C) time.Time {
-	if testEnv.LocalDaemon() {
+	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-
-	status, body, err := request.SockRequest("GET", "/info", nil, daemonHost())
+	cli, err := client.NewEnvClient()
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusOK)
+	defer cli.Close()
 
-	type infoJSON struct {
-		SystemTime string
-	}
-	var info infoJSON
-	err = json.Unmarshal(body, &info)
-	c.Assert(err, check.IsNil, check.Commentf("unable to unmarshal GET /info response"))
+	info, err := cli.Info(context.Background())
+	c.Assert(err, check.IsNil)
 
 	dt, err := time.Parse(time.RFC3339Nano, info.SystemTime)
 	c.Assert(err, check.IsNil, check.Commentf("invalid time format in GET /info response"))
@@ -292,29 +281,6 @@ func daemonUnixTime(c *check.C) string {
 
 func parseEventTime(t time.Time) string {
 	return fmt.Sprintf("%d.%09d", t.Unix(), int64(t.Nanosecond()))
-}
-
-func setupRegistry(c *check.C, schema1 bool, auth, tokenURL string) *registry.V2 {
-	reg, err := registry.NewV2(schema1, auth, tokenURL, privateRegistryURL)
-	c.Assert(err, check.IsNil)
-
-	// Wait for registry to be ready to serve requests.
-	for i := 0; i != 50; i++ {
-		if err = reg.Ping(); err == nil {
-			break
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
-
-	c.Assert(err, check.IsNil, check.Commentf("Timeout waiting for test registry to become available: %v", err))
-	return reg
-}
-
-func setupNotary(c *check.C) *testNotary {
-	ts, err := newTestNotary(c)
-	c.Assert(err, check.IsNil)
-
-	return ts
 }
 
 // appendBaseEnv appends the minimum set of environment variables to exec the
@@ -376,10 +342,11 @@ func waitInspectWithArgs(name, expr, expected string, timeout time.Duration, arg
 }
 
 func getInspectBody(c *check.C, version, id string) []byte {
-	endpoint := fmt.Sprintf("/%s/containers/%s/json", version, id)
-	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
+	cli, err := client.NewClientWithOpts(client.FromEnv, client.WithVersion(version))
 	c.Assert(err, check.IsNil)
-	c.Assert(status, check.Equals, http.StatusOK)
+	defer cli.Close()
+	_, body, err := cli.ContainerInspectWithRaw(context.Background(), id, false)
+	c.Assert(err, check.IsNil)
 	return body
 }
 
@@ -396,30 +363,27 @@ func runSleepingContainerInImage(c *check.C, image string, extraArgs ...string) 
 	args = append(args, extraArgs...)
 	args = append(args, image)
 	args = append(args, sleepCommandForDaemonPlatform()...)
-	return cli.DockerCmd(c, args...).Combined()
+	return strings.TrimSpace(cli.DockerCmd(c, args...).Combined())
 }
 
 // minimalBaseImage returns the name of the minimal base image for the current
 // daemon platform.
 func minimalBaseImage() string {
-	return testEnv.MinimalBaseImage()
+	return testEnv.PlatformDefaults.BaseImage
 }
 
 func getGoroutineNumber() (int, error) {
-	i := struct {
-		NGoroutines int
-	}{}
-	status, b, err := request.SockRequest("GET", "/info", nil, daemonHost())
+	cli, err := client.NewEnvClient()
 	if err != nil {
 		return 0, err
 	}
-	if status != http.StatusOK {
-		return 0, fmt.Errorf("http status code: %d", status)
-	}
-	if err := json.Unmarshal(b, &i); err != nil {
+	defer cli.Close()
+
+	info, err := cli.Info(context.Background())
+	if err != nil {
 		return 0, err
 	}
-	return i.NGoroutines, nil
+	return info.NGoroutines, nil
 }
 
 func waitForGoroutines(expected int) error {

@@ -1,17 +1,18 @@
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
-	"github.com/docker/docker/pkg/testutil"
 	"github.com/spf13/pflag"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/fs"
+	"gotest.tools/skip"
 )
 
 func TestDaemonConfigurationNotFound(t *testing.T) {
@@ -38,9 +39,6 @@ func TestDaemonBrokenConfiguration(t *testing.T) {
 }
 
 func TestParseClusterAdvertiseSettings(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ClusterSettings not supported on Solaris\n")
-	}
 	_, err := ParseClusterAdvertiseSettings("something", "")
 	if err != discovery.ErrDiscoveryDisabled {
 		t.Fatalf("expected discovery disabled error, got %v\n", err)
@@ -62,11 +60,8 @@ func TestFindConfigurationConflicts(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	flags.String("authorization-plugins", "", "")
-	assert.NoError(t, flags.Set("authorization-plugins", "asdf"))
-
-	testutil.ErrorContains(t,
-		findConfigurationConflicts(config, flags),
-		"authorization-plugins: (from flag: asdf, from file: foobar)")
+	assert.Check(t, flags.Set("authorization-plugins", "asdf"))
+	assert.Check(t, is.ErrorContains(findConfigurationConflicts(config, flags), "authorization-plugins: (from flag: asdf, from file: foobar)"))
 }
 
 func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
@@ -75,10 +70,9 @@ func TestFindConfigurationConflictsWithNamedOptions(t *testing.T) {
 
 	var hosts []string
 	flags.VarP(opts.NewNamedListOptsRef("hosts", &hosts, opts.ValidateHost), "host", "H", "Daemon socket(s) to connect to")
-	assert.NoError(t, flags.Set("host", "tcp://127.0.0.1:4444"))
-	assert.NoError(t, flags.Set("host", "unix:///var/run/docker.sock"))
-
-	testutil.ErrorContains(t, findConfigurationConflicts(config, flags), "hosts")
+	assert.Check(t, flags.Set("host", "tcp://127.0.0.1:4444"))
+	assert.Check(t, flags.Set("host", "unix:///var/run/docker.sock"))
+	assert.Check(t, is.ErrorContains(findConfigurationConflicts(config, flags), "hosts"))
 }
 
 func TestDaemonConfigurationMergeConflicts(t *testing.T) {
@@ -194,6 +188,40 @@ func TestFindConfigurationConflictsWithMergedValues(t *testing.T) {
 	}
 }
 
+func TestValidateReservedNamespaceLabels(t *testing.T) {
+	for _, validLabels := range [][]string{
+		nil, // no error if there are no labels
+		{ // no error if there aren't any reserved namespace labels
+			"hello=world",
+			"label=me",
+		},
+		{ // only reserved namespaces that end with a dot are invalid
+			"com.dockerpsychnotreserved.label=value",
+			"io.dockerproject.not=reserved",
+			"org.docker.not=reserved",
+		},
+	} {
+		assert.Check(t, ValidateReservedNamespaceLabels(validLabels))
+	}
+
+	for _, invalidLabel := range []string{
+		"com.docker.feature=enabled",
+		"io.docker.configuration=0",
+		"org.dockerproject.setting=on",
+		// casing doesn't matter
+		"COM.docker.feature=enabled",
+		"io.DOCKER.CONFIGURATION=0",
+		"Org.Dockerproject.Setting=on",
+	} {
+		err := ValidateReservedNamespaceLabels([]string{
+			"valid=label",
+			invalidLabel,
+			"another=valid",
+		})
+		assert.Check(t, is.ErrorContains(err, invalidLabel))
+	}
+}
+
 func TestValidateConfigurationErrors(t *testing.T) {
 	minusNumber := -10
 	testCases := []struct {
@@ -263,6 +291,20 @@ func TestValidateConfigurationErrors(t *testing.T) {
 				},
 			},
 		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=bar", "foo=1"},
+				},
+			},
+		},
 	}
 	for _, tc := range testCases {
 		err := Validate(tc.config)
@@ -317,6 +359,20 @@ func TestValidateConfiguration(t *testing.T) {
 					ValuesSet: map[string]interface{}{
 						"max-concurrent-uploads": -1,
 					},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=bar", "foo=baz"},
+				},
+			},
+		},
+		{
+			config: &Config{
+				CommonConfig: CommonConfig{
+					NodeGenericResources: []string{"foo=1"},
 				},
 			},
 		},
@@ -388,4 +444,75 @@ func discoveryConfig(backendAddr, advertiseAddr string, opts map[string]string) 
 			ClusterOpts:      opts,
 		},
 	}
+}
+
+// TestReloadSetConfigFileNotExist tests that when `--config-file` is set
+// and it doesn't exist the `Reload` function returns an error.
+func TestReloadSetConfigFileNotExist(t *testing.T) {
+	configFile := "/tmp/blabla/not/exists/config.json"
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", "", "")
+	flags.Set("config-file", configFile)
+
+	err := Reload(configFile, flags, func(c *Config) {})
+	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
+}
+
+// TestReloadDefaultConfigNotExist tests that if the default configuration file
+// doesn't exist the daemon still will be reloaded.
+func TestReloadDefaultConfigNotExist(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	reloaded := false
+	configFile := "/etc/docker/daemon.json"
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	err := Reload(configFile, flags, func(c *Config) {
+		reloaded = true
+	})
+	assert.Check(t, err)
+	assert.Check(t, reloaded)
+}
+
+// TestReloadBadDefaultConfig tests that when `--config-file` is not set
+// and the default configuration file exists and is bad return an error
+func TestReloadBadDefaultConfig(t *testing.T) {
+	f, err := ioutil.TempFile("", "docker-config-")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	configFile := f.Name()
+	f.Write([]byte(`{wrong: "configuration"}`))
+	f.Close()
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	err = Reload(configFile, flags, func(c *Config) {})
+	assert.Check(t, is.ErrorContains(err, "unable to configure the Docker daemon with file"))
+}
+
+func TestReloadWithConflictingLabels(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=bar","foo=baz"]}`))
+	defer tempFile.Remove()
+	configFile := tempFile.Path()
+
+	var lbls []string
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	flags.StringSlice("labels", lbls, "")
+	err := Reload(configFile, flags, func(c *Config) {})
+	assert.Check(t, is.ErrorContains(err, "conflict labels for foo=baz and foo=bar"))
+}
+
+func TestReloadWithDuplicateLabels(t *testing.T) {
+	tempFile := fs.NewFile(t, "config", fs.WithContent(`{"labels":["foo=the-same","foo=the-same"]}`))
+	defer tempFile.Remove()
+	configFile := tempFile.Path()
+
+	var lbls []string
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.String("config-file", configFile, "")
+	flags.StringSlice("labels", lbls, "")
+	err := Reload(configFile, flags, func(c *Config) {})
+	assert.Check(t, err)
 }

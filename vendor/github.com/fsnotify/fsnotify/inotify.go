@@ -14,8 +14,9 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"unsafe"
+
+	"golang.org/x/sys/unix"
 )
 
 // Watcher watches a set of files, delivering events to a channel.
@@ -23,7 +24,6 @@ type Watcher struct {
 	Events   chan Event
 	Errors   chan error
 	mu       sync.Mutex // Map access
-	cv       *sync.Cond // sync removing on rm_watch with IN_IGNORE
 	fd       int
 	poller   *fdPoller
 	watches  map[string]*watch // Map of inotify watches (key: path)
@@ -35,14 +35,14 @@ type Watcher struct {
 // NewWatcher establishes a new watcher with the underlying OS and begins waiting for events.
 func NewWatcher() (*Watcher, error) {
 	// Create inotify fd
-	fd, errno := syscall.InotifyInit()
+	fd, errno := unix.InotifyInit1(unix.IN_CLOEXEC)
 	if fd == -1 {
 		return nil, errno
 	}
 	// Create epoll
 	poller, err := newFdPoller(fd)
 	if err != nil {
-		syscall.Close(fd)
+		unix.Close(fd)
 		return nil, err
 	}
 	w := &Watcher{
@@ -55,7 +55,6 @@ func NewWatcher() (*Watcher, error) {
 		done:     make(chan struct{}),
 		doneResp: make(chan struct{}),
 	}
-	w.cv = sync.NewCond(&w.mu)
 
 	go w.readEvents()
 	return w, nil
@@ -95,28 +94,30 @@ func (w *Watcher) Add(name string) error {
 		return errors.New("inotify instance already closed")
 	}
 
-	const agnosticEvents = syscall.IN_MOVED_TO | syscall.IN_MOVED_FROM |
-		syscall.IN_CREATE | syscall.IN_ATTRIB | syscall.IN_MODIFY |
-		syscall.IN_MOVE_SELF | syscall.IN_DELETE | syscall.IN_DELETE_SELF
+	const agnosticEvents = unix.IN_MOVED_TO | unix.IN_MOVED_FROM |
+		unix.IN_CREATE | unix.IN_ATTRIB | unix.IN_MODIFY |
+		unix.IN_MOVE_SELF | unix.IN_DELETE | unix.IN_DELETE_SELF
 
 	var flags uint32 = agnosticEvents
 
 	w.mu.Lock()
-	watchEntry, found := w.watches[name]
-	w.mu.Unlock()
-	if found {
-		watchEntry.flags |= flags
-		flags |= syscall.IN_MASK_ADD
+	defer w.mu.Unlock()
+	watchEntry := w.watches[name]
+	if watchEntry != nil {
+		flags |= watchEntry.flags | unix.IN_MASK_ADD
 	}
-	wd, errno := syscall.InotifyAddWatch(w.fd, name, flags)
+	wd, errno := unix.InotifyAddWatch(w.fd, name, flags)
 	if wd == -1 {
 		return errno
 	}
 
-	w.mu.Lock()
-	w.watches[name] = &watch{wd: uint32(wd), flags: flags}
-	w.paths[wd] = name
-	w.mu.Unlock()
+	if watchEntry == nil {
+		w.watches[name] = &watch{wd: uint32(wd), flags: flags}
+		w.paths[wd] = name
+	} else {
+		watchEntry.wd = uint32(wd)
+		watchEntry.flags = flags
+	}
 
 	return nil
 }
@@ -134,13 +135,20 @@ func (w *Watcher) Remove(name string) error {
 	if !ok {
 		return fmt.Errorf("can't remove non-existent inotify watch for: %s", name)
 	}
+
+	// We successfully removed the watch if InotifyRmWatch doesn't return an
+	// error, we need to clean up our internal state to ensure it matches
+	// inotify's kernel state.
+	delete(w.paths, int(watch.wd))
+	delete(w.watches, name)
+
 	// inotify_rm_watch will return EINVAL if the file has been deleted;
 	// the inotify will already have been removed.
 	// watches and pathes are deleted in ignoreLinux() implicitly and asynchronously
 	// by calling inotify_rm_watch() below. e.g. readEvents() goroutine receives IN_IGNORE
 	// so that EINVAL means that the wd is being rm_watch()ed or its file removed
 	// by another thread and we have not received IN_IGNORE event.
-	success, errno := syscall.InotifyRmWatch(w.fd, watch.wd)
+	success, errno := unix.InotifyRmWatch(w.fd, watch.wd)
 	if success == -1 {
 		// TODO: Perhaps it's not helpful to return an error here in every case.
 		// the only two possible errors are:
@@ -149,13 +157,6 @@ func (w *Watcher) Remove(name string) error {
 		// Watch descriptors are invalidated when they are removed explicitly or implicitly;
 		// explicitly by inotify_rm_watch, implicitly when the file they are watching is deleted.
 		return errno
-	}
-
-	// wait until ignoreLinux() deleting maps
-	exists := true
-	for exists {
-		w.cv.Wait()
-		_, exists = w.watches[name]
 	}
 
 	return nil
@@ -170,16 +171,16 @@ type watch struct {
 // received events into Event objects and sends them via the Events channel
 func (w *Watcher) readEvents() {
 	var (
-		buf   [syscall.SizeofInotifyEvent * 4096]byte // Buffer for a maximum of 4096 raw events
-		n     int                                     // Number of bytes read with read()
-		errno error                                   // Syscall errno
-		ok    bool                                    // For poller.wait
+		buf   [unix.SizeofInotifyEvent * 4096]byte // Buffer for a maximum of 4096 raw events
+		n     int                                  // Number of bytes read with read()
+		errno error                                // Syscall errno
+		ok    bool                                 // For poller.wait
 	)
 
 	defer close(w.doneResp)
 	defer close(w.Errors)
 	defer close(w.Events)
-	defer syscall.Close(w.fd)
+	defer unix.Close(w.fd)
 	defer w.poller.close()
 
 	for {
@@ -202,20 +203,20 @@ func (w *Watcher) readEvents() {
 			continue
 		}
 
-		n, errno = syscall.Read(w.fd, buf[:])
+		n, errno = unix.Read(w.fd, buf[:])
 		// If a signal interrupted execution, see if we've been asked to close, and try again.
 		// http://man7.org/linux/man-pages/man7/signal.7.html :
 		// "Before Linux 3.8, reads from an inotify(7) file descriptor were not restartable"
-		if errno == syscall.EINTR {
+		if errno == unix.EINTR {
 			continue
 		}
 
-		// syscall.Read might have been woken up by Close. If so, we're done.
+		// unix.Read might have been woken up by Close. If so, we're done.
 		if w.isClosed() {
 			return
 		}
 
-		if n < syscall.SizeofInotifyEvent {
+		if n < unix.SizeofInotifyEvent {
 			var err error
 			if n == 0 {
 				// If EOF is received. This should really never happen.
@@ -238,22 +239,40 @@ func (w *Watcher) readEvents() {
 		var offset uint32
 		// We don't know how many events we just read into the buffer
 		// While the offset points to at least one whole event...
-		for offset <= uint32(n-syscall.SizeofInotifyEvent) {
+		for offset <= uint32(n-unix.SizeofInotifyEvent) {
 			// Point "raw" to the event in the buffer
-			raw := (*syscall.InotifyEvent)(unsafe.Pointer(&buf[offset]))
+			raw := (*unix.InotifyEvent)(unsafe.Pointer(&buf[offset]))
 
 			mask := uint32(raw.Mask)
 			nameLen := uint32(raw.Len)
+
+			if mask&unix.IN_Q_OVERFLOW != 0 {
+				select {
+				case w.Errors <- ErrEventOverflow:
+				case <-w.done:
+					return
+				}
+			}
+
 			// If the event happened to the watched directory or the watched file, the kernel
 			// doesn't append the filename to the event, but we would like to always fill the
 			// the "Name" field with a valid filename. We retrieve the path of the watch from
 			// the "paths" map.
 			w.mu.Lock()
-			name := w.paths[int(raw.Wd)]
+			name, ok := w.paths[int(raw.Wd)]
+			// IN_DELETE_SELF occurs when the file/directory being watched is removed.
+			// This is a sign to clean up the maps, otherwise we are no longer in sync
+			// with the inotify kernel state which has already deleted the watch
+			// automatically.
+			if ok && mask&unix.IN_DELETE_SELF == unix.IN_DELETE_SELF {
+				delete(w.paths, int(raw.Wd))
+				delete(w.watches, name)
+			}
 			w.mu.Unlock()
+
 			if nameLen > 0 {
 				// Point "bytes" at the first byte of the filename
-				bytes := (*[syscall.PathMax]byte)(unsafe.Pointer(&buf[offset+syscall.SizeofInotifyEvent]))
+				bytes := (*[unix.PathMax]byte)(unsafe.Pointer(&buf[offset+unix.SizeofInotifyEvent]))
 				// The filename is padded with NULL bytes. TrimRight() gets rid of those.
 				name += "/" + strings.TrimRight(string(bytes[0:nameLen]), "\000")
 			}
@@ -261,7 +280,7 @@ func (w *Watcher) readEvents() {
 			event := newEvent(name, mask)
 
 			// Send the events that are not ignored on the events channel
-			if !event.ignoreLinux(w, raw.Wd, mask) {
+			if !event.ignoreLinux(mask) {
 				select {
 				case w.Events <- event:
 				case <-w.done:
@@ -270,7 +289,7 @@ func (w *Watcher) readEvents() {
 			}
 
 			// Move to the next event in the buffer
-			offset += syscall.SizeofInotifyEvent + nameLen
+			offset += unix.SizeofInotifyEvent + nameLen
 		}
 	}
 }
@@ -278,15 +297,9 @@ func (w *Watcher) readEvents() {
 // Certain types of events can be "ignored" and not sent over the Events
 // channel. Such as events marked ignore by the kernel, or MODIFY events
 // against files that do not exist.
-func (e *Event) ignoreLinux(w *Watcher, wd int32, mask uint32) bool {
+func (e *Event) ignoreLinux(mask uint32) bool {
 	// Ignore anything the inotify API says to ignore
-	if mask&syscall.IN_IGNORED == syscall.IN_IGNORED {
-		w.mu.Lock()
-		defer w.mu.Unlock()
-		name := w.paths[int(wd)]
-		delete(w.paths, int(wd))
-		delete(w.watches, name)
-		w.cv.Broadcast()
+	if mask&unix.IN_IGNORED == unix.IN_IGNORED {
 		return true
 	}
 
@@ -305,19 +318,19 @@ func (e *Event) ignoreLinux(w *Watcher, wd int32, mask uint32) bool {
 // newEvent returns an platform-independent Event based on an inotify mask.
 func newEvent(name string, mask uint32) Event {
 	e := Event{Name: name}
-	if mask&syscall.IN_CREATE == syscall.IN_CREATE || mask&syscall.IN_MOVED_TO == syscall.IN_MOVED_TO {
+	if mask&unix.IN_CREATE == unix.IN_CREATE || mask&unix.IN_MOVED_TO == unix.IN_MOVED_TO {
 		e.Op |= Create
 	}
-	if mask&syscall.IN_DELETE_SELF == syscall.IN_DELETE_SELF || mask&syscall.IN_DELETE == syscall.IN_DELETE {
+	if mask&unix.IN_DELETE_SELF == unix.IN_DELETE_SELF || mask&unix.IN_DELETE == unix.IN_DELETE {
 		e.Op |= Remove
 	}
-	if mask&syscall.IN_MODIFY == syscall.IN_MODIFY {
+	if mask&unix.IN_MODIFY == unix.IN_MODIFY {
 		e.Op |= Write
 	}
-	if mask&syscall.IN_MOVE_SELF == syscall.IN_MOVE_SELF || mask&syscall.IN_MOVED_FROM == syscall.IN_MOVED_FROM {
+	if mask&unix.IN_MOVE_SELF == unix.IN_MOVE_SELF || mask&unix.IN_MOVED_FROM == unix.IN_MOVED_FROM {
 		e.Op |= Rename
 	}
-	if mask&syscall.IN_ATTRIB == syscall.IN_ATTRIB {
+	if mask&unix.IN_ATTRIB == unix.IN_ATTRIB {
 		e.Op |= Chmod
 	}
 	return e

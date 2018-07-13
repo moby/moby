@@ -2,12 +2,12 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
-import "specs.proto";
+import "github.com/docker/swarmkit/api/types.proto";
+import "github.com/docker/swarmkit/api/specs.proto";
 import "google/protobuf/timestamp.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/any.proto";
-import "plugin/plugin.proto";
+import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // This file contains definitions for all first-class objects in the cluster
 // API. Such types typically have a corresponding specification, with the
@@ -59,8 +59,9 @@ message Node {
 	// component, if the node is a manager.
 	ManagerStatus manager_status = 6;
 
+	// DEPRECATED: Use Attachments to find the ingress network
 	// The node attachment to the ingress network.
-	NetworkAttachment attachment = 7;
+	NetworkAttachment attachment = 7 [deprecated=true];
 
 	// Certificate is the TLS certificate issued for the node, if any.
 	Certificate certificate = 8 [(gogoproto.nullable) = false];
@@ -75,6 +76,11 @@ message Node {
 	// shows the privilege level that the CA would currently grant when
 	// issuing or renewing the node's certificate.
 	NodeRole role = 9;
+
+	// Attachments enumerates the network attachments for the node to set up an
+	// endpoint on the node to be used for load balancing. Each overlay
+	// network, including ingress network, will have an NetworkAttachment.
+	repeated NetworkAttachment attachments = 10;
 }
 
 message Service {
@@ -239,6 +245,8 @@ message Task {
 	//
 	// If not present, the daemon's default will be used.
 	Driver log_driver = 13;
+
+	repeated GenericResource assigned_generic_resources = 15;
 }
 
 // NetworkAttachment specifies the network parameters of attachment to
@@ -255,6 +263,9 @@ message NetworkAttachment {
 
 	// List of aliases by which a task is resolved in a network
 	repeated string aliases = 3;
+
+	// Map of all the driver attachment options for this network
+	map<string,string> driver_attachment_opts = 4;
 }
 
 message Network {
@@ -325,6 +336,12 @@ message Cluster {
 	// If the key is empty, the node will be unlocked (will not require a key
 	// to start up from a shut down state).
 	repeated EncryptionKey unlock_keys = 9;
+
+	// FIPS specifies whether this cluster should be in FIPS mode.  This changes
+	// the format of the join tokens, and nodes that are not FIPS-enabled should
+	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
+	// should be rejected from the cluster.
+	bool fips = 10 [(gogoproto.customname) = "FIPS"];
 }
 
 // Secret represents a secret that should be passed to a container or a node,

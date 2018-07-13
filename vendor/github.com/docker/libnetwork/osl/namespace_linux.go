@@ -14,10 +14,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/ns"
+	"github.com/docker/libnetwork/osl/kernel"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netns"
 )
@@ -29,13 +30,18 @@ func init() {
 }
 
 var (
-	once             sync.Once
-	garbagePathMap   = make(map[string]bool)
-	gpmLock          sync.Mutex
-	gpmWg            sync.WaitGroup
-	gpmCleanupPeriod = 60 * time.Second
-	gpmChan          = make(chan chan struct{})
-	prefix           = defaultPrefix
+	once               sync.Once
+	garbagePathMap     = make(map[string]bool)
+	gpmLock            sync.Mutex
+	gpmWg              sync.WaitGroup
+	gpmCleanupPeriod   = 60 * time.Second
+	gpmChan            = make(chan chan struct{})
+	prefix             = defaultPrefix
+	loadBalancerConfig = map[string]*kernel.OSValue{
+		// expires connection from the IPVS connection table when the backend is not available
+		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L126:1
+		"net.ipv4.vs.expire_nodest_conn": {"1", nil},
+	}
 )
 
 // The networkNamespace type is the linux implementation of the Sandbox
@@ -220,9 +226,11 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 	if err != nil {
 		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
-
+	// In live-restore mode, IPV6 entries are getting cleaned up due to below code
+	// We should retain IPV6 configrations in live-restore mode when Docker Daemon
+	// comes back. It should work as it is on other cases
 	// As starting point, disable IPv6 on all interfaces
-	if !n.isDefault {
+	if !isRestore && !n.isDefault {
 		err = setIPv6(n.path, "all", false)
 		if err != nil {
 			logrus.Warnf("Failed to disable IPv6 on all interfaces on network namespace %q: %v", n.path, err)
@@ -354,6 +362,26 @@ func (n *networkNamespace) loopbackUp() error {
 		return err
 	}
 	return n.nlHandle.LinkSetUp(iface)
+}
+
+func (n *networkNamespace) GetLoopbackIfaceName() string {
+	return "lo"
+}
+
+func (n *networkNamespace) AddAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrAdd(iface, &netlink.Addr{IPNet: ip})
+}
+
+func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
+	iface, err := n.nlHandle.LinkByName(ifName)
+	if err != nil {
+		return err
+	}
+	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
 }
 
 func (n *networkNamespace) InvokeFunc(f func()) error {
@@ -588,6 +616,15 @@ func reexecSetIPv6() {
 		value = byte('0')
 	}
 
+	if _, err := os.Stat(path); err != nil {
+		if os.IsNotExist(err) {
+			logrus.Warnf("file does not exist: %s : %v Has IPv6 been disabled in this node's kernel?", path, err)
+			os.Exit(0)
+		}
+		logrus.Errorf("failed to stat %s : %v", path, err)
+		os.Exit(5)
+	}
+
 	if err = ioutil.WriteFile(path, []byte{value, '\n'}, 0644); err != nil {
 		logrus.Errorf("failed to %s IPv6 forwarding for container's interface %s: %v", action, os.Args[2], err)
 		os.Exit(4)
@@ -607,4 +644,14 @@ func setIPv6(path, iface string, enable bool) error {
 		return fmt.Errorf("reexec to set IPv6 failed: %v", err)
 	}
 	return nil
+}
+
+// ApplyOSTweaks applies linux configs on the sandbox
+func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
+	for _, t := range types {
+		switch t {
+		case SandboxTypeLoadBalancer:
+			kernel.ApplyOSTweaks(loadBalancerConfig)
+		}
+	}
 }

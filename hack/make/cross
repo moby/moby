@@ -1,51 +1,29 @@
 #!/usr/bin/env bash
 set -e
 
-# explicit list of os/arch combos that support being a daemon
-declare -A daemonSupporting
-daemonSupporting=(
-	[linux/amd64]=1
-	[windows/amd64]=1
-)
-
 # if we have our linux/amd64 version compiled, let's symlink it in
 if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
 	arch=$(go env GOHOSTARCH)
 	mkdir -p "$DEST/linux/${arch}"
 	(
 		cd "$DEST/linux/${arch}"
-		ln -s ../../../binary-daemon/* ./
-		ln -s ../../../binary-client/* ./
+		ln -sf ../../../binary-daemon/* ./
 	)
 	echo "Created symlinks:" "$DEST/linux/${arch}/"*
 fi
+
+DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64"}
 
 for platform in $DOCKER_CROSSPLATFORMS; do
 	(
 		export KEEPDEST=1
 		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION
-		mkdir -p "$DEST"
-		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		export GOOS=${platform%/*}
 		export GOARCH=${platform##*/}
 
-		if [ "$GOOS" != "solaris" ]; then
-			# TODO. Solaris cannot be cross build because of CGO calls.
-
-			# go install docker/docker/pkg packages to ensure that
-			# they build cross platform.
-			go install github.com/docker/docker/pkg/...
-
-			if [ -z "${daemonSupporting[$platform]}" ]; then
-				# we just need a simple client for these platforms
-				export LDFLAGS_STATIC_DOCKER=""
-				# remove the "daemon" build tag from platforms that aren't supported
-				export BUILDFLAGS=( "${ORIG_BUILDFLAGS[@]/ daemon/}" )
-				source "${MAKEDIR}/binary-client"
-			else
-				source "${MAKEDIR}/binary-client"
-				source "${MAKEDIR}/binary-daemon"
-			fi
-		fi
+		echo "Cross building: $DEST"
+		mkdir -p "$DEST"
+		ABS_DEST="$(cd "$DEST" && pwd -P)"
+		source "${MAKEDIR}/binary-daemon"
 	)
 done

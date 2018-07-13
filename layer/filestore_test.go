@@ -1,4 +1,4 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"fmt"
@@ -24,12 +24,12 @@ func newFileMetadataStore(t *testing.T) (*fileMetadataStore, string, func()) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	fms, err := NewFSMetadataStore(td)
+	fms, err := newFSMetadataStore(td)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return fms.(*fileMetadataStore), td, func() {
+	return fms, td, func() {
 		if err := os.RemoveAll(td); err != nil {
 			t.Logf("Failed to cleanup %q: %s", td, err)
 		}

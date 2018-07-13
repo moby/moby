@@ -1,13 +1,11 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"runtime"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -20,9 +18,6 @@ import (
 // ContainerStats writes information about the container to the stream
 // given in the config object.
 func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, config *backend.ContainerStatsConfig) error {
-	if runtime.GOOS == "solaris" {
-		return fmt.Errorf("%+v does not support stats", runtime.GOOS)
-	}
 	// Engine API version (used for backwards compatibility)
 	apiVersion := config.Version
 

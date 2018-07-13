@@ -1,12 +1,10 @@
-// +build !linux,!windows,!freebsd,!solaris
+// +build !linux,!windows,!freebsd
 
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 var (
-	// Slice of drivers that should be used in an order
-	priority = []string{
-		"unsupported",
-	}
+	// List of drivers that should be used in an order
+	priority = "unsupported"
 )
 
 // GetFSMagic returns the filesystem id given the path.

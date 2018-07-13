@@ -6,10 +6,6 @@ import (
 	"io"
 	"sync"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/ca"
@@ -17,7 +13,10 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/watch"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -34,7 +33,7 @@ type logMessage struct {
 // LogBroker coordinates log subscriptions to services and tasks. Clients can
 // publish and subscribe to logs channels.
 //
-// Log subscriptions are pushed to the work nodes by creating log subscsription
+// Log subscriptions are pushed to the work nodes by creating log subscription
 // tasks. As such, the LogBroker also acts as an orchestrator of these tasks.
 type LogBroker struct {
 	mu                sync.RWMutex
@@ -57,12 +56,12 @@ func New(store *store.MemoryStore) *LogBroker {
 	}
 }
 
-// Run the log broker
-func (lb *LogBroker) Run(ctx context.Context) error {
+// Start starts the log broker
+func (lb *LogBroker) Start(ctx context.Context) error {
 	lb.mu.Lock()
+	defer lb.mu.Unlock()
 
 	if lb.cancelAll != nil {
-		lb.mu.Unlock()
 		return errAlreadyRunning
 	}
 
@@ -71,12 +70,7 @@ func (lb *LogBroker) Run(ctx context.Context) error {
 	lb.subscriptionQueue = watch.NewQueue()
 	lb.registeredSubscriptions = make(map[string]*subscription)
 	lb.subscriptionsByNode = make(map[string]map[*subscription]struct{})
-	lb.mu.Unlock()
-
-	select {
-	case <-lb.pctx.Done():
-		return lb.pctx.Err()
-	}
+	return nil
 }
 
 // Stop stops the log broker
@@ -98,11 +92,11 @@ func (lb *LogBroker) Stop() error {
 
 func validateSelector(selector *api.LogSelector) error {
 	if selector == nil {
-		return grpc.Errorf(codes.InvalidArgument, "log selector must be provided")
+		return status.Errorf(codes.InvalidArgument, "log selector must be provided")
 	}
 
 	if len(selector.ServiceIDs) == 0 && len(selector.TaskIDs) == 0 && len(selector.NodeIDs) == 0 {
-		return grpc.Errorf(codes.InvalidArgument, "log selector must not be empty")
+		return status.Errorf(codes.InvalidArgument, "log selector must not be empty")
 	}
 
 	return nil
@@ -234,8 +228,15 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 		return err
 	}
 
+	lb.mu.Lock()
+	pctx := lb.pctx
+	lb.mu.Unlock()
+	if pctx == nil {
+		return errNotRunning
+	}
+
 	subscription := lb.newSubscription(request.Selector, request.Options)
-	subscription.Run(lb.pctx)
+	subscription.Run(pctx)
 	defer subscription.Stop()
 
 	log := log.G(ctx).WithFields(
@@ -257,8 +258,8 @@ func (lb *LogBroker) SubscribeLogs(request *api.SubscribeLogsRequest, stream api
 		select {
 		case <-ctx.Done():
 			return ctx.Err()
-		case <-lb.pctx.Done():
-			return lb.pctx.Err()
+		case <-pctx.Done():
+			return pctx.Err()
 		case event := <-publishCh:
 			publish := event.(*logMessage)
 			if publish.completed {
@@ -308,6 +309,13 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 		return err
 	}
 
+	lb.mu.Lock()
+	pctx := lb.pctx
+	lb.mu.Unlock()
+	if pctx == nil {
+		return errNotRunning
+	}
+
 	lb.nodeConnected(remote.NodeID)
 	defer lb.nodeDisconnected(remote.NodeID)
 
@@ -329,7 +337,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 		select {
 		case <-stream.Context().Done():
 			return stream.Context().Err()
-		case <-lb.pctx.Done():
+		case <-pctx.Done():
 			return nil
 		default:
 		}
@@ -362,7 +370,7 @@ func (lb *LogBroker) ListenSubscriptions(request *api.ListenSubscriptionsRequest
 			}
 		case <-stream.Context().Done():
 			return stream.Context().Err()
-		case <-lb.pctx.Done():
+		case <-pctx.Done():
 			return nil
 		}
 	}
@@ -392,17 +400,17 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 		}
 
 		if logMsg.SubscriptionID == "" {
-			return grpc.Errorf(codes.InvalidArgument, "missing subscription ID")
+			return status.Errorf(codes.InvalidArgument, "missing subscription ID")
 		}
 
 		if currentSubscription == nil {
 			currentSubscription = lb.getSubscription(logMsg.SubscriptionID)
 			if currentSubscription == nil {
-				return grpc.Errorf(codes.NotFound, "unknown subscription ID")
+				return status.Errorf(codes.NotFound, "unknown subscription ID")
 			}
 		} else {
 			if logMsg.SubscriptionID != currentSubscription.message.ID {
-				return grpc.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
+				return status.Errorf(codes.InvalidArgument, "different subscription IDs in the same session")
 			}
 		}
 
@@ -418,7 +426,7 @@ func (lb *LogBroker) PublishLogs(stream api.LogBroker_PublishLogsServer) (err er
 		// Make sure logs are emitted using the right Node ID to avoid impersonation.
 		for _, msg := range logMsg.Messages {
 			if msg.Context.NodeID != remote.NodeID {
-				return grpc.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
+				return status.Errorf(codes.PermissionDenied, "invalid NodeID: expected=%s;received=%s", remote.NodeID, msg.Context.NodeID)
 			}
 		}
 

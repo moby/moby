@@ -11,7 +11,7 @@ type Plugin struct {
 	// Required: true
 	Config PluginConfig `json:"Config"`
 
-	// True when the plugin is running. False when the plugin is not running, only installed.
+	// True if the plugin is running. False if the plugin is not running, only installed.
 	// Required: true
 	Enabled bool `json:"Enabled"`
 
@@ -120,6 +120,9 @@ type PluginConfigArgs struct {
 // PluginConfigInterface The interface between Docker and the plugin
 // swagger:model PluginConfigInterface
 type PluginConfigInterface struct {
+
+	// Protocol to use for clients connecting to the plugin.
+	ProtocolScheme string `json:"ProtocolScheme,omitempty"`
 
 	// socket
 	// Required: true

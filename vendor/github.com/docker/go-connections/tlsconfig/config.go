@@ -13,7 +13,6 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/pkg/errors"
 )
 
@@ -66,22 +65,34 @@ var allTLSVersions = map[uint16]struct{}{
 }
 
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
-func ServerDefault() *tls.Config {
-	return &tls.Config{
-		// Avoid fallback to SSL protocols < TLS1.0
+func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
+	tlsconfig := &tls.Config{
+		// Avoid fallback by default to SSL protocols < TLS1.0
 		MinVersion:               tls.VersionTLS10,
 		PreferServerCipherSuites: true,
 		CipherSuites:             DefaultServerAcceptedCiphers,
 	}
+
+	for _, op := range ops {
+		op(tlsconfig)
+	}
+
+	return tlsconfig
 }
 
 // ClientDefault returns a secure-enough TLS configuration for the client TLS configuration.
-func ClientDefault() *tls.Config {
-	return &tls.Config{
+func ClientDefault(ops ...func(*tls.Config)) *tls.Config {
+	tlsconfig := &tls.Config{
 		// Prefer TLS1.2 as the client minimum
 		MinVersion:   tls.VersionTLS12,
 		CipherSuites: clientCipherSuites,
 	}
+
+	for _, op := range ops {
+		op(tlsconfig)
+	}
+
+	return tlsconfig
 }
 
 // certPool returns an X.509 certificate pool from `caFile`, the certificate file.
@@ -106,7 +117,6 @@ func certPool(caFile string, exclusivePool bool) (*x509.CertPool, error) {
 	if !certPool.AppendCertsFromPEM(pem) {
 		return nil, fmt.Errorf("failed to append certificates from PEM file: %q", caFile)
 	}
-	logrus.Debugf("Trusting %d certs", len(certPool.Subjects()))
 	return certPool, nil
 }
 

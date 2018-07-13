@@ -1,10 +1,15 @@
 // +build windows
 
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"io/ioutil"
 	"testing"
+
+	"github.com/docker/docker/opts"
+	"github.com/spf13/pflag"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestDaemonConfigurationMerge(t *testing.T) {
@@ -35,25 +40,21 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		},
 	}
 
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cc.Debug {
-		t.Fatalf("expected %v, got %v\n", true, cc.Debug)
-	}
-	if !cc.AutoRestart {
-		t.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
-	}
-	if cc.LogConfig.Type != "syslog" {
-		t.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	var debug bool
+	flags.BoolVarP(&debug, "debug", "D", false, "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+
+	cc, err := MergeDaemonConfigurations(c, flags, configFile)
+	assert.NilError(t, err)
+
+	assert.Check(t, cc.Debug)
+	assert.Check(t, cc.AutoRestart)
+
+	expectedLogConfig := LogConfig{
+		Type:   "syslog",
+		Config: map[string]string{"tag": "test_tag"},
 	}
 
-	if configValue, OK := cc.LogConfig.Config["tag"]; !OK {
-		t.Fatal("expected syslog config attributes, got nil\n")
-	} else {
-		if configValue != "test_tag" {
-			t.Fatalf("expected syslog config attributes 'tag=test_tag', got 'tag=%s'\n", configValue)
-		}
-	}
+	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
 }

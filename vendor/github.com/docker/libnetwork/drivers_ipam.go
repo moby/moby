@@ -6,9 +6,11 @@ import (
 	builtinIpam "github.com/docker/libnetwork/ipams/builtin"
 	nullIpam "github.com/docker/libnetwork/ipams/null"
 	remoteIpam "github.com/docker/libnetwork/ipams/remote"
+	"github.com/docker/libnetwork/ipamutils"
 )
 
-func initIPAMDrivers(r *drvregistry.DrvRegistry, lDs, gDs interface{}) error {
+func initIPAMDrivers(r *drvregistry.DrvRegistry, lDs, gDs interface{}, addressPool []*ipamutils.NetworkToSplit) error {
+	builtinIpam.SetDefaultIPAddressPool(addressPool)
 	for _, fn := range [](func(ipamapi.Callback, interface{}, interface{}) error){
 		builtinIpam.Init,
 		remoteIpam.Init,

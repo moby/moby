@@ -1,4 +1,4 @@
-package opts
+package opts // import "github.com/docker/docker/opts"
 
 import (
 	"fmt"
@@ -157,7 +157,7 @@ func TestValidateDNSSearch(t *testing.T) {
 		`foo.bar-.baz`,
 		`foo.-bar`,
 		`foo.-bar.baz`,
-		`foo.bar.baz.this.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbethis.should.fail.on.long.name.beause.it.is.longer.thanisshouldbe`,
+		`foo.bar.baz.this.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbethis.should.fail.on.long.name.because.it.is.longer.thanitshouldbe`,
 	}
 
 	for _, domain := range valid {
@@ -228,49 +228,6 @@ func TestNamedMapOpts(t *testing.T) {
 	}
 	if _, exist := tmpMap["max-size"]; !exist {
 		t.Errorf("expected map-size to be in the values, got %v", tmpMap)
-	}
-}
-
-func TestValidateMACAddress(t *testing.T) {
-	if _, err := ValidateMACAddress(`92:d0:c6:0a:29:33`); err != nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:29:33`) got %s", err)
-	}
-
-	if _, err := ValidateMACAddress(`92:d0:c6:0a:33`); err == nil {
-		t.Fatalf("ValidateMACAddress(`92:d0:c6:0a:33`) succeeded; expected failure on invalid MAC")
-	}
-
-	if _, err := ValidateMACAddress(`random invalid string`); err == nil {
-		t.Fatalf("ValidateMACAddress(`random invalid string`) succeeded; expected failure on invalid MAC")
-	}
-}
-
-func TestValidateLink(t *testing.T) {
-	valid := []string{
-		"name",
-		"dcdfbe62ecd0:alias",
-		"7a67485460b7642516a4ad82ecefe7f57d0c4916f530561b71a50a3f9c4e33da",
-		"angry_torvalds:linus",
-	}
-	invalid := map[string]string{
-		"":               "empty string specified for links",
-		"too:much:of:it": "bad format for links: too:much:of:it",
-	}
-
-	for _, link := range valid {
-		if _, err := ValidateLink(link); err != nil {
-			t.Fatalf("ValidateLink(`%q`) should succeed: error %q", link, err)
-		}
-	}
-
-	for link, expectedError := range invalid {
-		if _, err := ValidateLink(link); err == nil {
-			t.Fatalf("ValidateLink(`%q`) should have failed validation", link)
-		} else {
-			if !strings.Contains(err.Error(), expectedError) {
-				t.Fatalf("ValidateLink(`%q`) error should contain %q", link, expectedError)
-			}
-		}
 	}
 }
 

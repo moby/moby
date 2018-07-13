@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+#
+# Run unit tests
+#
+# TESTFLAGS - add additional test flags. Ex:
+#
+#   TESTFLAGS="-v -run TestBuild" hack/test/unit
+#
+# TESTDIRS - run tests for specified packages. Ex:
+#
+#    TESTDIRS="./pkg/term" hack/test/unit
+#
+set -eu -o pipefail
+
+TESTFLAGS+=" -test.timeout=${TIMEOUT:-5m}"
+BUILDFLAGS=( -tags "netgo seccomp libdm_no_deferred_remove" )
+TESTDIRS="${TESTDIRS:-"./..."}"
+
+exclude_paths="/vendor/|/integration"
+pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
+
+# install test dependencies once before running tests for each package. This
+# significantly reduces the runtime.
+go test -i "${BUILDFLAGS[@]}" $pkg_list
+
+for pkg in $pkg_list; do
+    go test "${BUILDFLAGS[@]}" \
+        -cover \
+        -coverprofile=profile.out \
+        -covermode=atomic \
+        $TESTFLAGS \
+        "${pkg}"
+
+    if test -f profile.out; then
+        cat profile.out >> coverage.txt
+        rm profile.out
+    fi
+done

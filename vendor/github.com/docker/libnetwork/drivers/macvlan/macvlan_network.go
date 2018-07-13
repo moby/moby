@@ -3,7 +3,6 @@ package macvlan
 import (
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/libnetwork/driverapi"
@@ -12,6 +11,7 @@ import (
 	"github.com/docker/libnetwork/options"
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // CreateNetwork the network for the specified driver type
@@ -154,11 +154,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 	}
 	for _, ep := range n.endpoints {
 		if link, err := ns.NlHandle().LinkByName(ep.srcName); err == nil {
-			ns.NlHandle().LinkDel(link)
+			if err := ns.NlHandle().LinkDel(link); err != nil {
+				logrus.WithError(err).Warnf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove macvlan endpoint %s from store: %v", ep.id[0:7], err)
+			logrus.Warnf("Failed to remove macvlan endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 	// delete the *network

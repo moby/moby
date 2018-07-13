@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/netutils"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 type endpointTable map[string]*endpoint
@@ -90,7 +90,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	n.addEndpoint(ep)
 
 	if err := d.writeEndpointToStore(ep); err != nil {
-		return fmt.Errorf("failed to update overlay endpoint %s to local store: %v", ep.id[0:7], err)
+		return fmt.Errorf("failed to update overlay endpoint %.7s to local store: %v", ep.id, err)
 	}
 
 	return nil
@@ -116,7 +116,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	n.deleteEndpoint(eid)
 
 	if err := d.deleteEndpointFromStore(ep); err != nil {
-		logrus.Warnf("Failed to delete overlay endpoint %s from local store: %v", ep.id[0:7], err)
+		logrus.Warnf("Failed to delete overlay endpoint %.7s from local store: %v", ep.id, err)
 	}
 
 	if ep.ifName == "" {
@@ -144,11 +144,7 @@ func (d *driver) deleteEndpointFromStore(e *endpoint) error {
 		return fmt.Errorf("overlay local store not initialized, ep not deleted")
 	}
 
-	if err := d.localStore.DeleteObjectAtomic(e); err != nil {
-		return err
-	}
-
-	return nil
+	return d.localStore.DeleteObjectAtomic(e)
 }
 
 func (d *driver) writeEndpointToStore(e *endpoint) error {
@@ -156,10 +152,7 @@ func (d *driver) writeEndpointToStore(e *endpoint) error {
 		return fmt.Errorf("overlay local store not initialized, ep not added")
 	}
 
-	if err := d.localStore.PutObjectAtomic(e); err != nil {
-		return err
-	}
-	return nil
+	return d.localStore.PutObjectAtomic(e)
 }
 
 func (ep *endpoint) DataScope() string {

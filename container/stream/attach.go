@@ -1,23 +1,17 @@
-package stream
+package stream // import "github.com/docker/docker/container/stream"
 
 import (
+	"context"
 	"io"
-	"sync"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/pkg/promise"
+	"github.com/docker/docker/pkg/pools"
+	"github.com/docker/docker/pkg/term"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 var defaultEscapeSequence = []byte{16, 17} // ctrl-p, ctrl-q
-
-// DetachError is special error which returned in case of container detach.
-type DetachError struct{}
-
-func (DetachError) Error() string {
-	return "detached from container"
-}
 
 // AttachConfig is the config struct used to attach a client to a stream's stdio
 type AttachConfig struct {
@@ -63,93 +57,87 @@ func (c *Config) AttachStreams(cfg *AttachConfig) {
 }
 
 // CopyStreams starts goroutines to copy data in and out to/from the container
-func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error {
-	var (
-		wg     sync.WaitGroup
-		errors = make(chan error, 3)
-	)
+func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) <-chan error {
+	var group errgroup.Group
 
+	// Connect stdin of container to the attach stdin stream.
 	if cfg.Stdin != nil {
-		wg.Add(1)
+		group.Go(func() error {
+			logrus.Debug("attach: stdin: begin")
+			defer logrus.Debug("attach: stdin: end")
+
+			defer func() {
+				if cfg.CloseStdin && !cfg.TTY {
+					cfg.CStdin.Close()
+				} else {
+					// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
+					if cfg.CStdout != nil {
+						cfg.CStdout.Close()
+					}
+					if cfg.CStderr != nil {
+						cfg.CStderr.Close()
+					}
+				}
+			}()
+
+			var err error
+			if cfg.TTY {
+				_, err = copyEscapable(cfg.CStdin, cfg.Stdin, cfg.DetachKeys)
+			} else {
+				_, err = pools.Copy(cfg.CStdin, cfg.Stdin)
+			}
+			if err == io.ErrClosedPipe {
+				err = nil
+			}
+			if err != nil {
+				logrus.WithError(err).Debug("error on attach stdin")
+				return errors.Wrap(err, "error on attach stdin")
+			}
+			return nil
+		})
+	}
+
+	attachStream := func(name string, stream io.Writer, streamPipe io.ReadCloser) error {
+		logrus.Debugf("attach: %s: begin", name)
+		defer logrus.Debugf("attach: %s: end", name)
+		defer func() {
+			// Make sure stdin gets closed
+			if cfg.Stdin != nil {
+				cfg.Stdin.Close()
+			}
+			streamPipe.Close()
+		}()
+
+		_, err := pools.Copy(stream, streamPipe)
+		if err == io.ErrClosedPipe {
+			err = nil
+		}
+		if err != nil {
+			logrus.WithError(err).Debugf("attach: %s", name)
+			return errors.Wrapf(err, "error attaching %s stream", name)
+		}
+		return nil
 	}
 
 	if cfg.Stdout != nil {
-		wg.Add(1)
+		group.Go(func() error {
+			return attachStream("stdout", cfg.Stdout, cfg.CStdout)
+		})
 	}
-
 	if cfg.Stderr != nil {
-		wg.Add(1)
+		group.Go(func() error {
+			return attachStream("stderr", cfg.Stderr, cfg.CStderr)
+		})
 	}
 
-	// Connect stdin of container to the attach stdin stream.
+	errs := make(chan error, 1)
 	go func() {
-		if cfg.Stdin == nil {
-			return
-		}
-		logrus.Debug("attach: stdin: begin")
-
-		var err error
-		if cfg.TTY {
-			_, err = copyEscapable(cfg.CStdin, cfg.Stdin, cfg.DetachKeys)
-		} else {
-			_, err = io.Copy(cfg.CStdin, cfg.Stdin)
-		}
-		if err == io.ErrClosedPipe {
-			err = nil
-		}
-		if err != nil {
-			logrus.Errorf("attach: stdin: %s", err)
-			errors <- err
-		}
-		if cfg.CloseStdin && !cfg.TTY {
-			cfg.CStdin.Close()
-		} else {
-			// No matter what, when stdin is closed (io.Copy unblock), close stdout and stderr
-			if cfg.CStdout != nil {
-				cfg.CStdout.Close()
-			}
-			if cfg.CStderr != nil {
-				cfg.CStderr.Close()
-			}
-		}
-		logrus.Debug("attach: stdin: end")
-		wg.Done()
-	}()
-
-	attachStream := func(name string, stream io.Writer, streamPipe io.ReadCloser) {
-		if stream == nil {
-			return
-		}
-
-		logrus.Debugf("attach: %s: begin", name)
-		_, err := io.Copy(stream, streamPipe)
-		if err == io.ErrClosedPipe {
-			err = nil
-		}
-		if err != nil {
-			logrus.Errorf("attach: %s: %v", name, err)
-			errors <- err
-		}
-		// Make sure stdin gets closed
-		if cfg.Stdin != nil {
-			cfg.Stdin.Close()
-		}
-		streamPipe.Close()
-		logrus.Debugf("attach: %s: end", name)
-		wg.Done()
-	}
-
-	go attachStream("stdout", cfg.Stdout, cfg.CStdout)
-	go attachStream("stderr", cfg.Stderr, cfg.CStderr)
-
-	return promise.Go(func() error {
-		done := make(chan struct{})
+		defer logrus.Debug("attach done")
+		groupErr := make(chan error, 1)
 		go func() {
-			wg.Wait()
-			close(done)
+			groupErr <- group.Wait()
 		}()
 		select {
-		case <-done:
 		case <-ctx.Done():
 			// close all pipes
 			if cfg.CStdin != nil {
@@ -161,75 +149,27 @@ func (c *Config) CopyStreams(ctx context.Context, cfg *AttachConfig) chan error 
 			if cfg.CStderr != nil {
 				cfg.CStderr.Close()
 			}
-			<-done
-		}
-		close(errors)
-		for err := range errors {
-			if err != nil {
-				return err
+
+			// Now with these closed, wait should return.
+			if err := group.Wait(); err != nil {
+				errs <- err
+				return
 			}
+			errs <- ctx.Err()
+		case err := <-groupErr:
+			errs <- err
 		}
-		return nil
-	})
-}
+	}()
 
-// ttyProxy is used only for attaches with a TTY. It is used to proxy
-// stdin keypresses from the underlying reader and look for the passed in
-// escape key sequence to signal a detach.
-type ttyProxy struct {
-	escapeKeys   []byte
-	escapeKeyPos int
-	r            io.Reader
-}
-
-func (r *ttyProxy) Read(buf []byte) (int, error) {
-	nr, err := r.r.Read(buf)
-
-	preserve := func() {
-		// this preserves the original key presses in the passed in buffer
-		nr += r.escapeKeyPos
-		preserve := make([]byte, 0, r.escapeKeyPos+len(buf))
-		preserve = append(preserve, r.escapeKeys[:r.escapeKeyPos]...)
-		preserve = append(preserve, buf...)
-		r.escapeKeyPos = 0
-		copy(buf[0:nr], preserve)
-	}
-
-	if nr != 1 || err != nil {
-		if r.escapeKeyPos > 0 {
-			preserve()
-		}
-		return nr, err
-	}
-
-	if buf[0] != r.escapeKeys[r.escapeKeyPos] {
-		if r.escapeKeyPos > 0 {
-			preserve()
-		}
-		return nr, nil
-	}
-
-	if r.escapeKeyPos == len(r.escapeKeys)-1 {
-		return 0, DetachError{}
-	}
-
-	// Looks like we've got an escape key, but we need to match again on the next
-	// read.
-	// Store the current escape key we found so we can look for the next one on
-	// the next read.
-	// Since this is an escape key, make sure we don't let the caller read it
-	// If later on we find that this is not the escape sequence, we'll add the
-	// keys back
-	r.escapeKeyPos++
-	return nr - r.escapeKeyPos, nil
+	return errs
 }
 
 func copyEscapable(dst io.Writer, src io.ReadCloser, keys []byte) (written int64, err error) {
 	if len(keys) == 0 {
 		keys = defaultEscapeSequence
 	}
-	pr := &ttyProxy{escapeKeys: keys, r: src}
+	pr := term.NewEscapeProxy(src, keys)
 	defer src.Close()
 
-	return io.Copy(dst, pr)
+	return pools.Copy(dst, pr)
 }

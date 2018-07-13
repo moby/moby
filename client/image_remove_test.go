@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,8 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestImageRemoveError(t *testing.T) {
@@ -19,9 +21,17 @@ func TestImageRemoveError(t *testing.T) {
 	}
 
 	_, err := client.ImageRemove(context.Background(), "image_id", types.ImageRemoveOptions{})
-	if err == nil || err.Error() != "Error response from daemon: Server error" {
-		t.Fatalf("expected a Server Error, got %v", err)
+	assert.Check(t, is.Error(err, "Error response from daemon: Server error"))
+}
+
+func TestImageRemoveImageNotFound(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusNotFound, "missing")),
 	}
+
+	_, err := client.ImageRemove(context.Background(), "unknown", types.ImageRemoveOptions{})
+	assert.Check(t, is.Error(err, "Error: No such image: unknown"))
+	assert.Check(t, IsErrNotFound(err))
 }
 
 func TestImageRemove(t *testing.T) {

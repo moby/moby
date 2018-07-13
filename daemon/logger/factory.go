@@ -1,12 +1,13 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/plugingetter"
-	units "github.com/docker/go-units"
+	"github.com/docker/go-units"
 	"github.com/pkg/errors"
 )
 
@@ -21,6 +22,22 @@ type logdriverFactory struct {
 	registry     map[string]Creator
 	optValidator map[string]LogOptValidator
 	m            sync.Mutex
+}
+
+func (lf *logdriverFactory) list() []string {
+	ls := make([]string, 0, len(lf.registry))
+	lf.m.Lock()
+	for name := range lf.registry {
+		ls = append(ls, name)
+	}
+	lf.m.Unlock()
+	sort.Strings(ls)
+	return ls
+}
+
+// ListDrivers gets the list of registered log driver names
+func ListDrivers() []string {
+	return factory.list()
 }
 
 func (lf *logdriverFactory) register(name string, c Creator) error {
@@ -76,7 +93,7 @@ func (lf *logdriverFactory) getLogOptValidator(name string) LogOptValidator {
 	lf.m.Lock()
 	defer lf.m.Unlock()
 
-	c, _ := lf.optValidator[name]
+	c := lf.optValidator[name]
 	return c
 }
 

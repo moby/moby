@@ -14,7 +14,7 @@ option (gogoproto.goproto_stringer_all) = false;
 // EndpointRecord specifies all the endpoint specific information that
 // needs to gossiped to nodes participating in the network.
 message EndpointRecord {
-	// Name of the endpoint
+	// Name of the container
 	string name = 1;
 
 	// Service name of the service to which this endpoint belongs.
@@ -37,6 +37,9 @@ message EndpointRecord {
 
 	// List of aliases task specific aliases
 	repeated string task_aliases = 8;
+
+	// Whether this enpoint's service has been disabled
+	bool service_disabled = 9;
 }
 
 // PortConfig specifies an exposed port which can be
@@ -51,6 +54,7 @@ message PortConfig {
 
 		TCP = 0 [(gogoproto.enumvalue_customname) = "ProtocolTCP"];
 		UDP = 1 [(gogoproto.enumvalue_customname) = "ProtocolUDP"];
+		SCTP = 2 [(gogoproto.enumvalue_customname) = "ProtocolSCTP"];
 	}
 
 	// Name for the port. If provided the port information can

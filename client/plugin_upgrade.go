@@ -1,18 +1,20 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
-	"fmt"
+	"context"
 	"io"
 	"net/url"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 // PluginUpgrade upgrades a plugin
 func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types.PluginInstallOptions) (rc io.ReadCloser, err error) {
+	if err := cli.NewVersionError("1.26", "plugin upgrade"); err != nil {
+		return nil, err
+	}
 	query := url.Values{}
 	if _, err := reference.ParseNormalizedNamed(options.RemoteRef); err != nil {
 		return nil, errors.Wrap(err, "invalid remote reference")
@@ -33,5 +35,5 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 
 func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
-	return cli.post(ctx, fmt.Sprintf("/plugins/%s/upgrade", name), query, privileges, headers)
+	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, headers)
 }

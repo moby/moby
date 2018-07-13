@@ -1,10 +1,11 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
+
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
 )
 
 // networkAttacherController implements agent.Controller against docker's API.
@@ -20,8 +21,8 @@ type networkAttacherController struct {
 	closed  chan struct{}
 }
 
-func newNetworkAttacherController(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*networkAttacherController, error) {
-	adapter, err := newContainerAdapter(b, task, secrets)
+func newNetworkAttacherController(b executorpkg.Backend, i executorpkg.ImageBackend, v executorpkg.VolumeBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*networkAttacherController, error) {
+	adapter, err := newContainerAdapter(b, i, v, task, node, dependencies)
 	if err != nil {
 		return nil, err
 	}
@@ -40,11 +41,7 @@ func (nc *networkAttacherController) Update(ctx context.Context, t *api.Task) er
 
 func (nc *networkAttacherController) Prepare(ctx context.Context) error {
 	// Make sure all the networks that the task needs are created.
-	if err := nc.adapter.createNetworks(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return nc.adapter.createNetworks(ctx)
 }
 
 func (nc *networkAttacherController) Start(ctx context.Context) error {
@@ -69,11 +66,7 @@ func (nc *networkAttacherController) Terminate(ctx context.Context) error {
 func (nc *networkAttacherController) Remove(ctx context.Context) error {
 	// Try removing the network referenced in this task in case this
 	// task is the last one referencing it
-	if err := nc.adapter.removeNetworks(ctx); err != nil {
-		return err
-	}
-
-	return nil
+	return nc.adapter.removeNetworks(ctx)
 }
 
 func (nc *networkAttacherController) Close() error {

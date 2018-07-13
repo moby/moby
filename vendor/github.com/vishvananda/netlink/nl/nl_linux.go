@@ -459,7 +459,7 @@ func NewNetlinkRequest(proto, flags int) *NetlinkRequest {
 }
 
 type NetlinkSocket struct {
-	fd  int
+	fd  int32
 	lsa syscall.SockaddrNetlink
 	sync.Mutex
 }
@@ -470,7 +470,7 @@ func getNetlinkSocket(protocol int) (*NetlinkSocket, error) {
 		return nil, err
 	}
 	s := &NetlinkSocket{
-		fd: fd,
+		fd: int32(fd),
 	}
 	s.lsa.Family = syscall.AF_NETLINK
 	if err := syscall.Bind(fd, &s.lsa); err != nil {
@@ -556,7 +556,7 @@ func Subscribe(protocol int, groups ...uint) (*NetlinkSocket, error) {
 		return nil, err
 	}
 	s := &NetlinkSocket{
-		fd: fd,
+		fd: int32(fd),
 	}
 	s.lsa.Family = syscall.AF_NETLINK
 
@@ -585,30 +585,32 @@ func SubscribeAt(newNs, curNs netns.NsHandle, protocol int, groups ...uint) (*Ne
 }
 
 func (s *NetlinkSocket) Close() {
-	syscall.Close(s.fd)
-	s.fd = -1
+	fd := int(atomic.SwapInt32(&s.fd, -1))
+	syscall.Close(fd)
 }
 
 func (s *NetlinkSocket) GetFd() int {
-	return s.fd
+	return int(atomic.LoadInt32(&s.fd))
 }
 
 func (s *NetlinkSocket) Send(request *NetlinkRequest) error {
-	if s.fd < 0 {
+	fd := int(atomic.LoadInt32(&s.fd))
+	if fd < 0 {
 		return fmt.Errorf("Send called on a closed socket")
 	}
-	if err := syscall.Sendto(s.fd, request.Serialize(), 0, &s.lsa); err != nil {
+	if err := syscall.Sendto(fd, request.Serialize(), 0, &s.lsa); err != nil {
 		return err
 	}
 	return nil
 }
 
 func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
-	if s.fd < 0 {
+	fd := int(atomic.LoadInt32(&s.fd))
+	if fd < 0 {
 		return nil, fmt.Errorf("Receive called on a closed socket")
 	}
 	rb := make([]byte, syscall.Getpagesize())
-	nr, _, err := syscall.Recvfrom(s.fd, rb, 0)
+	nr, _, err := syscall.Recvfrom(fd, rb, 0)
 	if err != nil {
 		return nil, err
 	}
@@ -619,8 +621,23 @@ func (s *NetlinkSocket) Receive() ([]syscall.NetlinkMessage, error) {
 	return syscall.ParseNetlinkMessage(rb)
 }
 
+// SetSendTimeout allows to set a send timeout on the socket
+func (s *NetlinkSocket) SetSendTimeout(timeout *syscall.Timeval) error {
+	// Set a send timeout of SOCKET_SEND_TIMEOUT, this will allow the Send to periodically unblock and avoid that a routine
+	// remains stuck on a send on a closed fd
+	return syscall.SetsockoptTimeval(int(s.fd), syscall.SOL_SOCKET, syscall.SO_SNDTIMEO, timeout)
+}
+
+// SetReceiveTimeout allows to set a receive timeout on the socket
+func (s *NetlinkSocket) SetReceiveTimeout(timeout *syscall.Timeval) error {
+	// Set a read timeout of SOCKET_READ_TIMEOUT, this will allow the Read to periodically unblock and avoid that a routine
+	// remains stuck on a recvmsg on a closed fd
+	return syscall.SetsockoptTimeval(int(s.fd), syscall.SOL_SOCKET, syscall.SO_RCVTIMEO, timeout)
+}
+
 func (s *NetlinkSocket) GetPid() (uint32, error) {
-	lsa, err := syscall.Getsockname(s.fd)
+	fd := int(atomic.LoadInt32(&s.fd))
+	lsa, err := syscall.Getsockname(fd)
 	if err != nil {
 		return 0, err
 	}

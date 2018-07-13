@@ -1,6 +1,6 @@
-// +build solaris linux freebsd
+// +build linux freebsd
 
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"net"
@@ -11,8 +11,6 @@ import (
 // CommonUnixConfig defines configuration of a docker daemon that is
 // common across Unix platforms.
 type CommonUnixConfig struct {
-	ExecRoot          string                   `json:"exec-root,omitempty"`
-	ContainerdAddr    string                   `json:"containerd,omitempty"`
 	Runtimes          map[string]types.Runtime `json:"runtimes,omitempty"`
 	DefaultRuntime    string                   `json:"default-runtime,omitempty"`
 	DefaultInitBinary string                   `json:"default-init,omitempty"`
@@ -59,7 +57,7 @@ func (conf *Config) GetExecRoot() string {
 	return conf.ExecRoot
 }
 
-// GetInitPath returns the configure docker-init path
+// GetInitPath returns the configured docker-init path
 func (conf *Config) GetInitPath() string {
 	conf.Lock()
 	defer conf.Unlock()

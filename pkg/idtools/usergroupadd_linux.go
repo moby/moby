@@ -1,4 +1,4 @@
-package idtools
+package idtools // import "github.com/docker/docker/pkg/idtools"
 
 import (
 	"fmt"

@@ -1,15 +1,22 @@
 // generated code - DO NOT EDIT
 
-package volumedrivers
+package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
 	"errors"
+	"time"
 
+	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/volume"
 )
 
+const (
+	longTimeout  = 2 * time.Minute
+	shortTimeout = 1 * time.Minute
+)
+
 type client interface {
-	Call(string, interface{}, interface{}) error
+	CallWithOptions(string, interface{}, interface{}, ...func(*plugins.RequestOpts)) error
 }
 
 type volumeDriverProxy struct {
@@ -33,7 +40,8 @@ func (pp *volumeDriverProxy) Create(name string, opts map[string]string) (err er
 
 	req.Name = name
 	req.Opts = opts
-	if err = pp.Call("VolumeDriver.Create", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Create", req, &ret, plugins.WithRequestTimeout(longTimeout)); err != nil {
 		return
 	}
 
@@ -59,7 +67,8 @@ func (pp *volumeDriverProxy) Remove(name string) (err error) {
 	)
 
 	req.Name = name
-	if err = pp.Call("VolumeDriver.Remove", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Remove", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 
@@ -86,7 +95,8 @@ func (pp *volumeDriverProxy) Path(name string) (mountpoint string, err error) {
 	)
 
 	req.Name = name
-	if err = pp.Call("VolumeDriver.Path", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Path", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 
@@ -117,7 +127,8 @@ func (pp *volumeDriverProxy) Mount(name string, id string) (mountpoint string, e
 
 	req.Name = name
 	req.ID = id
-	if err = pp.Call("VolumeDriver.Mount", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Mount", req, &ret, plugins.WithRequestTimeout(longTimeout)); err != nil {
 		return
 	}
 
@@ -147,7 +158,8 @@ func (pp *volumeDriverProxy) Unmount(name string, id string) (err error) {
 
 	req.Name = name
 	req.ID = id
-	if err = pp.Call("VolumeDriver.Unmount", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Unmount", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 
@@ -172,7 +184,7 @@ func (pp *volumeDriverProxy) List() (volumes []*proxyVolume, err error) {
 		ret volumeDriverProxyListResponse
 	)
 
-	if err = pp.Call("VolumeDriver.List", req, &ret); err != nil {
+	if err = pp.CallWithOptions("VolumeDriver.List", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 
@@ -201,7 +213,8 @@ func (pp *volumeDriverProxy) Get(name string) (volume *proxyVolume, err error) {
 	)
 
 	req.Name = name
-	if err = pp.Call("VolumeDriver.Get", req, &ret); err != nil {
+
+	if err = pp.CallWithOptions("VolumeDriver.Get", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 
@@ -228,7 +241,7 @@ func (pp *volumeDriverProxy) Capabilities() (capabilities volume.Capability, err
 		ret volumeDriverProxyCapabilitiesResponse
 	)
 
-	if err = pp.Call("VolumeDriver.Capabilities", req, &ret); err != nil {
+	if err = pp.CallWithOptions("VolumeDriver.Capabilities", req, &ret, plugins.WithRequestTimeout(shortTimeout)); err != nil {
 		return
 	}
 

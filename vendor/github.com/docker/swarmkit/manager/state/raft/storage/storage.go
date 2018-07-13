@@ -13,7 +13,6 @@ import (
 	"github.com/coreos/etcd/snap"
 	"github.com/coreos/etcd/wal"
 	"github.com/coreos/etcd/wal/walpb"
-	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/pkg/errors"
@@ -34,24 +33,13 @@ var versionedWALSnapDirs = []walSnapDirs{
 	{wal: "wal", snap: "snap"},
 }
 
-// MultiDecrypter attempts to decrypt with a list of decrypters
-type MultiDecrypter []encryption.Decrypter
-
-// Decrypt tries to decrypt using all the decrypters
-func (m MultiDecrypter) Decrypt(r api.MaybeEncryptedRecord) (result []byte, err error) {
-	for _, d := range m {
-		result, err = d.Decrypt(r)
-		if err == nil {
-			return
-		}
-	}
-	return
-}
-
 // EncryptedRaftLogger saves raft data to disk
 type EncryptedRaftLogger struct {
 	StateDir      string
 	EncryptionKey []byte
+
+	// FIPS specifies whether the encryption should be FIPS-compliant
+	FIPS bool
 
 	// mutex is locked for writing only when we need to replace the wal object and snapshotter
 	// object, not when we're writing snapshots or wals (in which case it's locked for reading)
@@ -68,14 +56,14 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 	walDir := e.walDir()
 	snapDir := e.snapDir()
 
-	encrypter, decrypter := encryption.Defaults(e.EncryptionKey)
+	encrypter, decrypter := encryption.Defaults(e.EncryptionKey, e.FIPS)
 	if oldEncryptionKeys != nil {
 		decrypters := []encryption.Decrypter{decrypter}
 		for _, key := range oldEncryptionKeys {
-			_, d := encryption.Defaults(key)
+			_, d := encryption.Defaults(key, e.FIPS)
 			decrypters = append(decrypters, d)
 		}
-		decrypter = MultiDecrypter(decrypters)
+		decrypter = encryption.NewMultiDecrypter(decrypters...)
 	}
 
 	snapFactory := NewSnapFactory(encrypter, decrypter)
@@ -156,7 +144,7 @@ func (e *EncryptedRaftLogger) BootstrapFromDisk(ctx context.Context, oldEncrypti
 func (e *EncryptedRaftLogger) BootstrapNew(metadata []byte) error {
 	e.encoderMu.Lock()
 	defer e.encoderMu.Unlock()
-	encrypter, decrypter := encryption.Defaults(e.EncryptionKey)
+	encrypter, decrypter := encryption.Defaults(e.EncryptionKey, e.FIPS)
 	walFactory := NewWALFactory(encrypter, decrypter)
 
 	for _, dirpath := range []string{filepath.Dir(e.walDir()), e.snapDir()} {
@@ -199,7 +187,7 @@ func (e *EncryptedRaftLogger) RotateEncryptionKey(newKey []byte) {
 			panic(fmt.Errorf("EncryptedRaftLogger's WAL is not a wrappedWAL"))
 		}
 
-		wrapped.encrypter, wrapped.decrypter = encryption.Defaults(newKey)
+		wrapped.encrypter, wrapped.decrypter = encryption.Defaults(newKey, e.FIPS)
 
 		e.snapshotter = NewSnapFactory(wrapped.encrypter, wrapped.decrypter).New(e.snapDir())
 	}
@@ -226,10 +214,7 @@ func (e *EncryptedRaftLogger) SaveSnapshot(snapshot raftpb.Snapshot) error {
 	if err := snapshotter.SaveSnap(snapshot); err != nil {
 		return err
 	}
-	if err := e.wal.ReleaseLockTo(snapshot.Metadata.Index); err != nil {
-		return err
-	}
-	return nil
+	return e.wal.ReleaseLockTo(snapshot.Metadata.Index)
 }
 
 // GC garbage collects snapshots and wals older than the provided index and term

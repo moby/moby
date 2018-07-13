@@ -1,10 +1,10 @@
-package debug
+package debug // import "github.com/docker/docker/cli/debug"
 
 import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 func TestEnable(t *testing.T) {

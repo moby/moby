@@ -1,4 +1,4 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"errors"
@@ -7,13 +7,14 @@ import (
 	"io/ioutil"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 	"github.com/vbatts/tar-split/tar/asm"
 	"github.com/vbatts/tar-split/tar/storage"
 )
@@ -26,70 +27,76 @@ import (
 const maxLayerDepth = 125
 
 type layerStore struct {
-	store  MetadataStore
-	driver graphdriver.Driver
+	store       *fileMetadataStore
+	driver      graphdriver.Driver
+	useTarSplit bool
 
 	layerMap map[ChainID]*roLayer
 	layerL   sync.Mutex
 
 	mounts map[string]*mountedLayer
 	mountL sync.Mutex
-
-	useTarSplit bool
+	os     string
 }
 
 // StoreOptions are the options used to create a new Store instance
 type StoreOptions struct {
-	StorePath                 string
+	Root                      string
 	MetadataStorePathTemplate string
 	GraphDriver               string
 	GraphDriverOptions        []string
-	UIDMaps                   []idtools.IDMap
-	GIDMaps                   []idtools.IDMap
+	IDMappings                *idtools.IDMappings
 	PluginGetter              plugingetter.PluginGetter
 	ExperimentalEnabled       bool
+	OS                        string
 }
 
 // NewStoreFromOptions creates a new Store instance
 func NewStoreFromOptions(options StoreOptions) (Store, error) {
 	driver, err := graphdriver.New(options.GraphDriver, options.PluginGetter, graphdriver.Options{
-		Root:                options.StorePath,
+		Root:                options.Root,
 		DriverOptions:       options.GraphDriverOptions,
-		UIDMaps:             options.UIDMaps,
-		GIDMaps:             options.GIDMaps,
+		UIDMaps:             options.IDMappings.UIDs(),
+		GIDMaps:             options.IDMappings.GIDs(),
 		ExperimentalEnabled: options.ExperimentalEnabled,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error initializing graphdriver: %v", err)
 	}
-	logrus.Debugf("Using graph driver %s", driver)
+	logrus.Debugf("Initialized graph driver %s", driver)
 
-	fms, err := NewFSMetadataStore(fmt.Sprintf(options.MetadataStorePathTemplate, driver))
-	if err != nil {
-		return nil, err
-	}
+	root := fmt.Sprintf(options.MetadataStorePathTemplate, driver)
 
-	return NewStoreFromGraphDriver(fms, driver)
+	return newStoreFromGraphDriver(root, driver, options.OS)
 }
 
-// NewStoreFromGraphDriver creates a new Store instance using the provided
+// newStoreFromGraphDriver creates a new Store instance using the provided
 // metadata store and graph driver. The metadata store will be used to restore
 // the Store.
-func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (Store, error) {
+func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) (Store, error) {
+	if !system.IsOSSupported(os) {
+		return nil, fmt.Errorf("failed to initialize layer store as operating system '%s' is not supported", os)
+	}
 	caps := graphdriver.Capabilities{}
 	if capDriver, ok := driver.(graphdriver.CapabilityDriver); ok {
 		caps = capDriver.Capabilities()
 	}
 
+	ms, err := newFSMetadataStore(root)
+	if err != nil {
+		return nil, err
+	}
+
 	ls := &layerStore{
-		store:       store,
+		store:       ms,
 		driver:      driver,
 		layerMap:    map[ChainID]*roLayer{},
 		mounts:      map[string]*mountedLayer{},
 		useTarSplit: !caps.ReproducesExactDiffs,
+		os:          os,
 	}
 
-	ids, mounts, err := store.List()
+	ids, mounts, err := ms.List()
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +119,10 @@ func NewStoreFromGraphDriver(store MetadataStore, driver graphdriver.Driver) (St
 	}
 
 	return ls, nil
+}
+
+func (ls *layerStore) Driver() graphdriver.Driver {
+	return ls.driver
 }
 
 func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
@@ -143,6 +154,15 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 	descriptor, err := ls.store.GetDescriptor(layer)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get descriptor for %s: %s", layer, err)
+	}
+
+	os, err := ls.store.getOS(layer)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get operating system for %s: %s", layer, err)
+	}
+
+	if os != ls.os {
+		return nil, fmt.Errorf("failed to load layer with os %s into layerstore for %s", os, ls.os)
 	}
 
 	cl = &roLayer{
@@ -211,7 +231,7 @@ func (ls *layerStore) loadMount(mount string) error {
 	return nil
 }
 
-func (ls *layerStore) applyTar(tx MetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
+func (ls *layerStore) applyTar(tx *fileMetadataTransaction, ts io.Reader, parent string, layer *roLayer) error {
 	digester := digest.Canonical.Digester()
 	tr := io.TeeReader(ts, digester.Hash())
 
@@ -259,6 +279,7 @@ func (ls *layerStore) registerWithDescriptor(ts io.Reader, parent ChainID, descr
 	var err error
 	var pid string
 	var p *roLayer
+
 	if string(parent) != "" {
 		p = ls.get(parent)
 		if p == nil {
@@ -389,7 +410,6 @@ func (ls *layerStore) deleteLayer(layer *roLayer, metadata *Metadata) error {
 	if err != nil {
 		return err
 	}
-
 	err = ls.store.Remove(layer.chainID)
 	if err != nil {
 		return err
@@ -519,7 +539,6 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 	if err = ls.driver.CreateReadWrite(m.mountID, pid, createOpts); err != nil {
 		return nil, err
 	}
-
 	if err = ls.saveMount(m); err != nil {
 		return nil, err
 	}
@@ -731,5 +750,5 @@ func (n *naiveDiffPathDriver) DiffGetter(id string) (graphdriver.FileGetCloser, 
 	if err != nil {
 		return nil, err
 	}
-	return &fileGetPutter{storage.NewPathFileGetter(p), n.Driver, id}, nil
+	return &fileGetPutter{storage.NewPathFileGetter(p.Path()), n.Driver, id}, nil
 }

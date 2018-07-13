@@ -1,20 +1,22 @@
-package ioutils
+package ioutils // import "github.com/docker/docker/pkg/ioutils"
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
 
-	"golang.org/x/net/context"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 // Implement io.Reader
 type errorReader struct{}
 
 func (r *errorReader) Read(p []byte) (int, error) {
-	return 0, fmt.Errorf("Error reader always fail.")
+	return 0, fmt.Errorf("error reader always fail")
 }
 
 func TestReadCloserWrapperClose(t *testing.T) {
@@ -35,9 +37,7 @@ func TestReaderErrWrapperReadOnError(t *testing.T) {
 		called = true
 	})
 	_, err := wrapper.Read([]byte{})
-	if err == nil || !strings.Contains(err.Error(), "Error reader always fail.") {
-		t.Fatalf("readErrWrapper should returned an error")
-	}
+	assert.Check(t, is.Error(err, "error reader always fail"))
 	if !called {
 		t.Fatalf("readErrWrapper should have call the anonymous function on failure")
 	}
@@ -80,7 +80,8 @@ func (p *perpetualReader) Read(buf []byte) (n int, err error) {
 }
 
 func TestCancelReadCloser(t *testing.T) {
-	ctx, _ := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
 	cancelReadCloser := NewCancelReadCloser(ctx, ioutil.NopCloser(&perpetualReader{}))
 	for {
 		var buf [128]byte

@@ -1,4 +1,4 @@
-package volumedrivers
+package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
 	"testing"
@@ -7,13 +7,14 @@ import (
 )
 
 func TestGetDriver(t *testing.T) {
-	_, err := GetDriver("missing")
+	s := NewStore(nil)
+	_, err := s.GetDriver("missing")
 	if err == nil {
 		t.Fatal("Expected error, was nil")
 	}
-	Register(volumetestutils.NewFakeDriver("fake"), "fake")
+	s.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 
-	d, err := GetDriver("fake")
+	d, err := s.GetDriver("fake")
 	if err != nil {
 		t.Fatal(err)
 	}

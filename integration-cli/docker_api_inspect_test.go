@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
-	"net/http"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions/v1p20"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/stringutils"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
@@ -27,7 +28,7 @@ func (s *DockerSuite) TestInspectAPIContainerResponse(c *check.C) {
 
 	var cases []acase
 
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cases = []acase{
 			{"v1.25", append(keysBase, "Mounts")},
 		}
@@ -106,20 +107,16 @@ func (s *DockerSuite) TestInspectAPIContainerVolumeDriver(c *check.C) {
 
 func (s *DockerSuite) TestInspectAPIImageResponse(c *check.C) {
 	dockerCmd(c, "tag", "busybox:latest", "busybox:mytag")
-
-	endpoint := "/images/busybox/json"
-	status, body, err := request.SockRequest("GET", endpoint, nil, daemonHost())
-
+	cli, err := client.NewEnvClient()
 	c.Assert(err, checker.IsNil)
-	c.Assert(status, checker.Equals, http.StatusOK)
+	defer cli.Close()
 
-	var imageJSON types.ImageInspect
-	err = json.Unmarshal(body, &imageJSON)
-	c.Assert(err, checker.IsNil, check.Commentf("Unable to unmarshal body for latest version"))
+	imageJSON, _, err := cli.ImageInspectWithRaw(context.Background(), "busybox")
+	c.Assert(err, checker.IsNil)
+
 	c.Assert(imageJSON.RepoTags, checker.HasLen, 2)
-
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:latest"), checker.Equals, true)
-	c.Assert(stringutils.InSlice(imageJSON.RepoTags, "busybox:mytag"), checker.Equals, true)
+	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:latest"))
+	assert.Check(c, is.Contains(imageJSON.RepoTags, "busybox:mytag"))
 }
 
 // #17131, #17139, #17173

@@ -1,21 +1,32 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
 
-	"golang.org/x/net/context"
-
 	"github.com/docker/docker/api/types/swarm"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
+
+func TestSecretUpdateUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.24",
+		client:  &http.Client{},
+	}
+	err := client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
+	assert.Check(t, is.Error(err, `"secret update" requires API version 1.25, but the Docker daemon API version is 1.24`))
+}
 
 func TestSecretUpdateError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.25",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	err := client.SecretUpdate(context.Background(), "secret_id", swarm.Version{}, swarm.SecretSpec{})
@@ -25,9 +36,10 @@ func TestSecretUpdateError(t *testing.T) {
 }
 
 func TestSecretUpdate(t *testing.T) {
-	expectedURL := "/secrets/secret_id/update"
+	expectedURL := "/v1.25/secrets/secret_id/update"
 
 	client := &Client{
+		version: "1.25",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

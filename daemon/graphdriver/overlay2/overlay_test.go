@@ -1,11 +1,10 @@
 // +build linux
 
-package overlay2
+package overlay2 // import "github.com/docker/docker/daemon/graphdriver/overlay2"
 
 import (
 	"io/ioutil"
 	"os"
-	"syscall"
 	"testing"
 
 	"github.com/docker/docker/daemon/graphdriver"
@@ -21,17 +20,6 @@ func init() {
 	graphdriver.ApplyUncompressedLayer = archive.ApplyUncompressedLayer
 
 	reexec.Init()
-}
-
-func cdMountFrom(dir, device, target, mType, label string) error {
-	wd, err := os.Getwd()
-	if err != nil {
-		return err
-	}
-	os.Chdir(dir)
-	defer os.Chdir(wd)
-
-	return syscall.Mount(device, target, mType, 0, label)
 }
 
 func skipIfNaive(t *testing.T) {
@@ -74,7 +62,7 @@ func TestOverlayDiffApply10Files(t *testing.T) {
 }
 
 func TestOverlayChanges(t *testing.T) {
-	skipIfNaive(t)
+	t.Skipf("Cannot run test with naive change algorithm")
 	graphtest.DriverTestChanges(t, driverName)
 }
 

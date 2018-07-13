@@ -28,9 +28,9 @@ if [ -n "$DOCKER_PORT" ]; then
 	listen_port="${ports[-1]}"
 fi
 
-extra_params=""
+extra_params="$DOCKERD_ARGS"
 if [ "$DOCKER_REMAP_ROOT" ]; then
-	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
+	extra_params="$extra_params --userns-remap $DOCKER_REMAP_ROOT"
 fi
 
 args="--debug \

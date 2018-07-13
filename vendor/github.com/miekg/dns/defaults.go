@@ -13,9 +13,12 @@ const hexDigit = "0123456789abcdef"
 // SetReply creates a reply message from a request message.
 func (dns *Msg) SetReply(request *Msg) *Msg {
 	dns.Id = request.Id
-	dns.RecursionDesired = request.RecursionDesired // Copy rd bit
 	dns.Response = true
-	dns.Opcode = OpcodeQuery
+	dns.Opcode = request.Opcode
+	if dns.Opcode == OpcodeQuery {
+		dns.RecursionDesired = request.RecursionDesired // Copy rd bit
+		dns.CheckingDisabled = request.CheckingDisabled // Copy cd bit
+	}
 	dns.Rcode = RcodeSuccess
 	if len(request.Question) > 0 {
 		dns.Question = make([]Question, 1)
@@ -102,11 +105,11 @@ func (dns *Msg) SetAxfr(z string) *Msg {
 // SetTsig appends a TSIG RR to the message.
 // This is only a skeleton TSIG RR that is added as the last RR in the
 // additional section. The Tsig is calculated when the message is being send.
-func (dns *Msg) SetTsig(z, algo string, fudge, timesigned int64) *Msg {
+func (dns *Msg) SetTsig(z, algo string, fudge uint16, timesigned int64) *Msg {
 	t := new(TSIG)
 	t.Hdr = RR_Header{z, TypeTSIG, ClassANY, 0, 0}
 	t.Algorithm = algo
-	t.Fudge = 300
+	t.Fudge = fudge
 	t.TimeSigned = uint64(timesigned)
 	t.OrigId = dns.Id
 	dns.Extra = append(dns.Extra, t)
@@ -142,9 +145,13 @@ func (dns *Msg) IsTsig() *TSIG {
 // record in the additional section will do. It returns the OPT record
 // found or nil.
 func (dns *Msg) IsEdns0() *OPT {
-	for _, r := range dns.Extra {
-		if r.Header().Rrtype == TypeOPT {
-			return r.(*OPT)
+	// EDNS0 is at the end of the additional section, start there.
+	// We might want to change this to *only* look at the last two
+	// records. So we see TSIG and/or OPT - this a slightly bigger
+	// change though.
+	for i := len(dns.Extra) - 1; i >= 0; i-- {
+		if dns.Extra[i].Header().Rrtype == TypeOPT {
+			return dns.Extra[i].(*OPT)
 		}
 	}
 	return nil
@@ -163,8 +170,8 @@ func IsDomainName(s string) (labels int, ok bool) {
 	return labels, err == nil
 }
 
-// IsSubDomain checks if child is indeed a child of the parent. Both child and
-// parent are *not* downcased before doing the comparison.
+// IsSubDomain checks if child is indeed a child of the parent. If child and parent
+// are the same domain true is returned as well.
 func IsSubDomain(parent, child string) bool {
 	// Entire child is contained in parent
 	return CompareDomainName(parent, child) == CountLabel(parent)
@@ -266,8 +273,11 @@ func (t Type) String() string {
 
 // String returns the string representation for the class c.
 func (c Class) String() string {
-	if c1, ok := ClassToString[uint16(c)]; ok {
-		return c1
+	if s, ok := ClassToString[uint16(c)]; ok {
+		// Only emit mnemonics when they are unambiguous, specically ANY is in both.
+		if _, ok := StringToType[s]; !ok {
+			return s
+		}
 	}
 	return "CLASS" + strconv.Itoa(int(c))
 }

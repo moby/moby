@@ -4,7 +4,9 @@
 package connectionbroker
 
 import (
+	"net"
 	"sync"
+	"time"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/remotes"
@@ -56,13 +58,19 @@ func (b *Broker) Select(dialOpts ...grpc.DialOption) (*Conn, error) {
 // connection.
 func (b *Broker) SelectRemote(dialOpts ...grpc.DialOption) (*Conn, error) {
 	peer, err := b.remotes.Select()
+
 	if err != nil {
 		return nil, err
 	}
 
+	// gRPC dialer connects to proxy first. Provide a custom dialer here avoid that.
+	// TODO(anshul) Add an option to configure this.
 	dialOpts = append(dialOpts,
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
-		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
+		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
+			return net.DialTimeout("tcp", addr, timeout)
+		}))
 
 	cc, err := grpc.Dial(peer.Addr, dialOpts...)
 	if err != nil {
@@ -89,6 +97,11 @@ type Conn struct {
 	isLocal bool
 	remotes remotes.Remotes
 	peer    api.Peer
+}
+
+// Peer returns the peer for this Conn.
+func (c *Conn) Peer() api.Peer {
+	return c.peer
 }
 
 // Close closes the client connection if it is a remote connection. It also

@@ -1,4 +1,4 @@
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
 	"bytes"
@@ -7,19 +7,19 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"os"
 	"reflect"
 	"runtime"
-	"sort"
 	"strings"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	daemondiscovery "github.com/docker/docker/daemon/discovery"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
@@ -71,6 +71,12 @@ type commonBridgeConfig struct {
 	FixedCIDR string `json:"fixed-cidr,omitempty"`
 }
 
+// NetworkConfig stores the daemon-wide networking configurations
+type NetworkConfig struct {
+	// Default address pools for docker networks
+	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
+}
+
 // CommonTLSOptions defines TLS configuration for the daemon server.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
@@ -85,27 +91,33 @@ type CommonTLSOptions struct {
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
 type CommonConfig struct {
-	AuthzMiddleware      *authorization.Middleware `json:"-"`
-	AuthorizationPlugins []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
-	AutoRestart          bool                      `json:"-"`
-	Context              map[string][]string       `json:"-"`
-	DisableBridge        bool                      `json:"-"`
-	DNS                  []string                  `json:"dns,omitempty"`
-	DNSOptions           []string                  `json:"dns-opts,omitempty"`
-	DNSSearch            []string                  `json:"dns-search,omitempty"`
-	ExecOptions          []string                  `json:"exec-opts,omitempty"`
-	GraphDriver          string                    `json:"storage-driver,omitempty"`
-	GraphOptions         []string                  `json:"storage-opts,omitempty"`
-	Labels               []string                  `json:"labels,omitempty"`
-	Mtu                  int                       `json:"mtu,omitempty"`
-	Pidfile              string                    `json:"pidfile,omitempty"`
-	RawLogs              bool                      `json:"raw-logs,omitempty"`
-	RootDeprecated       string                    `json:"graph,omitempty"`
-	Root                 string                    `json:"data-root,omitempty"`
-	SocketGroup          string                    `json:"group,omitempty"`
-	TrustKeyPath         string                    `json:"-"`
-	CorsHeaders          string                    `json:"api-cors-header,omitempty"`
-	EnableCors           bool                      `json:"api-enable-cors,omitempty"`
+	AuthzMiddleware       *authorization.Middleware `json:"-"`
+	AuthorizationPlugins  []string                  `json:"authorization-plugins,omitempty"` // AuthorizationPlugins holds list of authorization plugins
+	AutoRestart           bool                      `json:"-"`
+	Context               map[string][]string       `json:"-"`
+	DisableBridge         bool                      `json:"-"`
+	DNS                   []string                  `json:"dns,omitempty"`
+	DNSOptions            []string                  `json:"dns-opts,omitempty"`
+	DNSSearch             []string                  `json:"dns-search,omitempty"`
+	ExecOptions           []string                  `json:"exec-opts,omitempty"`
+	GraphDriver           string                    `json:"storage-driver,omitempty"`
+	GraphOptions          []string                  `json:"storage-opts,omitempty"`
+	Labels                []string                  `json:"labels,omitempty"`
+	Mtu                   int                       `json:"mtu,omitempty"`
+	NetworkDiagnosticPort int                       `json:"network-diagnostic-port,omitempty"`
+	Pidfile               string                    `json:"pidfile,omitempty"`
+	RawLogs               bool                      `json:"raw-logs,omitempty"`
+	RootDeprecated        string                    `json:"graph,omitempty"`
+	Root                  string                    `json:"data-root,omitempty"`
+	ExecRoot              string                    `json:"exec-root,omitempty"`
+	SocketGroup           string                    `json:"group,omitempty"`
+	CorsHeaders           string                    `json:"api-cors-header,omitempty"`
+
+	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
+	// when pushing to a registry which does not support schema 2. This field is marked as
+	// deprecated because schema 1 manifests are deprecated in favor of schema 2 and the
+	// daemon ID will use a dedicated identifier not shared with exported signatures.
+	TrustKeyPath string `json:"deprecated-key-path,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
@@ -152,18 +164,40 @@ type CommonConfig struct {
 	// given to the /swarm/init endpoint and no advertise address is
 	// specified.
 	SwarmDefaultAdvertiseAddr string `json:"swarm-default-advertise-addr"`
-	MetricsAddress            string `json:"metrics-addr"`
+
+	// SwarmRaftHeartbeatTick is the number of ticks in time for swarm mode raft quorum heartbeat
+	// Typical value is 1
+	SwarmRaftHeartbeatTick uint32 `json:"swarm-raft-heartbeat-tick"`
+
+	// SwarmRaftElectionTick is the number of ticks to elapse before followers in the quorum can propose
+	// a new round of leader election.  Default, recommended value is at least 10X that of Heartbeat tick.
+	// Higher values can make the quorum less sensitive to transient faults in the environment, but this also
+	// means it takes longer for the managers to detect a down leader.
+	SwarmRaftElectionTick uint32 `json:"swarm-raft-election-tick"`
+
+	MetricsAddress string `json:"metrics-addr"`
 
 	LogConfig
 	BridgeConfig // bridgeConfig holds bridge network specific configuration.
+	NetworkConfig
 	registry.ServiceOptions
 
 	sync.Mutex
 	// FIXME(vdemeester) This part is not that clear and is mainly dependent on cli flags
 	// It should probably be handled outside this package.
-	ValuesSet map[string]interface{}
+	ValuesSet map[string]interface{} `json:"-"`
 
 	Experimental bool `json:"experimental"` // Experimental indicates whether experimental features should be exposed or not
+
+	// Exposed node Generic Resources
+	// e.g: ["orange=red", "orange=green", "orange=blue", "apple=3"]
+	NodeGenericResources []string `json:"node-generic-resources,omitempty"`
+	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
+	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
+
+	// ContainerAddr is the address used to connect to containerd if we're
+	// not starting it ourselves
+	ContainerdAddr string `json:"containerd,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
@@ -190,9 +224,6 @@ func New() *Config {
 
 // ParseClusterAdvertiseSettings parses the specified advertise settings
 func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (string, error) {
-	if runtime.GOOS == "solaris" && (clusterAdvertise != "" || clusterStore != "") {
-		return "", errors.New("Cluster Advertise Settings not supported on Solaris")
-	}
 	if clusterAdvertise == "" {
 		return "", daemondiscovery.ErrDiscoveryDisabled
 	}
@@ -231,34 +262,46 @@ func GetConflictFreeLabels(labels []string) ([]string, error) {
 	return newLabels, nil
 }
 
+// ValidateReservedNamespaceLabels errors if the reserved namespaces com.docker.*,
+// io.docker.*, org.dockerproject.* are used in a configured engine label.
+//
+// TODO: This is a separate function because we need to warn users first of the
+// deprecation.  When we return an error, this logic can be added to Validate
+// or GetConflictFreeLabels instead of being here.
+func ValidateReservedNamespaceLabels(labels []string) error {
+	for _, label := range labels {
+		lowered := strings.ToLower(label)
+		if strings.HasPrefix(lowered, "com.docker.") || strings.HasPrefix(lowered, "io.docker.") ||
+			strings.HasPrefix(lowered, "org.dockerproject.") {
+			return fmt.Errorf(
+				"label %s not allowed: the namespaces com.docker.*, io.docker.*, and org.dockerproject.* are reserved for Docker's internal use",
+				label)
+		}
+	}
+	return nil
+}
+
 // Reload reads the configuration in the host and reloads the daemon and server.
 func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error {
 	logrus.Infof("Got signal to reload configuration, reloading from: %s", configFile)
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
-		return err
+		if flags.Changed("config-file") || !os.IsNotExist(err) {
+			return fmt.Errorf("unable to configure the Docker daemon with file %s: %v", configFile, err)
+		}
+		newConfig = New()
 	}
 
 	if err := Validate(newConfig); err != nil {
 		return fmt.Errorf("file configuration validation failed (%v)", err)
 	}
 
-	// Labels of the docker engine used to allow multiple values associated with the same key.
-	// This is deprecated in 1.13, and, be removed after 3 release cycles.
-	// The following will check the conflict of labels, and report a warning for deprecation.
-	//
-	// TODO: After 3 release cycles (17.12) an error will be returned, and labels will be
-	// sanitized to consolidate duplicate key-value pairs (config.Labels = newLabels):
-	//
-	// newLabels, err := GetConflictFreeLabels(newConfig.Labels)
-	// if err != nil {
-	//      return err
-	// }
-	// newConfig.Labels = newLabels
-	//
-	if _, err := GetConflictFreeLabels(newConfig.Labels); err != nil {
-		logrus.Warnf("Engine labels with duplicate keys and conflicting values have been deprecated: %s", err)
+	// Check if duplicate label-keys with different values are found
+	newLabels, err := GetConflictFreeLabels(newConfig.Labels)
+	if err != nil {
+		return err
 	}
+	newConfig.Labels = newLabels
 
 	reload(newConfig)
 	return nil
@@ -493,6 +536,10 @@ func Validate(config *Config) error {
 		}
 	}
 
+	if _, err := ParseGenericResources(config.NodeGenericResources); err != nil {
+		return err
+	}
+
 	if defaultRuntime := config.GetDefaultRuntimeName(); defaultRuntime != "" && defaultRuntime != StockRuntimeName {
 		runtimes := config.GetAllRuntimes()
 		if _, ok := runtimes[defaultRuntime]; !ok {
@@ -500,20 +547,8 @@ func Validate(config *Config) error {
 		}
 	}
 
-	return nil
-}
-
-// GetAuthorizationPlugins returns daemon's sorted authorization plugins
-func (conf *Config) GetAuthorizationPlugins() []string {
-	conf.Lock()
-	defer conf.Unlock()
-
-	authPlugins := make([]string, 0, len(conf.AuthorizationPlugins))
-	for _, p := range conf.AuthorizationPlugins {
-		authPlugins = append(authPlugins, p)
-	}
-	sort.Strings(authPlugins)
-	return authPlugins
+	// validate platform-specific settings
+	return config.ValidatePlatformConfig()
 }
 
 // ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.

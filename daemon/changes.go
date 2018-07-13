@@ -1,4 +1,4 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"errors"
@@ -22,6 +22,9 @@ func (daemon *Daemon) ContainerChanges(name string) ([]archive.Change, error) {
 
 	container.Lock()
 	defer container.Unlock()
+	if container.RWLayer == nil {
+		return nil, errors.New("RWLayer of container " + name + " is unexpectedly nil")
+	}
 	c, err := container.RWLayer.Changes()
 	if err != nil {
 		return nil, err

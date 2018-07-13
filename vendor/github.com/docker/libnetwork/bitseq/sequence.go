@@ -10,9 +10,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 )
 
 // block sequence constants
@@ -41,6 +41,7 @@ type Handle struct {
 	id         string
 	dbIndex    uint64
 	dbExists   bool
+	curr       uint64
 	store      datastore.DataStore
 	sync.Mutex
 }
@@ -106,6 +107,12 @@ func (s *sequence) getAvailableBit(from uint64) (uint64, uint64, error) {
 	for bitSel > 0 && s.block&bitSel != 0 {
 		bitSel >>= 1
 		bits++
+	}
+	// Check if the loop exited because it could not
+	// find any available bit int block  starting from
+	// "from". Return invalid pos in that case.
+	if bitSel == 0 {
+		return invalidPos, invalidPos, ErrNoBitAvailable
 	}
 	return bits / 8, bits % 8, nil
 }
@@ -193,26 +200,27 @@ func (h *Handle) getCopy() *Handle {
 		dbIndex:    h.dbIndex,
 		dbExists:   h.dbExists,
 		store:      h.store,
+		curr:       h.curr,
 	}
 }
 
 // SetAnyInRange atomically sets the first unset bit in the specified range in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAnyInRange(start, end uint64) (uint64, error) {
+func (h *Handle) SetAnyInRange(start, end uint64, serial bool) (uint64, error) {
 	if end < start || end >= h.bits {
 		return invalidPos, fmt.Errorf("invalid bit range [%d, %d]", start, end)
 	}
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
 	}
-	return h.set(0, start, end, true, false)
+	return h.set(0, start, end, true, false, serial)
 }
 
 // SetAny atomically sets the first unset bit in the sequence and returns the corresponding ordinal
-func (h *Handle) SetAny() (uint64, error) {
+func (h *Handle) SetAny(serial bool) (uint64, error) {
 	if h.Unselected() == 0 {
 		return invalidPos, ErrNoBitAvailable
 	}
-	return h.set(0, 0, h.bits-1, true, false)
+	return h.set(0, 0, h.bits-1, true, false, serial)
 }
 
 // Set atomically sets the corresponding bit in the sequence
@@ -220,7 +228,7 @@ func (h *Handle) Set(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, 0, 0, false, false)
+	_, err := h.set(ordinal, 0, 0, false, false, false)
 	return err
 }
 
@@ -229,7 +237,7 @@ func (h *Handle) Unset(ordinal uint64) error {
 	if err := h.validateOrdinal(ordinal); err != nil {
 		return err
 	}
-	_, err := h.set(ordinal, 0, 0, false, true)
+	_, err := h.set(ordinal, 0, 0, false, true, false)
 	return err
 }
 
@@ -298,7 +306,7 @@ func (h *Handle) CheckConsistency() error {
 }
 
 // set/reset the bit
-func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64, error) {
+func (h *Handle) set(ordinal, start, end uint64, any bool, release bool, serial bool) (uint64, error) {
 	var (
 		bitPos  uint64
 		bytePos uint64
@@ -308,25 +316,28 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 
 	for {
 		var store datastore.DataStore
+		curr := uint64(0)
 		h.Lock()
 		store = h.store
-		h.Unlock()
 		if store != nil {
+			h.Unlock() // The lock is acquired in the GetObject
 			if err := store.GetObject(datastore.Key(h.Key()...), h); err != nil && err != datastore.ErrKeyNotFound {
 				return ret, err
 			}
+			h.Lock() // Acquire the lock back
 		}
-
-		h.Lock()
+		if serial {
+			curr = h.curr
+		}
 		// Get position if available
 		if release {
 			bytePos, bitPos = ordinalToPos(ordinal)
 		} else {
 			if any {
-				bytePos, bitPos, err = getFirstAvailable(h.head, start)
+				bytePos, bitPos, err = getAvailableFromCurrent(h.head, start, curr, end)
 				ret = posToOrdinal(bytePos, bitPos)
-				if end < ret {
-					err = ErrNoBitAvailable
+				if err == nil {
+					h.curr = ret + 1
 				}
 			} else {
 				bytePos, bitPos, err = checkIfAvailable(h.head, ordinal)
@@ -340,7 +351,6 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 
 		// Create a private copy of h and work on it
 		nh := h.getCopy()
-		h.Unlock()
 
 		nh.head = pushReservation(bytePos, bitPos, nh.head, release)
 		if release {
@@ -349,22 +359,25 @@ func (h *Handle) set(ordinal, start, end uint64, any bool, release bool) (uint64
 			nh.unselected--
 		}
 
-		// Attempt to write private copy to store
-		if err := nh.writeToStore(); err != nil {
-			if _, ok := err.(types.RetryError); !ok {
-				return ret, fmt.Errorf("internal failure while setting the bit: %v", err)
+		if h.store != nil {
+			h.Unlock()
+			// Attempt to write private copy to store
+			if err := nh.writeToStore(); err != nil {
+				if _, ok := err.(types.RetryError); !ok {
+					return ret, fmt.Errorf("internal failure while setting the bit: %v", err)
+				}
+				// Retry
+				continue
 			}
-			// Retry
-			continue
+			h.Lock()
 		}
 
 		// Previous atomic push was succesfull. Save private copy to local copy
-		h.Lock()
-		defer h.Unlock()
 		h.unselected = nh.unselected
 		h.head = nh.head
 		h.dbExists = nh.dbExists
 		h.dbIndex = nh.dbIndex
+		h.Unlock()
 		return ret, nil
 	}
 }
@@ -452,8 +465,8 @@ func (h *Handle) Unselected() uint64 {
 func (h *Handle) String() string {
 	h.Lock()
 	defer h.Unlock()
-	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, bits: %d, unselected: %d, sequence: %s",
-		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString())
+	return fmt.Sprintf("App: %s, ID: %s, DBIndex: 0x%x, Bits: %d, Unselected: %d, Sequence: %s Curr:%d",
+		h.app, h.id, h.dbIndex, h.bits, h.unselected, h.head.toString(), h.curr)
 }
 
 // MarshalJSON encodes Handle into json message
@@ -492,23 +505,67 @@ func (h *Handle) UnmarshalJSON(data []byte) error {
 func getFirstAvailable(head *sequence, start uint64) (uint64, uint64, error) {
 	// Find sequence which contains the start bit
 	byteStart, bitStart := ordinalToPos(start)
-	current, _, _, inBlockBytePos := findSequence(head, byteStart)
-
+	current, _, precBlocks, inBlockBytePos := findSequence(head, byteStart)
 	// Derive the this sequence offsets
 	byteOffset := byteStart - inBlockBytePos
 	bitOffset := inBlockBytePos*8 + bitStart
-
 	for current != nil {
 		if current.block != blockMAX {
+			// If the current block is not full, check if there is any bit
+			// from the current bit in the current block. If not, before proceeding to the
+			// next block node, make sure we check for available bit in the next
+			// instance of the same block. Due to RLE same block signature will be
+			// compressed.
+		retry:
 			bytePos, bitPos, err := current.getAvailableBit(bitOffset)
+			if err != nil && precBlocks == current.count-1 {
+				// This is the last instance in the same block node,
+				// so move to the next block.
+				goto next
+			}
+			if err != nil {
+				// There are some more instances of the same block, so add the offset
+				// and be optimistic that you will find the available bit in the next
+				// instance of the same block.
+				bitOffset = 0
+				byteOffset += blockBytes
+				precBlocks++
+				goto retry
+			}
 			return byteOffset + bytePos, bitPos, err
 		}
 		// Moving to next block: Reset bit offset.
+	next:
 		bitOffset = 0
-		byteOffset += current.count * blockBytes
+		byteOffset += (current.count * blockBytes) - (precBlocks * blockBytes)
+		precBlocks = 0
 		current = current.next
 	}
 	return invalidPos, invalidPos, ErrNoBitAvailable
+}
+
+// getAvailableFromCurrent will look for available ordinal from the current ordinal.
+// If none found then it will loop back to the start to check of the available bit.
+// This can be further optimized to check from start till curr in case of a rollover
+func getAvailableFromCurrent(head *sequence, start, curr, end uint64) (uint64, uint64, error) {
+	var bytePos, bitPos uint64
+	var err error
+	if curr != 0 && curr > start {
+		bytePos, bitPos, err = getFirstAvailable(head, curr)
+		ret := posToOrdinal(bytePos, bitPos)
+		if end < ret || err != nil {
+			goto begin
+		}
+		return bytePos, bitPos, nil
+	}
+
+begin:
+	bytePos, bitPos, err = getFirstAvailable(head, start)
+	ret := posToOrdinal(bytePos, bitPos)
+	if end < ret || err != nil {
+		return invalidPos, invalidPos, ErrNoBitAvailable
+	}
+	return bytePos, bitPos, nil
 }
 
 // checkIfAvailable checks if the bit correspondent to the specified ordinal is unset

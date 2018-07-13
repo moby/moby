@@ -1,6 +1,6 @@
 // +build linux,cgo
 
-package loopback
+package loopback // import "github.com/docker/docker/pkg/loopback"
 
 /*
 #include <linux/loop.h> // FIXME: present only for defines, maybe we can remove it?

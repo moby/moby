@@ -1,6 +1,6 @@
 // Package tailfile provides helper functions to read the nth lines of any
 // ReadSeeker.
-package tailfile
+package tailfile // import "github.com/docker/docker/pkg/tailfile"
 
 import (
 	"bytes"
@@ -16,7 +16,7 @@ var eol = []byte("\n")
 // ErrNonPositiveLinesNumber is an error returned if the lines number was negative.
 var ErrNonPositiveLinesNumber = errors.New("The number of lines to extract from the file must be positive")
 
-//TailFile returns last n lines of reader f (could be a fil).
+//TailFile returns last n lines of reader f (could be a nil).
 func TailFile(f io.ReadSeeker, n int) ([][]byte, error) {
 	if n <= 0 {
 		return nil, ErrNonPositiveLinesNumber

@@ -9,8 +9,9 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 // Action signifies the iptable action.
@@ -45,7 +46,7 @@ var (
 	iptablesPath  string
 	supportsXlock = false
 	supportsCOpt  = false
-	xLockWaitMsg  = "Another app is currently holding the xtables lock; waiting"
+	xLockWaitMsg  = "Another app is currently holding the xtables lock"
 	// used to lock iptables commands if xtables lock is not supported
 	bestEffortLock sync.Mutex
 	// ErrIptablesNotFound is returned when the rule is not found.
@@ -151,11 +152,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 			"-j", c.Name}
 		if !Exists(Nat, "PREROUTING", preroute...) && enable {
 			if err := c.Prerouting(Append, preroute...); err != nil {
-				return fmt.Errorf("Failed to inject docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in PREROUTING chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "PREROUTING", preroute...) && !enable {
 			if err := c.Prerouting(Delete, preroute...); err != nil {
-				return fmt.Errorf("Failed to remove docker in PREROUTING chain: %s", err)
+				return fmt.Errorf("Failed to remove %s in PREROUTING chain: %s", c.Name, err)
 			}
 		}
 		output := []string{
@@ -167,11 +168,11 @@ func ProgramChain(c *ChainInfo, bridgeName string, hairpinMode, enable bool) err
 		}
 		if !Exists(Nat, "OUTPUT", output...) && enable {
 			if err := c.Output(Append, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		} else if Exists(Nat, "OUTPUT", output...) && !enable {
 			if err := c.Output(Delete, output...); err != nil {
-				return fmt.Errorf("Failed to inject docker in OUTPUT chain: %s", err)
+				return fmt.Errorf("Failed to inject %s in OUTPUT chain: %s", c.Name, err)
 			}
 		}
 	case Filter:
@@ -276,8 +277,28 @@ func (c *ChainInfo) Forward(action Action, ip net.IP, port int, proto, destAddr 
 		"--dport", strconv.Itoa(destPort),
 		"-j", "MASQUERADE",
 	}
+
 	if err := ProgramRule(Nat, "POSTROUTING", action, args); err != nil {
 		return err
+	}
+
+	if proto == "sctp" {
+		// Linux kernel v4.9 and below enables NETIF_F_SCTP_CRC for veth by
+		// the following commit.
+		// This introduces a problem when conbined with a physical NIC without
+		// NETIF_F_SCTP_CRC. As for a workaround, here we add an iptables entry
+		// to fill the checksum.
+		//
+		// https://github.com/torvalds/linux/commit/c80fafbbb59ef9924962f83aac85531039395b18
+		args = []string{
+			"-p", proto,
+			"--sport", strconv.Itoa(destPort),
+			"-j", "CHECKSUM",
+			"--checksum-fill",
+		}
+		if err := ProgramRule(Mangle, "POSTROUTING", action, args); err != nil {
+			return err
+		}
 	}
 
 	return nil
@@ -301,10 +322,7 @@ func (c *ChainInfo) Link(action Action, ip1, ip2 net.IP, port int, proto string,
 	// reverse
 	args[7], args[9] = args[9], args[7]
 	args[10] = "--sport"
-	if err := ProgramRule(Filter, c.Name, action, args); err != nil {
-		return err
-	}
-	return nil
+	return ProgramRule(Filter, c.Name, action, args)
 }
 
 // ProgramRule adds the rule specified by args only if the
@@ -406,12 +424,32 @@ func existsRaw(table Table, chain string, rule ...string) bool {
 	return strings.Contains(string(existingRules), ruleString)
 }
 
+// Maximum duration that an iptables operation can take
+// before flagging a warning.
+const opWarnTime = 2 * time.Second
+
+func filterOutput(start time.Time, output []byte, args ...string) []byte {
+	// Flag operations that have taken a long time to complete
+	opTime := time.Since(start)
+	if opTime > opWarnTime {
+		logrus.Warnf("xtables contention detected while running [%s]: Waited for %.2f seconds and received %q", strings.Join(args, " "), float64(opTime)/float64(time.Second), string(output))
+	}
+	// ignore iptables' message about xtables lock:
+	// it is a warning, not an error.
+	if strings.Contains(string(output), xLockWaitMsg) {
+		output = []byte("")
+	}
+	// Put further filters here if desired
+	return output
+}
+
 // Raw calls 'iptables' system command, passing supplied arguments.
 func Raw(args ...string) ([]byte, error) {
 	if firewalldRunning {
+		startTime := time.Now()
 		output, err := Passthrough(Iptables, args...)
 		if err == nil || !strings.Contains(err.Error(), "was not provided by any .service files") {
-			return output, err
+			return filterOutput(startTime, output, args...), err
 		}
 	}
 	return raw(args...)
@@ -430,17 +468,13 @@ func raw(args ...string) ([]byte, error) {
 
 	logrus.Debugf("%s, %v", iptablesPath, args)
 
+	startTime := time.Now()
 	output, err := exec.Command(iptablesPath, args...).CombinedOutput()
 	if err != nil {
 		return nil, fmt.Errorf("iptables failed: iptables %v: %s (%s)", strings.Join(args, " "), output, err)
 	}
 
-	// ignore iptables' message about xtables lock
-	if strings.Contains(string(output), xLockWaitMsg) {
-		output = []byte("")
-	}
-
-	return output, err
+	return filterOutput(startTime, output, args...), err
 }
 
 // RawCombinedOutput inernally calls the Raw function and returns a non nil
@@ -463,7 +497,7 @@ func RawCombinedOutputNative(args ...string) error {
 
 // ExistChain checks if a chain exists
 func ExistChain(chain string, table Table) bool {
-	if _, err := Raw("-t", string(table), "-L", chain); err == nil {
+	if _, err := Raw("-t", string(table), "-nL", chain); err == nil {
 		return true
 	}
 	return false
@@ -497,4 +531,45 @@ func parseVersionNumbers(input string) (major, minor, micro int) {
 // http://ftp.netfilter.org/pub/iptables/changes-iptables-1.4.11.txt
 func supportsCOption(mj, mn, mc int) bool {
 	return mj > 1 || (mj == 1 && (mn > 4 || (mn == 4 && mc >= 11)))
+}
+
+// AddReturnRule adds a return rule for the chain in the filter table
+func AddReturnRule(chain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", "RETURN"}
+	)
+
+	if Exists(table, chain, args...) {
+		return nil
+	}
+
+	err := RawCombinedOutput(append([]string{"-A", chain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to add return rule in %s chain: %s", chain, err.Error())
+	}
+
+	return nil
+}
+
+// EnsureJumpRule ensures the jump rule is on top
+func EnsureJumpRule(fromChain, toChain string) error {
+	var (
+		table = Filter
+		args  = []string{"-j", toChain}
+	)
+
+	if Exists(table, fromChain, args...) {
+		err := RawCombinedOutput(append([]string{"-D", fromChain}, args...)...)
+		if err != nil {
+			return fmt.Errorf("unable to remove jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+		}
+	}
+
+	err := RawCombinedOutput(append([]string{"-I", fromChain}, args...)...)
+	if err != nil {
+		return fmt.Errorf("unable to insert jump to %s rule in %s chain: %s", toChain, fromChain, err.Error())
+	}
+
+	return nil
 }

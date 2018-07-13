@@ -1,7 +1,8 @@
-package convert
+package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 )
@@ -13,6 +14,7 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 		Spec: swarmtypes.SecretSpec{
 			Annotations: annotationsFromGRPC(s.Spec.Annotations),
 			Data:        s.Spec.Data,
+			Driver:      driverFromGRPC(s.Spec.Driver),
 		},
 	}
 
@@ -21,18 +23,35 @@ func SecretFromGRPC(s *swarmapi.Secret) swarmtypes.Secret {
 	secret.CreatedAt, _ = gogotypes.TimestampFromProto(s.Meta.CreatedAt)
 	secret.UpdatedAt, _ = gogotypes.TimestampFromProto(s.Meta.UpdatedAt)
 
+	if s.Spec.Templating != nil {
+		secret.Spec.Templating = &types.Driver{
+			Name:    s.Spec.Templating.Name,
+			Options: s.Spec.Templating.Options,
+		}
+	}
+
 	return secret
 }
 
 // SecretSpecToGRPC converts Secret to a grpc Secret.
 func SecretSpecToGRPC(s swarmtypes.SecretSpec) swarmapi.SecretSpec {
-	return swarmapi.SecretSpec{
+	spec := swarmapi.SecretSpec{
 		Annotations: swarmapi.Annotations{
 			Name:   s.Name,
 			Labels: s.Labels,
 		},
-		Data: s.Data,
+		Data:   s.Data,
+		Driver: driverToGRPC(s.Driver),
 	}
+
+	if s.Templating != nil {
+		spec.Templating = &swarmapi.Driver{
+			Name:    s.Templating.Name,
+			Options: s.Templating.Options,
+		}
+	}
+
+	return spec
 }
 
 // SecretReferencesFromGRPC converts a slice of grpc SecretReference to SecretReference

@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,12 +11,24 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
+
+func TestSecretInspectUnsupported(t *testing.T) {
+	client := &Client{
+		version: "1.24",
+		client:  &http.Client{},
+	}
+	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
+	assert.Check(t, is.Error(err, `"secret inspect" requires API version 1.25, but the Docker daemon API version is 1.24`))
+}
 
 func TestSecretInspectError(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+		version: "1.25",
+		client:  newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "nothing")
@@ -26,18 +39,32 @@ func TestSecretInspectError(t *testing.T) {
 
 func TestSecretInspectSecretNotFound(t *testing.T) {
 	client := &Client{
-		client: newMockClient(errorMock(http.StatusNotFound, "Server error")),
+		version: "1.25",
+		client:  newMockClient(errorMock(http.StatusNotFound, "Server error")),
 	}
 
 	_, _, err := client.SecretInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrSecretNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a secretNotFoundError error, got %v", err)
 	}
 }
 
-func TestSecretInspect(t *testing.T) {
-	expectedURL := "/secrets/secret_id"
+func TestSecretInspectWithEmptyID(t *testing.T) {
 	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.SecretInspectWithRaw(context.Background(), "")
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
+	}
+}
+
+func TestSecretInspect(t *testing.T) {
+	expectedURL := "/v1.25/secrets/secret_id"
+	client := &Client{
+		version: "1.25",
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
 			if !strings.HasPrefix(req.URL.Path, expectedURL) {
 				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)

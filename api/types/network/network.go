@@ -1,4 +1,8 @@
-package network
+package network // import "github.com/docker/docker/api/types/network"
+import (
+	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/errdefs"
+)
 
 // Address represents an IP address
 type Address struct {
@@ -58,6 +62,7 @@ type EndpointSettings struct {
 	GlobalIPv6Address   string
 	GlobalIPv6PrefixLen int
 	MacAddress          string
+	DriverOpts          map[string]string
 }
 
 // Task carries the information about one backend task
@@ -99,4 +104,23 @@ func (es *EndpointSettings) Copy() *EndpointSettings {
 // Carries the networking configs specified in the `docker run` and `docker network connect` commands
 type NetworkingConfig struct {
 	EndpointsConfig map[string]*EndpointSettings // Endpoint configs for each connecting network
+}
+
+// ConfigReference specifies the source which provides a network's configuration
+type ConfigReference struct {
+	Network string
+}
+
+var acceptedFilters = map[string]bool{
+	"driver": true,
+	"type":   true,
+	"name":   true,
+	"id":     true,
+	"label":  true,
+	"scope":  true,
+}
+
+// ValidateFilters validates the list of filter args with the available filters.
+func ValidateFilters(filter filters.Args) error {
+	return errdefs.InvalidParameter(filter.Validate(acceptedFilters))
 }

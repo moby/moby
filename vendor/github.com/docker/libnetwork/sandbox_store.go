@@ -1,13 +1,12 @@
 package libnetwork
 
 import (
-	"container/heap"
 	"encoding/json"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/osl"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -115,9 +114,7 @@ func (sbs *sbState) CopyTo(o datastore.KVObject) error {
 	dstSbs.dbExists = sbs.dbExists
 	dstSbs.EpPriority = sbs.EpPriority
 
-	for _, eps := range sbs.Eps {
-		dstSbs.Eps = append(dstSbs.Eps, eps)
-	}
+	dstSbs.Eps = append(dstSbs.Eps, sbs.Eps...)
 
 	if len(sbs.ExtDNS2) > 0 {
 		for _, dns := range sbs.ExtDNS2 {
@@ -217,7 +214,7 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			id:                 sbs.ID,
 			controller:         sbs.c,
 			containerID:        sbs.Cid,
-			endpoints:          epHeap{},
+			endpoints:          []*endpoint{},
 			populatedEndpoints: map[string]struct{}{},
 			dbIndex:            sbs.dbIndex,
 			isStub:             true,
@@ -244,11 +241,10 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 			sb.processOptions(opts...)
 			sb.restorePath()
 			create = !sb.config.useDefaultSandBox
-			heap.Init(&sb.endpoints)
 		}
 		sb.osSbox, err = osl.NewSandbox(sb.Key(), create, isRestore)
 		if err != nil {
-			logrus.Errorf("failed to create osl sandbox while trying to restore sandbox %s%s: %v", sb.ID()[0:7], msg, err)
+			logrus.Errorf("failed to create osl sandbox while trying to restore sandbox %.7s%s: %v", sb.ID(), msg, err)
 			continue
 		}
 
@@ -274,7 +270,7 @@ func (c *controller) sandboxCleanup(activeSandboxes map[string]interface{}) {
 				logrus.Errorf("failed to restore endpoint %s in %s for container %s due to %v", eps.Eid, eps.Nid, sb.ContainerID(), err)
 				continue
 			}
-			heap.Push(&sb.endpoints, ep)
+			sb.addEndpoint(ep)
 		}
 
 		if _, ok := activeSandboxes[sb.ID()]; !ok {

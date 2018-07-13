@@ -1,0 +1,14 @@
+#!/bin/sh
+
+TINI_COMMIT=fec3683b971d9c3ef73f284f176672c44b448662 # v0.18.0
+
+install_tini() {
+	echo "Install tini version $TINI_COMMIT"
+	git clone https://github.com/krallin/tini.git "$GOPATH/tini"
+	cd "$GOPATH/tini"
+	git checkout -q "$TINI_COMMIT"
+	cmake .
+	make tini-static
+	mkdir -p ${PREFIX}
+	cp tini-static ${PREFIX}/docker-init
+}

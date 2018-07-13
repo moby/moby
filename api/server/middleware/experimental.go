@@ -1,9 +1,8 @@
-package middleware
+package middleware // import "github.com/docker/docker/api/server/middleware"
 
 import (
+	"context"
 	"net/http"
-
-	"golang.org/x/net/context"
 )
 
 // ExperimentalMiddleware is a the middleware in charge of adding the

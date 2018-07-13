@@ -28,6 +28,9 @@ const (
 	// DNSServers of the network
 	DNSServers = "com.docker.network.windowsshim.dnsservers"
 
+	// MacPool of the network
+	MacPool = "com.docker.network.windowsshim.macpool"
+
 	// SourceMac of the network
 	SourceMac = "com.docker.network.windowsshim.sourcemac"
 
@@ -36,4 +39,13 @@ const (
 
 	// DisableDNS label
 	DisableDNS = "com.docker.network.windowsshim.disable_dns"
+
+	// DisableGatewayDNS label
+	DisableGatewayDNS = "com.docker.network.windowsshim.disable_gatewaydns"
+
+	// EnableOutboundNat label
+	EnableOutboundNat = "com.docker.network.windowsshim.enable_outboundnat"
+
+	// OutboundNatExceptions label
+	OutboundNatExceptions = "com.docker.network.windowsshim.outboundnat_exceptions"
 )

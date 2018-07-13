@@ -1,6 +1,7 @@
-package directory
+package directory // import "github.com/docker/docker/pkg/directory"
 
 import (
+	"context"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -18,7 +19,7 @@ func TestSizeEmpty(t *testing.T) {
 	}
 
 	var size int64
-	if size, _ = Size(dir); size != 0 {
+	if size, _ = Size(context.Background(), dir); size != 0 {
 		t.Fatalf("empty directory has size: %d", size)
 	}
 }
@@ -37,7 +38,7 @@ func TestSizeEmptyFile(t *testing.T) {
 	}
 
 	var size int64
-	if size, _ = Size(file.Name()); size != 0 {
+	if size, _ = Size(context.Background(), file.Name()); size != 0 {
 		t.Fatalf("directory with one file has size: %d", size)
 	}
 }
@@ -59,7 +60,7 @@ func TestSizeNonemptyFile(t *testing.T) {
 	file.Write(d)
 
 	var size int64
-	if size, _ = Size(file.Name()); size != 5 {
+	if size, _ = Size(context.Background(), file.Name()); size != 5 {
 		t.Fatalf("directory with one 5-byte file has size: %d", size)
 	}
 }
@@ -76,7 +77,7 @@ func TestSizeNestedDirectoryEmpty(t *testing.T) {
 	}
 
 	var size int64
-	if size, _ = Size(dir); size != 0 {
+	if size, _ = Size(context.Background(), dir); size != 0 {
 		t.Fatalf("directory with one empty directory has size: %d", size)
 	}
 }
@@ -101,7 +102,7 @@ func TestSizeFileAndNestedDirectoryEmpty(t *testing.T) {
 	file.Write(d)
 
 	var size int64
-	if size, _ = Size(dir); size != 6 {
+	if size, _ = Size(context.Background(), dir); size != 6 {
 		t.Fatalf("directory with 6-byte file and empty directory has size: %d", size)
 	}
 }
@@ -134,7 +135,7 @@ func TestSizeFileAndNestedDirectoryNonempty(t *testing.T) {
 	nestedFile.Write(nestedData)
 
 	var size int64
-	if size, _ = Size(dir); size != 12 {
+	if size, _ = Size(context.Background(), dir); size != 12 {
 		t.Fatalf("directory with 6-byte file and nested directory with 6-byte file has size: %d", size)
 	}
 }
@@ -186,7 +187,7 @@ func TestMoveToSubdir(t *testing.T) {
 
 // Test a non-existing directory
 func TestSizeNonExistingDirectory(t *testing.T) {
-	if _, err := Size("/thisdirectoryshouldnotexist/TestSizeNonExistingDirectory"); err == nil {
+	if _, err := Size(context.Background(), "/thisdirectoryshouldnotexist/TestSizeNonExistingDirectory"); err == nil {
 		t.Fatalf("error is expected")
 	}
 }

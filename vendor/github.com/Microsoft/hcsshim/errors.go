@@ -13,6 +13,13 @@ var (
 	// ErrElementNotFound is an error encountered when the object being referenced does not exist
 	ErrElementNotFound = syscall.Errno(0x490)
 
+	// ErrElementNotFound is an error encountered when the object being referenced does not exist
+	ErrNotSupported = syscall.Errno(0x32)
+
+	// ErrInvalidData is an error encountered when the request being sent to hcs is invalid/unsupported
+	// decimal -2147024883 / hex 0x8007000d
+	ErrInvalidData = syscall.Errno(0xd)
+
 	// ErrHandleClose is an error encountered when the handle generating the notification being waited on has been closed
 	ErrHandleClose = errors.New("hcsshim: the handle generating this notification has been closed")
 
@@ -54,7 +61,32 @@ var (
 	// ErrVmcomputeOperationAccessIsDenied is an error which can be encountered when enumerating compute systems in RS1/RS2
 	// builds when the underlying silo might be in the process of terminating. HCS was fixed in RS3.
 	ErrVmcomputeOperationAccessIsDenied = syscall.Errno(0x5)
+
+	// ErrVmcomputeInvalidJSON is an error encountered when the compute system does not support/understand the messages sent by management
+	ErrVmcomputeInvalidJSON = syscall.Errno(0xc037010d)
+
+	// ErrVmcomputeUnknownMessage is an error encountered guest compute system doesn't support the message
+	ErrVmcomputeUnknownMessage = syscall.Errno(0xc037010b)
+
+	// ErrNotSupported is an error encountered when hcs doesn't support the request
+	ErrPlatformNotSupported = errors.New("unsupported platform request")
 )
+
+type EndpointNotFoundError struct {
+	EndpointName string
+}
+
+func (e EndpointNotFoundError) Error() string {
+	return fmt.Sprintf("Endpoint %s not found", e.EndpointName)
+}
+
+type NetworkNotFoundError struct {
+	NetworkName string
+}
+
+func (e NetworkNotFoundError) Error() string {
+	return fmt.Sprintf("Network %s not found", e.NetworkName)
+}
 
 // ProcessError is an error encountered in HCS during an operation on a Process object
 type ProcessError struct {
@@ -158,6 +190,12 @@ func makeProcessError(process *process, operation string, extraInfo string, err 
 // will currently return true when the error is ErrElementNotFound or ErrProcNotFound.
 func IsNotExist(err error) bool {
 	err = getInnerError(err)
+	if _, ok := err.(EndpointNotFoundError); ok {
+		return true
+	}
+	if _, ok := err.(NetworkNotFoundError); ok {
+		return true
+	}
 	return err == ErrComputeSystemDoesNotExist ||
 		err == ErrElementNotFound ||
 		err == ErrProcNotFound
@@ -194,6 +232,20 @@ func IsAlreadyStopped(err error) bool {
 	return err == ErrVmcomputeAlreadyStopped ||
 		err == ErrElementNotFound ||
 		err == ErrProcNotFound
+}
+
+// IsNotSupported returns a boolean indicating whether the error is caused by
+// unsupported platform requests
+// Note: Currently Unsupported platform requests can be mean either
+// ErrVmcomputeInvalidJSON, ErrInvalidData, ErrNotSupported or ErrVmcomputeUnknownMessage
+// is thrown from the Platform
+func IsNotSupported(err error) bool {
+	err = getInnerError(err)
+	// If Platform doesn't recognize or support the request sent, below errors are seen
+	return err == ErrVmcomputeInvalidJSON ||
+		err == ErrInvalidData ||
+		err == ErrNotSupported ||
+		err == ErrVmcomputeUnknownMessage
 }
 
 func getInnerError(err error) error {

@@ -12,20 +12,30 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/integration-cli/cli"
+	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/integration-cli/daemon"
 	"github.com/go-check/check"
+	"gotest.tools/icmd"
 )
 
-func pruneNetworkAndVerify(c *check.C, d *daemon.Swarm, kept, pruned []string) {
+func pruneNetworkAndVerify(c *check.C, d *daemon.Daemon, kept, pruned []string) {
 	_, err := d.Cmd("network", "prune", "--force")
 	c.Assert(err, checker.IsNil)
-	out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
-	c.Assert(err, checker.IsNil)
+
 	for _, s := range kept {
-		c.Assert(out, checker.Contains, s)
+		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
+			c.Assert(err, checker.IsNil)
+			return out, nil
+		}, checker.Contains, s)
 	}
+
 	for _, s := range pruned {
-		c.Assert(out, checker.Not(checker.Contains), s)
+		waitAndAssert(c, defaultReconciliationTimeout, func(*check.C) (interface{}, check.CommentInterface) {
+			out, err := d.Cmd("network", "ls", "--format", "{{.Name}}")
+			c.Assert(err, checker.IsNil)
+			return out, nil
+		}, checker.Not(checker.Contains), s)
 	}
 }
 
@@ -46,7 +56,8 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 
 	serviceName := "testprunesvc"
 	replicas := 1
-	out, err := d.Cmd("service", "create", "--name", serviceName,
+	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image",
+		"--name", serviceName,
 		"--replicas", strconv.Itoa(replicas),
 		"--network", "n3",
 		"busybox", "top")
@@ -63,19 +74,22 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 	_, err = d.Cmd("service", "rm", serviceName)
 	c.Assert(err, checker.IsNil)
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
+
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
 }
 
 func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	out, _, err := s.d.BuildImageWithOut("test",
-		`FROM busybox
-                 LABEL foo=bar`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id := strings.TrimSpace(out)
+	result := cli.BuildCmd(c, "test", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL foo=bar`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id := strings.TrimSpace(result.Combined())
 
-	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	out, err := s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id)
 
@@ -256,20 +270,24 @@ func (s *DockerSuite) TestPruneNetworkLabel(c *check.C) {
 func (s *DockerDaemonSuite) TestPruneImageLabel(c *check.C) {
 	s.d.StartWithBusybox(c)
 
-	out, _, err := s.d.BuildImageWithOut("test1",
-		`FROM busybox
-                 LABEL foo=bar`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id1 := strings.TrimSpace(out)
-	out, err = s.d.Cmd("images", "-q", "--no-trunc")
+	result := cli.BuildCmd(c, "test1", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL foo=bar`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id1 := strings.TrimSpace(result.Combined())
+	out, err := s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id1)
 
-	out, _, err = s.d.BuildImageWithOut("test2",
-		`FROM busybox
-                 LABEL bar=foo`, true, "-q")
-	c.Assert(err, checker.IsNil)
-	id2 := strings.TrimSpace(out)
+	result = cli.BuildCmd(c, "test2", cli.Daemon(s.d),
+		build.WithDockerfile(`FROM busybox
+                 LABEL bar=foo`),
+		cli.WithFlags("-q"),
+	)
+	result.Assert(c, icmd.Success)
+	id2 := strings.TrimSpace(result.Combined())
 	out, err = s.d.Cmd("images", "-q", "--no-trunc")
 	c.Assert(err, checker.IsNil)
 	c.Assert(strings.TrimSpace(out), checker.Contains, id2)

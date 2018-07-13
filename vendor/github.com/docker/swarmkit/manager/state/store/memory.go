@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/docker/go-events"
+	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	pb "github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/state"
@@ -76,15 +77,44 @@ var (
 	// WedgeTimeout is the maximum amount of time the store lock may be
 	// held before declaring a suspected deadlock.
 	WedgeTimeout = 30 * time.Second
+
+	// update()/write tx latency timer.
+	updateLatencyTimer metrics.Timer
+
+	// view()/read tx latency timer.
+	viewLatencyTimer metrics.Timer
+
+	// lookup() latency timer.
+	lookupLatencyTimer metrics.Timer
+
+	// Batch() latency timer.
+	batchLatencyTimer metrics.Timer
+
+	// timer to capture the duration for which the memory store mutex is locked.
+	storeLockDurationTimer metrics.Timer
 )
+
+func init() {
+	ns := metrics.NewNamespace("swarm", "store", nil)
+	updateLatencyTimer = ns.NewTimer("write_tx_latency",
+		"Raft store write tx latency.")
+	viewLatencyTimer = ns.NewTimer("read_tx_latency",
+		"Raft store read tx latency.")
+	lookupLatencyTimer = ns.NewTimer("lookup_latency",
+		"Raft store read latency.")
+	batchLatencyTimer = ns.NewTimer("batch_latency",
+		"Raft store batch latency.")
+	storeLockDurationTimer = ns.NewTimer("memory_store_lock_duration",
+		"Duration for which the raft memory store lock was held.")
+	metrics.Register(ns)
+}
 
 func register(os ObjectStoreConfig) {
 	objectStorers = append(objectStorers, os)
 	schema.Tables[os.Table.Name] = os.Table
 }
 
-// timedMutex wraps a sync.Mutex, and keeps track of how long it has been
-// locked.
+// timedMutex wraps a sync.Mutex, and keeps track of when it was locked.
 type timedMutex struct {
 	sync.Mutex
 	lockedAt atomic.Value
@@ -95,9 +125,14 @@ func (m *timedMutex) Lock() {
 	m.lockedAt.Store(time.Now())
 }
 
+// Unlocks the timedMutex and captures the duration
+// for which it was locked in a metric.
 func (m *timedMutex) Unlock() {
-	m.Mutex.Unlock()
+	unlockedTimestamp := m.lockedAt.Load()
 	m.lockedAt.Store(time.Time{})
+	m.Mutex.Unlock()
+	lockedFor := time.Since(unlockedTimestamp.(time.Time))
+	storeLockDurationTimer.Update(lockedFor)
 }
 
 func (m *timedMutex) LockedAt() time.Time {
@@ -185,6 +220,7 @@ type readTx struct {
 
 // View executes a read transaction.
 func (s *MemoryStore) View(cb func(ReadTx)) {
+	defer metrics.StartTimer(viewLatencyTimer)()
 	memDBTx := s.memDB.Txn(false)
 
 	readTx := readTx{
@@ -281,6 +317,7 @@ func applyStoreAction(tx Tx, sa api.StoreAction) error {
 }
 
 func (s *MemoryStore) update(proposer state.Proposer, cb func(Tx) error) error {
+	defer metrics.StartTimer(updateLatencyTimer)()
 	s.updateLock.Lock()
 	memDBTx := s.memDB.Txn(true)
 
@@ -330,7 +367,6 @@ func (s *MemoryStore) update(proposer state.Proposer, cb func(Tx) error) error {
 	}
 	s.updateLock.Unlock()
 	return err
-
 }
 
 func (s *MemoryStore) updateLocal(cb func(Tx) error) error {
@@ -348,9 +384,6 @@ type Batch struct {
 	store *MemoryStore
 	// applied counts the times Update has run successfully
 	applied int
-	// committed is the number of times Update had run successfully as of
-	// the time pending changes were committed.
-	committed int
 	// transactionSizeEstimate is the running count of the size of the
 	// current transaction.
 	transactionSizeEstimate int
@@ -434,8 +467,6 @@ func (batch *Batch) commit() error {
 		return batch.err
 	}
 
-	batch.committed = batch.applied
-
 	for _, c := range batch.tx.changelist {
 		batch.store.queue.Publish(c)
 	}
@@ -461,9 +492,10 @@ func (batch *Batch) commit() error {
 // excessive time, or producing a transaction that exceeds the maximum
 // size.
 //
-// Batch returns the number of calls to batch.Update whose changes were
-// successfully committed to the store.
-func (s *MemoryStore) Batch(cb func(*Batch) error) (int, error) {
+// If Batch returns an error, no guarantees are made about how many updates
+// were committed successfully.
+func (s *MemoryStore) Batch(cb func(*Batch) error) error {
+	defer metrics.StartTimer(batchLatencyTimer)()
 	s.updateLock.Lock()
 
 	batch := Batch{
@@ -474,12 +506,12 @@ func (s *MemoryStore) Batch(cb func(*Batch) error) (int, error) {
 	if err := cb(&batch); err != nil {
 		batch.tx.memDBTx.Abort()
 		s.updateLock.Unlock()
-		return batch.committed, err
+		return err
 	}
 
 	err := batch.commit()
 	s.updateLock.Unlock()
-	return batch.committed, err
+	return err
 }
 
 func (tx *tx) init(memDBTx *memdb.Txn, curVersion *api.Version) {
@@ -504,6 +536,7 @@ func (tx tx) changelistStoreActions() ([]api.StoreAction, error) {
 
 // lookup is an internal typed wrapper around memdb.
 func (tx readTx) lookup(table, index, id string) api.StoreObject {
+	defer metrics.StartTimer(lookupLatencyTimer)()
 	j, err := tx.memDBTx.First(table, index, id)
 	if err != nil {
 		return nil

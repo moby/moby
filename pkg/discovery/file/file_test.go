@@ -1,4 +1,4 @@
-package file
+package file // import "github.com/docker/docker/pkg/discovery/file"
 
 import (
 	"io/ioutil"

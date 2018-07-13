@@ -1,4 +1,4 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"context"
@@ -58,7 +58,7 @@ func TestRingCap(t *testing.T) {
 		}
 	}
 
-	// should have messages in the queue for "5" to "10"
+	// should have messages in the queue for "0" to "4"
 	for i := 0; i < 5; i++ {
 		m, err := r.Dequeue()
 		if err != nil {

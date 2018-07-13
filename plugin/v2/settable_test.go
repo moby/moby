@@ -1,4 +1,4 @@
-package v2
+package v2 // import "github.com/docker/docker/plugin/v2"
 
 import (
 	"reflect"
@@ -68,7 +68,7 @@ func TestIsSettable(t *testing.T) {
 	}
 }
 
-func TestUpdateSettinsEnv(t *testing.T) {
+func TestUpdateSettingsEnv(t *testing.T) {
 	contexts := []struct {
 		env    []string
 		set    settable

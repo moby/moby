@@ -7,6 +7,16 @@ import (
 	"github.com/docker/libnetwork/types"
 )
 
+// SandboxType specify the time of the sandbox, this can be used to apply special configs
+type SandboxType int
+
+const (
+	// SandboxTypeIngress indicates that the sandbox is for the ingress
+	SandboxTypeIngress = iota
+	// SandboxTypeLoadBalancer indicates that the sandbox is a load balancer
+	SandboxTypeLoadBalancer = iota
+)
+
 // Sandbox represents a network sandbox, identified by a specific key.  It
 // holds a list of Interfaces, routes etc, and more can be added dynamically.
 type Sandbox interface {
@@ -31,6 +41,15 @@ type Sandbox interface {
 
 	// Unset the previously set default IPv6 gateway in the sandbox
 	UnsetGatewayIPv6() error
+
+	// GetLoopbackIfaceName returns the name of the loopback interface
+	GetLoopbackIfaceName() string
+
+	// AddAliasIP adds the passed IP address to the named interface
+	AddAliasIP(ifName string, ip *net.IPNet) error
+
+	// RemoveAliasIP removes the passed IP address from the named interface
+	RemoveAliasIP(ifName string, ip *net.IPNet) error
 
 	// Add a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
@@ -61,6 +80,9 @@ type Sandbox interface {
 
 	// restore sandbox
 	Restore(ifsopt map[string][]IfaceOption, routes []*types.StaticRoute, gw net.IP, gw6 net.IP) error
+
+	// ApplyOSTweaks applies operating system specific knobs on the sandbox
+	ApplyOSTweaks([]SandboxType)
 }
 
 // NeighborOptionSetter interface defines the option setter methods for interface options
@@ -90,9 +112,6 @@ type IfaceOptionSetter interface {
 
 	// LinkLocalAddresses returns an option setter to set the link-local IP addresses.
 	LinkLocalAddresses([]*net.IPNet) IfaceOption
-
-	// IPAliases returns an option setter to set IP address Aliases
-	IPAliases([]*net.IPNet) IfaceOption
 
 	// Master returns an option setter to set the master interface if any for this
 	// interface. The master interface name should refer to the srcname of a
@@ -149,9 +168,6 @@ type Interface interface {
 
 	// LinkLocalAddresses returns the link-local IP addresses assigned to the interface.
 	LinkLocalAddresses() []*net.IPNet
-
-	// IPAliases returns the IP address aliases assigned to the interface.
-	IPAliases() []*net.IPNet
 
 	// IP routes for the interface.
 	Routes() []*net.IPNet

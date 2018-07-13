@@ -12,7 +12,7 @@ IT on Swarm allows you to execute integration test in parallel across a Docker S
 ### Worker service
 
   - Works as a funker callee
-  - Executes an equivalent of `TESTFLAGS=-check.f TestFoo|TestBar|TestBaz ... make test-integration-cli` using the bind-mounted API socket (`docker.sock`)
+  - Executes an equivalent of `TESTFLAGS=-check.f TestFoo|TestBar|TestBaz ... make test-integration` using the bind-mounted API socket (`docker.sock`)
 
 ### Client
 
@@ -37,6 +37,8 @@ Following environment variables are known to work in this step:
 
  - `BUILDFLAGS`
  - `DOCKER_INCREMENTAL_BINARY`
+
+Note: during the transition into Moby Project, you might need to create a symbolic link `$GOPATH/src/github.com/docker/docker` to `$GOPATH/src/github.com/moby/moby`. 
 
 ### Step 2: Execute tests
 

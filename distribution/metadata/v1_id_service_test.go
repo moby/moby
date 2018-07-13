@@ -1,4 +1,4 @@
-package metadata
+package metadata // import "github.com/docker/docker/distribution/metadata"
 
 import (
 	"io/ioutil"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/layer"
+	"gotest.tools/assert"
 )
 
 func TestV1IDService(t *testing.T) {
@@ -20,6 +21,10 @@ func TestV1IDService(t *testing.T) {
 		t.Fatalf("could not create metadata store: %v", err)
 	}
 	v1IDService := NewV1IDService(metadataStore)
+
+	ns := v1IDService.namespace()
+
+	assert.Equal(t, "v1id", ns)
 
 	testVectors := []struct {
 		registry string

@@ -1,12 +1,12 @@
-package dockerversion
+package dockerversion // import "github.com/docker/docker/dockerversion"
 
 import (
+	"context"
 	"fmt"
 	"runtime"
 
 	"github.com/docker/docker/pkg/parsers/kernel"
 	"github.com/docker/docker/pkg/useragent"
-	"golang.org/x/net/context"
 )
 
 // UAStringKey is used as key type for user-agent string in net/context struct
@@ -52,8 +52,8 @@ func escapeStr(s string, charsToEscape string) string {
 	var ret string
 	for _, currRune := range s {
 		appended := false
-		for _, escapeableRune := range charsToEscape {
-			if currRune == escapeableRune {
+		for _, escapableRune := range charsToEscape {
+			if currRune == escapableRune {
 				ret += `\` + string(currRune)
 				appended = true
 				break

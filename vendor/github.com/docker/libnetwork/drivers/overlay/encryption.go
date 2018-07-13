@@ -12,16 +12,15 @@ import (
 
 	"strconv"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/ns"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
 const (
 	r            = 0xD0C4E3
-	timeout      = 30
 	pktExpansion = 26 // SPI(4) + SeqN(4) + IV(8) + PadLength(1) + NextHeader(1) + ICV(8)
 )
 
@@ -79,7 +78,7 @@ func (e *encrMap) String() string {
 }
 
 func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal, add bool) error {
-	logrus.Debugf("checkEncryption(%s, %v, %d, %t)", nid[0:7], rIP, vxlanID, isLocal)
+	logrus.Debugf("checkEncryption(%.7s, %v, %d, %t)", nid, rIP, vxlanID, isLocal)
 
 	n := d.network(nid)
 	if n == nil || !n.secure {
@@ -102,7 +101,7 @@ func (d *driver) checkEncryption(nid string, rIP net.IP, vxlanID uint32, isLocal
 			}
 			return false
 		}); err != nil {
-			logrus.Warnf("Failed to retrieve list of participating nodes in overlay network %s: %v", nid[0:5], err)
+			logrus.Warnf("Failed to retrieve list of participating nodes in overlay network %.5s: %v", nid, err)
 		}
 	default:
 		if len(d.network(nid).endpoints) > 0 {
@@ -439,7 +438,7 @@ func (d *driver) setKeys(keys []*key) error {
 	d.keys = keys
 	d.secMap = &encrMap{nodes: map[string][]*spi{}}
 	d.Unlock()
-	logrus.Debugf("Initial encryption keys: %v", d.keys)
+	logrus.Debugf("Initial encryption keys: %v", keys)
 	return nil
 }
 
@@ -459,6 +458,8 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 	)
 
 	d.Lock()
+	defer d.Unlock()
+
 	// add new
 	if newKey != nil {
 		d.keys = append(d.keys, newKey)
@@ -472,7 +473,6 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 			delIdx = i
 		}
 	}
-	d.Unlock()
 
 	if (newKey != nil && newIdx == -1) ||
 		(primary != nil && priIdx == -1) ||
@@ -481,17 +481,18 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 			"(newIdx,priIdx,delIdx):(%d, %d, %d)", newIdx, priIdx, delIdx)
 	}
 
+	if priIdx != -1 && priIdx == delIdx {
+		return types.BadRequestErrorf("attempting to both make a key (index %d) primary and delete it", priIdx)
+	}
+
 	d.secMapWalk(func(rIPs string, spis []*spi) ([]*spi, bool) {
 		rIP := net.ParseIP(rIPs)
 		return updateNodeKey(lIP, aIP, rIP, spis, d.keys, newIdx, priIdx, delIdx), false
 	})
 
-	d.Lock()
 	// swap primary
 	if priIdx != -1 {
-		swp := d.keys[0]
-		d.keys[0] = d.keys[priIdx]
-		d.keys[priIdx] = swp
+		d.keys[0], d.keys[priIdx] = d.keys[priIdx], d.keys[0]
 	}
 	// prune
 	if delIdx != -1 {
@@ -500,7 +501,6 @@ func (d *driver) updateKeys(newKey, primary, pruneKey *key) error {
 		}
 		d.keys = append(d.keys[:delIdx], d.keys[delIdx+1:]...)
 	}
-	d.Unlock()
 
 	logrus.Debugf("Updated: %v", d.keys)
 

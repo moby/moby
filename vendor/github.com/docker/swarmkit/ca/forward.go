@@ -17,7 +17,7 @@ const (
 // forwardedTLSInfoFromContext obtains forwarded TLS CN/OU from the grpc.MD
 // object in ctx.
 func forwardedTLSInfoFromContext(ctx context.Context) (remoteAddr string, cn string, org string, ous []string) {
-	md, _ := metadata.FromContext(ctx)
+	md, _ := metadata.FromIncomingContext(ctx)
 	if len(md[remoteAddrKey]) != 0 {
 		remoteAddr = md[remoteAddrKey][0]
 	}
@@ -32,7 +32,7 @@ func forwardedTLSInfoFromContext(ctx context.Context) (remoteAddr string, cn str
 }
 
 func isForwardedRequest(ctx context.Context) bool {
-	md, _ := metadata.FromContext(ctx)
+	md, _ := metadata.FromIncomingContext(ctx)
 	if len(md[certForwardedKey]) != 1 {
 		return false
 	}
@@ -42,7 +42,7 @@ func isForwardedRequest(ctx context.Context) bool {
 // WithMetadataForwardTLSInfo reads certificate from context and returns context where
 // ForwardCert is set based on original certificate.
 func WithMetadataForwardTLSInfo(ctx context.Context) (context.Context, error) {
-	md, ok := metadata.FromContext(ctx)
+	md, ok := metadata.FromIncomingContext(ctx)
 	if !ok {
 		md = metadata.MD{}
 	}
@@ -73,5 +73,5 @@ func WithMetadataForwardTLSInfo(ctx context.Context) (context.Context, error) {
 		md[remoteAddrKey] = []string{peer.Addr.String()}
 	}
 
-	return metadata.NewContext(ctx, md), nil
+	return metadata.NewOutgoingContext(ctx, md), nil
 }

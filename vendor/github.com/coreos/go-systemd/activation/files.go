@@ -18,18 +18,26 @@ package activation
 import (
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 )
 
-// based on: https://gist.github.com/alberts/4640792
 const (
+	// listenFdsStart corresponds to `SD_LISTEN_FDS_START`.
 	listenFdsStart = 3
 )
 
+// Files returns a slice containing a `os.File` object for each
+// file descriptor passed to this process via systemd fd-passing protocol.
+//
+// The order of the file descriptors is preserved in the returned slice.
+// `unsetEnv` is typically set to `true` in order to avoid clashes in
+// fd usage and to avoid leaking environment flags to child processes.
 func Files(unsetEnv bool) []*os.File {
 	if unsetEnv {
 		defer os.Unsetenv("LISTEN_PID")
 		defer os.Unsetenv("LISTEN_FDS")
+		defer os.Unsetenv("LISTEN_FDNAMES")
 	}
 
 	pid, err := strconv.Atoi(os.Getenv("LISTEN_PID"))
@@ -42,10 +50,17 @@ func Files(unsetEnv bool) []*os.File {
 		return nil
 	}
 
+	names := strings.Split(os.Getenv("LISTEN_FDNAMES"), ":")
+
 	files := make([]*os.File, 0, nfds)
 	for fd := listenFdsStart; fd < listenFdsStart+nfds; fd++ {
 		syscall.CloseOnExec(fd)
-		files = append(files, os.NewFile(uintptr(fd), "LISTEN_FD_"+strconv.Itoa(fd)))
+		name := "LISTEN_FD_" + strconv.Itoa(fd)
+		offset := fd - listenFdsStart
+		if offset < len(names) && len(names[offset]) > 0 {
+			name = names[offset]
+		}
+		files = append(files, os.NewFile(uintptr(fd), name))
 	}
 
 	return files

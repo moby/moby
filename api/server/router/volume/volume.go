@@ -1,4 +1,4 @@
-package volume
+package volume // import "github.com/docker/docker/api/server/router/volume"
 
 import "github.com/docker/docker/api/server/router"
 
@@ -29,7 +29,7 @@ func (r *volumeRouter) initRoutes() {
 		router.NewGetRoute("/volumes/{name:.*}", r.getVolumeByName),
 		// POST
 		router.NewPostRoute("/volumes/create", r.postVolumesCreate),
-		router.NewPostRoute("/volumes/prune", r.postVolumesPrune),
+		router.NewPostRoute("/volumes/prune", r.postVolumesPrune, router.WithCancel),
 		// DELETE
 		router.NewDeleteRoute("/volumes/{name:.*}", r.deleteVolumes),
 	}

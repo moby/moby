@@ -24,13 +24,14 @@ import (
 // The order of the file descriptors is preserved in the returned slice.
 // Nil values are used to fill any gaps. For example if systemd were to return file descriptors
 // corresponding with "udp, tcp, udp", then the slice would contain {net.PacketConn, nil, net.PacketConn}
-func PacketConns(unsetEnv bool) ([]net.PacketConn, error) {
-	files := Files(unsetEnv)
+func PacketConns() ([]net.PacketConn, error) {
+	files := Files(true)
 	conns := make([]net.PacketConn, len(files))
 
 	for i, f := range files {
 		if pc, err := net.FilePacketConn(f); err == nil {
 			conns[i] = pc
+			f.Close()
 		}
 	}
 	return conns, nil

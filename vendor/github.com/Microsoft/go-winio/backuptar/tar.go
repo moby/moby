@@ -36,6 +36,7 @@ const (
 	hdrSecurityDescriptor    = "sd"
 	hdrRawSecurityDescriptor = "rawsd"
 	hdrMountPoint            = "mountpoint"
+	hdrEaPrefix              = "xattr."
 )
 
 func writeZeroes(w io.Writer, count int64) error {
@@ -118,6 +119,21 @@ func BasicInfoHeader(name string, size int64, fileInfo *winio.FileBasicInfo) *ta
 func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size int64, fileInfo *winio.FileBasicInfo) error {
 	name = filepath.ToSlash(name)
 	hdr := BasicInfoHeader(name, size, fileInfo)
+
+	// If r can be seeked, then this function is two-pass: pass 1 collects the
+	// tar header data, and pass 2 copies the data stream. If r cannot be
+	// seeked, then some header data (in particular EAs) will be silently lost.
+	var (
+		restartPos int64
+		err        error
+	)
+	sr, readTwice := r.(io.Seeker)
+	if readTwice {
+		if restartPos, err = sr.Seek(0, io.SeekCurrent); err != nil {
+			readTwice = false
+		}
+	}
+
 	br := winio.NewBackupStreamReader(r)
 	var dataHdr *winio.BackupHeader
 	for dataHdr == nil {
@@ -131,7 +147,9 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 		switch bhdr.Id {
 		case winio.BackupData:
 			hdr.Mode |= c_ISREG
-			dataHdr = bhdr
+			if !readTwice {
+				dataHdr = bhdr
+			}
 		case winio.BackupSecurity:
 			sd, err := ioutil.ReadAll(br)
 			if err != nil {
@@ -151,16 +169,52 @@ func WriteTarFileFromBackupStream(t *tar.Writer, r io.Reader, name string, size 
 				hdr.Winheaders[hdrMountPoint] = "1"
 			}
 			hdr.Linkname = rp.Target
-		case winio.BackupEaData, winio.BackupLink, winio.BackupPropertyData, winio.BackupObjectId, winio.BackupTxfsData:
+
+		case winio.BackupEaData:
+			eab, err := ioutil.ReadAll(br)
+			if err != nil {
+				return err
+			}
+			eas, err := winio.DecodeExtendedAttributes(eab)
+			if err != nil {
+				return err
+			}
+			for _, ea := range eas {
+				// Use base64 encoding for the binary value. Note that there
+				// is no way to encode the EA's flags, since their use doesn't
+				// make any sense for persisted EAs.
+				hdr.Winheaders[hdrEaPrefix+ea.Name] = base64.StdEncoding.EncodeToString(ea.Value)
+			}
+
+		case winio.BackupAlternateData, winio.BackupLink, winio.BackupPropertyData, winio.BackupObjectId, winio.BackupTxfsData:
 			// ignore these streams
 		default:
 			return fmt.Errorf("%s: unknown stream ID %d", name, bhdr.Id)
 		}
 	}
 
-	err := t.WriteHeader(hdr)
+	err = t.WriteHeader(hdr)
 	if err != nil {
 		return err
+	}
+
+	if readTwice {
+		// Get back to the data stream.
+		if _, err = sr.Seek(restartPos, io.SeekStart); err != nil {
+			return err
+		}
+		for dataHdr == nil {
+			bhdr, err := br.Next()
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				return err
+			}
+			if bhdr.Id == winio.BackupData {
+				dataHdr = bhdr
+			}
+		}
 	}
 
 	if dataHdr != nil {
@@ -289,6 +343,38 @@ func WriteBackupStreamFromTarFile(w io.Writer, t *tar.Reader, hdr *tar.Header) (
 			return nil, err
 		}
 		_, err = bw.Write(sd)
+		if err != nil {
+			return nil, err
+		}
+	}
+	var eas []winio.ExtendedAttribute
+	for k, v := range hdr.Winheaders {
+		if !strings.HasPrefix(k, hdrEaPrefix) {
+			continue
+		}
+		data, err := base64.StdEncoding.DecodeString(v)
+		if err != nil {
+			return nil, err
+		}
+		eas = append(eas, winio.ExtendedAttribute{
+			Name:  k[len(hdrEaPrefix):],
+			Value: data,
+		})
+	}
+	if len(eas) != 0 {
+		eadata, err := winio.EncodeExtendedAttributes(eas)
+		if err != nil {
+			return nil, err
+		}
+		bhdr := winio.BackupHeader{
+			Id:   winio.BackupEaData,
+			Size: int64(len(eadata)),
+		}
+		err = bw.WriteHeader(&bhdr)
+		if err != nil {
+			return nil, err
+		}
+		_, err = bw.Write(eadata)
 		if err != nil {
 			return nil, err
 		}

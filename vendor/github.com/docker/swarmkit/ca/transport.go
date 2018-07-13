@@ -48,7 +48,7 @@ func (c *MutableTLSCreds) Info() credentials.ProtocolInfo {
 // It panics if validation of underlying config fails.
 func (c *MutableTLSCreds) Clone() credentials.TransportCredentials {
 	c.Lock()
-	newCfg, err := NewMutableTLS(c.config)
+	newCfg, err := NewMutableTLS(c.config.Clone())
 	if err != nil {
 		panic("validation error on Clone")
 	}

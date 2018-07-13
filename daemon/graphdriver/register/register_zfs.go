@@ -1,6 +1,6 @@
-// +build !exclude_graphdriver_zfs,linux !exclude_graphdriver_zfs,freebsd, solaris
+// +build !exclude_graphdriver_zfs,linux !exclude_graphdriver_zfs,freebsd
 
-package register
+package register // import "github.com/docker/docker/daemon/graphdriver/register"
 
 import (
 	// register the zfs driver

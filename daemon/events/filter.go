@@ -1,4 +1,4 @@
-package events
+package events // import "github.com/docker/docker/daemon/events"
 
 import (
 	"github.com/docker/distribution/reference"
@@ -20,12 +20,17 @@ func NewFilter(filter filters.Args) *Filter {
 func (ef *Filter) Include(ev events.Message) bool {
 	return ef.matchEvent(ev) &&
 		ef.filter.ExactMatch("type", ev.Type) &&
+		ef.matchScope(ev.Scope) &&
 		ef.matchDaemon(ev) &&
 		ef.matchContainer(ev) &&
 		ef.matchPlugin(ev) &&
 		ef.matchVolume(ev) &&
 		ef.matchNetwork(ev) &&
 		ef.matchImage(ev) &&
+		ef.matchNode(ev) &&
+		ef.matchService(ev) &&
+		ef.matchSecret(ev) &&
+		ef.matchConfig(ev) &&
 		ef.matchLabels(ev.Actor.Attributes)
 }
 
@@ -47,8 +52,15 @@ func (ef *Filter) filterContains(field string, values map[string]struct{}) bool 
 	return false
 }
 
+func (ef *Filter) matchScope(scope string) bool {
+	if !ef.filter.Contains("scope") {
+		return true
+	}
+	return ef.filter.ExactMatch("scope", scope)
+}
+
 func (ef *Filter) matchLabels(attributes map[string]string) bool {
-	if !ef.filter.Include("label") {
+	if !ef.filter.Contains("label") {
 		return true
 	}
 	return ef.filter.MatchKVList("label", attributes)
@@ -72,6 +84,22 @@ func (ef *Filter) matchVolume(ev events.Message) bool {
 
 func (ef *Filter) matchNetwork(ev events.Message) bool {
 	return ef.fuzzyMatchName(ev, events.NetworkEventType)
+}
+
+func (ef *Filter) matchService(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.ServiceEventType)
+}
+
+func (ef *Filter) matchNode(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.NodeEventType)
+}
+
+func (ef *Filter) matchSecret(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.SecretEventType)
+}
+
+func (ef *Filter) matchConfig(ev events.Message) bool {
+	return ef.fuzzyMatchName(ev, events.ConfigEventType)
 }
 
 func (ef *Filter) fuzzyMatchName(ev events.Message, eventType string) bool {

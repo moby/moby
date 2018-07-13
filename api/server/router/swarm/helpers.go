@@ -1,18 +1,19 @@
-package swarm
+package swarm // import "github.com/docker/docker/api/server/router/swarm"
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"net/http"
 
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
-	"golang.org/x/net/context"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
 // specified by the selector to the response
-func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, selector *backend.LogSelector) error {
+func (sr *swarmRouter) swarmLogs(ctx context.Context, w io.Writer, r *http.Request, selector *backend.LogSelector) error {
 	// Args are validated before the stream starts because when it starts we're
 	// sending HTTP 200 by writing an empty chunk of data to tell the client that
 	// daemon is going to stream. By sending this initial HTTP 200 we can't report
@@ -44,7 +45,7 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w http.ResponseWriter, r *
 			// maybe should return some context with this error?
 			return err
 		}
-		tty = s.Spec.TaskTemplate.ContainerSpec.TTY || tty
+		tty = (s.Spec.TaskTemplate.ContainerSpec != nil && s.Spec.TaskTemplate.ContainerSpec.TTY) || tty
 	}
 	for _, task := range selector.Tasks {
 		t, err := sr.backend.GetTask(task)

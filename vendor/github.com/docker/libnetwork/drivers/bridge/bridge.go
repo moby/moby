@@ -12,7 +12,6 @@ import (
 	"sync"
 	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/discoverapi"
 	"github.com/docker/libnetwork/driverapi"
@@ -24,6 +23,7 @@ import (
 	"github.com/docker/libnetwork/osl"
 	"github.com/docker/libnetwork/portmapper"
 	"github.com/docker/libnetwork/types"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -41,6 +41,14 @@ const (
 	// DefaultGatewayV6AuxKey represents the ipv6 default-gateway configured by the user
 	DefaultGatewayV6AuxKey = "DefaultGatewayIPv6"
 )
+
+type defaultBridgeNetworkConflict struct {
+	ID string
+}
+
+func (d defaultBridgeNetworkConflict) Error() string {
+	return fmt.Sprintf("Stale default bridge network %s", d.ID)
+}
 
 type iptableCleanFunc func() error
 type iptablesCleanFuncs []iptableCleanFunc
@@ -129,14 +137,16 @@ type bridgeNetwork struct {
 }
 
 type driver struct {
-	config         *configuration
-	network        *bridgeNetwork
-	natChain       *iptables.ChainInfo
-	filterChain    *iptables.ChainInfo
-	isolationChain *iptables.ChainInfo
-	networks       map[string]*bridgeNetwork
-	store          datastore.DataStore
-	nlh            *netlink.Handle
+	config          *configuration
+	network         *bridgeNetwork
+	natChain        *iptables.ChainInfo
+	filterChain     *iptables.ChainInfo
+	isolationChain1 *iptables.ChainInfo
+	isolationChain2 *iptables.ChainInfo
+	networks        map[string]*bridgeNetwork
+	store           datastore.DataStore
+	nlh             *netlink.Handle
+	configNetwork   sync.Mutex
 	sync.Mutex
 }
 
@@ -153,7 +163,8 @@ func Init(dc driverapi.DriverCallback, config map[string]interface{}) error {
 	}
 
 	c := driverapi.Capability{
-		DataScope: datastore.LocalScope,
+		DataScope:         datastore.LocalScope,
+		ConnectivityScope: datastore.LocalScope,
 	}
 	return dc.RegisterDriver(networkType, d, c)
 }
@@ -256,15 +267,15 @@ func (n *bridgeNetwork) registerIptCleanFunc(clean iptableCleanFunc) {
 	n.iptCleanFuncs = append(n.iptCleanFuncs, clean)
 }
 
-func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
+func (n *bridgeNetwork) getDriverChains() (*iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, *iptables.ChainInfo, error) {
 	n.Lock()
 	defer n.Unlock()
 
 	if n.driver == nil {
-		return nil, nil, nil, types.BadRequestErrorf("no driver found")
+		return nil, nil, nil, nil, types.BadRequestErrorf("no driver found")
 	}
 
-	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain, nil
+	return n.driver.natChain, n.driver.filterChain, n.driver.isolationChain1, n.driver.isolationChain2, nil
 }
 
 func (n *bridgeNetwork) getNetworkBridgeName() string {
@@ -301,68 +312,18 @@ func (n *bridgeNetwork) isolateNetwork(others []*bridgeNetwork, enable bool) err
 		return nil
 	}
 
-	// Install the rules to isolate this networks against each of the other networks
-	for _, o := range others {
-		o.Lock()
-		otherConfig := o.config
-		o.Unlock()
-
-		if otherConfig.Internal {
-			continue
-		}
-
-		if thisConfig.BridgeName != otherConfig.BridgeName {
-			if err := setINC(thisConfig.BridgeName, otherConfig.BridgeName, enable); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
-}
-
-// Checks whether this network's configuration for the network with this id conflicts with any of the passed networks
-func (c *networkConfiguration) conflictsWithNetworks(id string, others []*bridgeNetwork) error {
-	for _, nw := range others {
-
-		nw.Lock()
-		nwID := nw.id
-		nwConfig := nw.config
-		nwBridge := nw.bridge
-		nw.Unlock()
-
-		if nwID == id {
-			continue
-		}
-		// Verify the name (which may have been set by newInterface()) does not conflict with
-		// existing bridge interfaces. Ironically the system chosen name gets stored in the config...
-		// Basically we are checking if the two original configs were both empty.
-		if nwConfig.BridgeName == c.BridgeName {
-			return types.ForbiddenErrorf("conflicts with network %s (%s) by bridge name", nwID, nwConfig.BridgeName)
-		}
-		// If this network config specifies the AddressIPv4, we need
-		// to make sure it does not conflict with any previously allocated
-		// bridges. This could not be completely caught by the config conflict
-		// check, because networks which config does not specify the AddressIPv4
-		// get their address and subnet selected by the driver (see electBridgeIPv4())
-		if c.AddressIPv4 != nil && nwBridge.bridgeIPv4 != nil {
-			if nwBridge.bridgeIPv4.Contains(c.AddressIPv4.IP) ||
-				c.AddressIPv4.Contains(nwBridge.bridgeIPv4.IP) {
-				return types.ForbiddenErrorf("conflicts with network %s (%s) by ip network", nwID, nwConfig.BridgeName)
-			}
-		}
-	}
-
-	return nil
+	// Install the rules to isolate this network against each of the other networks
+	return setINC(thisConfig.BridgeName, enable)
 }
 
 func (d *driver) configure(option map[string]interface{}) error {
 	var (
-		config         *configuration
-		err            error
-		natChain       *iptables.ChainInfo
-		filterChain    *iptables.ChainInfo
-		isolationChain *iptables.ChainInfo
+		config          *configuration
+		err             error
+		natChain        *iptables.ChainInfo
+		filterChain     *iptables.ChainInfo
+		isolationChain1 *iptables.ChainInfo
+		isolationChain2 *iptables.ChainInfo
 	)
 
 	genericData, ok := option[netlabel.GenericData]
@@ -390,7 +351,7 @@ func (d *driver) configure(option map[string]interface{}) error {
 			}
 		}
 		removeIPChains()
-		natChain, filterChain, isolationChain, err = setupIPChains(config)
+		natChain, filterChain, isolationChain1, isolationChain2, err = setupIPChains(config)
 		if err != nil {
 			return err
 		}
@@ -409,7 +370,8 @@ func (d *driver) configure(option map[string]interface{}) error {
 	d.Lock()
 	d.natChain = natChain
 	d.filterChain = filterChain
-	d.isolationChain = isolationChain
+	d.isolationChain1 = isolationChain1
+	d.isolationChain2 = isolationChain2
 	d.config = config
 	d.Unlock()
 
@@ -601,11 +563,27 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 		return err
 	}
 
-	err = config.processIPAM(id, ipV4Data, ipV6Data)
-	if err != nil {
+	if err = config.processIPAM(id, ipV4Data, ipV6Data); err != nil {
 		return err
 	}
 
+	// start the critical section, from this point onward we are dealing with the list of networks
+	// so to be consistent we cannot allow that the list changes
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
+	// check network conflicts
+	if err = d.checkConflict(config); err != nil {
+		nerr, ok := err.(defaultBridgeNetworkConflict)
+		if !ok {
+			return err
+		}
+		// Got a conflict with a stale default network, clean that up and continue
+		logrus.Warn(nerr)
+		d.deleteNetwork(nerr.ID)
+	}
+
+	// there is no conflict, now create the network
 	if err = d.createNetwork(config); err != nil {
 		return err
 	}
@@ -613,33 +591,45 @@ func (d *driver) CreateNetwork(id string, option map[string]interface{}, nInfo d
 	return d.storeUpdate(config)
 }
 
-func (d *driver) createNetwork(config *networkConfiguration) error {
-	var err error
-
-	defer osl.InitOSContext()()
-
+func (d *driver) checkConflict(config *networkConfiguration) error {
 	networkList := d.getNetworks()
-	for i, nw := range networkList {
+	for _, nw := range networkList {
 		nw.Lock()
 		nwConfig := nw.config
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
 			if config.DefaultBridge {
 				// We encountered and identified a stale default network
-				// We must delete it as libnetwork is the source of thruth
+				// We must delete it as libnetwork is the source of truth
 				// The default network being created must be the only one
 				// This can happen only from docker 1.12 on ward
-				logrus.Infof("Removing stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
-				if err := d.DeleteNetwork(nwConfig.ID); err != nil {
-					logrus.Warnf("Failed to remove stale default network: %s (%s): %v. Will remove from store.", nwConfig.ID, nwConfig.BridgeName, err)
-					d.storeDelete(nwConfig)
-				}
-				networkList = append(networkList[:i], networkList[i+1:]...)
-			} else {
-				return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
-					config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
+				logrus.Infof("Found stale default bridge network %s (%s)", nwConfig.ID, nwConfig.BridgeName)
+				return defaultBridgeNetworkConflict{nwConfig.ID}
 			}
+
+			return types.ForbiddenErrorf("cannot create network %s (%s): conflicts with network %s (%s): %s",
+				config.ID, config.BridgeName, nwConfig.ID, nwConfig.BridgeName, err.Error())
 		}
+	}
+	return nil
+}
+
+func (d *driver) createNetwork(config *networkConfiguration) (err error) {
+	defer osl.InitOSContext()()
+
+	networkList := d.getNetworks()
+
+	// Initialize handle when needed
+	d.Lock()
+	if d.nlh == nil {
+		d.nlh = ns.NlHandle()
+	}
+	d.Unlock()
+
+	// Create or retrieve the bridge L3 interface
+	bridgeIface, err := newInterface(d.nlh, config)
+	if err != nil {
+		return err
 	}
 
 	// Create and set network handler in driver
@@ -648,6 +638,7 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		endpoints:  make(map[string]*bridgeEndpoint),
 		config:     config,
 		portMapper: portmapper.New(d.config.UserlandProxyPath),
+		bridge:     bridgeIface,
 		driver:     d,
 	}
 
@@ -664,35 +655,15 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		}
 	}()
 
-	// Initialize handle when needed
-	d.Lock()
-	if d.nlh == nil {
-		d.nlh = ns.NlHandle()
-	}
-	d.Unlock()
-
-	// Create or retrieve the bridge L3 interface
-	bridgeIface, err := newInterface(d.nlh, config)
-	if err != nil {
-		return err
-	}
-	network.bridge = bridgeIface
-
-	// Verify the network configuration does not conflict with previously installed
-	// networks. This step is needed now because driver might have now set the bridge
-	// name on this config struct. And because we need to check for possible address
-	// conflicts, so we need to check against operationa lnetworks.
-	if err = config.conflictsWithNetworks(config.ID, networkList); err != nil {
-		return err
-	}
-
+	// Add inter-network communication rules.
 	setupNetworkIsolationRules := func(config *networkConfiguration, i *bridgeInterface) error {
 		if err := network.isolateNetwork(networkList, true); err != nil {
-			if err := network.isolateNetwork(networkList, false); err != nil {
+			if err = network.isolateNetwork(networkList, false); err != nil {
 				logrus.Warnf("Failed on removing the inter-network iptables rules on cleanup: %v", err)
 			}
 			return err
 		}
+		// register the cleanup function
 		network.registerIptCleanFunc(func() error {
 			nwList := d.getNetworks()
 			return network.isolateNetwork(nwList, false)
@@ -733,8 +704,8 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 		// Enable IPv6 Forwarding
 		{enableIPv6Forwarding, setupIPv6Forwarding},
 
-		// Setup Loopback Adresses Routing
-		{!d.config.EnableUserlandProxy, setupLoopbackAdressesRouting},
+		// Setup Loopback Addresses Routing
+		{!d.config.EnableUserlandProxy, setupLoopbackAddressesRouting},
 
 		// Setup IPTables.
 		{d.config.EnableIPTables, network.setupIPTables},
@@ -762,18 +733,21 @@ func (d *driver) createNetwork(config *networkConfiguration) error {
 
 	// Apply the prepared list of steps, and abort at the first error.
 	bridgeSetup.queueStep(setupDeviceUp)
-	if err = bridgeSetup.apply(); err != nil {
-		return err
-	}
-
-	return nil
+	return bridgeSetup.apply()
 }
 
 func (d *driver) DeleteNetwork(nid string) error {
+
+	d.configNetwork.Lock()
+	defer d.configNetwork.Unlock()
+
+	return d.deleteNetwork(nid)
+}
+
+func (d *driver) deleteNetwork(nid string) error {
 	var err error
 
 	defer osl.InitOSContext()()
-
 	// Get network handler and remove it from driver
 	d.Lock()
 	n, ok := d.networks[nid]
@@ -793,11 +767,13 @@ func (d *driver) DeleteNetwork(nid string) error {
 			logrus.Warn(err)
 		}
 		if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
-			d.nlh.LinkDel(link)
+			if err := d.nlh.LinkDel(link); err != nil {
+				logrus.WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+			}
 		}
 
 		if err := d.storeDelete(ep); err != nil {
-			logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
+			logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 		}
 	}
 
@@ -816,12 +792,6 @@ func (d *driver) DeleteNetwork(nid string) error {
 			d.Unlock()
 		}
 	}()
-
-	// Sanity check
-	if n == nil {
-		err = driverapi.ErrNoNetwork(nid)
-		return err
-	}
 
 	switch config.BridgeIfaceCreator {
 	case ifaceCreatedByLibnetwork, ifaceCreatorUnknown:
@@ -986,7 +956,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	defer func() {
 		if err != nil {
-			d.nlh.LinkDel(host)
+			if err := d.nlh.LinkDel(host); err != nil {
+				logrus.WithError(err).Warnf("Failed to delete host side interface (%s)'s link", hostIfName)
+			}
 		}
 	}()
 
@@ -997,7 +969,9 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 	defer func() {
 		if err != nil {
-			d.nlh.LinkDel(sbox)
+			if err := d.nlh.LinkDel(sbox); err != nil {
+				logrus.WithError(err).Warnf("Failed to delete sandbox side interface (%s)'s link", containerIfName)
+			}
 		}
 	}()
 
@@ -1074,7 +1048,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	}
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to save bridge endpoint %s to store: %v", endpoint.id[0:7], err)
+		return fmt.Errorf("failed to save bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
 	return nil
@@ -1134,11 +1108,13 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	// Try removal of link. Discard error: it is a best effort.
 	// Also make sure defer does not see this error either.
 	if link, err := d.nlh.LinkByName(ep.srcName); err == nil {
-		d.nlh.LinkDel(link)
+		if err := d.nlh.LinkDel(link); err != nil {
+			logrus.WithError(err).Errorf("Failed to delete interface (%s)'s link on endpoint (%s) delete", ep.srcName, ep.id)
+		}
 	}
 
 	if err := d.storeDelete(ep); err != nil {
-		logrus.Warnf("Failed to remove bridge endpoint %s from store: %v", ep.id[0:7], err)
+		logrus.Warnf("Failed to remove bridge endpoint %.7s from store: %v", ep.id, err)
 	}
 
 	return nil
@@ -1312,7 +1288,7 @@ func (d *driver) ProgramExternalConnectivity(nid, eid string, options map[string
 	}()
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
+		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
 	if !network.config.EnableICC {
@@ -1354,7 +1330,7 @@ func (d *driver) RevokeExternalConnectivity(nid, eid string) error {
 	clearEndpointConnections(d.nlh, endpoint)
 
 	if err = d.storeUpdate(endpoint); err != nil {
-		return fmt.Errorf("failed to update bridge endpoint %s to store: %v", endpoint.id[0:7], err)
+		return fmt.Errorf("failed to update bridge endpoint %.7s to store: %v", endpoint.id, err)
 	}
 
 	return nil

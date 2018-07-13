@@ -1,6 +1,6 @@
-// +build !linux,!solaris
+// +build !linux
 
-package kernel
+package kernel // import "github.com/docker/docker/pkg/parsers/kernel"
 
 import (
 	"errors"

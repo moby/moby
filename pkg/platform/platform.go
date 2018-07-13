@@ -1,9 +1,9 @@
-package platform
+package platform // import "github.com/docker/docker/pkg/platform"
 
 import (
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (

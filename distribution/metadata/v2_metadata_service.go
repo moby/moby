@@ -1,4 +1,4 @@
-package metadata
+package metadata // import "github.com/docker/docker/distribution/metadata"
 
 import (
 	"crypto/hmac"
@@ -84,7 +84,7 @@ func ComputeV2MetadataHMACKey(authConfig *types.AuthConfig) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return []byte(digest.FromBytes([]byte(buf))), nil
+	return []byte(digest.FromBytes(buf)), nil
 }
 
 // authConfigKeyInput is a reduced AuthConfig structure holding just relevant credential data eligible for
@@ -203,7 +203,7 @@ func (serv *v2MetadataService) TagAndAdd(diffID layer.DiffID, hmacKey []byte, me
 	return serv.Add(diffID, meta)
 }
 
-// Remove unassociates a metadata entry from a layer DiffID.
+// Remove disassociates a metadata entry from a layer DiffID.
 func (serv *v2MetadataService) Remove(metadata V2Metadata) error {
 	if serv.store == nil {
 		// Support a service which has no backend storage, in this case

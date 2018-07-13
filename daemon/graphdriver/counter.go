@@ -1,4 +1,4 @@
-package graphdriver
+package graphdriver // import "github.com/docker/docker/daemon/graphdriver"
 
 import "sync"
 
@@ -54,6 +54,9 @@ func (c *RefCounter) incdec(path string, infoOp func(minfo *minfo)) int {
 	}
 	infoOp(m)
 	count := m.count
+	if count <= 0 {
+		delete(c.counts, path)
+	}
 	c.mu.Unlock()
 	return count
 }

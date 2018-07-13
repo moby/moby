@@ -4,13 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"math"
 	"net"
 	"reflect"
 	"strconv"
 	"sync"
 	"time"
+
+	"github.com/tinylib/msgp/msgp"
 )
 
 const (
@@ -19,10 +20,14 @@ const (
 	defaultSocketPath             = ""
 	defaultPort                   = 24224
 	defaultTimeout                = 3 * time.Second
+	defaultWriteTimeout           = time.Duration(0) // Write() will not time out
 	defaultBufferLimit            = 8 * 1024 * 1024
 	defaultRetryWait              = 500
 	defaultMaxRetry               = 13
 	defaultReconnectWaitIncreRate = 1.5
+	// Default sub-second precision value to false since it is only compatible
+	// with fluentd versions v0.14 and above.
+	defaultSubSecondPrecision = false
 )
 
 type Config struct {
@@ -31,12 +36,17 @@ type Config struct {
 	FluentNetwork    string        `json:"fluent_network"`
 	FluentSocketPath string        `json:"fluent_socket_path"`
 	Timeout          time.Duration `json:"timeout"`
+	WriteTimeout     time.Duration `json:"write_timeout"`
 	BufferLimit      int           `json:"buffer_limit"`
 	RetryWait        int           `json:"retry_wait"`
 	MaxRetry         int           `json:"max_retry"`
 	TagPrefix        string        `json:"tag_prefix"`
 	AsyncConnect     bool          `json:"async_connect"`
 	MarshalAsJSON    bool          `json:"marshal_as_json"`
+
+	// Sub-second precision timestamps are only possible for those using fluentd
+	// v0.14+ and serializing their messages with msgpack.
+	SubSecondPrecision bool `json:"sub_second_precision"`
 }
 
 type Fluent struct {
@@ -46,7 +56,7 @@ type Fluent struct {
 	pending []byte
 
 	muconn       sync.Mutex
-	conn         io.WriteCloser
+	conn         net.Conn
 	reconnecting bool
 }
 
@@ -66,6 +76,9 @@ func New(config Config) (f *Fluent, err error) {
 	}
 	if config.Timeout == 0 {
 		config.Timeout = defaultTimeout
+	}
+	if config.WriteTimeout == 0 {
+		config.WriteTimeout = defaultWriteTimeout
 	}
 	if config.BufferLimit == 0 {
 		config.BufferLimit = defaultBufferLimit
@@ -89,9 +102,6 @@ func New(config Config) (f *Fluent, err error) {
 // Post writes the output for a logging event.
 //
 // Examples:
-//
-//  // send string
-//  f.Post("tag_name", "data")
 //
 //  // send map[string]
 //  mapStringData := map[string]string{
@@ -122,6 +132,10 @@ func (f *Fluent) Post(tag string, message interface{}) error {
 func (f *Fluent) PostWithTime(tag string, tm time.Time, message interface{}) error {
 	if len(f.TagPrefix) > 0 {
 		tag = f.TagPrefix + "." + tag
+	}
+
+	if m, ok := message.(msgp.Marshaler); ok {
+		return f.EncodeAndPostData(tag, tm, m)
 	}
 
 	msg := reflect.ValueOf(message)
@@ -203,6 +217,9 @@ func (f *Fluent) EncodeData(tag string, tm time.Time, message interface{}) (data
 		msg := Message{Tag: tag, Time: timeUnix, Record: message}
 		chunk := &MessageChunk{message: msg}
 		data, err = json.Marshal(chunk)
+	} else if f.Config.SubSecondPrecision {
+		msg := &MessageExt{Tag: tag, Time: EventTime(tm), Record: message}
+		data, err = msg.MarshalMsg(nil)
 	} else {
 		msg := &Message{Tag: tag, Time: timeUnix, Record: message}
 		data, err = msg.MarshalMsg(nil)
@@ -297,6 +314,12 @@ func (f *Fluent) send() error {
 
 	var err error
 	if len(f.pending) > 0 {
+		t := f.Config.WriteTimeout
+		if time.Duration(0) < t {
+			f.conn.SetWriteDeadline(time.Now().Add(t))
+		} else {
+			f.conn.SetWriteDeadline(time.Time{})
+		}
 		_, err = f.conn.Write(f.pending)
 		if err != nil {
 			f.conn.Close()

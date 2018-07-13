@@ -5,10 +5,11 @@ package initca
 import (
 	"crypto"
 	"crypto/ecdsa"
+	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/pem"
 	"errors"
-	"io/ioutil"
 	"time"
 
 	"github.com/cloudflare/cfssl/config"
@@ -53,8 +54,15 @@ func New(req *csr.CertificateRequest) (cert, csrPEM, key []byte, err error) {
 			}
 		}
 
+		if req.CA.Backdate != "" {
+			policy.Default.Backdate, err = time.ParseDuration(req.CA.Backdate)
+			if err != nil {
+				return
+			}
+		}
+
 		policy.Default.CAConstraint.MaxPathLen = req.CA.PathLength
-		if req.CA.PathLength != 0 && req.CA.PathLenZero == true {
+		if req.CA.PathLength != 0 && req.CA.PathLenZero {
 			log.Infof("ignore invalid 'pathlenzero' value")
 		} else {
 			policy.Default.CAConstraint.MaxPathLenZero = req.CA.PathLenZero
@@ -90,7 +98,7 @@ func New(req *csr.CertificateRequest) (cert, csrPEM, key []byte, err error) {
 
 // NewFromPEM creates a new root certificate from the key file passed in.
 func NewFromPEM(req *csr.CertificateRequest, keyFile string) (cert, csrPEM []byte, err error) {
-	privData, err := ioutil.ReadFile(keyFile)
+	privData, err := helpers.ReadBytes(keyFile)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,11 +113,11 @@ func NewFromPEM(req *csr.CertificateRequest, keyFile string) (cert, csrPEM []byt
 
 // RenewFromPEM re-creates a root certificate from the CA cert and key
 // files. The resulting root certificate will have the input CA certificate
-// as the template and have the same expiry length. E.g. the exsiting CA
+// as the template and have the same expiry length. E.g. the existing CA
 // is valid for a year from Jan 01 2015 to Jan 01 2016, the renewed certificate
 // will be valid from now and expire in one year as well.
 func RenewFromPEM(caFile, keyFile string) ([]byte, error) {
-	caBytes, err := ioutil.ReadFile(caFile)
+	caBytes, err := helpers.ReadBytes(caFile)
 	if err != nil {
 		return nil, err
 	}
@@ -119,7 +127,7 @@ func RenewFromPEM(caFile, keyFile string) ([]byte, error) {
 		return nil, err
 	}
 
-	keyBytes, err := ioutil.ReadFile(keyFile)
+	keyBytes, err := helpers.ReadBytes(keyFile)
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +138,6 @@ func RenewFromPEM(caFile, keyFile string) ([]byte, error) {
 	}
 
 	return RenewFromSigner(ca, key)
-
 }
 
 // NewFromSigner creates a new root certificate from a crypto.Signer.
@@ -171,7 +178,7 @@ func NewFromSigner(req *csr.CertificateRequest, priv crypto.Signer) (cert, csrPE
 
 // RenewFromSigner re-creates a root certificate from the CA cert and crypto.Signer.
 // The resulting root certificate will have ca certificate
-// as the template and have the same expiry length. E.g. the exsiting CA
+// as the template and have the same expiry length. E.g. the existing CA
 // is valid for a year from Jan 01 2015 to Jan 01 2016, the renewed certificate
 // will be valid from now and expire in one year as well.
 func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
@@ -182,7 +189,6 @@ func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
 	// matching certificate public key vs private key
 	switch {
 	case ca.PublicKeyAlgorithm == x509.RSA:
-
 		var rsaPublicKey *rsa.PublicKey
 		var ok bool
 		if rsaPublicKey, ok = priv.Public().(*rsa.PublicKey); !ok {
@@ -205,7 +211,6 @@ func RenewFromSigner(ca *x509.Certificate, priv crypto.Signer) ([]byte, error) {
 	}
 
 	req := csr.ExtractCertificateRequest(ca)
-
 	cert, _, err := NewFromSigner(req, priv)
 	return cert, err
 
@@ -221,4 +226,24 @@ var CAPolicy = func() *config.Signing {
 			CAConstraint: config.CAConstraint{IsCA: true},
 		},
 	}
+}
+
+// Update copies the CA certificate, updates the NotBefore and
+// NotAfter fields, and then re-signs the certificate.
+func Update(ca *x509.Certificate, priv crypto.Signer) (cert []byte, err error) {
+	copy, err := x509.ParseCertificate(ca.Raw)
+	if err != nil {
+		return
+	}
+
+	validity := ca.NotAfter.Sub(ca.NotBefore)
+	copy.NotBefore = time.Now().Round(time.Minute).Add(-5 * time.Minute)
+	copy.NotAfter = copy.NotBefore.Add(validity)
+	cert, err = x509.CreateCertificate(rand.Reader, copy, copy, priv.Public(), priv)
+	if err != nil {
+		return
+	}
+
+	cert = pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert})
+	return
 }

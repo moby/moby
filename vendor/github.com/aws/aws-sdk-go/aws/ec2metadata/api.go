@@ -133,7 +133,7 @@ func (c *EC2Metadata) Available() bool {
 	return true
 }
 
-// An EC2IAMInfo provides the shape for unmarshalling
+// An EC2IAMInfo provides the shape for unmarshaling
 // an IAM info from the metadata API
 type EC2IAMInfo struct {
 	Code               string
@@ -142,7 +142,7 @@ type EC2IAMInfo struct {
 	InstanceProfileID  string
 }
 
-// An EC2InstanceIdentityDocument provides the shape for unmarshalling
+// An EC2InstanceIdentityDocument provides the shape for unmarshaling
 // an instance identity document
 type EC2InstanceIdentityDocument struct {
 	DevpayProductCodes []string  `json:"devpayProductCodes"`

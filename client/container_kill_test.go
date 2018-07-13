@@ -1,14 +1,13 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"strings"
 	"testing"
-
-	"golang.org/x/net/context"
 )
 
 func TestContainerKillError(t *testing.T) {

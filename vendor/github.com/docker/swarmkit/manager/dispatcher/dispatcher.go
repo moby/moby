@@ -7,22 +7,23 @@ import (
 	"sync"
 	"time"
 
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/transport"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/go-events"
+	"github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/equality"
 	"github.com/docker/swarmkit/ca"
 	"github.com/docker/swarmkit/log"
+	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/state/store"
+	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/watch"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -64,7 +65,17 @@ var (
 	ErrSessionInvalid = errors.New("session invalid")
 	// ErrNodeNotFound returned when the Node doesn't exist in raft.
 	ErrNodeNotFound = errors.New("node not found")
+
+	// Scheduling delay timer.
+	schedulingDelayTimer metrics.Timer
 )
+
+func init() {
+	ns := metrics.NewNamespace("swarm", "dispatcher", nil)
+	schedulingDelayTimer = ns.NewTimer("scheduling_delay",
+		"Scheduling delay is the time a task takes to go from NEW to RUNNING state.")
+	metrics.Register(ns)
+}
 
 // Config is configuration for Dispatcher. For default you should use
 // DefaultConfig.
@@ -113,8 +124,17 @@ type clusterUpdate struct {
 
 // Dispatcher is responsible for dispatching tasks and tracking agent health.
 type Dispatcher struct {
-	mu                   sync.Mutex
-	wg                   sync.WaitGroup
+	// Mutex to synchronize access to dispatcher shared state e.g. nodes,
+	// lastSeenManagers, networkBootstrapKeys etc.
+	// TODO(anshul): This can potentially be removed and rpcRW used in its place.
+	mu sync.Mutex
+	// WaitGroup to handle the case when Stop() gets called before Run()
+	// has finished initializing the dispatcher.
+	wg sync.WaitGroup
+	// This RWMutex synchronizes RPC handlers and the dispatcher stop().
+	// The RPC handlers use the read lock while stop() uses the write lock
+	// and acts as a barrier to shutdown.
+	rpcRW                sync.RWMutex
 	nodes                *nodeStore
 	store                *store.MemoryStore
 	lastSeenManagers     []*api.WeightedPeer
@@ -125,6 +145,8 @@ type Dispatcher struct {
 	ctx                  context.Context
 	cancel               context.CancelFunc
 	clusterUpdateQueue   *watch.Queue
+	dp                   *drivers.DriverProvider
+	securityConfig       *ca.SecurityConfig
 
 	taskUpdates     map[string]*api.TaskStatus // indexed by task ID
 	taskUpdatesLock sync.Mutex
@@ -142,19 +164,30 @@ type Dispatcher struct {
 }
 
 // New returns Dispatcher with cluster interface(usually raft.Node).
-func New(cluster Cluster, c *Config) *Dispatcher {
+func New() *Dispatcher {
 	d := &Dispatcher{
-		nodes:                 newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod),
 		downNodes:             newNodeStore(defaultNodeDownPeriod, 0, 1, 0),
-		store:                 cluster.MemoryStore(),
-		cluster:               cluster,
 		processUpdatesTrigger: make(chan struct{}, 1),
-		config:                c,
 	}
 
 	d.processUpdatesCond = sync.NewCond(&d.processUpdatesLock)
 
 	return d
+}
+
+// Init is used to initialize the dispatcher and
+// is typically called before starting the dispatcher
+// when a manager becomes a leader.
+// The dispatcher is a grpc server, and unlike other components,
+// it can't simply be recreated on becoming a leader.
+// This function ensures the dispatcher restarts with a clean slate.
+func (d *Dispatcher) Init(cluster Cluster, c *Config, dp *drivers.DriverProvider, securityConfig *ca.SecurityConfig) {
+	d.cluster = cluster
+	d.config = c
+	d.securityConfig = securityConfig
+	d.dp = dp
+	d.store = cluster.MemoryStore()
+	d.nodes = newNodeStore(c.HeartbeatPeriod, c.HeartbeatEpsilon, c.GracePeriodMultiplier, c.RateLimitPeriod)
 }
 
 func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
@@ -179,6 +212,9 @@ func getWeightedPeers(cluster Cluster) []*api.WeightedPeer {
 // Run runs dispatcher tasks which should be run on leader dispatcher.
 // Dispatcher can be stopped with cancelling ctx or calling Stop().
 func (d *Dispatcher) Run(ctx context.Context) error {
+	ctx = log.WithModule(ctx, "dispatcher")
+	log.G(ctx).Info("dispatcher starting")
+
 	d.taskUpdatesLock.Lock()
 	d.taskUpdates = make(map[string]*api.TaskStatus)
 	d.taskUpdatesLock.Unlock()
@@ -192,7 +228,6 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 		d.mu.Unlock()
 		return errors.New("dispatcher is already running")
 	}
-	ctx = log.WithModule(ctx, "dispatcher")
 	if err := d.markNodesUnknown(ctx); err != nil {
 		log.G(ctx).Errorf(`failed to move all nodes to "unknown" state: %v`, err)
 	}
@@ -294,9 +329,20 @@ func (d *Dispatcher) Stop() error {
 		d.mu.Unlock()
 		return errors.New("dispatcher is already stopped")
 	}
+
+	log := log.G(d.ctx).WithField("method", "(*Dispatcher).Stop")
+	log.Info("dispatcher stopping")
 	d.cancel()
 	d.mu.Unlock()
+
+	// The active nodes list can be cleaned out only when all
+	// existing RPCs have finished.
+	// RPCs that start after rpcRW.Unlock() should find the context
+	// cancelled and should fail organically.
+	d.rpcRW.Lock()
 	d.nodes.Clean()
+	d.downNodes.Clean()
+	d.rpcRW.Unlock()
 
 	d.processUpdatesLock.Lock()
 	// In case there are any waiters. There is no chance of any starting
@@ -307,6 +353,11 @@ func (d *Dispatcher) Stop() error {
 
 	d.clusterUpdateQueue.Close()
 
+	// TODO(anshul): This use of Wait() could be unsafe.
+	// According to go's documentation on WaitGroup,
+	// Add() with a positive delta that occur when the counter is zero
+	// must happen before a Wait().
+	// As is, dispatcher Stop() can race with Run().
 	d.wg.Wait()
 
 	return nil
@@ -316,7 +367,7 @@ func (d *Dispatcher) isRunningLocked() (context.Context, error) {
 	d.mu.Lock()
 	if !d.isRunning() {
 		d.mu.Unlock()
-		return nil, grpc.Errorf(codes.Aborted, "dispatcher is stopped")
+		return nil, status.Errorf(codes.Aborted, "dispatcher is stopped")
 	}
 	ctx := d.ctx
 	d.mu.Unlock()
@@ -333,7 +384,7 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get list of nodes")
 	}
-	_, err = d.store.Batch(func(batch *store.Batch) error {
+	err = d.store.Batch(func(batch *store.Batch) error {
 		for _, n := range nodes {
 			err := batch.Update(func(tx store.Tx) error {
 				// check if node is still here
@@ -345,13 +396,15 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 				if node.Status.State == api.NodeStatus_DOWN {
 					nodeCopy := node
 					expireFunc := func() {
+						log.Infof("moving tasks to orphaned state for node: %s", nodeCopy.ID)
 						if err := d.moveTasksToOrphaned(nodeCopy.ID); err != nil {
-							log.WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
+							log.WithError(err).Errorf(`failed to move all tasks for node %s to "ORPHANED" state`, node.ID)
 						}
 
 						d.downNodes.Delete(nodeCopy.ID)
 					}
 
+					log.Infof(`node %s was found to be down when marking unknown on dispatcher start`, node.ID)
 					d.downNodes.Add(nodeCopy, expireFunc)
 					return nil
 				}
@@ -363,16 +416,16 @@ func (d *Dispatcher) markNodesUnknown(ctx context.Context) error {
 
 				expireFunc := func() {
 					log := log.WithField("node", nodeID)
-					log.Debug("heartbeat expiration for unknown node")
+					log.Info(`heartbeat expiration for node %s in state "unknown"`, nodeID)
 					if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, `heartbeat failure for node in "unknown" state`); err != nil {
 						log.WithError(err).Error(`failed deregistering node after heartbeat expiration for node in "unknown" state`)
 					}
 				}
 				if err := d.nodes.AddUnknown(node, expireFunc); err != nil {
-					return errors.Wrap(err, `adding node in "unknown" state to node store failed`)
+					return errors.Wrapf(err, `adding node %s in "unknown" state to node store failed`, nodeID)
 				}
 				if err := store.UpdateNode(tx, node); err != nil {
-					return errors.Wrap(err, "update failed")
+					return errors.Wrapf(err, "update for node %s failed", nodeID)
 				}
 				return nil
 			})
@@ -427,13 +480,14 @@ func (d *Dispatcher) markNodeReady(ctx context.Context, nodeID string, descripti
 
 	// Wait until the node update batch happens before unblocking register.
 	d.processUpdatesLock.Lock()
+	defer d.processUpdatesLock.Unlock()
+
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
 	}
 	d.processUpdatesCond.Wait()
-	d.processUpdatesLock.Unlock()
 
 	return nil
 }
@@ -453,6 +507,7 @@ func nodeIPFromContext(ctx context.Context) (string, error) {
 
 // register is used for registration of node with particular dispatcher.
 func (d *Dispatcher) register(ctx context.Context, nodeID string, description *api.NodeDescription) (string, error) {
+	logLocal := log.G(ctx).WithField("method", "(*Dispatcher).register")
 	// prevent register until we're ready to accept it
 	dctx, err := d.isRunningLocked()
 	if err != nil {
@@ -474,7 +529,7 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 
 	addr, err := nodeIPFromContext(ctx)
 	if err != nil {
-		log.G(ctx).Debug(err.Error())
+		logLocal.WithError(err).Debug("failed to get remote node IP")
 	}
 
 	if err := d.markNodeReady(dctx, nodeID, description, addr); err != nil {
@@ -482,13 +537,14 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 	}
 
 	expireFunc := func() {
-		log.G(ctx).Debugf("heartbeat expiration")
+		log.G(ctx).Debug("heartbeat expiration for worker %s, setting worker status to NodeStatus_DOWN ", nodeID)
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DOWN, "heartbeat failure"); err != nil {
 			log.G(ctx).WithError(err).Errorf("failed deregistering node after heartbeat expiration")
 		}
 	}
 
 	rn := d.nodes.Add(node, expireFunc)
+	logLocal.Infof("worker %s was successfully registered", nodeID)
 
 	// NOTE(stevvooe): We need be a little careful with re-registration. The
 	// current implementation just matches the node id and then gives away the
@@ -505,6 +561,14 @@ func (d *Dispatcher) register(ctx context.Context, nodeID string, description *a
 // UpdateTaskStatus updates status of task. Node should send such updates
 // on every status change of its tasks.
 func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStatusRequest) (*api.UpdateTaskStatusResponse, error) {
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
+
+	dctx, err := d.isRunningLocked()
+	if err != nil {
+		return nil, err
+	}
+
 	nodeInfo, err := ca.RemoteNode(ctx)
 	if err != nil {
 		return nil, err
@@ -520,14 +584,11 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 	}
 	log := log.G(ctx).WithFields(fields)
 
-	dctx, err := d.isRunningLocked()
-	if err != nil {
-		return nil, err
-	}
-
 	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return nil, err
 	}
+
+	validTaskUpdates := make([]*api.UpdateTaskStatusRequest_TaskStatusUpdate, 0, len(r.Updates))
 
 	// Validate task updates
 	for _, u := range r.Updates {
@@ -541,23 +602,23 @@ func (d *Dispatcher) UpdateTaskStatus(ctx context.Context, r *api.UpdateTaskStat
 			t = store.GetTask(tx, u.TaskID)
 		})
 		if t == nil {
-			log.WithField("task.id", u.TaskID).Warn("cannot find target task in store")
+			// Task may have been deleted
+			log.WithField("task.id", u.TaskID).Debug("cannot find target task in store")
 			continue
 		}
 
 		if t.NodeID != nodeID {
-			err := grpc.Errorf(codes.PermissionDenied, "cannot update a task not assigned this node")
+			err := status.Errorf(codes.PermissionDenied, "cannot update a task not assigned this node")
 			log.WithField("task.id", u.TaskID).Error(err)
 			return nil, err
 		}
+
+		validTaskUpdates = append(validTaskUpdates, u)
 	}
 
 	d.taskUpdatesLock.Lock()
 	// Enqueue task updates
-	for _, u := range r.Updates {
-		if u.Status == nil {
-			continue
-		}
+	for _, u := range validTaskUpdates {
 		d.taskUpdates[u.TaskID] = u.Status
 	}
 
@@ -600,13 +661,14 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 		"method": "(*Dispatcher).processUpdates",
 	})
 
-	_, err := d.store.Batch(func(batch *store.Batch) error {
+	err := d.store.Batch(func(batch *store.Batch) error {
 		for taskID, status := range taskUpdates {
 			err := batch.Update(func(tx store.Tx) error {
 				logger := log.WithField("task.id", taskID)
 				task := store.GetTask(tx, taskID)
 				if task == nil {
-					logger.Errorf("task unavailable")
+					// Task may have been deleted
+					logger.Debug("cannot find target task in store")
 					return nil
 				}
 
@@ -622,12 +684,26 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 					return nil
 				}
 
+				// Update scheduling delay metric for running tasks.
+				// We use the status update time on the leader to calculate the scheduling delay.
+				// Because of this, the recorded scheduling delay will be an overestimate and include
+				// the network delay between the worker and the leader.
+				// This is not ideal, but its a known overestimation, rather than using the status update time
+				// from the worker node, which may cause unknown incorrect results due to possible clock skew.
+				if status.State == api.TaskStateRunning {
+					start := time.Unix(status.AppliedAt.GetSeconds(), int64(status.AppliedAt.GetNanos()))
+					schedulingDelayTimer.UpdateSince(start)
+				}
+
 				task.Status = *status
+				task.Status.AppliedBy = d.securityConfig.ClientTLSCreds.NodeID()
+				task.Status.AppliedAt = ptypes.MustTimestampProto(time.Now())
+				logger.Debugf("state for task %v updated to %v", task.GetID(), task.Status.State)
 				if err := store.UpdateTask(tx, task); err != nil {
 					logger.WithError(err).Error("failed to update task status")
 					return nil
 				}
-				logger.Debug("task status updated")
+				logger.Debug("dispatcher committed status update to store")
 				return nil
 			})
 			if err != nil {
@@ -680,16 +756,19 @@ func (d *Dispatcher) processUpdates(ctx context.Context) {
 // of tasks which should be run on node, if task is not present in that list,
 // it should be terminated.
 func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServer) error {
-	nodeInfo, err := ca.RemoteNode(stream.Context())
-	if err != nil {
-		return err
-	}
-	nodeID := nodeInfo.NodeID
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
 
 	dctx, err := d.isRunningLocked()
 	if err != nil {
 		return err
 	}
+
+	nodeInfo, err := ca.RemoteNode(stream.Context())
+	if err != nil {
+		return err
+	}
+	nodeID := nodeInfo.NodeID
 
 	fields := logrus.Fields{
 		"node.id":      nodeID,
@@ -699,7 +778,7 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 	if nodeInfo.ForwardedBy != nil {
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
-	log.G(stream.Context()).WithFields(fields).Debugf("")
+	log.G(stream.Context()).WithFields(fields).Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -803,16 +882,19 @@ func (d *Dispatcher) Tasks(r *api.TasksRequest, stream api.Dispatcher_TasksServe
 // Assignments is a stream of assignments for a node. Each message contains
 // either full list of tasks and secrets for the node, or an incremental update.
 func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatcher_AssignmentsServer) error {
-	nodeInfo, err := ca.RemoteNode(stream.Context())
-	if err != nil {
-		return err
-	}
-	nodeID := nodeInfo.NodeID
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
 
 	dctx, err := d.isRunningLocked()
 	if err != nil {
 		return err
 	}
+
+	nodeInfo, err := ca.RemoteNode(stream.Context())
+	if err != nil {
+		return err
+	}
+	nodeID := nodeInfo.NodeID
 
 	fields := logrus.Fields{
 		"node.id":      nodeID,
@@ -823,7 +905,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		fields["forwarder.id"] = nodeInfo.ForwardedBy.NodeID
 	}
 	log := log.G(stream.Context()).WithFields(fields)
-	log.Debugf("")
+	log.Debug("")
 
 	if _, err = d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
 		return err
@@ -832,7 +914,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 	var (
 		sequence    int64
 		appliesTo   string
-		assignments = newAssignmentSet(log)
+		assignments = newAssignmentSet(log, d.dp)
 	)
 
 	sendMessage := func(msg api.AssignmentsMessage, assignmentType api.AssignmentsMessage_Type) error {
@@ -842,10 +924,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 		appliesTo = msg.ResultsIn
 		msg.Type = assignmentType
 
-		if err := stream.Send(&msg); err != nil {
-			return err
-		}
-		return nil
+		return stream.Send(&msg)
 	}
 
 	// TODO(aaronl): Also send node secrets that should be exposed to
@@ -951,7 +1030,7 @@ func (d *Dispatcher) Assignments(r *api.AssignmentsRequest, stream api.Dispatche
 }
 
 func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
-	_, err := d.store.Batch(func(batch *store.Batch) error {
+	err := d.store.Batch(func(batch *store.Batch) error {
 		var (
 			tasks []*api.Task
 			err   error
@@ -999,6 +1078,8 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 
 // markNodeNotReady sets the node state to some state other than READY
 func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, message string) error {
+	logLocal := log.G(d.ctx).WithField("method", "(*Dispatcher).markNodeNotReady")
+
 	dctx, err := d.isRunningLocked()
 	if err != nil {
 		return err
@@ -1018,6 +1099,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	}
 
 	expireFunc := func() {
+		log.G(dctx).Debugf(`worker timed-out %s in "down" state, moving all tasks to "ORPHANED" state`, id)
 		if err := d.moveTasksToOrphaned(id); err != nil {
 			log.G(dctx).WithError(err).Error(`failed to move all tasks to "ORPHANED" state`)
 		}
@@ -1026,6 +1108,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	}
 
 	d.downNodes.Add(node, expireFunc)
+	logLocal.Debugf("added node %s to down nodes list", node.ID)
 
 	status := &api.NodeStatus{
 		State:   state,
@@ -1050,6 +1133,7 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 	if rn := d.nodes.Delete(id); rn == nil {
 		return errors.Errorf("node %s is not found in local storage", id)
 	}
+	logLocal.Debugf("deleted node %s from node store", node.ID)
 
 	return nil
 }
@@ -1058,12 +1142,22 @@ func (d *Dispatcher) markNodeNotReady(id string, state api.NodeStatus_State, mes
 // Node should send new heartbeat earlier than now + TTL, otherwise it will
 // be deregistered from dispatcher and its status will be updated to NodeStatus_DOWN
 func (d *Dispatcher) Heartbeat(ctx context.Context, r *api.HeartbeatRequest) (*api.HeartbeatResponse, error) {
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
+
+	// TODO(anshul) Explore if its possible to check context here without locking.
+	if _, err := d.isRunningLocked(); err != nil {
+		return nil, status.Errorf(codes.Aborted, "dispatcher is stopped")
+	}
+
 	nodeInfo, err := ca.RemoteNode(ctx)
 	if err != nil {
 		return nil, err
 	}
 
 	period, err := d.nodes.Heartbeat(nodeInfo.NodeID, r.SessionID)
+
+	log.G(ctx).WithField("method", "(*Dispatcher).Heartbeat").Debugf("received heartbeat from worker %v, expect next heartbeat in %v", nodeInfo, period)
 	return &api.HeartbeatResponse{Period: period}, err
 }
 
@@ -1090,17 +1184,21 @@ func (d *Dispatcher) getRootCACert() []byte {
 // a special boolean field Disconnect which if true indicates that node should
 // reconnect to another Manager immediately.
 func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_SessionServer) error {
-	ctx := stream.Context()
-	nodeInfo, err := ca.RemoteNode(ctx)
-	if err != nil {
-		return err
-	}
-	nodeID := nodeInfo.NodeID
+	d.rpcRW.RLock()
+	defer d.rpcRW.RUnlock()
 
 	dctx, err := d.isRunningLocked()
 	if err != nil {
 		return err
 	}
+
+	ctx := stream.Context()
+
+	nodeInfo, err := ca.RemoteNode(ctx)
+	if err != nil {
+		return err
+	}
+	nodeID := nodeInfo.NodeID
 
 	var sessionID string
 	if _, err := d.nodes.GetWithSession(nodeID, r.SessionID); err != nil {
@@ -1114,7 +1212,7 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		// get the node IP addr
 		addr, err := nodeIPFromContext(stream.Context())
 		if err != nil {
-			log.G(ctx).Debugf(err.Error())
+			log.G(ctx).WithError(err).Debug("failed to get remote node IP")
 		}
 		// update the node description
 		if err := d.markNodeReady(dctx, nodeID, r.Description, addr); err != nil {
@@ -1151,6 +1249,9 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		return err
 	}
 
+	clusterUpdatesCh, clusterCancel := d.clusterUpdateQueue.Watch()
+	defer clusterCancel()
+
 	if err := stream.Send(&api.SessionMessage{
 		SessionID:            sessionID,
 		Node:                 nodeObj,
@@ -1161,26 +1262,14 @@ func (d *Dispatcher) Session(r *api.SessionRequest, stream api.Dispatcher_Sessio
 		return err
 	}
 
-	clusterUpdatesCh, clusterCancel := d.clusterUpdateQueue.Watch()
-	defer clusterCancel()
-
 	// disconnectNode is a helper forcibly shutdown connection
 	disconnectNode := func() error {
-		// force disconnect by shutting down the stream.
-		transportStream, ok := transport.StreamFromContext(stream.Context())
-		if ok {
-			// if we have the transport stream, we can signal a disconnect
-			// in the client.
-			if err := transportStream.ServerTransport().Close(); err != nil {
-				log.WithError(err).Error("session end")
-			}
-		}
-
+		log.Infof("dispatcher session dropped, marking node %s down", nodeID)
 		if err := d.markNodeNotReady(nodeID, api.NodeStatus_DISCONNECTED, "node is currently trying to find new manager"); err != nil {
 			log.WithError(err).Error("failed to remove node")
 		}
 		// still return an abort if the transport closure was ineffective.
-		return grpc.Errorf(codes.Aborted, "node must disconnect")
+		return status.Errorf(codes.Aborted, "node must disconnect")
 	}
 
 	for {

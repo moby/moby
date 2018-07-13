@@ -68,7 +68,7 @@ the next appropriate stage:
 
  - Has DCO
  - Contains sufficient justification (e.g., usecases) for the proposed change
- - References the Github issue it fixes (if any) in the commit or the first Github comment
+ - References the GitHub issue it fixes (if any) in the commit or the first GitHub comment
 
 Possible transitions from this state:
 

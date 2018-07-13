@@ -1,17 +1,16 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
 	"os"
 	"runtime"
-	"sync/atomic"
+	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/debug"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/parsers/kernel"
@@ -20,8 +19,8 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	"github.com/docker/docker/volume/drivers"
 	"github.com/docker/go-connections/sockets"
+	"github.com/sirupsen/logrus"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
@@ -57,18 +56,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	}
 
 	sysInfo := sysinfo.New(true)
-
-	var cRunning, cPaused, cStopped int32
-	daemon.containers.ApplyAll(func(c *container.Container) {
-		switch c.StateString() {
-		case "paused":
-			atomic.AddInt32(&cPaused, 1)
-		case "running":
-			atomic.AddInt32(&cRunning, 1)
-		default:
-			atomic.AddInt32(&cStopped, 1)
-		}
-	})
+	cRunning, cPaused, cStopped := stateCtr.get()
 
 	securityOptions := []string{}
 	if sysInfo.AppArmor {
@@ -84,20 +72,32 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	if selinuxEnabled() {
 		securityOptions = append(securityOptions, "name=selinux")
 	}
-	uid, gid := daemon.GetRemappedUIDGID()
-	if uid != 0 || gid != 0 {
+	rootIDs := daemon.idMappings.RootPair()
+	if rootIDs.UID != 0 || rootIDs.GID != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
 
+	var ds [][2]string
+	drivers := ""
+	statuses := daemon.imageService.LayerStoreStatus()
+	for os, gd := range daemon.graphDrivers {
+		ds = append(ds, statuses[os]...)
+		drivers += gd
+		if len(daemon.graphDrivers) > 1 {
+			drivers += fmt.Sprintf(" (%s) ", os)
+		}
+	}
+	drivers = strings.TrimSpace(drivers)
+
 	v := &types.Info{
 		ID:                 daemon.ID,
-		Containers:         int(cRunning + cPaused + cStopped),
-		ContainersRunning:  int(cRunning),
-		ContainersPaused:   int(cPaused),
-		ContainersStopped:  int(cStopped),
-		Images:             len(daemon.imageStore.Map()),
-		Driver:             daemon.GraphDriverName(),
-		DriverStatus:       daemon.layerStore.DriverStatus(),
+		Containers:         cRunning + cPaused + cStopped,
+		ContainersRunning:  cRunning,
+		ContainersPaused:   cPaused,
+		ContainersStopped:  cStopped,
+		Images:             daemon.imageService.CountImages(),
+		Driver:             drivers,
+		DriverStatus:       ds,
 		Plugins:            daemon.showPluginsInfo(),
 		IPv4Forwarding:     !sysInfo.IPv4ForwardingDisabled,
 		BridgeNfIptables:   !sysInfo.BridgeNFCallIPTablesDisabled,
@@ -117,6 +117,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		RegistryConfig:     daemon.RegistryService.ServiceConfig(),
 		NCPU:               sysinfo.NumCPU(),
 		MemTotal:           meminfo.MemTotal,
+		GenericResources:   daemon.genericResources,
 		DockerRootDir:      daemon.configStore.Root,
 		Labels:             daemon.configStore.Labels,
 		ExperimentalBuild:  daemon.configStore.Experimental,
@@ -147,24 +148,46 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 // SystemVersion returns version information about the daemon.
 func (daemon *Daemon) SystemVersion() types.Version {
-	v := types.Version{
-		Version:       dockerversion.Version,
-		GitCommit:     dockerversion.GitCommit,
-		MinAPIVersion: api.MinVersion,
-		GoVersion:     runtime.Version(),
-		Os:            runtime.GOOS,
-		Arch:          runtime.GOARCH,
-		BuildTime:     dockerversion.BuildTime,
-		Experimental:  daemon.configStore.Experimental,
-	}
-
 	kernelVersion := "<unknown>"
 	if kv, err := kernel.GetKernelVersion(); err != nil {
 		logrus.Warnf("Could not get kernel version: %v", err)
 	} else {
 		kernelVersion = kv.String()
 	}
-	v.KernelVersion = kernelVersion
+
+	v := types.Version{
+		Components: []types.ComponentVersion{
+			{
+				Name:    "Engine",
+				Version: dockerversion.Version,
+				Details: map[string]string{
+					"GitCommit":     dockerversion.GitCommit,
+					"ApiVersion":    api.DefaultVersion,
+					"MinAPIVersion": api.MinVersion,
+					"GoVersion":     runtime.Version(),
+					"Os":            runtime.GOOS,
+					"Arch":          runtime.GOARCH,
+					"BuildTime":     dockerversion.BuildTime,
+					"KernelVersion": kernelVersion,
+					"Experimental":  fmt.Sprintf("%t", daemon.configStore.Experimental),
+				},
+			},
+		},
+
+		// Populate deprecated fields for older clients
+		Version:       dockerversion.Version,
+		GitCommit:     dockerversion.GitCommit,
+		APIVersion:    api.DefaultVersion,
+		MinAPIVersion: api.MinVersion,
+		GoVersion:     runtime.Version(),
+		Os:            runtime.GOOS,
+		Arch:          runtime.GOARCH,
+		BuildTime:     dockerversion.BuildTime,
+		KernelVersion: kernelVersion,
+		Experimental:  daemon.configStore.Experimental,
+	}
+
+	v.Platform.Name = dockerversion.PlatformName
 
 	return v
 }
@@ -172,9 +195,12 @@ func (daemon *Daemon) SystemVersion() types.Version {
 func (daemon *Daemon) showPluginsInfo() types.PluginsInfo {
 	var pluginsInfo types.PluginsInfo
 
-	pluginsInfo.Volume = volumedrivers.GetDriverList()
+	pluginsInfo.Volume = daemon.volumes.GetDriverList()
 	pluginsInfo.Network = daemon.GetNetworkDriverList()
-	pluginsInfo.Authorization = daemon.configStore.GetAuthorizationPlugins()
+	// The authorization plugins are returned in the order they are
+	// used as they constitute a request/response modification chain.
+	pluginsInfo.Authorization = daemon.configStore.AuthorizationPlugins
+	pluginsInfo.Log = logger.ListDrivers()
 
 	return pluginsInfo
 }

@@ -66,7 +66,7 @@ func (r *Reader) WriteToJSON(w io.Writer) (n int64, err error) {
 	if jsw, ok := w.(jsWriter); ok {
 		j = jsw
 	} else {
-		bf = bufio.NewWriterSize(w, 512)
+		bf = bufio.NewWriter(w)
 		j = bf
 	}
 	var nn int
@@ -333,7 +333,7 @@ func rwExtension(dst jsWriter, src *Reader) (n int, err error) {
 
 func rwString(dst jsWriter, src *Reader) (n int, err error) {
 	var p []byte
-	p, err = src.r.Peek(1)
+	p, err = src.R.Peek(1)
 	if err != nil {
 		return
 	}
@@ -342,25 +342,25 @@ func rwString(dst jsWriter, src *Reader) (n int, err error) {
 
 	if isfixstr(lead) {
 		read = int(rfixstr(lead))
-		src.r.Skip(1)
+		src.R.Skip(1)
 		goto write
 	}
 
 	switch lead {
 	case mstr8:
-		p, err = src.r.Next(2)
+		p, err = src.R.Next(2)
 		if err != nil {
 			return
 		}
 		read = int(uint8(p[1]))
 	case mstr16:
-		p, err = src.r.Next(3)
+		p, err = src.R.Next(3)
 		if err != nil {
 			return
 		}
 		read = int(big.Uint16(p[1:]))
 	case mstr32:
-		p, err = src.r.Next(5)
+		p, err = src.R.Next(5)
 		if err != nil {
 			return
 		}
@@ -370,7 +370,7 @@ func rwString(dst jsWriter, src *Reader) (n int, err error) {
 		return
 	}
 write:
-	p, err = src.r.Next(read)
+	p, err = src.R.Next(read)
 	if err != nil {
 		return
 	}

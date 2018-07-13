@@ -1,2 +1,0 @@
-ID      NAME                         IMAGE          NODE             DESIRED STATE  CURRENT STATE      ERROR  PORTS
-taskID  rl02d5gwz6chzu7il5fhtb8be.1  myimage:mytag  defaultNodeName  Ready          Ready 2 hours ago         *:80->80/tcp

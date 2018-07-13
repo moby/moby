@@ -1,6 +1,4 @@
-// +build windows
-
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"github.com/docker/docker/container"

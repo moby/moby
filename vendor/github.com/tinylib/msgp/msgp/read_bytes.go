@@ -117,13 +117,13 @@ func (r Raw) Msgsize() int {
 }
 
 func appendNext(f *Reader, d *[]byte) error {
-	amt, o, err := getNextSize(f.r)
+	amt, o, err := getNextSize(f.R)
 	if err != nil {
 		return err
 	}
 	var i int
 	*d, i = ensure(*d, int(amt))
-	_, err = f.r.ReadFull((*d)[i:])
+	_, err = f.R.ReadFull((*d)[i:])
 	if err != nil {
 		return err
 	}
@@ -576,7 +576,7 @@ func ReadUintBytes(b []byte) (uint, []byte, error) {
 	return uint(u), b, err
 }
 
-// ReadByteBytes is analagous to ReadUint8Bytes
+// ReadByteBytes is analogous to ReadUint8Bytes
 func ReadByteBytes(b []byte) (byte, []byte, error) {
 	return ReadUint8Bytes(b)
 }
@@ -784,6 +784,22 @@ func ReadStringBytes(b []byte) (string, []byte, error) {
 	return string(v), o, err
 }
 
+// ReadStringAsBytes reads a 'str' object
+// into a slice of bytes. 'v' is the value of
+// the 'str' object, which may reside in memory
+// pointed to by 'scratch.' 'o' is the remaining bytes
+// in 'b.''
+// Possible errors:
+// - ErrShortBytes (b not long enough)
+// - TypeError{} (not 'str' type)
+// - InvalidPrefixError (unknown type marker)
+func ReadStringAsBytes(b []byte, scratch []byte) (v []byte, o []byte, err error) {
+	var tmp []byte
+	tmp, o, err = ReadStringZC(b)
+	v = append(scratch[:0], tmp...)
+	return
+}
+
 // ReadComplex128Bytes reads a complex128
 // extension object from 'b' and returns the
 // remaining bytes.
@@ -922,14 +938,14 @@ func ReadIntfBytes(b []byte) (i interface{}, o []byte, err error) {
 
 	case ArrayType:
 		var sz uint32
-		sz, b, err = ReadArrayHeaderBytes(b)
+		sz, o, err = ReadArrayHeaderBytes(b)
 		if err != nil {
 			return
 		}
 		j := make([]interface{}, int(sz))
 		i = j
 		for d := range j {
-			j[d], b, err = ReadIntfBytes(b)
+			j[d], o, err = ReadIntfBytes(o)
 			if err != nil {
 				return
 			}

@@ -1,20 +1,23 @@
-package convert
+package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
 	"errors"
 	"fmt"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
-	container "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/container"
 	mounttypes "github.com/docker/docker/api/types/mount"
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/sirupsen/logrus"
 )
 
-func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
-	containerSpec := types.ContainerSpec{
+func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
+	if c == nil {
+		return nil
+	}
+	containerSpec := &types.ContainerSpec{
 		Image:      c.Image,
 		Labels:     c.Labels,
 		Command:    c.Command,
@@ -30,6 +33,9 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 		ReadOnly:   c.ReadOnly,
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesFromGRPC(c.Secrets),
+		Configs:    configReferencesFromGRPC(c.Configs),
+		Isolation:  IsolationFromGRPC(c.Isolation),
+		Init:       initFromGRPC(c.Init),
 	}
 
 	if c.DNSConfig != nil {
@@ -114,6 +120,21 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) types.ContainerSpec {
 	return containerSpec
 }
 
+func initFromGRPC(v *gogotypes.BoolValue) *bool {
+	if v == nil {
+		return nil
+	}
+	value := v.GetValue()
+	return &value
+}
+
+func initToGRPC(v *bool) *gogotypes.BoolValue {
+	if v == nil {
+		return nil
+	}
+	return &gogotypes.BoolValue{Value: *v}
+}
+
 func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretReference {
 	refs := make([]*swarmapi.SecretReference, 0, len(sr))
 	for _, s := range sr {
@@ -137,6 +158,7 @@ func secretReferencesToGRPC(sr []*types.SecretReference) []*swarmapi.SecretRefer
 
 	return refs
 }
+
 func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretReference {
 	refs := make([]*types.SecretReference, 0, len(sr))
 	for _, s := range sr {
@@ -161,7 +183,55 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 	return refs
 }
 
-func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
+func configReferencesToGRPC(sr []*types.ConfigReference) []*swarmapi.ConfigReference {
+	refs := make([]*swarmapi.ConfigReference, 0, len(sr))
+	for _, s := range sr {
+		ref := &swarmapi.ConfigReference{
+			ConfigID:   s.ConfigID,
+			ConfigName: s.ConfigName,
+		}
+		if s.File != nil {
+			ref.Target = &swarmapi.ConfigReference_File{
+				File: &swarmapi.FileTarget{
+					Name: s.File.Name,
+					UID:  s.File.UID,
+					GID:  s.File.GID,
+					Mode: s.File.Mode,
+				},
+			}
+		}
+
+		refs = append(refs, ref)
+	}
+
+	return refs
+}
+
+func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigReference {
+	refs := make([]*types.ConfigReference, 0, len(sr))
+	for _, s := range sr {
+		target := s.GetFile()
+		if target == nil {
+			// not a file target
+			logrus.Warnf("config target not a file: config=%s", s.ConfigID)
+			continue
+		}
+		refs = append(refs, &types.ConfigReference{
+			File: &types.ConfigReferenceFileTarget{
+				Name: target.Name,
+				UID:  target.UID,
+				GID:  target.GID,
+				Mode: target.Mode,
+			},
+			ConfigID:   s.ConfigID,
+			ConfigName: s.ConfigName,
+		})
+	}
+
+	return refs
+}
+
+func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	containerSpec := &swarmapi.ContainerSpec{
 		Image:      c.Image,
 		Labels:     c.Labels,
@@ -178,6 +248,9 @@ func containerToGRPC(c types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		ReadOnly:   c.ReadOnly,
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesToGRPC(c.Secrets),
+		Configs:    configReferencesToGRPC(c.Configs),
+		Isolation:  isolationToGRPC(c.Isolation),
+		Init:       initToGRPC(c.Init),
 	}
 
 	if c.DNSConfig != nil {
@@ -299,4 +372,27 @@ func healthConfigToGRPC(h *container.HealthConfig) *swarmapi.HealthConfig {
 		Retries:     int32(h.Retries),
 		StartPeriod: gogotypes.DurationProto(h.StartPeriod),
 	}
+}
+
+// IsolationFromGRPC converts a swarm api container isolation to a moby isolation representation
+func IsolationFromGRPC(i swarmapi.ContainerSpec_Isolation) container.Isolation {
+	switch i {
+	case swarmapi.ContainerIsolationHyperV:
+		return container.IsolationHyperV
+	case swarmapi.ContainerIsolationProcess:
+		return container.IsolationProcess
+	case swarmapi.ContainerIsolationDefault:
+		return container.IsolationDefault
+	}
+	return container.IsolationEmpty
+}
+
+func isolationToGRPC(i container.Isolation) swarmapi.ContainerSpec_Isolation {
+	if i.IsHyperV() {
+		return swarmapi.ContainerIsolationHyperV
+	}
+	if i.IsProcess() {
+		return swarmapi.ContainerIsolationProcess
+	}
+	return swarmapi.ContainerIsolationDefault
 }

@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/docker/docker/pkg/stringid"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"gotest.tools/icmd"
 )
 
 func (s *DockerSuite) TestRmiWithContainerFails(c *check.C) {
@@ -68,7 +68,7 @@ func (s *DockerSuite) TestRmiImgIDMultipleTag(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 
@@ -109,7 +109,7 @@ func (s *DockerSuite) TestRmiImgIDForce(c *check.C) {
 
 	// Wait for it to exit as cannot commit a running container on Windows, and
 	// it will take a few seconds to exit
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		cli.WaitExited(c, containerID, 60*time.Second)
 	}
 

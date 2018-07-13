@@ -26,6 +26,7 @@ import (
 	"github.com/cloudflare/cfssl/signer/local"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/ca/pkcs8"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/opencontainers/go-digest"
@@ -49,13 +50,6 @@ const (
 	RootKeySize = 256
 	// RootKeyAlgo defines the default algorithm for the root CA Key
 	RootKeyAlgo = "ecdsa"
-	// PassphraseENVVar defines the environment variable to look for the
-	// root CA private key material encryption key
-	PassphraseENVVar = "SWARM_ROOT_CA_PASSPHRASE"
-	// PassphraseENVVarPrev defines the alternate environment variable to look for the
-	// root CA private key material encryption key. It can be used for seamless
-	// KEK rotations.
-	PassphraseENVVarPrev = "SWARM_ROOT_CA_PASSPHRASE_PREV"
 	// RootCAExpiration represents the default expiration for the root CA in seconds (20 years)
 	RootCAExpiration = "630720000s"
 	// DefaultNodeCertExpiration represents the default expiration for node certificates (3 months)
@@ -124,6 +118,11 @@ type LocalSigner struct {
 	// just cached parsed values for validation, etc.
 	parsedCert   *x509.Certificate
 	cryptoSigner crypto.Signer
+}
+
+type x509UnknownAuthError struct {
+	error
+	failedLeafCert *x509.Certificate
 }
 
 // RootCA is the representation of everything we need to sign certificates and/or to verify certificates
@@ -258,6 +257,13 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 		// the local connection will not be returned by the connection
 		// broker anymore.
 		config.ForceRemote = true
+
+		// Wait a moment, in case a leader election was taking place.
+		select {
+		case <-time.After(config.RetryInterval):
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
+		}
 	}
 	if err != nil {
 		return nil, nil, err
@@ -268,6 +274,17 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	// Create an X509Cert so we can .Verify()
 	// Check to see if this certificate was signed by our CA, and isn't expired
 	parsedCerts, chains, err := ValidateCertChain(rca.Pool, signedCert, false)
+	// TODO(cyli): - right now we need the invalid certificate in order to determine whether or not we should
+	// download a new root, because we only want to do that in the case of workers.  When we have a single
+	// codepath for updating the root CAs for both managers and workers, this snippet can go.
+	if _, ok := err.(x509.UnknownAuthorityError); ok {
+		if parsedCerts, parseErr := helpers.ParseCertificatesPEM(signedCert); parseErr == nil && len(parsedCerts) > 0 {
+			return nil, nil, x509UnknownAuthError{
+				error:          err,
+				failedLeafCert: parsedCerts[0],
+			}
+		}
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -286,9 +303,18 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	var kekUpdate *KEKData
 	for i := 0; i < 5; i++ {
 		// ValidateCertChain will always return at least 1 cert, so indexing at 0 is safe
-		kekUpdate, err = rca.getKEKUpdate(ctx, leafCert, tlsKeyPair, config.ConnBroker)
+		kekUpdate, err = rca.getKEKUpdate(ctx, leafCert, tlsKeyPair, config)
 		if err == nil {
 			break
+		}
+
+		config.ForceRemote = true
+
+		// Wait a moment, in case a leader election was taking place.
+		select {
+		case <-time.After(config.RetryInterval):
+		case <-ctx.Done():
+			return nil, nil, ctx.Err()
 		}
 	}
 	if err != nil {
@@ -305,7 +331,7 @@ func (rca *RootCA) RequestAndSaveNewCertificates(ctx context.Context, kw KeyWrit
 	}, nil
 }
 
-func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, connBroker *connectionbroker.Broker) (*KEKData, error) {
+func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate, keypair tls.Certificate, config CertificateRequestConfig) (*KEKData, error) {
 	var managerRole bool
 	for _, ou := range leafCert.Subject.OrganizationalUnit {
 		if ou == ManagerRole {
@@ -316,7 +342,7 @@ func (rca *RootCA) getKEKUpdate(ctx context.Context, leafCert *x509.Certificate,
 
 	if managerRole {
 		mtlsCreds := credentials.NewTLS(&tls.Config{ServerName: CARole, RootCAs: rca.Pool, Certificates: []tls.Certificate{keypair}})
-		conn, err := getGRPCConnection(mtlsCreds, connBroker, false)
+		conn, err := getGRPCConnection(mtlsCreds, config.ConnBroker, config.ForceRemote)
 		if err != nil {
 			return nil, err
 		}
@@ -386,16 +412,17 @@ func (rca *RootCA) CrossSignCACertificate(otherCAPEM []byte) ([]byte, error) {
 	}
 
 	// create a new cert with exactly the same parameters, including the public key and exact NotBefore and NotAfter
-	newCert, err := helpers.ParseCertificatePEM(otherCAPEM)
+	template, err := helpers.ParseCertificatePEM(otherCAPEM)
 	if err != nil {
 		return nil, errors.New("could not parse new CA certificate")
 	}
 
-	if !newCert.IsCA {
+	if !template.IsCA {
 		return nil, errors.New("certificate not a CA")
 	}
 
-	derBytes, err := x509.CreateCertificate(cryptorand.Reader, newCert, signer.parsedCert, newCert.PublicKey, signer.cryptoSigner)
+	template.SignatureAlgorithm = signer.parsedCert.SignatureAlgorithm // make sure we can sign with the signer key
+	derBytes, err := x509.CreateCertificate(cryptorand.Reader, template, signer.parsedCert, template.PublicKey, signer.cryptoSigner)
 	if err != nil {
 		return nil, errors.Wrap(err, "could not cross-sign new CA certificate using old CA material")
 	}
@@ -606,28 +633,10 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 		return nil, errors.Wrap(err, "error while validating signing CA certificate against roots and intermediates")
 	}
 
-	var (
-		passphraseStr              string
-		passphrase, passphrasePrev []byte
-		priv                       crypto.Signer
-	)
-
-	// Attempt two distinct passphrases, so we can do a hitless passphrase rotation
-	if passphraseStr = os.Getenv(PassphraseENVVar); passphraseStr != "" {
-		passphrase = []byte(passphraseStr)
-	}
-
-	if p := os.Getenv(PassphraseENVVarPrev); p != "" {
-		passphrasePrev = []byte(p)
-	}
-
-	// Attempt to decrypt the current private-key with the passphrases provided
-	priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrase)
+	// The key should not be encrypted, but it could be in PKCS8 format rather than PKCS1
+	priv, err := helpers.ParsePrivateKeyPEM(keyBytes)
 	if err != nil {
-		priv, err = helpers.ParsePrivateKeyPEMWithPassword(keyBytes, passphrasePrev)
-		if err != nil {
-			return nil, errors.Wrap(err, "malformed private key")
-		}
+		return nil, errors.Wrap(err, "malformed private key")
 	}
 
 	// We will always use the first certificate inside of the root bundle as the active one
@@ -638,17 +647,6 @@ func newLocalSigner(keyBytes, certBytes []byte, certExpiry time.Duration, rootPo
 	signer, err := local.NewSigner(priv, parsedCerts[0], cfsigner.DefaultSigAlgo(priv), SigningPolicy(certExpiry))
 	if err != nil {
 		return nil, err
-	}
-
-	// If the key was loaded from disk unencrypted, but there is a passphrase set,
-	// ensure it is encrypted, so it doesn't hit raft in plain-text
-	// we don't have to check for nil, because if we couldn't pem-decode the bytes, then parsing above would have failed
-	keyBlock, _ := pem.Decode(keyBytes)
-	if passphraseStr != "" && !x509.IsEncryptedPEMBlock(keyBlock) {
-		keyBytes, err = EncryptECPrivateKey(keyBytes, passphraseStr)
-		if err != nil {
-			return nil, errors.Wrap(err, "unable to encrypt signing CA key material")
-		}
 	}
 
 	return &LocalSigner{Cert: certBytes, Key: keyBytes, Signer: signer, parsedCert: parsedCerts[0], cryptoSigner: priv}, nil
@@ -854,7 +852,7 @@ func GetRemoteSignedCertificate(ctx context.Context, csr []byte, rootCAPool *x50
 			caClient = api.NewNodeCAClient(conn.ClientConn)
 
 		// If there was no deadline exceeded error, and the certificate was issued, return
-		case err == nil && statusResponse.Status.State == api.IssuanceStateIssued:
+		case err == nil && (statusResponse.Status.State == api.IssuanceStateIssued || statusResponse.Status.State == api.IssuanceStateRotate):
 			if statusResponse.Certificate == nil {
 				conn.Close(false)
 				return nil, errors.New("no certificate in CertificateStatus response")
@@ -923,36 +921,14 @@ func GenerateNewCSR() ([]byte, []byte, error) {
 	req := &cfcsr.CertificateRequest{
 		KeyRequest: cfcsr.NewBasicKeyRequest(),
 	}
-	return cfcsr.ParseRequest(req)
-}
 
-// EncryptECPrivateKey receives a PEM encoded private key and returns an encrypted
-// AES256 version using a passphrase
-// TODO: Make this method generic to handle RSA keys
-func EncryptECPrivateKey(key []byte, passphraseStr string) ([]byte, error) {
-	passphrase := []byte(passphraseStr)
-	cipherType := x509.PEMCipherAES256
-
-	keyBlock, _ := pem.Decode(key)
-	if keyBlock == nil {
-		// This RootCA does not have a valid signer.
-		return nil, errors.New("error while decoding PEM key")
-	}
-
-	encryptedPEMBlock, err := x509.EncryptPEMBlock(cryptorand.Reader,
-		"EC PRIVATE KEY",
-		keyBlock.Bytes,
-		passphrase,
-		cipherType)
+	csr, key, err := cfcsr.ParseRequest(req)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if encryptedPEMBlock.Headers == nil {
-		return nil, errors.New("unable to encrypt key - invalid PEM file produced")
-	}
-
-	return pem.EncodeToMemory(encryptedPEMBlock), nil
+	key, err = pkcs8.ConvertECPrivateKeyPEM(key)
+	return csr, key, err
 }
 
 // NormalizePEMs takes a bundle of PEM-encoded certificates in a certificate bundle,

@@ -1,21 +1,55 @@
-// +build !windows,!solaris
+// +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"errors"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/volume"
-	"github.com/docker/docker/volume/drivers"
-	"github.com/docker/docker/volume/local"
-	"github.com/docker/docker/volume/store"
 )
+
+type fakeContainerGetter struct {
+	containers map[string]*container.Container
+}
+
+func (f *fakeContainerGetter) GetContainer(cid string) (*container.Container, error) {
+	container, ok := f.containers[cid]
+	if !ok {
+		return nil, errors.New("container not found")
+	}
+	return container, nil
+}
+
+// Unix test as uses settings which are not available on Windows
+func TestAdjustSharedNamespaceContainerName(t *testing.T) {
+	fakeID := "abcdef1234567890"
+	hostConfig := &containertypes.HostConfig{
+		IpcMode:     containertypes.IpcMode("container:base"),
+		PidMode:     containertypes.PidMode("container:base"),
+		NetworkMode: containertypes.NetworkMode("container:base"),
+	}
+	containerStore := &fakeContainerGetter{}
+	containerStore.containers = make(map[string]*container.Container)
+	containerStore.containers["base"] = &container.Container{
+		ID: fakeID,
+	}
+
+	adaptSharedNamespaceContainer(containerStore, hostConfig)
+	if hostConfig.IpcMode != containertypes.IpcMode("container:"+fakeID) {
+		t.Errorf("Expected IpcMode to be container:%s", fakeID)
+	}
+	if hostConfig.PidMode != containertypes.PidMode("container:"+fakeID) {
+		t.Errorf("Expected PidMode to be container:%s", fakeID)
+	}
+	if hostConfig.NetworkMode != containertypes.NetworkMode("container:"+fakeID) {
+		t.Errorf("Expected NetworkMode to be container:%s", fakeID)
+	}
+}
 
 // Unix test as uses settings which are not available on Windows
 func TestAdjustCPUShares(t *testing.T) {
@@ -230,84 +264,5 @@ func TestNetworkOptions(t *testing.T) {
 
 	if _, err := daemon.networkOptions(dconfigWrong, nil, nil); err == nil {
 		t.Fatal("Expected networkOptions error, got nil")
-	}
-}
-
-func TestMigratePre17Volumes(t *testing.T) {
-	rootDir, err := ioutil.TempDir("", "test-daemon-volumes")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer os.RemoveAll(rootDir)
-
-	volumeRoot := filepath.Join(rootDir, "volumes")
-	err = os.MkdirAll(volumeRoot, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	containerRoot := filepath.Join(rootDir, "containers")
-	cid := "1234"
-	err = os.MkdirAll(filepath.Join(containerRoot, cid), 0755)
-
-	vid := "5678"
-	vfsPath := filepath.Join(rootDir, "vfs", "dir", vid)
-	err = os.MkdirAll(vfsPath, 0755)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	config := []byte(`
-		{
-			"ID": "` + cid + `",
-			"Volumes": {
-				"/foo": "` + vfsPath + `",
-				"/bar": "/foo",
-				"/quux": "/quux"
-			},
-			"VolumesRW": {
-				"/foo": true,
-				"/bar": true,
-				"/quux": false
-			}
-		}
-	`)
-
-	volStore, err := store.New(volumeRoot)
-	if err != nil {
-		t.Fatal(err)
-	}
-	drv, err := local.New(volumeRoot, 0, 0)
-	if err != nil {
-		t.Fatal(err)
-	}
-	volumedrivers.Register(drv, volume.DefaultDriverName)
-
-	daemon := &Daemon{root: rootDir, repository: containerRoot, volumes: volStore}
-	err = ioutil.WriteFile(filepath.Join(containerRoot, cid, "config.v2.json"), config, 600)
-	if err != nil {
-		t.Fatal(err)
-	}
-	c, err := daemon.load(cid)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := daemon.verifyVolumesInfo(c); err != nil {
-		t.Fatal(err)
-	}
-
-	expected := map[string]volume.MountPoint{
-		"/foo":  {Destination: "/foo", RW: true, Name: vid},
-		"/bar":  {Source: "/foo", Destination: "/bar", RW: true},
-		"/quux": {Source: "/quux", Destination: "/quux", RW: false},
-	}
-	for id, mp := range c.MountPoints {
-		x, exists := expected[id]
-		if !exists {
-			t.Fatal("volume not migrated")
-		}
-		if mp.Source != x.Source || mp.Destination != x.Destination || mp.RW != x.RW || mp.Name != x.Name {
-			t.Fatalf("got unexpected mountpoint, expected: %+v, got: %+v", x, mp)
-		}
 	}
 }

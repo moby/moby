@@ -3,7 +3,7 @@
 // TODO Windows: This uses a Unix socket for testing. This might be possible
 // to port to Windows using a named pipe instead.
 
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"bytes"
@@ -99,7 +99,7 @@ func TestAuthZResponsePlugin(t *testing.T) {
 
 	request := Request{
 		User:        "user",
-		RequestURI:  "someting.com/auth",
+		RequestURI:  "something.com/auth",
 		RequestBody: []byte("sample body"),
 	}
 	server.replayResponse = Response{
@@ -168,6 +168,66 @@ func TestDrainBody(t *testing.T) {
 		}
 		if len(modified) != len(msg) {
 			t.Fatalf("Result should not be truncated. Original length: '%d', new length: '%d'", len(msg), len(modified))
+		}
+	}
+}
+
+func TestSendBody(t *testing.T) {
+	var (
+		url       = "nothing.com"
+		testcases = []struct {
+			contentType string
+			expected    bool
+		}{
+			{
+				contentType: "application/json",
+				expected:    true,
+			},
+			{
+				contentType: "Application/json",
+				expected:    true,
+			},
+			{
+				contentType: "application/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "APPLICATION/JSON",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=utf-8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json; charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				contentType: "text/html",
+				expected:    false,
+			},
+			{
+				contentType: "",
+				expected:    false,
+			},
+		}
+	)
+
+	for _, testcase := range testcases {
+		header := http.Header{}
+		header.Set("Content-Type", testcase.contentType)
+
+		if b := sendBody(url, header); b != testcase.expected {
+			t.Fatalf("Unexpected Content-Type; Expected: %t, Actual: %t", testcase.expected, b)
 		}
 	}
 }

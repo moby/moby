@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types/swarm"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
 
 func TestNodeInspectError(t *testing.T) {
@@ -30,8 +31,20 @@ func TestNodeInspectNodeNotFound(t *testing.T) {
 	}
 
 	_, _, err := client.NodeInspectWithRaw(context.Background(), "unknown")
-	if err == nil || !IsErrNodeNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a nodeNotFoundError error, got %v", err)
+	}
+}
+
+func TestNodeInspectWithEmptyID(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.NodeInspectWithRaw(context.Background(), "")
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 

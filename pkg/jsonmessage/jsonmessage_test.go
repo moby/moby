@@ -1,4 +1,4 @@
-package jsonmessage
+package jsonmessage // import "github.com/docker/docker/pkg/jsonmessage"
 
 import (
 	"bytes"
@@ -8,62 +8,109 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/pkg/jsonlog"
 	"github.com/docker/docker/pkg/term"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestError(t *testing.T) {
 	je := JSONError{404, "Not found"}
-	if je.Error() != "Not found" {
-		t.Fatalf("Expected 'Not found' got '%s'", je.Error())
-	}
+	assert.Assert(t, is.Error(&je, "Not found"))
 }
 
-func TestProgress(t *testing.T) {
-	termsz, err := term.GetWinsize(0)
-	if err != nil {
-		// we can safely ignore the err here
-		termsz = nil
-	}
-	jp := JSONProgress{}
-	if jp.String() != "" {
-		t.Fatalf("Expected empty string, got '%s'", jp.String())
+func TestProgressString(t *testing.T) {
+	type expected struct {
+		short string
+		long  string
 	}
 
-	expected := "      1B"
-	jp2 := JSONProgress{Current: 1}
-	if jp2.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp2.String())
+	shortAndLong := func(short, long string) expected {
+		return expected{short: short, long: long}
 	}
 
-	expectedStart := "[==========>                                        ]      20B/100B"
-	if termsz != nil && termsz.Width <= 110 {
-		expectedStart = "    20B/100B"
-	}
-	jp3 := JSONProgress{Current: 20, Total: 100, Start: time.Now().Unix()}
-	// Just look at the start of the string
-	// (the remaining time is really hard to test -_-)
-	if jp3.String()[:len(expectedStart)] != expectedStart {
-		t.Fatalf("Expected to start with %q, got %q", expectedStart, jp3.String())
+	start := time.Date(2017, 12, 3, 15, 10, 1, 0, time.UTC)
+	timeAfter := func(delta time.Duration) func() time.Time {
+		return func() time.Time {
+			return start.Add(delta)
+		}
 	}
 
-	expected = "[=========================>                         ]      50B/100B"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50B/100B"
-	}
-	jp4 := JSONProgress{Current: 50, Total: 100}
-	if jp4.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp4.String())
+	var testcases = []struct {
+		name     string
+		progress JSONProgress
+		expected expected
+	}{
+		{
+			name: "no progress",
+		},
+		{
+			name:     "progress 1",
+			progress: JSONProgress{Current: 1},
+			expected: shortAndLong("      1B", "      1B"),
+		},
+		{
+			name: "some progress with a start time",
+			progress: JSONProgress{
+				Current: 20,
+				Total:   100,
+				Start:   start.Unix(),
+				nowFunc: timeAfter(time.Second),
+			},
+			expected: shortAndLong(
+				"     20B/100B 4s",
+				"[==========>                                        ]      20B/100B 4s",
+			),
+		},
+		{
+			name:     "some progress without a start time",
+			progress: JSONProgress{Current: 50, Total: 100},
+			expected: shortAndLong(
+				"     50B/100B",
+				"[=========================>                         ]      50B/100B",
+			),
+		},
+		{
+			name:     "current more than total is not negative gh#7136",
+			progress: JSONProgress{Current: 50, Total: 40},
+			expected: shortAndLong(
+				"     50B",
+				"[==================================================>]      50B",
+			),
+		},
+		{
+			name:     "with units",
+			progress: JSONProgress{Current: 50, Total: 100, Units: "units"},
+			expected: shortAndLong(
+				"50/100 units",
+				"[=========================>                         ] 50/100 units",
+			),
+		},
+		{
+			name:     "current more than total with units is not negative ",
+			progress: JSONProgress{Current: 50, Total: 40, Units: "units"},
+			expected: shortAndLong(
+				"50 units",
+				"[==================================================>] 50 units",
+			),
+		},
+		{
+			name:     "hide counts",
+			progress: JSONProgress{Current: 50, Total: 100, HideCounts: true},
+			expected: shortAndLong(
+				"",
+				"[=========================>                         ] ",
+			),
+		},
 	}
 
-	// this number can't be negative gh#7136
-	expected = "[==================================================>]      50B"
-	if termsz != nil && termsz.Width <= 110 {
-		expected = "    50B"
-	}
-	jp5 := JSONProgress{Current: 50, Total: 40}
-	if jp5.String() != expected {
-		t.Fatalf("Expected %q, got %q", expected, jp5.String())
+	for _, testcase := range testcases {
+		t.Run(testcase.name, func(t *testing.T) {
+			testcase.progress.winSize = 100
+			assert.Equal(t, testcase.progress.String(), testcase.expected.short)
+
+			testcase.progress.winSize = 200
+			assert.Equal(t, testcase.progress.String(), testcase.expected.long)
+		})
 	}
 }
 
@@ -71,47 +118,47 @@ func TestJSONMessageDisplay(t *testing.T) {
 	now := time.Now()
 	messages := map[JSONMessage][]string{
 		// Empty
-		JSONMessage{}: {"\n", "\n"},
+		{}: {"\n", "\n"},
 		// Status
-		JSONMessage{
+		{
 			Status: "status",
 		}: {
 			"status\n",
 			"status\n",
 		},
 		// General
-		JSONMessage{
+		{
 			Time:   now.Unix(),
 			ID:     "ID",
 			From:   "From",
 			Status: "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(jsonlog.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(now.Unix(), 0).Format(RFC3339NanoFixed)),
 		},
 		// General, with nano precision time
-		JSONMessage{
+		{
 			TimeNano: now.UnixNano(),
 			ID:       "ID",
 			From:     "From",
 			Status:   "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(RFC3339NanoFixed)),
 		},
 		// General, with both times Nano is preferred
-		JSONMessage{
+		{
 			Time:     now.Unix(),
 			TimeNano: now.UnixNano(),
 			ID:       "ID",
 			From:     "From",
 			Status:   "status",
 		}: {
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
-			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(jsonlog.RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(RFC3339NanoFixed)),
+			fmt.Sprintf("%v ID: (from From) status\n", time.Unix(0, now.UnixNano()).Format(RFC3339NanoFixed)),
 		},
 		// Stream over status
-		JSONMessage{
+		{
 			Status: "status",
 			Stream: "stream",
 		}: {
@@ -119,7 +166,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"stream",
 		},
 		// With progress message
-		JSONMessage{
+		{
 			Status:          "status",
 			ProgressMessage: "progressMessage",
 		}: {
@@ -127,7 +174,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			"status progressMessage",
 		},
 		// With progress, stream empty
-		JSONMessage{
+		{
 			Status:   "status",
 			Stream:   "",
 			Progress: &JSONProgress{Current: 1},
@@ -170,9 +217,7 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
 	err = jsonMessage.Display(data, &noTermInfo{})
-	if err == nil || err.Error() != "Authentication is required." {
-		t.Fatalf("Expected an error \"Authentication is required.\", got %q", err)
-	}
+	assert.Check(t, is.Error(err, "authentication is required"))
 }
 
 func TestDisplayJSONMessagesStreamInvalidJSON(t *testing.T) {

@@ -1,4 +1,4 @@
-package fileutils
+package fileutils // import "github.com/docker/docker/pkg/fileutils"
 
 import (
 	"errors"
@@ -10,10 +10,10 @@ import (
 	"strings"
 	"text/scanner"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
-// PatternMatcher allows checking paths agaist a list of patterns
+// PatternMatcher allows checking paths against a list of patterns
 type PatternMatcher struct {
 	patterns   []*Pattern
 	exclusions bool

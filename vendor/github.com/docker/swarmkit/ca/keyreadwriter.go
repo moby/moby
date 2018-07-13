@@ -1,7 +1,6 @@
 package ca
 
 import (
-	cryptorand "crypto/rand"
 	"crypto/x509"
 	"encoding/pem"
 	"io/ioutil"
@@ -13,6 +12,8 @@ import (
 
 	"crypto/tls"
 
+	"github.com/docker/swarmkit/ca/keyutils"
+	"github.com/docker/swarmkit/ca/pkcs8"
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/pkg/errors"
 )
@@ -26,29 +27,72 @@ const (
 	versionHeader = "kek-version"
 )
 
-// PEMKeyHeaders is something that needs to know about PEM headers when reading
-// or writing TLS keys.
+// PEMKeyHeaders is an interface for something that needs to know about PEM headers
+// when reading or writing TLS keys in order to keep them updated with the latest
+// KEK.
 type PEMKeyHeaders interface {
+
 	// UnmarshalHeaders loads the headers map given the current KEK
 	UnmarshalHeaders(map[string]string, KEKData) (PEMKeyHeaders, error)
+
 	// MarshalHeaders returns a header map given the current KEK
 	MarshalHeaders(KEKData) (map[string]string, error)
-	// UpdateKEK may get a new PEMKeyHeaders if the KEK changes
+
+	// UpdateKEK gets called whenever KeyReadWriter gets a KEK update.  This allows the
+	// PEMKeyHeaders to optionally update any internal state.  It should return an
+	// updated (if needed) versino of itself.
 	UpdateKEK(KEKData, KEKData) PEMKeyHeaders
 }
 
 // KeyReader reads a TLS cert and key from disk
 type KeyReader interface {
+
+	// Read reads and returns the certificate and the key PEM bytes that are on disk
 	Read() ([]byte, []byte, error)
+
+	// Target returns a string representation of where the cert data is being read from
 	Target() string
 }
 
 // KeyWriter writes a TLS key and cert to disk
 type KeyWriter interface {
+
+	// Write accepts a certificate and key in PEM format, as well as an optional KEKData object.
+	// If there is a current KEK, the key is encrypted using the current KEK.  If the KEKData object
+	// is provided (not nil), the key will be encrypted using the new KEK instead, and the current
+	// KEK in memory will be replaced by the provided KEKData.  The reason to allow changing key
+	// material and KEK in a single step, as opposed to two steps, is to prevent the key material
+	// from being written unencrypted or with an old KEK in the first place (when a node gets a
+	// certificate from the CA, it will also request the current KEK so it won't have to immediately
+	// do a KEK rotation after getting the key).
 	Write([]byte, []byte, *KEKData) error
+
+	// ViewAndUpdateHeaders is a function that reads and updates the headers of the key in a single
+	// transaction (e.g. within a lock).  It accepts a callback function which will be passed the
+	// current header management object, and which must return a new, updated, or same header
+	// management object.  KeyReadWriter then performs the following actions:
+	//    - uses the old header management object and the current KEK to deserialize/decrypt
+	//      the existing PEM headers
+	//    - uses the new header management object and the current KEK to to reserialize/encrypt
+	//      the PEM headers
+	//    - writes the new PEM headers, as well as the key material, unchanged, to disk
 	ViewAndUpdateHeaders(func(PEMKeyHeaders) (PEMKeyHeaders, error)) error
+
+	// ViewAndRotateKEK is a function that just re-encrypts the TLS key and headers in a single
+	// transaction (e.g. within a lock).  It accepts a callback unction which will be passed the
+	// current KEK and the current headers management object, and which should return a new
+	// KEK and header management object.  KeyReadWriter then performs the following actions:
+	//    - uses the old KEK and header management object to deserialize/decrypt the
+	//      TLS key and PEM headers
+	//    - uses the new KEK and header management object to serialize/encrypt the TLS key
+	//      and PEM headers
+	//    - writes the new PEM headers and newly encrypted TLS key to disk
 	ViewAndRotateKEK(func(KEKData, PEMKeyHeaders) (KEKData, PEMKeyHeaders, error)) error
+
+	// GetCurrentState returns the current header management object and the current KEK.
 	GetCurrentState() (PEMKeyHeaders, KEKData)
+
+	// Target returns a string representation of where the cert data is being read from
 	Target() string
 }
 
@@ -70,21 +114,39 @@ func (e ErrInvalidKEK) Error() string {
 }
 
 // KeyReadWriter is an object that knows how to read and write TLS keys and certs to disk,
-// optionally encrypted and optionally updating PEM headers.
+// optionally encrypted and optionally updating PEM headers.  It should be the only object which
+// can write the TLS key, to ensure that writes are serialized and that the TLS key, the
+// KEK (key encrypting key), and any headers which need to be written are never out of sync.
+// It accepts a PEMKeyHeaders object, which is used to serialize/encrypt and deserialize/decrypt
+// the PEM headers when given the current headers and the current KEK.
 type KeyReadWriter struct {
-	mu         sync.Mutex
-	kekData    KEKData
-	paths      CertPaths
-	headersObj PEMKeyHeaders
+
+	// This lock is held whenever a key is read from or written to disk, or whenever the internal
+	// state of the KeyReadWriter (such as the KEK, the key formatter, or the PEM header management
+	// object changes.)
+	mu sync.Mutex
+
+	kekData      KEKData
+	paths        CertPaths
+	headersObj   PEMKeyHeaders
+	keyFormatter keyutils.Formatter
 }
 
 // NewKeyReadWriter creates a new KeyReadWriter
 func NewKeyReadWriter(paths CertPaths, kek []byte, headersObj PEMKeyHeaders) *KeyReadWriter {
 	return &KeyReadWriter{
-		kekData:    KEKData{KEK: kek},
-		paths:      paths,
-		headersObj: headersObj,
+		kekData:      KEKData{KEK: kek},
+		paths:        paths,
+		headersObj:   headersObj,
+		keyFormatter: keyutils.Default,
 	}
+}
+
+// SetKeyFormatter sets the keyformatter with which to encrypt and decrypt keys
+func (k *KeyReadWriter) SetKeyFormatter(kf keyutils.Formatter) {
+	k.mu.Lock()
+	defer k.mu.Unlock()
+	k.keyFormatter = kf
 }
 
 // Migrate checks to see if a temporary key file exists.  Older versions of
@@ -187,10 +249,7 @@ func (k *KeyReadWriter) ViewAndRotateKEK(cb func(KEKData, PEMKeyHeaders) (KEKDat
 		return err
 	}
 
-	if err := k.writeKey(keyBlock, updatedKEK, updatedHeaderObj); err != nil {
-		return err
-	}
-	return nil
+	return k.writeKey(keyBlock, updatedKEK, updatedHeaderObj)
 }
 
 // ViewAndUpdateHeaders updates the header manager, and updates any headers on the existing key
@@ -316,7 +375,7 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 		return nil, err
 	}
 
-	if !x509.IsEncryptedPEMBlock(keyBlock) {
+	if !keyutils.IsEncryptedPEMBlock(keyBlock) {
 		return keyBlock, nil
 	}
 
@@ -326,10 +385,18 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 		return nil, ErrInvalidKEK{Wrapped: x509.IncorrectPasswordError}
 	}
 
-	derBytes, err := x509.DecryptPEMBlock(keyBlock, k.kekData.KEK)
-	if err != nil {
+	derBytes, err := k.keyFormatter.DecryptPEMBlock(keyBlock, k.kekData.KEK)
+	if err == keyutils.ErrFIPSUnsupportedKeyFormat {
+		return nil, err
+	} else if err != nil {
 		return nil, ErrInvalidKEK{Wrapped: err}
 	}
+
+	// change header only if its pkcs8
+	if keyBlock.Type == "ENCRYPTED PRIVATE KEY" {
+		keyBlock.Type = "PRIVATE KEY"
+	}
+
 	// remove encryption PEM headers
 	headers := make(map[string]string)
 	mergePEMHeaders(headers, keyBlock.Headers)
@@ -345,15 +412,11 @@ func (k *KeyReadWriter) readKey() (*pem.Block, error) {
 // writing it to disk.  If the kek is nil, writes it to disk unencrypted.
 func (k *KeyReadWriter) writeKey(keyBlock *pem.Block, kekData KEKData, pkh PEMKeyHeaders) error {
 	if kekData.KEK != nil {
-		encryptedPEMBlock, err := x509.EncryptPEMBlock(cryptorand.Reader,
-			keyBlock.Type,
-			keyBlock.Bytes,
-			kekData.KEK,
-			x509.PEMCipherAES256)
+		encryptedPEMBlock, err := k.keyFormatter.EncryptPEMBlock(keyBlock.Bytes, kekData.KEK)
 		if err != nil {
 			return err
 		}
-		if encryptedPEMBlock.Headers == nil {
+		if !keyutils.IsEncryptedPEMBlock(encryptedPEMBlock) {
 			return errors.New("unable to encrypt key - invalid PEM file produced")
 		}
 		keyBlock = encryptedPEMBlock
@@ -374,6 +437,48 @@ func (k *KeyReadWriter) writeKey(keyBlock *pem.Block, kekData KEKData, pkh PEMKe
 	k.kekData = kekData
 	k.headersObj = pkh
 	return nil
+}
+
+// DowngradeKey converts the PKCS#8 key to PKCS#1 format and save it
+func (k *KeyReadWriter) DowngradeKey() error {
+	_, key, err := k.Read()
+	if err != nil {
+		return err
+	}
+
+	oldBlock, _ := pem.Decode(key)
+	if oldBlock == nil {
+		return errors.New("invalid PEM-encoded private key")
+	}
+
+	// stop if the key is already downgraded to pkcs1
+	if !keyutils.IsPKCS8(oldBlock.Bytes) {
+		return errors.New("key is already downgraded to PKCS#1")
+	}
+
+	eckey, err := pkcs8.ConvertToECPrivateKeyPEM(key)
+	if err != nil {
+		return err
+	}
+
+	newBlock, _ := pem.Decode(eckey)
+	if newBlock == nil {
+		return errors.New("invalid PEM-encoded private key")
+	}
+
+	if k.kekData.KEK != nil {
+		newBlock, err = k.keyFormatter.EncryptPEMBlock(newBlock.Bytes, k.kekData.KEK)
+		if err != nil {
+			return err
+		}
+	}
+
+	// add kek-version header back to the new key
+	newBlock.Headers[versionHeader] = strconv.FormatUint(k.kekData.Version, 10)
+	mergePEMHeaders(newBlock.Headers, oldBlock.Headers)
+
+	// do not use krw.Write as it will convert the key to pkcs8
+	return ioutils.AtomicWriteFile(k.paths.Key, pem.EncodeToMemory(newBlock), keyPerms)
 }
 
 // merges one set of PEM headers onto another, excepting for key encryption value

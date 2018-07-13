@@ -1,23 +1,20 @@
 // +build !windows
 
-package config
+package config // import "github.com/docker/docker/daemon/config"
 
 import (
-	"io/ioutil"
-	"runtime"
-
 	"testing"
+
+	"github.com/docker/docker/opts"
+	"github.com/docker/go-units"
+	"github.com/spf13/pflag"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+	"gotest.tools/fs"
 )
 
-func TestDaemonConfigurationMerge(t *testing.T) {
-	f, err := ioutil.TempFile("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	configFile := f.Name()
-
-	f.Write([]byte(`
+func TestGetConflictFreeConfiguration(t *testing.T) {
+	configFileData := `
 		{
 			"debug": true,
 			"default-ulimits": {
@@ -30,9 +27,51 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 			"log-opts": {
 				"tag": "test_tag"
 			}
-		}`))
+		}`
 
-	f.Close()
+	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
+	defer file.Remove()
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	var debug bool
+	flags.BoolVarP(&debug, "debug", "D", false, "")
+	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+
+	cc, err := getConflictFreeConfiguration(file.Path(), flags)
+	assert.NilError(t, err)
+
+	assert.Check(t, cc.Debug)
+
+	expectedUlimits := map[string]*units.Ulimit{
+		"nofile": {
+			Name: "nofile",
+			Hard: 2048,
+			Soft: 1024,
+		},
+	}
+
+	assert.Check(t, is.DeepEqual(expectedUlimits, cc.Ulimits))
+}
+
+func TestDaemonConfigurationMerge(t *testing.T) {
+	configFileData := `
+		{
+			"debug": true,
+			"default-ulimits": {
+				"nofile": {
+					"Name": "nofile",
+					"Hard": 2048,
+					"Soft": 1024
+				}
+			},
+			"log-opts": {
+				"tag": "test_tag"
+			}
+		}`
+
+	file := fs.NewFile(t, "docker-config", fs.WithContent(configFileData))
+	defer file.Remove()
 
 	c := &Config{
 		CommonConfig: CommonConfig{
@@ -44,68 +83,52 @@ func TestDaemonConfigurationMerge(t *testing.T) {
 		},
 	}
 
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !cc.Debug {
-		t.Fatalf("expected %v, got %v\n", true, cc.Debug)
-	}
-	if !cc.AutoRestart {
-		t.Fatalf("expected %v, got %v\n", true, cc.AutoRestart)
-	}
-	if cc.LogConfig.Type != "syslog" {
-		t.Fatalf("expected syslog config, got %q\n", cc.LogConfig)
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+
+	var debug bool
+	flags.BoolVarP(&debug, "debug", "D", false, "")
+	flags.Var(opts.NewNamedUlimitOpt("default-ulimits", nil), "default-ulimit", "")
+	flags.Var(opts.NewNamedMapOpts("log-opts", nil, nil), "log-opt", "")
+
+	cc, err := MergeDaemonConfigurations(c, flags, file.Path())
+	assert.NilError(t, err)
+
+	assert.Check(t, cc.Debug)
+	assert.Check(t, cc.AutoRestart)
+
+	expectedLogConfig := LogConfig{
+		Type:   "syslog",
+		Config: map[string]string{"tag": "test_tag"},
 	}
 
-	if configValue, OK := cc.LogConfig.Config["tag"]; !OK {
-		t.Fatal("expected syslog config attributes, got nil\n")
-	} else {
-		if configValue != "test_tag" {
-			t.Fatalf("expected syslog config attributes 'tag=test_tag', got 'tag=%s'\n", configValue)
-		}
+	assert.Check(t, is.DeepEqual(expectedLogConfig, cc.LogConfig))
+
+	expectedUlimits := map[string]*units.Ulimit{
+		"nofile": {
+			Name: "nofile",
+			Hard: 2048,
+			Soft: 1024,
+		},
 	}
 
-	if cc.Ulimits == nil {
-		t.Fatal("expected default ulimit config, got nil\n")
-	} else {
-		if _, OK := cc.Ulimits["nofile"]; OK {
-			if cc.Ulimits["nofile"].Name != "nofile" ||
-				cc.Ulimits["nofile"].Hard != 2048 ||
-				cc.Ulimits["nofile"].Soft != 1024 {
-				t.Fatalf("expected default ulimit name, hard and soft are nofile, 2048, 1024, got %s, %d, %d\n", cc.Ulimits["nofile"].Name, cc.Ulimits["nofile"].Hard, cc.Ulimits["nofile"].Soft)
-			}
-		} else {
-			t.Fatal("expected default ulimit name nofile, got nil\n")
-		}
-	}
+	assert.Check(t, is.DeepEqual(expectedUlimits, cc.Ulimits))
 }
 
 func TestDaemonConfigurationMergeShmSize(t *testing.T) {
-	if runtime.GOOS == "solaris" {
-		t.Skip("ShmSize not supported on Solaris\n")
-	}
-	f, err := ioutil.TempFile("", "docker-config-")
-	if err != nil {
-		t.Fatal(err)
-	}
+	data := `{"default-shm-size": "1g"}`
 
-	configFile := f.Name()
-
-	f.Write([]byte(`
-		{
-			"default-shm-size": "1g"
-		}`))
-
-	f.Close()
+	file := fs.NewFile(t, "docker-config", fs.WithContent(data))
+	defer file.Remove()
 
 	c := &Config{}
-	cc, err := MergeDaemonConfigurations(c, nil, configFile)
-	if err != nil {
-		t.Fatal(err)
-	}
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	shmSize := opts.MemBytes(DefaultShmSize)
+	flags.Var(&shmSize, "default-shm-size", "")
+
+	cc, err := MergeDaemonConfigurations(c, flags, file.Path())
+	assert.NilError(t, err)
+
 	expectedValue := 1 * 1024 * 1024 * 1024
-	if cc.ShmSize.Value() != int64(expectedValue) {
-		t.Fatalf("expected default shm size %d, got %d", expectedValue, cc.ShmSize.Value())
-	}
+	assert.Check(t, is.Equal(int64(expectedValue), cc.ShmSize.Value()))
 }

@@ -1,4 +1,4 @@
-package layer
+package layer // import "github.com/docker/docker/layer"
 
 import (
 	"bytes"
@@ -90,11 +90,8 @@ func TestLayerMigration(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fms, err := NewFSMetadataStore(filepath.Join(td, "layers"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	root := filepath.Join(td, "layers")
+	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,11 +215,8 @@ func TestLayerMigrationNoTarsplit(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	fms, err := NewFSMetadataStore(filepath.Join(td, "layers"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	ls, err := NewStoreFromGraphDriver(fms, graph)
+	root := filepath.Join(td, "layers")
+	ls, err := newStoreFromGraphDriver(root, graph, runtime.GOOS)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,27 +1,36 @@
-package v2
+package v2 // import "github.com/docker/docker/plugin/v2"
 
 import (
 	"fmt"
+	"net"
+	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // Plugin represents an individual plugin.
 type Plugin struct {
-	mu              sync.RWMutex
-	PluginObj       types.Plugin `json:"plugin"` // todo: embed struct
-	pClient         *plugins.Client
-	refCount        int
-	PropagatedMount string // TODO: make private
-	Rootfs          string // TODO: make private
+	mu        sync.RWMutex
+	PluginObj types.Plugin `json:"plugin"` // todo: embed struct
+	pClient   *plugins.Client
+	refCount  int
+	Rootfs    string // TODO: make private
 
 	Config   digest.Digest
 	Blobsums []digest.Digest
+
+	modifyRuntimeSpec func(*specs.Spec)
+
+	SwarmServiceID string
+	timeout        time.Duration
+	addr           net.Addr
 }
 
 const defaultPluginRuntimeDestination = "/run/docker/plugins"
@@ -35,13 +44,17 @@ func (e ErrInadequateCapability) Error() string {
 	return fmt.Sprintf("plugin does not provide %q capability", e.cap)
 }
 
-// BasePath returns the path to which all paths returned by the plugin are relative to.
-// For Plugin objects this returns the host path of the plugin container's rootfs.
-func (p *Plugin) BasePath() string {
-	return p.Rootfs
+// ScopedPath returns the path scoped to the plugin rootfs
+func (p *Plugin) ScopedPath(s string) string {
+	if p.PluginObj.Config.PropagatedMount != "" && strings.HasPrefix(s, p.PluginObj.Config.PropagatedMount) {
+		// re-scope to the propagated mount path on the host
+		return filepath.Join(filepath.Dir(p.Rootfs), "propagated-mount", strings.TrimPrefix(s, p.PluginObj.Config.PropagatedMount))
+	}
+	return filepath.Join(p.Rootfs, s)
 }
 
 // Client returns the plugin client.
+// Deprecated: use p.Addr() and manually create the client
 func (p *Plugin) Client() *plugins.Client {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
@@ -50,6 +63,7 @@ func (p *Plugin) Client() *plugins.Client {
 }
 
 // SetPClient set the plugin client.
+// Deprecated: Hardcoded plugin client is deprecated
 func (p *Plugin) SetPClient(client *plugins.Client) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -140,6 +154,9 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
+				if mount.Source == nil {
+					return fmt.Errorf("Plugin config has no mount source")
+				}
 				*mount.Source = s.value
 				continue next
 			}
@@ -157,6 +174,9 @@ next:
 				}
 
 				// it is, so lets update the settings in memory
+				if device.Path == nil {
+					return fmt.Errorf("Plugin config has no device path")
+				}
 				*device.Path = s.value
 				continue next
 			}
@@ -241,4 +261,51 @@ func (p *Plugin) Acquire() {
 // via `Acquire()` or getter.Get("name", "type", plugingetter.Acquire)
 func (p *Plugin) Release() {
 	p.AddRefCount(plugingetter.Release)
+}
+
+// SetSpecOptModifier sets the function to use to modify the generated
+// runtime spec.
+func (p *Plugin) SetSpecOptModifier(f func(*specs.Spec)) {
+	p.mu.Lock()
+	p.modifyRuntimeSpec = f
+	p.mu.Unlock()
+}
+
+// Timeout gets the currently configured connection timeout.
+// This should be used when dialing the plugin.
+func (p *Plugin) Timeout() time.Duration {
+	p.mu.RLock()
+	t := p.timeout
+	p.mu.RUnlock()
+	return t
+}
+
+// SetTimeout sets the timeout to use for dialing.
+func (p *Plugin) SetTimeout(t time.Duration) {
+	p.mu.Lock()
+	p.timeout = t
+	p.mu.Unlock()
+}
+
+// Addr returns the net.Addr to use to connect to the plugin socket
+func (p *Plugin) Addr() net.Addr {
+	p.mu.RLock()
+	addr := p.addr
+	p.mu.RUnlock()
+	return addr
+}
+
+// SetAddr sets the plugin address which can be used for dialing the plugin.
+func (p *Plugin) SetAddr(addr net.Addr) {
+	p.mu.Lock()
+	p.addr = addr
+	p.mu.Unlock()
+}
+
+// Protocol is the protocol that should be used for interacting with the plugin.
+func (p *Plugin) Protocol() string {
+	if p.PluginObj.Config.Interface.ProtocolScheme != "" {
+		return p.PluginObj.Config.Interface.ProtocolScheme
+	}
+	return plugins.ProtocolSchemeHTTPV1
 }

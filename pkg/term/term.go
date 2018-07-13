@@ -2,7 +2,7 @@
 
 // Package term provides structures and helper functions to work with
 // terminal (state, sizes).
-package term
+package term // import "github.com/docker/docker/pkg/term"
 
 import (
 	"errors"
@@ -10,7 +10,8 @@ import (
 	"io"
 	"os"
 	"os/signal"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -79,7 +80,7 @@ func SaveState(fd uintptr) (*State, error) {
 // descriptor, with echo disabled.
 func DisableEcho(fd uintptr, state *State) error {
 	newState := state.termios
-	newState.Lflag &^= syscall.ECHO
+	newState.Lflag &^= unix.ECHO
 
 	if err := tcset(fd, &newState); err != 0 {
 		return err

@@ -1,7 +1,7 @@
 // Package local provides the default implementation for volumes. It
 // is used to mount data volume containers and directories local to
 // the host server.
-package local
+package local // import "github.com/docker/docker/volume/local"
 
 import (
 	"encoding/json"
@@ -13,13 +13,12 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/pkg/errors"
-
-	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api"
+	"github.com/docker/docker/daemon/names"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/volume"
+	"github.com/pkg/errors"
 )
 
 // VolumeDataPathName is the name of the directory where the volume data is stored.
@@ -36,16 +35,8 @@ var (
 	// volumeNameRegex ensures the name assigned for the volume is valid.
 	// This name is used to create the bind directory, so we need to avoid characters that
 	// would make the path to escape the root directory.
-	volumeNameRegex = api.RestrictedNamePattern
+	volumeNameRegex = names.RestrictedNamePattern
 )
-
-type validationError struct {
-	error
-}
-
-func (validationError) IsValidationError() bool {
-	return true
-}
 
 type activeMount struct {
 	count   uint64
@@ -55,10 +46,10 @@ type activeMount struct {
 // New instantiates a new Root instance with the provided scope. Scope
 // is the base path that the Root instance uses to store its
 // volumes. The base path is created here if it does not exist.
-func New(scope string, rootUID, rootGID int) (*Root, error) {
+func New(scope string, rootIDs idtools.IDPair) (*Root, error) {
 	rootDirectory := filepath.Join(scope, volumesPathName)
 
-	if err := idtools.MkdirAllAs(rootDirectory, 0700, rootUID, rootGID); err != nil {
+	if err := idtools.MkdirAllAndChown(rootDirectory, 0700, rootIDs); err != nil {
 		return nil, err
 	}
 
@@ -66,18 +57,12 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 		scope:   scope,
 		path:    rootDirectory,
 		volumes: make(map[string]*localVolume),
-		rootUID: rootUID,
-		rootGID: rootGID,
+		rootIDs: rootIDs,
 	}
 
 	dirs, err := ioutil.ReadDir(rootDirectory)
 	if err != nil {
 		return nil, err
-	}
-
-	mountInfos, err := mount.GetMounts()
-	if err != nil {
-		logrus.Debugf("error looking up mounts for local volume cleanup: %v", err)
 	}
 
 	for _, d := range dirs {
@@ -105,12 +90,7 @@ func New(scope string, rootUID, rootGID int) (*Root, error) {
 			}
 
 			// unmount anything that may still be mounted (for example, from an unclean shutdown)
-			for _, info := range mountInfos {
-				if info.Mountpoint == v.path {
-					mount.Unmount(v.path)
-					break
-				}
-			}
+			mount.Unmount(v.path)
 		}
 	}
 
@@ -125,8 +105,7 @@ type Root struct {
 	scope   string
 	path    string
 	volumes map[string]*localVolume
-	rootUID int
-	rootGID int
+	rootIDs idtools.IDPair
 }
 
 // List lists all the volumes
@@ -167,11 +146,8 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 	}
 
 	path := r.DataPath(name)
-	if err := idtools.MkdirAllAs(path, 0755, r.rootUID, r.rootGID); err != nil {
-		if os.IsExist(err) {
-			return nil, fmt.Errorf("volume already exists under %s", filepath.Dir(path))
-		}
-		return nil, errors.Wrapf(err, "error while creating volume path '%s'", path)
+	if err := idtools.MkdirAllAndChown(path, 0755, r.rootIDs); err != nil {
+		return nil, errors.Wrapf(errdefs.System(err), "error while creating volume path '%s'", path)
 	}
 
 	var err error
@@ -197,7 +173,7 @@ func (r *Root) Create(name string, opts map[string]string) (volume.Volume, error
 			return nil, err
 		}
 		if err = ioutil.WriteFile(filepath.Join(filepath.Dir(path), "opts.json"), b, 600); err != nil {
-			return nil, errors.Wrap(err, "error while persisting volume options")
+			return nil, errdefs.System(errors.Wrap(err, "error while persisting volume options"))
 		}
 	}
 
@@ -215,7 +191,15 @@ func (r *Root) Remove(v volume.Volume) error {
 
 	lv, ok := v.(*localVolume)
 	if !ok {
-		return fmt.Errorf("unknown volume type %T", v)
+		return errdefs.System(errors.Errorf("unknown volume type %T", v))
+	}
+
+	if lv.active.count > 0 {
+		return errdefs.System(errors.Errorf("volume has active mounts"))
+	}
+
+	if err := lv.unmount(); err != nil {
+		return err
 	}
 
 	realPath, err := filepath.EvalSymlinks(lv.path)
@@ -227,7 +211,7 @@ func (r *Root) Remove(v volume.Volume) error {
 	}
 
 	if !r.scopedPath(realPath) {
-		return fmt.Errorf("Unable to remove a directory of out the Docker root %s: %s", r.scope, realPath)
+		return errdefs.System(errors.Errorf("Unable to remove a directory outside of the local volume root %s: %s", r.scope, realPath))
 	}
 
 	if err := removePath(realPath); err != nil {
@@ -243,7 +227,7 @@ func removePath(path string) error {
 		if os.IsNotExist(err) {
 			return nil
 		}
-		return errors.Wrapf(err, "error removing volume path '%s'", path)
+		return errdefs.System(errors.Wrapf(err, "error removing volume path '%s'", path))
 	}
 	return nil
 }
@@ -264,12 +248,20 @@ func (r *Root) Scope() string {
 	return volume.LocalScope
 }
 
+type validationError string
+
+func (e validationError) Error() string {
+	return string(e)
+}
+
+func (e validationError) InvalidParameter() {}
+
 func (r *Root) validateName(name string) error {
 	if len(name) == 1 {
-		return validationError{fmt.Errorf("volume name is too short, names should be at least two alphanumeric characters")}
+		return validationError("volume name is too short, names should be at least two alphanumeric characters")
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError{fmt.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, api.RestrictedNameChars)}
+		return validationError(fmt.Sprintf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
 	}
 	return nil
 }
@@ -305,14 +297,20 @@ func (v *localVolume) Path() string {
 	return v.path
 }
 
+// CachedPath returns the data location
+func (v *localVolume) CachedPath() string {
+	return v.path
+}
+
 // Mount implements the localVolume interface, returning the data location.
+// If there are any provided mount options, the resources will be mounted at this point
 func (v *localVolume) Mount(id string) (string, error) {
 	v.m.Lock()
 	defer v.m.Unlock()
 	if v.opts != nil {
 		if !v.active.mounted {
 			if err := v.mount(); err != nil {
-				return "", err
+				return "", errdefs.System(err)
 			}
 			v.active.mounted = true
 		}
@@ -321,19 +319,35 @@ func (v *localVolume) Mount(id string) (string, error) {
 	return v.path, nil
 }
 
-// Umount is for satisfying the localVolume interface and does not do anything in this driver.
+// Unmount dereferences the id, and if it is the last reference will unmount any resources
+// that were previously mounted.
 func (v *localVolume) Unmount(id string) error {
 	v.m.Lock()
 	defer v.m.Unlock()
+
+	// Always decrement the count, even if the unmount fails
+	// Essentially docker doesn't care if this fails, it will send an error, but
+	// ultimately there's nothing that can be done. If we don't decrement the count
+	// this volume can never be removed until a daemon restart occurs.
 	if v.opts != nil {
 		v.active.count--
-		if v.active.count == 0 {
-			if err := mount.Unmount(v.path); err != nil {
-				v.active.count++
-				return errors.Wrapf(err, "error while unmounting volume path '%s'", v.path)
+	}
+
+	if v.active.count > 0 {
+		return nil
+	}
+
+	return v.unmount()
+}
+
+func (v *localVolume) unmount() error {
+	if v.opts != nil {
+		if err := mount.Unmount(v.path); err != nil {
+			if mounted, mErr := mount.Mounted(v.path); mounted || mErr != nil {
+				return errdefs.System(errors.Wrapf(err, "error while unmounting volume path '%s'", v.path))
 			}
-			v.active.mounted = false
 		}
+		v.active.mounted = false
 	}
 	return nil
 }
@@ -341,7 +355,7 @@ func (v *localVolume) Unmount(id string) error {
 func validateOpts(opts map[string]string) error {
 	for opt := range opts {
 		if !validOpts[opt] {
-			return validationError{fmt.Errorf("invalid option key: %q", opt)}
+			return validationError(fmt.Sprintf("invalid option key: %q", opt))
 		}
 	}
 	return nil
@@ -356,7 +370,7 @@ func getAddress(opts string) string {
 	optsList := strings.Split(opts, ",")
 	for i := 0; i < len(optsList); i++ {
 		if strings.HasPrefix(optsList[i], "addr=") {
-			addr := (strings.SplitN(optsList[i], "=", 2)[1])
+			addr := strings.SplitN(optsList[i], "=", 2)[1]
 			return addr
 		}
 	}

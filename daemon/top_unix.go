@@ -1,8 +1,10 @@
 //+build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"bytes"
+	"context"
 	"fmt"
 	"os/exec"
 	"regexp"
@@ -10,12 +12,15 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 func validatePSArgs(psArgs string) error {
 	// NOTE: \\s does not detect unicode whitespaces.
 	// So we use fieldsASCII instead of strings.Fields in parsePSOutput.
 	// See https://github.com/docker/docker/pull/24358
+	// nolint: gosimple
 	re := regexp.MustCompile("\\s+([^\\s]*)=\\s*(PID[^\\s]*)")
 	for _, group := range re.FindAllStringSubmatch(psArgs, -1) {
 		if len(group) >= 3 {
@@ -49,16 +54,16 @@ func appendProcess2ProcList(procList *container.ContainerTopOKBody, fields []str
 	procList.Processes = append(procList.Processes, process)
 }
 
-func hasPid(pids []int, pid int) bool {
-	for _, i := range pids {
-		if i == pid {
+func hasPid(procs []uint32, pid int) bool {
+	for _, p := range procs {
+		if int(p) == pid {
 			return true
 		}
 	}
 	return false
 }
 
-func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, error) {
+func parsePSOutput(output []byte, procs []uint32) (*container.ContainerTopOKBody, error) {
 	procList := &container.ContainerTopOKBody{}
 
 	lines := strings.Split(string(output), "\n")
@@ -68,6 +73,7 @@ func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, er
 	for i, name := range procList.Titles {
 		if name == "PID" {
 			pidIndex = i
+			break
 		}
 	}
 	if pidIndex == -1 {
@@ -100,7 +106,7 @@ func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, er
 			return nil, fmt.Errorf("Unexpected pid '%s': %s", fields[pidIndex], err)
 		}
 
-		if hasPid(pids, p) {
+		if hasPid(procs, p) {
 			preContainedPidFlag = true
 			appendProcess2ProcList(procList, fields)
 			continue
@@ -108,6 +114,20 @@ func parsePSOutput(output []byte, pids []int) (*container.ContainerTopOKBody, er
 		preContainedPidFlag = false
 	}
 	return procList, nil
+}
+
+// psPidsArg converts a slice of PIDs to a string consisting
+// of comma-separated list of PIDs prepended by "-q".
+// For example, psPidsArg([]uint32{1,2,3}) returns "-q1,2,3".
+func psPidsArg(pids []uint32) string {
+	b := []byte{'-', 'q'}
+	for i, p := range pids {
+		b = strconv.AppendUint(b, uint64(p), 10)
+		if i < len(pids)-1 {
+			b = append(b, ',')
+		}
+	}
+	return string(b)
 }
 
 // ContainerTop lists the processes running inside of the given
@@ -130,23 +150,37 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 	}
 
 	if !container.IsRunning() {
-		return nil, errNotRunning{container.ID}
+		return nil, errNotRunning(container.ID)
 	}
 
 	if container.IsRestarting() {
 		return nil, errContainerIsRestarting(container.ID)
 	}
 
-	pids, err := daemon.containerd.GetPidsForContainer(container.ID)
+	procs, err := daemon.containerd.ListPids(context.Background(), container.ID)
 	if err != nil {
 		return nil, err
 	}
 
-	output, err := exec.Command("ps", strings.Split(psArgs, " ")...).Output()
+	args := strings.Split(psArgs, " ")
+	pids := psPidsArg(procs)
+	output, err := exec.Command("ps", append(args, pids)...).Output()
 	if err != nil {
-		return nil, fmt.Errorf("Error running ps: %v", err)
+		// some ps options (such as f) can't be used together with q,
+		// so retry without it
+		output, err = exec.Command("ps", args...).Output()
+		if err != nil {
+			if ee, ok := err.(*exec.ExitError); ok {
+				// first line of stderr shows why ps failed
+				line := bytes.SplitN(ee.Stderr, []byte{'\n'}, 2)
+				if len(line) > 0 && len(line[0]) > 0 {
+					err = errors.New(string(line[0]))
+				}
+			}
+			return nil, errdefs.System(errors.Wrap(err, "ps"))
+		}
 	}
-	procList, err := parsePSOutput(output, pids)
+	procList, err := parsePSOutput(output, procs)
 	if err != nil {
 		return nil, err
 	}

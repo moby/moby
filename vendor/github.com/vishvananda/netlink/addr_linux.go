@@ -2,7 +2,6 @@ package netlink
 
 import (
 	"fmt"
-	"log"
 	"net"
 	"strings"
 	"syscall"
@@ -65,7 +64,7 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 	msg := nl.NewIfAddrmsg(family)
 	msg.Index = uint32(base.Index)
 	msg.Scope = uint8(addr.Scope)
-	prefixlen, _ := addr.Mask.Size()
+	prefixlen, masklen := addr.Mask.Size()
 	msg.Prefixlen = uint8(prefixlen)
 	req.AddData(msg)
 
@@ -103,9 +102,14 @@ func (h *Handle) addrHandle(link Link, addr *Addr, req *nl.NetlinkRequest) error
 		}
 	}
 
-	if addr.Broadcast != nil {
-		req.AddData(nl.NewRtAttr(syscall.IFA_BROADCAST, addr.Broadcast))
+	if addr.Broadcast == nil {
+		calcBroadcast := make(net.IP, masklen/8)
+		for i := range localAddrData {
+			calcBroadcast[i] = localAddrData[i] | ^addr.Mask[i]
+		}
+		addr.Broadcast = calcBroadcast
 	}
+	req.AddData(nl.NewRtAttr(syscall.IFA_BROADCAST, addr.Broadcast))
 
 	if addr.Label != "" {
 		labelData := nl.NewRtAttr(syscall.IFA_LABEL, nl.ZeroTerminated(addr.Label))
@@ -195,10 +199,16 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 				Mask: net.CIDRMask(int(msg.Prefixlen), 8*len(attr.Value)),
 			}
 			addr.IPNet = local
+		case syscall.IFA_BROADCAST:
+			addr.Broadcast = attr.Value
 		case syscall.IFA_LABEL:
 			addr.Label = string(attr.Value[:len(attr.Value)-1])
 		case IFA_FLAGS:
 			addr.Flags = int(native.Uint32(attr.Value[0:4]))
+		case nl.IFA_CACHEINFO:
+			ci := nl.DeserializeIfaCacheInfo(attr.Value)
+			addr.PreferedLft = int(ci.IfaPrefered)
+			addr.ValidLft = int(ci.IfaValid)
 		}
 	}
 
@@ -216,22 +226,44 @@ func parseAddr(m []byte) (addr Addr, family, index int, err error) {
 type AddrUpdate struct {
 	LinkAddress net.IPNet
 	LinkIndex   int
+	Flags       int
+	Scope       int
+	PreferedLft int
+	ValidLft    int
 	NewAddr     bool // true=added false=deleted
 }
 
 // AddrSubscribe takes a chan down which notifications will be sent
 // when addresses change.  Close the 'done' chan to stop subscription.
 func AddrSubscribe(ch chan<- AddrUpdate, done <-chan struct{}) error {
-	return addrSubscribe(netns.None(), netns.None(), ch, done)
+	return addrSubscribeAt(netns.None(), netns.None(), ch, done, nil)
 }
 
 // AddrSubscribeAt works like AddrSubscribe plus it allows the caller
 // to choose the network namespace in which to subscribe (ns).
 func AddrSubscribeAt(ns netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}) error {
-	return addrSubscribe(ns, netns.None(), ch, done)
+	return addrSubscribeAt(ns, netns.None(), ch, done, nil)
 }
 
-func addrSubscribe(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}) error {
+// AddrSubscribeOptions contains a set of options to use with
+// AddrSubscribeWithOptions.
+type AddrSubscribeOptions struct {
+	Namespace     *netns.NsHandle
+	ErrorCallback func(error)
+}
+
+// AddrSubscribeWithOptions work like AddrSubscribe but enable to
+// provide additional options to modify the behavior. Currently, the
+// namespace can be provided as well as an error callback.
+func AddrSubscribeWithOptions(ch chan<- AddrUpdate, done <-chan struct{}, options AddrSubscribeOptions) error {
+	if options.Namespace == nil {
+		none := netns.None()
+		options.Namespace = &none
+	}
+	return addrSubscribeAt(*options.Namespace, netns.None(), ch, done, options.ErrorCallback)
+}
+
+func addrSubscribeAt(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-chan struct{}, cberr func(error)) error {
 	s, err := nl.SubscribeAt(newNs, curNs, syscall.NETLINK_ROUTE, syscall.RTNLGRP_IPV4_IFADDR, syscall.RTNLGRP_IPV6_IFADDR)
 	if err != nil {
 		return err
@@ -247,23 +279,35 @@ func addrSubscribe(newNs, curNs netns.NsHandle, ch chan<- AddrUpdate, done <-cha
 		for {
 			msgs, err := s.Receive()
 			if err != nil {
-				log.Printf("netlink.AddrSubscribe: Receive() error: %v", err)
+				if cberr != nil {
+					cberr(err)
+				}
 				return
 			}
 			for _, m := range msgs {
 				msgType := m.Header.Type
 				if msgType != syscall.RTM_NEWADDR && msgType != syscall.RTM_DELADDR {
-					log.Printf("netlink.AddrSubscribe: bad message type: %d", msgType)
-					continue
+					if cberr != nil {
+						cberr(fmt.Errorf("bad message type: %d", msgType))
+					}
+					return
 				}
 
 				addr, _, ifindex, err := parseAddr(m.Data)
 				if err != nil {
-					log.Printf("netlink.AddrSubscribe: could not parse address: %v", err)
-					continue
+					if cberr != nil {
+						cberr(fmt.Errorf("could not parse address: %v", err))
+					}
+					return
 				}
 
-				ch <- AddrUpdate{LinkAddress: *addr.IPNet, LinkIndex: ifindex, NewAddr: msgType == syscall.RTM_NEWADDR}
+				ch <- AddrUpdate{LinkAddress: *addr.IPNet,
+					LinkIndex:   ifindex,
+					NewAddr:     msgType == syscall.RTM_NEWADDR,
+					Flags:       addr.Flags,
+					Scope:       addr.Scope,
+					PreferedLft: addr.PreferedLft,
+					ValidLft:    addr.ValidLft}
 			}
 		}
 	}()

@@ -84,7 +84,8 @@ func (o *Buffer) dec_slice_duration(p *Properties, base structPointer) error {
 		return err
 	}
 	newBas := appendStructPointer(base, p.field, reflect.SliceOf(reflect.PtrTo(durationType)))
-	setPtrCustomType(newBas, 0, &d)
+	var zero field
+	setPtrCustomType(newBas, zero, &d)
 	return nil
 }
 

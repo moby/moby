@@ -1,6 +1,6 @@
 # [SwarmKit](https://github.com/docker/swarmkit)
 
-[![GoDoc](https://godoc.org/github.com/docker/swarmkit?status.png)](https://godoc.org/github.com/docker/swarmkit)
+[![GoDoc](https://godoc.org/github.com/docker/swarmkit?status.svg)](https://godoc.org/github.com/docker/swarmkit)
 [![Circle CI](https://circleci.com/gh/docker/swarmkit.svg?style=shield&circle-token=a7bf494e28963703a59de71cf19b73ad546058a7)](https://circleci.com/gh/docker/swarmkit)
 [![codecov.io](https://codecov.io/github/docker/swarmkit/coverage.svg?branch=master&token=LqD1dzTjsN)](https://codecov.io/github/docker/swarmkit?branch=master)
 [![Badge Badge](http://doyouevenbadge.com/github.com/docker/swarmkit)](http://doyouevenbadge.com/report/github.com/docker/swarmkit)
@@ -83,7 +83,7 @@ Requirements:
 
 -   Go 1.6 or higher
 -   A [working golang](https://golang.org/doc/code.html) environment
--   [Protobuf 3.x or higher] (https://developers.google.com/protocol-buffers/docs/downloads) to regenerate protocol buffer files (e.g. using `make generate`)
+-   [Protobuf 3.x or higher](https://developers.google.com/protocol-buffers/docs/downloads) to regenerate protocol buffer files (e.g. using `make generate`)
 
 *SwarmKit* is built in Go and leverages a standard project structure to work well with Go tooling.
 If you are new to Go, please see [BUILDING.md](BUILDING.md) for a more detailed guide.
@@ -153,6 +153,12 @@ $ swarmd -d /tmp/node-2 --hostname node-2 --join-addr 127.0.0.1:4242 --join-toke
 $ swarmd -d /tmp/node-3 --hostname node-3 --join-addr 127.0.0.1:4242 --join-token <Worker Token>
 ```
 
+If joining as a manager, also specify the listen-control-api.
+
+```sh
+$ swarmd -d /tmp/node-4 --hostname node-4 --join-addr 127.0.0.1:4242 --join-token <Manager Token> --listen-control-api /tmp/node-4/swarm.sock --listen-remote-api 127.0.0.1:4245
+```
+
 In a fourth terminal, use `swarmctl` to explore and control the cluster. Before
 running `swarmctl`, set the `SWARM_SOCKET` environment variable to the path of the
 manager socket that was specified in `--listen-control-api` when starting the
@@ -168,6 +174,7 @@ ID                         Name    Membership  Status  Availability  Manager Sta
 3x12fpoi36eujbdkgdnbvbi6r  node-2  ACCEPTED    READY   ACTIVE
 4spl3tyipofoa2iwqgabsdcve  node-1  ACCEPTED    READY   ACTIVE        REACHABLE *
 dknwk1uqxhnyyujq66ho0h54t  node-3  ACCEPTED    READY   ACTIVE
+zw3rwfawdasdewfq66ho34eaw  node-4  ACCEPTED    READY   ACTIVE        REACHABLE
 
 
 ```

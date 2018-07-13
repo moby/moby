@@ -1,4 +1,4 @@
-package authorization
+package authorization // import "github.com/docker/docker/pkg/authorization"
 
 import (
 	"crypto/x509"

@@ -8,8 +8,6 @@ import (
 	"github.com/go-check/check"
 )
 
-// docker cp CONTAINER:PATH LOCALPATH
-
 // Try all of the test cases from the archive package which implements the
 // internals of `docker cp` and ensure that the behavior matches when actually
 // copying to and from containers.
@@ -20,96 +18,9 @@ import (
 // 3. DST parent directory must exist.
 // 4. If DST exists as a file, it must not end with a trailing separator.
 
-// First get these easy error cases out of the way.
-
-// Test for error when SRC does not exist.
-func (s *DockerSuite) TestCpFromErrSrcNotExists(c *check.C) {
-	containerID := makeTestContainer(c, testContainerOptions{})
-
-	tmpDir := getTestDir(c, "test-cp-from-err-src-not-exists")
-	defer os.RemoveAll(tmpDir)
-
-	err := runDockerCp(c, containerCpPath(containerID, "file1"), tmpDir, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
-}
-
-// Test for error when SRC ends in a trailing
-// path separator but it exists as a file.
-func (s *DockerSuite) TestCpFromErrSrcNotDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-from-err-src-not-dir")
-	defer os.RemoveAll(tmpDir)
-
-	err := runDockerCp(c, containerCpPathTrailingSep(containerID, "file1"), tmpDir, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotDir(err), checker.True, check.Commentf("expected IsNotDir error, but got %T: %s", err, err))
-}
-
-// Test for error when SRC is a valid file or directory,
-// bu the DST parent directory does not exist.
-func (s *DockerSuite) TestCpFromErrDstParentNotExists(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-from-err-dst-parent-not-exists")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	// Try with a file source.
-	srcPath := containerCpPath(containerID, "/file1")
-	dstPath := cpPath(tmpDir, "notExists", "file1")
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
-
-	// Try with a directory source.
-	srcPath = containerCpPath(containerID, "/dir1")
-
-	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotExist(err), checker.True, check.Commentf("expected IsNotExist error, but got %T: %s", err, err))
-}
-
-// Test for error when DST ends in a trailing
-// path separator but exists as a file.
-func (s *DockerSuite) TestCpFromErrDstNotDir(c *check.C) {
-	testRequires(c, DaemonIsLinux)
-	containerID := makeTestContainer(c, testContainerOptions{addContent: true})
-
-	tmpDir := getTestDir(c, "test-cp-from-err-dst-not-dir")
-	defer os.RemoveAll(tmpDir)
-
-	makeTestContentInDir(c, tmpDir)
-
-	// Try with a file source.
-	srcPath := containerCpPath(containerID, "/file1")
-	dstPath := cpPathTrailingSep(tmpDir, "file1")
-
-	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotDir(err), checker.True, check.Commentf("expected IsNotDir error, but got %T: %s", err, err))
-
-	// Try with a directory source.
-	srcPath = containerCpPath(containerID, "/dir1")
-
-	err = runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
-
-	c.Assert(isCpNotDir(err), checker.True, check.Commentf("expected IsNotDir error, but got %T: %s", err, err))
-}
-
 // Check that copying from a container to a local symlink copies to the symlink
 // target and does not overwrite the local symlink itself.
+// TODO: move to docker/cli and/or integration/container/copy_test.go
 func (s *DockerSuite) TestCpFromSymlinkDestination(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	containerID := makeTestContainer(c, testContainerOptions{addContent: true})

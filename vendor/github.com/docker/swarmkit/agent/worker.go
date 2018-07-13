@@ -3,12 +3,12 @@ package agent
 import (
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/boltdb/bolt"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/watch"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 
@@ -38,6 +38,9 @@ type Worker interface {
 	//
 	// The listener will be removed if the context is cancelled.
 	Listen(ctx context.Context, reporter StatusReporter)
+
+	// Report resends the status of all tasks controlled by this worker.
+	Report(ctx context.Context, reporter StatusReporter)
 
 	// Subscribe to log messages matching the subscription.
 	Subscribe(ctx context.Context, subscription *api.SubscriptionMessage) error
@@ -416,24 +419,40 @@ func (w *worker) Listen(ctx context.Context, reporter StatusReporter) {
 	}()
 
 	// report the current statuses to the new listener
+	w.reportAllStatuses(ctx, reporter)
+}
+
+func (w *worker) Report(ctx context.Context, reporter StatusReporter) {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	w.reportAllStatuses(ctx, reporter)
+}
+
+func (w *worker) reportAllStatuses(ctx context.Context, reporter StatusReporter) {
 	if err := w.db.View(func(tx *bolt.Tx) error {
 		return WalkTaskStatus(tx, func(id string, status *api.TaskStatus) error {
 			return reporter.UpdateTaskStatus(ctx, id, status)
 		})
 	}); err != nil {
-		log.G(ctx).WithError(err).Errorf("failed reporting initial statuses to registered listener %v", reporter)
+		log.G(ctx).WithError(err).Errorf("failed reporting initial statuses")
 	}
 }
 
 func (w *worker) startTask(ctx context.Context, tx *bolt.Tx, task *api.Task) error {
-	w.taskevents.Publish(task.Copy())
 	_, err := w.taskManager(ctx, tx, task) // side-effect taskManager creation.
 
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to start taskManager")
+		// we ignore this error: it gets reported in the taskStatus within
+		// `newTaskManager`. We log it here and move on. If their is an
+		// attempted restart, the lack of taskManager will have this retry
+		// again.
+		return nil
 	}
 
-	// TODO(stevvooe): Add start method for taskmanager
+	// only publish if controller resolution was successful.
+	w.taskevents.Publish(task.Copy())
 	return nil
 }
 
@@ -464,7 +483,7 @@ func (w *worker) newTaskManager(ctx context.Context, tx *bolt.Tx, task *api.Task
 	}
 
 	if err != nil {
-		log.G(ctx).Error("controller resolution failed")
+		log.G(ctx).WithError(err).Error("controller resolution failed")
 		return nil, err
 	}
 
@@ -568,9 +587,14 @@ func (w *worker) Subscribe(ctx context.Context, subscription *api.SubscriptionMe
 		case v := <-ch:
 			task := v.(*api.Task)
 			if match(task) {
-				w.mu.Lock()
-				go w.taskManagers[task.ID].Logs(ctx, *subscription.Options, publisher)
-				w.mu.Unlock()
+				w.mu.RLock()
+				tm, ok := w.taskManagers[task.ID]
+				w.mu.RUnlock()
+				if !ok {
+					continue
+				}
+
+				go tm.Logs(ctx, *subscription.Options, publisher)
 			}
 		case <-ctx.Done():
 			return ctx.Err()

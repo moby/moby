@@ -193,9 +193,7 @@ func runDockerCp(c *check.C, src, dst string, params []string) (err error) {
 
 	args := []string{"cp"}
 
-	for _, param := range params {
-		args = append(args, param)
-	}
+	args = append(args, params...)
 
 	args = append(args, src, dst)
 
@@ -230,16 +228,8 @@ func getTestDir(c *check.C, label string) (tmpDir string) {
 	return
 }
 
-func isCpNotExist(err error) bool {
-	return strings.Contains(err.Error(), "no such file or directory") || strings.Contains(err.Error(), "cannot find the file specified")
-}
-
 func isCpDirNotExist(err error) bool {
 	return strings.Contains(err.Error(), archive.ErrDirNotExists.Error())
-}
-
-func isCpNotDir(err error) bool {
-	return strings.Contains(err.Error(), archive.ErrNotDirectory.Error()) || strings.Contains(err.Error(), "filename, directory name, or volume label syntax is incorrect")
 }
 
 func isCpCannotCopyDir(err error) bool {
@@ -248,10 +238,6 @@ func isCpCannotCopyDir(err error) bool {
 
 func isCpCannotCopyReadOnly(err error) bool {
 	return strings.Contains(err.Error(), "marked read-only")
-}
-
-func isCannotOverwriteNonDirWithDir(err error) bool {
-	return strings.Contains(err.Error(), "cannot overwrite non-directory")
 }
 
 func fileContentEquals(c *check.C, filename, contents string) (err error) {

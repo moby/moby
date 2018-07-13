@@ -1,4 +1,11 @@
-package dockerfile
+package dockerfile // import "github.com/docker/docker/builder/dockerfile"
+
+import (
+	"fmt"
+	"io"
+
+	"github.com/docker/docker/runconfig/opts"
+)
 
 // builtinAllowedBuildArgs is list of built-in allowed build args
 // these args are considered transparent and are excluded from the image history.
@@ -14,8 +21,8 @@ var builtinAllowedBuildArgs = map[string]bool{
 	"no_proxy":    true,
 }
 
-// buildArgs manages arguments used by the builder
-type buildArgs struct {
+// BuildArgs manages arguments used by the builder
+type BuildArgs struct {
 	// args that are allowed for expansion/substitution and passing to commands in 'run'.
 	allowedBuildArgs map[string]*string
 	// args defined before the first `FROM` in a Dockerfile
@@ -26,8 +33,9 @@ type buildArgs struct {
 	argsFromOptions map[string]*string
 }
 
-func newBuildArgs(argsFromOptions map[string]*string) *buildArgs {
-	return &buildArgs{
+// NewBuildArgs creates a new BuildArgs type
+func NewBuildArgs(argsFromOptions map[string]*string) *BuildArgs {
+	return &BuildArgs{
 		allowedBuildArgs: make(map[string]*string),
 		allowedMetaArgs:  make(map[string]*string),
 		referencedArgs:   make(map[string]struct{}),
@@ -35,55 +43,82 @@ func newBuildArgs(argsFromOptions map[string]*string) *buildArgs {
 	}
 }
 
-// UnreferencedOptionArgs returns the list of args that were set from options but
-// were never referenced from the Dockerfile
-func (b *buildArgs) UnreferencedOptionArgs() []string {
-	leftoverArgs := []string{}
+// Clone returns a copy of the BuildArgs type
+func (b *BuildArgs) Clone() *BuildArgs {
+	result := NewBuildArgs(b.argsFromOptions)
+	for k, v := range b.allowedBuildArgs {
+		result.allowedBuildArgs[k] = v
+	}
+	for k, v := range b.allowedMetaArgs {
+		result.allowedMetaArgs[k] = v
+	}
+	for k := range b.referencedArgs {
+		result.referencedArgs[k] = struct{}{}
+	}
+	return result
+}
+
+// MergeReferencedArgs merges referenced args from another BuildArgs
+// object into the current one
+func (b *BuildArgs) MergeReferencedArgs(other *BuildArgs) {
+	for k := range other.referencedArgs {
+		b.referencedArgs[k] = struct{}{}
+	}
+}
+
+// WarnOnUnusedBuildArgs checks if there are any leftover build-args that were
+// passed but not consumed during build. Print a warning, if there are any.
+func (b *BuildArgs) WarnOnUnusedBuildArgs(out io.Writer) {
+	var leftoverArgs []string
 	for arg := range b.argsFromOptions {
-		if _, ok := b.referencedArgs[arg]; !ok {
+		_, isReferenced := b.referencedArgs[arg]
+		_, isBuiltin := builtinAllowedBuildArgs[arg]
+		if !isBuiltin && !isReferenced {
 			leftoverArgs = append(leftoverArgs, arg)
 		}
 	}
-	return leftoverArgs
+	if len(leftoverArgs) > 0 {
+		fmt.Fprintf(out, "[Warning] One or more build-args %v were not consumed\n", leftoverArgs)
+	}
 }
 
 // ResetAllowed clears the list of args that are allowed to be used by a
 // directive
-func (b *buildArgs) ResetAllowed() {
+func (b *BuildArgs) ResetAllowed() {
 	b.allowedBuildArgs = make(map[string]*string)
 }
 
 // AddMetaArg adds a new meta arg that can be used by FROM directives
-func (b *buildArgs) AddMetaArg(key string, value *string) {
+func (b *BuildArgs) AddMetaArg(key string, value *string) {
 	b.allowedMetaArgs[key] = value
 }
 
 // AddArg adds a new arg that can be used by directives
-func (b *buildArgs) AddArg(key string, value *string) {
+func (b *BuildArgs) AddArg(key string, value *string) {
 	b.allowedBuildArgs[key] = value
 	b.referencedArgs[key] = struct{}{}
 }
 
-// IsUnreferencedBuiltin checks if the key is a built-in arg, or if it has been
-// referenced by the Dockerfile. Returns true if the arg is a builtin that has
-// not been referenced in the Dockerfile.
-func (b *buildArgs) IsUnreferencedBuiltin(key string) bool {
+// IsReferencedOrNotBuiltin checks if the key is a built-in arg, or if it has been
+// referenced by the Dockerfile. Returns true if the arg is not a builtin or
+// if the builtin has been referenced in the Dockerfile.
+func (b *BuildArgs) IsReferencedOrNotBuiltin(key string) bool {
 	_, isBuiltin := builtinAllowedBuildArgs[key]
 	_, isAllowed := b.allowedBuildArgs[key]
-	return isBuiltin && !isAllowed
+	return isAllowed || !isBuiltin
 }
 
 // GetAllAllowed returns a mapping with all the allowed args
-func (b *buildArgs) GetAllAllowed() map[string]string {
+func (b *BuildArgs) GetAllAllowed() map[string]string {
 	return b.getAllFromMapping(b.allowedBuildArgs)
 }
 
 // GetAllMeta returns a mapping with all the meta meta args
-func (b *buildArgs) GetAllMeta() map[string]string {
+func (b *BuildArgs) GetAllMeta() map[string]string {
 	return b.getAllFromMapping(b.allowedMetaArgs)
 }
 
-func (b *buildArgs) getAllFromMapping(source map[string]*string) map[string]string {
+func (b *BuildArgs) getAllFromMapping(source map[string]*string) map[string]string {
 	m := make(map[string]string)
 
 	keys := keysFromMaps(source, builtinAllowedBuildArgs)
@@ -96,7 +131,20 @@ func (b *buildArgs) getAllFromMapping(source map[string]*string) map[string]stri
 	return m
 }
 
-func (b *buildArgs) getBuildArg(key string, mapping map[string]*string) (string, bool) {
+// FilterAllowed returns all allowed args without the filtered args
+func (b *BuildArgs) FilterAllowed(filter []string) []string {
+	envs := []string{}
+	configEnv := opts.ConvertKVStringsToMap(filter)
+
+	for key, val := range b.GetAllAllowed() {
+		if _, ok := configEnv[key]; !ok {
+			envs = append(envs, fmt.Sprintf("%s=%s", key, val))
+		}
+	}
+	return envs
+}
+
+func (b *BuildArgs) getBuildArg(key string, mapping map[string]*string) (string, bool) {
 	defaultValue, exists := mapping[key]
 	// Return override from options if one is defined
 	if v, ok := b.argsFromOptions[key]; ok && v != nil {

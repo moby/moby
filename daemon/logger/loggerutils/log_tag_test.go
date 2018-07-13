@@ -1,4 +1,4 @@
-package loggerutils
+package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
 
 import (
 	"testing"

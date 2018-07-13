@@ -1,13 +1,14 @@
 // +build !windows
 
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/dockerversion"
-	"github.com/stretchr/testify/assert"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestParseInitVersion(t *testing.T) {
@@ -43,10 +44,10 @@ func TestParseInitVersion(t *testing.T) {
 	for _, test := range tests {
 		ver, err := parseInitVersion(string(test.version))
 		if test.invalid {
-			assert.Error(t, err)
+			assert.Check(t, is.ErrorContains(err, ""))
 		} else {
-			assert.NoError(t, err)
+			assert.Check(t, err)
 		}
-		assert.Equal(t, test.result, ver)
+		assert.Check(t, is.DeepEqual(test.result, ver))
 	}
 }

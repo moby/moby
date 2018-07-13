@@ -1,11 +1,11 @@
 // +build !linux
 
-package v2
+package v2 // import "github.com/docker/docker/plugin/v2"
 
 import (
 	"errors"
 
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/runtime-spec/specs-go"
 )
 
 // InitSpec creates an OCI spec from the plugin's config.

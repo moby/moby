@@ -1,6 +1,7 @@
-package daemon
+package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/versions/v1p20"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/go-connections/nat"
 )
 
@@ -51,7 +53,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 		}
 	}
 
-	mountPoints := addMountPoints(container)
+	mountPoints := container.GetMountPoints()
 	networkSettings := &types.NetworkSettings{
 		NetworkSettingsBase: types.NetworkSettingsBase{
 			Bridge:                 container.NetworkSettings.Bridge,
@@ -76,7 +78,7 @@ func (daemon *Daemon) ContainerInspectCurrent(name string, size bool) (*types.Co
 	container.Unlock()
 
 	if size {
-		sizeRw, sizeRootFs := daemon.getSize(base.ID)
+		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(base.ID)
 		base.SizeRw = &sizeRw
 		base.SizeRootFs = &sizeRootFs
 	}
@@ -104,7 +106,7 @@ func (daemon *Daemon) containerInspect120(name string) (*v1p20.ContainerJSON, er
 		return nil, err
 	}
 
-	mountPoints := addMountPoints(container)
+	mountPoints := container.GetMountPoints()
 	config := &v1p20.ContainerConfig{
 		Config:          container.Config,
 		MacAddress:      container.Config.MacAddress,
@@ -138,7 +140,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 	var containerHealth *types.Health
 	if container.State.Health != nil {
 		containerHealth = &types.Health{
-			Status:        container.State.Health.Status,
+			Status:        container.State.Health.Status(),
 			FailingStreak: container.State.Health.FailingStreak,
 			Log:           append([]*types.HealthcheckResult{}, container.State.Health.Log...),
 		}
@@ -153,7 +155,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Dead:       container.State.Dead,
 		Pid:        container.State.Pid,
 		ExitCode:   container.State.ExitCode(),
-		Error:      container.State.Error(),
+		Error:      container.State.ErrorMsg,
 		StartedAt:  container.State.StartedAt.Format(time.RFC3339Nano),
 		FinishedAt: container.State.FinishedAt.Format(time.RFC3339Nano),
 		Health:     containerHealth,
@@ -170,6 +172,7 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 		Name:         container.Name,
 		RestartCount: container.RestartCount,
 		Driver:       container.Driver,
+		Platform:     container.OS,
 		MountLabel:   container.MountLabel,
 		ProcessLabel: container.ProcessLabel,
 		ExecIDs:      container.GetExecIDs(),
@@ -181,14 +184,24 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 
 	contJSONBase.GraphDriver.Name = container.Driver
 
+	if container.RWLayer == nil {
+		if container.Dead {
+			return contJSONBase, nil
+		}
+		return nil, errdefs.System(errors.New("RWLayer of container " + container.ID + " is unexpectedly nil"))
+	}
+
 	graphDriverData, err := container.RWLayer.Metadata()
 	// If container is marked as Dead, the container's graphdriver metadata
 	// could have been removed, it will cause error if we try to get the metadata,
 	// we can ignore the error if the container is dead.
-	if err != nil && !container.Dead {
-		return nil, err
+	if err != nil {
+		if !container.Dead {
+			return nil, errdefs.System(err)
+		}
+	} else {
+		contJSONBase.GraphDriver.Data = graphDriverData
 	}
-	contJSONBase.GraphDriver.Data = graphDriverData
 
 	return contJSONBase, nil
 }
@@ -196,9 +209,13 @@ func (daemon *Daemon) getInspectData(container *container.Container) (*types.Con
 // ContainerExecInspect returns low-level information about the exec
 // command. An error is returned if the exec cannot be found.
 func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, error) {
-	e, err := daemon.getExecConfig(id)
-	if err != nil {
-		return nil, err
+	e := daemon.execCommands.Get(id)
+	if e == nil {
+		return nil, errExecNotFound(id)
+	}
+
+	if container := daemon.containers.Get(e.ContainerID); container == nil {
+		return nil, errExecNotFound(id)
 	}
 
 	pc := inspectExecProcessConfig(e)
@@ -216,19 +233,6 @@ func (daemon *Daemon) ContainerExecInspect(id string) (*backend.ExecInspect, err
 		DetachKeys:    e.DetachKeys,
 		Pid:           e.Pid,
 	}, nil
-}
-
-// VolumeInspect looks up a volume by name. An error is returned if
-// the volume cannot be found.
-func (daemon *Daemon) VolumeInspect(name string) (*types.Volume, error) {
-	v, err := daemon.volumes.Get(name)
-	if err != nil {
-		return nil, err
-	}
-	apiV := volumeToAPIType(v)
-	apiV.Mountpoint = v.Path()
-	apiV.Status = v.Status()
-	return apiV, nil
 }
 
 func (daemon *Daemon) getBackwardsCompatibleNetworkSettings(settings *network.Settings) *v1p20.NetworkSettings {

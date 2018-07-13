@@ -1,13 +1,13 @@
-package exec
+package exec // import "github.com/docker/docker/daemon/exec"
 
 import (
 	"runtime"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/containerd/containerd/cio"
 	"github.com/docker/docker/container/stream"
-	"github.com/docker/docker/libcontainerd"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/sirupsen/logrus"
 )
 
 // Config holds the configurations for execs. The Daemon keeps
@@ -15,6 +15,7 @@ import (
 // examined both during and after completion.
 type Config struct {
 	sync.Mutex
+	Started      chan struct{}
 	StreamConfig *stream.Config
 	ID           string
 	Running      bool
@@ -30,6 +31,7 @@ type Config struct {
 	Tty          bool
 	Privileged   bool
 	User         string
+	WorkingDir   string
 	Env          []string
 	Pid          int
 }
@@ -39,11 +41,30 @@ func NewConfig() *Config {
 	return &Config{
 		ID:           stringid.GenerateNonCryptoID(),
 		StreamConfig: stream.NewConfig(),
+		Started:      make(chan struct{}),
 	}
 }
 
+type rio struct {
+	cio.IO
+
+	sc *stream.Config
+}
+
+func (i *rio) Close() error {
+	i.IO.Close()
+
+	return i.sc.CloseStreams()
+}
+
+func (i *rio) Wait() {
+	i.sc.Wait()
+
+	i.IO.Wait()
+}
+
 // InitializeStdio is called by libcontainerd to connect the stdio.
-func (c *Config) InitializeStdio(iop libcontainerd.IOPipe) error {
+func (c *Config) InitializeStdio(iop *cio.DirectIO) (cio.IO, error) {
 	c.StreamConfig.CopyToPipe(iop)
 
 	if c.StreamConfig.Stdin() == nil && !c.Tty && runtime.GOOS == "windows" {
@@ -54,7 +75,7 @@ func (c *Config) InitializeStdio(iop libcontainerd.IOPipe) error {
 		}
 	}
 
-	return nil
+	return &rio{IO: iop, sc: c.StreamConfig}, nil
 }
 
 // CloseStreams closes the stdio streams for the exec
@@ -62,47 +83,54 @@ func (c *Config) CloseStreams() error {
 	return c.StreamConfig.CloseStreams()
 }
 
+// SetExitCode sets the exec config's exit code
+func (c *Config) SetExitCode(code int) {
+	c.ExitCode = &code
+}
+
 // Store keeps track of the exec configurations.
 type Store struct {
-	commands map[string]*Config
+	byID map[string]*Config
 	sync.RWMutex
 }
 
 // NewStore initializes a new exec store.
 func NewStore() *Store {
-	return &Store{commands: make(map[string]*Config, 0)}
+	return &Store{
+		byID: make(map[string]*Config),
+	}
 }
 
 // Commands returns the exec configurations in the store.
 func (e *Store) Commands() map[string]*Config {
 	e.RLock()
-	commands := make(map[string]*Config, len(e.commands))
-	for id, config := range e.commands {
-		commands[id] = config
+	byID := make(map[string]*Config, len(e.byID))
+	for id, config := range e.byID {
+		byID[id] = config
 	}
 	e.RUnlock()
-	return commands
+	return byID
 }
 
 // Add adds a new exec configuration to the store.
 func (e *Store) Add(id string, Config *Config) {
 	e.Lock()
-	e.commands[id] = Config
+	e.byID[id] = Config
 	e.Unlock()
 }
 
 // Get returns an exec configuration by its id.
 func (e *Store) Get(id string) *Config {
 	e.RLock()
-	res := e.commands[id]
+	res := e.byID[id]
 	e.RUnlock()
 	return res
 }
 
 // Delete removes an exec configuration from the store.
-func (e *Store) Delete(id string) {
+func (e *Store) Delete(id string, pid int) {
 	e.Lock()
-	delete(e.commands, id)
+	delete(e.byID, id)
 	e.Unlock()
 }
 
@@ -110,7 +138,7 @@ func (e *Store) Delete(id string) {
 func (e *Store) List() []string {
 	var IDs []string
 	e.RLock()
-	for id := range e.commands {
+	for id := range e.byID {
 		IDs = append(IDs, id)
 	}
 	e.RUnlock()

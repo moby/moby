@@ -5,20 +5,13 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"syscall"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/pkg/system"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/windows"
 )
 
 var defaultDaemonConfigFile = ""
-
-// currentUserIsOwner checks whether the current user is the owner of the given
-// file.
-func currentUserIsOwner(f string) bool {
-	return false
-}
 
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
@@ -55,32 +48,26 @@ func notifyShutdown(err error) {
 	}
 }
 
+func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
+	return nil, nil
+}
+
 // setupConfigReloadTrap configures a Win32 event to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	go func() {
-		sa := syscall.SecurityAttributes{
+		sa := windows.SecurityAttributes{
 			Length: 0,
 		}
-		ev := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
-		if h, _ := system.CreateEvent(&sa, false, false, ev); h != 0 {
-			logrus.Debugf("Config reload - waiting signal at %s", ev)
+		event := "Global\\docker-daemon-config-" + fmt.Sprint(os.Getpid())
+		ev, _ := windows.UTF16PtrFromString(event)
+		if h, _ := windows.CreateEvent(&sa, 0, 0, ev); h != 0 {
+			logrus.Debugf("Config reload - waiting signal at %s", event)
 			for {
-				syscall.WaitForSingleObject(h, syscall.INFINITE)
+				windows.WaitForSingleObject(h, windows.INFINITE)
 				cli.reloadConfig()
 			}
 		}
 	}()
-}
-
-func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
-	return nil
-}
-
-// getLibcontainerdRoot gets the root directory for libcontainerd to store its
-// state. The Windows libcontainerd implementation does not need to write a spec
-// or state to disk, so this is a no-op.
-func (cli *DaemonCli) getLibcontainerdRoot() string {
-	return ""
 }
 
 // getSwarmRunRoot gets the root directory for swarm to store runtime state

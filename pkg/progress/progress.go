@@ -1,4 +1,4 @@
-package progress
+package progress // import "github.com/docker/docker/pkg/progress"
 
 import (
 	"fmt"
@@ -18,6 +18,8 @@ type Progress struct {
 
 	// If true, don't show xB/yB
 	HideCounts bool
+	// If not empty, use units instead of bytes for counts
+	Units string
 
 	// Aux contains extra information not presented to the user, such as
 	// digests for push signing.

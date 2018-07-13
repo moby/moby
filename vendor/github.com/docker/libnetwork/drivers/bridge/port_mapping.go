@@ -6,8 +6,9 @@ import (
 	"fmt"
 	"net"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/types"
+	"github.com/ishidawataru/sctp"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -91,6 +92,9 @@ func (n *bridgeNetwork) allocatePort(bnd *types.PortBinding, containerIP, defHos
 		return nil
 	case *net.UDPAddr:
 		bnd.HostPort = uint16(host.(*net.UDPAddr).Port)
+		return nil
+	case *sctp.SCTPAddr:
+		bnd.HostPort = uint16(host.(*sctp.SCTPAddr).Port)
 		return nil
 	default:
 		// For completeness

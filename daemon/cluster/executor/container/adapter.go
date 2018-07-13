@@ -1,9 +1,9 @@
-package container
+package container // import "github.com/docker/docker/daemon/cluster/executor/container"
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -11,21 +11,24 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/events"
+	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/cluster/convert"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	volumeopts "github.com/docker/docker/volume/service/opts"
 	"github.com/docker/libnetwork"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/go-digest"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/time/rate"
 )
 
@@ -33,21 +36,25 @@ import (
 // are mostly naked calls to the client API, seeded with information from
 // containerConfig.
 type containerAdapter struct {
-	backend   executorpkg.Backend
-	container *containerConfig
-	secrets   exec.SecretGetter
+	backend       executorpkg.Backend
+	imageBackend  executorpkg.ImageBackend
+	volumeBackend executorpkg.VolumeBackend
+	container     *containerConfig
+	dependencies  exec.DependencyGetter
 }
 
-func newContainerAdapter(b executorpkg.Backend, task *api.Task, secrets exec.SecretGetter) (*containerAdapter, error) {
-	ctnr, err := newContainerConfig(task)
+func newContainerAdapter(b executorpkg.Backend, i executorpkg.ImageBackend, v executorpkg.VolumeBackend, task *api.Task, node *api.NodeDescription, dependencies exec.DependencyGetter) (*containerAdapter, error) {
+	ctnr, err := newContainerConfig(task, node)
 	if err != nil {
 		return nil, err
 	}
 
 	return &containerAdapter{
-		container: ctnr,
-		backend:   b,
-		secrets:   secrets,
+		container:     ctnr,
+		backend:       b,
+		imageBackend:  i,
+		volumeBackend: v,
+		dependencies:  dependencies,
 	}, nil
 }
 
@@ -64,7 +71,7 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	named, err := reference.ParseNormalizedNamed(spec.Image)
 	if err == nil {
 		if _, ok := named.(reference.Canonical); ok {
-			_, err := c.backend.LookupImage(spec.Image)
+			_, err := c.imageBackend.LookupImage(spec.Image)
 			if err == nil {
 				return nil
 			}
@@ -87,7 +94,9 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 	pr, pw := io.Pipe()
 	metaHeaders := map[string][]string{}
 	go func() {
-		err := c.backend.PullImage(ctx, c.container.image(), "", metaHeaders, authConfig, pw)
+		// TODO @jhowardmsft LCOW Support: This will need revisiting as
+		// the stack is built up to include LCOW support for swarm.
+		err := c.imageBackend.PullImage(ctx, c.container.image(), "", nil, metaHeaders, authConfig, pw)
 		pw.CloseWithError(err)
 	}()
 
@@ -138,8 +147,8 @@ func (c *containerAdapter) pullImage(ctx context.Context) error {
 }
 
 func (c *containerAdapter) createNetworks(ctx context.Context) error {
-	for _, network := range c.container.networks() {
-		ncr, err := c.container.networkCreateRequest(network)
+	for name := range c.container.networksAttachments {
+		ncr, err := c.container.networkCreateRequest(name)
 		if err != nil {
 			return err
 		}
@@ -148,7 +157,11 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 			if _, ok := err.(libnetwork.NetworkNameError); ok {
 				continue
 			}
-
+			// We will continue if CreateManagedNetwork returns PredefinedNetworkError error.
+			// Other callers still can treat it as Error.
+			if _, ok := err.(daemon.PredefinedNetworkError); ok {
+				continue
+			}
 			return err
 		}
 	}
@@ -157,15 +170,15 @@ func (c *containerAdapter) createNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) removeNetworks(ctx context.Context) error {
-	for _, nid := range c.container.networks() {
-		if err := c.backend.DeleteManagedNetwork(nid); err != nil {
-			switch err.(type) {
+	for name, v := range c.container.networksAttachments {
+		if err := c.backend.DeleteManagedNetwork(v.Network.ID); err != nil {
+			switch errors.Cause(err).(type) {
 			case *libnetwork.ActiveEndpointsError:
 				continue
 			case libnetwork.ErrNoSuchNetwork:
 				continue
 			default:
-				log.G(ctx).Errorf("network %s remove failed: %v", nid, err)
+				log.G(ctx).Errorf("network %s remove failed: %v", name, err)
 				return err
 			}
 		}
@@ -175,7 +188,7 @@ func (c *containerAdapter) removeNetworks(ctx context.Context) error {
 }
 
 func (c *containerAdapter) networkAttach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -190,11 +203,11 @@ func (c *containerAdapter) networkAttach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.UpdateAttachment(networkName, networkID, c.container.id(), config)
+	return c.backend.UpdateAttachment(networkName, networkID, c.container.networkAttachmentContainerID(), config)
 }
 
 func (c *containerAdapter) waitForDetach(ctx context.Context) error {
-	config := c.container.createNetworkingConfig()
+	config := c.container.createNetworkingConfig(c.backend)
 
 	var (
 		networkName string
@@ -209,26 +222,25 @@ func (c *containerAdapter) waitForDetach(ctx context.Context) error {
 		}
 	}
 
-	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.id())
+	return c.backend.WaitForDetachment(ctx, networkName, networkID, c.container.taskID(), c.container.networkAttachmentContainerID())
 }
 
 func (c *containerAdapter) create(ctx context.Context) error {
 	var cr containertypes.ContainerCreateCreatedBody
 	var err error
-
 	if cr, err = c.backend.CreateManagedContainer(types.ContainerCreateConfig{
 		Name:       c.container.name(),
 		Config:     c.container.config(),
 		HostConfig: c.container.hostConfig(),
 		// Use the first network in container create
-		NetworkingConfig: c.container.createNetworkingConfig(),
+		NetworkingConfig: c.container.createNetworkingConfig(c.backend),
 	}); err != nil {
 		return err
 	}
 
 	// Docker daemon currently doesn't support multiple networks in container create
 	// Connect to all other networks
-	nc := c.container.connectNetworkingConfig()
+	nc := c.container.connectNetworkingConfig(c.backend)
 
 	if nc != nil {
 		for n, ep := range nc.EndpointsConfig {
@@ -243,21 +255,22 @@ func (c *containerAdapter) create(ctx context.Context) error {
 		return errors.New("unable to get container from task spec")
 	}
 
+	if err := c.backend.SetContainerDependencyStore(cr.ID, c.dependencies); err != nil {
+		return err
+	}
+
 	// configure secrets
-	if err := c.backend.SetContainerSecretStore(cr.ID, c.secrets); err != nil {
+	secretRefs := convert.SecretReferencesFromGRPC(container.Secrets)
+	if err := c.backend.SetContainerSecretReferences(cr.ID, secretRefs); err != nil {
 		return err
 	}
 
-	refs := convert.SecretReferencesFromGRPC(container.Secrets)
-	if err := c.backend.SetContainerSecretReferences(cr.ID, refs); err != nil {
+	configRefs := convert.ConfigReferencesFromGRPC(container.Configs)
+	if err := c.backend.SetContainerConfigReferences(cr.ID, configRefs); err != nil {
 		return err
 	}
 
-	if err := c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig()); err != nil {
-		return err
-	}
-
-	return nil
+	return c.backend.UpdateContainerServiceConfig(cr.ID, c.container.serviceConfig())
 }
 
 // checkMounts ensures that the provided mounts won't have any host-specific
@@ -332,8 +345,8 @@ func (c *containerAdapter) events(ctx context.Context) <-chan events.Message {
 	return eventsq
 }
 
-func (c *containerAdapter) wait(ctx context.Context) error {
-	return c.backend.ContainerWaitWithContext(ctx, c.container.nameOrID())
+func (c *containerAdapter) wait(ctx context.Context) (<-chan containerpkg.StateStatus, error) {
+	return c.backend.ContainerWait(ctx, c.container.nameOrID(), containerpkg.WaitConditionNotRunning)
 }
 
 func (c *containerAdapter) shutdown(ctx context.Context) error {
@@ -376,7 +389,10 @@ func (c *containerAdapter) createVolumes(ctx context.Context) error {
 		req := c.container.volumeCreateRequest(&mount)
 
 		// Check if this volume exists on the engine
-		if _, err := c.backend.VolumeCreate(req.Name, req.Driver, req.DriverOpts, req.Labels); err != nil {
+		if _, err := c.volumeBackend.Create(ctx, req.Name, req.Driver,
+			volumeopts.WithCreateOptions(req.DriverOpts),
+			volumeopts.WithCreateLabels(req.Labels),
+		); err != nil {
 			// TODO(amitshukla): Today, volume create through the engine api does not return an error
 			// when the named volume with the same parameters already exists.
 			// It returns an error if the driver name is different - that is a valid error
@@ -400,11 +416,11 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 	apiOptions := &types.ContainerLogsOptions{
 		Follow: options.Follow,
 
-		// TODO(stevvooe): Parse timestamp out of message. This
-		// absolutely needs to be done before going to production with
-		// this, at it is completely redundant.
+		// Always say yes to Timestamps and Details. we make the decision
+		// of whether to return these to the user or not way higher up the
+		// stack.
 		Timestamps: true,
-		Details:    false, // no clue what to do with this, let's just deprecate it.
+		Details:    true,
 	}
 
 	if options.Since != nil {
@@ -438,7 +454,7 @@ func (c *containerAdapter) logs(ctx context.Context, options api.LogSubscription
 			}
 		}
 	}
-	msgs, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
+	msgs, _, err := c.backend.ContainerLogs(ctx, c.container.name(), apiOptions)
 	if err != nil {
 		return nil, err
 	}

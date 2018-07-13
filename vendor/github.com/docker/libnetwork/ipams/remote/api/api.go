@@ -9,7 +9,7 @@ type Response struct {
 	Error string
 }
 
-// IsSuccess returns wheter the plugin response is successful
+// IsSuccess returns whether the plugin response is successful
 func (r *Response) IsSuccess() bool {
 	return r.Error == ""
 }

@@ -1,4 +1,4 @@
-package plugin
+package plugin // import "github.com/docker/docker/api/server/router/plugin"
 
 import "github.com/docker/docker/api/server/router"
 

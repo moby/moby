@@ -1,11 +1,11 @@
-package build
+package build // import "github.com/docker/docker/integration-cli/cli/build"
 
 import (
 	"io"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/cli/build/fakecontext"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/internal/test/fakecontext"
+	"gotest.tools/icmd"
 )
 
 type testingT interface {

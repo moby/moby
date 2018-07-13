@@ -224,6 +224,7 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 	c.Assert(err, check.IsNil)
 
 	err = waitInspect("second", "{{.State.Status}}", "running", 5*time.Second)
+	c.Assert(err, check.IsNil)
 
 	// ping to first and its alias foo must still succeed
 	_, _, err = dockerCmdWithError("exec", "second", "ping", "-c", "1", "first")
@@ -269,7 +270,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 	id1 := strings.TrimSpace(string(out1))
 	id2 := strings.TrimSpace(string(out2))
 	waitTimeout := 15 * time.Second
-	if testEnv.DaemonPlatform() == "windows" {
+	if testEnv.OSType == "windows" {
 		waitTimeout = 150 * time.Second
 	}
 	err := waitInspect(id1, "{{ .State.Restarting }} {{ .State.Running }}", "false false", waitTimeout)

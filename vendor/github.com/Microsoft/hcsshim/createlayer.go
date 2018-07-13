@@ -1,6 +1,6 @@
 package hcsshim
 
-import "github.com/Sirupsen/logrus"
+import "github.com/sirupsen/logrus"
 
 // CreateLayer creates a new, empty, read-only layer on the filesystem based on
 // the parent layer provided.

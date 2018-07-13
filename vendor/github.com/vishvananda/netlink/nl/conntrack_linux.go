@@ -79,8 +79,8 @@ const (
 	CTA_TUPLE_ORIG  = 1
 	CTA_TUPLE_REPLY = 2
 	CTA_STATUS      = 3
-	CTA_TIMEOUT     = 8
-	CTA_MARK        = 9
+	CTA_TIMEOUT     = 7
+	CTA_MARK        = 8
 	CTA_PROTOINFO   = 4
 )
 

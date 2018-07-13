@@ -1,11 +1,11 @@
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
 	"errors"
 	"sync"
 	"sync/atomic"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -93,7 +93,10 @@ func (r *RingLogger) Close() error {
 		}
 
 		if err := r.l.Log(msg); err != nil {
-			logrus.WithField("driver", r.l.Name()).WithField("container", r.logInfo.ContainerID).Errorf("Error writing log message: %v", r.l)
+			logrus.WithField("driver", r.l.Name()).
+				WithField("container", r.logInfo.ContainerID).
+				WithError(err).
+				Errorf("Error writing log message")
 			logErr = true
 		}
 	}
@@ -114,14 +117,17 @@ func (r *RingLogger) run() {
 			return
 		}
 		if err := r.l.Log(msg); err != nil {
-			logrus.WithField("driver", r.l.Name()).WithField("container", r.logInfo.ContainerID).Errorf("Error writing log message: %v", r.l)
+			logrus.WithField("driver", r.l.Name()).
+				WithField("container", r.logInfo.ContainerID).
+				WithError(err).
+				Errorf("Error writing log message")
 		}
 	}
 }
 
 type messageRing struct {
 	mu sync.Mutex
-	// singals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
+	// signals callers of `Dequeue` to wake up either on `Close` or when a new `Message` is added
 	wait *sync.Cond
 
 	sizeBytes int64 // current buffer size
@@ -144,7 +150,7 @@ func newRing(maxBytes int64) *messageRing {
 }
 
 // Enqueue adds a message to the buffer queue
-// If the message is too big for the buffer it drops the oldest messages to make room
+// If the message is too big for the buffer it drops the new message.
 // If there are no messages in the queue and the message is still too big, it adds the message anyway.
 func (r *messageRing) Enqueue(m *Message) error {
 	mSize := int64(len(m.Line))
@@ -202,7 +208,6 @@ func (r *messageRing) Close() {
 	r.closed = true
 	r.wait.Broadcast()
 	r.mu.Unlock()
-	return
 }
 
 // Drain drains all messages from the queue.

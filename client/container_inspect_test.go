@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -10,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"golang.org/x/net/context"
+	"github.com/pkg/errors"
 )
 
 func TestContainerInspectError(t *testing.T) {
@@ -30,8 +31,20 @@ func TestContainerInspectContainerNotFound(t *testing.T) {
 	}
 
 	_, err := client.ContainerInspect(context.Background(), "unknown")
-	if err == nil || !IsErrContainerNotFound(err) {
+	if err == nil || !IsErrNotFound(err) {
 		t.Fatalf("expected a containerNotFound error, got %v", err)
+	}
+}
+
+func TestContainerInspectWithEmptyID(t *testing.T) {
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			return nil, errors.New("should not make request")
+		}),
+	}
+	_, _, err := client.ContainerInspectWithRaw(context.Background(), "", true)
+	if !IsErrNotFound(err) {
+		t.Fatalf("Expected NotFoundError, got %v", err)
 	}
 }
 

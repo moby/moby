@@ -1,4 +1,4 @@
-package stdcopy
+package stdcopy // import "github.com/docker/docker/pkg/stdcopy"
 
 import (
 	"bytes"
@@ -16,14 +16,14 @@ func TestNewStdWriter(t *testing.T) {
 	}
 }
 
-func TestWriteWithUnitializedStdWriter(t *testing.T) {
+func TestWriteWithUninitializedStdWriter(t *testing.T) {
 	writer := stdWriter{
 		Writer: nil,
 		prefix: byte(Stdout),
 	}
 	n, err := writer.Write([]byte("Something here"))
 	if n != 0 || err == nil {
-		t.Fatalf("Should fail when given an uncomplete or uninitialized StdWriter")
+		t.Fatalf("Should fail when given an incomplete or uninitialized StdWriter")
 	}
 }
 

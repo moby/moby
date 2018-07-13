@@ -1,43 +1,45 @@
-package operatingsystem
+package operatingsystem // import "github.com/docker/docker/pkg/parsers/operatingsystem"
 
 import (
-	"syscall"
-	"unsafe"
-)
+	"fmt"
 
-// See https://code.google.com/p/go/source/browse/src/pkg/mime/type_windows.go?r=d14520ac25bf6940785aabb71f5be453a286f58c
-// for a similar sample
+	"golang.org/x/sys/windows/registry"
+)
 
 // GetOperatingSystem gets the name of the current operating system.
 func GetOperatingSystem() (string, error) {
 
-	var h syscall.Handle
-
 	// Default return value
 	ret := "Unknown Operating System"
 
-	if err := syscall.RegOpenKeyEx(syscall.HKEY_LOCAL_MACHINE,
-		syscall.StringToUTF16Ptr(`SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\`),
-		0,
-		syscall.KEY_READ,
-		&h); err != nil {
+	k, err := registry.OpenKey(registry.LOCAL_MACHINE, `SOFTWARE\Microsoft\Windows NT\CurrentVersion`, registry.QUERY_VALUE)
+	if err != nil {
 		return ret, err
 	}
-	defer syscall.RegCloseKey(h)
+	defer k.Close()
 
-	var buf [1 << 10]uint16
-	var typ uint32
-	n := uint32(len(buf) * 2) // api expects array of bytes, not uint16
-
-	if err := syscall.RegQueryValueEx(h,
-		syscall.StringToUTF16Ptr("ProductName"),
-		nil,
-		&typ,
-		(*byte)(unsafe.Pointer(&buf[0])),
-		&n); err != nil {
+	pn, _, err := k.GetStringValue("ProductName")
+	if err != nil {
 		return ret, err
 	}
-	ret = syscall.UTF16ToString(buf[:])
+	ret = pn
+
+	ri, _, err := k.GetStringValue("ReleaseId")
+	if err != nil {
+		return ret, err
+	}
+	ret = fmt.Sprintf("%s Version %s", ret, ri)
+
+	cbn, _, err := k.GetStringValue("CurrentBuildNumber")
+	if err != nil {
+		return ret, err
+	}
+
+	ubr, _, err := k.GetIntegerValue("UBR")
+	if err != nil {
+		return ret, err
+	}
+	ret = fmt.Sprintf("%s (OS Build %s.%d)", ret, cbn, ubr)
 
 	return ret, nil
 }

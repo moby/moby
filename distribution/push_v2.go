@@ -1,6 +1,7 @@
-package distribution
+package distribution // import "github.com/docker/docker/distribution"
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -9,13 +10,11 @@ import (
 	"strings"
 	"sync"
 
-	"golang.org/x/net/context"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/distribution/registry/client"
 	apitypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution/metadata"
@@ -26,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 const (
@@ -55,19 +55,21 @@ type pushState struct {
 	// confirmedV2 is set to true if we confirm we're talking to a v2
 	// registry. This is used to limit fallbacks to the v1 protocol.
 	confirmedV2 bool
+	hasAuthInfo bool
 }
 
 func (p *v2Pusher) Push(ctx context.Context) (err error) {
 	p.pushState.remoteLayers = make(map[layer.DiffID]distribution.Descriptor)
 
 	p.repo, p.pushState.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "push", "pull")
+	p.pushState.hasAuthInfo = p.config.AuthConfig.RegistryToken != "" || (p.config.AuthConfig.Username != "" && p.config.AuthConfig.Password != "")
 	if err != nil {
 		logrus.Debugf("Error getting v2 registry: %v", err)
 		return err
 	}
 
 	if err = p.pushV2Repository(ctx); err != nil {
-		if continueOnError(err) {
+		if continueOnError(err, p.endpoint.Mirror) {
 			return fallbackError{
 				err:         err,
 				confirmedV2: p.pushState.confirmedV2,
@@ -123,7 +125,12 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return fmt.Errorf("unable to get rootfs for image %s: %s", reference.FamiliarString(ref), err)
 	}
 
-	l, err := p.config.LayerStore.Get(rootfs.ChainID())
+	platform, err := p.config.ImageStore.PlatformFromConfig(imgConfig)
+	if err != nil {
+		return fmt.Errorf("unable to get platform for image %s: %s", reference.FamiliarString(ref), err)
+	}
+
+	l, err := p.config.LayerStores[platform.OS].Get(rootfs.ChainID())
 	if err != nil {
 		return fmt.Errorf("failed to get top layer from image: %v", err)
 	}
@@ -141,12 +148,13 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		hmacKey:           hmacKey,
 		repoInfo:          p.repoInfo.Name,
 		ref:               p.ref,
+		endpoint:          p.endpoint,
 		repo:              p.repo,
 		pushState:         &p.pushState,
 	}
 
 	// Loop bounds condition is to avoid pushing the base layer on Windows.
-	for i := 0; i < len(rootfs.DiffIDs); i++ {
+	for range rootfs.DiffIDs {
 		descriptor := descriptorTemplate
 		descriptor.layer = l
 		descriptor.checkedDigests = make(map[digest.Digest]struct{})
@@ -239,6 +247,7 @@ type v2PushDescriptor struct {
 	hmacKey           []byte
 	repoInfo          reference.Named
 	ref               reference.Named
+	endpoint          registry.APIEndpoint
 	repo              distribution.Repository
 	pushState         *pushState
 	remoteDescriptor  distribution.Descriptor
@@ -259,10 +268,13 @@ func (pd *v2PushDescriptor) DiffID() layer.DiffID {
 }
 
 func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.Output) (distribution.Descriptor, error) {
-	if fs, ok := pd.layer.(distribution.Describable); ok {
-		if d := fs.Descriptor(); len(d.URLs) > 0 {
-			progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
-			return d, nil
+	// Skip foreign layers unless this registry allows nondistributable artifacts.
+	if !pd.endpoint.AllowNondistributableArtifacts {
+		if fs, ok := pd.layer.(distribution.Describable); ok {
+			if d := fs.Descriptor(); len(d.URLs) > 0 {
+				progress.Update(progressOutput, pd.ID(), "Skipped foreign layer")
+				return d, nil
+			}
 		}
 	}
 
@@ -298,6 +310,7 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 
 	// Attempt to find another repository in the same registry to mount the layer from to avoid an unnecessary upload
 	candidates := getRepositoryMountCandidates(pd.repoInfo, pd.hmacKey, maxMountAttempts, v2Metadata)
+	isUnauthorizedError := false
 	for _, mountCandidate := range candidates {
 		logrus.Debugf("attempting to mount layer %s (%s) from %s", diffID, mountCandidate.Digest, mountCandidate.SourceRepository)
 		createOpts := []distribution.BlobCreateOption{}
@@ -350,11 +363,26 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 				return distribution.Descriptor{}, xfer.DoNotRetry{Err: err}
 			}
 			return err.Descriptor, nil
+		case errcode.Errors:
+			for _, e := range err {
+				switch e := e.(type) {
+				case errcode.Error:
+					if e.Code == errcode.ErrorCodeUnauthorized {
+						// when unauthorized error that indicate user don't has right to push layer to register
+						logrus.Debugln("failed to push layer to registry because unauthorized error")
+						isUnauthorizedError = true
+					}
+				default:
+				}
+			}
 		default:
 			logrus.Infof("failed to mount layer %s (%s) from %s: %v", diffID, mountCandidate.Digest, mountCandidate.SourceRepository, err)
 		}
 
+		// when error is unauthorizedError and user don't hasAuthInfo that's the case user don't has right to push layer to register
+		// and he hasn't login either, in this case candidate cache should be removed
 		if len(mountCandidate.SourceRepository) > 0 &&
+			!(isUnauthorizedError && !pd.pushState.hasAuthInfo) &&
 			(metadata.CheckV2MetadataHMAC(&mountCandidate, pd.hmacKey) ||
 				len(mountCandidate.HMAC) == 0) {
 			cause := "blob mount failure"
@@ -388,14 +416,8 @@ func (pd *v2PushDescriptor) Upload(ctx context.Context, progressOutput progress.
 		}
 	}
 	defer layerUpload.Close()
-
 	// upload the blob
-	desc, err := pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
-	if err != nil {
-		return desc, err
-	}
-
-	return desc, nil
+	return pd.uploadUsingSession(ctx, progressOutput, diffID, layerUpload)
 }
 
 func (pd *v2PushDescriptor) SetRemoteDescriptor(descriptor distribution.Descriptor) {
@@ -415,6 +437,10 @@ func (pd *v2PushDescriptor) uploadUsingSession(
 	var reader io.ReadCloser
 
 	contentReader, err := pd.layer.Open()
+	if err != nil {
+		return distribution.Descriptor{}, retryOnError(err)
+	}
+
 	size, _ := pd.layer.Size()
 
 	reader = progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, contentReader), progressOutput, size, pd.ID(), "Pushing")
@@ -642,6 +668,7 @@ func (bla byLikeness) Swap(i, j int) {
 }
 func (bla byLikeness) Len() int { return len(bla.arr) }
 
+// nolint: interfacer
 func sortV2MetadataByLikenessAndAge(repoInfo reference.Named, hmacKey []byte, marr []metadata.V2Metadata) {
 	// reverse the metadata array to shift the newest entries to the beginning
 	for i := 0; i < len(marr)/2; i++ {

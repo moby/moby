@@ -5,23 +5,26 @@
 // factory, which holds the contextual instance information that
 // allows multiple loggers of the same type to perform different
 // actions, such as logging to different locations.
-package logger
+package logger // import "github.com/docker/docker/daemon/logger"
 
 import (
-	"errors"
 	"sync"
 	"time"
 
 	"github.com/docker/docker/api/types/backend"
-	"github.com/docker/docker/pkg/jsonlog"
 )
 
-// ErrReadLogsNotSupported is returned when the logger does not support reading logs.
-var ErrReadLogsNotSupported = errors.New("configured logging driver does not support reading")
+// ErrReadLogsNotSupported is returned when the underlying log driver does not support reading
+type ErrReadLogsNotSupported struct{}
+
+func (ErrReadLogsNotSupported) Error() string {
+	return "configured logging driver does not support reading"
+}
+
+// NotImplemented makes this error implement the `NotImplemented` interface from api/errdefs
+func (ErrReadLogsNotSupported) NotImplemented() {}
 
 const (
-	// TimeFormat is the time format used for timestamps sent to log readers.
-	TimeFormat           = jsonlog.RFC3339NanoFixed
 	logWatcherBufferSize = 4096
 )
 
@@ -39,7 +42,7 @@ func PutMessage(msg *Message) {
 	messagePool.Put(msg)
 }
 
-// Message is datastructure that represents piece of output produced by some
+// Message is data structure that represents piece of output produced by some
 // container.  The Line member is a slice of an array whose contents can be
 // changed after a log driver's Log() method returns.
 //
@@ -57,7 +60,7 @@ func (m *Message) reset() {
 	m.Line = m.Line[:0]
 	m.Source = ""
 	m.Attrs = nil
-	m.Partial = false
+	m.PLogMetaData = nil
 
 	m.Err = nil
 }
@@ -68,11 +71,6 @@ func (m *Message) AsLogMessage() *backend.LogMessage {
 	return (*backend.LogMessage)(m)
 }
 
-// LogAttributes is used to hold the extra attributes available in the log message
-// Primarily used for converting the map type to string and sorting.
-// Imported here so it can be used internally with less refactoring
-type LogAttributes backend.LogAttributes
-
 // Logger is the interface for docker logging drivers.
 type Logger interface {
 	Log(*Message) error
@@ -80,9 +78,17 @@ type Logger interface {
 	Close() error
 }
 
+// SizedLogger is the interface for logging drivers that can control
+// the size of buffer used for their messages.
+type SizedLogger interface {
+	Logger
+	BufSize() int
+}
+
 // ReadConfig is the configuration passed into ReadLogs.
 type ReadConfig struct {
 	Since  time.Time
+	Until  time.Time
 	Tail   int
 	Follow bool
 }
@@ -127,10 +133,13 @@ func (w *LogWatcher) WatchClose() <-chan struct{} {
 	return w.closeNotifier
 }
 
-// Capability defines the list of capabilties that a driver can implement
+// Capability defines the list of capabilities that a driver can implement
 // These capabilities are not required to be a logging driver, however do
 // determine how a logging driver can be used
 type Capability struct {
 	// Determines if a log driver can read back logs
 	ReadLogs bool
 }
+
+// MarshalFunc is a func that marshals a message into an arbitrary format
+type MarshalFunc func(*Message) ([]byte, error)

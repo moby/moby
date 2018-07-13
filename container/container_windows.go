@@ -1,41 +1,29 @@
-// +build windows
-
-package container
+package container // import "github.com/docker/docker/container"
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/pkg/system"
 )
 
-// Container holds fields specific to the Windows implementation. See
-// CommonContainer for standard fields common to all containers.
-type Container struct {
-	CommonContainer
+const (
+	containerSecretMountPath         = `C:\ProgramData\Docker\secrets`
+	containerInternalSecretMountPath = `C:\ProgramData\Docker\internal\secrets`
+	containerInternalConfigsDirPath  = `C:\ProgramData\Docker\internal\configs`
 
-	// Fields below here are platform specific.
-	NetworkSharedContainerID string
-}
+	// DefaultStopTimeout is the timeout (in seconds) for the shutdown call on a container
+	DefaultStopTimeout = 30
+)
 
-// ExitStatus provides exit reasons for a container.
-type ExitStatus struct {
-	// The exit code with which the container exited.
-	ExitCode int
-}
-
-// CreateDaemonEnvironment creates a new environment variable slice for this container.
-func (container *Container) CreateDaemonEnvironment(_ bool, linkedEnv []string) []string {
-	// because the env on the container can override certain default values
-	// we need to replace the 'env' keys where they match and append anything
-	// else.
-	return ReplaceOrAppendEnvValues(linkedEnv, container.Config.Env)
-}
-
-// UnmountIpcMounts unmounts Ipc related mounts.
+// UnmountIpcMount unmounts Ipc related mounts.
 // This is a NOOP on windows.
-func (container *Container) UnmountIpcMounts(unmount func(pth string) error) {
+func (container *Container) UnmountIpcMount(unmount func(pth string) error) error {
+	return nil
 }
 
 // IpcMounts returns the list of Ipc related mounts.
@@ -43,14 +31,92 @@ func (container *Container) IpcMounts() []Mount {
 	return nil
 }
 
-// SecretMount returns the mount for the secret path
-func (container *Container) SecretMount() *Mount {
+// CreateSecretSymlinks creates symlinks to files in the secret mount.
+func (container *Container) CreateSecretSymlinks() error {
+	for _, r := range container.SecretReferences {
+		if r.File == nil {
+			continue
+		}
+		resolvedPath, _, err := container.ResolvePath(getSecretTargetPath(r))
+		if err != nil {
+			return err
+		}
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0, ""); err != nil {
+			return err
+		}
+		if err := os.Symlink(filepath.Join(containerInternalSecretMountPath, r.SecretID), resolvedPath); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// SecretMounts returns the mount for the secret path.
+// All secrets are stored in a single mount on Windows. Target symlinks are
+// created for each secret, pointing to the files in this mount.
+func (container *Container) SecretMounts() ([]Mount, error) {
+	var mounts []Mount
+	if len(container.SecretReferences) > 0 {
+		src, err := container.SecretMountPath()
+		if err != nil {
+			return nil, err
+		}
+		mounts = append(mounts, Mount{
+			Source:      src,
+			Destination: containerInternalSecretMountPath,
+			Writable:    false,
+		})
+	}
+
+	return mounts, nil
 }
 
 // UnmountSecrets unmounts the fs for secrets
 func (container *Container) UnmountSecrets() error {
+	p, err := container.SecretMountPath()
+	if err != nil {
+		return err
+	}
+	return os.RemoveAll(p)
+}
+
+// CreateConfigSymlinks creates symlinks to files in the config mount.
+func (container *Container) CreateConfigSymlinks() error {
+	for _, configRef := range container.ConfigReferences {
+		if configRef.File == nil {
+			continue
+		}
+		resolvedPath, _, err := container.ResolvePath(configRef.File.Name)
+		if err != nil {
+			return err
+		}
+		if err := system.MkdirAll(filepath.Dir(resolvedPath), 0, ""); err != nil {
+			return err
+		}
+		if err := os.Symlink(filepath.Join(containerInternalConfigsDirPath, configRef.ConfigID), resolvedPath); err != nil {
+			return err
+		}
+	}
+
 	return nil
+}
+
+// ConfigMounts returns the mount for configs.
+// TODO: Right now Windows doesn't really have a "secure" storage for secrets,
+// however some configs may contain secrets. Once secure storage is worked out,
+// configs and secret handling should be merged.
+func (container *Container) ConfigMounts() []Mount {
+	var mounts []Mount
+	if len(container.ConfigReferences) > 0 {
+		mounts = append(mounts, Mount{
+			Source:      container.ConfigsDirPath(),
+			Destination: containerInternalConfigsDirPath,
+			Writable:    false,
+		})
+	}
+
+	return mounts
 }
 
 // DetachAndUnmount unmounts all volumes.
@@ -66,11 +132,8 @@ func (container *Container) TmpfsMounts() ([]Mount, error) {
 	return mounts, nil
 }
 
-// UpdateContainer updates configuration of a container
+// UpdateContainer updates configuration of a container. Callers must hold a Lock on the Container.
 func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfig) error {
-	container.Lock()
-	defer container.Unlock()
-
 	resources := hostConfig.Resources
 	if resources.CPUShares != 0 ||
 		resources.Memory != 0 ||
@@ -114,18 +177,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 	return nil
 }
 
-// cleanResourcePath cleans a resource path by removing C:\ syntax, and prepares
-// to combine with a volume path
-func cleanResourcePath(path string) string {
-	if len(path) >= 2 {
-		c := path[0]
-		if path[1] == ':' && ('a' <= c && c <= 'z' || 'A' <= c && c <= 'Z') {
-			path = path[2:]
-		}
-	}
-	return filepath.Join(string(os.PathSeparator), path)
-}
-
 // BuildHostnameFile writes the container's hostname file.
 func (container *Container) BuildHostnameFile() error {
 	return nil
@@ -134,4 +185,29 @@ func (container *Container) BuildHostnameFile() error {
 // EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
 func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
 	return true
+}
+
+// GetMountPoints gives a platform specific transformation to types.MountPoint. Callers must hold a Container lock.
+func (container *Container) GetMountPoints() []types.MountPoint {
+	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))
+	for _, m := range container.MountPoints {
+		mountPoints = append(mountPoints, types.MountPoint{
+			Type:        m.Type,
+			Name:        m.Name,
+			Source:      m.Path(),
+			Destination: m.Destination,
+			Driver:      m.Driver,
+			RW:          m.RW,
+		})
+	}
+	return mountPoints
+}
+
+func (container *Container) ConfigsDirPath() string {
+	return filepath.Join(container.Root, "configs")
+}
+
+// ConfigFilePath returns the path to the on-disk location of a config.
+func (container *Container) ConfigFilePath(configRef swarmtypes.ConfigReference) string {
+	return filepath.Join(container.ConfigsDirPath(), configRef.ConfigID)
 }

@@ -1,21 +1,22 @@
-package zfs
+package zfs // import "github.com/docker/docker/daemon/graphdriver/zfs"
 
 import (
-	"fmt"
-	"syscall"
-
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/sirupsen/logrus"
 )
 
-func checkRootdirFs(rootdir string) error {
-	var buf syscall.Statfs_t
-	if err := syscall.Statfs(rootdir, &buf); err != nil {
-		return fmt.Errorf("Failed to access '%s': %s", rootdir, err)
+func checkRootdirFs(rootDir string) error {
+	fsMagic, err := graphdriver.GetFSMagic(rootDir)
+	if err != nil {
+		return err
+	}
+	backingFS := "unknown"
+	if fsName, ok := graphdriver.FsNames[fsMagic]; ok {
+		backingFS = fsName
 	}
 
-	if graphdriver.FsMagic(buf.Type) != graphdriver.FsMagicZfs {
-		logrus.Debugf("[zfs] no zfs dataset found for rootdir '%s'", rootdir)
+	if fsMagic != graphdriver.FsMagicZfs {
+		logrus.WithField("root", rootDir).WithField("backingFS", backingFS).WithField("storage-driver", "zfs").Error("No zfs dataset found for root")
 		return graphdriver.ErrPrerequisites
 	}
 

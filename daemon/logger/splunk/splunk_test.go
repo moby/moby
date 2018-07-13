@@ -1,13 +1,18 @@
-package splunk
+package splunk // import "github.com/docker/docker/daemon/logger/splunk"
 
 import (
 	"compress/gzip"
+	"context"
 	"fmt"
+	"net/http"
 	"os"
+	"runtime"
 	"testing"
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
+	"gotest.tools/assert"
+	"gotest.tools/env"
 )
 
 // Validate options
@@ -79,6 +84,36 @@ func TestNewMissedToken(t *testing.T) {
 	}
 }
 
+func TestNewWithProxy(t *testing.T) {
+	proxy := "http://proxy.testing:8888"
+	reset := env.Patch(t, "HTTP_PROXY", proxy)
+	defer reset()
+
+	// must not be localhost
+	splunkURL := "http://example.com:12345"
+	logger, err := New(logger.Info{
+		Config: map[string]string{
+			splunkURLKey:              splunkURL,
+			splunkTokenKey:            "token",
+			splunkVerifyConnectionKey: "false",
+		},
+		ContainerID: "containeriid",
+	})
+	assert.NilError(t, err)
+	splunkLogger := logger.(*splunkLoggerInline)
+
+	proxyFunc := splunkLogger.transport.Proxy
+	assert.Assert(t, proxyFunc != nil)
+
+	req, err := http.NewRequest("GET", splunkURL, nil)
+	assert.NilError(t, err)
+
+	proxyURL, err := proxyFunc(req)
+	assert.NilError(t, err)
+	assert.Assert(t, proxyURL != nil)
+	assert.Equal(t, proxy, proxyURL.String())
+}
+
 // Test default settings
 func TestDefault(t *testing.T) {
 	hec := NewHTTPEventCollectorMock(t)
@@ -125,7 +160,7 @@ func TestDefault(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "" ||
 		splunkLoggerDriver.nullMessage.SourceType != "" ||
 		splunkLoggerDriver.nullMessage.Index != "" ||
-		splunkLoggerDriver.gzipCompression != false ||
+		splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
@@ -255,7 +290,7 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "mysource" ||
 		splunkLoggerDriver.nullMessage.SourceType != "mysourcetype" ||
 		splunkLoggerDriver.nullMessage.Index != "myindex" ||
-		splunkLoggerDriver.gzipCompression != true ||
+		!splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.gzipCompressionLevel != gzip.DefaultCompression ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
@@ -355,7 +390,7 @@ func TestJsonFormat(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "" ||
 		splunkLoggerDriver.nullMessage.SourceType != "" ||
 		splunkLoggerDriver.nullMessage.Index != "" ||
-		splunkLoggerDriver.gzipCompression != true ||
+		!splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.gzipCompressionLevel != gzip.BestSpeed ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
@@ -448,14 +483,10 @@ func TestRawFormat(t *testing.T) {
 	}
 
 	hostname, err := info.Hostname()
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	loggerDriver, err := New(info)
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	if !hec.connectionVerified {
 		t.Fatal("By default connection should be verified")
@@ -472,7 +503,7 @@ func TestRawFormat(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "" ||
 		splunkLoggerDriver.nullMessage.SourceType != "" ||
 		splunkLoggerDriver.nullMessage.Index != "" ||
-		splunkLoggerDriver.gzipCompression != false ||
+		splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
@@ -586,7 +617,7 @@ func TestRawFormatWithLabels(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "" ||
 		splunkLoggerDriver.nullMessage.SourceType != "" ||
 		splunkLoggerDriver.nullMessage.Index != "" ||
-		splunkLoggerDriver.gzipCompression != false ||
+		splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
@@ -698,7 +729,7 @@ func TestRawFormatWithoutTag(t *testing.T) {
 		splunkLoggerDriver.nullMessage.Source != "" ||
 		splunkLoggerDriver.nullMessage.SourceType != "" ||
 		splunkLoggerDriver.nullMessage.Index != "" ||
-		splunkLoggerDriver.gzipCompression != false ||
+		splunkLoggerDriver.gzipCompression ||
 		splunkLoggerDriver.postMessagesFrequency != defaultPostMessagesFrequency ||
 		splunkLoggerDriver.postMessagesBatchSize != defaultPostMessagesBatchSize ||
 		splunkLoggerDriver.bufferMaximum != defaultBufferMaximum ||
@@ -716,12 +747,19 @@ func TestRawFormatWithoutTag(t *testing.T) {
 	if err := loggerDriver.Log(&logger.Message{Line: []byte("notjson"), Source: "stdout", Timestamp: message2Time}); err != nil {
 		t.Fatal(err)
 	}
+	message3Time := time.Now()
+	if err := loggerDriver.Log(&logger.Message{Line: []byte(" "), Source: "stdout", Timestamp: message3Time}); err != nil {
+		t.Fatal(err)
+	}
 
 	err = loggerDriver.Close()
 	if err != nil {
 		t.Fatal(err)
 	}
 
+	// message3 would have an empty or whitespace only string in the "event" field
+	// both of which are not acceptable to HEC
+	// thus here we must expect 2 messages, not 3
 	if len(hec.messages) != 2 {
 		t.Fatal("Expected two messages")
 	}
@@ -1058,7 +1096,7 @@ func TestSkipVerify(t *testing.T) {
 		t.Fatal("No messages should be accepted at this point")
 	}
 
-	hec.simulateServerError = false
+	hec.simulateErr(false)
 
 	for i := defaultStreamChannelSize * 2; i < defaultStreamChannelSize*4; i++ {
 		if err := loggerDriver.Log(&logger.Message{Line: []byte(fmt.Sprintf("%d", i)), Source: "stdout", Timestamp: time.Now()}); err != nil {
@@ -1106,7 +1144,7 @@ func TestBufferMaximum(t *testing.T) {
 	}
 
 	hec := NewHTTPEventCollectorMock(t)
-	hec.simulateServerError = true
+	hec.simulateErr(true)
 	go hec.Serve()
 
 	info := logger.Info{
@@ -1302,5 +1340,50 @@ func TestCannotSendAfterClose(t *testing.T) {
 	err = hec.Close()
 	if err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestDeadlockOnBlockedEndpoint(t *testing.T) {
+	hec := NewHTTPEventCollectorMock(t)
+	go hec.Serve()
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:   hec.URL(),
+			splunkTokenKey: hec.token,
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	l, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	ctx, unblock := context.WithCancel(context.Background())
+	hec.withBlock(ctx)
+	defer unblock()
+
+	batchSendTimeout = 1 * time.Second
+
+	if err := l.Log(&logger.Message{}); err != nil {
+		t.Fatal(err)
+	}
+
+	done := make(chan struct{})
+	go func() {
+		l.Close()
+		close(done)
+	}()
+
+	select {
+	case <-time.After(60 * time.Second):
+		buf := make([]byte, 1e6)
+		buf = buf[:runtime.Stack(buf, true)]
+		t.Logf("STACK DUMP: \n\n%s\n\n", string(buf))
+		t.Fatal("timeout waiting for close to finish")
+	case <-done:
 	}
 }

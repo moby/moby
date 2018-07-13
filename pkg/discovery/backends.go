@@ -1,4 +1,4 @@
-package discovery
+package discovery // import "github.com/docker/docker/pkg/discovery"
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 )
 
 var (

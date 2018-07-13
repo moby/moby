@@ -1,7 +1,8 @@
-package client
+package client // import "github.com/docker/docker/client"
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/stretchr/testify/assert"
-	"golang.org/x/net/context"
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
 )
 
 func TestNetworksPruneError(t *testing.T) {
@@ -89,7 +90,7 @@ func TestNetworksPrune(t *testing.T) {
 				query := req.URL.Query()
 				for key, expected := range listCase.expectedQueryParams {
 					actual := query.Get(key)
-					assert.Equal(t, expected, actual)
+					assert.Check(t, is.Equal(expected, actual))
 				}
 				content, err := json.Marshal(types.NetworksPruneReport{
 					NetworksDeleted: []string{"network_id1", "network_id2"},
@@ -106,7 +107,7 @@ func TestNetworksPrune(t *testing.T) {
 		}
 
 		report, err := client.NetworksPrune(context.Background(), listCase.filters)
-		assert.NoError(t, err)
-		assert.Len(t, report.NetworksDeleted, 2)
+		assert.Check(t, err)
+		assert.Check(t, is.Len(report.NetworksDeleted, 2))
 	}
 }

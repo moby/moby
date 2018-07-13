@@ -11,9 +11,8 @@ import (
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
 	"github.com/go-check/check"
+	"gotest.tools/icmd"
 )
 
 const (
@@ -380,7 +379,7 @@ func (s *DockerSuite) TestCpSymlinkComponent(c *check.C) {
 
 // Check that cp with unprivileged user doesn't return any error
 func (s *DockerSuite) TestCpUnprivilegedUser(c *check.C) {
-	testRequires(c, DaemonIsLinux)
+	testRequires(c, DaemonIsLinux, SameHostDaemon)
 	testRequires(c, UnixCli) // uses chmod/su: not available on windows
 
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "/bin/sh", "-c", "touch "+cpTestName)
@@ -424,6 +423,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 
 	expected := readContainerFile(c, containerID, "resolv.conf")
 	actual, err := ioutil.ReadFile(outDir + "/resolv.conf")
+	c.Assert(err, checker.IsNil)
 
 	// Expected copied file to be duplicate of the container resolvconf
 	c.Assert(bytes.Equal(actual, expected), checker.True)
@@ -433,6 +433,7 @@ func (s *DockerSuite) TestCpSpecialFiles(c *check.C) {
 
 	expected = readContainerFile(c, containerID, "hosts")
 	actual, err = ioutil.ReadFile(outDir + "/hosts")
+	c.Assert(err, checker.IsNil)
 
 	// Expected copied file to be duplicate of the container hosts
 	c.Assert(bytes.Equal(actual, expected), checker.True)
@@ -548,7 +549,7 @@ func (s *DockerSuite) TestCpToStdout(c *check.C) {
 	// failed to set up container
 	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
 
-	out, _, err := testutil.RunCommandPipelineWithOutput(
+	out, err := RunCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "cp", containerID+":/test", "-"),
 		exec.Command("tar", "-vtf", "-"))
 
@@ -640,6 +641,7 @@ func (s *DockerSuite) TestCpSymlinkFromConToHostFollowSymlink(c *check.C) {
 
 	expected := []byte(cpContainerContents)
 	actual, err := ioutil.ReadFile(expectedPath)
+	c.Assert(err, checker.IsNil)
 
 	if !bytes.Equal(actual, expected) {
 		c.Fatalf("Expected copied file to be duplicate of the container symbol link target")

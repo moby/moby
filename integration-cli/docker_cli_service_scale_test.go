@@ -14,23 +14,23 @@ func (s *DockerSwarmSuite) TestServiceScale(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	service1Name := "TestService1"
-	service1Args := append([]string{"service", "create", "--name", service1Name, defaultSleepImage}, sleepCommandForDaemonPlatform()...)
+	service1Args := append([]string{"service", "create", "--detach", "--no-resolve-image", "--name", service1Name, defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// global mode
 	service2Name := "TestService2"
-	service2Args := append([]string{"service", "create", "--name", service2Name, "--mode=global", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
+	service2Args := append([]string{"service", "create", "--detach", "--no-resolve-image", "--name", service2Name, "--mode=global", defaultSleepImage}, sleepCommandForDaemonPlatform()...)
 
 	// Create services
-	out, err := d.Cmd(service1Args...)
+	_, err := d.Cmd(service1Args...)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd(service2Args...)
+	_, err = d.Cmd(service2Args...)
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=2")
+	_, err = d.Cmd("service", "scale", "TestService1=2")
 	c.Assert(err, checker.IsNil)
 
-	out, err = d.Cmd("service", "scale", "TestService1=foobar")
+	out, err := d.Cmd("service", "scale", "TestService1=foobar")
 	c.Assert(err, checker.NotNil)
 
 	str := fmt.Sprintf("%s: invalid replicas value %s", service1Name, "foobar")

@@ -5,8 +5,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/libnetwork/ns"
+	"github.com/sirupsen/logrus"
 	"github.com/vishvananda/netlink"
 )
 
@@ -150,7 +150,7 @@ func parseVlan(linkName string) (string, int, error) {
 	}
 	// Check if the interface exists
 	if !parentExists(parent) {
-		return "", 0, fmt.Errorf("-o parent interface does was not found on the host: %s", parent)
+		return "", 0, fmt.Errorf("-o parent interface was not found on the host: %s", parent)
 	}
 
 	return parent, vidInt, nil
@@ -201,5 +201,5 @@ func delDummyLink(linkName string) error {
 
 // getDummyName returns the name of a dummy parent with truncated net ID and driver prefix
 func getDummyName(netID string) string {
-	return fmt.Sprintf("%s%s", dummyPrefix, netID)
+	return dummyPrefix + netID
 }

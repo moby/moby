@@ -2,10 +2,11 @@ syntax = "proto3";
 
 package docker.swarmkit.v1;
 
-import "types.proto";
+import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
 import "google/protobuf/duration.proto";
 import "google/protobuf/any.proto";
+import "google/protobuf/wrappers.proto";
 
 // Specs are container objects for user provided input. All creations and
 // updates are done through spec types. As a convention, user input from a spec
@@ -128,6 +129,21 @@ message TaskSpec {
 	// using the same reconciliation-based mechanism that performs rolling
 	// updates.
 	uint64 force_update = 9;
+
+	// ResourceReferences provides a generic way to specify resources that
+	// are used by this task, and should be sent down to agents along with
+	// the task. Inside the runtime field there may be more specific
+	// information about how to use the resource, but ResourceReferences
+	// establishes the relationship at the store level, and instructs the
+	// dispatcher to send the related objects.
+	//
+	// ResourceReferences is a list of ResourceReferences used by the task.
+	repeated ResourceReference resource_references = 11 [(gogoproto.nullable) = false];
+}
+
+message ResourceReference {
+	string resource_id = 1;
+	ResourceType resource_type = 2;
 }
 
 message GenericRuntimeSpec {
@@ -199,6 +215,9 @@ message ContainerSpec {
 
 	// Privileges specifies security configuration/permissions.
 	Privileges privileges = 22;
+
+	// Init declares that a custom init will be running inside the container, if null, use the daemon's configured settings
+	google.protobuf.BoolValue init = 23;
 
 	// TTY declares that a TTY should be attached to the standard streams,
 	// including stdin if it is still open.
@@ -278,6 +297,27 @@ message ContainerSpec {
 	// task will exit and a new task will be rescheduled elsewhere. A container
 	// is considered unhealthy after `Retries` number of consecutive failures.
 	HealthConfig healthcheck = 16;
+
+	enum Isolation {
+		option (gogoproto.goproto_enum_prefix) = false;
+
+		// ISOLATION_DEFAULT uses whatever default value from the container runtime
+		ISOLATION_DEFAULT = 0 [(gogoproto.enumvalue_customname) = "ContainerIsolationDefault"];
+
+		// ISOLATION_PROCESS forces windows container isolation
+		ISOLATION_PROCESS = 1 [(gogoproto.enumvalue_customname) = "ContainerIsolationProcess"];
+
+		// ISOLATION_HYPERV forces Hyper-V isolation
+		ISOLATION_HYPERV = 2 [(gogoproto.enumvalue_customname) = "ContainerIsolationHyperV"];
+	}
+
+	// Isolation defines the isolation level for windows containers (default, process, hyperv).
+	// Runtimes that don't support it ignore that field
+	Isolation isolation = 24;
+
+	// PidsLimit prevents from OS resource damage by applications inside the container 
+	// using fork bomb attack.
+	int64 pidsLimit = 25;
 }
 
 // EndpointSpec defines the properties that can be configured to
@@ -341,6 +381,15 @@ message NetworkSpec {
 	// swarm internally created only and it was identified by the name
 	// "ingress" and the label "com.docker.swarm.internal": "true".
 	bool ingress = 7;
+
+	// ConfigFrom is the source of the configuration for this network.
+	oneof config_from {
+		// Network is the name of a network that provides the network
+		// specific configuration for this network, locally on the node
+		// where this network is being plumbed.
+		string network = 8;
+	}
+
 }
 
 // ClusterSpec specifies global cluster settings.
@@ -377,6 +426,16 @@ message SecretSpec {
 
 	// Data is the secret payload - the maximum size is 500KB (that is, 500*1024 bytes)
 	bytes data = 2;
+
+	// Templating controls whether and how to evaluate the secret payload as
+	// a template. If it is not set, no templating is used.
+	//
+	// The currently recognized values are:
+	// - golang: Go templating
+	Driver templating = 3;
+
+	// Driver is the the secret driver that is used to store the specified secret
+	Driver driver = 4;
 }
 
 // ConfigSpec specifies user-provided configuration files.
@@ -387,4 +446,11 @@ message ConfigSpec {
 	// TODO(aaronl): Do we want to revise this to include multiple payloads in a single
 	// ConfigSpec? Define this to be a tar? etc...
 	bytes data = 2;
+
+	// Templating controls whether and how to evaluate the secret payload as
+	// a template. If it is not set, no templating is used.
+	//
+	// The currently recognized values are:
+	// - golang: Go templating
+	Driver templating = 3;
 }

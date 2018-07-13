@@ -191,6 +191,16 @@ const (
 	// PrecertSubmissionFailed occurs when submitting a precertificate to
 	// a log server fails
 	PrecertSubmissionFailed = 100 * (iota + 1)
+	// CTClientConstructionFailed occurs when the construction of a new
+	// github.com/google/certificate-transparency client fails.
+	CTClientConstructionFailed
+	// PrecertMissingPoison occurs when a precert is passed to SignFromPrecert
+	// and is missing the CT poison extension.
+	PrecertMissingPoison
+	// PrecertInvalidPoison occurs when a precert is passed to SignFromPrecert
+	// and has a invalid CT poison extension value or the extension is not
+	// critical.
+	PrecertInvalidPoison
 )
 
 // Certificate persistence related errors specified with CertStoreError
@@ -366,6 +376,10 @@ func New(category Category, reason Reason) *Error {
 			msg = "Certificate transparency parsing failed due to unknown error"
 		case PrecertSubmissionFailed:
 			msg = "Certificate transparency precertificate submission failed"
+		case PrecertMissingPoison:
+			msg = "Precertificate is missing CT poison extension"
+		case PrecertInvalidPoison:
+			msg = "Precertificate contains an invalid CT poison extension"
 		default:
 			panic(fmt.Sprintf("Unsupported CF-SSL error reason %d under category CTError.", reason))
 		}
@@ -412,7 +426,7 @@ func Wrap(category Category, reason Reason, err error) *Error {
 			}
 		}
 	case PrivateKeyError, IntermediatesError, RootError, PolicyError, DialError,
-		APIClientError, CSRError, CTError, CertStoreError:
+		APIClientError, CSRError, CTError, CertStoreError, OCSPError:
 	// no-op, just use the error
 	default:
 		panic(fmt.Sprintf("Unsupported CFSSL error type: %d.",
