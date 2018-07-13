@@ -219,21 +219,21 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	// Use the global ID if in global mode
 	id = d.getVMID(id)
 
-	title := fmt.Sprintf("lcowdriver: startservicevmifnotrunning %s:", id)
+	title := "lcowdriver: startServiceVMIfNotRunning " + id
 
 	// Attempt to add ID to the service vm map
-	logrus.Debugf("%s: Adding entry to service vm map", title)
+	logrus.Debugf("%s: adding entry to service vm map", title)
 	svm, exists, err := d.serviceVms.add(id)
 	if err != nil && err == errVMisTerminating {
 		// VM is in the process of terminating. Wait until it's done and and then try again
-		logrus.Debugf("%s: VM with current ID still in the process of terminating: %s", title, id)
+		logrus.Debugf("%s: VM with current ID still in the process of terminating", title)
 		if err := svm.getStopError(); err != nil {
-			logrus.Debugf("%s: VM %s did not stop successfully: %s", title, id, err)
+			logrus.Debugf("%s: VM did not stop successfully: %s", title, err)
 			return nil, err
 		}
 		return d.startServiceVMIfNotRunning(id, mvdToAdd, context)
 	} else if err != nil {
-		logrus.Debugf("%s: failed to add service vm to map: %s", err)
+		logrus.Debugf("%s: failed to add service vm to map: %s", title, err)
 		return nil, fmt.Errorf("%s: failed to add to service vm map: %s", title, err)
 	}
 
@@ -248,7 +248,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	}
 
 	// We are the first service for this id, so we need to start it
-	logrus.Debugf("%s: service vm doesn't exist. Now starting it up: %s", title, id)
+	logrus.Debugf("%s: service vm doesn't exist. Now starting it up", title)
 
 	defer func() {
 		// Signal that start has finished, passing in the error if any.
@@ -261,7 +261,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 
 	// Generate a default configuration
 	if err := svm.config.GenerateDefault(d.options); err != nil {
-		return nil, fmt.Errorf("%s failed to generate default gogcs configuration for global svm (%s): %s", title, context, err)
+		return nil, fmt.Errorf("%s: failed to generate default gogcs configuration for global svm (%s): %s", title, context, err)
 	}
 
 	// For the name, we deliberately suffix if safe-mode to ensure that it doesn't
@@ -277,19 +277,19 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	// and not in the process of being created by another thread.
 	scratchTargetFile := filepath.Join(d.dataRoot, scratchDirectory, fmt.Sprintf("%s.vhdx", id))
 
-	logrus.Debugf("%s locking cachedScratchMutex", title)
+	logrus.Debugf("%s: locking cachedScratchMutex", title)
 	d.cachedScratchMutex.Lock()
 	if _, err := os.Stat(d.cachedScratchFile); err == nil {
 		// Make a copy of cached scratch to the scratch directory
-		logrus.Debugf("lcowdriver: startServiceVmIfNotRunning: (%s) cloning cached scratch for mvd", context)
+		logrus.Debugf("%s: (%s) cloning cached scratch for mvd", title, context)
 		if err := client.CopyFile(d.cachedScratchFile, scratchTargetFile, true); err != nil {
-			logrus.Debugf("%s releasing cachedScratchMutex on err: %s", title, err)
+			logrus.Debugf("%s: releasing cachedScratchMutex on err: %s", title, err)
 			d.cachedScratchMutex.Unlock()
 			return nil, err
 		}
 
 		// Add the cached clone as a mapped virtual disk
-		logrus.Debugf("lcowdriver: startServiceVmIfNotRunning: (%s) adding cloned scratch as mvd", context)
+		logrus.Debugf("%s: (%s) adding cloned scratch as mvd", title, context)
 		mvd := hcsshim.MappedVirtualDisk{
 			HostPath:          scratchTargetFile,
 			ContainerPath:     toolsScratchPath,
@@ -299,7 +299,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 		svm.scratchAttached = true
 	}
 
-	logrus.Debugf("%s releasing cachedScratchMutex", title)
+	logrus.Debugf("%s: releasing cachedScratchMutex", title)
 	d.cachedScratchMutex.Unlock()
 
 	// If requested to start it with a mapped virtual disk, add it now.
@@ -309,7 +309,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	}
 
 	// Start it.
-	logrus.Debugf("lcowdriver: startServiceVmIfNotRunning: (%s) starting %s", context, svm.config.Name)
+	logrus.Debugf("%s: (%s) starting %s", title, context, svm.config.Name)
 	if err := svm.config.StartUtilityVM(); err != nil {
 		return nil, fmt.Errorf("failed to start service utility VM (%s): %s", context, err)
 	}
@@ -317,31 +317,31 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	// defer function to terminate the VM if the next steps fail
 	defer func() {
 		if err != nil {
-			waitTerminate(svm, fmt.Sprintf("startServiceVmIfNotRunning: %s (%s)", id, context))
+			waitTerminate(svm, fmt.Sprintf("%s: (%s)", title, context))
 		}
 	}()
 
 	// Now we have a running service VM, we can create the cached scratch file if it doesn't exist.
-	logrus.Debugf("%s locking cachedScratchMutex", title)
+	logrus.Debugf("%s: locking cachedScratchMutex", title)
 	d.cachedScratchMutex.Lock()
 	if _, err := os.Stat(d.cachedScratchFile); err != nil {
-		logrus.Debugf("%s (%s): creating an SVM scratch", title, context)
+		logrus.Debugf("%s: (%s) creating an SVM scratch", title, context)
 
 		// Don't use svm.CreateExt4Vhdx since that only works when the service vm is setup,
 		// but we're still in that process right now.
 		if err := svm.config.CreateExt4Vhdx(scratchTargetFile, client.DefaultVhdxSizeGB, d.cachedScratchFile); err != nil {
-			logrus.Debugf("%s (%s): releasing cachedScratchMutex on error path", title, context)
+			logrus.Debugf("%s: (%s) releasing cachedScratchMutex on error path", title, context)
 			d.cachedScratchMutex.Unlock()
 			logrus.Debugf("%s: failed to create vm scratch %s: %s", title, scratchTargetFile, err)
 			return nil, fmt.Errorf("failed to create SVM scratch VHDX (%s): %s", context, err)
 		}
 	}
-	logrus.Debugf("%s (%s): releasing cachedScratchMutex", title, context)
+	logrus.Debugf("%s: (%s) releasing cachedScratchMutex", title, context)
 	d.cachedScratchMutex.Unlock()
 
 	// Hot-add the scratch-space if not already attached
 	if !svm.scratchAttached {
-		logrus.Debugf("lcowdriver: startServiceVmIfNotRunning: (%s) hot-adding scratch %s", context, scratchTargetFile)
+		logrus.Debugf("%s: (%s) hot-adding scratch %s", title, context, scratchTargetFile)
 		if err := svm.hotAddVHDsAtStart(hcsshim.MappedVirtualDisk{
 			HostPath:          scratchTargetFile,
 			ContainerPath:     toolsScratchPath,
@@ -353,7 +353,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 		svm.scratchAttached = true
 	}
 
-	logrus.Debugf("lcowdriver: startServiceVmIfNotRunning: (%s) success", context)
+	logrus.Debugf("%s: (%s) success", title, context)
 	return svm, nil
 }
 
