@@ -15,6 +15,17 @@ There are many networking solutions available to suit a broad range of use-cases
 
 
 ```go
+import (
+	"fmt"
+	"log"
+
+	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/libnetwork"
+	"github.com/docker/libnetwork/config"
+	"github.com/docker/libnetwork/netlabel"
+	"github.com/docker/libnetwork/options"
+)
+
 func main() {
 	if reexec.Init() {
 		return
