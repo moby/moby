@@ -8,7 +8,6 @@ package sysx
 //sys  setxattr(path string, attr string, data []byte, flags int) (err error)
 //sys  removexattr(path string, attr string, options int) (err error)
 //sys  listxattr(path string, dest []byte, options int) (sz int, err error)
-//sys  Fchmodat(dirfd int, path string, mode uint32, flags int) (err error)
 
 const (
 	xattrNoFollow = 0x01
