@@ -5922,7 +5922,7 @@ paths:
           headers:
             X-Docker-Container-Path-Stat:
               type: "string"
-              description: "TODO"
+              description: "A base64 - encoded JSON object with some filesystem header information about the path"
         400:
           description: "Bad parameter"
           schema:
@@ -7589,6 +7589,7 @@ paths:
           schema:
             type: "object"
             title: "VolumeListResponse"
+            description: "Volume list response"
             required: [Volumes, Warnings]
             properties:
               Volumes:
@@ -7665,6 +7666,8 @@ paths:
           description: "Volume configuration"
           schema:
             type: "object"
+            description: "Volume configuration"
+            title: "VolumeConfig"
             properties:
               Name:
                 description: "The new volume's name. If not specified, Docker generates a name."
