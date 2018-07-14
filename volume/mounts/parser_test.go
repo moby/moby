@@ -16,6 +16,10 @@ type parseMountRawTestSet struct {
 }
 
 func TestConvertTmpfsOptions(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		return
+	}
+
 	type testCase struct {
 		opt                  mount.TmpfsOptions
 		readOnly             bool
@@ -36,7 +40,7 @@ func TestConvertTmpfsOptions(t *testing.T) {
 			unexpectedSubstrings: []string{},
 		},
 	}
-	p := &linuxParser{}
+	p := NewParser(OSLinux)
 	for _, c := range cases {
 		data, err := p.ConvertTmpfsOptions(&c.opt, c.readOnly)
 		if err != nil {
@@ -293,9 +297,6 @@ func TestParseMountRaw(t *testing.T) {
 		},
 	}
 
-	linParser := &linuxParser{}
-	winParser := &windowsParser{}
-	lcowParser := &lcowParser{}
 	tester := func(parser Parser, set parseMountRawTestSet) {
 
 		for _, path := range set.valid {
@@ -315,10 +316,13 @@ func TestParseMountRaw(t *testing.T) {
 			}
 		}
 	}
-	tester(linParser, linuxSet)
-	tester(winParser, windowsSet)
-	tester(lcowParser, lcowSet)
 
+	if runtime.GOOS != "windows" {
+		tester(NewParser(OSLinux), linuxSet)
+	} else {
+		tester(NewParser(OSWindows), windowsSet)
+		tester(NewParser(OSLinux), lcowSet)
+	}
 }
 
 // testParseMountRaw is a structure used by TestParseMountRawSplit for
@@ -379,9 +383,6 @@ func TestParseMountRawSplit(t *testing.T) {
 		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
 		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
 	}
-	linParser := &linuxParser{}
-	winParser := &windowsParser{}
-	lcowParser := &lcowParser{}
 	tester := func(parser Parser, cases []testParseMountRaw) {
 		for i, c := range cases {
 			t.Logf("case %d", i)
@@ -423,9 +424,12 @@ func TestParseMountRawSplit(t *testing.T) {
 		}
 	}
 
-	tester(linParser, linuxCases)
-	tester(winParser, windowsCases)
-	tester(lcowParser, lcowCases)
+	if runtime.GOOS != "windows" {
+		tester(NewParser(OSLinux), linuxCases)
+	} else {
+		tester(NewParser(OSWindows), windowsCases)
+		tester(NewParser(OSLinux), lcowCases)
+	}
 }
 
 func TestParseMountSpec(t *testing.T) {

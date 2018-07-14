@@ -2,7 +2,7 @@ package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
-	"runtime"
+	"os"
 
 	"github.com/docker/docker/api/types/mount"
 )
@@ -34,14 +34,28 @@ type Parser interface {
 	ValidateMountConfig(mt *mount.Mount) error
 }
 
-// NewParser creates a parser for a given container OS, depending on the current host OS (linux on a windows host will resolve to an lcowParser)
-func NewParser(containerOS string) Parser {
-	switch containerOS {
-	case OSWindows:
-		return &windowsParser{}
+type fileInfoProvider interface {
+	fileInfo(path string) (exist, isDir bool, err error)
+}
+
+type defaultFileInfoProvider struct {
+}
+
+func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
+	fi, err := os.Stat(path)
+	if err != nil {
+		if !os.IsNotExist(err) {
+			return false, false, err
+		}
+		return false, false, nil
 	}
-	if runtime.GOOS == OSWindows {
-		return &lcowParser{}
-	}
-	return &linuxParser{}
+	return true, fi.IsDir(), nil
+}
+
+var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
+
+// read-write modes
+var rwModes = map[string]bool{
+	"rw": true,
+	"ro": true,
 }

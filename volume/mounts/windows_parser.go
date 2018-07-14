@@ -1,15 +1,17 @@
+// +build windows
+
 package mounts // import "github.com/docker/docker/volume/mounts"
 
 import (
 	"errors"
 	"fmt"
-	"os"
 	"regexp"
 	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/docker/docker/pkg/system"
 )
 
 type windowsParser struct {
@@ -193,26 +195,6 @@ func (p *windowsParser) ValidateMountConfig(mnt *mount.Mount) error {
 	return p.validateMountConfigReg(mnt, rxDestination, windowsSpecificValidators)
 }
 
-type fileInfoProvider interface {
-	fileInfo(path string) (exist, isDir bool, err error)
-}
-
-type defaultFileInfoProvider struct {
-}
-
-func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err error) {
-	fi, err := os.Stat(path)
-	if err != nil {
-		if !os.IsNotExist(err) {
-			return false, false, err
-		}
-		return false, false, nil
-	}
-	return true, fi.IsDir(), nil
-}
-
-var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
-
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
 
 	for _, v := range additionalValidators {
@@ -254,7 +236,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 		if !exists {
 			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
 		}
-		if !isdir {
+		if !isdir && system.GetOSVersion().Build < 17134 {
 			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
 		}
 
