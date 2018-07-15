@@ -146,7 +146,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 				continue
 			}
 			for _, eachName := range idNames {
-				if ctx.filters.Match("name", eachName) {
+				if ctx.filters.Match("name", strings.TrimPrefix(eachName, "/")) {
 					matches[id] = true
 				}
 			}
@@ -429,7 +429,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 	}
 
 	// Do not include container if the name doesn't match
-	if !ctx.filters.Match("name", container.Name) {
+	if !ctx.filters.Match("name", strings.TrimPrefix(container.Name, "/")) {
 		return excludeContainer
 	}
 
