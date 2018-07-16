@@ -23,4 +23,12 @@ func TestCompareVersion(t *testing.T) {
 	assertVersion(t, "1.1", "1.1.1", -1)
 	assertVersion(t, "1.1.1", "1.1.2", -1)
 	assertVersion(t, "1.1.2", "1.2", -1)
+	assertVersion(t, "1.1.2", "1.1.2-rc.1", 1)
+	assertVersion(t, "1.1.2", "1.1.3-rc.1", -1)
+	assertVersion(t, "1.1.2-rc.1", "1.1.2", -1)
+	assertVersion(t, "1.1.2-rc.1", "1.1.2-rc.1", 0)
+
+	// TODO these cases are to show limitations in the current implementation
+	assertVersion(t, "1.1.2-rc.1", "1.1.2-rc.0", 0)
+	assertVersion(t, "1.1.2-alpha.1", "1.1.2-beta.2", 0)
 }
