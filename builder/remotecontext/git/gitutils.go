@@ -1,6 +1,7 @@
 package git // import "github.com/docker/docker/builder/remotecontext/git"
 
 import (
+	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/symlink"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/pkg/errors"
@@ -65,7 +67,16 @@ func cloneGitRepo(repo gitRepo) (checkoutDir string, err error) {
 		return "", err
 	}
 
-	cmd := exec.Command("git", "submodule", "update", "--init", "--recursive", "--depth=1")
+	v, err := gitVersion()
+	if err != nil {
+		return "", err
+	}
+	args := []string{"submodule", "update", "--init", "--recursive"}
+	if versions.GreaterThanOrEqualTo(v, "1.8.4") {
+		// --depth was added in Git 1.8.4; https://github.com/git/git/commit/275cd184d52b5b81cb89e4ec33e540fb2ae61c1f
+		args = append(args, "--depth=1")
+	}
+	cmd := exec.Command("git", args...)
 	cmd.Dir = root
 	output, err := cmd.CombinedOutput()
 	if err != nil {
@@ -73,6 +84,21 @@ func cloneGitRepo(repo gitRepo) (checkoutDir string, err error) {
 	}
 
 	return checkoutDir, nil
+}
+
+// gitVersion returns the version of git that is installed on the host
+func gitVersion() (string, error) {
+	cmd := exec.Command("git", "--version")
+	output, err := cmd.Output() // e.g. git version 2.17.0
+	if err != nil {
+		return "", errors.Wrap(err, "unable to determine installed git version")
+	}
+
+	parts := strings.SplitN(string(output), " ", 3)
+	if len(parts) != 3 {
+		return "", fmt.Errorf("unable to determine installed git version from output: %s", output)
+	}
+	return parts[2], nil
 }
 
 func parseRemoteURL(remoteURL string) (gitRepo, error) {
