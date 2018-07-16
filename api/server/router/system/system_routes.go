@@ -60,6 +60,14 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		old.SecurityOptions = nameOnlySecurityOptions
 		return httputils.WriteJSON(w, http.StatusOK, old)
 	}
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.39") {
+		if info.KernelVersion == "" {
+			info.KernelVersion = "<unknown>"
+		}
+		if info.OperatingSystem == "" {
+			info.OperatingSystem = "<unknown>"
+		}
+	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 
