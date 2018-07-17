@@ -1098,8 +1098,8 @@ func OptionDNSOptions(options string) SandboxOption {
 	}
 }
 
-// OptionUseDefaultSandbox function returns an option setter for using default sandbox to
-// be passed to container Create method.
+// OptionUseDefaultSandbox function returns an option setter for using default sandbox
+// (host namespace) to be passed to container Create method.
 func OptionUseDefaultSandbox() SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.useDefaultSandBox = true
