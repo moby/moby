@@ -9,7 +9,7 @@ import (
 	"sync/atomic"
 
 	stackdump "github.com/docker/docker/pkg/signal"
-	"github.com/docker/libnetwork/common"
+	"github.com/docker/libnetwork/internal/caller"
 	"github.com/sirupsen/logrus"
 )
 
@@ -127,7 +127,7 @@ func notImplemented(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	rsp := WrongCommand("not implemented", fmt.Sprintf("URL path: %s no method implemented check /help\n", r.URL.Path))
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("command not implemented done")
 
 	HTTPReply(w, rsp, json)
@@ -138,7 +138,7 @@ func help(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("help done")
 
 	n, ok := ctx.(*Server)
@@ -156,7 +156,7 @@ func ready(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("ready done")
 	HTTPReply(w, CommandSucceed(&StringCmd{Info: "OK"}), json)
 }
@@ -166,7 +166,7 @@ func stackTrace(ctx interface{}, w http.ResponseWriter, r *http.Request) {
 	_, json := ParseHTTPFormOptions(r)
 
 	// audit logs
-	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": common.CallerName(0), "url": r.URL.String()})
+	log := logrus.WithFields(logrus.Fields{"component": "diagnostic", "remoteIP": r.RemoteAddr, "method": caller.Name(0), "url": r.URL.String()})
 	log.Info("stack trace")
 
 	path, err := stackdump.DumpStacks("/tmp/")
