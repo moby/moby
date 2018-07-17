@@ -653,3 +653,6 @@ func (daemon *Daemon) loadRuntimes() error {
 func (daemon *Daemon) initRuntimes(_ map[string]types.Runtime) error {
 	return nil
 }
+
+func setupResolvConf(config *config.Config) {
+}
