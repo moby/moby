@@ -8,12 +8,10 @@ import (
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// TODO: make this take same options as LLBBridge. Add Return()
 type Client interface {
-	Solve(ctx context.Context, req SolveRequest, exporterAttr map[string][]byte, final bool) (Reference, error)
+	Solve(ctx context.Context, req SolveRequest) (*Result, error)
 	ResolveImageConfig(ctx context.Context, ref string, platform *specs.Platform) (digest.Digest, []byte, error)
-	Opts() map[string]string
-	SessionID() string
+	BuildOpts() BuildOpts
 }
 
 type Reference interface {
@@ -38,4 +36,17 @@ type SolveRequest struct {
 	Frontend        string
 	FrontendOpt     map[string]string
 	ImportCacheRefs []string
+}
+
+type WorkerInfo struct {
+	ID        string
+	Labels    map[string]string
+	Platforms []specs.Platform
+}
+
+type BuildOpts struct {
+	Opts      map[string]string
+	SessionID string
+	Workers   []WorkerInfo
+	Product   string
 }

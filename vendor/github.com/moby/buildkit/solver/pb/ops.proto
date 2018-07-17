@@ -114,6 +114,7 @@ message SourceOp {
 }
 
 // BuildOp is used for nested build invocation.
+// BuildOp is experimental and can break without backwards compatibility
 message BuildOp {
 	int64 builder = 1 [(gogoproto.customtype) = "InputIndex", (gogoproto.nullable) = false];
 	map<string, BuildInput> inputs = 2;

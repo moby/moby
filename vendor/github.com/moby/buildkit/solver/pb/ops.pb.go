@@ -609,6 +609,7 @@ func (m *SourceOp) GetAttrs() map[string]string {
 }
 
 // BuildOp is used for nested build invocation.
+// BuildOp is experimental and can break without backwards compatibility
 type BuildOp struct {
 	Builder InputIndex             `protobuf:"varint,1,opt,name=builder,proto3,customtype=InputIndex" json:"builder"`
 	Inputs  map[string]*BuildInput `protobuf:"bytes,2,rep,name=inputs" json:"inputs,omitempty" protobuf_key:"bytes,1,opt,name=key,proto3" protobuf_val:"bytes,2,opt,name=value"`

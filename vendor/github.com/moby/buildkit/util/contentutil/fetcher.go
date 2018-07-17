@@ -5,35 +5,28 @@ import (
 	"io"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/remotes"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func FromFetcher(f remotes.Fetcher, desc ocispec.Descriptor) content.Provider {
+func FromFetcher(f remotes.Fetcher) content.Provider {
 	return &fetchedProvider{
-		f:    f,
-		desc: desc,
+		f: f,
 	}
 }
 
 type fetchedProvider struct {
-	f    remotes.Fetcher
-	desc ocispec.Descriptor
+	f remotes.Fetcher
 }
 
 func (p *fetchedProvider) ReaderAt(ctx context.Context, desc ocispec.Descriptor) (content.ReaderAt, error) {
-	if desc.Digest != p.desc.Digest {
-		return nil, errors.Wrapf(errdefs.ErrNotFound, "content %v", desc.Digest)
-	}
-
-	rc, err := p.f.Fetch(ctx, p.desc)
+	rc, err := p.f.Fetch(ctx, desc)
 	if err != nil {
 		return nil, err
 	}
 
-	return &readerAt{Reader: rc, Closer: rc, size: p.desc.Size}, nil
+	return &readerAt{Reader: rc, Closer: rc, size: desc.Size}, nil
 }
 
 type readerAt struct {
