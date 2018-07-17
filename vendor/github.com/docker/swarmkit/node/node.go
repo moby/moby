@@ -1136,6 +1136,11 @@ func (n *Node) superviseManager(ctx context.Context, securityConfig *ca.Security
 			// re-promoted. In this case, we must assume we were
 			// re-promoted, and restart the manager.
 			log.G(ctx).Warn("failed to get worker role after manager stop, forcing certificate renewal")
+
+			// We can safely reset this timer without stopping/draining the timer
+			// first because the only way the code has reached this point is if the timer
+			// has already expired - if the role changed or the context were canceled,
+			// then we would have returned already.
 			timer.Reset(roleChangeTimeout)
 
 			renewer.Renew()
