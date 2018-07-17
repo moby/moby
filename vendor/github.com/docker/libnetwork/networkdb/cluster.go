@@ -243,7 +243,7 @@ func (nDB *NetworkDB) clusterLeave() error {
 }
 
 func (nDB *NetworkDB) triggerFunc(stagger time.Duration, C <-chan time.Time, f func()) {
-	// Use a random stagger to avoid syncronizing
+	// Use a random stagger to avoid synchronizing
 	randStagger := time.Duration(uint64(rnd.Int63()) % uint64(stagger))
 	select {
 	case <-time.After(randStagger):

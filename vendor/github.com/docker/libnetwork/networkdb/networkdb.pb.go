@@ -48,7 +48,7 @@ type MessageType int32
 
 const (
 	MessageTypeInvalid MessageType = 0
-	// NetworEvent message type is used to communicate network
+	// NetworkEvent message type is used to communicate network
 	// attachments on the node.
 	MessageTypeNetworkEvent MessageType = 1
 	// TableEvent message type is used to communicate any table
@@ -66,7 +66,7 @@ const (
 	// which is a pack of many message of above types, packed into
 	// a single compound message.
 	MessageTypeCompound MessageType = 5
-	// NodeEvent message type is used to communicare node
+	// NodeEvent message type is used to communicate node
 	// join/leave events in the cluster
 	MessageTypeNodeEvent MessageType = 6
 )

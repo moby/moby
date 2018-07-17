@@ -394,10 +394,13 @@ func (n *networkNamespace) InvokeFunc(f func()) error {
 // InitOSContext initializes OS context while configuring network resources
 func InitOSContext() func() {
 	runtime.LockOSThread()
+	if err := ns.SetNamespace(); err != nil {
+		logrus.Error(err)
+	}
 	return runtime.UnlockOSThread
 }
 
-func nsInvoke(path string, prefunc, postfunc func(int) error) error {
+func nsInvoke(path string, prefunc func(nsFD int) error, postfunc func(callerFD int) error) error {
 	defer InitOSContext()()
 
 	newNs, err := netns.GetFromPath(path)
@@ -412,14 +415,10 @@ func nsInvoke(path string, prefunc, postfunc func(int) error) error {
 		return fmt.Errorf("failed in prefunc: %v", err)
 	}
 
-	// save the current namespace (host namespace)
-	curNs, _ := netns.Get()
 	if err = netns.Set(newNs); err != nil {
 		return err
 	}
-	defer curNs.Close()
-	// will restore the previous namespace before unlocking the thread
-	defer netns.Set(curNs)
+	defer ns.SetNamespace()
 
 	// Invoked after the namespace switch.
 	return postfunc(ns.ParseHandlerInt())
@@ -652,10 +651,7 @@ func (n *networkNamespace) ApplyOSTweaks(types []SandboxType) {
 	for _, t := range types {
 		switch t {
 		case SandboxTypeLoadBalancer:
-			nsInvoke(n.nsPath(),
-				func(nsFD int) error { return nil },
-				func(callerFD int) error { kernel.ApplyOSTweaks(loadBalancerConfig); return nil },
-			)
+			kernel.ApplyOSTweaks(loadBalancerConfig)
 		}
 	}
 }

@@ -2,7 +2,7 @@ package kernel
 
 type conditionalCheck func(val1, val2 string) bool
 
-// OSValue represents a tuple, value defired, check function when to apply the value
+// OSValue represents a tuple, value defined, check function when to apply the value
 type OSValue struct {
 	Value   string
 	CheckFn conditionalCheck

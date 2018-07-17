@@ -100,7 +100,7 @@ func fillService(s *Service) nl.NetlinkRequestData {
 	return cmdAttr
 }
 
-func fillDestinaton(d *Destination) nl.NetlinkRequestData {
+func fillDestination(d *Destination) nl.NetlinkRequestData {
 	cmdAttr := nl.NewRtAttr(ipvsCmdAttrDest, nil)
 
 	nl.NewRtAttrChild(cmdAttr, ipvsDestAttrAddress, rawIPData(d.Address))
@@ -134,7 +134,7 @@ func (i *Handle) doCmdwithResponse(s *Service, d *Destination, cmd uint8) ([][]b
 		}
 
 	} else {
-		req.AddData(fillDestinaton(d))
+		req.AddData(fillDestination(d))
 	}
 
 	res, err := execute(i.sock, req, 0)

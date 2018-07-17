@@ -601,7 +601,7 @@ func (n *network) maxMTU() int {
 	mtu -= vxlanEncap
 	if n.secure {
 		// In case of encryption account for the
-		// esp packet espansion and padding
+		// esp packet expansion and padding
 		mtu -= pktExpansion
 		mtu -= (mtu % 4)
 	}
