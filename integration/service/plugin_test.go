@@ -107,7 +107,7 @@ func TestServicePlugin(t *testing.T) {
 
 func makePlugin(repo, name string, constraints []string) func(*swarmtypes.Service) {
 	return func(s *swarmtypes.Service) {
-		s.Spec.TaskTemplate.Runtime = "plugin"
+		s.Spec.TaskTemplate.Runtime = swarmtypes.RuntimePlugin
 		s.Spec.TaskTemplate.PluginSpec = &runtime.PluginSpec{
 			Name:   name,
 			Remote: repo,
