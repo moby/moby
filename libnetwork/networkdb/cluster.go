@@ -352,7 +352,7 @@ func (nDB *NetworkDB) reconnectNode() {
 	nDB.bulkSync([]string{node.Name}, true)
 }
 
-// For timing the entry deletion in the repaer APIs that doesn't use monotonic clock
+// For timing the entry deletion in the reaper APIs that doesn't use monotonic clock
 // source (time.Now, Sub etc.) should be avoided. Hence we use reapTime in every
 // entry which is set initially to reapInterval and decremented by reapPeriod every time
 // the reaper runs. NOTE nDB.reapTableEntries updates the reapTime with a readlock. This
