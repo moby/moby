@@ -14,7 +14,7 @@ install_containerd() {
 
 	(
 
-		export BUILDTAGS='static_build netgo'
+		export BUILDTAGS='netgo osusergo static_build'
 		export EXTRA_FLAGS='-buildmode=pie'
 		export EXTRA_LDFLAGS='-extldflags "-fno-PIC -static"'
 
