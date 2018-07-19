@@ -134,6 +134,8 @@ func (daemon *Daemon) fillDriverInfo(v *types.Info) {
 
 	v.Driver = drivers
 	v.DriverStatus = ds
+
+	fillDriverWarnings(v)
 }
 
 func (daemon *Daemon) fillPluginsInfo(v *types.Info) {

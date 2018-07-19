@@ -21,6 +21,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   and `OperatingSystem` if the daemon was unable to obtain this information.
 * `GET /info` now returns information about the product license, if a license
   has been applied to the daemon.
+* `GET /info` now returns a `Warnings` field, containing warnings and informational
+  messages about missing features, or issues related to the daemon configuration.
 * `POST /swarm/init` now accepts a `DefaultAddrPool` property to set global scope default address pool
 * `POST /swarm/init` now accepts a `SubnetSize` property to set global scope networks by giving the
   length of the subnet masks for every such network

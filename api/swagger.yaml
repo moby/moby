@@ -3904,6 +3904,19 @@ definitions:
           such as number of nodes, and expiration are included.
         type: "string"
         example: "Community Engine"
+      Warnings:
+        description: |
+          List of warnings / informational messages about missing features, or
+          issues related to the daemon configuration.
+
+          These messages can be printed by the client as information to the user.
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "WARNING: No memory limit support"
+          - "WARNING: bridge-nf-call-iptables is disabled"
+          - "WARNING: bridge-nf-call-ip6tables is disabled"
 
 
   # PluginsInfo is a temp struct holding Plugins name
