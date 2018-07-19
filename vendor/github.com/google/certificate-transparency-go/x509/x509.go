@@ -737,7 +737,9 @@ type Certificate struct {
 	OCSPServer            []string
 	IssuingCertificateURL []string
 
-	// Subject Alternate Name values
+	// Subject Alternate Name values. (Note that these values may not be valid
+	// if invalid values were contained within a parsed certificate. For
+	// example, an element of DNSNames may not be a valid DNS domain name.)
 	DNSNames       []string
 	EmailAddresses []string
 	IPAddresses    []net.IP
@@ -790,6 +792,20 @@ func (ConstraintViolationError) Error() string {
 // DER-encoded values).
 func (c *Certificate) Equal(other *Certificate) bool {
 	return bytes.Equal(c.Raw, other.Raw)
+}
+
+// IsPrecertificate checks whether the certificate is a precertificate, by
+// checking for the presence of the CT Poison extension.
+func (c *Certificate) IsPrecertificate() bool {
+	if c == nil {
+		return false
+	}
+	for _, ext := range c.Extensions {
+		if ext.Id.Equal(OIDExtensionCTPoison) {
+			return true
+		}
+	}
+	return false
 }
 
 func (c *Certificate) hasSANExtension() bool {
@@ -995,6 +1011,50 @@ func (h UnhandledCriticalExtension) Error() string {
 	return fmt.Sprintf("x509: unhandled critical extension (%v)", h.ID)
 }
 
+// removeExtension takes a DER-encoded TBSCertificate, removes the extension
+// specified by oid (preserving the order of other extensions), and returns the
+// result still as a DER-encoded TBSCertificate.  This function will fail if
+// there is not exactly 1 extension of the type specified by the oid present.
+func removeExtension(tbsData []byte, oid asn1.ObjectIdentifier) ([]byte, error) {
+	var tbs tbsCertificate
+	rest, err := asn1.Unmarshal(tbsData, &tbs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse TBSCertificate: %v", err)
+	} else if rLen := len(rest); rLen > 0 {
+		return nil, fmt.Errorf("trailing data (%d bytes) after TBSCertificate", rLen)
+	}
+	extAt := -1
+	for i, ext := range tbs.Extensions {
+		if ext.Id.Equal(oid) {
+			if extAt != -1 {
+				return nil, errors.New("multiple extensions of specified type present")
+			}
+			extAt = i
+		}
+	}
+	if extAt == -1 {
+		return nil, errors.New("no extension of specified type present")
+	}
+	tbs.Extensions = append(tbs.Extensions[:extAt], tbs.Extensions[extAt+1:]...)
+	// Clear out the asn1.RawContent so the re-marshal operation sees the
+	// updated structure (rather than just copying the out-of-date DER data).
+	tbs.Raw = nil
+
+	data, err := asn1.Marshal(tbs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to re-marshal TBSCertificate: %v", err)
+	}
+	return data, nil
+}
+
+// RemoveSCTList takes a DER-encoded TBSCertificate and removes the CT SCT
+// extension that contains the SCT list (preserving the order of other
+// extensions), and returns the result still as a DER-encoded TBSCertificate.
+// This function will fail if there is not exactly 1 CT SCT extension present.
+func RemoveSCTList(tbsData []byte) ([]byte, error) {
+	return removeExtension(tbsData, OIDExtensionCTSCT)
+}
+
 // RemoveCTPoison takes a DER-encoded TBSCertificate and removes the CT poison
 // extension (preserving the order of other extensions), and returns the result
 // still as a DER-encoded TBSCertificate.  This function will fail if there is
@@ -1019,27 +1079,18 @@ func RemoveCTPoison(tbsData []byte) ([]byte, error) {
 //  - The precert's AuthorityKeyId is changed to the AuthorityKeyId of the
 //    intermediate.
 func BuildPrecertTBS(tbsData []byte, preIssuer *Certificate) ([]byte, error) {
+	data, err := removeExtension(tbsData, OIDExtensionCTPoison)
+	if err != nil {
+		return nil, err
+	}
+
 	var tbs tbsCertificate
-	rest, err := asn1.Unmarshal(tbsData, &tbs)
+	rest, err := asn1.Unmarshal(data, &tbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse TBSCertificate: %v", err)
 	} else if rLen := len(rest); rLen > 0 {
 		return nil, fmt.Errorf("trailing data (%d bytes) after TBSCertificate", rLen)
 	}
-	poisonAt := -1
-	for i, ext := range tbs.Extensions {
-		if ext.Id.Equal(OIDExtensionCTPoison) {
-			if poisonAt != -1 {
-				return nil, errors.New("multiple CT poison extensions present")
-			}
-			poisonAt = i
-		}
-	}
-	if poisonAt == -1 {
-		return nil, errors.New("no CT poison extension present")
-	}
-	tbs.Extensions = append(tbs.Extensions[:poisonAt], tbs.Extensions[poisonAt+1:]...)
-	tbs.Raw = nil
 
 	if preIssuer != nil {
 		// Update the precert's Issuer field.  Use the RawIssuer rather than the
@@ -1092,9 +1143,13 @@ func BuildPrecertTBS(tbsData []byte, preIssuer *Certificate) ([]byte, error) {
 			}
 			tbs.Extensions = append(tbs.Extensions, authKeyIDExt)
 		}
+
+		// Clear out the asn1.RawContent so the re-marshal operation sees the
+		// updated structure (rather than just copying the out-of-date DER data).
+		tbs.Raw = nil
 	}
 
-	data, err := asn1.Marshal(tbs)
+	data, err = asn1.Marshal(tbs)
 	if err != nil {
 		return nil, fmt.Errorf("failed to re-marshal TBSCertificate: %v", err)
 	}
@@ -1235,7 +1290,7 @@ type NonFatalErrors struct {
 	Errors []error
 }
 
-// Adds an error to the list of errors contained by NonFatalErrors.
+// AddError adds an error to the list of errors contained by NonFatalErrors.
 func (e *NonFatalErrors) AddError(err error) {
 	e.Errors = append(e.Errors, err)
 }
@@ -1250,7 +1305,7 @@ func (e NonFatalErrors) Error() string {
 	return r
 }
 
-// Returns true if |e| contains at least one error
+// HasError returns true if |e| contains at least one error
 func (e *NonFatalErrors) HasError() bool {
 	return len(e.Errors) > 0
 }
@@ -1337,17 +1392,9 @@ func parseSANExtension(value []byte, nfe *NonFatalErrors) (dnsNames, emailAddres
 	err = forEachSAN(value, func(tag int, data []byte) error {
 		switch tag {
 		case nameTypeEmail:
-			mailbox := string(data)
-			if _, ok := parseRFC2821Mailbox(mailbox); !ok {
-				return fmt.Errorf("x509: cannot parse rfc822Name %q", mailbox)
-			}
-			emailAddresses = append(emailAddresses, mailbox)
+			emailAddresses = append(emailAddresses, string(data))
 		case nameTypeDNS:
-			domain := string(data)
-			if _, ok := domainToReverseLabels(domain); !ok {
-				return fmt.Errorf("x509: cannot parse dnsName %q", string(data))
-			}
-			dnsNames = append(dnsNames, domain)
+			dnsNames = append(dnsNames, string(data))
 		case nameTypeURI:
 			uri, err := url.Parse(string(data))
 			if err != nil {
@@ -1364,7 +1411,7 @@ func parseSANExtension(value []byte, nfe *NonFatalErrors) (dnsNames, emailAddres
 			case net.IPv4len, net.IPv6len:
 				ipAddresses = append(ipAddresses, data)
 			default:
-				nfe.AddError(fmt.Errorf("x509: certificate contained IP address of length %d : %v", len(data), data))
+				nfe.AddError(errors.New("x509: cannot parse IP address of length " + strconv.Itoa(len(data))))
 			}
 		}
 
@@ -1399,7 +1446,7 @@ func isValidIPMask(mask []byte) bool {
 	return true
 }
 
-func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandled bool, err error) {
+func parseNameConstraintsExtension(out *Certificate, e pkix.Extension, nfe *NonFatalErrors) (unhandled bool, err error) {
 	// RFC 5280, 4.2.1.10
 
 	// NameConstraints ::= SEQUENCE {
@@ -1466,7 +1513,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 					trimmedDomain = trimmedDomain[1:]
 				}
 				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
-					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse dnsName constraint %q", domain)
+					nfe.AddError(fmt.Errorf("x509: failed to parse dnsName constraint %q", domain))
 				}
 				dnsNames = append(dnsNames, domain)
 
@@ -1503,7 +1550,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 				// it specifies an exact mailbox name.
 				if strings.Contains(constraint, "@") {
 					if _, ok := parseRFC2821Mailbox(constraint); !ok {
-						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
+						nfe.AddError(fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint))
 					}
 				} else {
 					// Otherwise it's a domain name.
@@ -1512,7 +1559,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 						domain = domain[1:]
 					}
 					if _, ok := domainToReverseLabels(domain); !ok {
-						return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint)
+						nfe.AddError(fmt.Errorf("x509: failed to parse rfc822Name constraint %q", constraint))
 					}
 				}
 				emails = append(emails, constraint)
@@ -1536,7 +1583,7 @@ func parseNameConstraintsExtension(out *Certificate, e pkix.Extension) (unhandle
 					trimmedDomain = trimmedDomain[1:]
 				}
 				if _, ok := domainToReverseLabels(trimmedDomain); !ok {
-					return nil, nil, nil, nil, fmt.Errorf("x509: failed to parse URI constraint %q", domain)
+					nfe.AddError(fmt.Errorf("x509: failed to parse URI constraint %q", domain))
 				}
 				uriDomains = append(uriDomains, domain)
 
@@ -1651,7 +1698,7 @@ func parseCertificate(in *certificate) (*Certificate, error) {
 				}
 
 			case OIDExtensionNameConstraints[3]:
-				unhandled, err = parseNameConstraintsExtension(out, e)
+				unhandled, err = parseNameConstraintsExtension(out, e, &nfe)
 				if err != nil {
 					return nil, err
 				}
@@ -1787,6 +1834,8 @@ func ParseTBSCertificate(asn1Data []byte) (*Certificate, error) {
 }
 
 // ParseCertificate parses a single certificate from the given ASN.1 DER data.
+// This function can return both a Certificate and an error (in which case the
+// error will be of type NonFatalErrors).
 func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 	var cert certificate
 	rest, err := asn1.Unmarshal(asn1Data, &cert)
@@ -1802,6 +1851,8 @@ func ParseCertificate(asn1Data []byte) (*Certificate, error) {
 
 // ParseCertificates parses one or more certificates from the given ASN.1 DER
 // data. The certificates must be concatenated with no intermediate padding.
+// This function can return both a slice of Certificate and an error (in which
+// case the error will be of type NonFatalErrors).
 func ParseCertificates(asn1Data []byte) ([]*Certificate, error) {
 	var v []*certificate
 
@@ -1815,15 +1866,23 @@ func ParseCertificates(asn1Data []byte) ([]*Certificate, error) {
 		v = append(v, cert)
 	}
 
+	var nfe NonFatalErrors
 	ret := make([]*Certificate, len(v))
 	for i, ci := range v {
 		cert, err := parseCertificate(ci)
 		if err != nil {
-			return nil, err
+			if errs, ok := err.(NonFatalErrors); !ok {
+				return nil, err
+			} else {
+				nfe.Errors = append(nfe.Errors, errs.Errors...)
+			}
 		}
 		ret[i] = cert
 	}
 
+	if nfe.HasError() {
+		return ret, nfe
+	}
 	return ret, nil
 }
 

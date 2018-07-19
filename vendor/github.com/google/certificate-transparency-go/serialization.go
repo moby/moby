@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/certificate-transparency-go/tls"
 	"github.com/google/certificate-transparency-go/x509"
@@ -189,6 +190,53 @@ func MerkleTreeLeafFromChain(chain []*x509.Certificate, etype LogEntryType, time
 	return &leaf, nil
 }
 
+// MerkleTreeLeafForEmbeddedSCT generates a MerkleTreeLeaf from a chain and an
+// SCT timestamp, where the leaf certificate at chain[0] is a certificate that
+// contains embedded SCTs.  It is assumed that the timestamp provided is from
+// one of the SCTs embedded within the leaf certificate.
+func MerkleTreeLeafForEmbeddedSCT(chain []*x509.Certificate, timestamp uint64) (*MerkleTreeLeaf, error) {
+	// For building the leaf for a certificate and SCT where the SCT is embedded
+	// in the certificate, we need to build the original precertificate TBS
+	// data.  First, parse the leaf cert and its issuer.
+	if len(chain) < 2 {
+		return nil, fmt.Errorf("no issuer cert available for precert leaf building")
+	}
+	issuer := chain[1]
+	cert := chain[0]
+
+	// Next, post-process the DER-encoded TBSCertificate, to remove the SCTList
+	// extension.
+	tbs, err := x509.RemoveSCTList(cert.RawTBSCertificate)
+	if err != nil {
+		return nil, fmt.Errorf("failed to remove SCT List extension: %v", err)
+	}
+
+	return &MerkleTreeLeaf{
+		Version:  V1,
+		LeafType: TimestampedEntryLeafType,
+		TimestampedEntry: &TimestampedEntry{
+			EntryType: PrecertLogEntryType,
+			Timestamp: timestamp,
+			PrecertEntry: &PreCert{
+				IssuerKeyHash:  sha256.Sum256(issuer.RawSubjectPublicKeyInfo),
+				TBSCertificate: tbs,
+			},
+		},
+	}, nil
+}
+
+// LeafHashForLeaf returns the leaf hash for a Merkle tree leaf.
+func LeafHashForLeaf(leaf *MerkleTreeLeaf) ([sha256.Size]byte, error) {
+	leafData, err := tls.Marshal(*leaf)
+	if err != nil {
+		return [sha256.Size]byte{}, fmt.Errorf("failed to tls-encode MerkleTreeLeaf: %s", err)
+	}
+
+	data := append([]byte{TreeLeafPrefix}, leafData...)
+	leafHash := sha256.Sum256(data)
+	return leafHash, nil
+}
+
 // IsPreIssuer indicates whether a certificate is a pre-cert issuer with the specific
 // certificate transparency extended key usage.
 func IsPreIssuer(issuer *x509.Certificate) bool {
@@ -252,4 +300,12 @@ func LogEntryFromLeaf(index int64, leafEntry *LeafEntry) (*LogEntry, error) {
 	}
 	// err may hold a x509.NonFatalErrors object.
 	return &entry, err
+}
+
+// TimestampToTime converts a timestamp in the style of RFC 6962 (milliseconds
+// since UNIX epoch) to a Go Time.
+func TimestampToTime(ts uint64) time.Time {
+	secs := int64(ts / 1000)
+	msecs := int64(ts % 1000)
+	return time.Unix(secs, msecs*1000000)
 }
