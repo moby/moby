@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/time/rate"
 )
 
 // ContainerLogs copies the container's log channel to the channel provided in
@@ -118,7 +119,19 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		defer close(messageChan)
 
 		lg.Debug("begin logs")
+		limiter := rate.NewLimiter(10, 1000) // 10 messages per second with the ability to burst up to 1000 messages.
 		for {
+			if err := limiter.Wait(ctx); err != nil {
+				// an error can occur here if the context deadline is exceeded (or cancelled) OR if the wait time would exceed the context deadline
+				// In the second case we should send the error
+				// The first case there shouldn't be a backend to send the error to
+				select {
+				case <-ctx.Done():
+				case messageChan <- &backend.LogMessage{Err: err}:
+				}
+				return
+			}
+
 			select {
 			// i do not believe as the system is currently designed any error
 			// is possible, but we should be prepared to handle it anyway. if
