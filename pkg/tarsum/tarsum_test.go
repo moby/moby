@@ -65,7 +65,7 @@ var testLayers = []testLayer{
 		tarsum:   "tarsum+sha256:c66bd5ec9f87b8f4c6135ca37684618f486a3dd1d113b138d0a177bfa39c2571"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha256:8bf12d7e67c51ee2e8306cba569398b1b9f419969521a12ffb9d8875e8836738"},
+		tarsum:  "tarsum+sha256:75258b2c5dcd9adfe24ce71eeca5fc5019c7e669912f15703ede92b1a60cb11f"},
 	{
 		// this tar has two files with the same path
 		filename: "testdata/collision/collision-0.tar",
@@ -84,27 +84,27 @@ var testLayers = []testLayer{
 		tarsum:   "tarsum+sha256:cbe4dee79fe979d69c16c2bccd032e3205716a562f4a3c1ca1cbeed7b256eb19"},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+md5:0d7529ec7a8360155b48134b8e599f53",
+		tarsum:  "tarsum+md5:3a6cdb475d90459ac0d3280703d17be2",
 		hash:    md5THash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha1:f1fee39c5925807ff75ef1925e7a23be444ba4df",
+		tarsum:  "tarsum+sha1:14b5e0d12a0c50a4281e86e92153fa06d55d00c6",
 		hash:    sha1Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha224:6319390c0b061d639085d8748b14cd55f697cf9313805218b21cf61c",
+		tarsum:  "tarsum+sha224:dd8925b7a4c71b13f3a68a0f9428a757c76b93752c398f272a9062d5",
 		hash:    sha224Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha384:a578ce3ce29a2ae03b8ed7c26f47d0f75b4fc849557c62454be4b5ffd66ba021e713b48ce71e947b43aab57afd5a7636",
+		tarsum:  "tarsum+sha384:e39e82f40005134bed13fb632d1a5f2aa4675c9ddb4a136fbcec202797e68d2f635e1200dee2e3a8d7f69d54d3f2fd27",
 		hash:    sha384Hash,
 	},
 	{
 		options: &sizedOptions{1, 1024 * 1024, false, false}, // a 1mb file (in memory)
-		tarsum:  "tarsum+sha512:e9bfb90ca5a4dfc93c46ee061a5cf9837de6d2fdf82544d6460d3147290aecfabf7b5e415b9b6e72db9b8941f149d5d69fb17a394cbfaf2eac523bd9eae21855",
+		tarsum:  "tarsum+sha512:7c56de40b2d1ed3863ff25d83b59cdc8f53e67d1c01c3ee8f201f8e4dec3107da976d0c0ec9109c962a152b32699fe329b2dab13966020e400c32878a0761a7e",
 		hash:    sha512Hash,
 	},
 }
@@ -138,11 +138,12 @@ func sizedTar(opts sizedOptions) io.Reader {
 	defer tarW.Close()
 	for i := int64(0); i < opts.num; i++ {
 		err := tarW.WriteHeader(&tar.Header{
-			Name: fmt.Sprintf("/testdata%d", i),
-			Mode: 0755,
-			Uid:  0,
-			Gid:  0,
-			Size: opts.size,
+			Name:     fmt.Sprintf("/testdata%d", i),
+			Mode:     0755,
+			Uid:      0,
+			Gid:      0,
+			Size:     opts.size,
+			Typeflag: tar.TypeReg,
 		})
 		if err != nil {
 			return nil
