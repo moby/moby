@@ -5,8 +5,8 @@ package apparmor // import "github.com/docker/docker/profiles/apparmor"
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"strings"
 	"text/template"
@@ -70,21 +70,23 @@ func InstallDefault(name string) error {
 		Name: name,
 	}
 
-	// Install to a temporary directory.
-	f, err := ioutil.TempFile("", name)
+	cmd := exec.Command("apparmor_parser", "-Kr")
+	pipe, err := cmd.StdinPipe()
 	if err != nil {
 		return err
 	}
-	profilePath := f.Name()
-
-	defer f.Close()
-	defer os.Remove(profilePath)
-
-	if err := p.generateDefault(f); err != nil {
+	if err := cmd.Start(); err != nil {
+		pipe.Close()
+		return err
+	}
+	if err := p.generateDefault(pipe); err != nil {
+		pipe.Close()
+		cmd.Wait()
 		return err
 	}
 
-	return aaparser.LoadProfile(profilePath)
+	pipe.Close()
+	return cmd.Wait()
 }
 
 // IsLoaded checks if a profile with the given name has been loaded into the
