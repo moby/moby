@@ -110,7 +110,7 @@ func ParseOptions(options []string) (Options, error) {
 		rOpts.Vhdx = filepath.Join(rOpts.KirdPath, `uvm.vhdx`)
 	}
 	if rOpts.KernelFile == "" {
-		rOpts.KernelFile = `bootx64.efi`
+		rOpts.KernelFile = `kernel`
 	}
 	if rOpts.InitrdFile == "" {
 		rOpts.InitrdFile = `initrd.img`
