@@ -84,6 +84,7 @@ type sandbox struct {
 	ingress            bool
 	ndotsSet           bool
 	oslTypes           []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID    string            // NID that this SB is a load balancer for
 	sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
@@ -1169,8 +1170,9 @@ func OptionIngress() SandboxOption {
 
 // OptionLoadBalancer function returns an option setter for marking a
 // sandbox as a load balancer sandbox.
-func OptionLoadBalancer() SandboxOption {
+func OptionLoadBalancer(nid string) SandboxOption {
 	return func(sb *sandbox) {
+		sb.loadBalancerNID = nid
 		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
 	}
 }
