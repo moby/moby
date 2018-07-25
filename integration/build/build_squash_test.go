@@ -3,12 +3,12 @@ package build
 import (
 	"bytes"
 	"context"
-	"io"
 	"io/ioutil"
 	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/builder/buildutil"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/pkg/stdcopy"
@@ -37,16 +37,13 @@ func TestBuildSquashParent(t *testing.T) {
 	defer source.Close()
 
 	name := "test"
-	resp, err := client.ImageBuild(ctx,
-		source.AsTarReader(t),
+	_, err := buildutil.Build(client,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Tags:        []string{name},
 		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
 	inspect, _, err := client.ImageInspectWithRaw(ctx, name)
@@ -54,17 +51,14 @@ func TestBuildSquashParent(t *testing.T) {
 	origID := inspect.ID
 
 	// build with squash
-	resp, err = client.ImageBuild(ctx,
-		source.AsTarReader(t),
+	_, err = buildutil.Build(client,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 			Squash:      true,
 			Tags:        []string{name},
 		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
 	cid := container.Run(t, ctx, client,
