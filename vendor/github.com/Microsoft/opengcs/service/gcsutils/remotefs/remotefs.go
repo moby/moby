@@ -13,6 +13,7 @@ import (
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/symlink"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -287,83 +288,107 @@ func Mkfifo(in io.Reader, out io.Writer, args []string) error {
 //  - args[1] = flag in base 10
 //  - args[2] = permission mode in octal (like 0755)
 func OpenFile(in io.Reader, out io.Writer, args []string) (err error) {
+	logrus.Debugf("OpenFile: %v", args)
+
 	defer func() {
 		if err != nil {
+			logrus.Errorf("OpenFile: return is non-nil, so writing cmdFailed back: %v", err)
 			// error code will be serialized by the caller, so don't write it here
 			WriteFileHeader(out, &FileHeader{Cmd: CmdFailed}, nil)
 		}
 	}()
 
 	if len(args) < 3 {
+		logrus.Errorf("OpenFile: Not enough parameters")
 		return ErrInvalid
 	}
 
 	flag, err := strconv.ParseInt(args[1], 10, 32)
 	if err != nil {
+		logrus.Errorf("OpenFile: Invalid flag: %v", err)
 		return err
 	}
 
 	perm, err := strconv.ParseUint(args[2], 8, 32)
 	if err != nil {
+		logrus.Errorf("OpenFile: Invalid permission: %v", err)
 		return err
 	}
 
 	f, err := os.OpenFile(args[0], int(flag), os.FileMode(perm))
 	if err != nil {
+		logrus.Errorf("OpenFile: Failed to open: %v", err)
 		return err
 	}
 
 	// Signal the client that OpenFile succeeded
+	logrus.Debugf("OpenFile: Sending OK header")
 	if err := WriteFileHeader(out, &FileHeader{Cmd: CmdOK}, nil); err != nil {
 		return err
 	}
 
 	for {
+		logrus.Debugf("OpenFile: reading header")
 		hdr, err := ReadFileHeader(in)
 		if err != nil {
+			logrus.Errorf("OpenFile: Failed to ReadFileHeader: %v", err)
 			return err
 		}
+		logrus.Debugf("OpenFile: Header: %+v", hdr)
 
 		var buf []byte
 		switch hdr.Cmd {
 		case Read:
+			logrus.Debugf("OpenFile: Read command")
 			buf = make([]byte, hdr.Size, hdr.Size)
 			n, err := f.Read(buf)
+			logrus.Debugf("OpenFile: Issued a read for %d, got %d bytes and error %v", hdr.Size, n, err)
 			if err != nil {
+				logrus.Errorf("OpenFile: Read failed: %v", err)
 				return err
 			}
 			buf = buf[:n]
 		case Write:
+			logrus.Debugf("OpenFile: Write command")
 			if _, err := io.CopyN(f, in, int64(hdr.Size)); err != nil {
+				logrus.Errorf("OpenFile: Write CopyN() failed: %v", err)
 				return err
 			}
 		case Seek:
+			logrus.Debugf("OpenFile: Seek command")
 			seekHdr := &SeekHeader{}
 			if err := binary.Read(in, binary.BigEndian, seekHdr); err != nil {
+				logrus.Errorf("OpenFile: Seek Read() failed: %v", err)
 				return err
 			}
 			res, err := f.Seek(seekHdr.Offset, int(seekHdr.Whence))
 			if err != nil {
+				logrus.Errorf("OpenFile: Seek Seek() failed: %v", err)
 				return err
 			}
 			buffer := &bytes.Buffer{}
 			if err := binary.Write(buffer, binary.BigEndian, res); err != nil {
+				logrus.Errorf("OpenFile: Seek Write() failed: %v", err)
 				return err
 			}
 			buf = buffer.Bytes()
 		case Close:
+			logrus.Debugf("OpenFile: Close command")
 			if err := f.Close(); err != nil {
 				return err
 			}
 		default:
+			logrus.Errorf("OpenFile: unknown command")
 			return ErrUnknown
 		}
 
+		logrus.Debugf("OpenFile: Writing back OK header of size %d", len(buf))
 		retHdr := &FileHeader{
 			Cmd:  CmdOK,
 			Size: uint64(len(buf)),
 		}
 		if err := WriteFileHeader(out, retHdr, buf); err != nil {
+			logrus.Errorf("OpenFile: WriteFileHeader() failed: %v", err)
 			return err
 		}
 
@@ -371,6 +396,7 @@ func OpenFile(in io.Reader, out io.Writer, args []string) (err error) {
 			break
 		}
 	}
+	logrus.Debugf("OpenFile: Done, no error")
 	return nil
 }
 
@@ -503,18 +529,24 @@ func ResolvePath(in io.Reader, out io.Writer, args []string) error {
 // - in = size of json | json of archive.TarOptions | input tar stream
 // - args[0] = extract directory name
 func ExtractArchive(in io.Reader, out io.Writer, args []string) error {
+	logrus.Debugln("ExtractArchive:", args)
 	if len(args) < 1 {
+		logrus.Errorln("ExtractArchive: invalid args")
 		return ErrInvalid
 	}
 
 	opts, err := ReadTarOptions(in)
 	if err != nil {
+		logrus.Errorf("ExtractArchive: Failed to read tar options: %v", err)
 		return err
 	}
 
+	logrus.Debugf("ExtractArchive: Tar options: %+v", opts)
 	if err := archive.Untar(in, args[0], opts); err != nil {
+		logrus.Errorf("ExtractArchive: Failed to Untar: %v", err)
 		return err
 	}
+	logrus.Debugf("ExtractArchive: Success")
 	return nil
 }
 
