@@ -2126,7 +2126,7 @@ func (n *network) lbEndpointName() string {
 func (n *network) createLoadBalancerSandbox() (retErr error) {
 	sandboxName := n.lbSandboxName()
 	// Mark the sandbox to be a load balancer
-	sbOptions := []SandboxOption{OptionLoadBalancer()}
+	sbOptions := []SandboxOption{OptionLoadBalancer(n.id)}
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
