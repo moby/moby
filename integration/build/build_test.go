@@ -2,11 +2,10 @@ package build // import "github.com/docker/docker/integration/build"
 
 import (
 	"archive/tar"
+	"bufio"
 	"bytes"
 	"context"
-	"encoding/json"
 	"io"
-	"io/ioutil"
 	"strings"
 	"testing"
 	"time"
@@ -14,8 +13,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/builder/buildutil"
 	"github.com/docker/docker/internal/test/fakecontext"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
@@ -104,10 +103,8 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 			_, err := tw.Write(dockerfile)
 			assert.NilError(t, err)
 			assert.NilError(t, tw.Close())
-			resp, err := client.ImageBuild(ctx, buff, types.ImageBuildOptions{Remove: c.rm, ForceRemove: c.forceRm, NoCache: true})
-			assert.NilError(t, err)
-			defer resp.Body.Close()
-			filter, err := buildContainerIdsFilter(resp.Body)
+			resp, _ := buildutil.Build(client, buildutil.BuildInput{Context: buff}, types.ImageBuildOptions{Remove: c.rm, ForceRemove: c.forceRm, NoCache: true})
+			filter, err := buildContainerIdsFilter(bytes.NewReader(resp.Output))
 			assert.NilError(t, err)
 			remainingContainers, err := client.ContainerList(ctx, types.ContainerListOptions{Filters: filter, All: true})
 			assert.NilError(t, err)
@@ -120,20 +117,14 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 	const intermediateContainerPrefix = " ---> Running in "
 	filter := filters.NewArgs()
 
-	dec := json.NewDecoder(buildOutput)
-	for {
-		m := jsonmessage.JSONMessage{}
-		err := dec.Decode(&m)
-		if err == io.EOF {
-			return filter, nil
-		}
-		if err != nil {
-			return filter, err
-		}
-		if ix := strings.Index(m.Stream, intermediateContainerPrefix); ix != -1 {
-			filter.Add("id", strings.TrimSpace(m.Stream[ix+len(intermediateContainerPrefix):]))
+	s := bufio.NewScanner(buildOutput)
+	for s.Scan() {
+		t := s.Text()
+		if ix := strings.Index(t, intermediateContainerPrefix); ix != -1 {
+			filter.Add("id", strings.TrimSpace(t[ix+len(intermediateContainerPrefix):]))
 		}
 	}
+	return filter, s.Err()
 }
 
 func TestBuildMultiStageParentConfig(t *testing.T) {
@@ -156,16 +147,11 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
-		types.ImageBuildOptions{
-			Remove:      true,
-			ForceRemove: true,
-			Tags:        []string{"build1"},
-		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
+	_, err := buildutil.Build(apiclient, buildutil.BuildInput{Context: source.AsTarReader(t)}, types.ImageBuildOptions{
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        []string{"build1"},
+	})
 	assert.NilError(t, err)
 
 	time.Sleep(30 * time.Second)
@@ -210,8 +196,8 @@ func TestBuildLabelWithTargets(t *testing.T) {
 
 	apiclient := testEnv.APIClient()
 	// For `target-a` build
-	resp, err := apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
+	_, err := buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
@@ -219,9 +205,6 @@ func TestBuildLabelWithTargets(t *testing.T) {
 			Labels:      testLabels,
 			Target:      "target-a",
 		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
 	image, _, err := apiclient.ImageInspectWithRaw(ctx, bldName)
@@ -237,8 +220,8 @@ func TestBuildLabelWithTargets(t *testing.T) {
 	// For `target-b` build
 	bldName = "build-b"
 	delete(testLabels, "label-a")
-	resp, err = apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
+	_, err = buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
@@ -246,9 +229,6 @@ func TestBuildLabelWithTargets(t *testing.T) {
 			Labels:      testLabels,
 			Target:      "target-b",
 		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
 	image, _, err = apiclient.ImageInspectWithRaw(ctx, bldName)
@@ -269,7 +249,6 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 		COPY    2/ /target/
 		COPY    3/ /target/
 	`
-	ctx := context.Background()
 	source := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(dockerfile),
 		fakecontext.WithFile("1/a", "asdf"),
@@ -278,15 +257,12 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
+	_, err := buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 		})
-	assert.NilError(t, err)
-	_, err = io.Copy(ioutil.Discard, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 }
 
@@ -309,32 +285,23 @@ RUN cat somefile
 FROM stage1
 RUN cat somefile`
 
-	ctx := context.Background()
 	source := fakecontext.New(t, "",
 		fakecontext.WithDockerfile(dockerfile))
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
+	resp, err := buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 		})
 
-	out := bytes.NewBuffer(nil)
-	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Contains(out.String(), "Successfully built"))
+	assert.Check(t, is.Contains(string(resp.Output), "Successfully built"))
 
-	imageIDs, err := getImageIDsFromBuild(out.Bytes())
-	assert.NilError(t, err)
-	assert.Check(t, is.Equal(3, len(imageIDs)))
-
-	image, _, err := apiclient.ImageInspectWithRaw(context.Background(), imageIDs[2])
+	image, _, err := apiclient.ImageInspectWithRaw(context.Background(), resp.ID)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(image.Config.Env, "bar=baz"))
 }
@@ -343,8 +310,6 @@ RUN cat somefile`
 func TestBuildUncleanTarFilenames(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-
-	ctx := context.TODO()
 	defer setupTest(t)()
 
 	dockerfile := `FROM scratch
@@ -361,17 +326,12 @@ COPY bar /`
 	assert.NilError(t, err)
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
-		buf,
+	_, err = buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: buf},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 		})
-
-	out := bytes.NewBuffer(nil)
-	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
 	// repeat with changed data should not cause cache hits
@@ -384,19 +344,15 @@ COPY bar /`
 	err = w.Close()
 	assert.NilError(t, err)
 
-	resp, err = apiclient.ImageBuild(ctx,
-		buf,
+	resp, err := buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: buf},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 		})
 
-	out = bytes.NewBuffer(nil)
 	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
-	assert.NilError(t, err)
-	assert.Assert(t, !strings.Contains(out.String(), "Using cache"))
+	assert.Assert(t, !strings.Contains(string(resp.Output), "Using cache"))
 }
 
 // docker/for-linux#135
@@ -404,7 +360,6 @@ COPY bar /`
 func TestBuildMultiStageLayerLeak(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
-	ctx := context.TODO()
 	defer setupTest(t)()
 
 	// all commands need to match until COPY
@@ -425,20 +380,16 @@ RUN [ ! -f foo ]
 	defer source.Close()
 
 	apiclient := testEnv.APIClient()
-	resp, err := apiclient.ImageBuild(ctx,
-		source.AsTarReader(t),
+	resp, err := buildutil.Build(apiclient,
+		buildutil.BuildInput{Context: source.AsTarReader(t)},
 		types.ImageBuildOptions{
 			Remove:      true,
 			ForceRemove: true,
 		})
 
-	out := bytes.NewBuffer(nil)
-	assert.NilError(t, err)
-	_, err = io.Copy(out, resp.Body)
-	resp.Body.Close()
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Contains(out.String(), "Successfully built"))
+	assert.Check(t, is.Contains(string(resp.Output), "Successfully built"))
 }
 
 // #37581
@@ -484,28 +435,4 @@ func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	assert.NilError(t, err)
 	_, err = w.Write([]byte(contents))
 	assert.NilError(t, err)
-}
-
-type buildLine struct {
-	Stream string
-	Aux    struct {
-		ID string
-	}
-}
-
-func getImageIDsFromBuild(output []byte) ([]string, error) {
-	var ids []string
-	for _, line := range bytes.Split(output, []byte("\n")) {
-		if len(line) == 0 {
-			continue
-		}
-		entry := buildLine{}
-		if err := json.Unmarshal(line, &entry); err != nil {
-			return nil, err
-		}
-		if entry.Aux.ID != "" {
-			ids = append(ids, entry.Aux.ID)
-		}
-	}
-	return ids, nil
 }
