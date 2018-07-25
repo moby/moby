@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -104,9 +104,9 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     common.SetMatrix
-	svcIPv6Map common.SetMatrix
-	ipMap      common.SetMatrix
+	svcMap     setmatrix.SetMatrix
+	svcIPv6Map setmatrix.SetMatrix
+	ipMap      setmatrix.SetMatrix
 	service    map[string][]servicePorts
 }
 
@@ -1353,7 +1353,7 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
+func addIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Insert(reverseIP, ipInfo{
 		name:      name,
@@ -1361,7 +1361,7 @@ func addIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func delIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
+func delIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Remove(reverseIP, ipInfo{
 		name:      name,
@@ -1369,14 +1369,14 @@ func delIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func addNameToIP(svcMap common.SetMatrix, name, serviceID string, epIP net.IP) {
+func addNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	svcMap.Insert(name, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
 }
 
-func delNameToIP(svcMap common.SetMatrix, name, serviceID string, epIP net.IP) {
+func delNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	svcMap.Remove(name, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
@@ -1399,9 +1399,9 @@ func (n *network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		sr = svcInfo{
-			svcMap:     common.NewSetMatrix(),
-			svcIPv6Map: common.NewSetMatrix(),
-			ipMap:      common.NewSetMatrix(),
+			svcMap:     setmatrix.NewSetMatrix(),
+			svcIPv6Map: setmatrix.NewSetMatrix(),
+			ipMap:      setmatrix.NewSetMatrix(),
 		}
 		c.svcRecords[n.ID()] = sr
 	}

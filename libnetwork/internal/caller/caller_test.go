@@ -1,13 +1,17 @@
-package common
+package caller
 
-import "testing"
+import (
+	"testing"
+
+	_ "github.com/docker/libnetwork/testutils"
+)
 
 func fun1() string {
-	return CallerName(0)
+	return Name(0)
 }
 
 func fun2() string {
-	return CallerName(1)
+	return Name(1)
 }
 
 func fun3() string {
@@ -15,7 +19,7 @@ func fun3() string {
 }
 
 func fun4() string {
-	return CallerName(0)
+	return Name(0)
 }
 
 func fun5() string {
@@ -23,7 +27,7 @@ func fun5() string {
 }
 
 func fun6() string {
-	return CallerName(1)
+	return Name(1)
 }
 
 func TestCaller(t *testing.T) {

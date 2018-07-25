@@ -658,6 +658,7 @@ func TestResolvConfHost(t *testing.T) {
 	defer os.Remove(resolvConfPath)
 
 	sb, err := controller.NewSandbox(containerID,
+		libnetwork.OptionUseDefaultSandbox(),
 		libnetwork.OptionResolvConfPath(resolvConfPath),
 		libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
 	if err != nil {
