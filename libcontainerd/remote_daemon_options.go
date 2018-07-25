@@ -119,6 +119,7 @@ func (s snapshotter) Apply(r Remote) error {
 // WithPlugin allow configuring a containerd plugin
 // configuration values passed needs to be quoted if quotes are needed in
 // the toml format.
+// Setting the config to nil will disable a built-in plugin
 func WithPlugin(name string, conf interface{}) RemoteOption {
 	return pluginConf{
 		name: name,
