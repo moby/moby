@@ -1,5 +1,5 @@
 // +build darwin freebsd openbsd netbsd dragonfly
-// +build !appengine
+// +build !appengine,!gopherjs
 
 package logrus
 

@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	SYS_PLEDGE = 108
+	_SYS_PLEDGE = 108
 )
 
 // Pledge implements the pledge syscall. For more information see pledge(2).
@@ -30,7 +30,7 @@ func Pledge(promises string, paths []string) error {
 		}
 		pathsUnsafe = unsafe.Pointer(&pathsPtr[0])
 	}
-	_, _, e := syscall.Syscall(SYS_PLEDGE, uintptr(promisesUnsafe), uintptr(pathsUnsafe), 0)
+	_, _, e := syscall.Syscall(_SYS_PLEDGE, uintptr(promisesUnsafe), uintptr(pathsUnsafe), 0)
 	if e != 0 {
 		return e
 	}

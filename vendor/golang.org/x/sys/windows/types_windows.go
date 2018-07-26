@@ -94,16 +94,29 @@ const (
 	FILE_APPEND_DATA      = 0x00000004
 	FILE_WRITE_ATTRIBUTES = 0x00000100
 
-	FILE_SHARE_READ              = 0x00000001
-	FILE_SHARE_WRITE             = 0x00000002
-	FILE_SHARE_DELETE            = 0x00000004
-	FILE_ATTRIBUTE_READONLY      = 0x00000001
-	FILE_ATTRIBUTE_HIDDEN        = 0x00000002
-	FILE_ATTRIBUTE_SYSTEM        = 0x00000004
-	FILE_ATTRIBUTE_DIRECTORY     = 0x00000010
-	FILE_ATTRIBUTE_ARCHIVE       = 0x00000020
-	FILE_ATTRIBUTE_NORMAL        = 0x00000080
-	FILE_ATTRIBUTE_REPARSE_POINT = 0x00000400
+	FILE_SHARE_READ   = 0x00000001
+	FILE_SHARE_WRITE  = 0x00000002
+	FILE_SHARE_DELETE = 0x00000004
+
+	FILE_ATTRIBUTE_READONLY              = 0x00000001
+	FILE_ATTRIBUTE_HIDDEN                = 0x00000002
+	FILE_ATTRIBUTE_SYSTEM                = 0x00000004
+	FILE_ATTRIBUTE_DIRECTORY             = 0x00000010
+	FILE_ATTRIBUTE_ARCHIVE               = 0x00000020
+	FILE_ATTRIBUTE_DEVICE                = 0x00000040
+	FILE_ATTRIBUTE_NORMAL                = 0x00000080
+	FILE_ATTRIBUTE_TEMPORARY             = 0x00000100
+	FILE_ATTRIBUTE_SPARSE_FILE           = 0x00000200
+	FILE_ATTRIBUTE_REPARSE_POINT         = 0x00000400
+	FILE_ATTRIBUTE_COMPRESSED            = 0x00000800
+	FILE_ATTRIBUTE_OFFLINE               = 0x00001000
+	FILE_ATTRIBUTE_NOT_CONTENT_INDEXED   = 0x00002000
+	FILE_ATTRIBUTE_ENCRYPTED             = 0x00004000
+	FILE_ATTRIBUTE_INTEGRITY_STREAM      = 0x00008000
+	FILE_ATTRIBUTE_VIRTUAL               = 0x00010000
+	FILE_ATTRIBUTE_NO_SCRUB_DATA         = 0x00020000
+	FILE_ATTRIBUTE_RECALL_ON_OPEN        = 0x00040000
+	FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = 0x00400000
 
 	INVALID_FILE_ATTRIBUTES = 0xffffffff
 
@@ -311,6 +324,14 @@ var (
 	OID_SERVER_GATED_CRYPTO = []byte("1.3.6.1.4.1.311.10.3.3\x00")
 	OID_SGC_NETSCAPE        = []byte("2.16.840.1.113730.4.1\x00")
 )
+
+// Pointer represents a pointer to an arbitrary Windows type.
+//
+// Pointer-typed fields may point to one of many different types. It's
+// up to the caller to provide a pointer to the appropriate type, cast
+// to Pointer. The caller must obey the unsafe.Pointer rules while
+// doing so.
+type Pointer *struct{}
 
 // Invented values to support what package os expects.
 type Timeval struct {
@@ -880,11 +901,15 @@ type MibIfRow struct {
 	Descr           [MAXLEN_IFDESCR]byte
 }
 
+type CertInfo struct {
+	// Not implemented
+}
+
 type CertContext struct {
 	EncodingType uint32
 	EncodedCert  *byte
 	Length       uint32
-	CertInfo     uintptr
+	CertInfo     *CertInfo
 	Store        Handle
 }
 
@@ -899,12 +924,16 @@ type CertChainContext struct {
 	RevocationFreshnessTime    uint32
 }
 
+type CertTrustListInfo struct {
+	// Not implemented
+}
+
 type CertSimpleChain struct {
 	Size                       uint32
 	TrustStatus                CertTrustStatus
 	NumElements                uint32
 	Elements                   **CertChainElement
-	TrustListInfo              uintptr
+	TrustListInfo              *CertTrustListInfo
 	HasRevocationFreshnessTime uint32
 	RevocationFreshnessTime    uint32
 }
@@ -919,14 +948,18 @@ type CertChainElement struct {
 	ExtendedErrorInfo *uint16
 }
 
+type CertRevocationCrlInfo struct {
+	// Not implemented
+}
+
 type CertRevocationInfo struct {
 	Size             uint32
 	RevocationResult uint32
 	RevocationOid    *byte
-	OidSpecificInfo  uintptr
+	OidSpecificInfo  Pointer
 	HasFreshnessTime uint32
 	FreshnessTime    uint32
-	CrlInfo          uintptr // *CertRevocationCrlInfo
+	CrlInfo          *CertRevocationCrlInfo
 }
 
 type CertTrustStatus struct {
@@ -957,7 +990,7 @@ type CertChainPara struct {
 type CertChainPolicyPara struct {
 	Size            uint32
 	Flags           uint32
-	ExtraPolicyPara uintptr
+	ExtraPolicyPara Pointer
 }
 
 type SSLExtraCertChainPolicyPara struct {
@@ -972,7 +1005,7 @@ type CertChainPolicyStatus struct {
 	Error             uint32
 	ChainIndex        uint32
 	ElementIndex      uint32
-	ExtraPolicyStatus uintptr
+	ExtraPolicyStatus Pointer
 }
 
 const (
