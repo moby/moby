@@ -2,7 +2,6 @@ package build
 
 import (
 	"context"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -31,7 +30,7 @@ func TestBuildWithSession(t *testing.T) {
 
 	res, err := buildutil.Build(client, buildutil.BuildInput{ContextDir: fctx.Dir, Dockerfile: []byte(dockerfile)}, types.ImageBuildOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Contains(string(res.Output), "some content"))
+	assert.Check(t, res.OutputContains([]byte("some content")))
 
 	fctx.Add("second", "contentcontent")
 
@@ -42,8 +41,8 @@ func TestBuildWithSession(t *testing.T) {
 
 	res, err = buildutil.Build(client, buildutil.BuildInput{ContextDir: fctx.Dir, Dockerfile: []byte(dockerfile)}, types.ImageBuildOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(strings.Count(string(res.Output), "Using cache"), 2))
-	assert.Check(t, is.Contains(string(res.Output), "contentcontent"))
+	assert.Check(t, res.CacheHit("cat /file"))
+	assert.Check(t, res.OutputContains([]byte("contentcontent")))
 
 	du, err := client.DiskUsage(context.TODO())
 	assert.Check(t, err)
@@ -51,7 +50,7 @@ func TestBuildWithSession(t *testing.T) {
 
 	res, err = buildutil.Build(client, buildutil.BuildInput{ContextDir: fctx.Dir, Dockerfile: []byte(dockerfile)}, types.ImageBuildOptions{})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(strings.Count(string(res.Output), "Using cache"), 4))
+	assert.Check(t, res.CacheHit("cat /second"))
 
 	du2, err := client.DiskUsage(context.TODO())
 	assert.Check(t, err)
@@ -67,8 +66,7 @@ func TestBuildWithSession(t *testing.T) {
 	)
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Contains(string(res.Output), "Successfully built"))
-	assert.Check(t, is.Equal(strings.Count(string(res.Output), "Using cache"), 4))
+	assert.Check(t, res.CacheHit("cat /second"))
 
 	_, err = client.BuildCachePrune(context.TODO())
 	assert.Check(t, err)
