@@ -22,6 +22,7 @@ func TestBuildSquashParent(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	skip.If(t, buildutil.BuildKitEnabled, "TODO BuildKit + --squash ?")
 	d := daemon.New(t, daemon.WithExperimental)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
