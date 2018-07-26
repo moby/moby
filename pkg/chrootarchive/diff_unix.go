@@ -110,7 +110,7 @@ func applyLayerHandler(dest string, layer io.Reader, options *archive.TarOptions
 
 	cmd := reexec.Command("docker-applyLayer", dest)
 	cmd.Stdin = layer
-	cmd.Env = append(cmd.Env, fmt.Sprintf("OPT=%s", data))
+	cmd.Env = append(os.Environ(), fmt.Sprintf("OPT=%s", data))
 
 	outBuf, errBuf := new(bytes.Buffer), new(bytes.Buffer)
 	cmd.Stdout, cmd.Stderr = outBuf, errBuf
