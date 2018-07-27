@@ -494,6 +494,10 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 				CreateInUtilityVM: true,
 				ReadOnly:          readonly,
 			}
+			// If we are 1803/RS4+ enable LinuxMetadata support by default
+			if system.GetOSVersion().Build >= 17134 {
+				md.LinuxMetadata = true
+			}
 			mds = append(mds, md)
 			specMount.Source = path.Join(uvmPath, mount.Destination)
 		}
