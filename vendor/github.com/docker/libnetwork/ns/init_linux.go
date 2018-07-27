@@ -39,19 +39,6 @@ func Init() {
 	}
 }
 
-// SetNamespace sets the initial namespace handler
-func SetNamespace() error {
-	initOnce.Do(Init)
-	if err := netns.Set(initNs); err != nil {
-		linkInfo, linkErr := getLink()
-		if linkErr != nil {
-			linkInfo = linkErr.Error()
-		}
-		return fmt.Errorf("failed to set to initial namespace, %v, initns fd %d: %v", linkInfo, initNs, err)
-	}
-	return nil
-}
-
 // ParseHandlerInt transforms the namespace handler into an integer
 func ParseHandlerInt() int {
 	return int(getHandler())

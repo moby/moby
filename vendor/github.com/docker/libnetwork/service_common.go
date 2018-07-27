@@ -5,7 +5,7 @@ package libnetwork
 import (
 	"net"
 
-	"github.com/docker/libnetwork/common"
+	"github.com/docker/libnetwork/internal/setmatrix"
 	"github.com/sirupsen/logrus"
 )
 
@@ -139,7 +139,7 @@ func newService(name string, id string, ingressPorts []*PortConfig, serviceAlias
 		ingressPorts:  ingressPorts,
 		loadBalancers: make(map[string]*loadBalancer),
 		aliases:       serviceAliases,
-		ipToEndpoint:  common.NewSetMatrix(),
+		ipToEndpoint:  setmatrix.NewSetMatrix(),
 	}
 }
 

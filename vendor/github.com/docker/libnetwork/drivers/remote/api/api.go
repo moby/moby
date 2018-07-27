@@ -150,7 +150,7 @@ type JoinRequest struct {
 	Options    map[string]interface{}
 }
 
-// InterfaceName is the struct represetation of a pair of devices with source
+// InterfaceName is the struct representation of a pair of devices with source
 // and destination, for the purposes of putting an endpoint into a container.
 type InterfaceName struct {
 	SrcName   string

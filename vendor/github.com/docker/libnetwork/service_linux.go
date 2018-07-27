@@ -27,7 +27,7 @@ import (
 
 func init() {
 	reexec.Register("fwmarker", fwMarker)
-	reexec.Register("redirecter", redirecter)
+	reexec.Register("redirector", redirector)
 }
 
 // Populate all loadbalancers on the network that the passed endpoint
@@ -431,7 +431,7 @@ func programIngress(gwIP net.IP, ingressPorts []*PortConfig, isDelete bool) erro
 // DOCKER-USER so the user is able to filter packet first.
 // The second rule should be jump to INGRESS-CHAIN.
 // This chain has the rules to allow access to the published ports for swarm tasks
-// from local bridge networks and docker_gwbridge (ie:taks on other swarm netwroks)
+// from local bridge networks and docker_gwbridge (ie:taks on other swarm networks)
 func arrangeIngressFilterRule() {
 	if iptables.ExistChain(ingressChain, iptables.Filter) {
 		if iptables.Exists(iptables.Filter, "FORWARD", "-j", ingressChain) {
@@ -668,7 +668,7 @@ func addRedirectRules(path string, eIP *net.IPNet, ingressPorts []*PortConfig) e
 
 	cmd := &exec.Cmd{
 		Path:   reexec.Self(),
-		Args:   append([]string{"redirecter"}, path, eIP.String(), ingressPortsFile),
+		Args:   append([]string{"redirector"}, path, eIP.String(), ingressPortsFile),
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 	}
@@ -680,8 +680,8 @@ func addRedirectRules(path string, eIP *net.IPNet, ingressPorts []*PortConfig) e
 	return nil
 }
 
-// Redirecter reexec function.
-func redirecter() {
+// Redirector reexec function.
+func redirector() {
 	runtime.LockOSThread()
 	defer runtime.UnlockOSThread()
 

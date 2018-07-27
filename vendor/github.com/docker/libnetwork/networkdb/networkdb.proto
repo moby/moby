@@ -19,7 +19,7 @@ enum MessageType {
 
 	INVALID = 0 [(gogoproto.enumvalue_customname) = "MessageTypeInvalid"];
 
-	// NetworEvent message type is used to communicate network
+	// NetworkEvent message type is used to communicate network
 	// attachments on the node.
 	NETWORK_EVENT = 1 [(gogoproto.enumvalue_customname) = "MessageTypeNetworkEvent"];
 
@@ -42,7 +42,7 @@ enum MessageType {
 	// a single compound message.
 	COMPOUND = 5 [(gogoproto.enumvalue_customname) = "MessageTypeCompound"];
 
-	// NodeEvent message type is used to communicare node
+	// NodeEvent message type is used to communicate node
 	// join/leave events in the cluster
 	NODE_EVENT = 6 [(gogoproto.enumvalue_customname) = "MessageTypeNodeEvent"];
 }

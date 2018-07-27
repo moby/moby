@@ -1,4 +1,4 @@
-package common
+package caller
 
 import (
 	"runtime"
@@ -11,7 +11,7 @@ func callerInfo(i int) string {
 	if ok {
 		f := runtime.FuncForPC(ptr)
 		if f != nil {
-			// f.Name() is like: github.com/docker/libnetwork/common.MethodName
+			// f.Name() is like: github.com/docker/libnetwork/caller.MethodName
 			tmp := strings.Split(f.Name(), ".")
 			if len(tmp) > 0 {
 				fName = tmp[len(tmp)-1]
@@ -22,8 +22,8 @@ func callerInfo(i int) string {
 	return fName
 }
 
-// CallerName returns the name of the function at the specified level
+// Name returns the name of the function at the specified level
 // level == 0 means current method name
-func CallerName(level int) string {
+func Name(level int) string {
 	return callerInfo(2 + level)
 }

@@ -75,10 +75,10 @@ type Driver interface {
 	// DecodeTableEntry passes the driver a key, value pair from table it registered
 	// with libnetwork. Driver should return {object ID, map[string]string} tuple.
 	// If DecodeTableEntry is called for a table associated with NetworkObject or
-	// EndpointObject the return object ID should be the network id or endppoint id
+	// EndpointObject the return object ID should be the network id or endpoint id
 	// associated with that entry. map should have information about the object that
 	// can be presented to the user.
-	// For exampe: overlay driver returns the VTEP IP of the host that has the endpoint
+	// For example: overlay driver returns the VTEP IP of the host that has the endpoint
 	// which is shown in 'network inspect --verbose'
 	DecodeTableEntry(tablename string, key string, value []byte) (string, map[string]string)
 
@@ -97,7 +97,7 @@ type NetworkInfo interface {
 	TableEventRegister(tableName string, objType ObjectType) error
 }
 
-// InterfaceInfo provides a go interface for drivers to retrive
+// InterfaceInfo provides a go interface for drivers to retrieve
 // network information to interface resources.
 type InterfaceInfo interface {
 	// SetMacAddress allows the driver to set the mac address to the endpoint interface

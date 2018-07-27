@@ -5,7 +5,7 @@ import (
 	"net"
 	"sync"
 
-	"github.com/docker/libnetwork/common"
+	"github.com/docker/libnetwork/internal/setmatrix"
 )
 
 var (
@@ -54,7 +54,7 @@ type service struct {
 	// associated with it. At stable state the endpoint ID expected is 1
 	// but during transition and service change it is possible to have
 	// temporary more than 1
-	ipToEndpoint common.SetMatrix
+	ipToEndpoint setmatrix.SetMatrix
 
 	deleted bool
 

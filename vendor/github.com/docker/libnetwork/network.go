@@ -9,11 +9,11 @@ import (
 	"time"
 
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/libnetwork/common"
 	"github.com/docker/libnetwork/config"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/driverapi"
 	"github.com/docker/libnetwork/etchosts"
+	"github.com/docker/libnetwork/internal/setmatrix"
 	"github.com/docker/libnetwork/ipamapi"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -88,7 +88,7 @@ type NetworkInfo interface {
 type EndpointWalker func(ep Endpoint) bool
 
 // ipInfo is the reverse mapping from IP to service name to serve the PTR query.
-// extResolver is set if an externl server resolves a service name to this IP.
+// extResolver is set if an external server resolves a service name to this IP.
 // Its an indication to defer PTR queries also to that external server.
 type ipInfo struct {
 	name        string
@@ -104,9 +104,9 @@ type svcMapEntry struct {
 }
 
 type svcInfo struct {
-	svcMap     common.SetMatrix
-	svcIPv6Map common.SetMatrix
-	ipMap      common.SetMatrix
+	svcMap     setmatrix.SetMatrix
+	svcIPv6Map setmatrix.SetMatrix
+	ipMap      setmatrix.SetMatrix
 	service    map[string][]servicePorts
 }
 
@@ -1353,7 +1353,7 @@ func (n *network) updateSvcRecord(ep *endpoint, localEps []*endpoint, isAdd bool
 	}
 }
 
-func addIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
+func addIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Insert(reverseIP, ipInfo{
 		name:      name,
@@ -1361,7 +1361,7 @@ func addIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func delIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
+func delIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 	reverseIP := netutils.ReverseIP(ip.String())
 	ipMap.Remove(reverseIP, ipInfo{
 		name:      name,
@@ -1369,14 +1369,14 @@ func delIPToName(ipMap common.SetMatrix, name, serviceID string, ip net.IP) {
 	})
 }
 
-func addNameToIP(svcMap common.SetMatrix, name, serviceID string, epIP net.IP) {
+func addNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	svcMap.Insert(name, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
 }
 
-func delNameToIP(svcMap common.SetMatrix, name, serviceID string, epIP net.IP) {
+func delNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
 	svcMap.Remove(name, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
@@ -1399,9 +1399,9 @@ func (n *network) addSvcRecords(eID, name, serviceID string, epIP, epIPv6 net.IP
 	sr, ok := c.svcRecords[n.ID()]
 	if !ok {
 		sr = svcInfo{
-			svcMap:     common.NewSetMatrix(),
-			svcIPv6Map: common.NewSetMatrix(),
-			ipMap:      common.NewSetMatrix(),
+			svcMap:     setmatrix.NewSetMatrix(),
+			svcIPv6Map: setmatrix.NewSetMatrix(),
+			ipMap:      setmatrix.NewSetMatrix(),
 		}
 		c.svcRecords[n.ID()] = sr
 	}
@@ -1654,7 +1654,7 @@ func (n *network) ipamAllocateVersion(ipVer int, ipam ipamapi.Ipam) error {
 					return types.BadRequestErrorf("non parsable secondary ip address (%s:%s) passed for network %s", k, v, n.Name())
 				}
 				if !d.Pool.Contains(ip) {
-					return types.ForbiddenErrorf("auxilairy address: (%s:%s) must belong to the master pool: %s", k, v, d.Pool)
+					return types.ForbiddenErrorf("auxiliary address: (%s:%s) must belong to the master pool: %s", k, v, d.Pool)
 				}
 				// Attempt reservation in the container addressable pool, silent the error if address does not belong to that pool
 				if d.IPAMData.AuxAddresses[k], _, err = ipam.RequestAddress(d.PoolID, ip, nil); err != nil && err != ipamapi.ErrIPOutOfRange {
@@ -2036,7 +2036,7 @@ func (n *network) ResolveService(name string) ([]*net.SRV, []net.IP) {
 
 	logrus.Debugf("Service name To resolve: %v", name)
 
-	// There are DNS implementaions that allow SRV queries for names not in
+	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
 	// not done
 	parts := strings.Split(name, ".")
@@ -2126,7 +2126,7 @@ func (n *network) lbEndpointName() string {
 func (n *network) createLoadBalancerSandbox() (retErr error) {
 	sandboxName := n.lbSandboxName()
 	// Mark the sandbox to be a load balancer
-	sbOptions := []SandboxOption{OptionLoadBalancer()}
+	sbOptions := []SandboxOption{OptionLoadBalancer(n.id)}
 	if n.ingress {
 		sbOptions = append(sbOptions, OptionIngress())
 	}
