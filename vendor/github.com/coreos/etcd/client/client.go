@@ -15,6 +15,7 @@
 package client
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,8 +30,6 @@ import (
 	"time"
 
 	"github.com/coreos/etcd/version"
-
-	"golang.org/x/net/context"
 )
 
 var (
@@ -372,12 +371,7 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 			if err == context.Canceled || err == context.DeadlineExceeded {
 				return nil, nil, err
 			}
-			if isOneShot {
-				return nil, nil, err
-			}
-			continue
-		}
-		if resp.StatusCode/100 == 5 {
+		} else if resp.StatusCode/100 == 5 {
 			switch resp.StatusCode {
 			case http.StatusInternalServerError, http.StatusServiceUnavailable:
 				// TODO: make sure this is a no leader response
@@ -385,10 +379,16 @@ func (c *httpClusterClient) Do(ctx context.Context, act httpAction) (*http.Respo
 			default:
 				cerr.Errors = append(cerr.Errors, fmt.Errorf("client: etcd member %s returns server error [%s]", eps[k].String(), http.StatusText(resp.StatusCode)))
 			}
-			if isOneShot {
-				return nil, nil, cerr.Errors[0]
+			err = cerr.Errors[0]
+		}
+		if err != nil {
+			if !isOneShot {
+				continue
 			}
-			continue
+			c.Lock()
+			c.pinned = (k + 1) % leps
+			c.Unlock()
+			return nil, nil, err
 		}
 		if k != pinned {
 			c.Lock()
@@ -670,8 +670,15 @@ func (r *redirectedHTTPAction) HTTPRequest(ep url.URL) *http.Request {
 }
 
 func shuffleEndpoints(r *rand.Rand, eps []url.URL) []url.URL {
-	p := r.Perm(len(eps))
-	neps := make([]url.URL, len(eps))
+	// copied from Go 1.9<= rand.Rand.Perm
+	n := len(eps)
+	p := make([]int, n)
+	for i := 0; i < n; i++ {
+		j := r.Intn(i + 1)
+		p[i] = p[j]
+		p[j] = i
+	}
+	neps := make([]url.URL, n)
 	for i, k := range p {
 		neps[i] = eps[k]
 	}

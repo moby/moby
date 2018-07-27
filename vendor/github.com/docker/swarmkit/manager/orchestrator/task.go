@@ -9,6 +9,7 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/constraint"
 	"github.com/docker/swarmkit/protobuf/ptypes"
+	google_protobuf "github.com/gogo/protobuf/types"
 )
 
 // NewTask creates a new task.
@@ -143,6 +144,14 @@ func InvalidNode(n *api.Node) bool {
 		n.Spec.Availability == api.NodeAvailabilityDrain
 }
 
+func taskTimestamp(t *api.Task) *google_protobuf.Timestamp {
+	if t.Status.AppliedAt != nil {
+		return t.Status.AppliedAt
+	}
+
+	return t.Status.Timestamp
+}
+
 // TasksByTimestamp sorts tasks by applied timestamp if available, otherwise
 // status timestamp.
 type TasksByTimestamp []*api.Task
@@ -159,15 +168,8 @@ func (t TasksByTimestamp) Swap(i, j int) {
 
 // Less implements the Less method for sorting.
 func (t TasksByTimestamp) Less(i, j int) bool {
-	iTimestamp := t[i].Status.Timestamp
-	if t[i].Status.AppliedAt != nil {
-		iTimestamp = t[i].Status.AppliedAt
-	}
-
-	jTimestamp := t[j].Status.Timestamp
-	if t[j].Status.AppliedAt != nil {
-		iTimestamp = t[j].Status.AppliedAt
-	}
+	iTimestamp := taskTimestamp(t[i])
+	jTimestamp := taskTimestamp(t[j])
 
 	if iTimestamp == nil {
 		return true
