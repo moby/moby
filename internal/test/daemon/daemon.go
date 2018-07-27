@@ -435,7 +435,7 @@ out1:
 			return err
 		case <-time.After(20 * time.Second):
 			// time for stopping jobs and run onShutdown hooks
-			d.log.Logf("[%s] daemon started", d.id)
+			d.log.Logf("[%s] daemon stop timeout", d.id)
 			break out1
 		}
 	}
