@@ -8765,14 +8765,28 @@ paths:
                   nodes in order to reach the containers running on this node. Using this parameter it is possible to
                   separate the container data traffic from the management traffic of the cluster.
                 type: "string"
+              DefaultAddrPool:
+                description: |
+                  Default Address Pool specifies default subnet pools for global scope networks.
+                type: "array"
+                items:
+                  type: "string"
+                  example: ["10.10.0.0/16", "20.20.0.0/16"]
               ForceNewCluster:
                 description: "Force creation of a new swarm."
                 type: "boolean"
+              SubnetSize:
+                description: |
+                  SubnetSize specifies the subnet size of the networks created from the default subnet pool
+                type: "integer"
+                format: "uint32"
               Spec:
                 $ref: "#/definitions/SwarmSpec"
             example:
               ListenAddr: "0.0.0.0:2377"
               AdvertiseAddr: "192.168.1.1:2377"
+              DefaultAddrPool: ["10.10.0.0/8", "20.20.0.0/8"]
+              SubnetSize: 24
               ForceNewCluster: false
               Spec:
                 Orchestration: {}

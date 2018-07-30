@@ -1,6 +1,7 @@
 package allocator
 
 import (
+	"net"
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
@@ -32,6 +33,13 @@ type Allocator struct {
 
 	// pluginGetter provides access to docker's plugin inventory.
 	pluginGetter plugingetter.PluginGetter
+
+	// DefaultAddrPool specifies default subnet pool for global scope networks
+	defaultAddrPool []*net.IPNet
+
+	// SubnetSize specifies the subnet size of the networks created from
+	// the default subnet pool
+	subnetSize int
 }
 
 // taskBallot controls how the voting for task allocation is
@@ -65,15 +73,17 @@ type allocActor struct {
 
 // New returns a new instance of Allocator for use during allocation
 // stage of the manager.
-func New(store *store.MemoryStore, pg plugingetter.PluginGetter) (*Allocator, error) {
+func New(store *store.MemoryStore, pg plugingetter.PluginGetter, defaultAddrPool []*net.IPNet, subnetSize int) (*Allocator, error) {
 	a := &Allocator{
 		store: store,
 		taskBallot: &taskBallot{
 			votes: make(map[string][]string),
 		},
-		stopChan:     make(chan struct{}),
-		doneChan:     make(chan struct{}),
-		pluginGetter: pg,
+		stopChan:        make(chan struct{}),
+		doneChan:        make(chan struct{}),
+		pluginGetter:    pg,
+		defaultAddrPool: defaultAddrPool,
+		subnetSize:      subnetSize,
 	}
 
 	return a, nil

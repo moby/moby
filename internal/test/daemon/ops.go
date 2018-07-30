@@ -34,6 +34,20 @@ func WithSwarmListenAddr(listenAddr string) func(*Daemon) {
 	}
 }
 
+// WithSwarmDefaultAddrPool sets the swarm default address pool to use for swarm mode
+func WithSwarmDefaultAddrPool(defaultAddrPool []string) func(*Daemon) {
+	return func(d *Daemon) {
+		d.DefaultAddrPool = defaultAddrPool
+	}
+}
+
+// WithSwarmDefaultAddrPoolSubnetSize sets the subnet length mask of swarm default address pool to use for swarm mode
+func WithSwarmDefaultAddrPoolSubnetSize(subnetSize uint32) func(*Daemon) {
+	return func(d *Daemon) {
+		d.SubnetSize = subnetSize
+	}
+}
+
 // WithEnvironment sets options from internal/test/environment.Execution struct
 func WithEnvironment(e environment.Execution) func(*Daemon) {
 	return func(d *Daemon) {

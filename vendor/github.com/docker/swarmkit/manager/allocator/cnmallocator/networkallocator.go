@@ -87,7 +87,7 @@ type initializer struct {
 }
 
 // New returns a new NetworkAllocator handle
-func New(pg plugingetter.PluginGetter) (networkallocator.NetworkAllocator, error) {
+func New(pg plugingetter.PluginGetter, defaultAddrPool []*net.IPNet, subnetSize int) (networkallocator.NetworkAllocator, error) {
 	na := &cnmNetworkAllocator{
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
@@ -106,7 +106,7 @@ func New(pg plugingetter.PluginGetter) (networkallocator.NetworkAllocator, error
 		return nil, err
 	}
 
-	if err = initIPAMDrivers(reg); err != nil {
+	if err = initIPAMDrivers(reg, defaultAddrPool, subnetSize); err != nil {
 		return nil, err
 	}
 

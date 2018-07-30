@@ -342,6 +342,15 @@ message Cluster {
 	// reject joining the cluster.  Nodes that report themselves to be non-FIPS
 	// should be rejected from the cluster.
 	bool fips = 10 [(gogoproto.customname) = "FIPS"];
+
+	// This field specifies default subnet pools for global scope networks. If
+	// unspecified, Docker will use the predefined subnets as it works on older releases.
+	// Format Example : {"20.20.0.0/16",""20.20.0.0/16"}
+	repeated string defaultAddressPool = 11;
+
+	// This flag specifies the default subnet size of global scope networks by giving
+	// the length of the subnet masks for every such network
+	uint32 subnetSize = 12;
 }
 
 // Secret represents a secret that should be passed to a container or a node,

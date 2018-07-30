@@ -69,6 +69,10 @@ func (d *Daemon) SwarmInit(t assert.TestingT, req swarm.InitRequest) {
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
 	}
+	if req.DefaultAddrPool == nil {
+		req.DefaultAddrPool = d.DefaultAddrPool
+		req.SubnetSize = d.SubnetSize
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	_, err := cli.SwarmInit(context.Background(), req)

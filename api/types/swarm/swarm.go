@@ -1,6 +1,8 @@
 package swarm // import "github.com/docker/docker/api/types/swarm"
 
-import "time"
+import (
+	"time"
+)
 
 // ClusterInfo represents info about the cluster for outputting in "info"
 // it contains the same information as "Swarm", but without the JoinTokens
@@ -10,6 +12,8 @@ type ClusterInfo struct {
 	Spec                   Spec
 	TLSInfo                TLSInfo
 	RootRotationInProgress bool
+	DefaultAddrPool        []string
+	SubnetSize             uint32
 }
 
 // Swarm represents a swarm.
@@ -153,6 +157,8 @@ type InitRequest struct {
 	Spec             Spec
 	AutoLockManagers bool
 	Availability     NodeAvailability
+	DefaultAddrPool  []string
+	SubnetSize       uint32
 }
 
 // JoinRequest is the request used to join a swarm.
