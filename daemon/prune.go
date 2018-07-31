@@ -26,12 +26,14 @@ var (
 		"label":  true,
 		"label!": true,
 		"until":  true,
+		"dryRun": true,
 	}
 
 	networksAcceptedFilters = map[string]bool{
 		"label":  true,
 		"label!": true,
 		"until":  true,
+		"dryRun": true,
 	}
 )
 
@@ -72,12 +74,16 @@ func (daemon *Daemon) ContainersPrune(ctx context.Context, pruneFilters filters.
 				continue
 			}
 			cSize, _ := daemon.imageService.GetContainerLayerSize(c.ID)
-			// TODO: sets RmLink to true?
-			err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
-			if err != nil {
-				logrus.Warnf("failed to prune container %s: %v", c.ID, err)
-				continue
+
+			if !isDryRun(pruneFilters) {
+				// TODO: sets RmLink to true?
+				err := daemon.ContainerRm(c.ID, &types.ContainerRmConfig{})
+				if err != nil {
+					logrus.Warnf("failed to prune container %s: %v", c.ID, err)
+					continue
+				}
 			}
+
 			if cSize > 0 {
 				rep.SpaceReclaimed += uint64(cSize)
 			}
@@ -118,9 +124,12 @@ func (daemon *Daemon) localNetworksPrune(ctx context.Context, pruneFilters filte
 		if len(nw.Endpoints()) > 0 {
 			return false
 		}
-		if err := daemon.DeleteNetwork(nw.ID()); err != nil {
-			logrus.Warnf("could not remove local network %s: %v", nwName, err)
-			return false
+		if !isDryRun(pruneFilters) {
+			err := daemon.DeleteNetwork(nw.ID())
+			if err != nil {
+				logrus.Warnf("could not remove local network %s: %v", nwName, err)
+				return false
+			}
 		}
 		rep.NetworksDeleted = append(rep.NetworksDeleted, nwName)
 		return false
@@ -161,17 +170,19 @@ func (daemon *Daemon) clusterNetworksPrune(ctx context.Context, pruneFilters fil
 			if !matchLabels(pruneFilters, nw.Labels) {
 				continue
 			}
-			// https://github.com/docker/docker/issues/24186
-			// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
-			// So we try to remove it anyway and check the error
-			err = cluster.RemoveNetwork(nw.ID)
-			if err != nil {
-				// we can safely ignore the "network .. is in use" error
-				match := networkIsInUse.FindStringSubmatch(err.Error())
-				if len(match) != 2 || match[1] != nw.ID {
-					logrus.Warnf("could not remove cluster network %s: %v", nw.Name, err)
+			if !isDryRun(pruneFilters) {
+				// https://github.com/docker/docker/issues/24186
+				// `docker network inspect` unfortunately displays ONLY those containers that are local to that node.
+				// So we try to remove it anyway and check the error
+				err = cluster.RemoveNetwork(nw.ID)
+				if err != nil {
+					// we can safely ignore the "network .. is in use" error
+					match := networkIsInUse.FindStringSubmatch(err.Error())
+					if len(match) != 2 || match[1] != nw.ID {
+						logrus.Warnf("could not remove cluster network %s: %v", nw.Name, err)
+					}
+					continue
 				}
-				continue
 			}
 			rep.NetworksDeleted = append(rep.NetworksDeleted, nw.Name)
 		}
@@ -247,4 +258,9 @@ func matchLabels(pruneFilters filters.Args, labels map[string]string) bool {
 		}
 	}
 	return true
+}
+
+func isDryRun(args filters.Args) bool {
+	return args.Contains("dryRun") &&
+		(args.ExactMatch("dryRun", "true") || args.ExactMatch("dryRun", "0"))
 }
