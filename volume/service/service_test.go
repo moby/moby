@@ -233,6 +233,27 @@ func TestServicePrune(t *testing.T) {
 	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 }
 
+func TestVolumeServicePruneDryRun(t *testing.T) {
+	ds := volumedrivers.NewStore(nil)
+	assert.Assert(t, ds.Register(testutils.NewFakeDriver(volume.DefaultDriverName), volume.DefaultDriverName))
+	assert.Assert(t, ds.Register(testutils.NewFakeDriver("other"), "other"))
+
+	service, cleanup := newTestService(t, ds)
+	defer cleanup()
+	ctx := context.Background()
+
+	_, err := service.Create(ctx, "dry-test", volume.DefaultDriverName)
+	assert.Assert(t, err)
+
+	pr, err := service.Prune(ctx, filters.NewArgs(filters.Arg("dryRun", "true")))
+	assert.Assert(t, err)
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "dry-test"))
+	dv, err := service.Get(ctx, "dry-test")
+	assert.Assert(t, err)
+	assert.Assert(t, is.Equal(dv.Name, "dry-test"))
+}
+
 func newTestService(t *testing.T, ds *volumedrivers.Store) (*VolumesService, func()) {
 	t.Helper()
 
