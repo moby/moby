@@ -648,7 +648,7 @@ func watchFile(name string) (filenotify.FileWatcher, error) {
 
 	logger := logrus.WithFields(logrus.Fields{
 		"module": "logger",
-		"fille":  name,
+		"file":   name,
 	})
 
 	if err := fileWatcher.Add(name); err != nil {
