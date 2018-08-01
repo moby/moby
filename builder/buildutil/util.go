@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	bkclient "github.com/moby/buildkit/client"
-	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
@@ -98,7 +97,6 @@ type BuildInput struct {
 func Build(c client.APIClient, input BuildInput, options types.ImageBuildOptions) (*BuildResult, error) {
 	ctx := context.Background()
 	br := &BuildResult{}
-	var sess *session.Session
 
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -113,53 +111,65 @@ func Build(c client.APIClient, input BuildInput, options types.ImageBuildOptions
 	buildCtx := input.Context
 
 	// if streaming
-	if input.Context == nil && options.RemoteContext == "" {
+	if input.Context == nil && (input.ContextDir != "" || input.Dockerfile != nil) && options.RemoteContext == "" {
 		sess, err := trySession(c, input.ContextDir)
 		if err != nil {
 			return br, err
 		}
-		if sess == nil {
-			return br, fmt.Errorf("session not supported")
-		}
+		if sess != nil {
+			defer sess.Close()
 
-		dirs := make([]filesync.SyncedDir, 0, 1)
-		if input.ContextDir != "" {
 			var name string
 			if BuildKitEnabled() {
 				name = "context"
 			}
-			dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: input.ContextDir, Map: resetUIDAndGID})
-		}
-		if input.Dockerfile != nil {
-			if BuildKitEnabled() {
-				dd, err := ioutil.TempDir("", "dockerfiledir")
+
+			dirs := make([]filesync.SyncedDir, 0, 1)
+			if input.Dockerfile != nil {
+				if BuildKitEnabled() {
+					dd, err := ioutil.TempDir("", "dockerfiledir")
+					if err != nil {
+						return br, err
+					}
+					defer os.RemoveAll(dd)
+					if err := ioutil.WriteFile(filepath.Join(dd, "Dockerfile"), input.Dockerfile, 0644); err != nil {
+						return br, err
+					}
+					dirs = append(dirs, filesync.SyncedDir{Name: "dockerfile", Dir: dd})
+				} else {
+					buildCtx = ioutil.NopCloser(bytes.NewReader(input.Dockerfile))
+				}
+			}
+
+			ctxDir := input.ContextDir
+			if ctxDir == "" {
+				// TODO: provide empty string support in fsutil
+				ctxDir, err = ioutil.TempDir("", "contextdir")
 				if err != nil {
 					return br, err
 				}
-				defer os.RemoveAll(dd)
-				if err := ioutil.WriteFile(filepath.Join(dd, "Dockerfile"), input.Dockerfile, 0644); err != nil {
-					return br, err
+				defer os.RemoveAll(ctxDir)
+			}
+			dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: ctxDir, Map: resetUIDAndGID})
+			sess.Allow(filesync.NewFSSyncProvider(dirs))
+
+			options.SessionID = sess.ID()
+			options.RemoteContext = clientSessionRemote
+
+			go func() {
+				if err := sess.Run(ctx, c.DialSession); err != nil {
+					logrus.Error(err)
+					cancel()
 				}
-				dirs = append(dirs, filesync.SyncedDir{Name: "dockerfile", Dir: dd})
-			} else {
+			}()
+		} else { // streaming is not available
+			if input.ContextDir != "" {
+				return br, fmt.Errorf("ContextDir not implemented without session")
+			}
+			if input.Dockerfile != nil {
 				buildCtx = bytes.NewReader(input.Dockerfile)
 			}
 		}
-		sess.Allow(filesync.NewFSSyncProvider(dirs))
-
-		options.SessionID = sess.ID()
-		options.RemoteContext = clientSessionRemote
-
-		go func() {
-			if err := sess.Run(ctx, c.DialSession); err != nil {
-				logrus.Error(err)
-				cancel()
-			}
-		}()
-	}
-
-	if sess != nil {
-		defer sess.Close()
 	}
 
 	resp, err := c.ImageBuild(ctx, buildCtx, options)
