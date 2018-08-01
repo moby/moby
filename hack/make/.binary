@@ -50,10 +50,14 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 	esac
 fi
 
-# -buildmode=pie is not supported on Windows.
-if [ "$(go env GOOS)" != "windows" ]; then
-	BUILDFLAGS+=( "-buildmode=pie" )
-fi
+# -buildmode=pie is not supported on Windows and Linux on mips.
+case "$(go env GOOS)/$(go env GOARCH)" in
+	windows/*|linux/mips*)
+		;;
+	*)
+		BUILDFLAGS+=( "-buildmode=pie" )
+		;;
+esac
 
 echo "Building: $DEST/$BINARY_FULLNAME"
 go build \
