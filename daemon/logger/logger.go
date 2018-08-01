@@ -104,33 +104,33 @@ type LogWatcher struct {
 	// For sending log messages to a reader.
 	Msg chan *Message
 	// For sending error messages that occur while while reading logs.
-	Err           chan error
-	closeOnce     sync.Once
-	closeNotifier chan struct{}
+	Err          chan error
+	consumerOnce sync.Once
+	consumerGone chan struct{}
 }
 
 // NewLogWatcher returns a new LogWatcher.
 func NewLogWatcher() *LogWatcher {
 	return &LogWatcher{
-		Msg:           make(chan *Message, logWatcherBufferSize),
-		Err:           make(chan error, 1),
-		closeNotifier: make(chan struct{}),
+		Msg:          make(chan *Message, logWatcherBufferSize),
+		Err:          make(chan error, 1),
+		consumerGone: make(chan struct{}),
 	}
 }
 
-// Close notifies the underlying log reader to stop.
-func (w *LogWatcher) Close() {
+// ConsumerGone notifies that the logs consumer is gone.
+func (w *LogWatcher) ConsumerGone() {
 	// only close if not already closed
-	w.closeOnce.Do(func() {
-		close(w.closeNotifier)
+	w.consumerOnce.Do(func() {
+		close(w.consumerGone)
 	})
 }
 
-// WatchClose returns a channel receiver that receives notification
-// when the watcher has been closed. This should only be called from
-// one goroutine.
-func (w *LogWatcher) WatchClose() <-chan struct{} {
-	return w.closeNotifier
+// WatchConsumerGone returns a channel receiver that receives notification
+// when the log watcher consumer is gone. This should only be called from
+// a single goroutine.
+func (w *LogWatcher) WatchConsumerGone() <-chan struct{} {
+	return w.consumerGone
 }
 
 // Capability defines the list of capabilities that a driver can implement

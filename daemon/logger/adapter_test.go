@@ -174,7 +174,6 @@ func TestAdapterReadLogs(t *testing.T) {
 		t.Fatal("timeout waiting for message channel to close")
 
 	}
-	lw.Close()
 
 	lw = lr.ReadLogs(ReadConfig{Follow: true})
 	for _, x := range testMsg {

@@ -23,16 +23,7 @@ func (d *driver) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 
 func (d *driver) readLogs(watcher *logger.LogWatcher, config logger.ReadConfig) {
 	defer close(watcher.Msg)
-
-	d.mu.Lock()
-	d.readers[watcher] = struct{}{}
-	d.mu.Unlock()
-
 	d.logfile.ReadLogs(config, watcher)
-
-	d.mu.Lock()
-	delete(d.readers, watcher)
-	d.mu.Unlock()
 }
 
 func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {

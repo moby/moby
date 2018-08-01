@@ -27,15 +27,7 @@ func (l *JSONFileLogger) ReadLogs(config logger.ReadConfig) *logger.LogWatcher {
 func (l *JSONFileLogger) readLogs(watcher *logger.LogWatcher, config logger.ReadConfig) {
 	defer close(watcher.Msg)
 
-	l.mu.Lock()
-	l.readers[watcher] = struct{}{}
-	l.mu.Unlock()
-
 	l.writer.ReadLogs(config, watcher)
-
-	l.mu.Lock()
-	delete(l.readers, watcher)
-	l.mu.Unlock()
 }
 
 func decodeLogLine(dec *json.Decoder, l *jsonlog.JSONLog) (*logger.Message, error) {
