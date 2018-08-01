@@ -94,7 +94,9 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 		dec := logdriver.NewLogEntryDecoder(stream)
 		for {
 			select {
-			case <-watcher.WatchClose():
+			case <-watcher.WatchProducerGone():
+				return
+			case <-watcher.WatchConsumerGone():
 				return
 			default:
 			}
@@ -106,7 +108,8 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 				}
 				select {
 				case watcher.Err <- errors.Wrap(err, "error decoding log message"):
-				case <-watcher.WatchClose():
+				case <-watcher.WatchProducerGone():
+				case <-watcher.WatchConsumerGone():
 				}
 				return
 			}
@@ -127,9 +130,9 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 
 			select {
 			case watcher.Msg <- msg:
-			case <-watcher.WatchClose():
-				// make sure the message we consumed is sent
-				watcher.Msg <- msg
+			case <-watcher.WatchConsumerGone():
+				return
+			case <-watcher.WatchProducerGone():
 				return
 			}
 		}

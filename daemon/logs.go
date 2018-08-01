@@ -110,8 +110,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 				}
 			}()
 		}
-		// set up some defers
-		defer logs.Close()
+		// signal that the log reader is gone
+		defer logs.ConsumerGone()
 
 		// close the messages channel. closing is the only way to signal above
 		// that we're doing with logs (other than context cancel i guess).

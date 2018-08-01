@@ -482,10 +482,11 @@ func tailFile(f io.ReadSeeker, watcher *logger.LogWatcher, createDecoder makeDec
 		if !config.Until.IsZero() && msg.Timestamp.After(config.Until) {
 			return
 		}
+		// send the message unless consumer is gone
 		select {
-		case <-watcher.WatchClose():
-			return
 		case watcher.Msg <- msg:
+		case <-watcher.WatchConsumerGone():
+			return
 		}
 	}
 }
@@ -505,11 +506,13 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		fileWatcher.Close()
 	}()
 
+	// wait till the logs producer is gone, cancel the context
+	// to signal there'll be no more log rotation.
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	go func() {
 		select {
-		case <-logWatcher.WatchClose():
+		case <-logWatcher.WatchProducerGone():
 			fileWatcher.Remove(name)
 			cancel()
 		case <-ctx.Done():
@@ -573,7 +576,9 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				return errRetry
 			}
 			return err
-		case <-ctx.Done():
+		case <-ctx.Done(): // container producing logs is gone
+			return errDone
+		case <-logWatcher.WatchConsumerGone():
 			return errDone
 		}
 	}
@@ -619,23 +624,11 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		if !until.IsZero() && msg.Timestamp.After(until) {
 			return
 		}
+		// send the message, unless the consumer is gone
 		select {
 		case logWatcher.Msg <- msg:
-		case <-ctx.Done():
-			logWatcher.Msg <- msg
-			for {
-				msg, err := decodeLogLine()
-				if err != nil {
-					return
-				}
-				if !since.IsZero() && msg.Timestamp.Before(since) {
-					continue
-				}
-				if !until.IsZero() && msg.Timestamp.After(until) {
-					return
-				}
-				logWatcher.Msg <- msg
-			}
+		case <-logWatcher.WatchConsumerGone():
+			return
 		}
 	}
 }
