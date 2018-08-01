@@ -123,7 +123,7 @@ func (daemon *Daemon) containerAttach(c *container.Container, cfg *stream.Attach
 			return logger.ErrReadLogsNotSupported{}
 		}
 		logs := cLog.ReadLogs(logger.ReadConfig{Tail: -1})
-		defer logs.Close()
+		defer logs.ConsumerGone()
 
 	LogLoop:
 		for {
