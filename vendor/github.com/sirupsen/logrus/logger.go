@@ -5,6 +5,7 @@ import (
 	"os"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type Logger struct {
@@ -88,7 +89,7 @@ func (logger *Logger) releaseEntry(entry *Entry) {
 }
 
 // Adds a field to the log entry, note that it doesn't log until you call
-// Debug, Print, Info, Warn, Fatal or Panic. It only creates a log entry.
+// Debug, Print, Info, Warn, Error, Fatal or Panic. It only creates a log entry.
 // If you want multiple fields, use `WithFields`.
 func (logger *Logger) WithField(key string, value interface{}) *Entry {
 	entry := logger.newEntry()
@@ -110,6 +111,13 @@ func (logger *Logger) WithError(err error) *Entry {
 	entry := logger.newEntry()
 	defer logger.releaseEntry(entry)
 	return entry.WithError(err)
+}
+
+// Overrides the time of the log entry.
+func (logger *Logger) WithTime(t time.Time) *Entry {
+	entry := logger.newEntry()
+	defer logger.releaseEntry(entry)
+	return entry.WithTime(t)
 }
 
 func (logger *Logger) Debugf(format string, args ...interface{}) {
@@ -314,4 +322,16 @@ func (logger *Logger) level() Level {
 
 func (logger *Logger) SetLevel(level Level) {
 	atomic.StoreUint32((*uint32)(&logger.Level), uint32(level))
+}
+
+func (logger *Logger) SetOutput(out io.Writer) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+	logger.Out = out
+}
+
+func (logger *Logger) AddHook(hook Hook) {
+	logger.mu.Lock()
+	defer logger.mu.Unlock()
+	logger.Hooks.Add(hook)
 }

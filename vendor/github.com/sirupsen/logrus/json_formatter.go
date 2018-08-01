@@ -33,6 +33,9 @@ type JSONFormatter struct {
 	// DisableTimestamp allows disabling automatic timestamps in output
 	DisableTimestamp bool
 
+	// DataKey allows users to put all the log entry parameters into a nested dictionary at a given key.
+	DataKey string
+
 	// FieldMap allows users to customize the names of keys for default fields.
 	// As an example:
 	// formatter := &JSONFormatter{
@@ -58,7 +61,14 @@ func (f *JSONFormatter) Format(entry *Entry) ([]byte, error) {
 			data[k] = v
 		}
 	}
-	prefixFieldClashes(data)
+
+	if f.DataKey != "" {
+		newData := make(Fields, 4)
+		newData[f.DataKey] = data
+		data = newData
+	}
+
+	prefixFieldClashes(data, f.FieldMap)
 
 	timestampFormat := f.TimestampFormat
 	if timestampFormat == "" {

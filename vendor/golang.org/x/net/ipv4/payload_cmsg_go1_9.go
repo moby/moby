@@ -3,7 +3,7 @@
 // license that can be found in the LICENSE file.
 
 // +build go1.9
-// +build !nacl,!plan9,!windows
+// +build !js,!nacl,!plan9,!windows
 
 package ipv4
 

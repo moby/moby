@@ -48,7 +48,7 @@ type Entry struct {
 func NewEntry(logger *Logger) *Entry {
 	return &Entry{
 		Logger: logger,
-		// Default is three fields, give a little extra room
+		// Default is five fields, give a little extra room
 		Data: make(Fields, 5),
 	}
 }
@@ -83,46 +83,70 @@ func (entry *Entry) WithFields(fields Fields) *Entry {
 	for k, v := range fields {
 		data[k] = v
 	}
-	return &Entry{Logger: entry.Logger, Data: data}
+	return &Entry{Logger: entry.Logger, Data: data, Time: entry.Time}
+}
+
+// Overrides the time of the Entry.
+func (entry *Entry) WithTime(t time.Time) *Entry {
+	return &Entry{Logger: entry.Logger, Data: entry.Data, Time: t}
 }
 
 // This function is not declared with a pointer value because otherwise
 // race conditions will occur when using multiple goroutines
 func (entry Entry) log(level Level, msg string) {
 	var buffer *bytes.Buffer
-	entry.Time = time.Now()
+
+	// Default to now, but allow users to override if they want.
+	//
+	// We don't have to worry about polluting future calls to Entry#log()
+	// with this assignment because this function is declared with a
+	// non-pointer receiver.
+	if entry.Time.IsZero() {
+		entry.Time = time.Now()
+	}
+
 	entry.Level = level
 	entry.Message = msg
 
-	if err := entry.Logger.Hooks.Fire(level, &entry); err != nil {
-		entry.Logger.mu.Lock()
-		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
-		entry.Logger.mu.Unlock()
-	}
+	entry.fireHooks()
+
 	buffer = bufferPool.Get().(*bytes.Buffer)
 	buffer.Reset()
 	defer bufferPool.Put(buffer)
 	entry.Buffer = buffer
-	serialized, err := entry.Logger.Formatter.Format(&entry)
+
+	entry.write()
+
 	entry.Buffer = nil
-	if err != nil {
-		entry.Logger.mu.Lock()
-		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
-		entry.Logger.mu.Unlock()
-	} else {
-		entry.Logger.mu.Lock()
-		_, err = entry.Logger.Out.Write(serialized)
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
-		}
-		entry.Logger.mu.Unlock()
-	}
 
 	// To avoid Entry#log() returning a value that only would make sense for
 	// panic() to use in Entry#Panic(), we avoid the allocation by checking
 	// directly here.
 	if level <= PanicLevel {
 		panic(&entry)
+	}
+}
+
+func (entry *Entry) fireHooks() {
+	entry.Logger.mu.Lock()
+	defer entry.Logger.mu.Unlock()
+	err := entry.Logger.Hooks.Fire(entry.Level, entry)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to fire hook: %v\n", err)
+	}
+}
+
+func (entry *Entry) write() {
+	serialized, err := entry.Logger.Formatter.Format(entry)
+	entry.Logger.mu.Lock()
+	defer entry.Logger.mu.Unlock()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to obtain reader, %v\n", err)
+	} else {
+		_, err = entry.Logger.Out.Write(serialized)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Failed to write to log, %v\n", err)
+		}
 	}
 }
 

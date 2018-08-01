@@ -4,13 +4,11 @@
 
 package ipv6
 
-import "syscall"
-
 // TrafficClass returns the traffic class field value for outgoing
 // packets.
 func (c *genericOpt) TrafficClass() (int, error) {
 	if !c.ok() {
-		return 0, syscall.EINVAL
+		return 0, errInvalidConn
 	}
 	so, ok := sockOpts[ssoTrafficClass]
 	if !ok {
@@ -23,7 +21,7 @@ func (c *genericOpt) TrafficClass() (int, error) {
 // outgoing packets.
 func (c *genericOpt) SetTrafficClass(tclass int) error {
 	if !c.ok() {
-		return syscall.EINVAL
+		return errInvalidConn
 	}
 	so, ok := sockOpts[ssoTrafficClass]
 	if !ok {
@@ -35,7 +33,7 @@ func (c *genericOpt) SetTrafficClass(tclass int) error {
 // HopLimit returns the hop limit field value for outgoing packets.
 func (c *genericOpt) HopLimit() (int, error) {
 	if !c.ok() {
-		return 0, syscall.EINVAL
+		return 0, errInvalidConn
 	}
 	so, ok := sockOpts[ssoHopLimit]
 	if !ok {
@@ -48,7 +46,7 @@ func (c *genericOpt) HopLimit() (int, error) {
 // packets.
 func (c *genericOpt) SetHopLimit(hoplim int) error {
 	if !c.ok() {
-		return syscall.EINVAL
+		return errInvalidConn
 	}
 	so, ok := sockOpts[ssoHopLimit]
 	if !ok {

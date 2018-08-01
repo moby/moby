@@ -2,6 +2,7 @@ package logrus
 
 import (
 	"io"
+	"time"
 )
 
 var (
@@ -15,9 +16,7 @@ func StandardLogger() *Logger {
 
 // SetOutput sets the standard logger output.
 func SetOutput(out io.Writer) {
-	std.mu.Lock()
-	defer std.mu.Unlock()
-	std.Out = out
+	std.SetOutput(out)
 }
 
 // SetFormatter sets the standard logger formatter.
@@ -72,6 +71,15 @@ func WithFields(fields Fields) *Entry {
 	return std.WithFields(fields)
 }
 
+// WithTime creats an entry from the standard logger and overrides the time of
+// logs generated with it.
+//
+// Note that it doesn't log until you call Debug, Print, Info, Warn, Fatal
+// or Panic on the Entry it returns.
+func WithTime(t time.Time) *Entry {
+	return std.WithTime(t)
+}
+
 // Debug logs a message at level Debug on the standard logger.
 func Debug(args ...interface{}) {
 	std.Debug(args...)
@@ -107,7 +115,7 @@ func Panic(args ...interface{}) {
 	std.Panic(args...)
 }
 
-// Fatal logs a message at level Fatal on the standard logger.
+// Fatal logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatal(args ...interface{}) {
 	std.Fatal(args...)
 }
@@ -147,7 +155,7 @@ func Panicf(format string, args ...interface{}) {
 	std.Panicf(format, args...)
 }
 
-// Fatalf logs a message at level Fatal on the standard logger.
+// Fatalf logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatalf(format string, args ...interface{}) {
 	std.Fatalf(format, args...)
 }
@@ -187,7 +195,7 @@ func Panicln(args ...interface{}) {
 	std.Panicln(args...)
 }
 
-// Fatalln logs a message at level Fatal on the standard logger.
+// Fatalln logs a message at level Fatal on the standard logger then the process will exit with status set to 1.
 func Fatalln(args ...interface{}) {
 	std.Fatalln(args...)
 }
