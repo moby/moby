@@ -118,6 +118,8 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		defer close(messageChan)
 
 		lg.Debug("begin logs")
+		defer lg.Debugf("end logs (%v)", ctx.Err())
+
 		for {
 			select {
 			// i do not believe as the system is currently designed any error
@@ -132,14 +134,12 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 				}
 				return
 			case <-ctx.Done():
-				lg.Debugf("logs: end stream, ctx is done: %v", ctx.Err())
 				return
 			case msg, ok := <-logs.Msg:
 				// there is some kind of pool or ring buffer in the logger that
 				// produces these messages, and a possible future optimization
 				// might be to use that pool and reuse message objects
 				if !ok {
-					lg.Debug("end logs")
 					return
 				}
 				m := msg.AsLogMessage() // just a pointer conversion, does not copy data
