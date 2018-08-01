@@ -77,7 +77,7 @@ func TestTailFiles(t *testing.T) {
 	}
 }
 
-func TestFollowLogsClose(t *testing.T) {
+func TestFollowLogsConsumerGone(t *testing.T) {
 	lw := logger.NewLogWatcher()
 
 	f, err := ioutil.TempFile("", t.Name())
@@ -110,7 +110,7 @@ func TestFollowLogsClose(t *testing.T) {
 		t.Fatal("timeout waiting for log message")
 	}
 
-	lw.Close()
+	lw.ConsumerGone()
 	select {
 	case <-followLogsDone:
 	case <-time.After(20 * time.Second):

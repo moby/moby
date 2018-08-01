@@ -165,7 +165,7 @@ func (s *journald) Close() error {
 	s.mu.Lock()
 	s.closed = true
 	for reader := range s.readers.readers {
-		reader.Close()
+		reader.ProducerGone()
 	}
 	s.mu.Unlock()
 	return nil
@@ -299,7 +299,7 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, j *C.sd_journal,
 	// Wait until we're told to stop.
 	select {
 	case cursor = <-newCursor:
-	case <-logWatcher.WatchClose():
+	case <-logWatcher.WatchConsumerGone():
 		// Notify the other goroutine that its work is done.
 		C.close(pfd[1])
 		cursor = <-newCursor
