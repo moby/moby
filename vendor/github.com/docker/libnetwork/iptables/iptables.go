@@ -477,7 +477,7 @@ func raw(args ...string) ([]byte, error) {
 	return filterOutput(startTime, output, args...), err
 }
 
-// RawCombinedOutput inernally calls the Raw function and returns a non nil
+// RawCombinedOutput internally calls the Raw function and returns a non nil
 // error if Raw returned a non nil error or a non empty output
 func RawCombinedOutput(args ...string) error {
 	if output, err := Raw(args...); err != nil || len(output) != 0 {

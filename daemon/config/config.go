@@ -75,6 +75,8 @@ type commonBridgeConfig struct {
 type NetworkConfig struct {
 	// Default address pools for docker networks
 	DefaultAddressPools opts.PoolsOpt `json:"default-address-pools,omitempty"`
+	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
+	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 }
 
 // CommonTLSOptions defines TLS configuration for the daemon server.
@@ -192,8 +194,6 @@ type CommonConfig struct {
 	// Exposed node Generic Resources
 	// e.g: ["orange=red", "orange=green", "orange=blue", "apple=3"]
 	NodeGenericResources []string `json:"node-generic-resources,omitempty"`
-	// NetworkControlPlaneMTU allows to specify the control plane MTU, this will allow to optimize the network use in some components
-	NetworkControlPlaneMTU int `json:"network-control-plane-mtu,omitempty"`
 
 	// ContainerAddr is the address used to connect to containerd if we're
 	// not starting it ourselves

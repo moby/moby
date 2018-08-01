@@ -84,6 +84,7 @@ type sandbox struct {
 	ingress            bool
 	ndotsSet           bool
 	oslTypes           []osl.SandboxType // slice of properties of this sandbox
+	loadBalancerNID    string            // NID that this SB is a load balancer for
 	sync.Mutex
 	// This mutex is used to serialize service related operation for an endpoint
 	// The lock is here because the endpoint is saved into the store so is not unique
@@ -467,7 +468,7 @@ func (sb *sandbox) ResolveService(name string) ([]*net.SRV, []net.IP) {
 
 	logrus.Debugf("Service name To resolve: %v", name)
 
-	// There are DNS implementaions that allow SRV queries for names not in
+	// There are DNS implementations that allow SRV queries for names not in
 	// the format defined by RFC 2782. Hence specific validations checks are
 	// not done
 	parts := strings.Split(name, ".")
@@ -1098,8 +1099,8 @@ func OptionDNSOptions(options string) SandboxOption {
 	}
 }
 
-// OptionUseDefaultSandbox function returns an option setter for using default sandbox to
-// be passed to container Create method.
+// OptionUseDefaultSandbox function returns an option setter for using default sandbox
+// (host namespace) to be passed to container Create method.
 func OptionUseDefaultSandbox() SandboxOption {
 	return func(sb *sandbox) {
 		sb.config.useDefaultSandBox = true
@@ -1169,8 +1170,9 @@ func OptionIngress() SandboxOption {
 
 // OptionLoadBalancer function returns an option setter for marking a
 // sandbox as a load balancer sandbox.
-func OptionLoadBalancer() SandboxOption {
+func OptionLoadBalancer(nid string) SandboxOption {
 	return func(sb *sandbox) {
+		sb.loadBalancerNID = nid
 		sb.oslTypes = append(sb.oslTypes, osl.SandboxTypeLoadBalancer)
 	}
 }

@@ -369,8 +369,16 @@ func (daemon *Daemon) isNetworkHotPluggable() bool {
 	return true
 }
 
-func setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
+func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
 	var err error
+
+	if container.HostConfig.NetworkMode.IsHost() {
+		// Point to the host files, so that will be copied into the container running in host mode
+		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
+		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
+	} else {
+		*sboxOptions = append(*sboxOptions, libnetwork.OptionOriginResolvConfPath(daemon.configStore.GetResolvConf()))
+	}
 
 	container.HostsPath, err = container.GetRootResourcePath("hosts")
 	if err != nil {

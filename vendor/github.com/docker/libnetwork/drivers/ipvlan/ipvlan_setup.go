@@ -30,7 +30,7 @@ func createIPVlan(containerIfName, parent, ipvlanMode string) (string, error) {
 	// Get the link for the master index (Example: the docker host eth iface)
 	parentLink, err := ns.NlHandle().LinkByName(parent)
 	if err != nil {
-		return "", fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
+		return "", fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", ipvlanType, parent, err)
 	}
 	// Create an ipvlan link
 	ipvlan := &netlink.IPVlan{
@@ -169,7 +169,7 @@ func createDummyLink(dummyName, truncNetID string) error {
 	}
 	parentDummyLink, err := ns.NlHandle().LinkByName(dummyName)
 	if err != nil {
-		return fmt.Errorf("error occoured looking up the %s parent iface %s error: %s", ipvlanType, dummyName, err)
+		return fmt.Errorf("error occurred looking up the %s parent iface %s error: %s", ipvlanType, dummyName, err)
 	}
 	// bring the new netlink iface up
 	if err := ns.NlHandle().LinkSetUp(parentDummyLink); err != nil {

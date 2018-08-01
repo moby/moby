@@ -63,21 +63,13 @@ func (daemon *Daemon) buildSandboxOptions(container *container.Container) ([]lib
 
 	if container.HostConfig.NetworkMode.IsHost() {
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseDefaultSandbox())
-		if len(container.HostConfig.ExtraHosts) == 0 {
-			sboxOptions = append(sboxOptions, libnetwork.OptionOriginHostsPath("/etc/hosts"))
-		}
-		if len(container.HostConfig.DNS) == 0 && len(daemon.configStore.DNS) == 0 &&
-			len(container.HostConfig.DNSSearch) == 0 && len(daemon.configStore.DNSSearch) == 0 &&
-			len(container.HostConfig.DNSOptions) == 0 && len(daemon.configStore.DNSOptions) == 0 {
-			sboxOptions = append(sboxOptions, libnetwork.OptionOriginResolvConfPath("/etc/resolv.conf"))
-		}
 	} else {
 		// OptionUseExternalKey is mandatory for userns support.
 		// But optional for non-userns support
 		sboxOptions = append(sboxOptions, libnetwork.OptionUseExternalKey())
 	}
 
-	if err = setupPathsAndSandboxOptions(container, &sboxOptions); err != nil {
+	if err = daemon.setupPathsAndSandboxOptions(container, &sboxOptions); err != nil {
 		return nil, err
 	}
 

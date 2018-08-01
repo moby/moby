@@ -121,7 +121,7 @@ type NetworkController interface {
 	// Stop network controller
 	Stop()
 
-	// ReloadCondfiguration updates the controller configuration
+	// ReloadConfiguration updates the controller configuration
 	ReloadConfiguration(cfgOptions ...config.Option) error
 
 	// SetClusterProvider sets cluster provider
@@ -1107,6 +1107,8 @@ func (c *controller) NewSandbox(containerID string, options ...SandboxOption) (S
 		sb.config.hostsPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/hosts")
 		sb.config.resolvConfPath = filepath.Join(c.cfg.Daemon.DataDir, "/network/files/resolv.conf")
 		sb.id = "ingress_sbox"
+	} else if sb.loadBalancerNID != "" {
+		sb.id = "lb_" + sb.loadBalancerNID
 	}
 	c.Unlock()
 
