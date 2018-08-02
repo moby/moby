@@ -13,6 +13,8 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/daemon/gpu"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
@@ -27,7 +29,7 @@ import (
 	"golang.org/x/sys/unix"
 )
 
-func setResources(s *specs.Spec, r containertypes.Resources) error {
+func setResources(s *specs.Spec, r containertypes.Resources, experimental bool) error {
 	weightDevices, err := getBlkioWeightDevices(r)
 	if err != nil {
 		return err
@@ -76,7 +78,27 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 		specResources.Devices = s.Linux.Resources.Devices
 	}
 
+	if len(r.GPUs) > 0 {
+		if !experimental {
+			return errdefs.InvalidParameter(errors.New("GPUs are only supported in experimental mode"))
+		}
+
+		if err := setGPUResources(s, r.GPUs); err != nil {
+			return err
+		}
+	}
+
 	s.Linux.Resources = specResources
+	return nil
+}
+
+func setGPUResources(s *specs.Spec, r []containertypes.GPUSet) error {
+	for _, set := range r {
+		if err := gpu.HandleSpec(s, set); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -712,7 +734,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 	s.Linux.CgroupsPath = cgroupsPath
 
-	if err := setResources(&s, c.HostConfig.Resources); err != nil {
+	if err := setResources(&s, c.HostConfig.Resources, daemon.HasExperimental()); err != nil {
 		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
 	}
 	s.Linux.Sysctl = c.HostConfig.Sysctls
