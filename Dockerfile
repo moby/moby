@@ -38,6 +38,7 @@ ENV CRIU_VERSION 3.6
 # Install dependancy packages specific to criu
 RUN apt-get update && apt-get install -y \
 	libnet-dev \
+	--no-install-recommends apt-utils \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
 	libnl-3-dev \
