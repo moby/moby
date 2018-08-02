@@ -5,11 +5,12 @@ import (
 	"errors"
 	"io"
 
+	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 )
 
-func newExecutor(_ string) (executor.Executor, error) {
+func newExecutor(_ string, _ libnetwork.NetworkController) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 
