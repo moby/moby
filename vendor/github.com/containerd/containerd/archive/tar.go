@@ -366,10 +366,11 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 		}
 
 	case tar.TypeLink:
-		targetPath, err := fs.RootPath(extractDir, hdr.Linkname)
+		targetPath, err := hardlinkRootPath(extractDir, hdr.Linkname)
 		if err != nil {
 			return err
 		}
+
 		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
@@ -647,4 +648,28 @@ func copyBuffered(ctx context.Context, dst io.Writer, src io.Reader) (written in
 	}
 	return written, err
 
+}
+
+// hardlinkRootPath returns target linkname, evaluating and bounding any
+// symlink to the parent directory.
+//
+// NOTE: Allow hardlink to the softlink, not the real one. For example,
+//
+//	touch /tmp/zzz
+//	ln -s /tmp/zzz /tmp/xxx
+//	ln /tmp/xxx /tmp/yyy
+//
+// /tmp/yyy should be softlink which be same of /tmp/xxx, not /tmp/zzz.
+func hardlinkRootPath(root, linkname string) (string, error) {
+	ppath, base := filepath.Split(linkname)
+	ppath, err := fs.RootPath(root, ppath)
+	if err != nil {
+		return "", err
+	}
+
+	targetPath := filepath.Join(ppath, base)
+	if !strings.HasPrefix(targetPath, root) {
+		targetPath = root
+	}
+	return targetPath, nil
 }

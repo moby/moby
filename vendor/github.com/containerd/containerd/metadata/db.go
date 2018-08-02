@@ -275,7 +275,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 				if idx := strings.IndexRune(n.Key, '/'); idx > 0 {
 					m.dirtySS[n.Key[:idx]] = struct{}{}
 				}
-			} else if n.Type == ResourceContent {
+			} else if n.Type == ResourceContent || n.Type == ResourceIngest {
 				m.dirtyCS = true
 			}
 			return remove(ctx, tx, n)

@@ -42,8 +42,12 @@ type CreateOpts struct {
 	IO IO
 	// Checkpoint digest to restore container state
 	Checkpoint string
-	// Options for the runtime and container
-	Options *types.Any
+	// RuntimeOptions for the runtime
+	RuntimeOptions *types.Any
+	// TaskOptions received for the task
+	TaskOptions *types.Any
+	// Runtime to use
+	Runtime string
 }
 
 // Exit information for a process
@@ -64,7 +68,5 @@ type PlatformRuntime interface {
 	Get(context.Context, string) (Task, error)
 	// Tasks returns all the current tasks for the runtime.
 	// Any container runs at most one task at a time.
-	Tasks(context.Context) ([]Task, error)
-	// Delete removes the task in the runtime.
-	Delete(context.Context, Task) (*Exit, error)
+	Tasks(context.Context, bool) ([]Task, error)
 }

@@ -197,11 +197,10 @@ func WithNewSpec(opts ...oci.SpecOpts) NewContainerOpts {
 // WithSpec sets the provided spec on the container
 func WithSpec(s *oci.Spec, opts ...oci.SpecOpts) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
-		for _, o := range opts {
-			if err := o(ctx, client, c, s); err != nil {
-				return err
-			}
+		if err := oci.ApplyOpts(ctx, client, c, s, opts...); err != nil {
+			return err
 		}
+
 		var err error
 		c.Spec, err = typeurl.MarshalAny(s)
 		return err

@@ -18,10 +18,13 @@ package oci
 
 import (
 	"context"
+	"encoding/json"
+	"io/ioutil"
 	"strings"
 
 	"github.com/containerd/containerd/containers"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
 
 // SpecOpts sets spec specific information to a newly generated OCI spec
@@ -43,6 +46,38 @@ func Compose(opts ...SpecOpts) SpecOpts {
 func setProcess(s *Spec) {
 	if s.Process == nil {
 		s.Process = &specs.Process{}
+	}
+}
+
+// WithDefaultSpec returns a SpecOpts that will populate the spec with default
+// values.
+//
+// Use as the first option to clear the spec, then apply options afterwards.
+func WithDefaultSpec() SpecOpts {
+	return func(ctx context.Context, _ Client, c *containers.Container, s *Spec) error {
+		return populateDefaultSpec(ctx, s, c.ID)
+	}
+}
+
+// WithSpecFromBytes loads the the spec from the provided byte slice.
+func WithSpecFromBytes(p []byte) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		*s = Spec{} // make sure spec is cleared.
+		if err := json.Unmarshal(p, s); err != nil {
+			return errors.Wrapf(err, "decoding spec config file failed, current supported OCI runtime-spec : v%s", specs.Version)
+		}
+		return nil
+	}
+}
+
+// WithSpecFromFile loads the specification from the provided filename.
+func WithSpecFromFile(filename string) SpecOpts {
+	return func(ctx context.Context, c Client, container *containers.Container, s *Spec) error {
+		p, err := ioutil.ReadFile(filename)
+		if err != nil {
+			return errors.Wrap(err, "cannot load spec config file")
+		}
+		return WithSpecFromBytes(p)(ctx, c, container, s)
 	}
 }
 

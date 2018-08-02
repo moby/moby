@@ -166,7 +166,7 @@ If you have [criu](https://criu.org/Main_Page) installed on your machine you can
 
 ```go
 // checkpoint the task then push it to a registry
-checkpoint, err := task.Checkpoint(context, containerd.WithExit)
+checkpoint, err := task.Checkpoint(context)
 
 err := client.Push(context, "myregistry/checkpoints/redis:master", checkpoint)
 
@@ -183,6 +183,28 @@ defer task.Delete(context)
 
 err := task.Start(context)
 ```
+
+### Snapshot Plugins
+
+In addition to the built-in Snapshot plugins in containerd, additional external
+plugins can be configured using GRPC. An external plugin is made available using
+the configured name and appears as a plugin alongside the built-in ones.
+
+To add an external snapshot plugin, add the plugin to containerd's config file
+(by default at `/etc/containerd/config.toml`). The string following
+`proxy_plugin.` will be used as the name of the snapshotter and the address
+should refer to a socket with a GRPC listener serving containerd's Snapshot
+GRPC API. Remember to restart containerd for any configuration changes to take
+effect.
+
+```
+[proxy_plugins]
+  [proxy_plugins.customsnapshot]
+    type = "snapshot"
+    address =  "/var/run/mysnapshotter.sock"
+```
+
+See [PLUGINS.md](PLUGINS.md) for how to create plugins
 
 ### Releases and API Stability
 

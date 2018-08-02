@@ -563,7 +563,8 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 
 	opts := []containerd.CheckpointTaskOpts{}
 	if exit {
-		opts = append(opts, containerd.WithExit)
+		// Revendoring hack: please disregard.
+		//opts = append(opts, containerd.WithExit)
 	}
 	img, err := p.(containerd.Task).Checkpoint(ctx, opts...)
 	if err != nil {

@@ -106,6 +106,12 @@ func WithLinuxNamespace(ns specs.LinuxNamespace) SpecOpts {
 
 // WithImageConfig configures the spec to from the configuration of an Image
 func WithImageConfig(image Image) SpecOpts {
+	return WithImageConfigArgs(image, nil)
+}
+
+// WithImageConfigArgs configures the spec to from the configuration of an Image with additional args that
+// replaces the CMD of the image
+func WithImageConfigArgs(image Image, args []string) SpecOpts {
 	return func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
 		ic, err := image.Config(ctx)
 		if err != nil {
@@ -133,6 +139,9 @@ func WithImageConfig(image Image) SpecOpts {
 		setProcess(s)
 		s.Process.Env = append(s.Process.Env, config.Env...)
 		cmd := config.Cmd
+		if len(args) > 0 {
+			cmd = args
+		}
 		s.Process.Args = append(config.Entrypoint, cmd...)
 		cwd := config.WorkingDir
 		if cwd == "" {
