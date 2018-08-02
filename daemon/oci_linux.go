@@ -805,12 +805,14 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	for _, ns := range s.Linux.Namespaces {
 		if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
 			target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
-			s.Hooks = &specs.Hooks{
-				Prestart: []specs.Hook{{
-					Path: target,
-					Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},
-				}},
+
+			if s.Hooks == nil {
+				s.Hooks = &specs.Hooks{}
 			}
+			s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+				Path: target,
+				Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},
+			})
 		}
 	}
 
