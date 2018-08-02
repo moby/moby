@@ -2,6 +2,7 @@ package llbsolver
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/frontend"
+	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/moby/buildkit/worker"
@@ -47,7 +49,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 			func(ref string) {
 				cm = newLazyCacheManager(ref, func() (solver.CacheManager, error) {
 					var cmNew solver.CacheManager
-					if err := b.builder.Call(ctx, "importing cache manifest from "+ref, func(ctx context.Context) error {
+					if err := inVertexContext(b.builder.Context(ctx), "importing cache manifest from "+ref, func(ctx context.Context) error {
 						if b.resolveCacheImporter == nil {
 							return errors.New("no cache importer is available")
 						}
@@ -73,7 +75,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 	}
 
 	if req.Definition != nil && req.Definition.Def != nil {
-		edge, err := Load(req.Definition, WithCacheSources(cms), RuntimePlatforms(b.platforms))
+		edge, err := Load(req.Definition, WithCacheSources(cms), RuntimePlatforms(b.platforms), WithValidateCaps())
 		if err != nil {
 			return nil, err
 		}
@@ -127,12 +129,19 @@ func (s *llbBridge) Exec(ctx context.Context, meta executor.Meta, root cache.Imm
 	return err
 }
 
-func (s *llbBridge) ResolveImageConfig(ctx context.Context, ref string, platform *specs.Platform) (digest.Digest, []byte, error) {
+func (s *llbBridge) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (dgst digest.Digest, config []byte, err error) {
 	w, err := s.resolveWorker()
 	if err != nil {
 		return "", nil, err
 	}
-	return w.ResolveImageConfig(ctx, ref, platform)
+	if opt.LogName == "" {
+		opt.LogName = fmt.Sprintf("resolve image config for %s", ref)
+	}
+	err = inVertexContext(s.builder.Context(ctx), opt.LogName, func(ctx context.Context) error {
+		dgst, config, err = w.ResolveImageConfig(ctx, ref, opt)
+		return err
+	})
+	return dgst, config, err
 }
 
 type lazyCacheManager struct {

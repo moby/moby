@@ -7,6 +7,7 @@ import (
 
 	"github.com/moby/buildkit/identity"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/sirupsen/logrus"
 )
 
 type CacheID string
@@ -22,14 +23,9 @@ func NewCacheManager(id string, storage CacheKeyStorage, results CacheResultStor
 		results: results,
 	}
 
-	storage.Walk(func(id string) error {
-		return storage.WalkResults(id, func(cr CacheResult) error {
-			if !results.Exists(cr.ID) {
-				storage.Release(cr.ID)
-			}
-			return nil
-		})
-	})
+	if err := cm.ReleaseUnreferenced(); err != nil {
+		logrus.Errorf("failed to release unreferenced cache metadata: %+v", err)
+	}
 
 	return cm
 }
@@ -40,6 +36,17 @@ type cacheManager struct {
 
 	backend CacheKeyStorage
 	results CacheResultStorage
+}
+
+func (c *cacheManager) ReleaseUnreferenced() error {
+	return c.backend.Walk(func(id string) error {
+		return c.backend.WalkResults(id, func(cr CacheResult) error {
+			if !c.results.Exists(cr.ID) {
+				c.backend.Release(cr.ID)
+			}
+			return nil
+		})
+	})
 }
 
 func (c *cacheManager) ID() string {

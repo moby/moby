@@ -87,6 +87,7 @@ func (l *CapList) CapSet(caps []pb.APICap) CapSet {
 	m := make(map[string]*pb.APICap, len(caps))
 	for _, c := range caps {
 		if c.ID != "" {
+			c := c // capture loop iterator
 			m[c.ID] = &c
 		}
 	}

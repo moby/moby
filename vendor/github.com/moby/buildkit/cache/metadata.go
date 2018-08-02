@@ -5,6 +5,7 @@ import (
 
 	"github.com/boltdb/bolt"
 	"github.com/moby/buildkit/cache/metadata"
+	"github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
 )
 
@@ -16,6 +17,8 @@ const keyDescription = "cache.description"
 const keyCreatedAt = "cache.createdAt"
 const keyLastUsedAt = "cache.lastUsedAt"
 const keyUsageCount = "cache.usageCount"
+const keyLayerType = "cache.layerType"
+const keyRecordType = "cache.recordType"
 
 const keyDeleted = "cache.deleted"
 
@@ -203,4 +206,57 @@ func updateLastUsed(si *metadata.StorageItem) error {
 		}
 		return si.SetValue(b, keyLastUsedAt, v2)
 	})
+}
+
+func SetLayerType(m withMetadata, value string) error {
+	v, err := metadata.NewValue(value)
+	if err != nil {
+		return errors.Wrap(err, "failed to create layertype value")
+	}
+	m.Metadata().Queue(func(b *bolt.Bucket) error {
+		return m.Metadata().SetValue(b, keyLayerType, v)
+	})
+	return m.Metadata().Commit()
+}
+
+func GetLayerType(m withMetadata) string {
+	v := m.Metadata().Get(keyLayerType)
+	if v == nil {
+		return ""
+	}
+	var str string
+	if err := v.Unmarshal(&str); err != nil {
+		return ""
+	}
+	return str
+}
+
+func GetRecordType(m withMetadata) client.UsageRecordType {
+	v := m.Metadata().Get(keyRecordType)
+	if v == nil {
+		return ""
+	}
+	var str string
+	if err := v.Unmarshal(&str); err != nil {
+		return ""
+	}
+	return client.UsageRecordType(str)
+}
+
+func SetRecordType(m withMetadata, value client.UsageRecordType) error {
+	if err := queueRecordType(m.Metadata(), value); err != nil {
+		return err
+	}
+	return m.Metadata().Commit()
+}
+
+func queueRecordType(si *metadata.StorageItem, value client.UsageRecordType) error {
+	v, err := metadata.NewValue(value)
+	if err != nil {
+		return errors.Wrap(err, "failed to create recordtype value")
+	}
+	si.Queue(func(b *bolt.Bucket) error {
+		return si.SetValue(b, keyRecordType, v)
+	})
+	return nil
 }

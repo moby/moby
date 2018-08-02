@@ -20,12 +20,14 @@ type UsageInfo struct {
 	UsageCount  int
 	Parent      string
 	Description string
+	RecordType  UsageRecordType
+	Shared      bool
 }
 
 func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*UsageInfo, error) {
 	info := &DiskUsageInfo{}
 	for _, o := range opts {
-		o(info)
+		o.SetDiskUsageOption(info)
 	}
 
 	req := &controlapi.DiskUsageRequest{Filter: info.Filter}
@@ -47,6 +49,8 @@ func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*Usa
 			Description: d.Description,
 			UsageCount:  int(d.UsageCount),
 			LastUsedAt:  d.LastUsedAt,
+			RecordType:  UsageRecordType(d.RecordType),
+			Shared:      d.Shared,
 		})
 	}
 
@@ -60,14 +64,21 @@ func (c *Client) DiskUsage(ctx context.Context, opts ...DiskUsageOption) ([]*Usa
 	return du, nil
 }
 
-type DiskUsageOption func(*DiskUsageInfo)
+type DiskUsageOption interface {
+	SetDiskUsageOption(*DiskUsageInfo)
+}
 
 type DiskUsageInfo struct {
-	Filter string
+	Filter []string
 }
 
-func WithFilter(f string) DiskUsageOption {
-	return func(di *DiskUsageInfo) {
-		di.Filter = f
-	}
-}
+type UsageRecordType string
+
+const (
+	UsageRecordTypeInternal    UsageRecordType = "internal"
+	UsageRecordTypeFrontend    UsageRecordType = "frontend"
+	UsageRecordTypeLocalSource UsageRecordType = "source.local"
+	UsageRecordTypeGitCheckout UsageRecordType = "source.git.checkout"
+	UsageRecordTypeCacheMount  UsageRecordType = "exec.cachemount"
+	UsageRecordTypeRegular     UsageRecordType = "regular"
+)

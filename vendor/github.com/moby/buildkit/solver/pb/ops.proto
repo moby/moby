@@ -63,6 +63,7 @@ message Mount {
 	bool readonly = 5;
 	MountType mountType = 6;
 	CacheOpt cacheOpt = 20;
+	SecretOpt secretOpt = 21;
 }
 
 // MountType defines a type of a mount from a supported set
@@ -90,6 +91,21 @@ enum CacheSharingOpt {
 	PRIVATE = 1;
 	// LOCKED pauses second writer until first one releases the mount
 	LOCKED = 2;
+}
+
+// SecretOpt defines options describing secret mounts
+message SecretOpt {
+	// ID of secret. Used for quering the value.
+	string ID = 1;
+	// UID of secret file
+	uint32 uid = 2;
+	// GID of secret file
+	uint32 gid = 3;
+	// Mode is the filesystem mode of secret file
+	uint32 mode = 4;
+	// Optional defines if secret value is required. Error is produced
+	// if value is not found and optional is false.
+	bool optional = 5;
 }
 
 // CopyOp copies files across Ops.
@@ -137,6 +153,8 @@ message OpMetadata {
 	// index 3 reserved for WorkerConstraint in previous versions
 	// WorkerConstraint worker_constraint = 3;
 	ExportCache export_cache = 4;
+	
+	map<string, bool> caps = 5 [(gogoproto.castkey) = "github.com/moby/buildkit/util/apicaps.CapID", (gogoproto.nullable) = false];
 }
 
 message ExportCache {

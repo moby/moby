@@ -10,7 +10,7 @@ import (
 
 type Client interface {
 	Solve(ctx context.Context, req SolveRequest) (*Result, error)
-	ResolveImageConfig(ctx context.Context, ref string, platform *specs.Platform) (digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, opt ResolveImageConfigOpt) (digest.Digest, []byte, error)
 	BuildOpts() BuildOpts
 }
 
@@ -49,4 +49,10 @@ type BuildOpts struct {
 	SessionID string
 	Workers   []WorkerInfo
 	Product   string
+}
+
+type ResolveImageConfigOpt struct {
+	Platform    *specs.Platform
+	ResolveMode string
+	LogName     string
 }

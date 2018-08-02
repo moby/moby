@@ -58,16 +58,16 @@ func (r *splitResult) Release(ctx context.Context) error {
 }
 
 // NewCachedResult combines a result and cache key into cached result
-func NewCachedResult(res Result, k ExportableCacheKey) CachedResult {
+func NewCachedResult(res Result, k []ExportableCacheKey) CachedResult {
 	return &cachedResult{res, k}
 }
 
 type cachedResult struct {
 	Result
-	k ExportableCacheKey
+	k []ExportableCacheKey
 }
 
-func (cr *cachedResult) CacheKey() ExportableCacheKey {
+func (cr *cachedResult) CacheKeys() []ExportableCacheKey {
 	return cr.k
 }
 
@@ -95,8 +95,8 @@ func (r *clonedCachedResult) ID() string {
 	return r.Result.ID()
 }
 
-func (cr *clonedCachedResult) CacheKey() ExportableCacheKey {
-	return cr.cr.CacheKey()
+func (cr *clonedCachedResult) CacheKeys() []ExportableCacheKey {
+	return cr.cr.CacheKeys()
 }
 
 type SharedCachedResult struct {

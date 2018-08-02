@@ -46,6 +46,8 @@ message ReturnResponse {
 message ResolveImageConfigRequest {
 	string Ref = 1;
 	pb.Platform Platform = 2;
+	string ResolveMode = 3;
+	string LogName = 4;
 }
 
 message ResolveImageConfigResponse {

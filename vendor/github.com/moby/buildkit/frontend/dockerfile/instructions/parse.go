@@ -139,7 +139,8 @@ func (e *parseError) Error() string {
 	return fmt.Sprintf("Dockerfile parse error line %d: %v", e.node.StartLine, e.inner.Error())
 }
 
-// Parse a docker file into a collection of buildable stages
+// Parse a Dockerfile into a collection of buildable stages.
+// metaArgs is a collection of ARG instructions that occur before the first FROM.
 func Parse(ast *parser.Node) (stages []Stage, metaArgs []ArgCommand, err error) {
 	for _, n := range ast.Children {
 		cmd, err := ParseInstruction(n)
