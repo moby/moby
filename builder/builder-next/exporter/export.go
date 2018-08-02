@@ -2,6 +2,7 @@ package containerimage
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -9,15 +10,15 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/reference"
-	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/exporter"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
 const (
-	keyImageName        = "name"
-	exporterImageConfig = "containerimage.config"
+	keyImageName = "name"
 )
 
 // Differ can make a moby layer from a snapshot
@@ -54,8 +55,11 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 				}
 				i.targetNames = append(i.targetNames, ref)
 			}
-		case exporterImageConfig:
-			i.config = []byte(v)
+		case exptypes.ExporterImageConfigKey:
+			if i.meta == nil {
+				i.meta = make(map[string][]byte)
+			}
+			i.meta[k] = []byte(v)
 		default:
 			logrus.Warnf("image exporter: unknown option %s", k)
 		}
@@ -66,18 +70,47 @@ func (e *imageExporter) Resolve(ctx context.Context, opt map[string]string) (exp
 type imageExporterInstance struct {
 	*imageExporter
 	targetNames []distref.Named
-	config      []byte
+	meta        map[string][]byte
 }
 
 func (e *imageExporterInstance) Name() string {
 	return "exporting to image"
 }
 
-func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableRef, opt map[string][]byte) (map[string]string, error) {
-	if config, ok := opt[exporterImageConfig]; ok {
-		e.config = config
+func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source) (map[string]string, error) {
+
+	if len(inp.Refs) > 1 {
+		return nil, fmt.Errorf("exporting multiple references to image store is currently unsupported")
 	}
-	config := e.config
+
+	ref := inp.Ref
+	if ref != nil && len(inp.Refs) == 1 {
+		return nil, fmt.Errorf("invalid exporter input: Ref and Refs are mutually exclusive")
+	}
+
+	// only one loop
+	for _, v := range inp.Refs {
+		ref = v
+	}
+
+	var config []byte
+	switch len(inp.Refs) {
+	case 0:
+		config = inp.Metadata[exptypes.ExporterImageConfigKey]
+	case 1:
+		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
+		if !ok {
+			return nil, fmt.Errorf("cannot export image, missing platforms mapping")
+		}
+		var p exptypes.Platforms
+		if err := json.Unmarshal(platformsBytes, &p); err != nil {
+			return nil, errors.Wrapf(err, "failed to parse platforms passed to exporter")
+		}
+		if len(p.Platforms) != len(inp.Refs) {
+			return nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
+		}
+		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
+	}
 
 	var diffs []digest.Digest
 	if ref != nil {

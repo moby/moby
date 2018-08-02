@@ -27,6 +27,7 @@ import (
 	pkgprogress "github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/reference"
 	"github.com/moby/buildkit/cache"
+	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/source"
@@ -113,7 +114,7 @@ func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
 	return img.RawJSON(), nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error) {
+func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
 	if preferLocal {
 		dt, err := is.resolveLocal(ref)
 		if err == nil {
@@ -126,7 +127,7 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, platf
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, opt.Platform)
 		if err != nil {
 			return nil, err
 		}
@@ -257,7 +258,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				return
 			}
 
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), &p.platform)
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform})
 			if err != nil {
 				p.resolveErr = err
 				resolveProgressDone(err)
