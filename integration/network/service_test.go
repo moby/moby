@@ -26,6 +26,7 @@ func delInterface(t *testing.T, ifName string) {
 }
 
 func TestDaemonRestartWithLiveRestore(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	d := daemon.New(t)
@@ -46,6 +47,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 }
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
@@ -87,6 +89,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
@@ -119,6 +122,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
@@ -167,6 +171,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
@@ -317,6 +322,7 @@ func noServices(client client.ServiceAPIClient) func(log poll.LogT) poll.Result 
 }
 
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
 	var ops = []func(*daemon.Daemon){}
 	ipAddr := []string{"20.20.0.0/16"}

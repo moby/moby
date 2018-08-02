@@ -44,6 +44,7 @@ func createAmbiguousNetworks(t *testing.T) (string, string, string) {
 	return testNet, idPrefixNet, fullIDNet
 }
 
+// TestNetworkCreateDelete tests creation and deletion of a network.
 func TestNetworkCreateDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
