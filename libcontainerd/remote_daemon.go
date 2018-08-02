@@ -25,11 +25,13 @@ import (
 )
 
 const (
+	// BinaryName is the name of the containerd binary used by this package
+	BinaryName = "docker-containerd"
+
 	maxConnectionRetryCount = 3
 	healthCheckTimeout      = 3 * time.Second
 	shutdownTimeout         = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "docker-containerd"
 	pidFile                 = "docker-containerd.pid"
 )
 
@@ -211,7 +213,7 @@ func (r *remote) startContainerd() error {
 	if pid != -1 {
 		r.daemonPid = pid
 		logrus.WithField("pid", pid).
-			Infof("libcontainerd: %s is still running", binaryName)
+			Infof("libcontainerd: %s is still running", BinaryName)
 		return nil
 	}
 
@@ -226,7 +228,7 @@ func (r *remote) startContainerd() error {
 		args = append(args, "--log-level", r.Debug.Level)
 	}
 
-	cmd := exec.Command(binaryName, args...)
+	cmd := exec.Command(BinaryName, args...)
 	// redirect containerd logs to docker logs
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -260,7 +262,7 @@ func (r *remote) startContainerd() error {
 	}
 
 	logrus.WithField("pid", r.daemonPid).
-		Infof("libcontainerd: started new %s process", binaryName)
+		Infof("libcontainerd: started new %s process", BinaryName)
 
 	return nil
 }
@@ -293,7 +295,7 @@ func (r *remote) monitorConnection(monitor *containerd.Client) {
 		default:
 		}
 
-		r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
+		r.logger.WithError(err).WithField("binary", BinaryName).Debug("daemon is not responding")
 
 		if r.daemonPid == -1 {
 			continue
