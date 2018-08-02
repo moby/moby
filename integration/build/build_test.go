@@ -189,6 +189,7 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 // Test cases in #36996
 func TestBuildLabelWithTargets(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "test added after 1.38")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	bldName := "build-a"
 	testLabels := map[string]string{
 		"foo":  "bar",
@@ -443,6 +444,7 @@ RUN [ ! -f foo ]
 
 // #37581
 func TestBuildWithHugeFile(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	ctx := context.TODO()
 	defer setupTest(t)()
 

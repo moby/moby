@@ -20,6 +20,7 @@ import (
 
 func TestBuildSquashParent(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	d := daemon.New(t, daemon.WithExperimental)
 	d.StartWithBusybox(t)
