@@ -304,12 +304,28 @@ type LogConfig struct {
 	Config map[string]string
 }
 
+// GPUSet represents all the GPU resources of the container for a given hardware vendor.
+type GPUSet struct {
+	Vendor  string // e.g. 'nvidia', 'intel', 'amd'
+	GPUs    []GPU
+	Options map[string]string
+}
+
+// GPU represents a single GPU resource for the container.
+type GPU struct {
+	ID      string
+	Options map[string]string
+}
+
 // Resources contains container's resources (cgroups config, ulimits...)
 type Resources struct {
 	// Applicable to all platforms
 	CPUShares int64 `json:"CpuShares"` // CPU shares (relative weight vs. other containers)
 	Memory    int64 // Memory limit (in bytes)
 	NanoCPUs  int64 `json:"NanoCpus"` // CPU quota in units of 10<sup>-9</sup> CPUs.
+
+	// Applicable to all platforms, but not guaranteed to be supported.
+	GPUs []GPUSet `json:",omitempty"` // List of GPUs to map inside the container.
 
 	// Applicable to UNIX platforms
 	CgroupParent         string // Parent cgroup.
