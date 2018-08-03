@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/docker/distribution/registry/api/errcode"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/errdefs"
@@ -54,7 +55,10 @@ func GetHTTPErrorStatusCode(err error) int {
 		if statusCode != http.StatusInternalServerError {
 			return statusCode
 		}
-
+		statusCode = statusCodeFromDistributionError(err)
+		if statusCode != http.StatusInternalServerError {
+			return statusCode
+		}
 		if e, ok := err.(causer); ok {
 			return GetHTTPErrorStatusCode(e.Cause())
 		}
@@ -128,4 +132,25 @@ func statusCodeFromGRPCError(err error) int {
 		// codes.DataLoss(15)
 		return http.StatusInternalServerError
 	}
+}
+
+// statusCodeFromDistributionError returns status code according to registry errcode
+// code is loosely based on errcode.ServeJSON() in docker/distribution
+func statusCodeFromDistributionError(err error) int {
+	switch errs := err.(type) {
+	case errcode.Errors:
+		if len(errs) < 1 {
+			return http.StatusInternalServerError
+		}
+		if _, ok := errs[0].(errcode.ErrorCoder); ok {
+			return statusCodeFromDistributionError(errs[0])
+		}
+	case errcode.ErrorCoder:
+		return errs.ErrorCode().Descriptor().HTTPStatusCode
+	default:
+		if e, ok := err.(causer); ok {
+			return statusCodeFromDistributionError(e.Cause())
+		}
+	}
+	return http.StatusInternalServerError
 }
