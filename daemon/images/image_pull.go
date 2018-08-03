@@ -92,7 +92,7 @@ func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, a
 	// get repository info
 	repoInfo, err := i.registryService.ResolveRepository(ref)
 	if err != nil {
-		return nil, false, err
+		return nil, false, errdefs.InvalidParameter(err)
 	}
 	// makes sure name is not empty or `scratch`
 	if err := distribution.ValidateRepoName(repoInfo.Name); err != nil {
