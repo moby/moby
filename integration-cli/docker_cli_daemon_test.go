@@ -24,7 +24,6 @@ import (
 	"github.com/docker/docker/pkg/integration/checker"
 	icmd "github.com/docker/docker/pkg/integration/cmd"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/go-units"
@@ -1825,7 +1824,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *check.C) {
-	s.d.UseDefaultTLSHost = true
+	s.d.useDefaultTLSHost = true
 	defer func() {
 		s.d.useDefaultTLSHost = false
 	}()
