@@ -12,6 +12,7 @@ import (
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 var (
@@ -195,7 +196,8 @@ func (s *session) heartbeat(ctx context.Context) error {
 			cancel()
 			if err != nil {
 				log.G(ctx).WithFields(fields).WithError(err).Errorf("heartbeat to manager %v failed", s.conn.Peer())
-				if grpc.Code(err) == codes.NotFound {
+				st, _ := status.FromError(err)
+				if st.Code() == codes.NotFound {
 					err = errNodeNotRegistered
 				}
 
@@ -252,7 +254,8 @@ func (s *session) logSubscriptions(ctx context.Context) error {
 
 	for {
 		resp, err := subscriptions.Recv()
-		if grpc.Code(err) == codes.Unimplemented {
+		st, _ := status.FromError(err)
+		if st.Code() == codes.Unimplemented {
 			log.Warning("manager does not support log subscriptions")
 			// Don't return, because returning would bounce the session
 			select {
@@ -303,7 +306,8 @@ func (s *session) watch(ctx context.Context) error {
 			// If we get a code = 12 desc = unknown method Assignments, try to use tasks
 			resp, err = assignmentWatch.Recv()
 			if err != nil {
-				if grpc.Code(err) != codes.Unimplemented {
+				st, _ := status.FromError(err)
+				if st.Code() != codes.Unimplemented {
 					return err
 				}
 				tasksFallback = true
@@ -362,20 +366,21 @@ func (s *session) watch(ctx context.Context) error {
 }
 
 // sendTaskStatus uses the current session to send the status of a single task.
-func (s *session) sendTaskStatus(ctx context.Context, taskID string, status *api.TaskStatus) error {
+func (s *session) sendTaskStatus(ctx context.Context, taskID string, taskStatus *api.TaskStatus) error {
 	client := api.NewDispatcherClient(s.conn.ClientConn)
 	if _, err := client.UpdateTaskStatus(ctx, &api.UpdateTaskStatusRequest{
 		SessionID: s.sessionID,
 		Updates: []*api.UpdateTaskStatusRequest_TaskStatusUpdate{
 			{
 				TaskID: taskID,
-				Status: status,
+				Status: taskStatus,
 			},
 		},
 	}); err != nil {
 		// TODO(stevvooe): Dispatcher should not return this error. Status
 		// reports for unknown tasks should be ignored.
-		if grpc.Code(err) == codes.NotFound {
+		st, _ := status.FromError(err)
+		if st.Code() == codes.NotFound {
 			return errTaskUnknown
 		}
 

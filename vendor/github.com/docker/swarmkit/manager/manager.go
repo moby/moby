@@ -962,7 +962,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 		// in order to allow running services on the predefined docker
 		// networks like `bridge` and `host`.
 		for _, p := range allocator.PredefinedNetworks() {
-			if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != store.ErrNameConflict {
+			if err := store.CreateNetwork(tx, newPredefinedNetwork(p.Name, p.Driver)); err != nil && err != store.ErrNameConflict {
 				log.G(ctx).WithError(err).Error("failed to create predefined network " + p.Name)
 			}
 		}

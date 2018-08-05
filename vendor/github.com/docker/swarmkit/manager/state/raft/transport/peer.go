@@ -16,6 +16,7 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -238,13 +239,15 @@ func (p *peer) sendProcessMessage(ctx context.Context, m raftpb.Message) error {
 	}
 
 	// Try doing a regular rpc if the receiver doesn't support streaming.
-	if grpc.Code(err) == codes.Unimplemented {
+	s, _ := status.FromError(err)
+	if s.Code() == codes.Unimplemented {
 		log.G(ctx).Info("sending message to raft peer using ProcessRaftMessage()")
 		_, err = api.NewRaftClient(p.conn()).ProcessRaftMessage(ctx, &api.ProcessRaftMessageRequest{Message: &m})
 	}
 
 	// Handle errors.
-	if grpc.Code(err) == codes.NotFound && grpc.ErrorDesc(err) == membership.ErrMemberRemoved.Error() {
+	s, _ = status.FromError(err)
+	if s.Code() == codes.NotFound && s.Message() == membership.ErrMemberRemoved.Error() {
 		p.tr.config.NodeRemoved()
 	}
 	if m.Type == raftpb.MsgSnap {
