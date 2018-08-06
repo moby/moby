@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 )
 
-// Ping pings the server and returns the value of the "Docker-Experimental", "OS-Type" & "API-Version" headers
+// Ping pings the server and returns the value of the "Docker-Experimental", "Builder-Version", "OS-Type" & "API-Version" headers
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	var ping types.Ping
 	req, err := cli.buildRequest("GET", path.Join(cli.basePath, "/_ping"), nil, nil)
@@ -27,6 +27,9 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 			ping.Experimental = true
 		}
 		ping.OSType = serverResp.header.Get("OSType")
+		if bv := serverResp.header.Get("Builder-Version"); bv != "" {
+			ping.BuilderVersion = types.BuilderVersion(bv)
+		}
 	}
 	return ping, cli.checkResponseErr(serverResp)
 }

@@ -6972,6 +6972,9 @@ paths:
             API-Version:
               type: "string"
               description: "Max API Version the server supports"
+            BuildKit-Version:
+              type: "string"
+              description: "Default version of docker image builder"
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"

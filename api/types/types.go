@@ -102,9 +102,10 @@ type ContainerStats struct {
 // Ping contains response of Engine API:
 // GET "/_ping"
 type Ping struct {
-	APIVersion   string
-	OSType       string
-	Experimental bool
+	APIVersion     string
+	OSType         string
+	Experimental   bool
+	BuilderVersion BuilderVersion
 }
 
 // ComponentVersion describes the version information for a specific component.
