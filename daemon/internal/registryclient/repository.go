@@ -81,9 +81,8 @@ func NewRegistry(baseURL string, transport http.RoundTripper) (Registry, error) 
 }
 
 type registry struct {
-	client  *http.Client
-	ub      *v2.URLBuilder
-	context context.Context
+	client *http.Client
+	ub     *v2.URLBuilder
 }
 
 // Repositories returns a lexigraphically sorted catalog given a base URL.  The 'entries' slice will be filled up to the size
@@ -152,10 +151,9 @@ func NewRepository(name reference.Named, baseURL string, transport http.RoundTri
 }
 
 type repository struct {
-	client  *http.Client
-	ub      *v2.URLBuilder
-	context context.Context
-	name    reference.Named
+	client *http.Client
+	ub     *v2.URLBuilder
+	name   reference.Named
 }
 
 func (r *repository) Named() reference.Named {
