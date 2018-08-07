@@ -2,9 +2,13 @@ syntax = "proto3";
 
 package moby.buildkit.v1;
 
+// The control API is currently considered experimental and may break in a backwards
+// incompatible way.
+
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 import "google/protobuf/timestamp.proto";
 import "github.com/moby/buildkit/solver/pb/ops.proto";
+import "github.com/moby/buildkit/api/types/worker.proto";
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -17,6 +21,7 @@ service Control {
 	rpc Status(StatusRequest) returns (stream StatusResponse);
 	rpc Session(stream BytesMessage) returns (stream BytesMessage);
 	rpc ListWorkers(ListWorkersRequest) returns (ListWorkersResponse);
+	// rpc Info(InfoRequest) returns (InfoResponse);
 }
 
 message PruneRequest {
@@ -112,11 +117,5 @@ message ListWorkersRequest {
 }
 
 message ListWorkersResponse {
-	repeated WorkerRecord record = 1;
-}
-
-message WorkerRecord {
-	string ID = 1;
-	map<string, string> Labels = 2;
-	repeated pb.Platform platforms = 3 [(gogoproto.nullable) = false];
+	repeated moby.buildkit.v1.types.WorkerRecord record = 1;
 }

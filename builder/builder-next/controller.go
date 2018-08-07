@@ -13,12 +13,13 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
-	"github.com/moby/buildkit/cache/remotecache"
+	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
-	"github.com/moby/buildkit/frontend/dockerfile"
+	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
+	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	"github.com/moby/buildkit/snapshot/blobmapping"
 	"github.com/moby/buildkit/solver/boltdbcachestorage"
 	"github.com/moby/buildkit/worker"
@@ -113,10 +114,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	frontends := map[string]frontend.Frontend{}
-	frontends["dockerfile.v0"] = dockerfile.NewDockerfileFrontend()
-	frontends["gateway.v0"] = gateway.NewGatewayFrontend()
-
 	wopt := mobyworker.Opt{
 		ID:                "moby",
 		SessionManager:    opt.SessionManager,
@@ -141,17 +138,17 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 	wc.Add(w)
 
-	ci := remotecache.NewCacheImporter(remotecache.ImportOpt{
-		Worker:         w,
-		SessionManager: opt.SessionManager,
-	})
+	frontends := map[string]frontend.Frontend{
+		"dockerfile.v0": forwarder.NewGatewayForwarder(wc, dockerfile.Build),
+		"gateway.v0":    gateway.NewGatewayFrontend(wc),
+	}
 
 	return control.NewController(control.Opt{
-		SessionManager:   opt.SessionManager,
-		WorkerController: wc,
-		Frontends:        frontends,
-		CacheKeyStorage:  cacheStorage,
-		// CacheExporter:    ce,
-		CacheImporter: ci,
+		SessionManager:           opt.SessionManager,
+		WorkerController:         wc,
+		Frontends:                frontends,
+		CacheKeyStorage:          cacheStorage,
+		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager),
+		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
 }

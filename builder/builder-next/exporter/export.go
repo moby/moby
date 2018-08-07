@@ -83,7 +83,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, ref cache.ImmutableR
 	if ref != nil {
 		layersDone := oneOffProgress(ctx, "exporting layers")
 
-		if err := ref.Finalize(ctx); err != nil {
+		if err := ref.Finalize(ctx, true); err != nil {
 			return nil, err
 		}
 

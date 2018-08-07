@@ -365,7 +365,7 @@ Try {
     # Run autogen if building binaries or running unit tests.
     if ($Client -or $Daemon -or $TestUnit) {
         Write-Host "INFO: Invoking autogen..."
-        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion -Platform "$env:PLATFORM" }
+        Try { .\hack\make\.go-autogen.ps1 -CommitString $gitCommit -DockerVersion $dockerVersion -Platform "$env:PLATFORM" -Product "$env:PRODUCT" }
         Catch [Exception] { Throw $_ }
     }
 

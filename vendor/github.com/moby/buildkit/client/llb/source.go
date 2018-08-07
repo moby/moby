@@ -51,6 +51,15 @@ func (s *SourceOp) Marshal(constraints *Constraints) (digest.Digest, []byte, *pb
 		return "", nil, nil, err
 	}
 
+	if strings.HasPrefix(s.id, "local://") {
+		if _, hasSession := s.attrs[pb.AttrLocalSessionID]; !hasSession {
+			uid := s.constraints.LocalUniqueID
+			if uid == "" {
+				uid = constraints.LocalUniqueID
+			}
+			s.attrs[pb.AttrLocalUniqueID] = uid
+		}
+	}
 	proto, md := MarshalConstraints(constraints, &s.constraints)
 
 	proto.Op = &pb.Op_Source{
