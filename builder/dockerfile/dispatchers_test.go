@@ -157,6 +157,22 @@ func TestFromWithArg(t *testing.T) {
 	assert.Check(t, is.Len(sb.state.buildArgs.GetAllMeta(), 1))
 }
 
+func TestFromWithArgButBuildArgsNotGiven(t *testing.T) {
+	b := newBuilderWithMockBackend()
+	args := NewBuildArgs(make(map[string]*string))
+
+	metaArg := instructions.ArgCommand{}
+	cmd := &instructions.Stage{
+		BaseName: "${THETAG}",
+	}
+	err := processMetaArg(metaArg, shell.NewLex('\\'), args)
+
+	sb := newDispatchRequest(b, '\\', nil, args, newStagesBuildResults())
+	assert.NilError(t, err)
+	err = initializeStage(sb, cmd)
+	assert.Error(t, err, "base name (${THETAG}) should not be blank")
+}
+
 func TestFromWithUndefinedArg(t *testing.T) {
 	tag, expected := "sometag", "expectedthisid"
 
