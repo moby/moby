@@ -37,6 +37,10 @@ func (r *remote) setDefaults() {
 	if r.snapshotter == "" {
 		r.snapshotter = "overlay"
 	}
+	// Disable CRI plugin by default if containerd is managed as child-process
+	// of dockerd. See https://github.com/moby/moby/issues/37507
+	r.DisabledPlugins = append(r.DisabledPlugins, "cri")
+	delete(r.pluginConfs.Plugins, "cri")
 }
 
 func (r *remote) stopDaemon() {
