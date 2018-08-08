@@ -144,7 +144,9 @@ func (e *edge) commitOptions() ([]*CacheKey, []CachedResult) {
 	inputs := make([][]CacheKeyWithSelector, len(e.deps))
 	results := make([]CachedResult, len(e.deps))
 	for i, dep := range e.deps {
-		inputs[i] = append(inputs[i], CacheKeyWithSelector{CacheKey: dep.result.CacheKey(), Selector: e.cacheMap.Deps[i].Selector})
+		for _, k := range dep.result.CacheKeys() {
+			inputs[i] = append(inputs[i], CacheKeyWithSelector{CacheKey: k, Selector: e.cacheMap.Deps[i].Selector})
+		}
 		if dep.slowCacheKey != nil {
 			inputs[i] = append(inputs[i], CacheKeyWithSelector{CacheKey: *dep.slowCacheKey})
 		}
@@ -245,7 +247,9 @@ func (e *edge) currentIndexKey() *CacheKey {
 			keys[i] = append(keys[i], CacheKeyWithSelector{Selector: e.cacheMap.Deps[i].Selector, CacheKey: k})
 		}
 		if d.result != nil {
-			keys[i] = append(keys[i], CacheKeyWithSelector{Selector: e.cacheMap.Deps[i].Selector, CacheKey: d.result.CacheKey()})
+			for _, rk := range d.result.CacheKeys() {
+				keys[i] = append(keys[i], CacheKeyWithSelector{Selector: e.cacheMap.Deps[i].Selector, CacheKey: rk})
+			}
 			if d.slowCacheKey != nil {
 				keys[i] = append(keys[i], CacheKeyWithSelector{CacheKey: ExportableCacheKey{CacheKey: d.slowCacheKey.CacheKey, Exporter: &exporter{k: d.slowCacheKey.CacheKey}}})
 			}
@@ -413,7 +417,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 	}
 
 	// response for requests to dependencies
-	if dep, ok := e.depRequests[upt]; ok { // TODO: ignore canceled
+	if dep, ok := e.depRequests[upt]; ok {
 		if err := upt.Status().Err; !upt.Status().Canceled && upt.Status().Completed && err != nil {
 			if e.err == nil {
 				e.err = err
@@ -427,6 +431,7 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 			newKeys := state.keys[len(dep.keys):]
 			if e.cacheMap != nil {
 				e.probeCache(dep, withSelector(newKeys, e.cacheMap.Deps[dep.index].Selector))
+				dep.edgeState.keys = state.keys
 				if e.allDepsHaveKeys() {
 					e.keysDidChange = true
 				}
@@ -461,11 +466,14 @@ func (e *edge) processUpdate(upt pipe.Receiver) (depChanged bool) {
 				k := NewCacheKey(upt.Status().Value.(digest.Digest), -1)
 				dep.slowCacheKey = &ExportableCacheKey{CacheKey: k, Exporter: &exporter{k: k}}
 				slowKeyExp := CacheKeyWithSelector{CacheKey: *dep.slowCacheKey}
-				defKeyExp := CacheKeyWithSelector{CacheKey: dep.result.CacheKey(), Selector: e.cacheMap.Deps[i].Selector}
+				defKeys := make([]CacheKeyWithSelector, 0, len(dep.result.CacheKeys()))
+				for _, dk := range dep.result.CacheKeys() {
+					defKeys = append(defKeys, CacheKeyWithSelector{CacheKey: dk, Selector: e.cacheMap.Deps[i].Selector})
+				}
 				dep.slowCacheFoundKey = e.probeCache(dep, []CacheKeyWithSelector{slowKeyExp})
 
 				// connect def key to slow key
-				e.op.Cache().Query([]CacheKeyWithSelector{defKeyExp, slowKeyExp}, dep.index, e.cacheMap.Digest, e.edge.Index)
+				e.op.Cache().Query(append(defKeys, slowKeyExp), dep.index, e.cacheMap.Digest, e.edge.Index)
 
 				dep.slowCacheComplete = true
 				e.keysDidChange = true
@@ -510,7 +518,9 @@ func (e *edge) recalcCurrentState() {
 		mergedKey.deps = make([][]CacheKeyWithSelector, len(e.deps))
 		for i, dep := range e.deps {
 			if dep.result != nil {
-				mergedKey.deps[i] = append(mergedKey.deps[i], CacheKeyWithSelector{Selector: e.cacheMap.Deps[i].Selector, CacheKey: dep.result.CacheKey()})
+				for _, dk := range dep.result.CacheKeys() {
+					mergedKey.deps[i] = append(mergedKey.deps[i], CacheKeyWithSelector{Selector: e.cacheMap.Deps[i].Selector, CacheKey: dk})
+				}
 				if dep.slowCacheKey != nil {
 					mergedKey.deps[i] = append(mergedKey.deps[i], CacheKeyWithSelector{CacheKey: *dep.slowCacheKey})
 				}
@@ -789,7 +799,7 @@ func (e *edge) loadCache(ctx context.Context) (interface{}, error) {
 		return nil, err
 	}
 
-	return NewCachedResult(res, ExportableCacheKey{CacheKey: rec.key, Exporter: &exporter{k: rec.key, record: rec, edge: e}}), nil
+	return NewCachedResult(res, []ExportableCacheKey{{CacheKey: rec.key, Exporter: &exporter{k: rec.key, record: rec, edge: e}}}), nil
 }
 
 // execOp creates a request to execute the vertex operation
@@ -834,12 +844,15 @@ func (e *edge) execOp(ctx context.Context) (interface{}, error) {
 		exporters = append(exporters, exps...)
 	}
 
-	ck := &ExportableCacheKey{
-		CacheKey: cacheKeys[0],
-		Exporter: &mergedExporter{exporters: exporters},
+	ek := make([]ExportableCacheKey, 0, len(cacheKeys))
+	for _, ck := range cacheKeys {
+		ek = append(ek, ExportableCacheKey{
+			CacheKey: ck,
+			Exporter: &mergedExporter{exporters: exporters},
+		})
 	}
 
-	return NewCachedResult(res, *ck), nil
+	return NewCachedResult(res, ek), nil
 }
 
 func toResultSlice(cres []CachedResult) (out []Result) {

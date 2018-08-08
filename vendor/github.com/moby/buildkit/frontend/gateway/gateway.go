@@ -14,9 +14,12 @@ import (
 	"github.com/docker/distribution/reference"
 	apitypes "github.com/moby/buildkit/api/types"
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/executor"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
+	gw "github.com/moby/buildkit/frontend/gateway/client"
 	pb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -37,9 +40,8 @@ import (
 )
 
 const (
-	keySource           = "source"
-	keyDevel            = "gateway-devel"
-	exporterImageConfig = "containerimage.config"
+	keySource = "source"
+	keyDevel  = "gateway-devel"
 )
 
 func NewGatewayFrontend(w frontend.WorkerInfos) frontend.Frontend {
@@ -97,7 +99,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 			return nil, errors.Errorf("invalid ref: %T", devRes.Ref.Sys())
 		}
 		rootFS = workerRef.ImmutableRef
-		config, ok := devRes.Metadata[exporterImageConfig]
+		config, ok := devRes.Metadata[exptypes.ExporterImageConfigKey]
 		if ok {
 			if err := json.Unmarshal(config, &img); err != nil {
 				return nil, err
@@ -109,7 +111,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 			return nil, err
 		}
 
-		dgst, config, err := llbBridge.ResolveImageConfig(ctx, reference.TagNameOnly(sourceRef).String(), nil) // TODO:
+		dgst, config, err := llbBridge.ResolveImageConfig(ctx, reference.TagNameOnly(sourceRef).String(), gw.ResolveImageConfigOpt{})
 		if err != nil {
 			return nil, err
 		}
@@ -125,7 +127,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 			}
 		}
 
-		src := llb.Image(sourceRef.String())
+		src := llb.Image(sourceRef.String(), &markTypeFrontend{})
 
 		def, err := src.Marshal()
 		if err != nil {
@@ -322,7 +324,11 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 			OSFeatures:   p.OSFeatures,
 		}
 	}
-	dgst, dt, err := lbf.llbBridge.ResolveImageConfig(ctx, req.Ref, platform)
+	dgst, dt, err := lbf.llbBridge.ResolveImageConfig(ctx, req.Ref, gw.ResolveImageConfigOpt{
+		Platform:    platform,
+		ResolveMode: req.ResolveMode,
+		LogName:     req.LogName,
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -453,7 +459,7 @@ func (lbf *llbBridgeForwarder) Ping(context.Context, *pb.PingRequest) (*pb.PongR
 	return &pb.PongResponse{
 		FrontendAPICaps: pb.Caps.All(),
 		Workers:         pbWorkers,
-		// TODO: add LLB info
+		LLBCaps:         opspb.Caps.All(),
 	}, nil
 }
 
@@ -510,4 +516,10 @@ func serve(ctx context.Context, grpcServer *grpc.Server, conn net.Conn) {
 	}()
 	logrus.Debugf("serving grpc connection")
 	(&http2.Server{}).ServeConn(conn, &http2.ServeConnOpts{Handler: grpcServer})
+}
+
+type markTypeFrontend struct{}
+
+func (*markTypeFrontend) SetImageOption(ii *llb.ImageInfo) {
+	ii.RecordType = string(client.UsageRecordTypeFrontend)
 }

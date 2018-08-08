@@ -5,10 +5,12 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/client/llb"
+	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/util/contentutil"
 	"github.com/moby/buildkit/util/imageutil"
 	digest "github.com/opencontainers/go-digest"
@@ -18,7 +20,7 @@ import (
 var defaultImageMetaResolver llb.ImageMetaResolver
 var defaultImageMetaResolverOnce sync.Once
 
-var WithDefault = llb.ImageOptionFunc(func(ii *llb.ImageInfo) {
+var WithDefault = imageOptionFunc(func(ii *llb.ImageInfo) {
 	llb.WithMetaResolver(Default()).SetImageOption(ii)
 })
 
@@ -70,16 +72,19 @@ type resolveResult struct {
 	dgst   digest.Digest
 }
 
-func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, platform *specs.Platform) (digest.Digest, []byte, error) {
+func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
 	imr.locker.Lock(ref)
 	defer imr.locker.Unlock(ref)
 
-	if res, ok := imr.cache[ref]; ok {
-		return res.dgst, res.config, nil
-	}
-
+	platform := opt.Platform
 	if platform == nil {
 		platform = imr.platform
+	}
+
+	k := imr.key(ref, platform)
+
+	if res, ok := imr.cache[k]; ok {
+		return res.dgst, res.config, nil
 	}
 
 	dgst, config, err := imageutil.Config(ctx, ref, imr.resolver, imr.buffer, platform)
@@ -87,6 +92,19 @@ func (imr *imageMetaResolver) ResolveImageConfig(ctx context.Context, ref string
 		return "", nil, err
 	}
 
-	imr.cache[ref] = resolveResult{dgst: dgst, config: config}
+	imr.cache[k] = resolveResult{dgst: dgst, config: config}
 	return dgst, config, nil
+}
+
+func (imr *imageMetaResolver) key(ref string, platform *specs.Platform) string {
+	if platform != nil {
+		ref += platforms.Format(*platform)
+	}
+	return ref
+}
+
+type imageOptionFunc func(*llb.ImageInfo)
+
+func (fn imageOptionFunc) SetImageOption(ii *llb.ImageInfo) {
+	fn(ii)
 }

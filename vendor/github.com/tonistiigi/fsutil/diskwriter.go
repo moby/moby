@@ -175,6 +175,11 @@ func (dw *DiskWriter) HandleChange(kind ChangeKind, p string, fi os.FileInfo, er
 	}
 
 	if rename {
+		if oldFi.IsDir() != fi.IsDir() {
+			if err := os.RemoveAll(destPath); err != nil {
+				return errors.Wrapf(err, "failed to remove %s", destPath)
+			}
+		}
 		if err := os.Rename(newPath, destPath); err != nil {
 			return errors.Wrapf(err, "failed to rename %s to %s", newPath, destPath)
 		}

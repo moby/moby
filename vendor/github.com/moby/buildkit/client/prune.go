@@ -11,10 +11,13 @@ import (
 func (c *Client) Prune(ctx context.Context, ch chan UsageInfo, opts ...PruneOption) error {
 	info := &PruneInfo{}
 	for _, o := range opts {
-		o(info)
+		o.SetPruneOption(info)
 	}
 
-	req := &controlapi.PruneRequest{}
+	req := &controlapi.PruneRequest{Filter: info.Filter}
+	if info.All {
+		req.All = true
+	}
 	cl, err := c.controlClient().Prune(ctx, req)
 	if err != nil {
 		return errors.Wrap(err, "failed to call prune")
@@ -39,12 +42,28 @@ func (c *Client) Prune(ctx context.Context, ch chan UsageInfo, opts ...PruneOpti
 				Description: d.Description,
 				UsageCount:  int(d.UsageCount),
 				LastUsedAt:  d.LastUsedAt,
+				RecordType:  UsageRecordType(d.RecordType),
+				Shared:      d.Shared,
 			}
 		}
 	}
 }
 
-type PruneOption func(*PruneInfo)
+type PruneOption interface {
+	SetPruneOption(*PruneInfo)
+}
 
 type PruneInfo struct {
+	Filter []string
+	All    bool
 }
+
+type pruneOptionFunc func(*PruneInfo)
+
+func (f pruneOptionFunc) SetPruneOption(pi *PruneInfo) {
+	f(pi)
+}
+
+var PruneAll = pruneOptionFunc(func(pi *PruneInfo) {
+	pi.All = true
+})

@@ -50,7 +50,7 @@ type Result interface {
 // CachedResult is a result connected with its cache key
 type CachedResult interface {
 	Result
-	CacheKey() ExportableCacheKey
+	CacheKeys() []ExportableCacheKey
 }
 
 // CacheExportMode is the type for setting cache exporting modes

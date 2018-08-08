@@ -2,10 +2,10 @@ package cache
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
@@ -23,9 +23,10 @@ var (
 )
 
 type ManagerOpt struct {
-	Snapshotter   snapshot.SnapshotterBase
-	GCPolicy      GCPolicy
-	MetadataStore *metadata.Store
+	Snapshotter     snapshot.SnapshotterBase
+	GCPolicy        GCPolicy
+	MetadataStore   *metadata.Store
+	PruneRefChecker ExternalRefCheckerFunc
 }
 
 type Accessor interface {
@@ -37,7 +38,7 @@ type Accessor interface {
 
 type Controller interface {
 	DiskUsage(ctx context.Context, info client.DiskUsageInfo) ([]*client.UsageInfo, error)
-	Prune(ctx context.Context, ch chan client.UsageInfo) error
+	Prune(ctx context.Context, ch chan client.UsageInfo, info client.PruneInfo) error
 	GC(ctx context.Context) error
 }
 
@@ -45,6 +46,12 @@ type Manager interface {
 	Accessor
 	Controller
 	Close() error
+}
+
+type ExternalRefCheckerFunc func() (ExternalRefChecker, error)
+
+type ExternalRefChecker interface {
+	Exists(key string) bool
 }
 
 type cacheManager struct {
@@ -296,13 +303,28 @@ func (cm *cacheManager) GetMutable(ctx context.Context, id string) (MutableRef, 
 	return rec.mref(), nil
 }
 
-func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo) error {
+func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo, opt client.PruneInfo) error {
 	cm.muPrune.Lock()
 	defer cm.muPrune.Unlock()
-	return cm.prune(ctx, ch)
+
+	filter, err := filters.ParseAll(opt.Filter...)
+	if err != nil {
+		return err
+	}
+
+	var check ExternalRefChecker
+	if f := cm.PruneRefChecker; f != nil && (!opt.All || len(opt.Filter) > 0) {
+		c, err := f()
+		if err != nil {
+			return err
+		}
+		check = c
+	}
+
+	return cm.prune(ctx, ch, filter, opt.All, check)
 }
 
-func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo) error {
+func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, filter filters.Filter, all bool, checkShared ExternalRefChecker) error {
 	var toDelete []*cacheRecord
 	cm.mu.Lock()
 
@@ -321,16 +343,44 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo) err
 		}
 
 		if len(cr.refs) == 0 {
-			cr.dead = true
-			toDelete = append(toDelete, cr)
+			recordType := GetRecordType(cr)
+			if recordType == "" {
+				recordType = client.UsageRecordTypeRegular
+			}
+
+			shared := false
+			if checkShared != nil {
+				shared = checkShared.Exists(cr.ID())
+			}
+
+			if !all {
+				if recordType == client.UsageRecordTypeInternal || recordType == client.UsageRecordTypeFrontend || shared {
+					cr.mu.Unlock()
+					continue
+				}
+			}
+
+			c := &client.UsageInfo{
+				ID:         cr.ID(),
+				Mutable:    cr.mutable,
+				RecordType: recordType,
+				Shared:     shared,
+			}
+
+			if filter.Match(adaptUsageInfo(c)) {
+				cr.dead = true
+
+				toDelete = append(toDelete, cr)
+
+				// mark metadata as deleted in case we crash before cleanup finished
+				if err := setDeleted(cr.md); err != nil {
+					cr.mu.Unlock()
+					cm.mu.Unlock()
+					return err
+				}
+			}
 		}
 
-		// mark metadata as deleted in case we crash before cleanup finished
-		if err := setDeleted(cr.md); err != nil {
-			cr.mu.Unlock()
-			cm.mu.Unlock()
-			return err
-		}
 		cr.mu.Unlock()
 	}
 
@@ -393,24 +443,61 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo) err
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-		return cm.prune(ctx, ch)
+		return cm.prune(ctx, ch, filter, all, checkShared)
 	}
 }
 
-func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error) {
-	cm.mu.Lock()
-
-	type cacheUsageInfo struct {
-		refs        int
-		parent      string
-		size        int64
-		mutable     bool
-		createdAt   time.Time
-		usageCount  int
-		lastUsedAt  *time.Time
-		description string
-		doubleRef   bool
+func (cm *cacheManager) markShared(m map[string]*cacheUsageInfo) error {
+	if cm.PruneRefChecker == nil {
+		return nil
 	}
+	c, err := cm.PruneRefChecker()
+	if err != nil {
+		return err
+	}
+
+	var markAllParentsShared func(string)
+	markAllParentsShared = func(id string) {
+		if v, ok := m[id]; ok {
+			v.shared = true
+			if v.parent != "" {
+				markAllParentsShared(v.parent)
+			}
+		}
+	}
+
+	for id := range m {
+		if m[id].shared {
+			continue
+		}
+		if b := c.Exists(id); b {
+			markAllParentsShared(id)
+		}
+	}
+	return nil
+}
+
+type cacheUsageInfo struct {
+	refs        int
+	parent      string
+	size        int64
+	mutable     bool
+	createdAt   time.Time
+	usageCount  int
+	lastUsedAt  *time.Time
+	description string
+	doubleRef   bool
+	recordType  client.UsageRecordType
+	shared      bool
+}
+
+func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error) {
+	filter, err := filters.ParseAll(opt.Filter...)
+	if err != nil {
+		return nil, err
+	}
+
+	cm.mu.Lock()
 
 	m := make(map[string]*cacheUsageInfo, len(cm.records))
 	rescan := make(map[string]struct{}, len(cm.records))
@@ -433,6 +520,10 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 			lastUsedAt:  lastUsedAt,
 			description: GetDescription(cr.md),
 			doubleRef:   cr.equalImmutable != nil,
+			recordType:  GetRecordType(cr),
+		}
+		if c.recordType == "" {
+			c.recordType = client.UsageRecordTypeRegular
 		}
 		if cr.parent != nil {
 			c.parent = cr.parent.ID()
@@ -463,12 +554,12 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 		}
 	}
 
+	if err := cm.markShared(m); err != nil {
+		return nil, err
+	}
+
 	var du []*client.UsageInfo
 	for id, cr := range m {
-		if opt.Filter != "" && !strings.HasPrefix(id, opt.Filter) {
-			continue
-		}
-
 		c := &client.UsageInfo{
 			ID:          id,
 			Mutable:     cr.mutable,
@@ -479,8 +570,12 @@ func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo)
 			Description: cr.description,
 			LastUsedAt:  cr.lastUsedAt,
 			UsageCount:  cr.usageCount,
+			RecordType:  cr.recordType,
+			Shared:      cr.shared,
 		}
-		du = append(du, c)
+		if filter.Match(adaptUsageInfo(c)) {
+			du = append(du, c)
+		}
 	}
 
 	eg, ctx := errgroup.WithContext(ctx)
@@ -547,6 +642,12 @@ func WithDescription(descr string) RefOption {
 	}
 }
 
+func WithRecordType(t client.UsageRecordType) RefOption {
+	return func(m withMetadata) error {
+		return queueRecordType(m.Metadata(), t)
+	}
+}
+
 func WithCreationTime(tm time.Time) RefOption {
 	return func(m withMetadata) error {
 		return queueCreatedAt(m.Metadata(), tm)
@@ -570,4 +671,37 @@ func initializeMetadata(m withMetadata, opts ...RefOption) error {
 	}
 
 	return md.Commit()
+}
+
+func adaptUsageInfo(info *client.UsageInfo) filters.Adaptor {
+	return filters.AdapterFunc(func(fieldpath []string) (string, bool) {
+		if len(fieldpath) == 0 {
+			return "", false
+		}
+
+		switch fieldpath[0] {
+		case "id":
+			return info.ID, info.ID != ""
+		case "parent":
+			return info.Parent, info.Parent != ""
+		case "description":
+			return info.Description, info.Description != ""
+		case "inuse":
+			return "", info.InUse
+		case "mutable":
+			return "", info.Mutable
+		case "immutable":
+			return "", !info.Mutable
+		case "type":
+			return string(info.RecordType), info.RecordType != ""
+		case "shared":
+			return "", info.Shared
+		case "private":
+			return "", !info.Shared
+		}
+
+		// TODO: add int/datetime/bytes support for more fields
+
+		return "", false
+	})
 }

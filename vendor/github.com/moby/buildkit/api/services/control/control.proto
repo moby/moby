@@ -25,11 +25,12 @@ service Control {
 }
 
 message PruneRequest {
-	// TODO: filter
+	repeated string filter = 1; // FIXME: not implemented
+	bool all = 2;
 }
 
 message DiskUsageRequest {
-	string filter = 1; // FIXME: this should be containerd-compatible repeated string?
+	repeated string filter = 1; 
 }
 
 message DiskUsageResponse {
@@ -46,6 +47,8 @@ message UsageRecord {
 	google.protobuf.Timestamp LastUsedAt = 7 [(gogoproto.stdtime) = true];
 	int64 UsageCount = 8;
 	string Description = 9;
+	string RecordType = 10;
+	bool Shared = 11;
 }
 
 message SolveRequest {

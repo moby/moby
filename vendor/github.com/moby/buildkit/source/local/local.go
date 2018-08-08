@@ -10,6 +10,7 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/contenthash"
 	"github.com/moby/buildkit/cache/metadata"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/filesync"
 	"github.com/moby/buildkit/snapshot"
@@ -20,6 +21,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
 	"golang.org/x/time/rate"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const keySharedKey = "local.sharedKey"
@@ -80,7 +83,8 @@ func (ls *localSourceHandler) CacheKey(ctx context.Context, index int) (string, 
 		SessionID       string
 		IncludePatterns []string
 		ExcludePatterns []string
-	}{SessionID: sessionID, IncludePatterns: ls.src.IncludePatterns, ExcludePatterns: ls.src.ExcludePatterns})
+		FollowPaths     []string
+	}{SessionID: sessionID, IncludePatterns: ls.src.IncludePatterns, ExcludePatterns: ls.src.ExcludePatterns, FollowPaths: ls.src.FollowPaths})
 	if err != nil {
 		return "", false, err
 	}
@@ -118,7 +122,7 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context) (out cache.Immutable
 	}
 
 	if mutable == nil {
-		m, err := ls.cm.New(ctx, nil, cache.CachePolicyRetain, cache.WithDescription(fmt.Sprintf("local source for %s", ls.src.Name)))
+		m, err := ls.cm.New(ctx, nil, cache.CachePolicyRetain, cache.WithRecordType(client.UsageRecordTypeLocalSource), cache.WithDescription(fmt.Sprintf("local source for %s", ls.src.Name)))
 		if err != nil {
 			return nil, err
 		}
@@ -167,6 +171,9 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context) (out cache.Immutable
 	}
 
 	if err := filesync.FSSync(ctx, caller, opt); err != nil {
+		if status.Code(err) == codes.NotFound {
+			return nil, errors.Errorf("local source %s not enabled from the client", ls.src.Name)
+		}
 		return nil, err
 	}
 

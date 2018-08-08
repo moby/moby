@@ -9,12 +9,13 @@ var Caps apicaps.CapList
 // considered immutable. After a capability is marked stable it should not be disabled.
 
 const (
-	CapSolveBase         apicaps.CapID = "solve.base"
-	CapSolveInlineReturn apicaps.CapID = "solve.inlinereturn"
-	CapResolveImage      apicaps.CapID = "resolveimage"
-	CapReadFile          apicaps.CapID = "readfile"
-	CapReturnResult      apicaps.CapID = "return"
-	CapReturnMap         apicaps.CapID = "returnmap"
+	CapSolveBase               apicaps.CapID = "solve.base"
+	CapSolveInlineReturn       apicaps.CapID = "solve.inlinereturn"
+	CapResolveImage            apicaps.CapID = "resolveimage"
+	CapResolveImageResolveMode apicaps.CapID = "resolveimage.resolvemode"
+	CapReadFile                apicaps.CapID = "readfile"
+	CapReturnResult            apicaps.CapID = "return"
+	CapReturnMap               apicaps.CapID = "returnmap"
 )
 
 func init() {
@@ -36,6 +37,13 @@ func init() {
 	Caps.Init(apicaps.Cap{
 		ID:      CapResolveImage,
 		Name:    "resolve remote image config",
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapResolveImageResolveMode,
+		Name:    "resolve remote image config with custom resolvemode",
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

@@ -5,14 +5,18 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/builder/dockerignore"
 	"github.com/moby/buildkit/client/llb"
+	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	"github.com/moby/buildkit/solver/pb"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -24,13 +28,14 @@ const (
 	keyTarget             = "target"
 	keyFilename           = "filename"
 	keyCacheFrom          = "cache-from"
-	exporterImageConfig   = "containerimage.config"
 	defaultDockerfileName = "Dockerfile"
 	dockerignoreFilename  = ".dockerignore"
 	buildArgPrefix        = "build-arg:"
 	labelPrefix           = "label:"
 	keyNoCache            = "no-cache"
 	keyTargetPlatform     = "platform"
+	keyMultiPlatform      = "multi-platform"
+	keyImageResolveMode   = "image-resolve-mode"
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
@@ -45,13 +50,18 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	}
 
 	buildPlatforms := []specs.Platform{defaultBuildPlatform}
-	targetPlatform := platforms.DefaultSpec()
+	targetPlatforms := []*specs.Platform{nil}
 	if v := opts[keyTargetPlatform]; v != "" {
 		var err error
-		targetPlatform, err = platforms.Parse(v)
+		targetPlatforms, err = parsePlatforms(v)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to parse target platform %s", v)
+			return nil, err
 		}
+	}
+
+	resolveMode, err := parseResolveMode(opts[keyImageResolveMode])
+	if err != nil {
+		return nil, err
 	}
 
 	filename := opts[keyFilename]
@@ -68,10 +78,16 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		}
 	}
 
+	name := "load Dockerfile"
+	if filename != "Dockerfile" {
+		name += " from " + filename
+	}
+
 	src := llb.Local(LocalNameDockerfile,
 		llb.IncludePatterns([]string{filename}),
 		llb.SessionID(c.BuildOpts().SessionID),
 		llb.SharedKeyHint(defaultDockerfileName),
+		dockerfile2llb.WithInternalName(name),
 	)
 	var buildContext *llb.State
 	isScratchContext := false
@@ -79,7 +95,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		src = *st
 		buildContext = &src
 	} else if httpPrefix.MatchString(opts[LocalNameContext]) {
-		httpContext := llb.HTTP(opts[LocalNameContext], llb.Filename("context"))
+		httpContext := llb.HTTP(opts[LocalNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
 		def, err := httpContext.Marshal()
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal httpcontext")
@@ -106,8 +122,8 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			unpack := llb.Image(dockerfile2llb.CopyImage).
-				Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS())
+			unpack := llb.Image(dockerfile2llb.CopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+				Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
 			unpack.AddMount("/src", httpContext, llb.Readonly)
 			src = unpack.AddMount("/out", llb.Scratch())
 			buildContext = &src
@@ -156,6 +172,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					llb.SessionID(c.BuildOpts().SessionID),
 					llb.IncludePatterns([]string{dockerignoreFilename}),
 					llb.SharedKeyHint(dockerignoreFilename),
+					dockerfile2llb.WithInternalName("load "+dockerignoreFilename),
 				)
 				dockerignoreState = &st
 			}
@@ -197,47 +214,109 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		}
 	}
 
-	st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
-		Target:         opts[keyTarget],
-		MetaResolver:   c,
-		BuildArgs:      filter(opts, buildArgPrefix),
-		Labels:         filter(opts, labelPrefix),
-		SessionID:      c.BuildOpts().SessionID,
-		BuildContext:   buildContext,
-		Excludes:       excludes,
-		IgnoreCache:    ignoreCache,
-		TargetPlatform: &targetPlatform,
-		BuildPlatforms: buildPlatforms,
-	})
+	exportMap := len(targetPlatforms) > 1
 
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create LLB definition")
+	if v := opts[keyMultiPlatform]; v != "" {
+		b, err := strconv.ParseBool(v)
+		if err != nil {
+			return nil, errors.Errorf("invalid boolean value %s", v)
+		}
+		if !b && exportMap {
+			return nil, errors.Errorf("returning multiple target plaforms is not allowed")
+		}
+		exportMap = b
 	}
 
-	def, err = st.Marshal()
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal LLB definition")
+	expPlatforms := &exptypes.Platforms{
+		Platforms: make([]exptypes.Platform, len(targetPlatforms)),
+	}
+	res := client.NewResult()
+
+	eg, ctx = errgroup.WithContext(ctx)
+
+	for i, tp := range targetPlatforms {
+		func(i int, tp *specs.Platform) {
+			eg.Go(func() error {
+				st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
+					Target:           opts[keyTarget],
+					MetaResolver:     c,
+					BuildArgs:        filter(opts, buildArgPrefix),
+					Labels:           filter(opts, labelPrefix),
+					SessionID:        c.BuildOpts().SessionID,
+					BuildContext:     buildContext,
+					Excludes:         excludes,
+					IgnoreCache:      ignoreCache,
+					TargetPlatform:   tp,
+					BuildPlatforms:   buildPlatforms,
+					ImageResolveMode: resolveMode,
+					PrefixPlatform:   exportMap,
+				})
+
+				if err != nil {
+					return errors.Wrapf(err, "failed to create LLB definition")
+				}
+
+				def, err := st.Marshal()
+				if err != nil {
+					return errors.Wrapf(err, "failed to marshal LLB definition")
+				}
+
+				config, err := json.Marshal(img)
+				if err != nil {
+					return errors.Wrapf(err, "failed to marshal image config")
+				}
+
+				var cacheFrom []string
+				if cacheFromStr := opts[keyCacheFrom]; cacheFromStr != "" {
+					cacheFrom = strings.Split(cacheFromStr, ",")
+				}
+
+				r, err := c.Solve(ctx, client.SolveRequest{
+					Definition:      def.ToPB(),
+					ImportCacheRefs: cacheFrom,
+				})
+				if err != nil {
+					return err
+				}
+
+				ref, err := r.SingleRef()
+				if err != nil {
+					return err
+				}
+
+				if !exportMap {
+					res.AddMeta(exptypes.ExporterImageConfigKey, config)
+					res.SetRef(ref)
+				} else {
+					p := platforms.DefaultSpec()
+					if tp != nil {
+						p = *tp
+					}
+
+					k := platforms.Format(p)
+					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, k), config)
+					res.AddRef(k, ref)
+					expPlatforms.Platforms[i] = exptypes.Platform{
+						ID:       k,
+						Platform: p,
+					}
+				}
+				return nil
+			})
+		}(i, tp)
 	}
 
-	config, err := json.Marshal(img)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to marshal image config")
-	}
-
-	var cacheFrom []string
-	if cacheFromStr := opts[keyCacheFrom]; cacheFromStr != "" {
-		cacheFrom = strings.Split(cacheFromStr, ",")
-	}
-
-	res, err := c.Solve(ctx, client.SolveRequest{
-		Definition:      def.ToPB(),
-		ImportCacheRefs: cacheFrom,
-	})
-	if err != nil {
+	if err := eg.Wait(); err != nil {
 		return nil, err
 	}
 
-	res.AddMeta(exporterImageConfig, config)
+	if exportMap {
+		dt, err := json.Marshal(expPlatforms)
+		if err != nil {
+			return nil, err
+		}
+		res.AddMeta(exptypes.ExporterPlatformsKey, dt)
+	}
 
 	return res, nil
 }
@@ -286,7 +365,7 @@ func detectGitContext(ref string) (*llb.State, bool) {
 	if len(parts) > 1 {
 		branch = parts[1]
 	}
-	st := llb.Git(parts[0], branch)
+	st := llb.Git(parts[0], branch, dockerfile2llb.WithInternalName("load git source "+ref))
 	return &st, true
 }
 
@@ -307,4 +386,30 @@ func isArchive(header []byte) bool {
 	r := tar.NewReader(bytes.NewBuffer(header))
 	_, err := r.Next()
 	return err == nil
+}
+
+func parsePlatforms(v string) ([]*specs.Platform, error) {
+	var pp []*specs.Platform
+	for _, v := range strings.Split(v, ",") {
+		p, err := platforms.Parse(v)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to parse target platform %s", v)
+		}
+		p = platforms.Normalize(p)
+		pp = append(pp, &p)
+	}
+	return pp, nil
+}
+
+func parseResolveMode(v string) (llb.ResolveMode, error) {
+	switch v {
+	case pb.AttrImageResolveModeDefault, "":
+		return llb.ResolveModeDefault, nil
+	case pb.AttrImageResolveModeForcePull:
+		return llb.ResolveModeForcePull, nil
+	case pb.AttrImageResolveModePreferLocal:
+		return llb.ResolveModePreferLocal, nil
+	default:
+		return 0, errors.Errorf("invalid image-resolve-mode: %s", v)
+	}
 }

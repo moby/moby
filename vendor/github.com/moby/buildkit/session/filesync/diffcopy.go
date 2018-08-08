@@ -12,13 +12,8 @@ import (
 	"google.golang.org/grpc"
 )
 
-func sendDiffCopy(stream grpc.Stream, dir string, includes, excludes, followPaths []string, progress progressCb, _map func(*fsutil.Stat) bool) error {
-	return fsutil.Send(stream.Context(), stream, dir, &fsutil.WalkOpt{
-		ExcludePatterns: excludes,
-		IncludePatterns: includes,
-		FollowPaths:     followPaths,
-		Map:             _map,
-	}, progress)
+func sendDiffCopy(stream grpc.Stream, fs fsutil.FS, progress progressCb) error {
+	return fsutil.Send(stream.Context(), stream, fs, progress)
 }
 
 func newStreamWriter(stream grpc.ClientStream) io.WriteCloser {

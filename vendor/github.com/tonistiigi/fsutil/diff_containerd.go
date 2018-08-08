@@ -174,7 +174,7 @@ func sameFile(f1, f2 *currentPath) (same bool, retErr error) {
 	if !ok {
 		return false, nil
 	}
-	ls2, ok := f1.f.Sys().(*Stat)
+	ls2, ok := f2.f.Sys().(*Stat)
 	if !ok {
 		return false, nil
 	}

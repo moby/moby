@@ -9,10 +9,12 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
+	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
+	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -34,16 +36,12 @@ type Solver struct {
 	platforms            []specs.Platform
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cacheStore solver.CacheKeyStorage, resolveCI remotecache.ResolveCacheImporterFunc) (*Solver, error) {
+func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI remotecache.ResolveCacheImporterFunc) (*Solver, error) {
 	s := &Solver{
 		resolveWorker:        defaultResolver(wc),
 		frontends:            f,
 		resolveCacheImporter: resolveCI,
 	}
-
-	results := newCacheResultStorage(wc)
-
-	cache := solver.NewCacheManager("local", cacheStore, results)
 
 	// executing is currently only allowed on default worker
 	w, err := wc.GetDefault()
@@ -104,17 +102,34 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 
 	var exporterResponse map[string]string
 	if exp := exp.Exporter; exp != nil {
-		var immutable cache.ImmutableRef
-		if res := res.Ref; res != nil { // FIXME(tonistiigi):
+		inp := exporter.Source{
+			Metadata: res.Metadata,
+		}
+		if res := res.Ref; res != nil {
 			workerRef, ok := res.Sys().(*worker.WorkerRef)
 			if !ok {
 				return nil, errors.Errorf("invalid reference: %T", res.Sys())
 			}
-			immutable = workerRef.ImmutableRef
+			inp.Ref = workerRef.ImmutableRef
+		}
+		if res.Refs != nil {
+			m := make(map[string]cache.ImmutableRef, len(res.Refs))
+			for k, res := range res.Refs {
+				if res == nil {
+					m[k] = nil
+				} else {
+					workerRef, ok := res.Sys().(*worker.WorkerRef)
+					if !ok {
+						return nil, errors.Errorf("invalid reference: %T", res.Sys())
+					}
+					m[k] = workerRef.ImmutableRef
+				}
+			}
+			inp.Refs = m
 		}
 
-		if err := j.Call(ctx, exp.Name(), func(ctx context.Context) error {
-			exporterResponse, err = exp.Export(ctx, immutable, res.Metadata)
+		if err := inVertexContext(j.Context(ctx), exp.Name(), func(ctx context.Context) error {
+			exporterResponse, err = exp.Export(ctx, inp)
 			return err
 		}); err != nil {
 			return nil, err
@@ -122,10 +137,11 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 	}
 
 	if e := exp.CacheExporter; e != nil {
-		if err := j.Call(ctx, "exporting cache", func(ctx context.Context) error {
+		if err := inVertexContext(j.Context(ctx), "exporting cache", func(ctx context.Context) error {
 			prepareDone := oneOffProgress(ctx, "preparing build cache for export")
 			if err := res.EachRef(func(res solver.CachedResult) error {
-				_, err := res.CacheKey().Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
+				// all keys have same export chain so exporting others is not needed
+				_, err := res.CacheKeys()[0].Exporter.ExportTo(ctx, e, solver.CacheExportOpt{
 					Convert: workerRefConverter,
 					Mode:    exp.CacheExportMode,
 				})
@@ -174,4 +190,42 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 		pw.Close()
 		return err
 	}
+}
+
+func inVertexContext(ctx context.Context, name string, f func(ctx context.Context) error) error {
+	v := client.Vertex{
+		Digest: digest.FromBytes([]byte(identity.NewID())),
+		Name:   name,
+	}
+	pw, _, ctx := progress.FromContext(ctx, progress.WithMetadata("vertex", v.Digest))
+	notifyStarted(ctx, &v, false)
+	defer pw.Close()
+	err := f(ctx)
+	notifyCompleted(ctx, &v, err, false)
+	return err
+}
+
+func notifyStarted(ctx context.Context, v *client.Vertex, cached bool) {
+	pw, _, _ := progress.FromContext(ctx)
+	defer pw.Close()
+	now := time.Now()
+	v.Started = &now
+	v.Completed = nil
+	v.Cached = cached
+	pw.Write(v.Digest.String(), *v)
+}
+
+func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bool) {
+	pw, _, _ := progress.FromContext(ctx)
+	defer pw.Close()
+	now := time.Now()
+	if v.Started == nil {
+		v.Started = &now
+	}
+	v.Completed = &now
+	v.Cached = cached
+	if err != nil {
+		v.Error = err.Error()
+	}
+	pw.Write(v.Digest.String(), *v)
 }

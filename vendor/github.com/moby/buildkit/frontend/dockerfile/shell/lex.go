@@ -28,7 +28,7 @@ func NewLex(escapeToken rune) *Lex {
 // ProcessWord will use the 'env' list of environment variables,
 // and replace any env var references in 'word'.
 func (s *Lex) ProcessWord(word string, env []string) (string, error) {
-	word, _, err := s.process(word, env)
+	word, _, err := s.process(word, BuildEnvs(env))
 	return word, err
 }
 
@@ -40,11 +40,23 @@ func (s *Lex) ProcessWord(word string, env []string) (string, error) {
 // Note, each one is trimmed to remove leading and trailing spaces (unless
 // they are quoted", but ProcessWord retains spaces between words.
 func (s *Lex) ProcessWords(word string, env []string) ([]string, error) {
+	_, words, err := s.process(word, BuildEnvs(env))
+	return words, err
+}
+
+// ProcessWordWithMap will use the 'env' list of environment variables,
+// and replace any env var references in 'word'.
+func (s *Lex) ProcessWordWithMap(word string, env map[string]string) (string, error) {
+	word, _, err := s.process(word, env)
+	return word, err
+}
+
+func (s *Lex) ProcessWordsWithMap(word string, env map[string]string) ([]string, error) {
 	_, words, err := s.process(word, env)
 	return words, err
 }
 
-func (s *Lex) process(word string, env []string) (string, []string, error) {
+func (s *Lex) process(word string, env map[string]string) (string, []string, error) {
 	sw := &shellWord{
 		envs:        env,
 		escapeToken: s.escapeToken,
@@ -55,7 +67,7 @@ func (s *Lex) process(word string, env []string) (string, []string, error) {
 
 type shellWord struct {
 	scanner     scanner.Scanner
-	envs        []string
+	envs        map[string]string
 	escapeToken rune
 }
 
@@ -353,21 +365,33 @@ func isSpecialParam(char rune) bool {
 }
 
 func (sw *shellWord) getEnv(name string) string {
-	for _, env := range sw.envs {
-		i := strings.Index(env, "=")
-		if i < 0 {
-			if EqualEnvKeys(name, env) {
-				// Should probably never get here, but just in case treat
-				// it like "var" and "var=" are the same
-				return ""
-			}
-			continue
+	for key, value := range sw.envs {
+		if EqualEnvKeys(name, key) {
+			return value
 		}
-		compareName := env[:i]
-		if !EqualEnvKeys(name, compareName) {
-			continue
-		}
-		return env[i+1:]
 	}
 	return ""
+}
+
+func BuildEnvs(env []string) map[string]string {
+	envs := map[string]string{}
+
+	for _, e := range env {
+		i := strings.Index(e, "=")
+
+		if i < 0 {
+			envs[e] = ""
+		} else {
+			k := e[:i]
+			v := e[i+1:]
+
+			// If key already exists, keep previous value.
+			if _, ok := envs[k]; ok {
+				continue
+			}
+			envs[k] = v
+		}
+	}
+
+	return envs
 }

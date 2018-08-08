@@ -18,7 +18,7 @@ type WorkerInfo struct {
 func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]*WorkerInfo, error) {
 	info := &ListWorkersInfo{}
 	for _, o := range opts {
-		o(info)
+		o.SetListWorkersOption(info)
 	}
 
 	req := &controlapi.ListWorkersRequest{Filter: info.Filter}
@@ -40,14 +40,10 @@ func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]
 	return wi, nil
 }
 
-type ListWorkersOption func(*ListWorkersInfo)
+type ListWorkersOption interface {
+	SetListWorkersOption(*ListWorkersInfo)
+}
 
 type ListWorkersInfo struct {
 	Filter []string
-}
-
-func WithWorkerFilter(f []string) ListWorkersOption {
-	return func(wi *ListWorkersInfo) {
-		wi.Filter = f
-	}
 }
