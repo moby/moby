@@ -209,6 +209,12 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["no-cache"] = ""
 	}
 
+	if opt.Options.PullParent {
+		frontendAttrs["image-resolve-mode"] = "pull"
+	} else {
+		frontendAttrs["image-resolve-mode"] = "default"
+	}
+
 	if opt.Options.Platform != "" {
 		// same as in newBuilder in builder/dockerfile.builder.go
 		// TODO: remove once opt.Options.Platform is of type specs.Platform
