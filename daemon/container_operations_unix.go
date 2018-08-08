@@ -321,7 +321,7 @@ func (daemon *Daemon) cleanupSecretDir(c *container.Container) {
 		logrus.WithError(err).WithField("container", c.ID).Warn("error getting secrets mount path for container")
 	}
 	if err := mount.RecursiveUnmount(dir); err != nil {
-		logrus.WithField("dir", dir).WithError(err).Warn("Error while attmepting to unmount dir, this may prevent removal of container.")
+		logrus.WithField("dir", dir).WithError(err).Warn("Error while attempting to unmount dir, this may prevent removal of container.")
 	}
 	if err := os.RemoveAll(dir); err != nil && !os.IsNotExist(err) {
 		logrus.WithField("dir", dir).WithError(err).Error("Error removing dir.")

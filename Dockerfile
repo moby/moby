@@ -35,7 +35,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 FROM base AS criu
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
-# Install dependancy packages specific to criu
+# Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y \
 	libnet-dev \
 	libprotobuf-c0-dev \

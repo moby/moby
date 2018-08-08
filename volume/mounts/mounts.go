@@ -63,7 +63,7 @@ type MountPoint struct {
 	Spec mounttypes.Mount
 
 	// Some bind mounts should not be automatically created.
-	// (Some are auto-created for backwards-compatability)
+	// (Some are auto-created for backwards-compatibility)
 	// This is checked on the API but setting this here prevents race conditions.
 	// where a bind dir existed during validation was removed before reaching the setup code.
 	SkipMountpointCreation bool

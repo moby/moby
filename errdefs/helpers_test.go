@@ -26,11 +26,11 @@ func TestNotFound(t *testing.T) {
 
 func TestConflict(t *testing.T) {
 	if IsConflict(errTest) {
-		t.Fatalf("did not expect conflcit error, got %T", errTest)
+		t.Fatalf("did not expect conflict error, got %T", errTest)
 	}
 	e := Conflict(errTest)
 	if !IsConflict(e) {
-		t.Fatalf("expected conflcit error, got: %T", e)
+		t.Fatalf("expected conflict error, got: %T", e)
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
