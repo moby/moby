@@ -375,7 +375,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		childrenHandler := images.ChildrenHandler(p.is.ContentStore)
 		// Set any children labels for that content
 		childrenHandler = images.SetChildrenLabels(p.is.ContentStore, childrenHandler)
-		// Filter the childen by the platform
+		// Filter the children by the platform
 		childrenHandler = images.FilterPlatforms(childrenHandler, platforms.Default())
 
 		handlers = append(handlers,

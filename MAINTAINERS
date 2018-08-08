@@ -162,7 +162,7 @@
 
 			# Alexander Morozov contributed many features to Docker, worked on the premise of 
 			# what later became containerd (and worked on that too), and made a "stupid" Go
-			# vendor tool specificaly for docker/docker needs: vndr (https://github.com/LK4D4/vndr).
+			# vendor tool specifically for docker/docker needs: vndr (https://github.com/LK4D4/vndr).
 			# Not many know that Alexander is a master negotiator, being able to change course
 			# of action with a single "Nope, we're not gonna do that".
 			"lk4d4",

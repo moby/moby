@@ -10,7 +10,7 @@ import (
 
 // validateBindDaemonRoot ensures that if a given mountpoint's source is within
 // the daemon root path, that the propagation is setup to prevent a container
-// from holding private refereneces to a mount within the daemon root, which
+// from holding private references to a mount within the daemon root, which
 // can cause issues when the daemon attempts to remove the mountpoint.
 func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
 	if m.Type != mount.TypeBind {

@@ -316,7 +316,7 @@ func (daemon *Daemon) reloadNetworkDiagnosticPort(conf *config.Config, attribute
 		}
 		return nil
 	}
-	// Enable the network diagnostic if the flag is set with a valid port withing the range
+	// Enable the network diagnostic if the flag is set with a valid port within the range
 	logrus.WithFields(logrus.Fields{"port": conf.NetworkDiagnosticPort, "ip": "127.0.0.1"}).Warn("Starting network diagnostic server")
 	daemon.netController.StartDiagnostic(conf.NetworkDiagnosticPort)
 

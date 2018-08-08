@@ -462,7 +462,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	}
 
 	// Copy all mounts from spec to defaultMounts, except for
-	//  - mounts overriden by a user supplied mount;
+	//  - mounts overridden by a user supplied mount;
 	//  - all mounts under /dev if a user supplied /dev is present;
 	//  - /dev/shm, in case IpcMode is none.
 	// While at it, also
@@ -539,7 +539,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 		case mount.SLAVE, mount.RSLAVE:
 			var fallback bool
 			if err := ensureSharedOrSlave(m.Source); err != nil {
-				// For backwards compatability purposes, treat mounts from the daemon root
+				// For backwards compatibility purposes, treat mounts from the daemon root
 				// as special since we automatically add rslave propagation to these mounts
 				// when the user did not set anything, so we should fallback to the old
 				// behavior which is to use private propagation which is normally the
