@@ -970,6 +970,7 @@ func (daemon *Daemon) getNetworkedContainer(containerID, connectedContainerID st
 func (daemon *Daemon) releaseNetwork(container *container.Container) {
 	start := time.Now()
 	if daemon.netController == nil {
+		logrus.Warnf("Network controller is nil, and unable to release network for container %s", container.ID)
 		return
 	}
 	if container.HostConfig.NetworkMode.IsContainer() || container.Config.NetworkDisabled {
