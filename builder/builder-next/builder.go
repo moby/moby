@@ -20,11 +20,17 @@ import (
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
+
+func init() {
+	llbsolver.AllowNetworkHostUnstable = true
+}
 
 // Opt is option struct required for creating the builder
 type Opt struct {
@@ -230,6 +236,14 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["platform"] = opt.Options.Platform
 	}
 
+	switch opt.Options.NetworkMode {
+	case "host", "none":
+		frontendAttrs["force-network-mode"] = opt.Options.NetworkMode
+	case "", "default":
+	default:
+		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
+	}
+
 	exporterAttrs := map[string]string{}
 
 	if len(opt.Options.Tags) > 0 {
@@ -243,6 +257,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
 		Session:       opt.Options.SessionID,
+	}
+
+	if opt.Options.NetworkMode == "host" {
+		req.Entitlements = append(req.Entitlements, entitlements.EntitlementNetworkHost)
 	}
 
 	aux := streamformatter.AuxFormatter{Writer: opt.ProgressWriter.Output}
