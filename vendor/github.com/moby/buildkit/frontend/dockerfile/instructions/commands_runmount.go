@@ -13,11 +13,13 @@ import (
 const MountTypeBind = "bind"
 const MountTypeCache = "cache"
 const MountTypeTmpfs = "tmpfs"
+const MountTypeSecret = "secret"
 
 var allowedMountTypes = map[string]struct{}{
-	MountTypeBind:  {},
-	MountTypeCache: {},
-	MountTypeTmpfs: {},
+	MountTypeBind:   {},
+	MountTypeCache:  {},
+	MountTypeTmpfs:  {},
+	MountTypeSecret: {},
 }
 
 const MountSharingShared = "shared"
@@ -40,6 +42,11 @@ func init() {
 }
 
 func isValidMountType(s string) bool {
+	if s == "secret" {
+		if !isSecretMountsSupported() {
+			return false
+		}
+	}
 	_, ok := allowedMountTypes[s]
 	return ok
 }
@@ -175,6 +182,21 @@ func parseMount(value string) (*Mount, error) {
 
 	if m.CacheSharing != "" && m.Type != MountTypeCache {
 		return nil, errors.Errorf("invalid cache sharing set for %v mount", m.Type)
+	}
+
+	if m.Type == MountTypeSecret {
+		if m.From != "" {
+			return nil, errors.Errorf("secret mount should not have a from")
+		}
+		if m.CacheSharing != "" {
+			return nil, errors.Errorf("secret mount should not define sharing")
+		}
+		if m.Source == "" && m.Target == "" && m.CacheID == "" {
+			return nil, errors.Errorf("invalid secret mount. one of source, target required")
+		}
+		if m.Source != "" && m.CacheID != "" {
+			return nil, errors.Errorf("both source and id can't be set")
+		}
 	}
 
 	return m, nil

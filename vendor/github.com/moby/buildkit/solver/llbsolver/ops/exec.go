@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"os"
 	"path"
 	"path/filepath"
@@ -67,6 +68,11 @@ func NewExecOp(v solver.Vertex, op *pb.Op_Exec, cm cache.Manager, sm *session.Ma
 func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 	n := *old
 	meta := *n.Meta
+	meta.ExtraHosts = nil
+	for i := range n.Meta.ExtraHosts {
+		h := *n.Meta.ExtraHosts[i]
+		meta.ExtraHosts = append(meta.ExtraHosts, &h)
+	}
 	n.Meta = &meta
 	n.Mounts = nil
 	for i := range n.Mounts {
@@ -78,6 +84,11 @@ func cloneExecOp(old *pb.ExecOp) pb.ExecOp {
 
 func (e *execOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, bool, error) {
 	op := cloneExecOp(e.op)
+	for i := range op.Meta.ExtraHosts {
+		h := op.Meta.ExtraHosts[i]
+		h.IP = ""
+		op.Meta.ExtraHosts[i] = h
+	}
 	for i := range op.Mounts {
 		op.Mounts[i].Selector = ""
 	}
@@ -504,12 +515,19 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 		return mounts[i].Dest < mounts[j].Dest
 	})
 
+	extraHosts, err := parseExtraHosts(e.op.Meta.ExtraHosts)
+	if err != nil {
+		return nil, err
+	}
+
 	meta := executor.Meta{
 		Args:           e.op.Meta.Args,
 		Env:            e.op.Meta.Env,
 		Cwd:            e.op.Meta.Cwd,
 		User:           e.op.Meta.User,
 		ReadonlyRootFS: readonlyRootFS,
+		ExtraHosts:     extraHosts,
+		NetMode:        e.op.Network,
 	}
 
 	if e.op.Meta.ProxyEnv != nil {
@@ -656,4 +674,19 @@ func (r *cacheRef) Release(ctx context.Context) error {
 		return r.release(ctx)
 	}
 	return nil
+}
+
+func parseExtraHosts(ips []*pb.HostIP) ([]executor.HostIP, error) {
+	out := make([]executor.HostIP, len(ips))
+	for i, hip := range ips {
+		ip := net.ParseIP(hip.IP)
+		if ip == nil {
+			return nil, errors.Errorf("failed to parse IP %s", hip.IP)
+		}
+		out[i] = executor.HostIP{
+			IP:   ip,
+			Host: hip.Host,
+		}
+	}
+	return out, nil
 }

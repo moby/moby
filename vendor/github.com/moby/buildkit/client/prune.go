@@ -3,6 +3,7 @@ package client
 import (
 	"context"
 	"io"
+	"time"
 
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/pkg/errors"
@@ -14,7 +15,11 @@ func (c *Client) Prune(ctx context.Context, ch chan UsageInfo, opts ...PruneOpti
 		o.SetPruneOption(info)
 	}
 
-	req := &controlapi.PruneRequest{Filter: info.Filter}
+	req := &controlapi.PruneRequest{
+		Filter:       info.Filter,
+		KeepDuration: int64(info.KeepDuration),
+		KeepBytes:    int64(info.KeepBytes),
+	}
 	if info.All {
 		req.All = true
 	}
@@ -54,8 +59,10 @@ type PruneOption interface {
 }
 
 type PruneInfo struct {
-	Filter []string
-	All    bool
+	Filter       []string
+	All          bool
+	KeepDuration time.Duration
+	KeepBytes    int64
 }
 
 type pruneOptionFunc func(*PruneInfo)
@@ -67,3 +74,10 @@ func (f pruneOptionFunc) SetPruneOption(pi *PruneInfo) {
 var PruneAll = pruneOptionFunc(func(pi *PruneInfo) {
 	pi.All = true
 })
+
+func WithKeepOpt(duration time.Duration, bytes int64) PruneOption {
+	return pruneOptionFunc(func(pi *PruneInfo) {
+		pi.KeepDuration = duration
+		pi.KeepBytes = bytes
+	})
+}

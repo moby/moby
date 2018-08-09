@@ -21,6 +21,7 @@ type ResolveOpFunc func(Vertex, Builder) (Op, error)
 type Builder interface {
 	Build(ctx context.Context, e Edge) (CachedResult, error)
 	Context(ctx context.Context) context.Context
+	EachValue(ctx context.Context, key string, fn func(interface{}) error) error
 }
 
 // Solver provides a shared graph of all the vertexes currently being
@@ -169,10 +170,22 @@ func (sb *subBuilder) Context(ctx context.Context) context.Context {
 	return progress.WithProgress(ctx, sb.mpw)
 }
 
+func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(interface{}) error) error {
+	sb.mu.Lock()
+	defer sb.mu.Lock()
+	for j := range sb.jobs {
+		if err := j.EachValue(ctx, key, fn); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 type Job struct {
-	list *Solver
-	pr   *progress.MultiReader
-	pw   progress.Writer
+	list   *Solver
+	pr     *progress.MultiReader
+	pw     progress.Writer
+	values sync.Map
 
 	progressCloser func()
 	SessionID      string
@@ -444,6 +457,18 @@ func (j *Job) Discard() error {
 
 func (j *Job) Context(ctx context.Context) context.Context {
 	return progress.WithProgress(ctx, j.pw)
+}
+
+func (j *Job) SetValue(key string, v interface{}) {
+	j.values.Store(key, v)
+}
+
+func (j *Job) EachValue(ctx context.Context, key string, fn func(interface{}) error) error {
+	v, ok := j.values.Load(key)
+	if ok {
+		return fn(v)
+	}
+	return nil
 }
 
 type cacheMapResp struct {

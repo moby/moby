@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"sort"
 	"sync"
 	"time"
 
@@ -321,14 +322,50 @@ func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo, opt
 		check = c
 	}
 
-	return cm.prune(ctx, ch, filter, opt.All, check)
+	totalSize := int64(0)
+	if opt.KeepBytes != 0 {
+		du, err := cm.DiskUsage(ctx, client.DiskUsageInfo{})
+		if err != nil {
+			return err
+		}
+		for _, ui := range du {
+			if check != nil {
+				if check.Exists(ui.ID) {
+					continue
+				}
+			}
+			totalSize += ui.Size
+		}
+	}
+
+	return cm.prune(ctx, ch, pruneOpt{
+		filter:       filter,
+		all:          opt.All,
+		checkShared:  check,
+		keepDuration: opt.KeepDuration,
+		keepBytes:    opt.KeepBytes,
+		totalSize:    totalSize,
+	})
 }
 
-func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, filter filters.Filter, all bool, checkShared ExternalRefChecker) error {
-	var toDelete []*cacheRecord
+func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt pruneOpt) error {
+	var toDelete []*deleteRecord
+
+	if opt.keepBytes != 0 && opt.totalSize < opt.keepBytes {
+		return nil
+	}
+
 	cm.mu.Lock()
 
+	gcMode := opt.keepBytes != 0
+	cutOff := time.Now().Add(-opt.keepDuration)
+
+	locked := map[*cacheRecord]struct{}{}
+
 	for _, cr := range cm.records {
+		if _, ok := locked[cr]; ok {
+			continue
+		}
 		cr.mu.Lock()
 
 		// ignore duplicates that share data
@@ -349,11 +386,11 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, fil
 			}
 
 			shared := false
-			if checkShared != nil {
-				shared = checkShared.Exists(cr.ID())
+			if opt.checkShared != nil {
+				shared = opt.checkShared.Exists(cr.ID())
 			}
 
-			if !all {
+			if !opt.all {
 				if recordType == client.UsageRecordTypeInternal || recordType == client.UsageRecordTypeFrontend || shared {
 					cr.mu.Unlock()
 					continue
@@ -367,21 +404,57 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, fil
 				Shared:     shared,
 			}
 
-			if filter.Match(adaptUsageInfo(c)) {
-				cr.dead = true
+			usageCount, lastUsedAt := getLastUsed(cr.md)
+			c.LastUsedAt = lastUsedAt
+			c.UsageCount = usageCount
 
-				toDelete = append(toDelete, cr)
-
-				// mark metadata as deleted in case we crash before cleanup finished
-				if err := setDeleted(cr.md); err != nil {
+			if opt.keepDuration != 0 {
+				if lastUsedAt != nil && lastUsedAt.After(cutOff) {
 					cr.mu.Unlock()
-					cm.mu.Unlock()
-					return err
+					continue
+				}
+			}
+
+			if opt.filter.Match(adaptUsageInfo(c)) {
+				toDelete = append(toDelete, &deleteRecord{
+					cacheRecord: cr,
+					lastUsedAt:  c.LastUsedAt,
+					usageCount:  c.UsageCount,
+				})
+				if !gcMode {
+					cr.dead = true
+
+					// mark metadata as deleted in case we crash before cleanup finished
+					if err := setDeleted(cr.md); err != nil {
+						cr.mu.Unlock()
+						cm.mu.Unlock()
+						return err
+					}
+				} else {
+					locked[cr] = struct{}{}
+					continue // leave the record locked
 				}
 			}
 		}
-
 		cr.mu.Unlock()
+	}
+
+	if gcMode && len(toDelete) > 0 {
+		sortDeleteRecords(toDelete)
+		var err error
+		for i, cr := range toDelete {
+			// only remove single record at a time
+			if i == 0 {
+				cr.dead = true
+				err = setDeleted(cr.md)
+			}
+			cr.mu.Unlock()
+		}
+		if err != nil {
+			return err
+		}
+		toDelete = toDelete[:1]
+		opt.totalSize -= getSize(toDelete[0].md)
 	}
 
 	cm.mu.Unlock()
@@ -443,7 +516,7 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, fil
 	case <-ctx.Done():
 		return ctx.Err()
 	default:
-		return cm.prune(ctx, ch, filter, all, checkShared)
+		return cm.prune(ctx, ch, opt)
 	}
 }
 
@@ -703,5 +776,65 @@ func adaptUsageInfo(info *client.UsageInfo) filters.Adaptor {
 		// TODO: add int/datetime/bytes support for more fields
 
 		return "", false
+	})
+}
+
+type pruneOpt struct {
+	filter       filters.Filter
+	all          bool
+	checkShared  ExternalRefChecker
+	keepDuration time.Duration
+	keepBytes    int64
+	totalSize    int64
+}
+
+type deleteRecord struct {
+	*cacheRecord
+	lastUsedAt      *time.Time
+	usageCount      int
+	lastUsedAtIndex int
+	usageCountIndex int
+}
+
+func sortDeleteRecords(toDelete []*deleteRecord) {
+	sort.Slice(toDelete, func(i, j int) bool {
+		if toDelete[i].lastUsedAt == nil {
+			return true
+		}
+		if toDelete[j].lastUsedAt == nil {
+			return false
+		}
+		return toDelete[i].lastUsedAt.Before(*toDelete[j].lastUsedAt)
+	})
+
+	maxLastUsedIndex := 0
+	var val time.Time
+	for _, v := range toDelete {
+		if v.lastUsedAt != nil && v.lastUsedAt.After(val) {
+			val = *v.lastUsedAt
+			maxLastUsedIndex++
+		}
+		v.lastUsedAtIndex = maxLastUsedIndex
+	}
+
+	sort.Slice(toDelete, func(i, j int) bool {
+		return toDelete[i].usageCount < toDelete[j].usageCount
+	})
+
+	maxUsageCountIndex := 0
+	var count int
+	for _, v := range toDelete {
+		if v.usageCount != count {
+			count = v.usageCount
+			maxUsageCountIndex++
+		}
+		v.usageCountIndex = maxUsageCountIndex
+	}
+
+	sort.Slice(toDelete, func(i, j int) bool {
+		return float64(toDelete[i].lastUsedAtIndex)/float64(maxLastUsedIndex)+
+			float64(toDelete[i].usageCountIndex)/float64(maxUsageCountIndex) <
+			float64(toDelete[j].lastUsedAtIndex)/float64(maxLastUsedIndex)+
+				float64(toDelete[j].usageCountIndex)/float64(maxUsageCountIndex)
 	})
 }

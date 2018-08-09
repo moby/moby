@@ -215,26 +215,72 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		ReadonlyRootFS: readonly,
 	}, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
 
-	if lbf.err != nil {
-		return nil, lbf.err
+	if err != nil {
+		// An existing error (set via Return rpc) takes
+		// precedence over this error, which in turn takes
+		// precedence over a success reported via Return.
+		lbf.mu.Lock()
+		if lbf.err == nil {
+			lbf.result = nil
+			lbf.err = err
+		}
+		lbf.mu.Unlock()
 	}
 
-	if err != nil {
-		return nil, err
+	return lbf.Result()
+}
+
+func (lbf *llbBridgeForwarder) Done() <-chan struct{} {
+	return lbf.doneCh
+}
+
+func (lbf *llbBridgeForwarder) setResult(r *frontend.Result, err error) (*pb.ReturnResponse, error) {
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
+
+	if (r == nil) == (err == nil) {
+		return nil, errors.New("gateway return must be either result or err")
+	}
+
+	if lbf.result != nil || lbf.err != nil {
+		return nil, errors.New("gateway result is already set")
+	}
+
+	lbf.result = r
+	lbf.err = err
+	close(lbf.doneCh)
+	return &pb.ReturnResponse{}, nil
+}
+
+func (lbf *llbBridgeForwarder) Result() (*frontend.Result, error) {
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
+
+	if lbf.result == nil && lbf.err == nil {
+		return nil, errors.New("no result for incomplete build")
+	}
+
+	if lbf.err != nil {
+		return nil, lbf.err
 	}
 
 	return lbf.result, nil
 }
 
-func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, error) {
+func NewBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) *llbBridgeForwarder {
 	lbf := &llbBridgeForwarder{
 		callCtx:   ctx,
 		llbBridge: llbBridge,
 		refs:      map[string]solver.CachedResult{},
+		doneCh:    make(chan struct{}),
 		pipe:      newPipe(),
 		workers:   workers,
 	}
+	return lbf
+}
 
+func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, error) {
+	lbf := NewBridgeForwarder(ctx, llbBridge, workers)
 	server := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, health.NewServer())
 	pb.RegisterLLBBridgeServer(server, lbf)
@@ -297,6 +343,12 @@ func (d dummyAddr) String() string {
 	return "localhost"
 }
 
+type LLBBridgeForwarder interface {
+	pb.LLBBridgeServer
+	Done() <-chan struct{}
+	Result() (*frontend.Result, error)
+}
+
 type llbBridgeForwarder struct {
 	mu        sync.Mutex
 	callCtx   context.Context
@@ -305,6 +357,7 @@ type llbBridgeForwarder struct {
 	// lastRef      solver.CachedResult
 	// lastRefs     map[string]solver.CachedResult
 	// err          error
+	doneCh       chan struct{} // closed when result or err become valid through a call to a Return
 	result       *frontend.Result
 	err          error
 	exporterAttr map[string][]byte
@@ -465,13 +518,13 @@ func (lbf *llbBridgeForwarder) Ping(context.Context, *pb.PingRequest) (*pb.PongR
 
 func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest) (*pb.ReturnResponse, error) {
 	if in.Error != nil {
-		lbf.err = status.ErrorProto(&spb.Status{
+		return lbf.setResult(nil, status.ErrorProto(&spb.Status{
 			Code:    in.Error.Code,
 			Message: in.Error.Message,
 			// Details: in.Error.Details,
-		})
+		}))
 	} else {
-		lbf.result = &frontend.Result{
+		r := &frontend.Result{
 			Metadata: in.Result.Metadata,
 		}
 
@@ -481,7 +534,7 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 			if err != nil {
 				return nil, err
 			}
-			lbf.result.Ref = ref
+			r.Ref = ref
 		case *pb.Result_Refs:
 			m := map[string]solver.CachedResult{}
 			for k, v := range res.Refs.Refs {
@@ -491,11 +544,10 @@ func (lbf *llbBridgeForwarder) Return(ctx context.Context, in *pb.ReturnRequest)
 				}
 				m[k] = ref
 			}
-			lbf.result.Refs = m
+			r.Refs = m
 		}
+		return lbf.setResult(r, nil)
 	}
-
-	return &pb.ReturnResponse{}, nil
 }
 
 func (lbf *llbBridgeForwarder) convertRef(id string) (solver.CachedResult, error) {
