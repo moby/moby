@@ -35,7 +35,11 @@ func newTLSConfig(hostname string, isSecure bool) (*tls.Config, error) {
 		hostDir := filepath.Join(CertsDir, cleanPath(hostname))
 		logrus.Debugf("hostDir: %s", hostDir)
 		if err := ReadCertsDirectory(tlsConfig, hostDir); err != nil {
-			return nil, err
+			if os.IsPermission(err) {
+				logrus.Debugf("error accessing %s: %v", hostDir, err)
+			} else {
+				return nil, err
+			}
 		}
 	}
 
