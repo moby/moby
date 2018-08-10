@@ -134,10 +134,6 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 			opts = "rbind,rw"
 		}
 
-		if err := mount.Mount(m.Source, dest, bindMountType, opts); err != nil {
-			return err
-		}
-
 		// mountVolumes() seems to be called for temporary mounts
 		// outside the container. Soon these will be unmounted with
 		// lazy unmount option and given we have mounted the rbind,
@@ -150,6 +146,11 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		if err := mount.MakeRPrivate(dest); err != nil {
 			return err
 		}
+
+		if err := mount.Mount(m.Source, dest, bindMountType, opts); err != nil {
+			return err
+		}
+
 	}
 
 	return nil
