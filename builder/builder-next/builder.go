@@ -3,6 +3,7 @@ package buildkit
 import (
 	"context"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -244,6 +245,12 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
 	}
 
+	extraHosts, err := toBuildkitExtraHosts(opt.Options.ExtraHosts)
+	if err != nil {
+		return nil, err
+	}
+	frontendAttrs["add-hosts"] = extraHosts
+
 	exporterAttrs := map[string]string{}
 
 	if len(opt.Options.Tags) > 0 {
@@ -443,4 +450,20 @@ func (j *buildJob) SetUpload(ctx context.Context, rc io.ReadCloser) error {
 	case fn := <-j.waitCh:
 		return fn(rc)
 	}
+}
+
+// toBuildkitExtraHosts converts hosts from docker key:value format to buildkit's csv format
+func toBuildkitExtraHosts(inp []string) (string, error) {
+	if len(inp) == 0 {
+		return "", nil
+	}
+	hosts := make([]string, 0, len(inp))
+	for _, h := range inp {
+		parts := strings.Split(h, ":")
+		if len(parts) != 2 || parts[0] == "" || net.ParseIP(parts[1]) == nil {
+			return "", errors.Errorf("invalid host %s", h)
+		}
+		hosts = append(hosts, parts[0]+"="+parts[1])
+	}
+	return strings.Join(hosts, ","), nil
 }
