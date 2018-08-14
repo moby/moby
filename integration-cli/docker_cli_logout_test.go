@@ -59,7 +59,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 
 	// check I cannot pull anymore
 	out, err := s.d.Cmd("--config", tmp, "pull", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "no basic auth credentials")
 }
 

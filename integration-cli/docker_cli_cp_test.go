@@ -243,7 +243,7 @@ func (s *DockerSuite) TestCpFromSymlinkToDirectory(c *check.C) {
 	if err == nil {
 		out = fmt.Sprintf("target name was copied: %q - %q", stat.Mode(), stat.Name())
 	}
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 
 	// It *should* have copied the directory using the asked name "dir_link".
 	stat, err = os.Lstat(expectedPath)
@@ -315,7 +315,7 @@ func (s *DockerSuite) TestCpToSymlinkToDirectory(c *check.C) {
 	if err == nil {
 		out = fmt.Sprintf("target name was copied: %q - %q", stat.Mode(), stat.Name())
 	}
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 
 	// It *should* have copied the directory using the asked name "dir_link".
 	stat, err = os.Lstat(expectedPath)

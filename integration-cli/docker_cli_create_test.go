@@ -75,7 +75,7 @@ func (s *DockerSuite) TestCreateShrinkRootfs(c *check.C) {
 
 	// Ensure this fails because of the defaultBaseFsSize is 10G
 	out, _, err := dockerCmdWithError("create", "--storage-opt", "size=5G", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Container size cannot be smaller than")
 }
 

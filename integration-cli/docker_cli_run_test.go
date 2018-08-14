@@ -3975,13 +3975,13 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 
 	// test with the nocopy flag
 	out, _, err := dockerCmdWithError("run", "-v", "test:/foo:nocopy", "volumecopy")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	// test default behavior which is to copy for non-binds
 	out, _ = dockerCmd(c, "run", "-v", "test:/foo", "volumecopy")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
 	// error out when the volume is already populated
 	out, _, err = dockerCmdWithError("run", "-v", "test:/foo:copy", "volumecopy")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	// do not error out when copy isn't explicitly set even though it's already populated
 	out, _ = dockerCmd(c, "run", "-v", "test:/foo", "volumecopy")
 	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
@@ -3989,15 +3989,15 @@ func (s *DockerSuite) TestRunVolumeCopyFlag(c *check.C) {
 	// do not allow copy modes on volumes-from
 	dockerCmd(c, "run", "--name=test", "-v", "/foo", "busybox", "true")
 	out, _, err = dockerCmdWithError("run", "--volumes-from=test:copy", "busybox", "true")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	out, _, err = dockerCmdWithError("run", "--volumes-from=test:nocopy", "busybox", "true")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 
 	// do not allow copy modes on binds
 	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:copy", "busybox", "true")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	out, _, err = dockerCmdWithError("run", "-v", "/foo:/bar:nocopy", "busybox", "true")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 }
 
 // Test case for #21976
@@ -4314,7 +4314,7 @@ func (s *DockerSuite) TestRunMountReadOnlyDevShm(c *check.C) {
 	out, _, err := dockerCmdWithError("run", "--rm", "--read-only",
 		"-v", fmt.Sprintf("%s:/dev/shm:ro", emptyDir),
 		"busybox", "touch", "/dev/shm/foo")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Read-only file system")
 }
 

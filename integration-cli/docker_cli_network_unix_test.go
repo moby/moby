@@ -847,11 +847,11 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	// but discovery is on when connecting to non default bridge network
 	network := "anotherbridge"
 	out, err = s.d.Cmd("network", "create", network)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(err, check.IsNil, check.Commentf("%s", out))
 	defer s.d.Cmd("network", "rm", network)
 
 	out, err = s.d.Cmd("network", "connect", network, cid1)
-	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(err, check.IsNil, check.Commentf("%s", out))
 
 	hosts, err = s.d.Cmd("exec", cid1, "cat", hostsFile)
 	c.Assert(err, checker.IsNil)
@@ -1063,14 +1063,14 @@ func (s *DockerSuite) TestInspectAPIMultipleNetworks(c *check.C) {
 func connectContainerToNetworks(c *check.C, d *daemon.Daemon, cName string, nws []string) {
 	// Run a container on the default network
 	out, err := d.Cmd("run", "-d", "--name", cName, "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Attach the container to other networks
 	for _, nw := range nws {
 		out, err = d.Cmd("network", "create", nw)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 		out, err = d.Cmd("network", "connect", nw, cName)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	}
 }
 
@@ -1078,7 +1078,7 @@ func verifyContainerIsConnectedToNetworks(c *check.C, d *daemon.Daemon, cName st
 	// Verify container is connected to all the networks
 	for _, nw := range nws {
 		out, err := d.Cmd("inspect", "-f", fmt.Sprintf("{{.NetworkSettings.Networks.%s}}", nw), cName)
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 		c.Assert(out, checker.Not(checker.Equals), "<no value>\n")
 	}
 }
@@ -1137,7 +1137,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkHostModeUngracefulDaemonRestart(c 
 	for i := 0; i < 10; i++ {
 		cName := fmt.Sprintf("hostc-%d", i)
 		out, err := s.d.Cmd("run", "-d", "--name", cName, "--net=host", "--restart=always", "busybox", "top")
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 		// verify container has finished starting before killing daemon
 		err = s.d.WaitRun(cName)
@@ -1160,7 +1160,7 @@ func (s *DockerNetworkSuite) TestDockerNetworkConnectToHostFromOtherNetwork(c *c
 	c.Assert(waitRun("container1"), check.IsNil)
 	dockerCmd(c, "network", "disconnect", "bridge", "container1")
 	out, _, err := dockerCmdWithError("network", "connect", "host", "container1")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, runconfig.ErrConflictHostNetwork.Error())
 }
 

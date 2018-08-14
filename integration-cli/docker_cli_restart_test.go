@@ -85,11 +85,11 @@ func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
 
 	// Disconnect the container from the network
 	out, err := dockerCmd(c, "network", "disconnect", "bridge", "c0")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 
 	// Restart the container
 	dockerCmd(c, "restart", "c0")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
@@ -115,7 +115,7 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 
 func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
 	out, _, err := dockerCmdWithError("create", "--restart=on-failure:-1", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "maximum retry count cannot be negative")
 
 	out, _ = dockerCmd(c, "create", "--restart=on-failure:1", "busybox")

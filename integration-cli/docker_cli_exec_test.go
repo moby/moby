@@ -164,7 +164,7 @@ func (s *DockerSuite) TestExecTTYCloseStdin(c *check.C) {
 	stdinRw.Close()
 
 	out, _, err := runCommandWithOutput(cmd)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, _ = dockerCmd(c, "top", "exec_tty_stdin")
 	outArr := strings.Split(out, "\n")
@@ -517,7 +517,7 @@ func (s *DockerSuite) TestExecStartFails(c *check.C) {
 	c.Assert(waitRun(name), checker.IsNil)
 
 	out, _, err := dockerCmdWithError("exec", name, "no-such-cmd")
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "executable file not found")
 }
 

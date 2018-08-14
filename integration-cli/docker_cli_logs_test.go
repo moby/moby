@@ -327,7 +327,7 @@ func (s *DockerSuite) TestLogsWithDetails(c *check.C) {
 	out, _ := dockerCmd(c, "logs", "--details", "--timestamps", "test")
 
 	logFields := strings.Fields(strings.TrimSpace(out))
-	c.Assert(len(logFields), checker.Equals, 3, check.Commentf(out))
+	c.Assert(len(logFields), checker.Equals, 3, check.Commentf("%s", out))
 
 	details := strings.Split(logFields[1], ",")
 	c.Assert(details, checker.HasLen, 2)

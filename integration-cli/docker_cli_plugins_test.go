@@ -449,7 +449,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
 	dockerCmd(c, "run", "--rm", "-v", "bananas:/apple", "busybox", "sh", "-c", "touch /apple/core")
 
 	out, _, err := dockerCmdWithError("plugin", "upgrade", "--grant-all-permissions", plugin, pluginV2)
-	c.Assert(err, checker.NotNil, check.Commentf(out))
+	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "disabled before upgrading")
 
 	out, _ = dockerCmd(c, "plugin", "inspect", "--format={{.ID}}", plugin)
@@ -457,7 +457,7 @@ func (s *DockerSuite) TestPluginUpgrade(c *check.C) {
 
 	// make sure "v2" does not exists
 	_, err = os.Stat(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "plugins", id, "rootfs", "v2"))
-	c.Assert(os.IsNotExist(err), checker.True, check.Commentf(out))
+	c.Assert(os.IsNotExist(err), checker.True, check.Commentf("%s", out))
 
 	dockerCmd(c, "plugin", "disable", "-f", plugin)
 	dockerCmd(c, "plugin", "upgrade", "--grant-all-permissions", "--skip-remote-check", plugin, pluginV2)

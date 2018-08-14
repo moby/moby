@@ -18,29 +18,29 @@ func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
 
 func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 	out, _, err := dockerCmdWithError("search", "--filter", "stars=a", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Invalid filter", check.Commentf("couldn't find the invalid filter warning"))
 
 	out, _, err = dockerCmdWithError("search", "-f", "stars=a", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Invalid filter", check.Commentf("couldn't find the invalid filter warning"))
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-automated=a", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Invalid filter", check.Commentf("couldn't find the invalid filter warning"))
 
 	out, _, err = dockerCmdWithError("search", "-f", "is-official=a", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "Invalid filter", check.Commentf("couldn't find the invalid filter warning"))
 
 	// -s --stars deprecated since Docker 1.13
 	out, _, err = dockerCmdWithError("search", "--stars=a", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "invalid syntax", check.Commentf("couldn't find the invalid value warning"))
 
 	// -s --stars deprecated since Docker 1.13
 	out, _, err = dockerCmdWithError("search", "-s=-1", "busybox")
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "invalid syntax", check.Commentf("couldn't find the invalid value warning"))
 }
 
