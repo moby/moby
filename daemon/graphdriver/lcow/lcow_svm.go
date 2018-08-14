@@ -3,6 +3,7 @@
 package lcow // import "github.com/docker/docker/daemon/graphdriver/lcow"
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io"
@@ -385,7 +386,15 @@ func (svm *serviceVM) deleteUnionMount(mountName string, disks ...hcsshim.Mapped
 }
 
 func (svm *serviceVM) runProcess(command string, stdin io.Reader, stdout io.Writer, stderr io.Writer) error {
-	process, err := svm.config.RunProcess(command, stdin, stdout, stderr)
+	var process hcsshim.Process
+	var err error
+	errOut := &bytes.Buffer{}
+
+	if stderr != nil {
+		process, err = svm.config.RunProcess(command, stdin, stdout, stderr)
+	} else {
+		process, err = svm.config.RunProcess(command, stdin, stdout, errOut)
+	}
 	if err != nil {
 		return err
 	}
@@ -398,7 +407,12 @@ func (svm *serviceVM) runProcess(command string, stdin io.Reader, stdout io.Writ
 	}
 
 	if exitCode != 0 {
-		return fmt.Errorf("svm.runProcess: command %s failed with exit code %d", command, exitCode)
+		// If the caller isn't explicitly capturing stderr output, then capture it here instead.
+		e := fmt.Sprintf("svm.runProcess: command %s failed with exit code %d", command, exitCode)
+		if stderr == nil {
+			e = fmt.Sprintf("%s. (%s)", e, errOut.String())
+		}
+		return fmt.Errorf(e)
 	}
 	return nil
 }
