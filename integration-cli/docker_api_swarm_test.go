@@ -404,7 +404,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 	d.CreateService(c, simpleTestService, setInstances(instances))
 
 	id, err := d.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", id))
 	id = strings.TrimSpace(id)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances+1)
@@ -415,7 +415,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
 	id2, err := d.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", id2))
 	c.Assert(id, checker.HasPrefix, strings.TrimSpace(id2))
 }
 
@@ -426,7 +426,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 	d2 := s.AddDaemon(c, false, false)
 
 	id, err := d2.Cmd("run", "-d", "busybox", "top")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", id))
 	id = strings.TrimSpace(id)
 
 	c2 := d2.NewClientT(c)
@@ -445,7 +445,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 1)
 
 	id2, err := d2.Cmd("ps", "-q")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", id2))
 	c.Assert(id, checker.HasPrefix, strings.TrimSpace(id2))
 }
 

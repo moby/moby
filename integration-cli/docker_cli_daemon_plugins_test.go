@@ -287,16 +287,16 @@ func (s *DockerDaemonSuite) TestPluginListFilterEnabled(c *check.C) {
 	}()
 
 	out, err = s.d.Cmd("plugin", "ls", "--filter", "enabled=true")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), pName)
 
 	out, err = s.d.Cmd("plugin", "ls", "--filter", "enabled=false")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, pName)
 	c.Assert(out, checker.Contains, "false")
 
 	out, err = s.d.Cmd("plugin", "ls")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, pName)
 }
 
@@ -315,14 +315,14 @@ func (s *DockerDaemonSuite) TestPluginListFilterCapability(c *check.C) {
 	}()
 
 	out, err = s.d.Cmd("plugin", "ls", "--filter", "capability=volumedriver")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, pName)
 
 	out, err = s.d.Cmd("plugin", "ls", "--filter", "capability=authz")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), pName)
 
 	out, err = s.d.Cmd("plugin", "ls")
-	c.Assert(err, checker.IsNil)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, pName)
 }
