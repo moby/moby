@@ -18,7 +18,7 @@ import (
 func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=volume,source=foo,target=/foo,volume-nocopy", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
@@ -37,7 +37,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 
 	// check container mount config
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .HostConfig.Mounts}}", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	var mountConfig []mount.Mount
 	c.Assert(json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
@@ -51,7 +51,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountVolume(c *check.C) {
 
 	// check container mounts actual
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	var mounts []types.MountPoint
 	c.Assert(json.Unmarshal([]byte(out), &mounts), checker.IsNil)
@@ -77,7 +77,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("secrets: %s", id))
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--secret", testName, "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -93,7 +93,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(refs[0].File.GID, checker.Equals, "0")
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	d.DeleteSecret(c, testName)
 }
 
@@ -126,7 +126,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *check
 	serviceCmd = append(serviceCmd, secretFlags...)
 	serviceCmd = append(serviceCmd, "busybox", "top")
 	out, err := d.Cmd(serviceCmd...)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -160,7 +160,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *check
 	}
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C) {
@@ -176,7 +176,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C
 
 	serviceName := "svc"
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--secret", "source=mysecret,target=target1", "--secret", "source=mysecret,target=target2", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Secrets }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -200,7 +200,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 		path := filepath.Join("/run/secrets", target)
 		out, err := d.Cmd("exec", task.Status.ContainerStatus.ContainerID, "cat", path)
 		c.Assert(err, checker.IsNil)
@@ -208,7 +208,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C
 	}
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *check.C) {
@@ -225,7 +225,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *check.C) {
 	c.Assert(id, checker.Not(checker.Equals), "", check.Commentf("configs: %s", id))
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--config", testName, "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -241,7 +241,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *check.C) {
 	c.Assert(refs[0].File.GID, checker.Equals, "0")
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	d.DeleteConfig(c, testName)
 }
 
@@ -273,7 +273,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *check
 	serviceCmd = append(serviceCmd, configFlags...)
 	serviceCmd = append(serviceCmd, "busybox", "top")
 	out, err := d.Cmd(serviceCmd...)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -307,7 +307,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *check
 	}
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C) {
@@ -323,7 +323,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C
 
 	serviceName := "svc"
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", serviceName, "--config", "source=myconfig,target=target1", "--config", "source=myconfig,target=target2", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "inspect", "--format", "{{ json .Spec.TaskTemplate.ContainerSpec.Configs }}", serviceName)
 	c.Assert(err, checker.IsNil)
@@ -347,7 +347,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C
 	}, checker.Equals, true)
 
 	for _, target := range []string{"target1", "target2"} {
-		c.Assert(err, checker.IsNil, check.Commentf(out))
+		c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 		path := filepath.Join("/", target)
 		out, err := d.Cmd("exec", task.Status.ContainerStatus.ContainerID, "cat", path)
 		c.Assert(err, checker.IsNil)
@@ -355,13 +355,13 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C
 	}
 
 	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 	out, err := d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--mount", "type=tmpfs,target=/foo,tmpfs-size=1MB", "busybox", "sh", "-c", "mount | grep foo; tail -f /dev/null")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
@@ -380,7 +380,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 
 	// check container mount config
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .HostConfig.Mounts}}", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	var mountConfig []mount.Mount
 	c.Assert(json.Unmarshal([]byte(out), &mountConfig), checker.IsNil)
@@ -394,7 +394,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 
 	// check container mounts actual
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .Mounts}}", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	var mounts []types.MountPoint
 	c.Assert(json.Unmarshal([]byte(out), &mounts), checker.IsNil)
@@ -406,7 +406,7 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 	c.Assert(mounts[0].RW, checker.Equals, true)
 
 	out, err = s.nodeCmd(c, task.NodeID, "logs", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(strings.TrimSpace(out), checker.HasPrefix, "tmpfs on /foo type tmpfs")
 	c.Assert(strings.TrimSpace(out), checker.Contains, "size=1024k")
 }
@@ -414,10 +414,10 @@ func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {
 func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 	out, err := d.Cmd("network", "create", "--scope=swarm", "test_swarm_br")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	out, err = d.Cmd("service", "create", "--no-resolve-image", "--detach=true", "--network=name=test_swarm_br,alias=srv_alias", "--name=alias_tst_container", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	id := strings.TrimSpace(out)
 
 	var tasks []swarm.Task
@@ -436,7 +436,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithNetworkAlias(c *check.C) {
 
 	// check container alias config
 	out, err = s.nodeCmd(c, task.NodeID, "inspect", "--format", "{{json .NetworkSettings.Networks.test_swarm_br.Aliases}}", task.Status.ContainerStatus.ContainerID)
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Make sure the only alias seen is the container-id
 	var aliases []string

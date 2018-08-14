@@ -282,7 +282,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *check.
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, check.Not(checker.Contains), "Retrying")
 	c.Assert(out, checker.Contains, "no basic auth credentials")
 }
@@ -293,7 +293,7 @@ func (s *DockerSuite) TestPushToCentralRegistryUnauthorized(c *check.C) {
 	repoName := "test/busybox"
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, check.Not(checker.Contains), "Retrying")
 }
 
@@ -322,7 +322,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushTokenServiceUnauthResponse(c *che
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), "Retrying")
 	c.Assert(out, checker.Contains, "unauthorized: a message")
 }
@@ -334,7 +334,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), "Retrying")
 	split := strings.Split(out, "\n")
 	c.Assert(split[len(split)-2], check.Equals, "unauthorized: authentication required")
@@ -347,7 +347,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	// TODO: isolate test so that it can be guaranteed that the 503 will trigger xfer retries
 	//c.Assert(out, checker.Contains, "Retrying")
 	//c.Assert(out, checker.Not(checker.Contains), "Retrying in 15")
@@ -362,7 +362,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), "Retrying")
 	split := strings.Split(out, "\n")
 	c.Assert(split[len(split)-2], checker.Contains, "error parsing HTTP 403 response body: ")
@@ -375,7 +375,7 @@ func (s *DockerRegistryAuthTokenSuite) TestPushMisconfiguredTokenServiceResponse
 	repoName := fmt.Sprintf("%s/busybox", privateRegistryURL)
 	dockerCmd(c, "tag", "busybox", repoName)
 	out, _, err := dockerCmdWithError("push", repoName)
-	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Not(checker.Contains), "Retrying")
 	split := strings.Split(out, "\n")
 	c.Assert(split[len(split)-2], check.Equals, "authorization server did not include a token in the response")

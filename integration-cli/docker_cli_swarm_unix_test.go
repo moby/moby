@@ -16,7 +16,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("service", "create", "--detach", "--no-resolve-image", "--mount", "type=volume,source=my-volume,destination=/foo,volume-driver=customvolumedriver", "--name", "top", "busybox", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Make sure task stays pending before plugin is available
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
@@ -26,7 +26,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 
 	// create a dummy volume to trigger lazy loading of the plugin
 	out, err = d.Cmd("volume", "create", "-d", "customvolumedriver", "hello")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// TODO(aaronl): It will take about 15 seconds for swarm to realize the
 	// plugin was loaded. Switching the test over to plugin v2 would avoid
@@ -48,7 +48,7 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	}
 
 	c.Assert(json.NewDecoder(strings.NewReader(out)).Decode(&mounts), checker.IsNil)
-	c.Assert(len(mounts), checker.Equals, 1, check.Commentf(out))
+	c.Assert(len(mounts), checker.Equals, 1, check.Commentf("%s", out))
 	c.Assert(mounts[0].Name, checker.Equals, "my-volume")
 	c.Assert(mounts[0].Driver, checker.Equals, "customvolumedriver")
 }

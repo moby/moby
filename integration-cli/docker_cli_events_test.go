@@ -50,11 +50,11 @@ func (s *DockerSuite) TestEventsTimestampFormats(c *check.C) {
 		containerEvents := eventActionsByIDAndType(c, events, name, "container")
 		c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
 
-		c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
-		c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
-		c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
-		c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
-		c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
+		c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
+		c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
+		c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
+		c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
+		c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
 	}
 }
 
@@ -93,11 +93,11 @@ func (s *DockerSuite) TestEventsContainerEvents(c *check.C) {
 	containerEvents := eventActionsByIDAndType(c, events, "container-events-test", "container")
 	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
 
-	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
-	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
-	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
-	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
-	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
+	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
+	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
+	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
+	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
+	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestEventsContainerEventsAttrSort(c *check.C) {
@@ -136,11 +136,11 @@ func (s *DockerSuite) TestEventsContainerEventsSinceUnixEpoch(c *check.C) {
 	containerEvents := eventActionsByIDAndType(c, events, "since-epoch-test", "container")
 	c.Assert(containerEvents, checker.HasLen, 5, check.Commentf("events: %v", events))
 
-	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf(out))
-	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf(out))
-	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf(out))
-	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf(out))
-	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf(out))
+	c.Assert(containerEvents[0], checker.Equals, "create", check.Commentf("%s", out))
+	c.Assert(containerEvents[1], checker.Equals, "attach", check.Commentf("%s", out))
+	c.Assert(containerEvents[2], checker.Equals, "start", check.Commentf("%s", out))
+	c.Assert(containerEvents[3], checker.Equals, "die", check.Commentf("%s", out))
+	c.Assert(containerEvents[4], checker.Equals, "destroy", check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestEventsImageTag(c *check.C) {
@@ -262,10 +262,10 @@ func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	pluginEvents := eventActionsByIDAndType(c, events, pNameWithTag, "plugin")
 	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
 
-	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
-	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf(out))
-	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf(out))
-	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf(out))
+	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf("%s", out))
+	c.Assert(pluginEvents[1], checker.Equals, "enable", check.Commentf("%s", out))
+	c.Assert(pluginEvents[2], checker.Equals, "disable", check.Commentf("%s", out))
+	c.Assert(pluginEvents[3], checker.Equals, "remove", check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestEventsFilters(c *check.C) {
@@ -633,7 +633,7 @@ func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
 	)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
+	c.Assert(len(events), checker.Equals, 1, check.Commentf("%s", out))
 
 	out, _ = dockerCmd(
 		c,
@@ -643,7 +643,7 @@ func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
 		"--filter",
 		"event=exec_create",
 	)
-	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
+	c.Assert(len(events), checker.Equals, 1, check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
@@ -653,7 +653,7 @@ func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 
 	out, _ := dockerCmd(c, "events", "--filter", "image=busybox", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.GreaterThan, 1, check.Commentf(out))
+	c.Assert(len(events), checker.GreaterThan, 1, check.Commentf("%s", out))
 }
 
 func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {

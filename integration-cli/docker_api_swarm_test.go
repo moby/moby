@@ -923,7 +923,7 @@ func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
 	d := s.AddDaemon(c, true, true)
 
 	out, err := d.Cmd("network", "create", "-d", "overlay", "lb")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	instances := 1
 	d.CreateService(c, simpleTestService, setInstances(instances), func(s *swarm.Service) {
@@ -941,7 +941,7 @@ func (s *DockerSwarmSuite) TestAPISwarmHealthcheckNone(c *check.C) {
 	containers := d.ActiveContainers(c)
 
 	out, err = d.Cmd("exec", containers[0], "ping", "-c1", "-W3", "top")
-	c.Assert(err, checker.IsNil, check.Commentf(out))
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 }
 
 func (s *DockerSwarmSuite) TestSwarmRepeatedRootRotation(c *check.C) {

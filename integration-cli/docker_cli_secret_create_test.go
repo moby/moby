@@ -87,7 +87,7 @@ func (s *DockerSwarmSuite) TestSecretCreateWithFile(c *check.C) {
 	testName := "test_secret"
 	out, err := d.Cmd("secret", "create", testName, testFile.Name())
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf("%s", out))
 
 	id := strings.TrimSpace(out)
 	secret := d.GetSecret(c, id)

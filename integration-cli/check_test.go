@@ -200,7 +200,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		out, err := s.d.Cmd("logout", privateRegistryURL)
-		c.Assert(err, check.IsNil, check.Commentf(out))
+		c.Assert(err, check.IsNil, check.Commentf("%s", out))
 		s.reg.Close()
 	}
 	if s.d != nil {
@@ -233,7 +233,7 @@ func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		out, err := s.d.Cmd("logout", privateRegistryURL)
-		c.Assert(err, check.IsNil, check.Commentf(out))
+		c.Assert(err, check.IsNil, check.Commentf("%s", out))
 		s.reg.Close()
 	}
 	if s.d != nil {

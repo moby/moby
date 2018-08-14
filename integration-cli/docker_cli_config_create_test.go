@@ -25,7 +25,7 @@ func (s *DockerSwarmSuite) TestConfigCreateWithFile(c *check.C) {
 	testName := "test_config"
 	out, err := d.Cmd("config", "create", testName, testFile.Name())
 	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf(out))
+	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "", check.Commentf("%s", out))
 
 	id := strings.TrimSpace(out)
 	config := d.GetConfig(c, id)
