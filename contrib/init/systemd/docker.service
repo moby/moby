@@ -6,7 +6,7 @@ Wants=network-online.target containerd.service
 
 [Service]
 # Install containerd-shim-process if it's not already installed
-ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd/containerd-shim-process.tar docker.io/docker/containerd-shim-process
+ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
 ExecStart=/usr/bin/dockerd
 TimeoutSec=infinity
 KillMode=process
