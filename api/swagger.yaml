@@ -1513,6 +1513,31 @@ definitions:
       aux:
         $ref: "#/definitions/ImageID"
 
+  BuildCache:
+    type: "object"
+    properties:
+      ID:
+        type: "string"
+      Parent:
+        type: "string"
+      Type:
+        type: "string"
+      Description:
+        type: "string"
+      InUse:
+        type: "boolean"
+      Shared:
+        type: "boolean"
+      Size:
+        type: "integer"
+      CreatedAt:
+        type: "integer"
+      LastUsedAt:
+        type: "integer"
+        x-nullable: true
+      UsageCount:
+        type: "integer"
+
   ImageID:
     type: "object"
     description: "Image ID or Digest"
@@ -6358,6 +6383,29 @@ paths:
       produces:
         - "application/json"
       operationId: "BuildPrune"
+      parameters:
+        - name: "keep-storage"
+          in: "query"
+          description: "Amount of disk space in bytes to keep for cache"
+          type: "integer"
+          format: "int64"
+        - name: "all"
+          in: "query"
+          type: "boolean"
+          description: "Remove all types of build cache"
+        - name: "filters"
+          in: "query"
+          type: "string"
+          description: |
+            A JSON encoded value of the filters (a `map[string][]string`) to process on the list of build cache objects. Available filters:
+            - `unused-for=<duration>`: duration relative to daemon's time, during which build cache was not used, in Go's duration format (e.g., '24h')
+            - `id=<id>`
+            - `parent=<id>`
+            - `type=<string>`
+            - `description=<string>`
+            - `inuse`
+            - `shared`
+            - `private`
       responses:
         200:
           description: "No error"
@@ -6365,6 +6413,11 @@ paths:
             type: "object"
             title: "BuildPruneResponse"
             properties:
+              CachesDeleted:
+                type: "array"
+                items:
+                  description: "ID of build cache object"
+                  type: "string"
               SpaceReclaimed:
                 description: "Disk space reclaimed in bytes"
                 type: "integer"
@@ -7199,6 +7252,10 @@ paths:
                 type: "array"
                 items:
                   $ref: "#/definitions/Volume"
+              BuildCache:
+                type: "array"
+                items:
+                  $ref: "#/definitions/BuildCache"
             example:
               LayersSize: 1092588
               Images:
