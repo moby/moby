@@ -102,7 +102,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	exec, err := newExecutor(root, opt.NetworkController)
+	exec, err := newExecutor(root, opt.DefaultCgroupParent, opt.NetworkController)
 	if err != nil {
 		return nil, err
 	}

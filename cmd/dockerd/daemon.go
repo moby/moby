@@ -284,11 +284,23 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 	if err != nil {
 		return opts, err
 	}
+	cgroupParent := "docker"
+	useSystemd := daemon.UsingSystemd(config)
+	if useSystemd {
+		cgroupParent = "system.slice"
+	}
+	if config.CgroupParent != "" {
+		cgroupParent = config.CgroupParent
+	}
+	if useSystemd {
+		cgroupParent = cgroupParent + ":" + "docker" + ":"
+	}
 	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager:    sm,
-		Root:              filepath.Join(config.Root, "buildkit"),
-		Dist:              daemon.DistributionServices(),
-		NetworkController: daemon.NetworkController(),
+		SessionManager:      sm,
+		Root:                filepath.Join(config.Root, "buildkit"),
+		Dist:                daemon.DistributionServices(),
+		NetworkController:   daemon.NetworkController(),
+		DefaultCgroupParent: cgroupParent,
 	})
 	if err != nil {
 		return opts, err
