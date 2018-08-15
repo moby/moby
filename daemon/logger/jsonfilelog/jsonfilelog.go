@@ -172,10 +172,6 @@ func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
 	l.closed = true
 	err := l.writer.Close()
-	for r := range l.readers {
-		r.ProducerGone()
-		delete(l.readers, r)
-	}
 	l.mu.Unlock()
 	return err
 }

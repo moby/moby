@@ -3,7 +3,6 @@ package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutil
 import (
 	"bytes"
 	"compress/gzip"
-	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -506,20 +505,6 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		fileWatcher.Close()
 	}()
 
-	// wait till the logs producer is gone, cancel the context
-	// to signal there'll be no more log rotation.
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-logWatcher.WatchProducerGone():
-			fileWatcher.Remove(name)
-			cancel()
-		case <-ctx.Done():
-			return
-		}
-	}()
-
 	var retries int
 	handleRotate := func() error {
 		f.Close()
@@ -552,15 +537,16 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				decodeLogLine = createDecoder(f)
 				return nil
 			case fsnotify.Rename, fsnotify.Remove:
-				select {
-				case <-notifyRotate:
-				case <-ctx.Done():
-					return errDone
-				}
 				if err := handleRotate(); err != nil {
 					return err
 				}
 				return nil
+			case fsnotify.Chmod:
+				_, statErr := os.Lstat(e.Name)
+				if os.IsNotExist(statErr) {
+					// container and its log file removed
+					return errDone
+				}
 			}
 			return errRetry
 		case err := <-fileWatcher.Errors():
@@ -576,8 +562,6 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				return errRetry
 			}
 			return err
-		case <-ctx.Done(): // container producing logs is gone
-			return errDone
 		case <-logWatcher.WatchConsumerGone():
 			return errDone
 		}
