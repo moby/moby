@@ -86,7 +86,7 @@ type DistributionAPIClient interface {
 // ImageAPIClient defines API client methods for the images
 type ImageAPIClient interface {
 	ImageBuild(ctx context.Context, context io.Reader, options types.ImageBuildOptions) (types.ImageBuildResponse, error)
-	BuildCachePrune(ctx context.Context) (*types.BuildCachePruneReport, error)
+	BuildCachePrune(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error)
 	BuildCancel(ctx context.Context, id string) error
 	ImageCreate(ctx context.Context, parentReference string, options types.ImageCreateOptions) (io.ReadCloser, error)
 	ImageHistory(ctx context.Context, image string) ([]image.HistoryResponseItem, error)

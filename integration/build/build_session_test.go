@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	dclient "github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/request"
@@ -76,7 +77,7 @@ func TestBuildWithSession(t *testing.T) {
 	assert.Check(t, is.Contains(string(outBytes), "Successfully built"))
 	assert.Check(t, is.Equal(strings.Count(string(outBytes), "Using cache"), 4))
 
-	_, err = client.BuildCachePrune(context.TODO())
+	_, err = client.BuildCachePrune(context.TODO(), types.BuildCachePruneOptions{All: true})
 	assert.Check(t, err)
 
 	du, err = client.DiskUsage(context.TODO())
