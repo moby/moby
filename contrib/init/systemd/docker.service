@@ -5,28 +5,16 @@ After=network-online.target firewalld.service containerd.service
 Wants=network-online.target containerd.service
 
 [Service]
-Type=notify
 # Install containerd-shim-process if it's not already installed
 ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd/containerd-shim-process.tar docker.io/docker/containerd-shim-process
 ExecStart=/usr/bin/dockerd
-ExecReload=/bin/kill -s HUP $MAINPID
-# Having non-zero Limit*s causes performance problems due to accounting overhead
-# in the kernel. We recommend using cgroups to do container-local accounting.
-LimitNOFILE=infinity
-LimitNPROC=infinity
-LimitCORE=infinity
-# Uncomment TasksMax if your systemd version supports it.
-# Only systemd 226 and above support this version.
-#TasksMax=infinity
-TimeoutStartSec=0
-# set delegate yes so that systemd does not reset the cgroups of docker containers
-Delegate=yes
-# kill only the docker process, not all processes in the cgroup
+TimeoutSec=infinity
 KillMode=process
-# restart the docker process if it exits prematurely
-Restart=on-failure
-StartLimitBurst=3
-StartLimitInterval=60s
+Restart=always
+Delegate=yes
+# On RPM Based distributions PATH isn't defined so we define it here
+# /opt/containerd/bin is in front so dockerd grabs the correct runc binary
+Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
 
 [Install]
 WantedBy=multi-user.target
