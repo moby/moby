@@ -50,11 +50,11 @@ func init() {
 
 // Opt is option struct required for creating the builder
 type Opt struct {
-	SessionManager    *session.Manager
-	Root              string
-	NetnsRoot         string
-	Dist              images.DistributionServices
-	NetworkController libnetwork.NetworkController
+	SessionManager      *session.Manager
+	Root                string
+	Dist                images.DistributionServices
+	NetworkController   libnetwork.NetworkController
+	DefaultCgroupParent string
 }
 
 // Builder can build using BuildKit backend

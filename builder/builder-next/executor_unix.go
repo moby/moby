@@ -19,15 +19,16 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, netnsRoot string, net libnetwork.NetworkController) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net libnetwork.NetworkController) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, netnsRoot: netnsRoot},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
 	return runcexecutor.New(runcexecutor.Opt{
-		Root:              filepath.Join(root, "executor"),
-		CommandCandidates: []string{"docker-runc", "runc"},
+		Root:                filepath.Join(root, "executor"),
+		CommandCandidates:   []string{"docker-runc", "runc"},
+		DefaultCgroupParent: cgroupParent,
 	}, networkProviders)
 }
 
