@@ -146,7 +146,7 @@ if __name__ == '__main__':
 
     if command == 'gossip-consistency':
         cspec = docker.types.ContainerSpec(
-            image='sanimej/ssd',
+            image='docker/ssd',
             args=[sys.argv[1], 'gossip-hash'],
             mounts=[docker.types.Mount('/var/run/docker.sock', '/var/run/docker.sock', type='bind')]
         )
