@@ -46,8 +46,8 @@ func NewAllocator(lcDs, glDs datastore.DataStore) (*Allocator, error) {
 
 	// Load predefined subnet pools
 	a.predefined = map[string][]*net.IPNet{
-		localAddressSpace:  ipamutils.PredefinedBroadNetworks,
-		globalAddressSpace: ipamutils.PredefinedGranularNetworks,
+		localAddressSpace:  ipamutils.PredefinedLocalScopeDefaultNetworks,
+		globalAddressSpace: ipamutils.PredefinedGlobalScopeDefaultNetworks,
 	}
 
 	// Initialize asIndices map

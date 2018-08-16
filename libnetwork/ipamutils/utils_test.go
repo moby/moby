@@ -2,7 +2,6 @@ package ipamutils
 
 import (
 	"net"
-	"sync"
 	"testing"
 
 	_ "github.com/docker/libnetwork/testutils"
@@ -34,15 +33,25 @@ func initGranularPredefinedNetworks() []*net.IPNet {
 	return pl
 }
 
+func initGlobalScopeNetworks() []*net.IPNet {
+	pl := make([]*net.IPNet, 0, 256*256)
+	mask := []byte{255, 255, 255, 0}
+	for i := 0; i < 256; i++ {
+		for j := 0; j < 256; j++ {
+			pl = append(pl, &net.IPNet{IP: []byte{30, byte(i), byte(j), 0}, Mask: mask})
+		}
+	}
+	return pl
+}
+
 func TestDefaultNetwork(t *testing.T) {
-	InitNetworks(nil)
-	for _, nw := range PredefinedGranularNetworks {
+	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
 		if ones, bits := nw.Mask.Size(); bits != 32 || ones != 24 {
 			t.Fatalf("Unexpected size for network in granular list: %v", nw)
 		}
 	}
 
-	for _, nw := range PredefinedBroadNetworks {
+	for _, nw := range PredefinedLocalScopeDefaultNetworks {
 		if ones, bits := nw.Mask.Size(); bits != 32 || (ones != 20 && ones != 16) {
 			t.Fatalf("Unexpected size for network in broad list: %v", nw)
 		}
@@ -53,7 +62,7 @@ func TestDefaultNetwork(t *testing.T) {
 	for _, v := range originalBroadNets {
 		m[v.String()] = true
 	}
-	for _, nw := range PredefinedBroadNetworks {
+	for _, nw := range PredefinedLocalScopeDefaultNetworks {
 		_, ok := m[nw.String()]
 		assert.Check(t, ok)
 		delete(m, nw.String())
@@ -67,7 +76,25 @@ func TestDefaultNetwork(t *testing.T) {
 	for _, v := range originalGranularNets {
 		m[v.String()] = true
 	}
-	for _, nw := range PredefinedGranularNetworks {
+	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
+		_, ok := m[nw.String()]
+		assert.Check(t, ok)
+		delete(m, nw.String())
+	}
+
+	assert.Check(t, is.Len(m, 0))
+}
+
+func TestConfigGlobalScopeDefaultNetworks(t *testing.T) {
+	err := ConfigGlobalScopeDefaultNetworks([]*NetworkToSplit{{"30.0.0.0/8", 24}})
+	assert.NilError(t, err)
+
+	originalGlobalScopeNetworks := initGlobalScopeNetworks()
+	m := make(map[string]bool)
+	for _, v := range originalGlobalScopeNetworks {
+		m[v.String()] = true
+	}
+	for _, nw := range PredefinedGlobalScopeDefaultNetworks {
 		_, ok := m[nw.String()]
 		assert.Check(t, ok)
 		delete(m, nw.String())
@@ -77,15 +104,15 @@ func TestDefaultNetwork(t *testing.T) {
 }
 
 func TestInitAddressPools(t *testing.T) {
-	initNetworksOnce = sync.Once{}
-	InitNetworks([]*NetworkToSplit{{"172.80.0.0/16", 24}, {"172.90.0.0/16", 24}})
+	err := ConfigLocalScopeDefaultNetworks([]*NetworkToSplit{{"172.80.0.0/16", 24}, {"172.90.0.0/16", 24}})
+	assert.NilError(t, err)
 
-	// Check for Random IPAddresses in PredefinedBroadNetworks  ex: first , last and middle
-	assert.Check(t, is.Len(PredefinedBroadNetworks, 512), "Failed to find PredefinedBroadNetworks")
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[0].String(), "172.80.0.0/24"))
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[127].String(), "172.80.127.0/24"))
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[255].String(), "172.80.255.0/24"))
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[256].String(), "172.90.0.0/24"))
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[383].String(), "172.90.127.0/24"))
-	assert.Check(t, is.Equal(PredefinedBroadNetworks[511].String(), "172.90.255.0/24"))
+	// Check for Random IPAddresses in PredefinedLocalScopeDefaultNetworks  ex: first , last and middle
+	assert.Check(t, is.Len(PredefinedLocalScopeDefaultNetworks, 512), "Failed to find PredefinedLocalScopeDefaultNetworks")
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[0].String(), "172.80.0.0/24"))
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[127].String(), "172.80.127.0/24"))
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[255].String(), "172.80.255.0/24"))
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[256].String(), "172.90.0.0/24"))
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[383].String(), "172.90.127.0/24"))
+	assert.Check(t, is.Equal(PredefinedLocalScopeDefaultNetworks[511].String(), "172.90.255.0/24"))
 }

@@ -17,7 +17,6 @@ import (
 	"github.com/docker/libnetwork/bitseq"
 	"github.com/docker/libnetwork/datastore"
 	"github.com/docker/libnetwork/ipamapi"
-	"github.com/docker/libnetwork/ipamutils"
 	_ "github.com/docker/libnetwork/testutils"
 	"github.com/docker/libnetwork/types"
 	"gotest.tools/assert"
@@ -57,7 +56,6 @@ func randomLocalStore(needStore bool) (datastore.DataStore, error) {
 }
 
 func getAllocator(store bool) (*Allocator, error) {
-	ipamutils.InitNetworks(nil)
 	ds, err := randomLocalStore(store)
 	if err != nil {
 		return nil, err

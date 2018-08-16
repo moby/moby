@@ -5,23 +5,20 @@ import (
 	"fmt"
 	"net"
 	"sync"
-
-	"github.com/sirupsen/logrus"
 )
 
 var (
-	// PredefinedBroadNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
-	// (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap with the networks in `PredefinedGranularNetworks`
-	PredefinedBroadNetworks []*net.IPNet
-	// PredefinedGranularNetworks contains a list of 64K IPv4 private networks with host size 8
-	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedBroadNetworks`
-	PredefinedGranularNetworks []*net.IPNet
-	initNetworksOnce           sync.Once
-
-	defaultBroadNetwork = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
+	// PredefinedLocalScopeDefaultNetworks contains a list of 31 IPv4 private networks with host size 16 and 12
+	// (172.17-31.x.x/16, 192.168.x.x/20) which do not overlap with the networks in `PredefinedGlobalScopeDefaultNetworks`
+	PredefinedLocalScopeDefaultNetworks []*net.IPNet
+	// PredefinedGlobalScopeDefaultNetworks contains a list of 64K IPv4 private networks with host size 8
+	// (10.x.x.x/24) which do not overlap with the networks in `PredefinedLocalScopeDefaultNetworks`
+	PredefinedGlobalScopeDefaultNetworks []*net.IPNet
+	mutex                                sync.Mutex
+	localScopeDefaultNetworks            = []*NetworkToSplit{{"172.17.0.0/16", 16}, {"172.18.0.0/16", 16}, {"172.19.0.0/16", 16},
 		{"172.20.0.0/14", 16}, {"172.24.0.0/14", 16}, {"172.28.0.0/14", 16},
 		{"192.168.0.0/16", 20}}
-	defaultGranularNetwork = []*NetworkToSplit{{"10.0.0.0/8", 24}}
+	globalScopeDefaultNetworks = []*NetworkToSplit{{"10.0.0.0/8", 24}}
 )
 
 // NetworkToSplit represent a network that has to be split in chunks with mask length Size.
@@ -34,19 +31,47 @@ type NetworkToSplit struct {
 	Size int    `json:"size"`
 }
 
-// InitNetworks initializes the broad network pool and the granular network pool
-func InitNetworks(defaultAddressPool []*NetworkToSplit) {
-	initNetworksOnce.Do(func() {
-		// error ingnored should never fail
-		PredefinedGranularNetworks, _ = splitNetworks(defaultGranularNetwork)
-		if defaultAddressPool == nil {
-			defaultAddressPool = defaultBroadNetwork
-		}
-		var err error
-		if PredefinedBroadNetworks, err = splitNetworks(defaultAddressPool); err != nil {
-			logrus.WithError(err).Error("InitAddressPools failed to initialize the default address pool")
-		}
-	})
+func init() {
+	var err error
+	if PredefinedGlobalScopeDefaultNetworks, err = splitNetworks(globalScopeDefaultNetworks); err != nil {
+		//we are going to panic in case of error as we should never get into this state
+		panic("InitAddressPools failed to initialize the global scope default address pool")
+	}
+
+	if PredefinedLocalScopeDefaultNetworks, err = splitNetworks(localScopeDefaultNetworks); err != nil {
+		//we are going to panic in case of error as we should never get into this state
+		panic("InitAddressPools failed to initialize the local scope default address pool")
+	}
+}
+
+// configDefaultNetworks configures local as well global default pool based on input
+func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.IPNet) error {
+	mutex.Lock()
+	defer mutex.Unlock()
+	defaultNetworks, err := splitNetworks(defaultAddressPool)
+	if err != nil {
+		return err
+	}
+	*result = defaultNetworks
+	return nil
+}
+
+// ConfigGlobalScopeDefaultNetworks configures global default pool.
+// Ideally this will be called from SwarmKit as part of swarm init
+func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
+	if defaultAddressPool == nil {
+		defaultAddressPool = globalScopeDefaultNetworks
+	}
+	return configDefaultNetworks(defaultAddressPool, &PredefinedGlobalScopeDefaultNetworks)
+}
+
+// ConfigLocalScopeDefaultNetworks configures local default pool.
+// Ideally this will be called during libnetwork init
+func ConfigLocalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
+	if defaultAddressPool == nil {
+		return nil
+	}
+	return configDefaultNetworks(defaultAddressPool, &PredefinedLocalScopeDefaultNetworks)
 }
 
 // splitNetworks takes a slice of networks, split them accordingly and returns them

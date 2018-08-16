@@ -10,7 +10,6 @@ import (
 	"testing"
 
 	"github.com/docker/libnetwork/driverapi"
-	"github.com/docker/libnetwork/ipamutils"
 	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libnetwork/netlabel"
 	"github.com/docker/libnetwork/netutils"
@@ -19,10 +18,6 @@ import (
 	"github.com/docker/libnetwork/types"
 	"github.com/vishvananda/netlink"
 )
-
-func init() {
-	ipamutils.InitNetworks(nil)
-}
 
 func TestEndpointMarshalling(t *testing.T) {
 	ip1, _ := types.ParseCIDR("172.22.0.9/16")
