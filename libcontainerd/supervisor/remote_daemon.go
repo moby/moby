@@ -1,6 +1,4 @@
-// +build !windows
-
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
 	"context"
@@ -13,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/BurntSushi/toml"
@@ -28,6 +25,7 @@ const (
 	maxConnectionRetryCount = 3
 	healthCheckTimeout      = 3 * time.Second
 	shutdownTimeout         = 15 * time.Second
+	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
 	binaryName              = "docker-containerd"
 	pidFile                 = "docker-containerd.pid"
@@ -44,28 +42,26 @@ type remote struct {
 	daemonPid int
 	logger    *logrus.Entry
 
-	daemonWaitCh    chan struct{}
-	clients         []*client
-	shutdownContext context.Context
-	shutdownCancel  context.CancelFunc
-	shutdown        bool
+	daemonWaitCh  chan struct{}
+	daemonStartCh chan struct{}
+	daemonStopCh  chan struct{}
 
-	// Options
-	startDaemon bool
 	rootDir     string
 	stateDir    string
-	snapshotter string
 	pluginConfs pluginConfigs
 }
 
-// New creates a fresh instance of libcontainerd remote.
-func New(rootDir, stateDir string, options ...RemoteOption) (rem Remote, err error) {
-	defer func() {
-		if err != nil {
-			err = errors.Wrap(err, "Failed to connect to containerd")
-		}
-	}()
+// Daemon represents a running containerd daemon
+type Daemon interface {
+	WaitTimeout(time.Duration) error
+	Address() string
+}
 
+// DaemonOpt allows to configure parameters of container daemons
+type DaemonOpt func(c *remote) error
+
+// Start starts a containerd daemon and monitors it
+func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Daemon, error) {
 	r := &remote{
 		rootDir:  rootDir,
 		stateDir: stateDir,
@@ -73,86 +69,47 @@ func New(rootDir, stateDir string, options ...RemoteOption) (rem Remote, err err
 			Root:  filepath.Join(rootDir, "daemon"),
 			State: filepath.Join(stateDir, "daemon"),
 		},
-		pluginConfs: pluginConfigs{make(map[string]interface{})},
-		daemonPid:   -1,
-		logger:      logrus.WithField("module", "libcontainerd"),
+		pluginConfs:   pluginConfigs{make(map[string]interface{})},
+		daemonPid:     -1,
+		logger:        logrus.WithField("module", "libcontainerd"),
+		daemonStartCh: make(chan struct{}),
+		daemonStopCh:  make(chan struct{}),
 	}
-	r.shutdownContext, r.shutdownCancel = context.WithCancel(context.Background())
 
-	rem = r
-	for _, option := range options {
-		if err = option.Apply(r); err != nil {
-			return
+	for _, opt := range opts {
+		if err := opt(r); err != nil {
+			return nil, err
 		}
 	}
 	r.setDefaults()
 
-	if err = system.MkdirAll(stateDir, 0700, ""); err != nil {
-		return
+	if err := system.MkdirAll(stateDir, 0700, ""); err != nil {
+		return nil, err
 	}
 
-	if r.startDaemon {
-		os.Remove(r.GRPC.Address)
-		if err = r.startContainerd(); err != nil {
-			return
-		}
-		defer func() {
-			if err != nil {
-				r.Cleanup()
-			}
-		}()
-	}
+	go r.monitorDaemon(ctx)
 
-	// This connection is just used to monitor the connection
-	client, err := containerd.New(r.GRPC.Address)
-	if err != nil {
-		return
+	select {
+	case <-time.After(startupTimeout):
+		return nil, errors.New("timeout waiting for containerd to start")
+	case <-r.daemonStartCh:
 	}
-	if _, err := client.Version(context.Background()); err != nil {
-		system.KillProcess(r.daemonPid)
-		return nil, errors.Wrapf(err, "unable to get containerd version")
-	}
-
-	go r.monitorConnection(client)
 
 	return r, nil
 }
-
-func (r *remote) NewClient(ns string, b Backend) (Client, error) {
-	c := &client{
-		stateDir:   r.stateDir,
-		logger:     r.logger.WithField("namespace", ns),
-		namespace:  ns,
-		backend:    b,
-		containers: make(map[string]*container),
+func (r *remote) WaitTimeout(d time.Duration) error {
+	select {
+	case <-time.After(d):
+		return errors.New("timeout waiting for containerd to stop")
+	case <-r.daemonStopCh:
 	}
 
-	rclient, err := containerd.New(r.GRPC.Address, containerd.WithDefaultNamespace(ns))
-	if err != nil {
-		return nil, err
-	}
-	c.remote = rclient
-
-	go c.processEventStream(r.shutdownContext)
-
-	r.Lock()
-	r.clients = append(r.clients, c)
-	r.Unlock()
-	return c, nil
+	return nil
 }
 
-func (r *remote) Cleanup() {
-	if r.daemonPid != -1 {
-		r.shutdownCancel()
-		r.stopDaemon()
-	}
-
-	// cleanup some files
-	os.Remove(filepath.Join(r.stateDir, pidFile))
-
-	r.platformCleanup()
+func (r *remote) Address() string {
+	return r.GRPC.Address
 }
-
 func (r *remote) getContainerdPid() (int, error) {
 	pidFile := filepath.Join(r.stateDir, pidFile)
 	f, err := os.OpenFile(pidFile, os.O_RDWR, 0600)
@@ -265,85 +222,90 @@ func (r *remote) startContainerd() error {
 	return nil
 }
 
-func (r *remote) monitorConnection(monitor *containerd.Client) {
-	var transientFailureCount = 0
+func (r *remote) monitorDaemon(ctx context.Context) {
+	var (
+		transientFailureCount = 0
+		client                *containerd.Client
+		err                   error
+		delay                 <-chan time.Time
+		started               bool
+	)
+
+	defer func() {
+		if r.daemonPid != -1 {
+			r.stopDaemon()
+		}
+
+		// cleanup some files
+		os.Remove(filepath.Join(r.stateDir, pidFile))
+
+		r.platformCleanup()
+
+		close(r.daemonStopCh)
+	}()
 
 	for {
 		select {
-		case <-r.shutdownContext.Done():
+		case <-ctx.Done():
 			r.logger.Info("stopping healthcheck following graceful shutdown")
-			monitor.Close()
+			if client != nil {
+				client.Close()
+			}
 			return
-		case <-time.After(500 * time.Millisecond):
+		case <-delay:
+		default:
 		}
 
-		ctx, cancel := context.WithTimeout(r.shutdownContext, healthCheckTimeout)
-		_, err := monitor.IsServing(ctx)
+		if r.daemonPid == -1 {
+			if r.daemonWaitCh != nil {
+				<-r.daemonWaitCh
+			}
+
+			os.RemoveAll(r.GRPC.Address)
+			if err := r.startContainerd(); err != nil {
+				r.logger.WithError(err).Error("failed starting containerd")
+				delay = time.After(50 * time.Millisecond)
+				continue
+			}
+
+			client, err = containerd.New(r.GRPC.Address)
+			if err != nil {
+				r.logger.WithError(err).Error("failed connecting to containerd")
+				delay = time.After(100 * time.Millisecond)
+				continue
+			}
+		}
+
+		tctx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+		_, err := client.IsServing(tctx)
 		cancel()
 		if err == nil {
-			transientFailureCount = 0
-			continue
-		}
+			if !started {
+				close(r.daemonStartCh)
+				started = true
+			}
 
-		select {
-		case <-r.shutdownContext.Done():
-			r.logger.Info("stopping healthcheck following graceful shutdown")
-			monitor.Close()
-			return
-		default:
+			transientFailureCount = 0
+			delay = time.After(500 * time.Millisecond)
+			continue
 		}
 
 		r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
 
-		if r.daemonPid == -1 {
-			continue
-		}
-
 		transientFailureCount++
 		if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
+			delay = time.After(time.Duration(transientFailureCount) * 200 * time.Millisecond)
 			continue
 		}
 
-		transientFailureCount = 0
 		if system.IsProcessAlive(r.daemonPid) {
 			r.logger.WithField("pid", r.daemonPid).Info("killing and restarting containerd")
-			// Try to get a stack trace
-			syscall.Kill(r.daemonPid, syscall.SIGUSR1)
-			<-time.After(100 * time.Millisecond)
-			system.KillProcess(r.daemonPid)
-		}
-		if r.daemonWaitCh != nil {
-			<-r.daemonWaitCh
+			r.killDaemon()
 		}
 
-		os.Remove(r.GRPC.Address)
-		if err := r.startContainerd(); err != nil {
-			r.logger.WithError(err).Error("failed restarting containerd")
-			continue
-		}
-
-		if err := monitor.Reconnect(); err != nil {
-			r.logger.WithError(err).Error("failed connect to containerd")
-			continue
-		}
-
-		var wg sync.WaitGroup
-
-		for _, c := range r.clients {
-			wg.Add(1)
-
-			go func(c *client) {
-				defer wg.Done()
-				c.logger.WithField("namespace", c.namespace).Debug("creating new containerd remote client")
-				if err := c.reconnect(); err != nil {
-					r.logger.WithError(err).Error("failed to connect to containerd")
-					// TODO: Better way to handle this?
-					// This *shouldn't* happen, but this could wind up where the daemon
-					// is not able to communicate with an eventually up containerd
-				}
-			}(c)
-
-			wg.Wait()
-		}
+		client.Close()
+		r.daemonPid = -1
+		delay = nil
+		transientFailureCount = 0
 	}
 }

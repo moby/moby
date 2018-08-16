@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
 	"os"
@@ -38,10 +38,6 @@ func (r *remote) setDefaults() {
 			delete(r.pluginConfs.Plugins, key)
 		}
 	}
-
-	if r.snapshotter == "" {
-		r.snapshotter = "overlay"
-	}
 }
 
 func (r *remote) stopDaemon() {
@@ -59,6 +55,13 @@ func (r *remote) stopDaemon() {
 		r.logger.WithField("pid", r.daemonPid).Warn("daemon didn't stop within 15 secs, killing it")
 		syscall.Kill(r.daemonPid, syscall.SIGKILL)
 	}
+}
+
+func (r *remote) killDaemon() {
+	// Try to get a stack trace
+	syscall.Kill(r.daemonPid, syscall.SIGUSR1)
+	<-time.After(100 * time.Millisecond)
+	system.KillProcess(r.daemonPid)
 }
 
 func (r *remote) platformCleanup() {

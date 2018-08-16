@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
@@ -48,7 +48,7 @@ func notifyShutdown(err error) {
 	}
 }
 
-func (cli *DaemonCli) getPlatformRemoteOptions() ([]libcontainerd.RemoteOption, error) {
+func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {
 	return nil, nil
 }
 

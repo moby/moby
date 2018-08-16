@@ -1,9 +1,9 @@
-// +build remote_daemon
-
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package supervisor // import "github.com/docker/docker/libcontainerd/supervisor"
 
 import (
 	"os"
+
+	"github.com/docker/docker/pkg/system"
 )
 
 const (
@@ -17,9 +17,6 @@ func (r *remote) setDefaults() {
 	}
 	if r.Debug.Address == "" {
 		r.Debug.Address = debugPipeName
-	}
-	if r.snapshotter == "" {
-		r.snapshotter = "naive" // TODO(mlaventure): switch to "windows" once implemented
 	}
 }
 
@@ -40,6 +37,10 @@ func (r *remote) stopDaemon() {
 		r.logger.WithError(err).WithField("pid", r.daemonPid).Warn("wait for daemon process")
 		return
 	}
+}
+
+func (r *remote) killDaemon() {
+	system.KillProcess(r.daemonPid)
 }
 
 func (r *remote) platformCleanup() {

@@ -3,8 +3,6 @@ package libcontainerd // import "github.com/docker/docker/libcontainerd"
 import (
 	"strings"
 
-	"syscall"
-
 	opengcs "github.com/Microsoft/opengcs/client"
 )
 
@@ -37,10 +35,4 @@ func (c *container) debugGCS() {
 		UvmTimeoutSeconds: 600,
 	}
 	cfg.DebugGCS()
-}
-
-// containerdSysProcAttr returns the SysProcAttr to use when exec'ing
-// containerd
-func containerdSysProcAttr() *syscall.SysProcAttr {
-	return nil
 }
