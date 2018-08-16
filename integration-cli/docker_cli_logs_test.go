@@ -134,6 +134,9 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 		close(errChan)
 	}()
 
+	cli.DockerCmd(c, "wait", id)
+	cli.DockerCmd(c, "rm", id)
+
 	select {
 	case err := <-errChan:
 		c.Assert(err, checker.IsNil)
@@ -239,6 +242,9 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	// After the container has finished we can continue reading fast
 	bytes2, err := ConsumeWithSpeed(stdout, 32*1024, 0, nil)
 	c.Assert(err, checker.IsNil)
+
+	// Remove the container so "docker logs -f" exits
+	cli.DockerCmd(c, "rm", id)
 
 	c.Assert(logCmd.Wait(), checker.IsNil)
 
