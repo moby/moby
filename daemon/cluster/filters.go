@@ -16,6 +16,7 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 		"label":      true,
 		"role":       true,
 		"membership": true,
+		"node.label": true,
 	}
 	if err := filter.Validate(accepted); err != nil {
 		return nil, err
@@ -24,6 +25,7 @@ func newListNodesFilters(filter filters.Args) (*swarmapi.ListNodesRequest_Filter
 		NamePrefixes: filter.Get("name"),
 		IDPrefixes:   filter.Get("id"),
 		Labels:       runconfigopts.ConvertKVStringsToMap(filter.Get("label")),
+		NodeLabels:   runconfigopts.ConvertKVStringsToMap(filter.Get("node.label")),
 	}
 
 	for _, r := range filter.Get("role") {
