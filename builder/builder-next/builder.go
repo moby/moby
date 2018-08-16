@@ -258,9 +258,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	eg.Go(func() error {
 		defer close(ch)
-		return b.controller.Status(&controlapi.StatusRequest{
-			Ref: id,
-		}, &statusProxy{streamProxy: streamProxy{ctx: ctx}, ch: ch})
+		// streamProxy.ctx is not set to ctx because when request is cancelled,
+		// only the build request has to be cancelled, not the status request.
+		stream := &statusProxy{streamProxy: streamProxy{ctx: context.TODO()}, ch: ch}
+		return b.controller.Status(&controlapi.StatusRequest{Ref: id}, stream)
 	})
 
 	eg.Go(func() error {
