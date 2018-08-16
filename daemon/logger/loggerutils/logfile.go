@@ -365,11 +365,10 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 		w.mu.RLock()
 	}
 
-	if !config.Follow || w.closed {
-		w.mu.RUnlock()
+	w.mu.RUnlock()
+	if !config.Follow {
 		return
 	}
-	w.mu.RUnlock()
 
 	notifyRotate := w.notifyRotate.Subscribe()
 	defer w.notifyRotate.Evict(notifyRotate)

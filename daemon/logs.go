@@ -64,7 +64,6 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		return nil, false, logger.ErrReadLogsNotSupported{}
 	}
 
-	follow := config.Follow && !cLogCreated
 	tailLines, err := strconv.Atoi(config.Tail)
 	if err != nil {
 		tailLines = -1
@@ -92,7 +91,7 @@ func (daemon *Daemon) ContainerLogs(ctx context.Context, containerName string, c
 		Since:  since,
 		Until:  until,
 		Tail:   tailLines,
-		Follow: follow,
+		Follow: config.Follow,
 	}
 
 	logs := logReader.ReadLogs(readConfig)
