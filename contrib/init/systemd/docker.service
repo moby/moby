@@ -1,0 +1,18 @@
+[Unit]
+Description=Docker Application Container Engine
+Documentation=https://docs.docker.com
+After=network-online.target firewalld.service containerd.service
+Wants=network-online.target containerd.service
+
+[Service]
+# Install containerd-shim-process if it's not already installed
+ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
+ExecStart=/usr/bin/dockerd
+TimeoutSec=0
+Restart=always
+# On RPM Based distributions PATH isn't defined so we define it here
+# /opt/containerd/bin is in front so dockerd grabs the correct runc binary
+Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
+
+[Install]
+WantedBy=multi-user.target
