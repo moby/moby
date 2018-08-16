@@ -56,6 +56,20 @@ func configDefaultNetworks(defaultAddressPool []*NetworkToSplit, result *[]*net.
 	return nil
 }
 
+// GetGlobalScopeDefaultNetworks returns PredefinedGlobalScopeDefaultNetworks
+func GetGlobalScopeDefaultNetworks() []*net.IPNet {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return PredefinedGlobalScopeDefaultNetworks
+}
+
+// GetLocalScopeDefaultNetworks returns PredefinedLocalScopeDefaultNetworks
+func GetLocalScopeDefaultNetworks() []*net.IPNet {
+	mutex.Lock()
+	defer mutex.Unlock()
+	return PredefinedLocalScopeDefaultNetworks
+}
+
 // ConfigGlobalScopeDefaultNetworks configures global default pool.
 // Ideally this will be called from SwarmKit as part of swarm init
 func ConfigGlobalScopeDefaultNetworks(defaultAddressPool []*NetworkToSplit) error {
