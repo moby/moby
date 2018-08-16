@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"testing"
 	"time"
@@ -166,4 +167,118 @@ func TestLogsFollowGoroutineLeak(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+}
+
+// test for #37630 ("docker logs -f exits whenever container stops").
+// Parameter 'stoppedContainer', if set to true, means that the logger
+// starts for a stopped container.
+func testLogsFollow(t *testing.T, stoppedContainer bool) {
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+	tm := time.Second * 1
+
+	// start a container producing some logs
+	id := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "while true; do date +%s; sleep 0.1; done"))
+	if stoppedContainer {
+		err := client.ContainerStop(ctx, id, &tm)
+		assert.NilError(t, err)
+	}
+
+	// consume logs
+	errCh := make(chan error)
+	rd := 0 // read bytes counter
+	go func() {
+		logs, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{
+			Follow:     true,
+			ShowStdout: true,
+			ShowStderr: true,
+			Tail:       "all",
+		})
+		if err != nil {
+			errCh <- err
+			return
+		}
+		assert.Check(t, logs != nil)
+
+		buf := make([]byte, 1024)
+		for {
+			n, err := logs.Read(buf)
+			rd += n
+			if err != nil {
+				errCh <- err
+				return
+			}
+		}
+	}()
+
+	if stoppedContainer {
+		// time for log reader to process something
+		time.Sleep(tm)
+	} else {
+		err := client.ContainerStop(ctx, id, &tm)
+		assert.NilError(t, err)
+	}
+
+	select {
+	case err := <-errCh:
+		t.Fatalf("logs unexpectedly closed: %v", err)
+	default:
+	}
+
+	// make sure we have read some more bytes since last call
+	r := 0
+	checkReadMore := func(state string) {
+		oldR := r
+		r = rd
+		t.Logf("container %s; read %d bytes so far", state, r)
+		if r <= oldR {
+			t.Fatalf("logs stuck? expected > %d, got %d", oldR, r)
+		}
+	}
+
+	checkReadMore("stopped")
+
+	// start the container again, read some more...
+	err := client.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+	// wait a bit
+	select {
+	case err := <-errCh:
+		t.Fatalf("logs unexpectedly closed: %v", err)
+	case <-time.After(tm):
+		checkReadMore("restarted")
+	}
+
+	// stop and remove the container
+	err = client.ContainerStop(ctx, id, &tm)
+	assert.NilError(t, err)
+	err = client.ContainerRemove(ctx, id, types.ContainerRemoveOptions{})
+	assert.NilError(t, err)
+
+	// wait for log reader to stop
+	select {
+	case err := <-errCh:
+		if err != io.EOF {
+			t.Fatalf("logs returned: %v, expected: %v", err, io.EOF)
+		}
+		checkReadMore("removed")
+	case <-time.After(1 * time.Second):
+		t.Fatal("timeout waiting for log reader to stop")
+	}
+}
+
+// Check that ContainerLogs(opts.Follow=true)
+//  - won't stop even if the container is stopped;
+//  - keep reading logs once the container is restarted;
+//  - only stops when the container is removed.
+func TestLogsFollowNonStop(t *testing.T) {
+	testLogsFollow(t, false)
+}
+
+// Check that ContainerLogs(opts.Follow=true) works
+// as expected for existing stopped container, i.e. it does
+// not exit but keeps waiting for the logs to come.
+func TestLogsFollowStopped(t *testing.T) {
+	testLogsFollow(t, true)
 }
