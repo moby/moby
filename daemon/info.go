@@ -179,7 +179,7 @@ func hostName() string {
 }
 
 func kernelVersion() string {
-	kernelVersion := "<unknown>"
+	var kernelVersion string
 	if kv, err := kernel.GetKernelVersion(); err != nil {
 		logrus.Warnf("Could not get kernel version: %v", err)
 	} else {
@@ -198,7 +198,7 @@ func memInfo() *system.MemInfo {
 }
 
 func operatingSystem() string {
-	operatingSystem := "<unknown>"
+	var operatingSystem string
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
 		logrus.Warnf("Could not get operating system name: %v", err)
 	} else {
