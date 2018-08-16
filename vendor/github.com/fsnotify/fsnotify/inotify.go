@@ -303,12 +303,12 @@ func (e *Event) ignoreLinux(mask uint32) bool {
 		return true
 	}
 
-	// If the event is not a DELETE or RENAME, the file must exist.
-	// Otherwise the event is ignored.
-	// *Note*: this was put in place because it was seen that a MODIFY
-	// event was sent after the DELETE. This ignores that MODIFY and
-	// assumes a DELETE will come or has come if the file doesn't exist.
-	if !(e.Op&Remove == Remove || e.Op&Rename == Rename) {
+	// If the event is Create or Write, the file must exist, or the
+	// event will be suppressed.
+	// *Note*: this was put in place because it was seen that a Write
+	// event was sent after the Remove. This ignores the Write and
+	// assumes a Remove will come or has come if the file doesn't exist.
+	if e.Op&Create == Create || e.Op&Write == Write {
 		_, statErr := os.Lstat(e.Name)
 		return os.IsNotExist(statErr)
 	}
