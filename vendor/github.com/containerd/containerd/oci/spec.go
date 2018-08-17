@@ -34,10 +34,23 @@ func GenerateSpec(ctx context.Context, client Client, c *containers.Container, o
 	if err != nil {
 		return nil, err
 	}
+
+	return s, ApplyOpts(ctx, client, c, s, opts...)
+}
+
+// ApplyOpts applys the options to the given spec, injecting data from the
+// context, client and container instance.
+func ApplyOpts(ctx context.Context, client Client, c *containers.Container, s *Spec, opts ...SpecOpts) error {
 	for _, o := range opts {
 		if err := o(ctx, client, c, s); err != nil {
-			return nil, err
+			return err
 		}
 	}
-	return s, nil
+
+	return nil
+}
+
+func createDefaultSpec(ctx context.Context, id string) (*Spec, error) {
+	var s Spec
+	return &s, populateDefaultSpec(ctx, &s, id)
 }

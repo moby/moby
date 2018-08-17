@@ -17,16 +17,41 @@
 package mount
 
 import (
+	"fmt"
+	"os"
+	"path"
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/sys"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
+var pagesize = 4096
+
+func init() {
+	pagesize = os.Getpagesize()
+}
+
 // Mount to the provided target path
 func (m *Mount) Mount(target string) error {
-	flags, data := parseMountOptions(m.Options)
+	var (
+		chdir   string
+		options = m.Options
+	)
+
+	// avoid hitting one page limit of mount argument buffer
+	//
+	// NOTE: 512 is a buffer during pagesize check.
+	if m.Type == "overlay" && optionsSize(options) >= pagesize-512 {
+		chdir, options = compactLowerdirOption(options)
+	}
+
+	flags, data := parseMountOptions(options)
+	if len(data) > pagesize {
+		return errors.Errorf("mount options is too long")
+	}
 
 	// propagation types.
 	const ptypes = unix.MS_SHARED | unix.MS_PRIVATE | unix.MS_SLAVE | unix.MS_UNBINDABLE
@@ -38,7 +63,7 @@ func (m *Mount) Mount(target string) error {
 	if flags&unix.MS_REMOUNT == 0 || data != "" {
 		// Initial call applying all non-propagation flags for mount
 		// or remount with changed data
-		if err := unix.Mount(m.Source, target, m.Type, uintptr(oflags), data); err != nil {
+		if err := mountAt(chdir, m.Source, target, m.Type, uintptr(oflags), data); err != nil {
 			return err
 		}
 	}
@@ -154,4 +179,130 @@ func parseMountOptions(options []string) (int, string) {
 		}
 	}
 	return flag, strings.Join(data, ",")
+}
+
+// compactLowerdirOption updates overlay lowdir option and returns the common
+// dir among all the lowdirs.
+func compactLowerdirOption(opts []string) (string, []string) {
+	idx, dirs := findOverlayLowerdirs(opts)
+	if idx == -1 || len(dirs) == 1 {
+		// no need to compact if there is only one lowerdir
+		return "", opts
+	}
+
+	// find out common dir
+	commondir := longestCommonPrefix(dirs)
+	if commondir == "" {
+		return "", opts
+	}
+
+	// NOTE: the snapshot id is based on digits.
+	// in order to avoid to get snapshots/x, should be back to parent dir.
+	// however, there is assumption that the common dir is ${root}/io.containerd.v1.overlayfs/snapshots.
+	commondir = path.Dir(commondir)
+	if commondir == "/" {
+		return "", opts
+	}
+	commondir = commondir + "/"
+
+	newdirs := make([]string, 0, len(dirs))
+	for _, dir := range dirs {
+		newdirs = append(newdirs, dir[len(commondir):])
+	}
+
+	newopts := copyOptions(opts)
+	newopts = append(newopts[:idx], newopts[idx+1:]...)
+	newopts = append(newopts, fmt.Sprintf("lowerdir=%s", strings.Join(newdirs, ":")))
+	return commondir, newopts
+}
+
+// findOverlayLowerdirs returns the index of lowerdir in mount's options and
+// all the lowerdir target.
+func findOverlayLowerdirs(opts []string) (int, []string) {
+	var (
+		idx    = -1
+		prefix = "lowerdir="
+	)
+
+	for i, opt := range opts {
+		if strings.HasPrefix(opt, prefix) {
+			idx = i
+			break
+		}
+	}
+
+	if idx == -1 {
+		return -1, nil
+	}
+	return idx, strings.Split(opts[idx][len(prefix):], ":")
+}
+
+// longestCommonPrefix finds the longest common prefix in the string slice.
+func longestCommonPrefix(strs []string) string {
+	if len(strs) == 0 {
+		return ""
+	} else if len(strs) == 1 {
+		return strs[0]
+	}
+
+	// find out the min/max value by alphabetical order
+	min, max := strs[0], strs[0]
+	for _, str := range strs[1:] {
+		if min > str {
+			min = str
+		}
+		if max < str {
+			max = str
+		}
+	}
+
+	// find out the common part between min and max
+	for i := 0; i < len(min) && i < len(max); i++ {
+		if min[i] != max[i] {
+			return min[:i]
+		}
+	}
+	return min
+}
+
+// copyOptions copies the options.
+func copyOptions(opts []string) []string {
+	if len(opts) == 0 {
+		return nil
+	}
+
+	acopy := make([]string, len(opts))
+	copy(acopy, opts)
+	return acopy
+}
+
+// optionsSize returns the byte size of options of mount.
+func optionsSize(opts []string) int {
+	size := 0
+	for _, opt := range opts {
+		size += len(opt)
+	}
+	return size
+}
+
+func mountAt(chdir string, source, target, fstype string, flags uintptr, data string) error {
+	if chdir == "" {
+		return unix.Mount(source, target, fstype, flags, data)
+	}
+
+	f, err := os.Open(chdir)
+	if err != nil {
+		return errors.Wrap(err, "failed to mountat")
+	}
+	defer f.Close()
+
+	fs, err := f.Stat()
+	if err != nil {
+		return errors.Wrap(err, "failed to mountat")
+	}
+
+	if !fs.IsDir() {
+		return errors.Wrap(errors.Errorf("%s is not dir", chdir), "failed to mountat")
+	}
+	return errors.Wrap(sys.FMountat(f.Fd(), source, target, fstype, flags, data), "failed to mountat")
 }

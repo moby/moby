@@ -72,6 +72,7 @@ var (
 	bucketKeyCreatedAt   = []byte("createdat")
 	bucketKeyExpected    = []byte("expected")
 	bucketKeyRef         = []byte("ref")
+	bucketKeyExpireAt    = []byte("expireat")
 
 	deprecatedBucketKeyObjectIngest = []byte("ingest") // stores ingest links, deprecated in v1.2
 )

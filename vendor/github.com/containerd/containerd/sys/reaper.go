@@ -18,7 +18,9 @@
 
 package sys
 
-import "golang.org/x/sys/unix"
+import (
+	"golang.org/x/sys/unix"
+)
 
 // Exit is the wait4 information from an exited process
 type Exit struct {

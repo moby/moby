@@ -42,6 +42,10 @@ type (
 // and is usually used to trace detailed behavior of the program.
 const TraceLevel = logrus.Level(uint32(logrus.DebugLevel + 1))
 
+// RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
+// ensure the formatted time is always the same number of characters.
+const RFC3339NanoFixed = "2006-01-02T15:04:05.000000000Z07:00"
+
 // ParseLevel takes a string level and returns the Logrus log level constant.
 // It supports trace level.
 func ParseLevel(lvl string) (logrus.Level, error) {

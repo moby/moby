@@ -1,5 +1,3 @@
-// +build !windows
-
 /*
    Copyright The containerd Authors.
 
@@ -16,27 +14,25 @@
    limitations under the License.
 */
 
-package proc
+package containerd
 
-import (
-	"github.com/pkg/errors"
-)
+// InstallOpts configures binary installs
+type InstallOpts func(*InstallConfig)
 
-// RuncRoot is the path to the root runc state directory
-const RuncRoot = "/run/containerd/runc"
+// InstallConfig sets the binary install configuration
+type InstallConfig struct {
+	// Libs installs libs from the image
+	Libs bool
+	// Replace will overwrite existing binaries or libs in the opt directory
+	Replace bool
+}
 
-func stateName(v interface{}) string {
-	switch v.(type) {
-	case *runningState, *execRunningState:
-		return "running"
-	case *createdState, *execCreatedState, *createdCheckpointState:
-		return "created"
-	case *pausedState:
-		return "paused"
-	case *deletedState:
-		return "deleted"
-	case *stoppedState:
-		return "stopped"
-	}
-	panic(errors.Errorf("invalid state %v", v))
+// WithInstallLibs installs libs from the image
+func WithInstallLibs(c *InstallConfig) {
+	c.Libs = true
+}
+
+// WithInstallReplace will replace existing files
+func WithInstallReplace(c *InstallConfig) {
+	c.Replace = true
 }
