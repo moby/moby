@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/containerd/continuity/driver"
@@ -173,6 +174,9 @@ func StatAt(remote builder.Source, path string) (os.FileInfo, error) {
 func FullPath(remote builder.Source, path string) (string, error) {
 	fullPath, err := remote.Root().ResolveScopedPath(path, true)
 	if err != nil {
+		if runtime.GOOS == "windows" {
+			return "", fmt.Errorf("failed to resolve scoped path %s (%s): %s. Possible cause is a forbidden path outside the build context", path, fullPath, err)
+		}
 		return "", fmt.Errorf("Forbidden path outside the build context: %s (%s)", path, fullPath) // backwards compat with old error
 	}
 	return fullPath, nil

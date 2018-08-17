@@ -212,6 +212,17 @@ func (d *Driver) getVMID(id string) string {
 	return id
 }
 
+// remapLongToShortContainerPath does the mapping of a long container path for a
+// SCSI attached disk, to a short container path where it's actually mounted.
+func remapLongToShortContainerPath(longContainerPath string, attachCounter uint64, svmName string) string {
+	shortContainerPath := longContainerPath
+	if shortContainerPath != "" && shortContainerPath != toolsScratchPath {
+		shortContainerPath = fmt.Sprintf("/tmp/d%d", attachCounter)
+		logrus.Debugf("lcowdriver: UVM %s: remapping %s --> %s", svmName, longContainerPath, shortContainerPath)
+	}
+	return shortContainerPath
+}
+
 // startServiceVMIfNotRunning starts a service utility VM if it is not currently running.
 // It can optionally be started with a mapped virtual disk. Returns a opengcs config structure
 // representing the VM.
@@ -239,6 +250,8 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 
 	if exists {
 		// Service VM is already up and running. In this case, just hot add the vhds.
+		// Note that hotAddVHDs will remap long to short container paths, so no need
+		// for us to that here.
 		logrus.Debugf("%s: service vm already exists. Just hot adding: %+v", title, mvdToAdd)
 		if err := svm.hotAddVHDs(mvdToAdd...); err != nil {
 			logrus.Debugf("%s: failed to hot add vhds on service vm creation: %s", title, err)
@@ -302,10 +315,23 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	logrus.Debugf("%s: releasing cachedScratchMutex", title)
 	d.cachedScratchMutex.Unlock()
 
-	// If requested to start it with a mapped virtual disk, add it now.
-	svm.config.MappedVirtualDisks = append(svm.config.MappedVirtualDisks, mvdToAdd...)
-	for _, mvd := range svm.config.MappedVirtualDisks {
-		svm.attachedVHDs[mvd.HostPath] = 1
+	// Add mapped virtual disks. First those that are already in the configuration. Generally,
+	// the only one that will be here is the service VMs scratch. The exception is when invoked
+	// via the graphdrivers DiffGetter implementation.
+	for i, mvd := range svm.config.MappedVirtualDisks {
+		svm.attachCounter++
+		svm.attachedVHDs[mvd.HostPath] = &attachedVHD{refCount: 1, attachCounter: svm.attachCounter}
+
+		// No-op for the service VMs scratch disk. Only applicable in the DiffGetter interface invocation.
+		svm.config.MappedVirtualDisks[i].ContainerPath = remapLongToShortContainerPath(mvd.ContainerPath, svm.attachCounter, svm.config.Name)
+	}
+
+	// Then the remaining ones to add, and adding them to the startup configuration.
+	for _, mvd := range mvdToAdd {
+		svm.attachCounter++
+		svm.attachedVHDs[mvd.HostPath] = &attachedVHD{refCount: 1, attachCounter: svm.attachCounter}
+		mvd.ContainerPath = remapLongToShortContainerPath(mvd.ContainerPath, svm.attachCounter, svm.config.Name)
+		svm.config.MappedVirtualDisks = append(svm.config.MappedVirtualDisks, mvd)
 	}
 
 	// Start it.
@@ -351,6 +377,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 			return nil, fmt.Errorf("failed to hot-add %s failed: %s", scratchTargetFile, err)
 		}
 		svm.scratchAttached = true
+		// Don't need to ref-count here as it will be done via hotAddVHDsAtStart() call above.
 	}
 
 	logrus.Debugf("%s: (%s) success", title, context)
@@ -787,8 +814,13 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 	}
 
 	// Obtain the tar stream for it
-	logrus.Debugf("%s: %s %s, size %d, ReadOnly %t", title, ld.filename, mvd.ContainerPath, ld.size, ld.isSandbox)
-	tarReadCloser, err := svm.config.VhdToTar(mvd.HostPath, mvd.ContainerPath, ld.isSandbox, ld.size)
+	// The actual container path will have be remapped to a short name, so use that.
+	actualContainerPath := svm.getShortContainerPath(&mvd)
+	if actualContainerPath == "" {
+		return nil, fmt.Errorf("failed to get short container path for %+v in SVM %s", mvd, svm.config.Name)
+	}
+	logrus.Debugf("%s: %s %s, size %d, ReadOnly %t", title, ld.filename, actualContainerPath, ld.size, ld.isSandbox)
+	tarReadCloser, err := svm.config.VhdToTar(mvd.HostPath, actualContainerPath, ld.isSandbox, ld.size)
 	if err != nil {
 		svm.hotRemoveVHDs(mvd)
 		d.terminateServiceVM(id, fmt.Sprintf("diff %s", id), false)
@@ -960,6 +992,17 @@ func (d *Driver) getAllMounts(id string) ([]hcsshim.MappedVirtualDisk, error) {
 }
 
 func hostToGuest(hostpath string) string {
+	// This is the "long" container path. At the point of which we are
+	// calculating this, we don't know which service VM we're going to be
+	// using, so we can't translate this to a short path yet, instead
+	// deferring until the point of which it's added to an SVM. We don't
+	// use long container paths in SVMs for SCSI disks, otherwise it can cause
+	// command line operations that we invoke to fail due to being over ~4200
+	// characters when there are ~47 layers involved. An example of this is
+	// the mount call to create the overlay across multiple SCSI-attached disks.
+	// It doesn't affect VPMem attached layers during container creation as
+	// these get mapped by openGCS to /tmp/N/M where N is a container instance
+	// number, and M is a layer number.
 	return fmt.Sprintf("/tmp/%s", filepath.Base(filepath.Dir(hostpath)))
 }
 
@@ -1002,7 +1045,12 @@ func (fgc *fileGetCloserFromSVM) Close() error {
 func (fgc *fileGetCloserFromSVM) Get(filename string) (io.ReadCloser, error) {
 	errOut := &bytes.Buffer{}
 	outOut := &bytes.Buffer{}
-	file := path.Join(fgc.mvd.ContainerPath, filename)
+	// Must map to the actual "short" container path where the SCSI disk was mounted
+	actualContainerPath := fgc.svm.getShortContainerPath(fgc.mvd)
+	if actualContainerPath == "" {
+		return nil, fmt.Errorf("inconsistency detected: couldn't get short container path for %+v in utility VM %s", fgc.mvd, fgc.svm.config.Name)
+	}
+	file := path.Join(actualContainerPath, filename)
 	if err := fgc.svm.runProcess(fmt.Sprintf("cat %s", file), nil, outOut, errOut); err != nil {
 		logrus.Debugf("cat %s failed: %s", file, errOut.String())
 		return nil, err
