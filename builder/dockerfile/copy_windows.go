@@ -1,11 +1,17 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
-	"errors"
+	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/Microsoft/go-winio"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/reexec"
+	"github.com/docker/docker/pkg/system"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/windows"
 )
 
 var pathBlacklist = map[string]bool{
@@ -13,9 +19,69 @@ var pathBlacklist = map[string]bool{
 	"c:\\windows": true,
 }
 
-func fixPermissions(source, destination string, rootIDs idtools.IDPair, overrideSkip bool) error {
-	// chown is not supported on Windows
-	return nil
+func init() {
+	reexec.Register("windows-fix-permissions", fixPermissionsReexec)
+}
+
+func fixPermissions(source, destination string, identity idtools.Identity, _ bool) error {
+	if identity.SID == "" {
+		return nil
+	}
+
+	cmd := reexec.Command("windows-fix-permissions", source, destination, identity.SID)
+	output, err := cmd.CombinedOutput()
+
+	return errors.Wrapf(err, "failed to exec windows-fix-permissions: %s", output)
+}
+
+func fixPermissionsReexec() {
+	err := fixPermissionsWindows(os.Args[1], os.Args[2], os.Args[3])
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func fixPermissionsWindows(source, destination, SID string) error {
+
+	privileges := []string{winio.SeRestorePrivilege, system.SeTakeOwnershipPrivilege}
+
+	err := winio.EnableProcessPrivileges(privileges)
+	if err != nil {
+		return err
+	}
+
+	defer winio.DisableProcessPrivileges(privileges)
+
+	sid, err := windows.StringToSid(SID)
+	if err != nil {
+		return err
+	}
+
+	// Owners on *nix have read/write/delete/read control and write DAC.
+	// Add an ACE that grants this to the user/group specified with the
+	// chown option. Currently Windows is not honoring the owner change,
+	// however, they are aware of this and it should be fixed at some
+	// point.
+
+	sddlString := system.SddlAdministratorsLocalSystem
+	sddlString += "(A;OICI;GRGWGXRCWDSD;;;" + SID + ")"
+
+	securityDescriptor, err := winio.SddlToSecurityDescriptor(sddlString)
+	if err != nil {
+		return err
+	}
+
+	var daclPresent uint32
+	var daclDefaulted uint32
+	var dacl *byte
+
+	err = system.GetSecurityDescriptorDacl(&securityDescriptor[0], &daclPresent, &dacl, &daclDefaulted)
+	if err != nil {
+		return err
+	}
+
+	return system.SetNamedSecurityInfo(windows.StringToUTF16Ptr(destination), system.SE_FILE_OBJECT, system.OWNER_SECURITY_INFORMATION|system.DACL_SECURITY_INFORMATION, sid, nil, dacl, nil)
 }
 
 func validateCopySourcePath(imageSource *imageMount, origPath, platform string) error {

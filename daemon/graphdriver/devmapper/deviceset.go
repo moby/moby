@@ -268,7 +268,7 @@ func (devices *DeviceSet) ensureImage(name string, size int64) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err := idtools.MkdirAllAndChown(dirname, 0700, idtools.IDPair{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAllAndChown(dirname, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil {
 		return "", err
 	}
 
@@ -1691,7 +1691,7 @@ func (devices *DeviceSet) initDevmapper(doInit bool) (retErr error) {
 	if err != nil {
 		return err
 	}
-	if err := idtools.MkdirAndChown(devices.root, 0700, idtools.IDPair{UID: uid, GID: gid}); err != nil {
+	if err := idtools.MkdirAndChown(devices.root, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(devices.metadataDir(), 0700); err != nil {

@@ -106,7 +106,7 @@ func Init(base string, opt []string, uidMaps, gidMaps []idtools.IDMap) (graphdri
 	if err != nil {
 		return nil, fmt.Errorf("Failed to get root uid/guid: %v", err)
 	}
-	if err := idtools.MkdirAllAndChown(base, 0700, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(base, 0700, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
 		return nil, fmt.Errorf("Failed to create '%s': %v", base, err)
 	}
 
@@ -385,7 +385,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 		return nil, err
 	}
 	// Create the target directories if they don't exist
-	if err := idtools.MkdirAllAndChown(mountpoint, 0755, idtools.IDPair{UID: rootUID, GID: rootGID}); err != nil {
+	if err := idtools.MkdirAllAndChown(mountpoint, 0755, idtools.Identity{UID: rootUID, GID: rootGID}); err != nil {
 		return nil, err
 	}
 

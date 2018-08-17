@@ -92,7 +92,7 @@ type Daemon struct {
 	seccompEnabled    bool
 	apparmorEnabled   bool
 	shutdown          bool
-	idMappings        *idtools.IDMappings
+	idMapping         *idtools.IdentityMapping
 	// TODO: move graphDrivers field to an InfoService
 	graphDrivers map[string]string // By operating system
 
@@ -605,11 +605,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	idMappings, err := setupRemappedRoot(config)
+	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return nil, err
 	}
-	rootIDs := idMappings.RootPair()
+	rootIDs := idMapping.RootPair()
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err
 	}
@@ -787,7 +787,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
-			IDMappings:                idMappings,
+			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
 			OS:                        operatingSystem,
@@ -894,7 +894,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.EventsService = events.New()
 	d.root = config.Root
-	d.idMappings = idMappings
+	d.idMapping = idMapping
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
 
@@ -1148,7 +1148,7 @@ func (daemon *Daemon) Subnets() ([]net.IPNet, []net.IPNet) {
 // prepareTempDir prepares and returns the default directory to use
 // for temporary files.
 // If it doesn't exist, it is created. If it exists, its content is removed.
-func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
+func prepareTempDir(rootDir string, rootIdentity idtools.Identity) (string, error) {
 	var tmpDir string
 	if tmpDir = os.Getenv("DOCKER_TMPDIR"); tmpDir == "" {
 		tmpDir = filepath.Join(rootDir, "tmp")
@@ -1168,7 +1168,7 @@ func prepareTempDir(rootDir string, rootIDs idtools.IDPair) (string, error) {
 	}
 	// We don't remove the content of tmpdir if it's not the default,
 	// it may hold things that do not belong to us.
-	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, rootIDs)
+	return tmpDir, idtools.MkdirAllAndChown(tmpDir, 0700, rootIdentity)
 }
 
 func (daemon *Daemon) setGenericResources(conf *config.Config) error {
@@ -1316,11 +1316,11 @@ func CreateDaemonRoot(config *config.Config) error {
 		}
 	}
 
-	idMappings, err := setupRemappedRoot(config)
+	idMapping, err := setupRemappedRoot(config)
 	if err != nil {
 		return err
 	}
-	return setupDaemonRoot(config, realRoot, idMappings.RootPair())
+	return setupDaemonRoot(config, realRoot, idMapping.RootPair())
 }
 
 // checkpointAndSave grabs a container lock to safely call container.CheckpointTo
@@ -1346,9 +1346,9 @@ func (daemon *Daemon) GetAttachmentStore() *network.AttachmentStore {
 	return &daemon.attachmentStore
 }
 
-// IDMappings returns uid/gid mappings for the builder
-func (daemon *Daemon) IDMappings() *idtools.IDMappings {
-	return daemon.idMappings
+// IdentityMapping returns uid/gid mapping or a SID (in the case of Windows) for the builder
+func (daemon *Daemon) IdentityMapping() *idtools.IdentityMapping {
+	return daemon.idMapping
 }
 
 // ImageService returns the Daemon's ImageService

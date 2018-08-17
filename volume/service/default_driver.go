@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-func setupDefaultDriver(store *drivers.Store, root string, rootIDs idtools.IDPair) error {
+func setupDefaultDriver(store *drivers.Store, root string, rootIDs idtools.Identity) error {
 	d, err := local.New(root, rootIDs)
 	if err != nil {
 		return errors.Wrap(err, "error setting up default driver")

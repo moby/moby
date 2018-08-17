@@ -95,7 +95,7 @@ func (m *MountPoint) Cleanup() error {
 // configured, or creating the source directory if supplied.
 // The, optional, checkFun parameter allows doing additional checking
 // before creating the source directory on the host.
-func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.IDPair, checkFun func(m *MountPoint) error) (path string, err error) {
+func (m *MountPoint) Setup(mountLabel string, rootIDs idtools.Identity, checkFun func(m *MountPoint) error) (path string, err error) {
 	if m.SkipMountpointCreation {
 		return m.Source, nil
 	}

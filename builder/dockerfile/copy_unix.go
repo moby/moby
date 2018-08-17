@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/pkg/idtools"
 )
 
-func fixPermissions(source, destination string, rootIDs idtools.IDPair, overrideSkip bool) error {
+func fixPermissions(source, destination string, identity idtools.Identity, overrideSkip bool) error {
 	var (
 		skipChownRoot bool
 		err           error
@@ -39,7 +39,7 @@ func fixPermissions(source, destination string, rootIDs idtools.IDPair, override
 		}
 
 		fullpath = filepath.Join(destination, cleaned)
-		return os.Lchown(fullpath, rootIDs.UID, rootIDs.GID)
+		return os.Lchown(fullpath, identity.UID, identity.GID)
 	})
 }
 

@@ -53,7 +53,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	}
 
 	rootFS := containerfs.NewLocalContainerFS(filepath.Join(pm.config.Root, p.PluginObj.ID, rootFSFileName))
-	if err := initlayer.Setup(rootFS, idtools.IDPair{UID: 0, GID: 0}); err != nil {
+	if err := initlayer.Setup(rootFS, idtools.Identity{UID: 0, GID: 0}); err != nil {
 		return errors.WithStack(err)
 	}
 

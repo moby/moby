@@ -58,7 +58,7 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
 	uid, gid := getSpecUser(ociSpec)
 	if uid == 0 && gid == 0 {
-		return bundleDir, idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.IDPair{UID: 0, GID: 0})
+		return bundleDir, idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
 	}
 
 	p := string(filepath.Separator)
@@ -71,7 +71,7 @@ func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
 		}
 		if os.IsNotExist(err) || fi.Mode()&1 == 0 {
 			p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-			if err := idtools.MkdirAndChown(p, 0700, idtools.IDPair{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+			if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
 				return "", err
 			}
 		}

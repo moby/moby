@@ -183,17 +183,17 @@ func InitDriver(dataRoot string, options []string, _, _ []idtools.IDMap) (graphd
 	}
 
 	// Make sure the dataRoot directory is created
-	if err := idtools.MkdirAllAndChown(dataRoot, 0700, idtools.IDPair{UID: 0, GID: 0}); err != nil {
+	if err := idtools.MkdirAllAndChown(dataRoot, 0700, idtools.Identity{UID: 0, GID: 0}); err != nil {
 		return nil, fmt.Errorf("%s failed to create '%s': %v", title, dataRoot, err)
 	}
 
 	// Make sure the cache directory is created under dataRoot
-	if err := idtools.MkdirAllAndChown(cd, 0700, idtools.IDPair{UID: 0, GID: 0}); err != nil {
+	if err := idtools.MkdirAllAndChown(cd, 0700, idtools.Identity{UID: 0, GID: 0}); err != nil {
 		return nil, fmt.Errorf("%s failed to create '%s': %v", title, cd, err)
 	}
 
 	// Make sure the scratch directory is created under dataRoot
-	if err := idtools.MkdirAllAndChown(sd, 0700, idtools.IDPair{UID: 0, GID: 0}); err != nil {
+	if err := idtools.MkdirAllAndChown(sd, 0700, idtools.Identity{UID: 0, GID: 0}); err != nil {
 		return nil, fmt.Errorf("%s failed to create '%s': %v", title, sd, err)
 	}
 

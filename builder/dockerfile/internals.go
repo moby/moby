@@ -37,7 +37,7 @@ type Archiver interface {
 	UntarPath(src, dst string) error
 	CopyWithTar(src, dst string) error
 	CopyFileWithTar(src, dst string) error
-	IDMappings() *idtools.IDMappings
+	IdentityMapping() *idtools.IdentityMapping
 }
 
 // The builder will use the following interfaces if the container fs implements
@@ -68,11 +68,11 @@ func tarFunc(i interface{}) containerfs.TarFunc {
 func (b *Builder) getArchiver(src, dst containerfs.Driver) Archiver {
 	t, u := tarFunc(src), untarFunc(dst)
 	return &containerfs.Archiver{
-		SrcDriver:     src,
-		DstDriver:     dst,
-		Tar:           t,
-		Untar:         u,
-		IDMappingsVar: b.idMappings,
+		SrcDriver: src,
+		DstDriver: dst,
+		Tar:       t,
+		Untar:     u,
+		IDMapping: b.idMapping,
 	}
 }
 
@@ -185,14 +185,18 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		return err
 	}
 
-	chownPair := b.idMappings.RootPair()
+	identity := b.idMapping.RootPair()
 	// if a chown was requested, perform the steps to get the uid, gid
 	// translated (if necessary because of user namespaces), and replace
 	// the root pair with the chown pair for copy operations
 	if inst.chownStr != "" {
-		chownPair, err = parseChownFlag(inst.chownStr, destInfo.root.Path(), b.idMappings)
+		identity, err = parseChownFlag(b, state, inst.chownStr, destInfo.root.Path(), b.idMapping)
 		if err != nil {
-			return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
+			if b.options.Platform != "windows" {
+				return errors.Wrapf(err, "unable to convert uid/gid chown string to host mapping")
+			}
+
+			return errors.Wrapf(err, "unable to map container user account name to SID")
 		}
 	}
 
@@ -200,7 +204,7 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		opts := copyFileOptions{
 			decompress: inst.allowLocalDecompression,
 			archiver:   b.getArchiver(info.root, destInfo.root),
-			chownPair:  chownPair,
+			identity:   identity,
 		}
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")

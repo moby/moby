@@ -35,7 +35,7 @@ type VolumesService struct {
 }
 
 // NewVolumeService creates a new volume service
-func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.IDPair, logger volumeEventLogger) (*VolumesService, error) {
+func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.Identity, logger volumeEventLogger) (*VolumesService, error) {
 	ds := drivers.NewStore(pg)
 	if err := setupDefaultDriver(ds, root, rootIDs); err != nil {
 		return nil, err

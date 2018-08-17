@@ -279,7 +279,7 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		return opts, errors.Wrap(err, "failed to create fscache")
 	}
 
-	manager, err := dockerfile.NewBuildManager(daemon.BuilderBackend(), sm, buildCache, daemon.IDMappings())
+	manager, err := dockerfile.NewBuildManager(daemon.BuilderBackend(), sm, buildCache, daemon.IdentityMapping())
 	if err != nil {
 		return opts, err
 	}

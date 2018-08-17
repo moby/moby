@@ -25,5 +25,7 @@ for platform in $DOCKER_CROSSPLATFORMS; do
 		mkdir -p "$DEST"
 		ABS_DEST="$(cd "$DEST" && pwd -P)"
 		source "${MAKEDIR}/binary-daemon"
+
+		source "${MAKEDIR}/cross-platform-dependent"
 	)
 done

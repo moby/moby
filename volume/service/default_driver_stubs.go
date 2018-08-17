@@ -7,4 +7,4 @@ import (
 	"github.com/docker/docker/volume/drivers"
 )
 
-func setupDefaultDriver(_ *drivers.Store, _ string, _ idtools.IDPair) error { return nil }
+func setupDefaultDriver(_ *drivers.Store, _ string, _ idtools.Identity) error { return nil }

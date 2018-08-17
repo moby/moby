@@ -24,7 +24,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err := daemon.lazyInitializeVolume(c.ID, mount); err != nil {
 			return nil, err
 		}
-		s, err := mount.Setup(c.MountLabel, idtools.IDPair{UID: 0, GID: 0}, nil)
+		s, err := mount.Setup(c.MountLabel, idtools.Identity{}, nil)
 		if err != nil {
 			return nil, err
 		}
