@@ -204,7 +204,7 @@ type Info struct {
 	RuncCommit         Commit
 	InitCommit         Commit
 	SecurityOptions    []string
-	ProductLicense     string
+	ProductLicense     string `json:",omitempty"`
 }
 
 // KeyValue holds a key/value pair

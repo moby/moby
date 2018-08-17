@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/dockerversion"
 	"gotest.tools/assert"
 )
 
@@ -13,5 +14,5 @@ func TestfillLicense(t *testing.T) {
 		root: "/var/lib/docker/",
 	}
 	d.fillLicense(v)
-	assert.Assert(t, v.ProductLicense == "Community Engine")
+	assert.Assert(t, v.ProductLicense == dockerversion.DefaultProductLicense)
 }
