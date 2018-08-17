@@ -42,8 +42,6 @@ import (
 	"golang.org/x/time/rate"
 )
 
-const preferLocal = true // FIXME: make this optional from the op
-
 // SourceOpt is options for creating the image source
 type SourceOpt struct {
 	SessionManager  *session.Manager
@@ -114,30 +112,59 @@ func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
 	return img.RawJSON(), nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
-	if preferLocal {
-		dt, err := is.resolveLocal(ref)
-		if err == nil {
-			return "", dt, nil
-		}
-	}
-
+func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error) {
 	type t struct {
 		dgst digest.Digest
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, opt.Platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx), is.ContentStore, platform)
 		if err != nil {
 			return nil, err
 		}
 		return &t{dgst: dgst, dt: dt}, nil
 	})
+	var typed *t
 	if err != nil {
 		return "", nil, err
 	}
-	typed := res.(*t)
+	typed = res.(*t)
 	return typed.dgst, typed.dt, nil
+}
+
+func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
+	if err != nil {
+		return "", nil, err
+	}
+	switch resolveMode {
+	case source.ResolveModeForcePull:
+		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform)
+		// TODO: pull should fallback to local in case of failure to allow offline behavior
+		// the fallback doesn't work currently
+		return dgst, dt, err
+		/*
+			if err == nil {
+				return dgst, dt, err
+			}
+			// fallback to local
+			dt, err = is.resolveLocal(ref)
+			return "", dt, err
+		*/
+
+	case source.ResolveModeDefault:
+		// default == prefer local, but in the future could be smarter
+		fallthrough
+	case source.ResolveModePreferLocal:
+		dt, err := is.resolveLocal(ref)
+		if err == nil {
+			return "", dt, err
+		}
+		// fallback to remote
+		return is.resolveRemote(ctx, ref, opt.Platform)
+	}
+	// should never happen
+	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
 }
 
 func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
@@ -213,7 +240,7 @@ func (p *puller) resolveLocal() {
 			}
 		}
 
-		if preferLocal {
+		if p.src.ResolveMode == source.ResolveModeDefault || p.src.ResolveMode == source.ResolveModePreferLocal {
 			dt, err := p.is.resolveLocal(p.src.Reference.String())
 			if err == nil {
 				p.config = dt
@@ -257,8 +284,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				resolveProgressDone(err)
 				return
 			}
-
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform})
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)})
 			if err != nil {
 				p.resolveErr = err
 				resolveProgressDone(err)
@@ -731,4 +757,18 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 		return digest.FromBytes(dt)
 	}
 	return identity.ChainID(img.RootFS.DiffIDs)
+}
+
+// resolveModeToString is the equivalent of github.com/moby/buildkit/solver/llb.ResolveMode.String()
+// FIXME: add String method on source.ResolveMode
+func resolveModeToString(rm source.ResolveMode) string {
+	switch rm {
+	case source.ResolveModeDefault:
+		return "default"
+	case source.ResolveModeForcePull:
+		return "pull"
+	case source.ResolveModePreferLocal:
+		return "local"
+	}
+	return ""
 }
