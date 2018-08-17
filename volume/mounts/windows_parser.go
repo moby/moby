@@ -214,12 +214,12 @@ func (defaultFileInfoProvider) fileInfo(path string) (exist, isDir bool, err err
 var currentFileInfoProvider fileInfoProvider = defaultFileInfoProvider{}
 
 func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex string, additionalValidators ...mountValidator) error {
-
 	for _, v := range additionalValidators {
 		if err := v(mnt); err != nil {
 			return &errMountConfig{mnt, err}
 		}
 	}
+
 	if len(mnt.Target) == 0 {
 		return &errMountConfig{mnt, errMissingField("Target")}
 	}
@@ -233,12 +233,14 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 		if len(mnt.Source) == 0 {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
+
 		// Don't error out just because the propagation mode is not supported on the platform
 		if opts := mnt.BindOptions; opts != nil {
 			if len(opts.Propagation) > 0 {
 				return &errMountConfig{mnt, fmt.Errorf("invalid propagation mode: %s", opts.Propagation)}
 			}
 		}
+
 		if mnt.VolumeOptions != nil {
 			return &errMountConfig{mnt, errExtraField("VolumeOptions")}
 		}
@@ -251,13 +253,10 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
-		if !exists {
-			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
-		}
-		if !isdir {
+
+		if exists && !isdir {
 			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
 		}
-
 	case mount.TypeVolume:
 		if mnt.BindOptions != nil {
 			return &errMountConfig{mnt, errExtraField("BindOptions")}
