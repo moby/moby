@@ -82,13 +82,28 @@ type copier struct {
 }
 
 func copierFromDispatchRequest(req dispatchRequest, download sourceDownloader, imageSource *imageMount) copier {
+	platform := req.builder.platform
+	if platform == nil {
+		// May be nil if not explicitly set in API/dockerfile
+		platform = &specs.Platform{}
+	}
+	if platform.OS == "" {
+		// Default to the dispatch requests operating system if not explicit in API/dockerfile
+		platform.OS = req.state.operatingSystem
+	}
+	if platform.OS == "" {
+		// This is a failsafe just in case. Shouldn't be hit.
+		platform.OS = runtime.GOOS
+	}
+
 	return copier{
 		source:      req.source,
 		pathCache:   req.builder.pathCache,
 		download:    download,
 		imageSource: imageSource,
-		platform:    req.builder.platform,
+		platform:    platform,
 	}
+
 }
 
 func (o *copier) createCopyInstruction(args []string, cmdName string) (copyInstruction, error) {
