@@ -114,6 +114,9 @@ func Apply(ctx context.Context, root string, r io.Reader, opts ...ApplyOpt) (int
 			return 0, errors.Wrap(err, "failed to apply option")
 		}
 	}
+	if options.Filter == nil {
+		options.Filter = all
+	}
 
 	return apply(ctx, root, tar.NewReader(r), options)
 }
@@ -154,6 +157,14 @@ func applyNaive(ctx context.Context, root string, tr *tar.Reader, options ApplyO
 
 		// Normalize name, for safety and for a simple is-root check
 		hdr.Name = filepath.Clean(hdr.Name)
+
+		accept, err := options.Filter(hdr)
+		if err != nil {
+			return 0, err
+		}
+		if !accept {
+			continue
+		}
 
 		if skipFile(hdr) {
 			log.G(ctx).Warnf("file %q ignored: archive may not be supported on system", hdr.Name)
@@ -366,10 +377,11 @@ func createTarFile(ctx context.Context, path, extractDir string, hdr *tar.Header
 		}
 
 	case tar.TypeLink:
-		targetPath, err := fs.RootPath(extractDir, hdr.Linkname)
+		targetPath, err := hardlinkRootPath(extractDir, hdr.Linkname)
 		if err != nil {
 			return err
 		}
+
 		if err := os.Link(targetPath, path); err != nil {
 			return err
 		}
@@ -647,4 +659,28 @@ func copyBuffered(ctx context.Context, dst io.Writer, src io.Reader) (written in
 	}
 	return written, err
 
+}
+
+// hardlinkRootPath returns target linkname, evaluating and bounding any
+// symlink to the parent directory.
+//
+// NOTE: Allow hardlink to the softlink, not the real one. For example,
+//
+//	touch /tmp/zzz
+//	ln -s /tmp/zzz /tmp/xxx
+//	ln /tmp/xxx /tmp/yyy
+//
+// /tmp/yyy should be softlink which be same of /tmp/xxx, not /tmp/zzz.
+func hardlinkRootPath(root, linkname string) (string, error) {
+	ppath, base := filepath.Split(linkname)
+	ppath, err := fs.RootPath(root, ppath)
+	if err != nil {
+		return "", err
+	}
+
+	targetPath := filepath.Join(ppath, base)
+	if !strings.HasPrefix(targetPath, root) {
+		targetPath = root
+	}
+	return targetPath, nil
 }

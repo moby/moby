@@ -80,10 +80,7 @@ func (c *Client) Import(ctx context.Context, importer images.Importer, reader io
 			imgrec = updated
 		}
 
-		images = append(images, &image{
-			client: c,
-			i:      imgrec,
-		})
+		images = append(images, NewImage(c, imgrec))
 	}
 	return images, nil
 }

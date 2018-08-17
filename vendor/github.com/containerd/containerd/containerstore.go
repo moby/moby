@@ -18,11 +18,15 @@ package containerd
 
 import (
 	"context"
+	"errors"
+	"io"
 
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/errdefs"
 	ptypes "github.com/gogo/protobuf/types"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type remoteContainers struct {
@@ -50,15 +54,56 @@ func (r *remoteContainers) Get(ctx context.Context, id string) (containers.Conta
 }
 
 func (r *remoteContainers) List(ctx context.Context, filters ...string) ([]containers.Container, error) {
+	containers, err := r.stream(ctx, filters...)
+	if err != nil {
+		if err == errStreamNotAvailable {
+			return r.list(ctx, filters...)
+		}
+		return nil, err
+	}
+	return containers, nil
+}
+
+func (r *remoteContainers) list(ctx context.Context, filters ...string) ([]containers.Container, error) {
 	resp, err := r.client.List(ctx, &containersapi.ListContainersRequest{
 		Filters: filters,
 	})
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
 	}
-
 	return containersFromProto(resp.Containers), nil
+}
 
+var errStreamNotAvailable = errors.New("streaming api not available")
+
+func (r *remoteContainers) stream(ctx context.Context, filters ...string) ([]containers.Container, error) {
+	session, err := r.client.ListStream(ctx, &containersapi.ListContainersRequest{
+		Filters: filters,
+	})
+	if err != nil {
+		return nil, errdefs.FromGRPC(err)
+	}
+	var containers []containers.Container
+	for {
+		c, err := session.Recv()
+		if err != nil {
+			if err == io.EOF {
+				return containers, nil
+			}
+			if s, ok := status.FromError(err); ok {
+				if s.Code() == codes.Unimplemented {
+					return nil, errStreamNotAvailable
+				}
+			}
+			return nil, errdefs.FromGRPC(err)
+		}
+		select {
+		case <-ctx.Done():
+			return containers, ctx.Err()
+		default:
+			containers = append(containers, containerFromProto(c.Container))
+		}
+	}
 }
 
 func (r *remoteContainers) Create(ctx context.Context, container containers.Container) (containers.Container, error) {

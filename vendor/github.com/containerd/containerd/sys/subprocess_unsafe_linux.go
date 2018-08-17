@@ -14,26 +14,17 @@
    limitations under the License.
 */
 
-package ttrpc
+package sys
 
-import "github.com/pkg/errors"
+import (
+	_ "unsafe" // required for go:linkname.
+)
 
-type serverConfig struct {
-	handshaker Handshaker
-}
+//go:linkname beforeFork syscall.runtime_BeforeFork
+func beforeFork()
 
-type ServerOpt func(*serverConfig) error
+//go:linkname afterFork syscall.runtime_AfterFork
+func afterFork()
 
-// WithServerHandshaker can be passed to NewServer to ensure that the
-// handshaker is called before every connection attempt.
-//
-// Only one handshaker is allowed per server.
-func WithServerHandshaker(handshaker Handshaker) ServerOpt {
-	return func(c *serverConfig) error {
-		if c.handshaker != nil {
-			return errors.New("only one handshaker allowed per server")
-		}
-		c.handshaker = handshaker
-		return nil
-	}
-}
+//go:linkname afterForkInChild syscall.runtime_AfterForkInChild
+func afterForkInChild()

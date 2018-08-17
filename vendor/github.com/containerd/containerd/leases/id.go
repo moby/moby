@@ -1,5 +1,3 @@
-// +build linux
-
 /*
    Copyright The containerd Authors.
 
@@ -16,31 +14,30 @@
    limitations under the License.
 */
 
-package client
+package leases
 
 import (
-	"os/exec"
-	"syscall"
-
-	"github.com/containerd/cgroups"
-	"github.com/pkg/errors"
+	"encoding/base64"
+	"fmt"
+	"math/rand"
+	"time"
 )
 
-func getSysProcAttr() *syscall.SysProcAttr {
-	return &syscall.SysProcAttr{
-		Setpgid: true,
+// WithRandomID sets the lease ID to a random unique value
+func WithRandomID() Opt {
+	return func(l *Lease) error {
+		t := time.Now()
+		var b [3]byte
+		rand.Read(b[:])
+		l.ID = fmt.Sprintf("%d-%s", t.Nanosecond(), base64.URLEncoding.EncodeToString(b[:]))
+		return nil
 	}
 }
 
-func setCgroup(cgroupPath string, cmd *exec.Cmd) error {
-	cg, err := cgroups.Load(cgroups.V1, cgroups.StaticPath(cgroupPath))
-	if err != nil {
-		return errors.Wrapf(err, "failed to load cgroup %s", cgroupPath)
+// WithID sets the ID for the lease
+func WithID(id string) Opt {
+	return func(l *Lease) error {
+		l.ID = id
+		return nil
 	}
-	if err := cg.Add(cgroups.Process{
-		Pid: cmd.Process.Pid,
-	}); err != nil {
-		return errors.Wrapf(err, "failed to join cgroup %s", cgroupPath)
-	}
-	return nil
 }
