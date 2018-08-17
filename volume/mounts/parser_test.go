@@ -111,16 +111,16 @@ func TestParseMountRaw(t *testing.T) {
 			`c:\windows\:\\?\d:\`,       // Long path handling (target)
 			`\\.\pipe\foo:\\.\pipe\foo`, // named pipe
 			`//./pipe/foo://./pipe/foo`, // named pipe forward slashes
+			`c:\notexist:d:`,
 		},
 		invalid: map[string]string{
-			``:                                 "invalid volume specification: ",
-			`.`:                                "invalid volume specification: ",
-			`..\`:                              "invalid volume specification: ",
-			`c:\:..\`:                          "invalid volume specification: ",
-			`c:\:d:\:xyzzy`:                    "invalid volume specification: ",
-			`c:`:                               "cannot be `c:`",
-			`c:\`:                              "cannot be `c:`",
-			`c:\notexist:d:`:                   `bind mount source path does not exist: c:\notexist`,
+			``:              "invalid volume specification: ",
+			`.`:             "invalid volume specification: ",
+			`..\`:           "invalid volume specification: ",
+			`c:\:..\`:       "invalid volume specification: ",
+			`c:\:d:\:xyzzy`: "invalid volume specification: ",
+			`c:`:            "cannot be `c:`",
+			`c:\`:           "cannot be `c:`",
 			`c:\windows\system32\ntdll.dll:d:`: `source path must be a directory`,
 			`name<:d:`:                         `invalid volume specification`,
 			`name>:d:`:                         `invalid volume specification`,
@@ -178,18 +178,18 @@ func TestParseMountRaw(t *testing.T) {
 			`c:/:/forward/slashes/are/good/too`,
 			`c:/:/including with/spaces:ro`,
 			`/Program Files (x86)`, // With capitals and brackets
+			`c:\notexist:/foo`,
 		},
 		invalid: map[string]string{
-			``:                                   "invalid volume specification: ",
-			`.`:                                  "invalid volume specification: ",
-			`c:`:                                 "invalid volume specification: ",
-			`c:\`:                                "invalid volume specification: ",
-			`../`:                                "invalid volume specification: ",
-			`c:\:../`:                            "invalid volume specification: ",
-			`c:\:/foo:xyzzy`:                     "invalid volume specification: ",
-			`/`:                                  "destination can't be '/'",
-			`/..`:                                "destination can't be '/'",
-			`c:\notexist:/foo`:                   `bind mount source path does not exist: c:\notexist`,
+			``:               "invalid volume specification: ",
+			`.`:              "invalid volume specification: ",
+			`c:`:             "invalid volume specification: ",
+			`c:\`:            "invalid volume specification: ",
+			`../`:            "invalid volume specification: ",
+			`c:\:../`:        "invalid volume specification: ",
+			`c:\:/foo:xyzzy`: "invalid volume specification: ",
+			`/`:              "destination can't be '/'",
+			`/..`:            "destination can't be '/'",
 			`c:\windows\system32\ntdll.dll:/foo`: `source path must be a directory`,
 			`name<:/foo`:                         `invalid volume specification`,
 			`name>:/foo`:                         `invalid volume specification`,
@@ -352,7 +352,7 @@ func TestParseMountRawSplit(t *testing.T) {
 		{`driver/name:c:`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
 		{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, false},
 		{`\\.\pipe\foo:c:\foo\bar`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
+		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeBind, `\\.\pipe\foo`, `c:\foo\bar`, "", "", true, false},
 	}
 	lcowCases := []testParseMountRaw{
 		{`c:\:/foo`, "local", mount.TypeBind, `/foo`, `c:\`, ``, "", true, false},
@@ -366,7 +366,7 @@ func TestParseMountRawSplit(t *testing.T) {
 		{`driver/name:/`, "", mount.TypeVolume, ``, ``, ``, "", true, true},
 		{`\\.\pipe\foo:\\.\pipe\bar`, "local", mount.TypeNamedPipe, `\\.\pipe\bar`, `\\.\pipe\foo`, "", "", true, true},
 		{`\\.\pipe\foo:/data`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
-		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeNamedPipe, ``, ``, "", "", true, true},
+		{`c:\foo\bar:\\.\pipe\foo`, "local", mount.TypeBind, ``, ``, "", "", true, true},
 	}
 	linuxCases := []testParseMountRaw{
 		{"/tmp:/tmp1", "", mount.TypeBind, "/tmp1", "/tmp", "", "", true, false},

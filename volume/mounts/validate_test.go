@@ -31,7 +31,7 @@ func TestValidateMount(t *testing.T) {
 
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: testDestinationPath}, nil},
 		{mount.Mount{Type: "invalid", Target: testDestinationPath}, errors.New("mount type unknown")},
-		{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, errBindSourceDoesNotExist(testSourcePath)},
+		{mount.Mount{Type: mount.TypeBind, Source: testSourcePath, Target: testDestinationPath}, nil},
 	}
 
 	lcowCases := []struct {
@@ -44,7 +44,7 @@ func TestValidateMount(t *testing.T) {
 		{mount.Mount{Type: mount.TypeBind}, errMissingField("Target")},
 		{mount.Mount{Type: mount.TypeBind, Target: "/foo"}, errMissingField("Source")},
 		{mount.Mount{Type: mount.TypeBind, Target: "/foo", Source: "c:\\foo", VolumeOptions: &mount.VolumeOptions{}}, errExtraField("VolumeOptions")},
-		{mount.Mount{Type: mount.TypeBind, Source: "c:\\foo", Target: "/foo"}, errBindSourceDoesNotExist("c:\\foo")},
+		{mount.Mount{Type: mount.TypeBind, Source: "c:\\foo", Target: "/foo"}, nil},
 		{mount.Mount{Type: mount.TypeBind, Source: testDir, Target: "/foo"}, nil},
 		{mount.Mount{Type: "invalid", Target: "/foo"}, errors.New("mount type unknown")},
 	}

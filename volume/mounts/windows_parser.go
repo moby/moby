@@ -251,10 +251,7 @@ func (p *windowsParser) validateMountConfigReg(mnt *mount.Mount, destRegex strin
 		if err != nil {
 			return &errMountConfig{mnt, err}
 		}
-		if !exists {
-			return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
-		}
-		if !isdir {
+		if exists && !isdir {
 			return &errMountConfig{mnt, fmt.Errorf("source path must be a directory")}
 		}
 
