@@ -109,6 +109,7 @@ package platforms
 import (
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 
 	"github.com/containerd/containerd/errdefs"
@@ -228,6 +229,16 @@ func Parse(specifier string) (specs.Platform, error) {
 	}
 
 	return specs.Platform{}, errors.Wrapf(errdefs.ErrInvalidArgument, "%q: cannot parse platform specifier", specifier)
+}
+
+// MustParse is like Parses but panics if the specifier cannot be parsed.
+// Simplifies initialization of global variables.
+func MustParse(specifier string) specs.Platform {
+	p, err := Parse(specifier)
+	if err != nil {
+		panic("platform: Parse(" + strconv.Quote(specifier) + "): " + err.Error())
+	}
+	return p
 }
 
 // Format returns a string specifier from the provided platform specification.

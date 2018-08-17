@@ -22,6 +22,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/containerd/console"
@@ -30,12 +31,13 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/containerd/runtime/linux/proc"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	rproc "github.com/containerd/containerd/runtime/proc"
-	shimapi "github.com/containerd/containerd/runtime/shim/v1"
+	"github.com/containerd/containerd/runtime/v1/linux/proc"
+	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -108,7 +110,7 @@ type Service struct {
 }
 
 // Create a new initial process and container with the underlying OCI runtime
-func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*shimapi.CreateTaskResponse, error) {
+func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *shimapi.CreateTaskResponse, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -121,7 +123,39 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*sh
 			Options: m.Options,
 		})
 	}
-	process, err := proc.New(
+
+	config := &proc.CreateConfig{
+		ID:               r.ID,
+		Bundle:           r.Bundle,
+		Runtime:          r.Runtime,
+		Rootfs:           mounts,
+		Terminal:         r.Terminal,
+		Stdin:            r.Stdin,
+		Stdout:           r.Stdout,
+		Stderr:           r.Stderr,
+		Checkpoint:       r.Checkpoint,
+		ParentCheckpoint: r.ParentCheckpoint,
+		Options:          r.Options,
+	}
+	rootfs := filepath.Join(r.Bundle, "rootfs")
+	defer func() {
+		if err != nil {
+			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
+				log.G(ctx).WithError(err2).Warn("Failed to cleanup rootfs mount")
+			}
+		}
+	}()
+	for _, rm := range mounts {
+		m := &mount.Mount{
+			Type:    rm.Type,
+			Source:  rm.Source,
+			Options: rm.Options,
+		}
+		if err := m.Mount(rootfs); err != nil {
+			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
+		}
+	}
+	process, err := newInit(
 		ctx,
 		s.config.Path,
 		s.config.WorkDir,
@@ -130,21 +164,12 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (*sh
 		s.config.Criu,
 		s.config.SystemdCgroup,
 		s.platform,
-		&proc.CreateConfig{
-			ID:               r.ID,
-			Bundle:           r.Bundle,
-			Runtime:          r.Runtime,
-			Rootfs:           mounts,
-			Terminal:         r.Terminal,
-			Stdin:            r.Stdin,
-			Stdout:           r.Stdout,
-			Stderr:           r.Stderr,
-			Checkpoint:       r.Checkpoint,
-			ParentCheckpoint: r.ParentCheckpoint,
-			Options:          r.Options,
-		},
+		config,
 	)
 	if err != nil {
+		return nil, errdefs.ToGRPC(err)
+	}
+	if err := process.Create(ctx, config); err != nil {
 		return nil, errdefs.ToGRPC(err)
 	}
 	// save the main task id and bundle to the shim for additional requests
@@ -414,9 +439,22 @@ func (s *Service) Checkpoint(ctx context.Context, r *shimapi.CheckpointTaskReque
 	if p == nil {
 		return nil, errdefs.ToGRPCf(errdefs.ErrFailedPrecondition, "container must be created")
 	}
+	var options runctypes.CheckpointOptions
+	if r.Options != nil {
+		v, err := typeurl.UnmarshalAny(r.Options)
+		if err != nil {
+			return nil, err
+		}
+		options = *v.(*runctypes.CheckpointOptions)
+	}
 	if err := p.(*proc.Init).Checkpoint(ctx, &proc.CheckpointConfig{
-		Path:    r.Path,
-		Options: r.Options,
+		Path:                     r.Path,
+		Exit:                     options.Exit,
+		AllowOpenTCP:             options.OpenTcp,
+		AllowExternalUnixSockets: options.ExternalUnixSockets,
+		AllowTerminal:            options.Terminal,
+		FileLocks:                options.FileLocks,
+		EmptyNamespaces:          options.EmptyNamespaces,
 	}); err != nil {
 		return nil, errdefs.ToGRPC(err)
 	}
@@ -544,4 +582,33 @@ func getTopic(ctx context.Context, e interface{}) string {
 		logrus.Warnf("no topic for type %#v", e)
 	}
 	return runtime.TaskUnknownTopic
+}
+
+func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform rproc.Platform, r *proc.CreateConfig) (*proc.Init, error) {
+	var options runctypes.CreateOptions
+	if r.Options != nil {
+		v, err := typeurl.UnmarshalAny(r.Options)
+		if err != nil {
+			return nil, err
+		}
+		options = *v.(*runctypes.CreateOptions)
+	}
+
+	rootfs := filepath.Join(path, "rootfs")
+	runtime := proc.NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
+	p := proc.New(r.ID, runtime, rproc.Stdio{
+		Stdin:    r.Stdin,
+		Stdout:   r.Stdout,
+		Stderr:   r.Stderr,
+		Terminal: r.Terminal,
+	})
+	p.Bundle = r.Bundle
+	p.Platform = platform
+	p.Rootfs = rootfs
+	p.WorkDir = workDir
+	p.IoUID = int(options.IoUid)
+	p.IoGID = int(options.IoGid)
+	p.NoPivotRoot = options.NoPivotRoot
+	p.NoNewKeyring = options.NoNewKeyring
+	return p, nil
 }

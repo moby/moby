@@ -16,5 +16,23 @@
 
 package archive
 
+import "archive/tar"
+
 // ApplyOpt allows setting mutable archive apply properties on creation
 type ApplyOpt func(options *ApplyOptions) error
+
+// Filter specific files from the archive
+type Filter func(*tar.Header) (bool, error)
+
+// all allows all files
+func all(_ *tar.Header) (bool, error) {
+	return true, nil
+}
+
+// WithFilter uses the filter to select which files are to be extracted.
+func WithFilter(f Filter) ApplyOpt {
+	return func(options *ApplyOptions) error {
+		options.Filter = f
+		return nil
+	}
+}

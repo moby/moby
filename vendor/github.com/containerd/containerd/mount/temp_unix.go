@@ -39,10 +39,10 @@ func SetTempMountLocation(root string) error {
 }
 
 // CleanupTempMounts all temp mounts and remove the directories
-func CleanupTempMounts(flags int) error {
+func CleanupTempMounts(flags int) (warnings []error, err error) {
 	mounts, err := Self()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var toUnmount []string
 	for _, m := range mounts {
@@ -53,11 +53,12 @@ func CleanupTempMounts(flags int) error {
 	sort.Sort(sort.Reverse(sort.StringSlice(toUnmount)))
 	for _, path := range toUnmount {
 		if err := UnmountAll(path, flags); err != nil {
-			return err
+			warnings = append(warnings, err)
+			continue
 		}
 		if err := os.Remove(path); err != nil {
-			return err
+			warnings = append(warnings, err)
 		}
 	}
-	return nil
+	return warnings, nil
 }

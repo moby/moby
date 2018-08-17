@@ -64,14 +64,22 @@ func (l *TaskList) Get(ctx context.Context, id string) (Task, error) {
 }
 
 // GetAll tasks under a namespace
-func (l *TaskList) GetAll(ctx context.Context) ([]Task, error) {
+func (l *TaskList) GetAll(ctx context.Context, noNS bool) ([]Task, error) {
 	l.mu.Lock()
 	defer l.mu.Unlock()
+	var o []Task
+	if noNS {
+		for ns := range l.tasks {
+			for _, t := range l.tasks[ns] {
+				o = append(o, t)
+			}
+		}
+		return o, nil
+	}
 	namespace, err := namespaces.NamespaceRequired(ctx)
 	if err != nil {
 		return nil, err
 	}
-	var o []Task
 	tasks, ok := l.tasks[namespace]
 	if !ok {
 		return o, nil

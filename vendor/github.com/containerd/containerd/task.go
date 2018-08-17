@@ -40,6 +40,7 @@ import (
 	"github.com/containerd/typeurl"
 	google_protobuf "github.com/gogo/protobuf/types"
 	digest "github.com/opencontainers/go-digest"
+	is "github.com/opencontainers/image-spec/specs-go"
 	"github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -424,6 +425,9 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 		return nil, err
 	}
 	index := v1.Index{
+		Versioned: is.Versioned{
+			SchemaVersion: 2,
+		},
 		Annotations: make(map[string]string),
 	}
 	if err := t.checkpointTask(ctx, &index, request); err != nil {
@@ -454,10 +458,7 @@ func (t *task) Checkpoint(ctx context.Context, opts ...CheckpointTaskOpts) (Imag
 	if im, err = t.client.ImageService().Create(ctx, im); err != nil {
 		return nil, err
 	}
-	return &image{
-		client: t.client,
-		i:      im,
-	}, nil
+	return NewImage(t.client, im), nil
 }
 
 // UpdateTaskInfo allows updated specific settings to be changed on a task

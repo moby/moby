@@ -28,11 +28,13 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/events/exchange"
 	"github.com/containerd/containerd/identifiers"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/containerd/runtime/shim/client"
-	shim "github.com/containerd/containerd/runtime/shim/v1"
+	"github.com/containerd/containerd/runtime/v1/shim/client"
+	shim "github.com/containerd/containerd/runtime/v1/shim/v1"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/ttrpc"
+	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 )
@@ -45,12 +47,12 @@ type Task struct {
 	shim      *client.Client
 	namespace string
 	cg        cgroups.Cgroup
-	monitor   runtime.TaskMonitor
 	events    *exchange.Exchange
-	runtime   *runc.Runc
+	tasks     *runtime.TaskList
+	bundle    *bundle
 }
 
-func newTask(id, namespace string, pid int, shim *client.Client, monitor runtime.TaskMonitor, events *exchange.Exchange, runtime *runc.Runc) (*Task, error) {
+func newTask(id, namespace string, pid int, shim *client.Client, events *exchange.Exchange, runtime *runc.Runc, list *runtime.TaskList, bundle *bundle) (*Task, error) {
 	var (
 		err error
 		cg  cgroups.Cgroup
@@ -67,9 +69,9 @@ func newTask(id, namespace string, pid int, shim *client.Client, monitor runtime
 		shim:      shim,
 		namespace: namespace,
 		cg:        cg,
-		monitor:   monitor,
 		events:    events,
-		runtime:   runtime,
+		tasks:     list,
+		bundle:    bundle,
 	}, nil
 }
 
@@ -78,13 +80,35 @@ func (t *Task) ID() string {
 	return t.id
 }
 
-// Info returns task information about the runtime and namespace
-func (t *Task) Info() runtime.TaskInfo {
-	return runtime.TaskInfo{
-		ID:        t.id,
-		Runtime:   pluginID,
-		Namespace: t.namespace,
+// Namespace of the task
+func (t *Task) Namespace() string {
+	return t.namespace
+}
+
+// Delete the task and return the exit status
+func (t *Task) Delete(ctx context.Context) (*runtime.Exit, error) {
+	rsp, err := t.shim.Delete(ctx, empty)
+	if err != nil {
+		return nil, errdefs.FromGRPC(err)
 	}
+	t.tasks.Delete(ctx, t.id)
+	if err := t.shim.KillShim(ctx); err != nil {
+		log.G(ctx).WithError(err).Error("failed to kill shim")
+	}
+	if err := t.bundle.Delete(); err != nil {
+		log.G(ctx).WithError(err).Error("failed to delete bundle")
+	}
+	t.events.Publish(ctx, runtime.TaskDeleteEventTopic, &eventstypes.TaskDelete{
+		ContainerID: t.id,
+		ExitStatus:  rsp.ExitStatus,
+		ExitedAt:    rsp.ExitedAt,
+		Pid:         rsp.Pid,
+	})
+	return &runtime.Exit{
+		Status:    rsp.ExitStatus,
+		Timestamp: rsp.ExitedAt,
+		Pid:       rsp.Pid,
+	}, nil
 }
 
 // Start the task
@@ -107,9 +131,6 @@ func (t *Task) Start(ctx context.Context) error {
 		t.mu.Lock()
 		t.cg = cg
 		t.mu.Unlock()
-		if err := t.monitor.Monitor(t); err != nil {
-			return err
-		}
 	}
 	t.events.Publish(ctx, runtime.TaskStartEventTopic, &eventstypes.TaskStart{
 		ContainerID: t.id,
@@ -270,21 +291,6 @@ func (t *Task) Checkpoint(ctx context.Context, path string, options *types.Any) 
 	return nil
 }
 
-// DeleteProcess removes the provided process from the task and deletes all on disk state
-func (t *Task) DeleteProcess(ctx context.Context, id string) (*runtime.Exit, error) {
-	r, err := t.shim.DeleteProcess(ctx, &shim.DeleteProcessRequest{
-		ID: id,
-	})
-	if err != nil {
-		return nil, errdefs.FromGRPC(err)
-	}
-	return &runtime.Exit{
-		Status:    r.ExitStatus,
-		Timestamp: r.ExitedAt,
-		Pid:       r.Pid,
-	}, nil
-}
-
 // Update changes runtime information of a running task
 func (t *Task) Update(ctx context.Context, resources *types.Any) error {
 	if _, err := t.shim.Update(ctx, &shim.UpdateTaskRequest{
@@ -307,8 +313,8 @@ func (t *Task) Process(ctx context.Context, id string) (runtime.Process, error) 
 	return p, nil
 }
 
-// Metrics returns runtime specific system level metric information for the task
-func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
+// Stats returns runtime specific system level metric information for the task
+func (t *Task) Stats(ctx context.Context) (*types.Any, error) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	if t.cg == nil {
@@ -318,7 +324,7 @@ func (t *Task) Metrics(ctx context.Context) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-	return stats, nil
+	return typeurl.MarshalAny(stats)
 }
 
 // Cgroup returns the underlying cgroup for a linux task

@@ -563,7 +563,17 @@ func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDi
 
 	opts := []containerd.CheckpointTaskOpts{}
 	if exit {
-		opts = append(opts, containerd.WithExit)
+		opts = append(opts, func(r *containerd.CheckpointTaskInfo) error {
+			if r.Options == nil {
+				r.Options = &runctypes.CheckpointOptions{
+					Exit: true,
+				}
+			} else {
+				opts, _ := r.Options.(*runctypes.CheckpointOptions)
+				opts.Exit = true
+			}
+			return nil
+		})
 	}
 	img, err := p.(containerd.Task).Checkpoint(ctx, opts...)
 	if err != nil {

@@ -89,7 +89,7 @@ func (e *execProcess) ExitedAt() time.Time {
 func (e *execProcess) setExited(status int) {
 	e.status = status
 	e.exited = time.Now()
-	e.parent.platform.ShutdownConsole(context.Background(), e.console)
+	e.parent.Platform.ShutdownConsole(context.Background(), e.console)
 	close(e.waitBlock)
 }
 
@@ -180,7 +180,7 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		if e.console, err = e.parent.platform.CopyConsole(ctx, console, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
+		if e.console, err = e.parent.Platform.CopyConsole(ctx, console, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}
 	} else if !e.stdio.IsNull() {

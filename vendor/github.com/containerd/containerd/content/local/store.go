@@ -322,6 +322,40 @@ func (s *store) ListStatuses(ctx context.Context, fs ...string) ([]content.Statu
 	return active, nil
 }
 
+// WalkStatusRefs is used to walk all status references
+// Failed status reads will be logged and ignored, if
+// this function is called while references are being altered,
+// these error messages may be produced.
+func (s *store) WalkStatusRefs(ctx context.Context, fn func(string) error) error {
+	fp, err := os.Open(filepath.Join(s.root, "ingest"))
+	if err != nil {
+		return err
+	}
+
+	defer fp.Close()
+
+	fis, err := fp.Readdir(-1)
+	if err != nil {
+		return err
+	}
+
+	for _, fi := range fis {
+		rf := filepath.Join(s.root, "ingest", fi.Name(), "ref")
+
+		ref, err := readFileString(rf)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("path", rf).Error("failed to read ingest ref")
+			continue
+		}
+
+		if err := fn(ref); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // status works like stat above except uses the path to the ingest.
 func (s *store) status(ingestPath string) (content.Status, error) {
 	dp := filepath.Join(ingestPath, "data")

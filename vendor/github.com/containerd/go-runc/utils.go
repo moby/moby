@@ -73,8 +73,8 @@ func fieldsASCII(s string) []string {
 	return strings.FieldsFunc(s, fn)
 }
 
-// parsePSOutput parses the runtime's ps raw output and returns a TopResults
-func parsePSOutput(output []byte) (*TopResults, error) {
+// ParsePSOutput parses the runtime's ps raw output and returns a TopResults
+func ParsePSOutput(output []byte) (*TopResults, error) {
 	topResults := &TopResults{}
 
 	lines := strings.Split(string(output), "\n")

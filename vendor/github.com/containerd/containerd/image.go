@@ -56,15 +56,26 @@ var _ = (Image)(&image{})
 // NewImage returns a client image object from the metadata image
 func NewImage(client *Client, i images.Image) Image {
 	return &image{
-		client: client,
-		i:      i,
+		client:   client,
+		i:        i,
+		platform: platforms.Default(),
+	}
+}
+
+// NewImageWithPlatform returns a client image object from the metadata image
+func NewImageWithPlatform(client *Client, i images.Image, platform string) Image {
+	return &image{
+		client:   client,
+		i:        i,
+		platform: platform,
 	}
 }
 
 type image struct {
 	client *Client
 
-	i images.Image
+	i        images.Image
+	platform string
 }
 
 func (i *image) Name() string {
@@ -77,24 +88,24 @@ func (i *image) Target() ocispec.Descriptor {
 
 func (i *image) RootFS(ctx context.Context) ([]digest.Digest, error) {
 	provider := i.client.ContentStore()
-	return i.i.RootFS(ctx, provider, platforms.Default())
+	return i.i.RootFS(ctx, provider, i.platform)
 }
 
 func (i *image) Size(ctx context.Context) (int64, error) {
 	provider := i.client.ContentStore()
-	return i.i.Size(ctx, provider, platforms.Default())
+	return i.i.Size(ctx, provider, i.platform)
 }
 
 func (i *image) Config(ctx context.Context) (ocispec.Descriptor, error) {
 	provider := i.client.ContentStore()
-	return i.i.Config(ctx, provider, platforms.Default())
+	return i.i.Config(ctx, provider, i.platform)
 }
 
 func (i *image) IsUnpacked(ctx context.Context, snapshotterName string) (bool, error) {
 	sn := i.client.SnapshotService(snapshotterName)
 	cs := i.client.ContentStore()
 
-	diffs, err := i.i.RootFS(ctx, cs, platforms.Default())
+	diffs, err := i.i.RootFS(ctx, cs, i.platform)
 	if err != nil {
 		return false, err
 	}
@@ -117,7 +128,7 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
 	}
 	defer done(ctx)
 
-	layers, err := i.getLayers(ctx, platforms.Default())
+	layers, err := i.getLayers(ctx, i.platform)
 	if err != nil {
 		return err
 	}
@@ -154,7 +165,7 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
 	}
 
 	if unpacked {
-		desc, err := i.i.Config(ctx, cs, platforms.Default())
+		desc, err := i.i.Config(ctx, cs, i.platform)
 		if err != nil {
 			return err
 		}

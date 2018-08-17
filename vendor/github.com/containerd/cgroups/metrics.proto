@@ -10,6 +10,7 @@ message Metrics {
 	CPUStat cpu = 3 [(gogoproto.customname) = "CPU"];
 	MemoryStat memory = 4;
 	BlkIOStat blkio = 5;
+	RdmaStat rdma = 6;
 }
 
 message HugetlbStat {
@@ -108,4 +109,15 @@ message BlkIOEntry {
 	uint64 major = 3;
 	uint64 minor = 4;
 	uint64 value = 5;
+}
+
+message RdmaStat {
+	repeated RdmaEntry current = 1;
+	repeated RdmaEntry limit = 2;
+}
+
+message RdmaEntry {
+	string device = 1;
+	uint32 hca_handles = 2;
+	uint32 hca_objects = 3;
 }

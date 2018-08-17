@@ -53,6 +53,7 @@ var (
 
 type dockerResolver struct {
 	credentials func(string) (string, string, error)
+	host        func(string) (string, error)
 	plainHTTP   bool
 	client      *http.Client
 	tracker     StatusTracker
@@ -64,6 +65,9 @@ type ResolverOptions struct {
 	// If username is empty but a secret is given, that secret
 	// is interpretted as a long lived token.
 	Credentials func(string) (string, string, error)
+
+	// Host provides the hostname given a namespace.
+	Host func(string) (string, error)
 
 	// PlainHTTP specifies to use plain http and not https
 	PlainHTTP bool
@@ -77,14 +81,27 @@ type ResolverOptions struct {
 	Tracker StatusTracker
 }
 
+// DefaultHost is the default host function.
+func DefaultHost(ns string) (string, error) {
+	if ns == "docker.io" {
+		return "registry-1.docker.io", nil
+	}
+	return ns, nil
+}
+
 // NewResolver returns a new resolver to a Docker registry
 func NewResolver(options ResolverOptions) remotes.Resolver {
 	tracker := options.Tracker
 	if tracker == nil {
 		tracker = NewInMemoryTracker()
 	}
+	host := options.Host
+	if host == nil {
+		host = DefaultHost
+	}
 	return &dockerResolver{
 		credentials: options.Credentials,
+		host:        host,
 		plainHTTP:   options.PlainHTTP,
 		client:      options.Client,
 		tracker:     tracker,
@@ -270,16 +287,17 @@ func (r *dockerResolver) base(refspec reference.Spec) (*dockerBase, error) {
 	)
 
 	host := refspec.Hostname()
-	base.Scheme = "https"
-
-	if host == "docker.io" {
-		base.Host = "registry-1.docker.io"
-	} else {
-		base.Host = host
-
-		if r.plainHTTP || strings.HasPrefix(host, "localhost:") {
-			base.Scheme = "http"
+	base.Host = host
+	if r.host != nil {
+		base.Host, err = r.host(host)
+		if err != nil {
+			return nil, err
 		}
+	}
+
+	base.Scheme = "https"
+	if r.plainHTTP || strings.HasPrefix(base.Host, "localhost:") {
+		base.Scheme = "http"
 	}
 
 	if r.credentials != nil {
