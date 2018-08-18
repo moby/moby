@@ -328,6 +328,10 @@ func (cs *contentStore) Abort(ctx context.Context, ref string) error {
 			return err
 		}
 
+		if err := removeIngestLease(ctx, tx, ref); err != nil {
+			return err
+		}
+
 		// if not shared content, delete active ingest on backend
 		if expected == "" {
 			return cs.Store.Abort(ctx, bref)
@@ -395,6 +399,11 @@ func (cs *contentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (
 			return err
 		}
 
+		leased, err := addIngestLease(ctx, tx, wOpts.Ref)
+		if err != nil {
+			return err
+		}
+
 		brefb := bkt.Get(bucketKeyRef)
 		if brefb == nil {
 			sid, err := bkt.NextSequence()
@@ -408,6 +417,18 @@ func (cs *contentStore) Writer(ctx context.Context, opts ...content.WriterOpt) (
 			}
 		} else {
 			bref = string(brefb)
+		}
+		if !leased {
+			// Add timestamp to allow aborting once stale
+			// When lease is set the ingest should be aborted
+			// after lease it belonged to is deleted.
+			// Expiration can be configurable in the future to
+			// give more control to the daemon, however leases
+			// already give users more control of expiration.
+			expireAt := time.Now().UTC().Add(24 * time.Hour)
+			if err := writeExpireAt(expireAt, bkt); err != nil {
+				return err
+			}
 		}
 
 		if shared {
@@ -541,6 +562,9 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 		}
 		dgst, err := nw.commit(ctx, tx, size, expected, opts...)
 		if err != nil {
+			return err
+		}
+		if err := removeIngestLease(ctx, tx, nw.ref); err != nil {
 			return err
 		}
 		return addContentLease(ctx, tx, dgst)
@@ -697,6 +721,30 @@ func writeInfo(info *content.Info, bkt *bolt.Bucket) error {
 	return bkt.Put(bucketKeySize, sizeEncoded)
 }
 
+func readExpireAt(bkt *bolt.Bucket) (*time.Time, error) {
+	v := bkt.Get(bucketKeyExpireAt)
+	if v == nil {
+		return nil, nil
+	}
+	t := &time.Time{}
+	if err := t.UnmarshalBinary(v); err != nil {
+		return nil, err
+	}
+	return t, nil
+}
+
+func writeExpireAt(expire time.Time, bkt *bolt.Bucket) error {
+	expireAt, err := expire.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	if err := bkt.Put(bucketKeyExpireAt, expireAt); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, err error) {
 	cs.l.Lock()
 	t1 := time.Now()
@@ -707,7 +755,8 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 		cs.l.Unlock()
 	}()
 
-	seen := map[string]struct{}{}
+	contentSeen := map[string]struct{}{}
+	ingestSeen := map[string]struct{}{}
 	if err := cs.db.View(func(tx *bolt.Tx) error {
 		v1bkt := tx.Bucket(bucketKeyVersion)
 		if v1bkt == nil {
@@ -730,7 +779,7 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 			if bbkt != nil {
 				if err := bbkt.ForEach(func(ck, cv []byte) error {
 					if cv == nil {
-						seen[string(ck)] = struct{}{}
+						contentSeen[string(ck)] = struct{}{}
 					}
 					return nil
 				}); err != nil {
@@ -742,9 +791,17 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 			if ibkt != nil {
 				if err := ibkt.ForEach(func(ref, v []byte) error {
 					if v == nil {
-						expected := ibkt.Bucket(ref).Get(bucketKeyExpected)
+						bkt := ibkt.Bucket(ref)
+						// expected here may be from a different namespace
+						// so much be explicitly retained from the ingest
+						// in case it was removed from the other namespace
+						expected := bkt.Get(bucketKeyExpected)
 						if len(expected) > 0 {
-							seen[string(expected)] = struct{}{}
+							contentSeen[string(expected)] = struct{}{}
+						}
+						bref := bkt.Get(bucketKeyRef)
+						if len(bref) > 0 {
+							ingestSeen[string(bref)] = struct{}{}
 						}
 					}
 					return nil
@@ -760,7 +817,7 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 	}
 
 	err = cs.Store.Walk(ctx, func(info content.Info) error {
-		if _, ok := seen[info.Digest.String()]; !ok {
+		if _, ok := contentSeen[info.Digest.String()]; !ok {
 			if err := cs.Store.Delete(ctx, info.Digest); err != nil {
 				return err
 			}
@@ -768,5 +825,40 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 		}
 		return nil
 	})
+	if err != nil {
+		return
+	}
+
+	// If the content store has implemented a more efficient walk function
+	// then use that else fallback to reading all statuses which may
+	// cause reading of unneeded metadata.
+	type statusWalker interface {
+		WalkStatusRefs(context.Context, func(string) error) error
+	}
+	if w, ok := cs.Store.(statusWalker); ok {
+		err = w.WalkStatusRefs(ctx, func(ref string) error {
+			if _, ok := ingestSeen[ref]; !ok {
+				if err := cs.Store.Abort(ctx, ref); err != nil {
+					return err
+				}
+				log.G(ctx).WithField("ref", ref).Debug("cleanup aborting ingest")
+			}
+			return nil
+		})
+	} else {
+		var statuses []content.Status
+		statuses, err = cs.Store.ListStatuses(ctx)
+		if err != nil {
+			return 0, err
+		}
+		for _, status := range statuses {
+			if _, ok := ingestSeen[status.Ref]; !ok {
+				if err = cs.Store.Abort(ctx, status.Ref); err != nil {
+					return
+				}
+				log.G(ctx).WithField("ref", status.Ref).Debug("cleanup aborting ingest")
+			}
+		}
+	}
 	return
 }

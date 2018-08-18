@@ -24,6 +24,6 @@ func SetTempMountLocation(root string) error {
 }
 
 // CleanupTempMounts all temp mounts and remove the directories
-func CleanupTempMounts(flags int) error {
-	return nil
+func CleanupTempMounts(flags int) ([]error, error) {
+	return nil, nil
 }

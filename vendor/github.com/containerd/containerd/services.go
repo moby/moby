@@ -20,12 +20,12 @@ import (
 	containersapi "github.com/containerd/containerd/api/services/containers/v1"
 	"github.com/containerd/containerd/api/services/diff/v1"
 	imagesapi "github.com/containerd/containerd/api/services/images/v1"
-	"github.com/containerd/containerd/api/services/leases/v1"
 	namespacesapi "github.com/containerd/containerd/api/services/namespaces/v1"
 	"github.com/containerd/containerd/api/services/tasks/v1"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
 )
@@ -39,7 +39,7 @@ type services struct {
 	taskService    tasks.TasksClient
 	diffService    DiffService
 	eventService   EventService
-	leasesService  leases.LeasesClient
+	leasesService  leases.Manager
 }
 
 // ServicesOpt allows callers to set options on the services
@@ -105,7 +105,7 @@ func WithNamespaceService(namespaceService namespacesapi.NamespacesClient) Servi
 }
 
 // WithLeasesService sets the lease service.
-func WithLeasesService(leasesService leases.LeasesClient) ServicesOpt {
+func WithLeasesService(leasesService leases.Manager) ServicesOpt {
 	return func(s *services) {
 		s.leasesService = leasesService
 	}

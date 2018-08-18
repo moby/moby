@@ -24,7 +24,7 @@ func newInode(stat *syscall.Stat_t) inode {
 	}
 }
 
-func diskUsage(ctx context.Context, roots ...string) (Usage, error) {
+func diskUsage(roots ...string) (Usage, error) {
 
 	var (
 		size   int64
@@ -35,12 +35,6 @@ func diskUsage(ctx context.Context, roots ...string) (Usage, error) {
 		if err := filepath.Walk(root, func(path string, fi os.FileInfo, err error) error {
 			if err != nil {
 				return err
-			}
-
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			default:
 			}
 
 			inoKey := newInode(fi.Sys().(*syscall.Stat_t))

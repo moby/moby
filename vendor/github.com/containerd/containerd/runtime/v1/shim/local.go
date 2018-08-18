@@ -23,7 +23,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/mount"
-	shimapi "github.com/containerd/containerd/runtime/shim/v1"
+	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
 	ptypes "github.com/gogo/protobuf/types"
 )
 

@@ -137,6 +137,36 @@ func (c *cgroup) add(process Process) error {
 	return nil
 }
 
+// AddTask moves the provided tasks (threads) into the new cgroup
+func (c *cgroup) AddTask(process Process) error {
+	if process.Pid <= 0 {
+		return ErrInvalidPid
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.err != nil {
+		return c.err
+	}
+	return c.addTask(process)
+}
+
+func (c *cgroup) addTask(process Process) error {
+	for _, s := range pathers(c.subsystems) {
+		p, err := c.path(s.Name())
+		if err != nil {
+			return err
+		}
+		if err := ioutil.WriteFile(
+			filepath.Join(s.Path(p), cgroupTasks),
+			[]byte(strconv.Itoa(process.Pid)),
+			defaultFilePerm,
+		); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // Delete will remove the control group from each of the subsystems registered
 func (c *cgroup) Delete() error {
 	c.mu.Lock()

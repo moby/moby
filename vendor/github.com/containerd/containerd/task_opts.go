@@ -22,7 +22,6 @@ import (
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 )
 
 // NewTaskOpts allows the caller to set options on a new task
@@ -34,14 +33,6 @@ func WithRootFS(mounts []mount.Mount) NewTaskOpts {
 		ti.RootFS = mounts
 		return nil
 	}
-}
-
-// WithExit causes the task to exit after a successful checkpoint
-func WithExit(r *CheckpointTaskInfo) error {
-	r.Options = &runctypes.CheckpointOptions{
-		Exit: true,
-	}
-	return nil
 }
 
 // WithCheckpointName sets the image name for the checkpoint

@@ -80,6 +80,7 @@ func defaults(root string) ([]Subsystem, error) {
 		NewCpuacct(root),
 		NewMemory(root),
 		NewBlkio(root),
+		NewRdma(root),
 	}
 	// only add the devices cgroup if we are not in a user namespace
 	// because modifications are not allowed

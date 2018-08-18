@@ -33,11 +33,9 @@ import (
 	"github.com/containerd/console"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/mount"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/containerd/runtime/proc"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
-	"github.com/containerd/typeurl"
 	google_protobuf "github.com/gogo/protobuf/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -59,23 +57,25 @@ type Init struct {
 
 	waitBlock chan struct{}
 
-	workDir string
+	WorkDir string
 
-	id       string
-	bundle   string
-	console  console.Console
-	platform proc.Platform
-	io       runc.IO
-	runtime  *runc.Runc
-	status   int
-	exited   time.Time
-	pid      int
-	closers  []io.Closer
-	stdin    io.Closer
-	stdio    proc.Stdio
-	rootfs   string
-	IoUID    int
-	IoGID    int
+	id           string
+	Bundle       string
+	console      console.Console
+	Platform     proc.Platform
+	io           runc.IO
+	runtime      *runc.Runc
+	status       int
+	exited       time.Time
+	pid          int
+	closers      []io.Closer
+	stdin        io.Closer
+	stdio        proc.Stdio
+	Rootfs       string
+	IoUID        int
+	IoGID        int
+	NoPivotRoot  bool
+	NoNewKeyring bool
 }
 
 // NewRunc returns a new runc instance for a process
@@ -94,90 +94,50 @@ func NewRunc(root, path, namespace, runtime, criu string, systemd bool) *runc.Ru
 	}
 }
 
-// New returns a new init process
-func New(context context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform proc.Platform, r *CreateConfig) (*Init, error) {
-	var success bool
-
-	var options runctypes.CreateOptions
-	if r.Options != nil {
-		v, err := typeurl.UnmarshalAny(r.Options)
-		if err != nil {
-			return nil, err
-		}
-		options = *v.(*runctypes.CreateOptions)
-	}
-
-	rootfs := filepath.Join(path, "rootfs")
-	// count the number of successful mounts so we can undo
-	// what was actually done rather than what should have been
-	// done.
-	defer func() {
-		if success {
-			return
-		}
-		if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
-			log.G(context).WithError(err2).Warn("Failed to cleanup rootfs mount")
-		}
-	}()
-	for _, rm := range r.Rootfs {
-		m := &mount.Mount{
-			Type:    rm.Type,
-			Source:  rm.Source,
-			Options: rm.Options,
-		}
-		if err := m.Mount(rootfs); err != nil {
-			return nil, errors.Wrapf(err, "failed to mount rootfs component %v", m)
-		}
-	}
-	runtime := NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
+// New returns a new process
+func New(id string, runtime *runc.Runc, stdio proc.Stdio) *Init {
 	p := &Init{
-		id:       r.ID,
-		bundle:   r.Bundle,
-		runtime:  runtime,
-		platform: platform,
-		stdio: proc.Stdio{
-			Stdin:    r.Stdin,
-			Stdout:   r.Stdout,
-			Stderr:   r.Stderr,
-			Terminal: r.Terminal,
-		},
-		rootfs:    rootfs,
-		workDir:   workDir,
+		id:        id,
+		runtime:   runtime,
+		stdio:     stdio,
 		status:    0,
 		waitBlock: make(chan struct{}),
-		IoUID:     int(options.IoUid),
-		IoGID:     int(options.IoGid),
 	}
 	p.initState = &createdState{p: p}
+	return p
+}
+
+// Create the process with the provided config
+func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	var (
 		err    error
 		socket *runc.Socket
 	)
 	if r.Terminal {
 		if socket, err = runc.NewTempConsoleSocket(); err != nil {
-			return nil, errors.Wrap(err, "failed to create OCI runtime console socket")
+			return errors.Wrap(err, "failed to create OCI runtime console socket")
 		}
 		defer socket.Close()
 	} else if hasNoIO(r) {
 		if p.io, err = runc.NewNullIO(); err != nil {
-			return nil, errors.Wrap(err, "creating new NULL IO")
+			return errors.Wrap(err, "creating new NULL IO")
 		}
 	} else {
-		if p.io, err = runc.NewPipeIO(int(options.IoUid), int(options.IoGid)); err != nil {
-			return nil, errors.Wrap(err, "failed to create OCI runtime io pipes")
+		if p.io, err = runc.NewPipeIO(p.IoUID, p.IoGID); err != nil {
+			return errors.Wrap(err, "failed to create OCI runtime io pipes")
 		}
 	}
-	pidFile := filepath.Join(path, InitPidFile)
+	pidFile := filepath.Join(p.Bundle, InitPidFile)
 	if r.Checkpoint != "" {
 		opts := &runc.RestoreOpts{
 			CheckpointOpts: runc.CheckpointOpts{
 				ImagePath:  r.Checkpoint,
-				WorkDir:    p.workDir,
+				WorkDir:    p.WorkDir,
 				ParentPath: r.ParentCheckpoint,
 			},
 			PidFile:     pidFile,
 			IO:          p.io,
-			NoPivot:     options.NoPivotRoot,
+			NoPivot:     p.NoPivotRoot,
 			Detach:      true,
 			NoSubreaper: true,
 		}
@@ -185,25 +145,24 @@ func New(context context.Context, path, workDir, runtimeRoot, namespace, criu st
 			p:    p,
 			opts: opts,
 		}
-		success = true
-		return p, nil
+		return nil
 	}
 	opts := &runc.CreateOpts{
 		PidFile:      pidFile,
 		IO:           p.io,
-		NoPivot:      options.NoPivotRoot,
-		NoNewKeyring: options.NoNewKeyring,
+		NoPivot:      p.NoPivotRoot,
+		NoNewKeyring: p.NoNewKeyring,
 	}
 	if socket != nil {
 		opts.ConsoleSocket = socket
 	}
-	if err := p.runtime.Create(context, r.ID, r.Bundle, opts); err != nil {
-		return nil, p.runtimeError(err, "OCI runtime create failed")
+	if err := p.runtime.Create(ctx, r.ID, r.Bundle, opts); err != nil {
+		return p.runtimeError(err, "OCI runtime create failed")
 	}
 	if r.Stdin != "" {
-		sc, err := fifo.OpenFifo(context, r.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		sc, err := fifo.OpenFifo(ctx, r.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to open stdin fifo %s", r.Stdin)
+			return errors.Wrapf(err, "failed to open stdin fifo %s", r.Stdin)
 		}
 		p.stdin = sc
 		p.closers = append(p.closers, sc)
@@ -212,27 +171,26 @@ func New(context context.Context, path, workDir, runtimeRoot, namespace, criu st
 	if socket != nil {
 		console, err := socket.ReceiveMaster()
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to retrieve console master")
+			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		console, err = platform.CopyConsole(context, console, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup)
+		console, err = p.Platform.CopyConsole(ctx, console, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to start console copy")
+			return errors.Wrap(err, "failed to start console copy")
 		}
 		p.console = console
 	} else if !hasNoIO(r) {
-		if err := copyPipes(context, p.io, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup); err != nil {
-			return nil, errors.Wrap(err, "failed to start io pipe copy")
+		if err := copyPipes(ctx, p.io, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup); err != nil {
+			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
 
 	copyWaitGroup.Wait()
 	pid, err := runc.ReadPidFile(pidFile)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve OCI runtime container pid")
+		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
 	p.pid = pid
-	success = true
-	return p, nil
+	return nil
 }
 
 // Wait for the process to exit
@@ -286,7 +244,7 @@ func (p *Init) start(context context.Context) error {
 func (p *Init) setExited(status int) {
 	p.exited = time.Now()
 	p.status = status
-	p.platform.ShutdownConsole(context.Background(), p.console)
+	p.Platform.ShutdownConsole(context.Background(), p.console)
 	close(p.waitBlock)
 }
 
@@ -312,7 +270,7 @@ func (p *Init) delete(context context.Context) error {
 		}
 		p.io.Close()
 	}
-	if err2 := mount.UnmountAll(p.rootfs, 0); err2 != nil {
+	if err2 := mount.UnmountAll(p.Rootfs, 0); err2 != nil {
 		log.G(context).WithError(err2).Warn("failed to cleanup rootfs mount")
 		if err == nil {
 			err = errors.Wrap(err2, "failed rootfs umount")
@@ -390,30 +348,22 @@ func (p *Init) exec(context context.Context, path string, r *ExecConfig) (proc.P
 }
 
 func (p *Init) checkpoint(context context.Context, r *CheckpointConfig) error {
-	var options runctypes.CheckpointOptions
-	if r.Options != nil {
-		v, err := typeurl.UnmarshalAny(r.Options)
-		if err != nil {
-			return err
-		}
-		options = *v.(*runctypes.CheckpointOptions)
-	}
 	var actions []runc.CheckpointAction
-	if !options.Exit {
+	if !r.Exit {
 		actions = append(actions, runc.LeaveRunning)
 	}
-	work := filepath.Join(p.workDir, "criu-work")
+	work := filepath.Join(p.WorkDir, "criu-work")
 	defer os.RemoveAll(work)
 	if err := p.runtime.Checkpoint(context, p.id, &runc.CheckpointOpts{
 		WorkDir:                  work,
 		ImagePath:                r.Path,
-		AllowOpenTCP:             options.OpenTcp,
-		AllowExternalUnixSockets: options.ExternalUnixSockets,
-		AllowTerminal:            options.Terminal,
-		FileLocks:                options.FileLocks,
-		EmptyNamespaces:          options.EmptyNamespaces,
+		AllowOpenTCP:             r.AllowOpenTCP,
+		AllowExternalUnixSockets: r.AllowExternalUnixSockets,
+		AllowTerminal:            r.AllowTerminal,
+		FileLocks:                r.FileLocks,
+		EmptyNamespaces:          r.EmptyNamespaces,
 	}, actions...); err != nil {
-		dumpLog := filepath.Join(p.bundle, "criu-dump.log")
+		dumpLog := filepath.Join(p.Bundle, "criu-dump.log")
 		if cerr := copyFile(dumpLog, filepath.Join(work, "dump.log")); cerr != nil {
 			log.G(context).Error(err)
 		}

@@ -19,6 +19,8 @@
 		MemoryEntry
 		BlkIOStat
 		BlkIOEntry
+		RdmaStat
+		RdmaEntry
 */
 package cgroups
 
@@ -49,6 +51,7 @@ type Metrics struct {
 	CPU     *CPUStat       `protobuf:"bytes,3,opt,name=cpu" json:"cpu,omitempty"`
 	Memory  *MemoryStat    `protobuf:"bytes,4,opt,name=memory" json:"memory,omitempty"`
 	Blkio   *BlkIOStat     `protobuf:"bytes,5,opt,name=blkio" json:"blkio,omitempty"`
+	Rdma    *RdmaStat      `protobuf:"bytes,6,opt,name=rdma" json:"rdma,omitempty"`
 }
 
 func (m *Metrics) Reset()                    { *m = Metrics{} }
@@ -187,6 +190,25 @@ func (m *BlkIOEntry) Reset()                    { *m = BlkIOEntry{} }
 func (*BlkIOEntry) ProtoMessage()               {}
 func (*BlkIOEntry) Descriptor() ([]byte, []int) { return fileDescriptorMetrics, []int{9} }
 
+type RdmaStat struct {
+	Current []*RdmaEntry `protobuf:"bytes,1,rep,name=current" json:"current,omitempty"`
+	Limit   []*RdmaEntry `protobuf:"bytes,2,rep,name=limit" json:"limit,omitempty"`
+}
+
+func (m *RdmaStat) Reset()                    { *m = RdmaStat{} }
+func (*RdmaStat) ProtoMessage()               {}
+func (*RdmaStat) Descriptor() ([]byte, []int) { return fileDescriptorMetrics, []int{10} }
+
+type RdmaEntry struct {
+	Device     string `protobuf:"bytes,1,opt,name=device,proto3" json:"device,omitempty"`
+	HcaHandles uint32 `protobuf:"varint,2,opt,name=hca_handles,json=hcaHandles,proto3" json:"hca_handles,omitempty"`
+	HcaObjects uint32 `protobuf:"varint,3,opt,name=hca_objects,json=hcaObjects,proto3" json:"hca_objects,omitempty"`
+}
+
+func (m *RdmaEntry) Reset()                    { *m = RdmaEntry{} }
+func (*RdmaEntry) ProtoMessage()               {}
+func (*RdmaEntry) Descriptor() ([]byte, []int) { return fileDescriptorMetrics, []int{11} }
+
 func init() {
 	proto.RegisterType((*Metrics)(nil), "io.containerd.cgroups.v1.Metrics")
 	proto.RegisterType((*HugetlbStat)(nil), "io.containerd.cgroups.v1.HugetlbStat")
@@ -198,6 +220,8 @@ func init() {
 	proto.RegisterType((*MemoryEntry)(nil), "io.containerd.cgroups.v1.MemoryEntry")
 	proto.RegisterType((*BlkIOStat)(nil), "io.containerd.cgroups.v1.BlkIOStat")
 	proto.RegisterType((*BlkIOEntry)(nil), "io.containerd.cgroups.v1.BlkIOEntry")
+	proto.RegisterType((*RdmaStat)(nil), "io.containerd.cgroups.v1.RdmaStat")
+	proto.RegisterType((*RdmaEntry)(nil), "io.containerd.cgroups.v1.RdmaEntry")
 }
 func (m *Metrics) Marshal() (dAtA []byte, err error) {
 	size := m.Size()
@@ -265,6 +289,16 @@ func (m *Metrics) MarshalTo(dAtA []byte) (int, error) {
 			return 0, err
 		}
 		i += n4
+	}
+	if m.Rdma != nil {
+		dAtA[i] = 0x32
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.Rdma.Size()))
+		n5, err := m.Rdma.MarshalTo(dAtA[i:])
+		if err != nil {
+			return 0, err
+		}
+		i += n5
 	}
 	return i, nil
 }
@@ -732,6 +766,7 @@ func (m *MemoryEntry) MarshalTo(dAtA []byte) (int, error) {
 	_ = i
 	var l int
 	_ = l
+
 	if m.Limit != 0 {
 		dAtA[i] = 0x8
 		i++
@@ -914,6 +949,82 @@ func (m *BlkIOEntry) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *RdmaStat) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RdmaStat) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Current) > 0 {
+		for _, msg := range m.Current {
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if len(m.Limit) > 0 {
+		for _, msg := range m.Limit {
+			dAtA[i] = 0x12
+			i++
+			i = encodeVarintMetrics(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	return i, nil
+}
+
+func (m *RdmaEntry) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *RdmaEntry) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Device) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(len(m.Device)))
+		i += copy(dAtA[i:], m.Device)
+	}
+	if m.HcaHandles != 0 {
+		dAtA[i] = 0x10
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.HcaHandles))
+	}
+	if m.HcaObjects != 0 {
+		dAtA[i] = 0x18
+		i++
+		i = encodeVarintMetrics(dAtA, i, uint64(m.HcaObjects))
+	}
+	return i, nil
+}
+
 func encodeFixed64Metrics(dAtA []byte, offset int, v uint64) int {
 	dAtA[offset] = uint8(v)
 	dAtA[offset+1] = uint8(v >> 8)
@@ -964,6 +1075,10 @@ func (m *Metrics) Size() (n int) {
 	}
 	if m.Blkio != nil {
 		l = m.Blkio.Size()
+		n += 1 + l + sovMetrics(uint64(l))
+	}
+	if m.Rdma != nil {
+		l = m.Rdma.Size()
 		n += 1 + l + sovMetrics(uint64(l))
 	}
 	return n
@@ -1264,6 +1379,40 @@ func (m *BlkIOEntry) Size() (n int) {
 	return n
 }
 
+func (m *RdmaStat) Size() (n int) {
+	var l int
+	_ = l
+	if len(m.Current) > 0 {
+		for _, e := range m.Current {
+			l = e.Size()
+			n += 1 + l + sovMetrics(uint64(l))
+		}
+	}
+	if len(m.Limit) > 0 {
+		for _, e := range m.Limit {
+			l = e.Size()
+			n += 1 + l + sovMetrics(uint64(l))
+		}
+	}
+	return n
+}
+
+func (m *RdmaEntry) Size() (n int) {
+	var l int
+	_ = l
+	l = len(m.Device)
+	if l > 0 {
+		n += 1 + l + sovMetrics(uint64(l))
+	}
+	if m.HcaHandles != 0 {
+		n += 1 + sovMetrics(uint64(m.HcaHandles))
+	}
+	if m.HcaObjects != 0 {
+		n += 1 + sovMetrics(uint64(m.HcaObjects))
+	}
+	return n
+}
+
 func sovMetrics(x uint64) (n int) {
 	for {
 		n++
@@ -1287,6 +1436,7 @@ func (this *Metrics) String() string {
 		`CPU:` + strings.Replace(fmt.Sprintf("%v", this.CPU), "CPUStat", "CPUStat", 1) + `,`,
 		`Memory:` + strings.Replace(fmt.Sprintf("%v", this.Memory), "MemoryStat", "MemoryStat", 1) + `,`,
 		`Blkio:` + strings.Replace(fmt.Sprintf("%v", this.Blkio), "BlkIOStat", "BlkIOStat", 1) + `,`,
+		`Rdma:` + strings.Replace(fmt.Sprintf("%v", this.Rdma), "RdmaStat", "RdmaStat", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -1440,6 +1590,29 @@ func (this *BlkIOEntry) String() string {
 	}, "")
 	return s
 }
+func (this *RdmaStat) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RdmaStat{`,
+		`Current:` + strings.Replace(fmt.Sprintf("%v", this.Current), "RdmaEntry", "RdmaEntry", 1) + `,`,
+		`Limit:` + strings.Replace(fmt.Sprintf("%v", this.Limit), "RdmaEntry", "RdmaEntry", 1) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *RdmaEntry) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&RdmaEntry{`,
+		`Device:` + fmt.Sprintf("%v", this.Device) + `,`,
+		`HcaHandles:` + fmt.Sprintf("%v", this.HcaHandles) + `,`,
+		`HcaObjects:` + fmt.Sprintf("%v", this.HcaObjects) + `,`,
+		`}`,
+	}, "")
+	return s
+}
 func valueToStringMetrics(v interface{}) string {
 	rv := reflect.ValueOf(v)
 	if rv.IsNil() {
@@ -1451,6 +1624,7 @@ func valueToStringMetrics(v interface{}) string {
 func (m *Metrics) Unmarshal(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
+
 	for iNdEx < l {
 		preIndex := iNdEx
 		var wire uint64
@@ -1637,6 +1811,39 @@ func (m *Metrics) Unmarshal(dAtA []byte) error {
 				m.Blkio = &BlkIOStat{}
 			}
 			if err := m.Blkio.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 6:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Rdma", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Rdma == nil {
+				m.Rdma = &RdmaStat{}
+			}
+			if err := m.Rdma.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -3656,6 +3863,236 @@ func (m *BlkIOEntry) Unmarshal(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *RdmaStat) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMetrics
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RdmaStat: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RdmaStat: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Current", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Current = append(m.Current, &RdmaEntry{})
+			if err := m.Current[len(m.Current)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Limit", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= (int(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			postIndex := iNdEx + msglen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Limit = append(m.Limit, &RdmaEntry{})
+			if err := m.Limit[len(m.Limit)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMetrics(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *RdmaEntry) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowMetrics
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= (uint64(b) & 0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: RdmaEntry: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: RdmaEntry: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Device", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= (uint64(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Device = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HcaHandles", wireType)
+			}
+			m.HcaHandles = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HcaHandles |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field HcaObjects", wireType)
+			}
+			m.HcaObjects = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowMetrics
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.HcaObjects |= (uint32(b) & 0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		default:
+			iNdEx = preIndex
+			skippy, err := skipMetrics(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthMetrics
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+
 func skipMetrics(dAtA []byte) (n int, err error) {
 	l := len(dAtA)
 	iNdEx := 0

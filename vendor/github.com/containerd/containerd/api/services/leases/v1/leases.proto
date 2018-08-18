@@ -47,6 +47,12 @@ message CreateResponse {
 
 message DeleteRequest {
 	string id = 1;
+
+	// Sync indicates that the delete and cleanup should be done
+	// synchronously before returning to the caller
+	//
+	// Default is false
+	bool sync = 2;
 }
 
 message ListRequest {

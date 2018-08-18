@@ -40,9 +40,9 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/runtime"
-	"github.com/containerd/containerd/runtime/linux/proc"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
-	shim "github.com/containerd/containerd/runtime/shim/v1"
+	"github.com/containerd/containerd/runtime/v1/linux/proc"
+	shim "github.com/containerd/containerd/runtime/v1/shim/v1"
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
@@ -69,7 +69,6 @@ func init() {
 		ID:     "linux",
 		InitFn: New,
 		Requires: []plugin.Type{
-			plugin.TaskMonitorPlugin,
 			plugin.MetadataPlugin,
 		},
 		Config: &Config{
@@ -105,10 +104,6 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 	if err := os.MkdirAll(ic.State, 0711); err != nil {
 		return nil, err
 	}
-	monitor, err := ic.Get(plugin.TaskMonitorPlugin)
-	if err != nil {
-		return nil, err
-	}
 	m, err := ic.Get(plugin.MetadataPlugin)
 	if err != nil {
 		return nil, err
@@ -117,7 +112,6 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 	r := &Runtime{
 		root:    ic.Root,
 		state:   ic.State,
-		monitor: monitor.(runtime.TaskMonitor),
 		tasks:   runtime.NewTaskList(),
 		db:      m.(*metadata.DB),
 		address: ic.Address,
@@ -128,8 +122,6 @@ func New(ic *plugin.InitContext) (interface{}, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	// TODO: need to add the tasks to the monitor
 	for _, t := range tasks {
 		if err := r.tasks.AddWithNamespace(t.namespace, t); err != nil {
 			return nil, err
@@ -144,10 +136,9 @@ type Runtime struct {
 	state   string
 	address string
 
-	monitor runtime.TaskMonitor
-	tasks   *runtime.TaskList
-	db      *metadata.DB
-	events  *exchange.Exchange
+	tasks  *runtime.TaskList
+	db     *metadata.DB
+	events *exchange.Exchange
 
 	config *Config
 }
@@ -189,8 +180,8 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	shimopt := ShimLocal(r.config, r.events)
 	if !r.config.NoShim {
 		var cgroup string
-		if opts.Options != nil {
-			v, err := typeurl.UnmarshalAny(opts.Options)
+		if opts.TaskOptions != nil {
+			v, err := typeurl.UnmarshalAny(opts.TaskOptions)
 			if err != nil {
 				return nil, err
 			}
@@ -204,14 +195,6 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 				return
 			}
 			lc := t.(*Task)
-
-			// Stop the monitor
-			if err := r.monitor.Stop(lc); err != nil {
-				log.G(ctx).WithError(err).WithFields(logrus.Fields{
-					"id":        id,
-					"namespace": namespace,
-				}).Warn("failed to stop monitor")
-			}
 
 			log.G(ctx).WithFields(logrus.Fields{
 				"id":        id,
@@ -252,7 +235,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 		Stderr:     opts.IO.Stderr,
 		Terminal:   opts.IO.Terminal,
 		Checkpoint: opts.Checkpoint,
-		Options:    opts.Options,
+		Options:    opts.TaskOptions,
 	}
 	for _, m := range opts.Rootfs {
 		sopts.Rootfs = append(sopts.Rootfs, &types.Mount{
@@ -265,23 +248,13 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
 	}
-	t, err := newTask(id, namespace, int(cr.Pid), s, r.monitor, r.events,
-		proc.NewRunc(ropts.RuntimeRoot, sopts.Bundle, namespace, rt, ropts.CriuPath, ropts.SystemdCgroup))
+	t, err := newTask(id, namespace, int(cr.Pid), s, r.events,
+		proc.NewRunc(ropts.RuntimeRoot, sopts.Bundle, namespace, rt, ropts.CriuPath, ropts.SystemdCgroup), r.tasks, bundle)
 	if err != nil {
 		return nil, err
 	}
 	if err := r.tasks.Add(ctx, t); err != nil {
 		return nil, err
-	}
-	// after the task is created, add it to the monitor if it has a cgroup
-	// this can be different on a checkpoint/restore
-	if t.cg != nil {
-		if err = r.monitor.Monitor(t); err != nil {
-			if _, err := r.Delete(ctx, t); err != nil {
-				log.G(ctx).WithError(err).Error("deleting task after failed monitor")
-			}
-			return nil, err
-		}
 	}
 	r.events.Publish(ctx, runtime.TaskCreateEventTopic, &eventstypes.TaskCreate{
 		ContainerID: sopts.ID,
@@ -300,56 +273,9 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	return t, nil
 }
 
-// Delete a task removing all on disk state
-func (r *Runtime) Delete(ctx context.Context, c runtime.Task) (*runtime.Exit, error) {
-	namespace, err := namespaces.NamespaceRequired(ctx)
-	if err != nil {
-		return nil, err
-	}
-	lc, ok := c.(*Task)
-	if !ok {
-		return nil, fmt.Errorf("task cannot be cast as *linux.Task")
-	}
-	if err := r.monitor.Stop(lc); err != nil {
-		return nil, err
-	}
-	bundle := loadBundle(
-		lc.id,
-		filepath.Join(r.state, namespace, lc.id),
-		filepath.Join(r.root, namespace, lc.id),
-	)
-
-	rsp, err := lc.shim.Delete(ctx, empty)
-	if err != nil {
-		if cerr := r.cleanupAfterDeadShim(ctx, bundle, namespace, c.ID(), lc.pid); cerr != nil {
-			log.G(ctx).WithError(err).Error("unable to cleanup task")
-		}
-		return nil, errdefs.FromGRPC(err)
-	}
-	r.tasks.Delete(ctx, lc.id)
-	if err := lc.shim.KillShim(ctx); err != nil {
-		log.G(ctx).WithError(err).Error("failed to kill shim")
-	}
-
-	if err := bundle.Delete(); err != nil {
-		log.G(ctx).WithError(err).Error("failed to delete bundle")
-	}
-	r.events.Publish(ctx, runtime.TaskDeleteEventTopic, &eventstypes.TaskDelete{
-		ContainerID: lc.id,
-		ExitStatus:  rsp.ExitStatus,
-		ExitedAt:    rsp.ExitedAt,
-		Pid:         rsp.Pid,
-	})
-	return &runtime.Exit{
-		Status:    rsp.ExitStatus,
-		Timestamp: rsp.ExitedAt,
-		Pid:       rsp.Pid,
-	}, nil
-}
-
 // Tasks returns all tasks known to the runtime
-func (r *Runtime) Tasks(ctx context.Context) ([]runtime.Task, error) {
-	return r.tasks.GetAll(ctx)
+func (r *Runtime) Tasks(ctx context.Context, all bool) ([]runtime.Task, error) {
+	return r.tasks.GetAll(ctx, all)
 }
 
 func (r *Runtime) restoreTasks(ctx context.Context) ([]*Task, error) {
@@ -422,8 +348,8 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 			continue
 		}
 
-		t, err := newTask(id, ns, pid, s, r.monitor, r.events,
-			proc.NewRunc(ropts.RuntimeRoot, bundle.path, ns, ropts.Runtime, ropts.CriuPath, ropts.SystemdCgroup))
+		t, err := newTask(id, ns, pid, s, r.events,
+			proc.NewRunc(ropts.RuntimeRoot, bundle.path, ns, ropts.Runtime, ropts.CriuPath, ropts.SystemdCgroup), r.tasks, bundle)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("loading task type")
 			continue

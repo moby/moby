@@ -66,6 +66,7 @@ type Runc struct {
 	Setpgid       bool
 	Criu          string
 	SystemdCgroup bool
+	Rootless      *bool // nil stands for "auto"
 }
 
 // List returns all containers created inside the provided runc root directory
@@ -208,7 +209,7 @@ func (o *ExecOpts) args() (out []string, err error) {
 // Exec executres and additional process inside the container based on a full
 // OCI Process specification
 func (r *Runc) Exec(context context.Context, id string, spec specs.Process, opts *ExecOpts) error {
-	f, err := ioutil.TempFile("", "runc-process")
+	f, err := ioutil.TempFile(os.Getenv("XDG_RUNTIME_DIR"), "runc-process")
 	if err != nil {
 		return err
 	}
@@ -411,7 +412,7 @@ func (r *Runc) Top(context context.Context, id string, psOptions string) (*TopRe
 		return nil, fmt.Errorf("%s: %s", err, data)
 	}
 
-	topResults, err := parsePSOutput(data)
+	topResults, err := ParsePSOutput(data)
 	if err != nil {
 		return nil, fmt.Errorf("%s: ", err)
 	}
@@ -654,6 +655,10 @@ func (r *Runc) args() (out []string) {
 	}
 	if r.SystemdCgroup {
 		out = append(out, "--systemd-cgroup")
+	}
+	if r.Rootless != nil {
+		// nil stands for "auto" (differs from explicit "false")
+		out = append(out, "--rootless="+strconv.FormatBool(*r.Rootless))
 	}
 	return out
 }

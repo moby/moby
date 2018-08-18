@@ -18,14 +18,16 @@ package containerd
 
 import (
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
 	"google.golang.org/grpc"
 )
 
 type clientOpts struct {
-	defaultns   string
-	services    *services
-	dialOptions []grpc.DialOption
+	defaultns      string
+	defaultRuntime string
+	services       *services
+	dialOptions    []grpc.DialOption
 }
 
 // ClientOpt allows callers to set options on the containerd client
@@ -38,6 +40,14 @@ type ClientOpt func(c *clientOpts) error
 func WithDefaultNamespace(ns string) ClientOpt {
 	return func(c *clientOpts) error {
 		c.defaultns = ns
+		return nil
+	}
+}
+
+// WithDefaultRuntime sets the default runtime on the client
+func WithDefaultRuntime(rt string) ClientOpt {
+	return func(c *clientOpts) error {
+		c.defaultRuntime = rt
 		return nil
 	}
 }
@@ -67,6 +77,9 @@ type RemoteOpt func(*Client, *RemoteContext) error
 // WithPlatform allows the caller to specify a platform to retrieve
 // content for
 func WithPlatform(platform string) RemoteOpt {
+	if platform == "" {
+		platform = platforms.Default()
+	}
 	return func(_ *Client, c *RemoteContext) error {
 		for _, p := range c.Platforms {
 			if p == platform {

@@ -25,7 +25,7 @@ import (
 	"github.com/containerd/containerd/api/types/task"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/runtime"
-	shim "github.com/containerd/containerd/runtime/shim/v1"
+	shim "github.com/containerd/containerd/runtime/v1/shim/v1"
 	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
 )
@@ -147,5 +147,20 @@ func (p *Process) Wait(ctx context.Context) (*runtime.Exit, error) {
 	return &runtime.Exit{
 		Timestamp: r.ExitedAt,
 		Status:    r.ExitStatus,
+	}, nil
+}
+
+// Delete the process and return the exit status
+func (p *Process) Delete(ctx context.Context) (*runtime.Exit, error) {
+	r, err := p.t.shim.DeleteProcess(ctx, &shim.DeleteProcessRequest{
+		ID: p.id,
+	})
+	if err != nil {
+		return nil, errdefs.FromGRPC(err)
+	}
+	return &runtime.Exit{
+		Status:    r.ExitStatus,
+		Timestamp: r.ExitedAt,
+		Pid:       r.Pid,
 	}, nil
 }

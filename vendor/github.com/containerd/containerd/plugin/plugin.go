@@ -58,6 +58,8 @@ const (
 	InternalPlugin Type = "io.containerd.internal.v1"
 	// RuntimePlugin implements a runtime
 	RuntimePlugin Type = "io.containerd.runtime.v1"
+	// RuntimePluginV2 implements a runtime v2
+	RuntimePluginV2 Type = "io.containerd.runtime.v2"
 	// ServicePlugin implements a internal service
 	ServicePlugin Type = "io.containerd.service.v1"
 	// GRPCPlugin implements a grpc service

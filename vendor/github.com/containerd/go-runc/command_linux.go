@@ -18,6 +18,7 @@ package runc
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"syscall"
 )
@@ -31,6 +32,7 @@ func (r *Runc) command(context context.Context, args ...string) *exec.Cmd {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Setpgid: r.Setpgid,
 	}
+	cmd.Env = os.Environ()
 	if r.PdeathSignal != 0 {
 		cmd.SysProcAttr.Pdeathsig = r.PdeathSignal
 	}

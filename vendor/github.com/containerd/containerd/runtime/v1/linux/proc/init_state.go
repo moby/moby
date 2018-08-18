@@ -209,7 +209,7 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		s.opts.ConsoleSocket = socket
 	}
 
-	if _, err := s.p.runtime.Restore(ctx, p.id, p.bundle, s.opts); err != nil {
+	if _, err := s.p.runtime.Restore(ctx, p.id, p.Bundle, s.opts); err != nil {
 		return p.runtimeError(err, "OCI runtime restore failed")
 	}
 	if sio.Stdin != "" {
@@ -226,7 +226,7 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
-		console, err = p.platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup)
+		console, err = p.Platform.CopyConsole(ctx, console, sio.Stdin, sio.Stdout, sio.Stderr, &p.wg, &copyWaitGroup)
 		if err != nil {
 			return errors.Wrap(err, "failed to start console copy")
 		}

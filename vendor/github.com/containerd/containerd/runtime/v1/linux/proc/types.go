@@ -55,6 +55,11 @@ type ExecConfig struct {
 
 // CheckpointConfig holds task checkpoint configuration
 type CheckpointConfig struct {
-	Path    string
-	Options *google_protobuf.Any
+	Path                     string
+	Exit                     bool
+	AllowOpenTCP             bool
+	AllowExternalUnixSockets bool
+	AllowTerminal            bool
+	FileLocks                bool
+	EmptyNamespaces          []string
 }
