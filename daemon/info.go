@@ -73,6 +73,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 	daemon.fillDriverInfo(v)
 	daemon.fillPluginsInfo(v)
 	daemon.fillSecurityOptions(v, sysInfo)
+	daemon.fillLicense(v)
 
 	return v, nil
 }

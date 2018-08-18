@@ -57,6 +57,7 @@ DOCKER_ENVS := \
 	-e no_proxy \
 	-e VERSION \
 	-e PLATFORM \
+	-e DEFAULT_PRODUCT_LICENSE \
 	-e PRODUCT
 # note: we _cannot_ add "-e DOCKER_BUILDTAGS" here because even if it's unset in the shell, that would shadow the "ENV DOCKER_BUILDTAGS" set in our Dockerfile, which is very important for our official builds
 

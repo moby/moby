@@ -3896,6 +3896,14 @@ definitions:
           - "name=seccomp,profile=default"
           - "name=selinux"
           - "name=userns"
+      ProductLicense:
+        description: |
+          Reports a summary of the product license on the daemon.
+
+          If a commercial license has been applied to the daemon, information
+          such as number of nodes, and expiration are included.
+        type: "string"
+        example: "Community Engine"
 
 
   # PluginsInfo is a temp struct holding Plugins name
