@@ -3,8 +3,10 @@ package executor
 import (
 	"context"
 	"io"
+	"net"
 
 	"github.com/moby/buildkit/cache"
+	"github.com/moby/buildkit/solver/pb"
 )
 
 type Meta struct {
@@ -14,7 +16,8 @@ type Meta struct {
 	Cwd            string
 	Tty            bool
 	ReadonlyRootFS bool
-	// DisableNetworking bool
+	ExtraHosts     []HostIP
+	NetMode        pb.NetMode
 }
 
 type Mount struct {
@@ -27,4 +30,9 @@ type Mount struct {
 type Executor interface {
 	// TODO: add stdout/err
 	Exec(ctx context.Context, meta Meta, rootfs cache.Mountable, mounts []Mount, stdin io.ReadCloser, stdout, stderr io.WriteCloser) error
+}
+
+type HostIP struct {
+	Host string
+	IP   net.IP
 }

@@ -49,6 +49,11 @@ func (daemon *Daemon) NetworkControllerEnabled() bool {
 	return daemon.netController != nil
 }
 
+// NetworkController returns the network controller created by the daemon.
+func (daemon *Daemon) NetworkController() libnetwork.NetworkController {
+	return daemon.netController
+}
+
 // FindNetwork returns a network based on:
 // 1. Full ID
 // 2. Full Name

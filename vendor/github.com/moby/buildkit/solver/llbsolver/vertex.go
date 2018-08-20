@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/source"
+	"github.com/moby/buildkit/util/entitlements"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -93,6 +94,25 @@ func RuntimePlatforms(p []specs.Platform) LoadOpt {
 			}
 			if !found {
 				return errors.Errorf("runtime execution on platform %s not supported", platforms.Format(specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}))
+			}
+		}
+		return nil
+	}
+}
+
+func ValidateEntitlements(ent entitlements.Set) LoadOpt {
+	return func(op *pb.Op, _ *pb.OpMetadata, opt *solver.VertexOptions) error {
+		switch op := op.Op.(type) {
+		case *pb.Op_Exec:
+			if op.Exec.Network == pb.NetMode_HOST {
+				if !ent.Allowed(entitlements.EntitlementNetworkHost) {
+					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkHost)
+				}
+			}
+			if op.Exec.Network == pb.NetMode_NONE {
+				if !ent.Allowed(entitlements.EntitlementNetworkNone) {
+					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkNone)
+				}
 			}
 		}
 		return nil

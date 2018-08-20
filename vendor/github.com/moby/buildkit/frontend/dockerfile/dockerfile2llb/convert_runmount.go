@@ -57,6 +57,14 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			st = llb.Scratch()
 			mountOpts = append(mountOpts, llb.Tmpfs())
 		}
+		if mount.Type == instructions.MountTypeSecret {
+			secret, err := dispatchSecret(mount)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, secret)
+			continue
+		}
 		if mount.ReadOnly {
 			mountOpts = append(mountOpts, llb.Readonly)
 		}

@@ -25,8 +25,10 @@ service Control {
 }
 
 message PruneRequest {
-	repeated string filter = 1; // FIXME: not implemented
+	repeated string filter = 1;
 	bool all = 2;
+	int64 keepDuration = 3 [(gogoproto.nullable) = true];
+	int64 keepBytes = 4 [(gogoproto.nullable) = true];
 }
 
 message DiskUsageRequest {
@@ -60,6 +62,7 @@ message SolveRequest {
 	string Frontend = 6;
 	map<string, string> FrontendAttrs = 7;
 	CacheOptions Cache = 8 [(gogoproto.nullable) = false];
+	repeated string Entitlements = 9 [(gogoproto.customtype) = "github.com/moby/buildkit/util/entitlements.Entitlement" ];
 }
 
 message CacheOptions {

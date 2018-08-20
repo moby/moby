@@ -3,6 +3,7 @@ package buildkit
 import (
 	"context"
 	"io"
+	"net"
 	"strings"
 	"sync"
 	"time"
@@ -15,21 +16,29 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
+	"github.com/docker/libnetwork"
 	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
+	"github.com/moby/buildkit/solver/llbsolver"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
+func init() {
+	llbsolver.AllowNetworkHostUnstable = true
+}
+
 // Opt is option struct required for creating the builder
 type Opt struct {
-	SessionManager *session.Manager
-	Root           string
-	Dist           images.DistributionServices
+	SessionManager    *session.Manager
+	Root              string
+	Dist              images.DistributionServices
+	NetworkController libnetwork.NetworkController
 }
 
 // Builder can build using BuildKit backend
@@ -228,6 +237,20 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		frontendAttrs["platform"] = opt.Options.Platform
 	}
 
+	switch opt.Options.NetworkMode {
+	case "host", "none":
+		frontendAttrs["force-network-mode"] = opt.Options.NetworkMode
+	case "", "default":
+	default:
+		return nil, errors.Errorf("network mode %q not supported by buildkit", opt.Options.NetworkMode)
+	}
+
+	extraHosts, err := toBuildkitExtraHosts(opt.Options.ExtraHosts)
+	if err != nil {
+		return nil, err
+	}
+	frontendAttrs["add-hosts"] = extraHosts
+
 	exporterAttrs := map[string]string{}
 
 	if len(opt.Options.Tags) > 0 {
@@ -241,6 +264,10 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
 		Session:       opt.Options.SessionID,
+	}
+
+	if opt.Options.NetworkMode == "host" {
+		req.Entitlements = append(req.Entitlements, entitlements.EntitlementNetworkHost)
 	}
 
 	aux := streamformatter.AuxFormatter{Writer: opt.ProgressWriter.Output}
@@ -423,4 +450,20 @@ func (j *buildJob) SetUpload(ctx context.Context, rc io.ReadCloser) error {
 	case fn := <-j.waitCh:
 		return fn(rc)
 	}
+}
+
+// toBuildkitExtraHosts converts hosts from docker key:value format to buildkit's csv format
+func toBuildkitExtraHosts(inp []string) (string, error) {
+	if len(inp) == 0 {
+		return "", nil
+	}
+	hosts := make([]string, 0, len(inp))
+	for _, h := range inp {
+		parts := strings.Split(h, ":")
+		if len(parts) != 2 || parts[0] == "" || net.ParseIP(parts[1]) == nil {
+			return "", errors.Errorf("invalid host %s", h)
+		}
+		hosts = append(hosts, parts[0]+"="+parts[1])
+	}
+	return strings.Join(hosts, ","), nil
 }

@@ -2,21 +2,25 @@ package llb
 
 import (
 	"fmt"
+	"net"
 	"path"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/google/shlex"
+	"github.com/moby/buildkit/solver/pb"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type contextKeyT string
 
 var (
-	keyArgs     = contextKeyT("llb.exec.args")
-	keyDir      = contextKeyT("llb.exec.dir")
-	keyEnv      = contextKeyT("llb.exec.env")
-	keyUser     = contextKeyT("llb.exec.user")
-	keyPlatform = contextKeyT("llb.platform")
+	keyArgs      = contextKeyT("llb.exec.args")
+	keyDir       = contextKeyT("llb.exec.dir")
+	keyEnv       = contextKeyT("llb.exec.env")
+	keyUser      = contextKeyT("llb.exec.user")
+	keyExtraHost = contextKeyT("llb.exec.extrahost")
+	keyPlatform  = contextKeyT("llb.platform")
+	keyNetwork   = contextKeyT("llb.network")
 )
 
 func addEnv(key, value string) StateOption {
@@ -122,6 +126,40 @@ func getPlatform(s State) *specs.Platform {
 		return &p
 	}
 	return nil
+}
+
+func extraHost(host string, ip net.IP) StateOption {
+	return func(s State) State {
+		return s.WithValue(keyExtraHost, append(getExtraHosts(s), HostIP{Host: host, IP: ip}))
+	}
+}
+
+func getExtraHosts(s State) []HostIP {
+	v := s.Value(keyExtraHost)
+	if v != nil {
+		return v.([]HostIP)
+	}
+	return nil
+}
+
+type HostIP struct {
+	Host string
+	IP   net.IP
+}
+
+func network(v pb.NetMode) StateOption {
+	return func(s State) State {
+		return s.WithValue(keyNetwork, v)
+	}
+}
+
+func getNetwork(s State) pb.NetMode {
+	v := s.Value(keyNetwork)
+	if v != nil {
+		n := v.(pb.NetMode)
+		return n
+	}
+	return NetModeSandbox
 }
 
 type EnvList []KeyValue

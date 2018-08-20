@@ -7,17 +7,22 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/remotecache"
 	"github.com/moby/buildkit/client"
+	controlgateway "github.com/moby/buildkit/control/gateway"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
+	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
+
+const keyEntitlements = "llb.entitlements"
 
 type ExporterRequest struct {
 	Exporter        exporter.ExporterInstance
@@ -29,18 +34,22 @@ type ExporterRequest struct {
 type ResolveWorkerFunc func() (worker.Worker, error)
 
 type Solver struct {
+	workerController     *worker.Controller
 	solver               *solver.Solver
 	resolveWorker        ResolveWorkerFunc
 	frontends            map[string]frontend.Frontend
 	resolveCacheImporter remotecache.ResolveCacheImporterFunc
 	platforms            []specs.Platform
+	gatewayForwarder     *controlgateway.GatewayForwarder
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI remotecache.ResolveCacheImporterFunc) (*Solver, error) {
+func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder) (*Solver, error) {
 	s := &Solver{
+		workerController:     wc,
 		resolveWorker:        defaultResolver(wc),
 		frontends:            f,
 		resolveCacheImporter: resolveCI,
+		gatewayForwarder:     gatewayForwarder,
 	}
 
 	// executing is currently only allowed on default worker
@@ -78,7 +87,7 @@ func (s *Solver) Bridge(b solver.Builder) frontend.FrontendLLBBridge {
 	}
 }
 
-func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest) (*client.SolveResponse, error) {
+func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest, exp ExporterRequest, ent []entitlements.Entitlement) (*client.SolveResponse, error) {
 	j, err := s.solver.NewJob(id)
 	if err != nil {
 		return nil, err
@@ -86,11 +95,37 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 
 	defer j.Discard()
 
-	j.SessionID = session.FromContext(ctx)
-
-	res, err := s.Bridge(j).Solve(ctx, req)
+	set, err := entitlements.WhiteList(ent, supportedEntitlements())
 	if err != nil {
 		return nil, err
+	}
+	j.SetValue(keyEntitlements, set)
+
+	j.SessionID = session.FromContext(ctx)
+
+	var res *frontend.Result
+	if s.gatewayForwarder != nil && req.Definition == nil && req.Frontend == "" {
+		fwd := gateway.NewBridgeForwarder(ctx, s.Bridge(j), s.workerController)
+		if err := s.gatewayForwarder.RegisterBuild(ctx, id, fwd); err != nil {
+			return nil, err
+		}
+		defer s.gatewayForwarder.UnregisterBuild(ctx, id)
+
+		var err error
+		select {
+		case <-fwd.Done():
+			res, err = fwd.Result()
+		case <-ctx.Done():
+			err = ctx.Err()
+		}
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		res, err = s.Bridge(j).Solve(ctx, req)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	defer func() {
@@ -104,6 +139,9 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 	if exp := exp.Exporter; exp != nil {
 		inp := exporter.Source{
 			Metadata: res.Metadata,
+		}
+		if inp.Metadata == nil {
+			inp.Metadata = make(map[string][]byte)
 		}
 		if res := res.Ref; res != nil {
 			workerRef, ok := res.Sys().(*worker.WorkerRef)
@@ -164,6 +202,7 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 func (s *Solver) Status(ctx context.Context, id string, statusChan chan *client.SolveStatus) error {
 	j, err := s.solver.Get(id)
 	if err != nil {
+		close(statusChan)
 		return err
 	}
 	return j.Status(ctx, statusChan)
@@ -228,4 +267,32 @@ func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bo
 		v.Error = err.Error()
 	}
 	pw.Write(v.Digest.String(), *v)
+}
+
+var AllowNetworkHostUnstable = false // TODO: enable in constructor
+
+func supportedEntitlements() []entitlements.Entitlement {
+	out := []entitlements.Entitlement{} // nil means no filter
+	if AllowNetworkHostUnstable {
+		out = append(out, entitlements.EntitlementNetworkHost)
+	}
+	return out
+}
+
+func loadEntitlements(b solver.Builder) (entitlements.Set, error) {
+	var ent entitlements.Set = map[entitlements.Entitlement]struct{}{}
+	err := b.EachValue(context.TODO(), keyEntitlements, func(v interface{}) error {
+		set, ok := v.(entitlements.Set)
+		if !ok {
+			return errors.Errorf("invalid entitlements %T", v)
+		}
+		for k := range set {
+			ent[k] = struct{}{}
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return ent, nil
 }

@@ -286,9 +286,10 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		return opts, err
 	}
 	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager: sm,
-		Root:           filepath.Join(config.Root, "buildkit"),
-		Dist:           daemon.DistributionServices(),
+		SessionManager:    sm,
+		Root:              filepath.Join(config.Root, "buildkit"),
+		Dist:              daemon.DistributionServices(),
+		NetworkController: daemon.NetworkController(),
 	})
 	if err != nil {
 		return opts, err

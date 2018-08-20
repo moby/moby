@@ -3,6 +3,7 @@ package llb
 import (
 	"context"
 	"fmt"
+	"net"
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/moby/buildkit/identity"
@@ -181,11 +182,13 @@ func (s State) Run(ro ...RunOption) ExecState {
 		o.SetRunOption(ei)
 	}
 	meta := Meta{
-		Args:     getArgs(ei.State),
-		Cwd:      getDir(ei.State),
-		Env:      getEnv(ei.State),
-		User:     getUser(ei.State),
-		ProxyEnv: ei.ProxyEnv,
+		Args:       getArgs(ei.State),
+		Cwd:        getDir(ei.State),
+		Env:        getEnv(ei.State),
+		User:       getUser(ei.State),
+		ProxyEnv:   ei.ProxyEnv,
+		ExtraHosts: getExtraHosts(ei.State),
+		Network:    getNetwork(ei.State),
 	}
 
 	exec := NewExecOp(s.Output(), meta, ei.ReadonlyRootFS, ei.Constraints)
@@ -247,11 +250,23 @@ func (s State) GetPlatform() *specs.Platform {
 	return getPlatform(s)
 }
 
+func (s State) Network(n pb.NetMode) State {
+	return network(n)(s)
+}
+
+func (s State) GetNetwork() pb.NetMode {
+	return getNetwork(s)
+}
+
 func (s State) With(so ...StateOption) State {
 	for _, o := range so {
 		s = o(s)
 	}
 	return s
+}
+
+func (s State) AddExtraHost(host string, ip net.IP) State {
+	return extraHost(host, ip)(s)
 }
 
 type output struct {
