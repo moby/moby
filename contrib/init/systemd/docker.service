@@ -1,8 +1,9 @@
 [Unit]
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
-After=network-online.target firewalld.service containerd.service
-Wants=network-online.target containerd.service
+BindsTo=containerd.service
+After=network-online.target firewalld.service
+Wants=network-online.target
 
 [Service]
 # Install containerd-shim-process if it's not already installed
