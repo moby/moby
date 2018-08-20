@@ -25,7 +25,10 @@ func optionsHandler(ctx context.Context, w http.ResponseWriter, r *http.Request,
 	return nil
 }
 
-func pingHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if bv := s.builderVersion; bv != "" {
+		w.Header().Set("Builder-Version", string(bv))
+	}
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }

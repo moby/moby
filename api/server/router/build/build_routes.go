@@ -230,8 +230,10 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 		return errdefs.InvalidParameter(errors.New("squash is only supported with experimental mode"))
 	}
 
-	if buildOptions.Version == types.BuilderBuildKit && !br.daemon.HasExperimental() {
-		return errdefs.InvalidParameter(errors.New("buildkit is only supported with experimental mode"))
+	// check if the builder feature has been enabled from daemon as well.
+	if buildOptions.Version == types.BuilderBuildKit &&
+		(br.builderVersion != types.BuilderBuildKit || !br.daemon.HasExperimental()) {
+		return errdefs.InvalidParameter(errors.New("buildkit is not enabled on daemon"))
 	}
 
 	out := io.Writer(output)
