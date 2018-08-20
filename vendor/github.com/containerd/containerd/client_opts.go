@@ -17,6 +17,8 @@
 package containerd
 
 import (
+	"time"
+
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes"
@@ -28,6 +30,7 @@ type clientOpts struct {
 	defaultRuntime string
 	services       *services
 	dialOptions    []grpc.DialOption
+	timeout        time.Duration
 }
 
 // ClientOpt allows callers to set options on the containerd client
@@ -67,6 +70,14 @@ func WithServices(opts ...ServicesOpt) ClientOpt {
 		for _, o := range opts {
 			o(c.services)
 		}
+		return nil
+	}
+}
+
+// WithTimeout sets the connection timeout for the client
+func WithTimeout(d time.Duration) ClientOpt {
+	return func(c *clientOpts) error {
+		c.timeout = d
 		return nil
 	}
 }
