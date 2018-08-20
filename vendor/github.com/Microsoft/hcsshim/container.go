@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strconv"
 	"sync"
 	"syscall"
 	"time"
@@ -136,8 +137,26 @@ type ResourceModificationRequestResponse struct {
 // is merged in the CreateContainer call to HCS.
 var createContainerAdditionalJSON string
 
+// currentContainerStarts is used to limit the number of concurrent container
+// starts.
+var currentContainerStarts containerStarts
+
+type containerStarts struct {
+	maxParallel int
+	inProgress  int
+	sync.Mutex
+}
+
 func init() {
 	createContainerAdditionalJSON = os.Getenv("HCSSHIM_CREATECONTAINER_ADDITIONALJSON")
+	mpsS := os.Getenv("HCSSHIM_MAX_PARALLEL_START")
+	if len(mpsS) > 0 {
+		mpsI, err := strconv.Atoi(mpsS)
+		if err != nil || mpsI < 0 {
+			return
+		}
+		currentContainerStarts.maxParallel = mpsI
+	}
 }
 
 // CreateContainer creates a new container with the given configuration but does not start it.
@@ -323,6 +342,32 @@ func (container *container) Start() error {
 
 	if container.handle == 0 {
 		return makeContainerError(container, operation, "", ErrAlreadyClosed)
+	}
+
+	// This is a very simple backoff-retry loop to limit the number
+	// of parallel container starts if environment variable
+	// HCSSHIM_MAX_PARALLEL_START is set to a positive integer.
+	// It should generally only be used as a workaround to various
+	// platform issues that exist between RS1 and RS4 as of Aug 2018.
+	if currentContainerStarts.maxParallel > 0 {
+		for {
+			currentContainerStarts.Lock()
+			if currentContainerStarts.inProgress < currentContainerStarts.maxParallel {
+				currentContainerStarts.inProgress++
+				currentContainerStarts.Unlock()
+				break
+			}
+			if currentContainerStarts.inProgress == currentContainerStarts.maxParallel {
+				currentContainerStarts.Unlock()
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+		// Make sure we decrement the count when we are done.
+		defer func() {
+			currentContainerStarts.Lock()
+			currentContainerStarts.inProgress--
+			currentContainerStarts.Unlock()
+		}()
 	}
 
 	var resultp *uint16
