@@ -18,6 +18,11 @@ import (
 
 const networkName = "bridge"
 
+func init() {
+	// FIXME: https://github.com/moby/moby/issues/37676
+	runcexecutor.DisableSubReaper()
+}
+
 func newExecutor(root string, net libnetwork.NetworkController) (executor.Executor, error) {
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:              filepath.Join(root, "executor"),
