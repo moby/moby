@@ -1,12 +1,16 @@
 package jsonfilelog // import "github.com/docker/docker/daemon/logger/jsonfilelog"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog/jsonlog"
+	"github.com/docker/docker/daemon/logger/loggerutils"
+	"github.com/docker/docker/pkg/tailfile"
+	"github.com/sirupsen/logrus"
 )
 
 const maxJSONDecodeRetry = 20000
@@ -63,14 +67,14 @@ func decodeFunc(rdr io.Reader) func() (*logger.Message, error) {
 	return func() (msg *logger.Message, err error) {
 		for retries := 0; retries < maxJSONDecodeRetry; retries++ {
 			msg, err = decodeLogLine(dec, l)
-			if err == nil {
+			if err == nil || err == io.EOF {
 				break
 			}
 
+			logrus.WithError(err).WithField("retries", retries).Warn("got error while decoding json")
 			// try again, could be due to a an incomplete json object as we read
 			if _, ok := err.(*json.SyntaxError); ok {
 				dec = json.NewDecoder(rdr)
-				retries++
 				continue
 			}
 
@@ -81,9 +85,13 @@ func decodeFunc(rdr io.Reader) func() (*logger.Message, error) {
 			if err == io.ErrUnexpectedEOF {
 				reader := io.MultiReader(dec.Buffered(), rdr)
 				dec = json.NewDecoder(reader)
-				retries++
+				continue
 			}
 		}
 		return msg, err
 	}
+}
+
+func getTailReader(ctx context.Context, r loggerutils.SizeReaderAt, req int) (io.Reader, int, error) {
+	return tailfile.NewTailReader(ctx, r, req)
 }

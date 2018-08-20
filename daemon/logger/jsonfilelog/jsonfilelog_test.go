@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"compress/gzip"
 	"encoding/json"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -107,7 +108,10 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 		ContainerID: "a7317399f3f857173c6179d44823594f8294678dea9999662e5c625b5a1c7657",
 		LogPath:     tmp.Join("container.log"),
 		Config: map[string]string{
-			"labels": "first,second",
+			"labels":   "first,second",
+			"max-file": "10",
+			"compress": "true",
+			"max-size": "20m",
 		},
 		ContainerLabels: map[string]string{
 			"first":  "label_value",
@@ -117,21 +121,34 @@ func BenchmarkJSONFileLoggerLog(b *testing.B) {
 	assert.NilError(b, err)
 	defer jsonlogger.Close()
 
-	msg := &logger.Message{
-		Line:      []byte("Line that thinks that it is log line from docker\n"),
-		Source:    "stderr",
-		Timestamp: time.Now().UTC(),
-	}
+	t := time.Now().UTC()
+	for _, data := range [][]byte{
+		[]byte(""),
+		[]byte("a short string"),
+		bytes.Repeat([]byte("a long string"), 100),
+		bytes.Repeat([]byte("a really long string"), 10000),
+	} {
+		b.Run(fmt.Sprintf("%d", len(data)), func(b *testing.B) {
+			testMsg := &logger.Message{
+				Line:      data,
+				Source:    "stderr",
+				Timestamp: t,
+			}
 
-	buf := bytes.NewBuffer(nil)
-	assert.NilError(b, marshalMessage(msg, nil, buf))
-	b.SetBytes(int64(buf.Len()))
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		if err := jsonlogger.Log(msg); err != nil {
-			b.Fatal(err)
-		}
+			buf := bytes.NewBuffer(nil)
+			assert.NilError(b, marshalMessage(testMsg, nil, buf))
+			b.SetBytes(int64(buf.Len()))
+			b.ResetTimer()
+			for i := 0; i < b.N; i++ {
+				msg := logger.NewMessage()
+				msg.Line = testMsg.Line
+				msg.Timestamp = testMsg.Timestamp
+				msg.Source = testMsg.Source
+				if err := jsonlogger.Log(msg); err != nil {
+					b.Fatal(err)
+				}
+			}
+		})
 	}
 }
 

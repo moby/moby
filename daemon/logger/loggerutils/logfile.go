@@ -1,7 +1,6 @@
 package loggerutils // import "github.com/docker/docker/daemon/logger/loggerutils"
 
 import (
-	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/json"
@@ -15,11 +14,9 @@ import (
 	"time"
 
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/logger/loggerutils/multireader"
 	"github.com/docker/docker/pkg/filenotify"
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/pubsub"
-	"github.com/docker/docker/pkg/tailfile"
 	"github.com/fsnotify/fsnotify"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -93,13 +90,27 @@ type LogFile struct {
 	notifyRotate    *pubsub.Publisher
 	marshal         logger.MarshalFunc
 	createDecoder   makeDecoderFunc
+	getTailReader   GetTailReaderFunc
 	perms           os.FileMode
 }
 
 type makeDecoderFunc func(rdr io.Reader) func() (*logger.Message, error)
 
+// SizeReaderAt defines a ReaderAt that also reports its size.
+// This is used for tailing log files.
+type SizeReaderAt interface {
+	io.ReaderAt
+	Size() int64
+}
+
+// GetTailReaderFunc is used to truncate a reader to only read as much as is required
+// in order to get the passed in number of log lines.
+// It returns the sectioned reader, the number of lines that the section reader
+// contains, and any error that occurs.
+type GetTailReaderFunc func(ctx context.Context, f SizeReaderAt, nLogLines int) (rdr io.Reader, nLines int, err error)
+
 // NewLogFile creates new LogFile
-func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode) (*LogFile, error) {
+func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, marshaller logger.MarshalFunc, decodeFunc makeDecoderFunc, perms os.FileMode, getTailReader GetTailReaderFunc) (*LogFile, error) {
 	log, err := os.OpenFile(logPath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, perms)
 	if err != nil {
 		return nil, err
@@ -121,6 +132,7 @@ func NewLogFile(logPath string, capacity int64, maxFiles int, compress bool, mar
 		marshal:         marshaller,
 		createDecoder:   decodeFunc,
 		perms:           perms,
+		getTailReader:   getTailReader,
 	}, nil
 }
 
@@ -310,33 +322,45 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 	}
 
 	if config.Tail != 0 {
+		// TODO(@cpuguy83): Instead of opening every file, only get the files which
+		// are needed to tail.
+		// This is especially costly when compression is enabled.
 		files, err := w.openRotatedFiles(config)
+		w.mu.RUnlock()
 		if err != nil {
-			w.mu.RUnlock()
 			watcher.Err <- err
 			return
 		}
-		w.mu.RUnlock()
-		seekers := make([]io.ReadSeeker, 0, len(files)+1)
-		for _, f := range files {
-			seekers = append(seekers, f)
-		}
-		if currentChunk.Size() > 0 {
-			seekers = append(seekers, currentChunk)
-		}
-		if len(seekers) > 0 {
-			tailFile(multireader.MultiReadSeeker(seekers...), watcher, w.createDecoder, config)
-		}
-		for _, f := range files {
-			f.Close()
-			fileName := f.Name()
-			if strings.HasSuffix(fileName, tmpLogfileSuffix) {
-				err := w.filesRefCounter.Dereference(fileName)
-				if err != nil {
-					logrus.Errorf("Failed to dereference log file %q: %v", fileName, err)
+
+		closeFiles := func() {
+			for _, f := range files {
+				f.Close()
+				fileName := f.Name()
+				if strings.HasSuffix(fileName, tmpLogfileSuffix) {
+					err := w.filesRefCounter.Dereference(fileName)
+					if err != nil {
+						logrus.Errorf("Failed to dereference the log file %q: %v", fileName, err)
+					}
 				}
 			}
 		}
+
+		readers := make([]SizeReaderAt, 0, len(files)+1)
+		for _, f := range files {
+			stat, err := f.Stat()
+			if err != nil {
+				watcher.Err <- errors.Wrap(err, "error reading size of rotated file")
+				closeFiles()
+				return
+			}
+			readers = append(readers, io.NewSectionReader(f, 0, stat.Size()))
+		}
+		if currentChunk.Size() > 0 {
+			readers = append(readers, currentChunk)
+		}
+
+		tailFiles(readers, watcher, w.createDecoder, w.getTailReader, config)
+		closeFiles()
 
 		w.mu.RLock()
 	}
@@ -455,19 +479,39 @@ func newSectionReader(f *os.File) (*io.SectionReader, error) {
 	return io.NewSectionReader(f, 0, size), nil
 }
 
-type decodeFunc func() (*logger.Message, error)
+func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder makeDecoderFunc, getTailReader GetTailReaderFunc, config logger.ReadConfig) {
+	nLines := config.Tail
 
-func tailFile(f io.ReadSeeker, watcher *logger.LogWatcher, createDecoder makeDecoderFunc, config logger.ReadConfig) {
-	var rdr io.Reader = f
-	if config.Tail > 0 {
-		ls, err := tailfile.TailFile(f, config.Tail)
-		if err != nil {
-			watcher.Err <- err
-			return
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	// TODO(@cpuguy83): we should plumb a context through instead of dealing with `WatchClose()` here.
+	go func() {
+		select {
+		case <-ctx.Done():
+		case <-watcher.WatchClose():
+			cancel()
 		}
-		rdr = bytes.NewBuffer(bytes.Join(ls, []byte("\n")))
+	}()
+
+	readers := make([]io.Reader, 0, len(files))
+
+	if config.Tail > 0 {
+		for i := len(files) - 1; i >= 0 && nLines > 0; i-- {
+			tail, n, err := getTailReader(ctx, files[i], nLines)
+			if err != nil {
+				watcher.Err <- errors.Wrap(err, "error finding file position to start log tailing")
+				return
+			}
+			nLines -= n
+			readers = append([]io.Reader{tail}, readers...)
+		}
+	} else {
+		for _, r := range files {
+			readers = append(readers, &wrappedReaderAt{ReaderAt: r})
+		}
 	}
 
+	rdr := io.MultiReader(readers...)
 	decodeLogLine := createDecoder(rdr)
 	for {
 		msg, err := decodeLogLine()
@@ -484,7 +528,7 @@ func tailFile(f io.ReadSeeker, watcher *logger.LogWatcher, createDecoder makeDec
 			return
 		}
 		select {
-		case <-watcher.WatchClose():
+		case <-ctx.Done():
 			return
 		case watcher.Msg <- msg:
 		}
@@ -677,4 +721,15 @@ func watchFile(name string) (filenotify.FileWatcher, error) {
 	}
 
 	return fileWatcher, nil
+}
+
+type wrappedReaderAt struct {
+	io.ReaderAt
+	pos int64
+}
+
+func (r *wrappedReaderAt) Read(p []byte) (int, error) {
+	n, err := r.ReaderAt.ReadAt(p, r.pos)
+	r.pos += int64(n)
+	return n, err
 }

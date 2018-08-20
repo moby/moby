@@ -110,7 +110,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		return b, nil
 	}
 
-	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, compress, marshalFunc, decodeFunc, 0640)
+	writer, err := loggerutils.NewLogFile(info.LogPath, capval, maxFiles, compress, marshalFunc, decodeFunc, 0640, getTailReader)
 	if err != nil {
 		return nil, err
 	}

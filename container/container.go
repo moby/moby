@@ -22,7 +22,9 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/logger/jsonfilelog"
+	"github.com/docker/docker/daemon/logger/local"
 	"github.com/docker/docker/daemon/network"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
@@ -375,13 +377,27 @@ func (container *Container) StartLogger() (logger.Logger, error) {
 	}
 
 	// Set logging file for "json-logger"
-	if cfg.Type == jsonfilelog.Name {
+	// TODO(@cpuguy83): Setup here based on log driver is a little weird.
+	switch cfg.Type {
+	case jsonfilelog.Name:
 		info.LogPath, err = container.GetRootResourcePath(fmt.Sprintf("%s-json.log", container.ID))
 		if err != nil {
 			return nil, err
 		}
 
 		container.LogPath = info.LogPath
+	case local.Name:
+		// Do not set container.LogPath for the local driver
+		// This would expose the value to the API, which should not be done as it means
+		// that the log file implementation would become a stable API that cannot change.
+		logDir, err := container.GetRootResourcePath("local-logs")
+		if err != nil {
+			return nil, err
+		}
+		if err := os.MkdirAll(logDir, 0700); err != nil {
+			return nil, errdefs.System(errors.Wrap(err, "error creating local logs dir"))
+		}
+		info.LogPath = filepath.Join(logDir, "container.log")
 	}
 
 	l, err := initDriver(info)
