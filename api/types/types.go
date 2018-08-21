@@ -206,6 +206,7 @@ type Info struct {
 	InitCommit         Commit
 	SecurityOptions    []string
 	ProductLicense     string `json:",omitempty"`
+	Warnings           []string
 }
 
 // KeyValue holds a key/value pair
