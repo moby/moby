@@ -24,6 +24,6 @@ func (r *sessionRouter) Routes() []router.Route {
 
 func (r *sessionRouter) initRoutes() {
 	r.routes = []router.Route{
-		router.Experimental(router.NewPostRoute("/session", r.startSession)),
+		router.NewPostRoute("/session", r.startSession),
 	}
 }
