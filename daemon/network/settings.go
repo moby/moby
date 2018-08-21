@@ -2,6 +2,7 @@ package network // import "github.com/docker/docker/daemon/network"
 
 import (
 	"net"
+	"sync"
 
 	networktypes "github.com/docker/docker/api/types/network"
 	clustertypes "github.com/docker/docker/daemon/cluster/provider"
@@ -37,6 +38,7 @@ type EndpointSettings struct {
 
 // AttachmentStore stores the load balancer IP address for a network id.
 type AttachmentStore struct {
+	sync.Mutex
 	//key: networkd id
 	//value: load balancer ip address
 	networkToNodeLBIP map[string]net.IP
@@ -45,7 +47,9 @@ type AttachmentStore struct {
 // ResetAttachments clears any existing load balancer IP to network mapping and
 // sets the mapping to the given attachments.
 func (store *AttachmentStore) ResetAttachments(attachments map[string]string) error {
-	store.ClearAttachments()
+	store.Lock()
+	defer store.Unlock()
+	store.clearAttachments()
 	for nid, nodeIP := range attachments {
 		ip, _, err := net.ParseCIDR(nodeIP)
 		if err != nil {
@@ -59,11 +63,19 @@ func (store *AttachmentStore) ResetAttachments(attachments map[string]string) er
 
 // ClearAttachments clears all the mappings of network to load balancer IP Address.
 func (store *AttachmentStore) ClearAttachments() {
+	store.Lock()
+	defer store.Unlock()
+	store.clearAttachments()
+}
+
+func (store *AttachmentStore) clearAttachments() {
 	store.networkToNodeLBIP = make(map[string]net.IP)
 }
 
 // GetIPForNetwork return the load balancer IP address for the given network.
 func (store *AttachmentStore) GetIPForNetwork(networkID string) (net.IP, bool) {
+	store.Lock()
+	defer store.Unlock()
 	ip, exists := store.networkToNodeLBIP[networkID]
 	return ip, exists
 }
