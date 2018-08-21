@@ -175,7 +175,11 @@ message ListNodesRequest {
 	message Filters {
 		repeated string names = 1;
 		repeated string id_prefixes = 2;
+		// Labels refers to engine labels, which are labels set by the user on the
+		// node and reported back to the managers
 		map<string, string> labels = 3;
+		// NodeLabels are labels set on the node object on the managers.
+		map<string, string> node_labels = 7;
 		repeated NodeSpec.Membership memberships = 4 [packed=false];
 		repeated NodeRole roles = 5 [packed=false];
 		// NamePrefixes matches all objects with the given prefixes

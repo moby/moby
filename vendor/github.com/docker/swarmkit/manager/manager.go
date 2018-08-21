@@ -126,6 +126,13 @@ type Config struct {
 	// first node in the cluster, this setting is used to set the cluster-wide mandatory
 	// FIPS setting.
 	FIPS bool
+
+	// DefaultAddrPool specifies default subnet pool for global scope networks
+	DefaultAddrPool []*net.IPNet
+
+	// SubnetSize specifies the subnet size of the networks created from
+	// the default subnet pool
+	SubnetSize int
 }
 
 // Manager is the cluster manager for Swarm.
@@ -924,20 +931,33 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			Key:       m.config.UnlockKey,
 		}}
 	}
-
 	s.Update(func(tx store.Tx) error {
 		// Add a default cluster object to the
 		// store. Don't check the error because
 		// we expect this to fail unless this
 		// is a brand new cluster.
-		err := store.CreateCluster(tx, defaultClusterObject(
+		clusterObj := defaultClusterObject(
 			clusterID,
 			initialCAConfig,
 			raftCfg,
 			api.EncryptionConfig{AutoLockManagers: m.config.AutoLockManagers},
 			unlockKeys,
 			rootCA,
-			m.config.FIPS))
+			m.config.FIPS,
+			nil,
+			0)
+
+		var defaultAddrPool []string
+		for _, p := range m.config.DefaultAddrPool {
+			defaultAddrPool = append(defaultAddrPool, p.String())
+		}
+		// If defaultAddrPool is valid we update cluster object with new value
+		if defaultAddrPool != nil {
+			clusterObj.DefaultAddressPool = defaultAddrPool
+			clusterObj.SubnetSize = uint32(m.config.SubnetSize)
+		}
+
+		err := store.CreateCluster(tx, clusterObj)
 
 		if err != nil && err != store.ErrExist {
 			log.G(ctx).WithError(err).Errorf("error creating cluster object")
@@ -981,7 +1001,26 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	// shutdown underlying manager processes when leadership is
 	// lost.
 
-	m.allocator, err = allocator.New(s, m.config.PluginGetter)
+	// If DefaultAddrPool is null, Read from store and check if
+	// DefaultAddrPool info is stored in cluster object
+	if m.config.DefaultAddrPool == nil {
+		var cluster *api.Cluster
+		s.View(func(tx store.ReadTx) {
+			cluster = store.GetCluster(tx, clusterID)
+		})
+		if cluster.DefaultAddressPool != nil {
+			for _, address := range cluster.DefaultAddressPool {
+				_, b, err := net.ParseCIDR(address)
+				if err != nil {
+					log.G(ctx).WithError(err).Error("Default Address Pool reading failed for cluster object  %s", address)
+				}
+				m.config.DefaultAddrPool = append(m.config.DefaultAddrPool, b)
+			}
+		}
+		m.config.SubnetSize = int(cluster.SubnetSize)
+	}
+
+	m.allocator, err = allocator.New(s, m.config.PluginGetter, m.config.DefaultAddrPool, m.config.SubnetSize)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create allocator")
 		// TODO(stevvooe): It doesn't seem correct here to fail
@@ -1103,7 +1142,9 @@ func defaultClusterObject(
 	encryptionConfig api.EncryptionConfig,
 	initialUnlockKeys []*api.EncryptionKey,
 	rootCA *ca.RootCA,
-	fips bool) *api.Cluster {
+	fips bool,
+	defaultAddressPool []string,
+	subnetSize int) *api.Cluster {
 	var caKey []byte
 	if rcaSigner, err := rootCA.Signer(); err == nil {
 		caKey = rcaSigner.Key
@@ -1134,8 +1175,10 @@ func defaultClusterObject(
 				Manager: ca.GenerateJoinToken(rootCA, fips),
 			},
 		},
-		UnlockKeys: initialUnlockKeys,
-		FIPS:       fips,
+		UnlockKeys:         initialUnlockKeys,
+		FIPS:               fips,
+		DefaultAddressPool: defaultAddressPool,
+		SubnetSize:         uint32(subnetSize),
 	}
 }
 

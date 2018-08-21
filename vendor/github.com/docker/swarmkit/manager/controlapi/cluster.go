@@ -265,6 +265,8 @@ func redactClusters(clusters []*api.Cluster) []*api.Cluster {
 			Spec:                    *redactedSpec,
 			RootCA:                  *redactedRootCA,
 			BlacklistedCertificates: cluster.BlacklistedCertificates,
+			DefaultAddressPool:      cluster.DefaultAddressPool,
+			SubnetSize:              cluster.SubnetSize,
 		}
 		redactedClusters = append(redactedClusters, newCluster)
 	}

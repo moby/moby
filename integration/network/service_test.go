@@ -313,3 +313,50 @@ func noServices(client client.ServiceAPIClient) func(log poll.LogT) poll.Result 
 		}
 	}
 }
+
+func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
+	defer setupTest(t)()
+	var ops = []func(*daemon.Daemon){}
+	ipAddr := []string{"20.20.0.0/16"}
+	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
+	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
+	d := swarm.NewSwarm(t, testEnv, ops...)
+
+	cli := d.NewClientT(t)
+	defer cli.Close()
+
+	// Create a overlay network
+	name := "saanvisthira" + t.Name()
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("overlay"))
+
+	var instances uint64 = 1
+	serviceName := "TestService" + t.Name()
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithName(serviceName),
+		swarm.ServiceWithNetwork(name),
+	)
+
+	poll.WaitOn(t, serviceRunningCount(cli, serviceID, instances), swarm.ServicePoll)
+
+	_, _, err := cli.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	assert.NilError(t, err)
+
+	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.0.0/24")
+
+	err = cli.ServiceRemove(context.Background(), serviceID)
+	assert.NilError(t, err)
+	d.SwarmLeave(true)
+	d.Stop(t)
+
+	// Clean up , set it back to original one to make sure other tests don't fail
+	ipAddr = []string{"10.10.0.0/8"}
+	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
+	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
+	d = swarm.NewSwarm(t, testEnv, ops...)
+	d.SwarmLeave(true)
+	defer d.Stop(t)
+}

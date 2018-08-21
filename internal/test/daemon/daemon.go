@@ -73,7 +73,8 @@ type Daemon struct {
 	// swarm related field
 	swarmListenAddr string
 	SwarmPort       int // FIXME(vdemeester) should probably not be exported
-
+	DefaultAddrPool []string
+	SubnetSize      uint32
 	// cached information
 	CachedInfo types.Info
 }

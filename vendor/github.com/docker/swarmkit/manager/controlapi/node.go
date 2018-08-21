@@ -142,6 +142,12 @@ func (s *Server) ListNodes(ctx context.Context, request *api.ListNodesRequest) (
 				return filterMatchLabels(e.Description.Engine.Labels, request.Filters.Labels)
 			},
 			func(e *api.Node) bool {
+				if len(request.Filters.NodeLabels) == 0 {
+					return true
+				}
+				return filterMatchLabels(e.Spec.Annotations.Labels, request.Filters.NodeLabels)
+			},
+			func(e *api.Node) bool {
 				if len(request.Filters.Roles) == 0 {
 					return true
 				}

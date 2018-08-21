@@ -3,6 +3,7 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 	"fmt"
+	"net"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -52,6 +53,10 @@ type nodeStartConfig struct {
 	AdvertiseAddr string
 	// DataPathAddr is the address that has to be used for the data path
 	DataPathAddr string
+	// DefaultAddressPool contains list of subnets
+	DefaultAddressPool []string
+	// SubnetSize contains subnet size of DefaultAddressPool
+	SubnetSize uint32
 	// JoinInProgress is set to true if a join operation has started, but
 	// not completed yet.
 	JoinInProgress bool
@@ -110,6 +115,12 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		joinAddr = conf.RemoteAddr
 	}
 
+	var defaultAddrPool []*net.IPNet
+	for _, address := range conf.DefaultAddressPool {
+		if _, b, err := net.ParseCIDR(address); err == nil {
+			defaultAddrPool = append(defaultAddrPool, b)
+		}
+	}
 	// Hostname is not set here. Instead, it is obtained from
 	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
@@ -117,6 +128,8 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
+		DefaultAddrPool:    defaultAddrPool,
+		SubnetSize:         int(conf.SubnetSize),
 		JoinAddr:           joinAddr,
 		StateDir:           n.cluster.root,
 		JoinToken:          conf.joinToken,

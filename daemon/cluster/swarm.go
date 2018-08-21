@@ -93,13 +93,15 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 	}
 
 	nr, err := c.newNodeRunner(nodeStartConfig{
-		forceNewCluster: req.ForceNewCluster,
-		autolock:        req.AutoLockManagers,
-		LocalAddr:       localAddr,
-		ListenAddr:      net.JoinHostPort(listenHost, listenPort),
-		AdvertiseAddr:   net.JoinHostPort(advertiseHost, advertisePort),
-		DataPathAddr:    dataPathAddr,
-		availability:    req.Availability,
+		forceNewCluster:    req.ForceNewCluster,
+		autolock:           req.AutoLockManagers,
+		LocalAddr:          localAddr,
+		ListenAddr:         net.JoinHostPort(listenHost, listenPort),
+		AdvertiseAddr:      net.JoinHostPort(advertiseHost, advertisePort),
+		DataPathAddr:       dataPathAddr,
+		DefaultAddressPool: req.DefaultAddrPool,
+		SubnetSize:         req.SubnetSize,
+		availability:       req.Availability,
 	})
 	if err != nil {
 		return "", err
