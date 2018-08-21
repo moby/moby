@@ -54,6 +54,7 @@ var flatOptions = map[string]bool{
 	"log-opts":           true,
 	"runtimes":           true,
 	"default-ulimits":    true,
+	"features":           true,
 }
 
 // skipValidateOptions contains configuration keys
