@@ -8609,6 +8609,7 @@ paths:
             - `label=<engine label>`
             - `membership=`(`accepted`|`pending`)`
             - `name=<node name>`
+            - `node.label=<node label>`
             - `role=`(`manager`|`worker`)`
           type: "string"
       tags: ["Node"]
