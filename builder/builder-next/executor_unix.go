@@ -18,16 +18,13 @@ import (
 
 const networkName = "bridge"
 
-func init() {
-	// FIXME: https://github.com/moby/moby/issues/37676
-	runcexecutor.DisableSubReaper()
-}
-
 func newExecutor(root string, net libnetwork.NetworkController) (executor.Executor, error) {
+	// FIXME: fix bridge networking
+	_ = bridgeProvider{}
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:              filepath.Join(root, "executor"),
 		CommandCandidates: []string{"docker-runc", "runc"},
-	}, &bridgeProvider{NetworkController: net})
+	}, nil)
 }
 
 type bridgeProvider struct {

@@ -404,12 +404,6 @@ func (s *forwardIO) writeCloserToFile(wc io.WriteCloser) (*os.File, error) {
 var subReaperOnce sync.Once
 var subReaperError error
 
-// DisableSubReaper prevents setting subreaper on the current process.
-// Do not rely on this function it may change or be removed.
-func DisableSubReaper() {
-	subReaperOnce.Do(func() {})
-}
-
 func setSubReaper() error {
 	subReaperOnce.Do(func() {
 		subReaperError = runcsystem.SetSubreaper(1)
