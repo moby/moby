@@ -50,7 +50,7 @@ func New(info logger.Info) (logger.Logger, error) {
 			return nil, err
 		}
 		if capval <= 0 {
-			return nil, fmt.Errorf("max-size should be a positive numbler")
+			return nil, fmt.Errorf("max-size must be a positive number")
 		}
 	}
 	var maxFiles = 1
