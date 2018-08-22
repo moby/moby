@@ -136,6 +136,11 @@ func (daemon *Daemon) HasExperimental() bool {
 	return daemon.configStore != nil && daemon.configStore.Experimental
 }
 
+// Features returns the features map from configStore
+func (daemon *Daemon) Features() *map[string]bool {
+	return &daemon.configStore.Features
+}
+
 func (daemon *Daemon) restore() error {
 	containers := make(map[string]*container.Container)
 
