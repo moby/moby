@@ -182,8 +182,17 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 	encodedAuth := r.Header.Get("X-Registry-Auth")
 	cliVersion := r.Header.Get("version")
 	queryRegistry := false
-	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
-		queryRegistry = true
+	if cliVersion != "" {
+		if versions.LessThan(cliVersion, "1.30") {
+			queryRegistry = true
+		}
+		if versions.LessThan(cliVersion, "1.39") {
+			if service.TaskTemplate.ContainerSpec != nil {
+				// Sysctls for docker swarm services weren't supported before
+				// API version 1.39
+				service.TaskTemplate.ContainerSpec.Sysctls = nil
+			}
+		}
 	}
 
 	resp, err := sr.backend.CreateService(service, encodedAuth, queryRegistry)
@@ -216,8 +225,17 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 	flags.Rollback = r.URL.Query().Get("rollback")
 	cliVersion := r.Header.Get("version")
 	queryRegistry := false
-	if cliVersion != "" && versions.LessThan(cliVersion, "1.30") {
-		queryRegistry = true
+	if cliVersion != "" {
+		if versions.LessThan(cliVersion, "1.30") {
+			queryRegistry = true
+		}
+		if versions.LessThan(cliVersion, "1.39") {
+			if service.TaskTemplate.ContainerSpec != nil {
+				// Sysctls for docker swarm services weren't supported before
+				// API version 1.39
+				service.TaskTemplate.ContainerSpec.Sysctls = nil
+			}
+		}
 	}
 
 	resp, err := sr.backend.UpdateService(vars["id"], version, service, flags, queryRegistry)
