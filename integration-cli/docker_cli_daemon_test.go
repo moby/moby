@@ -570,7 +570,7 @@ func (s *DockerDaemonSuite) TestDaemonExitOnFailure(c *check.C) {
 			c.Fatalf("Expected daemon not to start, got %v", err)
 		}
 		// look in the log and make sure we got the message that daemon is shutting down
-		icmd.RunCommand("grep", "Error starting daemon", s.d.LogFileName()).Assert(c, icmd.Success)
+		icmd.RunCommand("grep", "failed to start daemon", s.d.LogFileName()).Assert(c, icmd.Success)
 	} else {
 		//if we didn't get an error and the daemon is running, this is a failure
 		c.Fatal("Conflicting options should cause the daemon to error out with a failure")
