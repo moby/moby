@@ -231,7 +231,7 @@ func (br *buildRouter) postBuild(ctx context.Context, w http.ResponseWriter, r *
 	}
 
 	// check if the builder feature has been enabled from daemon as well.
-	if buildOptions.Version == types.BuilderBuildKit && br.builderVersion != types.BuilderBuildKit {
+	if buildOptions.Version == types.BuilderBuildKit && br.builderVersion != "" && br.builderVersion != types.BuilderBuildKit {
 		return errdefs.InvalidParameter(errors.New("buildkit is not enabled on daemon"))
 	}
 
