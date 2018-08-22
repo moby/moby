@@ -12,10 +12,8 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type contextKey string
-
 // APIVersionKey is the client's requested API version.
-const APIVersionKey contextKey = "api-version"
+type APIVersionKey struct{}
 
 // APIFunc is an adapter to allow the use of ordinary functions as Docker API endpoints.
 // Any function that has the appropriate signature can be registered as an API endpoint (e.g. getVersion).
@@ -83,7 +81,7 @@ func VersionFromContext(ctx context.Context) string {
 		return ""
 	}
 
-	if val := ctx.Value(APIVersionKey); val != nil {
+	if val := ctx.Value(APIVersionKey{}); val != nil {
 		return val.(string)
 	}
 
