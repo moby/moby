@@ -10,7 +10,7 @@ source hack/make/.integration-test-helpers
 	dockerPy='/docker-py'
 	[ -d "$dockerPy" ] || {
 		dockerPy="$DEST/docker-py"
-		git clone https://github.com/docker/docker-py.git "$dockerPy"
+		git clone https://github.com/kolyshkin/docker-py.git "$dockerPy"
 	}
 
 	# exporting PYTHONPATH to import "docker" from our local docker-py

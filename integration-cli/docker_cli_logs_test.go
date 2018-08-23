@@ -134,6 +134,9 @@ func (s *DockerSuite) TestLogsFollowStopped(c *check.C) {
 		close(errChan)
 	}()
 
+	cli.DockerCmd(c, "wait", id)
+	cli.DockerCmd(c, "rm", id)
+
 	select {
 	case err := <-errChan:
 		c.Assert(err, checker.IsNil)
@@ -181,7 +184,7 @@ func (s *DockerSuite) TestLogsSinceFutureFollow(c *check.C) {
 	// TODO Windows TP5 - Figure out why this test is so flakey. Disabled for now.
 	testRequires(c, DaemonIsLinux)
 	name := "testlogssincefuturefollow"
-	dockerCmd(c, "run", "-d", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
+	dockerCmd(c, "run", "-d", "--rm", "--name", name, "busybox", "/bin/sh", "-c", `for i in $(seq 1 5); do echo log$i; sleep 1; done`)
 
 	// Extract one timestamp from the log file to give us a starting point for
 	// our `--since` argument. Because the log producer runs in the background,
@@ -235,6 +238,9 @@ func (s *DockerSuite) TestLogsFollowSlowStdoutConsumer(c *check.C) {
 	// First read slowly
 	bytes1, err := ConsumeWithSpeed(stdout, 10, 50*time.Millisecond, stopSlowRead)
 	c.Assert(err, checker.IsNil)
+
+	// Container has finished, remove it so "docker logs -f" exits
+	cli.DockerCmd(c, "rm", id)
 
 	// After the container has finished we can continue reading fast
 	bytes2, err := ConsumeWithSpeed(stdout, 32*1024, 0, nil)

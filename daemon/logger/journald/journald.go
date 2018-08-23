@@ -18,14 +18,9 @@ import (
 const name = "journald"
 
 type journald struct {
-	mu      sync.Mutex
-	vars    map[string]string // additional variables and values to send to the journal along with the log message
-	readers readerList
-	closed  bool
-}
-
-type readerList struct {
-	readers map[*logger.LogWatcher]*logger.LogWatcher
+	mu     sync.Mutex
+	vars   map[string]string // additional variables and values to send to the journal along with the log message
+	closed bool
 }
 
 func init() {
@@ -84,7 +79,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	for k, v := range extraAttrs {
 		vars[k] = v
 	}
-	return &journald{vars: vars, readers: readerList{readers: make(map[*logger.LogWatcher]*logger.LogWatcher)}}, nil
+	return &journald{vars: vars}, nil
 }
 
 // We don't actually accept any options, but we have to supply a callback for

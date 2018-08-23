@@ -365,11 +365,10 @@ func (w *LogFile) ReadLogs(config logger.ReadConfig, watcher *logger.LogWatcher)
 		w.mu.RLock()
 	}
 
-	if !config.Follow || w.closed {
-		w.mu.RUnlock()
+	w.mu.RUnlock()
+	if !config.Follow {
 		return
 	}
-	w.mu.RUnlock()
 
 	notifyRotate := w.notifyRotate.Subscribe()
 	defer w.notifyRotate.Evict(notifyRotate)
@@ -488,7 +487,7 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder m
 	go func() {
 		select {
 		case <-ctx.Done():
-		case <-watcher.WatchClose():
+		case <-watcher.WatchConsumerGone():
 			cancel()
 		}
 	}()
@@ -527,10 +526,11 @@ func tailFiles(files []SizeReaderAt, watcher *logger.LogWatcher, createDecoder m
 		if !config.Until.IsZero() && msg.Timestamp.After(config.Until) {
 			return
 		}
+		// send the message unless consumer is gone
 		select {
-		case <-ctx.Done():
-			return
 		case watcher.Msg <- msg:
+		case <-watcher.WatchConsumerGone():
+			return
 		}
 	}
 }
@@ -548,18 +548,6 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		f.Close()
 		fileWatcher.Remove(name)
 		fileWatcher.Close()
-	}()
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	go func() {
-		select {
-		case <-logWatcher.WatchClose():
-			fileWatcher.Remove(name)
-			cancel()
-		case <-ctx.Done():
-			return
-		}
 	}()
 
 	var retries int
@@ -594,15 +582,13 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				decodeLogLine = createDecoder(f)
 				return nil
 			case fsnotify.Rename, fsnotify.Remove:
-				select {
-				case <-notifyRotate:
-				case <-ctx.Done():
+				return handleRotate()
+			case fsnotify.Chmod:
+				_, statErr := os.Lstat(e.Name)
+				if os.IsNotExist(statErr) {
+					// container and its log file removed
 					return errDone
 				}
-				if err := handleRotate(); err != nil {
-					return err
-				}
-				return nil
 			}
 			return errRetry
 		case err := <-fileWatcher.Errors():
@@ -618,7 +604,7 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 				return errRetry
 			}
 			return err
-		case <-ctx.Done():
+		case <-logWatcher.WatchConsumerGone():
 			return errDone
 		}
 	}
@@ -664,23 +650,11 @@ func followLogs(f *os.File, logWatcher *logger.LogWatcher, notifyRotate chan int
 		if !until.IsZero() && msg.Timestamp.After(until) {
 			return
 		}
+		// send the message, unless the consumer is gone
 		select {
 		case logWatcher.Msg <- msg:
-		case <-ctx.Done():
-			logWatcher.Msg <- msg
-			for {
-				msg, err := decodeLogLine()
-				if err != nil {
-					return
-				}
-				if !since.IsZero() && msg.Timestamp.Before(since) {
-					continue
-				}
-				if !until.IsZero() && msg.Timestamp.After(until) {
-					return
-				}
-				logWatcher.Msg <- msg
-			}
+		case <-logWatcher.WatchConsumerGone():
+			return
 		}
 	}
 }
