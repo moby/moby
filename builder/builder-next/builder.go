@@ -37,6 +37,7 @@ func init() {
 type Opt struct {
 	SessionManager    *session.Manager
 	Root              string
+	NetnsRoot         string
 	Dist              images.DistributionServices
 	NetworkController libnetwork.NetworkController
 }

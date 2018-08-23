@@ -10,7 +10,7 @@ import (
 	"github.com/moby/buildkit/executor"
 )
 
-func newExecutor(_ string, _ libnetwork.NetworkController) (executor.Executor, error) {
+func newExecutor(_, _ string, _ libnetwork.NetworkController) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 
