@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 	"syscall"
 
 	"github.com/containerd/containerd/contrib/seccomp"
@@ -26,7 +25,6 @@ import (
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
 	"github.com/moby/buildkit/util/system"
-	runcsystem "github.com/opencontainers/runc/libcontainer/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -43,14 +41,14 @@ type Opt struct {
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
 
 type runcExecutor struct {
-	runc            *runc.Runc
-	root            string
-	cmd             string
-	rootless        bool
-	networkProvider network.Provider
+	runc             *runc.Runc
+	root             string
+	cmd              string
+	rootless         bool
+	networkProviders map[pb.NetMode]network.Provider
 }
 
-func New(opt Opt, networkProvider network.Provider) (executor.Executor, error) {
+func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
 	cmds := opt.CommandCandidates
 	if cmds == nil {
 		cmds = defaultCommandCandidates
@@ -69,10 +67,6 @@ func New(opt Opt, networkProvider network.Provider) (executor.Executor, error) {
 	}
 
 	root := opt.Root
-
-	if err := setSubReaper(); err != nil {
-		return nil, err
-	}
 
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return nil, errors.Wrapf(err, "failed to create %s", root)
@@ -98,36 +92,28 @@ func New(opt Opt, networkProvider network.Provider) (executor.Executor, error) {
 	}
 
 	w := &runcExecutor{
-		runc:            runtime,
-		root:            root,
-		rootless:        opt.Rootless,
-		networkProvider: networkProvider,
+		runc:             runtime,
+		root:             root,
+		rootless:         opt.Rootless,
+		networkProviders: networkProviders,
 	}
 	return w, nil
 }
 
 func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.Mountable, mounts []executor.Mount, stdin io.ReadCloser, stdout, stderr io.WriteCloser) error {
-	var iface network.Interface
-	// FIXME: still uses host if no provider configured
-	if meta.NetMode == pb.NetMode_UNSET {
-		if w.networkProvider != nil {
-			var err error
-			iface, err = w.networkProvider.NewInterface()
-			if err != nil || iface == nil {
-				meta.NetMode = pb.NetMode_HOST
-			}
-		} else {
-			meta.NetMode = pb.NetMode_HOST
-		}
+	provider, ok := w.networkProviders[meta.NetMode]
+	if !ok {
+		return errors.Errorf("unknown network mode %s", meta.NetMode)
 	}
+	namespace, err := provider.New()
+	if err != nil {
+		return err
+	}
+	defer namespace.Close()
+
 	if meta.NetMode == pb.NetMode_HOST {
 		logrus.Info("enabling HostNetworking")
 	}
-	defer func() {
-		if iface != nil {
-			w.networkProvider.Release(iface)
-		}
-	}()
 
 	resolvConf, err := oci.GetResolvConf(ctx, w.root)
 	if err != nil {
@@ -187,7 +173,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	if meta.ReadonlyRootFS {
 		opts = append(opts, containerdoci.WithRootFSReadonly())
 	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, meta.NetMode == pb.NetMode_HOST, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, opts...)
 	if err != nil {
 		return err
 	}
@@ -225,75 +211,14 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	}
 	defer forwardIO.Close()
 
-	pidFilePath := filepath.Join(w.root, "runc_pid_"+identity.NewID())
-	defer os.RemoveAll(pidFilePath)
-
 	logrus.Debugf("> creating %s %v", id, meta.Args)
-	err = w.runc.Create(ctx, id, bundle, &runc.CreateOpts{
-		PidFile: pidFilePath,
-		IO:      forwardIO,
+	status, err := w.runc.Run(ctx, id, bundle, &runc.CreateOpts{
+		IO: forwardIO,
 	})
 	if err != nil {
 		return err
 	}
-	forwardIO.release()
 
-	defer func() {
-		go func() {
-			if err := w.runc.Delete(context.TODO(), id, &runc.DeleteOpts{}); err != nil {
-				logrus.Errorf("failed to delete %s: %+v", id, err)
-			}
-		}()
-	}()
-
-	dt, err := ioutil.ReadFile(pidFilePath)
-	if err != nil {
-		return err
-	}
-	pid, err := strconv.Atoi(string(dt))
-	if err != nil {
-		return err
-	}
-
-	done := make(chan struct{})
-	defer close(done)
-
-	go func() {
-		select {
-		case <-done:
-		case <-ctx.Done():
-			syscall.Kill(-pid, syscall.SIGKILL)
-		}
-	}()
-
-	if iface != nil {
-		if err := iface.Set(pid); err != nil {
-			return errors.Wrap(err, "could not set the network")
-		}
-		defer func() {
-			iface.Remove(pid)
-		}()
-	}
-
-	err = w.runc.Start(ctx, id)
-	if err != nil {
-		return err
-	}
-
-	p, err := os.FindProcess(pid)
-	if err != nil {
-		return err
-	}
-
-	status := 0
-	ps, err := p.Wait()
-	if err != nil {
-		status = 255
-	}
-
-	if ws, ok := ps.Sys().(syscall.WaitStatus); ok {
-		status = ws.ExitStatus()
-	}
 	if status != 0 {
 		return errors.Errorf("exit code: %d", status)
 	}
@@ -336,7 +261,7 @@ func newForwardIO(stdin io.ReadCloser, stdout, stderr io.WriteCloser) (f *forwar
 }
 
 func (s *forwardIO) Close() error {
-	s.release()
+	s.CloseAfterStart()
 	var err error
 	for _, cl := range s.toClose {
 		if err1 := cl.Close(); err == nil {
@@ -348,11 +273,12 @@ func (s *forwardIO) Close() error {
 }
 
 // release releases active FDs if the process doesn't need them any more
-func (s *forwardIO) release() {
+func (s *forwardIO) CloseAfterStart() error {
 	for _, cl := range s.toRelease {
 		cl.Close()
 	}
 	s.toRelease = nil
+	return nil
 }
 
 func (s *forwardIO) Set(cmd *exec.Cmd) {
@@ -399,16 +325,6 @@ func (s *forwardIO) writeCloserToFile(wc io.WriteCloser) (*os.File, error) {
 		_ = err
 	}()
 	return pw, nil
-}
-
-var subReaperOnce sync.Once
-var subReaperError error
-
-func setSubReaper() error {
-	subReaperOnce.Do(func() {
-		subReaperError = runcsystem.SetSubreaper(1)
-	})
-	return subReaperError
 }
 
 func (s *forwardIO) Stdin() io.WriteCloser {
