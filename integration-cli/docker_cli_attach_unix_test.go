@@ -170,7 +170,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 
 	select {
 	case <-ch:
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(100 * time.Millisecond):
 		c.Fatal("timed out waiting for container to exit")
 	}
 
