@@ -283,7 +283,7 @@ func (r *legacyLayerReader) Next() (path string, size int64, fileInfo *winio.Fil
 		if err != nil {
 			return
 		}
-		fileInfo.FileAttributes = uintptr(attr)
+		fileInfo.FileAttributes = attr
 		beginning := int64(4)
 
 		// Find the accurate file size.

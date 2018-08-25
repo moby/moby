@@ -268,7 +268,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				continue
 			}
 
-			client, err = containerd.New(r.GRPC.Address)
+			client, err = containerd.New(r.GRPC.Address, containerd.WithTimeout(60*time.Second))
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
 				delay = time.After(100 * time.Millisecond)

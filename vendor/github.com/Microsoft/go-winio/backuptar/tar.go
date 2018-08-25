@@ -303,7 +303,7 @@ func FileInfoFromHeader(hdr *tar.Header) (name string, size int64, fileInfo *win
 		if err != nil {
 			return "", 0, nil, err
 		}
-		fileInfo.FileAttributes = uintptr(attr)
+		fileInfo.FileAttributes = uint32(attr)
 	} else {
 		if hdr.Typeflag == tar.TypeDir {
 			fileInfo.FileAttributes |= syscall.FILE_ATTRIBUTE_DIRECTORY
