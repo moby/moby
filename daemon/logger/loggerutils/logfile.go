@@ -689,9 +689,9 @@ func watchFile(name string) (filenotify.FileWatcher, error) {
 	var fileWatcher filenotify.FileWatcher
 
 	if runtime.GOOS == "windows" {
-		// FileWatcher on Windows files is based on the syscall notifications which has an issue becuase of file caching.
+		// FileWatcher on Windows files is based on the syscall notifications which has an issue because of file caching.
 		// It is based on ReadDirectoryChangesW() which doesn't detect writes to the cache. It detects writes to disk only.
-		// Becuase of the OS lazy writing, we don't get notifications for file writes and thereby the watcher
+		// Because of the OS lazy writing, we don't get notifications for file writes and thereby the watcher
 		// doesn't work. Hence for Windows we will use poll based notifier.
 		fileWatcher = filenotify.NewPollingWatcher()
 	} else {
