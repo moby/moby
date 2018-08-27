@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/pkg/stringid"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 )
@@ -146,7 +145,7 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	c.Assert(err, check.IsNil)
 	out, err = bufio.NewReader(stdout).ReadString('\n')
 	c.Assert(err, check.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello", check.Commentf("expected 'hello', got %q", out))
+	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
 
 	// escape sequence
 	_, err = cpty.Write([]byte{16})
@@ -158,72 +157,15 @@ func (s *DockerSuite) TestAttachDetach(c *check.C) {
 	ch := make(chan struct{})
 	go func() {
 		cmd.Wait()
-		ch <- struct{}{}
-	}()
-
-	running := inspectField(c, id, "State.Running")
-	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
-
-	go func() {
-		dockerCmdWithResult("kill", id)
+		close(ch)
 	}()
 
 	select {
 	case <-ch:
-	case <-time.After(10 * time.Millisecond):
+	case <-time.After(1 * time.Second):
 		c.Fatal("timed out waiting for container to exit")
 	}
-
-}
-
-// TestAttachDetachTruncatedID checks that attach in tty mode can be detached
-func (s *DockerSuite) TestAttachDetachTruncatedID(c *check.C) {
-	out, _ := dockerCmd(c, "run", "-itd", "busybox", "cat")
-	id := stringid.TruncateID(strings.TrimSpace(out))
-	c.Assert(waitRun(id), check.IsNil)
-
-	cpty, tty, err := pty.Open()
-	c.Assert(err, checker.IsNil)
-	defer cpty.Close()
-
-	cmd := exec.Command(dockerBinary, "attach", id)
-	cmd.Stdin = tty
-	stdout, err := cmd.StdoutPipe()
-	c.Assert(err, checker.IsNil)
-	defer stdout.Close()
-	err = cmd.Start()
-	c.Assert(err, checker.IsNil)
-
-	_, err = cpty.Write([]byte("hello\n"))
-	c.Assert(err, checker.IsNil)
-	out, err = bufio.NewReader(stdout).ReadString('\n')
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello", check.Commentf("expected 'hello', got %q", out))
-
-	// escape sequence
-	_, err = cpty.Write([]byte{16})
-	c.Assert(err, checker.IsNil)
-	time.Sleep(100 * time.Millisecond)
-	_, err = cpty.Write([]byte{17})
-	c.Assert(err, checker.IsNil)
-
-	ch := make(chan struct{})
-	go func() {
-		cmd.Wait()
-		ch <- struct{}{}
-	}()
 
 	running := inspectField(c, id, "State.Running")
-	c.Assert(running, checker.Equals, "true", check.Commentf("expected container to still be running"))
-
-	go func() {
-		dockerCmdWithResult("kill", id)
-	}()
-
-	select {
-	case <-ch:
-	case <-time.After(10 * time.Millisecond):
-		c.Fatal("timed out waiting for container to exit")
-	}
-
+	c.Assert(running, checker.Equals, "true") // container should be running
 }
