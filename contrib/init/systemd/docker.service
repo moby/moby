@@ -10,6 +10,7 @@ Wants=network-online.target
 ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
 ExecStart=/usr/bin/dockerd
 TimeoutSec=0
+RestartSec=2
 Restart=always
 # On RPM Based distributions PATH isn't defined so we define it here
 # /opt/containerd/bin is in front so dockerd grabs the correct runc binary
