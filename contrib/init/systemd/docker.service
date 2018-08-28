@@ -9,6 +9,7 @@ Wants=network-online.target
 # Install containerd-shim-process if it's not already installed
 ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
 ExecStart=/usr/bin/dockerd
+ExecStopPost=/usr/bin/dockerd post-stop
 TimeoutSec=0
 RestartSec=2
 Restart=always
