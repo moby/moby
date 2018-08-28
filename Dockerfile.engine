@@ -1,0 +1,79 @@
+# Common builder
+ARG GO_IMAGE
+FROM ${GO_IMAGE} as builder
+
+COPY hack/dockerfile/install/tini.installer /
+COPY hack/dockerfile/install/proxy.installer /
+RUN apt-get update && apt-get install -y \
+    bash \
+    btrfs-tools \
+    ca-certificates \
+    cmake \
+    gcc \
+    git \
+    libc-dev \
+    libgcc-6-dev \
+    libltdl-dev \
+    libtool \
+    make
+RUN grep "_COMMIT=" /*.installer  |cut -f2- -d: > /binaries-commits
+
+# dockerd
+FROM builder as dockerd-builder
+WORKDIR /go/src/github.com/docker/docker
+COPY . /go/src/github.com/docker/docker
+ARG VERSION
+ARG GITCOMMIT
+ARG BUILDTIME
+ARG PLATFORM
+ARG PRODUCT
+ARG DEFAULT_PRODUCT_LICENSE
+ENV VERSION ${VERSION}
+ENV GITCOMMIT ${GITCOMMIT}
+ENV BUILDTIME ${BUILDTIME}
+ENV PLATFORM ${PLATFORM}
+ENV PRODUCT ${PRODUCT}
+ENV DEFAULT_PRODUCT_LICENSE ${DEFAULT_PRODUCT_LICENSE}
+# TODO The way we set the version could easily be simplified not to depend on hack/...
+RUN bash ./hack/make/.go-autogen
+RUN go build -o /sbin/dockerd \
+    -tags 'autogen netgo static_build selinux journald' \
+    -installsuffix netgo -a -buildmode=pie -ldflags '-w -extldflags "-static" ' \
+    github.com/docker/docker/cmd/dockerd
+
+# docker-proxy
+# TODO if libnetwork folds into the docker tree this can be combined above
+FROM builder as proxy-builder
+RUN git clone https://github.com/docker/libnetwork.git /go/src/github.com/docker/libnetwork
+WORKDIR /go/src/github.com/docker/libnetwork
+RUN . /binaries-commits && \
+    git checkout -q "$LIBNETWORK_COMMIT" && \
+    CGO_ENABLED=0 go build -buildmode=pie -ldflags="$PROXY_LDFLAGS" \
+        -o /sbin/docker-proxy \
+        github.com/docker/libnetwork/cmd/proxy
+
+# docker-init - TODO move this out, last time we bumped was 2016!
+FROM builder as init-builder
+RUN git clone https://github.com/krallin/tini.git /tini
+WORKDIR /tini
+RUN . /binaries-commits && \
+    git checkout -q "$TINI_COMMIT" && \
+    cmake . && make tini-static && \
+    cp tini-static /sbin/docker-init
+
+# runc
+FROM builder as runc-builder
+RUN apt-get install -y libseccomp-dev
+RUN git clone https://github.com/opencontainers/runc.git /go/src/github.com/opencontainers/runc
+WORKDIR /go/src/github.com/opencontainers/runc
+RUN . /binaries-commits && \
+    git checkout -q "$RUNC_COMMIT" && \
+    make BUILDTAGS='seccomp apparmor' static && make install
+
+# Final docker image
+FROM scratch
+COPY --from=dockerd-builder /sbin/dockerd /sbin/
+COPY --from=proxy-builder /sbin/docker-proxy /sbin/
+COPY --from=init-builder /sbin/docker-init /sbin/
+COPY --from=runc-builder /usr/local/sbin/runc /sbin/
+ENTRYPOINT ["/sbin/dockerd"]

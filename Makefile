@@ -1,4 +1,4 @@
-.PHONY: all binary dynbinary build cross help init-go-pkg-cache install manpages run shell test test-docker-py test-integration test-unit validate win
+.PHONY: all binary dynbinary build cross help init-go-pkg-cache install manpages run shell test test-docker-py test-integration test-unit validate win image clean-image
 
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
@@ -12,6 +12,24 @@ DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $$
 
 DOCKER_GITCOMMIT := $(shell git rev-parse --short HEAD || echo unsupported)
 export DOCKER_GITCOMMIT
+
+# Image env settings
+DOCKER_HUB_ORG?=moby
+ENGINE_IMAGE?=engine
+GO_BASE_IMAGE=golang
+GO_VERSION:=1.10.3
+GO_IMAGE=$(GO_BASE_IMAGE):$(GO_VERSION)
+BUILDTIME=$(shell date -u -d "@$${SOURCE_DATE_EPOCH:-$$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
+IMAGE_VERSION?=0.0.0-dev
+ifeq ("$(shell systemctl is-active containerd)", "active")
+CONTAINERD_SOCK:=/var/run/containerd/containerd.sock
+CTR_CLI:=ctr
+else
+CONTAINERD_SOCK:=/var/run/docker/containerd/docker-containerd.sock
+CTR_CLI:=docker-containerd-ctr
+endif
+
+
 
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
@@ -131,7 +149,7 @@ build: bundles init-go-pkg-cache
 bundles:
 	mkdir bundles
 
-clean: clean-pkg-cache-vol ## clean up cached resources
+clean: clean-pkg-cache-vol clean-image ## clean up cached resources
 
 clean-pkg-cache-vol:
 	@- $(foreach mapping,$(PKGCACHE_MAP), \
@@ -207,3 +225,36 @@ build-integration-cli-on-swarm: build ## build images and binary for running int
 	docker exec $(tmp) go build -buildmode=pie -o /worker github.com/docker/docker/hack/integration-cli-on-swarm/agent/worker
 	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)
 	docker rm -f $(tmp)
+
+# TODO: Eventually clean this up when we release an image with a manifest
+DOCKER2OCI=bundles/docker2oci
+$(DOCKER2OCI):
+	-chown -R $(shell id -u):$(shell id -g) $(@D)
+	docker run --name docker2oci $(GO_IMAGE) sh -c 'go get github.com/coolljt0725/docker2oci'
+	mkdir -p $(@D)
+	docker cp docker2oci:/go/bin/docker2oci "$@"
+	docker rm -f docker2oci
+	chown -R $(shell id -u):$(shell id -g) $(@D)
+
+clean-image:
+	-rm $(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION).tar
+	-docker rmi $(DOCKER_HUB_ORG)/$(ENGINE_IMAGE):$(IMAGE_VERSION)
+
+image: $(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION).tar
+	@echo ""
+	@echo "To test your local build:"
+	@echo "ctr --namespace docker image import --oci-name docker.io/moby/engine $<"
+	@echo "docker engine update --registry-prefix docker.io/$(DOCKER_HUB_ORG) --engine-image $(ENGINE_IMAGE) --version $(IMAGE_VERSION)"
+
+$(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION).tar: Dockerfile.engine $(DOCKER2OCI)
+	docker build -t $(DOCKER_HUB_ORG)/$(ENGINE_IMAGE):$(IMAGE_VERSION) \
+                --build-arg GO_IMAGE="$(GO_IMAGE)" \
+                --build-arg VERSION="$(IMAGE_VERSION)" \
+                --build-arg GITCOMMIT="$$(git rev-parse --short=7 HEAD)" \
+                --build-arg BUILDTIME="$(BUILDTIME)" \
+                --file $< .
+	rm -rf bundles/$(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION)
+	docker save $(DOCKER_HUB_ORG)/$(ENGINE_IMAGE):$(IMAGE_VERSION) | \
+	    ./$(DOCKER2OCI) bundles/$(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION)
+	tar c -C bundles/$(DOCKER_HUB_ORG)_$(ENGINE_IMAGE)_$(IMAGE_VERSION) . > $@
+

@@ -22,3 +22,4 @@ vendor/pkg/
 hack/integration-cli-on-swarm/integration-cli-on-swarm
 coverage.txt
 profile.out
+moby_engine_*.tar
