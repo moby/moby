@@ -437,6 +437,7 @@ Try {
 }
 Catch [Exception] {
     Write-Host -ForegroundColor Red ("`nERROR: make.ps1 failed:`n$_")
+    Write-Host -ForegroundColor Red ($_.InvocationInfo.PositionMessage)
 
     # More gratuitous ASCII art.
     Write-Host
