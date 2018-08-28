@@ -9,10 +9,7 @@ validate_vendor_diff(){
 	unset IFS
 
 	if [ ${#files[@]} -gt 0 ]; then
-		# Remove vendor/ first so  that anything not included in vendor.conf will
-		# cause the validation to fail.
-		ls -d vendor/* | xargs rm -rf
-		# run vndr to recreate vendor/
+		# recreate vendor/
 		vndr
 		# check if any files have changed
 		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
