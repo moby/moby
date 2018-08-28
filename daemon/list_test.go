@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -35,6 +34,7 @@ func TestMain(m *testing.M) {
 // work against it. It takes in a pointer to Daemon so that
 // minor operations are not repeated by the caller
 func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *container.Container {
+	t.Helper()
 	var (
 		id              = uuid.New()
 		computedImageID = digest.FromString(id)
@@ -46,6 +46,9 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 
 	c := container.NewBaseContainer(id, cRoot)
 	// these are for passing includeContainerInList
+	if name[0] != '/' {
+		name = "/" + name
+	}
 	c.Name = name
 	c.Running = true
 	c.HostConfig = &containertypes.HostConfig{}
@@ -68,7 +71,7 @@ func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *containe
 func containerListContainsName(containers []*types.Container, name string) bool {
 	for _, container := range containers {
 		for _, containerName := range container.Names {
-			if strings.TrimPrefix(containerName, "/") == name {
+			if containerName == name {
 				return true
 			}
 		}
@@ -110,16 +113,33 @@ func TestNameFilter(t *testing.T) {
 	containerList, err := d.Containers(&types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "^a")),
 	})
-	assert.Assert(t, err == nil)
+	assert.NilError(t, err)
 	assert.Assert(t, is.Len(containerList, 2))
 	assert.Assert(t, containerListContainsName(containerList, one.Name))
 	assert.Assert(t, containerListContainsName(containerList, two.Name))
+
+	// Same as above but with slash prefix should produce the same result
+	containerListWithPrefix, err := d.Containers(&types.ContainerListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", "^/a")),
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerListWithPrefix, 2))
+	assert.Assert(t, containerListContainsName(containerListWithPrefix, one.Name))
+	assert.Assert(t, containerListContainsName(containerListWithPrefix, two.Name))
 
 	// Same as above but make sure it works for exact names
 	containerList, err = d.Containers(&types.ContainerListOptions{
 		Filters: filters.NewArgs(filters.Arg("name", "b1")),
 	})
-	assert.Assert(t, err == nil)
+	assert.NilError(t, err)
 	assert.Assert(t, is.Len(containerList, 1))
 	assert.Assert(t, containerListContainsName(containerList, three.Name))
+
+	// Same as above but with slash prefix should produce the same result
+	containerListWithPrefix, err = d.Containers(&types.ContainerListOptions{
+		Filters: filters.NewArgs(filters.Arg("name", "/b1")),
+	})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(containerListWithPrefix, 1))
+	assert.Assert(t, containerListContainsName(containerListWithPrefix, three.Name))
 }
