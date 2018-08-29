@@ -148,12 +148,11 @@ func (w *filePoller) sendErr(e error, chClose <-chan struct{}) error {
 func (w *filePoller) watch(f *os.File, lastFi os.FileInfo, chClose chan struct{}) {
 	defer f.Close()
 	for {
-		time.Sleep(watchWaitTime)
 		select {
+		case <-time.After(watchWaitTime):
 		case <-chClose:
 			logrus.Debugf("watch for %s closed", f.Name())
 			return
-		default:
 		}
 
 		fi, err := os.Stat(f.Name())
