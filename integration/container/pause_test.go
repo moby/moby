@@ -65,9 +65,8 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 }
 
 func TestPauseStopPausedContainer(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
-
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()

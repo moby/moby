@@ -20,7 +20,7 @@ import (
 
 // export an image and try to import it into a new one
 func TestExportContainerAndImportImage(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
@@ -58,7 +58,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 // can be exported (as reported in #36561). To satisfy this
 // condition, daemon restart is needed after container creation.
 func TestExportContainerAfterDaemonRestart(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon())
 
 	d := daemon.New(t)

@@ -18,6 +18,7 @@ import (
 )
 
 func TestResize(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
@@ -35,6 +36,7 @@ func TestResize(t *testing.T) {
 
 func TestResizeWithInvalidSize(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()

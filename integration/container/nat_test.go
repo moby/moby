@@ -40,6 +40,7 @@ func TestNetworkNat(t *testing.T) {
 }
 
 func TestNetworkLocalhostTCPNat(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
@@ -106,6 +107,7 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 }
 
 func getExternalAddress(t *testing.T) net.IP {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	iface, err := net.InterfaceByName("eth0")
 	skip.If(t, err != nil, "Test not running with `make test-integration`. Interface eth0 not found: %s", err)
 

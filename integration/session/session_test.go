@@ -12,6 +12,7 @@ import (
 
 func TestSessionCreate(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
 
@@ -28,6 +29,7 @@ func TestSessionCreate(t *testing.T) {
 
 func TestSessionCreateWithBadUpgrade(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	res, body, err := req.Post("/session")
 	assert.NilError(t, err)

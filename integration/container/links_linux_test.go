@@ -35,7 +35,7 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 }
 
 func TestLinksContainerNames(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
