@@ -210,6 +210,8 @@ func (daemon *Daemon) registerMountPoints(container *container.Container, hostCo
 			mp.Name = v.Name
 			mp.Driver = v.Driver
 
+			// need to selinux-relabel local mounts
+			mp.Source = v.Mountpoint
 			if mp.Driver == volume.DefaultDriverName {
 				setBindModeIfNull(mp)
 			}
