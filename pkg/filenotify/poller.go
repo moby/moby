@@ -115,11 +115,10 @@ func (w *filePoller) Close() error {
 		return nil
 	}
 
-	w.closed = true
 	for name := range w.watches {
 		w.remove(name)
-		delete(w.watches, name)
 	}
+	w.closed = true
 	return nil
 }
 
