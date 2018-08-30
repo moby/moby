@@ -3,6 +3,7 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"fmt"
 	"net"
+	"strings"
 )
 
 const (
@@ -85,6 +86,36 @@ func (c *Cluster) resolveAdvertiseAddr(advertiseAddr, listenAddrPort string) (st
 		return "", "", err
 	}
 	return systemAddr.String(), listenAddrPort, nil
+}
+
+// validateDefaultAddrPool validates default address pool
+// it also strips white space from the string before validation
+func validateDefaultAddrPool(defaultAddrPool []string, size uint32) error {
+	if defaultAddrPool == nil {
+		// defaultAddrPool is not defined
+		return nil
+	}
+	//if size is not set, then we use default value 24
+	if size == 0 {
+		size = 24
+	}
+	if size > 32 {
+		return fmt.Errorf("subnet size is out of range: %d", size)
+	}
+	for i := range defaultAddrPool {
+		// trim leading and trailing white spaces
+		defaultAddrPool[i] = strings.TrimSpace(defaultAddrPool[i])
+		_, b, err := net.ParseCIDR(defaultAddrPool[i])
+		if err != nil {
+			return fmt.Errorf("invalid base pool %s: %v", defaultAddrPool[i], err)
+		}
+		ones, _ := b.Mask.Size()
+		if size < uint32(ones) {
+			return fmt.Errorf("invalid CIDR: %q. Subnet size is too small for pool: %d", defaultAddrPool[i], size)
+		}
+	}
+
+	return nil
 }
 
 func resolveDataPathAddr(dataPathAddr string) (string, error) {

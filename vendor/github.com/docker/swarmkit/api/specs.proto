@@ -315,9 +315,24 @@ message ContainerSpec {
 	// Runtimes that don't support it ignore that field
 	Isolation isolation = 24;
 
-	// PidsLimit prevents from OS resource damage by applications inside the container 
+	// PidsLimit prevents from OS resource damage by applications inside the container
 	// using fork bomb attack.
 	int64 pidsLimit = 25;
+
+	// Sysctls sets namespaced kernel parameters (sysctls) in the container. This
+	// option is equivalent to passing --sysctl to docker run.
+	//
+	// Note that while options are subject to the same restrictions as arguments
+	// passed to the --sysctl flag on docker run, those options are not further
+	// validated to ensure that they are safe or sensible in a clustered
+	// environment.
+	//
+	// Additionally, sysctls are not validated for support in the underlying
+	// daemon. For information about supported options, refer to the
+	// documentation at:
+	//
+	// https://docs.docker.com/engine/reference/commandline/run/#configure-namespaced-kernel-parameters-sysctls-at-runtime
+	map<string, string> sysctls = 26;
 }
 
 // EndpointSpec defines the properties that can be configured to
