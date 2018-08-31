@@ -18,6 +18,17 @@ ExecStopPost=/usr/bin/dockerd post-stop
 TimeoutSec=0
 RestartSec=2
 Restart=always
+
+# Note that StartLimit* options were moved from "Service" to "Unit" in systemd 229.
+# Both the old, and new location are accepted by systemd 229 and up, so using the old location
+# to make them work for either version of systemd.
+StartLimitBurst=3
+
+# Note that StartLimitInterval was renamed to StartLimitIntervalSec in systemd 230.
+# Both the old, and new name are accepted by systemd 230 and up, so using the old name to make
+# this option work for either version of systemd.
+StartLimitInterval=60s
+
 # On RPM Based distributions PATH isn't defined so we define it here
 # /opt/containerd/bin is in front so dockerd grabs the correct runc binary
 Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
