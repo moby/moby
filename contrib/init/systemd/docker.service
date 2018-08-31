@@ -13,6 +13,7 @@ ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offli
 # exists and systemd currently does not support the cgroup feature set required
 # for containers run by docker
 ExecStart=/usr/bin/dockerd
+ExecReload=/bin/kill -s HUP $MAINPID
 ExecStopPost=/usr/bin/dockerd post-stop
 TimeoutSec=0
 RestartSec=2
