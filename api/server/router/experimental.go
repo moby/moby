@@ -44,7 +44,7 @@ func experimentalHandler(ctx context.Context, w http.ResponseWriter, r *http.Req
 	return notImplementedError{}
 }
 
-// Handler returns returns the APIFunc to let the server wrap it in middlewares.
+// Handler returns the APIFunc to let the server wrap it in middlewares.
 func (r *experimentalRoute) Handler() httputils.APIFunc {
 	return r.handler
 }
