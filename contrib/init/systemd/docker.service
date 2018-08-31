@@ -17,6 +17,10 @@ Restart=always
 # /opt/containerd/bin is in front so dockerd grabs the correct runc binary
 Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
 
+# Having non-zero Limit*s causes performance problems due to accounting overhead
+# in the kernel. We recommend using cgroups to do container-local accounting.
+LimitNOFILE=infinity
+LimitNPROC=infinity
 LimitCORE=infinity
 
 [Install]
