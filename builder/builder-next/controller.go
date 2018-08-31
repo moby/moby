@@ -72,6 +72,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	cm, err := cache.NewManager(cache.ManagerOpt{
 		Snapshotter:   snapshotter,
 		MetadataStore: md,
+		// TODO: implement PruneRefChecker to correctly mark cache objects as "Shared"
+		PruneRefChecker: nil,
 	})
 	if err != nil {
 		return nil, err
