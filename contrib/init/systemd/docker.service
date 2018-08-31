@@ -8,6 +8,10 @@ Wants=network-online.target
 [Service]
 # Install containerd-shim-process if it's not already installed
 ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
+
+# the default is not to use systemd for cgroups because the delegate issues still
+# exists and systemd currently does not support the cgroup feature set required
+# for containers run by docker
 ExecStart=/usr/bin/dockerd
 ExecStopPost=/usr/bin/dockerd post-stop
 TimeoutSec=0
@@ -26,6 +30,9 @@ LimitCORE=infinity
 # Comment TasksMax if your systemd version does not supports it.
 # Only systemd 226 and above support this option.
 TasksMax=infinity
+
+# set delegate yes so that systemd does not reset the cgroups of docker containers
+Delegate=yes
 
 [Install]
 WantedBy=multi-user.target
