@@ -17,5 +17,7 @@ Restart=always
 # /opt/containerd/bin is in front so dockerd grabs the correct runc binary
 Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
 
+LimitCORE=infinity
+
 [Install]
 WantedBy=multi-user.target
