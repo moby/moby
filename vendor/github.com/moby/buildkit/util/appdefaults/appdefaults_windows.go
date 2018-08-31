@@ -1,8 +1,9 @@
 package appdefaults
 
 const (
-	Address = "npipe:////./pipe/buildkitd"
-	Root    = ".buildstate"
+	Address   = "npipe:////./pipe/buildkitd"
+	Root      = ".buildstate"
+	ConfigDir = ""
 )
 
 func UserAddress() string {
@@ -15,4 +16,8 @@ func EnsureUserAddressDir() error {
 
 func UserRoot() string {
 	return Root
+}
+
+func UserConfigDir() string {
+	return ConfigDir
 }

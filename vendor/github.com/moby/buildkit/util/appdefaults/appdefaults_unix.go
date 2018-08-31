@@ -9,8 +9,9 @@ import (
 )
 
 const (
-	Address = "unix:///run/buildkit/buildkitd.sock"
-	Root    = "/var/lib/buildkit"
+	Address   = "unix:///run/buildkit/buildkitd.sock"
+	Root      = "/var/lib/buildkit"
+	ConfigDir = "/etc/buildkit"
 )
 
 // UserAddress typically returns /run/user/$UID/buildkit/buildkitd.sock
@@ -52,4 +53,17 @@ func UserRoot() string {
 		return filepath.Join(home, ".local", "share", "buildkit")
 	}
 	return Root
+}
+
+// UserConfigDir returns dir for storing config. /home/$USER/.config/buildkit/
+func UserConfigDir() string {
+	xdgConfigHome := os.Getenv("XDG_CONFIG_HOME")
+	if xdgConfigHome != "" {
+		return filepath.Join(xdgConfigHome, "buildkit")
+	}
+	home := os.Getenv("HOME")
+	if home != "" {
+		return filepath.Join(home, ".config", "buildkit")
+	}
+	return ConfigDir
 }
