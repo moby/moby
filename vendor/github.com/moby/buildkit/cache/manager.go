@@ -360,10 +360,10 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 	gcMode := opt.keepBytes != 0
 	cutOff := time.Now().Add(-opt.keepDuration)
 
-	locked := map[*cacheRecord]struct{}{}
+	locked := map[*sync.Mutex]struct{}{}
 
 	for _, cr := range cm.records {
-		if _, ok := locked[cr]; ok {
+		if _, ok := locked[cr.mu]; ok {
 			continue
 		}
 		cr.mu.Lock()
@@ -431,7 +431,7 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 						return err
 					}
 				} else {
-					locked[cr] = struct{}{}
+					locked[cr.mu] = struct{}{}
 					continue // leave the record locked
 				}
 			}
@@ -454,7 +454,6 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 			return err
 		}
 		toDelete = toDelete[:1]
-		opt.totalSize -= getSize(toDelete[0].md)
 	}
 
 	cm.mu.Unlock()
@@ -483,7 +482,9 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 		if cr.parent != nil {
 			c.Parent = cr.parent.ID()
 		}
-
+		if c.Size == sizeUnknown && cr.equalImmutable != nil {
+			c.Size = getSize(cr.equalImmutable.md) // benefit from DiskUsage calc
+		}
 		if c.Size == sizeUnknown {
 			cr.mu.Unlock() // all the non-prune modifications already protected by cr.dead
 			s, err := cr.Size(ctx)
@@ -493,6 +494,8 @@ func (cm *cacheManager) prune(ctx context.Context, ch chan client.UsageInfo, opt
 			c.Size = s
 			cr.mu.Lock()
 		}
+
+		opt.totalSize -= c.Size
 
 		if cr.equalImmutable != nil {
 			if err1 := cr.equalImmutable.remove(ctx, false); err == nil {

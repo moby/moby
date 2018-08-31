@@ -259,9 +259,10 @@ type RemoteContext struct {
 	// If no resolver is provided, defaults to Docker registry resolver.
 	Resolver remotes.Resolver
 
-	// Platforms defines which platforms to handle when doing the image operation.
-	// If this field is empty, content for all platforms will be pulled.
-	Platforms []string
+	// PlatformMatcher is used to match the platforms for an image
+	// operation and define the preference when a single match is required
+	// from multiple platforms.
+	PlatformMatcher platforms.MatchComparer
 
 	// Unpack is done after an image is pulled to extract into a snapshotter.
 	// If an image is not unpacked on pull, it can be unpacked any time
@@ -283,6 +284,12 @@ type RemoteContext struct {
 	// manifests. If this option is false then any image which resolves
 	// to schema 1 will return an error since schema 1 is not supported.
 	ConvertSchema1 bool
+
+	// Platforms defines which platforms to handle when doing the image operation.
+	// Platforms is ignored when a PlatformMatcher is set, otherwise the
+	// platforms will be used to create a PlatformMatcher with no ordering
+	// preference.
+	Platforms []string
 }
 
 func defaultRemoteContext() *RemoteContext {
@@ -308,13 +315,30 @@ func (c *Client) Fetch(ctx context.Context, ref string, opts ...RemoteOpt) (imag
 		return images.Image{}, errors.New("unpack on fetch not supported, try pull")
 	}
 
+	if fetchCtx.PlatformMatcher == nil {
+		if len(fetchCtx.Platforms) == 0 {
+			fetchCtx.PlatformMatcher = platforms.All
+		} else {
+			var ps []ocispec.Platform
+			for _, s := range fetchCtx.Platforms {
+				p, err := platforms.Parse(s)
+				if err != nil {
+					return images.Image{}, errors.Wrapf(err, "invalid platform %s", s)
+				}
+				ps = append(ps, p)
+			}
+
+			fetchCtx.PlatformMatcher = platforms.Any(ps...)
+		}
+	}
+
 	ctx, done, err := c.WithLease(ctx)
 	if err != nil {
 		return images.Image{}, err
 	}
 	defer done(ctx)
 
-	return c.fetch(ctx, fetchCtx, ref)
+	return c.fetch(ctx, fetchCtx, ref, 0)
 }
 
 // Pull downloads the provided content into containerd's content store
@@ -327,10 +351,19 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 		}
 	}
 
-	if len(pullCtx.Platforms) > 1 {
-		return nil, errors.New("cannot pull multiplatform image locally, try Fetch")
-	} else if len(pullCtx.Platforms) == 0 {
-		pullCtx.Platforms = []string{platforms.Default()}
+	if pullCtx.PlatformMatcher == nil {
+		if len(pullCtx.Platforms) > 1 {
+			return nil, errors.New("cannot pull multiplatform image locally, try Fetch")
+		} else if len(pullCtx.Platforms) == 0 {
+			pullCtx.PlatformMatcher = platforms.Default()
+		} else {
+			p, err := platforms.Parse(pullCtx.Platforms[0])
+			if err != nil {
+				return nil, errors.Wrapf(err, "invalid platform %s", pullCtx.Platforms[0])
+			}
+
+			pullCtx.PlatformMatcher = platforms.Only(p)
+		}
 	}
 
 	ctx, done, err := c.WithLease(ctx)
@@ -339,12 +372,12 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	}
 	defer done(ctx)
 
-	img, err := c.fetch(ctx, pullCtx, ref)
+	img, err := c.fetch(ctx, pullCtx, ref, 1)
 	if err != nil {
 		return nil, err
 	}
 
-	i := NewImageWithPlatform(c, img, pullCtx.Platforms[0])
+	i := NewImageWithPlatform(c, img, pullCtx.PlatformMatcher)
 
 	if pullCtx.Unpack {
 		if err := i.Unpack(ctx, pullCtx.Snapshotter); err != nil {
@@ -355,7 +388,7 @@ func (c *Client) Pull(ctx context.Context, ref string, opts ...RemoteOpt) (Image
 	return i, nil
 }
 
-func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string) (images.Image, error) {
+func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string, limit int) (images.Image, error) {
 	store := c.ContentStore()
 	name, desc, err := rCtx.Resolver.Resolve(ctx, ref)
 	if err != nil {
@@ -380,7 +413,11 @@ func (c *Client) fetch(ctx context.Context, rCtx *RemoteContext, ref string) (im
 		// Set any children labels for that content
 		childrenHandler = images.SetChildrenLabels(store, childrenHandler)
 		// Filter children by platforms
-		childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.Platforms...)
+		childrenHandler = images.FilterPlatforms(childrenHandler, rCtx.PlatformMatcher)
+		// Sort and limit manifests if a finite number is needed
+		if limit > 0 {
+			childrenHandler = images.LimitManifests(childrenHandler, rCtx.PlatformMatcher, limit)
+		}
 
 		handler = images.Handlers(append(rCtx.BaseHandlers,
 			remotes.FetchHandler(store, fetcher),
@@ -437,13 +474,28 @@ func (c *Client) Push(ctx context.Context, ref string, desc ocispec.Descriptor, 
 			return err
 		}
 	}
+	if pushCtx.PlatformMatcher == nil {
+		if len(pushCtx.Platforms) > 0 {
+			var ps []ocispec.Platform
+			for _, platform := range pushCtx.Platforms {
+				p, err := platforms.Parse(platform)
+				if err != nil {
+					return errors.Wrapf(err, "invalid platform %s", platform)
+				}
+				ps = append(ps, p)
+			}
+			pushCtx.PlatformMatcher = platforms.Any(ps...)
+		} else {
+			pushCtx.PlatformMatcher = platforms.All
+		}
+	}
 
 	pusher, err := pushCtx.Resolver.Pusher(ctx, ref)
 	if err != nil {
 		return err
 	}
 
-	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.Platforms, pushCtx.BaseHandlers...)
+	return remotes.PushContent(ctx, pusher, desc, c.ContentStore(), pushCtx.PlatformMatcher, pushCtx.BaseHandlers...)
 }
 
 // GetImage returns an existing image

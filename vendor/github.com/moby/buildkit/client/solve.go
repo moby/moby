@@ -19,6 +19,7 @@ import (
 	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"github.com/tonistiigi/fsutil"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -255,10 +256,16 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 			return nil, errors.Errorf("%s not a directory", d)
 		}
 	}
+	resetUIDAndGID := func(st *fsutil.Stat) bool {
+		st.Uid = 0
+		st.Gid = 0
+		return true
+	}
+
 	dirs := make([]filesync.SyncedDir, 0, len(localDirs))
 	if def == nil {
 		for name, d := range localDirs {
-			dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d})
+			dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID})
 		}
 	} else {
 		for _, dt := range def.Def {
@@ -273,7 +280,7 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 					if !ok {
 						return nil, errors.Errorf("local directory %s not enabled", name)
 					}
-					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d}) // TODO: excludes
+					dirs = append(dirs, filesync.SyncedDir{Name: name, Dir: d, Map: resetUIDAndGID}) // TODO: excludes
 				}
 			}
 		}

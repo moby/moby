@@ -232,7 +232,7 @@ export JAEGER_TRACE=0.0.0.0:6831
 
 ### Supported runc version
 
-During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.1.0/RUNC.md) for more information.
+During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.1.3/RUNC.md) for more information.
 
 ### Running BuildKit without root privileges
 

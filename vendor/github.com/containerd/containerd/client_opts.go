@@ -89,7 +89,7 @@ type RemoteOpt func(*Client, *RemoteContext) error
 // content for
 func WithPlatform(platform string) RemoteOpt {
 	if platform == "" {
-		platform = platforms.Default()
+		platform = platforms.DefaultString()
 	}
 	return func(_ *Client, c *RemoteContext) error {
 		for _, p := range c.Platforms {
@@ -99,6 +99,16 @@ func WithPlatform(platform string) RemoteOpt {
 		}
 
 		c.Platforms = append(c.Platforms, platform)
+		return nil
+	}
+}
+
+// WithPlatformMatcher specifies the matcher to use for
+// determining which platforms to pull content for.
+// This value supersedes anything set with `WithPlatform`.
+func WithPlatformMatcher(m platforms.MatchComparer) RemoteOpt {
+	return func(_ *Client, c *RemoteContext) error {
+		c.PlatformMatcher = m
 		return nil
 	}
 }

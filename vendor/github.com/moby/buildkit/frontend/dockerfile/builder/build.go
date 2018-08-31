@@ -40,6 +40,7 @@ const (
 	keyImageResolveMode   = "image-resolve-mode"
 	keyGlobalAddHosts     = "add-hosts"
 	keyForceNetwork       = "force-network-mode"
+	keyOverrideCopyImage  = "override-copy-image" // remove after CopyOp implemented
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
@@ -136,7 +137,11 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			unpack := llb.Image(dockerfile2llb.CopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+			copyImage := opts[keyOverrideCopyImage]
+			if copyImage == "" {
+				copyImage = dockerfile2llb.DefaultCopyImage
+			}
+			unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
 				Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
 			unpack.AddMount("/src", httpContext, llb.Readonly)
 			src = unpack.AddMount("/out", llb.Scratch())
@@ -252,20 +257,21 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		func(i int, tp *specs.Platform) {
 			eg.Go(func() error {
 				st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
-					Target:           opts[keyTarget],
-					MetaResolver:     c,
-					BuildArgs:        filter(opts, buildArgPrefix),
-					Labels:           filter(opts, labelPrefix),
-					SessionID:        c.BuildOpts().SessionID,
-					BuildContext:     buildContext,
-					Excludes:         excludes,
-					IgnoreCache:      ignoreCache,
-					TargetPlatform:   tp,
-					BuildPlatforms:   buildPlatforms,
-					ImageResolveMode: resolveMode,
-					PrefixPlatform:   exportMap,
-					ExtraHosts:       extraHosts,
-					ForceNetMode:     defaultNetMode,
+					Target:            opts[keyTarget],
+					MetaResolver:      c,
+					BuildArgs:         filter(opts, buildArgPrefix),
+					Labels:            filter(opts, labelPrefix),
+					SessionID:         c.BuildOpts().SessionID,
+					BuildContext:      buildContext,
+					Excludes:          excludes,
+					IgnoreCache:       ignoreCache,
+					TargetPlatform:    tp,
+					BuildPlatforms:    buildPlatforms,
+					ImageResolveMode:  resolveMode,
+					PrefixPlatform:    exportMap,
+					ExtraHosts:        extraHosts,
+					ForceNetMode:      defaultNetMode,
+					OverrideCopyImage: opts[keyOverrideCopyImage],
 				})
 
 				if err != nil {
