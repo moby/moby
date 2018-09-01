@@ -54,6 +54,7 @@ func (w *filePoller) Add(name string) error {
 	}
 	fi, err := os.Stat(name)
 	if err != nil {
+		f.Close()
 		return err
 	}
 
@@ -61,6 +62,7 @@ func (w *filePoller) Add(name string) error {
 		w.watches = make(map[string]chan struct{})
 	}
 	if _, exists := w.watches[name]; exists {
+		f.Close()
 		return fmt.Errorf("watch exists")
 	}
 	chClose := make(chan struct{})
@@ -113,11 +115,10 @@ func (w *filePoller) Close() error {
 		return nil
 	}
 
-	w.closed = true
 	for name := range w.watches {
 		w.remove(name)
-		delete(w.watches, name)
 	}
+	w.closed = true
 	return nil
 }
 
@@ -146,12 +147,11 @@ func (w *filePoller) sendErr(e error, chClose <-chan struct{}) error {
 func (w *filePoller) watch(f *os.File, lastFi os.FileInfo, chClose chan struct{}) {
 	defer f.Close()
 	for {
-		time.Sleep(watchWaitTime)
 		select {
+		case <-time.After(watchWaitTime):
 		case <-chClose:
 			logrus.Debugf("watch for %s closed", f.Name())
 			return
-		default:
 		}
 
 		fi, err := os.Stat(f.Name())
