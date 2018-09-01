@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
 	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
+	"github.com/docker/docker/builder/builder-next/imagerefchecker"
 	mobyworker "github.com/docker/docker/builder/builder-next/worker"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/moby/buildkit/cache"
@@ -69,11 +70,20 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore: md,
 	})
 
+	layerGetter, ok := sbase.(imagerefchecker.LayerGetter)
+	if !ok {
+		return nil, errors.Errorf("snapshotter does not implement layergetter")
+	}
+
+	refChecker := imagerefchecker.New(imagerefchecker.Opt{
+		ImageStore:  dist.ImageStore,
+		LayerGetter: layerGetter,
+	})
+
 	cm, err := cache.NewManager(cache.ManagerOpt{
-		Snapshotter:   snapshotter,
-		MetadataStore: md,
-		// TODO: implement PruneRefChecker to correctly mark cache objects as "Shared"
-		PruneRefChecker: nil,
+		Snapshotter:     snapshotter,
+		MetadataStore:   md,
+		PruneRefChecker: refChecker,
 	})
 	if err != nil {
 		return nil, err

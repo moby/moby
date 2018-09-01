@@ -110,6 +110,10 @@ func (s *snapshotter) chainID(key string) (layer.ChainID, bool) {
 	return "", false
 }
 
+func (s *snapshotter) GetLayer(key string) (layer.Layer, error) {
+	return s.getLayer(key, true)
+}
+
 func (s *snapshotter) getLayer(key string, withCommitted bool) (layer.Layer, error) {
 	s.mu.Lock()
 	l, ok := s.refs[key]
