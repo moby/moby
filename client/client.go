@@ -413,7 +413,7 @@ func (cli *Client) SetCustomHTTPHeaders(headers map[string]string) {
 func (cli *Client) Dialer() func(context.Context) (net.Conn, error) {
 	return func(ctx context.Context) (net.Conn, error) {
 		if transport, ok := cli.client.Transport.(*http.Transport); ok {
-			if transport.DialContext != nil {
+			if transport.DialContext != nil && transport.TLSClientConfig == nil {
 				return transport.DialContext(ctx, cli.proto, cli.addr)
 			}
 		}
