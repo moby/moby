@@ -227,7 +227,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		transientFailureCount = 0
 		client                *containerd.Client
 		err                   error
-		delay                 <-chan time.Time
 		started               bool
 	)
 
@@ -244,6 +243,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		close(r.daemonStopCh)
 	}()
 
+	delay := time.After(0)
+
 	for {
 		select {
 		case <-ctx.Done():
@@ -253,7 +254,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			}
 			return
 		case <-delay:
-		default:
 		}
 
 		if r.daemonPid == -1 {
