@@ -88,7 +88,7 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 }
 
 // PruneCache removes all cached build sources
-func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport, error) {
+func (b *Backend) PruneCache(ctx context.Context, opts types.BuildCachePruneOptions) (*types.BuildCachePruneReport, error) {
 	eg, ctx := errgroup.WithContext(ctx)
 
 	var fsCacheSize uint64
@@ -102,9 +102,10 @@ func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport,
 	})
 
 	var buildCacheSize int64
+	var cacheIDs []string
 	eg.Go(func() error {
 		var err error
-		buildCacheSize, err = b.buildkit.Prune(ctx)
+		buildCacheSize, cacheIDs, err = b.buildkit.Prune(ctx, opts)
 		if err != nil {
 			return errors.Wrap(err, "failed to prune build cache")
 		}
@@ -115,7 +116,7 @@ func (b *Backend) PruneCache(ctx context.Context) (*types.BuildCachePruneReport,
 		return nil, err
 	}
 
-	return &types.BuildCachePruneReport{SpaceReclaimed: fsCacheSize + uint64(buildCacheSize)}, nil
+	return &types.BuildCachePruneReport{SpaceReclaimed: fsCacheSize + uint64(buildCacheSize), CachesDeleted: cacheIDs}, nil
 }
 
 // Cancel cancels the build by ID

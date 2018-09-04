@@ -29,6 +29,21 @@ import (
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
+var errMultipleFilterValues = errors.New("filters expect only one value")
+
+var cacheFields = map[string]bool{
+	"id":          true,
+	"parent":      true,
+	"type":        true,
+	"description": true,
+	"inuse":       true,
+	"shared":      true,
+	"private":     true,
+	// fields from buildkit that are not exposed
+	"mutable":   false,
+	"immutable": false,
+}
+
 func init() {
 	llbsolver.AllowNetworkHostUnstable = true
 }
@@ -87,48 +102,94 @@ func (b *Builder) DiskUsage(ctx context.Context) ([]*types.BuildCache, error) {
 	var items []*types.BuildCache
 	for _, r := range duResp.Record {
 		items = append(items, &types.BuildCache{
-			ID:      r.ID,
-			Mutable: r.Mutable,
-			InUse:   r.InUse,
-			Size:    r.Size_,
-
+			ID:          r.ID,
+			Parent:      r.Parent,
+			Type:        r.RecordType,
+			Description: r.Description,
+			InUse:       r.InUse,
+			Shared:      r.Shared,
+			Size:        r.Size_,
 			CreatedAt:   r.CreatedAt,
 			LastUsedAt:  r.LastUsedAt,
 			UsageCount:  int(r.UsageCount),
-			Parent:      r.Parent,
-			Description: r.Description,
 		})
 	}
 	return items, nil
 }
 
 // Prune clears all reclaimable build cache
-func (b *Builder) Prune(ctx context.Context) (int64, error) {
+func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) (int64, []string, error) {
 	ch := make(chan *controlapi.UsageRecord)
 
 	eg, ctx := errgroup.WithContext(ctx)
 
+	validFilters := make(map[string]bool, 1+len(cacheFields))
+	validFilters["unused-for"] = true
+	for k, v := range cacheFields {
+		validFilters[k] = v
+	}
+	if err := opts.Filters.Validate(validFilters); err != nil {
+		return 0, nil, err
+	}
+
+	var unusedFor time.Duration
+	unusedForValues := opts.Filters.Get("unused-for")
+
+	switch len(unusedForValues) {
+	case 0:
+
+	case 1:
+		var err error
+		unusedFor, err = time.ParseDuration(unusedForValues[0])
+		if err != nil {
+			return 0, nil, errors.Wrap(err, "unused-for filter expects a duration (e.g., '24h')")
+		}
+
+	default:
+		return 0, nil, errMultipleFilterValues
+	}
+
+	bkFilter := make([]string, 0, opts.Filters.Len())
+	for cacheField := range cacheFields {
+		values := opts.Filters.Get(cacheField)
+		switch len(values) {
+		case 0:
+			bkFilter = append(bkFilter, cacheField)
+		case 1:
+			bkFilter = append(bkFilter, cacheField+"=="+values[0])
+		default:
+			return 0, nil, errMultipleFilterValues
+		}
+	}
+
 	eg.Go(func() error {
 		defer close(ch)
-		return b.controller.Prune(&controlapi.PruneRequest{}, &pruneProxy{
+		return b.controller.Prune(&controlapi.PruneRequest{
+			All:          opts.All,
+			KeepDuration: int64(unusedFor),
+			KeepBytes:    opts.KeepStorage,
+			Filter:       bkFilter,
+		}, &pruneProxy{
 			streamProxy: streamProxy{ctx: ctx},
 			ch:          ch,
 		})
 	})
 
 	var size int64
+	var cacheIDs []string
 	eg.Go(func() error {
 		for r := range ch {
 			size += r.Size_
+			cacheIDs = append(cacheIDs, r.ID)
 		}
 		return nil
 	})
 
 	if err := eg.Wait(); err != nil {
-		return 0, err
+		return 0, nil, err
 	}
 
-	return size, nil
+	return size, cacheIDs, nil
 }
 
 // Build executes a build request

@@ -516,6 +516,15 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 
+	// TODO: handle windows layers for cross platform builds
+
+	if p.src.RecordType != "" && cache.GetRecordType(ref) == "" {
+		if err := cache.SetRecordType(ref, p.src.RecordType); err != nil {
+			ref.Release(context.TODO())
+			return nil, err
+		}
+	}
+
 	return ref, nil
 }
 
