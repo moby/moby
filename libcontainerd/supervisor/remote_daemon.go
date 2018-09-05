@@ -245,20 +245,26 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 	}()
 
 	for {
-		select {
-		case <-ctx.Done():
-			r.logger.Info("stopping healthcheck following graceful shutdown")
-			if client != nil {
-				client.Close()
+		if delay != nil {
+			select {
+			case <-ctx.Done():
+				r.logger.Info("stopping healthcheck following graceful shutdown")
+				if client != nil {
+					client.Close()
+				}
+				return
+			case <-delay:
 			}
-			return
-		case <-delay:
-		default:
 		}
 
 		if r.daemonPid == -1 {
 			if r.daemonWaitCh != nil {
-				<-r.daemonWaitCh
+				select {
+				case <-ctx.Done():
+					r.logger.Info("stopping containerd startup following graceful shutdown")
+					return
+				case <-r.daemonWaitCh:
+				}
 			}
 
 			os.RemoveAll(r.GRPC.Address)
@@ -276,26 +282,28 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			}
 		}
 
-		tctx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
-		_, err := client.IsServing(tctx)
-		cancel()
-		if err == nil {
-			if !started {
-				close(r.daemonStartCh)
-				started = true
+		if client != nil {
+			tctx, cancel := context.WithTimeout(ctx, healthCheckTimeout)
+			_, err := client.IsServing(tctx)
+			cancel()
+			if err == nil {
+				if !started {
+					close(r.daemonStartCh)
+					started = true
+				}
+
+				transientFailureCount = 0
+				delay = time.After(500 * time.Millisecond)
+				continue
 			}
 
-			transientFailureCount = 0
-			delay = time.After(500 * time.Millisecond)
-			continue
-		}
+			r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
 
-		r.logger.WithError(err).WithField("binary", binaryName).Debug("daemon is not responding")
-
-		transientFailureCount++
-		if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
-			delay = time.After(time.Duration(transientFailureCount) * 200 * time.Millisecond)
-			continue
+			transientFailureCount++
+			if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
+				delay = time.After(time.Duration(transientFailureCount) * 200 * time.Millisecond)
+				continue
+			}
 		}
 
 		if system.IsProcessAlive(r.daemonPid) {
@@ -304,6 +312,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		}
 
 		client.Close()
+		client = nil
 		r.daemonPid = -1
 		delay = nil
 		transientFailureCount = 0
