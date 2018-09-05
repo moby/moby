@@ -63,7 +63,7 @@ func NewImage(client *Client, i images.Image) Image {
 }
 
 // NewImageWithPlatform returns a client image object from the metadata image
-func NewImageWithPlatform(client *Client, i images.Image, platform string) Image {
+func NewImageWithPlatform(client *Client, i images.Image, platform platforms.MatchComparer) Image {
 	return &image{
 		client:   client,
 		i:        i,
@@ -75,7 +75,7 @@ type image struct {
 	client *Client
 
 	i        images.Image
-	platform string
+	platform platforms.MatchComparer
 }
 
 func (i *image) Name() string {
@@ -186,7 +186,7 @@ func (i *image) Unpack(ctx context.Context, snapshotterName string) error {
 	return nil
 }
 
-func (i *image) getLayers(ctx context.Context, platform string) ([]rootfs.Layer, error) {
+func (i *image) getLayers(ctx context.Context, platform platforms.MatchComparer) ([]rootfs.Layer, error) {
 	cs := i.client.ContentStore()
 
 	manifest, err := images.Manifest(ctx, cs, i.i.Target, platform)

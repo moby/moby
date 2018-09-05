@@ -28,5 +28,11 @@ func dispatchSecret(m *instructions.Mount) (llb.RunOption, error) {
 		target = "/run/secrets/" + path.Base(id)
 	}
 
-	return llb.AddSecret(target, llb.SecretID(id)), nil
+	opts := []llb.SecretOption{llb.SecretID(id)}
+
+	if !m.Required {
+		opts = append(opts, llb.SecretOptional)
+	}
+
+	return llb.AddSecret(target, opts...), nil
 }

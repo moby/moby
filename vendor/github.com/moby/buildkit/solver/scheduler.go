@@ -2,6 +2,7 @@ package solver
 
 import (
 	"context"
+	"os"
 	"sync"
 
 	"github.com/moby/buildkit/solver/internal/pipe"
@@ -10,7 +11,13 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const debugScheduler = false // TODO: replace with logs in build trace
+var debugScheduler = false // TODO: replace with logs in build trace
+
+func init() {
+	if os.Getenv("BUILDKIT_SCHEDULER_DEBUG") == "1" {
+		debugScheduler = true
+	}
+}
 
 func newScheduler(ef edgeFactory) *scheduler {
 	s := &scheduler{
@@ -120,11 +127,14 @@ func (s *scheduler) dispatch(e *edge) {
 		}
 	}
 
+	pf := &pipeFactory{s: s, e: e}
+
 	// unpark the edge
 	debugSchedulerPreUnpark(e, inc, updates, out)
-	e.unpark(inc, updates, out, &pipeFactory{s: s, e: e})
+	e.unpark(inc, updates, out, pf)
 	debugSchedulerPostUnpark(e, inc)
 
+postUnpark:
 	// set up new requests that didn't complete/were added by this run
 	openIncoming := make([]*edgePipe, 0, len(inc))
 	for _, r := range s.incoming[e] {
@@ -170,10 +180,12 @@ func (s *scheduler) dispatch(e *edge) {
 	// to error the edge instead. They can only appear from algorithm bugs in
 	// unpark(), not for any external input.
 	if len(openIncoming) > 0 && len(openOutgoing) == 0 {
-		panic("invalid dispatch: return leaving incoming open")
+		e.markFailed(pf, errors.New("buildkit scheduler error: return leaving incoming open. Please report this with BUILDKIT_SCHEDULER_DEBUG=1"))
+		goto postUnpark
 	}
 	if len(openIncoming) == 0 && len(openOutgoing) > 0 {
-		panic("invalid dispatch: return leaving outgoing open")
+		e.markFailed(pf, errors.New("buildkit scheduler error: return leaving outgoing open. Please report this with BUILDKIT_SCHEDULER_DEBUG=1"))
+		goto postUnpark
 	}
 }
 

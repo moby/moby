@@ -100,6 +100,7 @@ type Mount struct {
 	ReadOnly     bool
 	CacheID      string
 	CacheSharing string
+	Required     bool
 }
 
 func parseMount(value string) (*Mount, error) {
@@ -127,6 +128,11 @@ func parseMount(value string) (*Mount, error) {
 				m.ReadOnly = false
 				roAuto = false
 				continue
+			case "required":
+				if m.Type == "secret" {
+					m.Required = true
+					continue
+				}
 			}
 		}
 

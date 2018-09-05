@@ -74,7 +74,7 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 	if fifos.Stdout != "" {
 		l, err := winio.ListenPipe(fifos.Stdout, nil)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to create stdin pipe %s", fifos.Stdout)
+			return nil, errors.Wrapf(err, "failed to create stdout pipe %s", fifos.Stdout)
 		}
 		defer func(l net.Listener) {
 			if err != nil {
@@ -99,7 +99,7 @@ func copyIO(fifos *FIFOSet, ioset *Streams) (*cio, error) {
 		}()
 	}
 
-	if !fifos.Terminal && fifos.Stderr != "" {
+	if fifos.Stderr != "" {
 		l, err := winio.ListenPipe(fifos.Stderr, nil)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create stderr pipe %s", fifos.Stderr)

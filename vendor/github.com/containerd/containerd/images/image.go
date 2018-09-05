@@ -19,6 +19,7 @@ package images
 import (
 	"context"
 	"encoding/json"
+	"sort"
 	"strings"
 	"time"
 
@@ -93,7 +94,7 @@ type Store interface {
 //
 // The caller can then use the descriptor to resolve and process the
 // configuration of the image.
-func (image *Image) Config(ctx context.Context, provider content.Provider, platform string) (ocispec.Descriptor, error) {
+func (image *Image) Config(ctx context.Context, provider content.Provider, platform platforms.MatchComparer) (ocispec.Descriptor, error) {
 	return Config(ctx, provider, image.Target, platform)
 }
 
@@ -101,7 +102,7 @@ func (image *Image) Config(ctx context.Context, provider content.Provider, platf
 //
 // These are used to verify that a set of layers unpacked to the expected
 // values.
-func (image *Image) RootFS(ctx context.Context, provider content.Provider, platform string) ([]digest.Digest, error) {
+func (image *Image) RootFS(ctx context.Context, provider content.Provider, platform platforms.MatchComparer) ([]digest.Digest, error) {
 	desc, err := image.Config(ctx, provider, platform)
 	if err != nil {
 		return nil, err
@@ -110,7 +111,7 @@ func (image *Image) RootFS(ctx context.Context, provider content.Provider, platf
 }
 
 // Size returns the total size of an image's packed resources.
-func (image *Image) Size(ctx context.Context, provider content.Provider, platform string) (int64, error) {
+func (image *Image) Size(ctx context.Context, provider content.Provider, platform platforms.MatchComparer) (int64, error) {
 	var size int64
 	return size, Walk(ctx, Handlers(HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if desc.Size < 0 {
@@ -121,27 +122,22 @@ func (image *Image) Size(ctx context.Context, provider content.Provider, platfor
 	}), FilterPlatforms(ChildrenHandler(provider), platform)), image.Target)
 }
 
+type platformManifest struct {
+	p *ocispec.Platform
+	m *ocispec.Manifest
+}
+
 // Manifest resolves a manifest from the image for the given platform.
 //
 // TODO(stevvooe): This violates the current platform agnostic approach to this
 // package by returning a specific manifest type. We'll need to refactor this
 // to return a manifest descriptor or decide that we want to bring the API in
 // this direction because this abstraction is not needed.`
-func Manifest(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform string) (ocispec.Manifest, error) {
+func Manifest(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform platforms.MatchComparer) (ocispec.Manifest, error) {
 	var (
-		matcher  platforms.Matcher
-		m        *ocispec.Manifest
-		p        ocispec.Platform
+		m        []platformManifest
 		wasIndex bool
 	)
-	if platform != "" {
-		var err error
-		p, err = platforms.Parse(platform)
-		if err != nil {
-			return ocispec.Manifest{}, err
-		}
-		matcher = platforms.NewMatcher(p)
-	}
 
 	if err := Walk(ctx, HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		switch desc.MediaType {
@@ -156,8 +152,8 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 				return nil, err
 			}
 
-			if platform != "" {
-				if desc.Platform != nil && !matcher.Match(*desc.Platform) {
+			if platform != nil {
+				if desc.Platform != nil && !platform.Match(*desc.Platform) {
 					return nil, nil
 				}
 
@@ -172,14 +168,17 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 						return nil, err
 					}
 
-					if !matcher.Match(platforms.Normalize(ocispec.Platform{OS: image.OS, Architecture: image.Architecture})) {
+					if !platform.Match(platforms.Normalize(ocispec.Platform{OS: image.OS, Architecture: image.Architecture})) {
 						return nil, nil
 					}
 
 				}
 			}
 
-			m = &manifest
+			m = append(m, platformManifest{
+				p: desc.Platform,
+				m: &manifest,
+			})
 
 			return nil, nil
 		case MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
@@ -193,13 +192,13 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 				return nil, err
 			}
 
-			if platform == "" {
+			if platform == nil {
 				return idx.Manifests, nil
 			}
 
 			var descs []ocispec.Descriptor
 			for _, d := range idx.Manifests {
-				if d.Platform == nil || matcher.Match(*d.Platform) {
+				if d.Platform == nil || platform.Match(*d.Platform) {
 					descs = append(descs, d)
 				}
 			}
@@ -214,15 +213,25 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 		return ocispec.Manifest{}, err
 	}
 
-	if m == nil {
+	if len(m) == 0 {
 		err := errors.Wrapf(errdefs.ErrNotFound, "manifest %v", image.Digest)
 		if wasIndex {
-			err = errors.Wrapf(errdefs.ErrNotFound, "no match for current platform %s in manifest %v", platforms.Format(p), image.Digest)
+			err = errors.Wrapf(errdefs.ErrNotFound, "no match for platform in manifest %v", image.Digest)
 		}
 		return ocispec.Manifest{}, err
 	}
 
-	return *m, nil
+	sort.SliceStable(m, func(i, j int) bool {
+		if m[i].p == nil {
+			return false
+		}
+		if m[j].p == nil {
+			return true
+		}
+		return platform.Less(*m[i].p, *m[j].p)
+	})
+
+	return *m[0].m, nil
 }
 
 // Config resolves the image configuration descriptor using a content provided
@@ -230,7 +239,7 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 //
 // The caller can then use the descriptor to resolve and process the
 // configuration of the image.
-func Config(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform string) (ocispec.Descriptor, error) {
+func Config(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform platforms.MatchComparer) (ocispec.Descriptor, error) {
 	manifest, err := Manifest(ctx, provider, image, platform)
 	if err != nil {
 		return ocispec.Descriptor{}, err
@@ -276,7 +285,7 @@ func Platforms(ctx context.Context, provider content.Provider, image ocispec.Des
 // in the provider.
 //
 // If there is a problem resolving content, an error will be returned.
-func Check(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform string) (available bool, required, present, missing []ocispec.Descriptor, err error) {
+func Check(ctx context.Context, provider content.Provider, image ocispec.Descriptor, platform platforms.MatchComparer) (available bool, required, present, missing []ocispec.Descriptor, err error) {
 	mfst, err := Manifest(ctx, provider, image, platform)
 	if err != nil {
 		if errdefs.IsNotFound(err) {

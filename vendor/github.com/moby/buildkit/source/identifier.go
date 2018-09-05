@@ -235,6 +235,19 @@ func (_ *HttpIdentifier) ID() string {
 	return HttpsScheme
 }
 
+func (r ResolveMode) String() string {
+	switch r {
+	case ResolveModeDefault:
+		return pb.AttrImageResolveModeDefault
+	case ResolveModeForcePull:
+		return pb.AttrImageResolveModeForcePull
+	case ResolveModePreferLocal:
+		return pb.AttrImageResolveModePreferLocal
+	default:
+		return ""
+	}
+}
+
 func ParseImageResolveMode(v string) (ResolveMode, error) {
 	switch v {
 	case pb.AttrImageResolveModeDefault, "":

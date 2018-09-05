@@ -74,6 +74,10 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 		b.cmsMu.Unlock()
 	}
 
+	if req.Definition != nil && req.Definition.Def != nil && req.Frontend != "" {
+		return nil, errors.New("cannot solve with both Definition and Frontend specified")
+	}
+
 	if req.Definition != nil && req.Definition.Def != nil {
 		ent, err := loadEntitlements(b.builder)
 		if err != nil {
@@ -90,8 +94,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 		}
 
 		res = &frontend.Result{Ref: ref}
-	}
-	if req.Frontend != "" {
+	} else if req.Frontend != "" {
 		f, ok := b.frontends[req.Frontend]
 		if !ok {
 			return nil, errors.Errorf("invalid frontend: %s", req.Frontend)
@@ -101,9 +104,7 @@ func (b *llbBridge) Solve(ctx context.Context, req frontend.SolveRequest) (res *
 			return nil, err
 		}
 	} else {
-		if req.Definition == nil || req.Definition.Def == nil {
-			return &frontend.Result{}, nil
-		}
+		return &frontend.Result{}, nil
 	}
 
 	if err := res.EachRef(func(r solver.CachedResult) error {
