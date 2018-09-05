@@ -143,6 +143,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			cmd = args
 		}
 		s.Process.Args = append(config.Entrypoint, cmd...)
+
 		cwd := config.WorkingDir
 		if cwd == "" {
 			cwd = "/"
@@ -483,6 +484,18 @@ func getAllCapabilities() []string {
 		caps = append(caps, "CAP_"+strings.ToUpper(cap.String()))
 	}
 	return caps
+}
+
+// WithAmbientCapabilities set the Linux ambient capabilities for the process
+// Ambient capabilities should only be set for non-root users or the caller should
+// understand how these capabilities are used and set
+func WithAmbientCapabilities(caps []string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCapabilities(s)
+
+		s.Process.Capabilities.Ambient = caps
+		return nil
+	}
 }
 
 var errNoUsersFound = errors.New("no users found")

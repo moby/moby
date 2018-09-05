@@ -17,6 +17,7 @@
 package console
 
 import (
+	"fmt"
 	"os"
 
 	"github.com/pkg/errors"
@@ -28,55 +29,90 @@ var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
-func (m *master) init() {
-	m.h = windows.Handle(m.f.Fd())
-	if err := windows.GetConsoleMode(m.h, &m.mode); err == nil {
-		if m.f == os.Stdin {
-			// Validate that windows.ENABLE_VIRTUAL_TERMINAL_INPUT is supported, but do not set it.
-			if err = windows.SetConsoleMode(m.h, m.mode|windows.ENABLE_VIRTUAL_TERMINAL_INPUT); err == nil {
-				vtInputSupported = true
-			}
-			// Unconditionally set the console mode back even on failure because SetConsoleMode
-			// remembers invalid bits on input handles.
-			windows.SetConsoleMode(m.h, m.mode)
-		} else if err := windows.SetConsoleMode(m.h, m.mode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING); err == nil {
-			m.mode |= windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING
-		} else {
-			windows.SetConsoleMode(m.h, m.mode)
+func (m *master) initStdios() {
+	m.in = windows.Handle(os.Stdin.Fd())
+	if err := windows.GetConsoleMode(m.in, &m.inMode); err == nil {
+		// Validate that windows.ENABLE_VIRTUAL_TERMINAL_INPUT is supported, but do not set it.
+		if err = windows.SetConsoleMode(m.in, m.inMode|windows.ENABLE_VIRTUAL_TERMINAL_INPUT); err == nil {
+			vtInputSupported = true
 		}
+		// Unconditionally set the console mode back even on failure because SetConsoleMode
+		// remembers invalid bits on input handles.
+		windows.SetConsoleMode(m.in, m.inMode)
+	} else {
+		fmt.Printf("failed to get console mode for stdin: %v\n", err)
+	}
+
+	m.out = windows.Handle(os.Stdout.Fd())
+	if err := windows.GetConsoleMode(m.out, &m.outMode); err == nil {
+		if err := windows.SetConsoleMode(m.out, m.outMode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING); err == nil {
+			m.outMode |= windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING
+		} else {
+			windows.SetConsoleMode(m.out, m.outMode)
+		}
+	} else {
+		fmt.Printf("failed to get console mode for stdout: %v\n", err)
+	}
+
+	m.err = windows.Handle(os.Stderr.Fd())
+	if err := windows.GetConsoleMode(m.err, &m.errMode); err == nil {
+		if err := windows.SetConsoleMode(m.err, m.errMode|windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING); err == nil {
+			m.errMode |= windows.ENABLE_VIRTUAL_TERMINAL_PROCESSING
+		} else {
+			windows.SetConsoleMode(m.err, m.errMode)
+		}
+	} else {
+		fmt.Printf("failed to get console mode for stderr: %v\n", err)
 	}
 }
 
 type master struct {
-	h    windows.Handle
-	mode uint32
-	f    *os.File
+	in     windows.Handle
+	inMode uint32
+
+	out     windows.Handle
+	outMode uint32
+
+	err     windows.Handle
+	errMode uint32
 }
 
 func (m *master) SetRaw() error {
-	if m.f == os.Stdin {
-		if err := makeInputRaw(m.h, m.mode); err != nil {
-			return err
-		}
-	} else {
-		// Set StdOut and StdErr to raw mode, we ignore failures since
-		// windows.DISABLE_NEWLINE_AUTO_RETURN might not be supported on this version of
-		// Windows.
-		windows.SetConsoleMode(m.h, m.mode|windows.DISABLE_NEWLINE_AUTO_RETURN)
+	if err := makeInputRaw(m.in, m.inMode); err != nil {
+		return err
 	}
+
+	// Set StdOut and StdErr to raw mode, we ignore failures since
+	// windows.DISABLE_NEWLINE_AUTO_RETURN might not be supported on this version of
+	// Windows.
+
+	windows.SetConsoleMode(m.out, m.outMode|windows.DISABLE_NEWLINE_AUTO_RETURN)
+
+	windows.SetConsoleMode(m.err, m.errMode|windows.DISABLE_NEWLINE_AUTO_RETURN)
+
 	return nil
 }
 
 func (m *master) Reset() error {
-	if err := windows.SetConsoleMode(m.h, m.mode); err != nil {
-		return errors.Wrap(err, "unable to restore console mode")
+	for _, s := range []struct {
+		fd   windows.Handle
+		mode uint32
+	}{
+		{m.in, m.inMode},
+		{m.out, m.outMode},
+		{m.err, m.errMode},
+	} {
+		if err := windows.SetConsoleMode(s.fd, s.mode); err != nil {
+			return errors.Wrap(err, "unable to restore console mode")
+		}
 	}
+
 	return nil
 }
 
 func (m *master) Size() (WinSize, error) {
 	var info windows.ConsoleScreenBufferInfo
-	err := windows.GetConsoleScreenBufferInfo(m.h, &info)
+	err := windows.GetConsoleScreenBufferInfo(m.out, &info)
 	if err != nil {
 		return WinSize{}, errors.Wrap(err, "unable to get console info")
 	}
@@ -98,11 +134,11 @@ func (m *master) ResizeFrom(c Console) error {
 }
 
 func (m *master) DisableEcho() error {
-	mode := m.mode &^ windows.ENABLE_ECHO_INPUT
+	mode := m.inMode &^ windows.ENABLE_ECHO_INPUT
 	mode |= windows.ENABLE_PROCESSED_INPUT
 	mode |= windows.ENABLE_LINE_INPUT
 
-	if err := windows.SetConsoleMode(m.h, mode); err != nil {
+	if err := windows.SetConsoleMode(m.in, mode); err != nil {
 		return errors.Wrap(err, "unable to set console to disable echo")
 	}
 
@@ -114,15 +150,15 @@ func (m *master) Close() error {
 }
 
 func (m *master) Read(b []byte) (int, error) {
-	return m.f.Read(b)
+	return os.Stdin.Read(b)
 }
 
 func (m *master) Write(b []byte) (int, error) {
-	return m.f.Write(b)
+	return os.Stdout.Write(b)
 }
 
 func (m *master) Fd() uintptr {
-	return uintptr(m.h)
+	return uintptr(m.in)
 }
 
 // on windows, console can only be made from os.Std{in,out,err}, hence there
@@ -174,7 +210,7 @@ func newMaster(f *os.File) (Console, error) {
 	if f != os.Stdin && f != os.Stdout && f != os.Stderr {
 		return nil, errors.New("creating a console from a file is not supported on windows")
 	}
-	m := &master{f: f}
-	m.init()
+	m := &master{}
+	m.initStdios()
 	return m, nil
 }

@@ -64,7 +64,7 @@ func filterPrefix(opts map[string]string, pfx string) map[string]string {
 	return m
 }
 
-func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string) (ret *frontend.Result, retErr error) {
+func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.FrontendLLBBridge, opts map[string]string) (*frontend.Result, error) {
 	source, ok := opts[keySource]
 	if !ok {
 		return nil, errors.Errorf("no source specified for gateway")
@@ -188,23 +188,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	}
 	env = append(env, "BUILDKIT_WORKERS="+string(dt))
 
-	defer func() {
-		for _, r := range lbf.refs {
-			if retErr == nil && lbf.result != nil {
-				keep := false
-				lbf.result.EachRef(func(r2 solver.CachedResult) error {
-					if r == r2 {
-						keep = true
-					}
-					return nil
-				})
-				if keep {
-					continue
-				}
-			}
-			r.Release(context.TODO())
-		}
-	}()
+	defer lbf.Discard()
 
 	env = append(env, "BUILDKIT_EXPORTEDPRODUCT="+apicaps.ExportedProduct)
 
@@ -228,6 +212,27 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	}
 
 	return lbf.Result()
+}
+
+func (lbf *llbBridgeForwarder) Discard() {
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
+	for id, r := range lbf.refs {
+		if lbf.err == nil && lbf.result != nil {
+			keep := false
+			lbf.result.EachRef(func(r2 solver.CachedResult) error {
+				if r == r2 {
+					keep = true
+				}
+				return nil
+			})
+			if keep {
+				continue
+			}
+		}
+		r.Release(context.TODO())
+		delete(lbf.refs, id)
+	}
 }
 
 func (lbf *llbBridgeForwarder) Done() <-chan struct{} {
@@ -447,10 +452,12 @@ func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) 
 			exp[k] = v
 		}
 
+		lbf.mu.Lock()
 		lbf.result = &frontend.Result{
 			Ref:      lbf.refs[defaultID],
 			Metadata: exp,
 		}
+		lbf.mu.Unlock()
 	}
 
 	resp := &pb.SolveResponse{
@@ -554,6 +561,8 @@ func (lbf *llbBridgeForwarder) convertRef(id string) (solver.CachedResult, error
 	if id == "" {
 		return nil, nil
 	}
+	lbf.mu.Lock()
+	defer lbf.mu.Unlock()
 	r, ok := lbf.refs[id]
 	if !ok {
 		return nil, errors.Errorf("return reference %s not found", id)

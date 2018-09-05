@@ -27,7 +27,6 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
-	"github.com/docker/docker/api/types"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
@@ -253,8 +252,8 @@ type routerOptions struct {
 	sessionManager *session.Manager
 	buildBackend   *buildbackend.Backend
 	buildCache     *fscache.FSCache // legacy
+	features       *map[string]bool
 	buildkit       *buildkit.Builder
-	builderVersion types.BuilderVersion
 	daemon         *daemon.Daemon
 	api            *apiserver.Server
 	cluster        *cluster.Cluster
@@ -300,20 +299,12 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
-	var bv types.BuilderVersion
-	if v, ok := config.Features["buildkit"]; ok {
-		if v {
-			bv = types.BuilderBuildKit
-		} else {
-			bv = types.BuilderV1
-		}
-	}
 	return routerOptions{
 		sessionManager: sm,
 		buildBackend:   bb,
 		buildCache:     buildCache,
 		buildkit:       bk,
-		builderVersion: bv,
+		features:       daemon.Features(),
 		daemon:         daemon,
 	}, nil
 }
@@ -487,9 +478,9 @@ func initRouter(opts routerOptions) {
 		checkpointrouter.NewRouter(opts.daemon, decoder),
 		container.NewRouter(opts.daemon, decoder),
 		image.NewRouter(opts.daemon.ImageService()),
-		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache, opts.buildkit, opts.builderVersion),
+		systemrouter.NewRouter(opts.daemon, opts.cluster, opts.buildCache, opts.buildkit, opts.features),
 		volume.NewRouter(opts.daemon.VolumesService()),
-		build.NewRouter(opts.buildBackend, opts.daemon, opts.builderVersion),
+		build.NewRouter(opts.buildBackend, opts.daemon, opts.features),
 		sessionrouter.NewRouter(opts.sessionManager),
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
