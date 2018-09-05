@@ -455,7 +455,7 @@ func canonicalTarName(name string, isDir bool) string {
 
 // addTarFile adds to the tar archive a file from `path` as `name`
 func (ta *tarAppender) addTarFile(path, name string) error {
-	fi, err := os.Lstat(path)
+	fi, err := system.GetFileInfo(path)
 	if err != nil {
 		return err
 	}

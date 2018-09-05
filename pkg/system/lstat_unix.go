@@ -3,6 +3,7 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -16,4 +17,16 @@ func Lstat(path string) (*StatT, error) {
 		return nil, err
 	}
 	return fromStatT(s)
+}
+
+// GetFileInfo on non-Windows simply invokes Lstat.
+//
+// Throws an error if the file does not exist
+func GetFileInfo(path string) (os.FileInfo, error) {
+	fi, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+
+	return fi, nil
 }
