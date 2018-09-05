@@ -13,11 +13,13 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
 	controlapi "github.com/moby/buildkit/api/services/control"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
@@ -57,6 +59,7 @@ type Opt struct {
 	NetworkController   libnetwork.NetworkController
 	DefaultCgroupParent string
 	ResolverOpt         resolver.ResolveOptionsFunc
+	BuilderConfig       config.BuilderConfig
 }
 
 // Builder can build using BuildKit backend
@@ -134,43 +137,18 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 		return 0, nil, err
 	}
 
-	var unusedFor time.Duration
-	unusedForValues := opts.Filters.Get("unused-for")
-
-	switch len(unusedForValues) {
-	case 0:
-
-	case 1:
-		var err error
-		unusedFor, err = time.ParseDuration(unusedForValues[0])
-		if err != nil {
-			return 0, nil, errors.Wrap(err, "unused-for filter expects a duration (e.g., '24h')")
-		}
-
-	default:
-		return 0, nil, errMultipleFilterValues
-	}
-
-	bkFilter := make([]string, 0, opts.Filters.Len())
-	for cacheField := range cacheFields {
-		values := opts.Filters.Get(cacheField)
-		switch len(values) {
-		case 0:
-			bkFilter = append(bkFilter, cacheField)
-		case 1:
-			bkFilter = append(bkFilter, cacheField+"=="+values[0])
-		default:
-			return 0, nil, errMultipleFilterValues
-		}
+	pi, err := toBuildkitPruneInfo(opts)
+	if err != nil {
+		return 0, nil, err
 	}
 
 	eg.Go(func() error {
 		defer close(ch)
 		return b.controller.Prune(&controlapi.PruneRequest{
-			All:          opts.All,
-			KeepDuration: int64(unusedFor),
-			KeepBytes:    opts.KeepStorage,
-			Filter:       bkFilter,
+			All:          pi.All,
+			KeepDuration: int64(pi.KeepDuration),
+			KeepBytes:    pi.KeepBytes,
+			Filter:       pi.Filter,
 		}, &pruneProxy{
 			streamProxy: streamProxy{ctx: ctx},
 			ch:          ch,
@@ -530,4 +508,42 @@ func toBuildkitExtraHosts(inp []string) (string, error) {
 		hosts = append(hosts, parts[0]+"="+parts[1])
 	}
 	return strings.Join(hosts, ","), nil
+}
+
+func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, error) {
+	var unusedFor time.Duration
+	unusedForValues := opts.Filters.Get("unused-for")
+
+	switch len(unusedForValues) {
+	case 0:
+
+	case 1:
+		var err error
+		unusedFor, err = time.ParseDuration(unusedForValues[0])
+		if err != nil {
+			return client.PruneInfo{}, errors.Wrap(err, "unused-for filter expects a duration (e.g., '24h')")
+		}
+
+	default:
+		return client.PruneInfo{}, errMultipleFilterValues
+	}
+
+	bkFilter := make([]string, 0, opts.Filters.Len())
+	for cacheField := range cacheFields {
+		values := opts.Filters.Get(cacheField)
+		switch len(values) {
+		case 0:
+			bkFilter = append(bkFilter, cacheField)
+		case 1:
+			bkFilter = append(bkFilter, cacheField+"=="+values[0])
+		default:
+			return client.PruneInfo{}, errMultipleFilterValues
+		}
+	}
+	return client.PruneInfo{
+		All:          opts.All,
+		KeepDuration: unusedFor,
+		KeepBytes:    opts.KeepStorage,
+		Filter:       bkFilter,
+	}, nil
 }
