@@ -149,6 +149,11 @@ func (store *store) addReference(ref reference.Named, id digest.Digest, force bo
 	oldID, exists := repository[refStr]
 
 	if exists {
+		if oldID == id {
+			// Nothing to do. The caller may have checked for this using store.Get in advance, but store.mu was unlocked in the meantime, so this can legitimately happen nevertheless.
+			return nil
+		}
+
 		// force only works for tags
 		if digested, isDigest := ref.(reference.Canonical); isDigest {
 			return errors.WithStack(conflictingTagError("Cannot overwrite digest " + digested.Digest().String()))
