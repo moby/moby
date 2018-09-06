@@ -404,7 +404,7 @@ func TestFilterFunc(t *testing.T) {
 		{desc: "test nil list", vols: nil, expect: nil, fn: func(volume.Volume) bool { return true }},
 		{desc: "test empty list", vols: []volume.Volume{}, expect: []volume.Volume{}, fn: func(volume.Volume) bool { return true }},
 		{desc: "test filter non-empty to empty", vols: []volume.Volume{testVolume}, expect: []volume.Volume{}, fn: func(volume.Volume) bool { return false }},
-		{desc: "test nothing to fitler non-empty list", vols: []volume.Volume{testVolume}, expect: []volume.Volume{testVolume}, fn: func(volume.Volume) bool { return true }},
+		{desc: "test nothing to filter non-empty list", vols: []volume.Volume{testVolume}, expect: []volume.Volume{testVolume}, fn: func(volume.Volume) bool { return true }},
 		{desc: "test filter some", vols: []volume.Volume{testVolume, testVolume2}, expect: []volume.Volume{testVolume}, fn: func(v volume.Volume) bool { return v.Name() == testVolume.Name() }},
 		{desc: "test filter middle", vols: []volume.Volume{testVolume, testVolume2, testVolume3}, expect: []volume.Volume{testVolume, testVolume3}, fn: func(v volume.Volume) bool { return v.Name() != testVolume2.Name() }},
 		{desc: "test filter middle and last", vols: []volume.Volume{testVolume, testVolume2, testVolume3}, expect: []volume.Volume{testVolume}, fn: func(v volume.Volume) bool { return v.Name() != testVolume2.Name() && v.Name() != testVolume3.Name() }},
