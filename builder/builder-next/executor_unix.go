@@ -19,9 +19,9 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, netnsRoot string, net libnetwork.NetworkController) (executor.Executor, error) {
+func newExecutor(root string, net libnetwork.NetworkController) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, netnsRoot: netnsRoot},
+		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
@@ -33,7 +33,6 @@ func newExecutor(root, netnsRoot string, net libnetwork.NetworkController) (exec
 
 type bridgeProvider struct {
 	libnetwork.NetworkController
-	netnsRoot string
 }
 
 func (p *bridgeProvider) New() (network.Namespace, error) {
