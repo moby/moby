@@ -345,6 +345,8 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
+	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
+	assert.Assert(t, len(out.IPAM.Config) > 0)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "20.20.0.0/24")
 
 	err = cli.ServiceRemove(context.Background(), serviceID)
