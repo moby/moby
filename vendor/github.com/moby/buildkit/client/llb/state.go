@@ -67,7 +67,7 @@ func (s State) Value(k interface{}) interface{} {
 	return s.ctx.Value(k)
 }
 
-func (s State) SetMarhalDefaults(co ...ConstraintsOpt) State {
+func (s State) SetMarshalDefaults(co ...ConstraintsOpt) State {
 	s.opts = co
 	return s
 }

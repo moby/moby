@@ -20,6 +20,7 @@ type Worker interface {
 	ID() string
 	Labels() map[string]string
 	Platforms() []specs.Platform
+	GCPolicy() []client.PruneInfo
 	LoadRef(id string) (cache.ImmutableRef, error)
 	// ResolveOp resolves Vertex.Sys() to Op implementation.
 	ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solver.Op, error)
@@ -28,7 +29,7 @@ type Worker interface {
 	Exec(ctx context.Context, meta executor.Meta, rootFS cache.ImmutableRef, stdin io.ReadCloser, stdout, stderr io.WriteCloser) error
 	DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error)
 	Exporter(name string) (exporter.Exporter, error)
-	Prune(ctx context.Context, ch chan client.UsageInfo, opt client.PruneInfo) error
+	Prune(ctx context.Context, ch chan client.UsageInfo, opt ...client.PruneInfo) error
 	GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error)
 	FromRemote(ctx context.Context, remote *solver.Remote) (cache.ImmutableRef, error)
 }

@@ -39,7 +39,7 @@ type Accessor interface {
 
 type Controller interface {
 	DiskUsage(ctx context.Context, info client.DiskUsageInfo) ([]*client.UsageInfo, error)
-	Prune(ctx context.Context, ch chan client.UsageInfo, info client.PruneInfo) error
+	Prune(ctx context.Context, ch chan client.UsageInfo, info ...client.PruneInfo) error
 	GC(ctx context.Context) error
 }
 
@@ -304,10 +304,19 @@ func (cm *cacheManager) GetMutable(ctx context.Context, id string) (MutableRef, 
 	return rec.mref(), nil
 }
 
-func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo, opt client.PruneInfo) error {
+func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo, opts ...client.PruneInfo) error {
 	cm.muPrune.Lock()
 	defer cm.muPrune.Unlock()
 
+	for _, opt := range opts {
+		if err := cm.pruneOnce(ctx, ch, opt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (cm *cacheManager) pruneOnce(ctx context.Context, ch chan client.UsageInfo, opt client.PruneInfo) error {
 	filter, err := filters.ParseAll(opt.Filter...)
 	if err != nil {
 		return err

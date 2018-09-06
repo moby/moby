@@ -36,6 +36,8 @@ type Opt struct {
 	CommandCandidates []string
 	// without root privileges (has nothing to do with Opt.Root directory)
 	Rootless bool
+	// DefaultCgroupParent is the cgroup-parent name for executor
+	DefaultCgroupParent string
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -44,6 +46,7 @@ type runcExecutor struct {
 	runc             *runc.Runc
 	root             string
 	cmd              string
+	cgroupParent     string
 	rootless         bool
 	networkProviders map[pb.NetMode]network.Provider
 }
@@ -94,6 +97,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 	w := &runcExecutor{
 		runc:             runtime,
 		root:             root,
+		cgroupParent:     opt.DefaultCgroupParent,
 		rootless:         opt.Rootless,
 		networkProviders: networkProviders,
 	}
@@ -172,6 +176,17 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	}
 	if meta.ReadonlyRootFS {
 		opts = append(opts, containerdoci.WithRootFSReadonly())
+	}
+
+	if w.cgroupParent != "" {
+		var cgroupsPath string
+		lastSeparator := w.cgroupParent[len(w.cgroupParent)-1:]
+		if strings.Contains(w.cgroupParent, ".slice") && lastSeparator == ":" {
+			cgroupsPath = w.cgroupParent + id
+		} else {
+			cgroupsPath = filepath.Join("/", w.cgroupParent, "buildkit", id)
+		}
+		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
 	}
 	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, opts...)
 	if err != nil {

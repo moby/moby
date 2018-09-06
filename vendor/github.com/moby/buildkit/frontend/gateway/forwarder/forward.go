@@ -67,7 +67,11 @@ func (c *bridgeClient) Solve(ctx context.Context, req client.SolveRequest) (*cli
 func (c *bridgeClient) BuildOpts() client.BuildOpts {
 	workers := make([]client.WorkerInfo, 0, len(c.workerInfos))
 	for _, w := range c.workerInfos {
-		workers = append(workers, client.WorkerInfo(w))
+		workers = append(workers, client.WorkerInfo{
+			ID:        w.ID,
+			Labels:    w.Labels,
+			Platforms: w.Platforms,
+		})
 	}
 
 	return client.BuildOpts{

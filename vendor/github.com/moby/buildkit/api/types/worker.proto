@@ -13,4 +13,12 @@ message WorkerRecord {
 	string ID = 1;
 	map<string, string> Labels = 2;
 	repeated pb.Platform platforms = 3 [(gogoproto.nullable) = false];
+	repeated GCPolicy GCPolicy = 4;
+}
+
+message GCPolicy {
+	bool all = 1;
+	int64 keepDuration = 2;
+	int64 keepBytes = 3;
+	repeated string filters = 4;
 }
