@@ -27,6 +27,10 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	inContainerInitPath = "/sbin/" + daemonconfig.DefaultInitBinary
+)
+
 func setResources(s *specs.Spec, r containertypes.Resources) error {
 	weightDevices, err := getBlkioWeightDevices(r)
 	if err != nil {
@@ -657,19 +661,16 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	if c.HostConfig.PidMode.IsPrivate() {
 		if (c.HostConfig.Init != nil && *c.HostConfig.Init) ||
 			(c.HostConfig.Init == nil && daemon.configStore.Init) {
-			s.Process.Args = append([]string{"/dev/init", "--", c.Path}, c.Args...)
-			var path string
-			if daemon.configStore.InitPath == "" {
+			s.Process.Args = append([]string{inContainerInitPath, "--", c.Path}, c.Args...)
+			path := daemon.configStore.InitPath
+			if path == "" {
 				path, err = exec.LookPath(daemonconfig.DefaultInitBinary)
 				if err != nil {
 					return err
 				}
 			}
-			if daemon.configStore.InitPath != "" {
-				path = daemon.configStore.InitPath
-			}
 			s.Mounts = append(s.Mounts, specs.Mount{
-				Destination: "/dev/init",
+				Destination: inContainerInitPath,
 				Type:        "bind",
 				Source:      path,
 				Options:     []string{"bind", "ro"},
