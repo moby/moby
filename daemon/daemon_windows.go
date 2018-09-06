@@ -323,7 +323,8 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 	// discover and add HNS networks to windows
 	// network that exist are removed and added again
 	for _, v := range hnsresponse {
-		if strings.ToLower(v.Type) == "private" {
+		networkTypeNorm := strings.ToLower(v.Type)
+		if networkTypeNorm == "private" || networkTypeNorm == "internal" {
 			continue // workaround for HNS reporting unsupported networks
 		}
 		var n libnetwork.Network
