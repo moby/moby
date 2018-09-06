@@ -10,7 +10,7 @@ import (
 )
 
 // UAStringKey is used as key type for user-agent string in net/context struct
-const UAStringKey = "upstream-user-agent"
+type UAStringKey struct{}
 
 // DockerUserAgent is the User-Agent the Docker client uses to identify itself.
 // In accordance with RFC 7231 (5.5.3) is of the form:
@@ -39,9 +39,9 @@ func DockerUserAgent(ctx context.Context) string {
 func getUserAgentFromContext(ctx context.Context) string {
 	var upstreamUA string
 	if ctx != nil {
-		var ki interface{} = ctx.Value(UAStringKey)
+		var ki interface{} = ctx.Value(UAStringKey{})
 		if ki != nil {
-			upstreamUA = ctx.Value(UAStringKey).(string)
+			upstreamUA = ctx.Value(UAStringKey{}).(string)
 		}
 	}
 	return upstreamUA

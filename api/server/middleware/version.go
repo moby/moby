@@ -58,7 +58,7 @@ func (v VersionMiddleware) WrapHandler(handler func(ctx context.Context, w http.
 		if versions.GreaterThan(apiVersion, v.defaultVersion) {
 			return versionUnsupportedError{version: apiVersion, maxVersion: v.defaultVersion}
 		}
-		ctx = context.WithValue(ctx, httputils.APIVersionKey, apiVersion)
+		ctx = context.WithValue(ctx, httputils.APIVersionKey{}, apiVersion)
 		return handler(ctx, w, r, vars)
 	}
 

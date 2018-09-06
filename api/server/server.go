@@ -129,8 +129,7 @@ func (s *Server) makeHTTPHandler(handler httputils.APIFunc) http.HandlerFunc {
 
 		// use intermediate variable to prevent "should not use basic type
 		// string as key in context.WithValue" golint errors
-		var ki interface{} = dockerversion.UAStringKey
-		ctx := context.WithValue(context.Background(), ki, r.Header.Get("User-Agent"))
+		ctx := context.WithValue(context.Background(), dockerversion.UAStringKey{}, r.Header.Get("User-Agent"))
 		handlerFunc := s.handlerWithGlobalMiddlewares(handler)
 
 		vars := mux.Vars(r)
