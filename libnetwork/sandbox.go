@@ -730,7 +730,7 @@ func (sb *sandbox) DisableService() (err error) {
 	return nil
 }
 
-func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
+func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint, ingress bool) {
 	for _, i := range osSbox.Info().Interfaces() {
 		// Only remove the interfaces owned by this endpoint from the sandbox.
 		if ep.hasInterface(i.SrcName()) {
@@ -742,7 +742,15 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
+	vip := ep.virtualIP
 	ep.Unlock()
+
+	if len(vip) > 0 && !ingress {
+		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
+		if err := osSbox.RemoveAliasIP(osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+			logrus.WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
+		}
+	}
 
 	if joinInfo == nil {
 		return
@@ -760,6 +768,7 @@ func (sb *sandbox) releaseOSSbox() {
 	sb.Lock()
 	osSbox := sb.osSbox
 	sb.osSbox = nil
+	ingress := sb.ingress
 	sb.Unlock()
 
 	if osSbox == nil {
@@ -767,7 +776,7 @@ func (sb *sandbox) releaseOSSbox() {
 	}
 
 	for _, ep := range sb.getConnectedEndpoints() {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(osSbox, ep, ingress)
 	}
 
 	osSbox.Destroy()
@@ -854,6 +863,18 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
 		}
+
+		if len(ep.virtualIP) > 0 && !sb.ingress {
+			if sb.loadBalancerNID == "" {
+				if err := sb.osSbox.DisableARPForVIP(i.srcName); err != nil {
+					return fmt.Errorf("failed disable ARP for VIP: %v", err)
+				}
+			}
+			ipNet := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			if err := sb.osSbox.AddAliasIP(sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+				return fmt.Errorf("failed to add virtual ip %v to loopback: %v", ipNet, err)
+			}
+		}
 	}
 
 	if joinInfo != nil {
@@ -904,9 +925,10 @@ func (sb *sandbox) clearNetworkResources(origEp *endpoint) error {
 	sb.Lock()
 	osSbox := sb.osSbox
 	inDelete := sb.inDelete
+	ingress := sb.ingress
 	sb.Unlock()
 	if osSbox != nil {
-		releaseOSSboxResources(osSbox, ep)
+		releaseOSSboxResources(osSbox, ep, ingress)
 	}
 
 	sb.Lock()
