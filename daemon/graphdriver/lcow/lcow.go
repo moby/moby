@@ -673,7 +673,7 @@ func (d *Driver) Get(id, mountLabel string) (containerfs.ContainerFS, error) {
 	title := fmt.Sprintf("lcowdriver: get: %s", id)
 	logrus.Debugf(title)
 
-	// Generate the mounts needed for the defered operation.
+	// Generate the mounts needed for the deferred operation.
 	disks, err := d.getAllMounts(id)
 	if err != nil {
 		logrus.Debugf("%s failed to get all layer details for %s: %s", title, d.dir(id), err)

@@ -527,7 +527,7 @@ func (r *controller) Logs(ctx context.Context, publisher exec.LogPublisher, opti
 		}
 
 		if msg.Err != nil {
-			// the defered cancel closes the adapter's log stream
+			// the deferred cancel closes the adapter's log stream
 			return msg.Err
 		}
 
