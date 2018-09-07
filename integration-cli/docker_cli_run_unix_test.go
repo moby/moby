@@ -1140,7 +1140,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 }
 
 // TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
-// effective uid transtions on executing setuid binaries.
+// effective uid transitions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
 	ensureNNPTest(c)
