@@ -129,7 +129,7 @@ type NetworkStats struct {
 	TxBytes uint64 `json:"tx_bytes"`
 	// Packets sent. Windows and Linux.
 	TxPackets uint64 `json:"tx_packets"`
-	// Sent errors. Not used on Windows. Note that we dont `omitempty` this
+	// Sent errors. Not used on Windows. Note that we don't `omitempty` this
 	// field as it is expected in the >=v1.21 API stats structure.
 	TxErrors uint64 `json:"tx_errors"`
 	// Outgoing packets dropped. Windows and Linux.
