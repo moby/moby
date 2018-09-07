@@ -35,7 +35,7 @@ func TestTmpfsDevShmNoDupMount(t *testing.T) {
 		},
 	}
 
-	// Mimick the code flow of daemon.createSpec(), enough to reproduce the issue
+	// Mimic the code flow of daemon.createSpec(), enough to reproduce the issue
 	ms, err := d.setupMounts(c)
 	assert.Check(t, err)
 
