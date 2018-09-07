@@ -297,7 +297,7 @@ func (n *networkNamespace) AddInterface(srcName, dstPrefix string, options ...If
 			logrus.Errorf("renaming interface (%s->%s) failed, %v after config error %v", i.DstName(), i.SrcName(), nerr, err)
 		}
 		if nerr := nlh.LinkSetNsFd(iface, ns.ParseHandlerInt()); nerr != nil {
-			logrus.Errorf("moving inteface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
+			logrus.Errorf("moving interface %s to host ns failed, %v, after config error %v", i.SrcName(), nerr, err)
 		}
 		return err
 	}

@@ -368,9 +368,9 @@ func doClusterPeers(ips []string, args []string) {
 			if node.result != expectedPeers {
 				failed = true
 				if retry == maxRetry-1 {
-					log.Fatalf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+					log.Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				} else {
-					logrus.Warnf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+					logrus.Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				}
 				time.Sleep(1 * time.Second)
 			}
@@ -429,9 +429,9 @@ func doNetworkPeers(ips []string, args []string) {
 			if node.result != expectedPeers {
 				failed = true
 				if retry == maxRetry-1 {
-					log.Fatalf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+					log.Fatalf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				} else {
-					logrus.Warnf("Expected peers from %s missmatch %d != %d", node.id, expectedPeers, node.result)
+					logrus.Warnf("Expected peers from %s mismatch %d != %d", node.id, expectedPeers, node.result)
 				}
 				time.Sleep(1 * time.Second)
 			}

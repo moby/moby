@@ -227,7 +227,7 @@ func NewSandbox(key string, osCreate, isRestore bool) (Sandbox, error) {
 		logrus.Warnf("Failed to set the timeout on the sandbox netlink handle sockets: %v", err)
 	}
 	// In live-restore mode, IPV6 entries are getting cleaned up due to below code
-	// We should retain IPV6 configrations in live-restore mode when Docker Daemon
+	// We should retain IPV6 configurations in live-restore mode when Docker Daemon
 	// comes back. It should work as it is on other cases
 	// As starting point, disable IPv6 on all interfaces
 	if !isRestore && !n.isDefault {
