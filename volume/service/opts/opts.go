@@ -58,7 +58,7 @@ func WithGetDriver(name string) GetOption {
 }
 
 // WithGetReference indicates to `Get` to increment the reference count for the
-// retreived volume with the provided reference ID.
+// retrieved volume with the provided reference ID.
 func WithGetReference(ref string) GetOption {
 	return func(o *GetConfig) {
 		o.Reference = ref
