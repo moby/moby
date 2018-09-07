@@ -195,7 +195,7 @@ func IsolationIsProcess() bool {
 	return IsolationIs("process")
 }
 
-// RegistryHosting returns wether the host can host a registry (v2) or not
+// RegistryHosting returns whether the host can host a registry (v2) or not
 func RegistryHosting() bool {
 	// for now registry binary is built only if we're running inside
 	// container through `make test`. Figure that out by testing if
