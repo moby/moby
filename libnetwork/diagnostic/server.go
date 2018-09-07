@@ -95,7 +95,7 @@ func (s *Server) EnableDiagnostic(ip string, port int) {
 	s.srv = srv
 	s.enable = 1
 	go func(n *Server) {
-		// Ingore ErrServerClosed that is returned on the Shutdown call
+		// Ignore ErrServerClosed that is returned on the Shutdown call
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logrus.Errorf("ListenAndServe error: %s", err)
 			atomic.SwapInt32(&n.enable, 0)

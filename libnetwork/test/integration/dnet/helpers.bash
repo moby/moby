@@ -332,7 +332,7 @@ function test_overlay() {
 
     start=1
     end=3
-    # Setup overlay network and connect containers ot it
+    # Setup overlay network and connect containers to it
     if [ -z "${2}" -o "${2}" != "skip_add" ]; then
 	if [ -z "${2}" -o "${2}" != "internal" ]; then
 	    dnet_cmd $(inst_id2port 1) network create -d overlay multihost
@@ -367,7 +367,7 @@ function test_overlay() {
 	done
     done
 
-    # Setup bridge network and connect containers ot it
+    # Setup bridge network and connect containers to it
     if [ -z "${2}" -o "${2}" != "skip_add" ]; then
 	if [ -z "${2}" -o "${2}" != "internal" ]; then
 	    dnet_cmd $(inst_id2port 1) network create -d bridge br1
@@ -445,7 +445,7 @@ function test_overlay_singlehost() {
 
     start=1
     end=3
-    # Setup overlay network and connect containers ot it
+    # Setup overlay network and connect containers to it
     dnet_cmd $(inst_id2port 1) network create -d overlay multihost
     for i in `seq ${start} ${end}`;
     do
@@ -484,7 +484,7 @@ function test_overlay_hostmode() {
 
     start=1
     end=2
-    # Setup overlay network and connect containers ot it
+    # Setup overlay network and connect containers to it
     dnet_cmd $(inst_id2port 1) network create -d overlay multihost1
     dnet_cmd $(inst_id2port 1) network create -d overlay multihost2
     dnet_cmd $(inst_id2port 1) network ls
