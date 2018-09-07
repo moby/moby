@@ -1057,13 +1057,13 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
-	waitresC, errC := cli.ContainerWait(context.Background(), name, "")
+	waitersC, errC := cli.ContainerWait(context.Background(), name, "")
 
 	select {
 	case err = <-errC:
 		c.Assert(err, checker.IsNil)
-	case waitres := <-waitresC:
-		c.Assert(waitres.StatusCode, checker.Equals, int64(0))
+	case waiters := <-waitersC:
+		c.Assert(waiters.StatusCode, checker.Equals, int64(0))
 	}
 }
 
