@@ -294,7 +294,7 @@ func (daemon *Daemon) reloadRegistryMirrors(conf *config.Config, attributes map[
 	return nil
 }
 
-// reloadLiveRestore updates configuration with live retore option
+// reloadLiveRestore updates configuration with live restore option
 // and updates the passed attributes
 func (daemon *Daemon) reloadLiveRestore(conf *config.Config, attributes map[string]string) error {
 	// update corresponding configuration
