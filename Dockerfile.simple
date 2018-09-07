@@ -5,7 +5,7 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-FROM debian:stretch
+FROM golang:1.11.0-stretch
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -36,18 +36,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 		aufs-tools \
 		vim-common \
 	&& rm -rf /var/lib/apt/lists/*
-
-# Install Go
-# IMPORTANT: If the version of Go is updated, the Windows to Linux CI machines
-#            will need updating, to avoid errors. Ping #docker-maintainers on IRC
-#            with a heads-up.
-# IMPORTANT: When updating this please note that stdlib archive/tar pkg is vendored
-ENV GO_VERSION 1.10.4
-RUN curl -fsSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" \
-	| tar -xzC /usr/local
-ENV PATH /go/bin:/usr/local/go/bin:$PATH
-ENV GOPATH /go
-ENV CGO_LDFLAGS -L/lib
 
 # Install runc, containerd, tini and docker-proxy
 # Please edit hack/dockerfile/install/<name>.installer to update them.

@@ -130,7 +130,7 @@ Function Check-InContainer() {
 # outside of a container where it may be out of date with master.
 Function Verify-GoVersion() {
     Try {
-        $goVersionDockerfile=(Select-String -Path ".\Dockerfile" -Pattern "^FROM golang:").ToString().Split(" ")[1].SubString(7)
+        $goVersionDockerfile=(Select-String -Path ".\Dockerfile" -Pattern "^FROM golang:").ToString().Split(" ")[1].SubString(7) -replace '\.0$',''
         $goVersionInstalled=(go version).ToString().Split(" ")[2].SubString(2)
     }
     Catch [Exception] {

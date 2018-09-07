@@ -10,8 +10,8 @@ type Usage struct {
 
 // DiskUsage counts the number of inodes and disk usage for the resources under
 // path.
-func DiskUsage(roots ...string) (Usage, error) {
-	return diskUsage(roots...)
+func DiskUsage(ctx context.Context, roots ...string) (Usage, error) {
+	return diskUsage(ctx, roots...)
 }
 
 // DiffUsage counts the numbers of inodes and disk usage in the
