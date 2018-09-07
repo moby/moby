@@ -80,7 +80,7 @@ type listContext struct {
 	// sinceFilter is a filter to stop the filtering when the iterator arrive to the given container
 	sinceFilter *container.Snapshot
 
-	// taskFilter tells if we should filter based on wether a container is part of a task
+	// taskFilter tells if we should filter based on whether a container is part of a task
 	taskFilter bool
 	// isTask tells us if the we should filter container that are a task (true) or not (false)
 	isTask bool
