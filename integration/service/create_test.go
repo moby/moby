@@ -138,7 +138,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 		network.WithDriver("bridge"),
 	)
 
-	// Dupliates with name but with different driver
+	// Duplicates with name but with different driver
 	n3 := network.CreateNoError(t, context.Background(), client, name,
 		network.WithDriver("overlay"),
 	)
