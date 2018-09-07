@@ -21,7 +21,7 @@ const networkName = "bridge"
 
 func newExecutor(root, cgroupParent string, net libnetwork.NetworkController) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
-		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, netnsRoot: netnsRoot},
+		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net},
 		pb.NetMode_HOST:  network.NewHostProvider(),
 		pb.NetMode_NONE:  network.NewNoneProvider(),
 	}
@@ -34,7 +34,6 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController) (e
 
 type bridgeProvider struct {
 	libnetwork.NetworkController
-	netnsRoot string
 }
 
 func (p *bridgeProvider) New() (network.Namespace, error) {
