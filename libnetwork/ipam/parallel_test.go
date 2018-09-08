@@ -101,7 +101,7 @@ func TestRequestPoolParallel(t *testing.T) {
 			idx = atomic.AddInt32(&operationIndex, 1)
 			err = a.ReleasePool(name)
 			if err != nil {
-				t.Fatalf("relase error %v", err)
+				t.Fatalf("release error %v", err)
 			}
 			ch <- &op{idx, false, name}
 		}(t, a, ch)
