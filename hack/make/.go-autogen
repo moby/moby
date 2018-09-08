@@ -13,7 +13,7 @@ cat > dockerversion/version_autogen.go <<DVEOF
 package dockerversion
 
 // Default build-time variable for library-import.
-// This file is overridden on build with build-time informations.
+// This file is overridden on build with build-time information.
 const (
 	GitCommit             string = "$GITCOMMIT"
 	Version               string = "$VERSION"
@@ -35,7 +35,7 @@ cat > dockerversion/version_autogen_unix.go <<DVEOF
 package dockerversion
 
 // Default build-time variable for library-import.
-// This file is overridden on build with build-time informations.
+// This file is overridden on build with build-time information.
 const (
 	RuncCommitID string = "${RUNC_COMMIT}"
 	InitCommitID string = "${TINI_COMMIT}"
