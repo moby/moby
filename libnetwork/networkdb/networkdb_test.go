@@ -85,7 +85,7 @@ func (db *NetworkDB) verifyNodeExistence(t *testing.T, node string, present bool
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Error(fmt.Sprintf("%v(%v): Node existence verification for node %s failed", db.config.Hostname, db.config.NodeID, node))
+	t.Errorf("%v(%v): Node existence verification for node %s failed", db.config.Hostname, db.config.NodeID, node)
 }
 
 func (db *NetworkDB) verifyNetworkExistence(t *testing.T, node string, id string, present bool) {
@@ -133,7 +133,7 @@ func (db *NetworkDB) verifyEntryExistence(t *testing.T, tname, nid, key, value s
 		time.Sleep(50 * time.Millisecond)
 	}
 
-	t.Error(fmt.Sprintf("Entry existence verification test failed for %v(%v)", db.config.Hostname, db.config.NodeID))
+	t.Errorf("Entry existence verification test failed for %v(%v)", db.config.Hostname, db.config.NodeID)
 }
 
 func testWatch(t *testing.T, ch chan events.Event, ev interface{}, tname, nid, key, value string) {
