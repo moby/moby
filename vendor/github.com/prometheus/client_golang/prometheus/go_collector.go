@@ -17,7 +17,7 @@ type goCollector struct {
 
 // NewGoCollector returns a collector which exports metrics about the current
 // go process.
-func NewGoCollector() *goCollector {
+func NewGoCollector() Collector {
 	return &goCollector{
 		goroutines: NewGauge(GaugeOpts{
 			Namespace: "go",

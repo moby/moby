@@ -28,7 +28,7 @@ type processCollector struct {
 // NewProcessCollector returns a collector which exports the current state of
 // process metrics including cpu, memory and file descriptor usage as well as
 // the process start time for the given process id under the given namespace.
-func NewProcessCollector(pid int, namespace string) *processCollector {
+func NewProcessCollector(pid int, namespace string) Collector {
 	return NewProcessCollectorPIDFn(
 		func() (int, error) { return pid, nil },
 		namespace,
@@ -43,7 +43,7 @@ func NewProcessCollector(pid int, namespace string) *processCollector {
 func NewProcessCollectorPIDFn(
 	pidFn func() (int, error),
 	namespace string,
-) *processCollector {
+) Collector {
 	c := processCollector{
 		pidFn:     pidFn,
 		collectFn: func(chan<- Metric) {},

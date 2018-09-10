@@ -35,6 +35,9 @@ type Counter interface {
 	// Prometheus metric. Do not use it for regular handling of a
 	// Prometheus counter (as it can be used to break the contract of
 	// monotonically increasing values).
+	//
+	// Deprecated: Use NewConstMetric to create a counter for an external
+	// value. A Counter should never be set.
 	Set(float64)
 	// Inc increments the counter by 1.
 	Inc()
@@ -55,7 +58,7 @@ func NewCounter(opts CounterOpts) Counter {
 		opts.ConstLabels,
 	)
 	result := &counter{value: value{desc: desc, valType: CounterValue, labelPairs: desc.constLabelPairs}}
-	result.Init(result) // Init self-collection.
+	result.init(result) // Init self-collection.
 	return result
 }
 
@@ -79,7 +82,7 @@ func (c *counter) Add(v float64) {
 // CounterVec embeds MetricVec. See there for a full list of methods with
 // detailed documentation.
 type CounterVec struct {
-	MetricVec
+	*MetricVec
 }
 
 // NewCounterVec creates a new CounterVec based on the provided CounterOpts and
@@ -93,19 +96,15 @@ func NewCounterVec(opts CounterOpts, labelNames []string) *CounterVec {
 		opts.ConstLabels,
 	)
 	return &CounterVec{
-		MetricVec: MetricVec{
-			children: map[uint64]Metric{},
-			desc:     desc,
-			newMetric: func(lvs ...string) Metric {
-				result := &counter{value: value{
-					desc:       desc,
-					valType:    CounterValue,
-					labelPairs: makeLabelPairs(desc, lvs),
-				}}
-				result.Init(result) // Init self-collection.
-				return result
-			},
-		},
+		MetricVec: newMetricVec(desc, func(lvs ...string) Metric {
+			result := &counter{value: value{
+				desc:       desc,
+				valType:    CounterValue,
+				labelPairs: makeLabelPairs(desc, lvs),
+			}}
+			result.init(result) // Init self-collection.
+			return result
+		}),
 	}
 }
 
