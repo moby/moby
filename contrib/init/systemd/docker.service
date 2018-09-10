@@ -6,9 +6,6 @@ After=network-online.target firewalld.service
 Wants=network-online.target
 
 [Service]
-# Install containerd-shim-process if it's not already installed
-ExecStartPre=/usr/libexec/containerd-offline-installer /var/lib/containerd-offline-installer/containerd-shim-process.tar docker.io/docker/containerd-shim-process
-
 # the default is not to use systemd for cgroups because the delegate issues still
 # exists and systemd currently does not support the cgroup feature set required
 # for containers run by docker
