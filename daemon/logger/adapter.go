@@ -93,21 +93,12 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 
 		dec := logdriver.NewLogEntryDecoder(stream)
 		for {
-			select {
-			case <-watcher.WatchClose():
-				return
-			default:
-			}
-
 			var buf logdriver.LogEntry
 			if err := dec.Decode(&buf); err != nil {
 				if err == io.EOF {
 					return
 				}
-				select {
-				case watcher.Err <- errors.Wrap(err, "error decoding log message"):
-				case <-watcher.WatchClose():
-				}
+				watcher.Err <- errors.Wrap(err, "error decoding log message")
 				return
 			}
 
@@ -125,11 +116,10 @@ func (a *pluginAdapterWithRead) ReadLogs(config ReadConfig) *LogWatcher {
 				return
 			}
 
+			// send the message unless the consumer is gone
 			select {
 			case watcher.Msg <- msg:
-			case <-watcher.WatchClose():
-				// make sure the message we consumed is sent
-				watcher.Msg <- msg
+			case <-watcher.WatchConsumerGone():
 				return
 			}
 		}

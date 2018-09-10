@@ -166,13 +166,14 @@ func ValidateLogOpt(cfg map[string]string) error {
 	return nil
 }
 
-// Close closes underlying file and signals all readers to stop.
+// Close closes underlying file and signals all the readers
+// that the logs producer is gone.
 func (l *JSONFileLogger) Close() error {
 	l.mu.Lock()
 	l.closed = true
 	err := l.writer.Close()
 	for r := range l.readers {
-		r.Close()
+		r.ProducerGone()
 		delete(l.readers, r)
 	}
 	l.mu.Unlock()
