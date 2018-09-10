@@ -31,6 +31,7 @@ type Decoder interface {
 	Decode(*dto.MetricFamily) error
 }
 
+// DecodeOptions contains options used by the Decoder and in sample extraction.
 type DecodeOptions struct {
 	// Timestamp is added to each value from the stream that has no explicit timestamp set.
 	Timestamp model.Time
@@ -142,6 +143,8 @@ func (d *textDecoder) Decode(v *dto.MetricFamily) error {
 	return nil
 }
 
+// SampleDecoder wraps a Decoder to extract samples from the metric families
+// decoded by the wrapped Decoder.
 type SampleDecoder struct {
 	Dec  Decoder
 	Opts *DecodeOptions
@@ -149,37 +152,51 @@ type SampleDecoder struct {
 	f dto.MetricFamily
 }
 
+// Decode calls the Decode method of the wrapped Decoder and then extracts the
+// samples from the decoded MetricFamily into the provided model.Vector.
 func (sd *SampleDecoder) Decode(s *model.Vector) error {
-	if err := sd.Dec.Decode(&sd.f); err != nil {
+	err := sd.Dec.Decode(&sd.f)
+	if err != nil {
 		return err
 	}
-	*s = extractSamples(&sd.f, sd.Opts)
-	return nil
+	*s, err = extractSamples(&sd.f, sd.Opts)
+	return err
 }
 
-// Extract samples builds a slice of samples from the provided metric families.
-func ExtractSamples(o *DecodeOptions, fams ...*dto.MetricFamily) model.Vector {
-	var all model.Vector
+// ExtractSamples builds a slice of samples from the provided metric
+// families. If an error occurrs during sample extraction, it continues to
+// extract from the remaining metric families. The returned error is the last
+// error that has occurred.
+func ExtractSamples(o *DecodeOptions, fams ...*dto.MetricFamily) (model.Vector, error) {
+	var (
+		all     model.Vector
+		lastErr error
+	)
 	for _, f := range fams {
-		all = append(all, extractSamples(f, o)...)
+		some, err := extractSamples(f, o)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		all = append(all, some...)
 	}
-	return all
+	return all, lastErr
 }
 
-func extractSamples(f *dto.MetricFamily, o *DecodeOptions) model.Vector {
+func extractSamples(f *dto.MetricFamily, o *DecodeOptions) (model.Vector, error) {
 	switch f.GetType() {
 	case dto.MetricType_COUNTER:
-		return extractCounter(o, f)
+		return extractCounter(o, f), nil
 	case dto.MetricType_GAUGE:
-		return extractGauge(o, f)
+		return extractGauge(o, f), nil
 	case dto.MetricType_SUMMARY:
-		return extractSummary(o, f)
+		return extractSummary(o, f), nil
 	case dto.MetricType_UNTYPED:
-		return extractUntyped(o, f)
+		return extractUntyped(o, f), nil
 	case dto.MetricType_HISTOGRAM:
-		return extractHistogram(o, f)
+		return extractHistogram(o, f), nil
 	}
-	panic("expfmt.extractSamples: unknown metric family type")
+	return nil, fmt.Errorf("expfmt.extractSamples: unknown metric family type %v", f.GetType())
 }
 
 func extractCounter(o *DecodeOptions, f *dto.MetricFamily) model.Vector {

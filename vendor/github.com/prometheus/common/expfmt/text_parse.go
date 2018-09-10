@@ -47,7 +47,7 @@ func (e ParseError) Error() string {
 }
 
 // TextParser is used to parse the simple and flat text-based exchange format. Its
-// nil value is ready to use.
+// zero value is ready to use.
 type TextParser struct {
 	metricFamiliesByName map[string]*dto.MetricFamily
 	buf                  *bufio.Reader // Where the parsed input is read through.
@@ -315,6 +315,10 @@ func (p *TextParser) startLabelValue() stateFn {
 	if p.readTokenAsLabelValue(); p.err != nil {
 		return nil
 	}
+	if !model.LabelValue(p.currentToken.String()).IsValid() {
+		p.parseError(fmt.Sprintf("invalid label value %q", p.currentToken.String()))
+		return nil
+	}
 	p.currentLabelPair.Value = proto.String(p.currentToken.String())
 	// Special treatment of summaries:
 	// - Quantile labels are special, will result in dto.Quantile later.
@@ -552,8 +556,8 @@ func (p *TextParser) readTokenUntilWhitespace() {
 // byte considered is the byte already read (now in p.currentByte).  The first
 // newline byte encountered is still copied into p.currentByte, but not into
 // p.currentToken. If recognizeEscapeSequence is true, two escape sequences are
-// recognized: '\\' tranlates into '\', and '\n' into a line-feed character. All
-// other escape sequences are invalid and cause an error.
+// recognized: '\\' translates into '\', and '\n' into a line-feed character.
+// All other escape sequences are invalid and cause an error.
 func (p *TextParser) readTokenUntilNewline(recognizeEscapeSequence bool) {
 	p.currentToken.Reset()
 	escaped := false

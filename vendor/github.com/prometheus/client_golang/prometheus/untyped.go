@@ -56,7 +56,7 @@ func NewUntyped(opts UntypedOpts) Untyped {
 // labels. This is used if you want to count the same thing partitioned by
 // various dimensions. Create instances with NewUntypedVec.
 type UntypedVec struct {
-	MetricVec
+	*MetricVec
 }
 
 // NewUntypedVec creates a new UntypedVec based on the provided UntypedOpts and
@@ -70,13 +70,9 @@ func NewUntypedVec(opts UntypedOpts, labelNames []string) *UntypedVec {
 		opts.ConstLabels,
 	)
 	return &UntypedVec{
-		MetricVec: MetricVec{
-			children: map[uint64]Metric{},
-			desc:     desc,
-			newMetric: func(lvs ...string) Metric {
-				return newValue(desc, UntypedValue, 0, lvs...)
-			},
-		},
+		MetricVec: newMetricVec(desc, func(lvs ...string) Metric {
+			return newValue(desc, UntypedValue, 0, lvs...)
+		}),
 	}
 }
 
