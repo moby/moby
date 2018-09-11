@@ -4,34 +4,10 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"testing"
-)
 
-func TestContainerTopValidatePSArgs(t *testing.T) {
-	tests := map[string]bool{
-		"ae -o uid=PID":             true,
-		"ae -o \"uid= PID\"":        true,  // ascii space (0x20)
-		"ae -o \"uid= PID\"":        false, // unicode space (U+2003, 0xe2 0x80 0x83)
-		"ae o uid=PID":              true,
-		"aeo uid=PID":               true,
-		"ae -O uid=PID":             true,
-		"ae -o pid=PID2 -o uid=PID": true,
-		"ae -o pid=PID":             false,
-		"ae -o pid=PID -o uid=PIDX": true, // FIXME: we do not need to prohibit this
-		"aeo pid=PID":               false,
-		"ae":                        false,
-		"":                          false,
-	}
-	for psArgs, errExpected := range tests {
-		err := validatePSArgs(psArgs)
-		t.Logf("tested %q, got err=%v", psArgs, err)
-		if errExpected && err == nil {
-			t.Fatalf("expected error, got %v (%q)", err, psArgs)
-		}
-		if !errExpected && err != nil {
-			t.Fatalf("expected nil, got %v (%q)", err, psArgs)
-		}
-	}
-}
+	"gotest.tools/assert"
+	is "gotest.tools/assert/cmp"
+)
 
 func TestContainerTopParsePSOutput(t *testing.T) {
 	tests := []struct {
@@ -67,7 +43,7 @@ func TestContainerTopParsePSOutput(t *testing.T) {
 	}
 
 	for _, f := range tests {
-		_, err := parsePSOutput(f.output, f.pids)
+		_, err := parsePSOutput(f.output, f.pids, false)
 		t.Logf("tested %q, got err=%v", string(f.output), err)
 		if f.errExpected && err == nil {
 			t.Fatalf("expected error, got %v (%q)", err, string(f.output))
@@ -75,5 +51,32 @@ func TestContainerTopParsePSOutput(t *testing.T) {
 		if !f.errExpected && err != nil {
 			t.Fatalf("expected nil, got %v (%q)", err, string(f.output))
 		}
+	}
+}
+
+func TestContainerTopCustomFields(t *testing.T) {
+	cases := []struct {
+		opts   string
+		custom bool
+	}{
+		{"", false},
+		{"-C sleep", false},
+		{"-C sleep ocmd", true},
+		{"-Csleep ocmd", true},
+		{"-Csto", false},
+		{"-o cmd", true},
+		{"-o=cmd", true},
+		{"-ocmd", true},
+		{"eocmd", true},
+		{"--format cmd", true},
+		{"--format=cmd", true},
+		{"-A eocmd", true},
+		{"-U eocmd", false},
+		{"efUocmd", false},
+		{"aux --sort=comm", false},
+		{"-C sleep eocmd,uid", true},
+	}
+	for _, c := range cases {
+		assert.Check(t, is.Equal(customFields(fieldsASCII(c.opts)), c.custom), c.opts)
 	}
 }
