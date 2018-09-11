@@ -4,9 +4,9 @@ import (
 	"context"
 	"sync"
 
-	"github.com/boltdb/bolt"
 	"github.com/docker/docker/volume"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 // restore is called when a new volume store is created.
