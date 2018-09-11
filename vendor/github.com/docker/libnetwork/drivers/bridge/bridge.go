@@ -598,7 +598,7 @@ func (d *driver) checkConflict(config *networkConfiguration) error {
 		nwConfig := nw.config
 		nw.Unlock()
 		if err := nwConfig.Conflicts(config); err != nil {
-			if config.DefaultBridge {
+			if nwConfig.DefaultBridge {
 				// We encountered and identified a stale default network
 				// We must delete it as libnetwork is the source of truth
 				// The default network being created must be the only one
