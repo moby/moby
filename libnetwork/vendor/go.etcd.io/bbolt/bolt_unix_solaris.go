@@ -1,8 +1,7 @@
-package bolt
+package bbolt
 
 import (
 	"fmt"
-	"os"
 	"syscall"
 	"time"
 	"unsafe"
@@ -11,36 +10,35 @@ import (
 )
 
 // flock acquires an advisory lock on a file descriptor.
-func flock(db *DB, mode os.FileMode, exclusive bool, timeout time.Duration) error {
+func flock(db *DB, exclusive bool, timeout time.Duration) error {
 	var t time.Time
+	if timeout != 0 {
+		t = time.Now()
+	}
+	fd := db.file.Fd()
+	var lockType int16
+	if exclusive {
+		lockType = syscall.F_WRLCK
+	} else {
+		lockType = syscall.F_RDLCK
+	}
 	for {
-		// If we're beyond our timeout then return an error.
-		// This can only occur after we've attempted a flock once.
-		if t.IsZero() {
-			t = time.Now()
-		} else if timeout > 0 && time.Since(t) > timeout {
-			return ErrTimeout
-		}
-		var lock syscall.Flock_t
-		lock.Start = 0
-		lock.Len = 0
-		lock.Pid = 0
-		lock.Whence = 0
-		lock.Pid = 0
-		if exclusive {
-			lock.Type = syscall.F_WRLCK
-		} else {
-			lock.Type = syscall.F_RDLCK
-		}
-		err := syscall.FcntlFlock(db.file.Fd(), syscall.F_SETLK, &lock)
+		// Attempt to obtain an exclusive lock.
+		lock := syscall.Flock_t{Type: lockType}
+		err := syscall.FcntlFlock(fd, syscall.F_SETLK, &lock)
 		if err == nil {
 			return nil
 		} else if err != syscall.EAGAIN {
 			return err
 		}
 
+		// If we timed out then return an error.
+		if timeout != 0 && time.Since(t) > timeout-flockRetryTimeout {
+			return ErrTimeout
+		}
+
 		// Wait for a bit and try again.
-		time.Sleep(50 * time.Millisecond)
+		time.Sleep(flockRetryTimeout)
 	}
 }
 

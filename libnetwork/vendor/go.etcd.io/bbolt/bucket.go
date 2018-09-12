@@ -1,4 +1,4 @@
-package bolt
+package bbolt
 
 import (
 	"bytes"
@@ -12,13 +12,6 @@ const (
 
 	// MaxValueSize is the maximum length of a value, in bytes.
 	MaxValueSize = (1 << 31) - 2
-)
-
-const (
-	maxUint = ^uint(0)
-	minUint = 0
-	maxInt  = int(^uint(0) >> 1)
-	minInt  = -maxInt - 1
 )
 
 const bucketHeaderSize = int(unsafe.Sizeof(bucket{}))
@@ -175,9 +168,8 @@ func (b *Bucket) CreateBucket(key []byte) (*Bucket, error) {
 	if bytes.Equal(key, k) {
 		if (flags & bucketLeafFlag) != 0 {
 			return nil, ErrBucketExists
-		} else {
-			return nil, ErrIncompatibleValue
 		}
+		return nil, ErrIncompatibleValue
 	}
 
 	// Create empty, inline bucket.
@@ -324,7 +316,12 @@ func (b *Bucket) Delete(key []byte) error {
 
 	// Move cursor to correct position.
 	c := b.Cursor()
-	_, _, flags := c.seek(key)
+	k, _, flags := c.seek(key)
+
+	// Return nil if the key doesn't exist.
+	if !bytes.Equal(key, k) {
+		return nil
+	}
 
 	// Return an error if there is already existing bucket value.
 	if (flags & bucketLeafFlag) != 0 {
