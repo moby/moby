@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"bufio"
 	"context"
+	"io/ioutil"
 	"os"
 	"regexp"
 	"strings"
@@ -11,9 +12,11 @@ import (
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/fs"
 	"gotest.tools/skip"
 )
 
@@ -178,4 +181,115 @@ func TestAPIIpcModeShareableAndContainer(t *testing.T) {
 	testIpcContainer(t, "shareable", true)
 
 	testIpcContainer(t, "private", false)
+}
+
+/* TestAPIIpcModeHost checks that a container created with --ipc host
+ * can use IPC of the host system.
+ */
+func TestAPIIpcModeHost(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon() || testEnv.IsUserNamespace())
+
+	cfg := containertypes.Config{
+		Image: "busybox",
+		Cmd:   []string{"top"},
+	}
+	hostCfg := containertypes.HostConfig{
+		IpcMode: containertypes.IpcMode("host"),
+	}
+	ctx := context.Background()
+
+	client := testEnv.APIClient()
+	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(resp.Warnings), 0))
+	name := resp.ID
+
+	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	// check that IPC is shared
+	// 1. create a file inside container
+	_, err = container.Exec(ctx, client, name, []string{"sh", "-c", "printf covfefe > /dev/shm/." + name})
+	assert.NilError(t, err)
+	// 2. check it's the same on the host
+	bytes, err := ioutil.ReadFile("/dev/shm/." + name)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal("covfefe", string(bytes)))
+	// 3. clean up
+	_, err = container.Exec(ctx, client, name, []string{"rm", "-f", "/dev/shm/." + name})
+	assert.NilError(t, err)
+}
+
+// testDaemonIpcPrivateShareable is a helper function to test "private" and "shareable" daemon default ipc modes.
+func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...string) {
+	defer setupTest(t)()
+
+	d := daemon.New(t)
+	d.StartWithBusybox(t, arg...)
+	defer d.Stop(t)
+
+	client, err := d.NewClient()
+	assert.Check(t, err, "error creating client")
+
+	cfg := containertypes.Config{
+		Image: "busybox",
+		Cmd:   []string{"top"},
+	}
+	ctx := context.Background()
+
+	resp, err := client.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, "")
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(len(resp.Warnings), 0))
+
+	err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
+	cmd := "awk '($5 == \"/dev/shm\") {printf $3}' /proc/self/mountinfo"
+	result, err := container.Exec(ctx, client, resp.ID, []string{"sh", "-c", cmd})
+	assert.NilError(t, err)
+	mm := result.Combined()
+	assert.Check(t, is.Equal(true, regexp.MustCompile("^[0-9]+:[0-9]+$").MatchString(mm)))
+
+	shared, err := testIpcCheckDevExists(mm)
+	assert.NilError(t, err)
+	t.Logf("[testDaemonIpcPrivateShareable] ipcdev: %v, shared: %v, mustBeShared: %v\n", mm, shared, mustBeShared)
+	assert.Check(t, is.Equal(shared, mustBeShared))
+}
+
+// TestDaemonIpcModeShareable checks that --default-ipc-mode shareable works as intended.
+func TestDaemonIpcModeShareable(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
+
+	testDaemonIpcPrivateShareable(t, true, "--default-ipc-mode", "shareable")
+}
+
+// TestDaemonIpcModePrivate checks that --default-ipc-mode private works as intended.
+func TestDaemonIpcModePrivate(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
+
+	testDaemonIpcPrivateShareable(t, false, "--default-ipc-mode", "private")
+}
+
+// used to check if an IpcMode given in config works as intended
+func testDaemonIpcFromConfig(t *testing.T, mode string, mustExist bool) {
+	config := `{"default-ipc-mode": "` + mode + `"}`
+	file := fs.NewFile(t, "test-daemon-ipc-config", fs.WithContent(config))
+	defer file.Remove()
+
+	testDaemonIpcPrivateShareable(t, mustExist, "--config-file", file.Path())
+}
+
+// TestDaemonIpcModePrivateFromConfig checks that "default-ipc-mode: private" config works as intended.
+func TestDaemonIpcModePrivateFromConfig(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
+
+	testDaemonIpcFromConfig(t, "private", false)
+}
+
+// TestDaemonIpcModeShareableFromConfig checks that "default-ipc-mode: shareable" config works as intended.
+func TestDaemonIpcModeShareableFromConfig(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
+
+	testDaemonIpcFromConfig(t, "shareable", true)
 }
