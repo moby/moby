@@ -332,6 +332,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	}
 
 	// wait for an election to occur
+	c.Logf("Waiting for election to occur...")
 	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d2, d3), checker.True)
 
 	// assert that we have a new leader
@@ -343,9 +344,8 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	// add the d1, the initial leader, back
 	d1.Start(c)
 
-	// TODO(stevvooe): may need to wait for rejoin here
-
 	// wait for possible election
+	c.Logf("Waiting for possible election...")
 	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d1, d2, d3), checker.True)
 	// pick out the leader and the followers again
 
