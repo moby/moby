@@ -347,7 +347,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	}
 	buildContext.Output = bc.Output()
 
-	st := target.state.SetMarhalDefaults(llb.Platform(platformOpt.targetPlatform))
+	st := target.state.SetMarshalDefaults(llb.Platform(platformOpt.targetPlatform))
 
 	if !platformOpt.implicitTarget {
 		target.image.OS = platformOpt.targetPlatform.OS

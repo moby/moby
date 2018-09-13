@@ -46,6 +46,7 @@ import (
 type Opt struct {
 	ID                string
 	Labels            map[string]string
+	GCPolicy          []client.PruneInfo
 	SessionManager    *session.Manager
 	MetadataStore     *metadata.Store
 	Executor          executor.Executor
@@ -130,6 +131,11 @@ func (w *Worker) Platforms() []ocispec.Platform {
 	return []ocispec.Platform{platforms.DefaultSpec()}
 }
 
+// GCPolicy returns automatic GC Policy
+func (w *Worker) GCPolicy() []client.PruneInfo {
+	return w.Opt.GCPolicy
+}
+
 // LoadRef loads a reference by ID
 func (w *Worker) LoadRef(id string) (cache.ImmutableRef, error) {
 	return w.CacheManager.Get(context.TODO(), id)
@@ -176,8 +182,8 @@ func (w *Worker) DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*cl
 }
 
 // Prune deletes reclaimable build cache
-func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo, info client.PruneInfo) error {
-	return w.CacheManager.Prune(ctx, ch, info)
+func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo, info ...client.PruneInfo) error {
+	return w.CacheManager.Prune(ctx, ch, info...)
 }
 
 // Exporter returns exporter by name
