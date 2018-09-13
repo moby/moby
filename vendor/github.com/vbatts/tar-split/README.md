@@ -67,7 +67,7 @@ Do not break the API of stdlib `archive/tar` in our fork (ideally find an upstre
 
 ## Std Version
 
-The version of golang stdlib `archive/tar` is from go1.6
+The version of golang stdlib `archive/tar` is from go1.11
 It is minimally extended to expose the raw bytes of the TAR, rather than just the marshalled headers and file stream.
 
 
@@ -135,4 +135,3 @@ bytes-per-file rate for the storage implications.
 ## License
 
 See [LICENSE](LICENSE)
-
