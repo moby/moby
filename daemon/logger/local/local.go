@@ -166,7 +166,7 @@ func (d *driver) Close() error {
 	d.closed = true
 	err := d.logfile.Close()
 	for r := range d.readers {
-		r.Close()
+		r.ProducerGone()
 		delete(d.readers, r)
 	}
 	d.mu.Unlock()
