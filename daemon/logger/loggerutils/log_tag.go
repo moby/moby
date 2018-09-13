@@ -29,3 +29,21 @@ func ParseLogTag(info logger.Info, defaultTemplate string) (string, error) {
 
 	return buf.String(), nil
 }
+
+func ParseLogTagStderr(info logger.Info, defaultTemplate string) (string, error) {
+	tagTemplate := info.Config["tag-stderr"]
+	if tagTemplate == "" {
+		tagTemplate = defaultTemplate
+	}
+
+	tmpl, err := templates.NewParse("log-tag", tagTemplate)
+	if err != nil {
+		return "", err
+	}
+	buf := new(bytes.Buffer)
+	if err := tmpl.Execute(buf, &info); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
