@@ -110,6 +110,10 @@ func TestContainerTop(t *testing.T) {
 			opts:      []string{"-o", "sasha"},
 			expectErr: true,
 		},
+		{
+			opts:      []string{"--no-headers"},
+			expectErr: true,
+		},
 	}
 
 	for _, c := range cases {

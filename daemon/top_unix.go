@@ -285,6 +285,22 @@ func (daemon *Daemon) ContainerTop(name string, psArgs string) (*container.Conta
 
 	args := strings.Split(psArgs, " ")
 
+	// can't work without headers
+	for _, arg := range args {
+		switch arg {
+		case
+			"--no-header",
+			"--no-headers",
+			"--no-heading",
+			"--no-headings",
+			"--noheader",
+			"--noheaders",
+			"--noheading",
+			"--noheadings":
+			return nil, errdefs.System(errors.New("option " + arg + " is not allowed"))
+		}
+	}
+
 	var extraPidColumn bool
 	if customArgs && customFields(args) {
 		// make sure the PID field is shown in the first column
