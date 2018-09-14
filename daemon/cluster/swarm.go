@@ -92,6 +92,10 @@ func (c *Cluster) Init(req types.InitRequest) (string, error) {
 		}
 	}
 
+	//Validate Default Address Pool input
+	if err := validateDefaultAddrPool(req.DefaultAddrPool, req.SubnetSize); err != nil {
+		return "", err
+	}
 	nr, err := c.newNodeRunner(nodeStartConfig{
 		forceNewCluster:    req.ForceNewCluster,
 		autolock:           req.AutoLockManagers,

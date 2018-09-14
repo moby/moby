@@ -355,7 +355,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	d.Stop(t)
 
 	// Clean up , set it back to original one to make sure other tests don't fail
-	ipAddr = []string{"10.10.0.0/8"}
+	ipAddr = []string{"10.0.0.0/8"}
 	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
 	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
 	d = swarm.NewSwarm(t, testEnv, ops...)
