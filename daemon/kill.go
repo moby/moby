@@ -100,9 +100,10 @@ func (daemon *Daemon) killWithSignal(container *containerpkg.Container, sig int)
 		if errdefs.IsNotFound(err) {
 			unpause = false
 			logrus.WithError(err).WithField("container", container.ID).WithField("action", "kill").Debug("container kill failed because of 'container not found' or 'no such process'")
-		} else {
-			return errors.Wrapf(err, "Cannot kill container %s", container.ID)
+			// we need to throw the err so we can handler the err
+			return err
 		}
+		return errors.Wrapf(err, "Cannot kill container %s", container.ID)
 	}
 
 	if unpause {
@@ -170,6 +171,12 @@ func (daemon *Daemon) killPossiblyDeadProcess(container *containerpkg.Container,
 	if errdefs.IsNotFound(err) {
 		e := errNoSuchProcess{container.GetPID(), sig}
 		logrus.Debug(e)
+		// process not found, so we need to tell monitor the process exited.
+		daemon.ProcessEvent(container.ID, libcontainerd.EventExit, libcontainerd.EventInfo{
+			ContainerID: container.ID,
+			ProcessID:   container.ID,
+			Pid:         uint32(container.Pid),
+		})
 		return e
 	}
 	return err
