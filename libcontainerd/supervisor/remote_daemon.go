@@ -43,7 +43,7 @@ type remote struct {
 	logger    *logrus.Entry
 
 	daemonWaitCh  chan struct{}
-	daemonStartCh chan struct{}
+	daemonStartCh chan error
 	daemonStopCh  chan struct{}
 
 	rootDir     string
@@ -72,7 +72,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 		pluginConfs:   pluginConfigs{make(map[string]interface{})},
 		daemonPid:     -1,
 		logger:        logrus.WithField("module", "libcontainerd"),
-		daemonStartCh: make(chan struct{}),
+		daemonStartCh: make(chan error, 1),
 		daemonStopCh:  make(chan struct{}),
 	}
 
@@ -92,7 +92,10 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	select {
 	case <-time.After(startupTimeout):
 		return nil, errors.New("timeout waiting for containerd to start")
-	case <-r.daemonStartCh:
+	case err := <-r.daemonStartCh:
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return r, nil
@@ -269,7 +272,11 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 
 			os.RemoveAll(r.GRPC.Address)
 			if err := r.startContainerd(); err != nil {
-				r.logger.WithError(err).Error("failed starting containerd")
+				if !started {
+					r.daemonStartCh <- err
+					return
+				}
+				r.logger.WithError(err).Error("failed restarting containerd")
 				delay = time.After(50 * time.Millisecond)
 				continue
 			}
