@@ -809,7 +809,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 			s.Hooks = &specs.Hooks{
 				Prestart: []specs.Hook{{
 					Path: target,
-					Args: []string{"libnetwork-setkey", c.ID, daemon.netController.ID()},
+					Args: []string{"libnetwork-setkey", "-exec-root=" + daemon.configStore.GetExecRoot(), c.ID, daemon.netController.ID()},
 				}},
 			}
 		}
