@@ -17,7 +17,7 @@ import (
 // TODO: this should use more of libtrust.LoadOrCreateTrustKey which may need
 // a refactor or this function to be moved into libtrust
 func loadOrCreateTrustKey(trustKeyPath string) (libtrust.PrivateKey, error) {
-	err := system.MkdirAll(filepath.Dir(trustKeyPath), 0700, "")
+	err := system.MkdirAll(filepath.Dir(trustKeyPath), 0755, "")
 	if err != nil {
 		return nil, err
 	}
