@@ -291,6 +291,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		Dist:                d.DistributionServices(),
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
+		ResolverOpt:         d.NewResolveOptionsFunc(),
 	})
 	if err != nil {
 		return opts, err

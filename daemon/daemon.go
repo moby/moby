@@ -9,6 +9,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net"
 	"os"
 	"path"
@@ -23,6 +24,8 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/pkg/dialer"
+	"github.com/containerd/containerd/remotes/docker"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/swarm"
@@ -36,6 +39,8 @@ import (
 	"github.com/docker/docker/daemon/logger"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
+	"github.com/moby/buildkit/util/resolver"
+	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -139,6 +144,57 @@ func (daemon *Daemon) HasExperimental() bool {
 // Features returns the features map from configStore
 func (daemon *Daemon) Features() *map[string]bool {
 	return &daemon.configStore.Features
+}
+
+// NewResolveOptionsFunc returns a call back function to resolve "registry-mirrors" and
+// "insecure-registries" for buildkit
+func (daemon *Daemon) NewResolveOptionsFunc() resolver.ResolveOptionsFunc {
+	return func(ref string) docker.ResolverOptions {
+		var (
+			registryKey = "docker.io"
+			mirrors     = make([]string, len(daemon.configStore.Mirrors))
+			m           = map[string]resolver.RegistryConf{}
+		)
+		// must trim "https://" or "http://" prefix
+		for i, v := range daemon.configStore.Mirrors {
+			v = strings.TrimPrefix(v, "https://")
+			v = strings.TrimPrefix(v, "http://")
+			mirrors[i] = v
+		}
+		// set "registry-mirrors"
+		m[registryKey] = resolver.RegistryConf{Mirrors: mirrors}
+		// set "insecure-registries"
+		for _, v := range daemon.configStore.InsecureRegistries {
+			v = strings.TrimPrefix(v, "http://")
+			m[v] = resolver.RegistryConf{
+				PlainHTTP: true,
+			}
+		}
+		def := docker.ResolverOptions{
+			Client: tracing.DefaultClient,
+		}
+
+		parsed, err := reference.ParseNormalizedNamed(ref)
+		if err != nil {
+			return def
+		}
+		host := reference.Domain(parsed)
+
+		c, ok := m[host]
+		if !ok {
+			return def
+		}
+
+		if len(c.Mirrors) > 0 {
+			def.Host = func(string) (string, error) {
+				return c.Mirrors[rand.Intn(len(c.Mirrors))], nil
+			}
+		}
+
+		def.PlainHTTP = c.PlainHTTP
+
+		return def
+	}
 }
 
 func (daemon *Daemon) restore() error {
