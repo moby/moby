@@ -10,17 +10,17 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/session/auth"
 	"github.com/moby/buildkit/util/contentutil"
-	"github.com/moby/buildkit/util/tracing"
+	"github.com/moby/buildkit/util/resolver"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
-func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExporterFunc {
+func ResolveCacheExporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheExporterFunc {
 	return func(ctx context.Context, typ, ref string) (remotecache.Exporter, error) {
 		if typ != "" {
 			return nil, errors.Errorf("unsupported cache exporter type: %s", typ)
 		}
-		remote := newRemoteResolver(ctx, sm)
+		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
 		pusher, err := remote.Pusher(ctx, ref)
 		if err != nil {
 			return nil, err
@@ -29,12 +29,12 @@ func ResolveCacheExporterFunc(sm *session.Manager) remotecache.ResolveCacheExpor
 	}
 }
 
-func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImporterFunc {
+func ResolveCacheImporterFunc(sm *session.Manager, resolverOpt resolver.ResolveOptionsFunc) remotecache.ResolveCacheImporterFunc {
 	return func(ctx context.Context, typ, ref string) (remotecache.Importer, specs.Descriptor, error) {
 		if typ != "" {
 			return nil, specs.Descriptor{}, errors.Errorf("unsupported cache importer type: %s", typ)
 		}
-		remote := newRemoteResolver(ctx, sm)
+		remote := newRemoteResolver(ctx, resolverOpt, sm, ref)
 		xref, desc, err := remote.Resolve(ctx, ref)
 		if err != nil {
 			return nil, specs.Descriptor{}, err
@@ -47,11 +47,10 @@ func ResolveCacheImporterFunc(sm *session.Manager) remotecache.ResolveCacheImpor
 	}
 }
 
-func newRemoteResolver(ctx context.Context, sm *session.Manager) remotes.Resolver {
-	return docker.NewResolver(docker.ResolverOptions{
-		Client:      tracing.DefaultClient,
-		Credentials: getCredentialsFunc(ctx, sm),
-	})
+func newRemoteResolver(ctx context.Context, resolverOpt resolver.ResolveOptionsFunc, sm *session.Manager, ref string) remotes.Resolver {
+	opt := resolverOpt(ref)
+	opt.Credentials = getCredentialsFunc(ctx, sm)
+	return docker.NewResolver(opt)
 }
 
 func getCredentialsFunc(ctx context.Context, sm *session.Manager) func(string) (string, string, error) {
