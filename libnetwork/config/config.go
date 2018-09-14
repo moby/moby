@@ -35,6 +35,7 @@ type DaemonCfg struct {
 	Debug                  bool
 	Experimental           bool
 	DataDir                string
+	ExecRoot               string
 	DefaultNetwork         string
 	DefaultDriver          string
 	Labels                 []string
@@ -217,6 +218,7 @@ func OptionDataDir(dataDir string) Option {
 // OptionExecRoot function returns an option setter for exec root folder
 func OptionExecRoot(execRoot string) Option {
 	return func(c *Config) {
+		c.Daemon.ExecRoot = execRoot
 		osl.SetBasePath(execRoot)
 	}
 }
