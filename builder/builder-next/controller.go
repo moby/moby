@@ -97,6 +97,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore:   dist.V2MetadataService,
 		ImageStore:      dist.ImageStore,
 		ReferenceStore:  dist.ReferenceStore,
+		ResolverOpt:     opt.ResolverOpt,
 	})
 	if err != nil {
 		return nil, err
@@ -160,7 +161,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		WorkerController:         wc,
 		Frontends:                frontends,
 		CacheKeyStorage:          cacheStorage,
-		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager),
+		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
 		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
 }
