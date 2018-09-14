@@ -304,7 +304,20 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	c.Assert(d1.GetNode(c, d2.NodeID()).ManagerStatus.Leader, checker.False)
 	c.Assert(d1.GetNode(c, d3.NodeID()).ManagerStatus.Leader, checker.False)
 
-	d1.Stop(c)
+	{
+		var wg sync.WaitGroup
+		wg.Add(1)
+		errs := make(chan error, 1)
+		go func(daemon *daemon.Daemon) {
+			defer wg.Done()
+			daemon.Stop(c)
+		}(d1)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
 
 	var (
 		leader    *daemon.Daemon   // keep track of leader
@@ -341,9 +354,23 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	stableleader := leader
 
 	// add the d1, the initial leader, back
-	d1.Start(c)
+	{
+		var wg sync.WaitGroup
+		wg.Add(1)
+		errs := make(chan error, 1)
+		go func(daemon *daemon.Daemon) {
+			defer wg.Done()
+			daemon.Start(c)
+		}(d1)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
 
-	// TODO(stevvooe): may need to wait for rejoin here
+	// need to wait for d1 here
+	waitAndAssert(c, defaultReconciliationTimeout, stableleader.CheckNodeReadyCount, checker.Equals, 3)
 
 	// wait for possible election
 	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d1, d2, d3), checker.True)
@@ -352,6 +379,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	// verify that we still only have 1 leader and 2 followers
 	c.Assert(leader, checker.NotNil)
 	c.Assert(followers, checker.HasLen, 2)
+
 	// and that after we added d1 back, the leader hasn't changed
 	c.Assert(leader.NodeID(), checker.Equals, stableleader.NodeID())
 }
@@ -363,7 +391,20 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 
 	d1.CreateService(c, simpleTestService)
 
-	d2.Stop(c)
+	{
+		var wg sync.WaitGroup
+		wg.Add(1)
+		errs := make(chan error, 1)
+		go func(daemon *daemon.Daemon) {
+			defer wg.Done()
+			daemon.Stop(c)
+		}(d2)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
@@ -372,7 +413,20 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 		s.Spec.Name = "top1"
 	})
 
-	d3.Stop(c)
+	{
+		var wg sync.WaitGroup
+		wg.Add(1)
+		errs := make(chan error, 1)
+		go func(daemon *daemon.Daemon) {
+			defer wg.Done()
+			daemon.Stop(c)
+		}(d3)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
 
 	var service swarm.Service
 	simpleTestService(&service)
@@ -385,16 +439,35 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
 		_, err = cli.ServiceCreate(context.Background(), service.Spec, types.ServiceCreateOptions{})
 		return err.Error(), nil
-	}, checker.Contains, "Make sure more than half of the managers are online.")
+	}, checker.NotNil)
 
-	d2.Start(c)
+	{
+		var wg sync.WaitGroup
+		wg.Add(1)
+		errs := make(chan error, 1)
+		go func(daemon *daemon.Daemon) {
+			defer wg.Done()
+			daemon.Start(c)
+		}(d2)
+		wg.Wait()
+		close(errs)
+		for err := range errs {
+			c.Assert(err, check.IsNil)
+		}
+	}
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
 
-	d1.CreateService(c, simpleTestService, func(s *swarm.Service) {
-		s.Spec.Name = "top3"
-	})
+	// We need wait
+	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+		serviceId := d1.CreateService(c, simpleTestService, func(s *swarm.Service) {
+			s.Spec.Name = "top3"
+		})
+		return serviceId, nil
+	}, checker.NotNil)
+
+	time.Sleep(3 * time.Second)
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
