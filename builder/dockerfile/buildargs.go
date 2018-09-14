@@ -113,7 +113,7 @@ func (b *BuildArgs) GetAllAllowed() map[string]string {
 	return b.getAllFromMapping(b.allowedBuildArgs)
 }
 
-// GetAllMeta returns a mapping with all the meta meta args
+// GetAllMeta returns a mapping with all the meta args
 func (b *BuildArgs) GetAllMeta() map[string]string {
 	return b.getAllFromMapping(b.allowedMetaArgs)
 }
