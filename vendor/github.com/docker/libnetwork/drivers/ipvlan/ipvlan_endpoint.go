@@ -24,7 +24,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return fmt.Errorf("network id %q not found", nid)
 	}
 	if ifInfo.MacAddress() != nil {
-		return fmt.Errorf("%s interfaces do not support custom mac address assigment", ipvlanType)
+		return fmt.Errorf("%s interfaces do not support custom mac address assignment", ipvlanType)
 	}
 	ep := &endpoint{
 		id:     eid,

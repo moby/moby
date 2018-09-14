@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )

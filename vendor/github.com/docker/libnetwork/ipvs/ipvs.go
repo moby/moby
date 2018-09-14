@@ -53,13 +53,15 @@ type SvcStats struct {
 // Destination defines an IPVS destination (real server) in its
 // entirety.
 type Destination struct {
-	Address         net.IP
-	Port            uint16
-	Weight          int
-	ConnectionFlags uint32
-	AddressFamily   uint16
-	UpperThreshold  uint32
-	LowerThreshold  uint32
+	Address             net.IP
+	Port                uint16
+	Weight              int
+	ConnectionFlags     uint32
+	AddressFamily       uint16
+	UpperThreshold      uint32
+	LowerThreshold      uint32
+	ActiveConnections   int
+	InactiveConnections int
 }
 
 // Handle provides a namespace specific ipvs handle to program ipvs

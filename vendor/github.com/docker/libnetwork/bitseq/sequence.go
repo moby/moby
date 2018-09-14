@@ -32,7 +32,7 @@ var (
 	ErrBitAllocated = errors.New("requested bit is already allocated")
 )
 
-// Handle contains the sequece representing the bitmask and its identifier
+// Handle contains the sequence representing the bitmask and its identifier
 type Handle struct {
 	bits       uint64
 	unselected uint64

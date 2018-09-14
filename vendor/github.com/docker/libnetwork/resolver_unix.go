@@ -76,7 +76,7 @@ func reexecSetupResolver() {
 
 	for _, rule := range rules {
 		if iptables.RawCombinedOutputNative(rule...) != nil {
-			logrus.Errorf("setting up rule failed, %v", rule)
+			logrus.Errorf("set up rule failed, %v", rule)
 		}
 	}
 }
