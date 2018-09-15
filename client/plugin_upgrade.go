@@ -35,5 +35,5 @@ func (cli *Client) PluginUpgrade(ctx context.Context, name string, options types
 
 func (cli *Client) tryPluginUpgrade(ctx context.Context, query url.Values, privileges types.PluginPrivileges, name, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
-	return cli.post(ctx, "/plugins/"+name+"/upgrade", query, privileges, headers)
+	return cli.post(ctx, "/plugins/"+FilterURL(name)+"/upgrade", query, privileges, headers)
 }

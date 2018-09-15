@@ -15,7 +15,7 @@ func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (ty
 	if containerID == "" {
 		return types.ContainerJSON{}, objectNotFoundError{object: "container", id: containerID}
 	}
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", nil, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+FilterURL(containerID)+"/json", nil, nil)
 	if err != nil {
 		return types.ContainerJSON{}, wrapResponseError(err, serverResp, "container", containerID)
 	}
@@ -35,7 +35,7 @@ func (cli *Client) ContainerInspectWithRaw(ctx context.Context, containerID stri
 	if getSize {
 		query.Set("size", "1")
 	}
-	serverResp, err := cli.get(ctx, "/containers/"+containerID+"/json", query, nil)
+	serverResp, err := cli.get(ctx, "/containers/"+FilterURL(containerID)+"/json", query, nil)
 	if err != nil {
 		return types.ContainerJSON{}, nil, wrapResponseError(err, serverResp, "container", containerID)
 	}

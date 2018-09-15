@@ -76,7 +76,7 @@ func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version 
 	}
 
 	var response types.ServiceUpdateResponse
-	resp, err := cli.post(ctx, "/services/"+serviceID+"/update", query, service, headers)
+	resp, err := cli.post(ctx, "/services/"+FilterURL(serviceID)+"/update", query, service, headers)
 	if err != nil {
 		return response, err
 	}

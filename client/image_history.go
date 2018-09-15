@@ -11,7 +11,7 @@ import (
 // ImageHistory returns the changes in an image in history format.
 func (cli *Client) ImageHistory(ctx context.Context, imageID string) ([]image.HistoryResponseItem, error) {
 	var history []image.HistoryResponseItem
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/history", url.Values{}, nil)
+	serverResp, err := cli.get(ctx, "/images/"+FilterURL(imageID)+"/history", url.Values{}, nil)
 	if err != nil {
 		return history, err
 	}

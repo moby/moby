@@ -14,7 +14,7 @@ func (cli *Client) ImageInspectWithRaw(ctx context.Context, imageID string) (typ
 	if imageID == "" {
 		return types.ImageInspect{}, nil, objectNotFoundError{object: "image", id: imageID}
 	}
-	serverResp, err := cli.get(ctx, "/images/"+imageID+"/json", nil, nil)
+	serverResp, err := cli.get(ctx, "/images/"+FilterURL(imageID)+"/json", nil, nil)
 	if err != nil {
 		return types.ImageInspect{}, nil, wrapResponseError(err, serverResp, "image", imageID)
 	}

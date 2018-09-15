@@ -51,5 +51,5 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options types.Im
 
 func (cli *Client) tryImagePush(ctx context.Context, imageID string, query url.Values, registryAuth string) (serverResponse, error) {
 	headers := map[string][]string{"X-Registry-Auth": {registryAuth}}
-	return cli.post(ctx, "/images/"+imageID+"/push", query, nil, headers)
+	return cli.post(ctx, "/images/"+FilterURL(imageID)+"/push", query, nil, headers)
 }

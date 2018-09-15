@@ -17,7 +17,7 @@ func (cli *Client) ContainerStart(ctx context.Context, containerID string, optio
 		query.Set("checkpoint-dir", options.CheckpointDir)
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/start", query, nil, nil)
+	resp, err := cli.post(ctx, "/containers/"+FilterURL(containerID)+"/start", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

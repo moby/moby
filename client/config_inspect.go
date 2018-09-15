@@ -17,7 +17,7 @@ func (cli *Client) ConfigInspectWithRaw(ctx context.Context, id string) (swarm.C
 	if err := cli.NewVersionError("1.30", "config inspect"); err != nil {
 		return swarm.Config{}, nil, err
 	}
-	resp, err := cli.get(ctx, "/configs/"+id, nil, nil)
+	resp, err := cli.get(ctx, "/configs/"+FilterURL(id), nil, nil)
 	if err != nil {
 		return swarm.Config{}, nil, wrapResponseError(err, resp, "config", id)
 	}

@@ -22,7 +22,7 @@ func (cli *Client) VolumeInspectWithRaw(ctx context.Context, volumeID string) (t
 	}
 
 	var volume types.Volume
-	resp, err := cli.get(ctx, "/volumes/"+volumeID, nil, nil)
+	resp, err := cli.get(ctx, "/volumes/"+FilterURL(volumeID), nil, nil)
 	if err != nil {
 		return volume, nil, wrapResponseError(err, resp, "volume", volumeID)
 	}

@@ -19,7 +19,7 @@ func (cli *Client) ServiceInspectWithRaw(ctx context.Context, serviceID string, 
 	}
 	query := url.Values{}
 	query.Set("insertDefaults", fmt.Sprintf("%v", opts.InsertDefaults))
-	serverResp, err := cli.get(ctx, "/services/"+serviceID, query, nil)
+	serverResp, err := cli.get(ctx, "/services/"+FilterURL(serviceID), query, nil)
 	if err != nil {
 		return swarm.Service{}, nil, wrapResponseError(err, serverResp, "service", serviceID)
 	}

@@ -19,7 +19,7 @@ func (cli *Client) ContainerStatPath(ctx context.Context, containerID, path stri
 	query := url.Values{}
 	query.Set("path", filepath.ToSlash(path)) // Normalize the paths used in the API.
 
-	urlStr := "/containers/" + containerID + "/archive"
+	urlStr := "/containers/" + FilterURL(containerID) + "/archive"
 	response, err := cli.head(ctx, urlStr, query, nil)
 	if err != nil {
 		return types.ContainerPathStat{}, wrapResponseError(err, response, "container:path", containerID+":"+path)
