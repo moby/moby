@@ -25,9 +25,12 @@ import (
 
 // MetricFamilyToText converts a MetricFamily proto message into text format and
 // writes the resulting lines to 'out'. It returns the number of bytes written
-// and any error encountered.  This function does not perform checks on the
-// content of the metric and label names, i.e. invalid metric or label names
+// and any error encountered. The output will have the same order as the input,
+// no further sorting is performed. Furthermore, this function assumes the input
+// is already sanitized and does not perform any sanity checks. If the input
+// contains duplicate metrics or invalid metric or label names, the conversion
 // will result in invalid text format output.
+//
 // This method fulfills the type 'prometheus.encoder'.
 func MetricFamilyToText(out io.Writer, in *dto.MetricFamily) (int, error) {
 	var written int
