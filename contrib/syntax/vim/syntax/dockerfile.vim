@@ -11,7 +11,7 @@ let b:current_syntax = "dockerfile"
 
 syntax case ignore
 
-syntax match dockerfileKeyword /\v^\s*(ONBUILD\s+)?(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)\s/
+syntax match dockerfileKeyword /\v^\s*%(ONBUILD\s+)?%(ADD|ARG|CMD|COPY|ENTRYPOINT|ENV|EXPOSE|FROM|HEALTHCHECK|LABEL|MAINTAINER|RUN|SHELL|STOPSIGNAL|USER|VOLUME|WORKDIR)\s/
 highlight link dockerfileKeyword Keyword
 
 syntax region dockerfileString start=/\v"/ skip=/\v\\./ end=/\v"/
@@ -27,5 +27,5 @@ let s:current_syntax = b:current_syntax
 unlet b:current_syntax
 syntax include @SH syntax/sh.vim
 let b:current_syntax = s:current_syntax
-syntax region shLine matchgroup=dockerfileKeyword start=/\v^\s*(RUN|CMD|ENTRYPOINT)\s/ end=/\v$/ contains=@SH
+syntax region shLine matchgroup=dockerfileKeyword start=/\v^\s*%(ONBUILD\s+)?%(RUN|CMD|ENTRYPOINT)\s/ end=/\v$/ contains=@SH
 " since @SH will handle "\" as part of the same line automatically, this "just works" for line continuation too, but with the caveat that it will highlight "RUN echo '" followed by a newline as if it were a block because the "'" is shell line continuation...  not sure how to fix that just yet (TODO)
