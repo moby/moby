@@ -352,6 +352,12 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 		return fmt.Errorf("linux runtime spec devices: %v", err)
 	}
 	s.Linux.Resources.Devices = devPermissions
+	memoryLimit := uint64(c.HostConfig.Memory)
+	s.Windows.Resources = &specs.WindowsResources{
+		Memory: &specs.WindowsMemoryResources{
+			Limit: &memoryLimit,
+		},
+	}
 	return nil
 }
 

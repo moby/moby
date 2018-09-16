@@ -404,6 +404,14 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 		return fmt.Errorf("spec.Windows must not be nil for LCOW containers")
 	}
 
+	if spec.Windows.Resources != nil {
+		if spec.Windows.Resources.Memory != nil {
+			if spec.Windows.Resources.Memory.Limit != nil {
+				configuration.MemoryMaximumInMB = int64(*spec.Windows.Resources.Memory.Limit) / 1024 / 1024
+			}
+		}
+	}
+
 	// We must have least one layer in the spec
 	if spec.Windows.LayerFolders == nil || len(spec.Windows.LayerFolders) == 0 {
 		return fmt.Errorf("OCI spec is invalid - at least one LayerFolders must be supplied to the runtime")
