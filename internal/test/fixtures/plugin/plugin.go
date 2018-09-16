@@ -17,7 +17,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// CreateOpt is is passed used to change the default plugin config before
+// CreateOpt is passed used to change the default plugin config before
 // creating it
 type CreateOpt func(*Config)
 
