@@ -86,8 +86,8 @@
         }
       - type:       rebuild
         settings: {
-            configurations: [ windowsRS1 ],
-            label:          "rebuild/windowsRS1",
+            configurations: [ windowsRS4 ],
+            label:          "rebuild/windowsRS4",
         }
       - type:       rebuild
         settings: {
