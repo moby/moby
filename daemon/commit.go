@@ -65,13 +65,14 @@ func merge(userConf, imageConf *containertypes.Config) error {
 		}
 	}
 
-	if len(userConf.Entrypoint) == 0 {
+	blEntrypointEmpty := (len(userConf.Entrypoint) == 1 && len(userConf.Entrypoint[0]) == 0)
+	if len(userConf.Entrypoint) == 0 || blEntrypointEmpty {
 		if len(userConf.Cmd) == 0 {
 			userConf.Cmd = imageConf.Cmd
 			userConf.ArgsEscaped = imageConf.ArgsEscaped
 		}
 
-		if userConf.Entrypoint == nil {
+		if userConf.Entrypoint == nil || blEntrypointEmpty {
 			userConf.Entrypoint = imageConf.Entrypoint
 		}
 	}
