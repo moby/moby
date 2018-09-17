@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/cloudflare/cfssl/helpers"
@@ -1014,6 +1015,9 @@ func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Daemon, unlockKey string) 
 	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, false)
 
 	d.Restart(c)
+
+	// We need wait
+	time.Sleep(3 * time.Second)
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
 }
 
@@ -1022,6 +1026,9 @@ func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Daemon) {
 	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, true)
 
 	d.Restart(c)
+
+	// We need wait
+	time.Sleep(3 * time.Second)
 	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
 }
 
@@ -1406,8 +1413,25 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), "")
 		c.Assert(newUnlockKey, checker.Not(checker.Equals), unlockKey)
 
-		d2.Restart(c)
-		d3.Restart(c)
+		{
+			restartNodes := []*daemon.Daemon{d2, d3}
+			var wg sync.WaitGroup
+			wg.Add(len(restartNodes))
+			errs := make(chan error, len(restartNodes))
+
+			for _, restartNode := range restartNodes {
+				go func(daemon *daemon.Daemon) {
+					defer wg.Done()
+					daemon.Restart(c)
+				}(restartNode)
+			}
+
+			wg.Wait()
+			close(errs)
+			for err := range errs {
+				c.Assert(err, check.IsNil)
+			}
+		}
 
 		for _, d := range []*daemon.Daemon{d2, d3} {
 			c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
@@ -1430,7 +1454,18 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 
 				time.Sleep(3 * time.Second)
 
-				d.Restart(c)
+				var wg sync.WaitGroup
+				wg.Add(1)
+				errs := make(chan error, 1)
+				go func(daemon *daemon.Daemon) {
+					defer wg.Done()
+					daemon.Restart(c)
+				}(d)
+				wg.Wait()
+				close(errs)
+				for err := range errs {
+					c.Assert(err, check.IsNil)
+				}
 
 				cmd = d.Command("swarm", "unlock")
 				cmd.Stdin = bytes.NewBufferString(unlockKey)
