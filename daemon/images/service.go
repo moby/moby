@@ -205,8 +205,6 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 				if err == nil {
 					if _, ok := layerRefs[l.ChainID()]; ok {
 						allLayersSize += size
-					} else {
-						logrus.Warnf("found leaked image layer %v", l.ChainID())
 					}
 				} else {
 					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
