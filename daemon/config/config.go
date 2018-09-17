@@ -64,6 +64,16 @@ var skipValidateOptions = map[string]bool{
 	"features": true,
 }
 
+// skipDuplicates contains configuration keys that
+// will be skipped when checking duplicated
+// configuration field defined in both daemon
+// config file and from dockerd cli flags.
+// This allows some configurations to be merged
+// during the parsing.
+var skipDuplicates = map[string]bool{
+	"runtimes": true,
+}
+
 // LogConfig represents the default log configuration.
 // It includes json tags to deserialize configuration from a file
 // using the same names that the flags in the command line use.
@@ -491,13 +501,13 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 	duplicatedConflicts := func(f *pflag.Flag) {
 		// search option name in the json configuration payload if the value is a named option
 		if namedOption, ok := f.Value.(opts.NamedOption); ok {
-			if optsValue, ok := config[namedOption.Name()]; ok {
+			if optsValue, ok := config[namedOption.Name()]; ok && !skipDuplicates[namedOption.Name()] {
 				conflicts = append(conflicts, printConflict(namedOption.Name(), f.Value.String(), optsValue))
 			}
 		} else {
 			// search flag name in the json configuration payload
 			for _, name := range []string{f.Name, f.Shorthand} {
-				if value, ok := config[name]; ok {
+				if value, ok := config[name]; ok && !skipDuplicates[name] {
 					conflicts = append(conflicts, printConflict(name, f.Value.String(), value))
 					break
 				}
