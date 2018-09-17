@@ -28,7 +28,7 @@ StartLimitInterval=60s
 
 # On RPM Based distributions PATH isn't defined so we define it here
 # /opt/containerd/bin is in front so dockerd grabs the correct runc binary
-Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/local/bin:$PATH"
+Environment="PATH=/opt/containerd/bin:/sbin:/usr/bin:/usr/sbin:/usr/local/bin:$PATH"
 
 # Having non-zero Limit*s causes performance problems due to accounting overhead
 # in the kernel. We recommend using cgroups to do container-local accounting.
