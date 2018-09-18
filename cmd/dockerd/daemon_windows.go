@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
@@ -82,4 +83,8 @@ func allocateDaemonPort(addr string) error {
 
 func wrapListeners(proto string, ls []net.Listener) []net.Listener {
 	return ls
+}
+
+func newCgroupParent(config *config.Config) string {
+	return ""
 }

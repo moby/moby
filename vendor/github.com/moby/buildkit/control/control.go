@@ -2,6 +2,7 @@ package control
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/docker/distribution/reference"
@@ -17,6 +18,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/throttle"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -40,6 +42,8 @@ type Controller struct { // TODO: ControlService
 	solver           *llbsolver.Solver
 	cache            solver.CacheManager
 	gatewayForwarder *controlgateway.GatewayForwarder
+	throttledGC      func()
+	gcmu             sync.Mutex
 }
 
 func NewController(opt Opt) (*Controller, error) {
@@ -58,6 +62,12 @@ func NewController(opt Opt) (*Controller, error) {
 		cache:            cache,
 		gatewayForwarder: gatewayForwarder,
 	}
+	c.throttledGC = throttle.ThrottleAfter(time.Minute, c.gc)
+
+	defer func() {
+		time.AfterFunc(time.Second, c.throttledGC)
+	}()
+
 	return c, nil
 }
 
@@ -171,6 +181,10 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
 	ctx = session.NewContext(ctx, req.Session)
+
+	defer func() {
+		time.AfterFunc(time.Second, c.throttledGC)
+	}()
 
 	var expi exporter.ExporterInstance
 	// TODO: multiworker
@@ -313,9 +327,53 @@ func (c *Controller) ListWorkers(ctx context.Context, r *controlapi.ListWorkersR
 			ID:        w.ID(),
 			Labels:    w.Labels(),
 			Platforms: pb.PlatformsFromSpec(w.Platforms()),
+			GCPolicy:  toPBGCPolicy(w.GCPolicy()),
 		})
 	}
 	return resp, nil
+}
+
+func (c *Controller) gc() {
+	c.gcmu.Lock()
+	defer c.gcmu.Unlock()
+
+	workers, err := c.opt.WorkerController.List()
+	if err != nil {
+		return
+	}
+
+	eg, ctx := errgroup.WithContext(context.TODO())
+
+	var size int64
+	ch := make(chan client.UsageInfo)
+	done := make(chan struct{})
+	go func() {
+		for ui := range ch {
+			size += ui.Size
+		}
+		close(done)
+	}()
+
+	for _, w := range workers {
+		func(w worker.Worker) {
+			eg.Go(func() error {
+				if policy := w.GCPolicy(); len(policy) > 0 {
+					return w.Prune(ctx, ch, policy...)
+				}
+				return nil
+			})
+		}(w)
+	}
+
+	err = eg.Wait()
+	close(ch)
+	if err != nil {
+		logrus.Errorf("gc error: %+v", err)
+	}
+	<-done
+	if size > 0 {
+		logrus.Debugf("gc cleaned up %d bytes", size)
+	}
 }
 
 func parseCacheExporterOpt(opt map[string]string) solver.CacheExportMode {
@@ -335,4 +393,17 @@ func parseCacheExporterOpt(opt map[string]string) solver.CacheExportMode {
 		}
 	}
 	return solver.CacheExportModeMin
+}
+
+func toPBGCPolicy(in []client.PruneInfo) []*apitypes.GCPolicy {
+	policy := make([]*apitypes.GCPolicy, 0, len(in))
+	for _, p := range in {
+		policy = append(policy, &apitypes.GCPolicy{
+			All:          p.All,
+			KeepBytes:    p.KeepBytes,
+			KeepDuration: int64(p.KeepDuration),
+			Filters:      p.Filter,
+		})
+	}
+	return policy
 }

@@ -259,7 +259,7 @@ type routerOptions struct {
 	cluster        *cluster.Cluster
 }
 
-func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptions, error) {
+func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, error) {
 	opts := routerOptions{}
 	sm, err := session.NewManager()
 	if err != nil {
@@ -280,22 +280,23 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		return opts, errors.Wrap(err, "failed to create fscache")
 	}
 
-	manager, err := dockerfile.NewBuildManager(daemon.BuilderBackend(), sm, buildCache, daemon.IdentityMapping())
+	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), sm, buildCache, d.IdentityMapping())
 	if err != nil {
 		return opts, err
 	}
+	cgroupParent := newCgroupParent(config)
 	bk, err := buildkit.New(buildkit.Opt{
-		SessionManager:    sm,
-		Root:              filepath.Join(config.Root, "buildkit"),
-		NetnsRoot:         filepath.Join(config.ExecRoot, "netns"),
-		Dist:              daemon.DistributionServices(),
-		NetworkController: daemon.NetworkController(),
+		SessionManager:      sm,
+		Root:                filepath.Join(config.Root, "buildkit"),
+		Dist:                d.DistributionServices(),
+		NetworkController:   d.NetworkController(),
+		DefaultCgroupParent: cgroupParent,
 	})
 	if err != nil {
 		return opts, err
 	}
 
-	bb, err := buildbackend.NewBackend(daemon.ImageService(), manager, buildCache, bk)
+	bb, err := buildbackend.NewBackend(d.ImageService(), manager, buildCache, bk)
 	if err != nil {
 		return opts, errors.Wrap(err, "failed to create buildmanager")
 	}
@@ -304,8 +305,8 @@ func newRouterOptions(config *config.Config, daemon *daemon.Daemon) (routerOptio
 		buildBackend:   bb,
 		buildCache:     buildCache,
 		buildkit:       bk,
-		features:       daemon.Features(),
-		daemon:         daemon,
+		features:       d.Features(),
+		daemon:         d,
 	}, nil
 }
 
