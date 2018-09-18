@@ -18,6 +18,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -35,7 +36,6 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
 	"github.com/docker/libnetwork/iptables"
-	"github.com/docker/libtrust"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
@@ -551,20 +551,23 @@ func (s *DockerDaemonSuite) TestDaemonAllocatesListeningPort(c *check.C) {
 	}
 }
 
-func (s *DockerDaemonSuite) TestDaemonKeyGeneration(c *check.C) {
-	// TODO: skip or update for Windows daemon
-	os.Remove("/etc/docker/key.json")
+func (s *DockerDaemonSuite) TestDaemonUUIDGeneration(c *check.C) {
+	dir := "/var/lib/docker"
+	if runtime.GOOS == "windows" {
+		dir = filepath.Join(os.Getenv("programdata"), "docker")
+	}
+	file := filepath.Join(dir, "engine_uuid")
+	os.Remove(file)
 	s.d.Start(c)
 	s.d.Stop(c)
 
-	k, err := libtrust.LoadKeyFile("/etc/docker/key.json")
+	fi, err := os.Stat(file)
 	if err != nil {
-		c.Fatalf("Error opening key file")
+		c.Fatalf("Error opening uuid file")
 	}
-	kid := k.KeyID()
-	// Test Key ID is a valid fingerprint (e.g. QQXN:JY5W:TBXI:MK3X:GX6P:PD5D:F56N:NHCS:LVRZ:JA46:R24J:XEFF)
-	if len(kid) != 59 {
-		c.Fatalf("Bad key ID: %s", kid)
+	// Test for uuid length
+	if fi.Size() != 36 {
+		c.Fatalf("Bad UUID size %d", fi.Size())
 	}
 }
 
