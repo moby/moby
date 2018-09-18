@@ -1,3 +1,5 @@
+// +build windows
+
 /*
    Copyright The containerd Authors.
 
@@ -14,18 +16,16 @@
    limitations under the License.
 */
 
-package containerd
+package platforms
 
 import (
-	"context"
-
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
-// WithResources sets the provided resources on the spec for task updates
-func WithResources(resources *specs.WindowsResources) UpdateTaskOpts {
-	return func(ctx context.Context, client *Client, r *UpdateTaskInfo) error {
-		r.Resources = resources
-		return nil
-	}
+// Default returns the default matcher for the platform.
+func Default() MatchComparer {
+	return Ordered(DefaultSpec(), specs.Platform{
+		OS:           "linux",
+		Architecture: "amd64",
+	})
 }

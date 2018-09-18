@@ -33,24 +33,13 @@ import (
 
 // Install a binary image into the opt service
 func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) error {
-	resp, err := c.IntrospectionService().Plugins(ctx, &introspectionapi.PluginsRequest{
-		Filters: []string{
-			"id==opt",
-		},
-	})
-	if err != nil {
-		return err
-	}
-	if len(resp.Plugins) != 1 {
-		return errors.New("opt service not enabled")
-	}
-	path := resp.Plugins[0].Exports["path"]
-	if path == "" {
-		return errors.New("opt path not exported")
-	}
 	var config InstallConfig
 	for _, o := range opts {
 		o(&config)
+	}
+	path, err := c.getInstallPath(ctx, config)
+	if err != nil {
+		return err
 	}
 	var (
 		cs       = image.ContentStore()
@@ -88,4 +77,26 @@ func (c *Client) Install(ctx context.Context, image Image, opts ...InstallOpts) 
 		}
 	}
 	return nil
+}
+
+func (c *Client) getInstallPath(ctx context.Context, config InstallConfig) (string, error) {
+	if config.Path != "" {
+		return config.Path, nil
+	}
+	resp, err := c.IntrospectionService().Plugins(ctx, &introspectionapi.PluginsRequest{
+		Filters: []string{
+			"id==opt",
+		},
+	})
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Plugins) != 1 {
+		return "", errors.New("opt service not enabled")
+	}
+	path := resp.Plugins[0].Exports["path"]
+	if path == "" {
+		return "", errors.New("opt path not exported")
+	}
+	return path, nil
 }

@@ -19,8 +19,8 @@ package boltutil
 import (
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 var (

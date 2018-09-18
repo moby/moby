@@ -272,8 +272,14 @@ func (c *Converter) fetchBlob(ctx context.Context, desc ocispec.Descriptor) erro
 			return err
 		}
 
-		// TODO: Check if blob -> diff id mapping already exists
-		// TODO: Check if blob empty label exists
+		reuse, err := c.reuseLabelBlobState(ctx, desc)
+		if err != nil {
+			return err
+		}
+
+		if reuse {
+			return nil
+		}
 
 		ra, err := c.contentStore.ReaderAt(ctx, desc)
 		if err != nil {
@@ -343,12 +349,57 @@ func (c *Converter) fetchBlob(ctx context.Context, desc ocispec.Descriptor) erro
 
 	state := calc.State()
 
+	cinfo := content.Info{
+		Digest: desc.Digest,
+		Labels: map[string]string{
+			"containerd.io/uncompressed": state.diffID.String(),
+		},
+	}
+
+	if _, err := c.contentStore.Update(ctx, cinfo, "labels.containerd.io/uncompressed"); err != nil {
+		return errors.Wrap(err, "failed to update uncompressed label")
+	}
+
 	c.mu.Lock()
 	c.blobMap[desc.Digest] = state
 	c.layerBlobs[state.diffID] = desc
 	c.mu.Unlock()
 
 	return nil
+}
+
+func (c *Converter) reuseLabelBlobState(ctx context.Context, desc ocispec.Descriptor) (bool, error) {
+	cinfo, err := c.contentStore.Info(ctx, desc.Digest)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get blob info")
+	}
+	desc.Size = cinfo.Size
+
+	diffID, ok := cinfo.Labels["containerd.io/uncompressed"]
+	if !ok {
+		return false, nil
+	}
+
+	bState := blobState{empty: false}
+
+	if bState.diffID, err = digest.Parse(diffID); err != nil {
+		log.G(ctx).WithField("id", desc.Digest).Warnf("failed to parse digest from label containerd.io/uncompressed: %v", diffID)
+		return false, nil
+	}
+
+	// NOTE: there is no need to read header to get compression method
+	// because there are only two kinds of methods.
+	if bState.diffID == desc.Digest {
+		desc.MediaType = images.MediaTypeDockerSchema2Layer
+	} else {
+		desc.MediaType = images.MediaTypeDockerSchema2LayerGzip
+	}
+
+	c.mu.Lock()
+	c.blobMap[desc.Digest] = bState
+	c.layerBlobs[bState.diffID] = desc
+	c.mu.Unlock()
+	return true, nil
 }
 
 func (c *Converter) schema1ManifestHistory() ([]ocispec.History, []digest.Digest, error) {

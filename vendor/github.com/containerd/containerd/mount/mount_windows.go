@@ -32,6 +32,10 @@ var (
 
 // Mount to the provided target
 func (m *Mount) Mount(target string) error {
+	if m.Type != "windows-layer" {
+		return errors.Errorf("invalid windows mount type: '%s'", m.Type)
+	}
+
 	home, layerID := filepath.Split(m.Source)
 
 	parentLayerPaths, err := m.GetParentPaths()
