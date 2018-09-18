@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
@@ -181,26 +180,8 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-		if runtime.GOOS == "windows" || p.config.TrustKey == nil || p.config.RequireSchema2 {
-			logrus.Warnf("failed to upload schema2 manifest: %v", err)
-			return err
-		}
-
-		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
-
-		manifestRef, err := reference.WithTag(p.repo.Named(), ref.Tag())
-		if err != nil {
-			return err
-		}
-		builder = schema1.NewConfigManifestBuilder(p.repo.Blobs(ctx), p.config.TrustKey, manifestRef, imgConfig)
-		manifest, err = manifestFromBuilder(ctx, builder, descriptors)
-		if err != nil {
-			return err
-		}
-
-		if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
-			return err
-		}
+		logrus.Warnf("failed to upload schema2 manifest: %v", err)
+		return err
 	}
 
 	var canonicalManifest []byte
