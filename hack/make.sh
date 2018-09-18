@@ -148,14 +148,6 @@ EXTLDFLAGS_STATIC='-static'
 ORIG_BUILDFLAGS=( -tags "autogen netgo osusergo static_build $DOCKER_BUILDTAGS" -installsuffix netgo )
 # see https://github.com/golang/go/issues/9369#issuecomment-69864440 for why -installsuffix is necessary here
 
-# When $DOCKER_INCREMENTAL_BINARY is set in the environment, enable incremental
-# builds by installing dependent packages to the GOPATH.
-REBUILD_FLAG="-a"
-if [ "$DOCKER_INCREMENTAL_BINARY" == "1" ] || [ "$DOCKER_INCREMENTAL_BINARY" == "true" ]; then
-	REBUILD_FLAG="-i"
-fi
-ORIG_BUILDFLAGS+=( $REBUILD_FLAG )
-
 BUILDFLAGS=( $BUILDFLAGS "${ORIG_BUILDFLAGS[@]}" )
 
 # Test timeout.

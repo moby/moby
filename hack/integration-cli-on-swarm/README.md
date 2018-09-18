@@ -36,7 +36,6 @@ while the client is supposed to be running on a laptop, e.g. Docker for Mac/Wind
 Following environment variables are known to work in this step:
 
  - `BUILDFLAGS`
- - `DOCKER_INCREMENTAL_BINARY`
 
 Note: during the transition into Moby Project, you might need to create a symbolic link `$GOPATH/src/github.com/docker/docker` to `$GOPATH/src/github.com/moby/moby`. 
 
