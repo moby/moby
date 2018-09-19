@@ -117,7 +117,7 @@ func (r dockerFetcher) open(ctx context.Context, u, mediatype string, offset int
 			}
 		} else {
 			// TODO: Should any cases where use of content range
-			// without the proper header be considerd?
+			// without the proper header be considered?
 			// 206 responses?
 
 			// Discard up to offset

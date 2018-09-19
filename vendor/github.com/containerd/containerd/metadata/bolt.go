@@ -19,8 +19,8 @@ package metadata
 import (
 	"context"
 
-	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 type transactionKey struct{}

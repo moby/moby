@@ -16,7 +16,7 @@
 
 package metadata
 
-import "github.com/boltdb/bolt"
+import bolt "go.etcd.io/bbolt"
 
 type migration struct {
 	schema  string
@@ -44,6 +44,11 @@ var migrations = []migration{
 		schema:  "v1",
 		version: 2,
 		migrate: migrateIngests,
+	},
+	{
+		schema:  "v1",
+		version: 3,
+		migrate: noOpMigration,
 	},
 }
 
@@ -152,5 +157,12 @@ func migrateIngests(tx *bolt.Tx) error {
 		}
 	}
 
+	return nil
+}
+
+// noOpMigration was for a database change from boltdb/bolt which is no
+// longer being supported, to go.etcd.io/bbolt which is the currently
+// maintained repo for boltdb.
+func noOpMigration(tx *bolt.Tx) error {
 	return nil
 }

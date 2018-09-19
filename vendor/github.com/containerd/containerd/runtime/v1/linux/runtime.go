@@ -26,7 +26,6 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/boltdb/bolt"
 	eventstypes "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/containers"
@@ -49,6 +48,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/sys/unix"
 )
 
@@ -204,7 +204,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 				log.G(ctx).WithError(err).WithFields(logrus.Fields{
 					"id":        id,
 					"namespace": namespace,
-				}).Warn("failed to clen up after killed shim")
+				}).Warn("failed to clean up after killed shim")
 			}
 		}
 		shimopt = ShimRemote(r.config, r.address, cgroup, exitHandler)
@@ -248,8 +248,7 @@ func (r *Runtime) Create(ctx context.Context, id string, opts runtime.CreateOpts
 	if err != nil {
 		return nil, errdefs.FromGRPC(err)
 	}
-	t, err := newTask(id, namespace, int(cr.Pid), s, r.events,
-		proc.NewRunc(ropts.RuntimeRoot, sopts.Bundle, namespace, rt, ropts.CriuPath, ropts.SystemdCgroup), r.tasks, bundle)
+	t, err := newTask(id, namespace, int(cr.Pid), s, r.events, r.tasks, bundle)
 	if err != nil {
 		return nil, err
 	}
@@ -341,15 +340,8 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 			}
 			continue
 		}
-		ropts, err := r.getRuncOptions(ctx, id)
-		if err != nil {
-			log.G(ctx).WithError(err).WithField("id", id).
-				Error("get runtime options")
-			continue
-		}
 
-		t, err := newTask(id, ns, pid, s, r.events,
-			proc.NewRunc(ropts.RuntimeRoot, bundle.path, ns, ropts.Runtime, ropts.CriuPath, ropts.SystemdCgroup), r.tasks, bundle)
+		t, err := newTask(id, ns, pid, s, r.events, r.tasks, bundle)
 		if err != nil {
 			log.G(ctx).WithError(err).Error("loading task type")
 			continue

@@ -20,25 +20,21 @@ package containerd
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"syscall"
 
-	"github.com/containerd/containerd/api/types"
 	"github.com/containerd/containerd/containers"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
-	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/gogo/protobuf/proto"
 	protobuf "github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/image-spec/specs-go/v1"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -103,44 +99,6 @@ func WithCheckpoint(im Image, snapshotKey string) NewContainerOpts {
 		c.SnapshotKey = snapshotKey
 		return nil
 	}
-}
-
-// WithTaskCheckpoint allows a task to be created with live runtime and memory data from a
-// previous checkpoint. Additional software such as CRIU may be required to
-// restore a task from a checkpoint
-func WithTaskCheckpoint(im Image) NewTaskOpts {
-	return func(ctx context.Context, c *Client, info *TaskInfo) error {
-		desc := im.Target()
-		id := desc.Digest
-		index, err := decodeIndex(ctx, c.ContentStore(), desc)
-		if err != nil {
-			return err
-		}
-		for _, m := range index.Manifests {
-			if m.MediaType == images.MediaTypeContainerd1Checkpoint {
-				info.Checkpoint = &types.Descriptor{
-					MediaType: m.MediaType,
-					Size_:     m.Size,
-					Digest:    m.Digest,
-				}
-				return nil
-			}
-		}
-		return fmt.Errorf("checkpoint not found in index %s", id)
-	}
-}
-
-func decodeIndex(ctx context.Context, store content.Provider, desc ocispec.Descriptor) (*v1.Index, error) {
-	var index v1.Index
-	p, err := content.ReadBlob(ctx, store, desc)
-	if err != nil {
-		return nil, err
-	}
-	if err := json.Unmarshal(p, &index); err != nil {
-		return nil, err
-	}
-
-	return &index, nil
 }
 
 // WithRemappedSnapshot creates a new snapshot and remaps the uid/gid for the
@@ -220,20 +178,4 @@ func incrementFS(root string, uidInc, gidInc uint32) filepath.WalkFunc {
 		// be sure the lchown the path as to not de-reference the symlink to a host file
 		return os.Lchown(path, u, g)
 	}
-}
-
-// WithNoPivotRoot instructs the runtime not to you pivot_root
-func WithNoPivotRoot(_ context.Context, _ *Client, info *TaskInfo) error {
-	if info.Options == nil {
-		info.Options = &runctypes.CreateOptions{
-			NoPivotRoot: true,
-		}
-		return nil
-	}
-	copts, ok := info.Options.(*runctypes.CreateOptions)
-	if !ok {
-		return errors.New("invalid options type, expected runctypes.CreateOptions")
-	}
-	copts.NoPivotRoot = true
-	return nil
 }

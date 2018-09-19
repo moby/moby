@@ -22,7 +22,6 @@ import (
 
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type importOpts struct {
@@ -83,36 +82,4 @@ func (c *Client) Import(ctx context.Context, importer images.Importer, reader io
 		images = append(images, NewImage(c, imgrec))
 	}
 	return images, nil
-}
-
-type exportOpts struct {
-}
-
-// ExportOpt allows the caller to specify export-specific options
-type ExportOpt func(c *exportOpts) error
-
-func resolveExportOpt(opts ...ExportOpt) (exportOpts, error) {
-	var eopts exportOpts
-	for _, o := range opts {
-		if err := o(&eopts); err != nil {
-			return eopts, err
-		}
-	}
-	return eopts, nil
-}
-
-// Export exports an image to a Tar stream.
-// OCI format is used by default.
-// It is up to caller to put "org.opencontainers.image.ref.name" annotation to desc.
-// TODO(AkihiroSuda): support exporting multiple descriptors at once to a single archive stream.
-func (c *Client) Export(ctx context.Context, exporter images.Exporter, desc ocispec.Descriptor, opts ...ExportOpt) (io.ReadCloser, error) {
-	_, err := resolveExportOpt(opts...) // unused now
-	if err != nil {
-		return nil, err
-	}
-	pr, pw := io.Pipe()
-	go func() {
-		pw.CloseWithError(exporter.Export(ctx, c.ContentStore(), desc, pw))
-	}()
-	return pr, nil
 }

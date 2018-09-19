@@ -29,7 +29,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boltdb/bolt"
 	csapi "github.com/containerd/containerd/api/services/content/v1"
 	ssapi "github.com/containerd/containerd/api/services/snapshots/v1"
 	"github.com/containerd/containerd/content"
@@ -46,6 +45,7 @@ import (
 	metrics "github.com/docker/go-metrics"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc"
 )
 

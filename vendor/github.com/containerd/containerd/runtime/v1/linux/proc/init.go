@@ -123,7 +123,7 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 			return errors.Wrap(err, "creating new NULL IO")
 		}
 	} else {
-		if p.io, err = runc.NewPipeIO(p.IoUID, p.IoGID); err != nil {
+		if p.io, err = runc.NewPipeIO(p.IoUID, p.IoGID, withConditionalIO(p.stdio)); err != nil {
 			return errors.Wrap(err, "failed to create OCI runtime io pipes")
 		}
 	}
@@ -228,7 +228,7 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 	defer p.mu.Unlock()
 	c, err := p.runtime.State(ctx, p.id)
 	if err != nil {
-		if os.IsNotExist(err) {
+		if strings.Contains(err.Error(), "does not exist") {
 			return "stopped", nil
 		}
 		return "", p.runtimeError(err, "OCI runtime state failed")
@@ -249,7 +249,6 @@ func (p *Init) setExited(status int) {
 }
 
 func (p *Init) delete(context context.Context) error {
-	p.KillAll(context)
 	p.wg.Wait()
 	err := p.runtime.Delete(context, p.id, nil)
 	// ignore errors if a runtime has already deleted the process
@@ -398,5 +397,13 @@ func (p *Init) runtimeError(rErr error, msg string) error {
 		return errors.Wrap(rErr, msg)
 	default:
 		return errors.Errorf("%s: %s", msg, rMsg)
+	}
+}
+
+func withConditionalIO(c proc.Stdio) runc.IOOpt {
+	return func(o *runc.IOOption) {
+		o.OpenStdin = c.Stdin != ""
+		o.OpenStdout = c.Stdout != ""
+		o.OpenStderr = c.Stderr != ""
 	}
 }

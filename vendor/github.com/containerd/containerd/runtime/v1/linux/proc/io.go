@@ -109,7 +109,6 @@ func copyPipes(ctx context.Context, rio runc.IO, stdin, stdout, stderr string, w
 		i.dest(fw, fr)
 	}
 	if stdin == "" {
-		rio.Stdin().Close()
 		return nil
 	}
 	f, err := fifo.OpenFifo(ctx, stdin, syscall.O_RDONLY|syscall.O_NONBLOCK, 0)

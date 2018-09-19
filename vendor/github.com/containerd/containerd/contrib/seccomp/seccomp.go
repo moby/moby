@@ -30,7 +30,7 @@ import (
 )
 
 // WithProfile receives the name of a file stored on disk comprising a json
-// formated seccomp profile, as specified by the opencontainers/runtime-spec.
+// formatted seccomp profile, as specified by the opencontainers/runtime-spec.
 // The profile is read from the file, unmarshaled, and set to the spec.
 func WithProfile(profile string) oci.SpecOpts {
 	return func(_ context.Context, _ oci.Client, _ *containers.Container, s *specs.Spec) error {

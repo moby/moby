@@ -17,11 +17,11 @@
 package metadata
 
 import (
-	"github.com/boltdb/bolt"
 	digest "github.com/opencontainers/go-digest"
+	bolt "go.etcd.io/bbolt"
 )
 
-// The layout where a "/" delineates a bucket is desribed in the following
+// The layout where a "/" delineates a bucket is described in the following
 // section. Please try to follow this as closely as possible when adding
 // functionality. We can bolster this with helpers and more structure if that
 // becomes an issue.
@@ -164,11 +164,11 @@ func getSnapshotterBucket(tx *bolt.Tx, namespace, snapshotter string) *bolt.Buck
 }
 
 func createBlobBucket(tx *bolt.Tx, namespace string, dgst digest.Digest) (*bolt.Bucket, error) {
-	bkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectBlob, []byte(dgst.String()))
+	bkt, err := createBucketIfNotExists(tx, bucketKeyVersion, []byte(namespace), bucketKeyObjectContent, bucketKeyObjectBlob)
 	if err != nil {
 		return nil, err
 	}
-	return bkt, nil
+	return bkt.CreateBucket([]byte(dgst.String()))
 }
 
 func getBlobsBucket(tx *bolt.Tx, namespace string) *bolt.Bucket {

@@ -134,7 +134,7 @@ func (hrs *httpReadSeeker) reader() (io.Reader, error) {
 		// There is an edge case here where offset == size of the content. If
 		// we seek, we will probably get an error for content that cannot be
 		// sought (?). In that case, we should err on committing the content,
-		// as the length is already satisified but we just return the empty
+		// as the length is already satisfied but we just return the empty
 		// reader instead.
 
 		hrs.rc = ioutil.NopCloser(bytes.NewReader([]byte{}))

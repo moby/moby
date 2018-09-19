@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
    Copyright The containerd Authors.
 
@@ -14,31 +16,9 @@
    limitations under the License.
 */
 
-package oci
+package platforms
 
-import (
-	"context"
-
-	specs "github.com/opencontainers/runtime-spec/specs-go"
-)
-
-func populateDefaultSpec(ctx context.Context, s *Spec, id string) error {
-	*s = Spec{
-		Version: specs.Version,
-		Root:    &specs.Root{},
-		Process: &specs.Process{
-			Cwd: `C:\`,
-			ConsoleSize: &specs.Box{
-				Width:  80,
-				Height: 20,
-			},
-		},
-		Windows: &specs.Windows{
-			IgnoreFlushesDuringBoot: true,
-			Network: &specs.WindowsNetwork{
-				AllowUnqualifiedDNSQuery: true,
-			},
-		},
-	}
-	return nil
+// Default returns the default matcher for the platform.
+func Default() MatchComparer {
+	return Only(DefaultSpec())
 }

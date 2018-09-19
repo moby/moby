@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
    Copyright The containerd Authors.
 
@@ -18,19 +20,10 @@ package containerd
 
 import (
 	"context"
-	"errors"
 
 	"github.com/containerd/containerd/runtime/linux/runctypes"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/pkg/errors"
 )
-
-// WithResources sets the provided resources for task updates
-func WithResources(resources *specs.LinuxResources) UpdateTaskOpts {
-	return func(ctx context.Context, client *Client, r *UpdateTaskInfo) error {
-		r.Resources = resources
-		return nil
-	}
-}
 
 // WithNoNewKeyring causes tasks not to be created with a new keyring for secret storage.
 // There is an upper limit on the number of keyrings in a linux system
@@ -44,5 +37,21 @@ func WithNoNewKeyring(ctx context.Context, c *Client, ti *TaskInfo) error {
 	}
 
 	opts.NoNewKeyring = true
+	return nil
+}
+
+// WithNoPivotRoot instructs the runtime not to you pivot_root
+func WithNoPivotRoot(_ context.Context, _ *Client, info *TaskInfo) error {
+	if info.Options == nil {
+		info.Options = &runctypes.CreateOptions{
+			NoPivotRoot: true,
+		}
+		return nil
+	}
+	opts, ok := info.Options.(*runctypes.CreateOptions)
+	if !ok {
+		return errors.New("invalid options type, expected runctypes.CreateOptions")
+	}
+	opts.NoPivotRoot = true
 	return nil
 }

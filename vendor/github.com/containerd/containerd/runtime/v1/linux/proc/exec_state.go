@@ -60,11 +60,11 @@ func (s *execCreatedState) Start(ctx context.Context) error {
 }
 
 func (s *execCreatedState) Delete(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
 	if err := s.p.delete(ctx); err != nil {
 		return err
 	}
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
 	return s.transition("deleted")
 }
 
@@ -168,11 +168,11 @@ func (s *execStoppedState) Start(ctx context.Context) error {
 }
 
 func (s *execStoppedState) Delete(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
 	if err := s.p.delete(ctx); err != nil {
 		return err
 	}
+	s.p.mu.Lock()
+	defer s.p.mu.Unlock()
 	return s.transition("deleted")
 }
 
