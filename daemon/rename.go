@@ -74,6 +74,8 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 				daemon.containersReplica.ReleaseName(newName + k)
 			}
 			daemon.releaseName(newName)
+		} else {
+			daemon.releaseName(oldName)
 		}
 	}()
 
@@ -81,7 +83,6 @@ func (daemon *Daemon) ContainerRename(oldName, newName string) error {
 		daemon.linkIndex.unlink(oldName+k, v, container)
 		daemon.containersReplica.ReleaseName(oldName + k)
 	}
-	daemon.releaseName(oldName)
 	if err = container.CheckpointTo(daemon.containersReplica); err != nil {
 		return err
 	}
