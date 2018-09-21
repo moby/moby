@@ -27,8 +27,8 @@ const (
 	shutdownTimeout         = 15 * time.Second
 	startupTimeout          = 15 * time.Second
 	configFile              = "containerd.toml"
-	binaryName              = "docker-containerd"
-	pidFile                 = "docker-containerd.pid"
+	binaryName              = "containerd"
+	pidFile                 = "containerd.pid"
 )
 
 type pluginConfigs struct {

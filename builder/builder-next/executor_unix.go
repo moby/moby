@@ -27,7 +27,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController) (e
 	}
 	return runcexecutor.New(runcexecutor.Opt{
 		Root:                filepath.Join(root, "executor"),
-		CommandCandidates:   []string{"docker-runc", "runc"},
+		CommandCandidates:   []string{"runc"},
 		DefaultCgroupParent: cgroupParent,
 	}, networkProviders)
 }

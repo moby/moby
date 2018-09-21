@@ -112,7 +112,7 @@ error_on_leaked_containerd_shims() {
 	fi
 
 	leftovers=$(ps -ax -o pid,cmd |
-	            awk '$2 == "docker-containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
+	            awk '$2 == "containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
 	if [ -n "$leftovers" ]; then
 		ps aux
 		kill -9 $leftovers 2> /dev/null

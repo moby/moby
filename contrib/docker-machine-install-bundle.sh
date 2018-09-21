@@ -31,7 +31,7 @@ bundle_files(){
 	    echo $BUNDLE/binary-daemon/$f
 	fi
     done
-    for f in docker-containerd docker-containerd-ctr docker-containerd-shim docker-init docker-runc; do
+    for f in containerd ctr containerd-shim docker-init runc; do
 	echo $BUNDLE/binary-daemon/$f
     done
     if [ -d $BUNDLE/dynbinary-client ]; then

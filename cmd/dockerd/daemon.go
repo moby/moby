@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	containerddefaults "github.com/containerd/containerd/defaults"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
@@ -140,22 +141,25 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if cli.Config.ContainerdAddr == "" && runtime.GOOS != "windows" {
-		opts, err := cli.getContainerdDaemonOpts()
-		if err != nil {
-			cancel()
-			return errors.Wrap(err, "failed to generate containerd options")
+		if !systemContainerdRunning() {
+			opts, err := cli.getContainerdDaemonOpts()
+			if err != nil {
+				cancel()
+				return errors.Wrap(err, "failed to generate containerd options")
+			}
+
+			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
+			if err != nil {
+				cancel()
+				return errors.Wrap(err, "failed to start containerd")
+			}
+			cli.Config.ContainerdAddr = r.Address()
+
+			// Try to wait for containerd to shutdown
+			defer r.WaitTimeout(10 * time.Second)
+		} else {
+			cli.Config.ContainerdAddr = containerddefaults.DefaultAddress
 		}
-
-		r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-		if err != nil {
-			cancel()
-			return errors.Wrap(err, "failed to start containerd")
-		}
-
-		cli.Config.ContainerdAddr = r.Address()
-
-		// Try to wait for containerd to shutdown
-		defer r.WaitTimeout(10 * time.Second)
 	}
 	defer cancel()
 
@@ -660,4 +664,9 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 		}
 	}
 	return nil
+}
+
+func systemContainerdRunning() bool {
+	_, err := os.Lstat(containerddefaults.DefaultAddress)
+	return err == nil
 }
