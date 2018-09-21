@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/util/entitlements"
+	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -55,6 +56,7 @@ type Opt struct {
 	Dist                images.DistributionServices
 	NetworkController   libnetwork.NetworkController
 	DefaultCgroupParent string
+	ResolverOpt         resolver.ResolveOptionsFunc
 }
 
 // Builder can build using BuildKit backend
