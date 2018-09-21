@@ -30,7 +30,7 @@ install_containerd() {
 
 	mkdir -p ${PREFIX}
 
-	cp bin/containerd ${PREFIX}/docker-containerd
-	cp bin/containerd-shim ${PREFIX}/docker-containerd-shim
-	cp bin/ctr ${PREFIX}/docker-containerd-ctr
+	cp bin/containerd ${PREFIX}/containerd
+	cp bin/containerd-shim ${PREFIX}/containerd-shim
+	cp bin/ctr ${PREFIX}/ctr
 }

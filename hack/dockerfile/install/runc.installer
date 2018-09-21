@@ -18,5 +18,5 @@ install_runc() {
 	fi
 	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
 	mkdir -p ${PREFIX}
-	cp runc ${PREFIX}/docker-runc
+	cp runc ${PREFIX}/runc
 }
