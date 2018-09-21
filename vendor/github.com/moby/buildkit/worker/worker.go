@@ -21,7 +21,7 @@ type Worker interface {
 	Labels() map[string]string
 	Platforms() []specs.Platform
 	GCPolicy() []client.PruneInfo
-	LoadRef(id string) (cache.ImmutableRef, error)
+	LoadRef(id string, hidden bool) (cache.ImmutableRef, error)
 	// ResolveOp resolves Vertex.Sys() to Op implementation.
 	ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solver.Op, error)
 	ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error)

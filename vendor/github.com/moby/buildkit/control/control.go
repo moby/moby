@@ -127,7 +127,7 @@ func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Contr
 				ReleaseUnreferenced() error
 			}); ok {
 				if err := c.ReleaseUnreferenced(); err != nil {
-					logrus.Errorf("failed to release cache metadata: %+v")
+					logrus.Errorf("failed to release cache metadata: %+v", err)
 				}
 			}
 		}

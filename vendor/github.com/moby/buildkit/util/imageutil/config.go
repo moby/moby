@@ -14,12 +14,12 @@ import (
 	"github.com/pkg/errors"
 )
 
-type IngesterProvider interface {
+type ContentCache interface {
 	content.Ingester
 	content.Provider
 }
 
-func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester IngesterProvider, p *specs.Platform) (digest.Digest, []byte, error) {
+func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, p *specs.Platform) (digest.Digest, []byte, error) {
 	// TODO: fix buildkit to take interface instead of struct
 	var platform platforms.MatchComparer
 	if p != nil {
@@ -36,7 +36,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester
 		Digest: ref.Digest(),
 	}
 	if desc.Digest != "" {
-		ra, err := ingester.ReaderAt(ctx, desc)
+		ra, err := cache.ReaderAt(ctx, desc)
 		if err == nil {
 			desc.Size = ra.Size()
 			mt, err := DetectManifestMediaType(ra)
@@ -58,19 +58,23 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, ingester
 		return "", nil, err
 	}
 
+	if desc.MediaType == images.MediaTypeDockerSchema1Manifest {
+		return readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
+	}
+
 	handlers := []images.Handler{
-		remotes.FetchHandler(ingester, fetcher),
-		childrenConfigHandler(ingester, platform),
+		remotes.FetchHandler(cache, fetcher),
+		childrenConfigHandler(cache, platform),
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
 		return "", nil, err
 	}
-	config, err := images.Config(ctx, ingester, desc, platform)
+	config, err := images.Config(ctx, cache, desc, platform)
 	if err != nil {
 		return "", nil, err
 	}
 
-	dt, err := content.ReadBlob(ctx, ingester, config)
+	dt, err := content.ReadBlob(ctx, cache, config)
 	if err != nil {
 		return "", nil, err
 	}

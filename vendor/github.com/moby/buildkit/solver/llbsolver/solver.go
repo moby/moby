@@ -168,7 +168,7 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 			inp.Refs = m
 		}
 
-		if err := inVertexContext(j.Context(ctx), exp.Name(), func(ctx context.Context) error {
+		if err := inVertexContext(j.Context(ctx), exp.Name(), "", func(ctx context.Context) error {
 			exporterResponse, err = exp.Export(ctx, inp)
 			return err
 		}); err != nil {
@@ -177,7 +177,7 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 	}
 
 	if e := exp.CacheExporter; e != nil {
-		if err := inVertexContext(j.Context(ctx), "exporting cache", func(ctx context.Context) error {
+		if err := inVertexContext(j.Context(ctx), "exporting cache", "", func(ctx context.Context) error {
 			prepareDone := oneOffProgress(ctx, "preparing build cache for export")
 			if err := res.EachRef(func(res solver.CachedResult) error {
 				// all keys have same export chain so exporting others is not needed
@@ -243,9 +243,12 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 	}
 }
 
-func inVertexContext(ctx context.Context, name string, f func(ctx context.Context) error) error {
+func inVertexContext(ctx context.Context, name, id string, f func(ctx context.Context) error) error {
+	if id == "" {
+		id = identity.NewID()
+	}
 	v := client.Vertex{
-		Digest: digest.FromBytes([]byte(identity.NewID())),
+		Digest: digest.FromBytes([]byte(id)),
 		Name:   name,
 	}
 	pw, _, ctx := progress.FromContext(ctx, progress.WithMetadata("vertex", v.Digest))

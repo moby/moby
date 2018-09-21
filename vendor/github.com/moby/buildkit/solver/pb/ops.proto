@@ -6,6 +6,8 @@ package pb;
 
 import "github.com/gogo/protobuf/gogoproto/gogo.proto";
 
+option (gogoproto.stable_marshaler_all) = true;
+
 // Op represents a vertex of the LLB DAG.
 message Op {
 	// inputs is a set of input edges.
@@ -72,6 +74,7 @@ message Mount {
 	MountType mountType = 6;
 	CacheOpt cacheOpt = 20;
 	SecretOpt secretOpt = 21;
+	SSHOpt SSHOpt = 22;
 }
 
 // MountType defines a type of a mount from a supported set
@@ -113,6 +116,21 @@ message SecretOpt {
 	uint32 mode = 4;
 	// Optional defines if secret value is required. Error is produced
 	// if value is not found and optional is false.
+	bool optional = 5;
+}
+
+// SSHOpt defines options describing secret mounts
+message SSHOpt {
+	// ID of exposed ssh rule. Used for quering the value.
+	string ID = 1;
+	// UID of agent socket
+	uint32 uid = 2;
+	// GID of agent socket
+	uint32 gid = 3;
+	// Mode is the filesystem mode of agent socket
+	uint32 mode = 4;
+	// Optional defines if ssh socket is required. Error is produced
+	// if client does not expose ssh.
 	bool optional = 5;
 }
 

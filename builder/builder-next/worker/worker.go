@@ -137,8 +137,12 @@ func (w *Worker) GCPolicy() []client.PruneInfo {
 }
 
 // LoadRef loads a reference by ID
-func (w *Worker) LoadRef(id string) (cache.ImmutableRef, error) {
-	return w.CacheManager.Get(context.TODO(), id)
+func (w *Worker) LoadRef(id string, hidden bool) (cache.ImmutableRef, error) {
+	var opts []cache.RefOption
+	if hidden {
+		opts = append(opts, cache.NoUpdateLastUsed)
+	}
+	return w.CacheManager.Get(context.TODO(), id, opts...)
 }
 
 // ResolveOp converts a LLB vertex into a LLB operation
