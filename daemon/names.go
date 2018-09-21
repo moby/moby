@@ -2,20 +2,13 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/names"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/namesgenerator"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-)
-
-var (
-	validContainerNameChars   = names.RestrictedNameChars
-	validContainerNamePattern = names.RestrictedNamePattern
 )
 
 func (daemon *Daemon) registerName(container *container.Container) error {
@@ -56,8 +49,8 @@ func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 }
 
 func (daemon *Daemon) reserveName(id, name string) (string, error) {
-	if !validContainerNamePattern.MatchString(strings.TrimPrefix(name, "/")) {
-		return "", errdefs.InvalidParameter(errors.Errorf("Invalid container name (%s), only %s are allowed", name, validContainerNameChars))
+	if valid, e := names.ValidateContainerName(name); !valid {
+		return "", e
 	}
 	if name[0] != '/' {
 		name = "/" + name

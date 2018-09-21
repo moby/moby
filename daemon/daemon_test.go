@@ -9,6 +9,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	_ "github.com/docker/docker/pkg/discovery/memory"
 	"github.com/docker/docker/pkg/idtools"
@@ -130,13 +131,13 @@ func TestValidContainerNames(t *testing.T) {
 	validNames := []string{"word-word", "word_word", "1weoid"}
 
 	for _, name := range invalidNames {
-		if validContainerNamePattern.MatchString(name) {
+		if names.RestrictedNamePattern.MatchString(name) {
 			t.Fatalf("%q is not a valid container name and was returned as valid.", name)
 		}
 	}
 
 	for _, name := range validNames {
-		if !validContainerNamePattern.MatchString(name) {
+		if !names.RestrictedNamePattern.MatchString(name) {
 			t.Fatalf("%q is a valid container name and was returned as invalid.", name)
 		}
 	}

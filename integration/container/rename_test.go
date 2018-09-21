@@ -2,6 +2,7 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"strings"
 	"testing"
 	"time"
 
@@ -207,7 +208,7 @@ func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	err := client.ContainerRename(ctx, app1Name, app2Name)
 	assert.NilError(t, err)
 
-	inspect, err := client.ContainerInspect(ctx, app2Name+"/mysql")
+	inspect, err := client.ContainerInspect(ctx, app2Name)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(db1ID, inspect.ID))
+	assert.Check(t, is.Equal("/"+db1Name+":/"+app2Name+"/mysql", strings.Join(inspect.HostConfig.Links, "")))
 }

@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	containerpkg "github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/signal"
@@ -30,6 +31,10 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 	}
 
 	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+
+	if valid, err := names.ValidateName(r.Form.Get("container")); !valid {
 		return err
 	}
 
@@ -100,6 +105,9 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 
 	stream := httputils.BoolValueOrDefault(r, "stream", true)
 	if !stream {
@@ -117,6 +125,9 @@ func (s *containerRouter) getContainersStats(ctx context.Context, w http.Respons
 
 func (s *containerRouter) getContainersLogs(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -156,6 +167,9 @@ func (s *containerRouter) getContainersLogs(ctx context.Context, w http.Response
 }
 
 func (s *containerRouter) getContainersExport(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 	return s.backend.ContainerExport(vars["name"], w)
 }
 
@@ -197,6 +211,9 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
@@ -210,6 +227,9 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 
 func (s *containerRouter) postContainersStop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -232,6 +252,9 @@ func (s *containerRouter) postContainersStop(ctx context.Context, w http.Respons
 
 func (s *containerRouter) postContainersKill(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -269,6 +292,9 @@ func (s *containerRouter) postContainersRestart(ctx context.Context, w http.Resp
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 
 	var seconds *int
 	if tmpSeconds := r.Form.Get("t"); tmpSeconds != "" {
@@ -292,6 +318,9 @@ func (s *containerRouter) postContainersPause(ctx context.Context, w http.Respon
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 
 	if err := s.backend.ContainerPause(vars["name"]); err != nil {
 		return err
@@ -304,6 +333,9 @@ func (s *containerRouter) postContainersPause(ctx context.Context, w http.Respon
 
 func (s *containerRouter) postContainersUnpause(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -336,6 +368,9 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 			waitCondition = containerpkg.WaitConditionRemoved
 			legacyRemovalWaitPre134 = versions.LessThan(version, "1.34")
 		}
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
 	}
 
 	// Note: the context should get canceled if the client closes the
@@ -379,6 +414,9 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 }
 
 func (s *containerRouter) getContainersChanges(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 	changes, err := s.backend.ContainerChanges(vars["name"])
 	if err != nil {
 		return err
@@ -389,6 +427,9 @@ func (s *containerRouter) getContainersChanges(ctx context.Context, w http.Respo
 
 func (s *containerRouter) getContainersTop(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -402,6 +443,9 @@ func (s *containerRouter) getContainersTop(ctx context.Context, w http.ResponseW
 
 func (s *containerRouter) postContainerRename(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -419,6 +463,9 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		return err
 	}
 	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -483,6 +530,11 @@ func (s *containerRouter) deleteContainers(ctx context.Context, w http.ResponseW
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if !httputils.BoolValue(r, "link") {
+		if valid, err := names.ValidateName(vars["name"]); !valid {
+			return err
+		}
+	}
 
 	name := vars["name"]
 	config := &types.ContainerRmConfig{
@@ -504,6 +556,9 @@ func (s *containerRouter) postContainersResize(ctx context.Context, w http.Respo
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
+		return err
+	}
 
 	height, err := strconv.Atoi(r.Form.Get("h"))
 	if err != nil {
@@ -523,6 +578,9 @@ func (s *containerRouter) postContainersAttach(ctx context.Context, w http.Respo
 		return err
 	}
 	containerName := vars["name"]
+	if valid, err := names.ValidateName(containerName); !valid {
+		return err
+	}
 
 	_, upgrade := r.Header["Upgrade"]
 	detachKeys := r.FormValue("detachKeys")
@@ -586,6 +644,9 @@ func (s *containerRouter) wsContainersAttach(ctx context.Context, w http.Respons
 		return err
 	}
 	containerName := vars["name"]
+	if valid, err := names.ValidateName(containerName); !valid {
+		return err
+	}
 
 	var err error
 	detachKeys := r.FormValue("detachKeys")
