@@ -26,7 +26,7 @@ type Builder interface {
 
 // Solver provides a shared graph of all the vertexes currently being
 // processed. Every vertex that is being solved needs to be loaded into job
-// first. Vertex operations are invoked and progress tracking happends through
+// first. Vertex operations are invoked and progress tracking happens through
 // jobs.
 type Solver struct {
 	mu      sync.RWMutex

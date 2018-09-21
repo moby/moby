@@ -26,7 +26,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	"github.com/moby/buildkit/snapshot/blobmapping"
-	"github.com/moby/buildkit/solver/boltdbcachestorage"
+	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 )
@@ -126,7 +126,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	cacheStorage, err := boltdbcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
+	cacheStorage, err := bboltcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
 	if err != nil {
 		return nil, err
 	}

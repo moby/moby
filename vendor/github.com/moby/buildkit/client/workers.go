@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 )
 
+// WorkerInfo contains information about a worker
 type WorkerInfo struct {
 	ID        string
 	Labels    map[string]string
@@ -18,6 +19,7 @@ type WorkerInfo struct {
 	GCPolicy  []PruneInfo
 }
 
+// ListWorkers lists all active workers
 func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]*WorkerInfo, error) {
 	info := &ListWorkersInfo{}
 	for _, o := range opts {
@@ -44,10 +46,12 @@ func (c *Client) ListWorkers(ctx context.Context, opts ...ListWorkersOption) ([]
 	return wi, nil
 }
 
+// ListWorkersOption is an option for a worker list query
 type ListWorkersOption interface {
 	SetListWorkersOption(*ListWorkersInfo)
 }
 
+// ListWorkersInfo is a payload for worker list query
 type ListWorkersInfo struct {
 	Filter []string
 }

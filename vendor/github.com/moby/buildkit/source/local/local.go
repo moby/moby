@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/contenthash"
 	"github.com/moby/buildkit/cache/metadata"
@@ -20,6 +19,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/time/rate"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"

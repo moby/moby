@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -133,8 +134,12 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			}
 			ds.platform = &p
 		}
+		allDispatchStates.addState(ds)
 
-		total := 1
+		total := 0
+		if ds.stage.BaseName != emptyImageName && ds.base == nil {
+			total = 1
+		}
 		for _, cmd := range ds.stage.Commands {
 			switch cmd.(type) {
 			case *instructions.AddCommand, *instructions.CopyCommand, *instructions.RunCommand:
@@ -143,7 +148,6 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 		}
 		ds.cmdTotal = total
 
-		allDispatchStates.addState(ds)
 		if opt.IgnoreCache != nil {
 			if len(opt.IgnoreCache) == 0 {
 				ds.ignoreCache = true
@@ -215,10 +219,15 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 					d.stage.BaseName = reference.TagNameOnly(ref).String()
 					var isScratch bool
 					if metaResolver != nil && reachable && !d.unregistered {
+						prefix := "["
+						if opt.PrefixPlatform && platform != nil {
+							prefix += platforms.Format(*platform) + " "
+						}
+						prefix += "internal]"
 						dgst, dt, err := metaResolver.ResolveImageConfig(ctx, d.stage.BaseName, gw.ResolveImageConfigOpt{
 							Platform:    platform,
 							ResolveMode: opt.ImageResolveMode.String(),
-							LogName:     fmt.Sprintf("[internal] load metadata for %s", d.stage.BaseName),
+							LogName:     fmt.Sprintf("%s load metadata for %s", prefix, d.stage.BaseName),
 						})
 						if err == nil { // handle the error while builder is actually running
 							var img Image
@@ -242,6 +251,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 							_ = ref
 							if len(img.RootFS.DiffIDs) == 0 {
 								isScratch = true
+								// schema1 images can't return diffIDs so double check :(
+								for _, h := range img.History {
+									if !h.EmptyLayer {
+										isScratch = false
+										break
+									}
+								}
 							}
 						}
 					}
@@ -272,6 +288,11 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			d.state = d.base.state
 			d.platform = d.base.platform
 			d.image = clone(d.base.image)
+		}
+
+		// make sure that PATH is always set
+		if _, ok := shell.BuildEnvs(d.image.Config.Env)["PATH"]; !ok {
+			d.image.Config.Env = append(d.image.Config.Env, "PATH="+system.DefaultPathEnv)
 		}
 
 		// initialize base metadata from image conf
@@ -689,16 +710,17 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 		args = append(args[:1], append([]string{"--unpack"}, args[1:]...)...)
 	}
 
-	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), d.state.Env())), d.prefixPlatform, d.state.GetPlatform()))}
+	platform := opt.targetPlatform
+	if d.platform != nil {
+		platform = *d.platform
+	}
+
+	runOpt := []llb.RunOption{llb.Args(args), llb.Dir("/dest"), llb.ReadonlyRootFS(), dfCmd(cmdToPrint), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), d.state.Env())), d.prefixPlatform, &platform))}
 	if d.ignoreCache {
 		runOpt = append(runOpt, llb.IgnoreCache)
 	}
 	run := img.Run(append(runOpt, mounts...)...)
-	d.state = run.AddMount("/dest", d.state).Platform(opt.targetPlatform)
-
-	if d.platform != nil {
-		d.state = d.state.Platform(*d.platform)
-	}
+	d.state = run.AddMount("/dest", d.state).Platform(platform)
 
 	return commitToHistory(&d.image, commitMessage.String(), true, &d.state)
 }
