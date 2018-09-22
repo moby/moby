@@ -26,7 +26,7 @@ type Builder interface {
 
 // Solver provides a shared graph of all the vertexes currently being
 // processed. Every vertex that is being solved needs to be loaded into job
-// first. Vertex operations are invoked and progress tracking happends through
+// first. Vertex operations are invoked and progress tracking happens through
 // jobs.
 type Solver struct {
 	mu      sync.RWMutex
@@ -444,6 +444,7 @@ func (j *Job) Discard() error {
 	j.pw.Close()
 
 	for k, st := range j.list.actives {
+		st.mu.Lock()
 		if _, ok := st.jobs[j]; ok {
 			delete(st.jobs, j)
 			j.list.deleteIfUnreferenced(k, st)
@@ -451,6 +452,7 @@ func (j *Job) Discard() error {
 		if _, ok := st.allPw[j.pw]; ok {
 			delete(st.allPw, j.pw)
 		}
+		st.mu.Unlock()
 	}
 	return nil
 }

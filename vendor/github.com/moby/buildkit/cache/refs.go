@@ -38,12 +38,16 @@ type Mountable interface {
 	Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error)
 }
 
+type ref interface {
+	updateLastUsed() bool
+}
+
 type cacheRecord struct {
 	cm *cacheManager
 	mu *sync.Mutex // the mutex is shared by records sharing data
 
 	mutable bool
-	refs    map[Mountable]struct{}
+	refs    map[ref]struct{}
 	parent  ImmutableRef
 	md      *metadata.StorageItem
 
@@ -61,15 +65,15 @@ type cacheRecord struct {
 }
 
 // hold ref lock before calling
-func (cr *cacheRecord) ref() *immutableRef {
-	ref := &immutableRef{cacheRecord: cr}
+func (cr *cacheRecord) ref(triggerLastUsed bool) *immutableRef {
+	ref := &immutableRef{cacheRecord: cr, triggerLastUsed: triggerLastUsed}
 	cr.refs[ref] = struct{}{}
 	return ref
 }
 
 // hold ref lock before calling
-func (cr *cacheRecord) mref() *mutableRef {
-	ref := &mutableRef{cacheRecord: cr}
+func (cr *cacheRecord) mref(triggerLastUsed bool) *mutableRef {
+	ref := &mutableRef{cacheRecord: cr, triggerLastUsed: triggerLastUsed}
 	cr.refs[ref] = struct{}{}
 	return ref
 }
@@ -116,13 +120,17 @@ func (cr *cacheRecord) Size(ctx context.Context) (int64, error) {
 }
 
 func (cr *cacheRecord) Parent() ImmutableRef {
+	return cr.parentRef(true)
+}
+
+func (cr *cacheRecord) parentRef(hidden bool) ImmutableRef {
 	if cr.parent == nil {
 		return nil
 	}
 	p := cr.parent.(*immutableRef)
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return p.ref()
+	return p.ref(hidden)
 }
 
 func (cr *cacheRecord) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
@@ -188,15 +196,17 @@ func (cr *cacheRecord) ID() string {
 
 type immutableRef struct {
 	*cacheRecord
+	triggerLastUsed bool
 }
 
 type mutableRef struct {
 	*cacheRecord
+	triggerLastUsed bool
 }
 
 func (sr *immutableRef) Clone() ImmutableRef {
 	sr.mu.Lock()
-	ref := sr.ref()
+	ref := sr.ref(false)
 	sr.mu.Unlock()
 	return ref
 }
@@ -211,11 +221,33 @@ func (sr *immutableRef) Release(ctx context.Context) error {
 	return sr.release(ctx)
 }
 
+func (sr *immutableRef) updateLastUsed() bool {
+	return sr.triggerLastUsed
+}
+
+func (sr *immutableRef) updateLastUsedNow() bool {
+	if !sr.triggerLastUsed {
+		return false
+	}
+	for r := range sr.refs {
+		if r.updateLastUsed() {
+			return false
+		}
+	}
+	return true
+}
+
 func (sr *immutableRef) release(ctx context.Context) error {
 	delete(sr.refs, sr)
 
-	if len(sr.refs) == 0 {
+	if sr.updateLastUsedNow() {
 		updateLastUsed(sr.md)
+		if sr.equalMutable != nil {
+			sr.equalMutable.triggerLastUsed = true
+		}
+	}
+
+	if len(sr.refs) == 0 {
 		if sr.viewMount != nil { // TODO: release viewMount earlier if possible
 			if err := sr.cm.Snapshotter.Remove(ctx, sr.view); err != nil {
 				return err
@@ -273,6 +305,10 @@ func (cr *cacheRecord) finalize(ctx context.Context, commit bool) error {
 	return cr.md.Commit()
 }
 
+func (sr *mutableRef) updateLastUsed() bool {
+	return sr.triggerLastUsed
+}
+
 func (sr *mutableRef) commit(ctx context.Context) (ImmutableRef, error) {
 	if !sr.mutable || len(sr.refs) == 0 {
 		return nil, errors.Wrapf(errInvalid, "invalid mutable ref")
@@ -280,13 +316,12 @@ func (sr *mutableRef) commit(ctx context.Context) (ImmutableRef, error) {
 
 	id := identity.NewID()
 	md, _ := sr.cm.md.Get(id)
-
 	rec := &cacheRecord{
 		mu:           sr.mu,
 		cm:           sr.cm,
-		parent:       sr.Parent(),
+		parent:       sr.parentRef(false),
 		equalMutable: sr,
-		refs:         make(map[Mountable]struct{}),
+		refs:         make(map[ref]struct{}),
 		md:           md,
 	}
 
@@ -312,9 +347,13 @@ func (sr *mutableRef) commit(ctx context.Context) (ImmutableRef, error) {
 		return nil, err
 	}
 
-	ref := rec.ref()
+	ref := rec.ref(true)
 	sr.equalImmutable = ref
 	return ref, nil
+}
+
+func (sr *mutableRef) updatesLastUsed() bool {
+	return sr.triggerLastUsed
 }
 
 func (sr *mutableRef) Commit(ctx context.Context) (ImmutableRef, error) {
@@ -342,6 +381,10 @@ func (sr *mutableRef) release(ctx context.Context) error {
 	if getCachePolicy(sr.md) != cachePolicyRetain {
 		if sr.equalImmutable != nil {
 			if getCachePolicy(sr.equalImmutable.md) == cachePolicyRetain {
+				if sr.updateLastUsed() {
+					updateLastUsed(sr.md)
+					sr.triggerLastUsed = false
+				}
 				return nil
 			}
 			if err := sr.equalImmutable.remove(ctx, false); err != nil {
@@ -355,7 +398,10 @@ func (sr *mutableRef) release(ctx context.Context) error {
 		}
 		return sr.remove(ctx, true)
 	} else {
-		updateLastUsed(sr.md)
+		if sr.updateLastUsed() {
+			updateLastUsed(sr.md)
+			sr.triggerLastUsed = false
+		}
 	}
 	return nil
 }

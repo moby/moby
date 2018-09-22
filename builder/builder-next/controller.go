@@ -6,15 +6,19 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/content/local"
+	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
 	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
 	mobyworker "github.com/docker/docker/builder/builder-next/worker"
+	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/graphdriver"
+	units "github.com/docker/go-units"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
+	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
@@ -22,7 +26,7 @@ import (
 	"github.com/moby/buildkit/frontend/gateway"
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	"github.com/moby/buildkit/snapshot/blobmapping"
-	"github.com/moby/buildkit/solver/boltdbcachestorage"
+	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
 )
@@ -97,6 +101,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore:   dist.V2MetadataService,
 		ImageStore:      dist.ImageStore,
 		ReferenceStore:  dist.ReferenceStore,
+		ResolverOpt:     opt.ResolverOpt,
 	})
 	if err != nil {
 		return nil, err
@@ -121,9 +126,14 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, err
 	}
 
-	cacheStorage, err := boltdbcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
+	cacheStorage, err := bboltcachestorage.NewStore(filepath.Join(opt.Root, "cache.db"))
 	if err != nil {
 		return nil, err
+	}
+
+	gcPolicy, err := getGCPolicy(opt.BuilderConfig, root)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get builder GC policy")
 	}
 
 	wopt := mobyworker.Opt{
@@ -132,6 +142,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		MetadataStore:     md,
 		ContentStore:      store,
 		CacheManager:      cm,
+		GCPolicy:          gcPolicy,
 		Snapshotter:       snapshotter,
 		Executor:          exec,
 		ImageSource:       src,
@@ -160,7 +171,48 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		WorkerController:         wc,
 		Frontends:                frontends,
 		CacheKeyStorage:          cacheStorage,
-		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager),
+		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
 		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
+}
+
+func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, error) {
+	var gcPolicy []client.PruneInfo
+	if conf.GC.Enabled {
+		var (
+			defaultKeepStorage int64
+			err                error
+		)
+
+		if conf.GC.DefaultKeepStorage != "" {
+			defaultKeepStorage, err = units.RAMInBytes(conf.GC.DefaultKeepStorage)
+			if err != nil {
+				return nil, errors.Wrapf(err, "could not parse '%s' as Builder.GC.DefaultKeepStorage config", conf.GC.DefaultKeepStorage)
+			}
+		}
+
+		if conf.GC.Policy == nil {
+			gcPolicy = mobyworker.DefaultGCPolicy(root, defaultKeepStorage)
+		} else {
+			gcPolicy = make([]client.PruneInfo, len(conf.GC.Policy))
+			for i, p := range conf.GC.Policy {
+				b, err := units.RAMInBytes(p.KeepStorage)
+				if err != nil {
+					return nil, err
+				}
+				if b == 0 {
+					b = defaultKeepStorage
+				}
+				gcPolicy[i], err = toBuildkitPruneInfo(types.BuildCachePruneOptions{
+					All:         p.All,
+					KeepStorage: b,
+					Filters:     p.Filter,
+				})
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return gcPolicy, nil
 }

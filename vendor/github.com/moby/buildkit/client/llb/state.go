@@ -196,6 +196,7 @@ func (s State) Run(ro ...RunOption) ExecState {
 		exec.AddMount(m.Target, m.Source, m.Opts...)
 	}
 	exec.secrets = ei.Secrets
+	exec.ssh = ei.SSH
 
 	return ExecState{
 		State: s.WithOutput(exec.Output()),

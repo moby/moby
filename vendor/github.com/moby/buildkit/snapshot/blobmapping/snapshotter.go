@@ -3,13 +3,13 @@ package blobmapping
 import (
 	"context"
 
-	"github.com/boltdb/bolt"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/snapshot"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 const blobKey = "blobmapping.blob"

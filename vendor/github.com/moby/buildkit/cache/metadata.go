@@ -3,10 +3,10 @@ package cache
 import (
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/client"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 const sizeUnknown int64 = -1

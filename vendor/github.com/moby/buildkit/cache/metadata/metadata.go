@@ -6,9 +6,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/boltdb/bolt"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 const (

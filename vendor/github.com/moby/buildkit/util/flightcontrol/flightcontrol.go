@@ -21,11 +21,13 @@ type contextKeyT string
 
 var contextKey = contextKeyT("buildkit/util/flightcontrol.progress")
 
+// Group is a flightcontrol syncronization group
 type Group struct {
 	mu sync.Mutex       // protects m
 	m  map[string]*call // lazily initialized
 }
 
+// Do executes a context function syncronized by the key
 func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (v interface{}, err error) {
 	defer func() {
 		if errors.Cause(err) == errRetry {
@@ -311,14 +313,4 @@ func (ps *progressState) close(pw progress.Writer) {
 		}
 	}
 	ps.mu.Unlock()
-}
-
-func WriteProgress(ctx context.Context, pw progress.Writer) error {
-	v := ctx.Value(contextKey)
-	p, ok := v.(*progressState)
-	if !ok {
-		return errors.Errorf("invalid context not from flightcontrol")
-	}
-	p.add(pw)
-	return nil
 }

@@ -25,12 +25,11 @@ type ClientOpt interface{}
 func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error) {
 	gopts := []grpc.DialOption{
 		grpc.WithDialer(dialer),
-		grpc.FailOnNonTempDialError(true),
 	}
 	needWithInsecure := true
 	for _, o := range opts {
-		if _, ok := o.(*withBlockOpt); ok {
-			gopts = append(gopts, grpc.WithBlock(), grpc.FailOnNonTempDialError(true))
+		if _, ok := o.(*withFailFast); ok {
+			gopts = append(gopts, grpc.FailOnNonTempDialError(true))
 		}
 		if credInfo, ok := o.(*withCredentials); ok {
 			opt, err := loadCredentials(credInfo)
@@ -52,7 +51,6 @@ func New(ctx context.Context, address string, opts ...ClientOpt) (*Client, error
 	if address == "" {
 		address = appdefaults.Address
 	}
-
 	conn, err := grpc.DialContext(ctx, address, gopts...)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to dial %q . make sure buildkitd is running", address)
@@ -71,10 +69,10 @@ func (c *Client) Close() error {
 	return c.conn.Close()
 }
 
-type withBlockOpt struct{}
+type withFailFast struct{}
 
-func WithBlock() ClientOpt {
-	return &withBlockOpt{}
+func WithFailFast() ClientOpt {
+	return &withFailFast{}
 }
 
 type withCredentials struct {

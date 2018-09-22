@@ -371,7 +371,7 @@ func debugSchedulerPreUnpark(e *edge, inc []pipe.Sender, updates, allPipes []pip
 		if dep.req != nil {
 			des = dep.req.Request().(*edgeRequest).desiredState
 		}
-		logrus.Debugf(":: dep%d %s state=%s des=%s keys=%s hasslowcache=%v", i, e.edge.Vertex.Inputs()[i].Vertex.Name(), dep.state, des, len(dep.keys), e.slowCacheFunc(dep) != nil)
+		logrus.Debugf(":: dep%d %s state=%s des=%s keys=%d hasslowcache=%v", i, e.edge.Vertex.Inputs()[i].Vertex.Name(), dep.state, des, len(dep.keys), e.slowCacheFunc(dep) != nil)
 	}
 
 	for i, in := range inc {
