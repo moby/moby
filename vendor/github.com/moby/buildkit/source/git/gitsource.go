@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -22,6 +21,7 @@ import (
 	"github.com/moby/buildkit/util/progress/logs"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 )
 
 var validHex = regexp.MustCompile(`^[a-f0-9]{40}$`)

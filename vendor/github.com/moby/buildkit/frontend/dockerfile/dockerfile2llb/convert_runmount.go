@@ -78,9 +78,12 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			}
 			mountOpts = append(mountOpts, llb.AsPersistentCacheDir(opt.cacheIDNamespace+"/"+mount.CacheID, sharing))
 		}
-		target := path.Join("/", mount.Target)
+		target := mount.Target
+		if !filepath.IsAbs(filepath.Clean(mount.Target)) {
+			target = filepath.Join("/", d.state.GetDir(), mount.Target)
+		}
 		if target == "/" {
-			return nil, errors.Errorf("invalid mount target %q", mount.Target)
+			return nil, errors.Errorf("invalid mount target %q", target)
 		}
 		if src := path.Join("/", mount.Source); src != "/" {
 			mountOpts = append(mountOpts, llb.SourcePath(src))

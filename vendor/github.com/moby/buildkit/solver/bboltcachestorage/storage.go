@@ -1,14 +1,14 @@
-package boltdbcachestorage
+package bboltcachestorage
 
 import (
 	"bytes"
 	"encoding/json"
 	"fmt"
 
-	"github.com/boltdb/bolt"
 	"github.com/moby/buildkit/solver"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 const (

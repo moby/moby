@@ -10,12 +10,12 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-type CacheID string
-
+// NewInMemoryCacheManager creates a new in-memory cache manager
 func NewInMemoryCacheManager() CacheManager {
 	return NewCacheManager(identity.NewID(), NewInMemoryCacheStorage(), NewInMemoryResultStorage())
 }
 
+// NewCacheManager creates a new cache manager with specific storage backend
 func NewCacheManager(id string, storage CacheKeyStorage, results CacheResultStorage) CacheManager {
 	cm := &cacheManager{
 		id:      id,

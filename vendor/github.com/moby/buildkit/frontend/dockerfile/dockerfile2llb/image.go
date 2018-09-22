@@ -29,6 +29,7 @@ type HealthConfig struct {
 	Retries int `json:",omitempty"`
 }
 
+// ImageConfig is a docker compatible config for an image
 type ImageConfig struct {
 	specs.ImageConfig
 

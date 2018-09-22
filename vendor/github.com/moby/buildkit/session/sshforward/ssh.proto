@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+package moby.sshforward.v1;
+
+option go_package = "sshforward";
+
+service SSH {
+	rpc CheckAgent(CheckAgentRequest) returns (CheckAgentResponse);
+	rpc ForwardAgent(stream BytesMessage) returns (stream BytesMessage);
+}
+
+// BytesMessage contains a chunk of byte data
+message BytesMessage{
+	bytes data = 1;
+}
+
+message CheckAgentRequest {
+	string ID = 1;
+}
+
+message CheckAgentResponse {
+}
