@@ -145,6 +145,12 @@ func (e *Execution) APIClient() client.APIClient {
 	return e.client
 }
 
+// IsUserNamespace returns whether the user namespace remapping is enabled
+func (e *Execution) IsUserNamespace() bool {
+	root := os.Getenv("DOCKER_REMAP_ROOT")
+	return root != ""
+}
+
 // EnsureFrozenImagesLinux loads frozen test images into the daemon
 // if they aren't already loaded
 func EnsureFrozenImagesLinux(testEnv *Execution) error {
