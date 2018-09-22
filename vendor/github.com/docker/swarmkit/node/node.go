@@ -17,7 +17,6 @@ import (
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/identity"
 
-	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
 	metrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/agent"
@@ -28,12 +27,14 @@ import (
 	"github.com/docker/swarmkit/ioutils"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager"
+	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
@@ -105,12 +106,8 @@ type Config struct {
 	// for connections to the remote API (including the raft service).
 	AdvertiseRemoteAPI string
 
-	// DefaultAddrPool specifies default subnet pool for global scope networks
-	DefaultAddrPool []*net.IPNet
-
-	// SubnetSize specifies the subnet size of the networks created from
-	// the default subnet pool
-	SubnetSize int
+	// NetworkConfig stores network related config for the cluster
+	NetworkConfig *cnmallocator.NetworkConfig
 
 	// Executor specifies the executor to use for the agent.
 	Executor exec.Executor
@@ -1002,8 +999,7 @@ func (n *Node) runManager(ctx context.Context, securityConfig *ca.SecurityConfig
 		PluginGetter:     n.config.PluginGetter,
 		RootCAPaths:      rootPaths,
 		FIPS:             n.config.FIPS,
-		DefaultAddrPool:  n.config.DefaultAddrPool,
-		SubnetSize:       n.config.SubnetSize,
+		NetworkConfig:    n.config.NetworkConfig,
 	})
 	if err != nil {
 		return false, err

@@ -136,7 +136,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	// then in `run` it's possible that we just terminate the function because
 	// `ctx` is done and hence fail to propagate the timeout error to the agent.
 	// If the error is not propogated to the agent, the agent will not close
-	// the session or rebuild a new sesssion.
+	// the session or rebuild a new session.
 	sessionCtx, cancelSession := context.WithCancel(ctx)
 
 	// Need to run Session in a goroutine since there's no way to set a

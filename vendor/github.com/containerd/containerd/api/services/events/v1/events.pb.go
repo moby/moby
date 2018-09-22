@@ -141,7 +141,7 @@ type EventsClient interface {
 	// Forward sends an event that has already been packaged into an envelope
 	// with a timestamp and namespace.
 	//
-	// This is useful if earlier timestamping is required or when fowarding on
+	// This is useful if earlier timestamping is required or when forwarding on
 	// behalf of another component, namespace or publisher.
 	Forward(ctx context.Context, in *ForwardRequest, opts ...grpc.CallOption) (*google_protobuf2.Empty, error)
 	// Subscribe to a stream of events, possibly returning only that match any
@@ -223,7 +223,7 @@ type EventsServer interface {
 	// Forward sends an event that has already been packaged into an envelope
 	// with a timestamp and namespace.
 	//
-	// This is useful if earlier timestamping is required or when fowarding on
+	// This is useful if earlier timestamping is required or when forwarding on
 	// behalf of another component, namespace or publisher.
 	Forward(context.Context, *ForwardRequest) (*google_protobuf2.Empty, error)
 	// Subscribe to a stream of events, possibly returning only that match any

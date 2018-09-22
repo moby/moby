@@ -1,12 +1,12 @@
 package agent
 
 import (
-	"github.com/boltdb/bolt"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 	"google.golang.org/grpc/credentials"
 )
 

@@ -2,6 +2,7 @@
 
 [![GoDoc](https://godoc.org/github.com/containerd/containerd?status.svg)](https://godoc.org/github.com/containerd/containerd)
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)
+[![Windows Build Status](https://ci.appveyor.com/api/projects/status/github/containerd/containerd?branch=master&svg=true)](https://ci.appveyor.com/project/mlaventure/containerd-3g73f?branch=master)
 [![FOSSA Status](https://app.fossa.io/api/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd.svg?type=shield)](https://app.fossa.io/projects/git%2Bhttps%3A%2F%2Fgithub.com%2Fcontainerd%2Fcontainerd?ref=badge_shield)
 [![Go Report Card](https://goreportcard.com/badge/github.com/containerd/containerd)](https://goreportcard.com/report/github.com/containerd/containerd)
 [![CII Best Practices](https://bestpractices.coreinfrastructure.org/projects/1271/badge)](https://bestpractices.coreinfrastructure.org/projects/1271)
@@ -223,7 +224,7 @@ This will be the best place to discuss design and implementation.
 
 For sync communication we have a community slack with a #containerd channel that everyone is welcome to join and chat about development.
 
-**Slack:** https://dockr.ly/community
+**Slack:** https://join.slack.com/t/dockercommunity/shared_invite/enQtNDM4NjAwNDMyOTUwLWZlMDZmYWRjZjk4Zjc5ZGQ5NWZkOWI1Yjk2NGE3ZWVlYjYxM2VhYjczOWIyZDFhZTE3NTUwZWQzMjhmNGYyZTg
 
 ### Reporting security issues
 

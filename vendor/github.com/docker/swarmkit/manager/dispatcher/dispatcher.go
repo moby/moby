@@ -342,6 +342,39 @@ func (d *Dispatcher) Stop() error {
 	d.cancel()
 	d.mu.Unlock()
 
+	d.processUpdatesLock.Lock()
+	// when we called d.cancel(), there may be routines, servicing RPC calls to
+	// the (*Dispatcher).Session endpoint, currently waiting at
+	// d.processUpdatesCond.Wait() inside of (*Dispatcher).markNodeReady().
+	//
+	// these routines are typically woken by a call to
+	// d.processUpdatesCond.Broadcast() at the end of
+	// (*Dispatcher).processUpdates() as part of the main Run loop. However,
+	// when d.cancel() is called, the main Run loop is stopped, and there are
+	// no more opportunties for processUpdates to be called. Any calls to
+	// Session would be stuck waiting on a call to Broadcast that will never
+	// come.
+	//
+	// Further, because the rpcRW write lock cannot be obtained until every RPC
+	// has exited and released its read lock, then Stop would be stuck forever.
+	//
+	// To avoid this case, we acquire the processUpdatesLock (so that no new
+	// waits can start) and then do a Broadcast to wake all of the waiting
+	// routines. Further, if any routines are waiting in markNodeReady to
+	// acquire this lock, but not yet waiting, those routines will check the
+	// context cancelation, see the context is canceled, and exit before doing
+	// the Wait.
+	//
+	// This call to Broadcast must occur here. If we called Broadcast before
+	// context cancelation, then some new routines could enter the wait. If we
+	// call Broadcast after attempting to acquire the rpcRW lock, we will be
+	// deadlocked. If we do this Broadcast without obtaining this lock (as is
+	// done in the processUpdates method), then it would be possible for that
+	// broadcast to come after the context cancelation check in markNodeReady,
+	// but before the call to Wait.
+	d.processUpdatesCond.Broadcast()
+	d.processUpdatesLock.Unlock()
+
 	// The active nodes list can be cleaned out only when all
 	// existing RPCs have finished.
 	// RPCs that start after rpcRW.Unlock() should find the context
@@ -350,13 +383,6 @@ func (d *Dispatcher) Stop() error {
 	d.nodes.Clean()
 	d.downNodes.Clean()
 	d.rpcRW.Unlock()
-
-	d.processUpdatesLock.Lock()
-	// In case there are any waiters. There is no chance of any starting
-	// after this point, because they check if the context is canceled
-	// before waiting.
-	d.processUpdatesCond.Broadcast()
-	d.processUpdatesLock.Unlock()
 
 	d.clusterUpdateQueue.Close()
 

@@ -607,8 +607,11 @@ func writeContent(ctx context.Context, store content.Ingester, mediaType, ref st
 	if err != nil {
 		return d, err
 	}
+
 	if err := writer.Commit(ctx, size, "", opts...); err != nil {
-		return d, err
+		if !errdefs.IsAlreadyExists(err) {
+			return d, err
+		}
 	}
 	return v1.Descriptor{
 		MediaType: mediaType,

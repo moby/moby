@@ -23,7 +23,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/log"
@@ -32,6 +31,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/snapshots"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 type snapshotter struct {

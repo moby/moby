@@ -86,8 +86,18 @@ type initializer struct {
 	ntype string
 }
 
+// NetworkConfig is used to store network related cluster config in the Manager.
+type NetworkConfig struct {
+	// DefaultAddrPool specifies default subnet pool for global scope networks
+	DefaultAddrPool []string
+
+	// SubnetSize specifies the subnet size of the networks created from
+	// the default subnet pool
+	SubnetSize uint32
+}
+
 // New returns a new NetworkAllocator handle
-func New(pg plugingetter.PluginGetter, defaultAddrPool []*net.IPNet, subnetSize int) (networkallocator.NetworkAllocator, error) {
+func New(pg plugingetter.PluginGetter, netConfig *NetworkConfig) (networkallocator.NetworkAllocator, error) {
 	na := &cnmNetworkAllocator{
 		networks: make(map[string]*network),
 		services: make(map[string]struct{}),
@@ -106,7 +116,7 @@ func New(pg plugingetter.PluginGetter, defaultAddrPool []*net.IPNet, subnetSize 
 		return nil, err
 	}
 
-	if err = initIPAMDrivers(reg, defaultAddrPool, subnetSize); err != nil {
+	if err = initIPAMDrivers(reg, netConfig); err != nil {
 		return nil, err
 	}
 

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"sort"
 
 	"github.com/containerd/continuity/devices"
@@ -24,18 +23,6 @@ func (d *driver) Mkfifo(path string, mode os.FileMode) error {
 	// mknod with a mode that has ModeNamedPipe set creates a fifo, not a
 	// device.
 	return devices.Mknod(path, mode, 0, 0)
-}
-
-// Lchmod changes the mode of an file not following symlinks.
-func (d *driver) Lchmod(path string, mode os.FileMode) (err error) {
-	if !filepath.IsAbs(path) {
-		path, err = filepath.Abs(path)
-		if err != nil {
-			return
-		}
-	}
-
-	return sysx.Fchmodat(0, path, uint32(mode), sysx.AtSymlinkNofollow)
 }
 
 // Getxattr returns all of the extended attributes for the file at path p.

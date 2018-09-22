@@ -19,11 +19,11 @@ package metadata
 import (
 	"context"
 
-	"github.com/boltdb/bolt"
 	"github.com/containerd/containerd/errdefs"
 	l "github.com/containerd/containerd/labels"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 type namespaceStore struct {

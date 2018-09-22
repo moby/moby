@@ -1,12 +1,12 @@
 package allocator
 
 import (
-	"net"
 	"sync"
 
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	"golang.org/x/net/context"
@@ -34,12 +34,8 @@ type Allocator struct {
 	// pluginGetter provides access to docker's plugin inventory.
 	pluginGetter plugingetter.PluginGetter
 
-	// DefaultAddrPool specifies default subnet pool for global scope networks
-	defaultAddrPool []*net.IPNet
-
-	// SubnetSize specifies the subnet size of the networks created from
-	// the default subnet pool
-	subnetSize int
+	// networkConfig stores network related config for the cluster
+	networkConfig *cnmallocator.NetworkConfig
 }
 
 // taskBallot controls how the voting for task allocation is
@@ -73,17 +69,16 @@ type allocActor struct {
 
 // New returns a new instance of Allocator for use during allocation
 // stage of the manager.
-func New(store *store.MemoryStore, pg plugingetter.PluginGetter, defaultAddrPool []*net.IPNet, subnetSize int) (*Allocator, error) {
+func New(store *store.MemoryStore, pg plugingetter.PluginGetter, netConfig *cnmallocator.NetworkConfig) (*Allocator, error) {
 	a := &Allocator{
 		store: store,
 		taskBallot: &taskBallot{
 			votes: make(map[string][]string),
 		},
-		stopChan:        make(chan struct{}),
-		doneChan:        make(chan struct{}),
-		pluginGetter:    pg,
-		defaultAddrPool: defaultAddrPool,
-		subnetSize:      subnetSize,
+		stopChan:      make(chan struct{}),
+		doneChan:      make(chan struct{}),
+		pluginGetter:  pg,
+		networkConfig: netConfig,
 	}
 
 	return a, nil

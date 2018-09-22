@@ -3,7 +3,6 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 	"fmt"
-	"net"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/executor/container"
 	lncluster "github.com/docker/libnetwork/cluster"
 	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -115,12 +115,6 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		joinAddr = conf.RemoteAddr
 	}
 
-	var defaultAddrPool []*net.IPNet
-	for _, address := range conf.DefaultAddressPool {
-		if _, b, err := net.ParseCIDR(address); err == nil {
-			defaultAddrPool = append(defaultAddrPool, b)
-		}
-	}
 	// Hostname is not set here. Instead, it is obtained from
 	// the node description that is reported periodically
 	swarmnodeConfig := swarmnode.Config{
@@ -128,11 +122,13 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		ListenControlAPI:   control,
 		ListenRemoteAPI:    conf.ListenAddr,
 		AdvertiseRemoteAPI: conf.AdvertiseAddr,
-		DefaultAddrPool:    defaultAddrPool,
-		SubnetSize:         int(conf.SubnetSize),
-		JoinAddr:           joinAddr,
-		StateDir:           n.cluster.root,
-		JoinToken:          conf.joinToken,
+		NetworkConfig: &cnmallocator.NetworkConfig{
+			DefaultAddrPool: conf.DefaultAddressPool,
+			SubnetSize:      conf.SubnetSize,
+		},
+		JoinAddr:  joinAddr,
+		StateDir:  n.cluster.root,
+		JoinToken: conf.joinToken,
 		Executor: container.NewExecutor(
 			n.cluster.config.Backend,
 			n.cluster.config.PluginBackend,

@@ -1,7 +1,6 @@
 package cnmallocator
 
 import (
-	"net"
 	"strconv"
 	"strings"
 
@@ -14,7 +13,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-func initIPAMDrivers(r *drvregistry.DrvRegistry, defaultAddrPool []*net.IPNet, subnetSize int) error {
+func initIPAMDrivers(r *drvregistry.DrvRegistry, netConfig *NetworkConfig) error {
 	var addressPool []*ipamutils.NetworkToSplit
 	var str strings.Builder
 	str.WriteString("Subnetlist - ")
@@ -22,16 +21,16 @@ func initIPAMDrivers(r *drvregistry.DrvRegistry, defaultAddrPool []*net.IPNet, s
 	// from the info. We will be using it to call Libnetwork API
 	// We also need to log new address pool info whenever swarm init
 	// happens with default address pool option
-	if defaultAddrPool != nil {
-		for _, p := range defaultAddrPool {
+	if netConfig != nil {
+		for _, p := range netConfig.DefaultAddrPool {
 			addressPool = append(addressPool, &ipamutils.NetworkToSplit{
-				Base: p.String(),
-				Size: subnetSize,
+				Base: p,
+				Size: int(netConfig.SubnetSize),
 			})
-			str.WriteString(p.String() + ",")
+			str.WriteString(p + ",")
 		}
 		str.WriteString(": Size ")
-		str.WriteString(strconv.Itoa(subnetSize))
+		str.WriteString(strconv.Itoa(int(netConfig.SubnetSize)))
 	}
 	if err := ipamutils.ConfigGlobalScopeDefaultNetworks(addressPool); err != nil {
 		return err
