@@ -1,6 +1,13 @@
-// +build freebsd openbsd solaris
+// +build !linux,!darwin
 
 package sysx
+
+import (
+	"errors"
+	"runtime"
+)
+
+var unsupported = errors.New("extended attributes unsupported on " + runtime.GOOS)
 
 // Listxattr calls syscall listxattr and reads all content
 // and returns a string array

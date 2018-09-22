@@ -68,7 +68,15 @@ type networkContext struct {
 }
 
 func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
-	na, err := cnmallocator.New(a.pluginGetter, a.defaultAddrPool, a.subnetSize)
+	var netConfig *cnmallocator.NetworkConfig
+	if a.networkConfig != nil && a.networkConfig.DefaultAddrPool != nil {
+		netConfig = &cnmallocator.NetworkConfig{
+			DefaultAddrPool: a.networkConfig.DefaultAddrPool,
+			SubnetSize:      a.networkConfig.SubnetSize,
+		}
+	}
+
+	na, err := cnmallocator.New(a.pluginGetter, netConfig)
 	if err != nil {
 		return err
 	}

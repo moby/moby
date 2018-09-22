@@ -25,6 +25,8 @@ type InstallConfig struct {
 	Libs bool
 	// Replace will overwrite existing binaries or libs in the opt directory
 	Replace bool
+	// Path to install libs and binaries to
+	Path string
 }
 
 // WithInstallLibs installs libs from the image
@@ -35,4 +37,11 @@ func WithInstallLibs(c *InstallConfig) {
 // WithInstallReplace will replace existing files
 func WithInstallReplace(c *InstallConfig) {
 	c.Replace = true
+}
+
+// WithInstallPath sets the optional install path
+func WithInstallPath(path string) InstallOpts {
+	return func(c *InstallConfig) {
+		c.Path = path
+	}
 }

@@ -202,6 +202,7 @@ message Mount {
 		BIND = 0 [(gogoproto.enumvalue_customname) = "MountTypeBind"]; // Bind mount host dir
 		VOLUME = 1 [(gogoproto.enumvalue_customname) = "MountTypeVolume"];  // Remote storage volumes
 		TMPFS = 2 [(gogoproto.enumvalue_customname) = "MountTypeTmpfs"]; // Mount a tmpfs
+		NPIPE = 3 [(gogoproto.enumvalue_customname) = "MountTypeNamedPipe"]; // Windows named pipes 
 	}
 
 	// Type defines the nature of the mount.

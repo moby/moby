@@ -31,8 +31,7 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/runtime"
 	"github.com/containerd/containerd/runtime/v1/shim/client"
-	shim "github.com/containerd/containerd/runtime/v1/shim/v1"
-	runc "github.com/containerd/go-runc"
+	"github.com/containerd/containerd/runtime/v1/shim/v1"
 	"github.com/containerd/ttrpc"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
@@ -52,7 +51,7 @@ type Task struct {
 	bundle    *bundle
 }
 
-func newTask(id, namespace string, pid int, shim *client.Client, events *exchange.Exchange, runtime *runc.Runc, list *runtime.TaskList, bundle *bundle) (*Task, error) {
+func newTask(id, namespace string, pid int, shim *client.Client, events *exchange.Exchange, list *runtime.TaskList, bundle *bundle) (*Task, error) {
 	var (
 		err error
 		cg  cgroups.Cgroup

@@ -1,0 +1,97 @@
+syntax = "proto3";
+
+package proto;
+
+// Manifest specifies the entries in a container bundle, keyed and sorted by
+// path.
+message Manifest {
+    repeated Resource resource = 1;
+}
+
+message Resource {
+    // Path specifies the path from the bundle root. If more than one
+    // path is present, the entry may represent a hardlink, rather than using
+    // a link target. The path format is operating system specific.
+    repeated string path = 1;
+
+    // NOTE(stevvooe): Need to define clear precedence for user/group/uid/gid precedence.
+
+    // Uid specifies the user id for the resource.
+    int64 uid = 2;
+
+    // Gid specifies the group id for the resource.
+    int64 gid = 3;
+
+    // user and group are not currently used but their field numbers have been
+    // reserved for future use. As such, they are marked as deprecated.
+    string user = 4 [deprecated=true]; // "deprecated" stands for "reserved" here
+    string group = 5 [deprecated=true]; // "deprecated" stands for "reserved" here
+
+    // Mode defines the file mode and permissions. We've used the same
+    // bit-packing from Go's os package,
+    // http://golang.org/pkg/os/#FileMode, since they've done the work of
+    // creating a cross-platform layout.
+    uint32 mode = 6;
+
+    // NOTE(stevvooe): Beyond here, we start defining type specific fields.
+
+    // Size specifies the size in bytes of the resource. This is only valid
+    // for regular files.
+    uint64 size = 7;
+
+    // Digest specifies the content digest of the target file. Only valid for
+    // regular files. The strings are formatted in OCI style, i.e. <alg>:<encoded>.
+    // For detailed information about the format, please refer to OCI Image Spec:
+    // https://github.com/opencontainers/image-spec/blob/master/descriptor.md#digests-and-verification
+    // The digests are sorted in lexical order and implementations may choose
+    // which algorithms they prefer.
+    repeated string digest = 8;
+
+    // Target defines the target of a hard or soft link. Absolute links start
+    // with a slash and specify the resource relative to the bundle root.
+    // Relative links do not start with a slash and are relative to the
+    // resource path.
+    string target = 9;
+
+    // Major specifies the major device number for character and block devices.
+    uint64 major = 10;
+
+    // Minor specifies the minor device number for character and block devices.
+    uint64 minor = 11;
+
+    // Xattr provides storage for extended attributes for the target resource.
+    repeated XAttr xattr = 12;
+
+    // Ads stores one or more alternate data streams for the target resource.
+    repeated ADSEntry ads = 13;
+
+}
+
+// XAttr encodes extended attributes for a resource.
+message XAttr {
+    // Name specifies the attribute name.
+    string name = 1;
+
+    // Data specifies the associated data for the attribute.
+    bytes data = 2;
+}
+
+// ADSEntry encodes information for a Windows Alternate Data Stream.
+message ADSEntry {
+    // Name specifices the stream name.
+    string name = 1;
+
+    // Data specifies the stream data.
+    // See also the description about the digest below.
+    bytes data = 2;
+
+    // Digest is a CAS representation of the stream data.
+    //
+    // At least one of data or digest MUST be specified, and either one of them
+    // SHOULD be specified.
+    //
+    // How to access the actual data using the digest is implementation-specific,
+    // and implementations can choose not to implement digest.
+    // So, digest SHOULD be used only when the stream data is large.
+    string digest = 3;
+}

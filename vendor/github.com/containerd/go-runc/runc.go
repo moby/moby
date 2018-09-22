@@ -608,9 +608,8 @@ func parseVersion(data []byte) (Version, error) {
 	var v Version
 	parts := strings.Split(strings.TrimSpace(string(data)), "\n")
 	if len(parts) != 3 {
-		return v, ErrParseRuncVersion
+		return v, nil
 	}
-
 	for i, p := range []struct {
 		dest  *string
 		split string

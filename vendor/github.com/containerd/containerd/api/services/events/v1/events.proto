@@ -20,7 +20,7 @@ service Events {
 	// Forward sends an event that has already been packaged into an envelope
 	// with a timestamp and namespace.
 	//
-	// This is useful if earlier timestamping is required or when fowarding on
+	// This is useful if earlier timestamping is required or when forwarding on
 	// behalf of another component, namespace or publisher.
 	rpc Forward(ForwardRequest) returns (google.protobuf.Empty);
 

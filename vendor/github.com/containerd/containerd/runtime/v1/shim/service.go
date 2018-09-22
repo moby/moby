@@ -20,7 +20,9 @@ package shim
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sync"
@@ -41,6 +43,7 @@ import (
 	runc "github.com/containerd/go-runc"
 	"github.com/containerd/typeurl"
 	ptypes "github.com/gogo/protobuf/types"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
@@ -221,19 +224,21 @@ func (s *Service) Delete(ctx context.Context, r *ptypes.Empty) (*shimapi.DeleteR
 
 // DeleteProcess deletes an exec'd process
 func (s *Service) DeleteProcess(ctx context.Context, r *shimapi.DeleteProcessRequest) (*shimapi.DeleteResponse, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
 	if r.ID == s.id {
 		return nil, status.Errorf(codes.InvalidArgument, "cannot delete init process with DeleteProcess")
 	}
+	s.mu.Lock()
 	p := s.processes[r.ID]
+	s.mu.Unlock()
 	if p == nil {
 		return nil, errors.Wrapf(errdefs.ErrNotFound, "process %s", r.ID)
 	}
 	if err := p.Delete(ctx); err != nil {
 		return nil, err
 	}
+	s.mu.Lock()
 	delete(s.processes, r.ID)
+	s.mu.Unlock()
 	return &shimapi.DeleteResponse{
 		ExitStatus: uint32(p.ExitStatus()),
 		ExitedAt:   p.ExitedAt(),
@@ -507,13 +512,22 @@ func (s *Service) processExits() {
 func (s *Service) checkProcesses(e runc.Exit) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	shouldKillAll, err := shouldKillAllOnExit(s.bundle)
+	if err != nil {
+		log.G(s.context).WithError(err).Error("failed to check shouldKillAll")
+	}
+
 	for _, p := range s.processes {
 		if p.Pid() == e.Pid {
-			if ip, ok := p.(*proc.Init); ok {
-				// Ensure all children are killed
-				if err := ip.KillAll(s.context); err != nil {
-					log.G(s.context).WithError(err).WithField("id", ip.ID()).
-						Error("failed to kill init's children")
+
+			if shouldKillAll {
+				if ip, ok := p.(*proc.Init); ok {
+					// Ensure all children are killed
+					if err := ip.KillAll(s.context); err != nil {
+						log.G(s.context).WithError(err).WithField("id", ip.ID()).
+							Error("failed to kill init's children")
+					}
 				}
 			}
 			p.SetExited(e.Status)
@@ -527,6 +541,25 @@ func (s *Service) checkProcesses(e runc.Exit) {
 			return
 		}
 	}
+}
+
+func shouldKillAllOnExit(bundlePath string) (bool, error) {
+	var bundleSpec specs.Spec
+	bundleConfigContents, err := ioutil.ReadFile(filepath.Join(bundlePath, "config.json"))
+	if err != nil {
+		return false, err
+	}
+	json.Unmarshal(bundleConfigContents, &bundleSpec)
+
+	if bundleSpec.Linux != nil {
+		for _, ns := range bundleSpec.Linux.Namespaces {
+			if ns.Type == specs.PIDNamespace {
+				return false, nil
+			}
+		}
+	}
+
+	return true, nil
 }
 
 func (s *Service) getContainerPids(ctx context.Context, id string) ([]uint32, error) {

@@ -20,6 +20,7 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/allocator"
+	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
 	"github.com/docker/swarmkit/manager/dispatcher"
@@ -127,12 +128,8 @@ type Config struct {
 	// FIPS setting.
 	FIPS bool
 
-	// DefaultAddrPool specifies default subnet pool for global scope networks
-	DefaultAddrPool []*net.IPNet
-
-	// SubnetSize specifies the subnet size of the networks created from
-	// the default subnet pool
-	SubnetSize int
+	// NetworkConfig stores network related config for the cluster
+	NetworkConfig *cnmallocator.NetworkConfig
 }
 
 // Manager is the cluster manager for Swarm.
@@ -947,14 +944,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			nil,
 			0)
 
-		var defaultAddrPool []string
-		for _, p := range m.config.DefaultAddrPool {
-			defaultAddrPool = append(defaultAddrPool, p.String())
-		}
 		// If defaultAddrPool is valid we update cluster object with new value
-		if defaultAddrPool != nil {
-			clusterObj.DefaultAddressPool = defaultAddrPool
-			clusterObj.SubnetSize = uint32(m.config.SubnetSize)
+		if m.config.NetworkConfig != nil && m.config.NetworkConfig.DefaultAddrPool != nil {
+			clusterObj.DefaultAddressPool = m.config.NetworkConfig.DefaultAddrPool
+			clusterObj.SubnetSize = m.config.NetworkConfig.SubnetSize
 		}
 
 		err := store.CreateCluster(tx, clusterObj)
@@ -1003,24 +996,20 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 
 	// If DefaultAddrPool is null, Read from store and check if
 	// DefaultAddrPool info is stored in cluster object
-	if m.config.DefaultAddrPool == nil {
+	if m.config.NetworkConfig == nil || m.config.NetworkConfig.DefaultAddrPool == nil {
 		var cluster *api.Cluster
 		s.View(func(tx store.ReadTx) {
 			cluster = store.GetCluster(tx, clusterID)
 		})
 		if cluster.DefaultAddressPool != nil {
 			for _, address := range cluster.DefaultAddressPool {
-				_, b, err := net.ParseCIDR(address)
-				if err != nil {
-					log.G(ctx).WithError(err).Error("Default Address Pool reading failed for cluster object  %s", address)
-				}
-				m.config.DefaultAddrPool = append(m.config.DefaultAddrPool, b)
+				m.config.NetworkConfig.DefaultAddrPool = append(m.config.NetworkConfig.DefaultAddrPool, address)
 			}
+			m.config.NetworkConfig.SubnetSize = cluster.SubnetSize
 		}
-		m.config.SubnetSize = int(cluster.SubnetSize)
 	}
 
-	m.allocator, err = allocator.New(s, m.config.PluginGetter, m.config.DefaultAddrPool, m.config.SubnetSize)
+	m.allocator, err = allocator.New(s, m.config.PluginGetter, m.config.NetworkConfig)
 	if err != nil {
 		log.G(ctx).WithError(err).Error("failed to create allocator")
 		// TODO(stevvooe): It doesn't seem correct here to fail
@@ -1144,7 +1133,7 @@ func defaultClusterObject(
 	rootCA *ca.RootCA,
 	fips bool,
 	defaultAddressPool []string,
-	subnetSize int) *api.Cluster {
+	subnetSize uint32) *api.Cluster {
 	var caKey []byte
 	if rcaSigner, err := rootCA.Signer(); err == nil {
 		caKey = rcaSigner.Key
@@ -1178,7 +1167,7 @@ func defaultClusterObject(
 		UnlockKeys:         initialUnlockKeys,
 		FIPS:               fips,
 		DefaultAddressPool: defaultAddressPool,
-		SubnetSize:         uint32(subnetSize),
+		SubnetSize:         subnetSize,
 	}
 }
 

@@ -132,11 +132,11 @@ func (w *writer) Commit(ctx context.Context, size int64, expected digest.Digest,
 	// clean up!!
 	defer os.RemoveAll(w.path)
 
+	if _, err := os.Stat(target); err == nil {
+		// collision with the target file!
+		return errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", dgst)
+	}
 	if err := os.Rename(ingest, target); err != nil {
-		if os.IsExist(err) {
-			// collision with the target file!
-			return errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", dgst)
-		}
 		return err
 	}
 	commitTime := time.Now()

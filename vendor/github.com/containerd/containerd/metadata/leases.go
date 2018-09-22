@@ -20,7 +20,6 @@ import (
 	"context"
 	"time"
 
-	"github.com/boltdb/bolt"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/filters"
 	"github.com/containerd/containerd/leases"
@@ -28,6 +27,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	bolt "go.etcd.io/bbolt"
 )
 
 // LeaseManager manages the create/delete lifecyle of leases
