@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -372,7 +373,9 @@ func TestCreateWithInvalidHealthcheckParams(t *testing.T) {
 				"Healthcheck": healthCheck,
 			}
 
-			res, body, err := request.Post("/containers/create?name="+fmt.Sprintf("test_%d_", i)+t.Name(), request.JSONBody(config))
+			name := strings.Replace(t.Name(), "/", "_", -1)
+			name = strings.Replace(name, ":", "_", -1)
+			res, body, err := request.Post("/containers/create?name="+fmt.Sprintf("test_%d_", i)+name, request.JSONBody(config))
 			assert.NilError(t, err)
 
 			if versions.LessThan(testEnv.DaemonAPIVersion(), "1.32") {
