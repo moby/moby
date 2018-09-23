@@ -14,6 +14,7 @@ import (
 	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -70,11 +71,11 @@ func (e notFoundError) Error() string {
 	switch e.cause.Code {
 	case errcode.ErrorCodeDenied:
 		// ErrorCodeDenied is used when access to the repository was denied
-		return fmt.Sprintf("pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(e.ref))
+		return errors.Wrapf(e.cause, "pull access denied for %s, repository does not exist or may require 'docker login'", reference.FamiliarName(e.ref)).Error()
 	case v2.ErrorCodeManifestUnknown:
-		return fmt.Sprintf("manifest for %s not found", reference.FamiliarString(e.ref))
+		return errors.Wrapf(e.cause, "manifest for %s not found", reference.FamiliarString(e.ref)).Error()
 	case v2.ErrorCodeNameUnknown:
-		return fmt.Sprintf("repository %s not found", reference.FamiliarName(e.ref))
+		return errors.Wrapf(e.cause, "repository %s not found", reference.FamiliarName(e.ref)).Error()
 	}
 	// Shouldn't get here, but this is better than returning an empty string
 	return e.cause.Message
