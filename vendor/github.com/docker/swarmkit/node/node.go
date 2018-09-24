@@ -17,7 +17,6 @@ import (
 	"github.com/docker/swarmkit/ca/keyutils"
 	"github.com/docker/swarmkit/identity"
 
-	"github.com/boltdb/bolt"
 	"github.com/docker/docker/pkg/plugingetter"
 	metrics "github.com/docker/go-metrics"
 	"github.com/docker/swarmkit/agent"
@@ -35,6 +34,7 @@ import (
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	bolt "go.etcd.io/bbolt"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"

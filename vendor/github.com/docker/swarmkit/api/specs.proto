@@ -333,6 +333,14 @@ message ContainerSpec {
 	//
 	// https://docs.docker.com/engine/reference/commandline/run/#configure-namespaced-kernel-parameters-sysctls-at-runtime
 	map<string, string> sysctls = 26;
+
+	// Swap limit equal to memory plus swap: '-1' to enable unlimited swap
+	int64 memory_swap = 27;
+
+	// Tune container memory swappiness (0 to 100) - if not specified, defaults
+	// to the container OS's default - generally 60, or the value predefined in
+	// the image; set to -1 to unset a previously set value
+	google.protobuf.Int64Value memory_swappiness = 28;
 }
 
 // EndpointSpec defines the properties that can be configured to
