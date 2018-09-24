@@ -1335,7 +1335,7 @@ func (p *raftProxyLogsServer) SubscribeLogs(r *SubscribeLogsRequest, stream Logs
 			}
 			streamWrapper := Logs_SubscribeLogsServerWrapper{
 				Logs_SubscribeLogsServer: stream,
-				ctx: ctx,
+				ctx:                      ctx,
 			}
 			return p.local.SubscribeLogs(r, streamWrapper)
 		}
@@ -1458,7 +1458,7 @@ func (p *raftProxyLogBrokerServer) ListenSubscriptions(r *ListenSubscriptionsReq
 			}
 			streamWrapper := LogBroker_ListenSubscriptionsServerWrapper{
 				LogBroker_ListenSubscriptionsServer: stream,
-				ctx: ctx,
+				ctx:                                 ctx,
 			}
 			return p.local.ListenSubscriptions(r, streamWrapper)
 		}
@@ -1509,7 +1509,7 @@ func (p *raftProxyLogBrokerServer) PublishLogs(stream LogBroker_PublishLogsServe
 			}
 			streamWrapper := LogBroker_PublishLogsServerWrapper{
 				LogBroker_PublishLogsServer: stream,
-				ctx: ctx,
+				ctx:                         ctx,
 			}
 			return p.local.PublishLogs(streamWrapper)
 		}

@@ -1746,7 +1746,7 @@ func (p *raftProxyRaftServer) StreamRaftMessage(stream Raft_StreamRaftMessageSer
 			}
 			streamWrapper := Raft_StreamRaftMessageServerWrapper{
 				Raft_StreamRaftMessageServer: stream,
-				ctx: ctx,
+				ctx:                          ctx,
 			}
 			return p.local.StreamRaftMessage(streamWrapper)
 		}
