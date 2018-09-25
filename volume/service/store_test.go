@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/volume"
 	volumedrivers "github.com/docker/docker/volume/drivers"
@@ -91,7 +92,7 @@ func TestList(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
-	drivers := volumedrivers.NewStore(nil)
+	drivers := volumedrivers.NewStore(nil, time.Minute*1)
 	drivers.Register(volumetestutils.NewFakeDriver("fake"), "fake")
 	drivers.Register(volumetestutils.NewFakeDriver("fake2"), "fake2")
 
@@ -266,7 +267,7 @@ func TestDefererencePluginOnCreateError(t *testing.T) {
 	}
 
 	pg := volumetestutils.NewFakePluginGetter(p)
-	s.drivers = volumedrivers.NewStore(pg)
+	s.drivers = volumedrivers.NewStore(pg, time.Minute*1)
 
 	ctx := context.Background()
 	// create a good volume so we have a plugin reference
@@ -378,7 +379,7 @@ func setupTest(t *testing.T) (*VolumeStore, func()) {
 		assert.Check(t, err)
 	}
 
-	s, err := NewStore(dir, volumedrivers.NewStore(nil))
+	s, err := NewStore(dir, volumedrivers.NewStore(nil, time.Minute*1))
 	assert.Check(t, err)
 	return s, func() {
 		s.Shutdown()

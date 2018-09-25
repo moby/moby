@@ -634,6 +634,7 @@ func (daemon *Daemon) IsSwarmCompatible() error {
 // requests from the webserver.
 func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.Store) (daemon *Daemon, err error) {
 	setDefaultMtu(config)
+	setDefaultVolumePluginTImeout(config)
 
 	registryService, err := registry.NewService(config.ServiceOptions)
 	if err != nil {
@@ -884,7 +885,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
+	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d, time.Duration(config.VolumePluginAPITimeout)*time.Second)
 	if err != nil {
 		return nil, err
 	}
@@ -1249,6 +1250,14 @@ func setDefaultMtu(conf *config.Config) {
 		return
 	}
 	conf.Mtu = config.DefaultNetworkMtu
+}
+
+func setDefaultVolumePluginTImeout(conf *config.Config) {
+	// do nothing if the config does not have the default 0 value.
+	if conf.VolumePluginAPITimeout != 0 {
+		return
+	}
+	conf.VolumePluginAPITimeout = config.DefaultVolumePluginAPITimeout
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not

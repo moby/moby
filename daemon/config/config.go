@@ -43,6 +43,8 @@ const (
 	DisableNetworkBridge = "none"
 	// DefaultInitBinary is the name of the default init binary
 	DefaultInitBinary = "docker-init"
+	// DefaultVolumePluginAPITimeout is the default timeout (in seconds) for volume plugin API calls
+	DefaultVolumePluginAPITimeout = 120
 )
 
 // flatOptions contains configuration keys
@@ -229,6 +231,8 @@ type CommonConfig struct {
 	Features map[string]bool `json:"features,omitempty"`
 
 	Builder BuilderConfig `json:"builder,omitempty"`
+
+	VolumePluginAPITimeout int `json:"volume-plugin-api-timeout,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value

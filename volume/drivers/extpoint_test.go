@@ -2,12 +2,13 @@ package drivers // import "github.com/docker/docker/volume/drivers"
 
 import (
 	"testing"
+	"time"
 
 	volumetestutils "github.com/docker/docker/volume/testutils"
 )
 
 func TestGetDriver(t *testing.T) {
-	s := NewStore(nil)
+	s := NewStore(nil, time.Minute*1)
 	_, err := s.GetDriver("missing")
 	if err == nil {
 		t.Fatal("Expected error, was nil")

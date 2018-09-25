@@ -20,7 +20,7 @@ func TestRestore(t *testing.T) {
 	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
-	drivers := volumedrivers.NewStore(nil)
+	drivers := volumedrivers.NewStore(nil, 120)
 	driverName := "test-restore"
 	drivers.Register(volumetestutils.NewFakeDriver(driverName), driverName)
 

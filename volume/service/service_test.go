@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/errdefs"
@@ -19,7 +20,7 @@ import (
 func TestServiceCreate(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, time.Minute*1)
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
 
@@ -52,7 +53,7 @@ func TestServiceCreate(t *testing.T) {
 func TestServiceList(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, time.Minute*1)
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d2"), "d2"))
 
@@ -107,7 +108,7 @@ func TestServiceList(t *testing.T) {
 func TestServiceRemove(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, time.Minute*1)
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
 
 	service, cleanup := newTestService(t, ds)
@@ -124,7 +125,7 @@ func TestServiceRemove(t *testing.T) {
 func TestServiceGet(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, time.Minute*1)
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("d1"), "d1"))
 
 	service, cleanup := newTestService(t, ds)
@@ -161,7 +162,7 @@ func TestServiceGet(t *testing.T) {
 func TestServicePrune(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, time.Minute*1)
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver(volume.DefaultDriverName), volume.DefaultDriverName))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("other"), "other"))
 

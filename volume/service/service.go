@@ -3,6 +3,7 @@ package service // import "github.com/docker/docker/volume/service"
 import (
 	"context"
 	"sync/atomic"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -35,8 +36,8 @@ type VolumesService struct {
 }
 
 // NewVolumeService creates a new volume service
-func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.Identity, logger volumeEventLogger) (*VolumesService, error) {
-	ds := drivers.NewStore(pg)
+func NewVolumeService(root string, pg plugingetter.PluginGetter, rootIDs idtools.Identity, logger volumeEventLogger, timeout time.Duration) (*VolumesService, error) {
+	ds := drivers.NewStore(pg, timeout)
 	if err := setupDefaultDriver(ds, root, rootIDs); err != nil {
 		return nil, err
 	}

@@ -20,7 +20,7 @@ import (
 func TestLocalVolumeSize(t *testing.T) {
 	t.Parallel()
 
-	ds := volumedrivers.NewStore(nil)
+	ds := volumedrivers.NewStore(nil, 120)
 	dir, err := ioutil.TempDir("", t.Name())
 	assert.Assert(t, err)
 	defer os.RemoveAll(dir)

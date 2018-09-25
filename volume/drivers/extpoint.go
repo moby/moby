@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/locker"
@@ -43,18 +44,20 @@ type volumeDriver interface {
 
 // Store is an in-memory store for volume drivers
 type Store struct {
-	extensions   map[string]volume.Driver
-	mu           sync.Mutex
-	driverLock   *locker.Locker
-	pluginGetter getter.PluginGetter
+	extensions       map[string]volume.Driver
+	mu               sync.Mutex
+	driverLock       *locker.Locker
+	pluginGetter     getter.PluginGetter
+	pluginAPITimeout time.Duration
 }
 
 // NewStore creates a new volume driver store
-func NewStore(pg getter.PluginGetter) *Store {
+func NewStore(pg getter.PluginGetter, timeout time.Duration) *Store {
 	return &Store{
-		extensions:   make(map[string]volume.Driver),
-		driverLock:   locker.New(),
-		pluginGetter: pg,
+		extensions:       make(map[string]volume.Driver),
+		driverLock:       locker.New(),
+		pluginGetter:     pg,
+		pluginAPITimeout: timeout,
 	}
 }
 
@@ -88,7 +91,7 @@ func (s *Store) lookup(name string, mode int) (volume.Driver, error) {
 			return nil, errors.Wrap(err, "error looking up volume plugin "+name)
 		}
 
-		d, err := makePluginAdapter(p)
+		d, err := makePluginAdapter(p, s.pluginAPITimeout)
 		if err != nil {
 			return nil, errors.Wrap(err, "error making plugin client")
 		}
@@ -199,7 +202,7 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 			continue
 		}
 
-		ext, err := makePluginAdapter(p)
+		ext, err := makePluginAdapter(p, s.pluginAPITimeout)
 		if err != nil {
 			return nil, errors.Wrap(err, "error making plugin client")
 		}
@@ -211,9 +214,16 @@ func (s *Store) GetAllDrivers() ([]volume.Driver, error) {
 	return ds, nil
 }
 
-func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
+func makePluginAdapter(p getter.CompatPlugin, timeout time.Duration) (*volumeDriverAdapter, error) {
 	if pc, ok := p.(getter.PluginWithV1Client); ok {
-		return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{pc.Client()}}, nil
+		return &volumeDriverAdapter{
+			name:      p.Name(),
+			scopePath: p.ScopedPath,
+			proxy: &volumeDriverProxy{
+				client:           pc.Client(),
+				pluginAPITimeout: timeout,
+			},
+		}, nil
 	}
 
 	pa, ok := p.(getter.PluginAddr)
@@ -231,5 +241,12 @@ func makePluginAdapter(p getter.CompatPlugin) (*volumeDriverAdapter, error) {
 		return nil, errors.Wrap(err, "error creating plugin client")
 	}
 
-	return &volumeDriverAdapter{name: p.Name(), scopePath: p.ScopedPath, proxy: &volumeDriverProxy{client}}, nil
+	return &volumeDriverAdapter{
+		name:      p.Name(),
+		scopePath: p.ScopedPath,
+		proxy: &volumeDriverProxy{
+			client:           client,
+			pluginAPITimeout: timeout,
+		},
+	}, nil
 }

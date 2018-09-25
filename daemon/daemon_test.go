@@ -118,7 +118,7 @@ func initDaemonWithVolumeStore(tmp string) (*Daemon, error) {
 		repository: tmp,
 		root:       tmp,
 	}
-	daemon.volumes, err = volumesservice.NewVolumeService(tmp, nil, idtools.Identity{UID: 0, GID: 0}, daemon)
+	daemon.volumes, err = volumesservice.NewVolumeService(tmp, nil, idtools.Identity{UID: 0, GID: 0}, daemon, 120)
 	if err != nil {
 		return nil, err
 	}

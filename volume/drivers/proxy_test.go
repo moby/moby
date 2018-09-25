@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/go-connections/tlsconfig"
@@ -63,7 +64,7 @@ func TestVolumeRequestError(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	driver := volumeDriverProxy{client}
+	driver := volumeDriverProxy{client: client, pluginAPITimeout: time.Duration(120) * time.Second}
 
 	if err = driver.Create("volume", nil); err == nil {
 		t.Fatal("Expected error, was nil")

@@ -70,6 +70,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 	flags.Var(opts.NewNamedListOptsRef("node-generic-resources", &conf.NodeGenericResources, opts.ValidateSingleGenericResource), "node-generic-resource", "Advertise user-defined resource")
 
 	flags.IntVar(&conf.NetworkControlPlaneMTU, "network-control-plane-mtu", config.DefaultNetworkMtu, "Network Control plane MTU")
+	flags.IntVar(&conf.VolumePluginAPITimeout, "volume-plugin-api-timeout", config.DefaultVolumePluginAPITimeout, "Timeout (in seconds) for volume plugin API's to complete")
 
 	// "--deprecated-key-path" is to allow configuration of the key used
 	// for the daemon ID and the deprecated image signing. It was never
