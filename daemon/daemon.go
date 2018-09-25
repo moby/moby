@@ -37,11 +37,13 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
+
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
@@ -568,11 +570,14 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
+	if !names.RestrictedNamePattern.MatchString(strings.TrimPrefix(alias, "/")) {
+		return errdefs.InvalidParameter(errors.Errorf("Invalid link alias name (%s), only %s are allowed", alias, names.RestrictedNameChars))
+	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if err == container.ErrNameReserved {
 			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
-			return nil
+			return err
 		}
 		return err
 	}
@@ -844,7 +849,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	for operatingSystem, gd := range d.graphDrivers {
 		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      config.Root,
+			Root: config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
