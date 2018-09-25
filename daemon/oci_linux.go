@@ -498,12 +498,6 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 	s.Mounts = defaultMounts
 	for _, m := range mounts {
-		for _, cm := range s.Mounts {
-			if cm.Destination == m.Destination {
-				return duplicateMountPointError(m.Destination)
-			}
-		}
-
 		if m.Source == "tmpfs" {
 			data := m.Data
 			parser := volumemounts.NewParser("linux")
