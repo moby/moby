@@ -10,14 +10,14 @@ copy_binaries() {
 	if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 		return
 	fi
-	if [ ! -x /usr/local/bin/docker-runc ]; then
+	if [ ! -x /usr/local/bin/runc ]; then
 		return
 	fi
 	echo "Copying nested executables into $dir"
-	for file in containerd containerd-shim containerd-ctr runc init proxy; do
-		cp -f `which "docker-$file"` "$dir/"
+	for file in containerd containerd-shim ctr runc docker-init docker-proxy; do
+		cp -f `which "$file"` "$dir/"
 		if [ "$hash" == "hash" ]; then
-			hash_files "$dir/docker-$file"
+			hash_files "$dir/$file"
 		fi
 	done
 }
