@@ -299,7 +299,6 @@ func TestParseMountRaw(t *testing.T) {
 	tester := func(parser Parser, set parseMountRawTestSet) {
 
 		for _, path := range set.valid {
-
 			if _, err := parser.ParseMountRaw(path, "local"); err != nil {
 				t.Errorf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
 			}

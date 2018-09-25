@@ -34,7 +34,7 @@ const (
 	//
 
 	// rxHostDir is the first option of a source
-	rxHostDir = `(?:\\\\\?\\)?[a-z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/]?)*`
+	rxHostDir = `(?:\\\\\?\\)?[a-zA-Z]:[\\/](?:[^\\/:*?"<>|\r\n]+[\\/]?)*`
 	// rxName is the second option of a source
 	rxName = `[^\\/:*?"<>|\r\n]+`
 
@@ -61,7 +61,7 @@ const (
 	//    -  And can be optional
 
 	// rxDestination is the regex expression for the mount destination
-	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
+	rxDestination = `(?P<destination>((?:\\\\\?\\)?([a-zA-Z]):((?:[\\/][^\\/:*?"<>\r\n]+)*[\\/]?))|(` + rxPipe + `))`
 
 	rxLCOWDestination = `(?P<destination>/(?:[^\\/:*?"<>\r\n]+[/]?)*)`
 	// Destination (aka container path):
@@ -80,7 +80,7 @@ type mountValidator func(mnt *mount.Mount) error
 
 func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	specExp := regexp.MustCompile(`^` + rxSource + destRegex + rxMode + `$`)
-	match := specExp.FindStringSubmatch(strings.ToLower(raw))
+	match := specExp.FindStringSubmatch(raw)
 
 	// Must have something back
 	if len(match) == 0 {
@@ -91,7 +91,7 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 	matchgroups := make(map[string]string)
 	// Pull out the sub expressions from the named capture groups
 	for i, name := range specExp.SubexpNames() {
-		matchgroups[name] = strings.ToLower(match[i])
+		matchgroups[name] = match[i]
 	}
 	if source, exists := matchgroups["source"]; exists {
 		if source != "" {
@@ -108,20 +108,19 @@ func windowsSplitRawSpec(raw, destRegex string) ([]string, error) {
 			split = append(split, mode)
 		}
 	}
+
+	reservedNameExp := regexp.MustCompile(`^` + rxReservedNames + `$`)
+	if reservedNameExp.MatchString(strings.ToLower(matchgroups["source"])) {
+		return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["source"])
+	}
+
 	// Fix #26329. If the destination appears to be a file, and the source is null,
 	// it may be because we've fallen through the possible naming regex and hit a
 	// situation where the user intention was to map a file into a container through
 	// a local volume, but this is not supported by the platform.
 	if matchgroups["source"] == "" && matchgroups["destination"] != "" {
 		volExp := regexp.MustCompile(`^` + rxName + `$`)
-		reservedNameExp := regexp.MustCompile(`^` + rxReservedNames + `$`)
-
-		if volExp.MatchString(matchgroups["destination"]) {
-			if reservedNameExp.MatchString(matchgroups["destination"]) {
-				return nil, fmt.Errorf("volume name %q cannot be a reserved word for Windows filenames", matchgroups["destination"])
-			}
-		} else {
-
+		if !volExp.MatchString(matchgroups["destination"]) {
 			exists, isDir, _ := currentFileInfoProvider.fileInfo(matchgroups["destination"])
 			if exists && !isDir {
 				return nil, fmt.Errorf("file '%s' cannot be mapped. Only directories can be mapped on this platform", matchgroups["destination"])
@@ -151,7 +150,7 @@ var windowsSpecificValidators mountValidator = func(mnt *mount.Mount) error {
 }
 
 func windowsValidateRegex(p, r string) error {
-	if regexp.MustCompile(`^` + r + `$`).MatchString(strings.ToLower(p)) {
+	if regexp.MustCompile(`^` + r + `$`).MatchString(p) {
 		return nil
 	}
 	return fmt.Errorf("invalid mount path: '%s'", p)
