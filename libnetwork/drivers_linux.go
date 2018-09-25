@@ -20,9 +20,5 @@ func getInitializers(experimental bool) []initializer {
 		{overlay.Init, "overlay"},
 		{remote.Init, "remote"},
 	}
-
-	if experimental {
-		in = append(in, additionalDrivers()...)
-	}
 	return in
 }
