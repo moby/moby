@@ -25,9 +25,6 @@ StartLimitBurst=3
 # this option work for either version of systemd.
 StartLimitInterval=60s
 
-# /opt/containerd/bin is in front so dockerd grabs the correct runc binary
-Environment="PATH=/opt/containerd/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
-
 # Having non-zero Limit*s causes performance problems due to accounting overhead
 # in the kernel. We recommend using cgroups to do container-local accounting.
 LimitNOFILE=infinity
