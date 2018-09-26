@@ -158,7 +158,7 @@ func (config *Config) DebugGCS() {
 		logrus.Debugln("benign failure getting gcs logs: ", err)
 	}
 	if proc != nil {
-		proc.WaitTimeout(time.Duration(int(time.Second) * 30))
+		proc.WaitTimeout(time.Second * 30)
 	}
 	logrus.Debugf("GCS Debugging:\n%s\n\nEnd GCS Debugging", strings.TrimSpace(out.String()))
 }

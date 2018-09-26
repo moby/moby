@@ -97,7 +97,7 @@ func (config *Config) CreateExt4Vhdx(destFile string, sizeGB uint32, cacheFile s
 		return fmt.Errorf("failed to `%s` following hot-add %s to utility VM: %s", testdCommand, destFile, err)
 	}
 	defer testdProc.Close()
-	testdProc.WaitTimeout(time.Duration(int(time.Second) * config.UvmTimeoutSeconds))
+	testdProc.WaitTimeout(time.Second * time.Duration(config.UvmTimeoutSeconds))
 	testdExitCode, err := testdProc.ExitCode()
 	if err != nil {
 		config.dismount(destFile)
@@ -117,7 +117,7 @@ func (config *Config) CreateExt4Vhdx(destFile string, sizeGB uint32, cacheFile s
 		return fmt.Errorf("failed to `%s` following hot-add %s to utility VM: %s", lsCommand, destFile, err)
 	}
 	defer lsProc.Close()
-	lsProc.WaitTimeout(time.Duration(int(time.Second) * config.UvmTimeoutSeconds))
+	lsProc.WaitTimeout(time.Second * time.Duration(config.UvmTimeoutSeconds))
 	lsExitCode, err := lsProc.ExitCode()
 	if err != nil {
 		config.dismount(destFile)
@@ -139,7 +139,7 @@ func (config *Config) CreateExt4Vhdx(destFile string, sizeGB uint32, cacheFile s
 		return fmt.Errorf("failed to RunProcess %q following hot-add %s to utility VM: %s", destFile, mkfsCommand, err)
 	}
 	defer mkfsProc.Close()
-	mkfsProc.WaitTimeout(time.Duration(int(time.Second) * config.UvmTimeoutSeconds))
+	mkfsProc.WaitTimeout(time.Second * time.Duration(config.UvmTimeoutSeconds))
 	mkfsExitCode, err := mkfsProc.ExitCode()
 	if err != nil {
 		config.dismount(destFile)
