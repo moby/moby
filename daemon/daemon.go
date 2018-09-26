@@ -37,7 +37,6 @@ import (
 	"github.com/docker/docker/daemon/exec"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/daemon/logger"
-	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/resolver"
@@ -570,14 +569,14 @@ func (daemon *Daemon) parents(c *container.Container) map[string]*container.Cont
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
-	if !names.RestrictedNamePattern.MatchString(strings.TrimPrefix(alias, "/")) {
-		return errdefs.InvalidParameter(errors.Errorf("Invalid link alias name (%s), only %s are allowed", alias, names.RestrictedNameChars))
+	if len(strings.Fields(alias)) > 1 {
+		return errdefs.InvalidParameter(errors.Errorf("Invalid link alias name (%s), can't contain white spaces", alias))
 	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
 		if err == container.ErrNameReserved {
 			logrus.Warnf("error registering link for %s, to %s, as alias %s, ignoring: %v", parent.ID, child.ID, alias, err)
-			return err
+			return nil
 		}
 		return err
 	}
