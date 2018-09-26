@@ -364,6 +364,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		ReadonlyRootfs: c.spec().ReadOnly,
 		Isolation:      c.isolation(),
 		Init:           c.init(),
+		Sysctls:        c.spec().Sysctls,
 	}
 
 	if c.spec().DNSConfig != nil {

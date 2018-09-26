@@ -159,6 +159,14 @@ func ServiceWithEndpoint(endpoint *swarmtypes.EndpointSpec) ServiceSpecOpt {
 	}
 }
 
+// ServiceWithSysctls sets the Sysctls option of the service's ContainerSpec.
+func ServiceWithSysctls(sysctls map[string]string) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Sysctls = sysctls
+	}
+}
+
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmtypes.Task {
 	t.Helper()

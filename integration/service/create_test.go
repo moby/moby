@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -17,6 +18,7 @@ import (
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 func TestServiceCreateInit(t *testing.T) {
@@ -307,6 +309,101 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	err = client.ConfigRemove(ctx, configName)
 	assert.NilError(t, err)
+}
+
+// TestServiceCreateSysctls tests that a service created with sysctl options in
+// the ContainerSpec correctly applies those options.
+//
+// To test this, we're going to create a service with the sysctl option
+//
+//   {"net.ipv4.ip_nonlocal_bind": "0"}
+//
+// We'll get the service's tasks to get the container ID, and then we'll
+// inspect the container. If the output of the container inspect contains the
+// sysctl option with the correct value, we can assume that the sysctl has been
+// plumbed correctly.
+//
+// Next, we'll remove that service and create a new service with that option
+// set to 1. This means that no matter what the default is, we can be confident
+// that the sysctl option is applying as intended.
+//
+// Additionally, we'll do service and task inspects to verify that the inspect
+// output includes the desired sysctl option.
+//
+// We're using net.ipv4.ip_nonlocal_bind because it's something that I'm fairly
+// confident won't be modified by the container runtime, and won't blow
+// anything up in the test environment
+func TestCreateServiceSysctls(t *testing.T) {
+	skip.If(
+		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"),
+		"setting service sysctls is unsupported before api v1.39",
+	)
+
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+
+	ctx := context.Background()
+
+	// run thie block twice, so that no matter what the default value of
+	// net.ipv4.ip_nonlocal_bind is, we can verify that setting the sysctl
+	// options works
+	for _, expected := range []string{"0", "1"} {
+
+		// store the map we're going to be using everywhere.
+		expectedSysctls := map[string]string{"net.ipv4.ip_nonlocal_bind": expected}
+
+		// Create the service with the sysctl options
+		var instances uint64 = 1
+		serviceID := swarm.CreateService(t, d,
+			swarm.ServiceWithSysctls(expectedSysctls),
+		)
+
+		// wait for the service to converge to 1 running task as expected
+		poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances))
+
+		// we're going to check 3 things:
+		//
+		//   1. Does the container, when inspected, have the sysctl option set?
+		//   2. Does the task have the sysctl in the spec?
+		//   3. Does the service have the sysctl in the spec?
+		//
+		// if all 3 of these things are true, we know that the sysctl has been
+		// plumbed correctly through the engine.
+		//
+		// We don't actually have to get inside the container and check its
+		// logs or anything. If we see the sysctl set on the container inspect,
+		// we know that the sysctl is plumbed correctly. everything below that
+		// level has been tested elsewhere. (thanks @thaJeztah, because an
+		// earlier version of this test had to get container logs and was much
+		// more complex)
+
+		// get all of the tasks of the service, so we can get the container
+		filter := filters.NewArgs()
+		filter.Add("service", serviceID)
+		tasks, err := client.TaskList(ctx, types.TaskListOptions{
+			Filters: filter,
+		})
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(len(tasks), 1))
+
+		// verify that the container has the sysctl option set
+		ctnr, err := client.ContainerInspect(ctx, tasks[0].Status.ContainerStatus.ContainerID)
+		assert.NilError(t, err)
+		assert.DeepEqual(t, ctnr.HostConfig.Sysctls, expectedSysctls)
+
+		// verify that the task has the sysctl option set in the task object
+		assert.DeepEqual(t, tasks[0].Spec.ContainerSpec.Sysctls, expectedSysctls)
+
+		// verify that the service also has the sysctl set in the spec.
+		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
+		assert.NilError(t, err)
+		assert.DeepEqual(t,
+			service.Spec.TaskTemplate.ContainerSpec.Sysctls, expectedSysctls,
+		)
+	}
 }
 
 func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
