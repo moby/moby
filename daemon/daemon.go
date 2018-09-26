@@ -770,8 +770,8 @@ func (daemon *Daemon) restartSwarmContainers(ctx context.Context, cfg *configSto
 }
 
 func (daemon *Daemon) registerLink(parent, child *container.Container, alias string) error {
-	if !names.RestrictedNamePattern.MatchString(strings.TrimPrefix(alias, "/")) {
-		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("Invalid link alias name (%s), only %s are allowed", alias, names.RestrictedNameChars))
+	if len(strings.Fields(alias)) > 1 {
+		return cerrdefs.ErrInvalidArgument.WithMessage(fmt.Sprintf("Invalid link alias name (%s), can't contain white spaces", alias))
 	}
 	fullName := path.Join(parent.Name, alias)
 	if err := daemon.containersReplica.ReserveName(fullName, child.ID); err != nil {
