@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	grpcPipeName  = `\\.\pipe\docker-containerd-containerd`
-	debugPipeName = `\\.\pipe\docker-containerd-debug`
+	grpcPipeName  = `\\.\pipe\containerd-containerd`
+	debugPipeName = `\\.\pipe\containerd-debug`
 )
 
 func (r *remote) setDefaults() {

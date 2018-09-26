@@ -44,6 +44,8 @@ import (
 	"gotest.tools/icmd"
 )
 
+const containerdSocket = "/var/run/docker/containerd/containerd.sock"
+
 // TestLegacyDaemonCommand test starting docker daemon using "deprecated" docker daemon
 // command. Remove this test when we remove this.
 func (s *DockerDaemonSuite) TestLegacyDaemonCommand(c *check.C) {
@@ -1449,7 +1451,7 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 	c.Assert(d.Kill(), check.IsNil)
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
 		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", id).Assert(c, icmd.Success)
 
 	// restart daemon.
@@ -1971,7 +1973,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithKilledRunningContainer(t *check
 	}
 
 	// kill the container
-	icmd.RunCommand(ctrBinary, "--address", "/var/run/docker/containerd/docker-containerd.sock",
+	icmd.RunCommand(ctrBinary, "--address", containerdSocket,
 		"--namespace", moby_daemon.ContainersNamespace, "tasks", "kill", cid).Assert(t, icmd.Success)
 
 	// Give time to containerd to process the command if we don't
@@ -2074,7 +2076,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithUnpausedRunningContainer(t *che
 	// resume the container
 	result := icmd.RunCommand(
 		ctrBinary,
-		"--address", "/var/run/docker/containerd/docker-containerd.sock",
+		"--address", containerdSocket,
 		"--namespace", moby_daemon.ContainersNamespace,
 		"tasks", "resume", cid)
 	result.Assert(t, icmd.Success)
@@ -2409,7 +2411,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 {
     "runtimes": {
         "oci": {
-            "path": "docker-runc"
+            "path": "runc"
         },
         "vm": {
             "path": "/usr/local/bin/vm-manager",
@@ -2491,7 +2493,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
     "default-runtime": "vm",
     "runtimes": {
         "oci": {
-            "path": "docker-runc"
+            "path": "runc"
         },
         "vm": {
             "path": "/usr/local/bin/vm-manager",
@@ -2517,7 +2519,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
-	s.d.StartWithBusybox(c, "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	s.d.StartWithBusybox(c, "--add-runtime", "oci=runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 
 	// Run with default runtime
 	out, err := s.d.Cmd("run", "--rm", "busybox", "ls")
@@ -2564,7 +2566,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromCommandLine(c *check.C) {
 
 	// Check that we can select a default runtime
 	s.d.Stop(c)
-	s.d.StartWithBusybox(c, "--default-runtime=vm", "--add-runtime", "oci=docker-runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
+	s.d.StartWithBusybox(c, "--default-runtime=vm", "--add-runtime", "oci=runc", "--add-runtime", "vm=/usr/local/bin/vm-manager")
 
 	out, err = s.d.Cmd("run", "--rm", "busybox", "ls")
 	c.Assert(err, check.NotNil, check.Commentf("%s", out))

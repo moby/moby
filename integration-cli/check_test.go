@@ -32,7 +32,7 @@ const (
 	privateRegistryURL = registry.DefaultURL
 
 	// path to containerd's ctr binary
-	ctrBinary = "docker-containerd-ctr"
+	ctrBinary = "ctr"
 
 	// the docker daemon binary to use
 	dockerdBinary = "dockerd"
