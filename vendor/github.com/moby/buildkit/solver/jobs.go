@@ -3,6 +3,7 @@ package solver
 import (
 	"context"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -560,14 +561,13 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBased
 		key, err := f(ctx, res)
 		complete := true
 		if err != nil {
-			canceled := false
 			select {
 			case <-ctx.Done():
-				canceled = true
+				if strings.Contains(err.Error(), context.Canceled.Error()) {
+					complete = false
+					err = errors.Wrap(ctx.Err(), err.Error())
+				}
 			default:
-			}
-			if canceled && errors.Cause(err) == context.Canceled {
-				complete = false
 			}
 		}
 		s.slowMu.Lock()
@@ -615,14 +615,13 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (*cacheMapResp, erro
 		res, done, err := op.CacheMap(ctx, len(s.cacheRes))
 		complete := true
 		if err != nil {
-			canceled := false
 			select {
 			case <-ctx.Done():
-				canceled = true
+				if strings.Contains(err.Error(), context.Canceled.Error()) {
+					complete = false
+					err = errors.Wrap(ctx.Err(), err.Error())
+				}
 			default:
-			}
-			if canceled && errors.Cause(err) == context.Canceled {
-				complete = false
 			}
 		}
 		if complete {
@@ -669,14 +668,13 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 		res, err := op.Exec(ctx, inputs)
 		complete := true
 		if err != nil {
-			canceled := false
 			select {
 			case <-ctx.Done():
-				canceled = true
+				if strings.Contains(err.Error(), context.Canceled.Error()) {
+					complete = false
+					err = errors.Wrap(ctx.Err(), err.Error())
+				}
 			default:
-			}
-			if canceled && errors.Cause(err) == context.Canceled {
-				complete = false
 			}
 		}
 		if complete {

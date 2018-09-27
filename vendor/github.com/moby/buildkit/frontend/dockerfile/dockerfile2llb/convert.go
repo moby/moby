@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -34,7 +35,7 @@ const (
 	localNameContext = "context"
 	historyComment   = "buildkit.dockerfile.v0"
 
-	DefaultCopyImage = "tonistiigi/copy:v0.1.4@sha256:d9d49bedbbe2b27df88115e6aff7b9cd11ed2fbd8d9013f02d3da735c08c92e5"
+	DefaultCopyImage = "tonistiigi/copy:v0.1.5@sha256:eab89b76ffbb3c807663a67a41e8be31b8a0e362d7fb074a55bddace563a28bb"
 )
 
 type ConvertOpt struct {
@@ -57,6 +58,7 @@ type ConvertOpt struct {
 	ExtraHosts        []llb.HostIP
 	ForceNetMode      pb.NetMode
 	OverrideCopyImage string
+	LLBCaps           *apicaps.CapSet
 }
 
 func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State, *Image, error) {
@@ -368,7 +370,13 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	}
 	buildContext.Output = bc.Output()
 
-	st := target.state.SetMarshalDefaults(llb.Platform(platformOpt.targetPlatform))
+	defaults := []llb.ConstraintsOpt{
+		llb.Platform(platformOpt.targetPlatform),
+	}
+	if opt.LLBCaps != nil {
+		defaults = append(defaults, llb.WithCaps(*opt.LLBCaps))
+	}
+	st := target.state.SetMarshalDefaults(defaults...)
 
 	if !platformOpt.implicitTarget {
 		target.image.OS = platformOpt.targetPlatform.OS
