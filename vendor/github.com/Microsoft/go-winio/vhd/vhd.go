@@ -7,6 +7,8 @@ import "syscall"
 //go:generate go run mksyscall_windows.go -output zvhd.go vhd.go
 
 //sys createVirtualDisk(virtualStorageType *virtualStorageType, path string, virtualDiskAccessMask uint32, securityDescriptor *uintptr, flags uint32, providerSpecificFlags uint32, parameters *createVirtualDiskParameters, o *syscall.Overlapped, handle *syscall.Handle) (err error) [failretval != 0] = VirtDisk.CreateVirtualDisk
+//sys openVirtualDisk(virtualStorageType *virtualStorageType, path string, virtualDiskAccessMask uint32, flags uint32, parameters *uintptr, handle *syscall.Handle) (err error) [failretval != 0] = VirtDisk.OpenVirtualDisk
+//sys detachVirtualDisk(handle syscall.Handle, flags uint32, providerSpecificFlags uint32) (err error) [failretval != 0] = VirtDisk.DetachVirtualDisk
 
 type virtualStorageType struct {
 	DeviceID uint32
@@ -78,5 +80,29 @@ func CreateVhdx(path string, maxSizeInGb, blockSizeInMb uint32) error {
 		return err
 	}
 
+	return nil
+}
+
+// DetachVhd detaches a VHD attached at the given path.
+func DetachVhd(path string) error {
+	var (
+		defaultType virtualStorageType
+		handle      syscall.Handle
+	)
+
+	if err := openVirtualDisk(
+		&defaultType,
+		path,
+		virtualDiskAccessDETACH,
+		0,
+		nil,
+		&handle); err != nil {
+		return err
+	}
+	defer syscall.CloseHandle(handle)
+
+	if err := detachVirtualDisk(handle, 0, 0); err != nil {
+		return err
+	}
 	return nil
 }

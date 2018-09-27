@@ -37,6 +37,8 @@ type Image interface {
 	Name() string
 	// Target descriptor for the image content
 	Target() ocispec.Descriptor
+	// Labels of the image
+	Labels() map[string]string
 	// Unpack unpacks the image's content into a snapshot
 	Unpack(context.Context, string) error
 	// RootFS returns the unpacked diffids that make up images rootfs.
@@ -84,6 +86,10 @@ func (i *image) Name() string {
 
 func (i *image) Target() ocispec.Descriptor {
 	return i.i.Target
+}
+
+func (i *image) Labels() map[string]string {
+	return i.i.Labels
 }
 
 func (i *image) RootFS(ctx context.Context) ([]digest.Digest, error) {

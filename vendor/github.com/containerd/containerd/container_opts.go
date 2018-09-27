@@ -76,6 +76,23 @@ func WithContainerLabels(labels map[string]string) NewContainerOpts {
 	}
 }
 
+// WithImageStopSignal sets a well-known containerd label (StopSignalLabel)
+// on the container for storing the stop signal specified in the OCI image
+// config
+func WithImageStopSignal(image Image, defaultSignal string) NewContainerOpts {
+	return func(ctx context.Context, _ *Client, c *containers.Container) error {
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
+		}
+		stopSignal, err := GetOCIStopSignal(ctx, image, defaultSignal)
+		if err != nil {
+			return err
+		}
+		c.Labels[StopSignalLabel] = stopSignal
+		return nil
+	}
+}
+
 // WithSnapshotter sets the provided snapshotter for use by the container
 //
 // This option must appear before other snapshotter options to have an effect.

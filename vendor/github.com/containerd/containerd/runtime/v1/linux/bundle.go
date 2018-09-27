@@ -46,6 +46,9 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 		return nil, err
 	}
 	path = filepath.Join(path, id)
+	if err := os.Mkdir(path, 0711); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if err != nil {
 			os.RemoveAll(path)
@@ -60,10 +63,6 @@ func newBundle(id, path, workDir string, spec []byte) (b *bundle, err error) {
 			os.RemoveAll(workDir)
 		}
 	}()
-
-	if err := os.Mkdir(path, 0711); err != nil {
-		return nil, err
-	}
 	if err := os.Mkdir(filepath.Join(path, "rootfs"), 0711); err != nil {
 		return nil, err
 	}

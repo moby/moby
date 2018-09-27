@@ -654,6 +654,10 @@ func WithUsername(username string) SpecOpts {
 // The passed in user can be either a uid or a username.
 func WithAdditionalGIDs(userstr string) SpecOpts {
 	return func(ctx context.Context, client Client, c *containers.Container, s *Spec) (err error) {
+		// For LCOW additional GID's not supported
+		if s.Windows != nil {
+			return nil
+		}
 		setProcess(s)
 		setAdditionalGids := func(root string) error {
 			var username string
@@ -1011,3 +1015,14 @@ var WithPrivileged = Compose(
 	WithApparmorProfile(""),
 	WithSeccompUnconfined,
 )
+
+// WithWindowsHyperV sets the Windows.HyperV section for HyperV isolation of containers.
+func WithWindowsHyperV(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	if s.Windows == nil {
+		s.Windows = &specs.Windows{}
+	}
+	if s.Windows.HyperV == nil {
+		s.Windows.HyperV = &specs.WindowsHyperV{}
+	}
+	return nil
+}
