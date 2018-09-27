@@ -1336,7 +1336,7 @@ func TestSanitizeLocation(t *testing.T) {
 			expected:    "http://blahalaja.com/v2/foo/baasdf?_state=asdfasfdasdfasdf&digest=foo",
 		},
 		{
-			description: "ensure new hostname overidden",
+			description: "ensure new hostname overridden",
 			location:    "https://mwhahaha.com/v2/foo/baasdf?_state=asdfasfdasdfasdf",
 			source:      "http://blahalaja.com/v1",
 			expected:    "https://mwhahaha.com/v2/foo/baasdf?_state=asdfasfdasdfasdf",
