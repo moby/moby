@@ -220,7 +220,7 @@ func allocate(t *testing.T, tctx *testContext, parallel int64) {
 
 	assert.Check(t, is.Len(tctx.ipList, tctx.maxIP))
 	if len(tctx.ipList) != tctx.maxIP {
-		t.Fatal("missmatch number allocation")
+		t.Fatal("mismatch number allocation")
 	}
 }
 
