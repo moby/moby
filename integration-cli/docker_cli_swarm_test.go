@@ -1731,7 +1731,7 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 	out, err = d.Cmd("network", "rm", n2.ID)
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
-	// Dupliates with name but with different driver
+	// Duplicates with name but with different driver
 	options.Driver = "overlay"
 
 	n2, err = cli.NetworkCreate(context.Background(), name, options)
