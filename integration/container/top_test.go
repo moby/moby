@@ -35,34 +35,48 @@ func TestContainerTop(t *testing.T) {
 			numProc:   1,
 		},
 		{
-			opts:      []string{"-o", "cmd"},
+			opts:      []string{"-o", "pid,cmd"},
 			expectErr: false,
 			numProc:   1,
 		},
 		{
-			opts:      []string{"-ocmd"},
+			opts:      []string{"-opid,cmd"},
 			expectErr: false,
 			numProc:   1,
 		},
 		{
-			opts:      []string{"ocmd"},
+			opts:      []string{"opid,cmd"},
 			expectErr: false,
 			numProc:   1,
 		},
 		{
-			opts:      []string{"o cmd"},
+			opts:      []string{"eopid,cmd"},
 			expectErr: false,
 			numProc:   1,
 		},
 		{
-			opts:      []string{"--format", "cmd"},
+			opts:      []string{"-Csleep", "eopid,cmd,cgroup", "--sort=pid"},
+			expectErr: false,
+			numProc:   1,
+		},
+		{
+			opts:      []string{"o pid,cmd"},
+			expectErr: false,
+			numProc:   1,
+		},
+		{
+			opts:      []string{"--format", "pid,cmd"},
+			expectErr: false,
+			numProc:   1,
+		},
+		{
+			opts:      []string{"-o", "pid,cmd", "oargs,uid", "--format", "%cpu"},
 			expectErr: false,
 			numProc:   1,
 		},
 		{
 			opts:      []string{"-C", "sleep", "-o", "cmd"},
-			expectErr: false,
-			numProc:   1,
+			expectErr: true,
 		},
 		{
 			opts:      []string{"-C", "sleep", "-o", "pid,cmd"},
@@ -75,32 +89,31 @@ func TestContainerTop(t *testing.T) {
 			numProc:   1,
 		},
 		{
-			opts:      []string{"-ouid=PID,cmd"},
-			expectErr: false,
-			numProc:   1,
-		},
-		{
-			opts:      []string{"efocmd"},
-			expectErr: false,
-		},
-		{
-			opts:      []string{"-A", "efocmd"},
-			expectErr: false,
-			numProc:   1,
-		},
-		{
-			opts:      []string{"-C", "sleep", "eocmd"},
-			expectErr: false,
-			numProc:   1,
-		},
-		{
-			opts:      []string{"-U", "efocmd"},
+			opts:      []string{"-o uid=PID,cmd"},
 			expectErr: true,
 		},
 		{
 			opts:      []string{"axf"},
 			expectErr: false,
 			numProc:   1,
+		},
+		{
+			opts:      []string{"--no-headers"},
+			expectErr: true,
+		},
+		{
+			opts:      []string{"aux", "--sort=comm"},
+			expectErr: false,
+			numProc:   1,
+		},
+		{
+			opts:      []string{"aux", "--sort", "pid"},
+			expectErr: false,
+			numProc:   1,
+		},
+		{
+			opts:      []string{"aux", "--sort", "pid", "--noheader"},
+			expectErr: true,
 		},
 		{
 			opts:      []string{"-o"},
