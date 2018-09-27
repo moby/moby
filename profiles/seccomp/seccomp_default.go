@@ -322,7 +322,6 @@ func DefaultProfile() *types.Seccomp {
 				"sync_file_range",
 				"syncfs",
 				"sysinfo",
-				"syslog",
 				"tee",
 				"tgkill",
 				"time",
@@ -492,6 +491,7 @@ func DefaultProfile() *types.Seccomp {
 				"setdomainname",
 				"sethostname",
 				"setns",
+				"syslog",
 				"umount",
 				"umount2",
 				"unshare",
@@ -640,6 +640,16 @@ func DefaultProfile() *types.Seccomp {
 			Args:   []*types.Arg{},
 			Includes: types.Filter{
 				Caps: []string{"CAP_SYS_NICE"},
+			},
+		},
+		{
+			Names: []string{
+				"syslog",
+			},
+			Action: types.ActAllow,
+			Args:   []*types.Arg{},
+			Includes: types.Filter{
+				Caps: []string{"CAP_SYSLOG"},
 			},
 		},
 	}
