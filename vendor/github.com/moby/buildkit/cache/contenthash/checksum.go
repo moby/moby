@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/pkg/locker"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
@@ -400,7 +399,11 @@ func (cc *cacheContext) commitActiveTransaction() {
 
 func (cc *cacheContext) lazyChecksum(ctx context.Context, m *mount, p string) (*CacheRecord, error) {
 	root := cc.tree.Root()
-	if cc.needsScan(root, p) {
+	scan, err := cc.needsScan(root, p)
+	if err != nil {
+		return nil, err
+	}
+	if scan {
 		if err := cc.scanPath(ctx, m, p); err != nil {
 			return nil, err
 		}
@@ -418,13 +421,13 @@ func (cc *cacheContext) lazyChecksum(ctx context.Context, m *mount, p string) (*
 }
 
 func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *iradix.Txn, m *mount, k []byte) (*CacheRecord, bool, error) {
-	v, ok := root.Get(k)
-
-	if !ok {
+	k, cr, err := getFollowLinks(root, k)
+	if err != nil {
+		return nil, false, err
+	}
+	if cr == nil {
 		return nil, false, errors.Wrapf(errNotFound, "%s not found", convertKeyToPath(k))
 	}
-	cr := v.(*CacheRecord)
-
 	if cr.Digest != "" {
 		return cr, false, nil
 	}
@@ -491,17 +494,37 @@ func (cc *cacheContext) checksum(ctx context.Context, root *iradix.Node, txn *ir
 	return cr2, true, nil
 }
 
-func (cc *cacheContext) needsScan(root *iradix.Node, p string) bool {
+// needsScan returns false if path is in the tree or a parent path is in tree
+// and subpath is missing
+func (cc *cacheContext) needsScan(root *iradix.Node, p string) (bool, error) {
+	var linksWalked int
+	return cc.needsScanFollow(root, p, &linksWalked)
+}
+
+func (cc *cacheContext) needsScanFollow(root *iradix.Node, p string, linksWalked *int) (bool, error) {
 	if p == "/" {
 		p = ""
 	}
-	if _, ok := root.Get(convertPathToKey([]byte(p))); !ok {
+	if v, ok := root.Get(convertPathToKey([]byte(p))); !ok {
 		if p == "" {
-			return true
+			return true, nil
 		}
-		return cc.needsScan(root, path.Clean(path.Dir(p)))
+		return cc.needsScanFollow(root, path.Clean(path.Dir(p)), linksWalked)
+	} else {
+		cr := v.(*CacheRecord)
+		if cr.Type == CacheRecordTypeSymlink {
+			if *linksWalked > 255 {
+				return false, errTooManyLinks
+			}
+			*linksWalked++
+			link := path.Clean(cr.Linkname)
+			if !path.IsAbs(cr.Linkname) {
+				link = path.Join("/", path.Dir(p), link)
+			}
+			return cc.needsScanFollow(root, link, linksWalked)
+		}
 	}
-	return false
+	return false, nil
 }
 
 func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retErr error) {
@@ -513,13 +536,22 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 		return err
 	}
 
-	parentPath, err := fs.RootPath(mp, filepath.FromSlash(d))
+	n := cc.tree.Root()
+	txn := cc.tree.Txn()
+
+	parentPath, err := rootPath(mp, filepath.FromSlash(d), func(p, link string) error {
+		cr := &CacheRecord{
+			Type:     CacheRecordTypeSymlink,
+			Linkname: filepath.ToSlash(link),
+		}
+		k := []byte(filepath.Join("/", filepath.ToSlash(p)))
+		k = convertPathToKey(k)
+		txn.Insert(k, cr)
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-
-	n := cc.tree.Root()
-	txn := cc.tree.Txn()
 
 	err = filepath.Walk(parentPath, func(path string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -564,6 +596,45 @@ func (cc *cacheContext) scanPath(ctx context.Context, m *mount, p string) (retEr
 
 	cc.tree = txn.Commit()
 	return nil
+}
+
+func getFollowLinks(root *iradix.Node, k []byte) ([]byte, *CacheRecord, error) {
+	var linksWalked int
+	return getFollowLinksWalk(root, k, &linksWalked)
+}
+
+func getFollowLinksWalk(root *iradix.Node, k []byte, linksWalked *int) ([]byte, *CacheRecord, error) {
+	v, ok := root.Get(k)
+	if ok {
+		return k, v.(*CacheRecord), nil
+	}
+	if len(k) == 0 {
+		return nil, nil, nil
+	}
+
+	dir, file := splitKey(k)
+
+	_, parent, err := getFollowLinksWalk(root, dir, linksWalked)
+	if err != nil {
+		return nil, nil, err
+	}
+	if parent != nil && parent.Type == CacheRecordTypeSymlink {
+		*linksWalked++
+		if *linksWalked > 255 {
+			return nil, nil, errors.Errorf("too many links")
+		}
+		dirPath := path.Clean(string(convertKeyToPath(dir)))
+		if dirPath == "." || dirPath == "/" {
+			dirPath = ""
+		}
+		link := parent.Linkname
+		if !path.IsAbs(link) {
+			link = path.Join("/", path.Join(path.Dir(dirPath), link))
+		}
+		return getFollowLinksWalk(root, append(convertPathToKey([]byte(link)), file...), linksWalked)
+	}
+
+	return nil, nil, nil
 }
 
 func prepareDigest(fp, p string, fi os.FileInfo) (digest.Digest, error) {
@@ -631,4 +702,19 @@ func convertPathToKey(p []byte) []byte {
 
 func convertKeyToPath(p []byte) []byte {
 	return bytes.Replace([]byte(p), []byte{0}, []byte("/"), -1)
+}
+
+func splitKey(k []byte) ([]byte, []byte) {
+	foundBytes := false
+	i := len(k) - 1
+	for {
+		if i <= 0 || foundBytes && k[i] == 0 {
+			break
+		}
+		if k[i] != 0 {
+			foundBytes = true
+		}
+		i--
+	}
+	return append([]byte{}, k[:i]...), k[i:]
 }

@@ -8,8 +8,10 @@ import (
 	clienttypes "github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway/client"
+	gwpb "github.com/moby/buildkit/frontend/gateway/pb"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
+	opspb "github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
@@ -79,6 +81,8 @@ func (c *bridgeClient) BuildOpts() client.BuildOpts {
 		SessionID: c.sid,
 		Workers:   workers,
 		Product:   apicaps.ExportedProduct,
+		Caps:      gwpb.Caps.CapSet(gwpb.Caps.All()),
+		LLBCaps:   opspb.Caps.CapSet(opspb.Caps.All()),
 	}
 }
 

@@ -329,19 +329,9 @@ func (c *grpcClient) BuildOpts() client.BuildOpts {
 		SessionID: c.sessionID,
 		Workers:   c.workers,
 		Product:   c.product,
+		LLBCaps:   c.llbCaps,
+		Caps:      c.caps,
 	}
-}
-
-func (c *grpcClient) Opts() map[string]string {
-	return c.opts
-}
-
-func (c *grpcClient) SessionID() string {
-	return c.sessionID
-}
-
-func (c *grpcClient) WorkerInfos() []client.WorkerInfo {
-	return c.workers
 }
 
 type reference struct {
