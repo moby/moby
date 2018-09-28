@@ -1759,7 +1759,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 					Target: destPath}}},
 			msg: "source path does not exist",
 			// FIXME(vdemeester) fails into e2e, migrate to integration/container anyway
-			// msg: "bind mount source path does not exist: " + notExistPath,
+			// msg: "source path does not exist: " + notExistPath,
 		},
 		{
 			config: containertypes.Config{
