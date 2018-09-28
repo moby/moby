@@ -17,7 +17,7 @@ func (e *errMountConfig) Error() string {
 }
 
 func errBindSourceDoesNotExist(path string) error {
-	return errors.Errorf("bind mount source path does not exist: %s", path)
+	return errors.Errorf("bind source path does not exist: %s", path)
 }
 
 func errExtraField(name string) error {
