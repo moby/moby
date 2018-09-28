@@ -375,13 +375,17 @@ func (l *logStream) create() error {
 		if l.logCreateGroup {
 			if awsErr, ok := err.(awserr.Error); ok && awsErr.Code() == resourceNotFoundCode {
 				if err := l.createLogGroup(); err != nil {
-					return err
+					return errors.Wrap(err, "failed to create Cloudwatch log group")
 				}
-				return l.createLogStream()
+				err := l.createLogStream()
+				if err != nil {
+					return errors.Wrap(err, "failed to create Cloudwatch log stream")
+				}
+				return nil
 			}
 		}
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to create Cloudwatch log stream")
 		}
 	}
 
