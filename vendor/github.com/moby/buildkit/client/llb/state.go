@@ -411,6 +411,13 @@ func WithoutDefaultExportCache() ConstraintsOpt {
 	})
 }
 
+// WithCaps exposes supported LLB caps to the marshaler
+func WithCaps(caps apicaps.CapSet) ConstraintsOpt {
+	return constraintsOptFunc(func(c *Constraints) {
+		c.Caps = &caps
+	})
+}
+
 type constraintsWrapper struct {
 	Constraints
 }
@@ -424,6 +431,7 @@ type Constraints struct {
 	WorkerConstraints []string
 	Metadata          pb.OpMetadata
 	LocalUniqueID     string
+	Caps              *apicaps.CapSet
 }
 
 func Platform(p specs.Platform) ConstraintsOpt {
