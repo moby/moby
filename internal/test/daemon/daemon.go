@@ -112,12 +112,13 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		}
 	}
 	d := &Daemon{
-		id:              id,
-		Folder:          daemonFolder,
-		Root:            daemonRoot,
-		storageDriver:   storageDriver,
-		userlandProxy:   userlandProxy,
-		execRoot:        filepath.Join(os.TempDir(), "docker-execroot", id),
+		id:            id,
+		Folder:        daemonFolder,
+		Root:          daemonRoot,
+		storageDriver: storageDriver,
+		userlandProxy: userlandProxy,
+		// dxr stands for docker-execroot (shortened for avoiding unix(7) path length limitation)
+		execRoot:        filepath.Join(os.TempDir(), "dxr", id),
 		dockerdBinary:   defaultDockerdBinary,
 		swarmListenAddr: defaultSwarmListenAddr,
 		SwarmPort:       DefaultSwarmPort,
