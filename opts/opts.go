@@ -294,7 +294,11 @@ func ParseLink(val string) (string, string, error) {
 	if strings.HasPrefix(arr[0], "/") {
 		name = arr[0][1:]
 	}
-	_, alias := path.Split(arr[1])
+	// For /test/, we need to clean
+	_, alias := path.Split(path.Clean(arr[1]))
+	if len(alias) == 0 {
+		return "", "", fmt.Errorf("bad format for links: %s", val)
+	}
 	return name, alias, nil
 }
 
