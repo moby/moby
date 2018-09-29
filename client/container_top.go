@@ -14,6 +14,8 @@ func (cli *Client) ContainerTop(ctx context.Context, containerID string, argumen
 	var response container.ContainerTopOKBody
 	query := url.Values{}
 	if len(arguments) > 0 {
+		// TODO: when we agree on which version support this feature,
+		// we need to add a version check to compatible with docker/cli with old api version
 		argsjson, err := json.Marshal(arguments)
 		if err != nil {
 			return response, err

@@ -141,8 +141,7 @@ func psPidsArg(pids []uint32) string {
 func (daemon *Daemon) ContainerTop(name string, psArgsJSON string) (*container.ContainerTopOKBody, error) {
 	var args []string
 	if err := json.Unmarshal([]byte(psArgsJSON), &args); err != nil {
-		// It's just to be compatible with docker/cli before use the latest interface
-		// TODO: when docker/cli use the latest interface, here can return the err
+		// It's just to be compatible with docker/cli with old api version
 		args = fieldsASCII(psArgsJSON)
 	}
 	if len(args) == 0 {
