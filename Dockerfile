@@ -70,17 +70,6 @@ RUN set -x \
 	   esac \
 	&& rm -rf "$GOPATH"
 
-
-
-FROM base AS docker-py
-# Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
-RUN git clone https://github.com/docker/docker-py.git /build \
-	&& cd /build \
-	&& git checkout -q $DOCKER_PY_COMMIT
-
-
-
 FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
@@ -189,14 +178,6 @@ RUN apt-get update && apt-get install -y \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
-	python-backports.ssl-match-hostname \
-	python-dev \
-	python-mock \
-	python-pip \
-	python-requests \
-	python-setuptools \
-	python-websocket \
-	python-wheel \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
@@ -217,15 +198,6 @@ COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
 COPY --from=criu /build/ /usr/local/
-COPY --from=docker-py /build/ /docker-py
-# TODO: This is for the docker-py tests, which shouldn't really be needed for
-# this image, but currently CI is expecting to run this image. This should be
-# split out into a separate image, including all the `python-*` deps installed
-# above.
-RUN cd /docker-py \
-	&& pip install docker-pycreds==0.2.1 \
-	&& pip install yamllint==1.5.0 \
-	&& pip install -r test-requirements.txt
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
