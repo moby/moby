@@ -15,6 +15,7 @@ var (
 		"angry",
 		"awesome",
 		"blissful",
+		"bold",
 		"boring",
 		"brave",
 		"charming",
