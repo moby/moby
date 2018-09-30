@@ -79,7 +79,9 @@ DOCKER_MOUNT := $(DOCKER_MOUNT) $(DOCKER_MOUNT_CACHE) $(DOCKER_MOUNT_CLI) $(DOCK
 
 GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
-DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_BASE_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+DOCKER_TEST_IMAGE := docker-test$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
+
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
 DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
@@ -104,7 +106,8 @@ ifeq ($(INTERACTIVE), 1)
 	DOCKER_FLAGS += -t
 endif
 
-DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
+DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_BASE_IMAGE)"
+DOCKER_RUN_TEST := $(DOCKER_FLAGS) "$(DOCKER_TEST_IMAGE)"
 
 default: binary
 
@@ -119,7 +122,7 @@ dynbinary: build ## build the linux dynbinaries
 
 build: bundles
 	$(warning The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:${\n} DOCKER_CLI_PATH=/host/path/to/cli/binary make shell ${\n} then change the cli and compile into a binary at the same location.${\n})
-	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_BASE_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
@@ -146,25 +149,28 @@ run: build ## run the docker daemon in a container
 shell: build ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
-test: build test-unit ## run the unit, integration and docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary cross test-integration test-docker-py
+test: create-test-image test-unit ## run the unit, integration and docker-py tests
+	$(DOCKER_RUN_TEST) hack/make.sh dynbinary cross test-integration test-docker-py
 
-test-docker-py: build ## run the docker-py tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-docker-py
+test-docker-py: create-test-image## run the docker-py tests
+	$(DOCKER_RUN_TEST) hack/make.sh dynbinary test-docker-py
 
 test-integration-cli: test-integration ## (DEPRECATED) use test-integration
 
-test-integration: build ## run the integration tests
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
+test-integration: create-test-image ## run the integration tests
+	$(DOCKER_RUN_TEST) hack/make.sh dynbinary test-integration
 
-test-unit: build ## run the unit tests
-	$(DOCKER_RUN_DOCKER) hack/test/unit
+test-unit: create-test-image ## run the unit tests
+	$(DOCKER_RUN_TEST) hack/test/unit
 
 validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isolation, golint, tests, tomls, go vet and vendor
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
 win: build ## cross build the binary for windows
 	$(DOCKER_RUN_DOCKER) hack/make.sh win
+
+create-test-image: build ## create from base image for testing purposes
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} --build-arg DOCKER_IMAGE=${DOCKER_BASE_IMAGE} -t "$(DOCKER_TEST_IMAGE)" -f "Dockerfile.test" .
 
 .PHONY: swagger-gen
 swagger-gen:
@@ -187,11 +193,11 @@ build-integration-cli-on-swarm: build ## build images and binary for running int
 	go build -buildmode=pie -o ./hack/integration-cli-on-swarm/integration-cli-on-swarm ./hack/integration-cli-on-swarm/host
 	@echo "Building $(INTEGRATION_CLI_MASTER_IMAGE)"
 	docker build -t $(INTEGRATION_CLI_MASTER_IMAGE) hack/integration-cli-on-swarm/agent
-	@echo "Building $(INTEGRATION_CLI_WORKER_IMAGE) from $(DOCKER_IMAGE)"
+	@echo "Building $(INTEGRATION_CLI_WORKER_IMAGE) from $(DOCKER_BASE_IMAGE)"
 	$(eval tmp := integration-cli-worker-tmp)
 # We mount pkgcache, but not bundle (bundle needs to be baked into the image)
 # For avoiding bakings DOCKER_GRAPHDRIVER and so on to image, we cannot use $(DOCKER_ENVS) here
-	docker run -t -d --name $(tmp) -e DOCKER_GITCOMMIT -e BUILDFLAGS --privileged $(DOCKER_IMAGE) top
+	docker run -t -d --name $(tmp) -e DOCKER_GITCOMMIT -e BUILDFLAGS --privileged $(DOCKER_BASE_IMAGE) top
 	docker exec $(tmp) hack/make.sh build-integration-test-binary dynbinary
 	docker exec $(tmp) go build -buildmode=pie -o /worker github.com/docker/docker/hack/integration-cli-on-swarm/agent/worker
 	docker commit -c 'ENTRYPOINT ["/worker"]' $(tmp) $(INTEGRATION_CLI_WORKER_IMAGE)

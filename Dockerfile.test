@@ -1,0 +1,26 @@
+ARG DOCKER_IMAGE
+
+FROM $DOCKER_IMAGE
+
+ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
+
+## install packages needed for test
+## install python modules for test
+RUN apt-get update && apt-get install -y \
+	python-backports.ssl-match-hostname \
+	python-dev \
+	python-mock \
+	python-pip \
+	python-requests \
+	python-setuptools \
+	python-websocket \
+	python-wheel \
+    --no-install-recommends \
+    && git clone https://github.com/docker/docker-py.git /docker-py \
+	&& cd /docker-py \
+	&& git checkout -q $DOCKER_PY_COMMIT \
+    && pip install docker-pycreds==0.2.1 \
+	&& pip install yamllint==1.5.0 \
+	&& pip install -r test-requirements.txt
+
+WORKDIR /go/src/github.com/docker/docker
