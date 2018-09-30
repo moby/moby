@@ -141,6 +141,14 @@ func ServiceWithReplicas(n uint64) ServiceSpecOpt {
 	}
 }
 
+// ServiceWithMaxReplicas sets the max replicas for the service
+func ServiceWithMaxReplicas(n uint64) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensurePlacement(spec)
+		spec.TaskTemplate.Placement.MaxReplicas = n
+	}
+}
+
 // ServiceWithName sets the name of the service
 func ServiceWithName(name string) ServiceSpecOpt {
 	return func(spec *swarmtypes.ServiceSpec) {
@@ -208,5 +216,11 @@ func ExecTask(t *testing.T, d *daemon.Daemon, task swarmtypes.Task, config types
 func ensureContainerSpec(spec *swarmtypes.ServiceSpec) {
 	if spec.TaskTemplate.ContainerSpec == nil {
 		spec.TaskTemplate.ContainerSpec = &swarmtypes.ContainerSpec{}
+	}
+}
+
+func ensurePlacement(spec *swarmtypes.ServiceSpec) {
+	if spec.TaskTemplate.Placement == nil {
+		spec.TaskTemplate.Placement = &swarmtypes.Placement{}
 	}
 }
