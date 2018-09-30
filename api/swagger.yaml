@@ -2878,6 +2878,11 @@ definitions:
                   SpreadDescriptor: "node.labels.datacenter"
               - Spread:
                   SpreadDescriptor: "node.labels.rack"
+          MaxReplicas:
+            description: "Maximum number of replicas for per node (default value is 0, which is unlimited)"
+            type: "integer"
+            format: "int64"
+            default: 0
           Platforms:
             description: |
               Platforms stores all the platforms that the service's image can
