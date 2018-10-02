@@ -2,18 +2,21 @@ package containerd // import "github.com/docker/docker/plugin/executor/container
 
 import (
 	"context"
+	"fmt"
 	"io"
+	"os"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"sync"
-	"time"
+	"syscall"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
-	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/libcontainerd"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/opencontainers/runtime-spec/specs-go"
-	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -25,153 +28,219 @@ type ExitHandler interface {
 	HandleExitEvent(id string) error
 }
 
-// Client is used by the exector to perform operations.
-// TODO(@cpuguy83): This should really just be based off the containerd client interface.
-// However right now this whole package is tied to github.com/docker/docker/libcontainerd
-type Client interface {
-	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error
-	Restore(ctx context.Context, containerID string, attachStdio libcontainerd.StdioCallback) (alive bool, pid int, err error)
-	Status(ctx context.Context, containerID string) (libcontainerd.Status, error)
-	Delete(ctx context.Context, containerID string) error
-	DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error)
-	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerd.StdioCallback) (pid int, err error)
-	SignalProcess(ctx context.Context, containerID, processID string, signal int) error
-}
-
 // New creates a new containerd plugin executor
-func New(ctx context.Context, rootDir string, cli *containerd.Client, exitHandler ExitHandler) (*Executor, error) {
-	e := &Executor{
-		rootDir:     rootDir,
+func New(ctx context.Context, stateDir string, cli *containerd.Client, exitHandler ExitHandler) (*Executor, error) {
+	return &Executor{
+		stateDir:    stateDir,
 		exitHandler: exitHandler,
-	}
-
-	client, err := libcontainerd.NewClient(ctx, cli, rootDir, PluginNamespace, e)
-	if err != nil {
-		return nil, errors.Wrap(err, "error creating containerd exec client")
-	}
-	e.client = client
-	return e, nil
+		client:      cli,
+	}, nil
 }
 
 // Executor is the containerd client implementation of a plugin executor
 type Executor struct {
-	rootDir     string
-	client      Client
+	mu sync.Mutex
+
+	stateDir    string
+	client      *containerd.Client
 	exitHandler ExitHandler
-}
-
-// deleteTaskAndContainer deletes plugin task and then plugin container from containerd
-func deleteTaskAndContainer(ctx context.Context, cli Client, id string) {
-	_, _, err := cli.DeleteTask(ctx, id)
-	if err != nil && !errdefs.IsNotFound(err) {
-		logrus.WithError(err).WithField("id", id).Error("failed to delete plugin task from containerd")
-	}
-
-	err = cli.Delete(ctx, id)
-	if err != nil && !errdefs.IsNotFound(err) {
-		logrus.WithError(err).WithField("id", id).Error("failed to delete plugin container from containerd")
-	}
 }
 
 // Create creates a new container
 func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
-	opts := runctypes.RuncOptions{
-		RuntimeRoot: filepath.Join(e.rootDir, "runtime-root"),
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	opts := &runctypes.RuncOptions{
+		RuntimeRoot: filepath.Join(e.stateDir, "runtime-root"),
+	}
+	if _, err := prepareBundleDir(filepath.Join(e.stateDir, id), &spec); err != nil {
+		return err
 	}
 	ctx := context.Background()
-	err := e.client.Create(ctx, id, &spec, &opts)
+	container, err := e.client.NewContainer(ctx, id,
+		containerd.WithSpec(&spec),
+		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), opts),
+	)
 	if err != nil {
-		status, err2 := e.client.Status(ctx, id)
-		if err2 != nil {
-			if !errdefs.IsNotFound(err2) {
-				logrus.WithError(err2).WithField("id", id).Warn("Received an error while attempting to read plugin status")
-			}
-		} else {
-			if status != libcontainerd.StatusRunning && status != libcontainerd.StatusUnknown {
-				if err2 := e.client.Delete(ctx, id); err2 != nil && !errdefs.IsNotFound(err2) {
-					logrus.WithError(err2).WithField("plugin", id).Error("Error cleaning up containerd container")
-				}
-				err = e.client.Create(ctx, id, &spec, &opts)
-			}
+		if !errdefs.IsAlreadyExists(errdefs.FromGRPC(err)) {
+			return err
 		}
-
-		if err != nil {
-			return errors.Wrap(err, "error creating containerd container")
+		if container, err = e.client.LoadContainer(ctx, id); err != nil {
+			return err
 		}
 	}
-
-	_, err = e.client.Start(ctx, id, "", false, attachStreamsFunc(stdout, stderr))
+	task, err := container.NewTask(ctx, cio.NewCreator(cio.WithStreams(nil, stdout, stderr)))
 	if err != nil {
-		deleteTaskAndContainer(ctx, e.client, id)
+		container.Delete(ctx)
+		return err
 	}
-	return err
-}
-
-// Restore restores a container
-func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
-	alive, _, err := e.client.Restore(context.Background(), id, attachStreamsFunc(stdout, stderr))
-	if err != nil && !errdefs.IsNotFound(err) {
-		return false, err
+	wait, err := task.Wait(ctx)
+	if err != nil {
+		task.Delete(ctx)
+		container.Delete(ctx)
+		return err
 	}
-	if !alive {
-		deleteTaskAndContainer(context.Background(), e.client, id)
-	}
-	return alive, nil
-}
-
-// IsRunning returns if the container with the given id is running
-func (e *Executor) IsRunning(id string) (bool, error) {
-	status, err := e.client.Status(context.Background(), id)
-	return status == libcontainerd.StatusRunning, err
-}
-
-// Signal sends the specified signal to the container
-func (e *Executor) Signal(id string, signal int) error {
-	return e.client.SignalProcess(context.Background(), id, libcontainerd.InitProcessName, signal)
-}
-
-// ProcessEvent handles events from containerd
-// All events are ignored except the exit event, which is sent of to the stored handler
-func (e *Executor) ProcessEvent(id string, et libcontainerd.EventType, ei libcontainerd.EventInfo) error {
-	switch et {
-	case libcontainerd.EventExit:
-		deleteTaskAndContainer(context.Background(), e.client, id)
-		return e.exitHandler.HandleExitEvent(ei.ContainerID)
+	go func() {
+		<-wait
+		e.mu.Lock()
+		stdout.Close()
+		stderr.Close()
+		if _, err := task.Delete(ctx); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete task")
+		}
+		if err := container.Delete(ctx); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete container")
+		}
+		e.mu.Unlock()
+		if err := e.exitHandler.HandleExitEvent(id); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle exit event")
+		}
+	}()
+	if err := task.Start(ctx); err != nil {
+		task.Delete(ctx)
+		<-wait
+		container.Delete(ctx)
+		return err
 	}
 	return nil
 }
 
-type rio struct {
-	cio.IO
+// Restore restores a container
+func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ctx := context.Background()
+	container, err := e.client.LoadContainer(ctx, id)
+	if err != nil {
+		return false, err
+	}
+	task, err := container.Task(ctx, cio.NewAttach(cio.WithStreams(nil, stdout, stderr)))
+	if err != nil {
+		container.Delete(ctx)
+		return false, err
+	}
 
-	wg sync.WaitGroup
-}
-
-func (c *rio) Wait() {
-	c.wg.Wait()
-	c.IO.Wait()
-}
-
-func attachStreamsFunc(stdout, stderr io.WriteCloser) libcontainerd.StdioCallback {
-	return func(iop *cio.DirectIO) (cio.IO, error) {
-		if iop.Stdin != nil {
-			iop.Stdin.Close()
-			// closing stdin shouldn't be needed here, it should never be open
-			panic("plugin stdin shouldn't have been created!")
+	status, err := task.Status(ctx)
+	if err != nil {
+		logrus.WithError(err).WithField("id", id).Error("failed to stat task")
+		if _, err := task.Delete(ctx, containerd.WithProcessKill); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete task")
+		}
+		return true, container.Delete(ctx)
+	}
+	if status.Status != containerd.Running {
+		if _, err := task.Delete(ctx); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete task")
+		}
+		return true, container.Delete(ctx)
+	}
+	wait, err := task.Wait(ctx)
+	if err != nil {
+		logrus.WithError(err).WithField("id", id).Error("failed to wait task")
+		return true, nil
+	}
+	go func() {
+		<-wait
+		e.mu.Lock()
+		stdout.Close()
+		stderr.Close()
+		if _, err := task.Delete(ctx); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete task")
+		}
+		if err := container.Delete(ctx); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle delete container")
+		}
+		e.mu.Unlock()
+		if err := e.exitHandler.HandleExitEvent(id); err != nil {
+			logrus.WithError(err).WithField("id", id).Error("failed to handle exit event")
 		}
 
-		rio := &rio{IO: iop}
-		rio.wg.Add(2)
-		go func() {
-			io.Copy(stdout, iop.Stdout)
-			stdout.Close()
-			rio.wg.Done()
-		}()
-		go func() {
-			io.Copy(stderr, iop.Stderr)
-			stderr.Close()
-			rio.wg.Done()
-		}()
-		return rio, nil
+	}()
+	return true, nil
+}
+
+// IsRunning returns if the container with the given id is running
+func (e *Executor) IsRunning(id string) (bool, error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ctx := context.Background()
+	container, err := e.client.LoadContainer(ctx, id)
+	if err != nil {
+		return false, err
 	}
+	task, err := container.Task(ctx, nil)
+	if err != nil {
+		return false, err
+	}
+	status, err := task.Status(ctx)
+	if err != nil {
+		return false, err
+	}
+	return status.Status == containerd.Running, nil
+}
+
+// Signal sends the specified signal to the container
+func (e *Executor) Signal(id string, signal int) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	ctx := context.Background()
+	container, err := e.client.LoadContainer(ctx, id)
+	if err != nil {
+		return err
+	}
+	task, err := container.Task(ctx, nil)
+	if err != nil {
+		return err
+	}
+	return task.Kill(ctx, syscall.Signal(signal))
+}
+
+func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
+	uid, gid := getSpecUser(ociSpec)
+	if uid == 0 && gid == 0 {
+		return bundleDir, idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
+	}
+
+	p := string(filepath.Separator)
+	components := strings.Split(bundleDir, string(filepath.Separator))
+	for _, d := range components[1:] {
+		p = filepath.Join(p, d)
+		fi, err := os.Stat(p)
+		if err != nil && !os.IsNotExist(err) {
+			return "", err
+		}
+		if os.IsNotExist(err) || fi.Mode()&1 == 0 {
+			p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
+			if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+				return "", err
+			}
+		}
+	}
+	return p, nil
+}
+
+func getSpecUser(ociSpec *specs.Spec) (int, int) {
+	var (
+		uid int
+		gid int
+	)
+
+	for _, ns := range ociSpec.Linux.Namespaces {
+		if ns.Type == specs.UserNamespace {
+			uid = hostIDFromMap(0, ociSpec.Linux.UIDMappings)
+			gid = hostIDFromMap(0, ociSpec.Linux.GIDMappings)
+			break
+		}
+	}
+
+	return uid, gid
+}
+
+func hostIDFromMap(id uint32, mp []specs.LinuxIDMapping) int {
+	for _, m := range mp {
+		if id >= m.ContainerID && id <= m.ContainerID+m.Size-1 {
+			return int(m.HostID + id - m.ContainerID)
+		}
+	}
+	return 0
 }

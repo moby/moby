@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/api/types/versions"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
-	"github.com/docker/docker/oci"
+	"github.com/docker/docker/runtime/oci"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
