@@ -6,7 +6,7 @@ import (
 	"strconv"
 
 	"github.com/docker/docker/container"
-	"github.com/docker/docker/daemon/caps"
+	"github.com/docker/docker/runtime/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
