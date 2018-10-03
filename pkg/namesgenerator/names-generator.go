@@ -757,6 +757,9 @@ var (
 
 		// Alan Turing was a founding father of computer science. https://en.wikipedia.org/wiki/Alan_Turing.
 		"turing",
+		
+		// Konstantin Eduardovich Tsiolkovsky was a Soviet Russian rocket scientist and pioneer of cosmonautics.
+		"tsiolkovsky",
 
 		// Varahamihira - Ancient Indian mathematician who discovered trigonometric formulae during 505-587 CE - https://en.wikipedia.org/wiki/Var%C4%81hamihira#Contributions
 		"varahamihira",
