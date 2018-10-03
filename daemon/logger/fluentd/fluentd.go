@@ -22,6 +22,7 @@ import (
 
 type fluentd struct {
 	tag           string
+	tagStderr     string
 	containerID   string
 	containerName string
 	writer        *fluent.Fluent
@@ -75,6 +76,11 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	tag, err := loggerutils.ParseLogTag(info, loggerutils.DefaultTemplate)
+	if err != nil {
+		return nil, err
+	}
+
+	tagStderr, err := loggerutils.ParseLogTagStderr(info, loggerutils.DefaultTemplate)
 	if err != nil {
 		return nil, err
 	}
@@ -146,6 +152,7 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 	return &fluentd{
 		tag:           tag,
+		tagStderr:     tagStderr,
 		containerID:   info.ContainerID,
 		containerName: info.ContainerName,
 		writer:        log,
@@ -168,10 +175,15 @@ func (f *fluentd) Log(msg *logger.Message) error {
 	}
 
 	ts := msg.Timestamp
+	source := msg.Source
 	logger.PutMessage(msg)
 	// fluent-logger-golang buffers logs from failures and disconnections,
 	// and these are transferred again automatically.
-	return f.writer.PostWithTime(f.tag, ts, data)
+	if source == "stderr" && f.tagStderr != "" {
+		return f.writer.PostWithTime(f.tagStderr, ts, data)
+	} else {
+		return f.writer.PostWithTime(f.tag, ts, data)
+	}
 }
 
 func (f *fluentd) Close() error {
@@ -190,6 +202,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "env-regex":
 		case "labels":
 		case "tag":
+		case "tag-stderr":
 		case addressKey:
 		case bufferLimitKey:
 		case retryWaitKey:
