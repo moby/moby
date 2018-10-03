@@ -344,21 +344,21 @@ func (s *DockerSwarmSuite) TestSwarmContainerEndpointOptions(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(strings.TrimSpace(out), checker.Not(checker.Equals), "")
 
-	_, err = d.Cmd("run", "-d", "--net=foo", "--name=first", "--net-alias=first-alias", "busybox:glibc", "top")
+	out, err = d.Cmd("run", "-d", "--net=foo", "--name=first", "--net-alias=first-alias", "busybox:glibc", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
-	_, err = d.Cmd("run", "-d", "--net=foo", "--name=second", "busybox:glibc", "top")
+	out, err = d.Cmd("run", "-d", "--net=foo", "--name=second", "busybox:glibc", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
-	_, err = d.Cmd("run", "-d", "--net=foo", "--net-alias=third-alias", "busybox:glibc", "top")
+	out, err = d.Cmd("run", "-d", "--net=foo", "--net-alias=third-alias", "busybox:glibc", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// ping first container and its alias, also ping third and anonymous container by its alias
-	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first")
+	out, err = d.Cmd("exec", "second", "ping", "-c", "1", "first")
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
-	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "first-alias")
+	out, err = d.Cmd("exec", "second", "ping", "-c", "1", "first-alias")
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
-	_, err = d.Cmd("exec", "second", "ping", "-c", "1", "third-alias")
+	out, err = d.Cmd("exec", "second", "ping", "-c", "1", "third-alias")
 	c.Assert(err, check.IsNil, check.Commentf("%s", out))
 }
 
