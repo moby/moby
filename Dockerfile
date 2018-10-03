@@ -25,15 +25,18 @@
 #
 
 FROM golang:1.11.0 AS base
+
+FROM base AS base-apt
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
+RUN apt-get update
 
-FROM base AS criu
+FROM base-apt AS criu
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
 # Install dependency packages specific to criu
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
 	libnet-dev \
 	libprotobuf-c0-dev \
 	libprotobuf-dev \
@@ -92,8 +95,8 @@ RUN set -x \
 	&& rm -rf "$GOPATH"
 
 
-FROM base AS frozen-images
-RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
+FROM base-apt AS frozen-images
+RUN apt-get install -y jq ca-certificates --no-install-recommends
 # Get useful and necessary Hub images so we can "docker load" locally instead of pulling
 COPY contrib/download-frozen-image-v2.sh /
 RUN /download-frozen-image-v2.sh /build \
@@ -105,8 +108,8 @@ RUN /download-frozen-image-v2.sh /build \
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
-FROM base AS runtime-dev
-RUN apt-get update && apt-get install -y \
+FROM base-apt AS runtime-dev
+RUN apt-get install -y \
 	libapparmor-dev \
 	libseccomp-dev
 
@@ -123,8 +126,8 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS containerd
-RUN apt-get update && apt-get install -y btrfs-tools
+FROM base-apt AS containerd
+RUN apt-get install -y btrfs-tools
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -154,8 +157,8 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
-FROM base AS tini
-RUN apt-get update && apt-get install -y cmake vim-common
+FROM base-apt AS tini
+RUN apt-get install -y cmake vim-common
 COPY hack/dockerfile/install/install.sh ./install.sh
 ENV INSTALL_BINARY_NAME=tini
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
@@ -175,7 +178,7 @@ RUN ln -s /usr/local/completion/bash/docker /etc/bash_completion.d/docker
 RUN ldconfig
 # This should only install packages that are specifically needed for the dev environment and nothing else
 # Do you really need to add another package here? Can it be done in a different build stage?
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
 	apparmor \
 	aufs-tools \
 	bash-completion \
