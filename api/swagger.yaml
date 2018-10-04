@@ -3761,18 +3761,22 @@ definitions:
         description: |
           HTTP-proxy configured for the daemon. This value is obtained from the
           [`HTTP_PROXY`](https://www.gnu.org/software/wget/manual/html_node/Proxies.html) environment variable.
+          Credentials ([user info component](https://tools.ietf.org/html/rfc3986#section-3.2.1)) in the proxy URL
+          are masked in the API response.
 
           Containers do not automatically inherit this configuration.
         type: "string"
-        example: "http://user:pass@proxy.corp.example.com:8080"
+        example: "http://xxxxx:xxxxx@proxy.corp.example.com:8080"
       HttpsProxy:
         description: |
           HTTPS-proxy configured for the daemon. This value is obtained from the
           [`HTTPS_PROXY`](https://www.gnu.org/software/wget/manual/html_node/Proxies.html) environment variable.
+          Credentials ([user info component](https://tools.ietf.org/html/rfc3986#section-3.2.1)) in the proxy URL
+          are masked in the API response.
 
           Containers do not automatically inherit this configuration.
         type: "string"
-        example: "https://user:pass@proxy.corp.example.com:4443"
+        example: "https://xxxxx:xxxxx@proxy.corp.example.com:4443"
       NoProxy:
         description: |
           Comma-separated list of domain extensions for which no proxy should be
