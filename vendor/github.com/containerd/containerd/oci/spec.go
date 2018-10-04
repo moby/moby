@@ -167,6 +167,7 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 				Destination: "/proc",
 				Type:        "proc",
 				Source:      "proc",
+				Options:     []string{"nosuid", "noexec", "nodev"},
 			},
 			{
 				Destination: "/dev",

@@ -55,7 +55,7 @@ service Content {
 	// Only one active stream may exist at a time for each ref.
 	//
 	// Once a write stream has started, it may only write to a single ref, thus
-	// once a stream is started, the ref may be ommitted on subsequent writes.
+	// once a stream is started, the ref may be omitted on subsequent writes.
 	//
 	// For any write transaction represented by a ref, only a single write may
 	// be made to a given offset. If overlapping writes occur, it is an error.

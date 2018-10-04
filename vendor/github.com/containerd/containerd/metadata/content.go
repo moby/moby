@@ -553,7 +553,9 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 	nw.l.RLock()
 	defer nw.l.RUnlock()
 
-	return update(ctx, nw.db, func(tx *bolt.Tx) error {
+	var innerErr error
+
+	if err := update(ctx, nw.db, func(tx *bolt.Tx) error {
 		bkt := getIngestsBucket(tx, nw.namespace)
 		if bkt != nil {
 			if err := bkt.DeleteBucket([]byte(nw.ref)); err != nil && err != bolt.ErrBucketNotFound {
@@ -562,13 +564,20 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 		}
 		dgst, err := nw.commit(ctx, tx, size, expected, opts...)
 		if err != nil {
-			return err
+			if !errdefs.IsAlreadyExists(err) {
+				return err
+			}
+			innerErr = err
 		}
 		if err := removeIngestLease(ctx, tx, nw.ref); err != nil {
 			return err
 		}
 		return addContentLease(ctx, tx, dgst)
-	})
+	}); err != nil {
+		return err
+	}
+
+	return innerErr
 }
 
 func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64, expected digest.Digest, opts ...content.Opt) (digest.Digest, error) {
@@ -611,7 +620,7 @@ func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64,
 	bkt, err := createBlobBucket(tx, nw.namespace, actual)
 	if err != nil {
 		if err == bolt.ErrBucketExists {
-			return "", errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", actual)
+			return actual, errors.Wrapf(errdefs.ErrAlreadyExists, "content %v", actual)
 		}
 		return "", err
 	}

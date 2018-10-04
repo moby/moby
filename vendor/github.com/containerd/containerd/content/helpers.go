@@ -70,7 +70,7 @@ func WriteBlob(ctx context.Context, cs Ingester, ref string, r io.Reader, desc o
 	cw, err := OpenWriter(ctx, cs, WithRef(ref), WithDescriptor(desc))
 	if err != nil {
 		if !errdefs.IsAlreadyExists(err) {
-			return err
+			return errors.Wrap(err, "failed to open writer")
 		}
 
 		return nil // all ready present
@@ -127,7 +127,7 @@ func OpenWriter(ctx context.Context, cs Ingester, opts ...WriterOpt) (Writer, er
 func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected digest.Digest, opts ...Opt) error {
 	ws, err := cw.Status()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to get status")
 	}
 
 	if ws.Offset > 0 {
@@ -138,7 +138,7 @@ func Copy(ctx context.Context, cw Writer, r io.Reader, size int64, expected dige
 	}
 
 	if _, err := copyWithBuffer(cw, r); err != nil {
-		return err
+		return errors.Wrap(err, "failed to copy")
 	}
 
 	if err := cw.Commit(ctx, size, expected, opts...); err != nil {
