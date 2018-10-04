@@ -19,7 +19,6 @@ const (
 	Version               string = "$VERSION"
 	BuildTime             string = "$BUILDTIME"
 	IAmStatic             string = "${IAMSTATIC:-true}"
-	ContainerdCommitID    string = "${CONTAINERD_COMMIT}"
 	PlatformName          string = "${PLATFORM}"
 	ProductName           string = "${PRODUCT}"
 	DefaultProductLicense string = "${DEFAULT_PRODUCT_LICENSE}"
@@ -37,7 +36,6 @@ package dockerversion
 // Default build-time variable for library-import.
 // This file is overridden on build with build-time informations.
 const (
-	RuncCommitID string = "${RUNC_COMMIT}"
 	InitCommitID string = "${TINI_COMMIT}"
 )
 
