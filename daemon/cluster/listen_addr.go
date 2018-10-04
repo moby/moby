@@ -99,7 +99,12 @@ func validateDefaultAddrPool(defaultAddrPool []string, size uint32) error {
 	if size == 0 {
 		size = 24
 	}
-	if size > 32 {
+	// We allow max value as 29. We can have 8 IP addresses for max value 29
+	// If we allow 30, then we will get only 4 IP addresses. But with latest
+	// libnetwork LB scale implementation, we use total of 4 IP addresses for internal use.
+	// Hence keeping 29 as max value, we will have 8 IP addresses. This will be
+	// smallest subnet that can be used in overlay network.
+	if size > 29 {
 		return fmt.Errorf("subnet size is out of range: %d", size)
 	}
 	for i := range defaultAddrPool {
