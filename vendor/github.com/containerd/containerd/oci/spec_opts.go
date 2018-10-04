@@ -268,6 +268,14 @@ func WithLinuxNamespace(ns specs.LinuxNamespace) SpecOpts {
 	}
 }
 
+// WithNewPrivileges turns off the NoNewPrivileges feature flag in the spec
+func WithNewPrivileges(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	setProcess(s)
+	s.Process.NoNewPrivileges = false
+
+	return nil
+}
+
 // WithImageConfig configures the spec to from the configuration of an Image
 func WithImageConfig(image Image) SpecOpts {
 	return WithImageConfigArgs(image, nil)
@@ -646,6 +654,10 @@ func WithUsername(username string) SpecOpts {
 // The passed in user can be either a uid or a username.
 func WithAdditionalGIDs(userstr string) SpecOpts {
 	return func(ctx context.Context, client Client, c *containers.Container, s *Spec) (err error) {
+		// For LCOW additional GID's not supported
+		if s.Windows != nil {
+			return nil
+		}
 		setProcess(s)
 		setAdditionalGids := func(root string) error {
 			var username string
@@ -1003,3 +1015,14 @@ var WithPrivileged = Compose(
 	WithApparmorProfile(""),
 	WithSeccompUnconfined,
 )
+
+// WithWindowsHyperV sets the Windows.HyperV section for HyperV isolation of containers.
+func WithWindowsHyperV(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+	if s.Windows == nil {
+		s.Windows = &specs.Windows{}
+	}
+	if s.Windows.HyperV == nil {
+		s.Windows.HyperV = &specs.WindowsHyperV{}
+	}
+	return nil
+}

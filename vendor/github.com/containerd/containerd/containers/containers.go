@@ -28,12 +28,12 @@ import (
 //
 // The resources specified in this object are used to create tasks from the container.
 type Container struct {
-	// ID uniquely identifies the container in a nameapace.
+	// ID uniquely identifies the container in a namespace.
 	//
 	// This property is required and cannot be changed after creation.
 	ID string
 
-	// Labels provide metadata extension for a contaienr.
+	// Labels provide metadata extension for a container.
 	//
 	// These are optional and fully mutable.
 	Labels map[string]string
