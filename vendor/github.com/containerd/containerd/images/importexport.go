@@ -27,7 +27,7 @@ import (
 // Importer is the interface for image importer.
 type Importer interface {
 	// Import imports an image from a tar stream.
-	Import(ctx context.Context, store content.Store, reader io.Reader) ([]Image, error)
+	Import(ctx context.Context, store content.Store, reader io.Reader) (ocispec.Descriptor, error)
 }
 
 // Exporter is the interface for image exporter.
