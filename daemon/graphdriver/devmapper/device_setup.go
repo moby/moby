@@ -27,7 +27,7 @@ type directLVMConfig struct {
 var (
 	errThinpPercentMissing = errors.New("must set both `dm.thinp_percent` and `dm.thinp_metapercent` if either is specified")
 	errThinpPercentTooBig  = errors.New("combined `dm.thinp_percent` and `dm.thinp_metapercent` must not be greater than 100")
-	errMissingSetupDevice  = errors.New("must provide device path in `dm.setup_device` in order to configure direct-lvm")
+	errMissingSetupDevice  = errors.New("must provide device path in `dm.directlvm_device` in order to configure direct-lvm")
 )
 
 func validateLVMConfig(cfg directLVMConfig) error {
