@@ -50,9 +50,9 @@ build_test_suite_binaries() {
 		return
 	fi
 	build_test_suite_binary ./integration-cli "test.main"
-	for dir in $integration_api_dirs; do
-		build_test_suite_binary "$dir" "test.main"
-	done
+#	for dir in $integration_api_dirs; do
+#		build_test_suite_binary "$dir" "test.main"
+#	done
 }
 
 # Build a binary for a test suite package
