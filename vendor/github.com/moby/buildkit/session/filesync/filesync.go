@@ -10,6 +10,7 @@ import (
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -34,7 +35,7 @@ type SyncedDir struct {
 	Name     string
 	Dir      string
 	Excludes []string
-	Map      func(*fsutil.Stat) bool
+	Map      func(*fstypes.Stat) bool
 }
 
 // NewFSSyncProvider creates a new provider for sending files from client

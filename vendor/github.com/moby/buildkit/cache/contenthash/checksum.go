@@ -19,6 +19,7 @@ import (
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
 var errNotFound = errors.Errorf("not found")
@@ -274,7 +275,7 @@ func (cc *cacheContext) HandleChange(kind fsutil.ChangeKind, p string, fi os.Fil
 		return
 	}
 
-	stat, ok := fi.Sys().(*fsutil.Stat)
+	stat, ok := fi.Sys().(*fstypes.Stat)
 	if !ok {
 		return errors.Errorf("%s invalid change without stat information", p)
 	}

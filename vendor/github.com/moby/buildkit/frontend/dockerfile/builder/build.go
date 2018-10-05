@@ -96,10 +96,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		}
 	}
 
-	name := "load Dockerfile"
-	if filename != "Dockerfile" {
-		name += " from " + filename
-	}
+	name := "load build definition from " + filename
 
 	src := llb.Local(LocalNameDockerfile,
 		llb.IncludePatterns([]string{filename}),

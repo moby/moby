@@ -44,11 +44,21 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	s.Process.Args = meta.Args
 	s.Process.Env = meta.Env
 	s.Process.Cwd = meta.Cwd
+	s.Process.Rlimits = nil // reset open files limit
+	s.Hostname = "buildkitsandbox"
 
 	s.Mounts = GetMounts(ctx,
 		withROBind(resolvConf, "/etc/resolv.conf"),
 		withROBind(hostsFile, "/etc/hosts"),
 	)
+
+	s.Mounts = append(s.Mounts, specs.Mount{
+		Destination: "/sys/fs/cgroup",
+		Type:        "cgroup",
+		Source:      "cgroup",
+		Options:     []string{"ro", "nosuid", "noexec", "nodev"},
+	})
+
 	// TODO: User
 
 	sm := &submounts{}

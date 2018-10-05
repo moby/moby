@@ -1,6 +1,8 @@
 syntax = "proto3";
 
-package fsutil;
+package fsutil.types;
+
+option go_package = "types";
 
 import "stat.proto";
 

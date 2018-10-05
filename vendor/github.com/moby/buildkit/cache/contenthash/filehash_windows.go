@@ -5,7 +5,7 @@ package contenthash
 import (
 	"os"
 
-	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
 // chmodWindowsTarEntry is used to adjust the file permissions used in tar
@@ -18,6 +18,6 @@ func chmodWindowsTarEntry(perm os.FileMode) os.FileMode {
 	return perm
 }
 
-func setUnixOpt(path string, fi os.FileInfo, stat *fsutil.Stat) error {
+func setUnixOpt(path string, fi os.FileInfo, stat *fstypes.Stat) error {
 	return nil
 }

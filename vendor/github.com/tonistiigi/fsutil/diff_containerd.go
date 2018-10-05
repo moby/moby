@@ -5,6 +5,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -170,11 +171,11 @@ func sameFile(f1, f2 *currentPath) (same bool, retErr error) {
 		}
 	}
 
-	ls1, ok := f1.f.Sys().(*Stat)
+	ls1, ok := f1.f.Sys().(*types.Stat)
 	if !ok {
 		return false, nil
 	}
-	ls2, ok := f2.f.Sys().(*Stat)
+	ls2, ok := f2.f.Sys().(*types.Stat)
 	if !ok {
 		return false, nil
 	}
@@ -185,7 +186,7 @@ func sameFile(f1, f2 *currentPath) (same bool, retErr error) {
 // compareStat returns whether the stats are equivalent,
 // whether the files are considered the same file, and
 // an error
-func compareStat(ls1, ls2 *Stat) (bool, error) {
+func compareStat(ls1, ls2 *types.Stat) (bool, error) {
 	return ls1.Mode == ls2.Mode && ls1.Uid == ls2.Uid && ls1.Gid == ls2.Gid && ls1.Devmajor == ls2.Devmajor && ls1.Devminor == ls2.Devminor && ls1.Linkname == ls2.Linkname, nil
 }
 
