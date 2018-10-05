@@ -236,7 +236,7 @@ func (d *Driver) startServiceVMIfNotRunning(id string, mvdToAdd []hcsshim.Mapped
 	logrus.Debugf("%s: adding entry to service vm map", title)
 	svm, exists, err := d.serviceVms.add(id)
 	if err != nil && err == errVMisTerminating {
-		// VM is in the process of terminating. Wait until it's done and and then try again
+		// VM is in the process of terminating. Wait until it's done and then try again
 		logrus.Debugf("%s: VM with current ID still in the process of terminating", title)
 		if err := svm.getStopError(); err != nil {
 			logrus.Debugf("%s: VM did not stop successfully: %s", title, err)
@@ -751,7 +751,7 @@ func (d *Driver) Cleanup() error {
 
 	// Note we don't return an error below - it's possible the files
 	// are locked. However, next time around after the daemon exits,
-	// we likely will be able to to cleanup successfully. Instead we log
+	// we likely will be able to cleanup successfully. Instead we log
 	// warnings if there are errors.
 	for _, item := range items {
 		if item.IsDir() && strings.HasSuffix(item.Name(), "-removing") {
