@@ -9,5 +9,7 @@ import (
 func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) {
 }
 
+func (daemon *Daemon) fillPlatformVersion(v *types.Version) {}
+
 func fillDriverWarnings(v *types.Info) {
 }

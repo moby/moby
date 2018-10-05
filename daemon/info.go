@@ -118,6 +118,7 @@ func (daemon *Daemon) SystemVersion() types.Version {
 
 	v.Platform.Name = dockerversion.PlatformName
 
+	daemon.fillPlatformVersion(&v)
 	return v
 }
 
