@@ -15,7 +15,10 @@ import (
 // flightcontrol is like singleflight but with support for cancellation and
 // nested progress reporting
 
-var errRetry = errors.Errorf("retry")
+var (
+	errRetry        = errors.Errorf("retry")
+	errRetryTimeout = errors.Errorf("exceeded retry timeout")
+)
 
 type contextKeyT string
 
@@ -29,12 +32,28 @@ type Group struct {
 
 // Do executes a context function syncronized by the key
 func (g *Group) Do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (v interface{}, err error) {
-	defer func() {
-		if errors.Cause(err) == errRetry {
-			runtime.Gosched()
-			v, err = g.Do(ctx, key, fn)
+	var backoff time.Duration
+	for {
+		v, err = g.do(ctx, key, fn)
+		if err == nil || errors.Cause(err) != errRetry {
+			return v, err
 		}
-	}()
+		// backoff logic
+		if backoff >= 3*time.Second {
+			err = errors.Wrapf(errRetryTimeout, "flightcontrol")
+			return v, err
+		}
+		runtime.Gosched()
+		if backoff > 0 {
+			time.Sleep(backoff)
+			backoff *= 2
+		} else {
+			backoff = time.Millisecond
+		}
+	}
+}
+
+func (g *Group) do(ctx context.Context, key string, fn func(ctx context.Context) (interface{}, error)) (interface{}, error) {
 	g.mu.Lock()
 	if g.m == nil {
 		g.m = make(map[string]*call)

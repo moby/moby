@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 	"google.golang.org/grpc"
 )
 
@@ -81,10 +82,10 @@ func syncTargetDiffCopy(ds grpc.Stream, dest string) error {
 	}
 	return fsutil.Receive(ds.Context(), ds, dest, fsutil.ReceiveOpt{
 		Merge: true,
-		Filter: func() func(*fsutil.Stat) bool {
+		Filter: func() func(*fstypes.Stat) bool {
 			uid := os.Getuid()
 			gid := os.Getgid()
-			return func(st *fsutil.Stat) bool {
+			return func(st *fstypes.Stat) bool {
 				st.Uid = uint32(uid)
 				st.Gid = uint32(gid)
 				return true

@@ -16,6 +16,7 @@ import (
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
+	fstypes "github.com/tonistiigi/fsutil/types"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/status"
 )
@@ -207,7 +208,7 @@ func defaultLLBCaps() []apicaps.PBCap {
 		{ID: string(opspb.CapExecMountCacheSharing), Enabled: true},
 		{ID: string(opspb.CapExecMountSelector), Enabled: true},
 		{ID: string(opspb.CapExecMountTmpfs), Enabled: true},
-		{ID: string(opspb.CapMountSecret), Enabled: true},
+		{ID: string(opspb.CapExecMountSecret), Enabled: true},
 		{ID: string(opspb.CapConstraints), Enabled: true},
 		{ID: string(opspb.CapPlatform), Enabled: true},
 		{ID: string(opspb.CapMetaIgnoreCache), Enabled: true},
@@ -352,6 +353,31 @@ func (r *reference) ReadFile(ctx context.Context, req client.ReadRequest) ([]byt
 		return nil, err
 	}
 	return resp.Data, nil
+}
+
+func (r *reference) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstypes.Stat, error) {
+	rdr := &pb.ReadDirRequest{
+		DirPath:        req.Path,
+		IncludePattern: req.IncludePattern,
+		Ref:            r.id,
+	}
+	resp, err := r.c.client.ReadDir(ctx, rdr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Entries, nil
+}
+
+func (r *reference) StatFile(ctx context.Context, req client.StatRequest) (*fstypes.Stat, error) {
+	rdr := &pb.StatFileRequest{
+		Path: req.Path,
+		Ref:  r.id,
+	}
+	resp, err := r.c.client.StatFile(ctx, rdr)
+	if err != nil {
+		return nil, err
+	}
+	return resp.Stat, nil
 }
 
 func grpcClientConn(ctx context.Context) (context.Context, *grpc.ClientConn, error) {

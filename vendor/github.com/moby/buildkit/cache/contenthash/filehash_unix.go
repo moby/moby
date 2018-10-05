@@ -7,7 +7,7 @@ import (
 	"syscall"
 
 	"github.com/containerd/continuity/sysx"
-	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 
 	"golang.org/x/sys/unix"
 )
@@ -16,7 +16,7 @@ func chmodWindowsTarEntry(perm os.FileMode) os.FileMode {
 	return perm
 }
 
-func setUnixOpt(path string, fi os.FileInfo, stat *fsutil.Stat) error {
+func setUnixOpt(path string, fi os.FileInfo, stat *fstypes.Stat) error {
 	s := fi.Sys().(*syscall.Stat_t)
 
 	stat.Uid = s.Uid

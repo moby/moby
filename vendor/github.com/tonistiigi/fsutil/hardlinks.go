@@ -4,6 +4,7 @@ import (
 	"os"
 
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil/types"
 )
 
 // Hardlinks validates that all targets for links were part of the changes
@@ -25,7 +26,7 @@ func (v *Hardlinks) HandleChange(kind ChangeKind, p string, fi os.FileInfo, err 
 		return nil
 	}
 
-	stat, ok := fi.Sys().(*Stat)
+	stat, ok := fi.Sys().(*types.Stat)
 	if !ok {
 		return errors.Errorf("invalid change without stat info: %s", p)
 	}

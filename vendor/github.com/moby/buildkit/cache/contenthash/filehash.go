@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/tonistiigi/fsutil"
+	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
 // NewFileHash returns new hash that is used for the builder cache keys
@@ -22,7 +22,7 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 		}
 	}
 
-	stat := &fsutil.Stat{
+	stat := &fstypes.Stat{
 		Mode:     uint32(fi.Mode()),
 		Size_:    fi.Size(),
 		ModTime:  fi.ModTime().UnixNano(),
@@ -39,7 +39,7 @@ func NewFileHash(path string, fi os.FileInfo) (hash.Hash, error) {
 	return NewFromStat(stat)
 }
 
-func NewFromStat(stat *fsutil.Stat) (hash.Hash, error) {
+func NewFromStat(stat *fstypes.Stat) (hash.Hash, error) {
 	fi := &statInfo{stat}
 	hdr, err := tar.FileInfoHeader(fi, stat.Linkname)
 	if err != nil {
@@ -75,7 +75,7 @@ func (tsh *tarsumHash) Reset() {
 }
 
 type statInfo struct {
-	*fsutil.Stat
+	*fstypes.Stat
 }
 
 func (s *statInfo) Name() string {
