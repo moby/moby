@@ -29,7 +29,6 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
 
-	v.RuncCommit.Expected = dockerversion.RuncCommitID
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
 		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
@@ -49,13 +48,20 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 		v.RuncCommit.ID = "N/A"
 	}
 
-	v.ContainerdCommit.Expected = dockerversion.ContainerdCommitID
+	// runc is now shipped as a separate package. Set "expected" to same value
+	// as "ID" to prevent clients from reporting a version-mismatch
+	v.RuncCommit.Expected = v.RuncCommit.ID
+
 	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
 		v.ContainerdCommit.ID = rv.Revision
 	} else {
 		logrus.Warnf("failed to retrieve containerd version: %v", err)
 		v.ContainerdCommit.ID = "N/A"
 	}
+
+	// containerd is now shipped as a separate package. Set "expected" to same
+	// value as "ID" to prevent clients from reporting a version-mismatch
+	v.ContainerdCommit.Expected = v.ContainerdCommit.ID
 
 	defaultInitBinary := daemon.configStore.GetInitPath()
 	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
