@@ -5,6 +5,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"net"
@@ -676,7 +677,19 @@ func (daemon *Daemon) initRuntimes(runtimes map[string]types.Runtime) (err error
 		}
 
 		script := filepath.Join(tmpDir, name)
-		content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", rt.Path, strings.Join(rt.Args, " "))
+		path, err := json.Marshal(rt.Path)
+		if err != nil {
+			return err
+		}
+		var args []string
+		for _, arg := range rt.Args {
+			earg, err := json.Marshal(arg)
+			if err != nil {
+				return err
+			}
+			args = append(args, string(earg))
+		}
+		content := fmt.Sprintf("#!/bin/sh\n%s %s $@\n", string(path), strings.Join(args, " "))
 		if err := ioutil.WriteFile(script, []byte(content), 0700); err != nil {
 			return err
 		}
