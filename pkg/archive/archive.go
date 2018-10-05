@@ -660,11 +660,13 @@ func createTarFile(path, extractDir string, hdr *tar.Header, reader io.Reader, L
 	var errors []string
 	for key, value := range hdr.Xattrs {
 		if err := system.Lsetxattr(path, key, []byte(value), 0); err != nil {
-			if err == syscall.ENOTSUP {
+			if err == syscall.ENOTSUP || err == syscall.EPERM {
 				// We ignore errors here because not all graphdrivers support
 				// xattrs *cough* old versions of AUFS *cough*. However only
 				// ENOTSUP should be emitted in that case, otherwise we still
 				// bail.
+				// EPERM occurs if modifying xattrs is not allowed. This can
+				// happen when running in userns with restrictions (ChromeOS).
 				errors = append(errors, err.Error())
 				continue
 			}
