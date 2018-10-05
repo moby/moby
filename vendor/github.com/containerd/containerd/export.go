@@ -22,6 +22,7 @@ import (
 
 	"github.com/containerd/containerd/images"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 type exportOpts struct {
@@ -51,7 +52,7 @@ func (c *Client) Export(ctx context.Context, exporter images.Exporter, desc ocis
 	}
 	pr, pw := io.Pipe()
 	go func() {
-		pw.CloseWithError(exporter.Export(ctx, c.ContentStore(), desc, pw))
+		pw.CloseWithError(errors.Wrap(exporter.Export(ctx, c.ContentStore(), desc, pw), "export failed"))
 	}()
 	return pr, nil
 }

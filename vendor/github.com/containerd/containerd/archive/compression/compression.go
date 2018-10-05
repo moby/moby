@@ -20,9 +20,15 @@ import (
 	"bufio"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"fmt"
 	"io"
+	"os"
+	"os/exec"
+	"strconv"
 	"sync"
+
+	"github.com/containerd/containerd/log"
 )
 
 type (
@@ -35,6 +41,13 @@ const (
 	Uncompressed Compression = iota
 	// Gzip is gzip compression algorithm.
 	Gzip
+)
+
+const disablePigzEnv = "CONTAINERD_DISABLE_PIGZ"
+
+var (
+	initPigz   sync.Once
+	unpigzPath string
 )
 
 var (
@@ -79,6 +92,36 @@ func (w *writeCloserWrapper) Close() error {
 	return nil
 }
 
+type bufferedReader struct {
+	buf *bufio.Reader
+}
+
+func newBufferedReader(r io.Reader) *bufferedReader {
+	buf := bufioReader32KPool.Get().(*bufio.Reader)
+	buf.Reset(r)
+	return &bufferedReader{buf}
+}
+
+func (r *bufferedReader) Read(p []byte) (n int, err error) {
+	if r.buf == nil {
+		return 0, io.EOF
+	}
+	n, err = r.buf.Read(p)
+	if err == io.EOF {
+		r.buf.Reset(nil)
+		bufioReader32KPool.Put(r.buf)
+		r.buf = nil
+	}
+	return
+}
+
+func (r *bufferedReader) Peek(n int) ([]byte, error) {
+	if r.buf == nil {
+		return nil, io.EOF
+	}
+	return r.buf.Peek(n)
+}
+
 // DetectCompression detects the compression algorithm of the source.
 func DetectCompression(source []byte) Compression {
 	for compression, m := range map[Compression][]byte{
@@ -97,8 +140,7 @@ func DetectCompression(source []byte) Compression {
 
 // DecompressStream decompresses the archive and returns a ReaderCloser with the decompressed archive.
 func DecompressStream(archive io.Reader) (DecompressReadCloser, error) {
-	buf := bufioReader32KPool.Get().(*bufio.Reader)
-	buf.Reset(archive)
+	buf := newBufferedReader(archive)
 	bs, err := buf.Peek(10)
 	if err != nil && err != io.EOF {
 		// Note: we'll ignore any io.EOF error because there are some odd
@@ -110,22 +152,29 @@ func DecompressStream(archive io.Reader) (DecompressReadCloser, error) {
 		return nil, err
 	}
 
-	closer := func() error {
-		buf.Reset(nil)
-		bufioReader32KPool.Put(buf)
-		return nil
-	}
 	switch compression := DetectCompression(bs); compression {
 	case Uncompressed:
-		readBufWrapper := &readCloserWrapper{buf, compression, closer}
-		return readBufWrapper, nil
+		return &readCloserWrapper{
+			Reader:      buf,
+			compression: compression,
+		}, nil
 	case Gzip:
-		gzReader, err := gzip.NewReader(buf)
+		ctx, cancel := context.WithCancel(context.Background())
+		gzReader, err := gzipDecompress(ctx, buf)
 		if err != nil {
+			cancel()
 			return nil, err
 		}
-		readBufWrapper := &readCloserWrapper{gzReader, compression, closer}
-		return readBufWrapper, nil
+
+		return &readCloserWrapper{
+			Reader:      gzReader,
+			compression: compression,
+			closer: func() error {
+				cancel()
+				return gzReader.Close()
+			},
+		}, nil
+
 	default:
 		return nil, fmt.Errorf("unsupported compression format %s", (&compression).Extension())
 	}
@@ -150,4 +199,68 @@ func (compression *Compression) Extension() string {
 		return "gz"
 	}
 	return ""
+}
+
+func gzipDecompress(ctx context.Context, buf io.Reader) (io.ReadCloser, error) {
+	initPigz.Do(func() {
+		if unpigzPath = detectPigz(); unpigzPath != "" {
+			log.L.Debug("using pigz for decompression")
+		}
+	})
+
+	if unpigzPath == "" {
+		return gzip.NewReader(buf)
+	}
+
+	return cmdStream(exec.CommandContext(ctx, unpigzPath, "-d", "-c"), buf)
+}
+
+func cmdStream(cmd *exec.Cmd, in io.Reader) (io.ReadCloser, error) {
+	reader, writer := io.Pipe()
+
+	cmd.Stdin = in
+	cmd.Stdout = writer
+
+	var errBuf bytes.Buffer
+	cmd.Stderr = &errBuf
+
+	if err := cmd.Start(); err != nil {
+		return nil, err
+	}
+
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			writer.CloseWithError(fmt.Errorf("%s: %s", err, errBuf.String()))
+		} else {
+			writer.Close()
+		}
+	}()
+
+	return reader, nil
+}
+
+func detectPigz() string {
+	path, err := exec.LookPath("unpigz")
+	if err != nil {
+		log.L.WithError(err).Debug("unpigz not found, falling back to go gzip")
+		return ""
+	}
+
+	// Check if pigz disabled via CONTAINERD_DISABLE_PIGZ env variable
+	value := os.Getenv(disablePigzEnv)
+	if value == "" {
+		return path
+	}
+
+	disable, err := strconv.ParseBool(value)
+	if err != nil {
+		log.L.WithError(err).Warnf("could not parse %s: %s", disablePigzEnv, value)
+		return path
+	}
+
+	if disable {
+		return ""
+	}
+
+	return path
 }
