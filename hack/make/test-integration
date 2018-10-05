@@ -4,6 +4,8 @@ set -e -o pipefail
 source hack/make/.integration-test-helpers
 
 (
+	TESTFLAGS="-check.f Swarm -check.vv"
+
 	build_test_suite_binaries
 	bundle .integration-daemon-start
 	bundle .integration-daemon-setup
