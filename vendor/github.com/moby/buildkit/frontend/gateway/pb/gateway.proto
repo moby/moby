@@ -7,6 +7,7 @@ import "github.com/gogo/googleapis/google/rpc/status.proto";
 import "github.com/moby/buildkit/solver/pb/ops.proto";
 import "github.com/moby/buildkit/api/types/worker.proto";
 import "github.com/moby/buildkit/util/apicaps/pb/caps.proto";
+import "github.com/tonistiigi/fsutil/types/stat.proto";
 
 option (gogoproto.sizer_all) = true;
 option (gogoproto.marshaler_all) = true;
@@ -19,6 +20,10 @@ service LLBBridge {
 	rpc Solve(SolveRequest) returns (SolveResponse);
 	// apicaps:CapReadFile
 	rpc ReadFile(ReadFileRequest) returns (ReadFileResponse);
+	// apicaps:CapReadDir
+	rpc ReadDir(ReadDirRequest) returns (ReadDirResponse);
+	// apicaps:CapStatFile
+	rpc StatFile(StatFileRequest) returns (StatFileResponse);
 	rpc Ping(PingRequest) returns (PongResponse);
 	rpc Return(ReturnRequest) returns (ReturnResponse);
 }
@@ -90,6 +95,25 @@ message FileRange {
 
 message ReadFileResponse {
 	bytes Data = 1;
+}
+
+message ReadDirRequest {
+	string Ref = 1;
+	string DirPath = 2;
+	string IncludePattern = 3;
+}
+
+message ReadDirResponse {
+	repeated fsutil.types.Stat entries = 1;
+}
+
+message StatFileRequest {
+	string Ref = 1;
+	string Path = 2;
+}
+
+message StatFileResponse {
+	fsutil.types.Stat stat = 1;
 }
 
 message PingRequest{

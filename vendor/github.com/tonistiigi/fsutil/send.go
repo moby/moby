@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -56,7 +57,7 @@ func (s *sender) run(ctx context.Context) error {
 	g.Go(func() error {
 		err := s.walk(ctx)
 		if err != nil {
-			s.conn.SendMsg(&Packet{Type: PACKET_ERR, Data: []byte(err.Error())})
+			s.conn.SendMsg(&types.Packet{Type: types.PACKET_ERR, Data: []byte(err.Error())})
 		}
 		return err
 	})
@@ -86,19 +87,19 @@ func (s *sender) run(ctx context.Context) error {
 				return ctx.Err()
 			default:
 			}
-			var p Packet
+			var p types.Packet
 			if err := s.conn.RecvMsg(&p); err != nil {
 				return err
 			}
 			switch p.Type {
-			case PACKET_ERR:
+			case types.PACKET_ERR:
 				return errors.Errorf("error from receiver: %s", p.Data)
-			case PACKET_REQ:
+			case types.PACKET_REQ:
 				if err := s.queue(p.ID); err != nil {
 					return err
 				}
-			case PACKET_FIN:
-				return s.conn.SendMsg(&Packet{Type: PACKET_FIN})
+			case types.PACKET_FIN:
+				return s.conn.SendMsg(&types.Packet{Type: types.PACKET_FIN})
 			}
 		}
 	})
@@ -136,7 +137,7 @@ func (s *sender) sendFile(h *sendHandle) error {
 			return err
 		}
 	}
-	return s.conn.SendMsg(&Packet{ID: h.id, Type: PACKET_DATA})
+	return s.conn.SendMsg(&types.Packet{ID: h.id, Type: types.PACKET_DATA})
 }
 
 func (s *sender) walk(ctx context.Context) error {
@@ -145,13 +146,13 @@ func (s *sender) walk(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		stat, ok := fi.Sys().(*Stat)
+		stat, ok := fi.Sys().(*types.Stat)
 		if !ok {
 			return errors.Wrapf(err, "invalid fileinfo without stat info: %s", path)
 		}
 
-		p := &Packet{
-			Type: PACKET_STAT,
+		p := &types.Packet{
+			Type: types.PACKET_STAT,
 			Stat: stat,
 		}
 		if fileCanRequestData(os.FileMode(stat.Mode)) {
@@ -166,7 +167,7 @@ func (s *sender) walk(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	return errors.Wrapf(s.conn.SendMsg(&Packet{Type: PACKET_STAT}), "failed to send last stat")
+	return errors.Wrapf(s.conn.SendMsg(&types.Packet{Type: types.PACKET_STAT}), "failed to send last stat")
 }
 
 func fileCanRequestData(m os.FileMode) bool {
@@ -184,7 +185,7 @@ func (fs *fileSender) Write(dt []byte) (int, error) {
 	if len(dt) == 0 {
 		return 0, nil
 	}
-	p := &Packet{Type: PACKET_DATA, ID: fs.id, Data: dt}
+	p := &types.Packet{Type: types.PACKET_DATA, ID: fs.id, Data: dt}
 	if err := fs.sender.conn.SendMsg(p); err != nil {
 		return 0, err
 	}

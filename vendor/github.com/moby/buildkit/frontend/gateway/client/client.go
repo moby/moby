@@ -7,6 +7,7 @@ import (
 	"github.com/moby/buildkit/util/apicaps"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	fstypes "github.com/tonistiigi/fsutil/types"
 )
 
 type Client interface {
@@ -17,8 +18,8 @@ type Client interface {
 
 type Reference interface {
 	ReadFile(ctx context.Context, req ReadRequest) ([]byte, error)
-	// StatFile(ctx context.Context, req StatRequest) (*StatResponse, error)
-	// ReadDir(ctx context.Context, req ReadDirRequest) ([]*StatResponse, error)
+	StatFile(ctx context.Context, req StatRequest) (*fstypes.Stat, error)
+	ReadDir(ctx context.Context, req ReadDirRequest) ([]*fstypes.Stat, error)
 }
 
 type ReadRequest struct {
@@ -29,6 +30,15 @@ type ReadRequest struct {
 type FileRange struct {
 	Offset int
 	Length int
+}
+
+type ReadDirRequest struct {
+	Path           string
+	IncludePattern string
+}
+
+type StatRequest struct {
+	Path string
 }
 
 // SolveRequest is same as frontend.SolveRequest but avoiding dependency

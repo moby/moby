@@ -65,6 +65,14 @@ func dispatchRunMounts(d *dispatchState, c *instructions.RunCommand, sources []*
 			out = append(out, secret)
 			continue
 		}
+		if mount.Type == instructions.MountTypeSSH {
+			ssh, err := dispatchSSH(mount)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, ssh)
+			continue
+		}
 		if mount.ReadOnly {
 			mountOpts = append(mountOpts, llb.Readonly)
 		}

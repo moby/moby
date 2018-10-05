@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil/types"
 )
 
 type FS interface {
@@ -36,13 +37,13 @@ func (fs *fs) Open(p string) (io.ReadCloser, error) {
 	return os.Open(filepath.Join(fs.root, p))
 }
 
-func SubDirFS(fs FS, stat Stat) FS {
+func SubDirFS(fs FS, stat types.Stat) FS {
 	return &subDirFS{fs: fs, stat: stat}
 }
 
 type subDirFS struct {
 	fs   FS
-	stat Stat
+	stat types.Stat
 }
 
 func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
@@ -57,7 +58,7 @@ func (fs *subDirFS) Walk(ctx context.Context, fn filepath.WalkFunc) error {
 		return err
 	}
 	return fs.fs.Walk(ctx, func(p string, fi os.FileInfo, err error) error {
-		stat, ok := fi.Sys().(*Stat)
+		stat, ok := fi.Sys().(*types.Stat)
 		if !ok {
 			return errors.Wrapf(err, "invalid fileinfo without stat info: %s", p)
 		}

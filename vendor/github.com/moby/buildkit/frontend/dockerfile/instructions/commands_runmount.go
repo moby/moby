@@ -14,12 +14,14 @@ const MountTypeBind = "bind"
 const MountTypeCache = "cache"
 const MountTypeTmpfs = "tmpfs"
 const MountTypeSecret = "secret"
+const MountTypeSSH = "ssh"
 
 var allowedMountTypes = map[string]struct{}{
 	MountTypeBind:   {},
 	MountTypeCache:  {},
 	MountTypeTmpfs:  {},
 	MountTypeSecret: {},
+	MountTypeSSH:    {},
 }
 
 const MountSharingShared = "shared"
@@ -44,6 +46,11 @@ func init() {
 func isValidMountType(s string) bool {
 	if s == "secret" {
 		if !isSecretMountsSupported() {
+			return false
+		}
+	}
+	if s == "ssh" {
+		if !isSSHMountsSupported() {
 			return false
 		}
 	}

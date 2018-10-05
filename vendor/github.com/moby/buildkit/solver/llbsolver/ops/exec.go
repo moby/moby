@@ -31,6 +31,7 @@ import (
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/progress/logs"
+	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runc/libcontainer/system"
@@ -467,6 +468,15 @@ func (sm *secretMountInstance) Release() error {
 	return nil
 }
 
+func addDefaultEnvvar(env []string, k, v string) []string {
+	for _, e := range env {
+		if strings.HasPrefix(e, k+"=") {
+			return env
+		}
+	}
+	return append(env, k+"="+v)
+}
+
 func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Result, error) {
 	var mounts []executor.Mount
 	var root cache.Mountable
@@ -626,6 +636,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 	if e.op.Meta.ProxyEnv != nil {
 		meta.Env = append(meta.Env, proxyEnvList(e.op.Meta.ProxyEnv)...)
 	}
+	meta.Env = addDefaultEnvvar(meta.Env, "PATH", utilsystem.DefaultPathEnv)
 
 	stdout, stderr := logs.NewLogStreams(ctx, os.Getenv("BUILDKIT_DEBUG_EXEC_OUTPUT") == "1")
 	defer stdout.Close()

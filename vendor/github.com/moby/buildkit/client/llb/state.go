@@ -9,7 +9,6 @@ import (
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/apicaps"
-	"github.com/moby/buildkit/util/system"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -34,7 +33,6 @@ func NewState(o Output) State {
 		ctx: context.Background(),
 	}
 	s = dir("/")(s)
-	s = addEnv("PATH", system.DefaultPathEnv)(s)
 	s = s.ensurePlatform()
 	return s
 }
