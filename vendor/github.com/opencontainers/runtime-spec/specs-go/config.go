@@ -503,6 +503,8 @@ type WindowsNetwork struct {
 	DNSSearchList []string `json:"DNSSearchList,omitempty"`
 	// Name (ID) of the container that we will share with the network stack.
 	NetworkSharedContainerName string `json:"networkSharedContainerName,omitempty"`
+	// name (ID) of the network namespace that will be used for the container.
+	NetworkNamespace string `json:"networkNamespace,omitempty"`
 }
 
 // WindowsHyperV contains information for configuring a container to run with Hyper-V isolation.

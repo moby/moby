@@ -129,6 +129,13 @@ type platformManifest struct {
 
 // Manifest resolves a manifest from the image for the given platform.
 //
+// When a manifest descriptor inside of a manifest index does not have
+// a platform defined, the platform from the image config is considered.
+//
+// If the descriptor points to a non-index manifest, then the manifest is
+// unmarshalled and returned without considering the platform inside of the
+// config.
+//
 // TODO(stevvooe): This violates the current platform agnostic approach to this
 // package by returning a specific manifest type. We'll need to refactor this
 // to return a manifest descriptor or decide that we want to bring the API in
@@ -152,7 +159,7 @@ func Manifest(ctx context.Context, provider content.Provider, image ocispec.Desc
 				return nil, err
 			}
 
-			if platform != nil {
+			if desc.Digest != image.Digest && platform != nil {
 				if desc.Platform != nil && !platform.Match(*desc.Platform) {
 					return nil, nil
 				}
