@@ -402,7 +402,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachable(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "true")
 
-	// validate containers can attache to this overlay network
+	// validate containers can attach to this overlay network
 	out, err = d.Cmd("run", "-d", "--network", "ovnet", "--name", "c1", "busybox", "top")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
