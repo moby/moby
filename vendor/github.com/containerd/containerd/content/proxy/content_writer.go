@@ -57,7 +57,7 @@ func (rw *remoteWriter) Status() (content.Status, error) {
 		Action: contentapi.WriteActionStat,
 	})
 	if err != nil {
-		return content.Status{}, errors.Wrap(err, "error getting writer status")
+		return content.Status{}, errors.Wrap(errdefs.FromGRPC(err), "error getting writer status")
 	}
 
 	return content.Status{
@@ -82,7 +82,7 @@ func (rw *remoteWriter) Write(p []byte) (n int, err error) {
 		Data:   p,
 	})
 	if err != nil {
-		return 0, err
+		return 0, errors.Wrap(errdefs.FromGRPC(err), "failed to send write")
 	}
 
 	n = int(resp.Offset - offset)
@@ -112,7 +112,7 @@ func (rw *remoteWriter) Commit(ctx context.Context, size int64, expected digest.
 		Labels:   base.Labels,
 	})
 	if err != nil {
-		return errdefs.FromGRPC(err)
+		return errors.Wrap(errdefs.FromGRPC(err), "commit failed")
 	}
 
 	if size != 0 && resp.Offset != size {
