@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -46,6 +47,10 @@ const (
 	maximumLogEventsPerPut = 10000
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatch/latest/DeveloperGuide/cloudwatch_limits.html
+	// Because the events are interpreted as UTF-8 encoded Unicode, invalid UTF-8 byte sequences are replaced with the
+	// Unicode replacement character (U+FFFD), which is a 3-byte sequence in UTF-8.  To compensate for that and to avoid
+	// splitting valid UTF-8 characters into invalid byte sequences, we calculate the length of each event assuming that
+	// this replacement happens.
 	maximumBytesPerEvent = 262144 - perEventBytes
 
 	resourceAlreadyExistsCode = "ResourceAlreadyExistsException"
@@ -495,15 +500,16 @@ func (l *logStream) collectBatch(created chan bool) {
 			}
 			line := msg.Line
 			if l.multilinePattern != nil {
-				if l.multilinePattern.Match(line) || len(eventBuffer)+len(line) > maximumBytesPerEvent {
+				lineEffectiveLen := effectiveLen(string(line))
+				if l.multilinePattern.Match(line) || effectiveLen(string(eventBuffer))+lineEffectiveLen > maximumBytesPerEvent {
 					// This is a new log event or we will exceed max bytes per event
 					// so flush the current eventBuffer to events and reset timestamp
 					l.processEvent(batch, eventBuffer, eventBufferTimestamp)
 					eventBufferTimestamp = msg.Timestamp.UnixNano() / int64(time.Millisecond)
 					eventBuffer = eventBuffer[:0]
 				}
-				// Append new line if event is less than max event size
-				if len(line) < maximumBytesPerEvent {
+				// Append newline if event is less than max event size
+				if lineEffectiveLen < maximumBytesPerEvent {
 					line = append(line, "\n"...)
 				}
 				eventBuffer = append(eventBuffer, line...)
@@ -524,16 +530,17 @@ func (l *logStream) collectBatch(created chan bool) {
 // batch (defined in maximumBytesPerPut).  Log messages are split by the maximum
 // bytes per event (defined in maximumBytesPerEvent).  There is a fixed per-event
 // byte overhead (defined in perEventBytes) which is accounted for in split- and
-// batch-calculations.
-func (l *logStream) processEvent(batch *eventBatch, events []byte, timestamp int64) {
-	for len(events) > 0 {
+// batch-calculations.  Because the events are interpreted as UTF-8 encoded
+// Unicode, invalid UTF-8 byte sequences are replaced with the Unicode
+// replacement character (U+FFFD), which is a 3-byte sequence in UTF-8.  To
+// compensate for that and to avoid splitting valid UTF-8 characters into
+// invalid byte sequences, we calculate the length of each event assuming that
+// this replacement happens.
+func (l *logStream) processEvent(batch *eventBatch, bytes []byte, timestamp int64) {
+	for len(bytes) > 0 {
 		// Split line length so it does not exceed the maximum
-		lineBytes := len(events)
-		if lineBytes > maximumBytesPerEvent {
-			lineBytes = maximumBytesPerEvent
-		}
-		line := events[:lineBytes]
-
+		splitOffset, lineBytes := findValidSplit(string(bytes), maximumBytesPerEvent)
+		line := bytes[:splitOffset]
 		event := wrappedEvent{
 			inputLogEvent: &cloudwatchlogs.InputLogEvent{
 				Message:   aws.String(string(line)),
@@ -544,12 +551,43 @@ func (l *logStream) processEvent(batch *eventBatch, events []byte, timestamp int
 
 		added := batch.add(event, lineBytes)
 		if added {
-			events = events[lineBytes:]
+			bytes = bytes[splitOffset:]
 		} else {
 			l.publishBatch(batch)
 			batch.reset()
 		}
 	}
+}
+
+// effectiveLen counts the effective number of bytes in the string, after
+// UTF-8 normalization.  UTF-8 normalization includes replacing bytes that do
+// not constitute valid UTF-8 encoded Unicode codepoints with the Unicode
+// replacement codepoint U+FFFD (a 3-byte UTF-8 sequence, represented in Go as
+// utf8.RuneError)
+func effectiveLen(line string) int {
+	effectiveBytes := 0
+	for _, rune := range line {
+		effectiveBytes += utf8.RuneLen(rune)
+	}
+	return effectiveBytes
+}
+
+// findValidSplit finds the byte offset to split a string without breaking valid
+// Unicode codepoints given a maximum number of total bytes.  findValidSplit
+// returns the byte offset for splitting a string or []byte, as well as the
+// effective number of bytes if the string were normalized to replace invalid
+// UTF-8 encoded bytes with the Unicode replacement character (a 3-byte UTF-8
+// sequence, represented in Go as utf8.RuneError)
+func findValidSplit(line string, maxBytes int) (splitOffset, effectiveBytes int) {
+	for offset, rune := range line {
+		splitOffset = offset
+		if effectiveBytes+utf8.RuneLen(rune) > maxBytes {
+			return splitOffset, effectiveBytes
+		}
+		effectiveBytes += utf8.RuneLen(rune)
+	}
+	splitOffset = len(line)
+	return
 }
 
 // publishBatch calls PutLogEvents for a given set of InputLogEvents,
