@@ -47,6 +47,9 @@ func TestDockerfileOutsideTheBuildContext(t *testing.T) {
 	defer cleanup()
 
 	expectedError := "Forbidden path outside the build context: ../../Dockerfile ()"
+	if runtime.GOOS == "windows" {
+		expectedError = "failed to resolve scoped path ../../Dockerfile ()"
+	}
 
 	readAndCheckDockerfile(t, "DockerfileOutsideTheBuildContext", contextDir, "../../Dockerfile", expectedError)
 }
@@ -61,7 +64,9 @@ func TestNonExistingDockerfile(t *testing.T) {
 }
 
 func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, expectedError string) {
-	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	if runtime.GOOS != "windows" {
+		skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	}
 	tarStream, err := archive.Tar(contextDir, archive.Uncompressed)
 	assert.NilError(t, err)
 
@@ -80,7 +85,7 @@ func readAndCheckDockerfile(t *testing.T, testName, contextDir, dockerfilePath, 
 		Source:  tarStream,
 	}
 	_, _, err = remotecontext.Detect(config)
-	assert.Check(t, is.Error(err, expectedError))
+	assert.Check(t, is.ErrorContains(err, expectedError))
 }
 
 func TestCopyRunConfig(t *testing.T) {
