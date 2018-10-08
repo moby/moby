@@ -68,3 +68,16 @@ func TestParseUintList(t *testing.T) {
 		}
 	}
 }
+
+func TestParseUintListMaximumLimits(t *testing.T) {
+	v := "10,1000"
+	if _, err := ParseUintListMaximum(v, 0); err != nil {
+		t.Fatalf("Expected not to fail, got %v", err)
+	}
+	if _, err := ParseUintListMaximum(v, 1000); err != nil {
+		t.Fatalf("Expected not to fail, got %v", err)
+	}
+	if out, err := ParseUintListMaximum(v, 100); err == nil {
+		t.Fatalf("Expected failure with %s but got %v", v, out)
+	}
+}
