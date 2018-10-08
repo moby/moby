@@ -91,6 +91,11 @@
         }
       - type:       rebuild
         settings: {
+            configurations: [ windowsRS5 ],
+            label:          "rebuild/windowsRS5-process",
+        }
+      - type:       rebuild
+        settings: {
             configurations: [ z ],
             label:          "rebuild/z",
         }
