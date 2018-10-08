@@ -1,4 +1,5 @@
-// +build !mips,!mipsle,!mips64,!mips64le
+// +build linux
+// +build mips mipsle mips64 mips64le
 
 package signal // import "github.com/docker/docker/pkg/signal"
 
@@ -10,7 +11,7 @@ import (
 
 const (
 	sigrtmin = 34
-	sigrtmax = 64
+	sigrtmax = 127
 )
 
 // SignalMap is a map of Linux signals.
@@ -34,7 +35,7 @@ var SignalMap = map[string]syscall.Signal{
 	"PWR":      unix.SIGPWR,
 	"QUIT":     unix.SIGQUIT,
 	"SEGV":     unix.SIGSEGV,
-	"STKFLT":   unix.SIGSTKFLT,
+	"SIGEMT":   unix.SIGEMT,
 	"STOP":     unix.SIGSTOP,
 	"SYS":      unix.SIGSYS,
 	"TERM":     unix.SIGTERM,
