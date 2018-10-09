@@ -170,6 +170,9 @@ func (br *buildRouter) postPrune(ctx context.Context, w http.ResponseWriter, r *
 		return errors.Wrap(err, "could not parse filters")
 	}
 	ksfv := r.FormValue("keep-storage")
+	if ksfv == "" {
+		ksfv = "0"
+	}
 	ks, err := strconv.Atoi(ksfv)
 	if err != nil {
 		return errors.Wrapf(err, "keep-storage is in bytes and expects an integer, got %v", ksfv)
