@@ -199,42 +199,49 @@ func (i *IpamInfo) UnmarshalJSON(data []byte) error {
 }
 
 type network struct {
-	ctrlr          *controller
-	name           string
-	networkType    string
-	id             string
-	created        time.Time
-	scope          string // network data scope
-	labels         map[string]string
-	ipamType       string
-	ipamOptions    map[string]string
-	addrSpace      string
-	ipamV4Config   []*IpamConf
-	ipamV6Config   []*IpamConf
-	ipamV4Info     []*IpamInfo
-	ipamV6Info     []*IpamInfo
-	enableIPv6     bool
-	postIPv6       bool
-	epCnt          *endpointCnt
-	generic        options.Generic
-	dbIndex        uint64
-	dbExists       bool
-	persist        bool
-	stopWatchCh    chan struct{}
-	drvOnce        *sync.Once
-	resolverOnce   sync.Once
-	resolver       []Resolver
-	internal       bool
-	attachable     bool
-	inDelete       bool
-	ingress        bool
-	driverTables   []networkDBTable
-	dynamic        bool
-	configOnly     bool
-	configFrom     string
-	loadBalancerIP net.IP
+	ctrlr            *controller
+	name             string
+	networkType      string
+	id               string
+	created          time.Time
+	scope            string // network data scope
+	labels           map[string]string
+	ipamType         string
+	ipamOptions      map[string]string
+	addrSpace        string
+	ipamV4Config     []*IpamConf
+	ipamV6Config     []*IpamConf
+	ipamV4Info       []*IpamInfo
+	ipamV6Info       []*IpamInfo
+	enableIPv6       bool
+	postIPv6         bool
+	epCnt            *endpointCnt
+	generic          options.Generic
+	dbIndex          uint64
+	dbExists         bool
+	persist          bool
+	stopWatchCh      chan struct{}
+	drvOnce          *sync.Once
+	resolverOnce     sync.Once
+	resolver         []Resolver
+	internal         bool
+	attachable       bool
+	inDelete         bool
+	ingress          bool
+	driverTables     []networkDBTable
+	dynamic          bool
+	configOnly       bool
+	configFrom       string
+	loadBalancerIP   net.IP
+	loadBalancerMode string
 	sync.Mutex
 }
+
+const (
+	loadBalancerModeNAT     = "NAT"
+	loadBalancerModeDSR     = "DSR"
+	loadBalancerModeDefault = loadBalancerModeNAT
+)
 
 func (n *network) Name() string {
 	n.Lock()
@@ -475,6 +482,7 @@ func (n *network) CopyTo(o datastore.KVObject) error {
 	dstN.configOnly = n.configOnly
 	dstN.configFrom = n.configFrom
 	dstN.loadBalancerIP = n.loadBalancerIP
+	dstN.loadBalancerMode = n.loadBalancerMode
 
 	// copy labels
 	if dstN.labels == nil {
@@ -592,6 +600,7 @@ func (n *network) MarshalJSON() ([]byte, error) {
 	netMap["configOnly"] = n.configOnly
 	netMap["configFrom"] = n.configFrom
 	netMap["loadBalancerIP"] = n.loadBalancerIP
+	netMap["loadBalancerMode"] = n.loadBalancerMode
 	return json.Marshal(netMap)
 }
 
@@ -704,6 +713,10 @@ func (n *network) UnmarshalJSON(b []byte) (err error) {
 	}
 	if v, ok := netMap["loadBalancerIP"]; ok {
 		n.loadBalancerIP = net.ParseIP(v.(string))
+	}
+	n.loadBalancerMode = loadBalancerModeDefault
+	if v, ok := netMap["loadBalancerMode"]; ok {
+		n.loadBalancerMode = v.(string)
 	}
 	// Reconcile old networks with the recently added `--ipv6` flag
 	if !n.enableIPv6 {
