@@ -23,13 +23,14 @@ func (cli *Client) ServiceLogs(ctx context.Context, serviceID string, options ty
 		query.Set("stderr", "1")
 	}
 
+	ts, err := timetypes.GetTimestamp("1h", time.Now())
 	if options.Since != "" {
-		ts, err := timetypes.GetTimestamp(options.Since, time.Now())
-		if err != nil {
-			return nil, errors.Wrap(err, `invalid value for "since"`)
-		}
-		query.Set("since", ts)
+		ts, err = timetypes.GetTimestamp(options.Since, time.Now())
 	}
+	if err != nil {
+		return nil, errors.Wrap(err, `invalid value for "since"`)
+	}
+	query.Set("since", ts)
 
 	if options.Timestamps {
 		query.Set("timestamps", "1")
