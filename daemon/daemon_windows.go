@@ -193,12 +193,15 @@ func verifyContainerResources(resources *containertypes.Resources, isHyperv bool
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
 	warnings := []string{}
-
+	osv := system.GetOSVersion()
 	hyperv := daemon.runAsHyperVContainer(hostConfig)
-	if !hyperv && system.IsWindowsClient() && !system.IsIoTCore() {
-		// @engine maintainers. This block should not be removed. It partially enforces licensing
-		// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
-		return warnings, fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+
+	// On RS5, we allow (but don't strictly support) process isolation on Client SKUs.
+	// Prior to RS5, we don't allow process isolation on Client SKUs.
+	// @engine maintainers. This block should not be removed. It partially enforces licensing
+	// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
+	if !hyperv && system.IsWindowsClient() && osv.Build < 17763 {
+		return warnings, fmt.Errorf("Windows client operating systems earlier than version 1809 can only run Hyper-V containers")
 	}
 
 	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
@@ -592,9 +595,12 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 // daemon to run in. This is only applicable on Windows
 func (daemon *Daemon) setDefaultIsolation() error {
 	daemon.defaultIsolation = containertypes.Isolation("process")
-	// On client SKUs, default to Hyper-V. Note that IoT reports as a client SKU
-	// but it should not be treated as such.
-	if system.IsWindowsClient() && !system.IsIoTCore() {
+	osv := system.GetOSVersion()
+
+	// On client SKUs, default to Hyper-V. @engine maintainers. This
+	// should not be removed. Ping @jhowardmsft is there are PRs to
+	// to change this.
+	if system.IsWindowsClient() {
 		daemon.defaultIsolation = containertypes.Isolation("hyperv")
 	}
 	for _, option := range daemon.configStore.ExecOptions {
@@ -613,10 +619,11 @@ func (daemon *Daemon) setDefaultIsolation() error {
 				daemon.defaultIsolation = containertypes.Isolation("hyperv")
 			}
 			if containertypes.Isolation(val).IsProcess() {
-				if system.IsWindowsClient() && !system.IsIoTCore() {
+				if system.IsWindowsClient() && osv.Build < 17763 {
+					// On RS5, we allow (but don't strictly support) process isolation on Client SKUs.
 					// @engine maintainers. This block should not be removed. It partially enforces licensing
 					// restrictions on Windows. Ping @jhowardmsft if there are concerns or PRs to change this.
-					return fmt.Errorf("Windows client operating systems only support Hyper-V containers")
+					return fmt.Errorf("Windows client operating systems earlier than version 1809 can only run Hyper-V containers")
 				}
 				daemon.defaultIsolation = containertypes.Isolation("process")
 			}
