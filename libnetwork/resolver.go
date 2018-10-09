@@ -67,7 +67,7 @@ const (
 	maxExtDNS       = 3 //max number of external servers to try
 	extIOTimeout    = 4 * time.Second
 	defaultRespSize = 512
-	maxConcurrent   = 100
+	maxConcurrent   = 1024
 	logInterval     = 2 * time.Second
 )
 
