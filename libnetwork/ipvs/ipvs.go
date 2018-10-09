@@ -62,6 +62,7 @@ type Destination struct {
 	LowerThreshold      uint32
 	ActiveConnections   int
 	InactiveConnections int
+	Stats               SvcStats
 }
 
 // Handle provides a namespace specific ipvs handle to program ipvs
