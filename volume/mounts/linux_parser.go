@@ -97,6 +97,9 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			return &errMountConfig{mnt, fmt.Errorf("must not set ReadOnly mode when using anonymous volumes")}
 		}
 	case mount.TypeTmpfs:
+		if mnt.BindOptions != nil {
+			return &errMountConfig{mnt, errExtraField("BindOptions")}
+		}
 		if len(mnt.Source) != 0 {
 			return &errMountConfig{mnt, errExtraField("Source")}
 		}
