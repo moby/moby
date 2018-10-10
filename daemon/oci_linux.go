@@ -565,7 +565,11 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 			}
 		}
 
-		opts := []string{"rbind"}
+		bindMode := "rbind"
+		if m.NonRecursive {
+			bindMode = "bind"
+		}
+		opts := []string{bindMode}
 		if !m.Writable {
 			opts = append(opts, "ro")
 		}

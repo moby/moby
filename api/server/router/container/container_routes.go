@@ -465,6 +465,16 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.AutoRemove = false
 	}
 
+	// When using API 1.39 and under, BindOptions.NonRecursive should be ignored because it
+	// was added in API 1.40.
+	if hostConfig != nil && versions.LessThan(version, "1.40") {
+		for _, m := range hostConfig.Mounts {
+			if bo := m.BindOptions; bo != nil {
+				bo.NonRecursive = false
+			}
+		}
+	}
+
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,

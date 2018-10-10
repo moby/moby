@@ -27,6 +27,8 @@ keywords: "API, Docker, rcli, REST, documentation"
   on the node.label. The format of the label filter is `node.label=<key>`/`node.label=<key>=<value>`
   to return those with the specified labels, or `node.label!=<key>`/`node.label!=<key>=<value>`
   to return those without the specified labels.
+* `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
+  `BindOptions.NonRecursive`.
 
 ## V1.39 API changes
 
