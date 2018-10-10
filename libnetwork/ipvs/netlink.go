@@ -448,7 +448,7 @@ func assembleDestination(attrs []syscall.NetlinkRouteAttr) (*Destination, error)
 			if err != nil {
 				return nil, err
 			}
-			d.Stats = stats
+			d.Stats = DstStats(stats)
 		}
 	}
 	return &d, nil
