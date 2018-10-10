@@ -31,6 +31,7 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 }
 
 func TestKillContainer(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "TODO Windows: FIXME. No SIGWINCH")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 
@@ -70,7 +71,7 @@ func TestKillContainer(t *testing.T) {
 }
 
 func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
-	skip.If(t, testEnv.OSType != "linux", "Windows only supports 1.25 or later")
+	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 
@@ -110,7 +111,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 }
 
 func TestKillStoppedContainer(t *testing.T) {
-	skip.If(t, testEnv.OSType != "linux") // Windows only supports 1.25 or later
+	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
@@ -121,7 +122,7 @@ func TestKillStoppedContainer(t *testing.T) {
 }
 
 func TestKillStoppedContainerAPIPre120(t *testing.T) {
-	skip.If(t, testEnv.OSType != "linux") // Windows only supports 1.25 or later
+	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
@@ -132,7 +133,7 @@ func TestKillStoppedContainerAPIPre120(t *testing.T) {
 
 func TestKillDifferentUserContainer(t *testing.T) {
 	// TODO Windows: Windows does not yet support -u (Feb 2016).
-	skip.If(t, testEnv.OSType != "linux", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.OSType)
+	skip.If(t, testEnv.OSType == "windows", "User containers (container.Config.User) are not yet supported on %q platform", testEnv.OSType)
 
 	defer setupTest(t)()
 	ctx := context.Background()
@@ -149,7 +150,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 }
 
 func TestInspectOomKilledTrue(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
 
 	defer setupTest(t)()
 	ctx := context.Background()
@@ -167,7 +168,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 }
 
 func TestInspectOomKilledFalse(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || !testEnv.DaemonInfo.MemoryLimit || !testEnv.DaemonInfo.SwapLimit)
 
 	defer setupTest(t)()
 	ctx := context.Background()

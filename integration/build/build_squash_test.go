@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/assert"
@@ -18,7 +19,12 @@ import (
 )
 
 func TestBuildSquashParent(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
+	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+	d := daemon.New(t, daemon.WithExperimental)
+	d.StartWithBusybox(t)
+	defer d.Stop(t)
 
 	client := testEnv.APIClient()
 

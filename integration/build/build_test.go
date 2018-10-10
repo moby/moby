@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -22,6 +23,7 @@ import (
 )
 
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	t.Parallel()
 	cases := []struct {
@@ -137,6 +139,7 @@ func buildContainerIdsFilter(buildOutput io.Reader) (filters.Args, error) {
 
 func TestBuildMultiStageParentConfig(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	dockerfile := `
 		FROM busybox AS stage0
 		ENV WHO=parent
@@ -166,16 +169,27 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	resp.Body.Close()
 	assert.NilError(t, err)
 
+	time.Sleep(30 * time.Second)
+
+	imgs, err := apiclient.ImageList(ctx, types.ImageListOptions{})
+	assert.NilError(t, err)
+	t.Log(imgs)
+
 	image, _, err := apiclient.ImageInspectWithRaw(ctx, "build1")
 	assert.NilError(t, err)
 
-	assert.Check(t, is.Equal("/foo/sub2", image.Config.WorkingDir))
+	expected := "/foo/sub2"
+	if testEnv.DaemonInfo.OSType == "windows" {
+		expected = `C:\foo\sub2`
+	}
+	assert.Check(t, is.Equal(expected, image.Config.WorkingDir))
 	assert.Check(t, is.Contains(image.Config.Env, "WHO=parent"))
 }
 
 // Test cases in #36996
 func TestBuildLabelWithTargets(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "test added after 1.38")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	bldName := "build-a"
 	testLabels := map[string]string{
 		"foo":  "bar",
@@ -282,6 +296,7 @@ func TestBuildWithEmptyLayers(t *testing.T) {
 // #35652
 func TestBuildMultiStageOnBuild(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.33"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	// test both metadata and layer based commands as they may be implemented differently
 	dockerfile := `FROM busybox AS stage1
@@ -289,7 +304,8 @@ ONBUILD RUN echo 'foo' >somefile
 ONBUILD ENV bar=baz
 
 FROM stage1
-RUN cat somefile # fails if ONBUILD RUN fails
+# fails if ONBUILD RUN fails
+RUN cat somefile
 
 FROM stage1
 RUN cat somefile`
@@ -327,6 +343,8 @@ RUN cat somefile`
 // #35403 #36122
 func TestBuildUncleanTarFilenames(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
+
 	ctx := context.TODO()
 	defer setupTest(t)()
 
@@ -385,6 +403,7 @@ COPY bar /`
 // docker/for-linux#135
 // #35641
 func TestBuildMultiStageLayerLeak(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.37"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
@@ -425,6 +444,7 @@ RUN [ ! -f foo ]
 
 // #37581
 func TestBuildWithHugeFile(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
 	ctx := context.TODO()
 	defer setupTest(t)()
 

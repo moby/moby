@@ -24,6 +24,7 @@ import (
 // This checks that "rename" updates source container correctly and doesn't set it to null.
 func TestRenameLinkedContainer(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.32"), "broken in earlier versions")
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
@@ -123,6 +124,7 @@ func TestRenameInvalidName(t *testing.T) {
 // This test is to make sure once the container has been renamed,
 // the service discovery for the (re)named container works.
 func TestRenameAnonymousContainer(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
@@ -190,6 +192,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 // container could still reference to the container that is renamed.
 func TestRenameContainerWithLinkedContainer(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
 	ctx := context.Background()
