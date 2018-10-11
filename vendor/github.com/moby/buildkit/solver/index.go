@@ -211,10 +211,12 @@ func (ei *edgeIndex) getAllMatches(k *CacheKey) []string {
 			for _, d := range dd {
 				ll := CacheInfoLink{Input: Index(i), Digest: k.Digest(), Output: k.Output(), Selector: d.Selector}
 				for _, ckID := range d.CacheKey.CacheKey.indexIDs {
-					if l, ok := ei.items[ckID].links[ll]; ok {
-						if _, ok := l[m]; ok {
-							found = true
-							break
+					if item, ok := ei.items[ckID]; ok {
+						if l, ok := item.links[ll]; ok {
+							if _, ok := l[m]; ok {
+								found = true
+								break
+							}
 						}
 					}
 				}

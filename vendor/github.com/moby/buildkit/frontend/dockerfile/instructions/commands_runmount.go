@@ -136,7 +136,7 @@ func parseMount(value string) (*Mount, error) {
 				roAuto = false
 				continue
 			case "required":
-				if m.Type == "secret" {
+				if m.Type == "secret" || m.Type == "ssh" {
 					m.Required = true
 					continue
 				}
