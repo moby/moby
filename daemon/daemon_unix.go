@@ -482,14 +482,14 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	cpusAvailable, err := sysInfo.IsCpusetCpusAvailable(resources.CpusetCpus)
 	if err != nil {
-		return warnings, fmt.Errorf("Invalid value %s for cpuset cpus", resources.CpusetCpus)
+		return warnings, errors.Wrapf(err, "Invalid value %s for cpuset cpus", resources.CpusetCpus)
 	}
 	if !cpusAvailable {
 		return warnings, fmt.Errorf("Requested CPUs are not available - requested %s, available: %s", resources.CpusetCpus, sysInfo.Cpus)
 	}
 	memsAvailable, err := sysInfo.IsCpusetMemsAvailable(resources.CpusetMems)
 	if err != nil {
-		return warnings, fmt.Errorf("Invalid value %s for cpuset mems", resources.CpusetMems)
+		return warnings, errors.Wrapf(err, "Invalid value %s for cpuset mems", resources.CpusetMems)
 	}
 	if !memsAvailable {
 		return warnings, fmt.Errorf("Requested memory nodes are not available - requested %s, available: %s", resources.CpusetMems, sysInfo.Mems)
