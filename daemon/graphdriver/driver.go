@@ -314,7 +314,7 @@ func isEmptyDir(name string) bool {
 func isDeprecated(name string) bool {
 	switch name {
 	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
-	case "devicemapper":
+	case "devicemapper", "overlay":
 		return true
 	}
 	return false
