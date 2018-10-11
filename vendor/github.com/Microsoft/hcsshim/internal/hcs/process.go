@@ -2,6 +2,7 @@ package hcs
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"sync"
 	"syscall"
@@ -83,7 +84,10 @@ func (process *Process) Kill() error {
 	}
 
 	var resultp *uint16
+	completed := false
+	go syscallWatcher(fmt.Sprintf("TerminateProcess %s: %d", process.SystemID(), process.Pid()), &completed)
 	err := hcsTerminateProcess(process.handle, &resultp)
+	completed = true
 	events := processHcsResult(resultp)
 	if err != nil {
 		return makeProcessError(process, operation, err, events)
@@ -177,7 +181,10 @@ func (process *Process) Properties() (*ProcessStatus, error) {
 		resultp     *uint16
 		propertiesp *uint16
 	)
+	completed := false
+	go syscallWatcher(fmt.Sprintf("GetProcessProperties %s: %d", process.SystemID(), process.Pid()), &completed)
 	err := hcsGetProcessProperties(process.handle, &propertiesp, &resultp)
+	completed = true
 	events := processHcsResult(resultp)
 	if err != nil {
 		return nil, makeProcessError(process, operation, err, events)

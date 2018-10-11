@@ -115,6 +115,10 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 		return idx, nil
 	}
 
+	if mfsts == nil {
+		return ocispec.Descriptor{}, errors.Errorf("unrecognized image format")
+	}
+
 	for name, linkname := range symlinks {
 		desc, ok := blobs[linkname]
 		if !ok {
@@ -123,7 +127,11 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 		blobs[name] = desc
 	}
 
-	var idx ocispec.Index
+	idx := ocispec.Index{
+		Versioned: specs.Versioned{
+			SchemaVersion: 2,
+		},
+	}
 	for _, mfst := range mfsts {
 		config, ok := blobs[mfst.Config]
 		if !ok {

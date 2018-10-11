@@ -211,7 +211,7 @@ static int try_mapping_tool(const char *app, int pid, char *map, size_t map_len)
 
 	/*
 	 * If @app is NULL, execve will segfault. Just check it here and bail (if
-	 * we're in this path, the caller is already getting desparate and there
+	 * we're in this path, the caller is already getting desperate and there
 	 * isn't a backup to this failing). This usually would be a configuration
 	 * or programming issue.
 	 */

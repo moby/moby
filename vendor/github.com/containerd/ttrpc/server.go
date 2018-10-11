@@ -127,13 +127,13 @@ func (s *Server) Serve(ctx context.Context, l net.Listener) error {
 
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.mu.Lock()
-	lnerr := s.closeListeners()
 	select {
 	case <-s.done:
 	default:
 		// protected by mutex
 		close(s.done)
 	}
+	lnerr := s.closeListeners()
 	s.mu.Unlock()
 
 	ticker := time.NewTicker(200 * time.Millisecond)

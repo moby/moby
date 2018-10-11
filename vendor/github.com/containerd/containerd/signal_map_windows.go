@@ -14,35 +14,26 @@
    limitations under the License.
 */
 
-package fs
+package containerd
 
 import (
-	"os"
+	"syscall"
 
 	"golang.org/x/sys/windows"
 )
 
-func detectDirDiff(upper, lower string) *diffDirOptions {
-	return nil
-}
-
-func compareSysStat(s1, s2 interface{}) (bool, error) {
-	f1, ok := s1.(windows.Win32FileAttributeData)
-	if !ok {
-		return false, nil
-	}
-	f2, ok := s2.(windows.Win32FileAttributeData)
-	if !ok {
-		return false, nil
-	}
-	return f1.FileAttributes == f2.FileAttributes, nil
-}
-
-func compareCapabilities(p1, p2 string) (bool, error) {
-	// TODO: Use windows equivalent
-	return true, nil
-}
-
-func isLinked(os.FileInfo) bool {
-	return false
+var signalMap = map[string]syscall.Signal{
+	"HUP":    syscall.Signal(windows.SIGHUP),
+	"INT":    syscall.Signal(windows.SIGINT),
+	"QUIT":   syscall.Signal(windows.SIGQUIT),
+	"SIGILL": syscall.Signal(windows.SIGILL),
+	"TRAP":   syscall.Signal(windows.SIGTRAP),
+	"ABRT":   syscall.Signal(windows.SIGABRT),
+	"BUS":    syscall.Signal(windows.SIGBUS),
+	"FPE":    syscall.Signal(windows.SIGFPE),
+	"KILL":   syscall.Signal(windows.SIGKILL),
+	"SEGV":   syscall.Signal(windows.SIGSEGV),
+	"PIPE":   syscall.Signal(windows.SIGPIPE),
+	"ALRM":   syscall.Signal(windows.SIGALRM),
+	"TERM":   syscall.Signal(windows.SIGTERM),
 }

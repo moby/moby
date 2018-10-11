@@ -110,12 +110,16 @@ func (c *Client) dispatch(ctx context.Context, req *Request, resp *Response) err
 	}
 
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case c.calls <- call:
 	case <-c.done:
 		return c.err
 	}
 
 	select {
+	case <-ctx.Done():
+		return ctx.Err()
 	case err := <-errs:
 		return filterCloseErr(err)
 	case <-c.done:
