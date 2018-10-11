@@ -2,6 +2,7 @@ package node
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
@@ -35,7 +36,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/status"
@@ -1204,19 +1204,16 @@ func (s *persistentRemotes) Observe(peer api.Peer, weight int) {
 	s.c.Broadcast()
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)
-		return
 	}
-	return
 }
+
 func (s *persistentRemotes) Remove(peers ...api.Peer) {
 	s.Lock()
 	defer s.Unlock()
 	s.Remotes.Remove(peers...)
 	if err := s.save(); err != nil {
 		logrus.Errorf("error writing cluster state file: %v", err)
-		return
 	}
-	return
 }
 
 func (s *persistentRemotes) save() error {

@@ -1,10 +1,11 @@
 package orchestrator
 
 import (
+	"context"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 // IsReplicatedService checks if a service is a replicated service.

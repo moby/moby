@@ -188,7 +188,6 @@ func (c *Collector) handleNodeEvent(event events.Event) {
 	if newNode != nil {
 		nodesMetric.WithValues(strings.ToLower(newNode.Status.State.String())).Inc(1)
 	}
-	return
 }
 
 func (c *Collector) handleTaskEvent(event events.Event) {
@@ -218,8 +217,6 @@ func (c *Collector) handleTaskEvent(event events.Event) {
 			strings.ToLower(newTask.Status.State.String()),
 		).Inc(1)
 	}
-
-	return
 }
 
 func (c *Collector) handleServiceEvent(event events.Event) {

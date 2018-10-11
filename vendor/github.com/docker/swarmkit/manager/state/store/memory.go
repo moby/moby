@@ -1,6 +1,7 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"runtime"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/swarmkit/watch"
 	gogotypes "github.com/gogo/protobuf/types"
 	memdb "github.com/hashicorp/go-memdb"
-	"golang.org/x/net/context"
 )
 
 const (
@@ -689,7 +689,7 @@ func (tx readTx) findIterators(table string, by By, checkType func(By) error) ([
 		}
 		return []memdb.ResultIterator{it}, nil
 	case bySlot:
-		it, err := tx.memDBTx.Get(table, indexSlot, v.serviceID+"\x00"+strconv.FormatUint(uint64(v.slot), 10))
+		it, err := tx.memDBTx.Get(table, indexSlot, v.serviceID+"\x00"+strconv.FormatUint(v.slot, 10))
 		if err != nil {
 			return nil, err
 		}

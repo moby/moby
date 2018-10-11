@@ -1,12 +1,13 @@
 package replicated
 
 import (
+	"context"
+
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/manager/orchestrator/restart"
 	"github.com/docker/swarmkit/manager/orchestrator/update"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 // An Orchestrator runs a reconciliation loop to create and destroy

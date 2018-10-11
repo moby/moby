@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"context"
 	"strings"
 	"time"
 
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -1,13 +1,14 @@
 package replicated
 
 import (
+	"context"
+
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/orchestrator/taskinit"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 // This file provides task-level orchestration. It observes changes to task

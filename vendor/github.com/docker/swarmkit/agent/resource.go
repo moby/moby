@@ -1,8 +1,9 @@
 package agent
 
 import (
+	"context"
+
 	"github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
 )
 
 type resourceAllocator struct {

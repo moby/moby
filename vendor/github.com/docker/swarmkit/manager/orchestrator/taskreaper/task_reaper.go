@@ -1,6 +1,7 @@
 package taskreaper
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -10,7 +11,6 @@ import (
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 const (

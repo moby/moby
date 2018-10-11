@@ -1,7 +1,8 @@
 package ca
 
 import (
-	"golang.org/x/net/context"
+	"context"
+
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/peer"
 )
