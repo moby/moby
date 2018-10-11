@@ -356,6 +356,9 @@ func (r *reference) ReadFile(ctx context.Context, req client.ReadRequest) ([]byt
 }
 
 func (r *reference) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*fstypes.Stat, error) {
+	if err := r.c.caps.Supports(pb.CapReadDir); err != nil {
+		return nil, err
+	}
 	rdr := &pb.ReadDirRequest{
 		DirPath:        req.Path,
 		IncludePattern: req.IncludePattern,
@@ -369,6 +372,9 @@ func (r *reference) ReadDir(ctx context.Context, req client.ReadDirRequest) ([]*
 }
 
 func (r *reference) StatFile(ctx context.Context, req client.StatRequest) (*fstypes.Stat, error) {
+	if err := r.c.caps.Supports(pb.CapStatFile); err != nil {
+		return nil, err
+	}
 	rdr := &pb.StatFileRequest{
 		Path: req.Path,
 		Ref:  r.id,
