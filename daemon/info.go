@@ -131,6 +131,10 @@ func (daemon *Daemon) fillDriverInfo(v *types.Info) {
 		if len(daemon.graphDrivers) > 1 {
 			drivers += fmt.Sprintf(" (%s) ", os)
 		}
+		switch gd {
+		case "devicemapper":
+			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", gd))
+		}
 	}
 	drivers = strings.TrimSpace(drivers)
 
