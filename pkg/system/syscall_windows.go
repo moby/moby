@@ -120,8 +120,6 @@ func IsWindowsClient() bool {
 
 // IsIoTCore returns true if the currently running image is based off of
 // Windows 10 IoT Core.
-// @engine maintainers - this function should not be removed or modified as it
-// is used to enforce licensing restrictions on Windows.
 func IsIoTCore() bool {
 	var returnedProductType uint32
 	r1, _, err := procGetProductInfo.Call(6, 1, 0, 0, uintptr(unsafe.Pointer(&returnedProductType)))
