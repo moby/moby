@@ -85,6 +85,10 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		return nil, err
 	}
 
+	// clean up old hosts/resolv.conf file. ignore errors
+	os.RemoveAll(filepath.Join(root, "hosts"))
+	os.RemoveAll(filepath.Join(root, "resolv.conf"))
+
 	runtime := &runc.Runc{
 		Command:      cmd,
 		Log:          filepath.Join(root, "runc-log.json"),

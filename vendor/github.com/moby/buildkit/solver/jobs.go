@@ -13,6 +13,7 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/tracing"
 	digest "github.com/opencontainers/go-digest"
+	opentracing "github.com/opentracing/opentracing-go"
 	"github.com/pkg/errors"
 )
 
@@ -45,8 +46,10 @@ type state struct {
 	parents  map[digest.Digest]struct{}
 	childVtx map[digest.Digest]struct{}
 
-	mpw   *progress.MultiWriter
-	allPw map[progress.Writer]struct{}
+	mpw     *progress.MultiWriter
+	allPw   map[progress.Writer]struct{}
+	mspan   *tracing.MultiSpan
+	allSpan map[opentracing.Span]struct{}
 
 	vtx          Vertex
 	clientVertex client.Vertex
@@ -168,7 +171,7 @@ func (sb *subBuilder) Build(ctx context.Context, e Edge) (CachedResult, error) {
 }
 
 func (sb *subBuilder) Context(ctx context.Context) context.Context {
-	return progress.WithProgress(ctx, sb.mpw)
+	return opentracing.ContextWithSpan(progress.WithProgress(ctx, sb.mpw), sb.mspan)
 }
 
 func (sb *subBuilder) EachValue(ctx context.Context, key string, fn func(interface{}) error) error {
@@ -186,6 +189,7 @@ type Job struct {
 	list   *Solver
 	pr     *progress.MultiReader
 	pw     progress.Writer
+	span   opentracing.Span
 	values sync.Map
 
 	progressCloser func()
@@ -303,7 +307,9 @@ func (jl *Solver) loadUnlocked(v, parent Vertex, j *Job, cache map[Vertex]Vertex
 			parents:      map[digest.Digest]struct{}{},
 			childVtx:     map[digest.Digest]struct{}{},
 			allPw:        map[progress.Writer]struct{}{},
+			allSpan:      map[opentracing.Span]struct{}{},
 			mpw:          progress.NewMultiWriter(progress.WithMetadata("vertex", dgst)),
+			mspan:        tracing.NewMultiSpan(),
 			vtx:          v,
 			clientVertex: initClientVertex(v),
 			edges:        map[Index]*edge{},
@@ -357,6 +363,8 @@ func (jl *Solver) connectProgressFromState(target, src *state) {
 			target.mpw.Add(j.pw)
 			target.allPw[j.pw] = struct{}{}
 			j.pw.Write(target.clientVertex.Digest.String(), target.clientVertex)
+			target.mspan.Add(j.span)
+			target.allSpan[j.span] = struct{}{}
 		}
 	}
 	for p := range src.parents {
@@ -380,6 +388,7 @@ func (jl *Solver) NewJob(id string) (*Job, error) {
 		pr:             progress.NewMultiReader(pr),
 		pw:             pw,
 		progressCloser: progressCloser,
+		span:           (&opentracing.NoopTracer{}).StartSpan(""),
 	}
 	jl.jobs[id] = j
 
@@ -428,6 +437,10 @@ func (jl *Solver) deleteIfUnreferenced(k digest.Digest, st *state) {
 }
 
 func (j *Job) Build(ctx context.Context, e Edge) (CachedResult, error) {
+	if span := opentracing.SpanFromContext(ctx); span != nil {
+		j.span = span
+	}
+
 	v, err := j.list.load(e.Vertex, nil, j)
 	if err != nil {
 		return nil, err
@@ -452,6 +465,9 @@ func (j *Job) Discard() error {
 		}
 		if _, ok := st.allPw[j.pw]; ok {
 			delete(st.allPw, j.pw)
+		}
+		if _, ok := st.allSpan[j.span]; ok {
+			delete(st.allSpan, j.span)
 		}
 		st.mu.Unlock()
 	}
@@ -534,7 +550,7 @@ func (s *sharedOp) Cache() CacheManager {
 }
 
 func (s *sharedOp) LoadCache(ctx context.Context, rec *CacheRecord) (Result, error) {
-	ctx = progress.WithProgress(ctx, s.st.mpw)
+	ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
 	// no cache hit. start evaluating the node
 	span, ctx := tracing.StartSpan(ctx, "load cache: "+s.st.vtx.Name())
 	notifyStarted(ctx, &s.st.clientVertex, true)
@@ -557,7 +573,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBased
 			return err, nil
 		}
 		s.slowMu.Unlock()
-		ctx = progress.WithProgress(ctx, s.st.mpw)
+		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
 		key, err := f(ctx, res)
 		complete := true
 		if err != nil {
@@ -581,7 +597,7 @@ func (s *sharedOp) CalcSlowCache(ctx context.Context, index Index, f ResultBased
 		return key, err
 	})
 	if err != nil {
-		ctx = progress.WithProgress(ctx, s.st.mpw)
+		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
 		notifyStarted(ctx, &s.st.clientVertex, false)
 		notifyCompleted(ctx, &s.st.clientVertex, err, false)
 		return "", err
@@ -601,7 +617,7 @@ func (s *sharedOp) CacheMap(ctx context.Context, index int) (*cacheMapResp, erro
 		if s.cacheErr != nil {
 			return nil, s.cacheErr
 		}
-		ctx = progress.WithProgress(ctx, s.st.mpw)
+		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
 		ctx = session.NewContext(ctx, s.st.getSessionID())
 		if len(s.st.vtx.Inputs()) == 0 {
 			// no cache hit. start evaluating the node
@@ -654,7 +670,7 @@ func (s *sharedOp) Exec(ctx context.Context, inputs []Result) (outputs []Result,
 			return s.execRes, s.execErr
 		}
 
-		ctx = progress.WithProgress(ctx, s.st.mpw)
+		ctx = opentracing.ContextWithSpan(progress.WithProgress(ctx, s.st.mpw), s.st.mspan)
 		ctx = session.NewContext(ctx, s.st.getSessionID())
 
 		// no cache hit. start evaluating the node

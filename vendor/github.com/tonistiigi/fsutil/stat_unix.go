@@ -8,11 +8,15 @@ import (
 
 	"github.com/containerd/continuity/sysx"
 	"github.com/pkg/errors"
+	"github.com/tonistiigi/fsutil/types"
 )
 
-func loadXattr(origpath string, stat *Stat) error {
+func loadXattr(origpath string, stat *types.Stat) error {
 	xattrs, err := sysx.LListxattr(origpath)
 	if err != nil {
+		if errors.Cause(err) == syscall.ENOTSUP {
+			return nil
+		}
 		return errors.Wrapf(err, "failed to xattr %s", origpath)
 	}
 	if len(xattrs) > 0 {
@@ -28,7 +32,7 @@ func loadXattr(origpath string, stat *Stat) error {
 	return nil
 }
 
-func setUnixOpt(fi os.FileInfo, stat *Stat, path string, seenFiles map[uint64]string) {
+func setUnixOpt(fi os.FileInfo, stat *types.Stat, path string, seenFiles map[uint64]string) {
 	s := fi.Sys().(*syscall.Stat_t)
 
 	stat.Uid = s.Uid
@@ -42,13 +46,15 @@ func setUnixOpt(fi os.FileInfo, stat *Stat, path string, seenFiles map[uint64]st
 		}
 
 		ino := s.Ino
-		if s.Nlink > 1 {
-			if oldpath, ok := seenFiles[ino]; ok {
-				stat.Linkname = oldpath
-				stat.Size_ = 0
+		if seenFiles != nil {
+			if s.Nlink > 1 {
+				if oldpath, ok := seenFiles[ino]; ok {
+					stat.Linkname = oldpath
+					stat.Size_ = 0
+				}
 			}
+			seenFiles[ino] = path
 		}
-		seenFiles[ino] = path
 	}
 }
 
