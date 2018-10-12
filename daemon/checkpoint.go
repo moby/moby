@@ -95,7 +95,7 @@ func (daemon *Daemon) CheckpointDelete(name string, config types.CheckpointDelet
 	}
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), false)
 	if err == nil {
-		return os.RemoveAll(filepath.Join(checkpointDir, config.CheckpointID))
+		return os.RemoveAll(checkpointDir)
 	}
 	return err
 }
