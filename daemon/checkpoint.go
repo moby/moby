@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/daemon/names"
@@ -16,6 +17,13 @@ var (
 	validCheckpointNameChars   = names.RestrictedNameChars
 	validCheckpointNamePattern = names.RestrictedNamePattern
 )
+
+// checkPoint represents the details of a checkpoint
+type checkPoint struct {
+	Name    string    // Name is the name of the checkpoint
+	Created time.Time // Created is the checkpoint created time
+	Exit    bool      // Exit is whether container exit or not when do checkpoint
+}
 
 // getCheckpointDir verifies checkpoint directory for create,remove, list options and checks if checkpoint already exists
 func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir string, create bool) (string, error) {
@@ -74,6 +82,23 @@ func (daemon *Daemon) CheckpointCreate(name string, config types.CheckpointCreat
 	checkpointDir, err := getCheckpointDir(config.CheckpointDir, config.CheckpointID, name, container.ID, container.CheckpointDir(), true)
 	if err != nil {
 		return fmt.Errorf("cannot checkpoint container %s: %s", name, err)
+	}
+
+	checkpointInfo := checkPoint{
+		Name:    config.CheckpointID,
+		Created: time.Now(),
+		Exit:    config.Exit,
+	}
+	f, err := os.Create(filepath.Join(checkpointDir, "config.json"))
+	if err != nil {
+		os.RemoveAll(checkpointDir)
+		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
+	}
+	defer f.Close()
+	err = json.NewEncoder(f).Encode(checkpointInfo)
+	if err != nil {
+		os.RemoveAll(checkpointDir)
+		return fmt.Errorf("Cannot checkpoint container %s: %s", name, err)
 	}
 
 	err = daemon.containerd.CreateCheckpoint(context.Background(), container.ID, checkpointDir, config.Exit)
