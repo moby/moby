@@ -111,7 +111,7 @@ func NewResolver(address string, proxyDNS bool, resolverKey string, backend DNSB
 }
 
 func (r *resolver) SetupFunc(port int) func() {
-	return (func() {
+	return func() {
 		var err error
 
 		// DNS operates primarily on UDP
@@ -138,7 +138,7 @@ func (r *resolver) SetupFunc(port int) func() {
 			return
 		}
 		r.err = nil
-	})
+	}
 }
 
 func (r *resolver) Start() error {
@@ -490,35 +490,51 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 				continue
 			}
 			r.forwardQueryEnd()
-			if resp != nil {
-				if resp.Rcode == dns.RcodeServerFailure {
-					// for Server Failure response, continue to the next external DNS server
-					logrus.Debugf("[resolver] external DNS %s:%s responded with ServFail for %q", proto, extDNS.IPStr, name)
-					continue
-				}
-				answers := 0
-				for _, rr := range resp.Answer {
-					h := rr.Header()
-					switch h.Rrtype {
-					case dns.TypeA:
-						answers++
-						ip := rr.(*dns.A).A
-						logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-						r.backend.HandleQueryResp(h.Name, ip)
-					case dns.TypeAAAA:
-						answers++
-						ip := rr.(*dns.AAAA).AAAA
-						logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
-						r.backend.HandleQueryResp(h.Name, ip)
-					}
-				}
-				if resp.Answer == nil || answers == 0 {
-					logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, queryType, name)
-				}
-				resp.Compress = true
-			} else {
+
+			if resp == nil {
 				logrus.Debugf("[resolver] external DNS %s:%s returned empty response for %q", proto, extDNS.IPStr, name)
+				break
 			}
+			switch resp.Rcode {
+			case dns.RcodeServerFailure, dns.RcodeRefused:
+				// Server returned FAILURE: continue with the next external DNS server
+				// Server returned REFUSED: this can be a transitional status, so continue with the next external DNS server
+				logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), name)
+				continue
+			case dns.RcodeNameError:
+				// Server returned NXDOMAIN. Stop resolution if it's an authoritative answer (see RFC 8020: https://tools.ietf.org/html/rfc8020#section-2)
+				logrus.Debugf("[resolver] external DNS %s:%s responded with %s for %q", proto, extDNS.IPStr, statusString(resp.Rcode), name)
+				if resp.Authoritative {
+					break
+				}
+				continue
+			case dns.RcodeSuccess:
+				// All is well
+			default:
+				// Server gave some error. Log the error, and continue with the next external DNS server
+				logrus.Debugf("[resolver] external DNS %s:%s responded with %s (code %d) for %q", proto, extDNS.IPStr, statusString(resp.Rcode), resp.Rcode, name)
+				continue
+			}
+			answers := 0
+			for _, rr := range resp.Answer {
+				h := rr.Header()
+				switch h.Rrtype {
+				case dns.TypeA:
+					answers++
+					ip := rr.(*dns.A).A
+					logrus.Debugf("[resolver] received A record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+					r.backend.HandleQueryResp(h.Name, ip)
+				case dns.TypeAAAA:
+					answers++
+					ip := rr.(*dns.AAAA).AAAA
+					logrus.Debugf("[resolver] received AAAA record %q for %q from %s:%s", ip, h.Name, proto, extDNS.IPStr)
+					r.backend.HandleQueryResp(h.Name, ip)
+				}
+			}
+			if resp.Answer == nil || answers == 0 {
+				logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, queryType, name)
+			}
+			resp.Compress = true
 			break
 		}
 		if resp == nil {
@@ -529,6 +545,13 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 	if err = w.WriteMsg(resp); err != nil {
 		logrus.Errorf("[resolver] error writing resolver resp, %s", err)
 	}
+}
+
+func statusString(responseCode int) string {
+	if s, ok := dns.RcodeToString[responseCode]; ok {
+		return s
+	}
+	return "UNKNOWN"
 }
 
 func (r *resolver) forwardQueryStart() bool {
