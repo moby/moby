@@ -55,12 +55,9 @@ func ensureMountedAs(mountPoint, options string) error {
 	}
 
 	if !mounted {
-		if err := Mount(mountPoint, mountPoint, "none", "bind,rw"); err != nil {
+		if err := Mount(mountPoint, mountPoint, "none", "bind"); err != nil {
 			return err
 		}
-	}
-	if _, err = Mounted(mountPoint); err != nil {
-		return err
 	}
 
 	return ForceMount("", mountPoint, "none", options)
