@@ -384,6 +384,36 @@ func (n *networkNamespace) RemoveAliasIP(ifName string, ip *net.IPNet) error {
 	return n.nlHandle.AddrDel(iface, &netlink.Addr{IPNet: ip})
 }
 
+func (n *networkNamespace) DisableARPForVIP(srcName string) (Err error) {
+	dstName := ""
+	for _, i := range n.Interfaces() {
+		if i.SrcName() == srcName {
+			dstName = i.DstName()
+			break
+		}
+	}
+	if dstName == "" {
+		return fmt.Errorf("failed to find interface %s in sandbox", srcName)
+	}
+
+	err := n.InvokeFunc(func() {
+		path := filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_ignore")
+		if err := ioutil.WriteFile(path, []byte{'1', '\n'}, 0644); err != nil {
+			Err = fmt.Errorf("Failed to set %s to 1: %v", path, err)
+			return
+		}
+		path = filepath.Join("/proc/sys/net/ipv4/conf", dstName, "arp_announce")
+		if err := ioutil.WriteFile(path, []byte{'2', '\n'}, 0644); err != nil {
+			Err = fmt.Errorf("Failed to set %s to 2: %v", path, err)
+			return
+		}
+	})
+	if err != nil {
+		return err
+	}
+	return
+}
+
 func (n *networkNamespace) InvokeFunc(f func()) error {
 	return nsInvoke(n.nsPath(), func(nsFD int) error { return nil }, func(callerFD int) error {
 		f()

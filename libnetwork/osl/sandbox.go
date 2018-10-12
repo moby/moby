@@ -51,6 +51,10 @@ type Sandbox interface {
 	// RemoveAliasIP removes the passed IP address from the named interface
 	RemoveAliasIP(ifName string, ip *net.IPNet) error
 
+	// DisableARPForVIP disables ARP replies and requests for VIP addresses
+	// on a particular interface
+	DisableARPForVIP(ifName string) error
+
 	// Add a static route to the sandbox.
 	AddStaticRoute(*types.StaticRoute) error
 
