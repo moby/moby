@@ -25,6 +25,13 @@ import (
 	"golang.org/x/sys/unix"
 )
 
+const (
+	// Docker sets this earlier on in initialization to 0022
+	// Unfortunately, sometimes the special bits are not respected
+	// and we have to force-set them.
+	desiredUmask = 7022
+)
+
 // Mode indicates whether to use hardlink or copy content
 type Mode int
 
@@ -127,8 +134,8 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 
 	// This is a map of source file inodes to dst file paths
 	copiedFiles := make(map[fileID]string)
-
 	dirsToSetMtimes := list.New()
+
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
@@ -150,31 +157,45 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
 		}
 
-		isHardlink := false
+		if f.IsDir() {
+			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
+				return err
+			}
+			if f.Mode()&desiredUmask > 0 {
+				if err := os.Chmod(dstPath, f.Mode()); err != nil {
+					return err
+				}
+			}
+			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
+			// Only copy a subset of the metadata, but don't update timestamps until the very
+			// end (in reverse)
+			return copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs)
+		}
 
 		switch f.Mode() & os.ModeType {
 		case 0: // Regular file
 			id := fileID{dev: stat.Dev, ino: stat.Ino}
 			if copyMode == Hardlink {
-				isHardlink = true
 				if err2 := os.Link(srcPath, dstPath); err2 != nil {
 					return err2
 				}
-			} else if hardLinkDstPath, ok := copiedFiles[id]; ok {
+				// Don't copy metadata for hard links
+				return nil
+			}
+
+			if hardLinkDstPath, ok := copiedFiles[id]; ok {
 				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
 					return err2
 				}
-			} else {
-				if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
-					return err2
-				}
-				copiedFiles[id] = dstPath
+				// We already copied the metadata earlier.
+				// the stat.st_ctim will get updated, but the rest
+				// of the metadata gets preserved
+				return nil
 			}
-
-		case os.ModeDir:
-			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
-				return err
+			if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
+				return err2
 			}
+			copiedFiles[id] = dstPath
 
 		case os.ModeSymlink:
 			link, err := os.Readlink(srcPath)
@@ -206,49 +227,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return fmt.Errorf("unknown file type for %s", srcPath)
 		}
 
-		// Everything below is copying metadata from src to dst. All this metadata
-		// already shares an inode for hardlinks.
-		if isHardlink {
-			return nil
-		}
-
-		if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {
-			return err
-		}
-
-		if copyXattrs {
-			if err := doCopyXattrs(srcPath, dstPath); err != nil {
-				return err
-			}
-		}
-
-		isSymlink := f.Mode()&os.ModeSymlink != 0
-
-		// There is no LChmod, so ignore mode for symlink. Also, this
-		// must happen after chown, as that can modify the file mode
-		if !isSymlink {
-			if err := os.Chmod(dstPath, f.Mode()); err != nil {
-				return err
-			}
-		}
-
-		// system.Chtimes doesn't support a NOFOLLOW flag atm
-		// nolint: unconvert
-		if f.IsDir() {
-			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
-		} else if !isSymlink {
-			aTime := time.Unix(int64(stat.Atim.Sec), int64(stat.Atim.Nsec))
-			mTime := time.Unix(int64(stat.Mtim.Sec), int64(stat.Mtim.Nsec))
-			if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
-				return err
-			}
-		} else {
-			ts := []syscall.Timespec{stat.Atim, stat.Mtim}
-			if err := system.LUtimesNano(dstPath, ts); err != nil {
-				return err
-			}
-		}
-		return nil
+		return copyMetadata(dstPath, srcPath, f, stat, copyXattrs, dirsToSetMtimes)
 	})
 	if err != nil {
 		return err
@@ -257,6 +236,48 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		mtimeInfo := e.Value.(*dirMtimeInfo)
 		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}
 		if err := system.LUtimesNano(*mtimeInfo.dstPath, ts); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// copyMetadataShared copies the metadata for directories and files, but doesn't
+// set atimes / mtimes because those have to happen after all file modifications
+// are complete
+func copyMetadataShared(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool) error {
+	if err := os.Lchown(dstPath, int(stat.Uid), int(stat.Gid)); err != nil {
+		return err
+	}
+
+	if copyXattrs {
+		if err := doCopyXattrs(srcPath, dstPath); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func copyMetadata(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool, dirsToSetMtimes *list.List) error {
+	if err := copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs); err != nil {
+		return err
+	}
+	isSymlink := f.Mode()&os.ModeSymlink != 0
+	if isSymlink {
+		// There is no LChmod, so ignore mode for symlink. Also, this
+		// must happen after chown, as that can modify the file mode
+		ts := []syscall.Timespec{stat.Atim, stat.Mtim}
+		if err := system.LUtimesNano(dstPath, ts); err != nil {
+			return err
+		}
+	} else {
+		if err := os.Chmod(dstPath, f.Mode()); err != nil {
+			return err
+		}
+		aTime := time.Unix(stat.Atim.Sec, stat.Atim.Nsec)
+		mTime := time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)
+		if err := system.Chtimes(dstPath, aTime, mTime); err != nil {
 			return err
 		}
 	}
