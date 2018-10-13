@@ -30,10 +30,34 @@ func TestCopyWithoutRange(t *testing.T) {
 	doCopyTest(t, &copyWithFileRange, &copyWithFileClone)
 }
 
+func BenchmarkCopyDir(b *testing.B) {
+	srcDir, err := ioutil.TempDir("", "srcDir")
+	assert.NilError(b, err)
+	populateSrcDir(b, srcDir, 10000, 25, 25, 6)
+	defer os.RemoveAll(srcDir)
+
+	b.ResetTimer()
+	b.StopTimer()
+	for i := 0; i < b.N; i++ {
+		dstDir, err := ioutil.TempDir("", "testdst")
+		assert.NilError(b, err)
+		dstDirFile, err := os.Open(dstDir)
+		assert.NilError(b, err)
+		assert.NilError(b, unix.Syncfs(int(dstDirFile.Fd())))
+		assert.NilError(b, dstDirFile.Close())
+
+		b.StartTimer()
+		assert.Check(b, DirCopy(srcDir, dstDir, Content, true))
+		b.StopTimer()
+		assert.NilError(b, os.RemoveAll(dstDir))
+	}
+}
+
 func TestCopyDir(t *testing.T) {
 	srcDir, err := ioutil.TempDir("", "srcDir")
 	assert.NilError(t, err)
-	populateSrcDir(t, srcDir, 3)
+	populateSrcDir(t, srcDir, 100, 25, 25, 3)
+	defer os.RemoveAll(srcDir)
 
 	dstDir, err := ioutil.TempDir("", "testdst")
 	assert.NilError(t, err)
@@ -63,16 +87,17 @@ func TestCopyDir(t *testing.T) {
 		srcFileSys := f.Sys().(*syscall.Stat_t)
 		dstFileSys := dstFileInfo.Sys().(*syscall.Stat_t)
 
-		t.Log(relPath)
+		msg := fmt.Sprintf("%s has inconsistency", relPath)
 		if srcFileSys.Dev == dstFileSys.Dev {
-			assert.Check(t, srcFileSys.Ino != dstFileSys.Ino)
+			assert.Check(t, srcFileSys.Ino != dstFileSys.Ino, msg)
 		}
-		// Todo: check size, and ctim is not equal
+		// Todo: check ctim is not equal
 		/// on filesystems that have granular ctimes
-		assert.Check(t, is.DeepEqual(srcFileSys.Mode, dstFileSys.Mode))
-		assert.Check(t, is.DeepEqual(srcFileSys.Uid, dstFileSys.Uid))
-		assert.Check(t, is.DeepEqual(srcFileSys.Gid, dstFileSys.Gid))
-		assert.Check(t, is.DeepEqual(srcFileSys.Mtim, dstFileSys.Mtim))
+		assert.Check(t, is.DeepEqual(srcFileSys.Mode, dstFileSys.Mode), msg)
+		assert.Check(t, is.DeepEqual(srcFileSys.Uid, dstFileSys.Uid), msg)
+		assert.Check(t, is.DeepEqual(srcFileSys.Gid, dstFileSys.Gid), msg)
+		assert.Check(t, is.DeepEqual(srcFileSys.Mtim, dstFileSys.Mtim), msg)
+		assert.Check(t, is.DeepEqual(f.Size(), dstFileInfo.Size()), msg)
 
 		return nil
 	}))
@@ -85,25 +110,29 @@ func randomMode(baseMode int) os.FileMode {
 	return os.FileMode(baseMode)
 }
 
-func populateSrcDir(t *testing.T, srcDir string, remainingDepth int) {
+func populateSrcDir(t testing.TB, srcDir string, maxDatalength, maxDirCount, maxFileCount, remainingDepth int) {
 	if remainingDepth == 0 {
 		return
 	}
 	aTime := time.Unix(rand.Int63(), 0)
 	mTime := time.Unix(rand.Int63(), 0)
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < rand.Intn(maxDirCount); i++ {
 		dirName := filepath.Join(srcDir, fmt.Sprintf("srcdir-%d", i))
 		// Owner all bits set
 		assert.NilError(t, os.Mkdir(dirName, randomMode(0700)))
-		populateSrcDir(t, dirName, remainingDepth-1)
+		populateSrcDir(t, dirName, maxDatalength, maxDirCount, maxFileCount, remainingDepth-1)
 		assert.NilError(t, system.Chtimes(dirName, aTime, mTime))
 	}
 
-	for i := 0; i < 10; i++ {
+	for i := 0; i < rand.Intn(maxFileCount); i++ {
 		fileName := filepath.Join(srcDir, fmt.Sprintf("srcfile-%d", i))
+		datalen := 0
+		if maxDatalength > 0 {
+			datalen = rand.Intn(maxDatalength)
+		}
 		// Owner read bit set
-		assert.NilError(t, ioutil.WriteFile(fileName, []byte{}, randomMode(0400)))
+		assert.NilError(t, ioutil.WriteFile(fileName, make([]byte, datalen), randomMode(0400)))
 		assert.NilError(t, system.Chtimes(fileName, aTime, mTime))
 	}
 }
