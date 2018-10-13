@@ -127,6 +127,7 @@ type dirMtimeInfo struct {
 }
 
 type fileCopyInfo struct {
+	dir      bool
 	dstPath  string
 	srcPath  string
 	stat     *syscall.Stat_t
@@ -227,13 +228,19 @@ func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, du
 			if !ok {
 				return nil
 			}
-			if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, duplicatedInodeMap, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
-				return err
+			if fci.dir {
+				if err := copyMetadataShared(fci.dstPath, fci.srcPath, fci.fileInfo, fci.stat, copyXattrs); err != nil {
+					return err
+				}
+
+			} else {
+				if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, duplicatedInodeMap, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+					return err
+				}
 			}
 		}
 
 	}
-	return nil
 }
 
 // DirCopy copies or hardlinks the contents of one directory to another,
@@ -280,7 +287,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		if !ok {
 			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
 		}
-
 		if f.IsDir() {
 			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
 				return err
@@ -293,10 +299,10 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
 			// Only copy a subset of the metadata, but don't update timestamps until the very
 			// end (in reverse)
-			return copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs)
 		}
 
 		workers[rand.Intn(len(workers))] <- &fileCopyInfo{
+			dir:      f.IsDir(),
 			dstPath:  dstPath,
 			srcPath:  srcPath,
 			stat:     stat,
