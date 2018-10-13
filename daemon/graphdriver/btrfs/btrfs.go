@@ -29,10 +29,12 @@ import (
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -79,6 +81,15 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	opt, userDiskQuota, err := parseOptions(options)
 	if err != nil {
 		return nil, err
+	}
+
+	// For some reason shared mount propagation between a container
+	// and the host does not work for btrfs, and a remedy is to bind
+	// mount graphdriver home to itself (even without changing the
+	// propagation mode).
+	err = mount.MakeMount(home)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to make %s a mount", home)
 	}
 
 	driver := &Driver{
@@ -158,7 +169,19 @@ func (d *Driver) GetMetadata(id string) (map[string]string, error) {
 
 // Cleanup unmounts the home directory.
 func (d *Driver) Cleanup() error {
-	return d.subvolDisableQuota()
+	err := d.subvolDisableQuota()
+	umountErr := mount.Unmount(d.home)
+
+	// in case we have two errors, prefer the one from disableQuota()
+	if err != nil {
+		return err
+	}
+
+	if umountErr != nil {
+		return errors.Wrapf(umountErr, "error unmounting %s", d.home)
+	}
+
+	return nil
 }
 
 func free(p *C.char) {
