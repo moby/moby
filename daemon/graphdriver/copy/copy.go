@@ -12,6 +12,7 @@ package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
 import "C"
 import (
 	"container/list"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -22,6 +23,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"golang.org/x/sync/errgroup"
 	"golang.org/x/sys/unix"
 )
 
@@ -124,21 +126,119 @@ type dirMtimeInfo struct {
 	stat    *syscall.Stat_t
 }
 
-// DirCopy copies or hardlinks the contents of one directory to another,
-// properly handling xattrs, and soft links
-//
-// Copying xattrs can be opted out of by passing false for copyXattrs.
-func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
+type fileCopyInfo struct {
+	dstPath  string
+	srcPath  string
+	stat     *syscall.Stat_t
+	fileInfo os.FileInfo
+}
+
+func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, copiedFiles map[fileID]string, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
+	switch f.Mode() & os.ModeType {
+	case 0: // Regular file
+		id := fileID{dev: stat.Dev, ino: stat.Ino}
+		if copyMode == Hardlink {
+			if err := os.Link(srcPath, dstPath); err != nil {
+				return err
+			}
+			// Don't copy metadata for hard links
+			return nil
+		}
+
+		if hardLinkDstPath, ok := copiedFiles[id]; ok {
+			if err := os.Link(hardLinkDstPath, dstPath); err != nil {
+				return err
+			}
+			// We already copied the metadata earlier.
+			// the stat.st_ctim will get updated, but the rest
+			// of the metadata gets preserved
+			return nil
+		}
+		if err := copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone); err != nil {
+			return err
+		}
+		copiedFiles[id] = dstPath
+
+	case os.ModeSymlink:
+		link, err := os.Readlink(srcPath)
+		if err != nil {
+			return err
+		}
+
+		if err := os.Symlink(link, dstPath); err != nil {
+			return err
+		}
+
+	case os.ModeNamedPipe:
+		fallthrough
+	case os.ModeSocket:
+		if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
+			return err
+		}
+
+	case os.ModeDevice:
+		if rsystem.RunningInUserNS() {
+			// cannot create a device if running in user namespace
+			return nil
+		}
+		if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
+			return err
+		}
+
+	default:
+		return fmt.Errorf("unknown file type for %s", srcPath)
+	}
+
+	return copyMetadata(dstPath, srcPath, f, stat, copyXattrs)
+}
+
+func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, copyMode Mode, copyXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 
 	// This is a map of source file inodes to dst file paths
 	copiedFiles := make(map[fileID]string)
+
+	// Just a dumb wrapper around the above function which does the heavy lifting
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case fci, ok := <-fileCopyInfoChan:
+			if !ok {
+				return nil
+			}
+			if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, copiedFiles, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
+// DirCopy copies or hardlinks the contents of one directory to another,
+// properly handling xattrs, and soft links
+//
+// Copying xattrs can be opted out of by passing false for copyXattrs.
+func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
+	ctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
 	dirsToSetMtimes := list.New()
+	errGroup, errGroupCtx := errgroup.WithContext(ctx)
+	c := make(chan *fileCopyInfo, 100)
+	errGroup.Go(func() error {
+		return fileCopyWorker(errGroupCtx, c, copyMode, copyXattrs)
+	})
 
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
 			return err
+		}
+		// Check if the errgroup has gotten canceled / shutdown
+		if errGroupCtx.Err() != nil {
+			return nil
 		}
 
 		// Rebase path
@@ -172,66 +272,25 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs)
 		}
 
-		switch f.Mode() & os.ModeType {
-		case 0: // Regular file
-			id := fileID{dev: stat.Dev, ino: stat.Ino}
-			if copyMode == Hardlink {
-				if err2 := os.Link(srcPath, dstPath); err2 != nil {
-					return err2
-				}
-				// Don't copy metadata for hard links
-				return nil
-			}
-
-			if hardLinkDstPath, ok := copiedFiles[id]; ok {
-				if err2 := os.Link(hardLinkDstPath, dstPath); err2 != nil {
-					return err2
-				}
-				// We already copied the metadata earlier.
-				// the stat.st_ctim will get updated, but the rest
-				// of the metadata gets preserved
-				return nil
-			}
-			if err2 := copyRegular(srcPath, dstPath, f, &copyWithFileRange, &copyWithFileClone); err2 != nil {
-				return err2
-			}
-			copiedFiles[id] = dstPath
-
-		case os.ModeSymlink:
-			link, err := os.Readlink(srcPath)
-			if err != nil {
-				return err
-			}
-
-			if err := os.Symlink(link, dstPath); err != nil {
-				return err
-			}
-
-		case os.ModeNamedPipe:
-			fallthrough
-		case os.ModeSocket:
-			if err := unix.Mkfifo(dstPath, stat.Mode); err != nil {
-				return err
-			}
-
-		case os.ModeDevice:
-			if rsystem.RunningInUserNS() {
-				// cannot create a device if running in user namespace
-				return nil
-			}
-			if err := unix.Mknod(dstPath, stat.Mode, int(stat.Rdev)); err != nil {
-				return err
-			}
-
-		default:
-			return fmt.Errorf("unknown file type for %s", srcPath)
+		c <- &fileCopyInfo{
+			dstPath:  dstPath,
+			srcPath:  srcPath,
+			stat:     stat,
+			fileInfo: f,
 		}
-
-		return copyMetadata(dstPath, srcPath, f, stat, copyXattrs, dirsToSetMtimes)
+		return nil
 	})
+	close(c)
+
 	if err != nil {
 		return err
 	}
+
+	err = errGroup.Wait()
+	if err != nil {
+		return err
+	}
+
 	for e := dirsToSetMtimes.Front(); e != nil; e = e.Next() {
 		mtimeInfo := e.Value.(*dirMtimeInfo)
 		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}
@@ -259,7 +318,7 @@ func copyMetadataShared(dstPath, srcPath string, f os.FileInfo, stat *syscall.St
 	return nil
 }
 
-func copyMetadata(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool, dirsToSetMtimes *list.List) error {
+func copyMetadata(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, copyXattrs bool) error {
 	if err := copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs); err != nil {
 		return err
 	}
