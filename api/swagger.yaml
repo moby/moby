@@ -9345,7 +9345,10 @@ paths:
 
         - name: "version"
           in: "query"
-          description: "The version number of the service object being updated. This is required to avoid conflicting writes."
+          description: "The version number of the service object being updated.
+          This is required to avoid conflicting writes.
+          This version number should be the value as currently set on the service *before* the update.
+          You can find the current version by calling `GET /services/{id}`"
           required: true
           type: "integer"
         - name: "registryAuthFrom"
