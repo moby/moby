@@ -62,7 +62,11 @@ type Destination struct {
 	LowerThreshold      uint32
 	ActiveConnections   int
 	InactiveConnections int
+	Stats               DstStats
 }
+
+// DstStats defines IPVS destination (real server) statistics
+type DstStats SvcStats
 
 // Handle provides a namespace specific ipvs handle to program ipvs
 // rules.
