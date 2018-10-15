@@ -49,6 +49,8 @@ func newDaemonOptions(config *config.Config) *daemonOptions {
 // InstallFlags adds flags for the common options on the FlagSet
 func (o *daemonOptions) InstallFlags(flags *pflag.FlagSet) {
 	if dockerCertPath == "" {
+		// cliconfig.Dir returns $DOCKER_CONFIG or ~/.docker.
+		// cliconfig.Dir does not look up $XDG_CONFIG_HOME
 		dockerCertPath = cliconfig.Dir()
 	}
 

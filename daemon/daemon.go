@@ -800,6 +800,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		logrus.Warnf("Failed to configure golang's threads limit: %v", err)
 	}
 
+	// ensureDefaultAppArmorProfile does nothing if apparmor is disabled
 	if err := ensureDefaultAppArmorProfile(); err != nil {
 		logrus.Errorf(err.Error())
 	}

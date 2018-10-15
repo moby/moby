@@ -17,8 +17,20 @@ const (
 )
 
 // installCommonConfigFlags adds flags to the pflag.FlagSet to configure the daemon
-func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
+func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	var maxConcurrentDownloads, maxConcurrentUploads int
+	defaultPidFile, err := getDefaultPidFile()
+	if err != nil {
+		return err
+	}
+	defaultDataRoot, err := getDefaultDataRoot()
+	if err != nil {
+		return err
+	}
+	defaultExecRoot, err := getDefaultExecRoot()
+	if err != nil {
+		return err
+	}
 
 	installRegistryServiceFlags(&conf.ServiceOptions, flags)
 
@@ -80,6 +92,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) {
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
+	return nil
 }
 
 func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.FlagSet) {

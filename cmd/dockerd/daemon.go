@@ -40,12 +40,14 @@ import (
 	"github.com/docker/docker/libcontainerd/supervisor"
 	dopts "github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/authorization"
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/pidfile"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -97,6 +99,17 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if cli.Config.Experimental {
 		logrus.Warn("Running experimental build")
+		if cli.Config.IsRootless() {
+			logrus.Warn("Running in rootless mode. Cgroups, AppArmor, and CRIU are disabled.")
+		}
+	} else {
+		if cli.Config.IsRootless() {
+			return fmt.Errorf("rootless mode is supported only when running in experimental mode")
+		}
+	}
+	// return human-friendly error before creating files
+	if runtime.GOOS == "linux" && os.Geteuid() != 0 {
+		return fmt.Errorf("dockerd needs to be started with root. To see how to run dockerd in rootless mode with unprivileged user, see the documentation")
 	}
 
 	system.InitLCOW(cli.Config.Experimental)
@@ -115,16 +128,25 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
+	potentiallyUnderRuntimeDir := []string{cli.Config.ExecRoot}
+
 	if cli.Pidfile != "" {
 		pf, err := pidfile.New(cli.Pidfile)
 		if err != nil {
 			return errors.Wrap(err, "failed to start daemon")
 		}
+		potentiallyUnderRuntimeDir = append(potentiallyUnderRuntimeDir, cli.Pidfile)
 		defer func() {
 			if err := pf.Remove(); err != nil {
 				logrus.Error(err)
 			}
 		}()
+	}
+
+	// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
+	if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
+		// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
+		logrus.WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
 	}
 
 	serverConfig, err := newAPIServerConfig(cli)
@@ -140,7 +162,11 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	if cli.Config.ContainerdAddr == "" && runtime.GOOS != "windows" {
-		if !systemContainerdRunning() {
+		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
+		if err != nil {
+			return errors.Wrap(err, "could not determine whether the system containerd is running")
+		}
+		if !ok {
 			opts, err := cli.getContainerdDaemonOpts()
 			if err != nil {
 				cancel()
@@ -157,7 +183,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 			// Try to wait for containerd to shutdown
 			defer r.WaitTimeout(10 * time.Second)
 		} else {
-			cli.Config.ContainerdAddr = containerddefaults.DefaultAddress
+			cli.Config.ContainerdAddr = systemContainerdAddr
 		}
 	}
 	defer cancel()
@@ -403,9 +429,11 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	}
 
 	if conf.TrustKeyPath == "" {
-		conf.TrustKeyPath = filepath.Join(
-			getDaemonConfDir(conf.Root),
-			defaultTrustKeyFile)
+		daemonConfDir, err := getDaemonConfDir(conf.Root)
+		if err != nil {
+			return nil, err
+		}
+		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
 	}
 
 	if flags.Changed("graph") && flags.Changed("data-root") {
@@ -585,7 +613,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	var hosts []string
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, rootless.RunningWithNonRootUsername(), cli.Config.Hosts[i]); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 
@@ -662,9 +690,17 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 	return nil
 }
 
-func systemContainerdRunning() bool {
-	_, err := os.Lstat(containerddefaults.DefaultAddress)
-	return err == nil
+func systemContainerdRunning(isRootless bool) (string, bool, error) {
+	addr := containerddefaults.DefaultAddress
+	if isRootless {
+		runtimeDir, err := homedir.GetRuntimeDir()
+		if err != nil {
+			return "", false, err
+		}
+		addr = filepath.Join(runtimeDir, "containerd", "containerd.sock")
+	}
+	_, err := os.Lstat(addr)
+	return addr, err == nil, nil
 }
 
 // configureDaemonLogs sets the logrus logging level and formatting
