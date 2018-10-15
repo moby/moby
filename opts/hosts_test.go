@@ -38,13 +38,13 @@ func TestParseHost(t *testing.T) {
 	}
 
 	for _, value := range invalid {
-		if _, err := ParseHost(false, value); err == nil {
+		if _, err := ParseHost(false, false, value); err == nil {
 			t.Errorf("Expected an error for %v, got [nil]", value)
 		}
 	}
 
 	for value, expected := range valid {
-		if actual, err := ParseHost(false, value); err != nil || actual != expected {
+		if actual, err := ParseHost(false, false, value); err != nil || actual != expected {
 			t.Errorf("Expected for %v [%v], got [%v, %v]", value, expected, actual, err)
 		}
 	}

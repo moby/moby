@@ -13,3 +13,7 @@ func (daemon *Daemon) fillPlatformVersion(v *types.Version) {}
 
 func fillDriverWarnings(v *types.Info) {
 }
+
+func (daemon *Daemon) configStoreRootless() bool {
+	return false
+}

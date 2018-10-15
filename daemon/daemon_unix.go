@@ -745,9 +745,6 @@ func verifyDaemonSettings(conf *config.Config) error {
 
 // checkSystem validates platform-specific requirements
 func checkSystem() error {
-	if os.Geteuid() != 0 {
-		return fmt.Errorf("The Docker daemon needs to be run as root")
-	}
 	return checkKernel()
 }
 

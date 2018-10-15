@@ -245,3 +245,7 @@ func parseRuncVersion(v string) (version string, commit string, err error) {
 	}
 	return version, commit, err
 }
+
+func (daemon *Daemon) configStoreRootless() bool {
+	return daemon.configStore.Rootless
+}

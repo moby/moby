@@ -55,3 +55,8 @@ func (conf *Config) IsSwarmCompatible() error {
 func (conf *Config) ValidatePlatformConfig() error {
 	return nil
 }
+
+// IsRootless returns conf.Rootless on Unix but false on Windows
+func (conf *Config) IsRootless() bool {
+	return false
+}
