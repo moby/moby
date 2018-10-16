@@ -104,7 +104,7 @@ func (s *journald) Log(msg *logger.Message) error {
 	for k, v := range s.vars {
 		vars[k] = v
 	}
-	if msg.PLogMetaData != nil {
+	if msg.PLogMetaData != nil && !msg.PLogMetaData.Last {
 		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
 	}
 
