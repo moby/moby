@@ -5,6 +5,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/containerd/containerd"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -30,6 +31,7 @@ type containerStore interface {
 
 // ImageServiceConfig is the configuration used to create a new ImageService
 type ImageServiceConfig struct {
+	Client                    *containerd.Client
 	ContainerStore            containerStore
 	DistributionMetadataStore metadata.Store
 	EventsService             *daemonevents.Events
@@ -46,6 +48,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
 	return &ImageService{
+		client:                    config.Client,
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
 		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads),
@@ -60,15 +63,18 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 
 // ImageService provides a backend for image management
 type ImageService struct {
-	containers                containerStore
+	client        *containerd.Client
+	containers    containerStore
+	eventsService *daemonevents.Events
+	layerStores   map[string]layer.Store // By operating system
+	pruneRunning  int32
+
+	// To be replaced by containerd client
+	registryService           registry.Service
+	referenceStore            dockerreference.Store
+	imageStore                image.Store
 	distributionMetadataStore metadata.Store
 	downloadManager           *xfer.LayerDownloadManager
-	eventsService             *daemonevents.Events
-	imageStore                image.Store
-	layerStores               map[string]layer.Store // By operating system
-	pruneRunning              int32
-	referenceStore            dockerreference.Store
-	registryService           registry.Service
 	uploadManager             *xfer.LayerUploadManager
 }
 

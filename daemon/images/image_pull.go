@@ -6,13 +6,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd"
 	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/distribution"
-	progressutils "github.com/docker/docker/distribution/utils"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
@@ -54,36 +53,35 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
-	progressChan := make(chan progress.Progress, 100)
+	//progressChan := make(chan progress.Progress, 100)
 
-	writesDone := make(chan struct{})
+	//writesDone := make(chan struct{})
 
-	ctx, cancelFunc := context.WithCancel(ctx)
+	//ctx, cancelFunc := context.WithCancel(ctx)
 
-	go func() {
-		progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
-		close(writesDone)
-	}()
+	// TODO: Lease
 
-	imagePullConfig := &distribution.ImagePullConfig{
-		Config: distribution.Config{
-			MetaHeaders:      metaHeaders,
-			AuthConfig:       authConfig,
-			ProgressOutput:   progress.ChanOutput(progressChan),
-			RegistryService:  i.registryService,
-			ImageEventLogger: i.LogImageEvent,
-			MetadataStore:    i.distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
-			ReferenceStore:   i.referenceStore,
-		},
-		DownloadManager: i.downloadManager,
-		Schema2Types:    distribution.ImageTypes,
-		Platform:        platform,
-	}
+	opts := []containerd.RemoteOpt{}
+	// TODO: Custom resolver
+	//  - Auth config
+	//  - Custom headers
+	// TODO: Platforms using `platform`
+	// TODO: progress tracking
+	// TODO: unpack tracking, use download manager for now?
 
-	err := distribution.Pull(ctx, ref, imagePullConfig)
-	close(progressChan)
-	<-writesDone
+	// TODO: keep image
+	_, err := i.client.Pull(ctx, ref.String(), opts...)
+
+	// TODO: Unpack into layer store
+	// TODO: only unpack image types (does containerd already do this?)
+
+	//go func() {
+	//	progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
+	//	close(writesDone)
+	//}()
+
+	//close(progressChan)
+	//<-writesDone
 	return err
 }
 
