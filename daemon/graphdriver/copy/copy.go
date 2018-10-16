@@ -362,8 +362,10 @@ func copyMetadata(dstPath, srcPath string, f os.FileInfo, stat *syscall.Stat_t, 
 			return err
 		}
 	} else {
-		if err := os.Chmod(dstPath, f.Mode()); err != nil {
-			return err
+		if f.Mode()&desiredUmask > 0 {
+			if err := os.Chmod(dstPath, f.Mode()); err != nil {
+				return err
+			}
 		}
 		aTime := time.Unix(stat.Atim.Sec, stat.Atim.Nsec)
 		mTime := time.Unix(stat.Mtim.Sec, stat.Mtim.Nsec)
