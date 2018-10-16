@@ -8,12 +8,12 @@ Installation
 With [pathogen](https://github.com/tpope/vim-pathogen), the usual way...
 
 With [Vundle](https://github.com/gmarik/Vundle.vim)
-  
-    Plugin 'docker/docker' , {'rtp': '/contrib/syntax/vim/'}
+
+    Plugin 'moby/moby' , {'rtp': '/contrib/syntax/vim/'}
 
 With [vim-plug](https://github.com/junegunn/vim-plug)
-  
-    Plug 'docker/docker' , {'rtp': '/contrib/syntax/vim/'}   
+
+    Plug 'moby/moby' , {'rtp': '/contrib/syntax/vim/'}
 
 Features
 --------
