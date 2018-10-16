@@ -936,7 +936,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	for operatingSystem, gd := range d.graphDrivers {
 		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
-			Root:                      config.Root,
+			Root: config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			GraphDriver:               gd,
 			GraphDriverOptions:        config.GraphOptions,
@@ -1046,6 +1046,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// used above to run migration. They could be initialized in ImageService
 	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(images.ImageServiceConfig{
+		Client:                    d.containerdCli,
 		ContainerStore:            d.containers,
 		DistributionMetadataStore: distributionMetadataStore,
 		EventsService:             d.EventsService,
