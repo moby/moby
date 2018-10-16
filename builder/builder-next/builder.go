@@ -532,20 +532,26 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 
 	bkFilter := make([]string, 0, opts.Filters.Len())
 	for cacheField := range cacheFields {
-		values := opts.Filters.Get(cacheField)
-		switch len(values) {
-		case 0:
-			bkFilter = append(bkFilter, cacheField)
-		case 1:
-			bkFilter = append(bkFilter, cacheField+"=="+values[0])
-		default:
-			return client.PruneInfo{}, errMultipleFilterValues
+		if opts.Filters.Include(cacheField) {
+			values := opts.Filters.Get(cacheField)
+			switch len(values) {
+			case 0:
+				bkFilter = append(bkFilter, cacheField)
+			case 1:
+				if cacheField == "id" {
+					bkFilter = append(bkFilter, cacheField+"~="+values[0])
+				} else {
+					bkFilter = append(bkFilter, cacheField+"=="+values[0])
+				}
+			default:
+				return client.PruneInfo{}, errMultipleFilterValues
+			}
 		}
 	}
 	return client.PruneInfo{
 		All:          opts.All,
 		KeepDuration: unusedFor,
 		KeepBytes:    opts.KeepStorage,
-		Filter:       bkFilter,
+		Filter:       []string{strings.Join(bkFilter, ",")},
 	}, nil
 }
