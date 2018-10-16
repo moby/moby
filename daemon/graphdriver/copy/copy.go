@@ -15,8 +15,10 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"math/rand"
 	"os"
 	"path/filepath"
+	"sync"
 	"syscall"
 	"time"
 
@@ -32,6 +34,9 @@ const (
 	// Unfortunately, sometimes the special bits are not respected
 	// and we have to force-set them.
 	desiredUmask = 7022
+	// This is based on some empirical testing on EXT4 filesystems
+	workerCount              = 8
+	fileCopyInfoChannelDepth = 100
 )
 
 // Mode indicates whether to use hardlink or copy content
@@ -116,11 +121,6 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
-type fileID struct {
-	dev uint64
-	ino uint64
-}
-
 type dirMtimeInfo struct {
 	dstPath *string
 	stat    *syscall.Stat_t
@@ -133,10 +133,28 @@ type fileCopyInfo struct {
 	fileInfo os.FileInfo
 }
 
-func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, copiedFiles map[fileID]string, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
+type fileID struct {
+	dev uint64
+	ino uint64
+}
+
+// This represents an inode on the destination side with a unique identity
+type sharedInode struct {
+	wg                        *sync.WaitGroup
+	successfullyCopiedDstPath string
+	err                       error
+}
+
+// This tells us about the shared dstPath
+func newSharedInode(dstPath string) *sharedInode {
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+	return &sharedInode{wg: wg, successfullyCopiedDstPath: dstPath}
+}
+
+func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, duplicatedInodeMap *sync.Map, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
 	switch f.Mode() & os.ModeType {
 	case 0: // Regular file
-		id := fileID{dev: stat.Dev, ino: stat.Ino}
 		if copyMode == Hardlink {
 			if err := os.Link(srcPath, dstPath); err != nil {
 				return err
@@ -144,20 +162,24 @@ func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, co
 			// Don't copy metadata for hard links
 			return nil
 		}
-
-		if hardLinkDstPath, ok := copiedFiles[id]; ok {
-			if err := os.Link(hardLinkDstPath, dstPath); err != nil {
+		id := fileID{dev: stat.Dev, ino: stat.Ino}
+		sharedInodeInterface, loaded := duplicatedInodeMap.LoadOrStore(id, newSharedInode(dstPath))
+		inode := sharedInodeInterface.(*sharedInode)
+		if loaded {
+			inode.wg.Wait()
+			if inode.err != nil {
+				return inode.err
+			}
+			if err := os.Link(inode.successfullyCopiedDstPath, dstPath); err != nil {
 				return err
 			}
-			// We already copied the metadata earlier.
-			// the stat.st_ctim will get updated, but the rest
-			// of the metadata gets preserved
-			return nil
+		} else {
+			inode.err = copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
+			inode.wg.Done()
+			if inode.err != nil {
+				return inode.err
+			}
 		}
-		if err := copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone); err != nil {
-			return err
-		}
-		copiedFiles[id] = dstPath
 
 	case os.ModeSymlink:
 		link, err := os.Readlink(srcPath)
@@ -192,12 +214,9 @@ func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, co
 	return copyMetadata(dstPath, srcPath, f, stat, copyXattrs)
 }
 
-func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, copyMode Mode, copyXattrs bool) error {
+func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, duplicatedInodeMap *sync.Map, copyMode Mode, copyXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
-
-	// This is a map of source file inodes to dst file paths
-	copiedFiles := make(map[fileID]string)
 
 	// Just a dumb wrapper around the above function which does the heavy lifting
 	for {
@@ -208,7 +227,7 @@ func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, co
 			if !ok {
 				return nil
 			}
-			if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, copiedFiles, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+			if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, duplicatedInodeMap, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
 				return err
 			}
 		}
@@ -227,10 +246,15 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 
 	dirsToSetMtimes := list.New()
 	errGroup, errGroupCtx := errgroup.WithContext(ctx)
-	c := make(chan *fileCopyInfo, 100)
-	errGroup.Go(func() error {
-		return fileCopyWorker(errGroupCtx, c, copyMode, copyXattrs)
-	})
+	workers := make([]chan *fileCopyInfo, workerCount)
+	duplicatedInodeMap := &sync.Map{}
+	for i := 0; i < len(workers); i++ {
+		c := make(chan *fileCopyInfo, fileCopyInfoChannelDepth)
+		workers[i] = c
+		errGroup.Go(func() error {
+			return fileCopyWorker(errGroupCtx, c, duplicatedInodeMap, copyMode, copyXattrs)
+		})
+	}
 
 	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
 		if err != nil {
@@ -272,7 +296,7 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 			return copyMetadataShared(dstPath, srcPath, f, stat, copyXattrs)
 		}
 
-		c <- &fileCopyInfo{
+		workers[rand.Intn(len(workers))] <- &fileCopyInfo{
 			dstPath:  dstPath,
 			srcPath:  srcPath,
 			stat:     stat,
@@ -280,8 +304,9 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		}
 		return nil
 	})
-	close(c)
-
+	for i := 0; i < len(workers); i++ {
+		close(workers[i])
+	}
 	if err != nil {
 		return err
 	}
