@@ -1,6 +1,7 @@
 package allocator
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (

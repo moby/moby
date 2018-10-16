@@ -2,6 +2,7 @@ package genericresource
 
 import (
 	"fmt"
+
 	"github.com/docker/swarmkit/api"
 )
 

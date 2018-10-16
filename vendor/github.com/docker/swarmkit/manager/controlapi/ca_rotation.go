@@ -203,6 +203,24 @@ func validateCAConfig(ctx context.Context, securityConfig *ca.SecurityConfig, cl
 
 	var oldCertExtCAs []*api.ExternalCA
 	if !hasSigningKey(&cluster.RootCA) {
+
+		// If we are going from external -> internal, but providing the external CA's signing key,
+		// then we don't need to validate any external CAs.  We can in fact abort any outstanding root
+		// rotations if we are just adding a key.  Because we have a key, we don't care if there are
+		// no external CAs matching the certificate.
+		if bytes.Equal(normalizedRootCA, newConfig.SigningCACert) && hasSigningKey(newConfig) {
+			// validate that the key and cert indeed match - if they don't then just fail now rather
+			// than go through all the external CA URLs, which is a more expensive operation
+			if _, err := ca.NewRootCA(newConfig.SigningCACert, newConfig.SigningCACert, newConfig.SigningCAKey, ca.DefaultNodeCertExpiration, nil); err != nil {
+				return nil, err
+			}
+			copied := cluster.RootCA.Copy()
+			copied.CAKey = newConfig.SigningCAKey
+			copied.RootRotation = nil
+			copied.LastForcedRotation = newConfig.ForceRotate
+			return copied, nil
+		}
+
 		oldCertExtCAs, err = validateHasAtLeastOneExternalCA(ctx, extCAs, securityConfig, normalizedRootCA, "current")
 		if err != nil {
 			return nil, err

@@ -1,6 +1,7 @@
 package raft
 
 import (
+	"context"
 	"fmt"
 
 	"github.com/coreos/etcd/raft"
@@ -13,7 +14,6 @@ import (
 	"github.com/docker/swarmkit/manager/state/raft/storage"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 var (

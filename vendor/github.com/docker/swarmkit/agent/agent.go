@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"context"
 	"math/rand"
 	"reflect"
 	"sync"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (

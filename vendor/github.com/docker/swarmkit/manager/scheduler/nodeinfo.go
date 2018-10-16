@@ -1,12 +1,12 @@
 package scheduler
 
 import (
+	"context"
 	"time"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/api/genericresource"
 	"github.com/docker/swarmkit/log"
-	"golang.org/x/net/context"
 )
 
 // hostPortSpec specifies a used host port.

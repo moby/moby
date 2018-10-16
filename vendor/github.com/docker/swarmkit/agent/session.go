@@ -1,6 +1,7 @@
 package agent
 
 import (
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/swarmkit/connectionbroker"
 	"github.com/docker/swarmkit/log"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -17,7 +17,6 @@ import (
 
 var (
 	dispatcherRPCTimeout = 5 * time.Second
-	errSessionDisconnect = errors.New("agent: session disconnect") // instructed to disconnect
 	errSessionClosed     = errors.New("agent: session closed")
 )
 
@@ -137,7 +136,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	// `ctx` is done and hence fail to propagate the timeout error to the agent.
 	// If the error is not propogated to the agent, the agent will not close
 	// the session or rebuild a new session.
-	sessionCtx, cancelSession := context.WithCancel(ctx)
+	sessionCtx, cancelSession := context.WithCancel(ctx) // nolint: vet
 
 	// Need to run Session in a goroutine since there's no way to set a
 	// timeout for an individual Recv call in a stream.
@@ -160,7 +159,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	select {
 	case err := <-errChan:
 		if err != nil {
-			return err
+			return err // nolint: vet
 		}
 	case <-time.After(dispatcherRPCTimeout):
 		cancelSession()
