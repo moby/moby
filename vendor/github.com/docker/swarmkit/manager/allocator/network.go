@@ -998,6 +998,10 @@ func (a *Allocator) allocateNode(ctx context.Context, node *api.Node, existingAd
 		}
 
 		if lbAttachment == nil {
+			// if we're restoring state, we should not add an attachment here.
+			if existingAddressesOnly {
+				continue
+			}
 			lbAttachment = &api.NetworkAttachment{}
 			node.Attachments = append(node.Attachments, lbAttachment)
 		}
