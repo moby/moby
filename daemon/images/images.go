@@ -1,17 +1,23 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"time"
 
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
@@ -44,16 +50,12 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
 func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-	var (
-		allImages    map[image.ID]*image.Image
-		err          error
-		danglingOnly = false
-	)
-
+	ctx := context.TODO()
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
 
+	danglingOnly := false
 	if imageFilters.Contains("dangling") {
 		if imageFilters.ExactMatch("dangling", "true") {
 			danglingOnly = true
@@ -61,14 +63,10 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 			return nil, invalidFilter{"dangling", imageFilters.Get("dangling")}
 		}
 	}
-	if danglingOnly {
-		allImages = i.imageStore.Heads()
-	} else {
-		allImages = i.imageStore.Map()
-	}
 
 	var beforeFilter, sinceFilter *image.Image
-	err = imageFilters.WalkValues("before", func(value string) error {
+	err := imageFilters.WalkValues("before", func(value string) error {
+		var err error
 		beforeFilter, err = i.GetImage(value)
 		return err
 	})
@@ -77,6 +75,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
+		var err error
 		sinceFilter, err = i.GetImage(value)
 		return err
 	})
@@ -84,176 +83,262 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		return nil, err
 	}
 
-	images := []*types.ImageSummary{}
-	var imagesMap map[*image.Image]*types.ImageSummary
-	var layerRefs map[layer.ChainID]int
-	var allLayers map[layer.ChainID]layer.Layer
-	var allContainers []*container.Container
+	var filters []string
+	if danglingOnly {
+		filters = append(filters, "name~=/sha256:[a-z0-9]+/")
+	} else if imageFilters.Contains("reference") {
+		for _, v := range imageFilters.Get("reference") {
+			// TODO: Parse reference, if only partial match then
+			// use as regex
+			filters = append(filters, "name=="+v)
+		}
+	}
 
-	for id, img := range allImages {
-		if beforeFilter != nil {
-			if img.Created.Equal(beforeFilter.Created) || img.Created.After(beforeFilter.Created) {
-				continue
+	if imageFilters.Contains("label") {
+		var labels []string
+		for _, v := range imageFilters.Get("label") {
+			sv := strings.SplitN(v, "=", 2)
+			if len(sv) == 2 {
+				filters = append(filters, fmt.Sprintf("labels.%q==%s", sv[0], sv[1]))
+			} else {
+				filters = append(filters, "labels."+sv[0])
 			}
 		}
 
-		if sinceFilter != nil {
-			if img.Created.Equal(sinceFilter.Created) || img.Created.Before(sinceFilter.Created) {
-				continue
+		labelFilter := strings.Join(labels, ",")
+
+		if len(filters) == 0 {
+			filters = append(filters, labelFilter)
+		} else {
+			for i := range filters {
+				filters[i] = filters[i] + "," + labelFilter
+			}
+		}
+	}
+
+	allImages, err := i.client.ImageService().List(ctx, filters...)
+	if err != nil {
+		return nil, err
+	}
+
+	cs := i.client.ContentStore()
+	m := map[digest.Digest][]images.Image{}
+	cache := map[digest.Digest]digest.Digest{}
+	for _, img := range allImages {
+		if beforeFilter != nil && beforeFilter.Image.Created != nil {
+			created := img.Labels["docker.io/created"]
+			if created != "" {
+				t, err := time.Parse(created, time.RFC3339)
+				if err == nil && t.Equal(*beforeFilter.Image.Created) || t.After(*beforeFilter.Image.Created) {
+					continue
+				}
 			}
 		}
 
-		if imageFilters.Contains("label") {
-			// Very old image that do not have image.Config (or even labels)
-			if img.Config == nil {
-				continue
+		if sinceFilter != nil && sinceFilter.Image.Created != nil {
+			created := img.Labels["docker.io/created"]
+			if created != "" {
+				t, err := time.Parse(created, time.RFC3339)
+				if err == nil && t.Equal(*sinceFilter.Image.Created) || t.Before(*sinceFilter.Image.Created) {
+					continue
+				}
 			}
-			// We are now sure image.Config is not nil
-			if !imageFilters.MatchKVList("label", img.Config.Labels) {
-				continue
-			}
+
 		}
 
+		config, ok := cache[img.Target.Digest]
+
+		if !ok {
+			// TODO: Resolve to a config
+			c, err := images.Config(ctx, cs, img.Target, platforms.Default())
+			if err != nil {
+				if errdefs.IsNotFound(err) {
+					// TODO: Log this unresolved config
+					continue
+				}
+				return nil, err
+			}
+			config = c.Digest
+		}
+
+		m[config] = append(m[config], img)
+
+		// TODO: WTF?
 		// Skip any images with an unsupported operating system to avoid a potential
 		// panic when indexing through the layerstore. Don't error as we want to list
 		// the other images. This should never happen, but here as a safety precaution.
-		if !system.IsOSSupported(img.OperatingSystem()) {
+		//if !system.IsOSSupported(img.OperatingSystem()) {
+		//	continue
+		//}
+
+		//var size int64
+		// TODO: this seems pretty dumb to do
+		//   Maybe we resolve a config and add size as a config label
+		//layerID := img.RootFS.ChainID()
+		//if layerID != "" {
+		//	l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
+		//	if err != nil {
+		//		// The layer may have been deleted between the call to `Map()` or
+		//		// `Heads()` and the call to `Get()`, so we just ignore this error
+		//		if err == layer.ErrLayerDoesNotExist {
+		//			continue
+		//		}
+		//		return nil, err
+		//	}
+
+		//	size, err = l.Size()
+		//	layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
+		//	if err != nil {
+		//		return nil, err
+		//	}
+		//}
+
+		//newImage := newImage(img, size)
+
+		// TODO: Resolve config blob to get extra metadata
+		// TODO: Store by target
+		// TODO: Defer creation of image summary
+
+		//if withExtraAttrs {
+		//	// lazily init variables
+		//	if imagesMap == nil {
+		//		allContainers = i.containers.List()
+
+		//		// allLayers is built from all layerstores combined
+		//		allLayers = make(map[layer.ChainID]layer.Layer)
+		//		for _, ls := range i.layerStores {
+		//			layers := ls.Map()
+		//			for k, v := range layers {
+		//				allLayers[k] = v
+		//			}
+		//		}
+		//		imagesMap = make(map[*image.Image]*types.ImageSummary)
+		//		layerRefs = make(map[layer.ChainID]int)
+		//	}
+
+		//	// Get container count
+		//	newImage.Containers = 0
+		//	for _, c := range allContainers {
+		//		if c.ImageID == id {
+		//			newImage.Containers++
+		//		}
+		//	}
+
+		//	// count layer references
+		//	rootFS := *img.RootFS
+		//	rootFS.DiffIDs = nil
+		//	for _, id := range img.RootFS.DiffIDs {
+		//		rootFS.Append(id)
+		//		chid := rootFS.ChainID()
+		//		layerRefs[chid]++
+		//		if _, ok := allLayers[chid]; !ok {
+		//			return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
+		//		}
+		//	}
+		//	imagesMap[img] = newImage
+		//}
+
+		//images = append(images, newImage)
+	}
+
+	imageSums := []*types.ImageSummary{}
+	//var layerRefs map[layer.ChainID]int
+	//var allLayers map[layer.ChainID]layer.Layer
+	//var allContainers []*container.Container
+
+	// TODO: For each found image ID, add references
+	for config, imgs := range m {
+		newImage := new(types.ImageSummary)
+		newImage.ID = config.String()
+
+		image, err := i.getImage(ctx, ocispec.Descriptor{Digest: config})
+		if err != nil {
+			// TODO(containerd): log this
 			continue
 		}
-
-		layerID := img.RootFS.ChainID()
-		var size int64
-		if layerID != "" {
-			l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
-			if err != nil {
-				// The layer may have been deleted between the call to `Map()` or
-				// `Heads()` and the call to `Get()`, so we just ignore this error
-				if err == layer.ErrLayerDoesNotExist {
-					continue
-				}
-				return nil, err
-			}
-
-			size, err = l.Size()
-			layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
-			if err != nil {
-				return nil, err
-			}
+		if image.Image.Created != nil {
+			newImage.Created = image.Image.Created.Unix()
 		}
 
-		newImage := newImage(img, size)
+		// TODO: Fill this in from config and content labels
+		//newImage.ParentID = image.Parent.String()
+		//newImage.Size = size
+		//newImage.VirtualSize = size
+		//newImage.SharedSize = -1
+		//newImage.Containers = -1
+		//if image.Config != nil {
+		//	newImage.Labels = image.Config.Labels
+		//}
 
-		for _, ref := range i.referenceStore.References(id.Digest()) {
-			if imageFilters.Contains("reference") {
-				var found bool
-				var matchErr error
-				for _, pattern := range imageFilters.Get("reference") {
-					found, matchErr = reference.FamiliarMatch(pattern, ref)
-					if matchErr != nil {
-						return nil, matchErr
-					}
-					if found {
-						break
-					}
-				}
-				if !found {
-					continue
-				}
-			}
-			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, reference.FamiliarString(ref))
-			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, reference.FamiliarString(ref))
-			}
-		}
-		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
-			if all || len(i.imageStore.Children(id)) == 0 {
+		// TODO: Add each image reference
+		// For these, unique them by manifest, none:none or none@digest
+		digests := map[string]struct{}{}
+		tags := map[string]struct{}{}
 
-				if imageFilters.Contains("dangling") && !danglingOnly {
-					//dangling=false case, so dangling image is not needed
-					continue
-				}
-				if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
-					continue
-				}
-				newImage.RepoDigests = []string{"<none>@<none>"}
-				newImage.RepoTags = []string{"<none>:<none>"}
-			} else {
+		for _, img := range imgs {
+			ref, err := reference.Parse(img.Name)
+			if err != nil {
 				continue
 			}
-		} else if danglingOnly && len(newImage.RepoTags) > 0 {
-			continue
+			if named, ok := ref.(reference.Named); ok {
+				if c, ok := named.(reference.Canonical); ok {
+					digests[reference.FamiliarString(c)] = struct{}{}
+				} else if t, ok := named.(reference.Tagged); ok {
+					tags[reference.FamiliarString(t)] = struct{}{}
+				}
+
+				switch img.Target.MediaType {
+				case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+					// digest references only refer to manifests
+				default:
+					digests[reference.FamiliarName(named)+"@"+img.Target.Digest.String()] = struct{}{}
+				}
+			}
 		}
 
-		if withExtraAttrs {
-			// lazily init variables
-			if imagesMap == nil {
-				allContainers = i.containers.List()
-
-				// allLayers is built from all layerstores combined
-				allLayers = make(map[layer.ChainID]layer.Layer)
-				for _, ls := range i.layerStores {
-					layers := ls.Map()
-					for k, v := range layers {
-						allLayers[k] = v
-					}
-				}
-				imagesMap = make(map[*image.Image]*types.ImageSummary)
-				layerRefs = make(map[layer.ChainID]int)
-			}
-
-			// Get container count
-			newImage.Containers = 0
-			for _, c := range allContainers {
-				if c.ImageID == id {
-					newImage.Containers++
-				}
-			}
-
-			// count layer references
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				chid := rootFS.ChainID()
-				layerRefs[chid]++
-				if _, ok := allLayers[chid]; !ok {
-					return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
-				}
-			}
-			imagesMap[img] = newImage
+		for d := range digests {
+			newImage.RepoDigests = append(newImage.RepoDigests, d)
+		}
+		for t := range tags {
+			newImage.RepoTags = append(newImage.RepoTags, t)
 		}
 
-		images = append(images, newImage)
+		if len(newImage.RepoDigests) == 0 {
+			newImage.RepoDigests = []string{"none@none"}
+		}
+		if len(newImage.RepoTags) == 0 {
+			newImage.RepoTags = []string{"none:none"}
+		}
+
+		imageSums = append(imageSums, newImage)
 	}
 
-	if withExtraAttrs {
-		// Get Shared sizes
-		for img, newImage := range imagesMap {
-			rootFS := *img.RootFS
-			rootFS.DiffIDs = nil
+	//if withExtraAttrs {
+	//	// Get Shared sizes
+	//	for img, newImage := range imagesMap {
+	//		rootFS := *img.RootFS
+	//		rootFS.DiffIDs = nil
 
-			newImage.SharedSize = 0
-			for _, id := range img.RootFS.DiffIDs {
-				rootFS.Append(id)
-				chid := rootFS.ChainID()
+	//		newImage.SharedSize = 0
+	//		for _, id := range img.RootFS.DiffIDs {
+	//			rootFS.Append(id)
+	//			chid := rootFS.ChainID()
 
-				diffSize, err := allLayers[chid].DiffSize()
-				if err != nil {
-					return nil, err
-				}
+	//			diffSize, err := allLayers[chid].DiffSize()
+	//			if err != nil {
+	//				return nil, err
+	//			}
 
-				if layerRefs[chid] > 1 {
-					newImage.SharedSize += diffSize
-				}
-			}
-		}
-	}
+	//			if layerRefs[chid] > 1 {
+	//				newImage.SharedSize += diffSize
+	//			}
+	//		}
+	//	}
+	//}
 
-	sort.Sort(sort.Reverse(byCreated(images)))
+	sort.Sort(sort.Reverse(byCreated(imageSums)))
 
-	return images, nil
+	return imageSums, nil
 }
 
 // SquashImage creates a new image with the diff of the specified image and the specified parent.
@@ -352,8 +437,8 @@ func newImage(image *image.Image, size int64) *types.ImageSummary {
 	newImage.VirtualSize = size
 	newImage.SharedSize = -1
 	newImage.Containers = -1
-	if image.Config != nil {
-		newImage.Labels = image.Config.Labels
+	if image.V1Image.Config != nil {
+		newImage.Labels = image.V1Image.Config.Labels
 	}
 	return newImage
 }

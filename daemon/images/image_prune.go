@@ -85,7 +85,7 @@ func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Arg
 			if !until.IsZero() && img.Created.After(until) {
 				continue
 			}
-			if img.Config != nil && !matchLabels(pruneFilters, img.Config.Labels) {
+			if img.V1Image.Config != nil && !matchLabels(pruneFilters, img.V1Image.Config.Labels) {
 				continue
 			}
 			topImages[id] = img

@@ -294,8 +294,8 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 }
 
 func (daemon *Daemon) mergeAndVerifyConfig(config *containertypes.Config, img *image.Image) error {
-	if img != nil && img.Config != nil {
-		if err := merge(config, img.Config); err != nil {
+	if img != nil && img.V1Image.Config != nil {
+		if err := merge(config, img.V1Image.Config); err != nil {
 			return err
 		}
 	}

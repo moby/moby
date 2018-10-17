@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // ID is the content-addressable ID of an image.
@@ -63,18 +64,44 @@ type V1Image struct {
 
 // Image stores the image configuration
 type Image struct {
+	// DEPRECATED FOR OCI
 	V1Image
+<<<<<<< HEAD
 	Parent     ID        `json:"parent,omitempty"` //nolint:govet
 	RootFS     *RootFS   `json:"rootfs,omitempty"`
 	History    []History `json:"history,omitempty"`
 	OSVersion  string    `json:"os.version,omitempty"`
 	OSFeatures []string  `json:"os.features,omitempty"`
+=======
+
+	// Config is the descriptor for the image configuration
+	Config ocispec.Descriptor
+
+	// Image is the image configuration
+	Image *ocispec.Image
+
+	// References refers to known manifests which reference this image
+	References []ocispec.Descriptor
+
+	// TODO(containerd): this can be a digest to another config
+	Parent ID `json:"parent,omitempty"`
+
+	// DEPRECATED: in OCI image
+	RootFS  *RootFS   `json:"rootfs,omitempty"`
+	History []History `json:"history,omitempty"`
+
+	// DEPRECATED: now in config platform
+	OSVersion  string   `json:"os.version,omitempty"`
+	OSFeatures []string `json:"os.features,omitempty"`
+>>>>>>> Use containerd to list images
 
 	// rawJSON caches the immutable JSON associated with this image.
+	// DEPRECATED: use content store + config digest
 	rawJSON []byte
 
 	// computedID is the ID computed from the hash of the image config.
 	// Not to be confused with the legacy V1 ID in V1Image.
+	// DEPRECATED: now config digest
 	computedID ID
 }
 
@@ -95,7 +122,7 @@ func (img *Image) ImageID() string {
 
 // RunConfig returns the image's container config.
 func (img *Image) RunConfig() *container.Config {
-	return img.Config
+	return img.V1Image.Config
 }
 
 // BaseImgArch returns the image's architecture. If not populated, defaults to the host runtime arch.
