@@ -74,7 +74,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		ContainerConfig: &img.ContainerConfig,
 		DockerVersion:   img.DockerVersion,
 		Author:          img.Author,
-		Config:          img.Config,
+		Config:          img.V1Image.Config,
 		Architecture:    img.Architecture,
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,

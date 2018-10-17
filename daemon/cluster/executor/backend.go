@@ -5,8 +5,6 @@ import (
 	"io"
 	"time"
 
-	"github.com/docker/distribution"
-	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
@@ -72,6 +70,6 @@ type VolumeBackend interface {
 // ImageBackend is used by an executor to perform image operations
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
-	GetRepository(context.Context, reference.Named, *types.AuthConfig) (distribution.Repository, bool, error)
+	// TODO: Provide interface to do shallow pull and get digest from Named and Auth
 	LookupImage(name string) (*types.ImageInspect, error)
 }

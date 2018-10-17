@@ -7,12 +7,9 @@ import (
 	"time"
 
 	"github.com/containerd/containerd"
-	dist "github.com/docker/distribution"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -85,40 +82,4 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	return err
 }
 
-// GetRepository returns a repository from the registry.
-func (i *ImageService) GetRepository(ctx context.Context, ref reference.Named, authConfig *types.AuthConfig) (dist.Repository, bool, error) {
-	// get repository info
-	repoInfo, err := i.registryService.ResolveRepository(ref)
-	if err != nil {
-		return nil, false, errdefs.InvalidParameter(err)
-	}
-	// makes sure name is not empty or `scratch`
-	if err := distribution.ValidateRepoName(repoInfo.Name); err != nil {
-		return nil, false, errdefs.InvalidParameter(err)
-	}
-
-	// get endpoints
-	endpoints, err := i.registryService.LookupPullEndpoints(reference.Domain(repoInfo.Name))
-	if err != nil {
-		return nil, false, err
-	}
-
-	// retrieve repository
-	var (
-		confirmedV2 bool
-		repository  dist.Repository
-		lastError   error
-	)
-
-	for _, endpoint := range endpoints {
-		if endpoint.Version == registry.APIVersion1 {
-			continue
-		}
-
-		repository, confirmedV2, lastError = distribution.NewV2Repository(ctx, repoInfo, endpoint, nil, authConfig, "pull")
-		if lastError == nil && confirmedV2 {
-			break
-		}
-	}
-	return repository, confirmedV2, lastError
-}
+// TODO: Add shallow pull function which returns descriptor
