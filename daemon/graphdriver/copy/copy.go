@@ -11,7 +11,6 @@ package copy // import "github.com/docker/docker/daemon/graphdriver/copy"
 */
 import "C"
 import (
-	"container/list"
 	"context"
 	"fmt"
 	"io"
@@ -121,13 +120,16 @@ func copyXattr(srcPath, dstPath, attr string) error {
 	return nil
 }
 
-type dirMtimeInfo struct {
-	dstPath *string
-	stat    *syscall.Stat_t
-}
+type fileCopyInfoMode int
+
+const (
+	fileMode fileCopyInfoMode = iota
+	dirMode
+	updateDirTimeMode
+)
 
 type fileCopyInfo struct {
-	dir      bool
+	mode     fileCopyInfoMode
 	dstPath  string
 	srcPath  string
 	stat     *syscall.Stat_t
@@ -228,19 +230,177 @@ func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, du
 			if !ok {
 				return nil
 			}
-			if fci.dir {
+			switch fci.mode {
+			case dirMode:
 				if err := copyMetadataShared(fci.dstPath, fci.srcPath, fci.fileInfo, fci.stat, copyXattrs); err != nil {
 					return err
 				}
-
-			} else {
+			case fileMode:
 				if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, duplicatedInodeMap, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+					return err
+				}
+			case updateDirTimeMode:
+				ts := []syscall.Timespec{fci.stat.Atim, fci.stat.Mtim}
+				if err := system.LUtimesNano(fci.dstPath, ts); err != nil {
 					return err
 				}
 			}
 		}
 
 	}
+}
+
+// readDirNames reads the directory named by dirname and returns
+// a sorted list of directory entries.
+func readDirNames(dirname string) ([]string, error) {
+	f, err := os.Open(dirname)
+	if err != nil {
+		return nil, err
+	}
+	names, err := f.Readdirnames(-1)
+	f.Close()
+	if err != nil {
+		return nil, err
+	}
+	return names, nil
+}
+
+type walkFn struct {
+	srcDir  string
+	dstDir  string
+	workers []chan *fileCopyInfo
+	rand    *rand.Rand
+}
+
+func (w *walkFn) rebasePath(srcPath string) (string, error) {
+	// Rebase path
+	relPath, err := filepath.Rel(w.srcDir, srcPath)
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(w.dstDir, relPath), nil
+}
+
+func (w *walkFn) walkFunc(ctx context.Context, srcPath string, f os.FileInfo, c chan *fileCopyInfo, err error) error {
+	mode := fileMode
+	if err != nil {
+		return err
+	}
+	// Check if the errgroup has gotten canceled / shutdown
+	err = ctx.Err()
+	if err != nil {
+		return ctx.Err()
+	}
+
+	dstPath, err := w.rebasePath(srcPath)
+	if err != nil {
+		return err
+	}
+
+	stat, ok := f.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
+	}
+	if f.IsDir() {
+		mode = dirMode
+		if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
+			return err
+		}
+		if f.Mode()&desiredUmask > 0 {
+			if err := os.Chmod(dstPath, f.Mode()); err != nil {
+				return err
+			}
+		}
+	}
+	select {
+	case c <- &fileCopyInfo{
+		mode:     mode,
+		dstPath:  dstPath,
+		srcPath:  srcPath,
+		stat:     stat,
+		fileInfo: f,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+func (w *walkFn) updateDirTime(ctx context.Context, srcPath string, f os.FileInfo, c chan *fileCopyInfo) error {
+	dstPath, err := w.rebasePath(srcPath)
+	if err != nil {
+		return err
+	}
+	stat, ok := f.Sys().(*syscall.Stat_t)
+	if !ok {
+		return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
+	}
+	select {
+	case c <- &fileCopyInfo{
+		mode:     updateDirTimeMode,
+		dstPath:  dstPath,
+		srcPath:  srcPath,
+		stat:     stat,
+		fileInfo: f,
+	}:
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+	return nil
+}
+
+// walk and walk2 are borrowed from filepath.WalkDir, but adapted for our purposes
+// we have a special field for the channel that's used for this given directory
+// the reason why is to serialize writes for that dirent, and then we can simply
+// rely on delivery ordering to make sure our message to update mtimes gets there
+// last
+func (w *walkFn) walk2(ctx context.Context, path string, info os.FileInfo) error {
+	c := w.workers[w.rand.Intn(len(w.workers))]
+
+	names, err := readDirNames(path)
+	err1 := w.walkFunc(ctx, path, info, c, err)
+	// If err != nil, walk can't walk into this directory.
+	// err1 != nil means walkFn want walk to skip this directory or stop walking.
+	// Therefore, if one of err and err1 isn't nil, walk will return.
+	if err != nil || err1 != nil {
+		// The caller's behavior is controlled by the return value, which is decided
+		// by walkFn. walkFn may ignore err and return nil.
+		// If walkFn returns SkipDir, it will be handled by the caller.
+		// So walk should return whatever walkFn returns.
+		return err1
+	}
+
+	for _, name := range names {
+		filename := filepath.Join(path, name)
+		fileInfo, err := os.Lstat(filename)
+		if err != nil {
+			if err := w.walkFunc(ctx, filename, fileInfo, c, err); err != nil {
+				return err
+			}
+		} else if fileInfo.IsDir() {
+			err = w.walk2(ctx, filename, fileInfo)
+			if err != nil {
+				return err
+			}
+		} else {
+			if err := w.walkFunc(ctx, filename, fileInfo, c, err); err != nil {
+				return err
+			}
+		}
+	}
+	return w.updateDirTime(ctx, path, info, c)
+}
+
+func (w *walkFn) walk(ctx context.Context, root string) error {
+	c := w.workers[w.rand.Intn(len(w.workers))]
+	info, err := os.Lstat(root)
+	if err != nil {
+		err = w.walkFunc(ctx, root, nil, c, err)
+	} else {
+		err = w.walk2(ctx, root, info)
+	}
+	return err
 }
 
 // DirCopy copies or hardlinks the contents of one directory to another,
@@ -251,7 +411,6 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 	ctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
-	dirsToSetMtimes := list.New()
 	errGroup, errGroupCtx := errgroup.WithContext(ctx)
 	workers := make([]chan *fileCopyInfo, workerCount)
 	duplicatedInodeMap := &sync.Map{}
@@ -263,73 +422,23 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 		})
 	}
 
-	err := filepath.Walk(srcDir, func(srcPath string, f os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		// Check if the errgroup has gotten canceled / shutdown
-		if errGroupCtx.Err() != nil {
-			return nil
-		}
+	w := &walkFn{
+		srcDir:  srcDir,
+		dstDir:  dstDir,
+		workers: workers,
+		rand:    rand.New(rand.NewSource(3)),
+	}
 
-		// Rebase path
-		relPath, err := filepath.Rel(srcDir, srcPath)
-		if err != nil {
-			return err
-		}
-
-		dstPath := filepath.Join(dstDir, relPath)
-		if err != nil {
-			return err
-		}
-
-		stat, ok := f.Sys().(*syscall.Stat_t)
-		if !ok {
-			return fmt.Errorf("Unable to get raw syscall.Stat_t data for %s", srcPath)
-		}
-		if f.IsDir() {
-			if err := os.Mkdir(dstPath, f.Mode()); err != nil && !os.IsExist(err) {
-				return err
-			}
-			if f.Mode()&desiredUmask > 0 {
-				if err := os.Chmod(dstPath, f.Mode()); err != nil {
-					return err
-				}
-			}
-			dirsToSetMtimes.PushFront(&dirMtimeInfo{dstPath: &dstPath, stat: stat})
-			// Only copy a subset of the metadata, but don't update timestamps until the very
-			// end (in reverse)
-		}
-
-		workers[rand.Intn(len(workers))] <- &fileCopyInfo{
-			dir:      f.IsDir(),
-			dstPath:  dstPath,
-			srcPath:  srcPath,
-			stat:     stat,
-			fileInfo: f,
-		}
-		return nil
-	})
+	err := w.walk(errGroupCtx, srcDir)
 	for i := 0; i < len(workers); i++ {
 		close(workers[i])
 	}
 	if err != nil {
+		cancel()
 		return err
 	}
 
-	err = errGroup.Wait()
-	if err != nil {
-		return err
-	}
-
-	for e := dirsToSetMtimes.Front(); e != nil; e = e.Next() {
-		mtimeInfo := e.Value.(*dirMtimeInfo)
-		ts := []syscall.Timespec{mtimeInfo.stat.Atim, mtimeInfo.stat.Mtim}
-		if err := system.LUtimesNano(*mtimeInfo.dstPath, ts); err != nil {
-			return err
-		}
-	}
-	return nil
+	return errGroup.Wait()
 }
 
 // copyMetadataShared copies the metadata for directories and files, but doesn't
