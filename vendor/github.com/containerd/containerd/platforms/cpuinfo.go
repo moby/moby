@@ -74,6 +74,22 @@ func getCPUInfo(pattern string) (info string, err error) {
 }
 
 func getCPUVariant() string {
+	if runtime.GOOS == "windows" {
+		// Windows only supports v7 for ARM32 and v8 for ARM64 and so we can use
+		// runtime.GOARCH to determine the variants
+		var variant string
+		switch runtime.GOARCH {
+		case "arm64":
+			variant = "v8"
+		case "arm":
+			variant = "v7"
+		default:
+			variant = "unknown"
+		}
+
+		return variant
+	}
+
 	variant, err := getCPUInfo("Cpu architecture")
 	if err != nil {
 		log.L.WithError(err).Error("failure getting variant")

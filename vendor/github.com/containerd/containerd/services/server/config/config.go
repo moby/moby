@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package server
+package config
 
 import (
 	"github.com/BurntSushi/toml"
