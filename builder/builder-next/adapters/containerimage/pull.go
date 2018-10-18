@@ -75,12 +75,12 @@ func (is *imageSource) ID() string {
 
 func (is *imageSource) getResolver(ctx context.Context, rfn resolver.ResolveOptionsFunc, ref string) remotes.Resolver {
 	opt := docker.ResolverOptions{
-		Client:      tracing.DefaultClient,
-		Credentials: is.getCredentialsFromSession(ctx),
+		Client: tracing.DefaultClient,
 	}
 	if rfn != nil {
 		opt = rfn(ref)
 	}
+	opt.Credentials = is.getCredentialsFromSession(ctx)
 	r := docker.NewResolver(opt)
 	return r
 }
