@@ -36,7 +36,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-// ImportIndex imports an index from a tar achive image bundle
+// ImportIndex imports an index from a tar archive image bundle
 // - implements Docker v1.1, v1.2 and OCI v1.
 // - prefers OCI v1 when provided
 // - creates OCI index for Docker formats
@@ -164,7 +164,7 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 		if len(platforms) > 0 {
 			// Only one platform can be resolved from non-index manifest,
 			// The platform can only come from the config included above,
-			// if the config has no platform it can be safely ommitted.
+			// if the config has no platform it can be safely omitted.
 			desc.Platform = &platforms[0]
 		}
 

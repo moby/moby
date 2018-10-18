@@ -1,4 +1,4 @@
-![banner](https://github.com/containerd/containerd.io/blob/master/static/img/containerd-dark.png?raw=true)
+![containerd banner](https://raw.githubusercontent.com/cncf/artwork/master/containerd/horizontal/color/containerd-horizontal-color.png)
 
 [![GoDoc](https://godoc.org/github.com/containerd/containerd?status.svg)](https://godoc.org/github.com/containerd/containerd)
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)
@@ -236,3 +236,16 @@ The containerd codebase is released under the [Apache 2.0 license](LICENSE.code)
 The README.md file, and files in the "docs" folder are licensed under the
 Creative Commons Attribution 4.0 International License. You may obtain a
 copy of the license, titled CC-BY-4.0, at http://creativecommons.org/licenses/by/4.0/.
+
+## Project details
+
+**containerd** is the primary open source project within the broader containerd GitHub repository.
+However, all projects within the repo have common maintainership, governance, and contributing
+guidelines which are stored in a `project` repository commonly for all containerd projects.
+
+Please find all these core project documents, including the:
+ * [Project governance](https://github.com/containerd/project/blob/master/GOVERNANCE.md),
+ * [Maintainers](https://github.com/containerd/project/blob/master/MAINTAINERS),
+ * and [Contributing guidelines](https://github.com/containerd/project/blob/master/CONTRIBUTING.md)
+
+information in our [`containerd/project`](https://github.com/containerd/project) repository.

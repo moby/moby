@@ -19,6 +19,7 @@ func ActivateLayer(info DriverInfo, id string) error {
 func CreateLayer(info DriverInfo, id, parent string) error {
 	return wclayer.CreateLayer(layerPath(&info, id), parent)
 }
+
 // New clients should use CreateScratchLayer instead. Kept in to preserve API compatibility.
 func CreateSandboxLayer(info DriverInfo, layerId, parentId string, parentLayerPaths []string) error {
 	return wclayer.CreateScratchLayer(layerPath(&info, layerId), parentLayerPaths)
@@ -32,6 +33,7 @@ func DeactivateLayer(info DriverInfo, id string) error {
 func DestroyLayer(info DriverInfo, id string) error {
 	return wclayer.DestroyLayer(layerPath(&info, id))
 }
+
 // New clients should use ExpandScratchSize instead. Kept in to preserve API compatibility.
 func ExpandSandboxSize(info DriverInfo, layerId string, size uint64) error {
 	return wclayer.ExpandScratchSize(layerPath(&info, layerId), size)

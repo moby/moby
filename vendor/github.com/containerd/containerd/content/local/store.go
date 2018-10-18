@@ -524,12 +524,11 @@ func (s *store) writer(ctx context.Context, ref string, total int64, expected di
 		if err != nil {
 			return nil, err
 		}
-		defer fp.Close()
 
 		p := bufPool.Get().(*[]byte)
-		defer bufPool.Put(p)
-
 		offset, err = io.CopyBuffer(digester.Hash(), fp, *p)
+		bufPool.Put(p)
+		fp.Close()
 		if err != nil {
 			return nil, err
 		}
