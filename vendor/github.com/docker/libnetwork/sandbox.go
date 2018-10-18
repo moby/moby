@@ -742,7 +742,16 @@ func releaseOSSboxResources(osSbox osl.Sandbox, ep *endpoint) {
 
 	ep.Lock()
 	joinInfo := ep.joinInfo
+	vip := ep.virtualIP
+	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
 	ep.Unlock()
+
+	if len(vip) > 0 && lbModeIsDSR {
+		ipNet := &net.IPNet{IP: vip, Mask: net.CIDRMask(32, 32)}
+		if err := osSbox.RemoveAliasIP(osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+			logrus.WithError(err).Debugf("failed to remove virtual ip %v to loopback", ipNet)
+		}
+	}
 
 	if joinInfo == nil {
 		return
@@ -831,6 +840,7 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 	ep.Lock()
 	joinInfo := ep.joinInfo
 	i := ep.iface
+	lbModeIsDSR := ep.network.loadBalancerMode == loadBalancerModeDSR
 	ep.Unlock()
 
 	if ep.needResolver() {
@@ -853,6 +863,18 @@ func (sb *sandbox) populateNetworkResources(ep *endpoint) error {
 
 		if err := sb.osSbox.AddInterface(i.srcName, i.dstPrefix, ifaceOptions...); err != nil {
 			return fmt.Errorf("failed to add interface %s to sandbox: %v", i.srcName, err)
+		}
+
+		if len(ep.virtualIP) > 0 && lbModeIsDSR {
+			if sb.loadBalancerNID == "" {
+				if err := sb.osSbox.DisableARPForVIP(i.srcName); err != nil {
+					return fmt.Errorf("failed disable ARP for VIP: %v", err)
+				}
+			}
+			ipNet := &net.IPNet{IP: ep.virtualIP, Mask: net.CIDRMask(32, 32)}
+			if err := sb.osSbox.AddAliasIP(sb.osSbox.GetLoopbackIfaceName(), ipNet); err != nil {
+				return fmt.Errorf("failed to add virtual ip %v to loopback: %v", ipNet, err)
+			}
 		}
 	}
 
