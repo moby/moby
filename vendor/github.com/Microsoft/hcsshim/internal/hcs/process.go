@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Microsoft/hcsshim/internal/guestrequest"
 	"github.com/Microsoft/hcsshim/internal/interop"
 	"github.com/sirupsen/logrus"
 )
@@ -69,6 +70,39 @@ func (process *Process) Pid() int {
 // SystemID returns the ID of the process's compute system.
 func (process *Process) SystemID() string {
 	return process.system.ID()
+}
+
+// Signal signals the process with `options`.
+func (process *Process) Signal(options guestrequest.SignalProcessOptions) error {
+	process.handleLock.RLock()
+	defer process.handleLock.RUnlock()
+	operation := "Signal"
+	title := "hcsshim::Process::" + operation
+	logrus.Debugf(title+" processid=%d", process.processID)
+
+	if process.handle == 0 {
+		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
+	}
+
+	optionsb, err := json.Marshal(options)
+	if err != nil {
+		return err
+	}
+
+	optionsStr := string(optionsb)
+
+	var resultp *uint16
+	completed := false
+	go syscallWatcher(fmt.Sprintf("SignalProcess %s: %d", process.SystemID(), process.Pid()), &completed)
+	err = hcsSignalProcess(process.handle, optionsStr, &resultp)
+	completed = true
+	events := processHcsResult(resultp)
+	if err != nil {
+		return makeProcessError(process, operation, err, events)
+	}
+
+	logrus.Debugf(title+" succeeded processid=%d", process.processID)
+	return nil
 }
 
 // Kill signals the process to terminate but does not wait for it to finish terminating.

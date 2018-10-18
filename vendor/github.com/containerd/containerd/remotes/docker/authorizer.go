@@ -80,11 +80,7 @@ func (a *dockerAuthorizer) AddResponses(ctx context.Context, responses []*http.R
 
 			// TODO(dmcg): Store challenge, not token
 			// Move token fetching to authorize
-			if err := a.setTokenAuth(ctx, host, c.parameters); err != nil {
-				return err
-			}
-
-			return nil
+			return a.setTokenAuth(ctx, host, c.parameters)
 		} else if c.scheme == basicAuth {
 			// TODO: Resolve credentials on authorize
 			username, secret, err := a.credentials(host)

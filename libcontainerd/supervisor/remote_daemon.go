@@ -15,7 +15,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/services/server"
+	"github.com/containerd/containerd/services/server/config"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -37,7 +37,7 @@ type pluginConfigs struct {
 
 type remote struct {
 	sync.RWMutex
-	server.Config
+	config.Config
 
 	daemonPid int
 	logger    *logrus.Entry
@@ -65,7 +65,7 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	r := &remote{
 		rootDir:  rootDir,
 		stateDir: stateDir,
-		Config: server.Config{
+		Config: config.Config{
 			Root:  filepath.Join(rootDir, "daemon"),
 			State: filepath.Join(stateDir, "daemon"),
 		},

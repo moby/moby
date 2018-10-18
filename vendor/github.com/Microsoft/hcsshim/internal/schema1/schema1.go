@@ -3,6 +3,8 @@ package schema1
 import (
 	"encoding/json"
 	"time"
+
+	"github.com/Microsoft/hcsshim/internal/schema2"
 )
 
 // ProcessConfig is used as both the input of Container.CreateProcess
@@ -115,9 +117,10 @@ type ComputeSystemQuery struct {
 type PropertyType string
 
 const (
-	PropertyTypeStatistics        PropertyType = "Statistics"
-	PropertyTypeProcessList                    = "ProcessList"
-	PropertyTypeMappedVirtualDisk              = "MappedVirtualDisk"
+	PropertyTypeStatistics        PropertyType = "Statistics"        // V1 and V2
+	PropertyTypeProcessList                    = "ProcessList"       // V1 and V2
+	PropertyTypeMappedVirtualDisk              = "MappedVirtualDisk" // Not supported in V2 schema call
+	PropertyTypeGuestConnection                = "GuestConnection"   // V1 and V2. Nil return from HCS before RS5
 )
 
 type PropertyQuery struct {
@@ -142,6 +145,7 @@ type ContainerProperties struct {
 	Statistics                   Statistics                          `json:",omitempty"`
 	ProcessList                  []ProcessListItem                   `json:",omitempty"`
 	MappedVirtualDiskControllers map[int]MappedVirtualDiskController `json:",omitempty"`
+	GuestConnectionInfo          GuestConnectionInfo                 `json:",omitempty"`
 }
 
 // MemoryStats holds the memory statistics for a container
@@ -204,6 +208,19 @@ type ProcessListItem struct {
 // MappedVirtualDiskController is the structure of an item returned by a MappedVirtualDiskList call on a container
 type MappedVirtualDiskController struct {
 	MappedVirtualDisks map[int]MappedVirtualDisk `json:",omitempty"`
+}
+
+// GuestDefinedCapabilities is part of the GuestConnectionInfo returned by a GuestConnection call on a utility VM
+type GuestDefinedCapabilities struct {
+	NamespaceAddRequestSupported bool `json:",omitempty"`
+	SignalProcessSupported       bool `json:",omitempty"`
+}
+
+// GuestConnectionInfo is the structure of an iterm return by a GuestConnection call on a utility VM
+type GuestConnectionInfo struct {
+	SupportedSchemaVersions  []hcsschema.Version      `json:",omitempty"`
+	ProtocolVersion          uint32                   `json:",omitempty"`
+	GuestDefinedCapabilities GuestDefinedCapabilities `json:",omitempty"`
 }
 
 // Type of Request Support in ModifySystem

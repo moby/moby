@@ -556,18 +556,18 @@ func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected dig
 	var innerErr error
 
 	if err := update(ctx, nw.db, func(tx *bolt.Tx) error {
-		bkt := getIngestsBucket(tx, nw.namespace)
-		if bkt != nil {
-			if err := bkt.DeleteBucket([]byte(nw.ref)); err != nil && err != bolt.ErrBucketNotFound {
-				return err
-			}
-		}
 		dgst, err := nw.commit(ctx, tx, size, expected, opts...)
 		if err != nil {
 			if !errdefs.IsAlreadyExists(err) {
 				return err
 			}
 			innerErr = err
+		}
+		bkt := getIngestsBucket(tx, nw.namespace)
+		if bkt != nil {
+			if err := bkt.DeleteBucket([]byte(nw.ref)); err != nil && err != bolt.ErrBucketNotFound {
+				return err
+			}
 		}
 		if err := removeIngestLease(ctx, tx, nw.ref); err != nil {
 			return err
@@ -584,30 +584,38 @@ func (nw *namespacedWriter) commit(ctx context.Context, tx *bolt.Tx, size int64,
 	var base content.Info
 	for _, opt := range opts {
 		if err := opt(&base); err != nil {
+			if nw.w != nil {
+				nw.w.Close()
+			}
 			return "", err
 		}
 	}
 	if err := validateInfo(&base); err != nil {
+		if nw.w != nil {
+			nw.w.Close()
+		}
 		return "", err
 	}
 
 	var actual digest.Digest
 	if nw.w == nil {
 		if size != 0 && size != nw.desc.Size {
-			return "", errors.Errorf("%q failed size validation: %v != %v", nw.ref, nw.desc.Size, size)
+			return "", errors.Wrapf(errdefs.ErrFailedPrecondition, "%q failed size validation: %v != %v", nw.ref, nw.desc.Size, size)
 		}
 		if expected != "" && expected != nw.desc.Digest {
-			return "", errors.Errorf("%q unexpected digest", nw.ref)
+			return "", errors.Wrapf(errdefs.ErrFailedPrecondition, "%q unexpected digest", nw.ref)
 		}
 		size = nw.desc.Size
 		actual = nw.desc.Digest
 	} else {
 		status, err := nw.w.Status()
 		if err != nil {
+			nw.w.Close()
 			return "", err
 		}
 		if size != 0 && size != status.Offset {
-			return "", errors.Errorf("%q failed size validation: %v != %v", nw.ref, status.Offset, size)
+			nw.w.Close()
+			return "", errors.Wrapf(errdefs.ErrFailedPrecondition, "%q failed size validation: %v != %v", nw.ref, status.Offset, size)
 		}
 		size = status.Offset
 		actual = nw.w.Digest()
