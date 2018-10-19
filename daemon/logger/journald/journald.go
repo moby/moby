@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"sync"
 	"unicode"
+	"strconv"
 
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/daemon/logger"
@@ -105,8 +106,11 @@ func (s *journald) Log(msg *logger.Message) error {
 	for k, v := range s.vars {
 		vars[k] = v
 	}
-	if msg.PLogMetaData != nil && !msg.PLogMetaData.Last {
+	if msg.PLogMetaData != nil {
 		vars["CONTAINER_PARTIAL_MESSAGE"] = "true"
+		vars["CONTAINER_PARTIAL_ID"] = msg.PLogMetaData.ID
+		vars["CONTAINER_PARTIAL_ORDINAL"] = strconv.Itoa(msg.PLogMetaData.Ordinal)
+		vars["CONTAINER_PARTIAL_LAST"] = strconv.FormatBool(msg.PLogMetaData.Last)
 	}
 
 	line := string(msg.Line)
