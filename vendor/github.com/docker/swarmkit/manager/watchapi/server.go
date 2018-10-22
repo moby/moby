@@ -1,11 +1,11 @@
 package watchapi
 
 import (
+	"context"
 	"errors"
 	"sync"
 
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 var (

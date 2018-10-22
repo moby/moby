@@ -1,13 +1,12 @@
 package update
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"reflect"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"github.com/docker/go-events"
 	"github.com/docker/swarmkit/api"

@@ -1,8 +1,9 @@
 package log
 
 import (
+	"context"
+
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/grpclog"
 )
 

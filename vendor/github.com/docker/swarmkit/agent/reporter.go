@@ -1,12 +1,12 @@
 package agent
 
 import (
+	"context"
 	"reflect"
 	"sync"
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"golang.org/x/net/context"
 )
 
 // StatusReporter receives updates to task status. Method may be called
