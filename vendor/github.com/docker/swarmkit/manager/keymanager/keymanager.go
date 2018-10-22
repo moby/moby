@@ -6,6 +6,7 @@ package keymanager
 // which is used to exchange service discovery and overlay network control
 // plane information. It can also be used to encrypt overlay data traffic.
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"encoding/binary"
 	"sync"
@@ -15,7 +16,6 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 )
 
 const (

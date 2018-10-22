@@ -3,11 +3,10 @@
 package transport
 
 import (
+	"context"
 	"net"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"

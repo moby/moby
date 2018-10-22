@@ -1,6 +1,7 @@
 package manager
 
 import (
+	"context"
 	"time"
 
 	"github.com/docker/swarmkit/api"
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/pivotal-golang/clock"
-	"golang.org/x/net/context"
 )
 
 const (

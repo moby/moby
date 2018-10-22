@@ -1,8 +1,9 @@
 package state
 
 import (
+	"context"
+
 	"github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
 )
 
 // A Change includes a version number and a set of store actions from a

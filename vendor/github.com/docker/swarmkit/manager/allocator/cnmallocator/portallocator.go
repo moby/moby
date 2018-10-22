@@ -407,12 +407,12 @@ func (ps *portSpace) allocate(p *api.PortConfig) (err error) {
 	}
 	defer func() {
 		if err != nil {
-			ps.dynamicPortSpace.Release(uint64(swarmPort))
+			ps.dynamicPortSpace.Release(swarmPort)
 		}
 	}()
 
 	// Make sure we allocate the same port from the master space.
-	if err = ps.masterPortSpace.GetSpecificID(uint64(swarmPort)); err != nil {
+	if err = ps.masterPortSpace.GetSpecificID(swarmPort); err != nil {
 		return
 	}
 

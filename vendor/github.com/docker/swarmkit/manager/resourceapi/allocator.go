@@ -1,6 +1,7 @@
 package resourceapi
 
 import (
+	"context"
 	"errors"
 	"time"
 
@@ -9,7 +10,6 @@ import (
 	"github.com/docker/swarmkit/identity"
 	"github.com/docker/swarmkit/manager/state/store"
 	"github.com/docker/swarmkit/protobuf/ptypes"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

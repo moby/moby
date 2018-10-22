@@ -1,6 +1,7 @@
 package replicated
 
 import (
+	"context"
 	"sort"
 
 	"github.com/docker/go-events"
@@ -8,7 +9,6 @@ import (
 	"github.com/docker/swarmkit/log"
 	"github.com/docker/swarmkit/manager/orchestrator"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 )
 
 // This file provices service-level orchestration. It observes changes to

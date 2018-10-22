@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	cryptorand "crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
@@ -23,8 +24,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/credentials"
-
-	"golang.org/x/net/context"
 )
 
 const (
@@ -32,7 +31,6 @@ const (
 	rootCAKeyFilename   = "swarm-root-ca.key"
 	nodeTLSCertFilename = "swarm-node.crt"
 	nodeTLSKeyFilename  = "swarm-node.key"
-	nodeCSRFilename     = "swarm-node.csr"
 
 	// DefaultRootCN represents the root CN that we should create roots CAs with by default
 	DefaultRootCN = "swarm-ca"
@@ -626,10 +624,10 @@ func calculateRandomExpiry(validFrom, validUntil time.Time) time.Duration {
 	if maxValidity-minValidity < 1 {
 		randomExpiry = minValidity
 	} else {
-		randomExpiry = rand.Intn(maxValidity-minValidity) + int(minValidity)
+		randomExpiry = rand.Intn(maxValidity-minValidity) + minValidity
 	}
 
-	expiry := validFrom.Add(time.Duration(randomExpiry) * time.Minute).Sub(time.Now())
+	expiry := time.Until(validFrom.Add(time.Duration(randomExpiry) * time.Minute))
 	if expiry < 0 {
 		return 0
 	}
