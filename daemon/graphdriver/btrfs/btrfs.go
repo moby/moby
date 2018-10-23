@@ -178,7 +178,7 @@ func (d *Driver) Cleanup() error {
 	}
 
 	if umountErr != nil {
-		return errors.Wrapf(umountErr, "error unmounting %s", d.home)
+		return umountErr
 	}
 
 	return nil

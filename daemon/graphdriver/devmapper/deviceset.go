@@ -1200,7 +1200,7 @@ func (devices *DeviceSet) growFS(info *devInfo) error {
 	options = joinMountOptions(options, devices.mountOptions)
 
 	if err := mount.Mount(info.DevName(), fsMountPoint, devices.BaseDeviceFilesystem, options); err != nil {
-		return fmt.Errorf("Error mounting '%s' on '%s' (fstype='%s' options='%s'): %s\n%v", info.DevName(), fsMountPoint, devices.BaseDeviceFilesystem, options, err, string(dmesg.Dmesg(256)))
+		return errors.Wrapf(err, "Failed to mount; dmesg: %s", string(dmesg.Dmesg(256)))
 	}
 
 	defer unix.Unmount(fsMountPoint, unix.MNT_DETACH)
@@ -2381,7 +2381,7 @@ func (devices *DeviceSet) MountDevice(hash, path, mountLabel string) error {
 	options = joinMountOptions(options, label.FormatMountLabel("", mountLabel))
 
 	if err := mount.Mount(info.DevName(), path, fstype, options); err != nil {
-		return fmt.Errorf("devmapper: Error mounting '%s' on '%s' (fstype='%s' options='%s'): %s\n%v", info.DevName(), path, fstype, options, err, string(dmesg.Dmesg(256)))
+		return errors.Wrapf(err, "Failed to mount; dmesg: %s", string(dmesg.Dmesg(256)))
 	}
 
 	if fstype == "xfs" && devices.xfsNospaceRetries != "" {

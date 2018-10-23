@@ -86,7 +86,7 @@ func (v *localVolume) mount() error {
 		}
 	}
 	err := mount.Mount(v.opts.MountDevice, v.path, v.opts.MountType, mountOpts)
-	return errors.Wrapf(err, "error while mounting volume with options: %s", v.opts)
+	return errors.Wrap(err, "failed to mount local volume")
 }
 
 func (v *localVolume) CreatedAt() (time.Time, error) {
