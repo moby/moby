@@ -61,7 +61,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	if err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
 		if p.PluginObj.Config.PropagatedMount != "" {
 			if err := mount.Unmount(propRoot); err != nil {
-				logrus.Warnf("Could not unmount %s: %v", propRoot, err)
+				logrus.WithField("plugin", p.Name()).WithError(err).Warn("Failed to unmount vplugin propagated mount root")
 			}
 		}
 		return errors.WithStack(err)
