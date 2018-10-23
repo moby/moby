@@ -3,6 +3,7 @@
 package system // import "github.com/docker/docker/pkg/system"
 
 import (
+	"os"
 	"syscall"
 )
 
@@ -59,7 +60,7 @@ func (s StatT) IsDir() bool {
 func Stat(path string) (*StatT, error) {
 	s := &syscall.Stat_t{}
 	if err := syscall.Stat(path, s); err != nil {
-		return nil, err
+		return nil, &os.PathError{"Stat", path, err}
 	}
 	return fromStatT(s)
 }
