@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/mistifyio/go-zfs"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -390,7 +391,7 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 	}
 
 	if err := mount.Mount(filesystem, mountpoint, "zfs", options); err != nil {
-		return nil, fmt.Errorf("error creating zfs mount of %s to %s: %v", filesystem, mountpoint, err)
+		return nil, errors.Wrap(err, "error creating zfs mount")
 	}
 
 	// this could be our first mount after creation of the filesystem, and the root dir may still have root

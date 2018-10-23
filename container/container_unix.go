@@ -191,7 +191,7 @@ func (container *Container) UnmountIpcMount() error {
 		return nil
 	}
 	if err = mount.Unmount(shmPath); err != nil && !os.IsNotExist(err) {
-		return errors.Wrapf(err, "umount %s", shmPath)
+		return err
 	}
 	return nil
 }
@@ -381,7 +381,8 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 
 	for _, mountPath := range mountPaths {
 		if err := mount.Unmount(mountPath); err != nil {
-			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount for volume '%s': %v", container.ID, mountPath, err)
+			logrus.WithError(err).WithField("container", container.ID).
+				Warn("Unable to unmount")
 		}
 	}
 	return container.UnmountVolumes(volumeEventLog)
