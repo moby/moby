@@ -10,7 +10,9 @@ import (
 	"github.com/docker/docker/api/types/swarm"
 )
 
-// ServiceUpdate updates a Service.
+// ServiceUpdate updates a Service. The version number is required to avoid conflicting writes.
+// It should be the value as set *before* the update. You can find this value in the Meta field
+// of swarm.Service, which can be found using ServiceInspectWithRaw.
 func (cli *Client) ServiceUpdate(ctx context.Context, serviceID string, version swarm.Version, service swarm.ServiceSpec, options types.ServiceUpdateOptions) (types.ServiceUpdateResponse, error) {
 	var (
 		query   = url.Values{}
