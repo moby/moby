@@ -4,6 +4,7 @@ import (
 	"context"
 	"io/ioutil"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/strslice"
@@ -14,6 +15,74 @@ import (
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
 )
+
+// TestExecWithCloseStdin adds case for moby#37870 issue.
+func TestExecWithCloseStdin(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"), "broken in earlier versions")
+	defer setupTest(t)()
+
+	ctx := context.Background()
+	client := request.NewAPIClient(t)
+
+	// run top with detached mode
+	cID := container.Run(t, ctx, client)
+
+	expected := "closeIO"
+	execResp, err := client.ContainerExecCreate(ctx, cID,
+		types.ExecConfig{
+			AttachStdin:  true,
+			AttachStdout: true,
+			Cmd:          strslice.StrSlice([]string{"sh", "-c", "cat && echo " + expected}),
+		},
+	)
+	assert.NilError(t, err)
+
+	resp, err := client.ContainerExecAttach(ctx, execResp.ID,
+		types.ExecStartCheck{
+			Detach: false,
+			Tty:    false,
+		},
+	)
+	assert.NilError(t, err)
+	defer resp.Close()
+
+	// close stdin to send EOF to cat
+	assert.NilError(t, resp.CloseWrite())
+
+	var (
+		waitCh = make(chan struct{})
+		resCh  = make(chan struct {
+			content string
+			err     error
+		})
+	)
+
+	go func() {
+		close(waitCh)
+		defer close(resCh)
+		r, err := ioutil.ReadAll(resp.Reader)
+
+		resCh <- struct {
+			content string
+			err     error
+		}{
+			content: string(r),
+			err:     err,
+		}
+	}()
+
+	<-waitCh
+	select {
+	case <-time.After(3 * time.Second):
+		t.Fatal("failed to read the content in time")
+	case got := <-resCh:
+		assert.NilError(t, got.err)
+
+		// NOTE: using Contains because no-tty's stream contains UX information
+		// like size, stream type.
+		assert.Assert(t, is.Contains(got.content, expected))
+	}
+}
 
 func TestExec(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.35"), "broken in earlier versions")
