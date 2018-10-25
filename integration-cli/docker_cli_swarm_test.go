@@ -1009,7 +1009,7 @@ func checkKeyIsEncrypted(d *daemon.Daemon) func(*check.C) (interface{}, check.Co
 	}
 }
 
-func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Daemon, unlockKey string) {
+func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Daemon) {
 	// Wait for the PEM file to become unencrypted
 	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, false)
 
@@ -1100,7 +1100,7 @@ func (s *DockerSwarmSuite) TestSwarmInitLocked(c *check.C) {
 	outs, err = d.Cmd("swarm", "update", "--autolock=false")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", outs))
 
-	checkSwarmLockedToUnlocked(c, d, unlockKey)
+	checkSwarmLockedToUnlocked(c, d)
 
 	outs, err = d.Cmd("node", "ls")
 	c.Assert(err, checker.IsNil, check.Commentf("%s", outs))
@@ -1195,7 +1195,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 
 	// the ones that got the update are now set to unlocked
 	for _, d := range []*daemon.Daemon{d1, d3} {
-		checkSwarmLockedToUnlocked(c, d, unlockKey)
+		checkSwarmLockedToUnlocked(c, d)
 	}
 
 	// d2 still locked
@@ -1208,7 +1208,7 @@ func (s *DockerSwarmSuite) TestSwarmLockUnlockCluster(c *check.C) {
 	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
 
 	// once it's caught up, d2 is set to not be locked
-	checkSwarmLockedToUnlocked(c, d2, unlockKey)
+	checkSwarmLockedToUnlocked(c, d2)
 
 	// managers who join now are never set to locked in the first place
 	d4 := s.AddDaemon(c, true, true)
@@ -1488,7 +1488,7 @@ func (s *DockerSwarmSuite) TestSwarmAlternateLockUnlock(c *check.C) {
 		outs, err = d.Cmd("swarm", "update", "--autolock=false")
 		c.Assert(err, checker.IsNil, check.Commentf("out: %v", outs))
 
-		checkSwarmLockedToUnlocked(c, d, unlockKey)
+		checkSwarmLockedToUnlocked(c, d)
 	}
 }
 
