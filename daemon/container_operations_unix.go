@@ -351,10 +351,6 @@ func killProcessDirectly(cntr *container.Container) error {
 	return nil
 }
 
-func detachMounted(path string) error {
-	return unix.Unmount(path, unix.MNT_DETACH)
-}
-
 func isLinkable(child *container.Container) bool {
 	// A container is linkable only if it belongs to the default network
 	_, ok := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
