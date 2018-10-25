@@ -43,7 +43,7 @@ import (
 	"github.com/docker/docker/pkg/directory"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
-	mountpk "github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
@@ -598,7 +598,7 @@ func (a *Driver) Cleanup() error {
 			logger.Debugf("error unmounting %s: %s", m, err)
 		}
 	}
-	return mountpk.RecursiveUnmount(a.root)
+	return mount.RecursiveUnmount(a.root)
 }
 
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {
@@ -632,14 +632,14 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		opts += ",dirperm1"
 	}
 	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-	if err = mount("none", target, "aufs", 0, data); err != nil {
+	if err = unix.Mount("none", target, "aufs", 0, data); err != nil {
 		return
 	}
 
 	for ; index < len(ro); index++ {
 		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
 		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-		if err = mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
+		if err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
 			return
 		}
 	}
@@ -666,7 +666,7 @@ func useDirperm() bool {
 		defer os.RemoveAll(union)
 
 		opts := fmt.Sprintf("br:%s,dirperm1,xino=/dev/shm/aufs.xino", base)
-		if err := mount("none", union, "aufs", 0, opts); err != nil {
+		if err := unix.Mount("none", union, "aufs", 0, opts); err != nil {
 			return
 		}
 		enableDirperm = true
