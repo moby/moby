@@ -14,8 +14,6 @@ import (
 	"fmt"
 	"strings"
 	"unsafe"
-
-	"golang.org/x/sys/unix"
 )
 
 func allocateIOVecs(options []string) []C.struct_iovec {
@@ -53,8 +51,4 @@ func mount(device, target, mType string, flag uintptr, data string) error {
 		return fmt.Errorf("Failed to call nmount: %s", reason)
 	}
 	return nil
-}
-
-func unmount(target string, flag int) error {
-	return unix.Unmount(target, flag)
 }
