@@ -275,7 +275,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.Wait = wait
 
-	tick := time.Tick(500 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	tick := ticker.C
+
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
@@ -413,7 +416,9 @@ func (d *Daemon) StopWithError() error {
 	}()
 
 	i := 1
-	tick := time.Tick(time.Second)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	tick := ticker.C
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
