@@ -22,7 +22,7 @@ const (
 
 // UnmountIpcMount unmounts Ipc related mounts.
 // This is a NOOP on windows.
-func (container *Container) UnmountIpcMount(unmount func(pth string) error) error {
+func (container *Container) UnmountIpcMount() error {
 	return nil
 }
 
