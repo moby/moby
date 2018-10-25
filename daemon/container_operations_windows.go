@@ -78,10 +78,6 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 	return nil
 }
 
-func detachMounted(path string) error {
-	return nil
-}
-
 func (daemon *Daemon) setupSecretDir(c *container.Container) (setupErr error) {
 	if len(c.SecretReferences) == 0 {
 		return nil
