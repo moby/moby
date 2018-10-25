@@ -16,26 +16,38 @@ const (
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
-// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testingT) {
+var (
+	startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+)
+
+// StartNode starts daemon to be used as a swarm node
+func (d *Daemon) StartNode(t testingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
 	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
+	d.StartWithBusybox(t, startArgs...)
+}
 
+// RestartNode restarts a daemon to be used as a swarm node
+func (d *Daemon) RestartNode(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
+	// avoid networking conflicts
+	d.Stop(t)
+	d.StartWithBusybox(t, startArgs...)
+}
+
+// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
+func (d *Daemon) StartAndSwarmInit(t testingT) {
+	d.StartNode(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
-	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
+	d.StartNode(t)
 
 	tokens := leader.JoinTokens(t)
 	token := tokens.Worker
