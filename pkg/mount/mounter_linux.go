@@ -51,7 +51,3 @@ func mount(device, target, mType string, flags uintptr, data string) error {
 
 	return nil
 }
-
-func unmount(target string, flag int) error {
-	return unix.Unmount(target, flag)
-}
