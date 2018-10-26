@@ -132,7 +132,7 @@ func (daemon *Daemon) fillDriverInfo(v *types.Info) {
 			drivers += fmt.Sprintf(" (%s) ", os)
 		}
 		switch gd {
-		case "devicemapper", "overlay":
+		case "aufs", "devicemapper", "overlay":
 			v.Warnings = append(v.Warnings, fmt.Sprintf("WARNING: the %s storage-driver is deprecated, and will be removed in a future release.", gd))
 		}
 	}
