@@ -29,24 +29,7 @@ FROM golang:1.11.1 AS base
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
-FROM base AS criu
-# Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.6
-# Install dependency packages specific to criu
-RUN apt-get update && apt-get install -y \
-	libnet-dev \
-	libprotobuf-c0-dev \
-	libprotobuf-dev \
-	libnl-3-dev \
-	libcap-dev \
-	protobuf-compiler \
-	protobuf-c-compiler \
-	python-protobuf \
-	&& mkdir -p /usr/src/criu \
-	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
-	&& cd /usr/src/criu \
-	&& make \
-	&& make PREFIX=/build/ install-criu
+FROM cpuguy83/criu:3.6 AS criu
 
 FROM base AS registry
 # Install two versions of the registry. The first is an older version that
