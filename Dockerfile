@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y \
 	protobuf-c-compiler \
 	python-protobuf \
 	&& mkdir -p /usr/src/criu \
-	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
+	&& for i in {1..5}; do [ $i -gt 1 ] && sleep 1m; curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 && break; done \
 	&& cd /usr/src/criu \
 	&& make \
 	&& make PREFIX=/build/ install-criu
