@@ -17,6 +17,12 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.40](https://docs.docker.com/engine/api/v1.40/) documentation
 
+* `GET /services` now returns `Sysctls` as part of the `ContainerSpec`.
+* `GET /services/{id}` now returns `Sysctls` as part of the `ContainerSpec`.
+* `POST /services/create` now accepts `Sysctls` as part of the `ContainerSpec`.
+* `POST /services/{id}/update` now accepts `Sysctls` as part of the `ContainerSpec`.
+* `GET /tasks` now  returns `Sysctls` as part of the `ContainerSpec`.
+* `GET /tasks/{id}` now  returns `Sysctls` as part of the `ContainerSpec`.
 
 ## V1.39 API changes
 
@@ -35,12 +41,6 @@ keywords: "API, Docker, rcli, REST, documentation"
   on the node.label. The format of the label filter is `node.label=<key>`/`node.label=<key>=<value>`
   to return those with the specified labels, or `node.label!=<key>`/`node.label!=<key>=<value>`
   to return those without the specified labels.
-* `GET /services` now returns `Sysctls` as part of the `ContainerSpec`.
-* `GET /services/{id}` now returns `Sysctls` as part of the `ContainerSpec`.
-* `POST /services/create` now accepts `Sysctls` as part of the `ContainerSpec`.
-* `POST /services/{id}/update` now accepts `Sysctls` as part of the `ContainerSpec`.
-* `GET /tasks` now  returns `Sysctls` as part of the `ContainerSpec`.
-* `GET /tasks/{id}` now  returns `Sysctls` as part of the `ContainerSpec`.
 
 ## V1.38 API changes
 
