@@ -339,8 +339,8 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 // anything up in the test environment
 func TestCreateServiceSysctls(t *testing.T) {
 	skip.If(
-		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.39"),
-		"setting service sysctls is unsupported before api v1.39",
+		t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"),
+		"setting service sysctls is unsupported before api v1.40",
 	)
 
 	defer setupTest(t)()
