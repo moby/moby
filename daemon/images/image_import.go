@@ -120,17 +120,18 @@ func (i *ImageService) ImportImage(src string, repository, os string, tag string
 		return err
 	}
 
+	// TODO(containerd): Use content store + image store
 	id, err := i.imageStore.Create(imgConfig)
 	if err != nil {
 		return err
 	}
 
 	// FIXME: connect with commit code and call refstore directly
-	if newRef != nil {
-		if err := i.TagImageWithReference(id, newRef); err != nil {
-			return err
-		}
-	}
+	//if newRef != nil {
+	//	if err := i.TagImageWithReference(dgst, newRef); err != nil {
+	//		return err
+	//	}
+	//}
 
 	i.LogImageEvent(id.String(), id.String(), "import")
 	outStream.Write(streamformatter.FormatStatus("", id.String()))

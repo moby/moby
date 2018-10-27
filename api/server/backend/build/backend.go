@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/builder/fscache"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/stringid"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 )
@@ -19,7 +20,7 @@ import (
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
 	SquashImage(from string, to string) (string, error)
-	TagImageWithReference(image.ID, reference.Named) error
+	TagImageWithReference(ocispec.Descriptor, reference.Named) error
 }
 
 // Builder defines interface for running a build
