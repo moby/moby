@@ -8,6 +8,7 @@ import (
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
@@ -18,6 +19,7 @@ import (
 
 func TestKernelTCPMemory(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "skip test from new feature")
 	skip.If(t, !testEnv.DaemonInfo.KernelMemoryTCP)
 
 	defer setupTest(t)()
