@@ -35,34 +35,83 @@ issue, in the Slack channel, or in person at the Moby Summits that happen every 
 
 ## 1.1 Runtime improvements
 
-We introduced [`runC`](https://runc.io) as a standalone low-level tool for container
-execution in 2015, the first stage in spinning out parts of the Engine into standalone tools.
+Over time we have accumulated a lot of functionality in the container runtime
+aspect of Moby while also growing in other areas. Much of the container runtime
+pieces are now duplicated work available in other, lower level components such
+as [containerd](https://containerd.io).
 
-As runC continued evolving, and the OCI specification along with it, we created
-[`containerd`](https://github.com/containerd/containerd), a daemon to control and monitor `runC`.
-In late 2016 this was relaunched as the `containerd` 1.0 track, aiming to provide a common runtime
-for the whole spectrum of container systems, including Kubernetes, with wide community support.
-This change meant that there was an increased scope for `containerd`, including image management
-and storage drivers.
+Moby currently only utilizes containerd for basic runtime state management, e.g. starting
+and stopping a container, which is what the pre-containerd 1.0 daemon provided.
+Now that containerd is a full-fledged container runtime which supports full
+container life-cycle management, we would like to start relying more on containerd
+and removing the bits in Moby which are now duplicated. This will neccessitate
+a signficant effort to refactor and even remove large parts of Moby's codebase.
 
-Moby will rely on a long-running `containerd` companion daemon for all container execution
-related operations. This could open the door in the future for Engine restarts without interrupting
-running containers. The switch over to containerd 1.0 is an important goal for the project, and
-will result in a significant simplification of the functions implemented in this repository.
+Tracking issues:
 
-## 1.2 Internal decoupling
+- [#38043](https://github.com/moby/moby/issues/38043) Proposal: containerd image integration
+
+## 1.2 Image Builder
+
+Work is ongoing to integrate [BuildKit](https://github.com/moby/buildkit) into
+Moby and replace the "v0" build implementation. Buildkit offers better cache
+management, parallelizable build steps, and better extensibility while also
+keeping builds portable, a chief tenent of Moby's builder.
+
+Upon completion of this effort, users will have a builder that performs better
+while also being more extensible, enabling users to provide their own custom
+syntax which can be either Dockerfile-like or something completely different.
+
+See [buildpacks on buildkit](https://github.com/tonistiigi/buildkit-pack) as an
+example of this extensibility.
+
+New features for the builder and Dockerfile should be implemented first in the
+BuildKit backend using an external Dockerfile implementation from the container
+images. This allows everyone to test and evaluate the feature without upgrading
+their daemon. New features should go to the experimental channel first, and can be
+part of the `docker/dockerfile:experimental` image. From there they graduate to
+`docker/dockerfile:latest` and binary releases. The Dockerfile frontend source
+code is temporarily located at
+[https://github.com/moby/buildkit/tree/master/frontend/dockerfile](https://github.com/moby/buildkit/tree/master/frontend/dockerfile)
+with separate new features defined with go build tags.
+
+Tracking issues:
+
+- [#32925](https://github.com/moby/moby/issues/32925) discussion: builder future: buildkit
+
+## 1.3 Rootless Mode
+
+Running the daemon requires elevated privileges for many tasks. We would like to
+support running the daemon as a nomral, unprivileged user without requiring `suid`
+binaries.
+
+Tracking issues:
+
+- [#37375](https://github.com/moby/moby/issues/37375) Proposal: allow running `dockerd` as an unprivileged user (aka rootless mode)
+
+## 1.4 Testing
+
+Moby has many tests, both unit and integration. Moby needs more tests which can
+cover the full spectrum functionality and edge cases out there.
+
+Tests in the `integration-cli` folder should also be migrated into (both in
+location and style) the `integration` folder. These newer tests are simpler to
+run in isolation, simpler to read, simpler to write, and more fully exercise the
+API. Meanwhile tests of the docker CLI should generally live in docker/cli.
+
+Tracking issues:
+
+- [#32866](https://github.com/moby/moby/issues/32866) Replace integration-cli suite with API test suite
+
+## 1.5 Internal decoupling
 
 A lot of work has been done in trying to decouple Moby internals. This process of creating
 standalone projects with a well defined function that attract a dedicated community should continue.
 As well as integrating `containerd` we would like to integrate [BuildKit](https://github.com/moby/buildkit)
 as the next standalone component.
-
 We see gRPC as the natural communication layer between decoupled components.
 
-## 1.3 Custom assembly tooling
-
-We have been prototyping the Moby [assembly tool](https://github.com/moby/tool) which was originally
-developed for LinuxKit and intend to turn it into a more generic packaging and assembly mechanism
-that can build not only the default version of Moby, as distribution packages or other useful forms,
-but can also build very different container systems, themselves built of cooperating daemons built in
-and running in containers. We intend to merge this functionality into this repo.
+In addition to pushing out large components into other projects, much of the
+internal code structure, and in particular the
+["Daemon"](https://godoc.org/github.com/docker/docker/daemon#Daemon) object,
+should be split into smaller, more manageable, and more testable components.
