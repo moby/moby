@@ -29,6 +29,9 @@ service Control {
 	rpc ListTasks(ListTasksRequest) returns (ListTasksResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};
+	rpc ListTasksStream(ListTasksRequest) returns (stream ListTasksResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
 	rpc RemoveTask(RemoveTaskRequest) returns (RemoveTaskResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	};

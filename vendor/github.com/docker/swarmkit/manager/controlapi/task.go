@@ -11,6 +11,16 @@ import (
 	"google.golang.org/grpc/status"
 )
 
+var (
+	// maxTasksInResponse defines how many tasks we can put into one
+	// TaskListResponse before we have to start a new response. It is used in
+	// ListTasksStream to break apart a large ListTasksResponse message.
+	//
+	// this variable is a var instead of a const so that in testing we can use
+	// a smaller value to verify correctness of the behavior.
+	maxTasksInResponse = 100
+)
+
 // GetTask returns a Task given a TaskID.
 // - Returns `InvalidArgument` if TaskID is not provided.
 // - Returns `NotFound` if the Task is not found.
@@ -169,4 +179,44 @@ func (s *Server) ListTasks(ctx context.Context, request *api.ListTasksRequest) (
 	return &api.ListTasksResponse{
 		Tasks: tasks,
 	}, nil
+}
+
+// ListTasksStream is the same as ListTasks, but instead of sending back all
+// tasks as one gRPC message, it brakes the messages up into chunks and sends
+// them through a stream. This means that lots of tasks won't result in a gRPC
+// message that exceeds the max message size.
+func (s *Server) ListTasksStream(request *api.ListTasksRequest, stream api.Control_ListTasksStreamServer) error {
+	// because there's no marshalling or unmarshalling that happens yet, we'll
+	// just call into ListTasks to get a ListTasksResponse
+	ctx := stream.Context()
+	resp, err := s.ListTasks(ctx, request)
+	if err != nil {
+		return err
+	}
+
+	// the only field, right now, of a ListTasksResponse, is the Tasks field.
+	tasks := resp.Tasks
+
+	// now break these up into some number of tasks
+	// NOTE(dperny): the objectively correct way to do this would be to
+	// marshall tasks, then figure out when we've exceeded the max message
+	// size, and at that point start a new response, but there's no marshalling
+	// that happens at this level so we'll just say that 100 tasks is small
+	// enough.
+
+	for len(tasks) > maxTasksInResponse {
+		// slice the first set of tasks off
+		var theseTasks []*api.Task
+		theseTasks, tasks = tasks[:maxTasksInResponse], tasks[maxTasksInResponse:]
+		stream.Send(&api.ListTasksResponse{Tasks: theseTasks})
+	}
+
+	// finally, bundle up the rest of the tasks and send. note that this may
+	// send, as the last message, an empty list of tasks, if we happen to have
+	// a number of tasks that aligns to a maxTasksInResponse size. this
+	// behavior is fine and expected.
+	stream.Send(&api.ListTasksResponse{Tasks: tasks})
+
+	// and then return nil, which will close the stream
+	return nil
 }

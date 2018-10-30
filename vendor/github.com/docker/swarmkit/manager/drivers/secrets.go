@@ -25,13 +25,16 @@ func NewSecretDriver(plugin plugingetter.CompatPlugin) *SecretDriver {
 	return &SecretDriver{plugin: plugin}
 }
 
-// Get gets a secret from the secret provider
-func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, error) {
+// Get gets a secret from the secret provider. The function returns: the secret value;
+// a bool indicating whether the value should be reused across different tasks (defaults to false);
+// and an error if either the spec or task are nil, if calling the driver returns an error, or if
+// the driver returns an error in the payload.
+func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, bool, error) {
 	if spec == nil {
-		return nil, fmt.Errorf("secret spec is nil")
+		return nil, false, fmt.Errorf("secret spec is nil")
 	}
 	if task == nil {
-		return nil, fmt.Errorf("task is nil")
+		return nil, false, fmt.Errorf("task is nil")
 	}
 
 	var secretResp SecretsProviderResponse
@@ -67,13 +70,13 @@ func (d *SecretDriver) Get(spec *api.SecretSpec, task *api.Task) ([]byte, error)
 
 	err := d.plugin.Client().Call(SecretsProviderAPI, secretReq, &secretResp)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
 	if secretResp.Err != "" {
-		return nil, fmt.Errorf(secretResp.Err)
+		return nil, secretResp.DoNotReuse, fmt.Errorf(secretResp.Err)
 	}
 	// Assign the secret value
-	return secretResp.Value, nil
+	return secretResp.Value, secretResp.DoNotReuse, nil
 }
 
 // SecretsProviderRequest is the secrets provider request.
@@ -89,6 +92,11 @@ type SecretsProviderRequest struct {
 type SecretsProviderResponse struct {
 	Value []byte `json:",omitempty"` // Value is the value of the secret
 	Err   string `json:",omitempty"` // Err is the error response of the plugin
+
+	// DoNotReuse indicates that the secret returned from this request should
+	// only be used for one task, and any further tasks should call the secret
+	// driver again.
+	DoNotReuse bool `json:",omitempty"`
 }
 
 // EndpointSpec represents the spec of an endpoint.
