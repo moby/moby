@@ -28,10 +28,6 @@ func skipIfNaive(t *testing.T) {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
 	defer os.RemoveAll(td)
-
-	if useNaiveDiff(td) {
-		t.Skipf("Cannot run test with naive diff")
-	}
 }
 
 // This avoids creating a new driver for each test if all tests are run

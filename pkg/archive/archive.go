@@ -411,7 +411,6 @@ func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
 }
 
 type tarWhiteoutConverter interface {
-	ConvertWrite(*tar.Header, string, os.FileInfo) (*tar.Header, error)
 	ConvertRead(*tar.Header, string) (bool, error)
 }
 
@@ -423,12 +422,6 @@ type tarAppender struct {
 	SeenFiles       map[uint64]string
 	IdentityMapping *idtools.IdentityMapping
 	ChownOpts       *idtools.Identity
-
-	// For packing and unpacking whiteout files in the
-	// non standard format. The whiteout files defined
-	// by the AUFS standard are used as the tar whiteout
-	// standard.
-	WhiteoutConverter tarWhiteoutConverter
 }
 
 func newTarAppender(idMapping *idtools.IdentityMapping, writer io.Writer, chownOpts *idtools.Identity) *tarAppender {
@@ -495,14 +488,10 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 		}
 	}
 
-	//check whether the file is overlayfs whiteout
-	//if yes, skip re-mapping container ID mappings.
-	isOverlayWhiteout := fi.Mode()&os.ModeCharDevice != 0 && hdr.Devmajor == 0 && hdr.Devminor == 0
-
 	//handle re-mapping container ID mappings back to host ID mappings before
 	//writing tar headers/files. We skip whiteout files because they were written
 	//by the kernel and already have proper ownership relative to the host
-	if !isOverlayWhiteout && !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
+	if !strings.HasPrefix(filepath.Base(hdr.Name), WhiteoutPrefix) && !ta.IdentityMapping.Empty() {
 		fileIDPair, err := getFileUIDGID(fi.Sys())
 		if err != nil {
 			return err
@@ -517,28 +506,6 @@ func (ta *tarAppender) addTarFile(path, name string) error {
 	if ta.ChownOpts != nil {
 		hdr.Uid = ta.ChownOpts.UID
 		hdr.Gid = ta.ChownOpts.GID
-	}
-
-	if ta.WhiteoutConverter != nil {
-		wo, err := ta.WhiteoutConverter.ConvertWrite(hdr, path, fi)
-		if err != nil {
-			return err
-		}
-
-		// If a new whiteout file exists, write original hdr, then
-		// replace hdr with wo to be written after. Whiteouts should
-		// always be written after the original. Note the original
-		// hdr may have been updated to be a whiteout with returning
-		// a whiteout header
-		if wo != nil {
-			if err := ta.TarWriter.WriteHeader(hdr); err != nil {
-				return err
-			}
-			if hdr.Typeflag == tar.TypeReg && hdr.Size > 0 {
-				return fmt.Errorf("tar: cannot use whiteout for non-empty file")
-			}
-			hdr = wo
-		}
 	}
 
 	if err := ta.TarWriter.WriteHeader(hdr); err != nil {
@@ -745,7 +712,6 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 			compressWriter,
 			options.ChownOpts,
 		)
-		ta.WhiteoutConverter = getWhiteoutConverter(options.WhiteoutFormat)
 
 		defer func() {
 			// Make sure to check the error on Close.

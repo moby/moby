@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/pkg/system"
-	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	"gotest.tools/skip"
 )
@@ -28,7 +27,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
 	assert.NilError(t, err)
 
-	err = system.Lsetxattr(filepath.Join(src, "d1"), "trusted.overlay.opaque", []byte("y"), 0)
+	err = ioutil.WriteFile(filepath.Join(src, "d1", WhiteoutOpaqueDir), []byte{}, 0700)
 	assert.NilError(t, err)
 
 	err = ioutil.WriteFile(filepath.Join(src, "d1", "f1"), []byte{}, 0600)
@@ -38,7 +37,7 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = os.Mkdir(filepath.Join(src, "d2"), 0750)
 	assert.NilError(t, err)
 
-	err = system.Lsetxattr(filepath.Join(src, "d2"), "trusted.overlay.opaque", []byte("y"), 0)
+	err = ioutil.WriteFile(filepath.Join(src, "d2", WhiteoutOpaqueDir), []byte{}, 0750)
 	assert.NilError(t, err)
 
 	err = ioutil.WriteFile(filepath.Join(src, "d2", "f1"), []byte{}, 0660)
@@ -48,11 +47,12 @@ func setupOverlayTestDir(t *testing.T, src string) {
 	err = os.Mkdir(filepath.Join(src, "d3"), 0700)
 	assert.NilError(t, err)
 
-	err = system.Mknod(filepath.Join(src, "d3", "f1"), unix.S_IFCHR, 0)
+	err = ioutil.WriteFile(filepath.Join(src, "d3", WhiteoutPrefix+"f1"), []byte{}, 0600)
 	assert.NilError(t, err)
 }
 
 func checkOpaqueness(t *testing.T, path string, opaque string) {
+	t.Helper()
 	xattrOpaque, err := system.Lgetxattr(path, "trusted.overlay.opaque")
 	assert.NilError(t, err)
 
@@ -63,6 +63,7 @@ func checkOpaqueness(t *testing.T, path string, opaque string) {
 }
 
 func checkOverlayWhiteout(t *testing.T, path string) {
+	t.Helper()
 	stat, err := os.Stat(path)
 	assert.NilError(t, err)
 
@@ -76,6 +77,7 @@ func checkOverlayWhiteout(t *testing.T, path string) {
 }
 
 func checkFileMode(t *testing.T, path string, perm os.FileMode) {
+	t.Helper()
 	stat, err := os.Stat(path)
 	assert.NilError(t, err)
 

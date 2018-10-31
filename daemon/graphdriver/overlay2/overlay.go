@@ -15,7 +15,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"sync"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/overlayutils"
@@ -109,9 +108,6 @@ var (
 	logger                = logrus.WithField("storage-driver", "overlay2")
 	backingFs             = "<unknown>"
 	projectQuotaSupported = false
-
-	useNaiveDiffLock sync.Once
-	useNaiveDiffOnly bool
 
 	indexOff string
 )
@@ -293,16 +289,6 @@ func supportsOverlay() error {
 	return graphdriver.ErrNotSupported
 }
 
-func useNaiveDiff(home string) bool {
-	useNaiveDiffLock.Do(func() {
-		if err := doesSupportNativeDiff(home); err != nil {
-			logger.Warnf("Not using native diff for overlay2, this may cause degraded performance for building images: %v", err)
-			useNaiveDiffOnly = true
-		}
-	})
-	return useNaiveDiffOnly
-}
-
 func (d *Driver) String() string {
 	return driverName
 }
@@ -313,7 +299,7 @@ func (d *Driver) Status() [][2]string {
 	return [][2]string{
 		{"Backing Filesystem", backingFs},
 		{"Supports d_type", strconv.FormatBool(d.supportsDType)},
-		{"Native Overlay Diff", strconv.FormatBool(!useNaiveDiff(d.home))},
+		{"Native Overlay Diff", "false"},
 	}
 }
 
@@ -739,27 +725,13 @@ func (d *Driver) getDiffPath(id string) string {
 // and its parent and returns the size in bytes of the changes
 // relative to its base filesystem directory.
 func (d *Driver) DiffSize(id, parent string) (size int64, err error) {
-	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.DiffSize(id, parent)
-	}
-	return directory.Size(context.TODO(), d.getDiffPath(id))
+	return d.naiveDiff.DiffSize(id, parent)
 }
 
 // Diff produces an archive of the changes between the specified
 // layer and its parent layer which may be "".
 func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
-	if useNaiveDiff(d.home) || !d.isParent(id, parent) {
-		return d.naiveDiff.Diff(id, parent)
-	}
-
-	diffPath := d.getDiffPath(id)
-	logger.Debugf("Tar with options on %s", diffPath)
-	return archive.TarWithOptions(diffPath, &archive.TarOptions{
-		Compression:    archive.Uncompressed,
-		UIDMaps:        d.uidMaps,
-		GIDMaps:        d.gidMaps,
-		WhiteoutFormat: archive.OverlayWhiteoutFormat,
-	})
+	return d.naiveDiff.Diff(id, parent)
 }
 
 // Changes produces a list of changes between the specified layer and its
