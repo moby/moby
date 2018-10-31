@@ -25,6 +25,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
@@ -1059,6 +1060,11 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		RegistryService:           registryService,
 		TrustKey:                  trustKey,
 	})
+
+	// TODO(containerd): create earlier, background, and wait at end
+	if err := d.imageService.LoadCache(namespaces.WithNamespace(ctx, ContainersNamespace)); err != nil {
+		return nil, errors.Wrap(err, "failed to load image cache from containerd")
+	}
 
 	go d.execCommandGC()
 

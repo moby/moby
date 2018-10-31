@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/log"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -17,7 +17,6 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
@@ -49,8 +48,12 @@ func (i *ImageService) Map() map[image.ID]*image.Image {
 // filter is a shell glob string applied to repository names. The argument
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
-func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-	ctx := context.TODO()
+func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -65,7 +68,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 	}
 
 	var beforeFilter, sinceFilter *image.Image
-	err := imageFilters.WalkValues("before", func(value string) error {
+	err = imageFilters.WalkValues("before", func(value string) error {
 		var err error
 		beforeFilter, err = i.GetImage(value)
 		return err
@@ -121,9 +124,9 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 		return nil, err
 	}
 
-	cs := i.client.ContentStore()
 	m := map[digest.Digest][]images.Image{}
-	cache := map[digest.Digest]digest.Digest{}
+
+	c.m.RLock()
 	for _, img := range allImages {
 		if beforeFilter != nil && beforeFilter.Image.Created != nil {
 			created := img.Labels["docker.io/created"]
@@ -146,30 +149,14 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 
 		}
 
-		config, ok := cache[img.Target.Digest]
-
+		ci, ok := c.tCache[img.Target.Digest]
 		if !ok {
-			// TODO: Resolve to a config
-			c, err := images.Config(ctx, cs, img.Target, platforms.Default())
-			if err != nil {
-				if errdefs.IsNotFound(err) {
-					// TODO: Log this unresolved config
-					continue
-				}
-				return nil, err
-			}
-			config = c.Digest
+			// TODO(containerd): Lookup config and update cache
+			log.G(ctx).WithField("name", img.Name).Debugf("skipping non-cached image")
+			continue
 		}
 
-		m[config] = append(m[config], img)
-
-		// TODO: WTF?
-		// Skip any images with an unsupported operating system to avoid a potential
-		// panic when indexing through the layerstore. Don't error as we want to list
-		// the other images. This should never happen, but here as a safety precaution.
-		//if !system.IsOSSupported(img.OperatingSystem()) {
-		//	continue
-		//}
+		m[ci.id] = append(m[ci.id], img)
 
 		//var size int64
 		// TODO: this seems pretty dumb to do
@@ -240,6 +227,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 
 		//images = append(images, newImage)
 	}
+	c.m.RUnlock()
 
 	imageSums := []*types.ImageSummary{}
 	//var layerRefs map[layer.ChainID]int
