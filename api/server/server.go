@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/server/middleware"
 	"github.com/docker/docker/api/server/router"
-	"github.com/docker/docker/api/server/router/debug"
 	"github.com/docker/docker/dockerversion"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
@@ -179,13 +178,6 @@ func (s *Server) createMux() *mux.Router {
 			m.Path(versionMatcher + r.Path()).Methods(r.Method()).Handler(f)
 			m.Path(r.Path()).Methods(r.Method()).Handler(f)
 		}
-	}
-
-	debugRouter := debug.NewRouter()
-	s.routers = append(s.routers, debugRouter)
-	for _, r := range debugRouter.Routes() {
-		f := s.makeHTTPHandler(r.Handler())
-		m.Path("/debug" + r.Path()).Handler(f)
 	}
 
 	notFoundHandler := httputils.MakeErrorHandler(pageNotFoundError{})

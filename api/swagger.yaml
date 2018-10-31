@@ -145,6 +145,12 @@ tags:
     x-displayName: "Plugins"
   - name: "System"
     x-displayName: "System"
+  - name: "Debug"
+    x-displayName: "Debug"
+    description: |
+      Get information for debug purposes.
+      Note that generally endpoints listed here are not considered stable.
+      Both the endpoint itself and the content of any given endpoint may change over time.
 
 definitions:
   Port:
@@ -10254,3 +10260,19 @@ paths:
           schema:
             $ref: "#/definitions/ErrorResponse"
       tags: ["Session (experimental)"]
+  /debug/dump:
+    post:
+      Summary: |
+        Generate a support debug dump which is sent in the response body. This is itended for human consumption.
+        These dumps can be submitted along side bug reports for analysis. The support dump will be gzip compressed.
+      produces:
+        - "application/x-tar"
+      responses:
+        200:
+          description: "Support dump successfully generated and is in the response body"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      operationId: "DebugDump"
+      tags: ["Debug"]
