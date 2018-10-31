@@ -27,6 +27,7 @@ type volumeEventLogger interface {
 }
 
 // VolumesService manages access to volumes
+// This is used as the main access point for volumes to higher level services and the API.
 type VolumesService struct {
 	vs           *VolumeStore
 	ds           ds
@@ -54,6 +55,12 @@ func (s *VolumesService) GetDriverList() []string {
 }
 
 // Create creates a volume
+// If the caller is creating this volume to be consumed immediately, it is
+// expected that the caller specifies a reference ID.
+// This reference ID will protect this volume from removal.
+//
+// A good example for a reference ID is a container's ID.
+// When whatever is going to reference this volume is removed the caller should defeference the volume by calling `Release`.
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateNonCryptoID()
@@ -68,7 +75,7 @@ func (s *VolumesService) Create(ctx context.Context, name, driverName string, op
 	return &apiV, nil
 }
 
-// Get gets a volume
+// Get returns details about a volume
 func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.GetOption) (*types.Volume, error) {
 	v, err := s.vs.Get(ctx, name, getOpts...)
 	if err != nil {
@@ -88,6 +95,14 @@ func (s *VolumesService) Get(ctx context.Context, name string, getOpts ...opts.G
 }
 
 // Mount mounts the volume
+// Callers should specify a uniqe reference for each Mount/Unmount pair.
+//
+// Example:
+// ```go
+// mountID := "randomString"
+// s.Mount(ctx, vol, mountID)
+// s.Unmount(ctx, vol, mountID)
+// ```
 func (s *VolumesService) Mount(ctx context.Context, vol *types.Volume, ref string) (string, error) {
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
@@ -101,6 +116,10 @@ func (s *VolumesService) Mount(ctx context.Context, vol *types.Volume, ref strin
 
 // Unmount unmounts the volume.
 // Note that depending on the implementation, the volume may still be mounted due to other resources using it.
+//
+// The reference specified here should be the same reference specified during `Mount` and should be
+// unique for each mount/unmount pair.
+// See `Mount` documentation for an example.
 func (s *VolumesService) Unmount(ctx context.Context, vol *types.Volume, ref string) error {
 	v, err := s.vs.Get(ctx, vol.Name, opts.WithGetDriver(vol.Driver))
 	if err != nil {
@@ -118,6 +137,7 @@ func (s *VolumesService) Release(ctx context.Context, name string, ref string) e
 }
 
 // Remove removes a volume
+// An error is returned if the volume is still referenced.
 func (s *VolumesService) Remove(ctx context.Context, name string, rmOpts ...opts.RemoveOption) error {
 	var cfg opts.RemoveConfig
 	for _, o := range rmOpts {
