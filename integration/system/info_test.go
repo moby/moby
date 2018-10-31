@@ -50,7 +50,7 @@ func TestInfoAPIWarnings(t *testing.T) {
 	client, err := d.NewClient()
 	assert.NilError(t, err)
 
-	d.StartWithBusybox(t, "--iptables=false", "-H=0.0.0.0:23756", "-H=unix://"+d.Sock())
+	d.StartWithBusybox(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
 	info, err := client.Info(context.Background())
