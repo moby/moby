@@ -6,13 +6,20 @@ import (
 	"fmt"
 
 	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+)
+
+const (
+	LabelImageID     = "docker.io/image.id"
+	LabelImageParent = "docker.io/image.parent"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -113,4 +120,69 @@ func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) 
 		Config: target,
 		Image:  &img,
 	}, nil
+}
+
+func (i *ImageService) getReferences(ctx context.Context, imageID digest.Digest) ([]reference.Named, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+	img := c.byID(imageID)
+	if img == nil {
+		return nil, errdefs.NotFound(errors.New("no image with given id"))
+	}
+
+	return img.references, nil
+}
+
+func (i *ImageService) getCachedRef(ctx context.Context, ref string) (*cachedImage, error) {
+	parsed, err := reference.ParseAnyReference(ref)
+	if err != nil {
+		return nil, err
+	}
+
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	namedRef, ok := parsed.(reference.Named)
+	if !ok {
+		digested, ok := parsed.(reference.Digested)
+		if !ok {
+			return nil, errdefs.InvalidParameter(errors.New("bad reference"))
+		}
+
+		ci, ok := c.idCache[digested.Digest()]
+		if !ok {
+			return nil, errdefs.NotFound(errors.New("id not found"))
+		}
+		return ci, nil
+	}
+
+	img, err := i.client.ImageService().Get(ctx, namedRef.String())
+	if err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return nil, err
+		}
+		dgst, err := c.ids.Lookup(ref)
+		if err != nil {
+			return nil, errdefs.NotFound(errors.New("reference not found"))
+		}
+		ci, ok := c.idCache[dgst]
+		if !ok {
+			return nil, errdefs.NotFound(errors.New("id not found"))
+		}
+		return ci, nil
+	}
+	ci, ok := c.tCache[img.Target.Digest]
+	if !ok {
+		// TODO(containerd): Update cache and return
+		return nil, errdefs.NotFound(errors.New("id not found"))
+	}
+
+	return ci, nil
 }

@@ -206,7 +206,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 	force := httputils.BoolValue(r, "force")
 	prune := !httputils.BoolValue(r, "noprune")
 
-	list, err := s.backend.ImageDelete(name, force, prune)
+	list, err := s.backend.ImageDelete(ctx, name, force, prune)
 	if err != nil {
 		return err
 	}
@@ -239,7 +239,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 		imageFilters.Add("reference", filterParam)
 	}
 
-	images, err := s.backend.Images(imageFilters, httputils.BoolValue(r, "all"), false)
+	images, err := s.backend.Images(ctx, imageFilters, httputils.BoolValue(r, "all"), false)
 	if err != nil {
 		return err
 	}

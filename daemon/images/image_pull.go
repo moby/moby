@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/pkg/errors"
 )
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
@@ -48,6 +49,11 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 }
 
 func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return err
+	}
+
 	// Include a buffer so that slow client connections don't affect
 	// transfer performance.
 	//progressChan := make(chan progress.Progress, 100)
@@ -66,11 +72,33 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	// TODO: progress tracking
 	// TODO: unpack tracking, use download manager for now?
 
-	// TODO: keep image
-	_, err := i.client.Pull(ctx, ref.String(), opts...)
+	img, err := i.client.Pull(ctx, ref.String(), opts...)
+
+	config, err := img.Config(ctx)
+	if err != nil {
+		return errors.Wrap(err, "failed to resolve configuration")
+	}
 
 	// TODO: Unpack into layer store
 	// TODO: only unpack image types (does containerd already do this?)
+
+	// TODO: Update image with ID label
+	// TODO(containerd): Create manifest reference and add image
+
+	c.m.Lock()
+	ci, ok := c.idCache[config.Digest]
+	if ok {
+		ci.addReference(ref)
+		// TODO: Add manifest digest ref
+	} else {
+		ci = &cachedImage{
+			id:         config.Digest,
+			references: []reference.Named{ref},
+		}
+		c.idCache[config.Digest] = ci
+	}
+	c.tCache[img.Target().Digest] = ci
+	c.m.Unlock()
 
 	//go func() {
 	//	progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)

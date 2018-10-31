@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"sync"
 
 	"github.com/containerd/containerd"
 	"github.com/docker/docker/container"
@@ -31,6 +32,7 @@ type containerStore interface {
 
 // ImageServiceConfig is the configuration used to create a new ImageService
 type ImageServiceConfig struct {
+	DefaultNamespace          string
 	Client                    *containerd.Client
 	ContainerStore            containerStore
 	DistributionMetadataStore metadata.Store
@@ -48,10 +50,12 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
 	return &ImageService{
+		namespace:                 config.DefaultNamespace,
 		client:                    config.Client,
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
 		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads),
+		cache:                     map[string]*cache{},
 		eventsService:             config.EventsService,
 		imageStore:                config.ImageStore,
 		layerStores:               config.LayerStores,
@@ -63,11 +67,16 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 
 // ImageService provides a backend for image management
 type ImageService struct {
+	namespace     string
 	client        *containerd.Client
 	containers    containerStore
 	eventsService *daemonevents.Events
 	layerStores   map[string]layer.Store // By operating system
 	pruneRunning  int32
+
+	// namespaced cache
+	cache  map[string]*cache
+	cacheL sync.RWMutex
 
 	// To be replaced by containerd client
 	registryService           registry.Service

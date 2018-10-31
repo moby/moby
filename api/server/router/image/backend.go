@@ -20,9 +20,9 @@ type Backend interface {
 }
 
 type imageBackend interface {
-	ImageDelete(imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
+	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
-	Images(imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
+	Images(ctx context.Context, imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
 	LookupImage(name string) (*types.ImageInspect, error)
 	TagImage(imageName, repository, tag string) (string, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
