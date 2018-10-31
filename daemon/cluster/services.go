@@ -23,6 +23,7 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"google.golang.org/grpc"
 )
 
 // GetServices returns all services of a managed swarm cluster.
@@ -67,7 +68,9 @@ func (c *Cluster) GetServices(options apitypes.ServiceListOptions) ([]types.Serv
 
 	r, err := state.controlClient.ListServices(
 		ctx,
-		&swarmapi.ListServicesRequest{Filters: filters})
+		&swarmapi.ListServicesRequest{Filters: filters},
+		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+	)
 	if err != nil {
 		return nil, err
 	}
