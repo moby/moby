@@ -105,7 +105,7 @@ func GetNetwork(tx ReadTx, id string) *api.Network {
 func FindNetworks(tx ReadTx, by By) ([]*api.Network, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byCustom, byCustomPrefix, byAll:
 			return nil
 		default:
 			return ErrInvalidFindBy

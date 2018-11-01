@@ -31,7 +31,7 @@ type TaskReaper struct {
 	// taskHistory is the number of tasks to keep
 	taskHistory int64
 
-	// List of slot tubles to be inspected for task history cleanup.
+	// List of slot tuples to be inspected for task history cleanup.
 	dirty map[orchestrator.SlotTuple]struct{}
 
 	// List of tasks collected for cleanup, which includes two kinds of tasks
@@ -61,7 +61,7 @@ func New(store *store.MemoryStore) *TaskReaper {
 // Run is the TaskReaper's watch loop which collects candidates for cleanup.
 // Task history is mainly used in task restarts but is also available for administrative purposes.
 // Note that the task history is stored per-slot-per-service for replicated services
-// and per-node-per-service for global services. History does not apply to serviceless
+// and per-node-per-service for global services. History does not apply to serviceless tasks
 // since they are not attached to a service. In addition, the TaskReaper watch loop is also
 // responsible for cleaning up tasks associated with slots that were removed as part of
 // service scale down or service removal.
@@ -196,11 +196,9 @@ func (tr *TaskReaper) Run(ctx context.Context) {
 				}
 				isTimerStopped = true
 				tr.tick()
-			} else {
-				if isTimerStopped {
-					timer.Reset(reaperBatchingInterval)
-					isTimerStopped = false
-				}
+			} else if isTimerStopped {
+				timer.Reset(reaperBatchingInterval)
+				isTimerStopped = false
 			}
 		case <-timer.C:
 			// we can safely ignore draining off of the timer channel, because
