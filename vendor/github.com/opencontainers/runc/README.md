@@ -263,3 +263,7 @@ PIDFile=/run/mycontainerid.pid
 [Install]
 WantedBy=multi-user.target
 ```
+
+## License
+
+The code and docs are released under the [Apache 2.0 license](LICENSE).
