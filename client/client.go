@@ -234,6 +234,14 @@ func WithHTTPHeaders(headers map[string]string) func(*Client) error {
 	}
 }
 
+// WithScheme overrides the client scheme with the specified one
+func WithScheme(scheme string) func(*Client) error {
+	return func(c *Client) error {
+		c.scheme = scheme
+		return nil
+	}
+}
+
 // NewClientWithOpts initializes a new API client with default values. It takes functors
 // to modify values when creating it, like `NewClientWithOpts(WithVersion(…))`
 // It also initializes the custom http headers to add to each request.
@@ -249,7 +257,6 @@ func NewClientWithOpts(ops ...func(*Client) error) (*Client, error) {
 	c := &Client{
 		host:    DefaultDockerHost,
 		version: api.DefaultVersion,
-		scheme:  "http",
 		client:  client,
 		proto:   defaultProto,
 		addr:    defaultAddr,
@@ -264,14 +271,18 @@ func NewClientWithOpts(ops ...func(*Client) error) (*Client, error) {
 	if _, ok := c.client.Transport.(http.RoundTripper); !ok {
 		return nil, fmt.Errorf("unable to verify TLS configuration, invalid transport %v", c.client.Transport)
 	}
-	tlsConfig := resolveTLSConfig(c.client.Transport)
-	if tlsConfig != nil {
-		// TODO(stevvooe): This isn't really the right way to write clients in Go.
-		// `NewClient` should probably only take an `*http.Client` and work from there.
-		// Unfortunately, the model of having a host-ish/url-thingy as the connection
-		// string has us confusing protocol and transport layers. We continue doing
-		// this to avoid breaking existing clients but this should be addressed.
-		c.scheme = "https"
+	if c.scheme == "" {
+		c.scheme = "http"
+
+		tlsConfig := resolveTLSConfig(c.client.Transport)
+		if tlsConfig != nil {
+			// TODO(stevvooe): This isn't really the right way to write clients in Go.
+			// `NewClient` should probably only take an `*http.Client` and work from there.
+			// Unfortunately, the model of having a host-ish/url-thingy as the connection
+			// string has us confusing protocol and transport layers. We continue doing
+			// this to avoid breaking existing clients but this should be addressed.
+			c.scheme = "https"
+		}
 	}
 
 	return c, nil
