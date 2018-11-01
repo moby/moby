@@ -6,14 +6,14 @@ set -eo pipefail
 
 # debian                           latest              f6fab3b798be        10 weeks ago        85.1 MB
 # debian                           latest              f6fab3b798be3174f45aa1eb731f8182705555f89c9026d8c1ef230cbf8301dd   10 weeks ago        85.1 MB
-if ! command -v curl &> /dev/null; then
-	echo >&2 'error: "curl" not found!'
-	exit 1
-fi
-if ! command -v jq &> /dev/null; then
-	echo >&2 'error: "jq" not found!'
-	exit 1
-fi
+
+# check if essential commands are in our PATH
+for cmd in curl jq go; do
+	if ! command -v $cmd &> /dev/null; then
+		echo >&2 "error: \"$cmd\" not found!"
+		exit 1
+	fi
+done
 
 usage() {
 	echo "usage: $0 dir image[:tag][@digest] ..."
