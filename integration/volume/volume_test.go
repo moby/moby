@@ -2,7 +2,7 @@ package volume
 
 import (
 	"context"
-	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,7 +37,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 		Driver:     "local",
 		Scope:      "local",
 		Name:       name,
-		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
+		Mountpoint: filepath.Join(testEnv.DaemonInfo.DockerRootDir, "volumes", name, "_data"),
 	}
 	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
