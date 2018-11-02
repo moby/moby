@@ -20,7 +20,6 @@ import (
 
 func TestVolumesCreateAndList(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
@@ -77,7 +76,6 @@ func TestVolumesRemove(t *testing.T) {
 
 func TestVolumesInspect(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
