@@ -66,8 +66,8 @@ func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	d1.Stop(c)
 	d2.Stop(c)
 
-	d1.Start(c)
-	d2.Start(c)
+	d1.StartNode(c)
+	d2.StartNode(c)
 
 	info = d1.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.True)
@@ -332,6 +332,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	}
 
 	// wait for an election to occur
+	c.Logf("Waiting for election to occur...")
 	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d2, d3), checker.True)
 
 	// assert that we have a new leader
@@ -341,11 +342,10 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 	stableleader := leader
 
 	// add the d1, the initial leader, back
-	d1.Start(c)
-
-	// TODO(stevvooe): may need to wait for rejoin here
+	d1.StartNode(c)
 
 	// wait for possible election
+	c.Logf("Waiting for possible election...")
 	waitAndAssert(c, defaultReconciliationTimeout, checkLeader(d1, d2, d3), checker.True)
 	// pick out the leader and the followers again
 
@@ -387,7 +387,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 		return err.Error(), nil
 	}, checker.Contains, "Make sure more than half of the managers are online.")
 
-	d2.Start(c)
+	d2.StartNode(c)
 
 	// make sure there is a leader
 	waitAndAssert(c, defaultReconciliationTimeout, d1.CheckLeader, checker.IsNil)
@@ -463,8 +463,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRestoreOnPendingJoin(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
-	d.Stop(c)
-	d.Start(c)
+	d.RestartNode(c)
 
 	info := d.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
@@ -477,25 +476,22 @@ func (s *DockerSwarmSuite) TestAPISwarmManagerRestore(c *check.C) {
 	id := d1.CreateService(c, simpleTestService, setInstances(instances))
 
 	d1.GetService(c, id)
-	d1.Stop(c)
-	d1.Start(c)
+	d1.RestartNode(c)
 	d1.GetService(c, id)
 
 	d2 := s.AddDaemon(c, true, true)
 	d2.GetService(c, id)
-	d2.Stop(c)
-	d2.Start(c)
+	d2.RestartNode(c)
 	d2.GetService(c, id)
 
 	d3 := s.AddDaemon(c, true, true)
 	d3.GetService(c, id)
-	d3.Stop(c)
-	d3.Start(c)
+	d3.RestartNode(c)
 	d3.GetService(c, id)
 
 	d3.Kill()
 	time.Sleep(1 * time.Second) // time to handle signal
-	d3.Start(c)
+	d3.StartNode(c)
 	d3.GetService(c, id)
 }
 

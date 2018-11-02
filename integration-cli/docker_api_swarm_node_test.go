@@ -62,7 +62,7 @@ func (s *DockerSwarmSuite) TestAPISwarmNodeRemove(c *check.C) {
 	c.Assert(len(nodes), checker.Equals, 2, check.Commentf("nodes: %#v", nodes))
 
 	// Restart the node that was removed
-	d2.Restart(c)
+	d2.RestartNode(c)
 
 	// Give some time for the node to rejoin
 	time.Sleep(1 * time.Second)
