@@ -156,7 +156,9 @@ func (ld *v2LayerDescriptor) DiffID() (layer.DiffID, error) {
 	if ld.diffID != "" {
 		return ld.diffID, nil
 	}
-	return ld.V2MetadataService.GetDiffID(ld.digest)
+	diffID, err := ld.V2MetadataService.GetDiffID(ld.digest)
+	ld.diffID = diffID
+	return diffID, err
 }
 
 func (ld *v2LayerDescriptor) Download(ctx context.Context, progressOutput progress.Output) (io.ReadCloser, int64, error) {
@@ -617,7 +619,28 @@ func (p *v2Puller) pullSchema2(ctx context.Context, ref reference.Named, mfst *s
 	// which aren't suitable for NTFS. At some point in the future, if a similar
 	// check to block Windows images being pulled on Linux is implemented, it
 	// may be necessary to perform the same type of serialisation.
+	configDownloadBlocking := true
 	if runtime.GOOS == "windows" {
+		configDownloadBlocking = false
+	}
+
+	// Consider this situation: for layers a, b(from bottom-most to top-most), layer a does not exist,
+	// but layer b does exist in directory `diffid-by-digest/sha256`.
+	// In order to avoid to pull layer b here, we block the downloading for image config
+	parentDigestFound := true
+	for i := 0; i < len(descriptors); i++ {
+		if _, err := descriptors[i].DiffID(); err == nil {
+			if !parentDigestFound {
+				configDownloadBlocking = false
+				break
+			}
+			parentDigestFound = true
+		} else {
+			parentDigestFound = false
+		}
+	}
+
+	if !configDownloadBlocking {
 		configJSON, configRootFS, configPlatform, err = receiveConfig(p.config.ImageStore, configChan, configErrChan)
 		if err != nil {
 			return "", "", err
