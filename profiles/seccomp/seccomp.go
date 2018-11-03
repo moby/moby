@@ -8,7 +8,8 @@ import (
 	"fmt"
 
 	"github.com/docker/docker/api/types"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/docker/docker/pkg/parsers/kernel"
+	specs "github.com/opencontainers/runtime-spec/specs-go"
 	libseccomp "github.com/seccomp/libseccomp-golang"
 )
 
@@ -95,6 +96,21 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	newConfig.DefaultAction = specs.LinuxSeccompAction(config.DefaultAction)
 
+	var currentKernelVersion *kernel.VersionInfo
+	kernelGreaterEqualThan := func(v string) (bool, error) {
+		version, err := kernel.ParseRelease(v)
+		if err != nil {
+			return false, err
+		}
+		if currentKernelVersion == nil {
+			currentKernelVersion, err = kernel.GetKernelVersion()
+			if err != nil {
+				return false, err
+			}
+		}
+		return kernel.CompareKernelVersion(*version, *currentKernelVersion) <= 0, nil
+	}
+
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
@@ -110,6 +126,13 @@ Loop:
 				}
 			}
 		}
+		if call.Excludes.MinKernel != "" {
+			if ok, err := kernelGreaterEqualThan(call.Excludes.MinKernel); err != nil {
+				return nil, err
+			} else if ok {
+				continue Loop
+			}
+		}
 		if len(call.Includes.Arches) > 0 {
 			if !inSlice(call.Includes.Arches, arch) {
 				continue Loop
@@ -120,6 +143,13 @@ Loop:
 				if !inSlice(rs.Process.Capabilities.Bounding, c) {
 					continue Loop
 				}
+			}
+		}
+		if call.Includes.MinKernel != "" {
+			if ok, err := kernelGreaterEqualThan(call.Includes.MinKernel); err != nil {
+				return nil, err
+			} else if !ok {
+				continue Loop
 			}
 		}
 
