@@ -2,7 +2,7 @@ package volume
 
 import (
 	"context"
-	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -20,7 +20,6 @@ import (
 
 func TestVolumesCreateAndList(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
@@ -37,7 +36,7 @@ func TestVolumesCreateAndList(t *testing.T) {
 		Driver:     "local",
 		Scope:      "local",
 		Name:       name,
-		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
+		Mountpoint: filepath.Join(testEnv.DaemonInfo.DockerRootDir, "volumes", name, "_data"),
 	}
 	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
 
@@ -77,38 +76,23 @@ func TestVolumesRemove(t *testing.T) {
 
 func TestVolumesInspect(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
 
-	// sampling current time minus a minute so to now have false positive in case of delays
-	now := time.Now().Truncate(time.Minute)
-
-	name := t.Name()
-	_, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{
-		Name: name,
-	})
+	now := time.Now()
+	vol, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{})
 	assert.NilError(t, err)
 
-	vol, err := client.VolumeInspect(ctx, name)
+	inspected, err := client.VolumeInspect(ctx, vol.Name)
 	assert.NilError(t, err)
 
-	expected := types.Volume{
-		// Ignore timestamp of CreatedAt
-		CreatedAt:  vol.CreatedAt,
-		Driver:     "local",
-		Scope:      "local",
-		Name:       name,
-		Mountpoint: fmt.Sprintf("%s/volumes/%s/_data", testEnv.DaemonInfo.DockerRootDir, name),
-	}
-	assert.Check(t, is.DeepEqual(vol, expected, cmpopts.EquateEmpty()))
+	assert.Check(t, is.DeepEqual(inspected, vol, cmpopts.EquateEmpty()))
 
-	// comparing CreatedAt field time for the new volume to now. Removing a minute from both to avoid false positive
-	testCreatedAt, err := time.Parse(time.RFC3339, strings.TrimSpace(vol.CreatedAt))
+	// comparing CreatedAt field time for the new volume to now. Truncate to 1 minute precision to avoid false positive
+	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.CreatedAt))
 	assert.NilError(t, err)
-	testCreatedAt = testCreatedAt.Truncate(time.Minute)
-	assert.Check(t, is.Equal(testCreatedAt.Equal(now), true), "Time Volume is CreatedAt not equal to current time")
+	assert.Check(t, createdAt.Truncate(time.Minute).Equal(now.Truncate(time.Minute)), "CreatedAt (%s) not equal to creation time (%s)", createdAt, now)
 }
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
