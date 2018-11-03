@@ -19,10 +19,10 @@ func (cli *Client) ContainerInspect(ctx context.Context, containerID string) (ty
 	if err != nil {
 		return types.ContainerJSON{}, wrapResponseError(err, serverResp, "container", containerID)
 	}
+	defer ensureReaderClosed(serverResp)
 
 	var response types.ContainerJSON
 	err = json.NewDecoder(serverResp.body).Decode(&response)
-	ensureReaderClosed(serverResp)
 	return response, err
 }
 
