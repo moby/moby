@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/http"
 	"testing"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
@@ -121,6 +123,34 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	assert.NilError(t, err)
 
 	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+}
+
+func TestCreateServiceConflict(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+
+	serviceName := "TestService_" + t.Name()
+	serviceSpec := []swarm.ServiceSpecOpt{
+		swarm.ServiceWithName(serviceName),
+	}
+
+	swarm.CreateService(t, d, serviceSpec...)
+
+	spec := swarm.CreateServiceSpec(t, serviceSpec...)
+	res, body, err := request.Post(
+		"/services/create",
+		request.Host(d.Sock()),
+		request.JSONBody(spec),
+		request.JSON,
+	)
+	assert.NilError(t, err)
+	assert.Equal(t, res.StatusCode, http.StatusConflict)
+
+	buf, err := request.ReadBody(body)
+	assert.NilError(t, err)
+	assert.Check(t, is.Contains(string(buf), "service "+serviceName+" already exists"))
 }
 
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
