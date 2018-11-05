@@ -3,6 +3,7 @@ package network // import "github.com/docker/docker/integration/network"
 import (
 	"bytes"
 	"context"
+	"net/http"
 	"os/exec"
 	"strings"
 	"testing"
@@ -10,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
+	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
@@ -55,4 +57,36 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 	result, err = container.Exec(ctx, client, id3, []string{"sh", "-c", nsCommand})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(stdout.String(), result.Combined()), "The network namspace of container should be the same with host when --net=host and bridge network is disabled")
+}
+
+func TestNetworkInvalidJSON(t *testing.T) {
+	defer setupTest(t)()
+
+	endpoints := []string{
+		"/networks/create",
+		"/networks/bridge/connect",
+		"/networks/bridge/disconnect",
+	}
+
+	for _, ep := range endpoints {
+		t.Run(ep, func(t *testing.T) {
+			t.Parallel()
+
+			res, body, err := request.Post(ep, request.RawString("{invalid json"), request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+			buf, err := request.ReadBody(body)
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(buf), "invalid character 'i' looking for beginning of object key string"))
+
+			res, body, err = request.Post(ep, request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+			buf, err = request.ReadBody(body)
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(buf), "got EOF while reading request body"))
+		})
+	}
 }
