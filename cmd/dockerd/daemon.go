@@ -455,6 +455,12 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.TLSVerify = conf.TLS
 	}
 
+	if opts.Validate {
+		// If config wasn't OK we wouldn't have made it this far.
+		logrus.Infof("Config OK")
+		os.Exit(0)
+	}
+
 	return conf, nil
 }
 
