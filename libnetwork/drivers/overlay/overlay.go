@@ -25,7 +25,6 @@ const (
 	vethLen      = 7
 	vxlanIDStart = 256
 	vxlanIDEnd   = (1 << 24) - 1
-	vxlanPort    = 4789
 	vxlanEncap   = 50
 	secureOption = "encrypted"
 )
