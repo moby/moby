@@ -75,14 +75,18 @@ func NewDaemonCli() *DaemonCli {
 }
 
 func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
-	stopc := make(chan bool)
-	defer close(stopc)
-
 	opts.SetDefaultOptions(opts.flags)
 
 	if cli.Config, err = loadDaemonCliConfig(opts); err != nil {
 		return err
 	}
+
+	if opts.Validate {
+		// If config wasn't OK we wouldn't have made it this far.
+		fmt.Fprintln(os.Stderr, "configuration OK")
+		return nil
+	}
+
 	warnOnDeprecatedConfigOptions(cli.Config)
 
 	if err := configureDaemonLogs(cli.Config); err != nil {
@@ -177,6 +181,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 	defer cancel()
+
+	stopc := make(chan bool)
+	defer close(stopc)
 
 	signal.Trap(func() {
 		cli.stop()
