@@ -4,10 +4,15 @@
 RUNC_COMMIT=9f1e94488e5e478e084fef997f022565b64b01d9
 
 install_runc() {
-	# Do not build with ambient capabilities support
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
+	# If using RHEL7 kernels (3.10.0 el7), disable kmem accounting/limiting
+	if uname -r | grep -q '^3\.10\.0.*\.el7\.'; then
+		: ${RUNC_NOKMEM='nokmem'}
+	fi
 
-	echo "Install runc version $RUNC_COMMIT"
+	# Do not build with ambient capabilities support
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux $RUNC_NOKMEM"}"
+
+	echo "Install runc version $RUNC_COMMIT (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
