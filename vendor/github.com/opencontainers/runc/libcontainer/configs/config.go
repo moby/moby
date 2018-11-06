@@ -186,8 +186,8 @@ type Config struct {
 	// callers keyring in this case.
 	NoNewKeyring bool `json:"no_new_keyring"`
 
-	// IntelRdt specifies settings for Intel RDT/CAT group that the container is placed into
-	// to limit the resources (e.g., L3 cache) the container has available
+	// IntelRdt specifies settings for Intel RDT group that the container is placed into
+	// to limit the resources (e.g., L3 cache, memory bandwidth) the container has available
 	IntelRdt *IntelRdt `json:"intel_rdt,omitempty"`
 
 	// RootlessEUID is set when the runc was launched with non-zero EUID.

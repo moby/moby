@@ -6,6 +6,7 @@ import (
 
 // HNSEndpoint represents a network endpoint in HNS
 type HNSEndpoint = hns.HNSEndpoint
+
 // Namespace represents a Compartment.
 type Namespace = hns.Namespace
 

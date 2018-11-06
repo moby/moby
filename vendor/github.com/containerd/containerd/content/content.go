@@ -110,8 +110,9 @@ type IngestManager interface {
 
 // Writer handles the write of content into a content store
 type Writer interface {
-	// Close is expected to be called after Commit() when commission is needed.
-	// Closing a writer without commit allows resuming or aborting.
+	// Close closes the writer, if the writer has not been
+	// committed this allows resuming or aborting.
+	// Calling Close on a closed writer will not error.
 	io.WriteCloser
 
 	// Digest may return empty digest or panics until committed.
@@ -119,6 +120,8 @@ type Writer interface {
 
 	// Commit commits the blob (but no roll-back is guaranteed on an error).
 	// size and expected can be zero-value when unknown.
+	// Commit always closes the writer, even on error.
+	// ErrAlreadyExists aborts the writer.
 	Commit(ctx context.Context, size int64, expected digest.Digest, opts ...Opt) error
 
 	// Status returns the current state of write

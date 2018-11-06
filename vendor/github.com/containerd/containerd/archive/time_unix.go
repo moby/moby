@@ -1,4 +1,4 @@
-// +build linux freebsd solaris
+// +build freebsd linux openbsd solaris
 
 /*
    Copyright The containerd Authors.

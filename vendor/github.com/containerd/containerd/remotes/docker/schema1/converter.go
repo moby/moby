@@ -24,6 +24,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -42,7 +43,10 @@ import (
 	"github.com/pkg/errors"
 )
 
-const manifestSizeLimit = 8e6 // 8MB
+const (
+	manifestSizeLimit            = 8e6 // 8MB
+	labelDockerSchema1EmptyLayer = "containerd.io/docker.schema1.empty-layer"
+)
 
 type blobState struct {
 	diffID digest.Digest
@@ -353,10 +357,11 @@ func (c *Converter) fetchBlob(ctx context.Context, desc ocispec.Descriptor) erro
 		Digest: desc.Digest,
 		Labels: map[string]string{
 			"containerd.io/uncompressed": state.diffID.String(),
+			labelDockerSchema1EmptyLayer: strconv.FormatBool(state.empty),
 		},
 	}
 
-	if _, err := c.contentStore.Update(ctx, cinfo, "labels.containerd.io/uncompressed"); err != nil {
+	if _, err := c.contentStore.Update(ctx, cinfo, "labels.containerd.io/uncompressed", fmt.Sprintf("labels.%s", labelDockerSchema1EmptyLayer)); err != nil {
 		return errors.Wrap(err, "failed to update uncompressed label")
 	}
 
@@ -380,7 +385,18 @@ func (c *Converter) reuseLabelBlobState(ctx context.Context, desc ocispec.Descri
 		return false, nil
 	}
 
-	bState := blobState{empty: false}
+	emptyVal, ok := cinfo.Labels[labelDockerSchema1EmptyLayer]
+	if !ok {
+		return false, nil
+	}
+
+	isEmpty, err := strconv.ParseBool(emptyVal)
+	if err != nil {
+		log.G(ctx).WithField("id", desc.Digest).Warnf("failed to parse bool from label %s: %v", labelDockerSchema1EmptyLayer, isEmpty)
+		return false, nil
+	}
+
+	bState := blobState{empty: isEmpty}
 
 	if bState.diffID, err = digest.Parse(diffID); err != nil {
 		log.G(ctx).WithField("id", desc.Digest).Warnf("failed to parse digest from label containerd.io/uncompressed: %v", diffID)

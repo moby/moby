@@ -110,6 +110,9 @@ func (e *eventRemote) Subscribe(ctx context.Context, filters ...string) (ch <-ch
 				Event:     ev.Event,
 			}:
 			case <-ctx.Done():
+				if cerr := ctx.Err(); cerr != context.Canceled {
+					errq <- cerr
+				}
 				return
 			}
 		}

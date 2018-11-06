@@ -57,12 +57,13 @@ var (
 	procHcsOpenProcess                     = modvmcompute.NewProc("HcsOpenProcess")
 	procHcsCloseProcess                    = modvmcompute.NewProc("HcsCloseProcess")
 	procHcsTerminateProcess                = modvmcompute.NewProc("HcsTerminateProcess")
-	procHcsGetProcessInfo                  = modvmcompute.NewProc("HcsGetProcessInfo")
-	procHcsGetProcessProperties            = modvmcompute.NewProc("HcsGetProcessProperties")
-	procHcsModifyProcess                   = modvmcompute.NewProc("HcsModifyProcess")
-	procHcsGetServiceProperties            = modvmcompute.NewProc("HcsGetServiceProperties")
-	procHcsRegisterProcessCallback         = modvmcompute.NewProc("HcsRegisterProcessCallback")
-	procHcsUnregisterProcessCallback       = modvmcompute.NewProc("HcsUnregisterProcessCallback")
+
+	procHcsGetProcessInfo            = modvmcompute.NewProc("HcsGetProcessInfo")
+	procHcsGetProcessProperties      = modvmcompute.NewProc("HcsGetProcessProperties")
+	procHcsModifyProcess             = modvmcompute.NewProc("HcsModifyProcess")
+	procHcsGetServiceProperties      = modvmcompute.NewProc("HcsGetServiceProperties")
+	procHcsRegisterProcessCallback   = modvmcompute.NewProc("HcsRegisterProcessCallback")
+	procHcsUnregisterProcessCallback = modvmcompute.NewProc("HcsUnregisterProcessCallback")
 )
 
 func hcsEnumerateComputeSystems(query string, computeSystems **uint16, result **uint16) (hr error) {
@@ -350,6 +351,26 @@ func hcsTerminateProcess(process hcsProcess, result **uint16) (hr error) {
 		return
 	}
 	r0, _, _ := syscall.Syscall(procHcsTerminateProcess.Addr(), 2, uintptr(process), uintptr(unsafe.Pointer(result)), 0)
+	if int32(r0) < 0 {
+		hr = interop.Win32FromHresult(r0)
+	}
+	return
+}
+
+func hcsSignalProcess(process hcsProcess, options string, result **uint16) (hr error) {
+	var _p0 *uint16
+	_p0, hr = syscall.UTF16PtrFromString(options)
+	if hr != nil {
+		return
+	}
+	return _hcsSignalProcess(process, _p0, result)
+}
+
+func _hcsSignalProcess(process hcsProcess, options *uint16, result **uint16) (hr error) {
+	if hr = procHcsTerminateProcess.Find(); hr != nil {
+		return
+	}
+	r0, _, _ := syscall.Syscall(procHcsTerminateProcess.Addr(), 3, uintptr(process), uintptr(unsafe.Pointer(options)), uintptr(unsafe.Pointer(result)))
 	if int32(r0) < 0 {
 		hr = interop.Win32FromHresult(r0)
 	}
