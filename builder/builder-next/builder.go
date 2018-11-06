@@ -222,7 +222,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 	id := identity.NewID()
 
 	frontendAttrs := map[string]string{
-		"override-copy-image": "docker.io/docker/dockerfile-copy:v0.1.7@sha256:4211460d4df58cca572825b93e437c09dac6387d88910fe07ac8f7c78d52e0ce",
+		"override-copy-image": "docker.io/docker/dockerfile-copy:v0.1.9@sha256:e8f159d3f00786604b93c675ee2783f8dc194bb565e61ca5788f6a6e9d304061",
 	}
 
 	if opt.Options.Target != "" {
