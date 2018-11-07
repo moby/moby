@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/names"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/sirupsen/logrus"
@@ -41,6 +42,9 @@ func (s *containerRouter) postContainerExecCreate(ctx context.Context, w http.Re
 		return err
 	}
 	name := vars["name"]
+	if valid, err := names.ValidateName(name); !valid {
+		return err
+	}
 
 	execConfig := &types.ExecConfig{}
 	if err := json.NewDecoder(r.Body).Decode(execConfig); err != nil {
@@ -81,6 +85,9 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 		stdin, inStream           io.ReadCloser
 		stdout, stderr, outStream io.Writer
 	)
+	if valid, err := names.ValidateName(execName); !valid {
+		return err
+	}
 
 	execStartCheck := &types.ExecStartCheck{}
 	if err := json.NewDecoder(r.Body).Decode(execStartCheck); err != nil {
@@ -134,6 +141,9 @@ func (s *containerRouter) postContainerExecStart(ctx context.Context, w http.Res
 
 func (s *containerRouter) postContainerExecResize(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	if err := httputils.ParseForm(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 	height, err := strconv.Atoi(r.Form.Get("h"))

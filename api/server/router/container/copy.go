@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/daemon/names"
 	gddohttputil "github.com/golang/gddo/httputil"
 )
 
@@ -32,6 +33,9 @@ func (s *containerRouter) postContainersCopy(ctx context.Context, w http.Respons
 		return nil
 	}
 	if err := httputils.CheckForJSON(r); err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(vars["name"]); !valid {
 		return err
 	}
 
@@ -75,6 +79,9 @@ func (s *containerRouter) headContainersArchive(ctx context.Context, w http.Resp
 	if err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(v.Name); !valid {
+		return err
+	}
 
 	stat, err := s.backend.ContainerStatPath(v.Name, v.Path)
 	if err != nil {
@@ -112,6 +119,9 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 	if err != nil {
 		return err
 	}
+	if valid, err := names.ValidateName(v.Name); !valid {
+		return err
+	}
 
 	tarArchive, stat, err := s.backend.ContainerArchivePath(v.Name, v.Path)
 	if err != nil {
@@ -130,6 +140,9 @@ func (s *containerRouter) getContainersArchive(ctx context.Context, w http.Respo
 func (s *containerRouter) putContainersArchive(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	v, err := httputils.ArchiveFormValues(r, vars)
 	if err != nil {
+		return err
+	}
+	if valid, err := names.ValidateName(v.Name); !valid {
 		return err
 	}
 
