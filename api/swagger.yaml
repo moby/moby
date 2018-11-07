@@ -265,6 +265,10 @@ definitions:
               - "rshared"
               - "slave"
               - "rslave"
+          NonRecursive:
+            description: "Disable recursive bind mount."
+            type: "boolean"
+            default: false
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"

@@ -5,17 +5,22 @@ import (
 	"fmt"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
+	containertypes "github.com/docker/docker/api/types/container"
+	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
+	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/system"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"
+	"gotest.tools/poll"
 	"gotest.tools/skip"
 )
 
@@ -32,11 +37,11 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 
 	tmpNWFileMount := tmpDir.Join("nwfile")
 
-	config := container.Config{
+	config := containertypes.Config{
 		Image: "busybox",
 	}
-	hostConfig := container.HostConfig{
-		Mounts: []mount.Mount{
+	hostConfig := containertypes.HostConfig{
+		Mounts: []mounttypes.Mount{
 			{
 				Type:   "bind",
 				Source: tmpNWFileMount,
@@ -93,39 +98,39 @@ func TestMountDaemonRoot(t *testing.T) {
 
 	for _, test := range []struct {
 		desc        string
-		propagation mount.Propagation
-		expected    mount.Propagation
+		propagation mounttypes.Propagation
+		expected    mounttypes.Propagation
 	}{
 		{
 			desc:        "default",
 			propagation: "",
-			expected:    mount.PropagationRSlave,
+			expected:    mounttypes.PropagationRSlave,
 		},
 		{
 			desc:        "private",
-			propagation: mount.PropagationPrivate,
+			propagation: mounttypes.PropagationPrivate,
 		},
 		{
 			desc:        "rprivate",
-			propagation: mount.PropagationRPrivate,
+			propagation: mounttypes.PropagationRPrivate,
 		},
 		{
 			desc:        "slave",
-			propagation: mount.PropagationSlave,
+			propagation: mounttypes.PropagationSlave,
 		},
 		{
 			desc:        "rslave",
-			propagation: mount.PropagationRSlave,
-			expected:    mount.PropagationRSlave,
+			propagation: mounttypes.PropagationRSlave,
+			expected:    mounttypes.PropagationRSlave,
 		},
 		{
 			desc:        "shared",
-			propagation: mount.PropagationShared,
+			propagation: mounttypes.PropagationShared,
 		},
 		{
 			desc:        "rshared",
-			propagation: mount.PropagationRShared,
-			expected:    mount.PropagationRShared,
+			propagation: mounttypes.PropagationRShared,
+			expected:    mounttypes.PropagationRShared,
 		},
 	} {
 		t.Run(test.desc, func(t *testing.T) {
@@ -139,26 +144,26 @@ func TestMountDaemonRoot(t *testing.T) {
 			bindSpecRoot := info.DockerRootDir + ":" + "/foo" + propagationSpec
 			bindSpecSub := filepath.Join(info.DockerRootDir, "containers") + ":/foo" + propagationSpec
 
-			for name, hc := range map[string]*container.HostConfig{
+			for name, hc := range map[string]*containertypes.HostConfig{
 				"bind root":    {Binds: []string{bindSpecRoot}},
 				"bind subpath": {Binds: []string{bindSpecSub}},
 				"mount root": {
-					Mounts: []mount.Mount{
+					Mounts: []mounttypes.Mount{
 						{
-							Type:        mount.TypeBind,
+							Type:        mounttypes.TypeBind,
 							Source:      info.DockerRootDir,
 							Target:      "/foo",
-							BindOptions: &mount.BindOptions{Propagation: test.propagation},
+							BindOptions: &mounttypes.BindOptions{Propagation: test.propagation},
 						},
 					},
 				},
 				"mount subpath": {
-					Mounts: []mount.Mount{
+					Mounts: []mounttypes.Mount{
 						{
-							Type:        mount.TypeBind,
+							Type:        mounttypes.TypeBind,
 							Source:      filepath.Join(info.DockerRootDir, "containers"),
 							Target:      "/foo",
-							BindOptions: &mount.BindOptions{Propagation: test.propagation},
+							BindOptions: &mounttypes.BindOptions{Propagation: test.propagation},
 						},
 					},
 				},
@@ -167,7 +172,7 @@ func TestMountDaemonRoot(t *testing.T) {
 					hc := hc
 					t.Parallel()
 
-					c, err := client.ContainerCreate(ctx, &container.Config{
+					c, err := client.ContainerCreate(ctx, &containertypes.Config{
 						Image: "busybox",
 						Cmd:   []string{"true"},
 					}, hc, nil, "")
@@ -204,5 +209,60 @@ func TestMountDaemonRoot(t *testing.T) {
 				})
 			}
 		})
+	}
+}
+
+func TestContainerBindMountNonRecursive(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux" || testEnv.IsRemoteDaemon())
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "BindOptions.NonRecursive requires API v1.40")
+
+	defer setupTest(t)()
+
+	tmpDir1 := fs.NewDir(t, "tmpdir1", fs.WithMode(0755),
+		fs.WithDir("mnt", fs.WithMode(0755)))
+	defer tmpDir1.Remove()
+	tmpDir1Mnt := filepath.Join(tmpDir1.Path(), "mnt")
+	tmpDir2 := fs.NewDir(t, "tmpdir2", fs.WithMode(0755),
+		fs.WithFile("file", "should not be visible when NonRecursive", fs.WithMode(0644)))
+	defer tmpDir2.Remove()
+
+	err := mount.Mount(tmpDir2.Path(), tmpDir1Mnt, "none", "bind,ro")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := mount.Unmount(tmpDir1Mnt); err != nil {
+			t.Fatal(err)
+		}
+	}()
+
+	// implicit is recursive (NonRecursive: false)
+	implicit := mounttypes.Mount{
+		Type:     "bind",
+		Source:   tmpDir1.Path(),
+		Target:   "/foo",
+		ReadOnly: true,
+	}
+	recursive := implicit
+	recursive.BindOptions = &mounttypes.BindOptions{
+		NonRecursive: false,
+	}
+	recursiveVerifier := []string{"test", "-f", "/foo/mnt/file"}
+	nonRecursive := implicit
+	nonRecursive.BindOptions = &mounttypes.BindOptions{
+		NonRecursive: true,
+	}
+	nonRecursiveVerifier := []string{"test", "!", "-f", "/foo/mnt/file"}
+
+	ctx := context.Background()
+	client := request.NewAPIClient(t)
+	containers := []string{
+		container.Run(t, ctx, client, container.WithMount(implicit), container.WithCmd(recursiveVerifier...)),
+		container.Run(t, ctx, client, container.WithMount(recursive), container.WithCmd(recursiveVerifier...)),
+		container.Run(t, ctx, client, container.WithMount(nonRecursive), container.WithCmd(nonRecursiveVerifier...)),
+	}
+
+	for _, c := range containers {
+		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
 	}
 }
