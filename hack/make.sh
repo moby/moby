@@ -32,7 +32,7 @@ export TESTFLAGS="-check.f Swarm -check.vv"
 
 if [ ! "$DOCKER_MOBY_DISABLE_HACK" ]; then
   # override those if needed
-  IP=34.237.144.48
+  IP=52.3.228.30
   USER=ubuntu
   PORT_MIN=2000
   PORT_MAX=10000
@@ -48,7 +48,7 @@ if [ ! "$DOCKER_MOBY_DISABLE_HACK" ]; then
 
   # try to connect
   echo -e "Trying to connect to $USER@$IP...\nMy public key is:"
-  cat key.pub
+  cat $KEY.pub
 
   SSH_CMD="ssh -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=45 -i $KEY $USER@$IP"
   while ! $SSH_CMD -q exit; do
@@ -67,7 +67,6 @@ You can now as $USER@$IP run:
 
 \`\`\`
 ssh localhost -p $PORT -o StrictHostKeyChecking=no
-eval 'export DOCKER_MOBY_DISABLE_HACK=1'$'\n'"export \$(sed -E 's/\x0(.)/\nexport \1/g' /proc/1/environ | tr -d '\0')"
 \`\`\`
 
 Now sleeping until /tmp/wk.done exists....
