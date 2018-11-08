@@ -65,9 +65,9 @@ func TestExportImport(t *testing.T) {
 		},
 	})
 	assert.NilError(t, err)
-	r := s.Export("source")
+	r := Export("source", s)
 	defer r.Close()
-	err = s.Import("dest", r)
+	err = Import("dest", s, r)
 	assert.NilError(t, err)
 	srcMeta, err := s.GetContextMetadata("source")
 	assert.NilError(t, err)
@@ -110,7 +110,7 @@ func TestRemove(t *testing.T) {
 			"file1": []byte("test-data"),
 		},
 	}))
-	assert.NilError(t, s.Remove("source"))
+	assert.NilError(t, s.RemoveContext("source"))
 	_, err = s.GetContextMetadata("source")
 	assert.Check(t, os.IsNotExist(err))
 	f, err := s.ListContextTLSFiles("source")

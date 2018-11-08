@@ -57,52 +57,53 @@ func (c *Context) LoadTLSConfig(s contextstore.Store) (*tls.Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	if tlsData != nil || c.SkipTLSVerify {
-		var tlsOpts []func(*tls.Config)
-		if tlsData != nil && tlsData.CA != nil {
-			certPool := x509.NewCertPool()
-			if !certPool.AppendCertsFromPEM(tlsData.CA) {
-				return nil, errors.New("failed to retrieve context tls info: ca.pem seems invalid")
-			}
-			tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
-				cfg.RootCAs = certPool
-			})
-		}
-		if tlsData != nil && tlsData.Key != nil && tlsData.Cert != nil {
-			x509cert, err := tls.X509KeyPair(tlsData.Cert, tlsData.Key)
-			if err != nil {
-				return nil, errors.Wrapf(err, "failed to retrieve context tls info: %s", err)
-			}
-			tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
-				cfg.Certificates = []tls.Certificate{x509cert}
-			})
-		}
-		if c.SkipTLSVerify {
-			tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
-				cfg.InsecureSkipVerify = true
-			})
-		}
-		return tlsconfig.ClientDefault(tlsOpts...), nil
+	if tlsData == nil && !c.SkipTLSVerify {
+		// there is no specific tls config
+		return nil, nil
 	}
-	return nil, nil
+	var tlsOpts []func(*tls.Config)
+	if tlsData != nil && tlsData.CA != nil {
+		certPool := x509.NewCertPool()
+		if !certPool.AppendCertsFromPEM(tlsData.CA) {
+			return nil, errors.New("failed to retrieve context tls info: ca.pem seems invalid")
+		}
+		tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
+			cfg.RootCAs = certPool
+		})
+	}
+	if tlsData != nil && tlsData.Key != nil && tlsData.Cert != nil {
+		x509cert, err := tls.X509KeyPair(tlsData.Cert, tlsData.Key)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to retrieve context tls info")
+		}
+		tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
+			cfg.Certificates = []tls.Certificate{x509cert}
+		})
+	}
+	if c.SkipTLSVerify {
+		tlsOpts = append(tlsOpts, func(cfg *tls.Config) {
+			cfg.InsecureSkipVerify = true
+		})
+	}
+	return tlsconfig.ClientDefault(tlsOpts...), nil
 }
 
-func getMetaString(meta map[string]interface{}, key string) (string, bool) {
+func getMetaString(meta map[string]interface{}, key string) string {
 	v, ok := meta[key]
 	if !ok {
-		return "", false
+		return ""
 	}
-	r, ok := v.(string)
-	return r, ok
+	r, _ := v.(string)
+	return r
 }
 
-func getMetaBool(meta map[string]interface{}, key string) (bool, bool) {
+func getMetaBool(meta map[string]interface{}, key string) bool {
 	v, ok := meta[key]
 	if !ok {
-		return false, false
+		return false
 	}
-	r, ok := v.(bool)
-	return r, ok
+	r, _ := v.(bool)
+	return r
 }
 
 // Parse parses a context docker endpoint metadata into a typed Context structure
@@ -111,9 +112,9 @@ func Parse(name string, metadata contextstore.ContextMetadata) (*Context, error)
 	if !ok {
 		return nil, errors.New("cannot find docker endpoint in context")
 	}
-	host, _ := getMetaString(ep, hostKey)
-	skipTLSVerify, _ := getMetaBool(ep, skipTLSVerifyKey)
-	apiVersion, _ := getMetaString(ep, apiVersionKey)
+	host := getMetaString(ep, hostKey)
+	skipTLSVerify := getMetaBool(ep, skipTLSVerifyKey)
+	apiVersion := getMetaString(ep, apiVersionKey)
 	return &Context{
 		Name:          name,
 		Host:          host,

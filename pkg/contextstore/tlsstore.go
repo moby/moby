@@ -26,8 +26,7 @@ func (s *tlsStore) filePath(contextName, endpointName, filename string) string {
 
 func (s *tlsStore) createOrUpdate(contextName, endpointName, filename string, data []byte) error {
 	epdir := s.endpointDir(contextName, endpointName)
-	err := os.MkdirAll(epdir, 0700)
-	if err != nil {
+	if err := os.MkdirAll(epdir, 0700); err != nil {
 		return err
 	}
 	return ioutil.WriteFile(s.filePath(contextName, endpointName, filename), data, 0600)

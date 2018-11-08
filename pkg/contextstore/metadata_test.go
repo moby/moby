@@ -9,27 +9,28 @@ import (
 	"gotest.tools/assert"
 )
 
+var testMetadata = ContextMetadata{
+	Metadata: map[string]interface{}{
+		"baz": "foo",
+	},
+	Endpoints: map[string]EndpointMetadata{
+		"test-ep": {
+			"foo": "bar",
+		},
+	},
+}
+
 func TestMetadataMarshalling(t *testing.T) {
 	var ctxMeta ContextMetadata
-	expected := ContextMetadata{
-		Metadata: map[string]interface{}{
-			"baz": "foo",
-		},
-		Endpoints: map[string]EndpointMetadata{
-			"test-ep": {
-				"foo": "bar",
-			},
-		},
-	}
-	bytes, err := json.Marshal(&expected)
+	bytes, err := json.Marshal(&testMetadata)
 	assert.NilError(t, err)
 	err = json.Unmarshal(bytes, &ctxMeta)
 	assert.NilError(t, err)
-	assert.DeepEqual(t, ctxMeta, expected)
+	assert.DeepEqual(t, ctxMeta, testMetadata)
 }
 
 func TestMetadataGetNotExisting(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestMetadataGetNotExisting")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	testee := metadataStore{root: testDir}
@@ -38,20 +39,10 @@ func TestMetadataGetNotExisting(t *testing.T) {
 }
 
 func TestMetadataCreateGetRemove(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestMetadataCreateGet")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	testee := metadataStore{root: testDir}
-	expected := ContextMetadata{
-		Metadata: map[string]interface{}{
-			"baz": "foo",
-		},
-		Endpoints: map[string]EndpointMetadata{
-			"test-ep": {
-				"foo": "bar",
-			},
-		},
-	}
 	expected2 := ContextMetadata{
 		Metadata: map[string]interface{}{
 			"baz": "foo",
@@ -65,11 +56,11 @@ func TestMetadataCreateGetRemove(t *testing.T) {
 			},
 		},
 	}
-	err = testee.createOrUpdate("test-context", expected)
+	err = testee.createOrUpdate("test-context", testMetadata)
 	assert.NilError(t, err)
 	meta, err := testee.get("test-context")
 	assert.NilError(t, err)
-	assert.DeepEqual(t, meta, expected)
+	assert.DeepEqual(t, meta, testMetadata)
 
 	// update
 
@@ -86,7 +77,7 @@ func TestMetadataCreateGetRemove(t *testing.T) {
 }
 
 func TestMetadataList(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestMetadataList")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	testee := metadataStore{root: testDir}

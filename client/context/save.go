@@ -27,8 +27,7 @@ func SetDockerEndpoint(s contextstore.Store, name, host, apiVersion string, ca, 
 		epMeta[skipTLSVerifyKey] = true
 	}
 	ctxMeta.Endpoints[dockerEndpointKey] = epMeta
-	err = s.CreateOrUpdateContext(name, ctxMeta)
-	if err != nil {
+	if err := s.CreateOrUpdateContext(name, ctxMeta); err != nil {
 		return err
 	}
 	return s.ResetContextEndpointTLSMaterial(name, dockerEndpointKey, createEnpointTLSData(ca, cert, key))

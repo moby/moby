@@ -8,8 +8,10 @@ import (
 	"path/filepath"
 )
 
-const metadataDir = "meta"
-const metaFile = "meta.json"
+const (
+	metadataDir = "meta"
+	metaFile    = "meta.json"
+)
 
 type metadataStore struct {
 	root string
@@ -21,8 +23,7 @@ func (s *metadataStore) contextDir(name string) string {
 
 func (s *metadataStore) createOrUpdate(name string, meta ContextMetadata) error {
 	contextDir := s.contextDir(name)
-	err := os.MkdirAll(contextDir, 0755)
-	if err != nil {
+	if err := os.MkdirAll(contextDir, 0755); err != nil {
 		return err
 	}
 	bytes, err := json.Marshal(&meta)
@@ -92,13 +93,4 @@ func listRecursivelyMetadataDirs(root string) ([]string, error) {
 		}
 	}
 	return result, nil
-}
-
-// EndpointMetadata contains metadata about an endpoint
-type EndpointMetadata map[string]interface{}
-
-// ContextMetadata contains metadata about a context and its endpoints
-type ContextMetadata struct {
-	Metadata  map[string]interface{}      `json:"metadata,omitempty"`
-	Endpoints map[string]EndpointMetadata `json:"endpoints,omitempty"`
 }
