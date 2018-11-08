@@ -10,7 +10,7 @@ import (
 )
 
 func TestStoreInitScratch(t *testing.T) {
-	dirname, err := ioutil.TempDir("", "test-store-init-scratch")
+	dirname, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(dirname)
 	testDir := filepath.Join(dirname, "test")
@@ -18,10 +18,10 @@ func TestStoreInitScratch(t *testing.T) {
 	assert.NilError(t, err)
 	metaFS, err := os.Stat(filepath.Join(testDir, metadataDir))
 	assert.NilError(t, err)
-	assert.Equal(t, metaFS.IsDir(), true)
+	assert.Assert(t, metaFS.IsDir())
 	tlsFS, err := os.Stat(filepath.Join(testDir, tlsDir))
 	assert.NilError(t, err)
-	assert.Equal(t, tlsFS.IsDir(), true)
+	assert.Assert(t, tlsFS.IsDir())
 
 	// check that we can create a store from existing dir
 	_, err = NewStore(testDir)
@@ -29,7 +29,7 @@ func TestStoreInitScratch(t *testing.T) {
 }
 
 func TestSetGetCurrentContext(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestSetGetCurrentContext")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	store1, err := NewStore(testDir)
@@ -42,7 +42,7 @@ func TestSetGetCurrentContext(t *testing.T) {
 }
 
 func TestExportImport(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestSetGetCurrentContext")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	s, err := NewStore(testDir)
@@ -88,7 +88,7 @@ func TestExportImport(t *testing.T) {
 }
 
 func TestRemove(t *testing.T) {
-	testDir, err := ioutil.TempDir("", "TestRemove")
+	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	s, err := NewStore(testDir)

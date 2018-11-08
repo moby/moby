@@ -162,9 +162,13 @@ func TestClientWithContext(t *testing.T) {
 	s, err := contextstore.NewStore(storeDir)
 	assert.Check(t, err)
 	for _, c := range contexts {
-		t.Run(c.name, func(t *testing.T) {
+		t.Run(c.name+"_create", func(t *testing.T) {
 			err = context.SetDockerEndpoint(s, c.name, c.host, c.apiVersion, c.ca, c.cert, c.key, c.skipTLSVerify)
 			assert.Check(t, err)
+		})
+	}
+	for _, c := range contexts {
+		t.Run(c.name+"_consume", func(t *testing.T) {
 			client, err := NewClientWithOpts(WithContextStoreOrEnv(storeDir, c.name))
 			assert.Check(t, err)
 			if c.host == "" {

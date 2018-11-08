@@ -7,9 +7,11 @@ import (
 	"github.com/docker/docker/pkg/contextstore"
 	"github.com/docker/go-connections/tlsconfig"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
-// Context is a typed wrapper around a context-store context
+// Context is a typed wrapper around a context-store generic context describing
+// a Docker Engine endpoint
 type Context struct {
 	Name          string
 	Host          string
@@ -28,14 +30,14 @@ type TLSData struct {
 func (c *Context) LoadTLSData(s contextstore.Store) (*TLSData, error) {
 	tlsFiles, err := s.ListContextTLSFiles(c.Name)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to retrieve context tls info")
+		return nil, errors.Wrapf(err, "failed to retrieve context tls files for context %s", c.Name)
 	}
 	if epTLSFiles, ok := tlsFiles[dockerEndpointKey]; ok {
 		var tlsData TLSData
 		for _, f := range epTLSFiles {
 			data, err := s.GetContextTLSData(c.Name, dockerEndpointKey, f)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to retrieve context tls info")
+				return nil, errors.Wrapf(err, "failed to retrieve context tls data for file %s of context %s", f, c.Name)
 			}
 			switch f {
 			case caKey:
@@ -44,6 +46,8 @@ func (c *Context) LoadTLSData(s contextstore.Store) (*TLSData, error) {
 				tlsData.Cert = data
 			case keyKey:
 				tlsData.Key = data
+			default:
+				logrus.Warnf("unknown file %s in context %s tls bundle", f, c.Name)
 			}
 		}
 		return &tlsData, nil

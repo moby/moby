@@ -208,7 +208,25 @@ func Export(name string, s Store) io.ReadCloser {
 			writer.CloseWithError(err)
 			return
 		}
+		if err = tw.WriteHeader(&tar.Header{
+			Name:     "tls",
+			Mode:     0700,
+			Size:     0,
+			Typeflag: tar.TypeDir,
+		}); err != nil {
+			writer.CloseWithError(err)
+			return
+		}
 		for endpointName, endpointFiles := range tlsFiles {
+			if err = tw.WriteHeader(&tar.Header{
+				Name:     path.Join("tls", endpointName),
+				Mode:     0700,
+				Size:     0,
+				Typeflag: tar.TypeDir,
+			}); err != nil {
+				writer.CloseWithError(err)
+				return
+			}
 			for _, fileName := range endpointFiles {
 				data, err := s.GetContextTLSData(name, endpointName, fileName)
 				if err != nil {
@@ -247,7 +265,10 @@ func Import(name string, s Store, reader io.Reader) error {
 		if err != nil {
 			return err
 		}
-
+		if hdr.Typeflag == tar.TypeDir {
+			// skip this entry, only taking files into account
+			continue
+		}
 		if hdr.Name == metaFile {
 			data, err := ioutil.ReadAll(tr)
 			if err != nil {

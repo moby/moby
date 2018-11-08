@@ -6,7 +6,7 @@ import (
 	"github.com/docker/docker/pkg/contextstore"
 )
 
-// SetDockerEndpoint set the docker endpoint of a context
+// SetDockerEndpoint sets the docker endpoint of a context
 func SetDockerEndpoint(s contextstore.Store, name, host, apiVersion string, ca, cert, key []byte, skipTLSVerify bool) error {
 	ctxMeta, err := s.GetContextMetadata(name)
 	switch {

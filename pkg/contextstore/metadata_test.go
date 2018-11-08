@@ -1,7 +1,6 @@
 package contextstore
 
 import (
-	"encoding/json"
 	"io/ioutil"
 	"os"
 	"testing"
@@ -20,22 +19,13 @@ var testMetadata = ContextMetadata{
 	},
 }
 
-func TestMetadataMarshalling(t *testing.T) {
-	var ctxMeta ContextMetadata
-	bytes, err := json.Marshal(&testMetadata)
-	assert.NilError(t, err)
-	err = json.Unmarshal(bytes, &ctxMeta)
-	assert.NilError(t, err)
-	assert.DeepEqual(t, ctxMeta, testMetadata)
-}
-
 func TestMetadataGetNotExisting(t *testing.T) {
 	testDir, err := ioutil.TempDir("", t.Name())
 	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 	testee := metadataStore{root: testDir}
 	_, err = testee.get("noexist")
-	assert.Equal(t, true, os.IsNotExist(err))
+	assert.Assert(t, os.IsNotExist(err))
 }
 
 func TestMetadataCreateGetRemove(t *testing.T) {
@@ -58,6 +48,8 @@ func TestMetadataCreateGetRemove(t *testing.T) {
 	}
 	err = testee.createOrUpdate("test-context", testMetadata)
 	assert.NilError(t, err)
+	// create a new instance to check it does not depend on some sort of state
+	testee = metadataStore{root: testDir}
 	meta, err := testee.get("test-context")
 	assert.NilError(t, err)
 	assert.DeepEqual(t, meta, testMetadata)
@@ -73,7 +65,7 @@ func TestMetadataCreateGetRemove(t *testing.T) {
 	assert.NilError(t, testee.remove("test-context"))
 	assert.NilError(t, testee.remove("test-context")) // support duplicate remove
 	_, err = testee.get("test-context")
-	assert.Equal(t, true, os.IsNotExist(err))
+	assert.Assert(t, os.IsNotExist(err))
 }
 
 func TestMetadataList(t *testing.T) {

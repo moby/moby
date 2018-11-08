@@ -12,7 +12,7 @@ import (
 func loadContext(c *Client, s contextstore.Store, ctxName string) error {
 	ctxMeta, err := s.GetContextMetadata(ctxName)
 	if err != nil {
-		return errors.Wrapf(err, "failed to retrieve context metadata: %s", err)
+		return errors.Wrap(err, "failed to retrieve context metadata")
 	}
 	ctx, err := context.Parse(ctxName, ctxMeta)
 	if err != nil {
