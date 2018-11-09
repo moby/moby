@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -97,16 +98,15 @@ func (d *naiveDiffDriverWithApply) ApplyDiff(id, parent string, diff io.Reader) 
 // of that. This means all child images share file (but not directory)
 // data with the parent.
 
-type overlayOptions struct{}
-
 // Driver contains information about the home directory and the list of active mounts that are created using this driver.
 type Driver struct {
-	home          string
-	uidMaps       []idtools.IDMap
-	gidMaps       []idtools.IDMap
-	ctr           *graphdriver.RefCounter
-	supportsDType bool
-	locker        *locker.Locker
+	home            string
+	uidMaps         []idtools.IDMap
+	gidMaps         []idtools.IDMap
+	ctr             *graphdriver.RefCounter
+	supportsDType   bool
+	locker          *locker.Locker
+	copyConcurrency int
 }
 
 func init() {
@@ -119,11 +119,6 @@ func init() {
 // If an overlay filesystem is not supported over an existing filesystem then
 // error graphdriver.ErrIncompatibleFS is returned.
 func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (graphdriver.Driver, error) {
-	_, err := parseOptions(options)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := supportsOverlay(); err != nil {
 		return nil, graphdriver.ErrNotSupported
 	}
@@ -181,23 +176,27 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		locker:        locker.New(),
 	}
 
-	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil
-}
-
-func parseOptions(options []string) (*overlayOptions, error) {
-	o := &overlayOptions{}
 	for _, option := range options {
-		key, _, err := parsers.ParseKeyValueOpt(option)
+		key, val, err := parsers.ParseKeyValueOpt(option)
 		if err != nil {
 			return nil, err
 		}
 		key = strings.ToLower(key)
 		switch key {
+		case "copy.concurrency":
+			d.copyConcurrency, err = strconv.Atoi(val)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot parse copy.concurrency")
+			}
+			if d.copyConcurrency < 0 {
+				return nil, fmt.Errorf("copy concurrency '%d' is less than 0", d.copyConcurrency)
+			}
 		default:
 			return nil, fmt.Errorf("overlay: unknown option %s", key)
 		}
 	}
-	return o, nil
+
+	return NaiveDiffDriverWithApply(d, uidMaps, gidMaps), nil
 }
 
 func supportsOverlay() error {
@@ -357,7 +356,7 @@ func (d *Driver) Create(id, parent string, opts *graphdriver.CreateOpts) (retErr
 		return err
 	}
 
-	return copy.DirCopy(parentUpperDir, upperDir, copy.Content, true)
+	return copy.DirCopyWithConcurrency(parentUpperDir, upperDir, copy.Content, true, d.copyConcurrency)
 }
 
 func (d *Driver) dir(id string) string {
