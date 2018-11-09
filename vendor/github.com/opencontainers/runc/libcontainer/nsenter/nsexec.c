@@ -42,6 +42,12 @@ enum sync_t {
 	SYNC_ERR = 0xFF,	/* Fatal error, no turning back. The error code follows. */
 };
 
+/*
+ * Synchronisation value for cgroup namespace setup.
+ * The same constant is defined in process_linux.go as "createCgroupns".
+ */
+#define CREATECGROUPNS 0x80
+
 /* longjmp() arguments. */
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
@@ -640,7 +646,6 @@ void nsexec(void)
 	case JUMP_PARENT:{
 			int len;
 			pid_t child, first_child = -1;
-			char buf[JSON_MAX];
 			bool ready = false;
 
 			/* For debugging. */
@@ -716,6 +721,18 @@ void nsexec(void)
 							kill(child, SIGKILL);
 							bail("failed to sync with child: write(SYNC_RECVPID_ACK)");
 						}
+
+						/* Send the init_func pid back to our parent.
+						 *
+						 * Send the init_func pid and the pid of the first child back to our parent.
+						 * We need to send both back because we can't reap the first child we created (CLONE_PARENT).
+						 * It becomes the responsibility of our parent to reap the first child.
+						 */
+						len = dprintf(pipenum, "{\"pid\": %d, \"pid_first\": %d}\n", child, first_child);
+						if (len < 0) {
+							kill(child, SIGKILL);
+							bail("unable to generate JSON for child pid");
+						}
 					}
 					break;
 				case SYNC_CHILD_READY:
@@ -759,23 +776,6 @@ void nsexec(void)
 					bail("unexpected sync value: %u", s);
 				}
 			}
-
-			/*
-			 * Send the init_func pid and the pid of the first child back to our parent.
-			 *
-			 * We need to send both back because we can't reap the first child we created (CLONE_PARENT).
-			 * It becomes the responsibility of our parent to reap the first child.
-			 */
-			len = snprintf(buf, JSON_MAX, "{\"pid\": %d, \"pid_first\": %d}\n", child, first_child);
-			if (len < 0) {
-				kill(child, SIGKILL);
-				bail("unable to generate JSON for child pid");
-			}
-			if (write(pipenum, buf, len) != len) {
-				kill(child, SIGKILL);
-				bail("unable to send child pid to bootstrapper");
-			}
-
 			exit(0);
 		}
 
@@ -862,14 +862,17 @@ void nsexec(void)
 				if (setresuid(0, 0, 0) < 0)
 					bail("failed to become root in user namespace");
 			}
-
 			/*
-			 * Unshare all of the namespaces. Note that we don't merge this
-			 * with clone() because there were some old kernel versions where
-			 * clone(CLONE_PARENT | CLONE_NEWPID) was broken, so we'll just do
-			 * it the long way.
+			 * Unshare all of the namespaces. Now, it should be noted that this
+			 * ordering might break in the future (especially with rootless
+			 * containers). But for now, it's not possible to split this into
+			 * CLONE_NEWUSER + [the rest] because of some RHEL SELinux issues.
+			 *
+			 * Note that we don't merge this with clone() because there were
+			 * some old kernel versions where clone(CLONE_PARENT | CLONE_NEWPID)
+			 * was broken, so we'll just do it the long way anyway.
 			 */
-			if (unshare(config.cloneflags) < 0)
+			if (unshare(config.cloneflags & ~CLONE_NEWCGROUP) < 0)
 				bail("failed to unshare namespaces");
 
 			/*
@@ -956,6 +959,18 @@ void nsexec(void)
 			if (!config.is_rootless_euid && config.is_setgroup) {
 				if (setgroups(0, NULL) < 0)
 					bail("setgroups failed");
+			}
+
+			/* ... wait until our topmost parent has finished cgroup setup in p.manager.Apply() ... */
+			if (config.cloneflags & CLONE_NEWCGROUP) {
+				uint8_t value;
+				if (read(pipenum, &value, sizeof(value)) != sizeof(value))
+					bail("read synchronisation value failed");
+				if (value == CREATECGROUPNS) {
+					if (unshare(CLONE_NEWCGROUP) < 0)
+						bail("failed to unshare cgroup namespace");
+				} else
+					bail("received unknown synchronisation value");
 			}
 
 			s = SYNC_CHILD_READY;
