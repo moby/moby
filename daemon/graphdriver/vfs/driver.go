@@ -4,14 +4,18 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/daemon/graphdriver/quota"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/parsers"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-units"
 	"github.com/opencontainers/selinux/go-selinux/label"
+	"github.com/pkg/errors"
 )
 
 func init() {
@@ -25,6 +29,27 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 		home:      home,
 		idMapping: idtools.NewIDMappingsFromMaps(uidMaps, gidMaps),
 	}
+
+	for _, option := range options {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil {
+			return nil, err
+		}
+		key = strings.ToLower(key)
+		switch key {
+		case "copy.concurrency":
+			d.copyConcurrency, err = strconv.Atoi(val)
+			if err != nil {
+				return nil, errors.Wrapf(err, "cannot parse copy.concurrency")
+			}
+			if d.copyConcurrency < 0 {
+				return nil, fmt.Errorf("copy concurrency '%d' is less than 0", d.copyConcurrency)
+			}
+		default:
+			return nil, fmt.Errorf("vfs: unknown option %s", key)
+		}
+	}
+
 	rootIDs := d.idMapping.RootPair()
 	if err := idtools.MkdirAllAndChown(home, 0700, rootIDs); err != nil {
 		return nil, err
@@ -41,8 +66,9 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 // Driver must be wrapped in NaiveDiffDriver to be used as a graphdriver.Driver
 type Driver struct {
 	driverQuota
-	home      string
-	idMapping *idtools.IdentityMapping
+	home            string
+	idMapping       *idtools.IdentityMapping
+	copyConcurrency int
 }
 
 func (d *Driver) String() string {
@@ -125,7 +151,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return dirCopy(parentDir.Path(), dir)
+	return dirCopy(parentDir.Path(), dir, d.copyConcurrency)
 }
 
 func (d *Driver) dir(id string) string {
