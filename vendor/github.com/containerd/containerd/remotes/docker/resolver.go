@@ -75,7 +75,7 @@ type ResolverOptions struct {
 
 	// Credentials provides username and secret given a host.
 	// If username is empty but a secret is given, that secret
-	// is interpretted as a long lived token.
+	// is interpreted as a long lived token.
 	// Deprecated: use Authorizer
 	Credentials func(string) (string, string, error)
 
