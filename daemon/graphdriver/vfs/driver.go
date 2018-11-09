@@ -14,11 +14,6 @@ import (
 	"github.com/opencontainers/selinux/go-selinux/label"
 )
 
-var (
-	// CopyDir defines the copy method to use.
-	CopyDir = dirCopy
-)
-
 func init() {
 	graphdriver.Register("vfs", Init)
 }
@@ -130,7 +125,7 @@ func (d *Driver) create(id, parent string, size uint64) error {
 	if err != nil {
 		return fmt.Errorf("%s: %s", parent, err)
 	}
-	return CopyDir(parentDir.Path(), dir)
+	return dirCopy(parentDir.Path(), dir)
 }
 
 func (d *Driver) dir(id string) string {
