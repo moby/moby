@@ -94,7 +94,7 @@ func NewProgressOutput(out io.Writer) progress.Output {
 	return &progressOutput{sf: &rawProgressFormatter{}, out: out, newLines: true}
 }
 
-// NewJSONProgressOutput returns a progress.Output that that formats output
+// NewJSONProgressOutput returns a progress.Output that formats output
 // using JSON objects
 func NewJSONProgressOutput(out io.Writer, newLines bool) progress.Output {
 	return &progressOutput{sf: &jsonProgressFormatter{}, out: out, newLines: newLines}

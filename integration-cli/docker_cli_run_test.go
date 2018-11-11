@@ -504,7 +504,7 @@ func (s *DockerSuite) TestVolumesFromGetsProperMode(c *check.C) {
 
 	dockerCmd(c, "run", "--name", "parent", "-v", hostpath+":"+prefix+slash+"test:ro", "busybox", "true")
 
-	// Expect this "rw" mode to be be ignored since the inherited volume is "ro"
+	// Expect this "rw" mode to be ignored since the inherited volume is "ro"
 	if _, _, err := dockerCmdWithError("run", "--volumes-from", "parent:rw", "busybox", "touch", prefix+slash+"test"+slash+"file"); err == nil {
 		c.Fatal("Expected volumes-from to inherit read-only volume even when passing in `rw`")
 	}
