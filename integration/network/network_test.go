@@ -56,7 +56,7 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 
 	result, err = container.Exec(ctx, client, id3, []string{"sh", "-c", nsCommand})
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(stdout.String(), result.Combined()), "The network namspace of container should be the same with host when --net=host and bridge network is disabled")
+	assert.Check(t, is.Equal(stdout.String(), result.Combined()), "The network namespace of container should be the same with host when --net=host and bridge network is disabled")
 }
 
 func TestNetworkInvalidJSON(t *testing.T) {
