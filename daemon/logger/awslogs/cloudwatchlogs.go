@@ -288,7 +288,7 @@ func newAWSLogsClient(info logger.Info) (api, error) {
 
 	sess, err := session.NewSession()
 	if err != nil {
-		return nil, errors.New("Failed to create a service client session for for awslogs driver")
+		return nil, errors.New("Failed to create a service client session for awslogs driver")
 	}
 
 	// attach region to cloudwatchlogs config

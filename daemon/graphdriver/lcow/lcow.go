@@ -751,7 +751,7 @@ func (d *Driver) Cleanup() error {
 
 	// Note we don't return an error below - it's possible the files
 	// are locked. However, next time around after the daemon exits,
-	// we likely will be able to to cleanup successfully. Instead we log
+	// we likely will be able to cleanup successfully. Instead we log
 	// warnings if there are errors.
 	for _, item := range items {
 		if item.IsDir() && strings.HasSuffix(item.Name(), "-removing") {

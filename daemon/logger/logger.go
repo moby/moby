@@ -103,7 +103,7 @@ type LogReader interface {
 type LogWatcher struct {
 	// For sending log messages to a reader.
 	Msg chan *Message
-	// For sending error messages that occur while while reading logs.
+	// For sending error messages that occur while reading logs.
 	Err          chan error
 	producerOnce sync.Once
 	producerGone chan struct{}
