@@ -60,7 +60,7 @@ func (s *VolumesService) GetDriverList() []string {
 // This reference ID will protect this volume from removal.
 //
 // A good example for a reference ID is a container's ID.
-// When whatever is going to reference this volume is removed the caller should defeference the volume by calling `Release`.
+// When whatever is going to reference this volume is removed the caller should dereference the volume by calling `Release`.
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error) {
 	if name == "" {
 		name = stringid.GenerateNonCryptoID()
