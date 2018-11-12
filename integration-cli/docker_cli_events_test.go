@@ -657,6 +657,10 @@ func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
+	// See block comment in docker_cli_restart_test.go explaining why this test
+	// is temporarily turned on on RS5 and later.
+	testRequires(c, NotWindowsRS5Plus)
+
 	dockerCmd(c, "run", "-d", "--name=testEvent", "--restart=on-failure:3", "busybox", "false")
 
 	// wait until test2 is auto removed.

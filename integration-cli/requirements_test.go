@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -17,6 +18,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/requirement"
 	"github.com/docker/docker/internal/test/registry"
+	"github.com/docker/docker/pkg/parsers/kernel"
 )
 
 func ArchitectureIsNot(arch string) bool {
@@ -67,6 +69,29 @@ func ExperimentalDaemon() bool {
 
 func IsAmd64() bool {
 	return os.Getenv("DOCKER_ENGINE_GOARCH") == "amd64"
+}
+
+// Certain tests here have testRequires(c, NotWindowsRS5Plus).
+//
+// This is being tracked internally by VSO#19599026, and externally
+// through https://github.com/moby/moby/issues/38114. @jhowardmsft.
+// As of 11/12/2018, there's no workaround except a reboot.
+//
+// Under certain circumstances, silos are not completely exiting
+// causing resources to remain locked exclusively in the kernel,
+// and can't be cleaned up. This is causing the RS5 CI servers to
+// fill up with disk space.
+//
+// Hopefully this can be removed in a future Windows Update.
+func NotWindowsRS5Plus() bool {
+	if runtime.GOOS == "windows" {
+		v, _ := kernel.GetKernelVersion()
+		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if build >= 17663 {
+			return false
+		}
+	}
+	return true
 }
 
 func NotArm() bool {

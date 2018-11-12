@@ -10,7 +10,23 @@ import (
 	"github.com/go-check/check"
 )
 
+// Certain tests here have testRequires(c, NotWindowsRS5Plus).
+//
+// This is being tracked internally by VSO#19599026, and externally
+// through https://github.com/moby/moby/issues/38114. @jhowardmsft.
+// As of 11/12/2018, there's no workaround except a reboot.
+//
+// Under certain circumstances, silos are not completely exiting
+// causing resources to remain locked exclusively in the kernel,
+// and can't be cleaned up. This is causing the RS5 CI servers to
+// fill up with disk space.
+//
+// The bug seems to occur when a container is stopped then re-started
+// almost immediately after, which is typical "restart" pattern.
+// Unforunately, that's almost all of the tests here.
+
 func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	dockerCmd(c, "run", "--name=test", "busybox", "echo", "foobar")
 	cleanedContainerID := getIDByName(c, "test")
 
@@ -28,6 +44,7 @@ func (s *DockerSuite) TestRestartStoppedContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	out, _ := dockerCmd(c, "run", "-d", "busybox", "sh", "-c", "echo foobar && sleep 30 && echo 'should not print this'")
 
 	cleanedContainerID := strings.TrimSpace(out)
@@ -51,6 +68,7 @@ func (s *DockerSuite) TestRestartRunningContainer(c *check.C) {
 
 // Test that restarting a container with a volume does not create a new volume on restart. Regression test for #819.
 func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	out := runSleepingContainer(c, "-d", "-v", prefix+slash+"test")
 
@@ -76,7 +94,7 @@ func (s *DockerSuite) TestRestartWithVolumes(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartDisconnectedContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace, NotArm)
+	testRequires(c, DaemonIsLinux, SameHostDaemon, NotUserNamespace, NotArm, NotWindowsRS5Plus)
 
 	// Run a container on the default bridge network
 	out, _ := dockerCmd(c, "run", "-d", "--name", "c0", "busybox", "top")
@@ -101,6 +119,7 @@ func (s *DockerSuite) TestRestartPolicyNO(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	out, _ := dockerCmd(c, "create", "--restart=always", "busybox")
 
 	id := strings.TrimSpace(string(out))
@@ -114,6 +133,7 @@ func (s *DockerSuite) TestRestartPolicyAlways(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyOnFailure(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	out, _, err := dockerCmdWithError("create", "--restart=on-failure:-1", "busybox")
 	c.Assert(err, check.NotNil, check.Commentf("%s", out))
 	c.Assert(out, checker.Contains, "maximum retry count cannot be negative")
@@ -164,7 +184,7 @@ func (s *DockerSuite) TestRestartContainerwithGoodContainer(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartContainerSuccess(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, NotWindowsRS5Plus)
 
 	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
@@ -234,7 +254,7 @@ func (s *DockerSuite) TestRestartWithPolicyUserDefinedNetwork(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, SameHostDaemon, NotWindowsRS5Plus)
 
 	out := runSleepingContainer(c, "-d", "--restart=always")
 	id := strings.TrimSpace(out)
@@ -264,6 +284,7 @@ func (s *DockerSuite) TestRestartPolicyAfterRestart(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	out1, _ := dockerCmd(c, "run", "-d", "--restart=on-failure:3", "busybox", "false")
 	out2, _ := dockerCmd(c, "run", "-d", "--restart=always", "busybox", "false")
 
@@ -295,6 +316,7 @@ func (s *DockerSuite) TestRestartContainerwithRestartPolicy(c *check.C) {
 }
 
 func (s *DockerSuite) TestRestartAutoRemoveContainer(c *check.C) {
+	testRequires(c, NotWindowsRS5Plus)
 	out := runSleepingContainer(c, "--rm")
 
 	id := strings.TrimSpace(string(out))
