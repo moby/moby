@@ -126,7 +126,7 @@ func GetService(tx ReadTx, id string) *api.Service {
 func FindServices(tx ReadTx, by By) ([]*api.Service, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix:
+		case byName, byNamePrefix, byIDPrefix, byRuntime, byReferencedNetworkID, byReferencedSecretID, byReferencedConfigID, byCustom, byCustomPrefix, byAll:
 			return nil
 		default:
 			return ErrInvalidFindBy
