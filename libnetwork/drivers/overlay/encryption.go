@@ -201,7 +201,7 @@ func removeEncryption(localIP, remoteIP net.IP, em *encrMap) error {
 
 func programMangle(vni uint32, add bool) (err error) {
 	var (
-		p      = strconv.FormatUint(uint64(overlayutils.GetVxlanUDPPort()), 10)
+		p      = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
 		c      = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
 		m      = strconv.FormatUint(uint64(r), 10)
 		chain  = "OUTPUT"
@@ -228,7 +228,7 @@ func programMangle(vni uint32, add bool) (err error) {
 
 func programInput(vni uint32, add bool) (err error) {
 	var (
-		port       = strconv.FormatUint(uint64(overlayutils.GetVxlanUDPPort()), 10)
+		port       = strconv.FormatUint(uint64(overlayutils.VXLANUDPPort()), 10)
 		vniMatch   = fmt.Sprintf("0>>22&0x3C@12&0xFFFFFF00=%d", int(vni)<<8)
 		plainVxlan = []string{"-p", "udp", "--dport", port, "-m", "u32", "--u32", vniMatch, "-j"}
 		ipsecVxlan = append([]string{"-m", "policy", "--dir", "in", "--pol", "ipsec"}, plainVxlan...)

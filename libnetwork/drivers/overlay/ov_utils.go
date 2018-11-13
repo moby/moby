@@ -62,7 +62,7 @@ func createVxlan(name string, vni uint32, mtu int) error {
 		LinkAttrs: netlink.LinkAttrs{Name: name, MTU: mtu},
 		VxlanId:   int(vni),
 		Learning:  true,
-		Port:      int(overlayutils.GetVxlanUDPPort()),
+		Port:      int(overlayutils.VXLANUDPPort()),
 		Proxy:     true,
 		L3miss:    true,
 		L2miss:    true,

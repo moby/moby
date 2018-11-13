@@ -11,17 +11,19 @@ var (
 	mutex        sync.Mutex
 )
 
+const defaultVXLANUDPPort = 4789
+
 func init() {
-	vxlanUDPPort = 4789
+	vxlanUDPPort = defaultVXLANUDPPort
 }
 
-// ConfigVxlanUDPPort configures vxlan udp port number.
-func ConfigVxlanUDPPort(vxlanPort uint32) error {
+// ConfigVXLANUDPPort configures vxlan udp port number.
+func ConfigVXLANUDPPort(vxlanPort uint32) error {
 	mutex.Lock()
 	defer mutex.Unlock()
 	// if the value comes as 0 by any reason we set it to default value 4789
 	if vxlanPort == 0 {
-		vxlanPort = 4789
+		vxlanPort = defaultVXLANUDPPort
 	}
 	// IANA procedures for each range in detail
 	// The Well Known Ports, aka the System Ports, from 0-1023
@@ -36,8 +38,8 @@ func ConfigVxlanUDPPort(vxlanPort uint32) error {
 	return nil
 }
 
-// GetVxlanUDPPort returns Vxlan UDP port number
-func GetVxlanUDPPort() uint32 {
+// VXLANUDPPort returns Vxlan UDP port number
+func VXLANUDPPort() uint32 {
 	mutex.Lock()
 	defer mutex.Unlock()
 	return vxlanUDPPort
