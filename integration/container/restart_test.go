@@ -15,6 +15,7 @@ import (
 
 func TestDaemonRestartKillContainers(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	type testCase struct {
 		desc       string
 		config     *container.Config

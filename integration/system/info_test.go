@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/skip"
 )
 
 func TestInfoAPI(t *testing.T) {
@@ -43,6 +44,7 @@ func TestInfoAPI(t *testing.T) {
 }
 
 func TestInfoAPIWarnings(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	d := daemon.New(t)
 
 	client, err := d.NewClient()

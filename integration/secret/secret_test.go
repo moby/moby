@@ -19,7 +19,7 @@ import (
 )
 
 func TestSecretInspect(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
@@ -42,7 +42,7 @@ func TestSecretInspect(t *testing.T) {
 }
 
 func TestSecretList(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
@@ -128,7 +128,7 @@ func createSecret(ctx context.Context, t *testing.T, client client.APIClient, na
 }
 
 func TestSecretsCreateAndDelete(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
@@ -175,7 +175,7 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 }
 
 func TestSecretsUpdate(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
@@ -226,6 +226,7 @@ func TestSecretsUpdate(t *testing.T) {
 }
 
 func TestTemplatedSecret(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
 	client := d.NewClientT(t)
