@@ -27,7 +27,7 @@ issue, please bring it to their attention right away!
 Please **DO NOT** file a public issue, instead send your report privately to
 [security@docker.com](mailto:security@docker.com).
 
-Security reports are greatly appreciated and we will publicly thank you for it.
+We greatly appreciate security reports and will publicly thank you for it.
 We also like to send gifts&mdash;if you're into schwag, make sure to let
 us know. We currently do not offer a paid security bounty program, but are not
 ruling it out in the future.
@@ -81,7 +81,7 @@ entirely new features. We really appreciate contributors who want to refactor or
 otherwise cleanup our project. For information on making these types of
 contributions, see [the advanced contribution
 section](https://docs.docker.com/opensource/workflow/advanced-contributing/) in
-the contributors guide.
+the contributor's guide.
 
 ### Connect with other Moby Project contributors
 
@@ -149,12 +149,12 @@ to all the issues that they address.
 
 ### Successful Changes
 
-Before contributing large or high impact changes, make the effort to coordinate
-with the maintainers of the project before submitting a pull request. This
-prevents you from doing extra work that may or may not be merged.
+Before contributing large or high impact changes through submitting a pull request, 
+make the effort to coordinate with the maintainers of the project. This prevents you 
+from doing extra work that may not be merged.
 
-Large PRs that are just submitted without any prior communication are unlikely
-to be successful.
+Large PRs that are submitted without any prior communication are unlikely
+to be accepted.
 
 While pull requests are the methodology for submitting changes to code, changes
 are much more likely to be accepted if they are accompanied by additional
@@ -163,8 +163,8 @@ are accomplished through communication of the design goals and subsequent
 solutions. Often times, it helps to first state the problem before presenting
 solutions.
 
-Typically, the best methods of accomplishing this are to submit an issue,
-stating the problem. This issue can include a problem statement and a
+Typically, submitting an issue which states the problem is the best method 
+to accomplish this. The issue can include a problem statement and a
 checklist with requirements. If solutions are proposed, alternatives should be
 listed and eliminated. Even if the criteria for elimination of a solution is
 frivolous, say so.
@@ -180,8 +180,8 @@ written in the imperative, followed by an optional, more detailed explanatory
 text which is separated from the summary by an empty line.
 
 Commit messages should follow best practices, including explaining the context
-of the problem and how it was solved, including in caveats or follow up changes
-required. They should tell the story of the change and provide readers
+of the problem and how it was solved, including in caveats or required follow up 
+changes. They should tell the story of the change and provide readers an
 understanding of what led to it.
 
 If you're lost about what this even means, please see [How to Write a Git
@@ -413,13 +413,13 @@ do need a fair way to deal with people who are making our community suck.
 ## Coding Style
 
 Unless explicitly stated, we follow all coding guidelines from the Go
-community. While some of these standards may seem arbitrary, they somehow seem
-to result in a solid, consistent codebase.
+community. While some of these standards may seem arbitrary, they 
+result in a solid, consistent codebase.
 
 It is possible that the code base does not currently comply with these
 guidelines. We are not looking for a massive PR that fixes this, since that
-goes against the spirit of the guidelines. All new contributions should make a
-best effort to clean up and make the code base better than they left it.
+goes against the spirit of the guidelines. Contributors should make the best 
+effort to clean up and make the code base better than how they found it.
 Obviously, apply your best judgement. Remember, the goal here is to make the
 code base easier for humans to navigate and understand. Always keep that in
 mind when nudging others to comply.
@@ -432,7 +432,7 @@ The rules:
 3. All code should follow the guidelines covered in [Effective
    Go](http://golang.org/doc/effective_go.html) and [Go Code Review
    Comments](https://github.com/golang/go/wiki/CodeReviewComments).
-4. Comment the code. Tell us the why, the history and the context.
+4. Comment the code. Tell us the reason, the history and the context.
 5. Document _all_ declarations and methods, even private ones. Declare
    expectations, caveats and anything else that may be important. If a type
    gets exported, having the comments already there will ensure it's ready.
