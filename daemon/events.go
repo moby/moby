@@ -230,7 +230,7 @@ func (daemon *Daemon) logNodeEvent(action swarmapi.WatchActionKind, node *swarma
 	daemon.logClusterEvent(action, node.ID, "node", attributes, eventTime)
 }
 
-func (daemon *Daemon) logTaskEvent(action swarmapi.WatchActionKind, task *swarmapi.Task, oldService *swarmapi.Task) {
+func (daemon *Daemon) logTaskEvent(action swarmapi.WatchActionKind, task *swarmapi.Task, oldTask *swarmapi.Task) {
 	attributes := map[string]string{
 		"service.id":   task.ServiceID,
 		"service.name": task.ServiceAnnotations.Name,
@@ -239,6 +239,16 @@ func (daemon *Daemon) logTaskEvent(action swarmapi.WatchActionKind, task *swarma
 		"desiredState": task.DesiredState.String(),
 	}
 	eventTime := eventTimestamp(task.Meta, action)
+
+	if action == swarmapi.WatchActionKindUpdate && oldTask != nil {
+		if task.Status.State.String() != oldTask.Status.State.String() {
+			attributes["state.old"] = oldTask.Status.State.String()
+		}
+
+		if task.DesiredState.String() != oldTask.DesiredState.String() {
+			attributes["desiredState.old"] = oldTask.Status.State.String()
+		}
+	}
 
 	daemon.logClusterEvent(action, task.ID, "task", attributes, eventTime)
 }
