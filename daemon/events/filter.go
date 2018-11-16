@@ -104,7 +104,8 @@ func (ef *Filter) matchConfig(ev events.Message) bool {
 
 func (ef *Filter) fuzzyMatchName(ev events.Message, eventType string) bool {
 	return ef.filter.FuzzyMatch(eventType, ev.Actor.ID) ||
-		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"])
+		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["name"]) ||
+		ef.filter.FuzzyMatch(eventType, ev.Actor.Attributes["service.name"])
 }
 
 // matchImage matches against both event.Actor.ID (for image events)
