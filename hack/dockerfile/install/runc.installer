@@ -1,6 +1,9 @@
 #!/bin/sh
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
+# The version of runc should match the version that is used by the containerd
+# version that is used. If you need to update runc, open a pull request in
+# the containerd project first, and update both after that is merged.
 RUNC_COMMIT=9f1e94488e5e478e084fef997f022565b64b01d9
 
 install_runc() {
