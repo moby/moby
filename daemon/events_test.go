@@ -1,13 +1,20 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
+	"strings"
 	"testing"
 	"time"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	eventtypes "github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/events"
+	"github.com/docker/docker/daemon/testutils"
+	swarmapi "github.com/docker/swarmkit/api"
+	"github.com/sirupsen/logrus"
+	"gotest.tools/assert"
 )
 
 func TestLogContainerEventCopyLabels(t *testing.T) {
@@ -87,4 +94,133 @@ func validateTestAttributes(t *testing.T, l chan interface{}, expectedAttributes
 	case <-time.After(10 * time.Second):
 		t.Fatal("LogEvent test timed out")
 	}
+}
+
+func TestGenerateEmptyClusterEventShouldLogError(t *testing.T) {
+	daemon := &Daemon{}
+
+	testutils.EnableLogHook()
+
+	events := []*swarmapi.WatchMessage_Event{}
+	events = append(events, &swarmapi.WatchMessage_Event{})
+
+	msg := &swarmapi.WatchMessage{
+		Events: events,
+	}
+
+	daemon.generateClusterEvent(msg)
+
+	entries := testutils.GetLogHookEntries()
+	assert.Equal(t, 1, len(entries))
+	assert.Equal(t, logrus.ErrorLevel, entries[0].Level)
+	assert.Equal(t, true, strings.HasPrefix(entries[0].Message, "event without object: "))
+
+	testutils.DisableLogHook()
+}
+
+func TestGenerateClusterEventAndPubSubForAllClusterEventTypes(t *testing.T) {
+	daemon := &Daemon{
+		EventsService: events.New(),
+	}
+
+	subscriber := NewEventSubscriber(daemon)
+	subscriber.subscribe()
+
+	events := []*swarmapi.WatchMessage_Event{}
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateTask{Task: &swarmapi.Task{ID: "my-task-id"}}))
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateNode{Node: &swarmapi.Node{ID: "my-node-id"}}))
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateConfig{Config: &swarmapi.Config{ID: "my-config-id"}}))
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateSecret{Secret: &swarmapi.Secret{ID: "my-secret-id"}}))
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateNetwork{Network: &swarmapi.Network{ID: "my-network-id"}}))
+	events = append(events, swarmapi.WatchMessageEvent(swarmapi.EventCreateService{Service: &swarmapi.Service{ID: "my-service-id"}}))
+
+	msg := &swarmapi.WatchMessage{
+		Events: events,
+	}
+
+	daemon.generateClusterEvent(msg)
+
+	subscriber.stopWhenCapturedEventsReaches(6)
+
+	captures := subscriber.getCapturedEvents()
+
+	for _, cap := range captures {
+		switch cap.Type {
+		case "task":
+			assert.Equal(t, cap.Actor.ID, "my-task-id")
+			break
+		case "node":
+			assert.Equal(t, cap.Actor.ID, "my-node-id")
+			break
+		case "config":
+			assert.Equal(t, cap.Actor.ID, "my-config-id")
+			break
+		case "secret":
+			assert.Equal(t, cap.Actor.ID, "my-secret-id")
+			break
+		case "network":
+			assert.Equal(t, cap.Actor.ID, "my-network-id")
+			break
+		case "service":
+			assert.Equal(t, cap.Actor.ID, "my-service-id")
+			break
+		}
+	}
+}
+
+type EventSubscriber struct {
+	daemon       *Daemon
+	messages     []eventtypes.Message
+	eventChannel chan interface{}
+	cancelFunc   func()
+	ctx          context.Context
+	captured     []eventtypes.Message
+	numCaptures  int
+}
+
+func NewEventSubscriber(daemon *Daemon) *EventSubscriber {
+	return &EventSubscriber{
+		daemon:   daemon,
+		captured: []eventtypes.Message{},
+	}
+}
+
+func (s *EventSubscriber) subscribe() {
+	s.messages, s.eventChannel = s.daemon.SubscribeToEvents(time.Now(), time.Now().AddDate(0, 0, 1), filters.NewArgs())
+	s.ctx, s.cancelFunc = context.WithCancel(context.Background())
+	go s.listenToChannel()
+}
+
+func (s *EventSubscriber) listenToChannel() {
+	for {
+		select {
+		case <-s.ctx.Done():
+			s.daemon.UnsubscribeFromEvents(s.eventChannel)
+			return
+		case e := <-s.eventChannel:
+			s.numCaptures++
+			if evt, ok := e.(eventtypes.Message); ok {
+				s.captured = append(s.captured, evt)
+			}
+		}
+	}
+}
+
+func (s *EventSubscriber) getCapturedEvents() []eventtypes.Message {
+	return s.captured
+}
+
+// blocking
+func (s *EventSubscriber) stopWhenCapturedEventsReaches(num int) {
+	for {
+		if s.numCaptures == num {
+			break
+		}
+	}
+
+	s.stop()
+}
+
+func (s *EventSubscriber) stop() {
+	s.cancelFunc()
 }
