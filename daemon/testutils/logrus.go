@@ -33,6 +33,7 @@ var _ logrus.Hook = (*logHook)(nil)
 
 var logHookInstance *logHook
 
+// EnableLogHook will enable the log hook and start collecting log messages
 func EnableLogHook() {
 	if logHookInstance == nil {
 		logHookInstance = &logHook{enabled: true}
@@ -42,6 +43,7 @@ func EnableLogHook() {
 	logHookInstance.clear()
 }
 
+// GetLogHookEntries will return the log messages collected by the log hook
 func GetLogHookEntries() []*logrus.Entry {
 	if logHookInstance == nil {
 		return nil
@@ -50,6 +52,7 @@ func GetLogHookEntries() []*logrus.Entry {
 	return logHookInstance.getEntries()
 }
 
+// DisableLogHook will disable the log hook and stop collecting log messages
 func DisableLogHook() {
 	if logHookInstance == nil {
 		return
