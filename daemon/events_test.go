@@ -148,22 +148,16 @@ func TestGenerateClusterEventAndPubSubForAllClusterEventTypes(t *testing.T) {
 		switch cap.Type {
 		case "task":
 			assert.Equal(t, cap.Actor.ID, "my-task-id")
-			break
 		case "node":
 			assert.Equal(t, cap.Actor.ID, "my-node-id")
-			break
 		case "config":
 			assert.Equal(t, cap.Actor.ID, "my-config-id")
-			break
 		case "secret":
 			assert.Equal(t, cap.Actor.ID, "my-secret-id")
-			break
 		case "network":
 			assert.Equal(t, cap.Actor.ID, "my-network-id")
-			break
 		case "service":
 			assert.Equal(t, cap.Actor.ID, "my-service-id")
-			break
 		}
 	}
 }
