@@ -540,11 +540,11 @@ func IoctlSetInt(fd int, req uint, value int) (err error) {
 	return ioctl(fd, req, uintptr(value))
 }
 
-func IoctlSetWinsize(fd int, req uint, value *Winsize) (err error) {
+func ioctlSetWinsize(fd int, req uint, value *Winsize) (err error) {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
-func IoctlSetTermios(fd int, req uint, value *Termios) (err error) {
+func ioctlSetTermios(fd int, req uint, value *Termios) (err error) {
 	return ioctl(fd, req, uintptr(unsafe.Pointer(value)))
 }
 
