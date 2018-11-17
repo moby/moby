@@ -20,7 +20,7 @@ func (h *logHook) Levels() []logrus.Level {
 }
 
 func (h *logHook) Fire(entry *logrus.Entry) error {
-	if h.enabled == false {
+	if !h.enabled {
 		return nil
 	}
 
