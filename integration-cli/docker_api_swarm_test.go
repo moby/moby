@@ -30,7 +30,7 @@ import (
 	is "gotest.tools/assert/cmp"
 )
 
-var defaultReconciliationTimeout = 30 * time.Second
+var defaultReconciliationTimeout = 35 * time.Second
 
 func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	// todo: should find a better way to verify that components are running than /info
