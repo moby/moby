@@ -7,7 +7,7 @@ import (
 // Getter is an interface to get the path to a layer on the host.
 type Getter interface {
 	// GetLayerPath gets the path for the layer. This is different from Get()
-	// since that returns an interface to account for umountable layers.
+	// since that returns an interface to account for unmountable layers.
 	GetLayerPath(id string) (string, error)
 }
 
