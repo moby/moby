@@ -2,6 +2,7 @@ package buildkit
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"strings"
@@ -32,7 +33,21 @@ import (
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
-var errMultipleFilterValues = errors.New("filters expect only one value")
+type errMultipleFilterValues struct{}
+
+func (errMultipleFilterValues) Error() string { return "filters expect only one value" }
+
+func (errMultipleFilterValues) InvalidParameter() {}
+
+type errConflictFilter struct {
+	a, b string
+}
+
+func (e errConflictFilter) Error() string {
+	return fmt.Sprintf("conflicting filters: %q and %q", e.a, e.b)
+}
+
+func (errConflictFilter) InvalidParameter() {}
 
 var cacheFields = map[string]bool{
 	"id":          true,
@@ -130,6 +145,7 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 
 	validFilters := make(map[string]bool, 1+len(cacheFields))
 	validFilters["unused-for"] = true
+	validFilters["until"] = true
 	for k, v := range cacheFields {
 		validFilters[k] = v
 	}
@@ -502,6 +518,7 @@ func toBuildkitExtraHosts(inp []string) (string, error) {
 	hosts := make([]string, 0, len(inp))
 	for _, h := range inp {
 		parts := strings.Split(h, ":")
+
 		if len(parts) != 2 || parts[0] == "" || net.ParseIP(parts[1]) == nil {
 			return "", errors.Errorf("invalid host %s", h)
 		}
@@ -511,21 +528,30 @@ func toBuildkitExtraHosts(inp []string) (string, error) {
 }
 
 func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, error) {
-	var unusedFor time.Duration
-	unusedForValues := opts.Filters.Get("unused-for")
+	var until time.Duration
+	untilValues := opts.Filters.Get("until")          // canonical
+	unusedForValues := opts.Filters.Get("unused-for") // deprecated synonym for "until" filter
 
-	switch len(unusedForValues) {
+	if len(untilValues) > 0 && len(unusedForValues) > 0 {
+		return client.PruneInfo{}, errConflictFilter{"until", "unused-for"}
+	}
+	filterKey := "until"
+	if len(unusedForValues) > 0 {
+		filterKey = "unused-for"
+	}
+	untilValues = append(untilValues, unusedForValues...)
+
+	switch len(untilValues) {
 	case 0:
-
+		// nothing to do
 	case 1:
 		var err error
-		unusedFor, err = time.ParseDuration(unusedForValues[0])
+		until, err = time.ParseDuration(untilValues[0])
 		if err != nil {
-			return client.PruneInfo{}, errors.Wrap(err, "unused-for filter expects a duration (e.g., '24h')")
+			return client.PruneInfo{}, errors.Wrapf(err, "%q filter expects a duration (e.g., '24h')", filterKey)
 		}
-
 	default:
-		return client.PruneInfo{}, errMultipleFilterValues
+		return client.PruneInfo{}, errMultipleFilterValues{}
 	}
 
 	bkFilter := make([]string, 0, opts.Filters.Len())
@@ -542,13 +568,13 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 					bkFilter = append(bkFilter, cacheField+"=="+values[0])
 				}
 			default:
-				return client.PruneInfo{}, errMultipleFilterValues
+				return client.PruneInfo{}, errMultipleFilterValues{}
 			}
 		}
 	}
 	return client.PruneInfo{
 		All:          opts.All,
-		KeepDuration: unusedFor,
+		KeepDuration: until,
 		KeepBytes:    opts.KeepStorage,
 		Filter:       []string{strings.Join(bkFilter, ",")},
 	}, nil
