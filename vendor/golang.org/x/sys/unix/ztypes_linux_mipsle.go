@@ -279,6 +279,14 @@ type RawSockaddrVM struct {
 	Zero      [4]uint8
 }
 
+type RawSockaddrXDP struct {
+	Family         uint16
+	Flags          uint16
+	Ifindex        uint32
+	Queue_id       uint32
+	Shared_umem_fd uint32
+}
+
 type RawSockaddr struct {
 	Family uint16
 	Data   [14]int8
@@ -413,6 +421,7 @@ const (
 	SizeofSockaddrCAN       = 0x10
 	SizeofSockaddrALG       = 0x58
 	SizeofSockaddrVM        = 0x10
+	SizeofSockaddrXDP       = 0x10
 	SizeofLinger            = 0x8
 	SizeofIovec             = 0x8
 	SizeofIPMreq            = 0x8
@@ -442,6 +451,7 @@ const (
 	IFLA_ADDRESS         = 0x1
 	IFLA_BROADCAST       = 0x2
 	IFLA_IFNAME          = 0x3
+	IFLA_INFO_KIND       = 0x1
 	IFLA_MTU             = 0x4
 	IFLA_LINK            = 0x5
 	IFLA_QDISC           = 0x6
@@ -510,6 +520,20 @@ const (
 	RTA_FLOW             = 0xb
 	RTA_CACHEINFO        = 0xc
 	RTA_TABLE            = 0xf
+	RTA_MARK             = 0x10
+	RTA_MFC_STATS        = 0x11
+	RTA_VIA              = 0x12
+	RTA_NEWDST           = 0x13
+	RTA_PREF             = 0x14
+	RTA_ENCAP_TYPE       = 0x15
+	RTA_ENCAP            = 0x16
+	RTA_EXPIRES          = 0x17
+	RTA_PAD              = 0x18
+	RTA_UID              = 0x19
+	RTA_TTL_PROPAGATE    = 0x1a
+	RTA_IP_PROTO         = 0x1b
+	RTA_SPORT            = 0x1c
+	RTA_DPORT            = 0x1d
 	RTN_UNSPEC           = 0x0
 	RTN_UNICAST          = 0x1
 	RTN_LOCAL            = 0x2
@@ -1845,4 +1869,66 @@ type RTCPLLInfo struct {
 	Posmult int32
 	Negmult int32
 	Clock   int32
+}
+
+type BlkpgIoctlArg struct {
+	Op      int32
+	Flags   int32
+	Datalen int32
+	Data    *byte
+}
+
+type BlkpgPartition struct {
+	Start   int64
+	Length  int64
+	Pno     int32
+	Devname [64]uint8
+	Volname [64]uint8
+	_       [4]byte
+}
+
+const (
+	BLKPG                  = 0x20001269
+	BLKPG_ADD_PARTITION    = 0x1
+	BLKPG_DEL_PARTITION    = 0x2
+	BLKPG_RESIZE_PARTITION = 0x3
+)
+
+const (
+	NETNSA_NONE = 0x0
+	NETNSA_NSID = 0x1
+	NETNSA_PID  = 0x2
+	NETNSA_FD   = 0x3
+)
+
+type XDPRingOffset struct {
+	Producer uint64
+	Consumer uint64
+	Desc     uint64
+}
+
+type XDPMmapOffsets struct {
+	Rx XDPRingOffset
+	Tx XDPRingOffset
+	Fr XDPRingOffset
+	Cr XDPRingOffset
+}
+
+type XDPUmemReg struct {
+	Addr     uint64
+	Len      uint64
+	Size     uint32
+	Headroom uint32
+}
+
+type XDPStatistics struct {
+	Rx_dropped       uint64
+	Rx_invalid_descs uint64
+	Tx_invalid_descs uint64
+}
+
+type XDPDesc struct {
+	Addr    uint64
+	Len     uint32
+	Options uint32
 }
