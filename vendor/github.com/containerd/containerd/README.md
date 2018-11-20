@@ -224,8 +224,7 @@ This will be the best place to discuss design and implementation.
 
 For sync communication we have a community slack with a #containerd channel that everyone is welcome to join and chat about development.
 
-**Slack:** Catch us in the #containerd and #containerd-dev channels on dockercommunity.slack.com.
-[Click here for an invite to docker community slack.](https://join.slack.com/t/dockercommunity/shared_invite/enQtNDY4MDc1Mzc0MzIwLTgxZDBlMmM4ZGEyNDc1N2FkMzlhODJkYmE1YTVkYjM1MDE3ZjAwZjBkOGFlOTJkZjRmZGYzNjYyY2M3ZTUxYzQ)
+**Slack:** https://join.slack.com/t/dockercommunity/shared_invite/enQtNDM4NjAwNDMyOTUwLWZlMDZmYWRjZjk4Zjc5ZGQ5NWZkOWI1Yjk2NGE3ZWVlYjYxM2VhYjczOWIyZDFhZTE3NTUwZWQzMjhmNGYyZTg
 
 ### Reporting security issues
 
@@ -250,8 +249,3 @@ Please find all these core project documents, including the:
  * and [Contributing guidelines](https://github.com/containerd/project/blob/master/CONTRIBUTING.md)
 
 information in our [`containerd/project`](https://github.com/containerd/project) repository.
-
-## Adoption
-
-Interested to see who is using containerd? Are you using containerd in a project?
-Please add yourself via pull request to our [ADOPTERS.md](./ADOPTERS.md) file.
