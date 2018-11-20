@@ -88,7 +88,10 @@ func (is *imageSource) getResolver(ctx context.Context, rfn resolver.ResolveOpti
 func (is *imageSource) getCredentialsFromSession(ctx context.Context) func(string) (string, string, error) {
 	id := session.FromContext(ctx)
 	if id == "" {
-		return nil
+		// can be removed after containerd/containerd#2812
+		return func(string) (string, string, error) {
+			return "", "", nil
+		}
 	}
 	return func(host string) (string, string, error) {
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
