@@ -3,18 +3,18 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"context"
 	"fmt"
+	"path"
+	"path/filepath"
 	"runtime"
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
-	volumemounts "github.com/docker/docker/volume/mounts"
 	volumeopts "github.com/docker/docker/volume/service/opts"
 )
 
 // createContainerOSSpecificSettings performs host-OS specific container create functionality
 func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Container, config *containertypes.Config, hostConfig *containertypes.HostConfig) error {
-
 	if container.OS == runtime.GOOS {
 		// Make sure the host config has the default daemon isolation if not specified by caller.
 		if containertypes.Isolation.IsDefault(containertypes.Isolation(hostConfig.Isolation)) {
@@ -28,66 +28,76 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 		}
 		hostConfig.Isolation = "hyperv"
 	}
-	parser := volumemounts.NewParser(container.OS)
+
 	for spec := range config.Volumes {
-
-		mp, err := parser.ParseMountRaw(spec, hostConfig.VolumeDriver)
-		if err != nil {
-			return fmt.Errorf("Unrecognised volume spec: %v", err)
-		}
-
-		// If the mountpoint doesn't have a name, generate one.
-		if len(mp.Name) == 0 {
-			mp.Name = stringid.GenerateNonCryptoID()
+		var destination string
+		if container.OS == runtime.GOOS {
+			// We do a filepath.FromSlash here to not break "legacy" Windows
+			// dockerfiles use Unix-style paths such as "VOLUME c:/somevolume".
+			// If we don't do this, HCS will balk.
+			destination = filepath.Clean(filepath.FromSlash(spec))
+		} else {
+			destination = path.Clean(spec)
 		}
 
 		// Skip volumes for which we already have something mounted on that
 		// destination because of a --volume-from.
-		if container.IsDestinationMounted(mp.Destination) {
+		if container.IsDestinationMounted(destination) {
 			continue
 		}
 
-		volumeDriver := hostConfig.VolumeDriver
-
-		// Create the volume in the volume driver. If it doesn't exist,
-		// a new one will be created.
-		v, err := daemon.volumes.Create(context.TODO(), mp.Name, volumeDriver, volumeopts.WithCreateReference(container.ID))
+		// Create the volume in the volume driver.
+		v, err := daemon.volumes.Create(
+			context.TODO(),
+			stringid.GenerateNonCryptoID(),
+			hostConfig.VolumeDriver,
+			volumeopts.WithCreateReference(container.ID))
 		if err != nil {
 			return err
 		}
 
-		// FIXME Windows: This code block is present in the Linux version and
-		// allows the contents to be copied to the container FS prior to it
-		// being started. However, the function utilizes the FollowSymLinkInScope
-		// path which does not cope with Windows volume-style file paths. There
-		// is a separate effort to resolve this (@swernli), so this processing
-		// is deferred for now. A case where this would be useful is when
-		// a dockerfile includes a VOLUME statement, but something is created
-		// in that directory during the dockerfile processing. What this means
-		// on Windows for TP5 is that in that scenario, the contents will not
-		// copied, but that's (somewhat) OK as HCS will bomb out soon after
-		// at it doesn't support mapped directories which have contents in the
-		// destination path anyway.
-		//
-		// Example for repro later:
-		//   FROM windowsservercore
-		//   RUN mkdir c:\myvol
-		//   RUN copy c:\windows\system32\ntdll.dll c:\myvol
-		//   VOLUME "c:\myvol"
-		//
-		// Then
-		//   docker build -t vol .
-		//   docker run -it --rm vol cmd  <-- This is where HCS will error out.
-		//
-		//	// never attempt to copy existing content in a container FS to a shared volume
-		//	if v.DriverName() == volume.DefaultDriverName {
-		//		if err := container.CopyImagePathContent(v, mp.Destination); err != nil {
-		//			return err
-		//		}
-		//	}
-
-		// Add it to container.MountPoints
-		container.AddMountPointWithVolume(mp.Destination, &volumeWrapper{v: v, s: daemon.volumes}, mp.RW)
+		// Add it to container.MountPoints. Note that the last parameter is true - as in read-write
+		container.AddMountPointWithVolume(destination, &volumeWrapper{v: v, s: daemon.volumes}, true)
 	}
+
+	// NOTE: On Linux, this function returns daemon.populateVolumes(container).
+	// This allows the contents of a volume to be copied to the containers
+	// filesystem prior to it be in started.
+	//
+	// There are many issues with solving this problem, and the reality is
+	// that it will likely be one thing that can't be done on Windows.
+	//
+	// FollowSymLinkInScope doesn't cope with Windows volume-style file paths.
+	// To avoid break outs we need to do scoped access. This is surmountable.
+	//
+	// Argons might be possible, but at this execution point on Windows,
+	// the container filesystem isn't mounted as it's done much later than
+	// on Linux.
+	//
+	// Xenons (both WCOW and LCOW) are difficult as we don't want to mount
+	// the filesystem on the host, for both security and perf reasons.
+	// Further, obviously the LCOW filesystem can't be mounted on the host
+	// directly.
+	//
+	// What this means is that on Windows, the contents of a VOLUME created
+	// in a Dockerfile with contents will NOT be copied.
+	//
+	// Pre ~RS3 had limitations in mapped directories which preclude actually
+	// doing this in the platform anyway.
+	//
+	// Example for repro later:
+	//   FROM windowsservercore
+	//   RUN mkdir c:\myvol
+	//   RUN copy c:\windows\system32\ntdll.dll c:\myvol
+	//   VOLUME "c:\myvol"
+	//
+	// Then
+	//   docker build -t vol .
+	//   docker run -it --rm vol cmd
+	//
+	// Result
+	//   RS1 to ~RS3 HCS would error out
+	//   RS4+ Succeeds, container starts, but c:\source will be empty
+
 	return nil
 }
