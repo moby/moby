@@ -146,6 +146,8 @@ func (b *Builder) Prune(ctx context.Context, opts types.BuildCachePruneOptions) 
 	validFilters := make(map[string]bool, 1+len(cacheFields))
 	validFilters["unused-for"] = true
 	validFilters["until"] = true
+	validFilters["label"] = true  // TODO(tiborvass): handle label
+	validFilters["label!"] = true // TODO(tiborvass): handle label!
 	for k, v := range cacheFields {
 		validFilters[k] = v
 	}
