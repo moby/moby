@@ -1,5 +1,5 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
-
+dingwei
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
