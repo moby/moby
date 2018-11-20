@@ -17,7 +17,7 @@ import (
 )
 
 const (
-	cgroupNamePrefix = "name="
+	CgroupNamePrefix = "name="
 	CgroupProcesses  = "cgroup.procs"
 )
 
@@ -156,8 +156,8 @@ func getCgroupMountsHelper(ss map[string]bool, mi io.Reader, all bool) ([]Mount,
 				continue
 			}
 			ss[opt] = true
-			if strings.HasPrefix(opt, cgroupNamePrefix) {
-				opt = opt[len(cgroupNamePrefix):]
+			if strings.HasPrefix(opt, CgroupNamePrefix) {
+				opt = opt[len(CgroupNamePrefix):]
 			}
 			m.Subsystems = append(m.Subsystems, opt)
 			numFound++
@@ -343,7 +343,7 @@ func getControllerPath(subsystem string, cgroups map[string]string) (string, err
 		return p, nil
 	}
 
-	if p, ok := cgroups[cgroupNamePrefix+subsystem]; ok {
+	if p, ok := cgroups[CgroupNamePrefix+subsystem]; ok {
 		return p, nil
 	}
 

@@ -25,6 +25,14 @@ import (
 	"github.com/pkg/errors"
 )
 
+type execState interface {
+	Resize(console.WinSize) error
+	Start(context.Context) error
+	Delete(context.Context) error
+	Kill(context.Context, uint32, bool) error
+	SetExited(int)
+}
+
 type execCreatedState struct {
 	p *execProcess
 }
@@ -32,11 +40,11 @@ type execCreatedState struct {
 func (s *execCreatedState) transition(name string) error {
 	switch name {
 	case "running":
-		s.p.State = &execRunningState{p: s.p}
+		s.p.execState = &execRunningState{p: s.p}
 	case "stopped":
-		s.p.State = &execStoppedState{p: s.p}
+		s.p.execState = &execStoppedState{p: s.p}
 	case "deleted":
-		s.p.State = &deletedState{}
+		s.p.execState = &deletedState{}
 	default:
 		return errors.Errorf("invalid state transition %q to %q", stateName(s), name)
 	}
@@ -44,15 +52,10 @@ func (s *execCreatedState) transition(name string) error {
 }
 
 func (s *execCreatedState) Resize(ws console.WinSize) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return s.p.resize(ws)
 }
 
 func (s *execCreatedState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
 	if err := s.p.start(ctx); err != nil {
 		return err
 	}
@@ -63,22 +66,15 @@ func (s *execCreatedState) Delete(ctx context.Context) error {
 	if err := s.p.delete(ctx); err != nil {
 		return err
 	}
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
+
 	return s.transition("deleted")
 }
 
 func (s *execCreatedState) Kill(ctx context.Context, sig uint32, all bool) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return s.p.kill(ctx, sig, all)
 }
 
 func (s *execCreatedState) SetExited(status int) {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	s.p.setExited(status)
 
 	if err := s.transition("stopped"); err != nil {
@@ -93,7 +89,7 @@ type execRunningState struct {
 func (s *execRunningState) transition(name string) error {
 	switch name {
 	case "stopped":
-		s.p.State = &execStoppedState{p: s.p}
+		s.p.execState = &execStoppedState{p: s.p}
 	default:
 		return errors.Errorf("invalid state transition %q to %q", stateName(s), name)
 	}
@@ -101,37 +97,22 @@ func (s *execRunningState) transition(name string) error {
 }
 
 func (s *execRunningState) Resize(ws console.WinSize) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return s.p.resize(ws)
 }
 
 func (s *execRunningState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return errors.Errorf("cannot start a running process")
 }
 
 func (s *execRunningState) Delete(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return errors.Errorf("cannot delete a running process")
 }
 
 func (s *execRunningState) Kill(ctx context.Context, sig uint32, all bool) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return s.p.kill(ctx, sig, all)
 }
 
 func (s *execRunningState) SetExited(status int) {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	s.p.setExited(status)
 
 	if err := s.transition("stopped"); err != nil {
@@ -146,7 +127,7 @@ type execStoppedState struct {
 func (s *execStoppedState) transition(name string) error {
 	switch name {
 	case "deleted":
-		s.p.State = &deletedState{}
+		s.p.execState = &deletedState{}
 	default:
 		return errors.Errorf("invalid state transition %q to %q", stateName(s), name)
 	}
@@ -154,16 +135,10 @@ func (s *execStoppedState) transition(name string) error {
 }
 
 func (s *execStoppedState) Resize(ws console.WinSize) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return errors.Errorf("cannot resize a stopped container")
 }
 
 func (s *execStoppedState) Start(ctx context.Context) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return errors.Errorf("cannot start a stopped process")
 }
 
@@ -171,15 +146,11 @@ func (s *execStoppedState) Delete(ctx context.Context) error {
 	if err := s.p.delete(ctx); err != nil {
 		return err
 	}
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
+
 	return s.transition("deleted")
 }
 
 func (s *execStoppedState) Kill(ctx context.Context, sig uint32, all bool) error {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-
 	return s.p.kill(ctx, sig, all)
 }
 
