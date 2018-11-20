@@ -356,6 +356,9 @@ func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
 
 // KillAll processes belonging to the init process
 func (p *Init) KillAll(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	err := p.runtime.Kill(ctx, p.id, int(syscall.SIGKILL), &runc.KillOpts{
 		All: true,
 	})
