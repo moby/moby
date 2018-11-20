@@ -261,7 +261,7 @@ func (ep *hnsEndpoint) UnmarshalJSON(b []byte) error {
 	}
 	if v, ok := epMap["Addr"]; ok {
 		if ep.addr, err = types.ParseCIDR(v.(string)); err != nil {
-			return types.InternalErrorf("failed to decode endpoint IPv4 address (%s) after json unmarshal: %v", v.(string), err)
+			logrus.Warnf("failed to decode endpoint IPv4 address (%s) after json unmarshal: %v", v.(string), err)
 		}
 	}
 	if v, ok := epMap["gateway"]; ok {

@@ -186,12 +186,19 @@ type Config struct {
 	// callers keyring in this case.
 	NoNewKeyring bool `json:"no_new_keyring"`
 
-	// Rootless specifies whether the container is a rootless container.
-	Rootless bool `json:"rootless"`
-
-	// IntelRdt specifies settings for Intel RDT/CAT group that the container is placed into
-	// to limit the resources (e.g., L3 cache) the container has available
+	// IntelRdt specifies settings for Intel RDT group that the container is placed into
+	// to limit the resources (e.g., L3 cache, memory bandwidth) the container has available
 	IntelRdt *IntelRdt `json:"intel_rdt,omitempty"`
+
+	// RootlessEUID is set when the runc was launched with non-zero EUID.
+	// Note that RootlessEUID is set to false when launched with EUID=0 in userns.
+	// When RootlessEUID is set, runc creates a new userns for the container.
+	// (config.json needs to contain userns settings)
+	RootlessEUID bool `json:"rootless_euid,omitempty"`
+
+	// RootlessCgroups is set when unlikely to have the full access to cgroups.
+	// When RootlessCgroups is set, cgroups errors are ignored.
+	RootlessCgroups bool `json:"rootless_cgroups,omitempty"`
 }
 
 type Hooks struct {

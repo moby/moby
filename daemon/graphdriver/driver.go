@@ -195,6 +195,7 @@ type Options struct {
 func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, error) {
 	if name != "" {
 		logrus.Debugf("[graphdriver] trying provided driver: %s", name) // so the logs show specified driver
+		logDeprecatedWarning(name)
 		return GetDriver(name, pg, config)
 	}
 
@@ -232,6 +233,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 
 			logrus.Infof("[graphdriver] using prior storage driver: %s", name)
+			logDeprecatedWarning(name)
 			return driver, nil
 		}
 	}
@@ -245,11 +247,17 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 			return nil, err
 		}
+		logDeprecatedWarning(name)
 		return driver, nil
 	}
 
 	// Check all registered drivers if no priority driver is found
 	for name, initFunc := range drivers {
+		if isDeprecated(name) {
+			// Deprecated storage-drivers are skipped in automatic selection, but
+			// can be selected through configuration.
+			continue
+		}
 		driver, err := initFunc(filepath.Join(config.Root, name), config.DriverOptions, config.UIDMaps, config.GIDMaps)
 		if err != nil {
 			if IsDriverNotSupported(err) {
@@ -257,6 +265,7 @@ func New(name string, pg plugingetter.PluginGetter, config Options) (Driver, err
 			}
 			return nil, err
 		}
+		logDeprecatedWarning(name)
 		return driver, nil
 	}
 	return nil, fmt.Errorf("No supported storage backend found")
@@ -304,4 +313,21 @@ func isEmptyDir(name string) bool {
 		return true
 	}
 	return false
+}
+
+// isDeprecated checks if a storage-driver is marked "deprecated"
+func isDeprecated(name string) bool {
+	switch name {
+	// NOTE: when deprecating a driver, update daemon.fillDriverInfo() accordingly
+	case "aufs", "devicemapper", "overlay":
+		return true
+	}
+	return false
+}
+
+// logDeprecatedWarning logs a warning if the given storage-driver is marked "deprecated"
+func logDeprecatedWarning(name string) {
+	if isDeprecated(name) {
+		logrus.Warnf("[graphdriver] WARNING: the %s storage-driver is deprecated, and will be removed in a future release", name)
+	}
 }

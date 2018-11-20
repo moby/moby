@@ -35,7 +35,7 @@ const (
 	localNameContext = "context"
 	historyComment   = "buildkit.dockerfile.v0"
 
-	DefaultCopyImage = "tonistiigi/copy:v0.1.5@sha256:eab89b76ffbb3c807663a67a41e8be31b8a0e362d7fb074a55bddace563a28bb"
+	DefaultCopyImage = "tonistiigi/copy:v0.1.7@sha256:9aab7d9ab369c6daf4831bf0653f7592110ab4b7e8a33fee2b9dca546e9d3089"
 )
 
 type ConvertOpt struct {
@@ -212,7 +212,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 				eg.Go(func() error {
 					ref, err := reference.ParseNormalizedNamed(d.stage.BaseName)
 					if err != nil {
-						return err
+						return errors.Wrapf(err, "failed to parse stage name %q", d.stage.BaseName)
 					}
 					platform := d.platform
 					if platform == nil {
@@ -653,7 +653,7 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 	img := llb.Image(opt.copyImage, llb.MarkImageInternal, llb.Platform(opt.buildPlatforms[0]), WithInternalName("helper image for file operations"))
 
 	dest := path.Join(".", pathRelativeToWorkingDir(d.state, c.Dest()))
-	if c.Dest() == "." || c.Dest()[len(c.Dest())-1] == filepath.Separator {
+	if c.Dest() == "." || c.Dest() == "" || c.Dest()[len(c.Dest())-1] == filepath.Separator {
 		dest += string(filepath.Separator)
 	}
 	args := []string{"copy"}

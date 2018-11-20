@@ -3,11 +3,11 @@
 package transport
 
 import (
+	"context"
+	"math"
 	"net"
 	"sync"
 	"time"
-
-	"golang.org/x/net/context"
 
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"google.golang.org/grpc"
@@ -354,6 +354,15 @@ func (t *Transport) dial(addr string) (*grpc.ClientConn, error) {
 		grpc.WithDialer(func(addr string, timeout time.Duration) (net.Conn, error) {
 			return net.DialTimeout("tcp", addr, timeout)
 		}))
+
+	// TODO(dperny): this changes the max received message size for outgoing
+	// client connections. this means if the server sends a message larger than
+	// this, we will still accept and unmarshal it. i'm unsure what the
+	// potential consequences are of setting this to be effectively unbounded,
+	// so after docker/swarmkit#2774 is fixed, we should remove this option
+	grpcOptions = append(grpcOptions, grpc.WithDefaultCallOptions(
+		grpc.MaxCallRecvMsgSize(math.MaxInt32),
+	))
 
 	cc, err := grpc.Dial(addr, grpcOptions...)
 	if err != nil {

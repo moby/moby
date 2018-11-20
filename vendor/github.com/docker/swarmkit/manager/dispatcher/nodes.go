@@ -156,7 +156,7 @@ func (s *nodeStore) Heartbeat(id, sid string) (time.Duration, error) {
 		return 0, err
 	}
 	period := s.periodChooser.Choose() // base period for node
-	grace := period * time.Duration(s.gracePeriodMultiplierNormal)
+	grace := period * s.gracePeriodMultiplierNormal
 	rn.mu.Lock()
 	rn.Heartbeat.Update(grace)
 	rn.Heartbeat.Beat()

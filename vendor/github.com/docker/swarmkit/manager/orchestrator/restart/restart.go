@@ -2,6 +2,7 @@ package restart
 
 import (
 	"container/list"
+	"context"
 	"errors"
 	"sync"
 	"time"
@@ -14,7 +15,6 @@ import (
 	"github.com/docker/swarmkit/manager/state"
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
-	"golang.org/x/net/context"
 )
 
 const defaultOldTaskTimeout = time.Minute

@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509/pkix"
 	"strings"
@@ -9,7 +10,6 @@ import (
 
 	"github.com/docker/swarmkit/api"
 	"github.com/docker/swarmkit/log"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/peer"

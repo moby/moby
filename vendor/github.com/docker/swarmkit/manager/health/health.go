@@ -8,10 +8,10 @@
 package health
 
 import (
+	"context"
 	"sync"
 
 	"github.com/docker/swarmkit/api"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

@@ -23,6 +23,8 @@ var (
 type profileData struct {
 	// Name is profile name.
 	Name string
+	// DaemonProfile is the profile name of our daemon.
+	DaemonProfile string
 	// Imports defines the apparmor functions to import, before defining the profile.
 	Imports []string
 	// InnerImports defines the apparmor functions to import in the profile.
@@ -69,6 +71,25 @@ func InstallDefault(name string) error {
 	p := profileData{
 		Name: name,
 	}
+
+	// Figure out the daemon profile.
+	currentProfile, err := ioutil.ReadFile("/proc/self/attr/current")
+	if err != nil {
+		// If we couldn't get the daemon profile, assume we are running
+		// unconfined which is generally the default.
+		currentProfile = nil
+	}
+	daemonProfile := string(currentProfile)
+	// Normally profiles are suffixed by " (enforcing)" or similar. AppArmor
+	// profiles cannot contain spaces so this doesn't restrict daemon profile
+	// names.
+	if parts := strings.SplitN(daemonProfile, " ", 2); len(parts) >= 1 {
+		daemonProfile = parts[0]
+	}
+	if daemonProfile == "" {
+		daemonProfile = "unconfined"
+	}
+	p.DaemonProfile = daemonProfile
 
 	// Install to a temporary directory.
 	f, err := ioutil.TempFile("", name)

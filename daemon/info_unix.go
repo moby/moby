@@ -112,9 +112,6 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 }
 
 func fillDriverWarnings(v *types.Info) {
-	if v.DriverStatus == nil {
-		return
-	}
 	for _, pair := range v.DriverStatus {
 		if pair[0] == "Data loop file" {
 			msg := fmt.Sprintf("WARNING: %s: usage of loopback devices is "+
@@ -140,9 +137,6 @@ func fillDriverWarnings(v *types.Info) {
 }
 
 func getBackingFs(v *types.Info) string {
-	if v.DriverStatus == nil {
-		return ""
-	}
 	for _, pair := range v.DriverStatus {
 		if pair[0] == "Backing Filesystem" {
 			return pair[1]

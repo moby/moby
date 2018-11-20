@@ -15,6 +15,7 @@ var (
 		&ConstraintFilter{},
 		&PlatformFilter{},
 		&HostPortFilter{},
+		&MaxReplicasFilter{},
 	}
 )
 

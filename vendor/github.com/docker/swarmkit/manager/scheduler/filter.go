@@ -359,3 +359,28 @@ func (f *HostPortFilter) Explain(nodes int) string {
 	}
 	return fmt.Sprintf("host-mode port already in use on %d nodes", nodes)
 }
+
+// MaxReplicasFilter selects only nodes that does not exceed max replicas per node.
+type MaxReplicasFilter struct {
+	t *api.Task
+}
+
+// SetTask returns true when max replicas per node filter > 0 for a given task.
+func (f *MaxReplicasFilter) SetTask(t *api.Task) bool {
+	if t.Spec.Placement != nil && t.Spec.Placement.MaxReplicas > 0 {
+		f.t = t
+		return true
+	}
+
+	return false
+}
+
+// Check returns true if there is less active (assigned or pre-assigned) tasks for this service on current node than set to MaxReplicas limit
+func (f *MaxReplicasFilter) Check(n *NodeInfo) bool {
+	return uint64(n.ActiveTasksCountByService[f.t.ServiceID]) < f.t.Spec.Placement.MaxReplicas
+}
+
+// Explain returns an explanation of a failure.
+func (f *MaxReplicasFilter) Explain(nodes int) string {
+	return "max replicas per node limit exceed"
+}

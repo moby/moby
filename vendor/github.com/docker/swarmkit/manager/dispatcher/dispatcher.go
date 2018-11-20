@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"context"
 	"fmt"
 	"net"
 	"strconv"
@@ -21,7 +22,6 @@ import (
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -1090,14 +1090,10 @@ func (d *Dispatcher) moveTasksToOrphaned(nodeID string) error {
 				task.Status.State = api.TaskStateOrphaned
 			}
 
-			if err := batch.Update(func(tx store.Tx) error {
-				err := store.UpdateTask(tx, task)
-				if err != nil {
-					return err
-				}
-
-				return nil
-			}); err != nil {
+			err := batch.Update(func(tx store.Tx) error {
+				return store.UpdateTask(tx, task)
+			})
+			if err != nil {
 				return err
 			}
 

@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"context"
 	"net"
 
 	"github.com/docker/docker/pkg/plugingetter"
@@ -11,7 +12,6 @@ import (
 	"github.com/docker/swarmkit/manager/allocator"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/state/store"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

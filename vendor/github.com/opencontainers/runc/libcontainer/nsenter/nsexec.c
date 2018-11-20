@@ -82,7 +82,7 @@ struct nlconfig_t {
 	uint8_t is_setgroup;
 
 	/* Rootless container settings. */
-	uint8_t is_rootless;
+	uint8_t is_rootless_euid;	/* boolean */
 	char *uidmappath;
 	size_t uidmappath_len;
 	char *gidmappath;
@@ -100,7 +100,7 @@ struct nlconfig_t {
 #define GIDMAP_ATTR			27284
 #define SETGROUP_ATTR		27285
 #define OOM_SCORE_ADJ_ATTR	27286
-#define ROOTLESS_ATTR	    27287
+#define ROOTLESS_EUID_ATTR	27287
 #define UIDMAPPATH_ATTR	    27288
 #define GIDMAPPATH_ATTR	    27289
 
@@ -419,8 +419,8 @@ static void nl_parse(int fd, struct nlconfig_t *config)
 		case CLONE_FLAGS_ATTR:
 			config->cloneflags = readint32(current);
 			break;
-		case ROOTLESS_ATTR:
-			config->is_rootless = readint8(current);
+		case ROOTLESS_EUID_ATTR:
+			config->is_rootless_euid = readint8(current);	/* boolean */
 			break;
 		case OOM_SCORE_ADJ_ATTR:
 			config->oom_score_adj = current;
@@ -687,7 +687,7 @@ void nsexec(void)
 					 * newuidmap/newgidmap shall be used.
 					 */
 
-					if (config.is_rootless && !config.is_setgroup)
+					if (config.is_rootless_euid && !config.is_setgroup)
 						update_setgroups(child, SETGROUPS_DENY);
 
 					/* Set up mappings. */
@@ -953,7 +953,7 @@ void nsexec(void)
 			if (setgid(0) < 0)
 				bail("setgid failed");
 
-			if (!config.is_rootless && config.is_setgroup) {
+			if (!config.is_rootless_euid && config.is_setgroup) {
 				if (setgroups(0, NULL) < 0)
 					bail("setgroups failed");
 			}

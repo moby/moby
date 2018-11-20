@@ -19,10 +19,10 @@ produces:
 consumes:
   - "application/json"
   - "text/plain"
-basePath: "/v1.39"
+basePath: "/v1.40"
 info:
   title: "Docker Engine API"
-  version: "1.39"
+  version: "1.40"
   x-logo:
     url: "https://docs.docker.com/images/logo-docker-main.png"
   description: |
@@ -49,8 +49,8 @@ info:
     the URL is not supported by the daemon, a HTTP `400 Bad Request` error message
     is returned.
 
-    If you omit the version-prefix, the current version of the API (v1.39) is used.
-    For example, calling `/info` is the same as calling `/v1.39/info`. Using the
+    If you omit the version-prefix, the current version of the API (v1.40) is used.
+    For example, calling `/info` is the same as calling `/v1.40/info`. Using the
     API without a version-prefix is deprecated and will be removed in a future release.
 
     Engine releases in the near future should support this version of the API,
@@ -265,6 +265,10 @@ definitions:
               - "rshared"
               - "slave"
               - "rslave"
+          NonRecursive:
+            description: "Disable recursive bind mount."
+            type: "boolean"
+            default: false
       VolumeOptions:
         description: "Optional configuration for the `volume` type."
         type: "object"
@@ -2461,6 +2465,22 @@ definitions:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
         example: false
+      DefaultAddrPool:
+        description: |
+          Default Address Pool specifies default subnet pools for global scope networks.
+        type: "array"
+        items:
+          type: "string"
+          format: "CIDR"
+          example: ["10.10.0.0/16", "20.20.0.0/16"]
+      SubnetSize:
+        description: |
+          SubnetSize specifies the subnet size of the networks created from the default subnet pool
+        type: "integer"
+        format: "uint32"
+        maximum: 29
+        default: 24
+        example: 24
 
   JoinTokens:
     description: |
@@ -9360,7 +9380,10 @@ paths:
 
         - name: "version"
           in: "query"
-          description: "The version number of the service object being updated. This is required to avoid conflicting writes."
+          description: "The version number of the service object being updated.
+          This is required to avoid conflicting writes.
+          This version number should be the value as currently set on the service *before* the update.
+          You can find the current version by calling `GET /services/{id}`"
           required: true
           type: "integer"
         - name: "registryAuthFrom"

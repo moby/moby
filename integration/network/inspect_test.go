@@ -13,11 +13,13 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/assert"
 	"gotest.tools/poll"
+	"gotest.tools/skip"
 )
 
 const defaultSwarmPort = 2477
 
 func TestInspectNetwork(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)

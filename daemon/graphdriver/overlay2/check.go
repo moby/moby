@@ -12,7 +12,6 @@ import (
 
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
 
@@ -27,7 +26,7 @@ func doesSupportNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to remove check directory %v: %v", td, err)
+			logger.Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -62,7 +61,7 @@ func doesSupportNativeDiff(d string) error {
 	}
 	defer func() {
 		if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+			logger.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 		}
 	}()
 
@@ -113,7 +112,7 @@ func supportsMultipleLowerDir(d string) error {
 	}
 	defer func() {
 		if err := os.RemoveAll(td); err != nil {
-			logrus.WithField("storage-driver", "overlay2").Warnf("Failed to remove check directory %v: %v", td, err)
+			logger.Warnf("Failed to remove check directory %v: %v", td, err)
 		}
 	}()
 
@@ -128,7 +127,7 @@ func supportsMultipleLowerDir(d string) error {
 		return errors.Wrap(err, "failed to mount overlay")
 	}
 	if err := unix.Unmount(filepath.Join(td, "merged"), 0); err != nil {
-		logrus.WithField("storage-driver", "overlay2").Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
+		logger.Warnf("Failed to unmount check directory %v: %v", filepath.Join(td, "merged"), err)
 	}
 	return nil
 }

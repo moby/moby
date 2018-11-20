@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"context"
 	"errors"
 	"reflect"
 	"strings"
@@ -18,7 +19,6 @@ import (
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/docker/swarmkit/template"
 	gogotypes "github.com/gogo/protobuf/types"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
@@ -197,7 +197,7 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 		if err != nil {
 			return err
 		}
-		if interval != 0 && interval < time.Duration(minimumDuration) {
+		if interval != 0 && interval < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: Interval in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
@@ -207,7 +207,7 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 		if err != nil {
 			return err
 		}
-		if timeout != 0 && timeout < time.Duration(minimumDuration) {
+		if timeout != 0 && timeout < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: Timeout in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}
@@ -217,7 +217,7 @@ func validateHealthCheck(hc *api.HealthConfig) error {
 		if err != nil {
 			return err
 		}
-		if sp != 0 && sp < time.Duration(minimumDuration) {
+		if sp != 0 && sp < minimumDuration {
 			return status.Errorf(codes.InvalidArgument, "ContainerSpec: StartPeriod in HealthConfig cannot be less than %s", minimumDuration)
 		}
 	}

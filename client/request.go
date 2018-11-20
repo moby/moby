@@ -16,7 +16,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/pkg/errors"
-	"golang.org/x/net/context/ctxhttp"
 )
 
 // serverResponse is a wrapper for http API responses.
@@ -129,7 +128,8 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {
 	serverResp := serverResponse{statusCode: -1, reqURL: req.URL}
 
-	resp, err := ctxhttp.Do(ctx, cli.client, req)
+	req = req.WithContext(ctx)
+	resp, err := cli.client.Do(req)
 	if err != nil {
 		if cli.scheme != "https" && strings.Contains(err.Error(), "malformed HTTP response") {
 			return serverResp, fmt.Errorf("%v.\n* Are you trying to connect to a TLS-enabled daemon without TLS?", err)
@@ -195,9 +195,17 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 		return nil
 	}
 
-	body, err := ioutil.ReadAll(serverResp.body)
+	bodyMax := 1 * 1024 * 1024 // 1 MiB
+	bodyR := &io.LimitedReader{
+		R: serverResp.body,
+		N: int64(bodyMax),
+	}
+	body, err := ioutil.ReadAll(bodyR)
 	if err != nil {
 		return err
+	}
+	if bodyR.N == 0 {
+		return fmt.Errorf("request returned %s with a message (> %d bytes) for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), bodyMax, serverResp.reqURL)
 	}
 	if len(body) == 0 {
 		return fmt.Errorf("request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), serverResp.reqURL)

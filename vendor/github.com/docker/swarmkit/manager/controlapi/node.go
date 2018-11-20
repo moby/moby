@@ -1,6 +1,7 @@
 package controlapi
 
 import (
+	"context"
 	"crypto/x509"
 	"encoding/pem"
 
@@ -8,7 +9,6 @@ import (
 	"github.com/docker/swarmkit/manager/state/raft/membership"
 	"github.com/docker/swarmkit/manager/state/store"
 	gogotypes "github.com/gogo/protobuf/types"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )

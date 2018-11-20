@@ -56,7 +56,7 @@ func Parse(env []string) ([]Constraint, error) {
 			part0 := strings.TrimSpace(parts[0])
 			// validate key
 			matched := alphaNumeric.MatchString(part0)
-			if matched == false {
+			if !matched {
 				return nil, fmt.Errorf("key '%s' is invalid", part0)
 			}
 
@@ -64,7 +64,7 @@ func Parse(env []string) ([]Constraint, error) {
 
 			// validate Value
 			matched = valuePattern.MatchString(part1)
-			if matched == false {
+			if !matched {
 				return nil, fmt.Errorf("value '%s' is invalid", part1)
 			}
 			// TODO(dongluochen): revisit requirements to see if globing or regex are useful

@@ -1,6 +1,7 @@
 package ca
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
@@ -9,7 +10,6 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
-	"golang.org/x/net/context"
 	"google.golang.org/grpc/credentials"
 )
 
@@ -17,12 +17,6 @@ var (
 	// alpnProtoStr is the specified application level protocols for gRPC.
 	alpnProtoStr = []string{"h2"}
 )
-
-type timeoutError struct{}
-
-func (timeoutError) Error() string   { return "mutablecredentials: Dial timed out" }
-func (timeoutError) Timeout() bool   { return true }
-func (timeoutError) Temporary() bool { return true }
 
 // MutableTLSCreds is the credentials required for authenticating a connection using TLS.
 type MutableTLSCreds struct {

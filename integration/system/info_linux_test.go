@@ -20,15 +20,12 @@ func TestInfoBinaryCommits(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Check(t, "N/A" != info.ContainerdCommit.ID)
-	assert.Check(t, is.Equal(testEnv.DaemonInfo.ContainerdCommit.Expected, info.ContainerdCommit.Expected))
 	assert.Check(t, is.Equal(info.ContainerdCommit.Expected, info.ContainerdCommit.ID))
 
 	assert.Check(t, "N/A" != info.InitCommit.ID)
-	assert.Check(t, is.Equal(testEnv.DaemonInfo.InitCommit.Expected, info.InitCommit.Expected))
 	assert.Check(t, is.Equal(info.InitCommit.Expected, info.InitCommit.ID))
 
 	assert.Check(t, "N/A" != info.RuncCommit.ID)
-	assert.Check(t, is.Equal(testEnv.DaemonInfo.RuncCommit.Expected, info.RuncCommit.Expected))
 	assert.Check(t, is.Equal(info.RuncCommit.Expected, info.RuncCommit.ID))
 }
 

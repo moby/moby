@@ -163,6 +163,10 @@ func TestAddDeleteGet(t *testing.T) {
 	if err = store.AddTag(ref4, testImageID2, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
 	}
+	// Write the same values again; should silently succeed
+	if err = store.AddTag(ref4, testImageID2, false); err != nil {
+		t.Fatalf("error redundantly adding to store: %v", err)
+	}
 
 	ref5, err := reference.ParseNormalizedNamed("username/repo3@sha256:58153dfb11794fad694460162bf0cb0a4fa710cfa3f60979c177d920813e267c")
 	if err != nil {
@@ -170,6 +174,10 @@ func TestAddDeleteGet(t *testing.T) {
 	}
 	if err = store.AddDigest(ref5.(reference.Canonical), testImageID2, false); err != nil {
 		t.Fatalf("error adding to store: %v", err)
+	}
+	// Write the same values again; should silently succeed
+	if err = store.AddDigest(ref5.(reference.Canonical), testImageID2, false); err != nil {
+		t.Fatalf("error redundantly adding to store: %v", err)
 	}
 
 	// Attempt to overwrite with force == false

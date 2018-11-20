@@ -41,6 +41,7 @@ package cluster // import "github.com/docker/docker/daemon/cluster"
 import (
 	"context"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -67,9 +68,10 @@ const stateFile = "docker-state.json"
 const defaultAddr = "0.0.0.0:2377"
 
 const (
-	initialReconnectDelay = 100 * time.Millisecond
-	maxReconnectDelay     = 30 * time.Second
-	contextPrefix         = "com.docker.swarm"
+	initialReconnectDelay          = 100 * time.Millisecond
+	maxReconnectDelay              = 30 * time.Second
+	contextPrefix                  = "com.docker.swarm"
+	defaultRecvSizeForListResponse = math.MaxInt32 // the max recv limit grpc <1.4.0
 )
 
 // NetworkSubnetsProvider exposes functions for retrieving the subnets
