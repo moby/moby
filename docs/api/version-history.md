@@ -29,6 +29,9 @@ keywords: "API, Docker, rcli, REST, documentation"
   to return those without the specified labels.
 * `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
   `BindOptions.NonRecursive`.
+* `POST /swarm/init` now accepts a `DataPathPort` property to set data path port number.
+* `GET /info` now returns information about `DataPathPort` that is currently used in swarm
+* `GET /swarm` endpoint now returns DataPathPort info
 
 ## V1.39 API changes
 
