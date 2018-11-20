@@ -77,6 +77,10 @@ const (
 	// DefaultRuntimeName is the default runtime to be used by
 	// containerd if none is specified
 	DefaultRuntimeName = "runc"
+
+	// See https://tools.ietf.org/html/rfc791
+	maximumNetworkMtu = 2 << 15
+	minimumNetworkMtu = 68
 )
 
 type containerGetter interface {
@@ -1520,4 +1524,29 @@ func (daemon *Daemon) setupSeccompProfile() error {
 		daemon.seccompProfile = b
 	}
 	return nil
+}
+
+func getMinimumNetworkMtu() int {
+	minNetworkMtu := maximumNetworkMtu
+	handler, err := netlink.NewHandle(netlink.FAMILY_ALL)
+	if err != nil {
+		return config.DefaultNetworkMtu
+	}
+	links, err := handler.LinkList()
+	if err != nil {
+		return config.DefaultNetworkMtu
+	}
+	for _, link := range links {
+		attrs := link.Attrs()
+		if attrs != nil && attrs.Flags&0x1 == net.FlagUp {
+			if attrs.MTU < minNetworkMtu && attrs.MTU > minimumNetworkMtu {
+				minNetworkMtu = attrs.MTU
+			}
+		}
+	}
+	if minNetworkMtu == maximumNetworkMtu {
+		// if all links down
+		return config.DefaultNetworkMtu
+	}
+	return minNetworkMtu
 }

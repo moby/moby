@@ -1248,7 +1248,7 @@ func setDefaultMtu(conf *config.Config) {
 	if conf.Mtu != 0 {
 		return
 	}
-	conf.Mtu = config.DefaultNetworkMtu
+	conf.Mtu = getMinimumNetworkMtu()
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
