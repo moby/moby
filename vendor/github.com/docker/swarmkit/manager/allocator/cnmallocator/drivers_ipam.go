@@ -31,6 +31,7 @@ func initIPAMDrivers(r *drvregistry.DrvRegistry, netConfig *NetworkConfig) error
 		}
 		str.WriteString(": Size ")
 		str.WriteString(strconv.Itoa(int(netConfig.SubnetSize)))
+
 	}
 	if err := ipamutils.ConfigGlobalScopeDefaultNetworks(addressPool); err != nil {
 		return err
