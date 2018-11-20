@@ -320,3 +320,53 @@ func TestRootMountCleanup(t *testing.T) {
 	})
 
 }
+
+func TestGetRealRoot(t *testing.T) {
+	tempDir, err := ioutil.TempDir("", "testdaemon")
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+	defer os.RemoveAll(tempDir)
+
+	d1 := filepath.Join(tempDir, "d1")
+
+	target := filepath.Join(tempDir, "target")
+	err = os.Mkdir(target, 0700)
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+	d3 := filepath.Join(tempDir, "link")
+	err = os.Symlink(target, d3)
+	if err != nil {
+		t.Fatalf("%s", err.Error())
+	}
+
+	d2 := filepath.Join(d3, "docker")
+
+	// test root can be acqired successful
+	for _, tc := range []struct {
+		root   string
+		expect string
+	}{
+		{
+			root:   d1,
+			expect: d1,
+		},
+		{
+			root:   d2,
+			expect: filepath.Join(target, "docker"),
+		},
+		{
+			root:   d3,
+			expect: target,
+		},
+	} {
+		d, err := getRealPath(tc.root)
+		if err != nil {
+			t.Fatalf("%s", err.Error())
+		}
+		if d != tc.expect {
+			t.Fatalf("realRoot %s not equal with except root path %s", d, tc.expect)
+		}
+	}
+}

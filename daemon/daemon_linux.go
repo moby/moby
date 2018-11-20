@@ -129,7 +129,19 @@ func getCleanPatterns(id string) (regexps []*regexp.Regexp) {
 }
 
 func getRealPath(path string) (string, error) {
-	return fileutils.ReadSymlinkedDirectory(path)
+	if _, err := os.Stat(path); err != nil && os.IsNotExist(err) {
+		// no root exists yet, create it 0711 with root:root ownership
+		if err := os.MkdirAll(path, 0711); err != nil {
+			return "", fmt.Errorf("Unable to mkdir for root path %s: %s", path, err)
+		}
+	}
+
+	realRoot, err := fileutils.ReadSymlinkedDirectory(path)
+	if err != nil {
+		return "", fmt.Errorf("Unable to get the full path to root (%s): %s", path, err)
+	}
+
+	return realRoot, nil
 }
 
 func shouldUnmountRoot(root string, info *mount.Info) bool {
