@@ -2465,6 +2465,15 @@ definitions:
         description: "Whether there is currently a root CA rotation in progress for the swarm"
         type: "boolean"
         example: false
+      DataPathPort:
+        description: |
+          DataPathPort specifies the data path port number for data traffic.
+          Acceptable port range is 1024 to 49151.
+          If no port is set or is set to 0, the default port (4789) is used.
+        type: "integer"
+        format: "uint32"
+        default: 4789
+        example: 4789
       DefaultAddrPool:
         description: |
           Default Address Pool specifies default subnet pools for global scope networks.
@@ -8877,6 +8886,13 @@ paths:
                   nodes in order to reach the containers running on this node. Using this parameter it is possible to
                   separate the container data traffic from the management traffic of the cluster.
                 type: "string"
+              DataPathPort:
+                description: |
+                  DataPathPort specifies the data path port number for data traffic.
+                  Acceptable port range is 1024 to 49151.
+                  if no port is set or is set to 0, default port 4789 will be used.
+                type: "integer"
+                format: "uint32"
               DefaultAddrPool:
                 description: |
                   Default Address Pool specifies default subnet pools for global scope networks.
@@ -8897,6 +8913,7 @@ paths:
             example:
               ListenAddr: "0.0.0.0:2377"
               AdvertiseAddr: "192.168.1.1:2377"
+              DataPathPort: 4789
               DefaultAddrPool: ["10.10.0.0/8", "20.20.0.0/8"]
               SubnetSize: 24
               ForceNewCluster: false

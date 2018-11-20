@@ -76,6 +76,7 @@ type Daemon struct {
 	SwarmPort       int // FIXME(vdemeester) should probably not be exported
 	DefaultAddrPool []string
 	SubnetSize      uint32
+	DataPathPort    uint32
 	// cached information
 	CachedInfo types.Info
 }

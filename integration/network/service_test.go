@@ -321,6 +321,65 @@ func noServices(client client.ServiceAPIClient) func(log poll.LogT) poll.Result 
 	}
 }
 
+func TestServiceWithDataPathPortInit(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "DataPathPort was added in API v1.40")
+	defer setupTest(t)()
+	var ops = []func(*daemon.Daemon){}
+	var datapathPort uint32 = 7777
+	ops = append(ops, daemon.WithSwarmDataPathPort(datapathPort))
+	d := swarm.NewSwarm(t, testEnv, ops...)
+
+	cli := d.NewClientT(t)
+	defer cli.Close()
+
+	// Create a overlay network
+	name := "saanvisthira" + t.Name()
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("overlay"))
+
+	var instances uint64 = 1
+	serviceID := swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithNetwork(name),
+	)
+
+	poll.WaitOn(t, serviceRunningCount(cli, serviceID, instances), swarm.ServicePoll)
+
+	info := d.Info(t)
+	assert.Equal(t, info.Swarm.Cluster.DataPathPort, datapathPort)
+	err := cli.ServiceRemove(context.Background(), serviceID)
+	assert.NilError(t, err)
+	d.SwarmLeave(true)
+	d.Stop(t)
+
+	// Clean up , set it back to original one to make sure other tests don't fail
+	// call without datapath port option.
+	ops = []func(*daemon.Daemon){}
+	d = swarm.NewSwarm(t, testEnv, ops...)
+	cli = d.NewClientT(t)
+
+	// Create a overlay network
+	name = "saanvisthira" + t.Name()
+	network.CreateNoError(t, context.Background(), cli, name,
+		network.WithDriver("overlay"))
+
+	serviceID = swarm.CreateService(t, d,
+		swarm.ServiceWithReplicas(instances),
+		swarm.ServiceWithNetwork(name),
+	)
+
+	poll.WaitOn(t, serviceRunningCount(cli, serviceID, instances), swarm.ServicePoll)
+
+	info = d.Info(t)
+	var defaultDataPathPort uint32 = 4789
+	assert.Equal(t, info.Swarm.Cluster.DataPathPort, defaultDataPathPort)
+	err = cli.ServiceRemove(context.Background(), serviceID)
+	assert.NilError(t, err)
+	d.SwarmLeave(true)
+	defer d.Stop(t)
+}
+
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
