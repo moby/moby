@@ -19,7 +19,8 @@ import (
 	"github.com/docker/swarmkit/identity"
 
 	"github.com/docker/docker/pkg/plugingetter"
-	metrics "github.com/docker/go-metrics"
+	"github.com/docker/go-metrics"
+	"github.com/docker/libnetwork/drivers/overlay/overlayutils"
 	"github.com/docker/swarmkit/agent"
 	"github.com/docker/swarmkit/agent/exec"
 	"github.com/docker/swarmkit/api"
@@ -32,7 +33,7 @@ import (
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
-	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
@@ -161,6 +162,7 @@ type Node struct {
 	manager          *manager.Manager
 	notifyNodeChange chan *agent.NodeChanges // used by the agent to relay node updates from the dispatcher Session stream to (*Node).run
 	unlockKey        []byte
+	vxlanUDPPort     uint32
 }
 
 type lastSeenRole struct {
@@ -269,6 +271,14 @@ func (n *Node) currentRole() api.NodeRole {
 	return currentRole
 }
 
+// configVXLANUDPPort sets vxlan port in libnetwork
+func configVXLANUDPPort(ctx context.Context, vxlanUDPPort uint32) {
+	if err := overlayutils.ConfigVXLANUDPPort(vxlanUDPPort); err != nil {
+		log.G(ctx).WithError(err).Error("Configuring VXLAN port failed")
+	}
+	logrus.Infof(" Swarm successfully initialized VXLAN UDP Port to %d ", vxlanUDPPort)
+}
+
 func (n *Node) run(ctx context.Context) (err error) {
 	defer func() {
 		n.err = err
@@ -358,6 +368,10 @@ func (n *Node) run(ctx context.Context) (err error) {
 				return
 			case nodeChanges := <-n.notifyNodeChange:
 				if nodeChanges.Node != nil {
+					if nodeChanges.Node.VXLANUDPPort != 0 {
+						n.vxlanUDPPort = nodeChanges.Node.VXLANUDPPort
+						configVXLANUDPPort(ctx, n.vxlanUDPPort)
+					}
 					// This is a bit complex to be backward compatible with older CAs that
 					// don't support the Node.Role field. They only use what's presently
 					// called DesiredRole.
