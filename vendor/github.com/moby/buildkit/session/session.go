@@ -24,7 +24,7 @@ const (
 // Dialer returns a connection that can be used by the session
 type Dialer func(ctx context.Context, proto string, meta map[string][]string) (net.Conn, error)
 
-// Attachable defines a feature that can be expsed on a session
+// Attachable defines a feature that can be exposed on a session
 type Attachable interface {
 	Register(*grpc.Server)
 }
@@ -66,7 +66,7 @@ func NewSession(ctx context.Context, name, sharedKey string) (*Session, error) {
 	return s, nil
 }
 
-// Allow enable a given service to be reachable through the grpc session
+// Allow enables a given service to be reachable through the grpc session
 func (s *Session) Allow(a Attachable) {
 	a.Register(s.grpcServer)
 }

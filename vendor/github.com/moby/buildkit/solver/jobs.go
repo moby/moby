@@ -171,6 +171,7 @@ func (sb *subBuilder) Build(ctx context.Context, e Edge) (CachedResult, error) {
 }
 
 func (sb *subBuilder) Context(ctx context.Context) context.Context {
+	ctx = session.NewContext(ctx, sb.state.getSessionID())
 	return opentracing.ContextWithSpan(progress.WithProgress(ctx, sb.mpw), sb.mspan)
 }
 
@@ -475,6 +476,7 @@ func (j *Job) Discard() error {
 }
 
 func (j *Job) Context(ctx context.Context) context.Context {
+	ctx = session.NewContext(ctx, j.SessionID)
 	return progress.WithProgress(ctx, j.pw)
 }
 

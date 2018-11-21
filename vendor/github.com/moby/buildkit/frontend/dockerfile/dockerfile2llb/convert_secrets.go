@@ -1,4 +1,4 @@
-// +build dfsecrets dfextall
+// +build dfsecrets
 
 package dockerfile2llb
 

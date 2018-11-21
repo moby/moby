@@ -126,30 +126,11 @@ func Image(ref string, opts ...ImageOption) State {
 		if err != nil {
 			src.err = err
 		} else {
-			var img struct {
-				Config struct {
-					Env        []string `json:"Env,omitempty"`
-					WorkingDir string   `json:"WorkingDir,omitempty"`
-					User       string   `json:"User,omitempty"`
-				} `json:"config,omitempty"`
-			}
-			if err := json.Unmarshal(dt, &img); err != nil {
-				src.err = err
-			} else {
-				st := NewState(src.Output())
-				for _, env := range img.Config.Env {
-					parts := strings.SplitN(env, "=", 2)
-					if len(parts[0]) > 0 {
-						var v string
-						if len(parts) > 1 {
-							v = parts[1]
-						}
-						st = st.AddEnv(parts[0], v)
-					}
-				}
-				st = st.Dir(img.Config.WorkingDir)
+			st, err := NewState(src.Output()).WithImageConfig(dt)
+			if err == nil {
 				return st
 			}
+			src.err = err
 		}
 	}
 	return NewState(src.Output())
