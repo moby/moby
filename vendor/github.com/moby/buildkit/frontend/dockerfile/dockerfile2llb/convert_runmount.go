@@ -1,4 +1,4 @@
-// +build dfrunmount dfextall
+// +build dfrunmount
 
 package dockerfile2llb
 

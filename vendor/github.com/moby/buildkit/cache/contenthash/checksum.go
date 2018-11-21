@@ -628,7 +628,7 @@ func getFollowLinksWalk(root *iradix.Node, k []byte, linksWalked *int) ([]byte, 
 		if dirPath == "." || dirPath == "/" {
 			dirPath = ""
 		}
-		link := parent.Linkname
+		link := path.Clean(parent.Linkname)
 		if !path.IsAbs(link) {
 			link = path.Join("/", path.Join(path.Dir(dirPath), link))
 		}

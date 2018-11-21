@@ -72,6 +72,7 @@ func (w *ingester) Writer(ctx context.Context, opts ...content.WriterOpt) (conte
 	}
 	writer, err := w.pusher.Push(ctx, wo.Desc)
 	if err != nil {
+		unlock()
 		return nil, err
 	}
 	return &lockedWriter{unlock: unlock, Writer: writer}, nil
