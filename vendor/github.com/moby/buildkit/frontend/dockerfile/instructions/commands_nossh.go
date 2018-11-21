@@ -1,4 +1,4 @@
-// +build !dfssh,!dfextall
+// +build !dfssh
 
 package instructions
 

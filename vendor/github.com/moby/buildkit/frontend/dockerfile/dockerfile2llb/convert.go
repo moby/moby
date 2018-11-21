@@ -35,7 +35,7 @@ const (
 	localNameContext = "context"
 	historyComment   = "buildkit.dockerfile.v0"
 
-	DefaultCopyImage = "tonistiigi/copy:v0.1.7@sha256:9aab7d9ab369c6daf4831bf0653f7592110ab4b7e8a33fee2b9dca546e9d3089"
+	DefaultCopyImage = "docker/dockerfile-copy:v0.1.9@sha256:e8f159d3f00786604b93c675ee2783f8dc194bb565e61ca5788f6a6e9d304061"
 )
 
 type ConvertOpt struct {
@@ -327,6 +327,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			targetPlatform:    platformOpt.targetPlatform,
 			extraHosts:        opt.ExtraHosts,
 			copyImage:         opt.OverrideCopyImage,
+			llbCaps:           opt.LLBCaps,
 		}
 		if opt.copyImage == "" {
 			opt.copyImage = DefaultCopyImage
@@ -441,6 +442,7 @@ type dispatchOpt struct {
 	buildPlatforms    []specs.Platform
 	extraHosts        []llb.HostIP
 	copyImage         string
+	llbCaps           *apicaps.CapSet
 }
 
 func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
@@ -467,7 +469,9 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, "", opt)
 		if err == nil {
 			for _, src := range c.Sources() {
-				d.ctxPaths[path.Join("/", filepath.ToSlash(src))] = struct{}{}
+				if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
+					d.ctxPaths[path.Join("/", filepath.ToSlash(src))] = struct{}{}
+				}
 			}
 		}
 	case *instructions.LabelCommand:
@@ -627,7 +631,12 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 		return err
 	}
 	opt = append(opt, runMounts...)
-	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(dopt.shlex, c.String(), env)), d.prefixPlatform, d.state.GetPlatform())))
+
+	shlex := *dopt.shlex
+	shlex.RawQuotes = true
+	shlex.SkipUnsetEnv = true
+
+	opt = append(opt, llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(&shlex, c.String(), env)), d.prefixPlatform, d.state.GetPlatform())))
 	for _, h := range dopt.extraHosts {
 		opt = append(opt, llb.AddExtraHost(h.Host, h.IP))
 	}
@@ -729,6 +738,13 @@ func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState l
 	if d.ignoreCache {
 		runOpt = append(runOpt, llb.IgnoreCache)
 	}
+
+	if opt.llbCaps != nil {
+		if err := opt.llbCaps.Supports(pb.CapExecMetaNetwork); err == nil {
+			runOpt = append(runOpt, llb.Network(llb.NetModeNone))
+		}
+	}
+
 	run := img.Run(append(runOpt, mounts...)...)
 	d.state = run.AddMount("/dest", d.state).Platform(platform)
 

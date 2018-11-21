@@ -1,4 +1,4 @@
-// +build !dfsecrets,!dfextall
+// +build !dfsecrets
 
 package instructions
 
