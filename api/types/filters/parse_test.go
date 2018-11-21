@@ -421,3 +421,11 @@ func TestFuzzyMatch(t *testing.T) {
 		}
 	}
 }
+
+func TestClone(t *testing.T) {
+	f := NewArgs()
+	f.Add("foo", "bar")
+	f2 := f.Clone()
+	f2.Add("baz", "qux")
+	assert.Check(t, is.Len(f.Get("baz"), 0))
+}
