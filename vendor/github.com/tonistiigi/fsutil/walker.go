@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/pkg/fileutils"
@@ -71,7 +72,7 @@ func Walk(ctx context.Context, p string, opt *WalkOpt, fn filepath.WalkFunc) err
 			return err
 		}
 		defer func() {
-			if retErr != nil && os.IsNotExist(errors.Cause(retErr)) {
+			if retErr != nil && isNotExist(retErr) {
 				retErr = filepath.SkipDir
 			}
 		}()
@@ -215,4 +216,15 @@ func trimUntilIndex(str, sep string, count int) string {
 			return str[:i-len(sep)]
 		}
 	}
+}
+
+func isNotExist(err error) bool {
+	err = errors.Cause(err)
+	if os.IsNotExist(err) {
+		return true
+	}
+	if pe, ok := err.(*os.PathError); ok {
+		err = pe.Err
+	}
+	return err == syscall.ENOTDIR
 }
