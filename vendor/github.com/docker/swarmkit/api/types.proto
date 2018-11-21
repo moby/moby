@@ -277,6 +277,8 @@ message Mount {
 		// Mode of the tmpfs upon creation
 		uint32 mode = 2 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
 
+		// Options passed to tmpfs mount
+		string options = 3;
 		// TODO(stevvooe): There are several more tmpfs flags, specified in the
 		// daemon, that are accepted. Only the most basic are added for now.
 		//
