@@ -29,6 +29,7 @@ import (
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sync/errgroup"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
@@ -315,6 +316,32 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 
 	if len(opt.Options.Tags) > 0 {
 		exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
+	}
+
+	if opt.Options.Squash {
+		// return error rather than print a warning, as squash is often used for hiding secrets
+		return nil, errors.New("squash is not supported by buildkit, please consider using multi-stage dockerfile instead")
+	}
+	if opt.Options.Remove {
+		logrus.Warn("imageBuildOptions.Remove is not supported by buildkit")
+	}
+	if opt.Options.ForceRemove {
+		logrus.Warn("imageBuildOptions.ForceRemove is not supported by buildkit")
+	}
+	if opt.Options.CPUSetCPUs != "" || opt.Options.CPUSetMems != "" || opt.Options.CPUShares > 0 || opt.Options.CPUQuota > 0 || opt.Options.CPUPeriod > 0 {
+		logrus.Warn("cpu quota is not supported by buildkit")
+	}
+	if opt.Options.Memory > 0 || opt.Options.MemorySwap > 0 {
+		logrus.Warn("memory quota is not supported by buildkit")
+	}
+	if opt.Options.ShmSize > 0 {
+		logrus.Warn("shm size is not supported by buildkit")
+	}
+	if len(opt.Options.Ulimits) > 0 {
+		logrus.Warn("ulimit is not supported by buildkit")
+	}
+	if len(opt.Options.SecurityOpt) > 0 {
+		logrus.Warn("security opt is not supported by buildkit")
 	}
 
 	req := &controlapi.SolveRequest{
