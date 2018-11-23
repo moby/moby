@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -1527,25 +1528,58 @@ func (daemon *Daemon) setupSeccompProfile() error {
 }
 
 func getMinimumNetworkMtu() int {
-	minNetworkMtu := maximumNetworkMtu
-	handler, err := netlink.NewHandle(netlink.FAMILY_ALL)
-	if err != nil {
-		return config.DefaultNetworkMtu
-	}
-	links, err := handler.LinkList()
-	if err != nil {
-		return config.DefaultNetworkMtu
-	}
-	for _, link := range links {
-		attrs := link.Attrs()
-		if attrs != nil && attrs.Flags&0x1 == net.FlagUp {
-			if attrs.MTU < minNetworkMtu && attrs.MTU > minimumNetworkMtu {
-				minNetworkMtu = attrs.MTU
+	minNetworkMtu := math.MaxInt32
+
+	// miniNetworkMtu of Interface
+	if handler, err := netlink.NewHandle(netlink.FAMILY_ALL); err == nil {
+		if links, err := handler.LinkList(); err == nil {
+			for _, link := range links {
+				attrs := link.Attrs()
+				// Flag Up and not Loopback
+				// Link Up
+				if attrs != nil && attrs.Flags&(net.FlagUp|net.FlagLoopback) == net.FlagUp && attrs.OperState == netlink.OperUp {
+					if attrs.MTU < minNetworkMtu && attrs.MTU > minimumNetworkMtu {
+						minNetworkMtu = attrs.MTU
+					}
+				}
 			}
 		}
 	}
-	if minNetworkMtu == maximumNetworkMtu {
-		// if all links down
+
+	// mtu information config of Route config
+	if routes, err := netlink.RouteList(nil, 0); err == nil {
+		for _, route := range routes {
+			// default route with "advmss" or "mtu" configured
+			if route.AdvMSS > 0 {
+				// IP Header Size + TCP Header Size
+				if tmpMtu := route.AdvMSS + 40; tmpMtu > minimumNetworkMtu && tmpMtu < minNetworkMtu {
+					minNetworkMtu = tmpMtu
+				}
+			}
+			if route.MTU > 0 && route.MTU > minimumNetworkMtu && route.MTU < minNetworkMtu {
+				minNetworkMtu = route.MTU
+			}
+			// Special Route for special network with "advmss" or "mtu" configured
+			// for example: ip route add 10.1.0.0/16 via 10.1.0.2 advmss 1360 mtu 1400
+			if route.Dst == nil {
+				continue
+			}
+			if rs, err := netlink.RouteGet(route.Dst.IP); err == nil {
+				for _, r := range rs {
+					if r.AdvMSS > 0 {
+						// IP Header Size + TCP Header Size
+						if tmpMtu := r.AdvMSS + 40; tmpMtu > minimumNetworkMtu && tmpMtu < minNetworkMtu {
+							minNetworkMtu = tmpMtu
+						}
+					}
+					if r.MTU > 0 && r.MTU > minimumNetworkMtu && r.MTU < minNetworkMtu {
+						minNetworkMtu = r.MTU
+					}
+				}
+			}
+		}
+	}
+	if minNetworkMtu > maximumNetworkMtu {
 		return config.DefaultNetworkMtu
 	}
 	return minNetworkMtu
