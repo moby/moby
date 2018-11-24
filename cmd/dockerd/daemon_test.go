@@ -146,7 +146,6 @@ func TestLoadDaemonCliConfigWithLogLevel(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Assert(t, loadedConfig != nil)
 	assert.Check(t, is.Equal("warn", loadedConfig.LogLevel))
-	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
 }
 
 func TestLoadDaemonConfigWithEmbeddedOptions(t *testing.T) {
@@ -179,4 +178,23 @@ func TestLoadDaemonConfigWithRegistryOptions(t *testing.T) {
 	assert.Check(t, is.Len(loadedConfig.AllowNondistributableArtifacts, 1))
 	assert.Check(t, is.Len(loadedConfig.Mirrors, 1))
 	assert.Check(t, is.Len(loadedConfig.InsecureRegistries, 1))
+}
+
+func TestConfigureDaemonLogs(t *testing.T) {
+	conf := &config.Config{}
+	err := configureDaemonLogs(conf)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(logrus.InfoLevel, logrus.GetLevel()))
+
+	conf.LogLevel = "warn"
+	err = configureDaemonLogs(conf)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
+
+	conf.LogLevel = "foobar"
+	err = configureDaemonLogs(conf)
+	assert.Error(t, err, "unable to parse logging level: foobar")
+
+	// log level should not be changed after a failure
+	assert.Check(t, is.Equal(logrus.WarnLevel, logrus.GetLevel()))
 }
