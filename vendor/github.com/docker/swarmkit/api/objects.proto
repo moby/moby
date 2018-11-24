@@ -81,6 +81,10 @@ message Node {
 	// endpoint on the node to be used for load balancing. Each overlay
 	// network, including ingress network, will have an NetworkAttachment.
 	repeated NetworkAttachment attachments = 10;
+
+	// VXLANUDPPort specifies the UDP port for VXLAN traffic.
+	// This information is passed from cluster object to individual nodes.
+	uint32 VXLANUDPPort = 11;
 }
 
 message Service {
@@ -375,6 +379,9 @@ message Cluster {
 	// This flag specifies the default subnet size of global scope networks by giving
 	// the length of the subnet masks for every such network
 	uint32 subnetSize = 12;
+
+	// VXLANUDPPort specifies the UDP port for VXLAN traffic.
+	uint32 VXLANUDPPort = 13;
 }
 
 // Secret represents a secret that should be passed to a container or a node,

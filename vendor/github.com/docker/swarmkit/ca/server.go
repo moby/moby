@@ -323,7 +323,7 @@ func (s *Server) IssueNodeCertificate(ctx context.Context, request *api.IssueNod
 					Availability: request.Availability,
 				},
 			}
-
+			node.VXLANUDPPort = clusters[0].VXLANUDPPort
 			return store.CreateNode(tx, node)
 		})
 		if err == nil {

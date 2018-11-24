@@ -85,6 +85,9 @@ func (d *Daemon) SwarmInit(t assert.TestingT, req swarm.InitRequest) {
 		req.DefaultAddrPool = d.DefaultAddrPool
 		req.SubnetSize = d.SubnetSize
 	}
+	if d.DataPathPort > 0 {
+		req.DataPathPort = d.DataPathPort
+	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	_, err := cli.SwarmInit(context.Background(), req)

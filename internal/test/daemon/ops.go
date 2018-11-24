@@ -48,6 +48,13 @@ func WithSwarmDefaultAddrPoolSubnetSize(subnetSize uint32) func(*Daemon) {
 	}
 }
 
+// WithSwarmDataPathPort sets the  swarm datapath port to use for swarm mode
+func WithSwarmDataPathPort(datapathPort uint32) func(*Daemon) {
+	return func(d *Daemon) {
+		d.DataPathPort = datapathPort
+	}
+}
+
 // WithEnvironment sets options from internal/test/environment.Execution struct
 func WithEnvironment(e environment.Execution) func(*Daemon) {
 	return func(d *Daemon) {

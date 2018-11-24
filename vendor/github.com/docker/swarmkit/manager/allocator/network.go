@@ -69,10 +69,22 @@ type networkContext struct {
 
 func (a *Allocator) doNetworkInit(ctx context.Context) (err error) {
 	var netConfig *cnmallocator.NetworkConfig
-	if a.networkConfig != nil && a.networkConfig.DefaultAddrPool != nil {
-		netConfig = &cnmallocator.NetworkConfig{
-			DefaultAddrPool: a.networkConfig.DefaultAddrPool,
-			SubnetSize:      a.networkConfig.SubnetSize,
+	// There are two ways user can invoke swarm init
+	// with default address pool & vxlan port  or with only vxlan port
+	// hence we need two different way to construct netconfig
+	if a.networkConfig != nil {
+		if a.networkConfig.DefaultAddrPool != nil {
+			netConfig = &cnmallocator.NetworkConfig{
+				DefaultAddrPool: a.networkConfig.DefaultAddrPool,
+				SubnetSize:      a.networkConfig.SubnetSize,
+				VXLANUDPPort:    a.networkConfig.VXLANUDPPort,
+			}
+		} else if a.networkConfig.VXLANUDPPort != 0 {
+			netConfig = &cnmallocator.NetworkConfig{
+				DefaultAddrPool: nil,
+				SubnetSize:      0,
+				VXLANUDPPort:    a.networkConfig.VXLANUDPPort,
+			}
 		}
 	}
 

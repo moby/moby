@@ -57,6 +57,8 @@ type nodeStartConfig struct {
 	DefaultAddressPool []string
 	// SubnetSize contains subnet size of DefaultAddressPool
 	SubnetSize uint32
+	// DataPathPort contains Data path port (VXLAN UDP port) number that is used for data traffic.
+	DataPathPort uint32
 	// JoinInProgress is set to true if a join operation has started, but
 	// not completed yet.
 	JoinInProgress bool
@@ -125,6 +127,7 @@ func (n *nodeRunner) start(conf nodeStartConfig) error {
 		NetworkConfig: &swarmallocator.NetworkConfig{
 			DefaultAddrPool: conf.DefaultAddressPool,
 			SubnetSize:      conf.SubnetSize,
+			VXLANUDPPort:    conf.DataPathPort,
 		},
 		JoinAddr:  joinAddr,
 		StateDir:  n.cluster.root,
