@@ -2485,7 +2485,7 @@ func (s *DockerDaemonSuite) TestRunWithRuntimeFromConfigFile(c *check.C) {
 
 	content, err := s.d.ReadLogFile()
 	c.Assert(err, checker.IsNil)
-	c.Assert(string(content), checker.Contains, `file configuration validation failed (runtime name 'runc' is reserved)`)
+	c.Assert(string(content), checker.Contains, `file configuration validation failed: runtime name 'runc' is reserved`)
 
 	// Check that we can select a default runtime
 	config = `
