@@ -3,7 +3,6 @@ package config // import "github.com/docker/docker/daemon/config"
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -19,6 +18,7 @@ import (
 	"github.com/docker/docker/pkg/discovery"
 	"github.com/docker/docker/registry"
 	"github.com/imdario/mergo"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
@@ -264,7 +264,7 @@ func ParseClusterAdvertiseSettings(clusterStore, clusterAdvertise string) (strin
 
 	advertise, err := discovery.ParseAdvertise(clusterAdvertise)
 	if err != nil {
-		return "", fmt.Errorf("discovery advertise parsing failed (%v)", err)
+		return "", errors.Wrap(err, "discovery advertise parsing failed")
 	}
 	return advertise, nil
 }
@@ -318,13 +318,13 @@ func Reload(configFile string, flags *pflag.FlagSet, reload func(*Config)) error
 	newConfig, err := getConflictFreeConfiguration(configFile, flags)
 	if err != nil {
 		if flags.Changed("config-file") || !os.IsNotExist(err) {
-			return fmt.Errorf("unable to configure the Docker daemon with file %s: %v", configFile, err)
+			return errors.Wrapf(err, "unable to configure the Docker daemon with file %s", configFile)
 		}
 		newConfig = New()
 	}
 
 	if err := Validate(newConfig); err != nil {
-		return fmt.Errorf("file configuration validation failed (%v)", err)
+		return errors.Wrap(err, "file configuration validation failed")
 	}
 
 	// Check if duplicate label-keys with different values are found
@@ -355,7 +355,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	}
 
 	if err := Validate(fileConfig); err != nil {
-		return nil, fmt.Errorf("configuration validation from file failed (%v)", err)
+		return nil, errors.Wrap(err, "configuration validation from file failed")
 	}
 
 	// merge flags configuration on top of the file configuration
@@ -366,7 +366,7 @@ func MergeDaemonConfigurations(flagsConfig *Config, flags *pflag.FlagSet, config
 	// We need to validate again once both fileConfig and flagsConfig
 	// have been merged
 	if err := Validate(fileConfig); err != nil {
-		return nil, fmt.Errorf("merged configuration validation from file and command line flags failed (%v)", err)
+		return nil, errors.Wrap(err, "merged configuration validation from file and command line flags failed")
 	}
 
 	return fileConfig, nil
@@ -438,7 +438,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		logrus.Warn(`The "graph" config file option is deprecated. Please use "data-root" instead.`)
 
 		if config.Root != "" {
-			return nil, fmt.Errorf(`cannot specify both "graph" and "data-root" config file options`)
+			return nil, errors.New(`cannot specify both "graph" and "data-root" config file options`)
 		}
 
 		config.Root = config.RootDeprecated
