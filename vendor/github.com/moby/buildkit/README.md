@@ -27,15 +27,23 @@ Read the proposal from https://github.com/moby/moby/issues/32925
 
 Introductory blog post https://blog.mobyproject.org/introducing-buildkit-17e056cc5317
 
+:information_source: If you are visiting this repo for the usage of experimental Dockerfile features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`, please refer to [`frontend/dockerfile/docs/experimental.md`](frontend/dockerfile/docs/experimental.md).
+
 ### Used by
 
-[Moby](https://github.com/moby/moby/pull/37151)
+[Moby & Docker](https://github.com/moby/moby/pull/37151)
 
 [img](https://github.com/genuinetools/img)
 
 [OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
 
 [container build interface](https://github.com/containerbuilding/cbi)
+
+[Knative Build Templates](https://github.com/knative/build-templates)
+
+[boss](https://github.com/crosbymichael/boss)
+
+[Rio](https://github.com/rancher/rio) (on roadmap)
 
 ### Quick start
 
@@ -79,6 +87,7 @@ See [`solver/pb/ops.proto`](./solver/pb/ops.proto) for the format definition.
 Currently, following high-level languages has been implemented for LLB:
 
 - Dockerfile (See [Exploring Dockerfiles](#exploring-dockerfiles))
+- [Buildpacks](https://github.com/tonistiigi/buildkit-pack)
 - (open a PR to add your own language)
 
 For understanding the basics of LLB, `examples/buildkit*` directory contains scripts that define how to build different configurations of BuildKit itself and its dependencies using the `client` package. Running one of these scripts generates a protobuf definition of a build graph. Note that the script itself does not execute any steps of the build.
@@ -145,6 +154,10 @@ buildctl build --frontend=gateway.v0 --frontend-opt=source=tonistiigi/dockerfile
 buildctl build --frontend gateway.v0 --frontend-opt=source=tonistiigi/dockerfile --frontend-opt=context=git://github.com/moby/moby --frontend-opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
 ````
 
+##### Building a Dockerfile with experimental features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`
+
+See [`frontend/dockerfile/docs/experimental.md`](frontend/dockerfile/docs/experimental.md).
+
 ### Exporters
 
 By default, the build result and intermediate cache will only remain internally in BuildKit. Exporter needs to be specified to retrieve the result.
@@ -207,15 +220,22 @@ buildctl debug workers -v
 
 BuildKit can also be used by running the `buildkitd` daemon inside a Docker container and accessing it remotely. The client tool `buildctl` is also available for Mac and Windows.
 
+We provide `buildkitd` container images as [`moby/buildkit`](https://hub.docker.com/r/moby/buildkit/tags/):
+
+* `moby/buildkit:latest`: built from the latest regular [release](https://github.com/moby/buildkit/releases)
+* `moby/buildkit:rootless`: same as `latest` but runs as an unprivileged user, see [`docs/rootless.md`](docs/rootless.md)
+* `moby/buildkit:master`: built from the master branch
+* `moby/buildkit:master-rootless`: same as master but runs as an unprivileged user, see [`docs/rootless.md`](docs/rootless.md)
+
 To run daemon in a container:
 
 ```
-docker run -d --privileged -p 1234:1234 tonistiigi/buildkit --addr tcp://0.0.0.0:1234
+docker run -d --privileged -p 1234:1234 moby/buildkit:latest --addr tcp://0.0.0.0:1234
 export BUILDKIT_HOST=tcp://0.0.0.0:1234
 buildctl build --help
 ```
 
-The `tonistiigi/buildkit` image can be built locally using the Dockerfile in `./hack/dockerfiles/test.Dockerfile`.
+The images can be also built locally using `./hack/dockerfiles/test.Dockerfile` (or `./hack/dockerfiles/test.buildkit.Dockerfile` if you already have BuildKit).
 
 ### Opentracing support
 
@@ -232,7 +252,7 @@ export JAEGER_TRACE=0.0.0.0:6831
 
 ### Supported runc version
 
-During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.1.3/RUNC.md) for more information.
+During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.2.0-rc.1/RUNC.md) for more information.
 
 ### Running BuildKit without root privileges
 

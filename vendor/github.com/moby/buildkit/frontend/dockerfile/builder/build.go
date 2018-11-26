@@ -99,7 +99,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	name := "load build definition from " + filename
 
 	src := llb.Local(LocalNameDockerfile,
-		llb.IncludePatterns([]string{filename}),
+		llb.FollowPaths([]string{filename}),
 		llb.SessionID(c.BuildOpts().SessionID),
 		llb.SharedKeyHint(defaultDockerfileName),
 		dockerfile2llb.WithInternalName(name),
@@ -189,7 +189,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			if dockerignoreState == nil {
 				st := llb.Local(LocalNameContext,
 					llb.SessionID(c.BuildOpts().SessionID),
-					llb.IncludePatterns([]string{dockerignoreFilename}),
+					llb.FollowPaths([]string{dockerignoreFilename}),
 					llb.SharedKeyHint(dockerignoreFilename),
 					dockerfile2llb.WithInternalName("load "+dockerignoreFilename),
 				)

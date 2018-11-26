@@ -6402,7 +6402,7 @@ paths:
           type: "string"
           description: |
             A JSON encoded value of the filters (a `map[string][]string`) to process on the list of build cache objects. Available filters:
-            - `unused-for=<duration>`: duration relative to daemon's time, during which build cache was not used, in Go's duration format (e.g., '24h')
+            - `until=<duration>`: duration relative to daemon's time, during which build cache was not used, in Go's duration format (e.g., '24h')
             - `id=<id>`
             - `parent=<id>`
             - `type=<string>`
