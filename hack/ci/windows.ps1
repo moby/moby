@@ -776,9 +776,9 @@ Try {
                 # This is a temporary hack for nanoserver
                 if ($env:WINDOWS_BASE_IMAGE -ne "microsoft/windowsservercore") {
                     Write-Host -ForegroundColor Red "HACK HACK HACK - Building 64-bit nanoserver busybox image"
-                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox64/v1.0/Dockerfile | Out-Host)
+                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox64/v1.1/Dockerfile | Out-Host)
                 } else {
-                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox/v1.0/Dockerfile | Out-Host)
+                    $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" build -t busybox https://raw.githubusercontent.com/jhowardmsft/busybox/v1.1/Dockerfile | Out-Host)
                 }
                 $ErrorActionPreference = "Stop"
                 if (-not($LastExitCode -eq 0)) {
