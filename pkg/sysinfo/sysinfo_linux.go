@@ -95,6 +95,10 @@ func checkCgroupMem(cgMounts map[string]string, quiet bool) cgroupMemInfo {
 	if !quiet && !kernelMemory {
 		logrus.Warn("Your kernel does not support kernel memory limit")
 	}
+	kernelMemoryTCP := cgroupEnabled(mountPoint, "memory.kmem.tcp.limit_in_bytes")
+	if !quiet && !kernelMemoryTCP {
+		logrus.Warn("Your kernel does not support kernel memory TCP limit")
+	}
 
 	return cgroupMemInfo{
 		MemoryLimit:       true,
@@ -103,6 +107,7 @@ func checkCgroupMem(cgMounts map[string]string, quiet bool) cgroupMemInfo {
 		OomKillDisable:    oomKillDisable,
 		MemorySwappiness:  memorySwappiness,
 		KernelMemory:      kernelMemory,
+		KernelMemoryTCP:   kernelMemoryTCP,
 	}
 }
 

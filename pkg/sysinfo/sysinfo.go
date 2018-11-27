@@ -47,6 +47,9 @@ type cgroupMemInfo struct {
 
 	// Whether kernel memory limit is supported or not
 	KernelMemory bool
+
+	// Whether kernel memory TCP limit is supported or not
+	KernelMemoryTCP bool
 }
 
 type cgroupCPUInfo struct {
