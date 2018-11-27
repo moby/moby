@@ -938,6 +938,62 @@ func TestCollectBatchClose(t *testing.T) {
 	}
 }
 
+func TestEffectiveLen(t *testing.T) {
+	tests := []struct {
+		str            string
+		effectiveBytes int
+	}{
+		{"Hello", 5},
+		{string([]byte{1, 2, 3, 4}), 4},
+		{"🙃", 4},
+		{string([]byte{0xFF, 0xFF, 0xFF, 0xFF}), 12},
+		{"He\xff\xffo", 9},
+		{"", 0},
+	}
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d/%s", i, tc.str), func(t *testing.T) {
+			assert.Equal(t, tc.effectiveBytes, effectiveLen(tc.str))
+		})
+	}
+}
+
+func TestFindValidSplit(t *testing.T) {
+	tests := []struct {
+		str               string
+		maxEffectiveBytes int
+		splitOffset       int
+		effectiveBytes    int
+	}{
+		{"", 10, 0, 0},
+		{"Hello", 6, 5, 5},
+		{"Hello", 2, 2, 2},
+		{"Hello", 0, 0, 0},
+		{"🙃", 3, 0, 0},
+		{"🙃", 4, 4, 4},
+		{string([]byte{'a', 0xFF}), 2, 1, 1},
+		{string([]byte{'a', 0xFF}), 4, 2, 4},
+	}
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d/%s", i, tc.str), func(t *testing.T) {
+			splitOffset, effectiveBytes := findValidSplit(tc.str, tc.maxEffectiveBytes)
+			assert.Equal(t, tc.splitOffset, splitOffset, "splitOffset")
+			assert.Equal(t, tc.effectiveBytes, effectiveBytes, "effectiveBytes")
+			t.Log(tc.str[:tc.splitOffset])
+			t.Log(tc.str[tc.splitOffset:])
+		})
+	}
+}
+
+func TestProcessEventEmoji(t *testing.T) {
+	stream := &logStream{}
+	batch := &eventBatch{}
+	bytes := []byte(strings.Repeat("🙃", maximumBytesPerEvent/4+1))
+	stream.processEvent(batch, bytes, 0)
+	assert.Equal(t, 2, len(batch.batch), "should be two events in the batch")
+	assert.Equal(t, strings.Repeat("🙃", maximumBytesPerEvent/4), aws.StringValue(batch.batch[0].inputLogEvent.Message))
+	assert.Equal(t, "🙃", aws.StringValue(batch.batch[1].inputLogEvent.Message))
+}
+
 func TestCollectBatchLineSplit(t *testing.T) {
 	mockClient := newMockClient()
 	stream := &logStream{
@@ -984,6 +1040,55 @@ func TestCollectBatchLineSplit(t *testing.T) {
 	}
 	if *argument.LogEvents[1].Message != "B" {
 		t.Errorf("Expected message to be %s but was %s", "B", *argument.LogEvents[1].Message)
+	}
+}
+
+func TestCollectBatchLineSplitWithBinary(t *testing.T) {
+	mockClient := newMockClient()
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		messages:      make(chan *logger.Message),
+	}
+	mockClient.putLogEventsResult <- &putLogEventsResult{
+		successResult: &cloudwatchlogs.PutLogEventsOutput{
+			NextSequenceToken: aws.String(nextSequenceToken),
+		},
+	}
+	var ticks = make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	d := make(chan bool)
+	close(d)
+	go stream.collectBatch(d)
+
+	longline := strings.Repeat("\xFF", maximumBytesPerEvent/3) // 0xFF is counted as the 3-byte utf8.RuneError
+	stream.Log(&logger.Message{
+		Line:      []byte(longline + "\xFD"),
+		Timestamp: time.Time{},
+	})
+
+	// no ticks
+	stream.Close()
+
+	argument := <-mockClient.putLogEventsArgument
+	if argument == nil {
+		t.Fatal("Expected non-nil PutLogEventsInput")
+	}
+	if len(argument.LogEvents) != 2 {
+		t.Errorf("Expected LogEvents to contain 2 elements, but contains %d", len(argument.LogEvents))
+	}
+	if *argument.LogEvents[0].Message != longline {
+		t.Errorf("Expected message to be %s but was %s", longline, *argument.LogEvents[0].Message)
+	}
+	if *argument.LogEvents[1].Message != "\xFD" {
+		t.Errorf("Expected message to be %s but was %s", "\xFD", *argument.LogEvents[1].Message)
 	}
 }
 
@@ -1119,6 +1224,83 @@ func TestCollectBatchMaxTotalBytes(t *testing.T) {
 	if len(argument.LogEvents) != 1 {
 		t.Errorf("Expected LogEvents to contain 1 elements, but contains %d", len(argument.LogEvents))
 	}
+	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
+	if message[len(message)-1:] != "B" {
+		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
+	}
+}
+
+func TestCollectBatchMaxTotalBytesWithBinary(t *testing.T) {
+	expectedPuts := 2
+	mockClient := newMockClientBuffered(expectedPuts)
+	stream := &logStream{
+		client:        mockClient,
+		logGroupName:  groupName,
+		logStreamName: streamName,
+		sequenceToken: aws.String(sequenceToken),
+		messages:      make(chan *logger.Message),
+	}
+	for i := 0; i < expectedPuts; i++ {
+		mockClient.putLogEventsResult <- &putLogEventsResult{
+			successResult: &cloudwatchlogs.PutLogEventsOutput{
+				NextSequenceToken: aws.String(nextSequenceToken),
+			},
+		}
+	}
+
+	var ticks = make(chan time.Time)
+	newTicker = func(_ time.Duration) *time.Ticker {
+		return &time.Ticker{
+			C: ticks,
+		}
+	}
+
+	d := make(chan bool)
+	close(d)
+	go stream.collectBatch(d)
+
+	// maxline is the maximum line that could be submitted after
+	// accounting for its overhead.
+	maxline := strings.Repeat("\xFF", (maximumBytesPerPut-perEventBytes)/3) // 0xFF is counted as the 3-byte utf8.RuneError
+	// This will be split and batched up to the `maximumBytesPerPut'
+	// (+/- `maximumBytesPerEvent'). This /should/ be aligned, but
+	// should also tolerate an offset within that range.
+	stream.Log(&logger.Message{
+		Line:      []byte(maxline),
+		Timestamp: time.Time{},
+	})
+	stream.Log(&logger.Message{
+		Line:      []byte("B"),
+		Timestamp: time.Time{},
+	})
+
+	// no ticks, guarantee batch by size (and chan close)
+	stream.Close()
+
+	argument := <-mockClient.putLogEventsArgument
+	if argument == nil {
+		t.Fatal("Expected non-nil PutLogEventsInput")
+	}
+
+	// Should total to the maximum allowed bytes.
+	eventBytes := 0
+	for _, event := range argument.LogEvents {
+		eventBytes += effectiveLen(*event.Message)
+	}
+	eventsOverhead := len(argument.LogEvents) * perEventBytes
+	payloadTotal := eventBytes + eventsOverhead
+	// lowestMaxBatch allows the payload to be offset if the messages
+	// don't lend themselves to align with the maximum event size.
+	lowestMaxBatch := maximumBytesPerPut - maximumBytesPerEvent
+
+	if payloadTotal > maximumBytesPerPut {
+		t.Errorf("Expected <= %d bytes but was %d", maximumBytesPerPut, payloadTotal)
+	}
+	if payloadTotal < lowestMaxBatch {
+		t.Errorf("Batch to be no less than %d but was %d", lowestMaxBatch, payloadTotal)
+	}
+
+	argument = <-mockClient.putLogEventsArgument
 	message := *argument.LogEvents[len(argument.LogEvents)-1].Message
 	if message[len(message)-1:] != "B" {
 		t.Errorf("Expected message to be %s but was %s", "B", message[len(message)-1:])
