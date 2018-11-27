@@ -37,7 +37,7 @@ func (sr *swarmRouter) initRoutes() {
 		router.NewPostRoute("/services/create", sr.createService),
 		router.NewPostRoute("/services/{id}/update", sr.updateService),
 		router.NewDeleteRoute("/services/{id}", sr.removeService),
-		router.NewGetRoute("/services/{id}/logs", sr.getServiceLogs, router.WithCancel),
+		router.NewGetRoute("/services/{id}/logs", sr.getServiceLogs),
 
 		router.NewGetRoute("/nodes", sr.getNodes),
 		router.NewGetRoute("/nodes/{id}", sr.getNode),
@@ -46,7 +46,7 @@ func (sr *swarmRouter) initRoutes() {
 
 		router.NewGetRoute("/tasks", sr.getTasks),
 		router.NewGetRoute("/tasks/{id}", sr.getTask),
-		router.NewGetRoute("/tasks/{id}/logs", sr.getTaskLogs, router.WithCancel),
+		router.NewGetRoute("/tasks/{id}/logs", sr.getTaskLogs),
 
 		router.NewGetRoute("/secrets", sr.getSecrets),
 		router.NewPostRoute("/secrets/create", sr.createSecret),
