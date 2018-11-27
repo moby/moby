@@ -326,6 +326,19 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 	}
 	configuration.MappedPipes = mps
 
+	if len(spec.Windows.Devices) > 0 {
+		// Add any device assignments
+		if configuration.HvPartition {
+			return errors.New("device assignment is not supported for HyperV containers")
+		}
+		if system.GetOSVersion().Build < 17763 { // RS5
+			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
+		}
+		for _, d := range spec.Windows.Devices {
+			configuration.AssignedDevices = append(configuration.AssignedDevices, hcsshim.AssignedDevice{InterfaceClassGUID: d.ID})
+		}
+	}
+
 	hcsContainer, err := hcsshim.CreateContainer(id, configuration)
 	if err != nil {
 		return err
