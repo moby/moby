@@ -68,6 +68,7 @@ make BUILDTAGS='seccomp apparmor'
 | selinux   | selinux process and mount labeling | <none>      |
 | apparmor  | apparmor profile support           | <none>      |
 | ambient   | ambient capability support         | kernel 4.3  |
+| nokmem    | disable kernel memory account      | <none>      |
 
 
 ### Running the test suite
@@ -263,3 +264,7 @@ PIDFile=/run/mycontainerid.pid
 [Install]
 WantedBy=multi-user.target
 ```
+
+## License
+
+The code and docs are released under the [Apache 2.0 license](LICENSE).

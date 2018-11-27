@@ -71,20 +71,33 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/ext4/tar2ext4"
 	"github.com/Microsoft/opengcs/client"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
 )
+
+// noreexec controls reexec functionality. Off by default, on for debugging purposes.
+var noreexec = false
 
 // init registers this driver to the register. It gets initialised by the
 // function passed in the second parameter, implemented in this file.
 func init() {
 	graphdriver.Register("lcow", InitDriver)
+	// DOCKER_LCOW_NOREEXEC allows for inline processing which makes
+	// debugging issues in the re-exec codepath significantly easier.
+	if os.Getenv("DOCKER_LCOW_NOREEXEC") != "" {
+		logrus.Warnf("LCOW Graphdriver is set to not re-exec. This is intended for debugging purposes only.")
+		noreexec = true
+	} else {
+		reexec.Register("docker-lcow-tar2ext4", tar2ext4Reexec)
+	}
 }
 
 const (
@@ -846,32 +859,72 @@ func (d *Driver) Diff(id, parent string) (io.ReadCloser, error) {
 func (d *Driver) ApplyDiff(id, parent string, diff io.Reader) (int64, error) {
 	logrus.Debugf("lcowdriver: applydiff: id %s", id)
 
-	svm, err := d.startServiceVMIfNotRunning(id, nil, fmt.Sprintf("applydiff %s", id))
+	// Log failures here as it's undiagnosable sometimes, due to a possible panic.
+	// See https://github.com/moby/moby/issues/37955 for more information.
+
+	dest := filepath.Join(d.dataRoot, id, layerFilename)
+	if !noreexec {
+		cmd := reexec.Command([]string{"docker-lcow-tar2ext4", dest}...)
+		stdout := bytes.NewBuffer(nil)
+		stderr := bytes.NewBuffer(nil)
+		cmd.Stdin = diff
+		cmd.Stdout = stdout
+		cmd.Stderr = stderr
+
+		if err := cmd.Start(); err != nil {
+			logrus.Warnf("lcowdriver: applydiff: id %s failed to start re-exec: %s", id, err)
+			return 0, err
+		}
+
+		if err := cmd.Wait(); err != nil {
+			logrus.Warnf("lcowdriver: applydiff: id %s failed %s", id, err)
+			return 0, fmt.Errorf("re-exec error: %v: stderr: %s", err, stderr)
+		}
+		return strconv.ParseInt(stdout.String(), 10, 64)
+	}
+	// The inline case
+	size, err := tar2ext4Actual(dest, diff)
+	if err != nil {
+		logrus.Warnf("lcowdriver: applydiff: id %s failed %s", id, err)
+	}
+	return size, err
+}
+
+// tar2ext4Reexec is the re-exec entry point for writing a layer from a tar file
+func tar2ext4Reexec() {
+	size, err := tar2ext4Actual(os.Args[1], os.Stdin)
+	if err != nil {
+		fmt.Fprint(os.Stderr, err)
+		os.Exit(1)
+	}
+	fmt.Fprint(os.Stdout, size)
+}
+
+// tar2ext4Actual is the implementation of tar2ext to write a layer from a tar file.
+// It can be called through re-exec (default), or inline for debugging.
+func tar2ext4Actual(dest string, diff io.Reader) (int64, error) {
+	// maxDiskSize is not relating to the sandbox size - this is the
+	// maximum possible size a layer VHD generated can be from an EXT4
+	// layout perspective.
+	const maxDiskSize = 128 * 1024 * 1024 * 1024 // 128GB
+	out, err := os.Create(dest)
 	if err != nil {
 		return 0, err
 	}
-	defer d.terminateServiceVM(id, fmt.Sprintf("applydiff %s", id), false)
-
-	logrus.Debugf("lcowdriver: applydiff: waiting for svm to finish booting")
-	err = svm.getStartError()
+	defer out.Close()
+	if err := tar2ext4.Convert(
+		diff,
+		out,
+		tar2ext4.AppendVhdFooter,
+		tar2ext4.ConvertWhiteout,
+		tar2ext4.MaximumDiskSize(maxDiskSize)); err != nil {
+		return 0, err
+	}
+	fi, err := os.Stat(dest)
 	if err != nil {
-		return 0, fmt.Errorf("lcowdriver: applydiff: svm failed to boot: %s", err)
+		return 0, err
 	}
-
-	// TODO @jhowardmsft - the retries are temporary to overcome platform reliability issues.
-	// Obviously this will be removed as platform bugs are fixed.
-	retries := 0
-	for {
-		retries++
-		size, err := svm.config.TarToVhd(filepath.Join(d.dataRoot, id, layerFilename), diff)
-		if err != nil {
-			if retries <= 10 {
-				continue
-			}
-			return 0, err
-		}
-		return size, err
-	}
+	return fi.Size(), nil
 }
 
 // Changes produces a list of changes between the specified layer

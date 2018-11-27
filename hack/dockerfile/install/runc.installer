@@ -1,13 +1,21 @@
 #!/bin/sh
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
-RUNC_COMMIT=69663f0bd4b60df09991c08812a60108003fa340
+# The version of runc should match the version that is used by the containerd
+# version that is used. If you need to update runc, open a pull request in
+# the containerd project first, and update both after that is merged.
+RUNC_COMMIT=10d38b660a77168360df3522881e2dc2be5056bd
 
 install_runc() {
-	# Do not build with ambient capabilities support
-	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux"}"
+	# If using RHEL7 kernels (3.10.0 el7), disable kmem accounting/limiting
+	if uname -r | grep -q '^3\.10\.0.*\.el7\.'; then
+		: ${RUNC_NOKMEM='nokmem'}
+	fi
 
-	echo "Install runc version $RUNC_COMMIT"
+	# Do not build with ambient capabilities support
+	RUNC_BUILDTAGS="${RUNC_BUILDTAGS:-"seccomp apparmor selinux $RUNC_NOKMEM"}"
+
+	echo "Install runc version $RUNC_COMMIT (build tags: $RUNC_BUILDTAGS)"
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"

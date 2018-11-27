@@ -46,8 +46,8 @@ const InitPidFile = "init.pid"
 
 // Init represents an initial process for a container
 type Init struct {
-	wg sync.WaitGroup
-	initState
+	wg        sync.WaitGroup
+	initState initState
 
 	// mu is used to ensure that `Start()` and `Exited()` calls return in
 	// the right order when invoked in separate go routines.
@@ -212,6 +212,7 @@ func (p *Init) Pid() int {
 func (p *Init) ExitStatus() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	return p.status
 }
 
@@ -219,6 +220,7 @@ func (p *Init) ExitStatus() int {
 func (p *Init) ExitedAt() time.Time {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	return p.exited
 }
 
@@ -226,6 +228,7 @@ func (p *Init) ExitedAt() time.Time {
 func (p *Init) Status(ctx context.Context) (string, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	c, err := p.runtime.State(ctx, p.id)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
@@ -236,9 +239,25 @@ func (p *Init) Status(ctx context.Context) (string, error) {
 	return c.Status, nil
 }
 
-func (p *Init) start(context context.Context) error {
-	err := p.runtime.Start(context, p.id)
+// Start the init process
+func (p *Init) Start(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Start(ctx)
+}
+
+func (p *Init) start(ctx context.Context) error {
+	err := p.runtime.Start(ctx, p.id)
 	return p.runtimeError(err, "OCI runtime start failed")
+}
+
+// SetExited of the init process with the next status
+func (p *Init) SetExited(status int) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.initState.SetExited(status)
 }
 
 func (p *Init) setExited(status int) {
@@ -248,9 +267,17 @@ func (p *Init) setExited(status int) {
 	close(p.waitBlock)
 }
 
-func (p *Init) delete(context context.Context) error {
+// Delete the init process
+func (p *Init) Delete(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Delete(ctx)
+}
+
+func (p *Init) delete(ctx context.Context) error {
 	p.wg.Wait()
-	err := p.runtime.Delete(context, p.id, nil)
+	err := p.runtime.Delete(ctx, p.id, nil)
 	// ignore errors if a runtime has already deleted the process
 	// but we still hold metadata and pipes
 	//
@@ -270,12 +297,23 @@ func (p *Init) delete(context context.Context) error {
 		p.io.Close()
 	}
 	if err2 := mount.UnmountAll(p.Rootfs, 0); err2 != nil {
-		log.G(context).WithError(err2).Warn("failed to cleanup rootfs mount")
+		log.G(ctx).WithError(err2).Warn("failed to cleanup rootfs mount")
 		if err == nil {
 			err = errors.Wrap(err2, "failed rootfs umount")
 		}
 	}
 	return err
+}
+
+// Resize the init processes console
+func (p *Init) Resize(ws console.WinSize) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	if p.console == nil {
+		return nil
+	}
+	return p.console.Resize(ws)
 }
 
 func (p *Init) resize(ws console.WinSize) error {
@@ -285,26 +323,43 @@ func (p *Init) resize(ws console.WinSize) error {
 	return p.console.Resize(ws)
 }
 
-func (p *Init) pause(context context.Context) error {
-	err := p.runtime.Pause(context, p.id)
-	return p.runtimeError(err, "OCI runtime pause failed")
+// Pause the init process and all its child processes
+func (p *Init) Pause(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Pause(ctx)
 }
 
-func (p *Init) resume(context context.Context) error {
-	err := p.runtime.Resume(context, p.id)
-	return p.runtimeError(err, "OCI runtime resume failed")
+// Resume the init process and all its child processes
+func (p *Init) Resume(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Resume(ctx)
 }
 
-func (p *Init) kill(context context.Context, signal uint32, all bool) error {
-	err := p.runtime.Kill(context, p.id, int(signal), &runc.KillOpts{
+// Kill the init process
+func (p *Init) Kill(ctx context.Context, signal uint32, all bool) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Kill(ctx, signal, all)
+}
+
+func (p *Init) kill(ctx context.Context, signal uint32, all bool) error {
+	err := p.runtime.Kill(ctx, p.id, int(signal), &runc.KillOpts{
 		All: all,
 	})
 	return checkKillError(err)
 }
 
 // KillAll processes belonging to the init process
-func (p *Init) KillAll(context context.Context) error {
-	err := p.runtime.Kill(context, p.id, int(syscall.SIGKILL), &runc.KillOpts{
+func (p *Init) KillAll(ctx context.Context) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	err := p.runtime.Kill(ctx, p.id, int(syscall.SIGKILL), &runc.KillOpts{
 		All: true,
 	})
 	return p.runtimeError(err, "OCI runtime killall failed")
@@ -320,8 +375,16 @@ func (p *Init) Runtime() *runc.Runc {
 	return p.runtime
 }
 
+// Exec returns a new child process
+func (p *Init) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Exec(ctx, path, r)
+}
+
 // exec returns a new exec'd process
-func (p *Init) exec(context context.Context, path string, r *ExecConfig) (proc.Process, error) {
+func (p *Init) exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	// process exec request
 	var spec specs.Process
 	if err := json.Unmarshal(r.Spec.Value, &spec); err != nil {
@@ -342,18 +405,26 @@ func (p *Init) exec(context context.Context, path string, r *ExecConfig) (proc.P
 		},
 		waitBlock: make(chan struct{}),
 	}
-	e.State = &execCreatedState{p: e}
+	e.execState = &execCreatedState{p: e}
 	return e, nil
 }
 
-func (p *Init) checkpoint(context context.Context, r *CheckpointConfig) error {
+// Checkpoint the init process
+func (p *Init) Checkpoint(ctx context.Context, r *CheckpointConfig) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Checkpoint(ctx, r)
+}
+
+func (p *Init) checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	var actions []runc.CheckpointAction
 	if !r.Exit {
 		actions = append(actions, runc.LeaveRunning)
 	}
 	work := filepath.Join(p.WorkDir, "criu-work")
 	defer os.RemoveAll(work)
-	if err := p.runtime.Checkpoint(context, p.id, &runc.CheckpointOpts{
+	if err := p.runtime.Checkpoint(ctx, p.id, &runc.CheckpointOpts{
 		WorkDir:                  work,
 		ImagePath:                r.Path,
 		AllowOpenTCP:             r.AllowOpenTCP,
@@ -364,19 +435,27 @@ func (p *Init) checkpoint(context context.Context, r *CheckpointConfig) error {
 	}, actions...); err != nil {
 		dumpLog := filepath.Join(p.Bundle, "criu-dump.log")
 		if cerr := copyFile(dumpLog, filepath.Join(work, "dump.log")); cerr != nil {
-			log.G(context).Error(err)
+			log.G(ctx).Error(err)
 		}
 		return fmt.Errorf("%s path= %s", criuError(err), dumpLog)
 	}
 	return nil
 }
 
-func (p *Init) update(context context.Context, r *google_protobuf.Any) error {
+// Update the processes resource configuration
+func (p *Init) Update(ctx context.Context, r *google_protobuf.Any) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.initState.Update(ctx, r)
+}
+
+func (p *Init) update(ctx context.Context, r *google_protobuf.Any) error {
 	var resources specs.LinuxResources
 	if err := json.Unmarshal(r.Value, &resources); err != nil {
 		return err
 	}
-	return p.runtime.Update(context, p.id, &resources)
+	return p.runtime.Update(ctx, p.id, &resources)
 }
 
 // Stdio of the process
