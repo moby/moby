@@ -2,6 +2,7 @@ package volume
 
 import (
 	"context"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -93,6 +94,34 @@ func TestVolumesInspect(t *testing.T) {
 	createdAt, err := time.Parse(time.RFC3339, strings.TrimSpace(inspected.CreatedAt))
 	assert.NilError(t, err)
 	assert.Check(t, createdAt.Truncate(time.Minute).Equal(now.Truncate(time.Minute)), "CreatedAt (%s) not equal to creation time (%s)", createdAt, now)
+}
+
+func TestVolumesInvalidJSON(t *testing.T) {
+	defer setupTest(t)()
+
+	endpoints := []string{"/volumes/create"}
+
+	for _, ep := range endpoints {
+		t.Run(ep, func(t *testing.T) {
+			t.Parallel()
+
+			res, body, err := request.Post(ep, request.RawString("{invalid json"), request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+			buf, err := request.ReadBody(body)
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(buf), "invalid character 'i' looking for beginning of object key string"))
+
+			res, body, err = request.Post(ep, request.JSON)
+			assert.NilError(t, err)
+			assert.Equal(t, res.StatusCode, http.StatusBadRequest)
+
+			buf, err = request.ReadBody(body)
+			assert.NilError(t, err)
+			assert.Check(t, is.Contains(string(buf), "got EOF while reading request body"))
+		})
+	}
 }
 
 func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {

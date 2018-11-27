@@ -56,7 +56,7 @@ func (v *volumeRouter) postVolumesCreate(ctx context.Context, w http.ResponseWri
 		if err == io.EOF {
 			return errdefs.InvalidParameter(errors.New("got EOF while reading request body"))
 		}
-		return err
+		return errdefs.InvalidParameter(err)
 	}
 
 	volume, err := v.backend.Create(ctx, req.Name, req.Driver, opts.WithCreateOptions(req.DriverOpts), opts.WithCreateLabels(req.Labels))
