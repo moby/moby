@@ -651,6 +651,8 @@ func (c *containerConfig) applyPrivileges(hc *enginecontainer.HostConfig) {
 			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=file://"+credentials.GetFile())
 		case *api.Privileges_CredentialSpec_Registry:
 			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=registry://"+credentials.GetRegistry())
+		case *api.Privileges_CredentialSpec_Config:
+			hc.SecurityOpt = append(hc.SecurityOpt, "credentialspec=config://"+credentials.GetConfig())
 		}
 	}
 
