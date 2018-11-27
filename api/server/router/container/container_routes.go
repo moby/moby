@@ -338,9 +338,6 @@ func (s *containerRouter) postContainersWait(ctx context.Context, w http.Respons
 		}
 	}
 
-	// Note: the context should get canceled if the client closes the
-	// connection since this handler has been wrapped by the
-	// router.WithCancel() wrapper.
 	waitC, err := s.backend.ContainerWait(ctx, vars["name"], waitCondition)
 	if err != nil {
 		return err
