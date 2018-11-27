@@ -191,6 +191,7 @@ func (s *Server) createMux() *mux.Router {
 	notFoundHandler := httputils.MakeErrorHandler(pageNotFoundError{})
 	m.HandleFunc(versionMatcher+"/{path:.*}", notFoundHandler)
 	m.NotFoundHandler = notFoundHandler
+	m.MethodNotAllowedHandler = notFoundHandler
 
 	return m
 }
