@@ -182,6 +182,7 @@ RUN apt-get update && apt-get install -y \
 	btrfs-tools \
 	iptables \
 	jq \
+	libcap2-bin \
 	libdevmapper-dev \
 	libudev-dev \
 	libsystemd-dev \
