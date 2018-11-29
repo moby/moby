@@ -63,13 +63,13 @@ func (iface *lnInterface) init(c libnetwork.NetworkController, n libnetwork.Netw
 	defer close(iface.ready)
 	id := identity.NewID()
 
-	ep, err := n.CreateEndpoint(id)
+	ep, err := n.CreateEndpoint(id, libnetwork.CreateOptionDisableResolution())
 	if err != nil {
 		iface.err = err
 		return
 	}
 
-	sbx, err := c.NewSandbox(id)
+	sbx, err := c.NewSandbox(id, libnetwork.OptionUseExternalKey())
 	if err != nil {
 		iface.err = err
 		return
