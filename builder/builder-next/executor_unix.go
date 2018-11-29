@@ -15,6 +15,7 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 const networkName = "bridge"
@@ -100,10 +101,10 @@ func (iface *lnInterface) Set(s *specs.Spec) {
 
 func (iface *lnInterface) Close() error {
 	<-iface.ready
-	err := iface.sbx.Delete()
-	if iface.err != nil {
-		// iface.err takes precedence over cleanup errors
-		return iface.err
-	}
-	return err
+	go func() {
+		if err := iface.sbx.Delete(); err != nil {
+			logrus.Errorf("failed to delete builder network sandbox: %v", err)
+		}
+	}()
+	return iface.err
 }
