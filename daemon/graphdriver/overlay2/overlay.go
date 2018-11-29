@@ -604,15 +604,6 @@ func (d *Driver) Get(id, mountLabel string) (_ containerfs.ContainerFS, retErr e
 
 	pageSize := unix.Getpagesize()
 
-	// Go can return a larger page size than supported by the system
-	// as of go 1.7. This will be fixed in 1.8 and this block can be
-	// removed when building with 1.8.
-	// See https://github.com/golang/go/commit/1b9499b06989d2831e5b156161d6c07642926ee1
-	// See https://github.com/docker/docker/issues/27384
-	if pageSize > 4096 {
-		pageSize = 4096
-	}
-
 	// Use relative paths and mountFrom when the mount data has exceeded
 	// the page size. The mount syscall fails if the mount data cannot
 	// fit within a page and relative links make the mount data much
