@@ -1,5 +1,5 @@
 ## Step 1: Build tests
-FROM golang:1.10.4-alpine3.7 as builder
+FROM golang:1.10.5-alpine3.7 as builder
 
 RUN apk add --update \
     bash \
