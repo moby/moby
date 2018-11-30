@@ -382,7 +382,7 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 
 	for _, mountPath := range mountPaths {
 		if err := mount.Unmount(mountPath); err != nil {
-			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount fo volume '%s': %v", container.ID, mountPath, err)
+			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount for volume '%s': %v", container.ID, mountPath, err)
 		}
 	}
 	return container.UnmountVolumes(volumeEventLog)
