@@ -26,5 +26,5 @@ func syscallWatcher(description string, syscallCompleted *bool) {
 	if *syscallCompleted {
 		return
 	}
-	logrus.Warnf("%s: Did not complete within %s. This may indicate a platform issue. If it appears to be making no forward progress, obtain the stacks and see is there is a syscall stuck in the platform API for a significant length of time.", description, timeout.SyscallWatcher)
+	logrus.Warnf("%s: Did not complete within %s. This may indicate a platform issue. If it appears to be making no forward progress, obtain the stacks and see if there is a syscall stuck in the platform API for a significant length of time.", description, timeout.SyscallWatcher)
 }
