@@ -49,3 +49,44 @@ func TestKernelTCPMemory(t *testing.T) {
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Check(t, is.Equal(strconv.FormatInt(kernelMemoryTCP, 10), strings.TrimSpace(res.Stdout())))
 }
+
+func TestNISDomainname(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+
+	defer setupTest(t)()
+	client := request.NewAPIClient(t)
+	ctx := context.Background()
+
+	const (
+		hostname   = "foobar"
+		domainname = "baz.cyphar.com"
+	)
+
+	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+		c.Config.Hostname = hostname
+		c.Config.Domainname = domainname
+	})
+
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	inspect, err := client.ContainerInspect(ctx, cID)
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(hostname, inspect.Config.Hostname))
+	assert.Check(t, is.Equal(domainname, inspect.Config.Domainname))
+
+	// Check hostname.
+	res, err := container.Exec(ctx, client, cID,
+		[]string{"cat", "/proc/sys/kernel/hostname"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Equal(hostname, strings.TrimSpace(res.Stdout())))
+
+	// Check domainname.
+	res, err = container.Exec(ctx, client, cID,
+		[]string{"cat", "/proc/sys/kernel/domainname"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Check(t, is.Equal(domainname, strings.TrimSpace(res.Stdout())))
+}
