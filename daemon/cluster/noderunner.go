@@ -301,7 +301,7 @@ func (n *nodeRunner) Stop() error {
 		// even though the swarm node is nil we still may need
 		// to send a node leave event to perform any cleanup required.
 		if(n.cluster != nil) {
-			n.cluster.SendClusterEvent(lncluster.EventNodeLeave))
+			n.cluster.SendClusterEvent(lncluster.EventNodeLeave)
 		}
 		n.mu.Unlock()
 		return nil
