@@ -56,11 +56,11 @@ type Ctx struct {
 
 func isChunked(r *http.Request) bool {
 	//RFC 7230 specifies that content length is to be ignored if Transfer-Encoding is chunked
-	if strings.ToLower(r.Header.Get("Transfer-Encoding")) == "chunked" {
+	if strings.EqualFold(r.Header.Get("Transfer-Encoding"), "chunked") {
 		return true
 	}
 	for _, v := range r.TransferEncoding {
-		if 0 == strings.Compare(strings.ToLower(v), "chunked") {
+		if strings.EqualFold(v, "chunked") {
 			return true
 		}
 	}
@@ -162,7 +162,7 @@ func drainBody(body io.ReadCloser) ([]byte, io.ReadCloser, error) {
 
 func isAuthEndpoint(urlPath string) (bool, error) {
 	// eg www.test.com/v1.24/auth/optional?optional1=something&optional2=something (version optional)
-	matched, err := regexp.MatchString(`^[^\/]+\/(v\d[\d\.]*\/)?auth.*`, urlPath)
+	matched, err := regexp.MatchString(`^[^\/]*\/(v\d[\d\.]*\/)?auth.*`, urlPath)
 	if err != nil {
 		return false, err
 	}

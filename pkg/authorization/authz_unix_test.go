@@ -259,6 +259,41 @@ func TestSendBody(t *testing.T) {
 				contentType: "application/json;charset=UTF8",
 				expected:    false,
 			},
+			{
+				url:         "www.nothing.com/v1.24/auth/test",
+				contentType: "application/json;charset=UTF8",
+				expected:    false,
+			},
+			{
+				url:         "https://www.nothing.com/v1.24/auth/test",
+				contentType: "application/json;charset=UTF8",
+				expected:    false,
+			},
+			{
+				url:         "http://nothing.com/v1.24/auth/test",
+				contentType: "application/json;charset=UTF8",
+				expected:    false,
+			},
+			{
+				url:         "www.nothing.com/test?p1=/auth",
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				url:         "http://www.nothing.com/test?p1=/auth",
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				url:         "www.nothing.com/something/auth",
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
+			{
+				url:         "https://www.nothing.com/something/auth",
+				contentType: "application/json;charset=UTF8",
+				expected:    true,
+			},
 		}
 	)
 
