@@ -4,6 +4,7 @@ Documentation=https://docs.docker.com
 BindsTo=containerd.service
 After=network-online.target firewalld.service
 Wants=network-online.target
+Requires=docker.socket
 
 [Service]
 Type=notify
