@@ -3,12 +3,30 @@ package logger // import "github.com/docker/docker/daemon/logger"
 import (
 	"fmt"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
+)
+
+// Map keys used in log opts.
+//
+// No, you can't change these values
+// These are consumed directly on the API.
+const (
+	labelKey    = "labels"
+	envKey      = "env"
+	envRegexKey = "env-regex"
+	logInfoKey  = "loginfo"
 )
 
 // Info provides enough information for a logging driver to do its function.
+//
+// *Note*: that this is essentially a public type which is consumed directly on
+// the API in log options.
 type Info struct {
 	Config              map[string]string
 	ContainerID         string
@@ -29,7 +47,7 @@ type Info struct {
 // that support metadata to add more context to a log.
 func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string, error) {
 	extra := make(map[string]string)
-	labels, ok := info.Config["labels"]
+	labels, ok := info.Config[labelKey]
 	if ok && len(labels) > 0 {
 		for _, l := range strings.Split(labels, ",") {
 			if v, ok := info.ContainerLabels[l]; ok {
@@ -48,7 +66,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	env, ok := info.Config["env"]
+	env, ok := info.Config[envKey]
 	if ok && len(env) > 0 {
 		for _, l := range strings.Split(env, ",") {
 			if v, ok := envMapping[l]; ok {
@@ -60,7 +78,7 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 		}
 	}
 
-	envRegex, ok := info.Config["env-regex"]
+	envRegex, ok := info.Config[envRegexKey]
 	if ok && len(envRegex) > 0 {
 		re, err := regexp.Compile(envRegex)
 		if err != nil {
@@ -73,6 +91,23 @@ func (info *Info) ExtraAttributes(keyMod func(string) string) (map[string]string
 				}
 				extra[k] = v
 			}
+		}
+	}
+
+	extraFields, ok := info.Config[logInfoKey]
+	if ok && len(extraFields) > 0 {
+		split := strings.Split(extraFields, ",")
+		rv := reflect.ValueOf(*info)
+		for _, k := range split {
+			fv := rv.FieldByName(k)
+			if !fv.IsValid() {
+				return nil, errdefs.InvalidParameter(errors.Errorf("invalid log info key: %s", k))
+			}
+
+			if keyMod != nil {
+				k = keyMod(k)
+			}
+			extra[k] = fv.String()
 		}
 	}
 

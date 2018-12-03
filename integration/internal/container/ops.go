@@ -135,6 +135,20 @@ func WithLogDriver(driver string) func(*TestContainerConfig) {
 	}
 }
 
+// WithLogOpt adds the log option to the log config.
+// First argument is the option key name, second is the value to set.
+func WithLogOpt(key, value string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		if c.HostConfig.LogConfig.Config == nil {
+			c.HostConfig.LogConfig.Config = make(map[string]string)
+		}
+		c.HostConfig.LogConfig.Config[key] = value
+	}
+}
+
 // WithAutoRemove sets the container to be removed on exit
 func WithAutoRemove(c *TestContainerConfig) {
 	if c.HostConfig == nil {
