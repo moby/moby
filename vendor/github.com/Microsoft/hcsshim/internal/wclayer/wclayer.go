@@ -2,7 +2,7 @@ package wclayer
 
 import "github.com/Microsoft/hcsshim/internal/guid"
 
-//go:generate go run ../../mksyscall_windows.go -output zsyscall_windows.go -winio wclayer.go
+//go:generate go run ../../mksyscall_windows.go -output zsyscall_windows.go wclayer.go
 
 //sys activateLayer(info *driverInfo, id string) (hr error) = vmcompute.ActivateLayer?
 //sys copyLayer(info *driverInfo, srcId string, dstId string, descriptors []WC_LAYER_DESCRIPTOR) (hr error) = vmcompute.CopyLayer?
@@ -21,16 +21,6 @@ import "github.com/Microsoft/hcsshim/internal/guid"
 //sys unprepareLayer(info *driverInfo, id string) (hr error) = vmcompute.UnprepareLayer?
 //sys processBaseImage(path string) (hr error) = vmcompute.ProcessBaseImage?
 //sys processUtilityImage(path string) (hr error) = vmcompute.ProcessUtilityImage?
-
-//sys importLayerBegin(info *driverInfo, id string, descriptors []WC_LAYER_DESCRIPTOR, context *uintptr) (hr error) = vmcompute.ImportLayerBegin?
-//sys importLayerNext(context uintptr, fileName string, fileInfo *winio.FileBasicInfo) (hr error) = vmcompute.ImportLayerNext?
-//sys importLayerWrite(context uintptr, buffer []byte) (hr error) = vmcompute.ImportLayerWrite?
-//sys importLayerEnd(context uintptr) (hr error) = vmcompute.ImportLayerEnd?
-
-//sys exportLayerBegin(info *driverInfo, id string, descriptors []WC_LAYER_DESCRIPTOR, context *uintptr) (hr error) = vmcompute.ExportLayerBegin?
-//sys exportLayerNext(context uintptr, fileName **uint16, fileInfo *winio.FileBasicInfo, fileSize *int64, deleted *uint32) (hr error) = vmcompute.ExportLayerNext?
-//sys exportLayerRead(context uintptr, buffer []byte, bytesRead *uint32) (hr error) = vmcompute.ExportLayerRead?
-//sys exportLayerEnd(context uintptr) (hr error) = vmcompute.ExportLayerEnd?
 
 //sys grantVmAccess(vmid string, filepath string) (hr error) = vmcompute.GrantVmAccess?
 

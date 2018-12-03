@@ -5,7 +5,6 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/hcsshim/internal/guid"
-
 	"github.com/Microsoft/hcsshim/internal/wclayer"
 )
 
@@ -73,9 +72,6 @@ type DriverInfo struct {
 	Flavour int
 	HomeDir string
 }
-
-type FilterLayerReader = wclayer.FilterLayerReader
-type FilterLayerWriter = wclayer.FilterLayerWriter
 
 type GUID [16]byte
 

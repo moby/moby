@@ -5,6 +5,7 @@ import (
 	"syscall"
 
 	"github.com/Microsoft/hcsshim/internal/interop"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -75,7 +76,13 @@ func notificationWatcher(notificationType hcsNotification, callbackNumber uintpt
 		return 0
 	}
 
-	context.channels[notificationType] <- result
+	if channel, ok := context.channels[notificationType]; ok {
+		channel <- result
+	} else {
+		logrus.WithFields(logrus.Fields{
+			"notification-type": notificationType,
+		}).Warn("Received a callback of an unsupported type")
+	}
 
 	return 0
 }

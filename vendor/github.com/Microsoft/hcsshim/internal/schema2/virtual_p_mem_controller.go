@@ -10,12 +10,11 @@
 package hcsschema
 
 type VirtualPMemController struct {
-
 	Devices map[string]VirtualPMemDevice `json:"Devices,omitempty"`
 
-	MaximumCount int32 `json:"MaximumCount,omitempty"`
+	MaximumCount uint32 `json:"MaximumCount,omitempty"`
 
-	MaximumSizeBytes int32 `json:"MaximumSizeBytes,omitempty"`
+	MaximumSizeBytes uint64 `json:"MaximumSizeBytes,omitempty"`
 
 	Backing string `json:"Backing,omitempty"`
 }

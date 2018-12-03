@@ -2,7 +2,6 @@ package hcs
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"sync"
 	"syscall"
@@ -10,6 +9,7 @@ import (
 
 	"github.com/Microsoft/hcsshim/internal/guestrequest"
 	"github.com/Microsoft/hcsshim/internal/interop"
+	"github.com/Microsoft/hcsshim/internal/logfields"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,6 +21,21 @@ type Process struct {
 	system         *System
 	cachedPipes    *cachedPipes
 	callbackNumber uintptr
+
+	logctx logrus.Fields
+}
+
+func newProcess(process hcsProcess, processID int, computeSystem *System) *Process {
+	return &Process{
+		handle:    process,
+		processID: processID,
+		system:    computeSystem,
+		logctx: logrus.Fields{
+			logfields.HCSOperation: "",
+			logfields.ContainerID:  computeSystem.ID(),
+			logfields.ProcessID:    processID,
+		},
+	}
 }
 
 type cachedPipes struct {
@@ -72,13 +87,36 @@ func (process *Process) SystemID() string {
 	return process.system.ID()
 }
 
+func (process *Process) logOperationBegin(operation string) {
+	process.logctx[logfields.HCSOperation] = operation
+	logOperationBegin(
+		process.logctx,
+		"hcsshim::Process - Begin Operation")
+}
+
+func (process *Process) logOperationEnd(err error) {
+	var result string
+	if err == nil {
+		result = "Success"
+	} else {
+		result = "Error"
+	}
+
+	logOperationEnd(
+		process.logctx,
+		"hcsshim::Process - End Operation - "+result,
+		err)
+	process.logctx[logfields.HCSOperation] = ""
+}
+
 // Signal signals the process with `options`.
-func (process *Process) Signal(options guestrequest.SignalProcessOptions) error {
+func (process *Process) Signal(options guestrequest.SignalProcessOptions) (err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "Signal"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::Signal"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -93,7 +131,7 @@ func (process *Process) Signal(options guestrequest.SignalProcessOptions) error 
 
 	var resultp *uint16
 	completed := false
-	go syscallWatcher(fmt.Sprintf("SignalProcess %s: %d", process.SystemID(), process.Pid()), &completed)
+	go syscallWatcher(process.logctx, &completed)
 	err = hcsSignalProcess(process.handle, optionsStr, &resultp)
 	completed = true
 	events := processHcsResult(resultp)
@@ -101,17 +139,17 @@ func (process *Process) Signal(options guestrequest.SignalProcessOptions) error 
 		return makeProcessError(process, operation, err, events)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
 // Kill signals the process to terminate but does not wait for it to finish terminating.
-func (process *Process) Kill() error {
+func (process *Process) Kill() (err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "Kill"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::Kill"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -119,56 +157,54 @@ func (process *Process) Kill() error {
 
 	var resultp *uint16
 	completed := false
-	go syscallWatcher(fmt.Sprintf("TerminateProcess %s: %d", process.SystemID(), process.Pid()), &completed)
-	err := hcsTerminateProcess(process.handle, &resultp)
+	go syscallWatcher(process.logctx, &completed)
+	err = hcsTerminateProcess(process.handle, &resultp)
 	completed = true
 	events := processHcsResult(resultp)
 	if err != nil {
 		return makeProcessError(process, operation, err, events)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
 // Wait waits for the process to exit.
-func (process *Process) Wait() error {
-	operation := "Wait"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+func (process *Process) Wait() (err error) {
+	operation := "hcsshim::Process::Wait"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
-	err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
+	err = waitForNotification(process.callbackNumber, hcsNotificationProcessExited, nil)
 	if err != nil {
 		return makeProcessError(process, operation, err, nil)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
 // WaitTimeout waits for the process to exit or the duration to elapse. It returns
 // false if timeout occurs.
-func (process *Process) WaitTimeout(timeout time.Duration) error {
-	operation := "WaitTimeout"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+func (process *Process) WaitTimeout(timeout time.Duration) (err error) {
+	operation := "hcssshim::Process::WaitTimeout"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
-	err := waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
+	err = waitForNotification(process.callbackNumber, hcsNotificationProcessExited, &timeout)
 	if err != nil {
 		return makeProcessError(process, operation, err, nil)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
 // ResizeConsole resizes the console of the process.
-func (process *Process) ResizeConsole(width, height uint16) error {
+func (process *Process) ResizeConsole(width, height uint16) (err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "ResizeConsole"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::ResizeConsole"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -196,16 +232,16 @@ func (process *Process) ResizeConsole(width, height uint16) error {
 		return makeProcessError(process, operation, err, events)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
-func (process *Process) Properties() (*ProcessStatus, error) {
+func (process *Process) Properties() (_ *ProcessStatus, err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "Properties"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::Properties"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return nil, makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -216,8 +252,8 @@ func (process *Process) Properties() (*ProcessStatus, error) {
 		propertiesp *uint16
 	)
 	completed := false
-	go syscallWatcher(fmt.Sprintf("GetProcessProperties %s: %d", process.SystemID(), process.Pid()), &completed)
-	err := hcsGetProcessProperties(process.handle, &propertiesp, &resultp)
+	go syscallWatcher(process.logctx, &completed)
+	err = hcsGetProcessProperties(process.handle, &propertiesp, &resultp)
 	completed = true
 	events := processHcsResult(resultp)
 	if err != nil {
@@ -234,14 +270,16 @@ func (process *Process) Properties() (*ProcessStatus, error) {
 		return nil, makeProcessError(process, operation, err, nil)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d, properties=%s", process.processID, propertiesRaw)
 	return properties, nil
 }
 
 // ExitCode returns the exit code of the process. The process must have
 // already terminated.
-func (process *Process) ExitCode() (int, error) {
-	operation := "ExitCode"
+func (process *Process) ExitCode() (_ int, err error) {
+	operation := "hcsshim::Process::ExitCode"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
+
 	properties, err := process.Properties()
 	if err != nil {
 		return 0, makeProcessError(process, operation, err, nil)
@@ -261,12 +299,13 @@ func (process *Process) ExitCode() (int, error) {
 // Stdio returns the stdin, stdout, and stderr pipes, respectively. Closing
 // these pipes does not close the underlying pipes; it should be possible to
 // call this multiple times to get multiple interfaces.
-func (process *Process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, error) {
+func (process *Process) Stdio() (_ io.WriteCloser, _ io.ReadCloser, _ io.ReadCloser, err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "Stdio"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::Stdio"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return nil, nil, nil, makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -279,7 +318,7 @@ func (process *Process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 			processInfo hcsProcessInformation
 			resultp     *uint16
 		)
-		err := hcsGetProcessInfo(process.handle, &processInfo, &resultp)
+		err = hcsGetProcessInfo(process.handle, &processInfo, &resultp)
 		events := processHcsResult(resultp)
 		if err != nil {
 			return nil, nil, nil, makeProcessError(process, operation, err, events)
@@ -299,18 +338,18 @@ func (process *Process) Stdio() (io.WriteCloser, io.ReadCloser, io.ReadCloser, e
 		return nil, nil, nil, makeProcessError(process, operation, err, nil)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return pipes[0], pipes[1], pipes[2], nil
 }
 
 // CloseStdin closes the write side of the stdin pipe so that the process is
 // notified on the read side that there is no more data in stdin.
-func (process *Process) CloseStdin() error {
+func (process *Process) CloseStdin() (err error) {
 	process.handleLock.RLock()
 	defer process.handleLock.RUnlock()
-	operation := "CloseStdin"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::CloseStdin"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	if process.handle == 0 {
 		return makeProcessError(process, operation, ErrAlreadyClosed, nil)
@@ -337,35 +376,34 @@ func (process *Process) CloseStdin() error {
 		return makeProcessError(process, operation, err, events)
 	}
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 
 // Close cleans up any state associated with the process but does not kill
 // or wait on it.
-func (process *Process) Close() error {
+func (process *Process) Close() (err error) {
 	process.handleLock.Lock()
 	defer process.handleLock.Unlock()
-	operation := "Close"
-	title := "hcsshim::Process::" + operation
-	logrus.Debugf(title+" processid=%d", process.processID)
+
+	operation := "hcsshim::Process::Close"
+	process.logOperationBegin(operation)
+	defer process.logOperationEnd(err)
 
 	// Don't double free this
 	if process.handle == 0 {
 		return nil
 	}
 
-	if err := process.unregisterCallback(); err != nil {
+	if err = process.unregisterCallback(); err != nil {
 		return makeProcessError(process, operation, err, nil)
 	}
 
-	if err := hcsCloseProcess(process.handle); err != nil {
+	if err = hcsCloseProcess(process.handle); err != nil {
 		return makeProcessError(process, operation, err, nil)
 	}
 
 	process.handle = 0
 
-	logrus.Debugf(title+" succeeded processid=%d", process.processID)
 	return nil
 }
 

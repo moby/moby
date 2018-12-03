@@ -10,7 +10,6 @@
 package hcsschema
 
 type Chipset struct {
-
 	Uefi *Uefi `json:"Uefi,omitempty"`
 
 	IsNumLockDisabled bool `json:"IsNumLockDisabled,omitempty"`
@@ -22,4 +21,7 @@ type Chipset struct {
 	ChassisAssetTag string `json:"ChassisAssetTag,omitempty"`
 
 	UseUtc bool `json:"UseUtc,omitempty"`
+
+	// LinuxKernelDirect - Added in v2.2 Builds >=181117
+	LinuxKernelDirect *LinuxKernelDirect `json:"LinuxKernelDirect,omitempty"`
 }
