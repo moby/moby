@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Microsoft/hcsshim/internal/interop"
+	"github.com/Microsoft/hcsshim/internal/logfields"
 	"github.com/sirupsen/logrus"
 )
 
@@ -116,10 +117,14 @@ func (ev *ErrorEvent) String() string {
 func processHcsResult(resultp *uint16) []ErrorEvent {
 	if resultp != nil {
 		resultj := interop.ConvertAndFreeCoTaskMemString(resultp)
-		logrus.Debugf("Result: %s", resultj)
+		logrus.WithField(logfields.JSON, resultj).
+			Debug("HCS Result")
 		result := &hcsResult{}
 		if err := json.Unmarshal([]byte(resultj), result); err != nil {
-			logrus.Warnf("Could not unmarshal HCS result %s: %s", resultj, err)
+			logrus.WithFields(logrus.Fields{
+				logfields.JSON:  resultj,
+				logrus.ErrorKey: err,
+			}).Warning("Could not unmarshal HCS result")
 			return nil
 		}
 		return result.ErrorEvents

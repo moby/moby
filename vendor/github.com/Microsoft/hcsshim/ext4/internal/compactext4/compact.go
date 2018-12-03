@@ -424,7 +424,7 @@ func (w *Writer) makeInode(f *File, node *inode) (*inode, error) {
 	case format.S_IFREG:
 		size = f.Size
 		if f.Size > maxFileSize {
-			return nil, fmt.Errorf("file too big: %d > %d", f.Size, maxFileSize)
+			return nil, fmt.Errorf("file too big: %d > %d", f.Size, int64(maxFileSize))
 		}
 		if f.Size <= inlineDataSize && w.supportInlineData {
 			node.Data = make([]byte, f.Size)
