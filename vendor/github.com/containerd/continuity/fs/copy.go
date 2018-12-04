@@ -32,14 +32,49 @@ var bufferPool = &sync.Pool{
 	},
 }
 
-// CopyDir copies the directory from src to dst.
-// Most efficient copy of files is attempted.
-func CopyDir(dst, src string) error {
-	inodes := map[uint64]string{}
-	return copyDirectory(dst, src, inodes)
+// XAttrErrorHandlers transform a non-nil xattr error.
+// Return nil to ignore an error.
+// xattrKey can be empty for listxattr operation.
+type XAttrErrorHandler func(dst, src, xattrKey string, err error) error
+
+type copyDirOpts struct {
+	xeh XAttrErrorHandler
 }
 
-func copyDirectory(dst, src string, inodes map[uint64]string) error {
+type CopyDirOpt func(*copyDirOpts) error
+
+// WithXAttrErrorHandler allows specifying XAttrErrorHandler
+// If nil XAttrErrorHandler is specified (default), CopyDir stops
+// on a non-nil xattr error.
+func WithXAttrErrorHandler(xeh XAttrErrorHandler) CopyDirOpt {
+	return func(o *copyDirOpts) error {
+		o.xeh = xeh
+		return nil
+	}
+}
+
+// WithAllowXAttrErrors allows ignoring xattr errors.
+func WithAllowXAttrErrors() CopyDirOpt {
+	xeh := func(dst, src, xattrKey string, err error) error {
+		return nil
+	}
+	return WithXAttrErrorHandler(xeh)
+}
+
+// CopyDir copies the directory from src to dst.
+// Most efficient copy of files is attempted.
+func CopyDir(dst, src string, opts ...CopyDirOpt) error {
+	var o copyDirOpts
+	for _, opt := range opts {
+		if err := opt(&o); err != nil {
+			return err
+		}
+	}
+	inodes := map[uint64]string{}
+	return copyDirectory(dst, src, inodes, &o)
+}
+
+func copyDirectory(dst, src string, inodes map[uint64]string, o *copyDirOpts) error {
 	stat, err := os.Stat(src)
 	if err != nil {
 		return errors.Wrapf(err, "failed to stat %s", src)
@@ -75,7 +110,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string) error {
 
 		switch {
 		case fi.IsDir():
-			if err := copyDirectory(target, source, inodes); err != nil {
+			if err := copyDirectory(target, source, inodes, o); err != nil {
 				return err
 			}
 			continue
@@ -111,7 +146,7 @@ func copyDirectory(dst, src string, inodes map[uint64]string) error {
 			return errors.Wrap(err, "failed to copy file info")
 		}
 
-		if err := copyXAttrs(target, source); err != nil {
+		if err := copyXAttrs(target, source, o.xeh); err != nil {
 			return errors.Wrap(err, "failed to copy xattrs")
 		}
 	}
