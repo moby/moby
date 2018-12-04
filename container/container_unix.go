@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"syscall"
 
 	"github.com/containerd/continuity/fs"
 	"github.com/docker/docker/api/types"
@@ -386,6 +387,18 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 	return container.UnmountVolumes(volumeEventLog)
 }
 
+// ignoreUnsupportedXAttrs ignores errors when extended attributes
+// are not supported
+func ignoreUnsupportedXAttrs() fs.CopyDirOpt {
+	xeh := func(dst, src, xattrKey string, err error) error {
+		if errors.Cause(err) != syscall.ENOTSUP {
+			return err
+		}
+		return nil
+	}
+	return fs.WithXAttrErrorHandler(xeh)
+}
+
 // copyExistingContents copies from the source to the destination and
 // ensures the ownership is appropriately set.
 func copyExistingContents(source, destination string) error {
@@ -397,7 +410,7 @@ func copyExistingContents(source, destination string) error {
 		// destination is not empty, do not copy
 		return nil
 	}
-	return fs.CopyDir(destination, source)
+	return fs.CopyDir(destination, source, ignoreUnsupportedXAttrs())
 }
 
 // TmpfsMounts returns the list of tmpfs mounts
