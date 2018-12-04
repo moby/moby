@@ -257,6 +257,41 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThro
 	return throttleDevices, nil
 }
 
+// adjustParallelLimit takes a number of objects and a proposed limit and
+// figures out if it's reasonable (and adjusts it accordingly). This is only
+// used for daemon startup, which does a lot of parallel loading of containers
+// (and if we exceed RLIMIT_NOFILE then we're in trouble).
+func adjustParallelLimit(n int, limit int) int {
+	// Rule-of-thumb overhead factor (how many files will each goroutine open
+	// simultaneously). Yes, this is ugly but to be frank this whole thing is
+	// ugly.
+	const overhead = 2
+
+	// On Linux, we need to ensure that parallelStartupJobs doesn't cause us to
+	// exceed RLIMIT_NOFILE. If parallelStartupJobs is too large, we reduce it
+	// and give a warning (since in theory the user should increase their
+	// ulimits to the largest possible value for dockerd).
+	var rlim unix.Rlimit
+	if err := unix.Getrlimit(unix.RLIMIT_NOFILE, &rlim); err != nil {
+		logrus.Warnf("Couldn't find dockerd's RLIMIT_NOFILE to double-check startup parallelism factor: %v", err)
+		return limit
+	}
+	softRlimit := int(rlim.Cur)
+
+	// Much fewer containers than RLIMIT_NOFILE. No need to adjust anything.
+	if softRlimit > overhead*n {
+		return limit
+	}
+
+	// RLIMIT_NOFILE big enough, no need to adjust anything.
+	if softRlimit > overhead*limit {
+		return limit
+	}
+
+	logrus.Warnf("Found dockerd's open file ulimit (%v) is far too small -- consider increasing it significantly (at least %v)", softRlimit, overhead*limit)
+	return softRlimit / overhead
+}
+
 func checkKernel() error {
 	// Check for unsupported kernel versions
 	// FIXME: it would be cleaner to not test for specific versions, but rather

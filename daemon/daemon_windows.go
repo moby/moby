@@ -40,6 +40,11 @@ const (
 	windowsMaxCPUPercent = 100
 )
 
+// Windows doesn't really have rlimits.
+func adjustParallelLimit(n int, limit int) int {
+	return limit
+}
+
 // Windows has no concept of an execution state directory. So use config.Root here.
 func getPluginExecRoot(root string) string {
 	return filepath.Join(root, "plugins")
