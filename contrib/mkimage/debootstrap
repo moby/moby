@@ -193,7 +193,7 @@ if [ -z "$DONT_TOUCH_SOURCES_LIST" ]; then
 	case "$lsbDist" in
 		debian)
 			# updates and security!
-			if curl -o /dev/null -s --head --fail "http://security.debian.org/dists/$suite/updates/main/binary-$(rootfs_chroot dpkg --print-architecture)/Packages.gz"; then
+			if curl -o /dev/null -s --head --location --fail "http://security.debian.org/dists/$suite/updates/main/binary-$(rootfs_chroot dpkg --print-architecture)/Packages.gz"; then
 				(
 					set -x
 					sed -i "
