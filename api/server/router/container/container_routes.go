@@ -55,7 +55,7 @@ func (s *containerRouter) postCommit(ctx context.Context, w http.ResponseWriter,
 		Changes: r.Form["changes"],
 	}
 
-	imgID, err := s.backend.CreateImageFromContainer(r.Form.Get("container"), commitCfg)
+	imgID, err := s.backend.CreateImageFromContainer(ctx, r.Form.Get("container"), commitCfg)
 	if err != nil {
 		return err
 	}

@@ -18,7 +18,7 @@ import (
 )
 
 type cachedImage struct {
-	id     digest.Digest
+	config ocispec.Descriptor
 	parent digest.Digest
 
 	// Mutable values
@@ -99,18 +99,21 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 
 		ci := c.tCache[img.Target.Digest]
 		if ci == nil {
-			var id digest.Digest
+			var id ocispec.Descriptor
 			if !hasName {
 				digested, ok := ref.(reference.Digested)
 				if ok {
-					id = digested.Digest()
+					id = ocispec.Descriptor{
+						MediaType: ocispec.MediaTypeImageConfig,
+						Digest:    digested.Digest(),
+					}
 				}
 			}
 			if img.Target.MediaType == images.MediaTypeDockerSchema2Config || img.Target.MediaType == ocispec.MediaTypeImageConfig {
-				id = img.Target.Digest
+				id = img.Target
 
 			}
-			if id == "" {
+			if id.Digest == "" {
 				idstr, ok := img.Labels[LabelImageID]
 				if !ok {
 					cs := i.client.ContentStore()
@@ -121,20 +124,24 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 						log.G(ctx).WithError(err).WithField("name", img.Name).Debug("TODO: no label")
 						continue
 					}
-					id = desc.Digest
+					id = desc
 				} else {
-					id, err = digest.Parse(idstr)
+					dgst, err := digest.Parse(idstr)
 					if err != nil {
 						log.G(ctx).WithError(err).WithField("name", img.Name).Debug("skipping invalid image id label")
 						continue
 					}
+					id = ocispec.Descriptor{
+						MediaType: ocispec.MediaTypeImageConfig,
+						Digest:    dgst,
+					}
 				}
 			}
 
-			ci = c.idCache[id]
+			ci = c.idCache[id.Digest]
 			if ci == nil {
 				ci = &cachedImage{
-					id: id,
+					config: id,
 				}
 				if s := img.Labels[LabelImageParent]; s != "" {
 					pid, err := digest.Parse(s)
@@ -145,7 +152,8 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 					}
 				}
 
-				c.idCache[id] = ci
+				c.idCache[id.Digest] = ci
+				c.ids.Add(id.Digest)
 			}
 			c.tCache[img.Target.Digest] = ci
 		}
@@ -180,12 +188,29 @@ func (ci *cachedImage) addReference(named reference.Named) {
 	}
 }
 
+func (ci *cachedImage) addChild(d digest.Digest) {
+	var i int
+
+	// Add references, add in sorted place
+	for ; i < len(ci.children); i++ {
+		if d < ci.children[i] {
+			ci.children = append(ci.children, "")
+			copy(ci.children[i+1:], ci.children[i:])
+			ci.children[i] = d
+			break
+		} else if ci.children[i] == d {
+			break
+		}
+	}
+	if i == len(ci.children) {
+		ci.children = append(ci.children, d)
+	}
+}
+
 func (i *ImageService) getCache(ctx context.Context) (c *cache, err error) {
 	namespace, ok := namespaces.Namespace(ctx)
 	if !ok {
-		// Default namespace
-		// TODO(containerd): define default in service
-		namespace = ""
+		namespace = i.namespace
 	}
 	i.cacheL.RLock()
 	c, ok = i.cache[namespace]

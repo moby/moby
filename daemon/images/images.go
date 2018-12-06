@@ -156,7 +156,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			continue
 		}
 
-		m[ci.id] = append(m[ci.id], img)
+		m[ci.config.Digest] = append(m[ci.config.Digest], img)
 
 		//var size int64
 		// TODO: this seems pretty dumb to do

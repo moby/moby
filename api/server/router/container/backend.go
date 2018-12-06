@@ -68,7 +68,7 @@ type systemBackend interface {
 }
 
 type commitBackend interface {
-	CreateImageFromContainer(name string, config *backend.CreateImageConfig) (imageID string, err error)
+	CreateImageFromContainer(ctx context.Context, name string, config *backend.CreateImageConfig) (imageID string, err error)
 }
 
 // Backend is all the methods that need to be implemented to provide container specific functionality.
