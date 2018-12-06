@@ -129,11 +129,12 @@ const (
 )
 
 type fileCopyInfo struct {
-	mode     fileCopyInfoMode
-	dstPath  string
-	srcPath  string
-	stat     *syscall.Stat_t
-	fileInfo os.FileInfo
+	mode        fileCopyInfoMode
+	dstPath     string
+	srcPath     string
+	stat        *syscall.Stat_t
+	fileInfo    os.FileInfo
+	sharedInode *sharedInode
 }
 
 type fileID struct {
@@ -143,19 +144,36 @@ type fileID struct {
 
 // This represents an inode on the destination side with a unique identity
 type sharedInode struct {
-	wg                        *sync.WaitGroup
+	lock                      sync.Mutex
+	initialized               bool
 	successfullyCopiedDstPath string
 	err                       error
 }
 
-// This tells us about the shared dstPath
-func newSharedInode(dstPath string) *sharedInode {
-	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	return &sharedInode{wg: wg, successfullyCopiedDstPath: dstPath}
-}
+func doRegularFileCopy(srcPath, dstPath string, f os.FileInfo, sInode *sharedInode, copyWithFileRange, copyWithFileClone *bool) error {
+	if sInode == nil {
+		return copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
+	}
 
-func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, duplicatedInodeMap *sync.Map, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
+	sInode.lock.Lock()
+	defer sInode.lock.Unlock()
+	if sInode.err != nil {
+		return sInode.err
+	}
+	// the inode has been copied without error
+	if sInode.initialized {
+		return os.Link(sInode.successfullyCopiedDstPath, dstPath)
+	}
+	// We don't actually have to wait for all of copyRegular to finish, in fact
+	// all we need is to wait for the inode creation, but there's all sorts of
+	// terrible things that might happen between inode creation and writing the file,
+	// and hardlinks are relatively rare in the primary use case (VFS)
+	sInode.err = copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
+	sInode.successfullyCopiedDstPath = dstPath
+	sInode.initialized = true
+	return sInode.err
+}
+func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, sInode *sharedInode, copyWithFileRange, copyWithFileClone *bool, copyXattrs bool, copyMode Mode) error {
 	switch f.Mode() & os.ModeType {
 	case 0: // Regular file
 		if copyMode == Hardlink {
@@ -165,23 +183,8 @@ func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, du
 			// Don't copy metadata for hard links
 			return nil
 		}
-		id := fileID{dev: stat.Dev, ino: stat.Ino}
-		sharedInodeInterface, loaded := duplicatedInodeMap.LoadOrStore(id, newSharedInode(dstPath))
-		inode := sharedInodeInterface.(*sharedInode)
-		if loaded {
-			inode.wg.Wait()
-			if inode.err != nil {
-				return inode.err
-			}
-			if err := os.Link(inode.successfullyCopiedDstPath, dstPath); err != nil {
-				return err
-			}
-		} else {
-			inode.err = copyRegular(srcPath, dstPath, f, copyWithFileRange, copyWithFileClone)
-			inode.wg.Done()
-			if inode.err != nil {
-				return inode.err
-			}
+		if err := doRegularFileCopy(srcPath, dstPath, f, sInode, copyWithFileRange, copyWithFileClone); err != nil {
+			return err
 		}
 
 	case os.ModeSymlink:
@@ -217,7 +220,7 @@ func doFileCopy(srcPath, dstPath string, f os.FileInfo, stat *syscall.Stat_t, du
 	return copyMetadata(dstPath, srcPath, f, stat, copyXattrs)
 }
 
-func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, duplicatedInodeMap *sync.Map, copyMode Mode, copyXattrs bool) error {
+func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, copyMode Mode, copyXattrs bool) error {
 	copyWithFileRange := true
 	copyWithFileClone := true
 
@@ -236,7 +239,7 @@ func fileCopyWorker(ctx context.Context, fileCopyInfoChan chan *fileCopyInfo, du
 					return err
 				}
 			case fileMode:
-				if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, duplicatedInodeMap, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
+				if err := doFileCopy(fci.srcPath, fci.dstPath, fci.fileInfo, fci.stat, fci.sharedInode, &copyWithFileRange, &copyWithFileClone, copyXattrs, copyMode); err != nil {
 					return err
 				}
 			case updateDirTimeMode:
@@ -266,10 +269,11 @@ func readDirNames(dirname string) ([]string, error) {
 }
 
 type walkFn struct {
-	srcDir  string
-	dstDir  string
-	workers []chan *fileCopyInfo
-	rand    *rand.Rand
+	srcDir         string
+	dstDir         string
+	workers        []chan *fileCopyInfo
+	rand           *rand.Rand
+	sharedInodeMap map[fileID]*sharedInode
 }
 
 func (w *walkFn) rebasePath(srcPath string) (string, error) {
@@ -283,6 +287,7 @@ func (w *walkFn) rebasePath(srcPath string) (string, error) {
 }
 
 func (w *walkFn) walkFunc(ctx context.Context, srcPath string, f os.FileInfo, c chan *fileCopyInfo, err error) error {
+	var sInode *sharedInode
 	mode := fileMode
 	if err != nil {
 		return err
@@ -313,13 +318,23 @@ func (w *walkFn) walkFunc(ctx context.Context, srcPath string, f os.FileInfo, c 
 			}
 		}
 	}
+	if stat.Nlink > 1 {
+		id := fileID{dev: stat.Dev, ino: stat.Ino}
+		if val, ok := w.sharedInodeMap[id]; ok {
+			sInode = val
+		} else {
+			sInode = &sharedInode{}
+			w.sharedInodeMap[id] = sInode
+		}
+	}
 	select {
 	case c <- &fileCopyInfo{
-		mode:     mode,
-		dstPath:  dstPath,
-		srcPath:  srcPath,
-		stat:     stat,
-		fileInfo: f,
+		mode:        mode,
+		dstPath:     dstPath,
+		srcPath:     srcPath,
+		stat:        stat,
+		fileInfo:    f,
+		sharedInode: sInode,
 	}:
 	case <-ctx.Done():
 		return ctx.Err()
@@ -413,20 +428,20 @@ func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx)
 	workers := make([]chan *fileCopyInfo, workerCount)
-	duplicatedInodeMap := &sync.Map{}
 	for i := 0; i < len(workers); i++ {
 		c := make(chan *fileCopyInfo, fileCopyInfoChannelDepth)
 		workers[i] = c
 		errGroup.Go(func() error {
-			return fileCopyWorker(errGroupCtx, c, duplicatedInodeMap, copyMode, copyXattrs)
+			return fileCopyWorker(errGroupCtx, c, copyMode, copyXattrs)
 		})
 	}
 
 	w := &walkFn{
-		srcDir:  srcDir,
-		dstDir:  dstDir,
-		workers: workers,
-		rand:    rand.New(rand.NewSource(3)),
+		srcDir:         srcDir,
+		dstDir:         dstDir,
+		workers:        workers,
+		rand:           rand.New(rand.NewSource(3)),
+		sharedInodeMap: make(map[fileID]*sharedInode),
 	}
 
 	err := w.walk(errGroupCtx, srcDir)
