@@ -1484,7 +1484,7 @@ func (daemon *Daemon) initCgroupsPath(path string) error {
 	// for the period and runtime as this limits what the children can be set to.
 	daemon.initCgroupsPath(filepath.Dir(path))
 
-	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("cpu")
+	mnt, root, err := cgroups.FindCgroupMountpointAndRoot("", "cpu")
 	if err != nil {
 		return err
 	}
