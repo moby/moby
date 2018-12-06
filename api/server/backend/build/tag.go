@@ -1,12 +1,11 @@
 package build // import "github.com/docker/docker/api/server/backend/build"
 
 import (
+	"context"
 	"fmt"
 	"io"
 
 	"github.com/docker/distribution/reference"
-	"github.com/docker/docker/image"
-	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -33,12 +32,9 @@ func NewTagger(backend ImageComponent, stdout io.Writer, names []string) (*Tagge
 }
 
 // TagImages creates image tags for the imageID
-func (bt *Tagger) TagImages(imageID image.ID) error {
+func (bt *Tagger) TagImages(ctx context.Context, desc ocispec.Descriptor) error {
 	for _, rt := range bt.repoAndTags {
-		desc := ocispec.Descriptor{
-			Digest: digest.Digest(imageID),
-		}
-		if err := bt.imageComponent.TagImageWithReference(desc, rt); err != nil {
+		if err := bt.imageComponent.TagImageWithReference(ctx, desc, rt); err != nil {
 			return err
 		}
 		fmt.Fprintf(bt.stdout, "Successfully tagged %s\n", reference.FamiliarString(rt))

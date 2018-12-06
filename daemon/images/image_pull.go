@@ -92,7 +92,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		// TODO: Add manifest digest ref
 	} else {
 		ci = &cachedImage{
-			id:         config.Digest,
+			config:     config,
 			references: []reference.Named{ref},
 		}
 		c.idCache[config.Digest] = ci

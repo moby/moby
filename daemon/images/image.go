@@ -136,14 +136,28 @@ func (i *ImageService) getReferences(ctx context.Context, imageID digest.Digest)
 }
 
 func (i *ImageService) getCachedRef(ctx context.Context, ref string) (*cachedImage, error) {
-	parsed, err := reference.ParseAnyReference(ref)
+	img, err := i.getImageByRef(ctx, ref)
 	if err != nil {
 		return nil, err
+	}
+	return img.cached, nil
+}
+
+type imageLink struct {
+	name   reference.Named
+	target *ocispec.Descriptor
+	cached *cachedImage
+}
+
+func (i *ImageService) getImageByRef(ctx context.Context, ref string) (imageLink, error) {
+	parsed, err := reference.ParseAnyReference(ref)
+	if err != nil {
+		return imageLink{}, err
 	}
 
 	c, err := i.getCache(ctx)
 	if err != nil {
-		return nil, err
+		return imageLink{}, err
 	}
 
 	c.m.RLock()
@@ -153,36 +167,78 @@ func (i *ImageService) getCachedRef(ctx context.Context, ref string) (*cachedIma
 	if !ok {
 		digested, ok := parsed.(reference.Digested)
 		if !ok {
-			return nil, errdefs.InvalidParameter(errors.New("bad reference"))
+			return imageLink{}, errdefs.InvalidParameter(errors.New("bad reference"))
 		}
 
 		ci, ok := c.idCache[digested.Digest()]
 		if !ok {
-			return nil, errdefs.NotFound(errors.New("id not found"))
+			return imageLink{}, errdefs.NotFound(errors.New("id not found"))
 		}
-		return ci, nil
+		return imageLink{
+			cached: ci,
+		}, nil
 	}
 
 	img, err := i.client.ImageService().Get(ctx, namedRef.String())
 	if err != nil {
 		if !cerrdefs.IsNotFound(err) {
-			return nil, err
+			return imageLink{}, err
 		}
 		dgst, err := c.ids.Lookup(ref)
 		if err != nil {
-			return nil, errdefs.NotFound(errors.New("reference not found"))
+			return imageLink{}, errdefs.NotFound(errors.New("reference not found"))
 		}
 		ci, ok := c.idCache[dgst]
 		if !ok {
-			return nil, errdefs.NotFound(errors.New("id not found"))
+			return imageLink{}, errdefs.NotFound(errors.New("id not found"))
 		}
-		return ci, nil
+		return imageLink{
+			cached: ci,
+		}, nil
 	}
 	ci, ok := c.tCache[img.Target.Digest]
 	if !ok {
 		// TODO(containerd): Update cache and return
-		return nil, errdefs.NotFound(errors.New("id not found"))
+		return imageLink{}, errdefs.NotFound(errors.New("id not found"))
 	}
 
-	return ci, nil
+	return imageLink{
+		name:   namedRef,
+		target: &img.Target,
+		cached: ci,
+	}, nil
+}
+
+func (i *ImageService) updateCache(ctx context.Context, img imageLink) error {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return err
+	}
+
+	img.cached.m.Lock()
+	img.cached.addReference(img.name)
+	img.cached.m.Unlock()
+
+	var parent *cachedImage
+
+	c.m.Lock()
+	if _, ok := c.tCache[img.target.Digest]; !ok {
+		c.tCache[img.target.Digest] = img.cached
+	}
+	if _, ok := c.idCache[img.cached.config.Digest]; !ok {
+		c.idCache[img.cached.config.Digest] = img.cached
+		c.ids.Add(img.cached.config.Digest)
+	}
+	if img.cached.parent != "" {
+		parent = c.idCache[img.cached.parent]
+	}
+	c.m.Unlock()
+
+	if parent != nil {
+		parent.m.Lock()
+		parent.addChild(img.cached.config.Digest)
+		parent.m.Unlock()
+	}
+
+	return nil
 }

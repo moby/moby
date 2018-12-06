@@ -70,7 +70,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		return nil, err
 	}
 
-	imgID := img.id
+	imgID := img.config.Digest
 	repoRefs := img.references
 
 	using := func(c *container.Container) bool {
@@ -285,8 +285,8 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 	if !force {
 		c |= conflictSoft
 	}
-	if conflict := i.checkImageDeleteConflict(img.id, c); conflict != nil {
-		if quiet && (!i.imageIsDangling(img.id) || conflict.used) {
+	if conflict := i.checkImageDeleteConflict(img.config.Digest, c); conflict != nil {
+		if quiet && (!i.imageIsDangling(img.config.Digest) || conflict.used) {
 			// Ignore conflicts UNLESS the image is "dangling" or not being used in
 			// which case we want the user to know.
 			return nil, nil
@@ -306,13 +306,13 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 	// NOTE(containerd): GC can do this in the future
 	// TODO(containerd): Move this function locally, to track and release layers
 	// Walk layers and remove reference
-	removedLayers, err := i.imageStore.Delete(image.ID(img.id))
+	removedLayers, err := i.imageStore.Delete(image.ID(img.config.Digest))
 	if err != nil {
 		return records, err
 	}
 
-	i.LogImageEvent(img.id.String(), img.id.String(), "delete")
-	records = append(records, types.ImageDeleteResponseItem{Deleted: img.id.String()})
+	i.LogImageEvent(img.config.Digest.String(), img.config.Digest.String(), "delete")
+	records = append(records, types.ImageDeleteResponseItem{Deleted: img.config.Digest.String()})
 	for _, removedLayer := range removedLayers {
 		records = append(records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
 	}
