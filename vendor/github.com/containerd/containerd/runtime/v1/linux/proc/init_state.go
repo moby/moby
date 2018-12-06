@@ -24,7 +24,6 @@ import (
 	"syscall"
 
 	"github.com/containerd/console"
-	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/runtime/proc"
 	"github.com/containerd/fifo"
 	runc "github.com/containerd/go-runc"
@@ -407,7 +406,7 @@ func (s *stoppedState) Delete(ctx context.Context) error {
 }
 
 func (s *stoppedState) Kill(ctx context.Context, sig uint32, all bool) error {
-	return errdefs.ToGRPCf(errdefs.ErrNotFound, "process %s not found", s.p.id)
+	return s.p.kill(ctx, sig, all)
 }
 
 func (s *stoppedState) SetExited(status int) {
