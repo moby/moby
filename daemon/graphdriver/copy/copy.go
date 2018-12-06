@@ -34,8 +34,8 @@ const (
 	// and we have to force-set them.
 	desiredUmask = 7022
 	// This is based on some empirical testing on EXT4 filesystems
-	workerCount              = 8
 	fileCopyInfoChannelDepth = 100
+	defaultWorkerCount       = 8
 )
 
 // Mode indicates whether to use hardlink or copy content
@@ -423,7 +423,20 @@ func (w *walkFn) walk(ctx context.Context, root string) error {
 //
 // Copying xattrs can be opted out of by passing false for copyXattrs.
 func DirCopy(srcDir, dstDir string, copyMode Mode, copyXattrs bool) error {
-	ctx, cancel := context.WithCancel(context.TODO())
+	return DirCopyWithConcurrency(srcDir, dstDir, copyMode, copyXattrs, 0)
+}
+
+// DirCopyWithConcurrency performs the same work as DirCopy, but allows you to specify the
+// concurrency level. Specifying workerCount as 0 will make it use the default worker
+// count
+func DirCopyWithConcurrency(srcDir, dstDir string, copyMode Mode, copyXattrs bool, workerCount int) error {
+	if workerCount < 0 {
+		return fmt.Errorf("Copy concurrency '%d' is less than 0", workerCount)
+	}
+	if workerCount == 0 {
+		workerCount = defaultWorkerCount
+	}
+	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	errGroup, errGroupCtx := errgroup.WithContext(ctx)
