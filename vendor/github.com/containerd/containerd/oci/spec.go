@@ -209,6 +209,7 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 		Linux: &specs.Linux{
 			MaskedPaths: []string{
 				"/proc/acpi",
+				"/proc/asound",
 				"/proc/kcore",
 				"/proc/keys",
 				"/proc/latency_stats",
@@ -219,7 +220,6 @@ func populateDefaultUnixSpec(ctx context.Context, s *Spec, id string) error {
 				"/proc/scsi",
 			},
 			ReadonlyPaths: []string{
-				"/proc/asound",
 				"/proc/bus",
 				"/proc/fs",
 				"/proc/irq",
