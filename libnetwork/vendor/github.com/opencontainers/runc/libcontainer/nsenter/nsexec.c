@@ -42,6 +42,12 @@ enum sync_t {
 	SYNC_ERR = 0xFF,	/* Fatal error, no turning back. The error code follows. */
 };
 
+/*
+ * Synchronisation value for cgroup namespace setup.
+ * The same constant is defined in process_linux.go as "createCgroupns".
+ */
+#define CREATECGROUPNS 0x80
+
 /* longjmp() arguments. */
 #define JUMP_PARENT 0x00
 #define JUMP_CHILD  0xA0
@@ -82,7 +88,7 @@ struct nlconfig_t {
 	uint8_t is_setgroup;
 
 	/* Rootless container settings. */
-	uint8_t is_rootless;
+	uint8_t is_rootless_euid;	/* boolean */
 	char *uidmappath;
 	size_t uidmappath_len;
 	char *gidmappath;
@@ -100,7 +106,7 @@ struct nlconfig_t {
 #define GIDMAP_ATTR			27284
 #define SETGROUP_ATTR		27285
 #define OOM_SCORE_ADJ_ATTR	27286
-#define ROOTLESS_ATTR	    27287
+#define ROOTLESS_EUID_ATTR	27287
 #define UIDMAPPATH_ATTR	    27288
 #define GIDMAPPATH_ATTR	    27289
 
@@ -211,7 +217,7 @@ static int try_mapping_tool(const char *app, int pid, char *map, size_t map_len)
 
 	/*
 	 * If @app is NULL, execve will segfault. Just check it here and bail (if
-	 * we're in this path, the caller is already getting desparate and there
+	 * we're in this path, the caller is already getting desperate and there
 	 * isn't a backup to this failing). This usually would be a configuration
 	 * or programming issue.
 	 */
@@ -419,8 +425,8 @@ static void nl_parse(int fd, struct nlconfig_t *config)
 		case CLONE_FLAGS_ATTR:
 			config->cloneflags = readint32(current);
 			break;
-		case ROOTLESS_ATTR:
-			config->is_rootless = readint8(current);
+		case ROOTLESS_EUID_ATTR:
+			config->is_rootless_euid = readint8(current);	/* boolean */
 			break;
 		case OOM_SCORE_ADJ_ATTR:
 			config->oom_score_adj = current;
@@ -505,7 +511,8 @@ void join_namespaces(char *nslist)
 
 		ns->fd = fd;
 		ns->ns = nsflag(namespace);
-		strncpy(ns->path, path, PATH_MAX);
+		strncpy(ns->path, path, PATH_MAX - 1);
+		ns->path[PATH_MAX - 1] = '\0';
 	} while ((namespace = strtok_r(NULL, ",", &saveptr)) != NULL);
 
 	/*
@@ -639,7 +646,6 @@ void nsexec(void)
 	case JUMP_PARENT:{
 			int len;
 			pid_t child, first_child = -1;
-			char buf[JSON_MAX];
 			bool ready = false;
 
 			/* For debugging. */
@@ -678,17 +684,15 @@ void nsexec(void)
 					/*
 					 * Enable setgroups(2) if we've been asked to. But we also
 					 * have to explicitly disable setgroups(2) if we're
-					 * creating a rootless container (this is required since
-					 * Linux 3.19).
+					 * creating a rootless container for single-entry mapping.
+					 * i.e. config.is_setgroup == false.
+					 * (this is required since Linux 3.19).
+					 *
+					 * For rootless multi-entry mapping, config.is_setgroup shall be true and
+					 * newuidmap/newgidmap shall be used.
 					 */
-					if (config.is_rootless && config.is_setgroup) {
-						kill(child, SIGKILL);
-						bail("cannot allow setgroup in an unprivileged user namespace setup");
-					}
 
-					if (config.is_setgroup)
-						update_setgroups(child, SETGROUPS_ALLOW);
-					if (config.is_rootless)
+					if (config.is_rootless_euid && !config.is_setgroup)
 						update_setgroups(child, SETGROUPS_DENY);
 
 					/* Set up mappings. */
@@ -716,6 +720,18 @@ void nsexec(void)
 							kill(first_child, SIGKILL);
 							kill(child, SIGKILL);
 							bail("failed to sync with child: write(SYNC_RECVPID_ACK)");
+						}
+
+						/* Send the init_func pid back to our parent.
+						 *
+						 * Send the init_func pid and the pid of the first child back to our parent.
+						 * We need to send both back because we can't reap the first child we created (CLONE_PARENT).
+						 * It becomes the responsibility of our parent to reap the first child.
+						 */
+						len = dprintf(pipenum, "{\"pid\": %d, \"pid_first\": %d}\n", child, first_child);
+						if (len < 0) {
+							kill(child, SIGKILL);
+							bail("unable to generate JSON for child pid");
 						}
 					}
 					break;
@@ -760,23 +776,6 @@ void nsexec(void)
 					bail("unexpected sync value: %u", s);
 				}
 			}
-
-			/*
-			 * Send the init_func pid and the pid of the first child back to our parent.
-			 *
-			 * We need to send both back because we can't reap the first child we created (CLONE_PARENT).
-			 * It becomes the responsibility of our parent to reap the first child.
-			 */
-			len = snprintf(buf, JSON_MAX, "{\"pid\": %d, \"pid_first\": %d}\n", child, first_child);
-			if (len < 0) {
-				kill(child, SIGKILL);
-				bail("unable to generate JSON for child pid");
-			}
-			if (write(pipenum, buf, len) != len) {
-				kill(child, SIGKILL);
-				bail("unable to send child pid to bootstrapper");
-			}
-
 			exit(0);
 		}
 
@@ -810,24 +809,29 @@ void nsexec(void)
 				join_namespaces(config.namespaces);
 
 			/*
-			 * Unshare all of the namespaces. Now, it should be noted that this
-			 * ordering might break in the future (especially with rootless
-			 * containers). But for now, it's not possible to split this into
-			 * CLONE_NEWUSER + [the rest] because of some RHEL SELinux issues.
-			 *
-			 * Note that we don't merge this with clone() because there were
-			 * some old kernel versions where clone(CLONE_PARENT | CLONE_NEWPID)
-			 * was broken, so we'll just do it the long way anyway.
-			 */
-			if (unshare(config.cloneflags) < 0)
-				bail("failed to unshare namespaces");
-
-			/*
 			 * Deal with user namespaces first. They are quite special, as they
 			 * affect our ability to unshare other namespaces and are used as
 			 * context for privilege checks.
+			 *
+			 * We don't unshare all namespaces in one go. The reason for this
+			 * is that, while the kernel documentation may claim otherwise,
+			 * there are certain cases where unsharing all namespaces at once
+			 * will result in namespace objects being owned incorrectly.
+			 * Ideally we should just fix these kernel bugs, but it's better to
+			 * be safe than sorry, and fix them separately.
+			 *
+			 * A specific case of this is that the SELinux label of the
+			 * internal kern-mount that mqueue uses will be incorrect if the
+			 * UTS namespace is cloned before the USER namespace is mapped.
+			 * I've also heard of similar problems with the network namespace
+			 * in some scenarios. This also mirrors how LXC deals with this
+			 * problem.
 			 */
 			if (config.cloneflags & CLONE_NEWUSER) {
+				if (unshare(CLONE_NEWUSER) < 0)
+					bail("failed to unshare user namespace");
+				config.cloneflags &= ~CLONE_NEWUSER;
+
 				/*
 				 * We don't have the privileges to do any mapping here (see the
 				 * clone_parent rant). So signal our parent to hook us up.
@@ -853,7 +857,23 @@ void nsexec(void)
 					if (prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) < 0)
 						bail("failed to set process as dumpable");
 				}
+
+				/* Become root in the namespace proper. */
+				if (setresuid(0, 0, 0) < 0)
+					bail("failed to become root in user namespace");
 			}
+			/*
+			 * Unshare all of the namespaces. Now, it should be noted that this
+			 * ordering might break in the future (especially with rootless
+			 * containers). But for now, it's not possible to split this into
+			 * CLONE_NEWUSER + [the rest] because of some RHEL SELinux issues.
+			 *
+			 * Note that we don't merge this with clone() because there were
+			 * some old kernel versions where clone(CLONE_PARENT | CLONE_NEWPID)
+			 * was broken, so we'll just do it the long way anyway.
+			 */
+			if (unshare(config.cloneflags & ~CLONE_NEWCGROUP) < 0)
+				bail("failed to unshare namespaces");
 
 			/*
 			 * TODO: What about non-namespace clone flags that we're dropping here?
@@ -936,9 +956,21 @@ void nsexec(void)
 			if (setgid(0) < 0)
 				bail("setgid failed");
 
-			if (!config.is_rootless && config.is_setgroup) {
+			if (!config.is_rootless_euid && config.is_setgroup) {
 				if (setgroups(0, NULL) < 0)
 					bail("setgroups failed");
+			}
+
+			/* ... wait until our topmost parent has finished cgroup setup in p.manager.Apply() ... */
+			if (config.cloneflags & CLONE_NEWCGROUP) {
+				uint8_t value;
+				if (read(pipenum, &value, sizeof(value)) != sizeof(value))
+					bail("read synchronisation value failed");
+				if (value == CREATECGROUPNS) {
+					if (unshare(CLONE_NEWCGROUP) < 0)
+						bail("failed to unshare cgroup namespace");
+				} else
+					bail("received unknown synchronisation value");
 			}
 
 			s = SYNC_CHILD_READY;
