@@ -64,7 +64,7 @@ func (c *controller) addContainerNameResolution(nID, eID, containerName string, 
 
 	// Add resolution for taskaliases
 	for _, alias := range taskAliases {
-		n.(*network).addSvcRecords(eID, alias, eID, ip, nil, true, method)
+		n.(*network).addSvcRecords(eID, alias, eID, ip, nil, false, method)
 	}
 
 	return nil
