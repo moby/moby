@@ -77,7 +77,7 @@ func rfc5424formatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content 
 // for multiple syntaxes, there are further restrictions in rfc5424, i.e., the maximum
 // resolution is limited to "TIME-SECFRAC" which is 6 (microsecond resolution)
 func rfc5424microformatterWithAppNameAsTag(p syslog.Priority, hostname, tag, content string) string {
-	timestamp := time.Now().Format("2006-01-02T15:04:05.999999Z07:00")
+	timestamp := time.Now().Format("2006-01-02T15:04:05.000000Z07:00")
 	pid := os.Getpid()
 	msg := fmt.Sprintf("<%d>%d %s %s %s %d %s - %s",
 		p, 1, timestamp, hostname, tag, pid, tag, content)
