@@ -8,7 +8,7 @@ import (
 	"gotest.tools/assert"
 )
 
-func TestfillLicense(t *testing.T) {
+func TestFillLicense(t *testing.T) {
 	v := &types.Info{}
 	d := &Daemon{
 		root: "/var/lib/docker/",
