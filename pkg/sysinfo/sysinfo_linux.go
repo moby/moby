@@ -227,7 +227,7 @@ func checkCgroupCpusetInfo(cgMounts map[string]string, quiet bool) cgroupCpusetI
 
 // checkCgroupPids reads the pids information from the pids cgroup mount point.
 func checkCgroupPids(quiet bool) cgroupPids {
-	_, err := cgroups.FindCgroupMountpoint("pids")
+	_, err := cgroups.FindCgroupMountpoint("", "pids")
 	if err != nil {
 		if !quiet {
 			logrus.Warn(err)

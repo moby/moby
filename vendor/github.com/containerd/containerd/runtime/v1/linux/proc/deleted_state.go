@@ -69,3 +69,7 @@ func (s *deletedState) SetExited(status int) {
 func (s *deletedState) Exec(ctx context.Context, path string, r *ExecConfig) (proc.Process, error) {
 	return nil, errors.Errorf("cannot exec in a deleted state")
 }
+
+func (s *deletedState) Pid() int {
+	return -1
+}

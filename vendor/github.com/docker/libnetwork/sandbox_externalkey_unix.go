@@ -11,7 +11,7 @@ import (
 	"os"
 
 	"github.com/docker/libnetwork/types"
-	"github.com/opencontainers/runc/libcontainer/configs"
+	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
 
@@ -20,7 +20,7 @@ const success = "success"
 
 // processSetKeyReexec is a private function that must be called only on an reexec path
 // It expects 3 args { [0] = "libnetwork-setkey", [1] = <container-id>, [2] = <controller-id> }
-// It also expects configs.HookState as a json string in <stdin>
+// It also expects specs.State as a json string in <stdin>
 // Refer to https://github.com/opencontainers/runc/pull/160/ for more information
 func processSetKeyReexec() {
 	var err error
@@ -39,12 +39,12 @@ func processSetKeyReexec() {
 	}
 	containerID := os.Args[1]
 
-	// We expect configs.HookState as a json string in <stdin>
+	// We expect specs.State as a json string in <stdin>
 	stateBuf, err := ioutil.ReadAll(os.Stdin)
 	if err != nil {
 		return
 	}
-	var state configs.HookState
+	var state specs.State
 	if err = json.Unmarshal(stateBuf, &state); err != nil {
 		return
 	}
