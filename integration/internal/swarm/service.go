@@ -66,24 +66,27 @@ type ServiceSpecOpt func(*swarmtypes.ServiceSpec)
 // CreateService creates a service on the passed in swarm daemon.
 func CreateService(t *testing.T, d *daemon.Daemon, opts ...ServiceSpecOpt) string {
 	t.Helper()
-	spec := defaultServiceSpec()
-	for _, o := range opts {
-		o(&spec)
-	}
 
 	client := d.NewClientT(t)
 	defer client.Close()
 
+	spec := CreateServiceSpec(t, opts...)
 	resp, err := client.ServiceCreate(context.Background(), spec, types.ServiceCreateOptions{})
 	assert.NilError(t, err, "error creating service")
 	return resp.ID
 }
 
-func defaultServiceSpec() swarmtypes.ServiceSpec {
+// CreateServiceSpec creates a default service-spec, and applies the provided options
+func CreateServiceSpec(t *testing.T, opts ...ServiceSpecOpt) swarmtypes.ServiceSpec {
+	t.Helper()
 	var spec swarmtypes.ServiceSpec
 	ServiceWithImage("busybox:latest")(&spec)
 	ServiceWithCommand([]string{"/bin/top"})(&spec)
 	ServiceWithReplicas(1)(&spec)
+
+	for _, o := range opts {
+		o(&spec)
+	}
 	return spec
 }
 
