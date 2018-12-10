@@ -93,7 +93,9 @@ func checkKillError(err error) error {
 	if err == nil {
 		return nil
 	}
-	if strings.Contains(err.Error(), "os: process already finished") || err == unix.ESRCH {
+	if strings.Contains(err.Error(), "os: process already finished") ||
+		strings.Contains(err.Error(), "container not running") ||
+		err == unix.ESRCH {
 		return errors.Wrapf(errdefs.ErrNotFound, "process already finished")
 	}
 	return errors.Wrapf(err, "unknown error after kill")
