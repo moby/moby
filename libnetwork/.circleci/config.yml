@@ -15,7 +15,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.05.0-ce
+          version: stable
           reusable: true
           exclusive: false
       - run: make builder
@@ -25,7 +25,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.05.0-ce
+          version: stable
           reusable: true
           exclusive: false
       - run: make build
@@ -35,7 +35,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.05.0-ce
+          version: stable
           reusable: true
           exclusive: false
       - run: make check
@@ -45,7 +45,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.05.0-ce
+          version: stable
           reusable: true
           exclusive: false
       - run: make cross
@@ -55,7 +55,7 @@ jobs:
     steps:
       - checkout
       - setup_remote_docker:
-          version: 18.05.0-ce
+          version: stable
           reusable: true
           exclusive: false
       - run: make unit-tests
