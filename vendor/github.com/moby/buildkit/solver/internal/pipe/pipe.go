@@ -89,7 +89,6 @@ func New(req Request) *Pipe {
 	roundTripCh := &channel{}
 	pw := &sender{
 		req:         req,
-		recvChannel: cancelCh,
 		sendChannel: roundTripCh,
 	}
 	pr := &receiver{
@@ -125,7 +124,6 @@ func New(req Request) *Pipe {
 type sender struct {
 	status      Status
 	req         Request
-	recvChannel *channel
 	sendChannel *channel
 	mu          sync.Mutex
 }

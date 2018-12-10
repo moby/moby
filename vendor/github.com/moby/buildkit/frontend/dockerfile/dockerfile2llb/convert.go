@@ -250,7 +250,6 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 								}
 							}
 							d.stage.BaseName = ref.String()
-							_ = ref
 							if len(img.RootFS.DiffIDs) == 0 {
 								isScratch = true
 								// schema1 images can't return diffIDs so double check :(

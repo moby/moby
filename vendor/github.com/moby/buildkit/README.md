@@ -145,13 +145,13 @@ build-using-dockerfile -t mybuildkit -f ./hack/dockerfiles/test.Dockerfile .
 docker inspect myimage
 ```
 
-##### Building a Dockerfile using [external frontend](https://hub.docker.com/r/tonistiigi/dockerfile/tags/):
+##### Building a Dockerfile using [external frontend](https://hub.docker.com/r/docker/dockerfile/tags/):
 
-During development, an external version of the Dockerfile frontend is pushed to https://hub.docker.com/r/tonistiigi/dockerfile that can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)). For automatic build from master branch of this repository `tonistiigi/dockerfile:master` image can be used.
+External versions of the Dockerfile frontend are pushed to https://hub.docker.com/r/docker/dockerfile-upstream and https://hub.docker.com/r/docker/dockerfile and can be used with the gateway frontend. The source for the external frontend is currently located in `./frontend/dockerfile/cmd/dockerfile-frontend` but will move out of this repository in the future ([#163](https://github.com/moby/buildkit/issues/163)). For automatic build from master branch of this repository `docker/dockerfile-upsteam:master` or `docker/dockerfile-upstream:master-experimental` image can be used.
 
 ```
-buildctl build --frontend=gateway.v0 --frontend-opt=source=tonistiigi/dockerfile --local context=. --local dockerfile=.
-buildctl build --frontend gateway.v0 --frontend-opt=source=tonistiigi/dockerfile --frontend-opt=context=git://github.com/moby/moby --frontend-opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
+buildctl build --frontend=gateway.v0 --frontend-opt=source=docker/dockerfile --local context=. --local dockerfile=.
+buildctl build --frontend gateway.v0 --frontend-opt=source=docker/dockerfile --frontend-opt=context=git://github.com/moby/moby --frontend-opt build-arg:APT_MIRROR=cdn-fastly.deb.debian.org
 ````
 
 ##### Building a Dockerfile with experimental features like `RUN --mount=type=(bind|cache|tmpfs|secret|ssh)`
