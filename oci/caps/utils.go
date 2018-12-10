@@ -1,4 +1,4 @@
-package caps // import "github.com/docker/docker/daemon/caps"
+package caps // import "github.com/docker/docker/oci/caps"
 
 import (
 	"fmt"
