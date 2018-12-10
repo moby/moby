@@ -37,17 +37,20 @@ type gitSource struct {
 	locker *locker.Locker
 }
 
+// Supported returns nil if the system supports Git source
+func Supported() error {
+	if err := exec.Command("git", "version").Run(); err != nil {
+		return errors.Wrap(err, "failed to find git binary")
+	}
+	return nil
+}
+
 func NewSource(opt Opt) (source.Source, error) {
 	gs := &gitSource{
 		md:     opt.MetadataStore,
 		cache:  opt.CacheAccessor,
 		locker: locker.New(),
 	}
-
-	if err := exec.Command("git", "version").Run(); err != nil {
-		return nil, errors.Wrap(err, "failed to find git binary")
-	}
-
 	return gs, nil
 }
 
