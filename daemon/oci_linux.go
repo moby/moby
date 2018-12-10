@@ -113,7 +113,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 		}
 
 		var err error
-		devPermissions, err = appendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
+		devPermissions, err = oci.AppendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
 		if err != nil {
 			return err
 		}
@@ -762,7 +762,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if err := setNamespaces(daemon, &s, c); err != nil {
 		return nil, fmt.Errorf("linux spec namespaces: %v", err)
 	}
-	if err := setCapabilities(&s, c); err != nil {
+	if err := oci.SetCapabilities(&s, c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Privileged); err != nil {
 		return nil, fmt.Errorf("linux spec capabilities: %v", err)
 	}
 	if err := setSeccomp(daemon, &s, c); err != nil {
