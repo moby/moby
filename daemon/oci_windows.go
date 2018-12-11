@@ -368,10 +368,10 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	}
 	s.Root.Path = "rootfs"
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
-	if err := setCapabilities(s, c); err != nil {
+	if err := oci.SetCapabilities(s, c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Privileged); err != nil {
 		return fmt.Errorf("linux spec capabilities: %v", err)
 	}
-	devPermissions, err := appendDevicePermissionsFromCgroupRules(nil, c.HostConfig.DeviceCgroupRules)
+	devPermissions, err := oci.AppendDevicePermissionsFromCgroupRules(nil, c.HostConfig.DeviceCgroupRules)
 	if err != nil {
 		return fmt.Errorf("linux runtime spec devices: %v", err)
 	}
