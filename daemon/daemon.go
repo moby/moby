@@ -50,7 +50,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
-	"github.com/docker/docker/migrate/v1"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
@@ -919,15 +918,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
 	if err != nil {
 		return nil, err
-	}
-
-	// No content-addressability migration on Windows as it never supported pre-CA
-	if runtime.GOOS != "windows" {
-		migrationStart := time.Now()
-		if err := v1.Migrate(config.Root, d.graphDrivers[runtime.GOOS], layerStores[runtime.GOOS], imageStore, rs, distributionMetadataStore); err != nil {
-			logrus.Errorf("Graph migration failed: %q. Your old graph data was found to be too inconsistent for upgrading to content-addressable storage. Some of the old data was probably not upgraded. We recommend starting over with a clean storage directory if possible.", err)
-		}
-		logrus.Infof("Graph migration to content-addressability took %.2f seconds", time.Since(migrationStart).Seconds())
 	}
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
