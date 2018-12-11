@@ -145,7 +145,7 @@ func trustedLocation(req *http.Request) bool {
 // addRequiredHeadersToRedirectedRequests adds the necessary redirection headers
 // for redirected requests
 func addRequiredHeadersToRedirectedRequests(req *http.Request, via []*http.Request) error {
-	if via != nil && via[0] != nil {
+	if len(via) != 0 && via[0] != nil {
 		if trustedLocation(req) && trustedLocation(via[0]) {
 			req.Header = via[0].Header
 			return nil
