@@ -815,6 +815,12 @@ var (
 
 		// Nikolay Yegorovich Zhukovsky (Russian: Никола́й Его́рович Жуко́вский, January 17 1847 – March 17, 1921) was a Russian scientist, mathematician and engineer, and a founding father of modern aero- and hydrodynamics. Whereas contemporary scientists scoffed at the idea of human flight, Zhukovsky was the first to undertake the study of airflow. He is often called the Father of Russian Aviation. https://en.wikipedia.org/wiki/Nikolay_Yegorovich_Zhukovsky
 		"zhukovsky",
+
+		// Subrahmanyan Chandrasekhar (Indian: 19 October 1910 – 21 August 1995) Astrophysicist won the Nobel Prize in 1983 for his research on the evolutionary stages of massive stars. https://en.wikipedia.org/wiki/Subrahmanyan_Chandrasekhar
+		"chandrasekhar",
+
+		// Jagadish Chandra Bose (Bangladeshi: 30 November 1858 – 23 November 1937) Physicist, biologist and archaeologist who pioneered the investigation of radio and microwave optics. https://en.wikipedia.org/wiki/Jagadish_Chandra_Bose
+		"jagdishbose",
 	}
 )
 
