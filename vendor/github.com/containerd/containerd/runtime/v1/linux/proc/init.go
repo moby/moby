@@ -168,18 +168,22 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 		p.closers = append(p.closers, sc)
 	}
 	var copyWaitGroup sync.WaitGroup
+	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 	if socket != nil {
 		console, err := socket.ReceiveMaster()
 		if err != nil {
+			cancel()
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
 		console, err = p.Platform.CopyConsole(ctx, console, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup)
 		if err != nil {
+			cancel()
 			return errors.Wrap(err, "failed to start console copy")
 		}
 		p.console = console
 	} else if !hasNoIO(r) {
 		if err := copyPipes(ctx, p.io, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup); err != nil {
+			cancel()
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
@@ -187,6 +191,7 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	copyWaitGroup.Wait()
 	pid, err := runc.ReadPidFile(pidFile)
 	if err != nil {
+		cancel()
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
 	p.pid = pid
