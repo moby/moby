@@ -384,7 +384,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	defer close(stdinCloseSync)
 
 	if err = p.Start(ctx); err != nil {
-		p.Delete(context.Background())
+		p.Delete(ctx)
 		ctr.deleteProcess(processID)
 		return -1, wrapError(err)
 	}
