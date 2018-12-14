@@ -163,7 +163,7 @@ On unit tests, it's better to use `TESTFLAGS` in combination with
 `TESTDIRS` to make it quicker to run a specific test.
 
 ```bash
-$ TESTDIRS='github.com/docker/docker/opts' TESTFLAGS='-test.run $^TestValidateIPAddress$' make test-unit
+$ TESTDIRS='github.com/docker/docker/opts' TESTFLAGS='-test.run ^TestValidateIPAddress$' make test-unit
 ```
 
 ## Run integration tests
