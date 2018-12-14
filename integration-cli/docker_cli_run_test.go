@@ -3241,8 +3241,8 @@ func (s *DockerSuite) TestRunWithUlimits(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
-	// Not applicable on Windows as uses Unix specific functionality
-	testRequires(c, DaemonIsLinux)
+	// Test requires local filesystem access on a Linux host
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	// cgroup-parent relative path
 	testRunContainerWithCgroupParent(c, "test", "cgroup-test")
@@ -3252,14 +3252,23 @@ func (s *DockerSuite) TestRunContainerWithCgroupParent(c *check.C) {
 }
 
 func testRunContainerWithCgroupParent(c *check.C, cgroupParent, name string) {
-	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "-d", "busybox", "top")
 	if err != nil {
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
-	cgroupPaths := ParseCgroupPaths(string(out))
+	cID := strings.TrimSpace(out)
+
+	// If cgroup namespaces are enabled, then processes running inside the container won't
+	// be able to see the parent namespace. Check that they have the correct parents from
+	// the host, which has the non-namespaced view of the hierarchy.
+
+	pid := inspectField(c, cID, "State.Pid")
+	paths := ReadCgroupPathsForPid(c, pid)
+	cgroupPaths := ParseCgroupPaths(paths)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
+		c.Fatalf("unexpected output - %q", string(paths))
 	}
+
 	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cgroupParent, id)
 	found := false
@@ -3285,21 +3294,29 @@ func (s *DockerSuite) TestRunInvalidCgroupParent(c *check.C) {
 }
 
 func testRunInvalidCgroupParent(c *check.C, cgroupParent, cleanCgroupParent, name string) {
-	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	out, _, err := dockerCmdWithError("run", "--cgroup-parent", cgroupParent, "--name", name, "-d", "busybox", "top")
 	if err != nil {
 		// XXX: This may include a daemon crash.
 		c.Fatalf("unexpected failure when running container with --cgroup-parent option - %s\n%v", string(out), err)
 	}
+	cID := strings.TrimSpace(out)
 
 	// We expect "/SHOULD_NOT_EXIST" to not exist. If not, we have a security issue.
 	if _, err := os.Stat("/SHOULD_NOT_EXIST"); err == nil || !os.IsNotExist(err) {
 		c.Fatalf("SECURITY: --cgroup-parent with ../../ relative paths cause files to be created in the host (this is bad) !!")
 	}
 
-	cgroupPaths := ParseCgroupPaths(string(out))
+	// If cgroup namespaces are enabled, then processes running inside the container won't
+	// be able to see the parent namespace. Check that they have the correct parents from
+	// the host, which has the non-namespaced view of the hierarchy.
+
+	pid := inspectField(c, cID, "State.Pid")
+	paths := ReadCgroupPathsForPid(c, pid)
+	cgroupPaths := ParseCgroupPaths(paths)
 	if len(cgroupPaths) == 0 {
-		c.Fatalf("unexpected output - %q", string(out))
+		c.Fatalf("unexpected output - %q", string(paths))
 	}
+
 	id := getIDByName(c, name)
 	expectedCgroup := path.Join(cleanCgroupParent, id)
 	found := false

@@ -81,26 +81,27 @@ var (
 
 // Daemon holds information about the Docker daemon.
 type Daemon struct {
-	ID                string
-	repository        string
-	containers        container.Store
-	containersReplica container.ViewDB
-	execCommands      *exec.Store
-	imageService      *images.ImageService
-	idIndex           *truncindex.TruncIndex
-	configStore       *config.Config
-	statsCollector    *stats.Collector
-	defaultLogConfig  containertypes.LogConfig
-	RegistryService   registry.Service
-	EventsService     *events.Events
-	netController     libnetwork.NetworkController
-	volumes           *volumesservice.VolumesService
-	discoveryWatcher  discovery.Reloader
-	root              string
-	seccompEnabled    bool
-	apparmorEnabled   bool
-	shutdown          bool
-	idMapping         *idtools.IdentityMapping
+	ID                      string
+	repository              string
+	containers              container.Store
+	containersReplica       container.ViewDB
+	execCommands            *exec.Store
+	imageService            *images.ImageService
+	idIndex                 *truncindex.TruncIndex
+	configStore             *config.Config
+	statsCollector          *stats.Collector
+	defaultLogConfig        containertypes.LogConfig
+	RegistryService         registry.Service
+	EventsService           *events.Events
+	netController           libnetwork.NetworkController
+	volumes                 *volumesservice.VolumesService
+	discoveryWatcher        discovery.Reloader
+	root                    string
+	seccompEnabled          bool
+	apparmorEnabled         bool
+	cgroupNamespacesEnabled bool
+	shutdown                bool
+	idMapping               *idtools.IdentityMapping
 	// TODO: move graphDrivers field to an InfoService
 	graphDrivers map[string]string // By operating system
 
@@ -1020,6 +1021,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.idMapping = idMapping
 	d.seccompEnabled = sysInfo.Seccomp
 	d.apparmorEnabled = sysInfo.AppArmor
+	d.cgroupNamespacesEnabled = sysInfo.CgroupNamespaces
 
 	d.linkIndex = newLinkIndex()
 

@@ -2,6 +2,10 @@ package container // import "github.com/docker/docker/integration/container"
 
 import (
 	"context"
+	"fmt"
+	"io/ioutil"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
@@ -92,4 +96,33 @@ func TestNISDomainname(t *testing.T) {
 	assert.Assert(t, is.Len(res.Stderr(), 0))
 	assert.Equal(t, 0, res.ExitCode)
 	assert.Check(t, is.Equal(domainname, strings.TrimSpace(res.Stdout())))
+}
+
+func TestCgroupNamespaces(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	skip.If(t, testEnv.IsRemoteDaemon())
+
+	if _, err := os.Stat("/proc/self/ns/cgroup"); os.IsNotExist(err) {
+		t.Skip("cgroup namespaces are unsupported")
+	}
+
+	defer setupTest(t)()
+	client := testEnv.APIClient()
+	ctx := context.Background()
+
+	cID := container.Run(t, ctx, client)
+	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
+
+	path := filepath.Join(os.Getenv("DEST"), "docker.pid")
+	b, err := ioutil.ReadFile(path)
+	assert.NilError(t, err)
+	link, err := os.Readlink(fmt.Sprintf("/proc/%s/ns/cgroup", string(b)))
+	assert.NilError(t, err)
+
+	// Check that the container's cgroup doesn't match the docker daemon's
+	res, err := container.Exec(ctx, client, cID, []string{"readlink", "/proc/1/ns/cgroup"})
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(res.Stderr(), 0))
+	assert.Equal(t, 0, res.ExitCode)
+	assert.Assert(t, link != strings.TrimSpace(res.Stdout()))
 }

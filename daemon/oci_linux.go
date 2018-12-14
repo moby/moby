@@ -307,8 +307,13 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			s.Hostname = ""
 		}
 
-		return nil
+	// cgroup
+	if daemon.cgroupNamespacesEnabled && !c.HostConfig.Privileged {
+		nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
+		setNamespace(s, nsCgroup)
 	}
+
+	return nil
 }
 
 func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
