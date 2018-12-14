@@ -30,6 +30,7 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
+		splunkHostNameKey:             "custom-host-name",
 		envKey:                        "a",
 		envRegexKey:                   "^foo",
 		labelsKey:                     "b",
@@ -1385,5 +1386,44 @@ func TestDeadlockOnBlockedEndpoint(t *testing.T) {
 		t.Logf("STACK DUMP: \n\n%s\n\n", string(buf))
 		t.Fatal("timeout waiting for close to finish")
 	case <-done:
+	}
+}
+
+// Test to see that when the --log-opt parameter 'splunkHostName' is defined the host name is updated accordingly.
+func TestCustomHostName(t *testing.T) {
+	hec := NewHTTPEventCollectorMock(t)
+
+	go hec.Serve()
+
+	info := logger.Info{
+		Config: map[string]string{
+			splunkURLKey:      hec.URL(),
+			splunkTokenKey:    hec.token,
+			splunkHostNameKey: "Custom-name",
+			splunkFormatKey:   splunkFormatJSON,
+		},
+		ContainerID:        "containeriid",
+		ContainerName:      "/container_name",
+		ContainerImageID:   "contaimageid",
+		ContainerImageName: "container_image_name",
+	}
+
+	loggerDriver, err := New(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	splunkLoggerDriver, ok := loggerDriver.(*splunkLoggerJSON)
+	if !ok {
+		t.Fatal("Unexpected Splunk JSON Logging Driver type")
+	}
+
+	if splunkLoggerDriver.nullMessage.Host != "Custom-name" {
+		t.Fatal("Expected hostname 'Custom-name' but got" + splunkLoggerDriver.nullMessage.Host)
+	}
+
+	err = hec.Close()
+	if err != nil {
+		t.Fatal(err)
 	}
 }
