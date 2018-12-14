@@ -24,10 +24,10 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM golang:1.10.5 AS base
+FROM golang:1.10.6 AS base
 # FIXME(vdemeester) this is kept for other script depending on it to not fail right away
 # Remove this once the other scripts uses something else to detect the version
-ENV GO_VERSION 1.10.5
+ENV GO_VERSION 1.10.6
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
