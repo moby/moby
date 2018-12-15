@@ -29,16 +29,27 @@ FROM golang:1.11.3 AS base
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
-FROM base AS criu
+
+# Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
+FROM base AS runtime-dev
+RUN apt-get update && apt-get install -y \
+	libapparmor-dev \
+	libseccomp-dev \
+# Install dynamically linked dependency libraries specific to criu
+	libprotobuf-c0-dev \
+	libnl-3-dev \
+	libnet-dev
+
+
+FROM runtime-dev AS criu
 # Install CRIU for checkpoint/restore support
 ENV CRIU_VERSION 3.6
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y \
-	libnet-dev \
-	libprotobuf-c0-dev \
-	libprotobuf-dev \
-	libnl-3-dev \
+	libaio-dev \
 	libcap-dev \
+	libprotobuf-dev \
+	pkg-config \
 	protobuf-compiler \
 	protobuf-c-compiler \
 	python-protobuf \
@@ -103,12 +114,6 @@ RUN /download-frozen-image-v2.sh /build \
 	debian:jessie@sha256:287a20c5f73087ab406e6b364833e3fb7b3ae63ca0eb3486555dc27ed32c6e60 \
 	hello-world:latest@sha256:be0cd392e45be79ffeffa6b05338b98ebb16c87b255f48e297ec7f98e123905c
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
-
-# Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
-FROM base AS runtime-dev
-RUN apt-get update && apt-get install -y \
-	libapparmor-dev \
-	libseccomp-dev
 
 
 FROM base AS tomlv
