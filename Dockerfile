@@ -56,7 +56,7 @@ RUN apt-get update && apt-get install -y \
 	&& mkdir -p /usr/src/criu \
 	&& curl -sSL https://github.com/checkpoint-restore/criu/archive/v${CRIU_VERSION}.tar.gz | tar -C /usr/src/criu/ -xz --strip-components=1 \
 	&& cd /usr/src/criu \
-	&& make \
+	&& make -j $(nproc) \
 	&& make PREFIX=/build/ install-criu
 
 FROM base AS registry
