@@ -37,6 +37,9 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /service/{id}` now  returns `MaxReplicas` as part of the `Placement`.
 * `POST /service/create` and `POST /services/(id or name)/update` now take the field `MaxReplicas`
   as part of the service `Placement`, allowing to specify maximum replicas per node for the service.
+* `GET /containers` now returns `Capabilities` field as part of the `HostConfig`.
+* `GET /containers/{id}` now returns `Capabilities` field as part of the `HostConfig`.
+* `POST /containers/create` now takes `Capabilities` field to set exact list kernel capabilities to be available for      container (this overrides the default set).
 
 ## V1.39 API changes
 

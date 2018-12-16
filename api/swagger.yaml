@@ -645,14 +645,22 @@ definitions:
               $ref: "#/definitions/Mount"
 
           # Applicable to UNIX platforms
+          Capabilities:
+            type: "array"
+            description: |
+              A list of kernel capabilities to be available for container (this overrides the default set).
+
+              Conflicts with options 'CapAdd' and 'CapDrop'"
+            items:
+              type: "string"
           CapAdd:
             type: "array"
-            description: "A list of kernel capabilities to add to the container."
+            description: "A list of kernel capabilities to add to the container. Conflicts with option 'Capabilities'"
             items:
               type: "string"
           CapDrop:
             type: "array"
-            description: "A list of kernel capabilities to drop from the container."
+            description: "A list of kernel capabilities to drop from the container. Conflicts with option 'Capabilities'"
             items:
               type: "string"
           Dns:

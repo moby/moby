@@ -5,7 +5,6 @@ import (
 	"regexp"
 	"strconv"
 
-	"github.com/docker/docker/oci/caps"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
@@ -14,19 +13,7 @@ var deviceCgroupRuleRegex = regexp.MustCompile("^([acb]) ([0-9]+|\\*):([0-9]+|\\
 
 // SetCapabilities sets the provided capabilities on the spec
 // All capabilities are added if privileged is true
-func SetCapabilities(s *specs.Spec, add, drop []string, privileged bool) error {
-	var (
-		caplist []string
-		err     error
-	)
-	if privileged {
-		caplist = caps.GetAllCapabilities()
-	} else {
-		caplist, err = caps.TweakCapabilities(s.Process.Capabilities.Bounding, add, drop)
-		if err != nil {
-			return err
-		}
-	}
+func SetCapabilities(s *specs.Spec, caplist []string) error {
 	s.Process.Capabilities.Effective = caplist
 	s.Process.Capabilities.Bounding = caplist
 	s.Process.Capabilities.Permitted = caplist
