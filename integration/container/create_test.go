@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/client"
 	ctr "github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/oci"
@@ -222,6 +223,131 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 		poll.WaitOn(t, ctr.IsInState(ctx, client, c.ID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 		checkInspect(t, ctx, name, tc.expected)
+	}
+}
+
+func TestCreateWithCapabilities(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME: test should be able to run on LCOW")
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "Capabilities was added in API v1.40")
+
+	defer setupTest(t)()
+	ctx := context.Background()
+	clientNew := request.NewAPIClient(t)
+	clientOld := request.NewAPIClient(t, client.WithVersion("1.39"))
+
+	testCases := []struct {
+		doc           string
+		hostConfig    container.HostConfig
+		expected      []string
+		expectedError string
+		oldClient     bool
+	}{
+		{
+			doc:        "no capabilities",
+			hostConfig: container.HostConfig{},
+		},
+		{
+			doc: "empty capabilities",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{},
+			},
+			expected: []string{},
+		},
+		{
+			doc: "valid capabilities",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
+			},
+			expected: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
+		},
+		{
+			doc: "invalid capabilities",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"NET_RAW"},
+			},
+			expectedError: `invalid Capabilities: unknown capability: "NET_RAW"`,
+		},
+		{
+			doc: "duplicate capabilities",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_SYS_NICE", "CAP_SYS_NICE"},
+			},
+			expected: []string{"CAP_SYS_NICE", "CAP_SYS_NICE"},
+		},
+		{
+			doc: "capabilities API v1.39",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_RAW", "CAP_SYS_CHROOT"},
+			},
+			expected:  nil,
+			oldClient: true,
+		},
+		{
+			doc: "empty capadd",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_ADMIN"},
+				CapAdd:       []string{},
+			},
+			expected: []string{"CAP_NET_ADMIN"},
+		},
+		{
+			doc: "empty capdrop",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_ADMIN"},
+				CapDrop:      []string{},
+			},
+			expected: []string{"CAP_NET_ADMIN"},
+		},
+		{
+			doc: "capadd capdrop",
+			hostConfig: container.HostConfig{
+				CapAdd:  []string{"SYS_NICE", "CAP_SYS_NICE"},
+				CapDrop: []string{"SYS_NICE", "CAP_SYS_NICE"},
+			},
+		},
+		{
+			doc: "conflict with capadd",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_ADMIN"},
+				CapAdd:       []string{"SYS_NICE"},
+			},
+			expectedError: `conflicting options: Capabilities and CapAdd`,
+		},
+		{
+			doc: "conflict with capdrop",
+			hostConfig: container.HostConfig{
+				Capabilities: []string{"CAP_NET_ADMIN"},
+				CapDrop:      []string{"NET_RAW"},
+			},
+			expectedError: `conflicting options: Capabilities and CapDrop`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.doc, func(t *testing.T) {
+			t.Parallel()
+			client := clientNew
+			if tc.oldClient {
+				client = clientOld
+			}
+
+			c, err := client.ContainerCreate(context.Background(),
+				&container.Config{Image: "busybox"},
+				&tc.hostConfig,
+				&network.NetworkingConfig{},
+				"",
+			)
+			if tc.expectedError == "" {
+				assert.NilError(t, err)
+				ci, err := client.ContainerInspect(ctx, c.ID)
+				assert.NilError(t, err)
+				assert.Check(t, ci.HostConfig != nil)
+				assert.DeepEqual(t, tc.expected, ci.HostConfig.Capabilities)
+			} else {
+				assert.ErrorContains(t, err, tc.expectedError)
+			}
+		})
 	}
 }
 

@@ -473,6 +473,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.KernelMemoryTCP = 0
 	}
 
+	// Ignore Capabilities because it was added in API 1.40.
+	if hostConfig != nil && versions.LessThan(version, "1.40") {
+		hostConfig.Capabilities = nil
+	}
+
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
 		Name:             name,
 		Config:           config,

@@ -1377,6 +1377,8 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
 }
 
 // regression #14318
+// for backward compatibility testing with and without CAP_ prefix
+// and with upper and lowercase
 func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *check.C) {
 	// Windows doesn't support CapAdd/CapDrop
 	testRequires(c, DaemonIsLinux)
@@ -1384,7 +1386,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 		Image   string
 		CapAdd  string
 		CapDrop string
-	}{"busybox", "NET_ADMIN", "SYS_ADMIN"}
+	}{"busybox", "NET_ADMIN", "cap_sys_admin"}
 	res, _, err := request.Post("/containers/create?name=capaddtest0", request.JSONBody(config))
 	c.Assert(err, checker.IsNil)
 	c.Assert(res.StatusCode, checker.Equals, http.StatusCreated)
@@ -1393,8 +1395,8 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 		Image: "busybox",
 	}
 	hostConfig := containertypes.HostConfig{
-		CapAdd:  []string{"NET_ADMIN", "SYS_ADMIN"},
-		CapDrop: []string{"SETGID"},
+		CapAdd:  []string{"net_admin", "SYS_ADMIN"},
+		CapDrop: []string{"SETGID", "CAP_SETPCAP"},
 	}
 
 	cli, err := client.NewClientWithOpts(client.FromEnv)
