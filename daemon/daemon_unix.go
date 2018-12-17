@@ -422,7 +422,10 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 		}
 		resources.OomKillDisable = nil
 	}
-
+	if resources.OomKillDisable != nil && *resources.OomKillDisable && resources.Memory == 0 {
+		warnings = append(warnings, "OOM killer is disabled for the container, but no memory limit is set, this can result in the system running out of resources.")
+		logrus.Warn("OOM killer is disabled for the container, but no memory limit is set, this can result in the system running out of resources.")
+	}
 	if resources.PidsLimit != 0 && !sysInfo.PidsLimit {
 		warnings = append(warnings, "Your kernel does not support pids limit capabilities or the cgroup is not mounted. PIDs limit discarded.")
 		logrus.Warn("Your kernel does not support pids limit capabilities or the cgroup is not mounted. PIDs limit discarded.")
