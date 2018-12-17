@@ -462,19 +462,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		hostConfig.AutoRemove = false
 	}
 
-	// When using API 1.39 and under, BindOptions.NonRecursive should be ignored because it
-	// was added in API 1.40.
 	if hostConfig != nil && versions.LessThan(version, "1.40") {
+		// Ignore BindOptions.NonRecursive because it was added in API 1.40.
 		for _, m := range hostConfig.Mounts {
 			if bo := m.BindOptions; bo != nil {
 				bo.NonRecursive = false
 			}
 		}
-	}
-
-	// When using API 1.39 and under, KernelMemoryTCP should be ignored because it
-	// was added in API 1.40.
-	if hostConfig != nil && versions.LessThan(version, "1.40") {
+		// Ignore KernelMemoryTCP because it was added in API 1.40.
 		hostConfig.KernelMemoryTCP = 0
 	}
 
