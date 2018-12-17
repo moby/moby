@@ -29,7 +29,7 @@ import (
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -384,6 +384,11 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	defer close(stdinCloseSync)
 
 	if err = p.Start(ctx); err != nil {
+		// use new context for cleanup because old one may be cancelled by user, but leave a timeout to make sure
+		// we are not waiting forever if containerd is unresponsive or to work around fifo cancelling issues in
+		// older containerd-shim
+		ctx, cancel := context.WithTimeout(context.Background(), 45*time.Second)
+		defer cancel()
 		p.Delete(ctx)
 		ctr.deleteProcess(processID)
 		return -1, wrapError(err)
