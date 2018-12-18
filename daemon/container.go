@@ -24,6 +24,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // GetContainer looks for a container using the provided information, which could be
@@ -231,7 +232,7 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
 	if config != nil {
 		if config.WorkingDir != "" {
@@ -343,13 +344,10 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		return nil, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
 
-	var (
-		err      error
-		warnings []string
-	)
 	// Now do platform-specific verification
-	if warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, config, update); err != nil {
-		return warnings, err
+	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, config, update)
+	for _, w := range warnings {
+		logrus.Warn(w)
 	}
 	return warnings, err
 }
