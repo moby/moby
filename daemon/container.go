@@ -345,7 +345,7 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, config, update)
+	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
 	for _, w := range warnings {
 		logrus.Warn(w)
 	}
