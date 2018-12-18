@@ -12,6 +12,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/builder"
 	buildcache "github.com/docker/docker/image/cache"
+	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
@@ -25,6 +26,11 @@ type cachedImage struct {
 	m          sync.Mutex
 	references []reference.Named
 	children   []digest.Digest
+
+	// Layer held by Docker, this should get removed when
+	// moved to containerd snapshotters. The garbage
+	// collection in containerd is reasonable for cleanup.
+	layer layer.Layer
 }
 
 type cache struct {

@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -344,20 +345,22 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 		return records, err
 	}
 
-	// NOTE(containerd): GC can do this in the future
-	// TODO(containerd): Move this function locally, to track and release layers
-	// Release img.ownedLayers
-	// Walk layers and remove reference
-	//removedLayers, err := i.imageStore.Delete(image.ID(img.config.Digest))
-	//if err != nil {
-	//	return records, err
-	//}
+	i.LogImageEvent(img.config.Digest.String(), img.config.Digest.String(), "delete")
+	records = append(records, types.ImageDeleteResponseItem{Deleted: img.config.Digest.String()})
 
-	//i.LogImageEvent(img.config.Digest.String(), img.config.Digest.String(), "delete")
-	//records = append(records, types.ImageDeleteResponseItem{Deleted: img.config.Digest.String()})
-	//for _, removedLayer := range removedLayers {
-	//	records = append(records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
-	//}
+	// TODO(containerd): Snapshot integration will obsolete this section,
+	// containerd's garbage collector can own the removal of the layer
+	if img.layer != nil {
+		// TODO(containerd): Use function to get layer store
+		removedLayers, err := i.layerStores[runtime.GOOS].Release(img.layer)
+		if err != nil {
+			return records, err
+		}
+
+		for _, removedLayer := range removedLayers {
+			records = append(records, types.ImageDeleteResponseItem{Deleted: removedLayer.ChainID.String()})
+		}
+	}
 
 	var parent *cachedImage
 	if img.parent != "" {
