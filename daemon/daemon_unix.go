@@ -354,7 +354,8 @@ func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *container
 	}
 }
 
-func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) (warnings []string, err error) {
+// verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
+func verifyPlatformContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) (warnings []string, err error) {
 	fixMemorySwappiness(resources)
 
 	// memory subsystem checks and adjustments
@@ -563,7 +564,7 @@ func UsingSystemd(config *config.Config) bool {
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	sysInfo := sysinfo.New(true)
 
-	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
+	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 
 	// no matter err is nil or not, w could have data in itself.
 	warnings = append(warnings, w...)
