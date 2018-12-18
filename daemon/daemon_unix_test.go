@@ -270,7 +270,7 @@ func TestNetworkOptions(t *testing.T) {
 	}
 }
 
-func TestVerifyContainerResources(t *testing.T) {
+func TestVerifyPlatformContainerResources(t *testing.T) {
 	t.Parallel()
 	var (
 		no  = false
@@ -354,7 +354,7 @@ func TestVerifyContainerResources(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			warnings, err := verifyContainerResources(&tc.resources, &tc.sysInfo, tc.update)
+			warnings, err := verifyPlatformContainerResources(&tc.resources, &tc.sysInfo, tc.update)
 			assert.NilError(t, err)
 			for _, w := range tc.expectedWarnings {
 				assert.Assert(t, is.Contains(warnings, w))

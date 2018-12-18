@@ -75,7 +75,8 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	return nil
 }
 
-func verifyContainerResources(resources *containertypes.Resources, isHyperv bool) (warnings []string, err error) {
+// verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
+func verifyPlatformContainerResources(resources *containertypes.Resources, isHyperv bool) (warnings []string, err error) {
 	fixMemorySwappiness(resources)
 	if !isHyperv {
 		// The processor resource controls are mutually exclusive on
@@ -198,7 +199,7 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		return warnings, fmt.Errorf("Windows client operating systems earlier than version 1809 can only run Hyper-V containers")
 	}
 
-	w, err := verifyContainerResources(&hostConfig.Resources, hyperv)
+	w, err := verifyPlatformContainerResources(&hostConfig.Resources, hyperv)
 	warnings = append(warnings, w...)
 	return warnings, err
 }
