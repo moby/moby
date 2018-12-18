@@ -607,6 +607,10 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
 		logrus.Warn("IPv4 forwarding is disabled. Networking will not work")
 	}
+	if hostConfig.NetworkMode.IsHost() && len(hostConfig.PortBindings) > 0 {
+		warnings = append(warnings, "Published ports are discarded when using host network mode")
+	}
+
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {

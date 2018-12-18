@@ -351,8 +351,5 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 	if warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, config, update); err != nil {
 		return warnings, err
 	}
-	if hostConfig.NetworkMode.IsHost() && len(hostConfig.PortBindings) > 0 {
-		warnings = append(warnings, "Published ports are discarded when using host network mode")
-	}
 	return warnings, err
 }
