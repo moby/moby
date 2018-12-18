@@ -994,4 +994,14 @@ Finally {
     Nuke-Everything
     $Dur=New-TimeSpan -Start $StartTime -End $(Get-Date)
     Write-Host -ForegroundColor $FinallyColour "`nINFO: executeCI.ps1 exiting at $(date). Duration $dur`n"
+
+    # Temporary solution to avoid disk to fill on RS5
+    if ($env:COMPUTERNAME -match "jenkins-rs5-") {
+        if ((Get-Volume -DriveLetter $env:TESTRUN_DRIVE).SizeRemaining -lt 15GB) {
+            Write-Host -ForegroundColor Green "INFO: D drive is almost full, rebooting..."
+            shutdown -r -t 15
+        } else {
+            Write-Host -ForegroundColor Green "INFO: These is still enough space on D drive. Skip reboot..."
+        }
+    }
 }
