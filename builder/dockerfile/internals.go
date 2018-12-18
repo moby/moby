@@ -204,7 +204,9 @@ func (b *Builder) performCopy(req dispatchRequest, inst copyInstruction) error {
 		opts := copyFileOptions{
 			decompress: inst.allowLocalDecompression,
 			archiver:   b.getArchiver(info.root, destInfo.root),
-			identity:   identity,
+		}
+		if !inst.preserveOwnership {
+			opts.identity = &identity
 		}
 		if err := performCopyForInfo(destInfo, info, opts); err != nil {
 			return errors.Wrapf(err, "failed to copy files")
