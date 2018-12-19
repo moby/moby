@@ -295,19 +295,9 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		}
 	}
 
-	for port := range hostConfig.PortBindings {
-		_, portStr := nat.SplitProtoPort(string(port))
-		if _, err := nat.ParsePort(portStr); err != nil {
-			return nil, errors.Errorf("invalid port specification: %q", portStr)
-		}
-		for _, pb := range hostConfig.PortBindings[port] {
-			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
-			if err != nil {
-				return nil, errors.Errorf("invalid port specification: %q", pb.HostPort)
-			}
-		}
+	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
+		return nil, err
 	}
-
 	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
 		return nil, err
 	}
@@ -339,6 +329,22 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	}
 	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
 		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	return nil
+}
+
+func validatePortBindings(ports nat.PortMap) error {
+	for port := range ports {
+		_, portStr := nat.SplitProtoPort(string(port))
+		if _, err := nat.ParsePort(portStr); err != nil {
+			return errors.Errorf("invalid port specification: %q", portStr)
+		}
+		for _, pb := range ports[port] {
+			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
+			if err != nil {
+				return errors.Errorf("invalid port specification: %q", pb.HostPort)
+			}
+		}
 	}
 	return nil
 }
