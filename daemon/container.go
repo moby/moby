@@ -308,23 +308,9 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		}
 	}
 
-	p := hostConfig.RestartPolicy
-
-	switch p.Name {
-	case "always", "unless-stopped", "no":
-		if p.MaximumRetryCount != 0 {
-			return nil, errors.Errorf("maximum retry count cannot be used with restart policy '%s'", p.Name)
-		}
-	case "on-failure":
-		if p.MaximumRetryCount < 0 {
-			return nil, errors.Errorf("maximum retry count cannot be negative")
-		}
-	case "":
-		// do nothing
-	default:
-		return nil, errors.Errorf("invalid restart policy '%s'", p.Name)
+	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+		return nil, err
 	}
-
 	if !hostConfig.Isolation.IsValid() {
 		return nil, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
@@ -353,6 +339,25 @@ func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
 	}
 	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
 		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	return nil
+}
+
+func validateRestartPolicy(policy containertypes.RestartPolicy) error {
+	switch policy.Name {
+	case "always", "unless-stopped", "no":
+		if policy.MaximumRetryCount != 0 {
+			return errors.Errorf("maximum retry count cannot be used with restart policy '%s'", policy.Name)
+		}
+	case "on-failure":
+		if policy.MaximumRetryCount < 0 {
+			return errors.Errorf("maximum retry count cannot be negative")
+		}
+	case "":
+		// do nothing
+		return nil
+	default:
+		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
 	return nil
 }
