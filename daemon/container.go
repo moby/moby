@@ -268,23 +268,8 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 			}
 		}
 
-		// Validate the healthcheck params of Config
-		if config.Healthcheck != nil {
-			if config.Healthcheck.Interval != 0 && config.Healthcheck.Interval < containertypes.MinimumDuration {
-				return nil, errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
-
-			if config.Healthcheck.Timeout != 0 && config.Healthcheck.Timeout < containertypes.MinimumDuration {
-				return nil, errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
-
-			if config.Healthcheck.Retries < 0 {
-				return nil, errors.Errorf("Retries in Healthcheck cannot be negative")
-			}
-
-			if config.Healthcheck.StartPeriod != 0 && config.Healthcheck.StartPeriod < containertypes.MinimumDuration {
-				return nil, errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
+		if err := validateHealthCheck(config.Healthcheck); err != nil {
+			return nil, err
 		}
 	}
 
@@ -350,4 +335,24 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		logrus.Warn(w)
 	}
 	return warnings, err
+}
+
+// validateHealthCheck validates the healthcheck params of Config
+func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
+	if healthConfig == nil {
+		return nil
+	}
+	if healthConfig.Interval != 0 && healthConfig.Interval < containertypes.MinimumDuration {
+		return errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	if healthConfig.Timeout != 0 && healthConfig.Timeout < containertypes.MinimumDuration {
+		return errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	if healthConfig.Retries < 0 {
+		return errors.Errorf("Retries in Healthcheck cannot be negative")
+	}
+	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
+		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	return nil
 }
