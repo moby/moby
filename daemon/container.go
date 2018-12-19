@@ -235,23 +235,8 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
 	if config != nil {
-		if config.WorkingDir != "" {
-			wdInvalid := false
-			if runtime.GOOS == platform {
-				config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
-				if !system.IsAbs(config.WorkingDir) {
-					wdInvalid = true
-				}
-			} else {
-				// LCOW. Force Unix semantics
-				config.WorkingDir = strings.Replace(config.WorkingDir, string(os.PathSeparator), "/", -1)
-				if !path.IsAbs(config.WorkingDir) {
-					wdInvalid = true
-				}
-			}
-			if wdInvalid {
-				return nil, fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
-			}
+		if err := translateWorkingDir(config, platform); err != nil {
+			return nil, err
 		}
 
 		if len(config.StopSignal) > 0 {
@@ -365,5 +350,29 @@ func validateRestartPolicy(policy containertypes.RestartPolicy) error {
 	default:
 		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
+	return nil
+}
+
+// translateWorkingDir translates the working-dir for the target platform,
+// and returns an error if the given path is not an absolute path.
+func translateWorkingDir(config *containertypes.Config, platform string) error {
+	if config.WorkingDir == "" {
+		return nil
+	}
+	wd := config.WorkingDir
+	switch {
+	case runtime.GOOS != platform:
+		// LCOW. Force Unix semantics
+		wd = strings.Replace(wd, string(os.PathSeparator), "/", -1)
+		if !path.IsAbs(wd) {
+			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
+		}
+	default:
+		wd = filepath.FromSlash(wd) // Ensure in platform semantics
+		if !system.IsAbs(wd) {
+			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
+		}
+	}
+	config.WorkingDir = wd
 	return nil
 }
