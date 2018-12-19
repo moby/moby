@@ -53,7 +53,6 @@ func mount(device, target, mType string, flags uintptr, data string) error {
 				flags:  flags & pflags,
 				err:    err,
 			}
-			return err
 		}
 	}
 
