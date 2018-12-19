@@ -78,6 +78,7 @@
 			"chanwit",
 			"fntlnz",
 			"gianarb",
+			"olljanat",
 			"programmerq",
 			"rheinwein",
 			"ripcurld",
@@ -399,6 +400,11 @@
 	Name = "Jana Radhakrishnan"
 	Email = "mrjana@docker.com"
 	GitHub = "mrjana"
+
+	[people.olljanat]
+	Name = "Olli Janatuinen"
+	Email = "olli.janatuinen@gmail.com"
+	GitHub = "olljanat"
 
 	[people.programmerq]
 	Name = "Jeff Anderson"
