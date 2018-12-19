@@ -562,6 +562,9 @@ func UsingSystemd(config *config.Config) bool {
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+	if hostConfig == nil {
+		return nil, nil
+	}
 	sysInfo := sysinfo.New(true)
 
 	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)

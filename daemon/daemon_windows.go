@@ -188,6 +188,9 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
 func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+	if hostConfig == nil {
+		return nil, nil
+	}
 	osv := system.GetOSVersion()
 	hyperv := daemon.runAsHyperVContainer(hostConfig)
 

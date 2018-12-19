@@ -234,60 +234,11 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 // structures.
 func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if config != nil {
-		if err := translateWorkingDir(config, platform); err != nil {
-			return nil, err
-		}
-
-		if len(config.StopSignal) > 0 {
-			_, err := signal.ParseSignal(config.StopSignal)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
-		for _, env := range config.Env {
-			if _, err := opts.ValidateEnv(env); err != nil {
-				return nil, err
-			}
-		}
-
-		if err := validateHealthCheck(config.Healthcheck); err != nil {
-			return nil, err
-		}
+	if err = validateContainerConfig(config, platform); err != nil {
+		return warnings, err
 	}
-
-	if hostConfig == nil {
-		return nil, nil
-	}
-
-	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, errors.Errorf("can't create 'AutoRemove' container with restart policy")
-	}
-
-	// Validate mounts; check if host directories still exist
-	parser := volumemounts.NewParser(platform)
-	for _, cfg := range hostConfig.Mounts {
-		if err := parser.ValidateMountConfig(&cfg); err != nil {
-			return nil, err
-		}
-	}
-
-	for _, extraHost := range hostConfig.ExtraHosts {
-		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
-			return nil, err
-		}
-	}
-
-	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
-		return nil, err
-	}
-	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
-		return nil, err
-	}
-	if !hostConfig.Isolation.IsValid() {
-		return nil, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+	if err := validateHostConfig(hostConfig, platform); err != nil {
+		return warnings, err
 	}
 
 	// Now do platform-specific verification
@@ -296,6 +247,58 @@ func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *conta
 		logrus.Warn(w)
 	}
 	return warnings, err
+}
+
+func validateContainerConfig(config *containertypes.Config, platform string) error {
+	if config == nil {
+		return nil
+	}
+	if err := translateWorkingDir(config, platform); err != nil {
+		return err
+	}
+	if len(config.StopSignal) > 0 {
+		if _, err := signal.ParseSignal(config.StopSignal); err != nil {
+			return err
+		}
+	}
+	// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
+	for _, env := range config.Env {
+		if _, err := opts.ValidateEnv(env); err != nil {
+			return err
+		}
+	}
+	return validateHealthCheck(config.Healthcheck)
+}
+
+func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) error {
+	if hostConfig == nil {
+		return nil
+	}
+	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
+		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
+	}
+	// Validate mounts; check if host directories still exist
+	parser := volumemounts.NewParser(platform)
+	for _, cfg := range hostConfig.Mounts {
+		if err := parser.ValidateMountConfig(&cfg); err != nil {
+			return err
+		}
+	}
+	for _, extraHost := range hostConfig.ExtraHosts {
+		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
+			return err
+		}
+	}
+	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
+		return err
+	}
+	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+		return err
+	}
+	if !hostConfig.Isolation.IsValid() {
+		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+	}
+	return nil
 }
 
 // validateHealthCheck validates the healthcheck params of Config
