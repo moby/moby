@@ -180,7 +180,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 			Progress: &JSONProgress{Current: 1},
 		}: {
 			"",
-			fmt.Sprintf("%c[1K%c[K\rstatus       1B\r", 27, 27),
+			fmt.Sprintf("%c[2K\rstatus       1B\r", 27),
 		},
 	}
 
@@ -188,7 +188,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 	for jsonMessage, expectedMessages := range messages {
 		// Without terminal
 		data := bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, nil); err != nil {
+		if err := jsonMessage.Display(data, false); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[0] {
@@ -196,7 +196,7 @@ func TestJSONMessageDisplay(t *testing.T) {
 		}
 		// With terminal
 		data = bytes.NewBuffer([]byte{})
-		if err := jsonMessage.Display(data, &noTermInfo{}); err != nil {
+		if err := jsonMessage.Display(data, true); err != nil {
 			t.Fatal(err)
 		}
 		if data.String() != expectedMessages[1] {
@@ -210,13 +210,13 @@ func TestJSONMessageDisplayWithJSONError(t *testing.T) {
 	data := bytes.NewBuffer([]byte{})
 	jsonMessage := JSONMessage{Error: &JSONError{404, "Can't find it"}}
 
-	err := jsonMessage.Display(data, &noTermInfo{})
+	err := jsonMessage.Display(data, true)
 	if err == nil || err.Error() != "Can't find it" {
 		t.Fatalf("Expected a JSONError 404, got %q", err)
 	}
 
 	jsonMessage = JSONMessage{Error: &JSONError{401, "Anything"}}
-	err = jsonMessage.Display(data, &noTermInfo{})
+	err = jsonMessage.Display(data, true)
 	assert.Check(t, is.Error(err, "authentication is required"))
 }
 
@@ -261,7 +261,7 @@ func TestDisplayJSONMessagesStream(t *testing.T) {
 		// With progressDetail
 		"{ \"id\": \"ID\", \"status\": \"status\", \"progressDetail\": { \"Current\": 1} }": {
 			"", // progressbar is disabled in non-terminal
-			fmt.Sprintf("\n%c[%dA%c[1K%c[K\rID: status       1B\r%c[%dB", 27, 1, 27, 27, 27, 1),
+			fmt.Sprintf("\n%c[%dA%c[2K\rID: status       1B\r%c[%dB", 27, 1, 27, 27, 1),
 		},
 	}
 
