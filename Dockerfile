@@ -43,7 +43,7 @@ RUN apt-get update && apt-get install -y \
 
 FROM runtime-dev AS criu
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.6
+ENV CRIU_VERSION 3.11
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y \
 	libaio-dev \
