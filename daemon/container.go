@@ -24,6 +24,7 @@ import (
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // GetContainer looks for a container using the provided information, which could be
@@ -231,128 +232,150 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 
 // verifyContainerSettings performs validation of the hostconfig and config
 // structures.
-func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
+func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if config != nil {
-		if config.WorkingDir != "" {
-			wdInvalid := false
-			if runtime.GOOS == platform {
-				config.WorkingDir = filepath.FromSlash(config.WorkingDir) // Ensure in platform semantics
-				if !system.IsAbs(config.WorkingDir) {
-					wdInvalid = true
-				}
-			} else {
-				// LCOW. Force Unix semantics
-				config.WorkingDir = strings.Replace(config.WorkingDir, string(os.PathSeparator), "/", -1)
-				if !path.IsAbs(config.WorkingDir) {
-					wdInvalid = true
-				}
-			}
-			if wdInvalid {
-				return nil, fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
-			}
-		}
-
-		if len(config.StopSignal) > 0 {
-			_, err := signal.ParseSignal(config.StopSignal)
-			if err != nil {
-				return nil, err
-			}
-		}
-
-		// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
-		for _, env := range config.Env {
-			if _, err := opts.ValidateEnv(env); err != nil {
-				return nil, err
-			}
-		}
-
-		// Validate the healthcheck params of Config
-		if config.Healthcheck != nil {
-			if config.Healthcheck.Interval != 0 && config.Healthcheck.Interval < containertypes.MinimumDuration {
-				return nil, errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
-
-			if config.Healthcheck.Timeout != 0 && config.Healthcheck.Timeout < containertypes.MinimumDuration {
-				return nil, errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
-
-			if config.Healthcheck.Retries < 0 {
-				return nil, errors.Errorf("Retries in Healthcheck cannot be negative")
-			}
-
-			if config.Healthcheck.StartPeriod != 0 && config.Healthcheck.StartPeriod < containertypes.MinimumDuration {
-				return nil, errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
-			}
-		}
+	if err = validateContainerConfig(config, platform); err != nil {
+		return warnings, err
+	}
+	if err := validateHostConfig(hostConfig, platform); err != nil {
+		return warnings, err
 	}
 
+	// Now do platform-specific verification
+	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	for _, w := range warnings {
+		logrus.Warn(w)
+	}
+	return warnings, err
+}
+
+func validateContainerConfig(config *containertypes.Config, platform string) error {
+	if config == nil {
+		return nil
+	}
+	if err := translateWorkingDir(config, platform); err != nil {
+		return err
+	}
+	if len(config.StopSignal) > 0 {
+		if _, err := signal.ParseSignal(config.StopSignal); err != nil {
+			return err
+		}
+	}
+	// Validate if Env contains empty variable or not (e.g., ``, `=foo`)
+	for _, env := range config.Env {
+		if _, err := opts.ValidateEnv(env); err != nil {
+			return err
+		}
+	}
+	return validateHealthCheck(config.Healthcheck)
+}
+
+func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) error {
 	if hostConfig == nil {
-		return nil, nil
+		return nil
 	}
-
 	if hostConfig.AutoRemove && !hostConfig.RestartPolicy.IsNone() {
-		return nil, errors.Errorf("can't create 'AutoRemove' container with restart policy")
+		return errors.Errorf("can't create 'AutoRemove' container with restart policy")
 	}
-
 	// Validate mounts; check if host directories still exist
 	parser := volumemounts.NewParser(platform)
 	for _, cfg := range hostConfig.Mounts {
 		if err := parser.ValidateMountConfig(&cfg); err != nil {
-			return nil, err
+			return err
 		}
 	}
-
 	for _, extraHost := range hostConfig.ExtraHosts {
 		if _, err := opts.ValidateExtraHost(extraHost); err != nil {
-			return nil, err
+			return err
 		}
 	}
+	if err := validatePortBindings(hostConfig.PortBindings); err != nil {
+		return err
+	}
+	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
+		return err
+	}
+	if !hostConfig.Isolation.IsValid() {
+		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+	}
+	return nil
+}
 
-	for port := range hostConfig.PortBindings {
+// validateHealthCheck validates the healthcheck params of Config
+func validateHealthCheck(healthConfig *containertypes.HealthConfig) error {
+	if healthConfig == nil {
+		return nil
+	}
+	if healthConfig.Interval != 0 && healthConfig.Interval < containertypes.MinimumDuration {
+		return errors.Errorf("Interval in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	if healthConfig.Timeout != 0 && healthConfig.Timeout < containertypes.MinimumDuration {
+		return errors.Errorf("Timeout in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	if healthConfig.Retries < 0 {
+		return errors.Errorf("Retries in Healthcheck cannot be negative")
+	}
+	if healthConfig.StartPeriod != 0 && healthConfig.StartPeriod < containertypes.MinimumDuration {
+		return errors.Errorf("StartPeriod in Healthcheck cannot be less than %s", containertypes.MinimumDuration)
+	}
+	return nil
+}
+
+func validatePortBindings(ports nat.PortMap) error {
+	for port := range ports {
 		_, portStr := nat.SplitProtoPort(string(port))
 		if _, err := nat.ParsePort(portStr); err != nil {
-			return nil, errors.Errorf("invalid port specification: %q", portStr)
+			return errors.Errorf("invalid port specification: %q", portStr)
 		}
-		for _, pb := range hostConfig.PortBindings[port] {
+		for _, pb := range ports[port] {
 			_, err := nat.NewPort(nat.SplitProtoPort(pb.HostPort))
 			if err != nil {
-				return nil, errors.Errorf("invalid port specification: %q", pb.HostPort)
+				return errors.Errorf("invalid port specification: %q", pb.HostPort)
 			}
 		}
 	}
+	return nil
+}
 
-	p := hostConfig.RestartPolicy
-
-	switch p.Name {
+func validateRestartPolicy(policy containertypes.RestartPolicy) error {
+	switch policy.Name {
 	case "always", "unless-stopped", "no":
-		if p.MaximumRetryCount != 0 {
-			return nil, errors.Errorf("maximum retry count cannot be used with restart policy '%s'", p.Name)
+		if policy.MaximumRetryCount != 0 {
+			return errors.Errorf("maximum retry count cannot be used with restart policy '%s'", policy.Name)
 		}
 	case "on-failure":
-		if p.MaximumRetryCount < 0 {
-			return nil, errors.Errorf("maximum retry count cannot be negative")
+		if policy.MaximumRetryCount < 0 {
+			return errors.Errorf("maximum retry count cannot be negative")
 		}
 	case "":
 		// do nothing
+		return nil
 	default:
-		return nil, errors.Errorf("invalid restart policy '%s'", p.Name)
+		return errors.Errorf("invalid restart policy '%s'", policy.Name)
 	}
+	return nil
+}
 
-	if !hostConfig.Isolation.IsValid() {
-		return nil, errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
+// translateWorkingDir translates the working-dir for the target platform,
+// and returns an error if the given path is not an absolute path.
+func translateWorkingDir(config *containertypes.Config, platform string) error {
+	if config.WorkingDir == "" {
+		return nil
 	}
-
-	var (
-		err      error
-		warnings []string
-	)
-	// Now do platform-specific verification
-	if warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, config, update); err != nil {
-		return warnings, err
+	wd := config.WorkingDir
+	switch {
+	case runtime.GOOS != platform:
+		// LCOW. Force Unix semantics
+		wd = strings.Replace(wd, string(os.PathSeparator), "/", -1)
+		if !path.IsAbs(wd) {
+			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
+		}
+	default:
+		wd = filepath.FromSlash(wd) // Ensure in platform semantics
+		if !system.IsAbs(wd) {
+			return fmt.Errorf("the working directory '%s' is invalid, it needs to be an absolute path", config.WorkingDir)
+		}
 	}
-	if hostConfig.NetworkMode.IsHost() && len(hostConfig.PortBindings) > 0 {
-		warnings = append(warnings, "Published ports are discarded when using host network mode")
-	}
-	return warnings, err
+	config.WorkingDir = wd
+	return nil
 }

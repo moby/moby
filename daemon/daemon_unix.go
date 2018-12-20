@@ -354,8 +354,8 @@ func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *container
 	}
 }
 
-func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) ([]string, error) {
-	warnings := []string{}
+// verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
+func verifyPlatformContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) (warnings []string, err error) {
 	fixMemorySwappiness(resources)
 
 	// memory subsystem checks and adjustments
@@ -364,13 +364,11 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.Memory > 0 && !sysInfo.MemoryLimit {
 		warnings = append(warnings, "Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
-		logrus.Warn("Your kernel does not support memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.Memory = 0
 		resources.MemorySwap = -1
 	}
 	if resources.Memory > 0 && resources.MemorySwap != -1 && !sysInfo.SwapLimit {
 		warnings = append(warnings, "Your kernel does not support swap limit capabilities or the cgroup is not mounted. Memory limited without swap.")
-		logrus.Warn("Your kernel does not support swap limit capabilities,or the cgroup is not mounted. Memory limited without swap.")
 		resources.MemorySwap = -1
 	}
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
@@ -381,7 +379,6 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
 		warnings = append(warnings, "Your kernel does not support memory swappiness capabilities or the cgroup is not mounted. Memory swappiness discarded.")
-		logrus.Warn("Your kernel does not support memory swappiness capabilities, or the cgroup is not mounted. Memory swappiness discarded.")
 		resources.MemorySwappiness = nil
 	}
 	if resources.MemorySwappiness != nil {
@@ -392,7 +389,6 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.MemoryReservation > 0 && !sysInfo.MemoryReservation {
 		warnings = append(warnings, "Your kernel does not support memory soft limit capabilities or the cgroup is not mounted. Limitation discarded.")
-		logrus.Warn("Your kernel does not support memory soft limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.MemoryReservation = 0
 	}
 	if resources.MemoryReservation > 0 && resources.MemoryReservation < linuxMinMemory {
@@ -403,7 +399,6 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.KernelMemory > 0 && !sysInfo.KernelMemory {
 		warnings = append(warnings, "Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
-		logrus.Warn("Your kernel does not support kernel memory limit capabilities or the cgroup is not mounted. Limitation discarded.")
 		resources.KernelMemory = 0
 	}
 	if resources.KernelMemory > 0 && resources.KernelMemory < linuxMinMemory {
@@ -411,21 +406,20 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.KernelMemory > 0 && !kernel.CheckKernelVersion(4, 0, 0) {
 		warnings = append(warnings, "You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
-		logrus.Warn("You specified a kernel memory limit on a kernel older than 4.0. Kernel memory limits are experimental on older kernels, it won't work as expected and can cause your system to be unstable.")
 	}
 	if resources.OomKillDisable != nil && !sysInfo.OomKillDisable {
 		// only produce warnings if the setting wasn't to *disable* the OOM Kill; no point
 		// warning the caller if they already wanted the feature to be off
 		if *resources.OomKillDisable {
 			warnings = append(warnings, "Your kernel does not support OomKillDisable. OomKillDisable discarded.")
-			logrus.Warn("Your kernel does not support OomKillDisable. OomKillDisable discarded.")
 		}
 		resources.OomKillDisable = nil
 	}
-
+	if resources.OomKillDisable != nil && *resources.OomKillDisable && resources.Memory == 0 {
+		warnings = append(warnings, "OOM killer is disabled for the container, but no memory limit is set, this can result in the system running out of resources.")
+	}
 	if resources.PidsLimit != 0 && !sysInfo.PidsLimit {
 		warnings = append(warnings, "Your kernel does not support pids limit capabilities or the cgroup is not mounted. PIDs limit discarded.")
-		logrus.Warn("Your kernel does not support pids limit capabilities or the cgroup is not mounted. PIDs limit discarded.")
 		resources.PidsLimit = 0
 	}
 
@@ -452,12 +446,10 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 
 	if resources.CPUShares > 0 && !sysInfo.CPUShares {
 		warnings = append(warnings, "Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")
-		logrus.Warn("Your kernel does not support CPU shares or the cgroup is not mounted. Shares discarded.")
 		resources.CPUShares = 0
 	}
 	if resources.CPUPeriod > 0 && !sysInfo.CPUCfsPeriod {
 		warnings = append(warnings, "Your kernel does not support CPU cfs period or the cgroup is not mounted. Period discarded.")
-		logrus.Warn("Your kernel does not support CPU cfs period or the cgroup is not mounted. Period discarded.")
 		resources.CPUPeriod = 0
 	}
 	if resources.CPUPeriod != 0 && (resources.CPUPeriod < 1000 || resources.CPUPeriod > 1000000) {
@@ -465,7 +457,6 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.CPUQuota > 0 && !sysInfo.CPUCfsQuota {
 		warnings = append(warnings, "Your kernel does not support CPU cfs quota or the cgroup is not mounted. Quota discarded.")
-		logrus.Warn("Your kernel does not support CPU cfs quota or the cgroup is not mounted. Quota discarded.")
 		resources.CPUQuota = 0
 	}
 	if resources.CPUQuota > 0 && resources.CPUQuota < 1000 {
@@ -473,14 +464,12 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if resources.CPUPercent > 0 {
 		warnings = append(warnings, fmt.Sprintf("%s does not support CPU percent. Percent discarded.", runtime.GOOS))
-		logrus.Warnf("%s does not support CPU percent. Percent discarded.", runtime.GOOS)
 		resources.CPUPercent = 0
 	}
 
 	// cpuset subsystem checks and adjustments
 	if (resources.CpusetCpus != "" || resources.CpusetMems != "") && !sysInfo.Cpuset {
 		warnings = append(warnings, "Your kernel does not support cpuset or the cgroup is not mounted. Cpuset discarded.")
-		logrus.Warn("Your kernel does not support cpuset or the cgroup is not mounted. Cpuset discarded.")
 		resources.CpusetCpus = ""
 		resources.CpusetMems = ""
 	}
@@ -502,7 +491,6 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	// blkio subsystem checks and adjustments
 	if resources.BlkioWeight > 0 && !sysInfo.BlkioWeight {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight or the cgroup is not mounted. Weight discarded.")
-		logrus.Warn("Your kernel does not support Block I/O weight or the cgroup is not mounted. Weight discarded.")
 		resources.BlkioWeight = 0
 	}
 	if resources.BlkioWeight > 0 && (resources.BlkioWeight < 10 || resources.BlkioWeight > 1000) {
@@ -513,28 +501,23 @@ func verifyContainerResources(resources *containertypes.Resources, sysInfo *sysi
 	}
 	if len(resources.BlkioWeightDevice) > 0 && !sysInfo.BlkioWeightDevice {
 		warnings = append(warnings, "Your kernel does not support Block I/O weight_device or the cgroup is not mounted. Weight-device discarded.")
-		logrus.Warn("Your kernel does not support Block I/O weight_device or the cgroup is not mounted. Weight-device discarded.")
 		resources.BlkioWeightDevice = []*pblkiodev.WeightDevice{}
 	}
 	if len(resources.BlkioDeviceReadBps) > 0 && !sysInfo.BlkioReadBpsDevice {
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O read limit or the cgroup is not mounted. Block I/O BPS read limit discarded.")
-		logrus.Warn("Your kernel does not support BPS Block I/O read limit or the cgroup is not mounted. Block I/O BPS read limit discarded")
 		resources.BlkioDeviceReadBps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteBps) > 0 && !sysInfo.BlkioWriteBpsDevice {
 		warnings = append(warnings, "Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
-		logrus.Warn("Your kernel does not support BPS Block I/O write limit or the cgroup is not mounted. Block I/O BPS write limit discarded.")
 		resources.BlkioDeviceWriteBps = []*pblkiodev.ThrottleDevice{}
 
 	}
 	if len(resources.BlkioDeviceReadIOps) > 0 && !sysInfo.BlkioReadIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block read limit or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
-		logrus.Warn("Your kernel does not support IOPS Block I/O read limit in IO or the cgroup is not mounted. Block I/O IOPS read limit discarded.")
 		resources.BlkioDeviceReadIOps = []*pblkiodev.ThrottleDevice{}
 	}
 	if len(resources.BlkioDeviceWriteIOps) > 0 && !sysInfo.BlkioWriteIOpsDevice {
 		warnings = append(warnings, "Your kernel does not support IOPS Block write limit or the cgroup is not mounted. Block I/O IOPS write limit discarded.")
-		logrus.Warn("Your kernel does not support IOPS Block I/O write limit or the cgroup is not mounted. Block I/O IOPS write limit discarded.")
 		resources.BlkioDeviceWriteIOps = []*pblkiodev.ThrottleDevice{}
 	}
 
@@ -578,11 +561,13 @@ func UsingSystemd(config *config.Config) bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) ([]string, error) {
-	var warnings []string
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+	if hostConfig == nil {
+		return nil, nil
+	}
 	sysInfo := sysinfo.New(true)
 
-	w, err := verifyContainerResources(&hostConfig.Resources, sysInfo, update)
+	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
 
 	// no matter err is nil or not, w could have data in itself.
 	warnings = append(warnings, w...)
@@ -602,8 +587,11 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// ip-forwarding does not affect container with '--net=host' (or '--net=none')
 	if sysInfo.IPv4ForwardingDisabled && !(hostConfig.NetworkMode.IsHost() || hostConfig.NetworkMode.IsNone()) {
 		warnings = append(warnings, "IPv4 forwarding is disabled. Networking will not work.")
-		logrus.Warn("IPv4 forwarding is disabled. Networking will not work")
 	}
+	if hostConfig.NetworkMode.IsHost() && len(hostConfig.PortBindings) > 0 {
+		warnings = append(warnings, "Published ports are discarded when using host network mode")
+	}
+
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
