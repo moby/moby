@@ -762,10 +762,10 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 		Timestamp: time.Now().Add(time.Second),
 	})
 
-	// Fire ticker batchPublishFrequency seconds later
-	ticks <- time.Now().Add(batchPublishFrequency + time.Second)
+	// Fire ticker defaultForceFlushInterval seconds later
+	ticks <- time.Now().Add(defaultForceFlushInterval + time.Second)
 
-	// Verify single multiline event is flushed after maximum event buffer age (batchPublishFrequency)
+	// Verify single multiline event is flushed after maximum event buffer age (defaultForceFlushInterval)
 	argument := <-mockClient.putLogEventsArgument
 	assert.Check(t, argument != nil, "Expected non-nil PutLogEventsInput")
 	assert.Check(t, is.Equal(1, len(argument.LogEvents)), "Expected single multiline event")
@@ -777,8 +777,8 @@ func TestCollectBatchMultilinePatternMaxEventAge(t *testing.T) {
 		Timestamp: time.Now().Add(time.Second),
 	})
 
-	// Fire ticker another batchPublishFrequency seconds later
-	ticks <- time.Now().Add(2*batchPublishFrequency + time.Second)
+	// Fire ticker another defaultForceFlushInterval seconds later
+	ticks <- time.Now().Add(2*defaultForceFlushInterval + time.Second)
 
 	// Verify the event buffer is truly flushed - we should only receive a single event
 	argument = <-mockClient.putLogEventsArgument
@@ -880,7 +880,7 @@ func TestCollectBatchMultilinePatternMaxEventSize(t *testing.T) {
 	})
 
 	// Fire ticker
-	ticks <- time.Now().Add(batchPublishFrequency)
+	ticks <- time.Now().Add(defaultForceFlushInterval)
 
 	// Verify multiline events
 	// We expect a maximum sized event with no new line characters and a
@@ -1417,6 +1417,68 @@ func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
 	err := ValidateLogOpt(cfg)
 	assert.Check(t, err != nil, "Expected an error")
 	assert.Check(t, is.Equal(err.Error(), conflictingLogOptionsError), "Received invalid error")
+}
+
+func TestValidateLogOptionsForceFlushIntervalSeconds(t *testing.T) {
+	cfg := map[string]string{
+		forceFlushIntervalKey: "0",
+		logGroupKey:           groupName,
+	}
+	nonPositiveIntegerLogOptionsError := "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': 0"
+
+	err := ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[forceFlushIntervalKey] = "-1"
+	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': -1"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[forceFlushIntervalKey] = "a"
+	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': a"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[forceFlushIntervalKey] = "10"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err == nil, "Unexpected error")
+}
+
+func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
+	cfg := map[string]string{
+		maxBufferedEventsKey: "0",
+		logGroupKey:          groupName,
+	}
+	nonPositiveIntegerLogOptionsError := "must specify a positive integer for log opt 'awslogs-max-buffered-events': 0"
+
+	err := ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[maxBufferedEventsKey] = "-1"
+	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-max-buffered-events': -1"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[maxBufferedEventsKey] = "a"
+	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-max-buffered-events': a"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err != nil, "Expected an error")
+	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+
+	cfg[maxBufferedEventsKey] = "10"
+
+	err = ValidateLogOpt(cfg)
+	assert.Check(t, err == nil, "Unexpected error")
 }
 
 func TestCreateTagSuccess(t *testing.T) {
