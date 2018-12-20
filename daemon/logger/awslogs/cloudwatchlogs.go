@@ -39,7 +39,11 @@ const (
 	datetimeFormatKey      = "awslogs-datetime-format"
 	multilinePatternKey    = "awslogs-multiline-pattern"
 	credentialsEndpointKey = "awslogs-credentials-endpoint"
-	batchPublishFrequency  = 5 * time.Second
+	forceFlushIntervalKey  = "awslogs-force-flush-interval-seconds"
+	maxBufferedEventsKey   = "awslogs-max-buffered-events"
+
+	defaultForceFlushInterval = 5 * time.Second
+	defaultMaxBufferedEvents  = 4096
 
 	// See: http://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutLogEvents.html
 	perEventBytes          = 26
@@ -64,16 +68,17 @@ const (
 )
 
 type logStream struct {
-	logStreamName    string
-	logGroupName     string
-	logCreateGroup   bool
-	logNonBlocking   bool
-	multilinePattern *regexp.Regexp
-	client           api
-	messages         chan *logger.Message
-	lock             sync.RWMutex
-	closed           bool
-	sequenceToken    *string
+	logStreamName      string
+	logGroupName       string
+	logCreateGroup     bool
+	logNonBlocking     bool
+	forceFlushInterval time.Duration
+	multilinePattern   *regexp.Regexp
+	client             api
+	messages           chan *logger.Message
+	lock               sync.RWMutex
+	closed             bool
+	sequenceToken      *string
 }
 
 var _ logger.SizedLogger = &logStream{}
@@ -138,6 +143,23 @@ func New(info logger.Info) (logger.Logger, error) {
 
 	logNonBlocking := info.Config["mode"] == "non-blocking"
 
+	forceFlushInterval := defaultForceFlushInterval
+	if info.Config[forceFlushIntervalKey] != "" {
+		forceFlushIntervalAsInt, err := strconv.Atoi(info.Config[forceFlushIntervalKey])
+		if err != nil {
+			return nil, err
+		}
+		forceFlushInterval = time.Duration(forceFlushIntervalAsInt) * time.Second
+	}
+
+	maxBufferedEvents := int(defaultMaxBufferedEvents)
+	if info.Config[maxBufferedEventsKey] != "" {
+		maxBufferedEvents, err = strconv.Atoi(info.Config[maxBufferedEventsKey])
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	if info.Config[logStreamKey] != "" {
 		logStreamName = info.Config[logStreamKey]
 	}
@@ -153,13 +175,14 @@ func New(info logger.Info) (logger.Logger, error) {
 	}
 
 	containerStream := &logStream{
-		logStreamName:    logStreamName,
-		logGroupName:     logGroupName,
-		logCreateGroup:   logCreateGroup,
-		logNonBlocking:   logNonBlocking,
-		multilinePattern: multilinePattern,
-		client:           client,
-		messages:         make(chan *logger.Message, 4096),
+		logStreamName:      logStreamName,
+		logGroupName:       logGroupName,
+		logCreateGroup:     logCreateGroup,
+		logNonBlocking:     logNonBlocking,
+		forceFlushInterval: forceFlushInterval,
+		multilinePattern:   multilinePattern,
+		client:             client,
+		messages:           make(chan *logger.Message, maxBufferedEvents),
 	}
 
 	creationDone := make(chan bool)
@@ -471,7 +494,11 @@ var newTicker = func(freq time.Duration) *time.Ticker {
 func (l *logStream) collectBatch(created chan bool) {
 	// Wait for the logstream/group to be created
 	<-created
-	ticker := newTicker(batchPublishFrequency)
+	flushInterval := l.forceFlushInterval
+	if flushInterval <= 0 {
+		flushInterval = defaultForceFlushInterval
+	}
+	ticker := newTicker(flushInterval)
 	var eventBuffer []byte
 	var eventBufferTimestamp int64
 	var batch = newEventBatch()
@@ -481,7 +508,7 @@ func (l *logStream) collectBatch(created chan bool) {
 			// If event buffer is older than batch publish frequency flush the event buffer
 			if eventBufferTimestamp > 0 && len(eventBuffer) > 0 {
 				eventBufferAge := t.UnixNano()/int64(time.Millisecond) - eventBufferTimestamp
-				eventBufferExpired := eventBufferAge >= int64(batchPublishFrequency)/int64(time.Millisecond)
+				eventBufferExpired := eventBufferAge >= int64(flushInterval)/int64(time.Millisecond)
 				eventBufferNegative := eventBufferAge < 0
 				if eventBufferExpired || eventBufferNegative {
 					l.processEvent(batch, eventBuffer, eventBufferTimestamp)
@@ -672,6 +699,8 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case datetimeFormatKey:
 		case multilinePatternKey:
 		case credentialsEndpointKey:
+		case forceFlushIntervalKey:
+		case maxBufferedEventsKey:
 		default:
 			return fmt.Errorf("unknown log opt '%s' for %s log driver", key, name)
 		}
@@ -682,6 +711,16 @@ func ValidateLogOpt(cfg map[string]string) error {
 	if cfg[logCreateGroupKey] != "" {
 		if _, err := strconv.ParseBool(cfg[logCreateGroupKey]); err != nil {
 			return fmt.Errorf("must specify valid value for log opt '%s': %v", logCreateGroupKey, err)
+		}
+	}
+	if cfg[forceFlushIntervalKey] != "" {
+		if value, err := strconv.Atoi(cfg[forceFlushIntervalKey]); err != nil || value <= 0 {
+			return fmt.Errorf("must specify a positive integer for log opt '%s': %v", forceFlushIntervalKey, cfg[forceFlushIntervalKey])
+		}
+	}
+	if cfg[maxBufferedEventsKey] != "" {
+		if value, err := strconv.Atoi(cfg[maxBufferedEventsKey]); err != nil || value <= 0 {
+			return fmt.Errorf("must specify a positive integer for log opt '%s': %v", maxBufferedEventsKey, cfg[maxBufferedEventsKey])
 		}
 	}
 	_, datetimeFormatKeyExists := cfg[datetimeFormatKey]
