@@ -378,7 +378,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 			assert.Check(t, ec[ext].gets >= 1)
 			assert.Check(t, ec[ext].puts >= 1)
 			assert.Check(t, is.Equal(ec[ext].stats, 5))
-			assert.Check(t, is.Equal(ec[ext].cleanups, 2))
+			assert.Check(t, is.Equal(ec[ext].cleanups, 4))
 			assert.Check(t, ec[ext].applydiff >= 1)
 			assert.Check(t, is.Equal(ec[ext].changes, 1))
 			assert.Check(t, is.Equal(ec[ext].diffsize, 0))

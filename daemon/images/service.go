@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"runtime"
+	"time"
 
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -159,9 +160,10 @@ func (i *ImageService) GetLayerMountID(cid string, os string) (string, error) {
 	return i.layerStores[os].GetMountID(cid)
 }
 
-// Cleanup resources before the process is shutdown.
-// called from daemon.go Daemon.Shutdown()
+// Cleanup resources before the process is started/shutdown.
+// called from daemon.go Daemon.NewDaemon() and Daemon.Shutdown()
 func (i *ImageService) Cleanup() {
+	cleanupStart := time.Now()
 	for os, ls := range i.layerStores {
 		if ls != nil {
 			if err := ls.Cleanup(); err != nil {
@@ -169,6 +171,7 @@ func (i *ImageService) Cleanup() {
 			}
 		}
 	}
+	logrus.Infof("ImageService cleanup took %.2f seconds", time.Since(cleanupStart).Seconds())
 }
 
 // GraphDriverForOS returns the name of the graph drvier

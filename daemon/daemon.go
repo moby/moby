@@ -1061,6 +1061,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		TrustKey:                  trustKey,
 	})
 
+	// Image cleanup on some graph drivers (e.g. windowsfilter) takes so much time
+	// that it is not able to run during default 15 seconds shutdown timeout
+	// that why we run cleanup also just before daemon starts.
+	if !d.configStore.LiveRestoreEnabled {
+		d.imageService.Cleanup()
+	}
+
 	go d.execCommandGC()
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), config.ContainerdNamespace, d)
