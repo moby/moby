@@ -42,7 +42,7 @@ func getCheckpointDir(checkDir, checkpointID, ctrName, ctrID, ctrCheckpointDir s
 	} else {
 		switch {
 		case err != nil:
-			err2 = fmt.Errorf("checkpoint %s does not exists for container %s", checkpointID, ctrName)
+			err2 = fmt.Errorf("checkpoint %s does not exist for container %s", checkpointID, ctrName)
 		case err == nil && stat.IsDir():
 			err2 = nil
 		case err == nil:
