@@ -82,7 +82,7 @@ Tracking issues:
 ## 1.3 Rootless Mode
 
 Running the daemon requires elevated privileges for many tasks. We would like to
-support running the daemon as a nomral, unprivileged user without requiring `suid`
+support running the daemon as a normal, unprivileged user without requiring `suid`
 binaries.
 
 Tracking issues:
