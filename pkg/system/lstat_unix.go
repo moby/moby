@@ -14,7 +14,7 @@ import (
 func Lstat(path string) (*StatT, error) {
 	s := &syscall.Stat_t{}
 	if err := syscall.Lstat(path, s); err != nil {
-		return nil, &os.PathError{"Lstat", path, err}
+		return nil, &os.PathError{Op: "Lstat", Path: path, Err: err}
 	}
 	return fromStatT(s)
 }
