@@ -191,6 +191,16 @@ func (w *LogFile) checkCapacityAndRotate() error {
 		w.currentSize = 0
 		w.notifyRotate.Publish(struct{}{})
 
+		if w.maxFiles <= 1 {
+			go func() {
+				time.Sleep(1 * time.Second)
+				err = os.Remove(fname + ".1")
+				if err != nil && !os.IsNotExist(err) {
+					logrus.Warningf("Failed to remove rotated log file")
+					return
+				}
+			}()
+		}
 		if w.maxFiles <= 1 || !w.compress {
 			w.rotateMu.Unlock()
 			return nil
@@ -206,10 +216,6 @@ func (w *LogFile) checkCapacityAndRotate() error {
 }
 
 func rotate(name string, maxFiles int, compress bool) error {
-	if maxFiles < 2 {
-		return nil
-	}
-
 	var extension string
 	if compress {
 		extension = ".gz"

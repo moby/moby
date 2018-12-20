@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -199,5 +200,80 @@ func TestFollowLogsProducerGone(t *testing.T) {
 	case <-lw.WatchConsumerGone():
 		t.Fatal("consumer should not have exited")
 	default:
+	}
+}
+
+func TestFollowLogsLogRotation(t *testing.T) {
+	tmp, err := ioutil.TempDir("", t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.RemoveAll(tmp)
+
+	filename := filepath.Join(tmp, "container.log")
+
+	createDecoder := func(r io.Reader) func() (*logger.Message, error) {
+		scanner := bufio.NewScanner(r)
+		return func() (*logger.Message, error) {
+			if !scanner.Scan() {
+				return nil, io.EOF
+			}
+			return &logger.Message{Line: scanner.Bytes(), Timestamp: time.Now()}, nil
+		}
+	}
+	marshalFunc := func(msg *logger.Message) ([]byte, error) {
+		return append(msg.Line, []byte("\n")...), nil
+	}
+	tailReader := func(ctx context.Context, r SizeReaderAt, lines int) (io.Reader, int, error) {
+		return tailfile.NewTailReader(ctx, r, lines)
+	}
+	logfile, err := NewLogFile(filename, 1, 1, false, marshalFunc, createDecoder, 0640, tailReader)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	referenceTime := time.Now()
+	readConfig := logger.ReadConfig{
+		Since:  referenceTime,
+		Follow: true,
+		Tail:   -1,
+		Until:  referenceTime.Add(30 * time.Minute),
+	}
+	watcher := logger.NewLogWatcher()
+	endTest := make(chan struct{})
+	defer close(endTest)
+
+	go func() {
+		for {
+			select {
+			case <-endTest:
+				return
+			default:
+				logfile.WriteLogEntry(&logger.Message{Line: []byte("foo log"), Timestamp: time.Now()})
+			}
+		}
+	}()
+	go func() {
+		logfile.ReadLogs(readConfig, watcher)
+	}()
+
+	select {
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for tail line")
+	case err := <-watcher.Err:
+		assert.Assert(t, err)
+	case msg := <-watcher.Msg:
+		assert.Assert(t, msg != nil)
+		assert.Assert(t, string(msg.Line) == "foo log", string(msg.Line))
+	}
+
+	select {
+	case <-time.After(10 * time.Second):
+		t.Fatal("timeout waiting for tail line")
+	case err := <-watcher.Err:
+		assert.Assert(t, err)
+	case msg := <-watcher.Msg:
+		assert.Assert(t, msg != nil)
+		assert.Assert(t, string(msg.Line) == "foo log", string(msg.Line))
 	}
 }
