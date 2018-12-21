@@ -81,6 +81,16 @@ type logStream struct {
 	sequenceToken      *string
 }
 
+type logStreamConfig struct {
+	logStreamName      string
+	logGroupName       string
+	logCreateGroup     bool
+	logNonBlocking     bool
+	forceFlushInterval time.Duration
+	maxBufferedEvents  int
+	multilinePattern   *regexp.Regexp
+}
+
 var _ logger.SizedLogger = &logStream{}
 
 type api interface {
@@ -128,6 +138,70 @@ type eventBatch struct {
 // AWS_REGION, AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, the shared credentials
 // file (~/.aws/credentials), and the EC2 Instance Metadata Service.
 func New(info logger.Info) (logger.Logger, error) {
+	containerStreamConfig, err := newStreamConfig(info)
+	if err != nil {
+		return nil, err
+	}
+	client, err := newAWSLogsClient(info)
+	if err != nil {
+		return nil, err
+	}
+
+	containerStream := &logStream{
+		logStreamName:      containerStreamConfig.logStreamName,
+		logGroupName:       containerStreamConfig.logGroupName,
+		logCreateGroup:     containerStreamConfig.logCreateGroup,
+		logNonBlocking:     containerStreamConfig.logNonBlocking,
+		forceFlushInterval: containerStreamConfig.forceFlushInterval,
+		multilinePattern:   containerStreamConfig.multilinePattern,
+		client:             client,
+		messages:           make(chan *logger.Message, containerStreamConfig.maxBufferedEvents),
+	}
+
+	creationDone := make(chan bool)
+	if containerStream.logNonBlocking {
+		go func() {
+			backoff := 1
+			maxBackoff := 32
+			for {
+				// If logger is closed we are done
+				containerStream.lock.RLock()
+				if containerStream.closed {
+					containerStream.lock.RUnlock()
+					break
+				}
+				containerStream.lock.RUnlock()
+				err := containerStream.create()
+				if err == nil {
+					break
+				}
+
+				time.Sleep(time.Duration(backoff) * time.Second)
+				if backoff < maxBackoff {
+					backoff *= 2
+				}
+				logrus.
+					WithError(err).
+					WithField("container-id", info.ContainerID).
+					WithField("container-name", info.ContainerName).
+					Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
+			}
+			close(creationDone)
+		}()
+	} else {
+		if err = containerStream.create(); err != nil {
+			return nil, err
+		}
+		close(creationDone)
+	}
+	go containerStream.collectBatch(creationDone)
+
+	return containerStream, nil
+}
+
+// Parses most of the awslogs- options and prepares a config object to be used for newing the actual stream
+// It has been formed out to ease Utest of the New above
+func newStreamConfig(info logger.Info) (*logStreamConfig, error) {
 	logGroupName := info.Config[logGroupKey]
 	logStreamName, err := loggerutils.ParseLogTag(info, "{{.FullID}}")
 	if err != nil {
@@ -169,61 +243,17 @@ func New(info logger.Info) (logger.Logger, error) {
 		return nil, err
 	}
 
-	client, err := newAWSLogsClient(info)
-	if err != nil {
-		return nil, err
-	}
-
-	containerStream := &logStream{
+	containerStreamConfig := &logStreamConfig{
 		logStreamName:      logStreamName,
 		logGroupName:       logGroupName,
 		logCreateGroup:     logCreateGroup,
 		logNonBlocking:     logNonBlocking,
 		forceFlushInterval: forceFlushInterval,
+		maxBufferedEvents:  maxBufferedEvents,
 		multilinePattern:   multilinePattern,
-		client:             client,
-		messages:           make(chan *logger.Message, maxBufferedEvents),
 	}
 
-	creationDone := make(chan bool)
-	if logNonBlocking {
-		go func() {
-			backoff := 1
-			maxBackoff := 32
-			for {
-				// If logger is closed we are done
-				containerStream.lock.RLock()
-				if containerStream.closed {
-					containerStream.lock.RUnlock()
-					break
-				}
-				containerStream.lock.RUnlock()
-				err := containerStream.create()
-				if err == nil {
-					break
-				}
-
-				time.Sleep(time.Duration(backoff) * time.Second)
-				if backoff < maxBackoff {
-					backoff *= 2
-				}
-				logrus.
-					WithError(err).
-					WithField("container-id", info.ContainerID).
-					WithField("container-name", info.ContainerName).
-					Error("Error while trying to initialize awslogs. Retrying in: ", backoff, " seconds")
-			}
-			close(creationDone)
-		}()
-	} else {
-		if err = containerStream.create(); err != nil {
-			return nil, err
-		}
-		close(creationDone)
-	}
-	go containerStream.collectBatch(creationDone)
-
-	return containerStream, nil
+	return containerStreamConfig, nil
 }
 
 // Parses awslogs-multiline-pattern and awslogs-datetime-format options
