@@ -78,8 +78,8 @@ func TestNewStreamConfig(t *testing.T) {
 		{"", groupName, "", "", "invalid flush interval", "", "", "", true, "invalid flush interval"},
 		{"", groupName, "", "", "", "invalid max buffered events", "", "", true, "invalid max buffered events"},
 		{"", groupName, "", "", "", "", "", "n{1001}", true, "invalid multiline pattern"},
-		{"", groupName, "", "", "15", "", "", "", true, "flush interval at 15"},
-		{"", groupName, "", "", "", "1024", "", "", true, "max buffered events at 1024"},
+		{"", groupName, "", "", "15", "", "", "", false, "flush interval at 15"},
+		{"", groupName, "", "", "", "1024", "", "", false, "max buffered events at 1024"},
 	}
 
 	for _, tc := range tests {
@@ -107,6 +107,10 @@ func TestNewStreamConfig(t *testing.T) {
 				if tc.forceFlushInterval != "" {
 					forceFlushIntervalAsInt, _ := strconv.Atoi(info.Config[forceFlushIntervalKey])
 					assert.Check(t, logStreamConfig.forceFlushInterval == time.Duration(forceFlushIntervalAsInt)*time.Second, "Unexpected forceFlushInterval")
+				}
+				if tc.maxBufferedEvents != "" {
+					maxBufferedEvents, _ := strconv.Atoi(info.Config[maxBufferedEventsKey])
+					assert.Check(t, logStreamConfig.maxBufferedEvents == maxBufferedEvents, "Unexpected maxBufferedEvents")
 				}
 			}
 		})
