@@ -10,6 +10,7 @@ import (
 	"reflect"
 	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -57,6 +58,59 @@ func testEventBatch(events []wrappedEvent) *eventBatch {
 		batch.add(event, eventlen)
 	}
 	return batch
+}
+
+func TestNewStreamConfig(t *testing.T) {
+	tests := []struct {
+		logStreamName      string
+		logGroupName       string
+		logCreateGroup     string
+		logNonBlocking     string
+		forceFlushInterval string
+		maxBufferedEvents  string
+		datetimeFormat     string
+		multilinePattern   string
+		shouldErr          bool
+		testName           string
+	}{
+		{"", groupName, "", "", "", "", "", "", false, "defaults"},
+		{"", groupName, "invalid create group", "", "", "", "", "", true, "invalid create group"},
+		{"", groupName, "", "", "invalid flush interval", "", "", "", true, "invalid flush interval"},
+		{"", groupName, "", "", "", "invalid max buffered events", "", "", true, "invalid max buffered events"},
+		{"", groupName, "", "", "", "", "", "n{1001}", true, "invalid multiline pattern"},
+		{"", groupName, "", "", "15", "", "", "", true, "flush interval at 15"},
+		{"", groupName, "", "", "", "1024", "", "", true, "max buffered events at 1024"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.testName, func(t *testing.T) {
+			cfg := map[string]string{
+				logGroupKey:           tc.logGroupName,
+				logCreateGroupKey:     tc.logCreateGroup,
+				"mode":                tc.logNonBlocking,
+				forceFlushIntervalKey: tc.forceFlushInterval,
+				maxBufferedEventsKey:  tc.maxBufferedEvents,
+				logStreamKey:          tc.logStreamName,
+				datetimeFormatKey:     tc.datetimeFormat,
+				multilinePatternKey:   tc.multilinePattern,
+			}
+
+			info := logger.Info{
+				Config: cfg,
+			}
+			logStreamConfig, err := newStreamConfig(info)
+			if tc.shouldErr {
+				assert.Check(t, err != nil, "Expected an error")
+			} else {
+				assert.Check(t, err == nil, "Unexpected error")
+				assert.Check(t, logStreamConfig.logGroupName == tc.logGroupName, "Unexpected logGroupName")
+				if tc.forceFlushInterval != "" {
+					forceFlushIntervalAsInt, _ := strconv.Atoi(info.Config[forceFlushIntervalKey])
+					assert.Check(t, logStreamConfig.forceFlushInterval == time.Duration(forceFlushIntervalAsInt)*time.Second, "Unexpected forceFlushInterval")
+				}
+			}
+		})
+	}
 }
 
 func TestNewAWSLogsClientUserAgentHandler(t *testing.T) {
@@ -1420,65 +1474,63 @@ func TestValidateLogOptionsDatetimeFormatAndMultilinePattern(t *testing.T) {
 }
 
 func TestValidateLogOptionsForceFlushIntervalSeconds(t *testing.T) {
-	cfg := map[string]string{
-		forceFlushIntervalKey: "0",
-		logGroupKey:           groupName,
+	tests := []struct {
+		input     string
+		shouldErr bool
+	}{
+		{"0", true},
+		{"-1", true},
+		{"a", true},
+		{"10", false},
 	}
-	nonPositiveIntegerLogOptionsError := "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': 0"
 
-	err := ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			cfg := map[string]string{
+				forceFlushIntervalKey: tc.input,
+				logGroupKey:           groupName,
+			}
 
-	cfg[forceFlushIntervalKey] = "-1"
-	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': -1"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
-
-	cfg[forceFlushIntervalKey] = "a"
-	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': a"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
-
-	cfg[forceFlushIntervalKey] = "10"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err == nil, "Unexpected error")
+			err := ValidateLogOpt(cfg)
+			if tc.shouldErr {
+				expectedErr := "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': " + tc.input
+				assert.Check(t, err != nil, "Expected an error")
+				assert.Check(t, is.Equal(err.Error(), expectedErr), "Received invalid error")
+			} else {
+				assert.Check(t, err == nil, "Unexpected error")
+			}
+		})
+	}
 }
 
 func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
-	cfg := map[string]string{
-		maxBufferedEventsKey: "0",
-		logGroupKey:          groupName,
+	tests := []struct {
+		input     string
+		shouldErr bool
+	}{
+		{"0", true},
+		{"-1", true},
+		{"a", true},
+		{"10", false},
 	}
-	nonPositiveIntegerLogOptionsError := "must specify a positive integer for log opt 'awslogs-max-buffered-events': 0"
 
-	err := ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			cfg := map[string]string{
+				maxBufferedEventsKey: tc.input,
+				logGroupKey:          groupName,
+			}
 
-	cfg[maxBufferedEventsKey] = "-1"
-	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-max-buffered-events': -1"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
-
-	cfg[maxBufferedEventsKey] = "a"
-	nonPositiveIntegerLogOptionsError = "must specify a positive integer for log opt 'awslogs-max-buffered-events': a"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err != nil, "Expected an error")
-	assert.Check(t, is.Equal(err.Error(), nonPositiveIntegerLogOptionsError), "Received invalid error")
-
-	cfg[maxBufferedEventsKey] = "10"
-
-	err = ValidateLogOpt(cfg)
-	assert.Check(t, err == nil, "Unexpected error")
+			err := ValidateLogOpt(cfg)
+			if tc.shouldErr {
+				expectedErr := "must specify a positive integer for log opt 'awslogs-max-buffered-events': " + tc.input
+				assert.Check(t, err != nil, "Expected an error")
+				assert.Check(t, is.Equal(err.Error(), expectedErr), "Received invalid error")
+			} else {
+				assert.Check(t, err == nil, "Unexpected error")
+			}
+		})
+	}
 }
 
 func TestCreateTagSuccess(t *testing.T) {
