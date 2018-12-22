@@ -7,5 +7,5 @@ install_vndr() {
 	git clone https://github.com/LK4D4/vndr.git "$GOPATH/src/github.com/LK4D4/vndr"
 	cd "$GOPATH/src/github.com/LK4D4/vndr"
 	git checkout -q "$VNDR_COMMIT"
-	go build -buildmode=pie -v -o ${PREFIX}/vndr .
+	go build -buildmode=pie -v -o "${PREFIX}/vndr" .
 }

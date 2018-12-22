@@ -8,12 +8,12 @@ validate_vendor_diff(){
 	files=( $(validate_diff --diff-filter=ACMR --name-only -- 'vendor.conf' 'vendor/' || true) )
 	unset IFS
 
-	if [ ${#files[@]} -gt 0 ]; then
+	if [[ ${#files[@]} -gt 0 ]]; then
 		# recreate vendor/
 		vndr
 		# check if any files have changed
 		diffs="$(git status --porcelain -- vendor 2>/dev/null)"
-		if [ "$diffs" ]; then
+		if [[ "$diffs" ]]; then
 			{
 				echo 'The result of vndr differs'
 				echo
@@ -38,7 +38,7 @@ validate_vendor_used() {
 	for f in $pkgs; do
 	if ls -d vendor/$f  > /dev/null 2>&1; then
 		found=$(find vendor/$f -iregex '.*LICENSE.*' -or -iregex '.*COPYRIGHT.*' -or -iregex '.*COPYING.*' | wc -l)
-		if [ $found -eq 0 ]; then
+		if [[ ${found} -eq 0 ]]; then
 		echo "WARNING: could not find copyright information for $f"
 		fi
 	else
