@@ -256,7 +256,7 @@ Try {
     Get-ChildItem Env: | Out-String
 
     # PR
-    if (-not ($null -eq $env:PR)) { echo "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
+    if (-not ($null -eq $env:PR)) { Write-Output "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
 
     # Make sure docker is installed
     if ($null -eq (Get-Command "docker" -ErrorAction SilentlyContinue)) { Throw "ERROR: docker is not installed or not found on path" }
@@ -291,12 +291,12 @@ Try {
     }
 
     # Make sure we start at the root of the sources
-    cd "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker"
-    Write-Host  -ForegroundColor Green "INFO: Running in $(pwd)"
+    Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker"
+    Write-Host  -ForegroundColor Green "INFO: Running in $(Get-Location)"
 
     # Make sure we are in repo
     if (-not (Test-Path -PathType Leaf -Path ".\Dockerfile.windows")) {
-        Throw "$(pwd) does not contain Dockerfile.windows!"
+        Throw "$(Get-Location) does not contain Dockerfile.windows!"
     }
     Write-Host  -ForegroundColor Green "INFO: docker/docker repository was found"
 
@@ -835,7 +835,7 @@ Try {
                                                         "`$env`:PATH`='c`:\target;'+`$env:PATH`;  `$env:DOCKER_HOST`='tcp`://'+(ipconfig | select -last 1).Substring(39)+'`:2357'; c:\target\runIntegrationCLI.ps1" | Out-Host } )
             } else  {
                 Write-Host -ForegroundColor Green "INFO: Integration tests being run from the host:"
-                cd "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
+                Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
                 $env:DOCKER_HOST=$DASHH_CUT  
                 $env:PATH="$env:TEMP\binary;$env:PATH;"  # Force to use the test binaries, not the host ones.
                 Write-Host -ForegroundColor Green "INFO: $c"
@@ -901,7 +901,7 @@ Try {
                 $c += "`"-test.timeout`" " + "`"200m`" "
 
                 Write-Host -ForegroundColor Green "INFO: LCOW Integration tests being run from the host:"
-                cd "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
+                Set-Location "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR\src\github.com\docker\docker\integration-cli"
                 Write-Host -ForegroundColor Green "INFO: $c"
                 Write-Host -ForegroundColor Green "INFO: DOCKER_HOST at $DASHH_CUT"
                 # Explicit to not use measure-command otherwise don't get output as it goes
@@ -988,7 +988,7 @@ Finally {
         Copy-Item  "$env:TEMP\dut.err" "$TEMPORIG\CIDUT.log" -Force -ErrorAction SilentlyContinue
     }
 
-    cd "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
+    Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
     Nuke-Everything
     $Dur=New-TimeSpan -Start $StartTime -End $(Get-Date)
     Write-Host -ForegroundColor $FinallyColour "`nINFO: executeCI.ps1 exiting at $(date). Duration $dur`n"
