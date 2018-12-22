@@ -26,7 +26,7 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 		xStart              bool
 	}
 
-	for _, c := range []testCase{
+	for _, tc := range []testCase{
 		{
 			desc:                "container without restart policy",
 			config:              &container.Config{Image: "busybox", Cmd: []string{"top"}},
@@ -57,16 +57,15 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 					d.Stop(t)
 				},
 			} {
-				t.Run(fmt.Sprintf("live-restore=%v/%s/%s", liveRestoreEnabled, c.desc, fnName), func(t *testing.T) {
-					c := c
+				t.Run(fmt.Sprintf("live-restore=%v/%s/%s", liveRestoreEnabled, tc.desc, fnName), func(t *testing.T) {
+					c := tc
 					liveRestoreEnabled := liveRestoreEnabled
 					stopDaemon := stopDaemon
 
 					t.Parallel()
 
 					d := daemon.New(t)
-					client, err := d.NewClient()
-					assert.NilError(t, err)
+					client := d.NewClientT(t)
 
 					args := []string{"--iptables=false"}
 					if liveRestoreEnabled {
