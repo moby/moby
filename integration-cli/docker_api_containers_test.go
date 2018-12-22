@@ -1828,8 +1828,55 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		}...)
 	}
 
+	if DaemonIsWindows() {
+		cases = append(cases, []testCase{
+			{
+				config: containertypes.Config{
+					Image: "busybox",
+				},
+				hostConfig: containertypes.HostConfig{
+					Mounts: []mounttypes.Mount{
+						{
+							Type:   "volume",
+							Source: "not-supported-on-windows",
+							Target: destPath,
+							VolumeOptions: &mounttypes.VolumeOptions{
+								DriverConfig: &mounttypes.Driver{
+									Name:    "local",
+									Options: map[string]string{"type": "tmpfs"},
+								},
+							},
+						},
+					},
+				},
+				msg: `options are not supported on this platform`,
+			},
+		}...)
+	}
+
 	if DaemonIsLinux() {
 		cases = append(cases, []testCase{
+			{
+				config: containertypes.Config{
+					Image: "busybox",
+				},
+				hostConfig: containertypes.HostConfig{
+					Mounts: []mounttypes.Mount{
+						{
+							Type:   "volume",
+							Source: "missing-device-opt",
+							Target: destPath,
+							VolumeOptions: &mounttypes.VolumeOptions{
+								DriverConfig: &mounttypes.Driver{
+									Name:    "local",
+									Options: map[string]string{"foobar": "foobaz"},
+								},
+							},
+						},
+					},
+				},
+				msg: `invalid option: "foobar"`,
+			},
 			{
 				config: containertypes.Config{
 					Image: "busybox",
@@ -1935,6 +1982,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
+	// TODO add checks for statuscode returned by API
 	for i, x := range cases {
 		c.Logf("case %d", i)
 		_, err = cli.ContainerCreate(context.Background(), &x.config, &x.hostConfig, &networktypes.NetworkingConfig{}, "")

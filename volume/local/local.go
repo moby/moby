@@ -248,20 +248,12 @@ func (r *Root) Scope() string {
 	return volume.LocalScope
 }
 
-type validationError string
-
-func (e validationError) Error() string {
-	return string(e)
-}
-
-func (e validationError) InvalidParameter() {}
-
 func (r *Root) validateName(name string) error {
 	if len(name) == 1 {
-		return validationError("volume name is too short, names should be at least two alphanumeric characters")
+		return errdefs.InvalidParameter(errors.New("volume name is too short, names should be at least two alphanumeric characters"))
 	}
 	if !volumeNameRegex.MatchString(name) {
-		return validationError(fmt.Sprintf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
+		return errdefs.InvalidParameter(errors.Errorf("%q includes invalid characters for a local volume name, only %q are allowed. If you intended to pass a host directory, use absolute path", name, names.RestrictedNameChars))
 	}
 	return nil
 }
@@ -358,7 +350,7 @@ func validateOpts(opts map[string]string) error {
 	}
 	for opt := range opts {
 		if _, ok := validOpts[opt]; !ok {
-			return validationError(fmt.Sprintf("invalid option key: %q", opt))
+			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
 		}
 	}
 	for opt := range mandatoryOpts {

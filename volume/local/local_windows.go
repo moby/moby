@@ -4,12 +4,14 @@
 package local // import "github.com/docker/docker/volume/local"
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"syscall"
 	"time"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/pkg/errors"
 )
 
 type optsConfig struct{}
@@ -30,7 +32,7 @@ func (r *Root) scopedPath(realPath string) bool {
 
 func setOpts(v *localVolume, opts map[string]string) error {
 	if len(opts) > 0 {
-		return fmt.Errorf("options are not supported on this platform")
+		return errdefs.InvalidParameter(errors.New("options are not supported on this platform"))
 	}
 	return nil
 }
