@@ -22,10 +22,10 @@ import (
 var (
 	oldVfsDir = filepath.Join("vfs", "dir")
 
-	validOpts = map[string]bool{
-		"type":   true, // specify the filesystem type for mount, e.g. nfs
-		"o":      true, // generic mount options
-		"device": true, // device to mount from
+	validOpts = map[string]struct{}{
+		"type":   {}, // specify the filesystem type for mount, e.g. nfs
+		"o":      {}, // generic mount options
+		"device": {}, // device to mount from
 	}
 	mandatoryOpts = map[string]struct{}{
 		"device": {},

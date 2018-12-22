@@ -15,7 +15,7 @@ import (
 type optsConfig struct{}
 
 var (
-	validOpts     map[string]bool
+	validOpts     map[string]struct{}
 	mandatoryOpts map[string]struct{}
 )
 

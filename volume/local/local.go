@@ -357,7 +357,7 @@ func validateOpts(opts map[string]string) error {
 		return nil
 	}
 	for opt := range opts {
-		if !validOpts[opt] {
+		if _, ok := validOpts[opt]; !ok {
 			return validationError(fmt.Sprintf("invalid option key: %q", opt))
 		}
 	}
