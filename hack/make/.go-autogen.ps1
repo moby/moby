@@ -55,7 +55,7 @@ const (
 '
 
     # Write the file without BOM
-    $outputFile="$(pwd)\dockerversion\version_autogen.go"
+    $outputFile="$(Get-Location)\dockerversion\version_autogen.go"
     if (Test-Path $outputFile) { Remove-Item $outputFile }
     [System.IO.File]::WriteAllText($outputFile, $fileContents, (New-Object System.Text.UTF8Encoding($False)))
 
