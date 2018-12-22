@@ -344,23 +344,6 @@ func (v *localVolume) unmount() error {
 	return nil
 }
 
-func validateOpts(opts map[string]string) error {
-	if len(opts) == 0 {
-		return nil
-	}
-	for opt := range opts {
-		if _, ok := validOpts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
-		}
-	}
-	for opt := range mandatoryOpts {
-		if _, ok := opts[opt]; !ok {
-			return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", opt))
-		}
-	}
-	return nil
-}
-
 func (v *localVolume) Status() map[string]interface{} {
 	return nil
 }

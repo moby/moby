@@ -16,11 +16,6 @@ import (
 
 type optsConfig struct{}
 
-var (
-	validOpts     map[string]struct{}
-	mandatoryOpts map[string]struct{}
-)
-
 // scopedPath verifies that the path where the volume is located
 // is under Docker's root and the valid local paths.
 func (r *Root) scopedPath(realPath string) bool {
