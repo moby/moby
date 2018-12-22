@@ -228,8 +228,7 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	d.StartWithBusybox(t, arg...)
 	defer d.Stop(t)
 
-	client, err := d.NewClient()
-	assert.Check(t, err, "error creating client")
+	c := d.NewClientT(t)
 
 	cfg := containertypes.Config{
 		Image: "busybox",
@@ -237,16 +236,16 @@ func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...strin
 	}
 	ctx := context.Background()
 
-	resp, err := client.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, "")
+	resp, err := c.ContainerCreate(ctx, &cfg, &containertypes.HostConfig{}, nil, "")
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 
-	err = client.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
+	err = c.ContainerStart(ctx, resp.ID, types.ContainerStartOptions{})
 	assert.NilError(t, err)
 
 	// get major:minor pair for /dev/shm from container's /proc/self/mountinfo
 	cmd := "awk '($5 == \"/dev/shm\") {printf $3}' /proc/self/mountinfo"
-	result, err := container.Exec(ctx, client, resp.ID, []string{"sh", "-c", cmd})
+	result, err := container.Exec(ctx, c, resp.ID, []string{"sh", "-c", cmd})
 	assert.NilError(t, err)
 	mm := result.Combined()
 	assert.Check(t, is.Equal(true, regexp.MustCompile("^[0-9]+:[0-9]+$").MatchString(mm)))

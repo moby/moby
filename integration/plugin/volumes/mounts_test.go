@@ -24,15 +24,14 @@ func TestPluginWithDevMounts(t *testing.T) {
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 
-	client, err := d.NewClient()
-	assert.Assert(t, err)
+	c := d.NewClientT(t)
 	ctx := context.Background()
 
 	testDir, err := ioutil.TempDir("", "test-dir")
 	assert.Assert(t, err)
 	defer os.RemoveAll(testDir)
 
-	createPlugin(t, client, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
+	createPlugin(t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
 		root := "/"
 		dev := "/dev"
 		mounts := []types.PluginMount{
@@ -46,14 +45,14 @@ func TestPluginWithDevMounts(t *testing.T) {
 		c.IpcHost = true
 	})
 
-	err = client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	err = c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
 	assert.Assert(t, err)
 	defer func() {
-		err := client.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+		err := c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 		assert.Check(t, err)
 	}()
 
-	p, _, err := client.PluginInspectWithRaw(ctx, "test")
+	p, _, err := c.PluginInspectWithRaw(ctx, "test")
 	assert.Assert(t, err)
 	assert.Assert(t, p.Enabled)
 }
