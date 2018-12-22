@@ -136,18 +136,14 @@ Function Nuke-Everything {
             if ($(docker ps -aq | Measure-Object -line).Lines -gt 0) {
                 docker rm -f $(docker ps -aq)
             }
-            $imageCount=($(docker images --format "{{.Repository}}:{{.ID}}" | `
-                            select-string -NotMatch "windowsservercore" | `
-                            select-string -NotMatch "nanoserver" | `
-                            select-string -NotMatch "docker" | `
-                            Measure-Object -line).Lines)
+
+            $allImages  = $(docker images --format "{{.Repository}}#{{.ID}}")
+            $toRemove   = ($allImages | Select-String -NotMatch "windowsservercore","nanoserver","docker")
+            $imageCount = ($toRemove | Measure-Object -line).Lines
+
             if ($imageCount -gt 0) {
                 Write-Host -Foregroundcolor green "INFO: Non-base image count on control daemon to delete is $imageCount"
-                docker rmi -f `
-                    $(docker images --format "{{.Repository}}:{{.ID}}" | `
-                            select-string -NotMatch "windowsservercore" | `
-                            select-string -NotMatch "nanoserver" | `
-                            select-string -NotMatch "docker").ToString().Split(":")[1]
+                docker rmi -f ($toRemove | Foreach-Object { $_.ToString().Split("#")[1] })
             }
         } else {
             Write-Host -ForegroundColor Magenta "WARN: Skipping cleanup of images and containers"
