@@ -318,28 +318,26 @@ Try {
         # Try the internal azure CI image version or Microsoft internal corpnet where the base image is already pre-prepared on the disk,
         # either through Invoke-DockerCI or, in the case of Azure CI servers, baked into the VHD at the same location.
         if (Test-Path $("$env:SOURCES_DRIVE`:\baseimages\"+$ControlDaemonBaseImage+".tar")) {
-		
-			# An optimization for CI servers to copy it to the D: drive which is an SSD.
-			if ($env:SOURCES_DRIVE -ne $env:TESTRUN_DRIVE) {
-				$readBaseFrom=$env:TESTRUN_DRIVE
-				if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages")) {
-					New-Item "$env:TESTRUN_DRIVE`:\baseimages" -type directory | Out-Null
-				}
-				if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\windowsservercore.tar")) {
-					if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar") {
-						Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar to $env:TESTRUN_DRIVE`:\baseimages"
-						Copy-Item "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar" "$env:TESTRUN_DRIVE`:\baseimages"
-					}
-				}
-				if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\nanoserver.tar")) {
-					if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar") {
-						Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\nanoserver.tar to $env:TESTRUN_DRIVE`:\baseimages"
-						Copy-Item "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar" "$env:TESTRUN_DRIVE`:\baseimages"
-					}
-				}
-				$readBaseFrom=$env:TESTRUN_DRIVE
-			}
-		
+            # An optimization for CI servers to copy it to the D: drive which is an SSD.
+            if ($env:SOURCES_DRIVE -ne $env:TESTRUN_DRIVE) {
+                $readBaseFrom=$env:TESTRUN_DRIVE
+                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages")) {
+                    New-Item "$env:TESTRUN_DRIVE`:\baseimages" -type directory | Out-Null
+                }
+                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\windowsservercore.tar")) {
+                    if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar") {
+                        Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar to $env:TESTRUN_DRIVE`:\baseimages"
+                        Copy-Item "$env:SOURCES_DRIVE`:\baseimages\windowsservercore.tar" "$env:TESTRUN_DRIVE`:\baseimages"
+                    }
+                }
+                if (!(Test-Path "$env:TESTRUN_DRIVE`:\baseimages\nanoserver.tar")) {
+                    if (Test-Path "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar") {
+                        Write-Host -ForegroundColor Green "INFO: Optimisation - copying $env:SOURCES_DRIVE`:\baseimages\nanoserver.tar to $env:TESTRUN_DRIVE`:\baseimages"
+                        Copy-Item "$env:SOURCES_DRIVE`:\baseimages\nanoserver.tar" "$env:TESTRUN_DRIVE`:\baseimages"
+                    }
+                }
+                $readBaseFrom=$env:TESTRUN_DRIVE
+            }
             Write-Host  -ForegroundColor Green "INFO: Loading"$ControlDaemonBaseImage".tar from disk. This may take some time..."
             $ErrorActionPreference = "SilentlyContinue"
             docker load -i $("$readBaseFrom`:\baseimages\"+$ControlDaemonBaseImage+".tar")
@@ -962,7 +960,7 @@ Catch [Exception] {
 }
 Finally {
     $ErrorActionPreference="SilentlyContinue"
-	$global:ProgressPreference=$origProgressPreference
+    $global:ProgressPreference=$origProgressPreference
     Write-Host  -ForegroundColor Green "INFO: Tidying up at end of run"
 
     # Restore the path
