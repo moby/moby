@@ -125,7 +125,7 @@ Function Nuke-Everything {
 
     try {
 
-        if ($env:SKIP_ALL_CLEANUP -eq $null) {
+        if ($null -eq $env:SKIP_ALL_CLEANUP) {
             Write-Host -ForegroundColor green "INFO: Nuke-Everything..."
             $containerCount = ($(docker ps -aq | Measure-Object -line).Lines) 
             if (-not $LastExitCode -eq 0) {
@@ -160,11 +160,11 @@ Function Nuke-Everything {
             Stop-Process -Id $p -Force -ErrorAction SilentlyContinue
         }
 
-        if ($pidFile -ne $Null) {
+        if ($null -ne $pidFile) {
             Write-Host "INFO: Tidying pidfile $pidfile"
              if (Test-Path $pidFile) {
                 $p=Get-Content $pidFile -raw
-                if ($p -ne $null){
+                if ($null -ne $p){
                     Write-Host -ForegroundColor green "INFO: Stopping possible daemon pid $p"
                     taskkill -f -t -pid $p
                 }
@@ -190,7 +190,7 @@ Function Nuke-Everything {
 
         # Delete the directory using our dangerous utility unless told not to
         if (Test-Path "$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR") {
-            if (($env:SKIP_ZAP_DUT -ne $null) -or ($env:SKIP_ALL_CLEANUP -eq $null)) {
+            if (($null -ne $env:SKIP_ZAP_DUT) -or ($null -eq $env:SKIP_ALL_CLEANUP)) {
                 Write-Host -ForegroundColor Green "INFO: Nuking $env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR"
                 docker-ci-zap "-folder=$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR"
             } else {
@@ -256,25 +256,25 @@ Try {
     Get-ChildItem Env: | Out-String
 
     # PR
-    if (-not ($env:PR -eq $Null)) { echo "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
+    if (-not ($null -eq $env:PR)) { echo "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
 
     # Make sure docker is installed
-    if ((Get-Command "docker" -ErrorAction SilentlyContinue) -eq $null) { Throw "ERROR: docker is not installed or not found on path" }
+    if ($null -eq (Get-Command "docker" -ErrorAction SilentlyContinue)) { Throw "ERROR: docker is not installed or not found on path" }
 
     # Make sure docker-ci-zap is installed
-    if ((Get-Command "docker-ci-zap" -ErrorAction SilentlyContinue) -eq $null) { Throw "ERROR: docker-ci-zap is not installed or not found on path" }
+    if ($null -eq (Get-Command "docker-ci-zap" -ErrorAction SilentlyContinue)) { Throw "ERROR: docker-ci-zap is not installed or not found on path" }
 
     # Make sure SOURCES_DRIVE is set
-    if ($env:SOURCES_DRIVE -eq $Null) { Throw "ERROR: Environment variable SOURCES_DRIVE is not set" }
+    if ($null -eq $env:SOURCES_DRIVE) { Throw "ERROR: Environment variable SOURCES_DRIVE is not set" }
 
     # Make sure TESTRUN_DRIVE is set
-    if ($env:TESTRUN_DRIVE -eq $Null) { Throw "ERROR: Environment variable TESTRUN_DRIVE is not set" }
+    if ($null -eq $env:TESTRUN_DRIVE) { Throw "ERROR: Environment variable TESTRUN_DRIVE is not set" }
 
     # Make sure SOURCES_SUBDIR is set
-    if ($env:SOURCES_SUBDIR -eq $Null) { Throw "ERROR: Environment variable SOURCES_SUBDIR is not set" }
+    if ($null -eq $env:SOURCES_SUBDIR) { Throw "ERROR: Environment variable SOURCES_SUBDIR is not set" }
 
     # Make sure TESTRUN_SUBDIR is set
-    if ($env:TESTRUN_SUBDIR -eq $Null) { Throw "ERROR: Environment variable TESTRUN_SUBDIR is not set" }
+    if ($null -eq $env:TESTRUN_SUBDIR) { Throw "ERROR: Environment variable TESTRUN_SUBDIR is not set" }
 
     # SOURCES_DRIVE\SOURCES_SUBDIR must be a directory and exist
     if (-not (Test-Path -PathType Container "$env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR")) { Throw "ERROR: $env:SOURCES_DRIVE`:\$env:SOURCES_SUBDIR must be an existing directory" }
@@ -420,7 +420,7 @@ Try {
     New-Item -ItemType Directory "$env:TEMP\localappdata" -ErrorAction SilentlyContinue | Out-Null
     New-Item -ItemType Directory "$env:TEMP\binary" -ErrorAction SilentlyContinue | Out-Null
     New-Item -ItemType Directory "$env:TEMP\installer" -ErrorAction SilentlyContinue | Out-Null
-    if ($env:SKIP_COPY_GO -eq $null) {
+    if ($null -eq $env:SKIP_COPY_GO) {
         # Wipe the previous version of GO - we're going to get it out of the image
         if (Test-Path "$env:TEMP\go") { Remove-Item "$env:TEMP\go" -Recurse -Force -ErrorAction SilentlyContinue | Out-Null }
         New-Item -ItemType Directory "$env:TEMP\go" -ErrorAction SilentlyContinue | Out-Null
@@ -435,15 +435,15 @@ Try {
     # As of go 1.11, Dockerfile changed to be in the format like "FROM golang:1.11.0 AS base".
     # If a version number ends with .0 (as in 1.11.0, a convention used in golang docker
     # image versions), it needs to be removed (i.e. "1.11.0" becomes "1.11").
-    if ($goVersionDockerfile -eq $Null) {
+    if ($null -eq $goVersionDockerfile) {
         $goVersionDockerfile=$(Get-Content ".\Dockerfile" | Select-String "^FROM golang:")
-        if ($goVersionDockerfile -ne $Null) {
+        if ($null -ne $goVersionDockerfile) {
             $goVersionDockerfile = $goVersionDockerfile.ToString().Split(" ")[1].Split(":")[1] -replace '\.0$',''
         }
     } else {
         $goVersionDockerfile = $goVersionDockerfile.ToString().Split(" ")[2]
     }
-    if ($goVersionDockerfile -eq $Null) {
+    if ($null -eq $goVersionDockerfile) {
         Throw "ERROR: Failed to extract golang version from Dockerfile"
     }
     Write-Host  -ForegroundColor Green "INFO: Validating GOLang consistency in Dockerfile.windows..."
@@ -452,7 +452,7 @@ Try {
     }
 
     # Build the image
-    if ($env:SKIP_IMAGE_BUILD -eq $null) {
+    if ($null -eq $env:SKIP_IMAGE_BUILD) {
         Write-Host  -ForegroundColor Cyan "`n`nINFO: Building the image from Dockerfile.windows at $(Get-Date)..."
         Write-Host
         $ErrorActionPreference = "SilentlyContinue"
@@ -478,7 +478,7 @@ Try {
     }
 
     # Build the binary in a container unless asked to skip it.
-    if ($env:SKIP_BINARY_BUILD -eq $null) {
+    if ($null -eq $env:SKIP_BINARY_BUILD) {
         Write-Host  -ForegroundColor Cyan "`n`nINFO: Building the test binaries at $(Get-Date)..."
         $ErrorActionPreference = "SilentlyContinue"
         docker rm -f $COMMITHASH 2>&1 | Out-Null
@@ -530,7 +530,7 @@ Try {
 
     # Grab the golang installer out of the built image. That way, we know we are consistent once extracted and paths set,
     # so there's no need to re-deploy on account of an upgrade to the version of GO being used in docker.
-    if ($env:SKIP_COPY_GO -eq $null) {
+    if ($null -eq $env:SKIP_COPY_GO) {
         Write-Host -ForegroundColor Green "INFO: Copying the golang package from the container to $env:TEMP\installer\go.zip..."
         docker cp "$COMMITHASH`:c`:\go.zip" $env:TEMP\installer\
         if (-not($LastExitCode -eq 0)) {
@@ -593,7 +593,7 @@ Try {
     New-Item -ItemType Directory $env:TEMP\daemon -ErrorAction SilentlyContinue  | Out-Null
 
     # In LCOW mode, for now we need to set an environment variable before starting the daemon under test
-    if (($env:LCOW_MODE -ne $Null) -or ($env:LCOW_BASIC_MODE -ne $Null)) {
+    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
         $env:LCOW_SUPPORTED=1
     }
 
@@ -606,13 +606,13 @@ Try {
     $daemonStarted=1
 
     # In LCOW mode, turn off that variable
-    if (($env:LCOW_MODE -ne $Null) -or ($env:LCOW_BASIC_MODE -ne $Null)) {
+    if (($null -ne $env:LCOW_MODE) -or ($null -ne $env:LCOW_BASIC_MODE)) {
         $env:LCOW_SUPPORTED=""
     }
 
 
     # Start tailing the daemon under test if the command is installed
-    if ((Get-Command "tail" -ErrorAction SilentlyContinue) -ne $null) { 
+    if ($null -ne (Get-Command "tail" -ErrorAction SilentlyContinue)) {
         $tail = start-process "tail" -ArgumentList "-f $env:TEMP\dut.out" -ErrorAction SilentlyContinue
     }
 
@@ -674,11 +674,11 @@ Try {
     Write-Host
 
     # Don't need Windows images when in LCOW mode.
-    if (($env:LCOW_MODE -eq $Null) -and ($env:LCOW_BASIC_MODE -eq $Null)) {
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
 
         # Default to windowsservercore for the base image used for the tests. The "docker" image
         # and the control daemon use microsoft/windowsservercore regardless. This is *JUST* for the tests.
-        if ($env:WINDOWS_BASE_IMAGE -eq $Null) {
+        if ($null -eq $env:WINDOWS_BASE_IMAGE) {
             $env:WINDOWS_BASE_IMAGE="microsoft/windowsservercore"
         }
 
@@ -727,7 +727,7 @@ Try {
     }
 
     # Run the validation tests unless SKIP_VALIDATION_TESTS is defined.
-    if ($env:SKIP_VALIDATION_TESTS -eq $null) {
+    if ($null -eq $env:SKIP_VALIDATION_TESTS) {
         Write-Host -ForegroundColor Cyan "INFO: Running validation tests at $(Get-Date)..."
         $ErrorActionPreference = "SilentlyContinue"
         $Duration=$(Measure-Command { hack\make.ps1 -DCO -GoFormat -PkgImports | Out-Host })
@@ -742,8 +742,8 @@ Try {
 
     # Note the unit tests won't work in LCOW mode as I turned off loading the base images above.
     # Run the unit tests inside a container unless SKIP_UNIT_TESTS is defined
-    if (($env:LCOW_MODE -eq $Null) -and ($env:LCOW_BASIC_MODE -eq $Null)) {
-        if ($env:SKIP_UNIT_TESTS -eq $null) {
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
+        if ($null -eq $env:SKIP_UNIT_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
             $Duration=$(Measure-Command {docker run -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
@@ -758,8 +758,8 @@ Try {
     }
 
     # Add the Windows busybox image. Needed for WCOW integration tests
-    if (($env:LCOW_MODE -eq $Null) -and ($env:LCOW_BASIC_MODE -eq $Null)) {
-        if ($env:SKIP_INTEGRATION_TESTS -eq $null) {
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
+        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             $ErrorActionPreference = "SilentlyContinue"
             # Build it regardless while switching between nanoserver and windowsservercore
             #$bbCount = $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images | Select-String "busybox" | Measure-Object -line).Lines
@@ -799,8 +799,8 @@ Try {
     }
 
     # Run the WCOW integration tests unless SKIP_INTEGRATION_TESTS is defined
-    if (($env:LCOW_MODE -eq $Null) -and ($env:LCOW_BASIC_MODE -eq $Null)) {
-        if ($env:SKIP_INTEGRATION_TESTS -eq $null) {
+    if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
+        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
             $ErrorActionPreference = "SilentlyContinue"
     
@@ -810,7 +810,7 @@ Try {
             #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
             $c = "go test "
             $c += "`"-check.v`" "
-            if ($env:INTEGRATION_TEST_NAME -ne $null) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
+            if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
                 $c += "`"-check.f`" "
                 $c += "`"$env:INTEGRATION_TEST_NAME`" "
                 Write-Host -ForegroundColor Magenta "WARN: Only running integration tests matching $env:INTEGRATION_TEST_NAME"
@@ -819,7 +819,7 @@ Try {
             $c += "`"-check.timeout`" " + "`"10m`" "
             $c += "`"-test.timeout`" " + "`"200m`" "
     
-            if ($env:INTEGRATION_IN_CONTAINER -ne $null) {
+            if ($null -ne $env:INTEGRATION_IN_CONTAINER) {
                 Write-Host -ForegroundColor Green "INFO: Integration tests being run inside a container"
                 # Note we talk back through the containers gateway address
                 # And the ridiculous lengths we have to go to to get the default gateway address... (GetNetIPConfiguration doesn't work in nanoserver)
@@ -853,7 +853,7 @@ Try {
         }
     } else {
         # The LCOW version of the tests here
-        if ($env:SKIP_INTEGRATION_TESTS -eq $null) {
+        if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running LCOW tests at $(Get-Date)..."
 
             $ErrorActionPreference = "SilentlyContinue"
@@ -868,7 +868,7 @@ Try {
             # Force to use the test binaries, not the host ones.
             $env:PATH="$env:TEMP\binary;$env:PATH;"  
 
-            if ($env:LCOW_BASIC_MODE -ne $null) {
+            if ($null -ne $env:LCOW_BASIC_MODE) {
                 $wc = New-Object net.webclient
                 try {
                     Write-Host -ForegroundColor green "INFO: Downloading latest execution script..."
@@ -891,7 +891,7 @@ Try {
                 #https://blogs.technet.microsoft.com/heyscriptingguy/2011/09/20/solve-problems-with-external-command-lines-in-powershell/ is useful to see tokenising
                 $c = "go test "
                 $c += "`"-check.v`" "
-                if ($env:INTEGRATION_TEST_NAME -ne $null) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
+                if ($null -ne $env:INTEGRATION_TEST_NAME) { # Makes is quicker for debugging to be able to run only a subset of the integration tests
                     $c += "`"-check.f`" "
                     $c += "`"$env:INTEGRATION_TEST_NAME`" "
                     Write-Host -ForegroundColor Magenta "WARN: Only running LCOW integration tests matching $env:INTEGRATION_TEST_NAME"
@@ -935,7 +935,7 @@ Try {
     # Stop the daemon under test
     if (Test-Path "$env:TEMP\docker.pid") {
         $p=Get-Content "$env:TEMP\docker.pid" -raw
-        if (($p -ne $null) -and ($daemonStarted -eq 1)) {
+        if (($null -ne $p) -and ($daemonStarted -eq 1)) {
             Write-Host -ForegroundColor green "INFO: Stopping daemon under test"
             taskkill -f -t -pid $p
             #sleep 5
@@ -964,14 +964,14 @@ Finally {
     Write-Host  -ForegroundColor Green "INFO: Tidying up at end of run"
 
     # Restore the path
-    if ($origPath -ne $null) { $env:PATH=$origPath }
+    if ($null -ne $origPath) { $env:PATH=$origPath }
 
     # Restore the DOCKER_HOST
-    if ($origDOCKER_HOST -ne $null) { $env:DOCKER_HOST=$origDOCKER_HOST }
+    if ($null -ne $origDOCKER_HOST) { $env:DOCKER_HOST=$origDOCKER_HOST }
 
     # Restore the GOROOT and GOPATH variables
-    if ($origGOROOT -ne $null) { $env:GOROOT=$origGOROOT }
-    if ($origGOPATH -ne $null) { $env:GOPATH=$origGOPATH }
+    if ($null -ne $origGOROOT) { $env:GOROOT=$origGOROOT }
+    if ($null -ne $origGOPATH) { $env:GOPATH=$origGOPATH }
 
     # Dump the daemon log if asked to 
     if ($daemonStarted -eq 1) {
