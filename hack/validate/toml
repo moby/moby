@@ -15,7 +15,7 @@ for f in "${files[@]}"; do
 	fi
 done
 
-if [ ${#badFiles[@]} -eq 0 ]; then
+if [[ ${#badFiles[@]} -eq 0 ]]; then
 	echo 'Congratulations!  All toml source files changed here have valid syntax.'
 else
 	{

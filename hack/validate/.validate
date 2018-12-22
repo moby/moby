@@ -2,7 +2,7 @@
 
 set -e -o pipefail
 
-if [ -z "$VALIDATE_UPSTREAM" ]; then
+if [[ -z "$VALIDATE_UPSTREAM" ]]; then
 	# this is kind of an expensive check, so let's not do this twice if we
 	# are running more than one validate bundlescript
 
@@ -18,12 +18,12 @@ if [ -z "$VALIDATE_UPSTREAM" ]; then
 	VALIDATE_COMMIT_DIFF="$VALIDATE_UPSTREAM...$VALIDATE_HEAD"
 
 	validate_diff() {
-		if [ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]; then
+		if [[ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]]; then
 			git diff "$VALIDATE_COMMIT_DIFF" "$@"
 		fi
 	}
 	validate_log() {
-		if [ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]; then
+		if [[ "$VALIDATE_UPSTREAM" != "$VALIDATE_HEAD" ]]; then
 			git log "$VALIDATE_COMMIT_LOG" "$@"
 		fi
 	}

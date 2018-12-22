@@ -7,12 +7,12 @@ IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'profiles/seccomp' || true) )
 unset IFS
 
-if [ ${#files[@]} -gt 0 ]; then
+if [[ ${#files[@]} -gt 0 ]]; then
 	# We run 'go generate' and see if we have a diff afterwards
 	go generate ./profiles/seccomp/ >/dev/null
 	# Let see if the working directory is clean
 	diffs="$(git status --porcelain -- profiles/seccomp 2>/dev/null)"
-	if [ "$diffs" ]; then
+	if [[ "$diffs" ]]; then
 		{
 			echo 'The result of go generate ./profiles/seccomp/ differs'
 			echo
