@@ -26,7 +26,7 @@ func TestBuildSquashParent(t *testing.T) {
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
-	client := testEnv.APIClient()
+	client := d.NewClientT(t)
 
 	dockerfile := `
 		FROM busybox
