@@ -9,6 +9,6 @@ install_tini() {
 	git checkout -q "$TINI_COMMIT"
 	cmake .
 	make tini-static
-	mkdir -p ${PREFIX}
-	cp tini-static ${PREFIX}/docker-init
+	mkdir -p "${PREFIX}"
+	cp tini-static "${PREFIX}/docker-init"
 }

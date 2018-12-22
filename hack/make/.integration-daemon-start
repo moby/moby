@@ -7,7 +7,7 @@ export PATH="$base/binary-daemon:$base/dynbinary-daemon:$PATH"
 
 export TEST_CLIENT_BINARY=docker
 
-if [ -n "$DOCKER_CLI_PATH" ]; then
+if [[ -n "$DOCKER_CLI_PATH" ]]; then
 	export TEST_CLIENT_BINARY=/usr/local/cli/$(basename "$DOCKER_CLI_PATH")
 fi
 
@@ -19,11 +19,11 @@ fi
 
 # This is a temporary hack for split-binary mode. It can be removed once
 # https://github.com/docker/docker/pull/22134 is merged into docker master
-if [ "$(go env GOOS)" = 'windows' ]; then
+if [[ "$(go env GOOS)" = 'windows' ]]; then
        return
 fi
 
-if [ -z "$DOCKER_TEST_HOST" ]; then
+if [[ -z "$DOCKER_TEST_HOST" ]]; then
 	if docker version &> /dev/null; then
 		echo >&2 'skipping daemon start, since daemon appears to be already started'
 		return
@@ -43,7 +43,7 @@ export DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
-if [ -n "$DOCKER_STORAGE_OPTS" ]; then
+if [[ -n "$DOCKER_STORAGE_OPTS" ]]; then
 	IFS=','
 	for i in ${DOCKER_STORAGE_OPTS}; do
 		storage_params="--storage-opt $i $storage_params"
@@ -53,24 +53,24 @@ fi
 
 # example usage: DOCKER_REMAP_ROOT=default
 extra_params=""
-if [ "$DOCKER_REMAP_ROOT" ]; then
+if [[ "$DOCKER_REMAP_ROOT" ]]; then
 	extra_params="--userns-remap $DOCKER_REMAP_ROOT"
 fi
 
 # example usage: DOCKER_EXPERIMENTAL=1
-if [  "$DOCKER_EXPERIMENTAL" ]; then
+if [[  "$DOCKER_EXPERIMENTAL" ]]; then
 	echo >&2 '# DOCKER_EXPERIMENTAL is set: starting daemon with experimental features enabled! '
 	extra_params="$extra_params --experimental"
 fi
 
-if [ -z "$DOCKER_TEST_HOST" ]; then
+if [[ -z "$DOCKER_TEST_HOST" ]]; then
 	# Start apparmor if it is enabled
-	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
+	if [[ -e "/sys/module/apparmor/parameters/enabled" ]] && [[ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]]; then
 		# reset container variable so apparmor profile is applied to process
 		# see https://github.com/docker/libcontainer/blob/master/apparmor/apparmor.go#L16
 		export container=""
 		(
-			[ -n "$TESTDEBUG" ] && set -x
+			[[ -n "$TESTDEBUG" ]] && set -x
 			/etc/init.d/apparmor start
 		)
 	fi
@@ -79,15 +79,15 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 	export DOCKER_HOST="unix://$(cd "$DEST" && pwd)/docker.sock"
 	(
 		echo "Starting dockerd"
-		[ -n "$TESTDEBUG" ] && set -x
+		[[ -n "$TESTDEBUG" ]] && set -x
 		exec \
 			dockerd --debug \
 			--host "$DOCKER_HOST" \
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
-			$storage_params \
-			$extra_params \
+			${storage_params} \
+			${extra_params} \
 				&> "$DEST/docker.log"
 	) &
 else
@@ -97,19 +97,19 @@ fi
 # give it a little time to come up so it's "ready"
 tries=60
 echo "INFO: Waiting for daemon to start..."
-while ! $TEST_CLIENT_BINARY version &> /dev/null; do
+while ! ${TEST_CLIENT_BINARY} version &> /dev/null; do
 	(( tries-- ))
-	if [ $tries -le 0 ]; then
+	if [[ $tries -le 0 ]]; then
 		printf "\n"
-		if [ -z "$DOCKER_HOST" ]; then
+		if [[ -z "$DOCKER_HOST" ]]; then
 			echo >&2 "error: daemon failed to start"
 			echo >&2 "  check $DEST/docker.log for details"
 		else
 			echo >&2 "error: daemon at $DOCKER_HOST fails to '$TEST_CLIENT_BINARY version':"
-			$TEST_CLIENT_BINARY version >&2 || true
+			${TEST_CLIENT_BINARY} version >&2 || true
 			# Additional Windows CI debugging as this is a common error as of
 			# January 2016
-			if [ "$(go env GOOS)" = 'windows' ]; then
+			if [[ "$(go env GOOS)" = 'windows' ]]; then
 				echo >&2 "Container log below:"
 				echo >&2 "---"
 				# Important - use the docker on the CI host, not the one built locally

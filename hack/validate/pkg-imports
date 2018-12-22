@@ -19,7 +19,7 @@ for f in "${files[@]}"; do
 	done
 done
 
-if [ ${#badFiles[@]} -eq 0 ]; then
+if [[ ${#badFiles[@]} -eq 0 ]]; then
 	echo 'Congratulations!  "./pkg/..." is safely isolated from internal code.'
 else
 	{

@@ -7,11 +7,11 @@ IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/types/' 'api/swagger.yaml' || true) )
 unset IFS
 
-if [ ${#files[@]} -gt 0 ]; then
+if [[ ${#files[@]} -gt 0 ]]; then
 	${SCRIPTDIR}/../generate-swagger-api.sh 2> /dev/null
 	# Let see if the working directory is clean
 	diffs="$(git diff -- api/types/)"
-	if [ "$diffs" ]; then
+	if [[ "$diffs" ]]; then
 		{
 			echo 'The result of hack/generate-swagger-api.sh differs'
 			echo

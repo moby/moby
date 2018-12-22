@@ -32,7 +32,7 @@ _install_proxy() {
 	git clone https://github.com/docker/libnetwork.git "$GOPATH/src/github.com/docker/libnetwork"
 	cd "$GOPATH/src/github.com/docker/libnetwork"
 	git checkout -q "$LIBNETWORK_COMMIT"
-	go build $BUILD_MODE -ldflags="$PROXY_LDFLAGS" -o ${PREFIX}/docker-proxy github.com/docker/libnetwork/cmd/proxy
+	go build ${BUILD_MODE} -ldflags="$PROXY_LDFLAGS" -o ${PREFIX}/docker-proxy github.com/docker/libnetwork/cmd/proxy
 }
 
 
