@@ -62,17 +62,16 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 
 	d := daemon.New(t)
-	client, err := d.NewClient()
-	assert.NilError(t, err)
+	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
 	ctx := context.Background()
-	ctrID := container.Create(t, ctx, client)
+	ctrID := container.Create(t, ctx, c)
 
 	d.Restart(t)
 
-	_, err = client.ContainerExport(ctx, ctrID)
+	_, err := c.ContainerExport(ctx, ctrID)
 	assert.NilError(t, err)
 }

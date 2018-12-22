@@ -32,15 +32,16 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	d := daemon.New(t)
 	defer d.Stop(t)
 	d.Start(t)
-	d.Restart(t, "--live-restore=true",
+	d.Restart(t,
+		"--live-restore=true",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
-		"--default-address-pool", "base=175.33.0.0/16,size=24")
+		"--default-address-pool", "base=175.33.0.0/16,size=24",
+	)
 
 	// Verify bridge network's subnet
-	cli, err := d.NewClient()
-	assert.Assert(t, err)
-	defer cli.Close()
-	out, err := cli.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	c := d.NewClientT(t)
+	defer c.Close()
+	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure docker0 doesn't get override with new IP in live restore case
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.18.0.0/16")
@@ -57,31 +58,32 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	defer d.Stop(t)
 	d.Start(t,
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
-		"--default-address-pool", "base=175.33.0.0/16,size=24")
+		"--default-address-pool", "base=175.33.0.0/16,size=24",
+	)
+
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	// Verify bridge network's subnet
-	cli, err := d.NewClient()
-	assert.Assert(t, err)
-	defer cli.Close()
-	out, err := cli.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.30.0.0/16")
 
 	// Create a bridge network and verify its subnet is the second default pool
 	name := "elango" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out, err = c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.0.0/24")
 
 	// Create a bridge network and verify its subnet is the third default pool
 	name = "saanvi" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out, err = c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.1.0/24")
 	delInterface(t, defaultNetworkBridge)
@@ -96,17 +98,17 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
-	// Verify bridge network's subnet
-	cli, err := d.NewClient()
-	assert.Assert(t, err)
-	defer cli.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	// Create a bridge network
 	name := "elango" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+
+	// Verify bridge network's subnet
+	out, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip := out.IPAM.Config[0].Subnet
 
@@ -115,7 +117,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24")
 
-	out1, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out1, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out1.IPAM.Config[0].Subnet, networkip)
 	delInterface(t, defaultNetworkBridge)
@@ -129,40 +131,41 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	d := daemon.New(t)
 	d.Start(t)
 	defer d.Stop(t)
-	// Verify bridge network's subnet
-	cli, err := d.NewClient()
-	assert.Assert(t, err)
-	defer cli.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	// Create a bridge network
 	name := "elango" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+
+	// Verify bridge network's subnet
+	out, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip := out.IPAM.Config[0].Subnet
 
 	// Create a bridge network
 	name = "sthira" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out, err = cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out, err = c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	networkip2 := out.IPAM.Config[0].Subnet
 
 	// Restart daemon with default address pool option
 	d.Restart(t,
 		"--default-address-pool", "base=175.18.0.0/16,size=16",
-		"--default-address-pool", "base=175.19.0.0/16,size=24")
+		"--default-address-pool", "base=175.19.0.0/16,size=24",
+	)
 
 	// Create a bridge network
 	name = "saanvi" + t.Name()
-	network.CreateNoError(t, context.Background(), cli, name,
+	network.CreateNoError(t, context.Background(), c, name,
 		network.WithDriver("bridge"),
 	)
-	out1, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out1, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
@@ -177,15 +180,17 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	defer d.Stop(t)
-	d.Start(t, "--bip=172.60.0.1/16",
+	d.Start(t,
+		"--bip=172.60.0.1/16",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
-		"--default-address-pool", "base=175.33.0.0/16,size=24")
+		"--default-address-pool", "base=175.33.0.0/16,size=24",
+	)
+
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	// Verify bridge network's subnet
-	cli, err := d.NewClient()
-	assert.Assert(t, err)
-	defer cli.Close()
-	out, err := cli.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure BIP IP doesn't get override with new default address pool .
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.60.0.1/16")
@@ -197,8 +202,8 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
-	defer client.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
 	hostName := "host"
 	var instances uint64 = 1
@@ -210,12 +215,12 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 		swarm.ServiceWithNetwork(hostName),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = client.ServiceRemove(context.Background(), serviceID)
+	err = c.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 }
 
@@ -226,10 +231,10 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
-	defer client.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
-	poll.WaitOn(t, swarmIngressReady(client), swarm.NetworkPoll)
+	poll.WaitOn(t, swarmIngressReady(c), swarm.NetworkPoll)
 
 	var instances uint64 = 1
 
@@ -247,20 +252,20 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 		}),
 	)
 
-	poll.WaitOn(t, serviceRunningCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	_, _, err := c.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = client.ServiceRemove(context.Background(), serviceID)
+	err = c.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
-	poll.WaitOn(t, noServices(client), swarm.ServicePoll)
+	poll.WaitOn(t, serviceIsRemoved(c, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, noServices(c), swarm.ServicePoll)
 
 	// Ensure that "ingress" is not removed or corrupted
 	time.Sleep(10 * time.Second)
-	netInfo, err := client.NetworkInspect(context.Background(), ingressNet, types.NetworkInspectOptions{
+	netInfo, err := c.NetworkInspect(context.Background(), ingressNet, types.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})

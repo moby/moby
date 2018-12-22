@@ -36,18 +36,17 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	d.StartWithBusybox(t, "--iptables=false")
 	defer d.Stop(t)
 
-	client, err := d.NewClient()
-	assert.Check(t, err, "error creating client")
+	c := d.NewClientT(t)
 
 	ctx := context.Background()
 
-	cID := container.Create(t, ctx, client)
-	defer client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
+	cID := container.Create(t, ctx, c)
+	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
-	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err := c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
 	assert.Check(t, err, "error starting test container")
 
-	inspect, err := client.ContainerInspect(ctx, cID)
+	inspect, err := c.ContainerInspect(ctx, cID)
 	assert.Check(t, err, "error getting inspect data")
 
 	ppid := getContainerdShimPid(t, inspect)
@@ -63,7 +62,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	d.Start(t, "--iptables=false")
 
-	err = client.ContainerStart(ctx, cID, types.ContainerStartOptions{})
+	err = c.ContainerStart(ctx, cID, types.ContainerStartOptions{})
 	assert.Check(t, err, "failed to start test container")
 }
 

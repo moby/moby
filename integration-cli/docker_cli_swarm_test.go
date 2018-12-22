@@ -426,8 +426,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Leave the swarm
-	err = d.SwarmLeave(true)
-	c.Assert(err, checker.IsNil)
+	c.Assert(d.SwarmLeave(true), checker.IsNil)
 
 	// Check the container is disconnected
 	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
@@ -1703,8 +1702,7 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 		Driver:         "bridge",
 	}
 
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	n1, err := cli.NetworkCreate(context.Background(), name, options)
