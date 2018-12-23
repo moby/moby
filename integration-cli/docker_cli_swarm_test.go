@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -1314,6 +1315,13 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 // This one keeps the leader up, and asserts that other manager nodes in the cluster also have their unlock
 // key rotated.
 func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
+	if runtime.GOARCH == "s390x" {
+		c.Skip("Disabled on s390x")
+	}
+	if runtime.GOARCH == "ppc64le" {
+		c.Skip("Disabled on  ppc64le")
+	}
+
 	d1 := s.AddDaemon(c, true, true) // leader - don't restart this one, we don't want leader election delays
 	d2 := s.AddDaemon(c, true, true)
 	d3 := s.AddDaemon(c, true, true)
