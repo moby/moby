@@ -537,7 +537,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicePlacementPrefs(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmServicesStateReporting(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 	testRequires(c, DaemonIsLinux)
 
 	d1 := s.AddDaemon(c, true, true)

@@ -125,7 +125,7 @@ func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
 	s.reg = registry.NewV2(c)
 	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -158,7 +158,7 @@ func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, testEnv.IsLocalDaemon)
 	s.reg = registry.NewV2(c, registry.Schema1)
 	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -191,7 +191,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
 	s.reg = registry.NewV2(c, registry.Htpasswd)
 	s.reg.WaitReady(c)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
@@ -226,7 +226,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
@@ -266,12 +266,12 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	if s.d != nil {
 		s.d.Stop(c)
 	}
@@ -318,7 +318,7 @@ func (s *DockerSwarmSuite) OnTimeout(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Daemon {

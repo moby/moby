@@ -54,11 +54,11 @@ func swapMemorySupport() bool {
 }
 
 func memorySwappinessSupport() bool {
-	return SameHostDaemon() && SysInfo.MemorySwappiness
+	return testEnv.IsLocalDaemon() && SysInfo.MemorySwappiness
 }
 
 func blkioWeight() bool {
-	return SameHostDaemon() && SysInfo.BlkioWeight
+	return testEnv.IsLocalDaemon() && SysInfo.BlkioWeight
 }
 
 func cgroupCpuset() bool {
@@ -111,7 +111,7 @@ func overlay2Supported() bool {
 }
 
 func init() {
-	if SameHostDaemon() {
+	if testEnv.IsLocalDaemon() {
 		SysInfo = sysinfo.New(true)
 	}
 }

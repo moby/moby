@@ -76,10 +76,6 @@ func NotPpc64le() bool {
 	return ArchitectureIsNot("ppc64le")
 }
 
-func SameHostDaemon() bool {
-	return testEnv.IsLocalDaemon()
-}
-
 func UnixCli() bool {
 	return isUnixCli
 }

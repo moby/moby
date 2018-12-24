@@ -291,7 +291,7 @@ func containerStartOutputEquals(c *check.C, containerID, contents string) (err e
 }
 
 func defaultVolumes(tmpDir string) []string {
-	if SameHostDaemon() {
+	if testEnv.IsLocalDaemon() {
 		return []string{
 			"/vol1",
 			fmt.Sprintf("%s:/vol2", tmpDir),
