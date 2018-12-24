@@ -137,6 +137,7 @@ func (ncfg *networkConfiguration) MarshalJSON() ([]byte, error) {
 	nMap["EnableIPv6"] = ncfg.EnableIPv6
 	nMap["EnableIPMasquerade"] = ncfg.EnableIPMasquerade
 	nMap["EnableICC"] = ncfg.EnableICC
+	nMap["InhibitIPv4"] = ncfg.InhibitIPv4
 	nMap["Mtu"] = ncfg.Mtu
 	nMap["Internal"] = ncfg.Internal
 	nMap["DefaultBridge"] = ncfg.DefaultBridge
@@ -192,6 +193,7 @@ func (ncfg *networkConfiguration) UnmarshalJSON(b []byte) error {
 	ncfg.EnableIPv6 = nMap["EnableIPv6"].(bool)
 	ncfg.EnableIPMasquerade = nMap["EnableIPMasquerade"].(bool)
 	ncfg.EnableICC = nMap["EnableICC"].(bool)
+	ncfg.InhibitIPv4 = nMap["InhibitIPv4"].(bool)
 	ncfg.Mtu = int(nMap["Mtu"].(float64))
 	if v, ok := nMap["Internal"]; ok {
 		ncfg.Internal = v.(bool)

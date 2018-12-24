@@ -10,6 +10,9 @@ const (
 	// EnableICC label
 	EnableICC = "com.docker.network.bridge.enable_icc"
 
+	// InhibitIPv4 label
+	InhibitIPv4 = "com.docker.network.bridge.inhibit_ipv4"
+
 	// DefaultBindingIP label
 	DefaultBindingIP = "com.docker.network.bridge.host_binding_ipv4"
 
