@@ -115,51 +115,51 @@ FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS vndr
 ENV INSTALL_BINARY_NAME=vndr
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS containerd
 RUN apt-get update && apt-get install -y btrfs-tools
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS proxy
 ENV INSTALL_BINARY_NAME=proxy
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS gometalinter
 ENV INSTALL_BINARY_NAME=gometalinter
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS dockercli
 ENV INSTALL_BINARY_NAME=dockercli
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM runtime-dev AS runc
 ENV INSTALL_BINARY_NAME=runc
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS tini
 RUN apt-get update && apt-get install -y cmake vim-common
 COPY hack/dockerfile/install/install.sh ./install.sh
 ENV INSTALL_BINARY_NAME=tini
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 
 
