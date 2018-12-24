@@ -88,6 +88,7 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
+	t.Log("Creating a new daemon")
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
