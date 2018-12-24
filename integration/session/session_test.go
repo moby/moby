@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"testing"
 
+	"github.com/docker/docker/internal/test/daemon"
 	req "github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -11,16 +12,27 @@ import (
 )
 
 func TestSessionCreate(t *testing.T) {
-	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
+	daemonHost := req.DaemonHost()
+	if !testEnv.DaemonInfo.ExperimentalBuild {
+		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 
-	res, body, err := req.Post("/session", req.With(func(r *http.Request) error {
-		r.Header.Set("X-Docker-Expose-Session-Uuid", "testsessioncreate") // so we don't block default name if something else is using it
-		r.Header.Set("Upgrade", "h2c")
-		return nil
-	}))
+		d := daemon.New(t, daemon.WithExperimental)
+		d.StartWithBusybox(t)
+		defer d.Stop(t)
+		daemonHost = d.Sock()
+	}
+
+	res, body, err := req.Post("/session",
+		req.Host(daemonHost),
+		req.With(func(r *http.Request) error {
+			r.Header.Set("X-Docker-Expose-Session-Uuid", "testsessioncreate") // so we don't block default name if something else is using it
+			r.Header.Set("Upgrade", "h2c")
+			return nil
+		}),
+	)
 	assert.NilError(t, err)
 	assert.NilError(t, body.Close())
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusSwitchingProtocols))
@@ -28,20 +40,33 @@ func TestSessionCreate(t *testing.T) {
 }
 
 func TestSessionCreateWithBadUpgrade(t *testing.T) {
-	skip.If(t, !testEnv.DaemonInfo.ExperimentalBuild)
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
-	res, body, err := req.Post("/session")
+	defer setupTest(t)()
+	daemonHost := req.DaemonHost()
+	if !testEnv.DaemonInfo.ExperimentalBuild {
+		skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
+
+		d := daemon.New(t, daemon.WithExperimental)
+		d.StartWithBusybox(t)
+		defer d.Stop(t)
+		daemonHost = d.Sock()
+	}
+
+	res, body, err := req.Post("/session", req.Host(daemonHost))
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusBadRequest))
 	buf, err := req.ReadBody(body)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(string(buf), "no upgrade"))
 
-	res, body, err = req.Post("/session", req.With(func(r *http.Request) error {
-		r.Header.Set("Upgrade", "foo")
-		return nil
-	}))
+	res, body, err = req.Post("/session",
+		req.Host(daemonHost),
+		req.With(func(r *http.Request) error {
+			r.Header.Set("Upgrade", "foo")
+			return nil
+		}),
+	)
 	assert.NilError(t, err)
 	assert.Check(t, is.DeepEqual(res.StatusCode, http.StatusBadRequest))
 	buf, err = req.ReadBody(body)
