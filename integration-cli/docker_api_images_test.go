@@ -147,7 +147,7 @@ func (s *DockerSuite) TestAPIImagesImportBadSrc(c *check.C) {
 		}
 	}
 
-	testRequires(c, Network, SameHostDaemon)
+	testRequires(c, Network, testEnv.IsLocalDaemon)
 
 	server := httptest.NewServer(http.NewServeMux())
 	defer server.Close()

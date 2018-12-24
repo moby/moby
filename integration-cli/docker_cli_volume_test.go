@@ -404,7 +404,7 @@ func (s *DockerSuite) TestVolumeCLIRmForceUsage(c *check.C) {
 }
 
 func (s *DockerSuite) TestVolumeCLIRmForce(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	name := "test"
 	out, _ := dockerCmd(c, "volume", "create", name)
@@ -574,7 +574,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndBind(c *check.C) 
 
 // Test case (3) for 21845: duplicate targets for --volumes-from and `Mounts` (API only)
 func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	image := "vimage"
 	buildImageSuccessfully(c, image, build.WithDockerfile(`

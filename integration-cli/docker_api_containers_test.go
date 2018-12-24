@@ -1252,7 +1252,7 @@ func (s *DockerSuite) TestContainerAPIDeleteConflict(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 
 	vol := "/testvolume"
 	if testEnv.OSType == "windows" {
@@ -1426,7 +1426,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 	// Windows does not support read-only rootfs
 	// Requires local volume mount bind.
 	// --read-only + userns has remount issues
-	testRequires(c, SameHostDaemon, NotUserNamespace, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, NotUserNamespace, DaemonIsLinux)
 
 	testVol := getTestDir(c, "test-put-container-archive-err-symlink-in-volume-to-read-only-rootfs-")
 	defer os.RemoveAll(testVol)
@@ -1796,7 +1796,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		},
 	}
 
-	if SameHostDaemon() {
+	if testEnv.IsLocalDaemon() {
 		tmpDir, err := ioutils.TempDir("", "test-mounts-api")
 		c.Assert(err, checker.IsNil)
 		defer os.RemoveAll(tmpDir)
@@ -1899,7 +1899,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *check.C) {
-	testRequires(c, NotUserNamespace, SameHostDaemon)
+	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	// also with data in the host side
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 	destPath := prefix + slash + "foo"
@@ -1987,7 +1987,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 		},
 	}
 
-	if SameHostDaemon() {
+	if testEnv.IsLocalDaemon() {
 		// setup temp dir for testing binds
 		tmpDir1, err := ioutil.TempDir("", "test-mounts-api-1")
 		c.Assert(err, checker.IsNil)

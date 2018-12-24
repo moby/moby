@@ -389,7 +389,7 @@ func (s *DockerSuite) TestEventsFilterNetworkID(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	// daemon config file
 	configFilePath := "test.json"
@@ -458,7 +458,7 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	// daemon config file
 	configFilePath := "test.json"

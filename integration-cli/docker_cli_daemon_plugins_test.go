@@ -121,7 +121,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
-	testRequires(c, IsAmd64, Network, SameHostDaemon)
+	testRequires(c, IsAmd64, Network, testEnv.IsLocalDaemon)
 
 	s.d.Start(c)
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
@@ -159,7 +159,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 
 // TestDaemonKillWithPlugins leaves plugins running.
 func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *check.C) {
-	testRequires(c, IsAmd64, Network, SameHostDaemon)
+	testRequires(c, IsAmd64, Network, testEnv.IsLocalDaemon)
 
 	s.d.Start(c)
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {

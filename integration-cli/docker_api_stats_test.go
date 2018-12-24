@@ -97,7 +97,7 @@ func (s *DockerSuite) TestAPIStatsStoppedContainerInGoroutines(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 
 	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
@@ -165,7 +165,7 @@ func (s *DockerSuite) TestAPIStatsNetworkStats(c *check.C) {
 
 func (s *DockerSuite) TestAPIStatsNetworkStatsVersioning(c *check.C) {
 	// Windows doesn't support API versions less than 1.25, so no point testing 1.17 .. 1.21
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	out := runSleepingContainer(c)
 	id := strings.TrimSpace(out)
