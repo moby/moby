@@ -14,18 +14,22 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/pkg/errors"
-
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/pkg/errors"
 )
 
 var (
 	oldVfsDir = filepath.Join("vfs", "dir")
 
-	validOpts = map[string]bool{
-		"type":   true, // specify the filesystem type for mount, e.g. nfs
-		"o":      true, // generic mount options
-		"device": true, // device to mount from
+	validOpts = map[string]struct{}{
+		"type":   {}, // specify the filesystem type for mount, e.g. nfs
+		"o":      {}, // generic mount options
+		"device": {}, // device to mount from
+	}
+	mandatoryOpts = map[string]struct{}{
+		"device": {},
+		"type":   {},
 	}
 )
 
@@ -67,6 +71,23 @@ func setOpts(v *localVolume, opts map[string]string) error {
 		MountType:   opts["type"],
 		MountOpts:   opts["o"],
 		MountDevice: opts["device"],
+	}
+	return nil
+}
+
+func validateOpts(opts map[string]string) error {
+	if len(opts) == 0 {
+		return nil
+	}
+	for opt := range opts {
+		if _, ok := validOpts[opt]; !ok {
+			return errdefs.InvalidParameter(errors.Errorf("invalid option: %q", opt))
+		}
+	}
+	for opt := range mandatoryOpts {
+		if _, ok := opts[opt]; !ok {
+			return errdefs.InvalidParameter(errors.Errorf("missing required option: %q", opt))
+		}
 	}
 	return nil
 }
