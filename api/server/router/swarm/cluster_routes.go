@@ -219,6 +219,12 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 				// API version 1.40
 				service.TaskTemplate.ContainerSpec.Sysctls = nil
 			}
+
+			if service.TaskTemplate.Placement != nil {
+				// MaxReplicas for docker swarm services weren't supported before
+				// API version 1.40
+				service.TaskTemplate.Placement.MaxReplicas = 0
+			}
 		}
 	}
 
@@ -264,6 +270,12 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 				// Sysctls for docker swarm services weren't supported before
 				// API version 1.40
 				service.TaskTemplate.ContainerSpec.Sysctls = nil
+			}
+
+			if service.TaskTemplate.Placement != nil {
+				// MaxReplicas for docker swarm services weren't supported before
+				// API version 1.40
+				service.TaskTemplate.Placement.MaxReplicas = 0
 			}
 		}
 	}

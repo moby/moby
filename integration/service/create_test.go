@@ -153,6 +153,26 @@ func TestCreateServiceConflict(t *testing.T) {
 	assert.Check(t, is.Contains(string(buf), "service "+serviceName+" already exists"))
 }
 
+func TestCreateServiceMaxReplicas(t *testing.T) {
+	defer setupTest(t)()
+	d := swarm.NewSwarm(t, testEnv)
+	defer d.Stop(t)
+	client := d.NewClientT(t)
+	defer client.Close()
+
+	var maxReplicas uint64 = 2
+	serviceSpec := []swarm.ServiceSpecOpt{
+		swarm.ServiceWithReplicas(maxReplicas),
+		swarm.ServiceWithMaxReplicas(maxReplicas),
+	}
+
+	serviceID := swarm.CreateService(t, d, serviceSpec...)
+	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, maxReplicas), swarm.ServicePoll)
+
+	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	assert.NilError(t, err)
+}
+
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
