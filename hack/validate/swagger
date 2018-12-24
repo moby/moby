@@ -7,7 +7,7 @@ IFS=$'\n'
 files=( $(validate_diff --diff-filter=ACMR --name-only -- 'api/swagger.yaml' || true) )
 unset IFS
 
-if [ ${#files[@]} -gt 0 ]; then
+if [[ ${#files[@]} -gt 0 ]]; then
   yamllint -c ${SCRIPTDIR}/.swagger-yamllint api/swagger.yaml
   swagger validate api/swagger.yaml
 fi
