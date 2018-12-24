@@ -23,7 +23,7 @@ func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
 	//  stat /tmp/test-cp-to-symlink-destination-262430901/vol3 gets permission denied for the user
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
+	testRequires(c, testEnv.IsLocalDaemon) // Requires local volume mount bind.
 
 	testVol := getTestDir(c, "test-cp-to-symlink-destination-")
 	defer os.RemoveAll(testVol)

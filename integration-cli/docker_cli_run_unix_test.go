@@ -61,7 +61,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace, SameHostDaemon)
+	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
 	c.Assert(err, checker.IsNil)
 
@@ -680,7 +680,7 @@ func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
-	testRequires(c, SameHostDaemon, memoryReservationSupport)
+	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
 	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
@@ -692,7 +692,7 @@ func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
 
 func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	testRequires(c, SameHostDaemon, memoryReservationSupport)
+	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
 	c.Assert(err, check.NotNil)
 	expected := "Minimum memory limit can not be less than memory reservation limit"
@@ -727,7 +727,7 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
-	testRequires(c, cgroupCpuset, SameHostDaemon)
+	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
 	sysInfo := sysinfo.New(true)
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
@@ -921,7 +921,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -950,7 +950,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 
 // TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp=/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -985,7 +985,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1023,7 +1023,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	ensureSyscallTest(c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
@@ -1035,7 +1035,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 // TestRunSeccompUnconfinedCloneUserns checks that
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
 func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
 	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
@@ -1048,7 +1048,7 @@ func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
 // TestRunSeccompAllowPrivCloneUserns checks that 'docker run --privileged syscall-test'
 // allows creating a userns.
 func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
@@ -1060,7 +1060,7 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 // TestRunSeccompProfileAllow32Bit checks that 32 bit code can run on x86_64
 // with the default seccomp profile.
 func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, IsAmd64)
 	ensureSyscallTest(c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
@@ -1068,14 +1068,14 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
 func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	// ulimit uses setrlimit, so we want to make sure we don't break it
 	icmd.RunCommand(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
@@ -1105,7 +1105,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
@@ -1142,7 +1142,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 // TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
 // effective uid transitions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
 	// test that running a setuid binary results in no effective uid transition
@@ -1155,7 +1155,7 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 // TestLegacyRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
 // effective uid transitions on executing setuid binaries.
 func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
 	// test that running a setuid binary results in no effective uid transition
@@ -1166,7 +1166,7 @@ func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_CHOWN
@@ -1184,7 +1184,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_DAC_OVERRIDE
@@ -1197,7 +1197,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_FOWNER
@@ -1213,7 +1213,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
 // TODO CAP_KILL
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETUID
@@ -1231,7 +1231,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETGID
@@ -1251,7 +1251,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
 // TODO CAP_SETPCAP
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
@@ -1269,7 +1269,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) 
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_RAW
@@ -1287,7 +1287,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SYS_CHROOT
@@ -1305,7 +1305,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_MKNOD
@@ -1327,7 +1327,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 // TODO CAP_SETFCAP
 
 func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
-	testRequires(c, SameHostDaemon, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, Apparmor)
 
 	// running w seccomp unconfined tests the apparmor profile
 	result := icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/cgroup")
@@ -1346,7 +1346,7 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
 	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
@@ -1355,7 +1355,7 @@ func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
 
 // TestRunDeviceSymlink checks run with device that follows symlink (#13840 and #22271)
 func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, testEnv.IsLocalDaemon)
 	if _, err := os.Stat("/dev/zero"); err != nil {
 		c.Skip("Host does not have /dev/zero")
 	}
@@ -1404,7 +1404,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
 func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
-	testRequires(c, SameHostDaemon, pidsLimit)
+	testRequires(c, testEnv.IsLocalDaemon, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"
 	out, _ := dockerCmd(c, "run", "--name", "skittles", "--pids-limit", "4", "busybox", "cat", file)
@@ -1441,7 +1441,7 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1466,7 +1466,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1492,7 +1492,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1529,7 +1529,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
