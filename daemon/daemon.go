@@ -1249,6 +1249,7 @@ func setDefaultMtu(conf *config.Config) {
 		return
 	}
 	conf.Mtu = getMinimumNetworkMtu()
+	logrus.Warnf("Network MTU not configured, defaulting to %d, which may be suboptimal", conf.Mtu)
 }
 
 // IsShuttingDown tells whether the daemon is shutting down or not
