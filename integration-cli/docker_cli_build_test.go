@@ -1047,7 +1047,7 @@ func (s *DockerSuite) TestBuildAddBadLinksVolume(c *check.C) {
 // Issue #5270 - ensure we throw a better error than "unexpected EOF"
 // when we can't access files in the context.
 func (s *DockerSuite) TestBuildWithInaccessibleFilesInContext(c *check.C) {
-	testRequires(c, DaemonIsLinux, UnixCli, SameHostDaemon) // test uses chown/chmod: not available on windows
+	testRequires(c, DaemonIsLinux, UnixCli, testEnv.IsLocalDaemon) // test uses chown/chmod: not available on windows
 
 	{
 		name := "testbuildinaccessiblefiles"
@@ -1510,7 +1510,7 @@ func (s *DockerSuite) TestBuildPATH(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 
 	name := "testbuildcontextcleanup"
 	entries, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
@@ -1532,7 +1532,7 @@ func (s *DockerSuite) TestBuildContextCleanup(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContextCleanupFailedBuild(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 
 	name := "testbuildcontextcleanup"
 	entries, err := ioutil.ReadDir(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "tmp"))
@@ -3971,7 +3971,7 @@ func (s *DockerSuite) TestBuildEmptyStringVolume(c *check.C) {
 }
 
 func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	cgroupParent := "test"
 	data, err := ioutil.ReadFile("/proc/self/cgroup")

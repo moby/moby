@@ -86,7 +86,7 @@ func (s *DockerSuite) TestExecAfterContainerRestart(c *check.C) {
 
 func (s *DockerDaemonSuite) TestExecAfterDaemonRestart(c *check.C) {
 	// TODO Windows CI: Requires a little work to get this ported.
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	s.d.StartWithBusybox(c)
 
 	out, err := s.d.Cmd("run", "-d", "--name", "top", "-p", "80", "busybox:latest", "top")
@@ -394,7 +394,7 @@ func (s *DockerSuite) TestLinksPingLinkedContainersOnRename(c *check.C) {
 
 func (s *DockerSuite) TestRunMutableNetworkFiles(c *check.C) {
 	// Not applicable on Windows to Windows CI.
-	testRequires(c, SameHostDaemon, DaemonIsLinux)
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 	for _, fn := range []string{"resolv.conf", "hosts"} {
 		containers := cli.DockerCmd(c, "ps", "-q", "-a").Combined()
 		if containers != "" {

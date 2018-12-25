@@ -212,7 +212,7 @@ func (s *DockerSuite) TestExecAPIStartInvalidCommand(c *check.C) {
 }
 
 func (s *DockerSuite) TestExecStateCleanup(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	// This test checks accidental regressions. Not part of stable API.
 

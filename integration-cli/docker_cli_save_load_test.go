@@ -332,7 +332,7 @@ func listTar(f io.Reader) ([]string, error) {
 func (s *DockerSuite) TestLoadZeroSizeLayer(c *check.C) {
 	// this will definitely not work if using remote daemon
 	// very weird test
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	dockerCmd(c, "load", "-i", "testdata/emptyLayer.tar")
 }
