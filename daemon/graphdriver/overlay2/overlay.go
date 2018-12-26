@@ -548,8 +548,8 @@ func (d *Driver) Remove(id string) error {
 
 //GetDiffPath return the diff directory
 func (d *Driver) GetDiffPath(id string) containerfs.ContainerFS {
-	diffPath = path.Join(d.dir(id), "diff")
-	return containerfs.NewLocalContainerFS(mergedDir)
+	diffPath := path.Join(d.dir(id), "diff")
+	return containerfs.NewLocalContainerFS(diffPath)
 }
 
 // Get creates and mounts the required file system for the given id and returns the mount path.
