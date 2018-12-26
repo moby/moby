@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/registry"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // Creates an image from Pull or from Import
@@ -73,6 +74,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 				if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 					// for a pull it is not an error if no auth was given
 					// to increase compatibility with the existing api it is defaulting to be empty
+					logrus.Warn("Failed decoding the X-Registry-Auth in request header")
 					authConfig = &types.AuthConfig{}
 				}
 			}
@@ -117,6 +119,7 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 		authJSON := base64.NewDecoder(base64.URLEncoding, strings.NewReader(authEncoded))
 		if err := json.NewDecoder(authJSON).Decode(authConfig); err != nil {
 			// to increase compatibility to existing api it is defaulting to be empty
+			logrus.Warn("Failed decoding the X-Registry-Auth in request header")
 			authConfig = &types.AuthConfig{}
 		}
 	} else {
@@ -283,6 +286,7 @@ func (s *imageRouter) getImagesSearch(ctx context.Context, w http.ResponseWriter
 		if err := json.NewDecoder(authJSON).Decode(&config); err != nil {
 			// for a search it is not an error if no auth was given
 			// to increase compatibility with the existing api it is defaulting to be empty
+			logrus.Warn("Failed decoding the X-Registry-Auth in request header")
 			config = &types.AuthConfig{}
 		}
 	}
