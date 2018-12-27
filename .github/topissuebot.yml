@@ -1,0 +1,4 @@
+# Configuration for https://probot.github.io/apps/topissues/
+labelName: ":thumbsup: Top Issue!"
+labelColor: "f442c2"
+numberOfIssuesToLabel: 50
