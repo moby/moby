@@ -680,14 +680,13 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 
 		return store.CreateService(tx, service)
 	})
-	switch err {
-	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "service %s already exists", request.Spec.Annotations.Name)
-	case nil:
-		return &api.CreateServiceResponse{Service: service}, nil
-	default:
+	if err != nil {
 		return nil, err
 	}
+
+	return &api.CreateServiceResponse{
+		Service: service,
+	}, nil
 }
 
 // GetService returns a Service given a ServiceID.
@@ -897,12 +896,7 @@ func (s *Server) ListServices(ctx context.Context, request *api.ListServicesRequ
 		}
 	})
 	if err != nil {
-		switch err {
-		case store.ErrInvalidFindBy:
-			return nil, status.Errorf(codes.InvalidArgument, err.Error())
-		default:
-			return nil, err
-		}
+		return nil, err
 	}
 
 	if request.Filters != nil {
