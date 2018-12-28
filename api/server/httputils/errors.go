@@ -9,8 +9,8 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 type causer interface {
@@ -89,14 +89,14 @@ func MakeErrorHandler(err error) http.HandlerFunc {
 			}
 			WriteJSON(w, statusCode, response)
 		} else {
-			http.Error(w, grpc.ErrorDesc(err), statusCode)
+			http.Error(w, status.Convert(err).Message(), statusCode)
 		}
 	}
 }
 
 // statusCodeFromGRPCError returns status code according to gRPC error
 func statusCodeFromGRPCError(err error) int {
-	switch grpc.Code(err) {
+	switch status.Code(err) {
 	case codes.InvalidArgument: // code 3
 		return http.StatusBadRequest
 	case codes.NotFound: // code 5
