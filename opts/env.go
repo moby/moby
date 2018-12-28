@@ -17,8 +17,8 @@ import (
 // The only validation here is to check if name is empty, per #25099
 func ValidateEnv(val string) (string, error) {
 	k, _, ok := strings.Cut(val, "=")
-	if k == "" {
-		return "", errors.New("invalid environment variable: " + val)
+	if strings.TrimSpace(k) == "" {
+		return "", errors.Errorf("invalid environment variable: %q", val)
 	}
 	if ok {
 		return val, nil

@@ -13,7 +13,7 @@ func TestValidateEnv(t *testing.T) {
 	type testCase struct {
 		value    string
 		expected string
-		err      error
+		err      string
 	}
 	tests := []testCase{
 		{
@@ -54,7 +54,7 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=a",
-			err:   fmt.Errorf("invalid environment variable: =a"),
+			err:   fmt.Sprintf("invalid environment variable: %q", "=a"),
 		},
 		{
 			value:    "PATH=",
@@ -90,7 +90,15 @@ func TestValidateEnv(t *testing.T) {
 		},
 		{
 			value: "=",
-			err:   fmt.Errorf("invalid environment variable: ="),
+			err:   fmt.Sprintf("invalid environment variable: %q", "="),
+		},
+		{
+			value: "  =",
+			err:   fmt.Sprintf("invalid environment variable: %q", "  ="),
+		},
+		{
+			value: "     ",
+			err:   fmt.Sprintf("invalid environment variable: %q", "     "),
 		},
 	}
 
@@ -99,7 +107,6 @@ func TestValidateEnv(t *testing.T) {
 		tests = append(tests, testCase{
 			value:    "PaTh",
 			expected: fmt.Sprintf("PaTh=%v", os.Getenv("PATH")),
-			err:      nil,
 		})
 	}
 
@@ -108,10 +115,10 @@ func TestValidateEnv(t *testing.T) {
 		t.Run(tc.value, func(t *testing.T) {
 			actual, err := ValidateEnv(tc.value)
 
-			if tc.err == nil {
+			if tc.err == "" {
 				assert.NilError(t, err)
 			} else {
-				assert.Error(t, err, tc.err.Error())
+				assert.Equal(t, err.Error(), tc.err)
 			}
 			assert.Equal(t, actual, tc.expected)
 		})
