@@ -141,7 +141,7 @@ func newTLSAPIClient(host, cacertPath, certPath, keyPath string) (client.APIClie
 	}
 	return client.NewClientWithOpts(
 		client.WithTLSClientConfig(cacertPath, certPath, keyPath),
-		client.WithDialer(dialer),
+		client.WithDialContext(dialer.DialContext),
 		client.WithHost(host))
 }
 
