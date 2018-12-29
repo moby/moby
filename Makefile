@@ -28,6 +28,7 @@ DOCKER_ENVS := \
 	-e KEEPBUNDLE \
 	-e DOCKER_BUILD_ARGS \
 	-e DOCKER_BUILD_GOGC \
+	-e DOCKER_BUILD_OPTS \
 	-e DOCKER_BUILD_PKGS \
 	-e DOCKER_BUILDKIT \
 	-e DOCKER_BASH_COMPLETION_PATH \
@@ -107,6 +108,9 @@ INTERACTIVE := $(shell [ -t 0 ] && echo 1 || echo 0)
 ifeq ($(INTERACTIVE), 1)
 	DOCKER_FLAGS += -t
 endif
+ifeq ($(BIND_DIR), .)
+	DOCKER_BUILD_OPTS += --target=dev
+endif
 
 DOCKER_RUN_DOCKER := $(DOCKER_FLAGS) "$(DOCKER_IMAGE)"
 
@@ -123,7 +127,7 @@ dynbinary: build ## build the linux dynbinaries
 
 build: bundles
 	$(warning The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:${\n} DOCKER_CLI_PATH=/host/path/to/cli/binary make shell ${\n} then change the cli and compile into a binary at the same location.${\n})
-	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	docker build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
 
 bundles:
 	mkdir bundles
