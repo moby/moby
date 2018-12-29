@@ -2,7 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -127,15 +126,7 @@ func (daemon *Daemon) CheckpointList(name string, config types.CheckpointListOpt
 		if !d.IsDir() {
 			continue
 		}
-		path := filepath.Join(checkpointDir, d.Name(), "config.json")
-		data, err := ioutil.ReadFile(path)
-		if err != nil {
-			return nil, err
-		}
-		var cpt types.Checkpoint
-		if err := json.Unmarshal(data, &cpt); err != nil {
-			return nil, err
-		}
+		cpt := types.Checkpoint{Name: d.Name()}
 		out = append(out, cpt)
 	}
 
