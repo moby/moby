@@ -257,8 +257,8 @@ Try {
 
      # REMOVE, trying to fix RS5 build servers without access to them
      if ($env:COMPUTERNAME -eq "jenkins-rs5-1") {
-         Restart-Computer -Force
-		 # throw "Just save some time, this one is already fixed"
+         # Restart-Computer -Force
+		 throw "Just save some time, this one is already fixed"
      }
      if ($env:COMPUTERNAME -eq "jenkins-rs5-2") {
          Restart-Computer -Force
