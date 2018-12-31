@@ -91,3 +91,25 @@ func TestFromStatusCode(t *testing.T) {
 		})
 	}
 }
+
+func TestWithStatusCode(t *testing.T) {
+	testErr := fmt.Errorf("some error occurred")
+
+	type causal interface {
+		Cause() error
+	}
+
+	if IsWithStatusCode(testErr) {
+		t.Fatalf("did not expect error with status code, got %T", testErr)
+	}
+	e := WithStatusCode(testErr, 499)
+	if !IsWithStatusCode(e) {
+		t.Fatalf("expected error with status code, got %T", e)
+	}
+	if cause := e.(causal).Cause(); cause != testErr {
+		t.Fatalf("causual should be errTest, got: %v", cause)
+	}
+	if status := e.(ErrWithStatusCode).StatusCode(); status != 499 {
+		t.Fatalf("status should be 499, got: %d", status)
+	}
+}

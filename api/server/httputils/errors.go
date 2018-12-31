@@ -23,6 +23,9 @@ func GetHTTPErrorStatusCode(err error) int {
 		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
 		return http.StatusInternalServerError
 	}
+	if e, ok := getImplementer(err).(ErrWithStatusCode); ok {
+		return e.StatusCode()
+	}
 
 	var statusCode int
 
@@ -115,7 +118,59 @@ func FromStatusCode(err error, statusCode int) error {
 			err = errdefs.Unknown(err)
 		}
 	}
-	return err
+
+	return WithStatusCode(err, statusCode)
+}
+
+// ErrWithStatusCode is an error that provides the HTTP status-code
+type ErrWithStatusCode interface {
+	error
+	StatusCode() int
+}
+
+type errWithStatusCode struct {
+	error      error
+	statusCode int
+}
+
+func (e errWithStatusCode) StatusCode() int {
+	return e.statusCode
+}
+
+func (e errWithStatusCode) Cause() error {
+	return e.error
+}
+
+func (e errWithStatusCode) Error() string {
+	return e.error.Error()
+}
+
+// WithStatusCode is a helper to create an error with a HTTP-statuscode
+func WithStatusCode(err error, statusCode int) error {
+	if err == nil {
+		return nil
+	}
+	if IsWithStatusCode(err) {
+		return err
+	}
+	return errWithStatusCode{error: err, statusCode: statusCode}
+}
+
+// IsWithStatusCode returns if the passed in error is an ErrWithStatusCode error
+func IsWithStatusCode(err error) bool {
+	_, ok := getImplementer(err).(ErrWithStatusCode)
+	return ok
+}
+
+func getImplementer(err error) error {
+	switch e := err.(type) {
+	case ErrWithStatusCode:
+		return err
+	case causer:
+		return getImplementer(e.Cause())
+	default:
+		return err
+	}
 }
 
 func apiVersionSupportsJSONErrors(version string) bool {
