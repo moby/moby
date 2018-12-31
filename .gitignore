@@ -12,6 +12,7 @@ test.main
 .editorconfig
 .gopath/
 .go-pkg-cache/
+.idea/
 autogen/
 bundles/
 cmd/dockerd/dockerd
