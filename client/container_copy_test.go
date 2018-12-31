@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 func TestContainerStatPathError(t *testing.T) {
@@ -21,6 +22,9 @@ func TestContainerStatPathError(t *testing.T) {
 	_, err := client.ContainerStatPath(context.Background(), "container_id", "path")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 
@@ -102,6 +106,9 @@ func TestCopyToContainerError(t *testing.T) {
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
 	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
+	}
 }
 
 func TestCopyToContainerNotFoundError(t *testing.T) {
@@ -177,6 +184,9 @@ func TestCopyFromContainerError(t *testing.T) {
 	_, _, err := client.CopyFromContainer(context.Background(), "container_id", "path/to/file")
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server error, got %v", err)
+	}
+	if !errdefs.IsSystem(err) {
+		t.Fatalf("expected a Server Error, got %T", err)
 	}
 }
 
