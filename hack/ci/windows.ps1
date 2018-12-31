@@ -255,6 +255,20 @@ Try {
     Write-Host -ForegroundColor green "INFO: Environment variables:"
     Get-ChildItem Env: | Out-String
 
+     # REMOVE, trying to fix RS5 build servers without access to them
+     if ($env:COMPUTERNAME -eq "jenkins-rs5-1") {
+         Restart-Computer -Force
+		 # throw "Just save some time, this one is already fixed"
+     }
+     if ($env:COMPUTERNAME -eq "jenkins-rs5-2") {
+         Restart-Computer -Force
+         # throw "Just save some time, this one is already fixed"
+     }
+     if ($env:COMPUTERNAME -eq "jenkins-rs5-3") {
+         Restart-Computer -Force
+         # throw "Just save some time, this one is already fixed"
+     }
+
     # PR
     if (-not ($env:PR -eq $Null)) { echo "INFO: PR#$env:PR (https://github.com/docker/docker/pull/$env:PR)" }
 
