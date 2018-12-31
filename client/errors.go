@@ -35,7 +35,7 @@ func ErrorConnectionFailed(host string) error {
 
 type notFound interface {
 	error
-	NotFound() bool // Is the error a NotFound error
+	NotFound()
 }
 
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
@@ -52,9 +52,7 @@ type objectNotFoundError struct {
 	id     string
 }
 
-func (e objectNotFoundError) NotFound() bool {
-	return true
-}
+func (e objectNotFoundError) NotFound() {}
 
 func (e objectNotFoundError) Error() string {
 	return fmt.Sprintf("Error: No such %s: %s", e.object, e.id)
