@@ -265,8 +265,8 @@ Try {
          # throw "Just save some time, this one is already fixed"
      }
      if ($env:COMPUTERNAME -eq "jenkins-rs5-3") {
-         Restart-Computer -Force
-         # throw "Just save some time, this one is already fixed"
+         # Restart-Computer -Force
+         throw "Just save some time, this one is already fixed"
      }
 
     # PR
