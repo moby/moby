@@ -76,6 +76,52 @@ func GetHTTPErrorStatusCode(err error) int {
 	return statusCode
 }
 
+// FromStatusCode creates an errdef error, based on the provided status-code
+func FromStatusCode(err error, statusCode int) error {
+	if err == nil {
+		return err
+	}
+	switch statusCode {
+	case http.StatusNotFound:
+		err = errdefs.NotFound(err)
+	case http.StatusBadRequest:
+		err = errdefs.InvalidParameter(err)
+	case http.StatusConflict:
+		err = errdefs.Conflict(err)
+	case http.StatusUnauthorized:
+		err = errdefs.Unauthorized(err)
+	case http.StatusServiceUnavailable:
+		err = errdefs.Unavailable(err)
+	case http.StatusForbidden:
+		err = errdefs.Forbidden(err)
+	case http.StatusNotModified:
+		err = errdefs.NotModified(err)
+	case http.StatusNotImplemented:
+		err = errdefs.NotImplemented(err)
+	case http.StatusInternalServerError:
+		if !errdefs.IsSystem(err) && !errdefs.IsUnknown(err) && !errdefs.IsDataLoss(err) && !errdefs.IsDeadline(err) && !errdefs.IsCancelled(err) {
+			err = errdefs.System(err)
+		}
+	default:
+		logrus.WithFields(logrus.Fields{
+			"module":      "api",
+			"status_code": fmt.Sprintf("%d", statusCode),
+		}).Debugf("FIXME: Got an status-code for which error does not match any expected type!!!: %d", statusCode)
+
+		switch {
+		case statusCode >= 200 && statusCode < 400:
+			// it's a client error
+		case statusCode >= 400 && statusCode < 500:
+			err = errdefs.InvalidParameter(err)
+		case statusCode >= 500 && statusCode < 600:
+			err = errdefs.System(err)
+		default:
+			err = errdefs.Unknown(err)
+		}
+	}
+	return err
+}
+
 func apiVersionSupportsJSONErrors(version string) bool {
 	const firstAPIVersionWithJSONErrors = "1.23"
 	return version == "" || versions.GreaterThan(version, firstAPIVersionWithJSONErrors)
