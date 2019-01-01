@@ -228,6 +228,14 @@ RUN `
   Remove-Item C:\containerd.tar.gz; `
   Remove-Item C:\containerd.tar;
 
+FROM base AS busybox
+ARG BUSYBOX_VERSION=FRP-3329-gcf0fa4d13
+ADD https://github.com/moby/busybox/releases/download/${BUSYBOX_VERSION}/busybox-w32-${BUSYBOX_VERSION}.exe /busybox/busybox.exe
+
+RUN `
+  Write-Host 'INFO: Setting up busybox symlinks ...'; `
+  C:\busybox\busybox.exe --list ^|ForEach-Object {$nul = cmd /c mklink C:\busybox\$_.exe busybox.exe}
+
 # The number of build steps below are explicitly minimised to improve performance.
 FROM base
 
@@ -243,8 +251,11 @@ RUN `
   Write-Host INFO: Configuring git core.autocrlf...; `
   C:\git\cmd\git config --global core.autocrlf true; `
   `
-  Write-Host 'Updating PATH ...'; `
-  $env:PATH = 'C:\gcc\bin;' + $env:PATH; `
+  Write-Host 'INFO: Creating temp folder for unit tests...'; `
+  cmd /c mklink /D C:\tmp %TEMP%; `
+  `
+  Write-Host 'INFO: Updating PATH ...'; `
+  $env:PATH = 'C:\busybox;C:\gcc\bin;' + $env:PATH; `
   [Environment]::SetEnvironmentVariable('PATH', $env:PATH, [EnvironmentVariableTarget]::Machine); `
   `
   Write-Host INFO: Completed;
@@ -290,8 +301,9 @@ ENTRYPOINT ["powershell.exe"]
 # Set the working directory to the location of the sources
 WORKDIR ${GOPATH}\src\github.com\docker\docker
 
-# Copy compiler
+# Copy compiler and busybox
 COPY --from=compiler C:\gcc C:\gcc
+COPY --from=busybox C:\busybox C:\busybox
 
 # Copy the sources into the container
 COPY . .
