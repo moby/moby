@@ -9,7 +9,6 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -168,12 +167,6 @@ func TestBuildMultiStageParentConfig(t *testing.T) {
 	_, err = io.Copy(ioutil.Discard, resp.Body)
 	resp.Body.Close()
 	assert.NilError(t, err)
-
-	time.Sleep(30 * time.Second)
-
-	imgs, err := apiclient.ImageList(ctx, types.ImageListOptions{})
-	assert.NilError(t, err)
-	t.Log(imgs)
 
 	image, _, err := apiclient.ImageInspectWithRaw(ctx, "build1")
 	assert.NilError(t, err)
