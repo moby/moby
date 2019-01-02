@@ -13,7 +13,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/go-connections/nat"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -22,6 +21,7 @@ import (
 )
 
 func TestNetworkNat(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
@@ -58,6 +58,7 @@ func TestNetworkLocalhostTCPNat(t *testing.T) {
 }
 
 func TestNetworkLoopbackNat(t *testing.T) {
+	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	skip.If(t, testEnv.IsRemoteDaemon())
 
 	defer setupTest(t)()
@@ -67,7 +68,7 @@ func TestNetworkLoopbackNat(t *testing.T) {
 
 	endpoint := getExternalAddress(t)
 
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", fmt.Sprintf("stty raw && nc -w 5 %s 8080", endpoint.String())), container.WithTty(true), container.WithNetworkMode("container:"+serverContainerID))
@@ -88,7 +89,8 @@ func TestNetworkLoopbackNat(t *testing.T) {
 }
 
 func startServerContainer(t *testing.T, msg string, port int) string {
-	client := request.NewAPIClient(t)
+	t.Helper()
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, container.WithName("server-"+t.Name()), container.WithCmd("sh", "-c", fmt.Sprintf("echo %q | nc -lp %d", msg, port)), container.WithExposedPorts(fmt.Sprintf("%d/tcp", port)), func(c *container.TestContainerConfig) {
@@ -107,7 +109,7 @@ func startServerContainer(t *testing.T, msg string, port int) string {
 }
 
 func getExternalAddress(t *testing.T) net.IP {
-	skip.If(t, testEnv.OSType == "windows", "FIXME")
+	t.Helper()
 	iface, err := net.InterfaceByName("eth0")
 	skip.If(t, err != nil, "Test not running with `make test-integration`. Interface eth0 not found: %s", err)
 

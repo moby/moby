@@ -28,7 +28,7 @@ func TestEventsExecDie(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME. Suspect may need to wait until container is running before exec")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	cID := container.Run(t, ctx, client)
 
@@ -78,7 +78,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "Windows doesn't support back-compat messages")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	since := request.DaemonTime(ctx, t, client, testEnv)
 	ts := strconv.FormatInt(since.Unix(), 10)
