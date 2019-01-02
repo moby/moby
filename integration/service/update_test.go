@@ -207,10 +207,13 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case service.UpdateStatus == nil || service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
+		case service.UpdateStatus != nil && service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
-			return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+			if service.UpdateStatus != nil {
+				return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+			}
+			return poll.Continue("waiting for service %s to be updated", serviceID)
 		}
 	}
 }
