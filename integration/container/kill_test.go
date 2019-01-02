@@ -17,7 +17,7 @@ import (
 
 func TestKillContainerInvalidSignal(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 	id := container.Run(t, ctx, client)
 
@@ -33,7 +33,7 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 func TestKillContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "TODO Windows: FIXME. No SIGWINCH")
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		doc    string
@@ -73,7 +73,7 @@ func TestKillContainer(t *testing.T) {
 func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		doc        string
@@ -114,7 +114,7 @@ func TestKillStoppedContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "Windows only supports 1.25 or later")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	id := container.Create(t, ctx, client)
 	err := client.ContainerKill(ctx, id, "SIGKILL")
 	assert.Assert(t, is.ErrorContains(err, ""))
@@ -154,7 +154,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
@@ -172,7 +172,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "echo hello world"))
 
