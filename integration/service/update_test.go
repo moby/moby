@@ -2,7 +2,9 @@ package service // import "github.com/docker/docker/integration/service"
 
 import (
 	"context"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
@@ -206,8 +208,13 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 		service, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 		switch {
 		case err != nil:
+			// there is possible problems on calling update node because redirecting node or leader might want to shut down
+			if strings.Contains(err.Error(), "update out of sequence") {
+				time.Sleep(100 * time.Millisecond)
+				return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+			}
 			return poll.Error(err)
-		case service.UpdateStatus == nil || service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
+		case service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
