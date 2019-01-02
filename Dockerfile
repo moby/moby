@@ -48,6 +48,9 @@ RUN apt-get update && apt-get install -y \
 	&& make \
 	&& make PREFIX=/build/ install-criu
 
+# Just save so time during debugging.
+RUN exit 1
+
 FROM base AS registry
 # Install two versions of the registry. The first is an older version that
 # only supports schema1 manifests. The second is a newer version that supports
