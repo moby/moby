@@ -22,7 +22,7 @@ func TestPause(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows" && testEnv.DaemonInfo.Isolation == "process")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)
@@ -54,7 +54,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "windows" || testEnv.DaemonInfo.Isolation != "process")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)
@@ -68,7 +68,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.31"), "broken in earlier versions")
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)

@@ -13,7 +13,6 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"
@@ -61,7 +60,7 @@ func testIpcNonePrivateShareable(t *testing.T, mode string, mustBeMounted bool, 
 	hostCfg := containertypes.HostConfig{
 		IpcMode: containertypes.IpcMode(mode),
 	}
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
@@ -132,7 +131,7 @@ func testIpcContainer(t *testing.T, donorMode string, mustWork bool) {
 		IpcMode: containertypes.IpcMode(donorMode),
 	}
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	// create and start the "donor" container
 	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
