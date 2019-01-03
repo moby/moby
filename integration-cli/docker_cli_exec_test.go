@@ -359,7 +359,7 @@ func (s *DockerSuite) TestExecInspectID(c *check.C) {
 	}
 
 	// But we should still be able to query the execID
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

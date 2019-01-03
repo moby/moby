@@ -177,7 +177,7 @@ func (s *DockerSuite) TestPostContainersAttach(c *check.C) {
 	expectTimeout(conn, br, "stdout")
 
 	// Test the client API
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer client.Close()
 

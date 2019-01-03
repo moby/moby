@@ -50,7 +50,7 @@ func xmain() (int, error) {
 	if *randSeed == int64(0) {
 		*randSeed = time.Now().UnixNano()
 	}
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return 1, err
 	}

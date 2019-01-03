@@ -29,7 +29,7 @@ func dryTestChunkExecutor() testChunkExecutor {
 // service via bind-mounted API socket so as to execute the test chunk
 func privilegedTestChunkExecutor(autoRemove bool) testChunkExecutor {
 	return func(image string, tests []string) (int64, string, error) {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		if err != nil {
 			return 0, "", err
 		}
