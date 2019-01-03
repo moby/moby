@@ -20,7 +20,6 @@ import (
 )
 
 func TestVolumesCreateAndList(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
@@ -76,7 +75,6 @@ func TestVolumesRemove(t *testing.T) {
 }
 
 func TestVolumesInspect(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
