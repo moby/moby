@@ -16,7 +16,7 @@ import (
 // Makes sure that when following we don't get an EOF error when there are no logs
 func TestLogsFollowTailEmpty(t *testing.T) {
 	// FIXME(vdemeester) fails on a e2e run on linux...
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()

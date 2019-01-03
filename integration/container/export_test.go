@@ -58,7 +58,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 // condition, daemon restart is needed after container creation.
 func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	d := daemon.New(t)
 	c := d.NewClientT(t)
