@@ -261,7 +261,7 @@ func daemonTime(c *check.C) time.Time {
 	if testEnv.IsLocalDaemon() {
 		return time.Now()
 	}
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, check.IsNil)
 	defer cli.Close()
 
@@ -373,7 +373,7 @@ func minimalBaseImage() string {
 }
 
 func getGoroutineNumber() (int, error) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return 0, err
 	}

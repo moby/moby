@@ -458,7 +458,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	cID := strings.TrimSpace(out)
 	c.Assert(waitRun(cID), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

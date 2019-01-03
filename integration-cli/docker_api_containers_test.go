@@ -43,7 +43,7 @@ func (s *DockerSuite) TestContainerAPIGetAll(c *check.C) {
 	name := "getall"
 	dockerCmd(c, "run", "--name", name, "busybox", "true")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -62,7 +62,7 @@ func (s *DockerSuite) TestContainerAPIGetJSONNoFieldsOmitted(c *check.C) {
 	startCount := getContainerCount(c)
 	dockerCmd(c, "run", "busybox", "true")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -111,7 +111,7 @@ func (s *DockerSuite) TestContainerAPIPsOmitFields(c *check.C) {
 	port := 80
 	runSleepingContainer(c, "--name", name, "--expose", strconv.Itoa(port))
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -143,7 +143,7 @@ func (s *DockerSuite) TestContainerAPIGetExport(c *check.C) {
 	name := "exportcontainer"
 	dockerCmd(c, "run", "--name", name, "busybox", "touch", "/test")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -170,7 +170,7 @@ func (s *DockerSuite) TestContainerAPIGetChanges(c *check.C) {
 	name := "changescontainer"
 	dockerCmd(c, "run", "--name", name, "busybox", "rm", "/etc/passwd")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -200,7 +200,7 @@ func (s *DockerSuite) TestGetContainerStats(c *check.C) {
 
 	bc := make(chan b, 1)
 	go func() {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		c.Assert(err, checker.IsNil)
 		defer cli.Close()
 
@@ -234,7 +234,7 @@ func (s *DockerSuite) TestGetContainerStatsRmRunning(c *check.C) {
 	buf := &ChannelBuffer{C: make(chan []byte, 1)}
 	defer buf.Close()
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -305,7 +305,7 @@ func (s *DockerSuite) TestGetContainerStatsStream(c *check.C) {
 
 	bc := make(chan b, 1)
 	go func() {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		c.Assert(err, checker.IsNil)
 		defer cli.Close()
 
@@ -347,7 +347,7 @@ func (s *DockerSuite) TestGetContainerStatsNoStream(c *check.C) {
 	bc := make(chan b, 1)
 
 	go func() {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		c.Assert(err, checker.IsNil)
 		defer cli.Close()
 
@@ -384,7 +384,7 @@ func (s *DockerSuite) TestGetStoppedContainerStats(c *check.C) {
 	// We expect an immediate response, but if it's not immediate, the test would hang, so put it in a goroutine
 	// below we'll check this on a timeout.
 	go func() {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		c.Assert(err, checker.IsNil)
 		defer cli.Close()
 
@@ -412,7 +412,7 @@ func (s *DockerSuite) TestContainerAPIPause(c *check.C) {
 	out := cli.DockerCmd(c, "run", "-d", "busybox", "sleep", "30").Combined()
 	ContainerID := strings.TrimSpace(out)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -438,7 +438,7 @@ func (s *DockerSuite) TestContainerAPITop(c *check.C) {
 	id := strings.TrimSpace(string(out))
 	c.Assert(waitRun(id), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -461,7 +461,7 @@ func (s *DockerSuite) TestContainerAPITopWindows(c *check.C) {
 	id := strings.TrimSpace(string(out))
 	c.Assert(waitRun(id), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -490,7 +490,7 @@ func (s *DockerSuite) TestContainerAPICommit(c *check.C) {
 	cName := "testapicommit"
 	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -512,7 +512,7 @@ func (s *DockerSuite) TestContainerAPICommitWithLabelInConfig(c *check.C) {
 	cName := "testapicommitwithconfig"
 	dockerCmd(c, "run", "--name="+cName, "busybox", "/bin/sh", "-c", "touch /test")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -559,7 +559,7 @@ func (s *DockerSuite) TestContainerAPIBadPort(c *check.C) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -573,7 +573,7 @@ func (s *DockerSuite) TestContainerAPICreate(c *check.C) {
 		Cmd:   []string{"/bin/sh", "-c", "touch /test && ls /test"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -586,7 +586,7 @@ func (s *DockerSuite) TestContainerAPICreate(c *check.C) {
 
 func (s *DockerSuite) TestContainerAPICreateEmptyConfig(c *check.C) {
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -610,7 +610,7 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *check.C) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -632,7 +632,7 @@ func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
 		Domainname: domainName,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -668,7 +668,7 @@ func UtilCreateNetworkMode(c *check.C, networkMode containertypes.NetworkMode) {
 		NetworkMode: networkMode,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -695,7 +695,7 @@ func (s *DockerSuite) TestContainerAPICreateWithCpuSharesCpuset(c *check.C) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -943,7 +943,7 @@ func (s *DockerSuite) TestContainerAPIRename(c *check.C) {
 	containerID := strings.TrimSpace(out)
 	newName := "TestContainerAPIRenameNew"
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -958,7 +958,7 @@ func (s *DockerSuite) TestContainerAPIKill(c *check.C) {
 	name := "test-api-kill"
 	runSleepingContainer(c, "-i", "--name", name)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -972,7 +972,7 @@ func (s *DockerSuite) TestContainerAPIKill(c *check.C) {
 func (s *DockerSuite) TestContainerAPIRestart(c *check.C) {
 	name := "test-api-restart"
 	runSleepingContainer(c, "-di", "--name", name)
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -989,7 +989,7 @@ func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1007,7 +1007,7 @@ func (s *DockerSuite) TestContainerAPIStart(c *check.C) {
 		OpenStdin: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1030,7 +1030,7 @@ func (s *DockerSuite) TestContainerAPIStop(c *check.C) {
 	runSleepingContainer(c, "-i", "--name", name)
 	timeout := 30 * time.Second
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1053,7 +1053,7 @@ func (s *DockerSuite) TestContainerAPIWait(c *check.C) {
 	}
 	dockerCmd(c, "run", "--name", name, "busybox", sleepCmd, "2")
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1171,7 +1171,7 @@ func (s *DockerSuite) TestContainerAPIDelete(c *check.C) {
 
 	dockerCmd(c, "stop", id)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1180,7 +1180,7 @@ func (s *DockerSuite) TestContainerAPIDelete(c *check.C) {
 }
 
 func (s *DockerSuite) TestContainerAPIDeleteNotExist(c *check.C) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1197,7 +1197,7 @@ func (s *DockerSuite) TestContainerAPIDeleteForce(c *check.C) {
 		Force: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1225,7 +1225,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveLinks(c *check.C) {
 		RemoveLinks: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1242,7 +1242,7 @@ func (s *DockerSuite) TestContainerAPIDeleteConflict(c *check.C) {
 	id := strings.TrimSpace(out)
 	c.Assert(waitRun(id), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1274,7 +1274,7 @@ func (s *DockerSuite) TestContainerAPIDeleteRemoveVolume(c *check.C) {
 		RemoveVolumes: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1312,7 +1312,7 @@ func (s *DockerSuite) TestContainerAPIPostContainerStop(c *check.C) {
 	containerID := strings.TrimSpace(out)
 	c.Assert(waitRun(containerID), checker.IsNil)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1329,7 +1329,7 @@ func (s *DockerSuite) TestPostContainerAPICreateWithStringOrSliceEntrypoint(c *c
 		Cmd:        []string{"hello", "world"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1356,7 +1356,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCmd(c *check.C) {
 		Cmd:   []string{"echo", "hello", "world"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1397,7 +1397,7 @@ func (s *DockerSuite) TestPostContainersCreateWithStringOrSliceCapAddDrop(c *che
 		CapDrop: []string{"SETGID"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1453,7 +1453,7 @@ func (s *DockerSuite) TestPostContainersCreateWithWrongCpusetValues(c *check.C) 
 	// Not supported on Windows
 	testRequires(c, DaemonIsLinux)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1492,7 +1492,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeNegative(c *check.C) {
 		ShmSize: -1,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1509,7 +1509,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeHostConfigOmitted(c *check.
 		Cmd:   []string{"mount"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1536,7 +1536,7 @@ func (s *DockerSuite) TestPostContainersCreateShmSizeOmitted(c *check.C) {
 		Cmd:   []string{"mount"},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1567,7 +1567,7 @@ func (s *DockerSuite) TestPostContainersCreateWithShmSize(c *check.C) {
 		ShmSize: 1073741824,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1593,7 +1593,7 @@ func (s *DockerSuite) TestPostContainersCreateMemorySwappinessHostConfigOmitted(
 		Image: "busybox",
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1623,7 +1623,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 		OomScoreAdj: 1001,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1646,7 +1646,7 @@ func (s *DockerSuite) TestPostContainersCreateWithOomScoreAdjInvalidRange(c *che
 
 // test case for #22210 where an empty container name caused panic.
 func (s *DockerSuite) TestContainerAPIDeleteWithEmptyName(c *check.C) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1666,7 +1666,7 @@ func (s *DockerSuite) TestContainerAPIStatsWithNetworkDisabled(c *check.C) {
 		NetworkDisabled: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1884,7 +1884,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsValidation(c *check.C) {
 		}...)
 
 	}
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -1918,7 +1918,7 @@ func (s *DockerSuite) TestContainerAPICreateMountsBindRead(c *check.C) {
 			{Type: "bind", Source: tmpDir, Target: destPath},
 		},
 	}
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -2169,7 +2169,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsTmpfs(c *check.C) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

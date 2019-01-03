@@ -552,7 +552,7 @@ func (d *Daemon) LoadBusybox(t assert.TestingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	clientHost, err := client.NewEnvClient()
+	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
 

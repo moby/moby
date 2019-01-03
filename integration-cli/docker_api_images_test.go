@@ -20,7 +20,7 @@ import (
 )
 
 func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -88,7 +88,7 @@ func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -112,7 +112,7 @@ func (s *DockerSuite) TestAPIImagesDelete(c *check.C) {
 }
 
 func (s *DockerSuite) TestAPIImagesHistory(c *check.C) {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

@@ -600,7 +600,7 @@ func (s *DockerSuite) TestDuplicateMountpointsForVolumesFromAndMounts(c *check.C
 	err := os.MkdirAll("/tmp/data", 0755)
 	c.Assert(err, checker.IsNil)
 	// Mounts is available in API
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
