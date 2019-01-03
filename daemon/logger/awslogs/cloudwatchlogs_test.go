@@ -1498,10 +1498,9 @@ func TestValidateLogOptionsForceFlushIntervalSeconds(t *testing.T) {
 			err := ValidateLogOpt(cfg)
 			if tc.shouldErr {
 				expectedErr := "must specify a positive integer for log opt 'awslogs-force-flush-interval-seconds': " + tc.input
-				assert.Check(t, err != nil, "Expected an error")
-				assert.Check(t, is.Equal(err.Error(), expectedErr), "Received invalid error")
+				assert.Error(t, err, expectedErr)
 			} else {
-				assert.Check(t, err == nil, "Unexpected error")
+				assert.NilError(t, err)
 			}
 		})
 	}
@@ -1528,10 +1527,9 @@ func TestValidateLogOptionsMaxBufferedEvents(t *testing.T) {
 			err := ValidateLogOpt(cfg)
 			if tc.shouldErr {
 				expectedErr := "must specify a positive integer for log opt 'awslogs-max-buffered-events': " + tc.input
-				assert.Check(t, err != nil, "Expected an error")
-				assert.Check(t, is.Equal(err.Error(), expectedErr), "Received invalid error")
+				assert.Error(t, err, expectedErr)
 			} else {
-				assert.Check(t, err == nil, "Unexpected error")
+				assert.NilError(t, err)
 			}
 		})
 	}
