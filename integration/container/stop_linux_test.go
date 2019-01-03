@@ -72,7 +72,7 @@ func TestStopContainerWithTimeout(t *testing.T) {
 
 func TestDeleteDevicemapper(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.Driver != "devicemapper")
-	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 	client := testEnv.APIClient()
