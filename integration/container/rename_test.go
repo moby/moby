@@ -165,7 +165,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 
 	inspect, err := client.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(0, inspect.State.ExitCode), "container %s exited with the wrong exitcode: %+v", cID, inspect)
+	assert.Check(t, is.Equal(0, inspect.State.ExitCode), "container %s exited with the wrong exitcode: %s", cID, inspect.State.Error)
 }
 
 // TODO: should be a unit test
