@@ -190,7 +190,7 @@ func TestRenameContainerWithSameName(t *testing.T) {
 // of the linked container should be updated so that the other
 // container could still reference to the container that is renamed.
 func TestRenameContainerWithLinkedContainer(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
