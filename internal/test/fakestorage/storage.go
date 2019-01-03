@@ -66,7 +66,7 @@ func New(t testingT, dir string, modifiers ...func(*fakecontext.Fake) error) Fak
 	ctx := fakecontext.New(t, dir, modifiers...)
 	switch {
 	case testEnv.IsRemoteDaemon() && strings.HasPrefix(request.DaemonHost(), "unix:///"):
-		t.Skip(fmt.Sprintf("e2e run : daemon is remote but docker host points to a unix socket"))
+		t.Skip("e2e run : daemon is remote but docker host points to a unix socket")
 	case testEnv.IsLocalDaemon():
 		return newLocalFakeStorage(ctx)
 	default:
