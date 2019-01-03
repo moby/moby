@@ -20,7 +20,7 @@ import (
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 
@@ -80,7 +80,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 }
 
 func TestMountDaemonRoot(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 	client := testEnv.APIClient()
