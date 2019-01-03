@@ -7,8 +7,8 @@ import (
 )
 
 var (
+	mutex        sync.RWMutex
 	vxlanUDPPort uint32
-	mutex        sync.Mutex
 )
 
 const defaultVXLANUDPPort = 4789
@@ -19,8 +19,6 @@ func init() {
 
 // ConfigVXLANUDPPort configures vxlan udp port number.
 func ConfigVXLANUDPPort(vxlanPort uint32) error {
-	mutex.Lock()
-	defer mutex.Unlock()
 	// if the value comes as 0 by any reason we set it to default value 4789
 	if vxlanPort == 0 {
 		vxlanPort = defaultVXLANUDPPort
@@ -33,14 +31,15 @@ func ConfigVXLANUDPPort(vxlanPort uint32) error {
 	if vxlanPort < 1024 || vxlanPort > 49151 {
 		return fmt.Errorf("ConfigVxlanUDPPort Vxlan UDP port number is not in valid range %d", vxlanPort)
 	}
+	mutex.Lock()
 	vxlanUDPPort = vxlanPort
-
+	mutex.Unlock()
 	return nil
 }
 
 // VXLANUDPPort returns Vxlan UDP port number
 func VXLANUDPPort() uint32 {
-	mutex.Lock()
-	defer mutex.Unlock()
+	mutex.RLock()
+	defer mutex.RUnlock()
 	return vxlanUDPPort
 }
