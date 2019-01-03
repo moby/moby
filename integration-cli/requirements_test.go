@@ -49,7 +49,7 @@ func MinimumAPIVersion(version string) func() bool {
 }
 
 func OnlyDefaultNetworks() bool {
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return false
 	}

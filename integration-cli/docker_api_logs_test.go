@@ -59,7 +59,7 @@ func (s *DockerSuite) TestLogsAPIWithStdout(c *check.C) {
 func (s *DockerSuite) TestLogsAPINoStdoutNorStderr(c *check.C) {
 	name := "logs_test"
 	dockerCmd(c, "run", "-d", "-t", "--name", name, "busybox", "/bin/sh")
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -102,7 +102,7 @@ func (s *DockerSuite) TestLogsAPIUntilFutureFollow(c *check.C) {
 	c.Assert(err, checker.IsNil)
 	until := daemonTime(c).Add(untilDur)
 
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -153,7 +153,7 @@ func (s *DockerSuite) TestLogsAPIUntil(c *check.C) {
 	name := "logsuntil"
 	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; sleep 1; done")
 
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
@@ -190,7 +190,7 @@ func (s *DockerSuite) TestLogsAPIUntilDefaultValue(c *check.C) {
 	name := "logsuntildefaultval"
 	dockerCmd(c, "run", "--name", name, "busybox", "/bin/sh", "-c", "for i in $(seq 1 3); do echo log$i; done")
 
-	client, err := client.NewEnvClient()
+	client, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		c.Fatal(err)
 	}
