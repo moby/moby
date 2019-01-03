@@ -27,7 +27,7 @@ func delInterface(t *testing.T, ifName string) {
 
 func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	d := daemon.New(t)
 	defer d.Stop(t)
@@ -50,7 +50,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 func TestDaemonDefaultNetworkPools(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
 	delInterface(t, defaultNetworkBridge)
@@ -92,7 +92,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
@@ -125,7 +125,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
@@ -175,7 +175,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)

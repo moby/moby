@@ -20,7 +20,7 @@ import (
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
 
 	d := daemon.New(t, daemon.WithExperimental)
@@ -48,7 +48,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 
 func TestDockerNetworkIpvlan(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
 
 	for _, tc := range []struct {
