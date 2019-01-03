@@ -25,7 +25,7 @@ import (
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
-	t.Parallel()
+
 	cases := []struct {
 		name                           string
 		dockerfile                     string

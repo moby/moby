@@ -67,8 +67,6 @@ func TestUpdateMemory(t *testing.T) {
 }
 
 func TestUpdateCPUQuota(t *testing.T) {
-	t.Parallel()
-
 	defer setupTest(t)()
 	client := request.NewAPIClient(t)
 	ctx := context.Background()
