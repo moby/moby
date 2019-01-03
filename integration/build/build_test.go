@@ -467,6 +467,61 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 	assert.Check(t, is.Contains(out.String(), "Successfully built"))
 }
 
+func TestBuildWithEmptyDockerfile(t *testing.T) {
+	ctx := context.TODO()
+	defer setupTest(t)()
+
+	tests := []struct {
+		name        string
+		dockerfile  string
+		expectedErr string
+	}{
+		{
+			name:        "empty-dockerfile",
+			dockerfile:  "",
+			expectedErr: "cannot be empty",
+		},
+		{
+			name: "empty-lines-dockerfile",
+			dockerfile: `
+			
+			
+			
+			`,
+			expectedErr: "file with no instructions",
+		},
+		{
+			name:        "comment-only-dockerfile",
+			dockerfile:  `# this is a comment`,
+			expectedErr: "file with no instructions",
+		},
+	}
+
+	apiclient := testEnv.APIClient()
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			buf := bytes.NewBuffer(nil)
+			w := tar.NewWriter(buf)
+			writeTarRecord(t, w, "Dockerfile", tc.dockerfile)
+			err := w.Close()
+			assert.NilError(t, err)
+
+			_, err = apiclient.ImageBuild(ctx,
+				buf,
+				types.ImageBuildOptions{
+					Remove:      true,
+					ForceRemove: true,
+				})
+
+			assert.Check(t, is.Contains(err.Error(), tc.expectedErr))
+		})
+	}
+}
+
 func writeTarRecord(t *testing.T, w *tar.Writer, fn, contents string) {
 	err := w.WriteHeader(&tar.Header{
 		Name:     fn,
