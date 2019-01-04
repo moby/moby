@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
@@ -154,6 +155,9 @@ func TestServiceUpdateConfigs(t *testing.T) {
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
+
+	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+
 	service := getService(t, cli, serviceID)
 
 	// add config
@@ -201,6 +205,15 @@ func getService(t *testing.T, cli client.ServiceAPIClient, serviceID string) swa
 	return service
 }
 
+func getServiceUpToDateTasks(client client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
+	taskFilter := filters.NewArgs()
+	taskFilter.Add("service", serviceID)
+	taskFilter.Add("_up-to-date", "true")
+
+	tasks, _ := client.TaskList(context.Background(), types.TaskListOptions{Filters: taskFilter})
+	return tasks
+}
+
 func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
 		service, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
@@ -210,10 +223,12 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 		case service.UpdateStatus != nil && service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
+			tasks := getServiceUpToDateTasks(client, serviceID)
+
 			if service.UpdateStatus != nil {
-				return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+				return poll.Continue("waiting for service %s to be updated, state: %s, message: %s task-count: %d", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message, len(tasks))
 			}
-			return poll.Continue("waiting for service %s to be updated", serviceID)
+			return poll.Continue("waiting for service %s to be updated, task-count: %d", serviceID, len(tasks))
 		}
 	}
 }
