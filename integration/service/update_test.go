@@ -26,6 +26,8 @@ func TestServiceUpdateLabel(t *testing.T) {
 	ctx := context.Background()
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
+	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+
 	service := getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{}))
 
@@ -93,6 +95,7 @@ func TestServiceUpdateSecrets(t *testing.T) {
 
 	serviceName := "TestService_" + t.Name()
 	serviceID := swarm.CreateService(t, d, swarm.ServiceWithName(serviceName))
+	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
 	service := getService(t, cli, serviceID)
 
 	// add secret
@@ -220,7 +223,7 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case service.UpdateStatus != nil && service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
+		case service.UpdateStatus == nil || service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
 			tasks := getServiceUpToDateTasks(client, serviceID)
