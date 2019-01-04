@@ -27,6 +27,7 @@ func TestParseRelease(t *testing.T) {
 	assertParseRelease(t, "3.4.54.longterm-1", &VersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: ".longterm-1"}, 0)
 	assertParseRelease(t, "3.4.54.longterm-1", &VersionInfo{Kernel: 3, Major: 4, Minor: 54, Flavor: ".longterm-1"}, 0)
 	assertParseRelease(t, "3.8.0-19-generic", &VersionInfo{Kernel: 3, Major: 8, Minor: 0, Flavor: "-19-generic"}, 0)
+	assertParseRelease(t, "3.10.0-862.2.3.el7.x86_64", &VersionInfo{Kernel: 3, Major: 10, Minor: 0, Flavor: "-862.2.3.el7.x86_64"}, 0)
 	assertParseRelease(t, "3.12.8tag", &VersionInfo{Kernel: 3, Major: 12, Minor: 8, Flavor: "tag"}, 0)
 	assertParseRelease(t, "3.12-1-amd64", &VersionInfo{Kernel: 3, Major: 12, Minor: 0, Flavor: "-1-amd64"}, 0)
 	assertParseRelease(t, "3.8.0", &VersionInfo{Kernel: 4, Major: 8, Minor: 0}, -1)
