@@ -1,13 +1,18 @@
 package archive // import "github.com/docker/docker/pkg/archive"
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"syscall"
 	"testing"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/docker/pkg/system"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	"gotest.tools/skip"
@@ -24,6 +29,7 @@ import (
 //     └── f1 # whiteout, 0644
 func setupOverlayTestDir(t *testing.T, src string) {
 	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns (trusted.overlay.opaque xattr cannot be set in userns, even with Ubuntu kernel)")
 	// Create opaque directory containing single file and permission 0700
 	err := os.Mkdir(filepath.Join(src, "d1"), 0700)
 	assert.NilError(t, err)
@@ -159,4 +165,130 @@ func TestOverlayTarAUFSUntar(t *testing.T) {
 	checkFileMode(t, filepath.Join(dst, "d1", "f1"), 0600)
 	checkFileMode(t, filepath.Join(dst, "d2", "f1"), 0660)
 	checkFileMode(t, filepath.Join(dst, "d3", WhiteoutPrefix+"f1"), 0600)
+}
+
+func unshareCmd(cmd *exec.Cmd) {
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Cloneflags: syscall.CLONE_NEWUSER | syscall.CLONE_NEWNS,
+		UidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Geteuid(),
+				Size:        1,
+			},
+		},
+		GidMappings: []syscall.SysProcIDMap{
+			{
+				ContainerID: 0,
+				HostID:      os.Getegid(),
+				Size:        1,
+			},
+		},
+	}
+}
+
+const (
+	reexecSupportsUserNSOverlay = "docker-test-supports-userns-overlay"
+	reexecMknodChar0            = "docker-test-userns-mknod-char0"
+	reexecSetOpaque             = "docker-test-userns-set-opaque"
+)
+
+func supportsOverlay(dir string) error {
+	lower := filepath.Join(dir, "l")
+	upper := filepath.Join(dir, "u")
+	work := filepath.Join(dir, "w")
+	merged := filepath.Join(dir, "m")
+	for _, s := range []string{lower, upper, work, merged} {
+		if err := os.MkdirAll(s, 0700); err != nil {
+			return err
+		}
+	}
+	mOpts := fmt.Sprintf("lowerdir=%s,upperdir=%s,workdir=%s", lower, upper, work)
+	if err := syscall.Mount("overlay", merged, "overlay", uintptr(0), mOpts); err != nil {
+		return errors.Wrapf(err, "failed to mount overlay (%s) on %s", mOpts, merged)
+	}
+	if err := syscall.Unmount(merged, 0); err != nil {
+		return errors.Wrapf(err, "failed to unmount %s", merged)
+	}
+	return nil
+}
+
+// supportsUserNSOverlay returns nil error if overlay is supported in userns.
+// Only Ubuntu and a few distros support overlay in userns (by patching the kernel).
+// https://lists.ubuntu.com/archives/kernel-team/2014-February/038091.html
+// As of kernel 4.19, the patch is not merged to the upstream.
+func supportsUserNSOverlay() error {
+	tmp, err := ioutil.TempDir("", "docker-test-supports-userns-overlay")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tmp)
+	cmd := reexec.Command(reexecSupportsUserNSOverlay, tmp)
+	unshareCmd(cmd)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		return errors.Wrapf(err, "output: %q", string(out))
+	}
+	return nil
+}
+
+// isOpaque returns nil error if the dir has trusted.overlay.opaque=y.
+// isOpaque needs to be called in the initial userns.
+func isOpaque(dir string) error {
+	xattrOpaque, err := system.Lgetxattr(dir, "trusted.overlay.opaque")
+	if err != nil {
+		return errors.Wrapf(err, "failed to read opaque flag of %s", dir)
+	}
+	if string(xattrOpaque) != "y" {
+		return errors.Errorf("expected \"y\", got %q", string(xattrOpaque))
+	}
+	return nil
+}
+
+func TestReexecUserNSOverlayWhiteoutConverter(t *testing.T) {
+	skip.If(t, os.Getuid() != 0, "skipping test that requires root")
+	skip.If(t, rsystem.RunningInUserNS(), "skipping test that requires initial userns")
+	if err := supportsUserNSOverlay(); err != nil {
+		t.Skipf("skipping test that requires kernel support for overlay-in-userns: %v", err)
+	}
+	tmp, err := ioutil.TempDir("", "docker-test-userns-overlay")
+	assert.NilError(t, err)
+	defer os.RemoveAll(tmp)
+
+	char0 := filepath.Join(tmp, "char0")
+	cmd := reexec.Command(reexecMknodChar0, char0)
+	unshareCmd(cmd)
+	out, err := cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
+	assert.NilError(t, isChar0(char0))
+
+	opaqueDir := filepath.Join(tmp, "opaquedir")
+	err = os.MkdirAll(opaqueDir, 0755)
+	assert.NilError(t, err, string(out))
+	cmd = reexec.Command(reexecSetOpaque, opaqueDir)
+	unshareCmd(cmd)
+	out, err = cmd.CombinedOutput()
+	assert.NilError(t, err, string(out))
+	assert.NilError(t, isOpaque(opaqueDir))
+}
+
+func init() {
+	reexec.Register(reexecSupportsUserNSOverlay, func() {
+		if err := supportsOverlay(os.Args[1]); err != nil {
+			panic(err)
+		}
+	})
+	reexec.Register(reexecMknodChar0, func() {
+		if err := mknodChar0Overlay(os.Args[1]); err != nil {
+			panic(err)
+		}
+	})
+	reexec.Register(reexecSetOpaque, func() {
+		if err := replaceDirWithOverlayOpaque(os.Args[1]); err != nil {
+			panic(err)
+		}
+	})
+	if reexec.Init() {
+		os.Exit(0)
+	}
 }
