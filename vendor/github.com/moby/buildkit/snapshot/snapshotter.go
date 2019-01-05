@@ -96,7 +96,7 @@ func (cs *containerdSnapshotter) release() error {
 	defer cs.mu.Unlock()
 	var err error
 	for _, f := range cs.releasers {
-		if err1 := f(); err != nil && err == nil {
+		if err1 := f(); err1 != nil && err == nil {
 			err = err1
 		}
 	}

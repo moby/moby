@@ -108,6 +108,9 @@ type Mount struct {
 	CacheID      string
 	CacheSharing string
 	Required     bool
+	Mode         *uint64
+	UID          *uint64
+	GID          *uint64
 }
 
 func parseMount(value string) (*Mount, error) {
@@ -180,9 +183,41 @@ func parseMount(value string) (*Mount, error) {
 				return nil, errors.Errorf("unsupported sharing value %q", value)
 			}
 			m.CacheSharing = strings.ToLower(value)
+		case "mode":
+			mode, err := strconv.ParseUint(value, 8, 32)
+			if err != nil {
+				return nil, errors.Errorf("invalid value %s for mode", value)
+			}
+			m.Mode = &mode
+		case "uid":
+			uid, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, errors.Errorf("invalid value %s for uid", value)
+			}
+			m.UID = &uid
+		case "gid":
+			gid, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return nil, errors.Errorf("invalid value %s for gid", value)
+			}
+			m.GID = &gid
 		default:
 			return nil, errors.Errorf("unexpected key '%s' in '%s'", key, field)
 		}
+	}
+
+	fileInfoAllowed := m.Type == MountTypeSecret || m.Type == MountTypeSSH
+
+	if m.Mode != nil && !fileInfoAllowed {
+		return nil, errors.Errorf("mode not allowed for %q type mounts")
+	}
+
+	if m.UID != nil && !fileInfoAllowed {
+		return nil, errors.Errorf("uid not allowed for %q type mounts")
+	}
+
+	if m.GID != nil && !fileInfoAllowed {
+		return nil, errors.Errorf("gid not allowed for %q type mounts")
 	}
 
 	if roAuto {

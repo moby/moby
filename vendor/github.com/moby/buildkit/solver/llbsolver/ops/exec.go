@@ -331,7 +331,7 @@ func (sm *sshMountInstance) Mount() ([]mount.Mount, error) {
 		ID:   sm.sm.mount.SSHOpt.ID,
 		UID:  int(sm.sm.mount.SSHOpt.Uid),
 		GID:  int(sm.sm.mount.SSHOpt.Gid),
-		Mode: int(sm.sm.mount.SSHOpt.Mode),
+		Mode: int(sm.sm.mount.SSHOpt.Mode & 0777),
 	})
 	if err != nil {
 		cancel()
@@ -447,7 +447,7 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, error) {
 		return nil, err
 	}
 
-	if err := os.Chmod(fp, os.FileMode(sm.sm.mount.SecretOpt.Mode)); err != nil {
+	if err := os.Chmod(fp, os.FileMode(sm.sm.mount.SecretOpt.Mode&0777)); err != nil {
 		return nil, err
 	}
 
