@@ -21,7 +21,7 @@ integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 
 run_test_integration() {
 	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
-	run_test_integration_legacy_suites
+	[[ "$TESTFLAGS" == *-check.f* ]] && run_test_integration_legacy_suites
 }
 
 run_test_integration_suites() {

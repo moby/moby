@@ -1,0 +1,143 @@
+version: 2
+jobs:
+  validate:
+    docker:
+      # Go version must be consistent with 'Dockerfile' and Dockerfile.windows'
+      - image: circleci/golang:1.11.4
+    working_directory: /go/src/github.com/docker/docker
+
+    steps:
+      - checkout
+
+      - run:
+          name: Install packages
+          command: >
+            sudo apt-get update &&
+            sudo apt-get install -y btrfs-progs libdevmapper-dev libudev-dev libudev-dev libseccomp-dev libsystemd-dev
+
+      - run:
+          name: Install gometalinter
+          command: hack/dockerfile/install/install.sh gometalinter
+          environment:
+            PREFIX: /go/bin
+
+      - run:
+          name: Install swagger
+          command: >
+            wget https://github.com/go-swagger/go-swagger/releases/download/0.7.4/swagger_linux_amd64
+            -o /go/bin/swagger && chmod a+x /go/bin/swagger
+
+      - run:
+          name: validate
+          command: hack/validate/default
+
+      - run:
+          name: Install vndr
+          command: go get github.com/LK4D4/vndr
+
+      - run:
+          name: vendor
+          command: hack/validate/vendor
+
+  test-integration:
+    machine: true
+
+    steps:
+      - checkout
+
+      - run:
+          name: Build docker image
+          command: make build
+
+      - run:
+          name: Run integration tests
+          command: make test-integration
+          environment:
+            TESTFLAGS: '*'
+
+  test-integration-cli-1:
+    machine: true
+
+    steps:
+      - checkout
+
+      - run:
+          name: Build docker image and dynbinary
+          command: make dynbinary
+
+      - run:
+          name: Run integration tests - DockerSuite
+          command: make test-integration
+          environment:
+            TESTFLAGS: '-check.f DockerSuite'
+
+  test-integration-cli-2:
+    machine: true
+
+    steps:
+      - checkout
+
+      - run:
+          name: Build docker image and dynbinary
+          command: make dynbinary
+
+      - run:
+          name: Run integration tests - DockerSwarmSuite
+          command: make test-integration
+          environment:
+            TESTFLAGS: '-check.f DockerSwarmSuite'
+
+  test-integration-cli-3:
+    machine: true
+
+    steps:
+      - checkout
+
+        # Using command line tools to find tests suites because
+        # golang does not support negative lookahead on regex
+        #
+        # Using BASH_ENV to share TESTFLAGS for integration tests step
+        # https://circleci.com/docs/2.0/env-vars/#using-bash_env-to-set-environment-variables
+      - run:
+          name: Get test suites
+          command: >
+            TESTSUITES=$(grep -R "check.Suite(&" integration-cli/* | 
+             awk -F'[&|{]' '{print $2}' |
+             grep -v -e "DockerSuite" -e "DockerSwarmSuite" |
+             tr '\n' '|') &&
+             echo "Found test suites ${TESTSUITES::-1}" &&
+             echo "export TESTFLAGS='-check.f ${TESTSUITES::-1}'" >> $BASH_ENV
+
+      - run:
+          name: Build docker image and dynbinary
+          command: make dynbinary
+
+      - run:
+          name: Run unit tests
+          command: make BIND_DIR=. test-unit
+
+      - run:
+          name: Codecov
+          command: bash <(curl -s https://codecov.io/bash) -f coverage.txt -C "$CIRCLE_SHA1" -Z
+
+      - run:
+          name: Run integration tests - rest of them
+          command: make test-integration
+
+workflows:
+  version: 2
+  ci:
+    jobs:
+      - validate
+      - test-integration:
+          requires:
+            - validate
+      - test-integration-cli-1:
+          requires:
+            - validate
+      - test-integration-cli-2:
+          requires:
+            - validate
+      - test-integration-cli-3:
+          requires:
+            - validate

@@ -159,7 +159,7 @@ FROM microsoft/windowsservercore
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop'; $ProgressPreference = 'SilentlyContinue';"]
 
 # Environment variable notes:
-#  - GO_VERSION must be consistent with 'Dockerfile' used by Linux.
+#  - GO_VERSION must be consistent with 'Dockerfile' used by Linux and with '.circleci/config.yml'
 #  - FROM_DOCKERFILE is used for detection of building within a container.
 ENV GO_VERSION=1.11.4 `
     GIT_VERSION=2.11.1 `

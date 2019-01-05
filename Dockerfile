@@ -24,6 +24,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
+# Go version must be consistent with 'Dockerfile.windows' and '.circleci/config.yml'
 FROM golang:1.11.4 AS base
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -198,6 +199,7 @@ RUN apt-get update && apt-get install -y \
 	python-setuptools \
 	python-websocket \
 	python-wheel \
+	systemd \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
