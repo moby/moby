@@ -59,7 +59,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err)
 	defer cli.Close()
 

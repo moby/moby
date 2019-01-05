@@ -16,7 +16,7 @@ import (
 	"gotest.tools/skip"
 )
 
-func TestNewEnvClient(t *testing.T) {
+func TestNewClientWithOpsFromEnv(t *testing.T) {
 	skip.If(t, runtime.GOOS == "windows")
 
 	testcases := []struct {
@@ -86,7 +86,7 @@ func TestNewEnvClient(t *testing.T) {
 	defer env.PatchAll(t, nil)()
 	for _, c := range testcases {
 		env.PatchAll(t, c.envs)
-		apiclient, err := NewEnvClient()
+		apiclient, err := NewClientWithOpts(FromEnv)
 		if c.expectedError != "" {
 			assert.Check(t, is.Error(err, c.expectedError), c.doc)
 		} else {
@@ -167,7 +167,7 @@ func TestParseHostURL(t *testing.T) {
 	}
 }
 
-func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
+func TestNewClientWithOpsFromEnvSetsDefaultVersion(t *testing.T) {
 	defer env.PatchAll(t, map[string]string{
 		"DOCKER_HOST":        "",
 		"DOCKER_API_VERSION": "",
@@ -175,7 +175,7 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 		"DOCKER_CERT_PATH":   "",
 	})()
 
-	client, err := NewEnvClient()
+	client, err := NewClientWithOpts(FromEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,7 +183,7 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 
 	expected := "1.22"
 	os.Setenv("DOCKER_API_VERSION", expected)
-	client, err = NewEnvClient()
+	client, err = NewClientWithOpts(FromEnv)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -195,7 +195,7 @@ func TestNewEnvClientSetsDefaultVersion(t *testing.T) {
 func TestNegotiateAPIVersionEmpty(t *testing.T) {
 	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": ""})()
 
-	client, err := NewEnvClient()
+	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
 
 	ping := types.Ping{
@@ -219,7 +219,7 @@ func TestNegotiateAPIVersionEmpty(t *testing.T) {
 // TestNegotiateAPIVersion asserts that client.Client can
 // negotiate a compatible APIVersion with the server
 func TestNegotiateAPIVersion(t *testing.T) {
-	client, err := NewEnvClient()
+	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
 
 	expected := "1.21"
@@ -251,7 +251,7 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	expected := "9.99"
 	defer env.PatchAll(t, map[string]string{"DOCKER_API_VERSION": expected})()
 
-	client, err := NewEnvClient()
+	client, err := NewClientWithOpts(FromEnv)
 	assert.NilError(t, err)
 
 	ping := types.Ping{

@@ -71,7 +71,7 @@ func (s *DockerSuite) TestExecAPICreateContainerPaused(c *check.C) {
 
 	dockerCmd(c, "pause", name)
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 
@@ -155,7 +155,7 @@ func (s *DockerSuite) TestExecAPIStartWithDetach(c *check.C) {
 		AttachStderr: true,
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	defer cli.Close()
 

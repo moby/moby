@@ -309,7 +309,7 @@ func (s *DockerSuite) TestUpdateWithNanoCPUs(c *check.C) {
 	out, _ = dockerCmd(c, "exec", "top", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
 
-	clt, err := client.NewEnvClient()
+	clt, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	inspect, err := clt.ContainerInspect(context.Background(), "top")
 	c.Assert(err, checker.IsNil)
