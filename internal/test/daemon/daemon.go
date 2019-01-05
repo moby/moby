@@ -568,11 +568,10 @@ func (d *Daemon) LoadBusybox(t assert.TestingT) {
 	assert.NilError(t, err, "failed to download busybox")
 	defer reader.Close()
 
-	client, err := d.NewClient()
-	assert.NilError(t, err, "failed to create client")
-	defer client.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
-	resp, err := client.ImageLoad(ctx, reader, true)
+	resp, err := c.ImageLoad(ctx, reader, true)
 	assert.NilError(t, err, "failed to load busybox")
 	defer resp.Body.Close()
 }
@@ -632,7 +631,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{
+	c := &http.Client{
 		Transport: clientConfig.transport,
 	}
 
@@ -644,7 +643,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	req.URL.Host = clientConfig.addr
 	req.URL.Scheme = clientConfig.scheme
 
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -672,9 +671,8 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	apiclient, err := d.NewClient()
-	assert.NilError(t, err)
-	info, err := apiclient.Info(context.Background())
+	c := d.NewClientT(t)
+	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 	return info
 }

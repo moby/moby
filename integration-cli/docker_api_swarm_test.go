@@ -392,13 +392,12 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 	var service swarm.Service
 	simpleTestService(&service)
 	service.Spec.Name = "top2"
-	cli, err := d1.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d1.NewClientT(c)
 	defer cli.Close()
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
 	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
-		_, err = cli.ServiceCreate(context.Background(), service.Spec, types.ServiceCreateOptions{})
+		_, err := cli.ServiceCreate(context.Background(), service.Spec, types.ServiceCreateOptions{})
 		return err.Error(), nil
 	}, checker.Contains, "Make sure more than half of the managers are online.")
 
@@ -864,10 +863,9 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *check.C) {
 	instances = 5
 
 	setInstances(instances)(service)
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
-	_, err = cli.ServiceUpdate(context.Background(), service.Spec.Name, service.Version, service.Spec, types.ServiceUpdateOptions{})
+	_, err := cli.ServiceUpdate(context.Background(), service.Spec.Name, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	c.Assert(err, checker.IsNil)
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 }
@@ -899,8 +897,7 @@ func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *check.C) {
 // This test makes sure the fixes correctly output scopes instead.
 func (s *DockerSwarmSuite) TestAPIDuplicateNetworks(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	name := "foo"
@@ -1029,8 +1026,7 @@ func (s *DockerSwarmSuite) TestAPINetworkInspectWithScope(c *check.C) {
 
 	name := "test-scoped-network"
 	ctx := context.Background()
-	apiclient, err := d.NewClient()
-	assert.NilError(c, err)
+	apiclient := d.NewClientT(c)
 
 	resp, err := apiclient.NetworkCreate(ctx, name, types.NetworkCreate{Driver: "overlay"})
 	assert.NilError(c, err)

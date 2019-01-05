@@ -30,16 +30,15 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	n.CreateMasterDummy(t, master)
 	defer n.DeleteInterface(t, master)
 
-	client, err := d.NewClient()
-	assert.NilError(t, err)
+	c := d.NewClientT(t)
 
 	netName := "dm-persist"
-	net.CreateNoError(t, context.Background(), client, netName,
+	net.CreateNoError(t, context.Background(), c, netName,
 		net.WithMacvlan("dm-dummy0.60"),
 	)
-	assert.Check(t, n.IsNetworkAvailable(client, netName))
+	assert.Check(t, n.IsNetworkAvailable(c, netName))
 	d.Restart(t)
-	assert.Check(t, n.IsNetworkAvailable(client, netName))
+	assert.Check(t, n.IsNetworkAvailable(c, netName))
 }
 
 func TestDockerNetworkMacvlan(t *testing.T) {
@@ -69,11 +68,9 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 	} {
 		d := daemon.New(t)
 		d.StartWithBusybox(t)
+		c := d.NewClientT(t)
 
-		client, err := d.NewClient()
-		assert.NilError(t, err)
-
-		t.Run(tc.name, tc.test(client))
+		t.Run(tc.name, tc.test(c))
 
 		d.Stop(t)
 		// FIXME(vdemeester) clean network

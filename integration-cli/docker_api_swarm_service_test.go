@@ -66,20 +66,19 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	id := d.CreateService(c, simpleTestService, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
-	defer cli.Close()
+	client := d.NewClientT(c)
+	defer client.Close()
 
 	options := types.ServiceInspectOptions{InsertDefaults: true}
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	resp, _, err := cli.ServiceInspectWithRaw(context.Background(), id, options)
+	resp, _, err := client.ServiceInspectWithRaw(context.Background(), id, options)
 	out := fmt.Sprintf("%+v", resp)
 	c.Assert(err, checker.IsNil)
 	c.Assert(out, checker.Contains, "UpdateConfig")
 
 	// insertDefaults inserts UpdateConfig when service is fetched by ID
-	resp, _, err = cli.ServiceInspectWithRaw(context.Background(), "top", options)
+	resp, _, err = client.ServiceInspectWithRaw(context.Background(), "top", options)
 	out = fmt.Sprintf("%+v", resp)
 	c.Assert(err, checker.IsNil)
 	c.Assert(string(out), checker.Contains, "UpdateConfig")
