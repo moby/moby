@@ -31,19 +31,15 @@ Introductory blog post https://blog.mobyproject.org/introducing-buildkit-17e056c
 
 ### Used by
 
-[Moby & Docker](https://github.com/moby/moby/pull/37151)
+BuildKit is used by the following projects:
 
-[img](https://github.com/genuinetools/img)
-
-[OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
-
-[container build interface](https://github.com/containerbuilding/cbi)
-
-[Knative Build Templates](https://github.com/knative/build-templates)
-
-[boss](https://github.com/crosbymichael/boss)
-
-[Rio](https://github.com/rancher/rio) (on roadmap)
+- [Moby & Docker](https://github.com/moby/moby/pull/37151)
+- [img](https://github.com/genuinetools/img)
+- [OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
+- [container build interface](https://github.com/containerbuilding/cbi)
+- [Knative Build Templates](https://github.com/knative/build-templates)
+- [boss](https://github.com/crosbymichael/boss)
+- [Rio](https://github.com/rancher/rio) (on roadmap)
 
 ### Quick start
 
@@ -252,7 +248,7 @@ export JAEGER_TRACE=0.0.0.0:6831
 
 ### Supported runc version
 
-During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.2.0-rc.1/RUNC.md) for more information.
+During development, BuildKit is tested with the version of runc that is being used by the containerd repository. Please refer to [runc.md](https://github.com/containerd/containerd/blob/v1.2.1/RUNC.md) for more information.
 
 ### Running BuildKit without root privileges
 
@@ -260,35 +256,5 @@ Please refer to [`docs/rootless.md`](docs/rootless.md).
 
 ### Contributing
 
-Running tests:
-
-```bash
-make test
-```
-
-This runs all unit and integration tests in a containerized environment. Locally, every package can be tested separately with standard Go tools, but integration tests are skipped if local user doesn't have enough permissions or worker binaries are not installed.
-
-```
-# test a specific package only
-make test TESTPKGS=./client
-
-# run a specific test with all worker combinations
-make test TESTPKGS=./client TESTFLAGS="--run /TestCallDiskUsage -v" 
-
-# run all integration tests with a specific worker
-# supported workers: oci, oci-rootless, containerd, containerd-1.0
-make test TESTPKGS=./client TESTFLAGS="--run //worker=containerd -v" 
-```
-
-Updating vendored dependencies:
-
-```bash
-# update vendor.conf
-make vendor
-```
-
-Validating your updates before submission:
-
-```bash
-make validate-all
-```
+Want to contribute to BuildKit? Awesome! You can find information about
+contributing to this project in the [CONTRIBUTING.md](/.github/CONTRIBUTING.md)
