@@ -260,7 +260,7 @@ func (daemon *Daemon) restore() error {
 	restartContainers := make(map[*container.Container]chan struct{})
 	activeSandboxes := make(map[string]interface{})
 
-	for id, c := range containers {
+	for _, c := range containers {
 		group.Add(1)
 		go func(c *container.Container) {
 			defer group.Done()
@@ -270,14 +270,14 @@ func (daemon *Daemon) restore() error {
 			if err := daemon.registerName(c); err != nil {
 				logrus.Errorf("Failed to register container name %s: %s", c.ID, err)
 				mapLock.Lock()
-				delete(containers, id)
+				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
 			if err := daemon.Register(c); err != nil {
 				logrus.Errorf("Failed to register container %s: %s", c.ID, err)
 				mapLock.Lock()
-				delete(containers, id)
+				delete(containers, c.ID)
 				mapLock.Unlock()
 				return
 			}
