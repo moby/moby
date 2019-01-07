@@ -161,7 +161,7 @@ func checkBindSourceExists(mnt *mount.Mount) error {
 	}
 
 	if !isDir {
-		return fmt.Errorf("source path must be a directory %s", mnt.Source)
+		return errBindSourceMustBeDir(mnt.Source)
 	}
 
 	return nil
