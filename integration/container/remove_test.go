@@ -25,7 +25,7 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 
 // Test case for #5244: `docker rm` fails if bind dir doesn't exist anymore
 func TestRemoveContainerWithRemovedVolume(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 	ctx := context.Background()
