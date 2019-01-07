@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -e -o pipefail
+
+source hack/validate/.validate
+new_tests=$(
+    validate_diff --diff-filter=ACMR --unified=0 -- 'integration/*_test.go' |
+    grep -E '^(\+func )(.*)(\*testing)' || true
+)
+
+if [ -z "$new_tests" ]; then
+    echo 'No new tests added to integration.'
+    return
+fi
+
+echo
+echo "Found new integrations tests:"
+echo "$new_tests"
+echo "Running stress test for them."
+
+(
+    TESTARRAY=$(echo "$new_tests" | sed 's/+func //' | awk -F'\\(' '{print $1}' | tr '\n' '|')
+    export TESTFLAGS="-test.count 5 -test.run ${TESTARRAY%?}"
+    export TEST_REPEAT=5
+    echo "Using test flags: $TESTFLAGS"
+    source hack/make/test-integration
+)

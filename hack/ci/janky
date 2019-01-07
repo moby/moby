@@ -13,5 +13,6 @@ hack/make.sh \
 	binary-daemon \
 	dynbinary \
 	test-docker-py \
+	test-integration-flaky \
 	test-integration \
 	cross
