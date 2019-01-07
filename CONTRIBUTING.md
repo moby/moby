@@ -300,6 +300,11 @@ Use your real name (sorry, no pseudonyms or anonymous contributions.)
 If you set your `user.name` and `user.email` git configs, you can sign your
 commit automatically with `git commit -s`.
 
+You can enable local git [prepare-commit-msg](contrib/git/hooks/prepare-commit-msg) hook to do this automatically:
+```bash
+install -pm 755 $(git rev-parse --show-toplevel)/contrib/git/hooks/prepare-commit-msg $(git rev-parse --git-path hooks/prepare-commit-msg)
+```
+
 ### How can I become a maintainer?
 
 The procedures for adding new maintainers are explained in the 
