@@ -1,13 +1,15 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package queue // import "github.com/docker/docker/libcontainerd/queue"
 
 import "sync"
 
-type queue struct {
+// Queue is the structure used for holding functions in a queue.
+type Queue struct {
 	sync.Mutex
 	fns map[string]chan struct{}
 }
 
-func (q *queue) append(id string, f func()) {
+// Append adds an item to a queue.
+func (q *Queue) Append(id string, f func()) {
 	q.Lock()
 	defer q.Unlock()
 

@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package types // import "github.com/docker/docker/libcontainerd/types"
 
 import (
 	"context"
@@ -89,3 +89,6 @@ type Client interface {
 
 // StdioCallback is called to connect a container or process stdio.
 type StdioCallback func(io *cio.DirectIO) (cio.IO, error)
+
+// InitProcessName is the name given to the first process of a container
+const InitProcessName = "init"

@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package local // import "github.com/docker/docker/libcontainerd/local"
 
 import (
 	"strings"
@@ -17,6 +17,11 @@ func setupEnvironmentVariables(a []string) map[string]string {
 		}
 	}
 	return r
+}
+
+// LCOWOption is a CreateOption required for LCOW configuration
+type LCOWOption struct {
+	Config *opengcs.Config
 }
 
 // Apply for the LCOW option is a no-op.

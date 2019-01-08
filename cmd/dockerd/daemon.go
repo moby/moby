@@ -163,31 +163,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	if cli.Config.ContainerdAddr == "" && runtime.GOOS != "windows" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
-		if err != nil {
-			cancel()
-			return errors.Wrap(err, "could not determine whether the system containerd is running")
-		}
-		if !ok {
-			opts, err := cli.getContainerdDaemonOpts()
-			if err != nil {
-				cancel()
-				return errors.Wrap(err, "failed to generate containerd options")
-			}
-
-			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
-			if err != nil {
-				cancel()
-				return errors.Wrap(err, "failed to start containerd")
-			}
-			cli.Config.ContainerdAddr = r.Address()
-
-			// Try to wait for containerd to shutdown
-			defer r.WaitTimeout(10 * time.Second)
-		} else {
-			cli.Config.ContainerdAddr = systemContainerdAddr
-		}
+	if err := cli.initContainerD(ctx); err != nil {
+		cancel()
+		return err
 	}
 	defer cancel()
 

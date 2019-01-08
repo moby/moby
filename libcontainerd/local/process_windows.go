@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package local // import "github.com/docker/docker/libcontainerd/local"
 
 import (
 	"io"
