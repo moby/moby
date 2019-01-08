@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package types // import "github.com/docker/docker/libcontainerd/types"
 
 import (
 	"time"
@@ -16,7 +16,8 @@ type Stats struct {
 	Metrics *cgroups.Metrics
 }
 
-func interfaceToStats(read time.Time, v interface{}) *Stats {
+// InterfaceToStats returns a stats object from the platform-specific interface.
+func InterfaceToStats(read time.Time, v interface{}) *Stats {
 	return &Stats{
 		Metrics: v.(*cgroups.Metrics),
 		Read:    read,

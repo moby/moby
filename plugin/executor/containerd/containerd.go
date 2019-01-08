@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -30,11 +31,11 @@ type ExitHandler interface {
 // However right now this whole package is tied to github.com/docker/docker/libcontainerd
 type Client interface {
 	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error
-	Restore(ctx context.Context, containerID string, attachStdio libcontainerd.StdioCallback) (alive bool, pid int, err error)
-	Status(ctx context.Context, containerID string) (libcontainerd.Status, error)
+	Restore(ctx context.Context, containerID string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error)
+	Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error)
 	Delete(ctx context.Context, containerID string) error
 	DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error)
-	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerd.StdioCallback) (pid int, err error)
+	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (pid int, err error)
 	SignalProcess(ctx context.Context, containerID, processID string, signal int) error
 }
 
@@ -87,7 +88,7 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 				logrus.WithError(err2).WithField("id", id).Warn("Received an error while attempting to read plugin status")
 			}
 		} else {
-			if status != libcontainerd.StatusRunning && status != libcontainerd.StatusUnknown {
+			if status != libcontainerdtypes.StatusRunning && status != libcontainerdtypes.StatusUnknown {
 				if err2 := e.client.Delete(ctx, id); err2 != nil && !errdefs.IsNotFound(err2) {
 					logrus.WithError(err2).WithField("plugin", id).Error("Error cleaning up containerd container")
 				}
@@ -122,19 +123,19 @@ func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, erro
 // IsRunning returns if the container with the given id is running
 func (e *Executor) IsRunning(id string) (bool, error) {
 	status, err := e.client.Status(context.Background(), id)
-	return status == libcontainerd.StatusRunning, err
+	return status == libcontainerdtypes.StatusRunning, err
 }
 
 // Signal sends the specified signal to the container
 func (e *Executor) Signal(id string, signal int) error {
-	return e.client.SignalProcess(context.Background(), id, libcontainerd.InitProcessName, signal)
+	return e.client.SignalProcess(context.Background(), id, libcontainerdtypes.InitProcessName, signal)
 }
 
 // ProcessEvent handles events from containerd
 // All events are ignored except the exit event, which is sent of to the stored handler
-func (e *Executor) ProcessEvent(id string, et libcontainerd.EventType, ei libcontainerd.EventInfo) error {
+func (e *Executor) ProcessEvent(id string, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	switch et {
-	case libcontainerd.EventExit:
+	case libcontainerdtypes.EventExit:
 		deleteTaskAndContainer(context.Background(), e.client, id)
 		return e.exitHandler.HandleExitEvent(ei.ContainerID)
 	}
@@ -152,7 +153,7 @@ func (c *rio) Wait() {
 	c.IO.Wait()
 }
 
-func attachStreamsFunc(stdout, stderr io.WriteCloser) libcontainerd.StdioCallback {
+func attachStreamsFunc(stdout, stderr io.WriteCloser) libcontainerdtypes.StdioCallback {
 	return func(iop *cio.DirectIO) (cio.IO, error) {
 		if iop.Stdin != nil {
 			iop.Stdin.Close()

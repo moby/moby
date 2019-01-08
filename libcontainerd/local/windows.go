@@ -1,4 +1,7 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package local // import "github.com/docker/docker/libcontainerd/local"
+
+// This package contains the legacy in-proc calls in HCS using the v1 schema
+// for Windows runtime purposes.
 
 import (
 	"context"
@@ -18,6 +21,10 @@ import (
 	opengcs "github.com/Microsoft/opengcs/client"
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+
+	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd/queue"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/docker/docker/pkg/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -25,8 +32,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
-
-const InitProcessName = "init"
 
 type process struct {
 	id         string
@@ -46,7 +51,7 @@ type container struct {
 	hcsContainer hcsshim.Container
 
 	id               string
-	status           Status
+	status           libcontainerdtypes.Status
 	exitedAt         time.Time
 	exitCode         uint32
 	waitCh           chan struct{}
@@ -74,14 +79,14 @@ type client struct {
 	sync.Mutex
 
 	stateDir   string
-	backend    Backend
+	backend    libcontainerdtypes.Backend
 	logger     *logrus.Entry
-	eventQ     queue
+	eventQ     queue.Queue
 	containers map[string]*container
 }
 
 // NewClient creates a new local executor for windows
-func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b Backend) (Client, error) {
+func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
 	c := &client{
 		stateDir:   stateDir,
 		backend:    b,
@@ -149,7 +154,7 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 //}
 func (c *client) Create(_ context.Context, id string, spec *specs.Spec, runtimeOptions interface{}) error {
 	if ctr := c.getContainer(id); ctr != nil {
-		return errors.WithStack(newConflictError("id already in use"))
+		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
 	// spec.Linux must be nil for Windows containers, but spec.Windows
@@ -328,7 +333,7 @@ func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions inter
 		isWindows:    true,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
-		status:       StatusCreated,
+		status:       libcontainerdtypes.StatusCreated,
 		waitCh:       make(chan struct{}),
 	}
 
@@ -532,7 +537,7 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 		isWindows:    false,
 		ociSpec:      spec,
 		hcsContainer: hcsContainer,
-		status:       StatusCreated,
+		status:       libcontainerdtypes.StatusCreated,
 		waitCh:       make(chan struct{}),
 	}
 
@@ -556,19 +561,19 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 	c.containers[id] = ctr
 	c.Unlock()
 
-	c.eventQ.append(id, func() {
-		ei := EventInfo{
+	c.eventQ.Append(id, func() {
+		ei := libcontainerdtypes.EventInfo{
 			ContainerID: id,
 		}
 		c.logger.WithFields(logrus.Fields{
 			"container": ctr.id,
-			"event":     EventCreate,
+			"event":     libcontainerdtypes.EventCreate,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(id, EventCreate, ei)
+		err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container": id,
-				"event":     EventCreate,
+				"event":     libcontainerdtypes.EventCreate,
 			}).Error("failed to process event")
 		}
 	})
@@ -607,13 +612,13 @@ func (c *client) extractResourcesFromSpec(spec *specs.Spec, configuration *hcssh
 	}
 }
 
-func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachStdio StdioCallback) (int, error) {
+func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
 	ctr := c.getContainer(id)
 	switch {
 	case ctr == nil:
-		return -1, errors.WithStack(newNotFoundError("no such container"))
+		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	case ctr.init != nil:
-		return -1, errors.WithStack(newConflictError("container already started"))
+		return -1, errors.WithStack(errdefs.Conflict(errors.New("container already started")))
 	}
 
 	logger := c.logger.WithField("container", id)
@@ -691,7 +696,7 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	}()
 	p := &process{
 		hcsProcess: newProcess,
-		id:         InitProcessName,
+		id:         libcontainerdtypes.InitProcessName,
 		pid:        newProcess.Pid(),
 	}
 	logger.WithField("pid", p.pid).Debug("init process started")
@@ -706,29 +711,29 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 		logger.WithError(err).Error("failed to attache stdio")
 		return -1, err
 	}
-	ctr.status = StatusRunning
+	ctr.status = libcontainerdtypes.StatusRunning
 	ctr.init = p
 
 	// Spin up a go routine waiting for exit to handle cleanup
 	go c.reapProcess(ctr, p)
 
 	// Generate the associated event
-	c.eventQ.append(id, func() {
-		ei := EventInfo{
+	c.eventQ.Append(id, func() {
+		ei := libcontainerdtypes.EventInfo{
 			ContainerID: id,
-			ProcessID:   InitProcessName,
+			ProcessID:   libcontainerdtypes.InitProcessName,
 			Pid:         uint32(p.pid),
 		}
 		c.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
-			"event":      EventStart,
+			"event":      libcontainerdtypes.EventStart,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ei.ContainerID, EventStart, ei)
+		err := c.backend.ProcessEvent(ei.ContainerID, libcontainerdtypes.EventStart, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  id,
-				"event":      EventStart,
+				"event":      libcontainerdtypes.EventStart,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
@@ -756,15 +761,15 @@ func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO,
 }
 
 // Exec adds a process in an running container
-func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error) {
+func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
 	ctr := c.getContainer(containerID)
 	switch {
 	case ctr == nil:
-		return -1, errors.WithStack(newNotFoundError("no such container"))
+		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	case ctr.hcsContainer == nil:
-		return -1, errors.WithStack(newInvalidParameterError("container is not running"))
+		return -1, errors.WithStack(errdefs.InvalidParameter(errors.New("container is not running")))
 	case ctr.execs != nil && ctr.execs[processID] != nil:
-		return -1, errors.WithStack(newConflictError("id already in use"))
+		return -1, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 	logger := c.logger.WithFields(logrus.Fields{
 		"container": containerID,
@@ -856,30 +861,30 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	// Spin up a go routine waiting for exit to handle cleanup
 	go c.reapProcess(ctr, p)
 
-	c.eventQ.append(ctr.id, func() {
-		ei := EventInfo{
+	c.eventQ.Append(ctr.id, func() {
+		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   p.id,
 			Pid:         uint32(p.pid),
 		}
 		c.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
-			"event":      EventExecAdded,
+			"event":      libcontainerdtypes.EventExecAdded,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, EventExecAdded, ei)
+		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecAdded, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,
-				"event":      EventExecAdded,
+				"event":      libcontainerdtypes.EventExecAdded,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		err = c.backend.ProcessEvent(ctr.id, EventExecStarted, ei)
+		err = c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExecStarted, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,
-				"event":      EventExecStarted,
+				"event":      libcontainerdtypes.EventExecStarted,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
@@ -905,7 +910,7 @@ func (c *client) SignalProcess(_ context.Context, containerID, processID string,
 	})
 	logger.Debug("Signal()")
 
-	if processID == InitProcessName {
+	if processID == libcontainerdtypes.InitProcessName {
 		if syscall.Signal(signal) == syscall.SIGKILL {
 			// Terminate the compute system
 			ctr.Lock()
@@ -961,7 +966,7 @@ func (c *client) CloseStdin(_ context.Context, containerID, processID string) er
 
 // Pause handles pause requests for containers
 func (c *client) Pause(_ context.Context, containerID string) error {
-	ctr, _, err := c.getProcess(containerID, InitProcessName)
+	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -977,21 +982,21 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 		return err
 	}
 
-	ctr.status = StatusPaused
+	ctr.status = libcontainerdtypes.StatusPaused
 
-	c.eventQ.append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, EventPaused, EventInfo{
+	c.eventQ.Append(containerID, func() {
+		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventPaused, libcontainerdtypes.EventInfo{
 			ContainerID: containerID,
-			ProcessID:   InitProcessName,
+			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
 		c.logger.WithFields(logrus.Fields{
 			"container": ctr.id,
-			"event":     EventPaused,
+			"event":     libcontainerdtypes.EventPaused,
 		}).Info("sending event")
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container": containerID,
-				"event":     EventPaused,
+				"event":     libcontainerdtypes.EventPaused,
 			}).Error("failed to process event")
 		}
 	})
@@ -1001,7 +1006,7 @@ func (c *client) Pause(_ context.Context, containerID string) error {
 
 // Resume handles resume requests for containers
 func (c *client) Resume(_ context.Context, containerID string) error {
-	ctr, _, err := c.getProcess(containerID, InitProcessName)
+	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -1017,21 +1022,21 @@ func (c *client) Resume(_ context.Context, containerID string) error {
 		return err
 	}
 
-	ctr.status = StatusRunning
+	ctr.status = libcontainerdtypes.StatusRunning
 
-	c.eventQ.append(containerID, func() {
-		err := c.backend.ProcessEvent(containerID, EventResumed, EventInfo{
+	c.eventQ.Append(containerID, func() {
+		err := c.backend.ProcessEvent(containerID, libcontainerdtypes.EventResumed, libcontainerdtypes.EventInfo{
 			ContainerID: containerID,
-			ProcessID:   InitProcessName,
+			ProcessID:   libcontainerdtypes.InitProcessName,
 		})
 		c.logger.WithFields(logrus.Fields{
 			"container": ctr.id,
-			"event":     EventResumed,
+			"event":     libcontainerdtypes.EventResumed,
 		}).Info("sending event")
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container": containerID,
-				"event":     EventResumed,
+				"event":     libcontainerdtypes.EventResumed,
 			}).Error("failed to process event")
 		}
 	})
@@ -1040,8 +1045,8 @@ func (c *client) Resume(_ context.Context, containerID string) error {
 }
 
 // Stats handles stats requests for containers
-func (c *client) Stats(_ context.Context, containerID string) (*Stats, error) {
-	ctr, _, err := c.getProcess(containerID, InitProcessName)
+func (c *client) Stats(_ context.Context, containerID string) (*libcontainerdtypes.Stats, error) {
+	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return nil, err
 	}
@@ -1051,14 +1056,14 @@ func (c *client) Stats(_ context.Context, containerID string) (*Stats, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Stats{
+	return &libcontainerdtypes.Stats{
 		Read:     readAt,
 		HCSStats: &s,
 	}, nil
 }
 
 // Restore is the handler for restoring a container
-func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallback) (bool, int, error) {
+func (c *client) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (bool, int, error) {
 	c.logger.WithField("container", id).Debug("restore()")
 
 	// TODO Windows: On RS1, a re-attach isn't possible.
@@ -1098,8 +1103,8 @@ func (c *client) ListPids(_ context.Context, _ string) ([]uint32, error) {
 // the containers could be Hyper-V containers, they would not be
 // visible on the container host. However, libcontainerd does have
 // that information.
-func (c *client) Summary(_ context.Context, containerID string) ([]Summary, error) {
-	ctr, _, err := c.getProcess(containerID, InitProcessName)
+func (c *client) Summary(_ context.Context, containerID string) ([]libcontainerdtypes.Summary, error) {
+	ctr, _, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return nil, err
 	}
@@ -1109,9 +1114,9 @@ func (c *client) Summary(_ context.Context, containerID string) ([]Summary, erro
 		return nil, err
 	}
 
-	pl := make([]Summary, len(p))
+	pl := make([]libcontainerdtypes.Summary, len(p))
 	for i := range p {
-		pl[i] = Summary(p[i])
+		pl[i] = libcontainerdtypes.Summary(p[i])
 	}
 	return pl, nil
 }
@@ -1120,7 +1125,7 @@ func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, ti
 	ec := -1
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return uint32(ec), time.Now(), errors.WithStack(newNotFoundError("no such container"))
+		return uint32(ec), time.Now(), errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	select {
@@ -1141,32 +1146,32 @@ func (c *client) Delete(_ context.Context, containerID string) error {
 	defer c.Unlock()
 	ctr := c.containers[containerID]
 	if ctr == nil {
-		return errors.WithStack(newNotFoundError("no such container"))
+		return errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	ctr.Lock()
 	defer ctr.Unlock()
 
 	switch ctr.status {
-	case StatusCreated:
+	case libcontainerdtypes.StatusCreated:
 		if err := c.shutdownContainer(ctr); err != nil {
 			return err
 		}
 		fallthrough
-	case StatusStopped:
+	case libcontainerdtypes.StatusStopped:
 		delete(c.containers, containerID)
 		return nil
 	}
 
-	return errors.WithStack(newInvalidParameterError("container is not stopped"))
+	return errors.WithStack(errdefs.InvalidParameter(errors.New("container is not stopped")))
 }
 
-func (c *client) Status(ctx context.Context, containerID string) (Status, error) {
+func (c *client) Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error) {
 	c.Lock()
 	defer c.Unlock()
 	ctr := c.containers[containerID]
 	if ctr == nil {
-		return StatusUnknown, errors.WithStack(newNotFoundError("no such container"))
+		return libcontainerdtypes.StatusUnknown, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	ctr.Lock()
@@ -1174,7 +1179,7 @@ func (c *client) Status(ctx context.Context, containerID string) (Status, error)
 	return ctr.status, nil
 }
 
-func (c *client) UpdateResources(ctx context.Context, containerID string, resources *Resources) error {
+func (c *client) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
 	// Updating resource isn't supported on Windows
 	// but we should return nil for enabling updating container
 	return nil
@@ -1196,22 +1201,22 @@ func (c *client) getProcess(containerID, processID string) (*container, *process
 	ctr := c.getContainer(containerID)
 	switch {
 	case ctr == nil:
-		return nil, nil, errors.WithStack(newNotFoundError("no such container"))
+		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	case ctr.init == nil:
-		return nil, nil, errors.WithStack(newNotFoundError("container is not running"))
-	case processID == InitProcessName:
+		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("container is not running")))
+	case processID == libcontainerdtypes.InitProcessName:
 		return ctr, ctr.init, nil
 	default:
 		ctr.Lock()
 		defer ctr.Unlock()
 		if ctr.execs == nil {
-			return nil, nil, errors.WithStack(newNotFoundError("no execs"))
+			return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no execs")))
 		}
 	}
 
 	p := ctr.execs[processID]
 	if p == nil {
-		return nil, nil, errors.WithStack(newNotFoundError("no such exec"))
+		return nil, nil, errors.WithStack(errdefs.NotFound(errors.New("no such exec")))
 	}
 
 	return ctr, p, nil
@@ -1309,10 +1314,10 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		eventErr = fmt.Errorf("hcsProcess.Close() failed %s", err)
 	}
 
-	if p.id == InitProcessName {
+	if p.id == libcontainerdtypes.InitProcessName {
 		// Update container status
 		ctr.Lock()
-		ctr.status = StatusStopped
+		ctr.status = libcontainerdtypes.StatusStopped
 		ctr.exitedAt = exitedAt
 		ctr.exitCode = uint32(exitCode)
 		close(ctr.waitCh)
@@ -1343,8 +1348,8 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		}
 	}
 
-	c.eventQ.append(ctr.id, func() {
-		ei := EventInfo{
+	c.eventQ.Append(ctr.id, func() {
+		ei := libcontainerdtypes.EventInfo{
 			ContainerID: ctr.id,
 			ProcessID:   p.id,
 			Pid:         uint32(p.pid),
@@ -1354,18 +1359,18 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 		}
 		c.logger.WithFields(logrus.Fields{
 			"container":  ctr.id,
-			"event":      EventExit,
+			"event":      libcontainerdtypes.EventExit,
 			"event-info": ei,
 		}).Info("sending event")
-		err := c.backend.ProcessEvent(ctr.id, EventExit, ei)
+		err := c.backend.ProcessEvent(ctr.id, libcontainerdtypes.EventExit, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
 				"container":  ctr.id,
-				"event":      EventExit,
+				"event":      libcontainerdtypes.EventExit,
 				"event-info": ei,
 			}).Error("failed to process event")
 		}
-		if p.id != InitProcessName {
+		if p.id != libcontainerdtypes.InitProcessName {
 			ctr.Lock()
 			delete(ctr.execs, p.id)
 			ctr.Unlock()

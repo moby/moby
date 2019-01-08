@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/docker/docker/libcontainerd"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"gotest.tools/assert"
@@ -82,22 +82,22 @@ func (c *mockClient) Create(ctx context.Context, id string, _ *specs.Spec, _ int
 	return nil
 }
 
-func (c *mockClient) Restore(ctx context.Context, id string, attachStdio libcontainerd.StdioCallback) (alive bool, pid int, err error) {
+func (c *mockClient) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error) {
 	return false, 0, nil
 }
 
-func (c *mockClient) Status(ctx context.Context, id string) (libcontainerd.Status, error) {
+func (c *mockClient) Status(ctx context.Context, id string) (libcontainerdtypes.Status, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	running, ok := c.containers[id]
 	if !ok {
-		return libcontainerd.StatusUnknown, errors.New("not found")
+		return libcontainerdtypes.StatusUnknown, errors.New("not found")
 	}
 	if running {
-		return libcontainerd.StatusRunning, nil
+		return libcontainerdtypes.StatusRunning, nil
 	}
-	return libcontainerd.StatusStopped, nil
+	return libcontainerdtypes.StatusStopped, nil
 }
 
 func (c *mockClient) Delete(ctx context.Context, id string) error {
@@ -111,7 +111,7 @@ func (c *mockClient) DeleteTask(ctx context.Context, id string) (uint32, time.Ti
 	return 0, time.Time{}, nil
 }
 
-func (c *mockClient) Start(ctx context.Context, id, checkpointDir string, withStdin bool, attachStdio libcontainerd.StdioCallback) (pid int, err error) {
+func (c *mockClient) Start(ctx context.Context, id, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (pid int, err error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

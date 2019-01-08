@@ -1,11 +1,8 @@
-// +build !windows
-
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package remote // import "github.com/docker/docker/libcontainerd/remote"
 
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -16,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
@@ -28,6 +26,9 @@ import (
 	"github.com/containerd/containerd/runtime/linux/runctypes"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/libcontainerd/queue"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
+
 	"github.com/docker/docker/pkg/ioutils"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -36,10 +37,6 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-// InitProcessName is the name given to the first process of a
-// container
-const InitProcessName = "init"
 
 type container struct {
 	mu sync.Mutex
@@ -107,13 +104,13 @@ type client struct {
 	logger   *logrus.Entry
 	ns       string
 
-	backend    Backend
-	eventQ     queue
+	backend    libcontainerdtypes.Backend
+	eventQ     queue.Queue
 	containers map[string]*container
 }
 
 // NewClient creates a new libcontainerd client from a containerd client
-func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b Backend) (Client, error) {
+func NewClient(ctx context.Context, cli *containerd.Client, stateDir, ns string, b libcontainerdtypes.Backend) (libcontainerdtypes.Client, error) {
 	c := &client{
 		client:     cli,
 		stateDir:   stateDir,
@@ -134,12 +131,12 @@ func (c *client) Version(ctx context.Context) (containerd.Version, error) {
 
 // Restore loads the containerd container.
 // It should not be called concurrently with any other operation for the given ID.
-func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallback) (alive bool, pid int, err error) {
+func (c *client) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error) {
 	c.Lock()
 	_, ok := c.containers[id]
 	if ok {
 		c.Unlock()
-		return false, 0, errors.WithStack(newConflictError("id already in use"))
+		return false, 0, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
 	cntr := &container{}
@@ -174,7 +171,8 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 	attachIO := func(fifos *cio.FIFOSet) (cio.IO, error) {
 		// dio must be assigned to the previously defined dio for the defer above
 		// to handle cleanup
-		dio, err = cio.NewDirectIO(ctx, fifos)
+
+		dio, err = c.newDirectIO(ctx, fifos)
 		if err != nil {
 			return nil, err
 		}
@@ -211,7 +209,7 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio StdioCallba
 
 func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, runtimeOptions interface{}) error {
 	if ctr := c.getContainer(id); ctr != nil {
-		return errors.WithStack(newConflictError("id already in use"))
+		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
 	bdir, err := prepareBundleDir(filepath.Join(c.stateDir, id), ociSpec)
@@ -223,8 +221,7 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	cdCtr, err := c.client.NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
-		// TODO(mlaventure): when containerd support lcow, revisit runtime value
-		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
+		containerd.WithRuntime(runtimeName, runtimeOptions))
 	if err != nil {
 		return wrapError(err)
 	}
@@ -240,13 +237,13 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 }
 
 // Start create and start a task for the specified containerd id
-func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin bool, attachStdio StdioCallback) (int, error) {
+func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
 	ctr := c.getContainer(id)
 	if ctr == nil {
-		return -1, errors.WithStack(newNotFoundError("no such container"))
+		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 	if t := ctr.getTask(); t != nil {
-		return -1, errors.WithStack(newConflictError("container already started"))
+		return -1, errors.WithStack(errdefs.Conflict(errors.New("container already started")))
 	}
 
 	var (
@@ -288,17 +285,24 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	uid, gid := getSpecUser(spec)
 	t, err = ctr.ctr.NewTask(ctx,
 		func(id string) (cio.IO, error) {
-			fifos := newFIFOSet(ctr.bundleDir, InitProcessName, withStdin, spec.Process.Terminal)
+			fifos := newFIFOSet(ctr.bundleDir, libcontainerdtypes.InitProcessName, withStdin, spec.Process.Terminal)
 
-			rio, err = c.createIO(fifos, id, InitProcessName, stdinCloseSync, attachStdio)
+			rio, err = c.createIO(fifos, id, libcontainerdtypes.InitProcessName, stdinCloseSync, attachStdio)
 			return rio, err
 		},
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			info.Checkpoint = cp
-			info.Options = &runctypes.CreateOptions{
-				IoUid:       uint32(uid),
-				IoGid:       uint32(gid),
-				NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+			if runtime.GOOS != "windows" {
+				info.Options = &runctypes.CreateOptions{
+					IoUid:       uint32(uid),
+					IoGid:       uint32(gid),
+					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
+				}
+			} else {
+				// Make sure we set the runhcs options to debug if we are at debug level.
+				if c.logger.Level == logrus.DebugLevel {
+					info.Options = &options.Options{Debug: true}
+				}
 			}
 			return nil
 		})
@@ -335,18 +339,18 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 // for the container main process, the stdin fifo will be created in Create not
 // the Start call. stdinCloseSync channel should be closed after Start exec
 // process.
-func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio StdioCallback) (int, error) {
+func (c *client) Exec(ctx context.Context, containerID, processID string, spec *specs.Process, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (int, error) {
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return -1, errors.WithStack(newNotFoundError("no such container"))
+		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 	t := ctr.getTask()
 	if t == nil {
-		return -1, errors.WithStack(newInvalidParameterError("container is not running"))
+		return -1, errors.WithStack(errdefs.InvalidParameter(errors.New("container is not running")))
 	}
 
 	if p := ctr.getProcess(processID); p != nil {
-		return -1, errors.WithStack(newConflictError("id already in use"))
+		return -1, errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
 	var (
@@ -424,7 +428,7 @@ func (c *client) CloseStdin(ctx context.Context, containerID, processID string) 
 }
 
 func (c *client) Pause(ctx context.Context, containerID string) error {
-	p, err := c.getProcess(containerID, InitProcessName)
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -433,7 +437,7 @@ func (c *client) Pause(ctx context.Context, containerID string) error {
 }
 
 func (c *client) Resume(ctx context.Context, containerID string) error {
-	p, err := c.getProcess(containerID, InitProcessName)
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -441,8 +445,8 @@ func (c *client) Resume(ctx context.Context, containerID string) error {
 	return p.(containerd.Task).Resume(ctx)
 }
 
-func (c *client) Stats(ctx context.Context, containerID string) (*Stats, error) {
-	p, err := c.getProcess(containerID, InitProcessName)
+func (c *client) Stats(ctx context.Context, containerID string) (*libcontainerdtypes.Stats, error) {
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return nil, err
 	}
@@ -456,11 +460,11 @@ func (c *client) Stats(ctx context.Context, containerID string) (*Stats, error) 
 	if err != nil {
 		return nil, err
 	}
-	return interfaceToStats(m.Timestamp, v), nil
+	return libcontainerdtypes.InterfaceToStats(m.Timestamp, v), nil
 }
 
 func (c *client) ListPids(ctx context.Context, containerID string) ([]uint32, error) {
-	p, err := c.getProcess(containerID, InitProcessName)
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return nil, err
 	}
@@ -478,8 +482,8 @@ func (c *client) ListPids(ctx context.Context, containerID string) ([]uint32, er
 	return pids, nil
 }
 
-func (c *client) Summary(ctx context.Context, containerID string) ([]Summary, error) {
-	p, err := c.getProcess(containerID, InitProcessName)
+func (c *client) Summary(ctx context.Context, containerID string) ([]libcontainerdtypes.Summary, error) {
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return nil, err
 	}
@@ -489,7 +493,7 @@ func (c *client) Summary(ctx context.Context, containerID string) ([]Summary, er
 		return nil, err
 	}
 
-	var infos []Summary
+	var infos []libcontainerdtypes.Summary
 	for _, pi := range pis {
 		i, err := typeurl.UnmarshalAny(pi.Info)
 		if err != nil {
@@ -506,7 +510,7 @@ func (c *client) Summary(ctx context.Context, containerID string) ([]Summary, er
 }
 
 func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error) {
-	p, err := c.getProcess(containerID, InitProcessName)
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return 255, time.Now(), nil
 	}
@@ -525,7 +529,7 @@ func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, ti
 func (c *client) Delete(ctx context.Context, containerID string) error {
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return errors.WithStack(newNotFoundError("no such container"))
+		return errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	if err := ctr.ctr.Delete(ctx); err != nil {
@@ -546,27 +550,27 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	return nil
 }
 
-func (c *client) Status(ctx context.Context, containerID string) (Status, error) {
+func (c *client) Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error) {
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return StatusUnknown, errors.WithStack(newNotFoundError("no such container"))
+		return libcontainerdtypes.StatusUnknown, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	t := ctr.getTask()
 	if t == nil {
-		return StatusUnknown, errors.WithStack(newNotFoundError("no such task"))
+		return libcontainerdtypes.StatusUnknown, errors.WithStack(errdefs.NotFound(errors.New("no such task")))
 	}
 
 	s, err := t.Status(ctx)
 	if err != nil {
-		return StatusUnknown, wrapError(err)
+		return libcontainerdtypes.StatusUnknown, wrapError(err)
 	}
 
-	return Status(s.Status), nil
+	return libcontainerdtypes.Status(s.Status), nil
 }
 
 func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDir string, exit bool) error {
-	p, err := c.getProcess(containerID, InitProcessName)
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -648,33 +652,32 @@ func (c *client) removeContainer(id string) {
 func (c *client) getProcess(containerID, processID string) (containerd.Process, error) {
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return nil, errors.WithStack(newNotFoundError("no such container"))
+		return nil, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	t := ctr.getTask()
 	if t == nil {
-		return nil, errors.WithStack(newNotFoundError("container is not running"))
+		return nil, errors.WithStack(errdefs.NotFound(errors.New("container is not running")))
 	}
-	if processID == InitProcessName {
+	if processID == libcontainerdtypes.InitProcessName {
 		return t, nil
 	}
 
 	p := ctr.getProcess(processID)
 	if p == nil {
-		return nil, errors.WithStack(newNotFoundError("no such exec"))
+		return nil, errors.WithStack(errdefs.NotFound(errors.New("no such exec")))
 	}
 	return p, nil
 }
 
 // createIO creates the io to be used by a process
 // This needs to get a pointer to interface as upon closure the process may not have yet been registered
-func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio StdioCallback) (cio.IO, error) {
+func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, stdinCloseSync chan struct{}, attachStdio libcontainerdtypes.StdioCallback) (cio.IO, error) {
 	var (
 		io  *cio.DirectIO
 		err error
 	)
-
-	io, err = cio.NewDirectIO(context.Background(), fifos)
+	io, err = c.newDirectIO(context.Background(), fifos)
 	if err != nil {
 		return nil, err
 	}
@@ -713,8 +716,8 @@ func (c *client) createIO(fifos *cio.FIFOSet, containerID, processID string, std
 	return rio, err
 }
 
-func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
-	c.eventQ.append(ei.ContainerID, func() {
+func (c *client) processEvent(ctr *container, et libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) {
+	c.eventQ.Append(ei.ContainerID, func() {
 		err := c.backend.ProcessEvent(ei.ContainerID, et, ei)
 		if err != nil {
 			c.logger.WithError(err).WithFields(logrus.Fields{
@@ -724,7 +727,7 @@ func (c *client) processEvent(ctr *container, et EventType, ei EventInfo) {
 			}).Error("failed to process event")
 		}
 
-		if et == EventExit && ei.ProcessID != ei.ContainerID {
+		if et == libcontainerdtypes.EventExit && ei.ProcessID != ei.ContainerID {
 			p := ctr.getProcess(ei.ProcessID)
 			if p == nil {
 				c.logger.WithError(errors.New("no such process")).
@@ -759,8 +762,8 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 	var (
 		err error
 		ev  *events.Envelope
-		et  EventType
-		ei  EventInfo
+		et  libcontainerdtypes.EventType
+		ei  libcontainerdtypes.EventInfo
 		ctr *container
 	)
 
@@ -800,22 +803,22 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 
 			switch t := v.(type) {
 			case *apievents.TaskCreate:
-				et = EventCreate
-				ei = EventInfo{
+				et = libcontainerdtypes.EventCreate
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					ProcessID:   t.ContainerID,
 					Pid:         t.Pid,
 				}
 			case *apievents.TaskStart:
-				et = EventStart
-				ei = EventInfo{
+				et = libcontainerdtypes.EventStart
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					ProcessID:   t.ContainerID,
 					Pid:         t.Pid,
 				}
 			case *apievents.TaskExit:
-				et = EventExit
-				ei = EventInfo{
+				et = libcontainerdtypes.EventExit
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					ProcessID:   t.ID,
 					Pid:         t.Pid,
@@ -823,33 +826,33 @@ func (c *client) processEventStream(ctx context.Context, ns string) {
 					ExitedAt:    t.ExitedAt,
 				}
 			case *apievents.TaskOOM:
-				et = EventOOM
-				ei = EventInfo{
+				et = libcontainerdtypes.EventOOM
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					OOMKilled:   true,
 				}
 				oomKilled = true
 			case *apievents.TaskExecAdded:
-				et = EventExecAdded
-				ei = EventInfo{
+				et = libcontainerdtypes.EventExecAdded
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					ProcessID:   t.ExecID,
 				}
 			case *apievents.TaskExecStarted:
-				et = EventExecStarted
-				ei = EventInfo{
+				et = libcontainerdtypes.EventExecStarted
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 					ProcessID:   t.ExecID,
 					Pid:         t.Pid,
 				}
 			case *apievents.TaskPaused:
-				et = EventPaused
-				ei = EventInfo{
+				et = libcontainerdtypes.EventPaused
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 				}
 			case *apievents.TaskResumed:
-				et = EventResumed
-				ei = EventInfo{
+				et = libcontainerdtypes.EventResumed
+				ei = libcontainerdtypes.EventInfo{
 					ContainerID: t.ContainerID,
 				}
 			default:

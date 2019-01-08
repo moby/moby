@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"path/filepath"
@@ -15,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
-	"golang.org/x/sys/windows"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -25,6 +26,7 @@ const (
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
+
 	img, err := daemon.imageService.GetImage(string(c.ImageID))
 	if err != nil {
 		return nil, err
@@ -219,11 +221,18 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
 	}
 
+	if logrus.IsLevelEnabled(logrus.DebugLevel) {
+		if b, err := json.Marshal(&s); err == nil {
+			logrus.Debugf("Generated spec: %s", string(b))
+		}
+	}
+
 	return (*specs.Spec)(&s), nil
 }
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
+
 	if len(s.Process.Cwd) == 0 {
 		// We default to C:\ to workaround the oddity of the case that the
 		// default directory for cmd running as LocalSystem (or
@@ -396,29 +405,37 @@ func setResourcesInSpec(c *container.Container, s *specs.Spec, isHyperV bool) {
 			}
 		}
 	}
-	memoryLimit := uint64(c.HostConfig.Memory)
-	s.Windows.Resources = &specs.WindowsResources{
-		CPU: &specs.WindowsCPUResources{
+
+	if cpuMaximum != 0 || cpuShares != 0 || cpuCount != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.CPU = &specs.WindowsCPUResources{
 			Maximum: &cpuMaximum,
 			Shares:  &cpuShares,
 			Count:   &cpuCount,
-		},
-		Memory: &specs.WindowsMemoryResources{
+		}
+	}
+
+	memoryLimit := uint64(c.HostConfig.Memory)
+	if memoryLimit != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.Memory = &specs.WindowsMemoryResources{
 			Limit: &memoryLimit,
-		},
-		Storage: &specs.WindowsStorageResources{
+		}
+	}
+
+	if c.HostConfig.IOMaximumBandwidth != 0 || c.HostConfig.IOMaximumIOps != 0 {
+		if s.Windows.Resources == nil {
+			s.Windows.Resources = &specs.WindowsResources{}
+		}
+		s.Windows.Resources.Storage = &specs.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,
 			Iops: &c.HostConfig.IOMaximumIOps,
-		},
+		}
 	}
-}
-
-func escapeArgs(args []string) []string {
-	escapedArgs := make([]string, len(args))
-	for i, a := range args {
-		escapedArgs[i] = windows.EscapeArg(a)
-	}
-	return escapedArgs
 }
 
 // mergeUlimits merge the Ulimits from HostConfig with daemon defaults, and update HostConfig

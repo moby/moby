@@ -1,4 +1,4 @@
-package libcontainerd // import "github.com/docker/docker/libcontainerd"
+package remote // import "github.com/docker/docker/libcontainerd/remote"
 
 import (
 	"context"
@@ -9,17 +9,20 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/sirupsen/logrus"
 )
 
-func summaryFromInterface(i interface{}) (*Summary, error) {
-	return &Summary{}, nil
+const runtimeName = "io.containerd.runtime.v1.linux"
+
+func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
+	return &libcontainerdtypes.Summary{}, nil
 }
 
-func (c *client) UpdateResources(ctx context.Context, containerID string, resources *Resources) error {
-	p, err := c.getProcess(containerID, InitProcessName)
+func (c *client) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
+	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -105,4 +108,8 @@ func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.
 	}
 
 	return cio.NewFIFOSet(config, closer)
+}
+
+func (c *client) newDirectIO(ctx context.Context, fifos *cio.FIFOSet) (*cio.DirectIO, error) {
+	return cio.NewDirectIO(ctx, fifos)
 }
