@@ -194,8 +194,11 @@ func (c *Cluster) Join(req types.JoinRequest) error {
 	c.nr = nr
 	c.mu.Unlock()
 
+	timeout := time.NewTimer(swarmConnectTimeout)
+	defer timeout.Stop()
+
 	select {
-	case <-time.After(swarmConnectTimeout):
+	case <-timeout.C:
 		return errSwarmJoinTimeoutReached
 	case err := <-nr.Ready():
 		if err != nil {

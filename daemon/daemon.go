@@ -42,6 +42,7 @@ import (
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
+
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
@@ -479,12 +480,14 @@ func (daemon *Daemon) restore() error {
 			// ignore errors here as this is a best effort to wait for children to be
 			//   running before we try to start the container
 			children := daemon.children(c)
-			timeout := time.After(5 * time.Second)
+			timeout := time.NewTimer(5 * time.Second)
+			defer timeout.Stop()
+
 			for _, child := range children {
 				if notifier, exists := restartContainers[child]; exists {
 					select {
 					case <-notifier:
-					case <-timeout:
+					case <-timeout.C:
 					}
 				}
 			}
@@ -602,6 +605,7 @@ func (daemon *Daemon) waitForNetworks(c *container.Container) {
 	if daemon.discoveryWatcher == nil {
 		return
 	}
+
 	// Make sure if the container has a network that requires discovery that the discovery service is available before starting
 	for netName := range c.NetworkSettings.Networks {
 		// If we get `ErrNoSuchNetwork` here, we can assume that it is due to discovery not being ready
@@ -610,13 +614,19 @@ func (daemon *Daemon) waitForNetworks(c *container.Container) {
 			if _, ok := err.(libnetwork.ErrNoSuchNetwork); !ok {
 				continue
 			}
+
 			// use a longish timeout here due to some slowdowns in libnetwork if the k/v store is on anything other than --net=host
 			// FIXME: why is this slow???
+			dur := 60 * time.Second
+			timer := time.NewTimer(dur)
+
 			logrus.Debugf("Container %s waiting for network to be ready", c.Name)
 			select {
 			case <-daemon.discoveryWatcher.ReadyCh():
-			case <-time.After(60 * time.Second):
+			case <-timer.C:
 			}
+			timer.Stop()
+
 			return
 		}
 	}
@@ -666,10 +676,14 @@ func (daemon *Daemon) DaemonLeavesCluster() {
 	// This is called also on graceful daemon shutdown. We need to
 	// wait, because the ingress release has to happen before the
 	// network controller is stopped.
+
 	if done, err := daemon.ReleaseIngress(); err == nil {
+		timeout := time.NewTimer(5 * time.Second)
+		defer timeout.Stop()
+
 		select {
 		case <-done:
-		case <-time.After(5 * time.Second):
+		case <-timeout.C:
 			logrus.Warn("timeout while waiting for ingress network removal")
 		}
 	} else {

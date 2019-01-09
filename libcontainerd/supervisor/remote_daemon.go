@@ -89,8 +89,11 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 
 	go r.monitorDaemon(ctx)
 
+	timeout := time.NewTimer(startupTimeout)
+	defer timeout.Stop()
+
 	select {
-	case <-time.After(startupTimeout):
+	case <-timeout.C:
 		return nil, errors.New("timeout waiting for containerd to start")
 	case err := <-r.daemonStartCh:
 		if err != nil {
@@ -101,8 +104,11 @@ func Start(ctx context.Context, rootDir, stateDir string, opts ...DaemonOpt) (Da
 	return r, nil
 }
 func (r *remote) WaitTimeout(d time.Duration) error {
+	timeout := time.NewTimer(d)
+	defer timeout.Stop()
+
 	select {
-	case <-time.After(d):
+	case <-timeout.C:
 		return errors.New("timeout waiting for containerd to stop")
 	case <-r.daemonStopCh:
 	}
@@ -230,7 +236,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		transientFailureCount = 0
 		client                *containerd.Client
 		err                   error
-		delay                 <-chan time.Time
+		delay                 time.Duration
+		timer                 = time.NewTimer(0)
 		started               bool
 	)
 
@@ -245,19 +252,25 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		r.platformCleanup()
 
 		close(r.daemonStopCh)
+		timer.Stop()
 	}()
 
+	// ensure no races on sending to timer.C even though there is a 0 duration.
+	if !timer.Stop() {
+		<-timer.C
+	}
+
 	for {
-		if delay != nil {
-			select {
-			case <-ctx.Done():
-				r.logger.Info("stopping healthcheck following graceful shutdown")
-				if client != nil {
-					client.Close()
-				}
-				return
-			case <-delay:
+		timer.Reset(delay)
+
+		select {
+		case <-ctx.Done():
+			r.logger.Info("stopping healthcheck following graceful shutdown")
+			if client != nil {
+				client.Close()
 			}
+			return
+		case <-timer.C:
 		}
 
 		if r.daemonPid == -1 {
@@ -277,14 +290,14 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 					return
 				}
 				r.logger.WithError(err).Error("failed restarting containerd")
-				delay = time.After(50 * time.Millisecond)
+				delay = 50 * time.Millisecond
 				continue
 			}
 
 			client, err = containerd.New(r.GRPC.Address, containerd.WithTimeout(60*time.Second))
 			if err != nil {
 				r.logger.WithError(err).Error("failed connecting to containerd")
-				delay = time.After(100 * time.Millisecond)
+				delay = 100 * time.Millisecond
 				continue
 			}
 		}
@@ -300,7 +313,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				}
 
 				transientFailureCount = 0
-				delay = time.After(500 * time.Millisecond)
+				delay = 500 * time.Millisecond
 				continue
 			}
 
@@ -308,7 +321,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 
 			transientFailureCount++
 			if transientFailureCount < maxConnectionRetryCount || system.IsProcessAlive(r.daemonPid) {
-				delay = time.After(time.Duration(transientFailureCount) * 200 * time.Millisecond)
+				delay = time.Duration(transientFailureCount) * 200 * time.Millisecond
 				continue
 			}
 		}
@@ -321,7 +334,7 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 		client.Close()
 		client = nil
 		r.daemonPid = -1
-		delay = nil
+		delay = 0
 		transientFailureCount = 0
 	}
 }
