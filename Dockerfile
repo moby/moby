@@ -74,7 +74,7 @@ RUN set -x \
 
 FROM base AS docker-py
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT 8b246db271a85d6541dc458838627e89c683e42f
+ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
 RUN git clone https://github.com/docker/docker-py.git /build \
 	&& cd /build \
 	&& git checkout -q $DOCKER_PY_COMMIT
@@ -184,6 +184,9 @@ RUN apt-get update && apt-get install -y \
 	jq \
 	libcap2-bin \
 	libdevmapper-dev \
+# libffi-dev and libssl-dev appear to be required for compiling paramiko on s390x/ppc64le
+	libffi-dev \
+	libssl-dev \
 	libudev-dev \
 	libsystemd-dev \
 	binutils-mingw-w64 \
@@ -192,6 +195,8 @@ RUN apt-get update && apt-get install -y \
 	pigz \
 	python-backports.ssl-match-hostname \
 	python-dev \
+# python-cffi appears to be required for compiling paramiko on s390x/ppc64le
+	python-cffi \
 	python-mock \
 	python-pip \
 	python-requests \
@@ -224,7 +229,8 @@ COPY --from=docker-py /build/ /docker-py
 # split out into a separate image, including all the `python-*` deps installed
 # above.
 RUN cd /docker-py \
-	&& pip install docker-pycreds==0.2.1 \
+	&& pip install docker-pycreds==0.4.0 \
+	&& pip install paramiko==2.4.2 \
 	&& pip install yamllint==1.5.0 \
 	&& pip install -r test-requirements.txt
 
