@@ -26,6 +26,7 @@ import (
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/authorization"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 	"gotest.tools/skip"
 )
 
@@ -224,18 +225,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 
 	// Create a container and wait for the creation events
 	cID := container.Run(t, ctx, c)
-
-	for i := 0; i < 100; i++ {
-		c, err := c.ContainerInspect(ctx, cID)
-		assert.NilError(t, err)
-		if c.State.Running {
-			break
-		}
-		if i == 99 {
-			t.Fatal("Container didn't run within 10s")
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
+	poll.WaitOn(t, container.IsInState(ctx, c, cID, "running"))
 
 	created := false
 	started := false
