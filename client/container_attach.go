@@ -9,7 +9,7 @@ import (
 
 // ContainerAttach attaches a connection to a container in the server.
 // It returns a types.HijackedConnection with the hijacked connection
-// and the a reader to get output. It's up to the called to close
+// and the a reader to get output. It's up to the caller to close
 // the hijacked connection by calling types.HijackedResponse.Close.
 //
 // The stream format on the response will be in one of two formats:
