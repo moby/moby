@@ -7,7 +7,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/archive"
 	"gotest.tools/assert"
 	"gotest.tools/poll"
@@ -17,7 +16,7 @@ import (
 func TestDiff(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))

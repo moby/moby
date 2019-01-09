@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -23,7 +22,7 @@ func TestExportContainerAndImportImage(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("true"))
@@ -59,20 +58,19 @@ func TestExportContainerAndImportImage(t *testing.T) {
 // condition, daemon restart is needed after container creation.
 func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	d := daemon.New(t)
-	client, err := d.NewClient()
-	assert.NilError(t, err)
+	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
 	ctx := context.Background()
-	ctrID := container.Create(t, ctx, client)
+	ctrID := container.Create(t, ctx, c)
 
 	d.Restart(t)
 
-	_, err = client.ContainerExport(ctx, ctrID)
+	_, err := c.ContainerExport(ctx, ctrID)
 	assert.NilError(t, err)
 }

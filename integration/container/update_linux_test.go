@@ -9,7 +9,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
@@ -22,7 +21,7 @@ func TestUpdateMemory(t *testing.T) {
 	skip.If(t, !testEnv.DaemonInfo.SwapLimit)
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
@@ -67,10 +66,8 @@ func TestUpdateMemory(t *testing.T) {
 }
 
 func TestUpdateCPUQuota(t *testing.T) {
-	t.Parallel()
-
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client)

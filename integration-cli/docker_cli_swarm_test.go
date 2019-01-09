@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -425,8 +426,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Leave the swarm
-	err = d.SwarmLeave(true)
-	c.Assert(err, checker.IsNil)
+	c.Assert(d.SwarmLeave(true), checker.IsNil)
 
 	// Check the container is disconnected
 	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
@@ -1314,6 +1314,13 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 // This one keeps the leader up, and asserts that other manager nodes in the cluster also have their unlock
 // key rotated.
 func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
+	if runtime.GOARCH == "s390x" {
+		c.Skip("Disabled on s390x")
+	}
+	if runtime.GOARCH == "ppc64le" {
+		c.Skip("Disabled on  ppc64le")
+	}
+
 	d1 := s.AddDaemon(c, true, true) // leader - don't restart this one, we don't want leader election delays
 	d2 := s.AddDaemon(c, true, true)
 	d3 := s.AddDaemon(c, true, true)
@@ -1612,8 +1619,7 @@ func (s *DockerSwarmSuite) TestNetworkInspectWithDuplicateNames(c *check.C) {
 		Driver:         "bridge",
 	}
 
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	n1, err := cli.NetworkCreate(context.Background(), name, options)

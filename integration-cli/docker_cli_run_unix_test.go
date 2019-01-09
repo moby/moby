@@ -497,7 +497,7 @@ func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
-	testRequires(c, kernelMemorySupport)
+	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	cli.DockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file).Assert(c, icmd.Expected{
@@ -510,7 +510,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
-	testRequires(c, kernelMemorySupport)
+	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
 	c.Assert(err, check.NotNil)
@@ -1568,7 +1568,7 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	out, _ := dockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
 	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
 
-	clt, err := client.NewEnvClient()
+	clt, err := client.NewClientWithOpts(client.FromEnv)
 	c.Assert(err, checker.IsNil)
 	inspect, err := clt.ContainerInspect(context.Background(), "test")
 	c.Assert(err, checker.IsNil)

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/fs"
@@ -26,11 +25,11 @@ func getPrefixAndSlashFromDaemonPlatform() (prefix, slash string) {
 
 // Test case for #5244: `docker rm` fails if bind dir doesn't exist anymore
 func TestRemoveContainerWithRemovedVolume(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
@@ -56,7 +55,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 func TestRemoveContainerWithVolume(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
@@ -81,7 +80,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 func TestRemoveContainerRunning(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	cID := container.Run(t, ctx, client)
 
@@ -92,7 +91,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	cID := container.Run(t, ctx, client)
 
@@ -105,7 +104,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 func TestRemoveInvalidContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	err := client.ContainerRemove(ctx, "unknown", types.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "No such container"))

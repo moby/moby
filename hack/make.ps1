@@ -218,7 +218,7 @@ Function Validate-DCO($headCommit, $upstreamCommit) {
     if ($LASTEXITCODE -ne 0) { Throw "Failed git log --format" }
     $commits = $($commits -split '\s+' -match '\S')
     $badCommits=@()
-    $commits | %{
+    $commits | ForEach-Object{
         # Skip commits with no content such as merge commits etc
         if ($(git log -1 --format=format: --name-status $_).Length -gt 0) {
             # Ignore exit code on next call - always process regardless
@@ -244,7 +244,7 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
 
     # Get a list of go source-code files which have changed under pkg\. Ignore exit code on next call - always process regardless
     $files=@(); $files = Invoke-Expression "git diff $upstreamCommit...$headCommit --diff-filter=ACMR --name-only -- `'pkg\*.go`'"
-    $badFiles=@(); $files | %{
+    $badFiles=@(); $files | ForEach-Object{
         $file=$_
         # For the current changed file, get its list of dependencies, sorted and uniqued.
         $imports = Invoke-Expression "go list -e -f `'{{ .Deps }}`' $file"
@@ -255,13 +255,13 @@ Function Validate-PkgImports($headCommit, $upstreamCommit) {
                                   -NotMatch "^github.com/docker/docker/vendor" `
                                   -Match "^github.com/docker/docker" `
                                   -Replace "`n", ""
-        $imports | % { $badFiles+="$file imports $_`n" }
+        $imports | ForEach-Object{ $badFiles+="$file imports $_`n" }
     }
     if ($badFiles.Length -eq 0) {
         Write-Host 'Congratulations!  ".\pkg\*.go" is safely isolated from internal code.'
     } else {
         $e = "`nThese files import internal code: (either directly or indirectly)`n"
-        $badFiles | %{ $e+=" - $_"}
+        $badFiles | ForEach-Object{ $e+=" - $_"}
         Throw $e
     }
 }
@@ -297,7 +297,7 @@ Function Validate-GoFormat($headCommit, $upstreamCommit) {
         Write-Host 'Congratulations!  All Go source files are properly formatted.'
     } else {
         $e = "`nThese files are not properly gofmt`'d:`n"
-        $badFiles | %{ $e+=" - $_`n"}
+        $badFiles | ForEach-Object{ $e+=" - $_`n"}
         $e+= "`nPlease reformat the above files using `"gofmt -s -w`" and commit the result."
         Throw $e
     }

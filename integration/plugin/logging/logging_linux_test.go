@@ -16,7 +16,7 @@ import (
 )
 
 func TestContinueAfterPluginCrash(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon(), "test requires daemon on the same host")
+	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
 	t.Parallel()
 
 	d := daemon.New(t)

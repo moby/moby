@@ -20,7 +20,7 @@ import (
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
 
 	d := daemon.New(t, daemon.WithExperimental)
@@ -32,24 +32,23 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	n.CreateMasterDummy(t, master)
 	defer n.DeleteInterface(t, master)
 
-	client, err := d.NewClient()
-	assert.NilError(t, err)
+	c := d.NewClientT(t)
 
 	// create a network specifying the desired sub-interface name
 	netName := "di-persist"
-	net.CreateNoError(t, context.Background(), client, netName,
+	net.CreateNoError(t, context.Background(), c, netName,
 		net.WithIPvlan("di-dummy0.70", ""),
 	)
 
-	assert.Check(t, n.IsNetworkAvailable(client, netName))
+	assert.Check(t, n.IsNetworkAvailable(c, netName))
 	// Restart docker daemon to test the config has persisted to disk
 	d.Restart(t)
-	assert.Check(t, n.IsNetworkAvailable(client, netName))
+	assert.Check(t, n.IsNetworkAvailable(c, netName))
 }
 
 func TestDockerNetworkIpvlan(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
 
 	for _, tc := range []struct {
@@ -87,11 +86,9 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 	} {
 		d := daemon.New(t, daemon.WithExperimental)
 		d.StartWithBusybox(t)
+		c := d.NewClientT(t)
 
-		client, err := d.NewClient()
-		assert.NilError(t, err)
-
-		t.Run(tc.name, tc.test(client))
+		t.Run(tc.name, tc.test(c))
 
 		d.Stop(t)
 		// FIXME(vdemeester) clean network

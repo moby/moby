@@ -15,7 +15,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/internal/test/fakecontext"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -25,7 +24,7 @@ import (
 func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	defer setupTest(t)()
-	t.Parallel()
+
 	cases := []struct {
 		name                           string
 		dockerfile                     string
@@ -89,7 +88,7 @@ func TestBuildWithRemoveAndForceRemove(t *testing.T) {
 		},
 	}
 
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

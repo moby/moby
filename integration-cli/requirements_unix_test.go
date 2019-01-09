@@ -38,6 +38,17 @@ func pidsLimit() bool {
 }
 
 func kernelMemorySupport() bool {
+	// TODO remove this once kmem support in RHEL kernels is fixed. See https://github.com/opencontainers/runc/pull/1921
+	daemonV, err := kernel.ParseRelease(testEnv.DaemonInfo.KernelVersion)
+	if err != nil {
+		return false
+	}
+	requiredV := kernel.VersionInfo{Kernel: 3, Major: 10}
+	if kernel.CompareKernelVersion(*daemonV, requiredV) < 1 {
+		// On Kernel 3.10 and under, don't consider kernel memory to be supported,
+		// even if the kernel (and thus the daemon) reports it as being supported
+		return false
+	}
 	return testEnv.DaemonInfo.KernelMemory
 }
 

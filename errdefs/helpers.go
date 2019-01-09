@@ -76,6 +76,9 @@ func (e errUnavailable) Cause() error {
 
 // Unavailable is a helper to create an error of the class with the same name from any error type
 func Unavailable(err error) error {
+	if err == nil {
+		return nil
+	}
 	return errUnavailable{err}
 }
 

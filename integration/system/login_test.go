@@ -6,7 +6,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/requirement"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
@@ -16,7 +15,8 @@ import (
 func TestLoginFailsWithBadCredentials(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
-	client := request.NewAPIClient(t)
+	defer setupTest(t)()
+	client := testEnv.APIClient()
 
 	config := types.AuthConfig{
 		Username: "no-user",

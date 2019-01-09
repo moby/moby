@@ -10,7 +10,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 	"gotest.tools/poll"
@@ -22,7 +21,7 @@ import (
 // waiting is not limited (issue #35311).
 func TestStopContainerWithTimeout(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	testCmd := container.WithCmd("sh", "-c", "sleep 2 && exit 42")
@@ -73,10 +72,10 @@ func TestStopContainerWithTimeout(t *testing.T) {
 
 func TestDeleteDevicemapper(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.Driver != "devicemapper")
-	skip.If(t, testEnv.IsRemoteDaemon, "cannot start daemon on remote test run")
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	id := container.Run(t, ctx, client, container.WithName("foo-"+t.Name()), container.WithCmd("echo"))
