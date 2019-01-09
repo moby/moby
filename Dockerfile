@@ -193,15 +193,9 @@ RUN apt-get update && apt-get install -y \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
-	python-backports.ssl-match-hostname \
 	python-dev \
-# python-cffi appears to be required for compiling paramiko on s390x/ppc64le
-	python-cffi \
-	python-mock \
 	python-pip \
-	python-requests \
 	python-setuptools \
-	python-websocket \
 	python-wheel \
 	thin-provisioning-tools \
 	vim \
@@ -211,6 +205,17 @@ RUN apt-get update && apt-get install -y \
 	bzip2 \
 	xz-utils \
 	--no-install-recommends
+
+# Install yamllint for validating swagger.yaml.
+RUN	pip install yamllint==1.5.0
+
+# TODO: This is for the docker-py tests, which shouldn't really be needed for
+# this image, but currently CI is expecting to run this image. This should be
+# split out into a separate image, including all the `python-*` deps installed
+# above.
+COPY --from=docker-py /build/ /docker-py
+RUN cd /docker-py && pip install -r requirements.txt -r test-requirements.txt
+
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=gometalinter /build/ /usr/local/bin/
@@ -222,17 +227,6 @@ COPY --from=containerd /build/ /usr/local/bin/
 COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
-COPY --from=criu /build/ /usr/local/
-COPY --from=docker-py /build/ /docker-py
-# TODO: This is for the docker-py tests, which shouldn't really be needed for
-# this image, but currently CI is expecting to run this image. This should be
-# split out into a separate image, including all the `python-*` deps installed
-# above.
-RUN cd /docker-py \
-	&& pip install docker-pycreds==0.4.0 \
-	&& pip install paramiko==2.4.2 \
-	&& pip install yamllint==1.5.0 \
-	&& pip install -r test-requirements.txt
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
