@@ -32,7 +32,7 @@ func TestServiceUpdateLabel(t *testing.T) {
 	service.Spec.Labels["foo"] = "bar"
 	_, err := cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
 	service = getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
@@ -40,21 +40,21 @@ func TestServiceUpdateLabel(t *testing.T) {
 	service.Spec.Labels["foo2"] = "bar"
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
 	service = getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar", "foo2": "bar"}))
 
 	delete(service.Spec.Labels, "foo2")
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
 	service = getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
 	delete(service.Spec.Labels, "foo")
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
 	service = getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{}))
 
@@ -62,7 +62,7 @@ func TestServiceUpdateLabel(t *testing.T) {
 	service.Spec.Labels["foo"] = "bar"
 	_, err = cli.ServiceUpdate(ctx, serviceID, service.Version, service.Spec, types.ServiceUpdateOptions{})
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsUpdated(cli, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, serviceSpecIsUpdated(cli, serviceID, service.Version.Index), swarm.ServicePoll)
 	service = getService(t, cli, serviceID)
 	assert.Check(t, is.DeepEqual(service.Spec.Labels, map[string]string{"foo": "bar"}))
 
@@ -207,10 +207,27 @@ func serviceIsUpdated(client client.ServiceAPIClient, serviceID string) func(log
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case service.UpdateStatus == nil || service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
+		case service.UpdateStatus != nil && service.UpdateStatus.State == swarmtypes.UpdateStateCompleted:
 			return poll.Success()
 		default:
-			return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+			if service.UpdateStatus != nil {
+				return poll.Continue("waiting for service %s to be updated, state: %s, message: %s", serviceID, service.UpdateStatus.State, service.UpdateStatus.Message)
+			}
+			return poll.Continue("waiting for service %s to be updated", serviceID)
+		}
+	}
+}
+
+func serviceSpecIsUpdated(client client.ServiceAPIClient, serviceID string, serviceOldVersion uint64) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		service, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+		switch {
+		case err != nil:
+			return poll.Error(err)
+		case service.Version.Index > serviceOldVersion:
+			return poll.Success()
+		default:
+			return poll.Continue("waiting for service %s to be updated", serviceID)
 		}
 	}
 }
