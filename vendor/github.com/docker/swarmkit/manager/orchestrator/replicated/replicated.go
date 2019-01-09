@@ -61,7 +61,7 @@ func (r *Orchestrator) Run(ctx context.Context) error {
 			return
 		}
 
-		if err = r.initServices(readTx); err != nil {
+		if err = r.initServices(ctx, readTx); err != nil {
 			return
 		}
 
@@ -78,7 +78,6 @@ func (r *Orchestrator) Run(ctx context.Context) error {
 	for {
 		select {
 		case event := <-watcher:
-			// TODO(stevvooe): Use ctx to limit running time of operation.
 			r.handleTaskEvent(ctx, event)
 			r.handleServiceEvent(ctx, event)
 			switch v := event.(type) {
@@ -89,6 +88,8 @@ func (r *Orchestrator) Run(ctx context.Context) error {
 			}
 		case <-r.stopChan:
 			return nil
+		case <-ctx.Done():
+			return ctx.Err()
 		}
 	}
 }

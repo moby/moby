@@ -24,6 +24,7 @@ import (
 	"github.com/docker/swarmkit/manager/allocator/cnmallocator"
 	"github.com/docker/swarmkit/manager/allocator/networkallocator"
 	"github.com/docker/swarmkit/manager/controlapi"
+	"github.com/docker/swarmkit/manager/deallocator"
 	"github.com/docker/swarmkit/manager/dispatcher"
 	"github.com/docker/swarmkit/manager/drivers"
 	"github.com/docker/swarmkit/manager/health"
@@ -149,6 +150,7 @@ type Manager struct {
 	constraintEnforcer     *constraintenforcer.ConstraintEnforcer
 	scheduler              *scheduler.Scheduler
 	allocator              *allocator.Allocator
+	deallocator            *deallocator.Deallocator
 	keyManager             *keymanager.KeyManager
 	server                 *grpc.Server
 	localserver            *grpc.Server
@@ -692,6 +694,9 @@ func (m *Manager) Stop(ctx context.Context, clearData bool) {
 	if m.roleManager != nil {
 		m.roleManager.Stop()
 	}
+	if m.deallocator != nil {
+		m.deallocator.Stop()
+	}
 	if m.keyManager != nil {
 		m.keyManager.Stop()
 	}
@@ -996,6 +1001,7 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	m.scheduler = scheduler.New(s)
 	m.keyManager = keymanager.New(s, keymanager.DefaultConfig())
 	m.roleManager = newRoleManager(s, m.raftNode)
+	m.deallocator = deallocator.New(s)
 
 	// TODO(stevvooe): Allocate a context that can be used to
 	// shutdown underlying manager processes when leadership isTestUpdaterRollback
@@ -1010,10 +1016,16 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			cluster = store.GetCluster(tx, clusterID)
 		})
 		if cluster.DefaultAddressPool != nil {
+			if m.config.NetworkConfig == nil {
+				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+			}
 			m.config.NetworkConfig.DefaultAddrPool = append(m.config.NetworkConfig.DefaultAddrPool, cluster.DefaultAddressPool...)
 			m.config.NetworkConfig.SubnetSize = cluster.SubnetSize
 		}
 		if cluster.VXLANUDPPort != 0 {
+			if m.config.NetworkConfig == nil {
+				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+			}
 			m.config.NetworkConfig.VXLANUDPPort = cluster.VXLANUDPPort
 		}
 	}
@@ -1091,6 +1103,10 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 	go func(roleManager *roleManager) {
 		roleManager.Run(ctx)
 	}(m.roleManager)
+
+	go func(deallocator *deallocator.Deallocator) {
+		deallocator.Run(ctx)
+	}(m.deallocator)
 }
 
 // becomeFollower shuts down the subsystems that are only run by the leader.
@@ -1125,6 +1141,9 @@ func (m *Manager) becomeFollower() {
 
 	m.roleManager.Stop()
 	m.roleManager = nil
+
+	m.deallocator.Stop()
+	m.deallocator = nil
 
 	if m.keyManager != nil {
 		m.keyManager.Stop()

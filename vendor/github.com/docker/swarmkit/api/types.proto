@@ -246,6 +246,8 @@ message Mount {
 
 		// Propagation mode of mount.
 		Propagation propagation = 1;
+		// allows non-recursive bind-mount, i.e. mount(2) with "bind" rather than "rbind".
+		bool nonrecursive = 2 [(gogoproto.customname) = "NonRecursive"];
 	}
 
 	// VolumeOptions contains parameters for mounting the volume.

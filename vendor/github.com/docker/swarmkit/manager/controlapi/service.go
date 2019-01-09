@@ -682,7 +682,10 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 	})
 	switch err {
 	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "service %s already exists", request.Spec.Annotations.Name)
+		// Enhance the name-confict error to include the service name. The original
+		// `ErrNameConflict` error-message is included for backward-compatibility
+		// with older consumers of the API performing string-matching.
+		return nil, status.Errorf(codes.AlreadyExists, "%s: service %s already exists", err.Error(), request.Spec.Annotations.Name)
 	case nil:
 		return &api.CreateServiceResponse{Service: service}, nil
 	default:
@@ -719,6 +722,7 @@ func (s *Server) GetService(ctx context.Context, request *api.GetServiceRequest)
 // - Returns `NotFound` if the Service is not found.
 // - Returns `InvalidArgument` if the ServiceSpec is malformed.
 // - Returns `Unimplemented` if the ServiceSpec references unimplemented features.
+// - Returns `FailedPrecondition` if the Service is marked for removal
 // - Returns an error if the update fails.
 func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRequest) (*api.UpdateServiceResponse, error) {
 	if request.ServiceID == "" || request.ServiceVersion == nil {
@@ -750,6 +754,12 @@ func (s *Server) UpdateService(ctx context.Context, request *api.UpdateServiceRe
 		service = store.GetService(tx, request.ServiceID)
 		if service == nil {
 			return status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+		}
+
+		// we couldn't do this any sooner, as we do need to be holding the lock
+		// when checking for this flag
+		if service.PendingDelete {
+			return status.Errorf(codes.FailedPrecondition, "service %s is marked for removal", request.ServiceID)
 		}
 
 		// It's not okay to update Service.Spec.Networks on its own.
@@ -845,12 +855,15 @@ func (s *Server) RemoveService(ctx context.Context, request *api.RemoveServiceRe
 	}
 
 	err := s.store.Update(func(tx store.Tx) error {
-		return store.DeleteService(tx, request.ServiceID)
+		service := store.GetService(tx, request.ServiceID)
+		if service == nil {
+			return status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
+		}
+		// mark service for removal
+		service.PendingDelete = true
+		return store.UpdateService(tx, service)
 	})
 	if err != nil {
-		if err == store.ErrNotExist {
-			return nil, status.Errorf(codes.NotFound, "service %s not found", request.ServiceID)
-		}
 		return nil, err
 	}
 	return &api.RemoveServiceResponse{}, nil
