@@ -187,12 +187,18 @@ func handleProbeResult(d *Daemon, c *container.Container, result *types.Healthch
 func monitor(d *Daemon, c *container.Container, stop chan struct{}, probe probe) {
 	probeTimeout := timeoutWithDefault(c.Config.Healthcheck.Timeout, defaultProbeTimeout)
 	probeInterval := timeoutWithDefault(c.Config.Healthcheck.Interval, defaultProbeInterval)
+
+	intervalTimer := time.NewTimer(probeInterval)
+	defer intervalTimer.Stop()
+
 	for {
+		intervalTimer.Reset(probeInterval)
+
 		select {
 		case <-stop:
 			logrus.Debugf("Stop healthcheck monitoring for container %s (received while idle)", c.ID)
 			return
-		case <-time.After(probeInterval):
+		case <-intervalTimer.C:
 			logrus.Debugf("Running health check for container %s ...", c.ID)
 			startTime := time.Now()
 			ctx, cancelProbe := context.WithTimeout(context.Background(), probeTimeout)

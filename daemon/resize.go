@@ -38,13 +38,16 @@ func (daemon *Daemon) ContainerExecResize(name string, height, width int) error 
 	if err != nil {
 		return err
 	}
+
 	// TODO: the timeout is hardcoded here, it would be more flexible to make it
 	// a parameter in resize request context, which would need API changes.
-	timeout := 10 * time.Second
+	timeout := time.NewTimer(10 * time.Second)
+	defer timeout.Stop()
+
 	select {
 	case <-ec.Started:
 		return daemon.containerd.ResizeTerminal(context.Background(), ec.ContainerID, ec.ID, width, height)
-	case <-time.After(timeout):
+	case <-timeout.C:
 		return fmt.Errorf("timeout waiting for exec session ready")
 	}
 }

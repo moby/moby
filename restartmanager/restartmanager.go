@@ -107,11 +107,14 @@ func (rm *restartManager) ShouldRestart(exitCode uint32, hasBeenManuallyStopped 
 
 	ch := make(chan error)
 	go func() {
+		timeout := time.NewTimer(rm.timeout)
+		defer timeout.Stop()
+
 		select {
 		case <-rm.cancel:
 			ch <- ErrRestartCanceled
 			close(ch)
-		case <-time.After(rm.timeout):
+		case <-timeout.C:
 			rm.Lock()
 			close(ch)
 			rm.active = false

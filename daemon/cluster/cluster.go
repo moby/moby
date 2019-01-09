@@ -186,8 +186,11 @@ func (c *Cluster) Start() error {
 	}
 	c.nr = nr
 
+	timer := time.NewTimer(swarmConnectTimeout)
+	defer timer.Stop()
+
 	select {
-	case <-time.After(swarmConnectTimeout):
+	case <-timer.C:
 		logrus.Error("swarm component could not be started before timeout was reached")
 	case err := <-nr.Ready():
 		if err != nil {

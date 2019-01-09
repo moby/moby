@@ -148,12 +148,14 @@ func (d *daemonDiscoveryReloader) initHeartbeat(address string) error {
 	// Setup a short ticker until the first heartbeat has succeeded
 	t := time.NewTicker(500 * time.Millisecond)
 	defer t.Stop()
+
 	// timeout makes sure that after a period of time we stop being so aggressive trying to reach the discovery service
-	timeout := time.After(60 * time.Second)
+	timeout := time.NewTimer(60 * time.Second)
+	defer timeout.Stop()
 
 	for {
 		select {
-		case <-timeout:
+		case <-timeout.C:
 			return errors.New("timeout waiting for initial discovery")
 		case <-d.term:
 			return errors.New("terminated")
