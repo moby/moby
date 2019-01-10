@@ -22,6 +22,7 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
 	"gotest.tools/icmd"
+	"gotest.tools/poll"
 )
 
 // Deprecated
@@ -469,4 +470,29 @@ func sumAsIntegers(vals ...interface{}) interface{} {
 		s += v.(int)
 	}
 	return s
+}
+
+// serviceRmAndWaitForRemoval removes the specified service, then polls until the service is actually removed
+func serviceRmAndWaitForRemoval(c *check.C, daemon *daemon.Daemon, serviceName string, pollOps ...poll.SettingOp) {
+	out, err := daemon.Cmd("service", "rm", serviceName)
+	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+
+	waitForServiceRemoval(c, daemon, serviceName, pollOps...)
+}
+
+// waitForServiceRemoval polls until a service whose deletion has been requested is actually removed
+func waitForServiceRemoval(c *check.C, daemon *daemon.Daemon, serviceName string, pollOps ...poll.SettingOp) {
+	poll.WaitOn(c, func(t poll.LogT) poll.Result {
+		out, err := daemon.Cmd("service", "inspect", "--format", "{{ json .ID }}", serviceName)
+
+		if err != nil {
+			if strings.Contains(out, fmt.Sprintf("no such service: %s", serviceName)) {
+				return poll.Success()
+			}
+			t.Logf("Error when waiting for service %q to shut down, err: %v and output: %v", err, out)
+			return poll.Error(err)
+		}
+
+		return poll.Continue("service %q still exists", serviceName)
+	}, pollOps...)
 }

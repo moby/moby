@@ -77,7 +77,7 @@ func TestServicePlugin(t *testing.T) {
 	poll.WaitOn(t, d2.PluginIsRunning(name), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsRunning(name), swarm.ServicePoll)
 
-	d1.RemoveService(t, id)
+	d1.RemoveServiceAndWaitForRemoval(t, id)
 	poll.WaitOn(t, d1.PluginIsNotPresent(name), swarm.ServicePoll)
 	poll.WaitOn(t, d2.PluginIsNotPresent(name), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsNotPresent(name), swarm.ServicePoll)
@@ -88,7 +88,7 @@ func TestServicePlugin(t *testing.T) {
 	poll.WaitOn(t, d2.PluginIsRunning(name), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsNotPresent(name), swarm.ServicePoll)
 
-	d1.RemoveService(t, id)
+	d1.RemoveServiceAndWaitForRemoval(t, id)
 	poll.WaitOn(t, d1.PluginIsNotPresent(name), swarm.ServicePoll)
 	poll.WaitOn(t, d2.PluginIsNotPresent(name), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsNotPresent(name), swarm.ServicePoll)
@@ -99,7 +99,7 @@ func TestServicePlugin(t *testing.T) {
 	poll.WaitOn(t, d2.PluginIsRunning(repo), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsRunning(repo), swarm.ServicePoll)
 
-	d1.RemoveService(t, id)
+	d1.RemoveServiceAndWaitForRemoval(t, id)
 	poll.WaitOn(t, d1.PluginIsNotPresent(repo), swarm.ServicePoll)
 	poll.WaitOn(t, d2.PluginIsNotPresent(repo), swarm.ServicePoll)
 	poll.WaitOn(t, d3.PluginIsNotPresent(repo), swarm.ServicePoll)

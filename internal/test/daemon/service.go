@@ -7,17 +7,16 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test"
 	"gotest.tools/assert"
+	"gotest.tools/poll"
 )
 
 // ServiceConstructor defines a swarm service constructor function
 type ServiceConstructor func(*swarm.Service)
 
 func (d *Daemon) createServiceWithOptions(t assert.TestingT, opts types.ServiceCreateOptions, f ...ServiceConstructor) string {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	var service swarm.Service
 	for _, fn := range f {
 		fn(&service)
@@ -44,9 +43,6 @@ func (d *Daemon) CreateService(t assert.TestingT, f ...ServiceConstructor) strin
 
 // GetService returns the swarm service corresponding to the specified id
 func (d *Daemon) GetService(t assert.TestingT, id string) *swarm.Service {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -57,9 +53,6 @@ func (d *Daemon) GetService(t assert.TestingT, id string) *swarm.Service {
 
 // GetServiceTasks returns the swarm tasks for the specified service
 func (d *Daemon) GetServiceTasks(t assert.TestingT, service string) []swarm.Task {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -78,9 +71,6 @@ func (d *Daemon) GetServiceTasks(t assert.TestingT, service string) []swarm.Task
 
 // UpdateService updates a swarm service with the specified service constructor
 func (d *Daemon) UpdateService(t assert.TestingT, service *swarm.Service, f ...ServiceConstructor) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -92,11 +82,30 @@ func (d *Daemon) UpdateService(t assert.TestingT, service *swarm.Service, f ...S
 	assert.NilError(t, err)
 }
 
-// RemoveService removes the specified service
-func (d *Daemon) RemoveService(t assert.TestingT, id string) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
+// RemoveServiceAndWaitForRemoval removes the specified service, then polls until the service is actually removed
+func (d *Daemon) RemoveServiceAndWaitForRemoval(t testingT, id string, pollOps ...poll.SettingOp) {
+	d.removeService(t, id)
+
+	cli := d.NewClientT(t)
+	defer cli.Close()
+
+	pollingFunc := func(_ poll.LogT) poll.Result {
+		_, _, err := cli.ServiceInspectWithRaw(context.Background(), id, types.ServiceInspectOptions{})
+
+		if err != nil {
+			if client.IsErrNotFound(err) {
+				return poll.Success()
+			}
+			return poll.Error(err)
+		}
+		return poll.Continue("service %q still exists", id)
 	}
+
+	poll.WaitOn(t, pollingFunc, pollOps...)
+}
+
+// removeService removes the specified service
+func (d *Daemon) removeService(t assert.TestingT, id string) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -106,9 +115,6 @@ func (d *Daemon) RemoveService(t assert.TestingT, id string) {
 
 // ListServices returns the list of the current swarm services
 func (d *Daemon) ListServices(t assert.TestingT) []swarm.Service {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -119,9 +125,6 @@ func (d *Daemon) ListServices(t assert.TestingT) []swarm.Service {
 
 // GetTask returns the swarm task identified by the specified id
 func (d *Daemon) GetTask(t assert.TestingT, id string) swarm.Task {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 

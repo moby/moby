@@ -89,6 +89,9 @@ func (s *DockerSwarmSuite) TestSwarmNetworkPluginV2(c *check.C) {
 	// possibility of container exits erroring out due to plugins being unavailable.
 	waitAndAssert(c, defaultReconciliationTimeout, reducedCheck(sumAsIntegers, d1.CheckActiveContainerCount, d2.CheckActiveContainerCount), checker.Equals, 0)
 
+	// wait and assert that the service has actually been removed
+	waitForServiceRemoval(c, d1, serviceName)
+
 	// disable plugin on worker
 	_, err = d2.Cmd("plugin", "disable", "-f", pluginName)
 	c.Assert(err, checker.IsNil)

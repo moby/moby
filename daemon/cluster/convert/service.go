@@ -75,6 +75,8 @@ func ServiceFromGRPC(s swarmapi.Service) (types.Service, error) {
 		service.UpdateStatus.Message = s.UpdateStatus.Message
 	}
 
+	service.PendingDelete = s.PendingDelete
+
 	return service, nil
 }
 

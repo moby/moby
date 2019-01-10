@@ -862,6 +862,9 @@ func (s *DockerSwarmSuite) TestSwarmServiceTTY(c *check.C) {
 	// Make sure container has been destroyed.
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
 
+	// make sure the service has properly shut down before moving on to the next tests
+	waitForServiceRemoval(c, d, name)
+
 	// With --tty
 	expectedOutput = "TTY"
 	out, err = d.Cmd("service", "create", "--detach", "--no-resolve-image", "--name", name, "--tty", "busybox", "sh", "-c", ttyCheck)
@@ -1894,8 +1897,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterEventsService(c *check.C) {
 
 	// remove service
 	t3 := daemonUnixTime(c)
-	out, err = d.Cmd("service", "rm", "test")
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, "test")
 
 	waitForEvent(c, d, t3, "-f scope=swarm", "service remove "+serviceID, defaultRetryCount)
 }

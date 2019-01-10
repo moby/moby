@@ -181,6 +181,8 @@ func BasicNetworkFromGRPC(n swarmapi.Network) basictypes.NetworkResource {
 		nr.Options = n.DriverState.Options
 	}
 
+	nr.PendingDelete = n.PendingDelete
+
 	return nr
 }
 

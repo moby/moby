@@ -3273,6 +3273,9 @@ definitions:
             format: "dateTime"
           Message:
             type: "string"
+      PendingDelete:
+        description: "Indicates whether the service has been marked to be deleted. The actual deletion will only occur once all of its containers have shut down."
+        example: true
     example:
       ID: "9mnpnzenvg8p8tdbtq4wvbkcz"
       Version:

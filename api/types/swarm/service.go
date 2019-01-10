@@ -6,10 +6,11 @@ import "time"
 type Service struct {
 	ID string
 	Meta
-	Spec         ServiceSpec   `json:",omitempty"`
-	PreviousSpec *ServiceSpec  `json:",omitempty"`
-	Endpoint     Endpoint      `json:",omitempty"`
-	UpdateStatus *UpdateStatus `json:",omitempty"`
+	Spec          ServiceSpec   `json:",omitempty"`
+	PreviousSpec  *ServiceSpec  `json:",omitempty"`
+	Endpoint      Endpoint      `json:",omitempty"`
+	UpdateStatus  *UpdateStatus `json:",omitempty"`
+	PendingDelete bool          `json:",omitempty"`
 }
 
 // ServiceSpec represents the spec of a service.

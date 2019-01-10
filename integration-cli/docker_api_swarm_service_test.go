@@ -88,7 +88,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesCreate(c *check.C) {
 	d.UpdateService(c, service, setInstances(instances))
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances)
 
-	d.RemoveService(c, service.ID)
+	d.RemoveServiceAndWaitForRemoval(c, service.ID)
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
 }
 
@@ -369,7 +369,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 		c.Assert(node.Spec.Role, checker.Equals, swarm.NodeRoleWorker)
 	}
 	//remove service
-	daemons[0].RemoveService(c, id)
+	daemons[0].RemoveServiceAndWaitForRemoval(c, id)
 
 	// create service
 	constraints = []string{"node.role!=worker"}
@@ -383,7 +383,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintRole(c *check.C) {
 		c.Assert(node.Spec.Role, checker.Equals, swarm.NodeRoleManager)
 	}
 	//remove service
-	daemons[0].RemoveService(c, id)
+	daemons[0].RemoveServiceAndWaitForRemoval(c, id)
 
 	// create service
 	constraints = []string{"node.role==nosuchrole"}
@@ -436,7 +436,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 		c.Assert(task.NodeID, checker.Equals, nodes[0].ID)
 	}
 	//remove service
-	daemons[0].RemoveService(c, id)
+	daemons[0].RemoveServiceAndWaitForRemoval(c, id)
 
 	// create service
 	constraints = []string{"node.labels.security!=high"}
@@ -449,7 +449,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 		c.Assert(task.NodeID, checker.Not(checker.Equals), nodes[0].ID)
 	}
 	//remove service
-	daemons[0].RemoveService(c, id)
+	daemons[0].RemoveServiceAndWaitForRemoval(c, id)
 
 	constraints = []string{"node.labels.security==medium"}
 	id = daemons[0].CreateService(c, simpleTestService, setConstraints(constraints), setInstances(instances))
@@ -463,7 +463,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServiceConstraintLabel(c *check.C) {
 		c.Assert(task.NodeID, checker.Equals, "")
 	}
 	//remove service
-	daemons[0].RemoveService(c, id)
+	daemons[0].RemoveServiceAndWaitForRemoval(c, id)
 
 	// multiple constraints
 	constraints = []string{

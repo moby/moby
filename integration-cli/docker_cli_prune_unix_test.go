@@ -76,6 +76,9 @@ func (s *DockerSwarmSuite) TestPruneNetwork(c *check.C) {
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 0)
 
 	pruneNetworkAndVerify(c, d, []string{}, []string{"n1", "n3"})
+
+	// make sure the service has properly shut down before moving on to the next tests
+	waitForServiceRemoval(c, d, serviceName)
 }
 
 func (s *DockerDaemonSuite) TestPruneImageDangling(c *check.C) {

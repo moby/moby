@@ -92,8 +92,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSimple(c *check.C) {
 	c.Assert(refs[0].File.UID, checker.Equals, "0")
 	c.Assert(refs[0].File.GID, checker.Equals, "0")
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 	d.DeleteSecret(c, testName)
 }
 
@@ -159,8 +158,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretSourceTargetPaths(c *check
 		c.Assert(out, checker.Equals, "TESTINGDATA "+testName+" "+testTarget)
 	}
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C) {
@@ -207,8 +205,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithSecretReferencedTwice(c *check.C
 		c.Assert(out, checker.Equals, "TESTINGDATA")
 	}
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *check.C) {
@@ -240,8 +237,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSimple(c *check.C) {
 	c.Assert(refs[0].File.UID, checker.Equals, "0")
 	c.Assert(refs[0].File.GID, checker.Equals, "0")
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 	d.DeleteConfig(c, testName)
 }
 
@@ -306,8 +302,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigSourceTargetPaths(c *check
 		c.Assert(out, checker.Equals, "TESTINGDATA "+testName+" "+testTarget)
 	}
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C) {
@@ -354,8 +349,7 @@ func (s *DockerSwarmSuite) TestServiceCreateWithConfigReferencedTwice(c *check.C
 		c.Assert(out, checker.Equals, "TESTINGDATA")
 	}
 
-	out, err = d.Cmd("service", "rm", serviceName)
-	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
+	serviceRmAndWaitForRemoval(c, d, serviceName)
 }
 
 func (s *DockerSwarmSuite) TestServiceCreateMountTmpfs(c *check.C) {

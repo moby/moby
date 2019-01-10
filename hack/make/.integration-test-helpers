@@ -49,7 +49,10 @@ build_test_suite_binaries() {
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
-	build_test_suite_binary ./integration-cli "test.main"
+	if [ -z "$TEST_INTEGRATION_DIR" ]; then
+	    # only build integration-cli if $TEST_INTEGRATION_DIR is not set or null
+	    build_test_suite_binary ./integration-cli "test.main"
+	fi
 	for dir in ${integration_api_dirs}; do
 		build_test_suite_binary "$dir" "test.main"
 	done

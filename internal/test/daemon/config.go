@@ -5,7 +5,6 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/internal/test"
 	"gotest.tools/assert"
 )
 
@@ -14,9 +13,6 @@ type ConfigConstructor func(*swarm.Config)
 
 // CreateConfig creates a config given the specified spec
 func (d *Daemon) CreateConfig(t assert.TestingT, configSpec swarm.ConfigSpec) string {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -27,9 +23,6 @@ func (d *Daemon) CreateConfig(t assert.TestingT, configSpec swarm.ConfigSpec) st
 
 // ListConfigs returns the list of the current swarm configs
 func (d *Daemon) ListConfigs(t assert.TestingT) []swarm.Config {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -40,9 +33,6 @@ func (d *Daemon) ListConfigs(t assert.TestingT) []swarm.Config {
 
 // GetConfig returns a swarm config identified by the specified id
 func (d *Daemon) GetConfig(t assert.TestingT, id string) *swarm.Config {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -53,9 +43,6 @@ func (d *Daemon) GetConfig(t assert.TestingT, id string) *swarm.Config {
 
 // DeleteConfig removes the swarm config identified by the specified id
 func (d *Daemon) DeleteConfig(t assert.TestingT, id string) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -66,9 +53,6 @@ func (d *Daemon) DeleteConfig(t assert.TestingT, id string) {
 // UpdateConfig updates the swarm config identified by the specified id
 // Currently, only label update is supported.
 func (d *Daemon) UpdateConfig(t assert.TestingT, id string, f ...ConfigConstructor) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
