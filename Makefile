@@ -143,7 +143,7 @@ cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
 help: ## this help
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z_-]+:.*?## / {sub("\\\\n",sprintf("\n%22c"," "), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {gsub("\\\\n",sprintf("\n%22c",""), $$2);printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 install: ## install the linux binaries
 	KEEPBUNDLE=1 hack/make.sh install-binary
