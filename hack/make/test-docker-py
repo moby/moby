@@ -8,7 +8,7 @@ source hack/make/.integration-test-helpers
 	bundle .integration-daemon-start
 
 	dockerPy='/docker-py'
-	[[ -d "$dockerPy" ]] || {
+	[ -d "$dockerPy" ] || {
 		dockerPy="$DEST/docker-py"
 		git clone https://github.com/docker/docker-py.git "$dockerPy"
 	}

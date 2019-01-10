@@ -2,7 +2,7 @@
 set -e
 
 # if we have our linux/amd64 version compiled, let's symlink it in
-if [[ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]]; then
+if [ -x "$DEST/../binary-daemon/dockerd-$VERSION" ]; then
 	arch=$(go env GOHOSTARCH)
 	mkdir -p "$DEST/linux/${arch}"
 	(
@@ -14,7 +14,7 @@ fi
 
 DOCKER_CROSSPLATFORMS=${DOCKER_CROSSPLATFORMS:-"linux/amd64 windows/amd64"}
 
-for platform in ${DOCKER_CROSSPLATFORMS}; do
+for platform in $DOCKER_CROSSPLATFORMS; do
 	(
 		export KEEPDEST=1
 		export DEST="$DEST/$platform" # bundles/VERSION/cross/GOOS/GOARCH/docker-VERSION

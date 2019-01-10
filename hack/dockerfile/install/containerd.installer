@@ -28,9 +28,9 @@ install_containerd() {
 		make
 	)
 
-	mkdir -p "${PREFIX}"
+	mkdir -p ${PREFIX}
 
-	cp bin/containerd "${PREFIX}/containerd"
-	cp bin/containerd-shim "${PREFIX}/containerd-shim"
-	cp bin/ctr "${PREFIX}/ctr"
+	cp bin/containerd ${PREFIX}/containerd
+	cp bin/containerd-shim ${PREFIX}/containerd-shim
+	cp bin/ctr ${PREFIX}/ctr
 }

@@ -3,7 +3,7 @@ set -e
 
 # a helper to provide ".exe" when it's appropriate
 binary_extension() {
-	if [[ "$(go env GOOS)" = 'windows' ]]; then
+	if [ "$(go env GOOS)" = 'windows' ]; then
 		echo -n '.exe'
 	fi
 }
@@ -17,7 +17,7 @@ BINARY_FULLNAME="$BINARY_NAME$BINARY_EXTENSION"
 source "${MAKEDIR}/.go-autogen"
 
 hash_files() {
-	while [[ $# -gt 0 ]]; do
+	while [ $# -gt 0 ]; do
 		f="$1"
 		shift
 		dir="$(dirname "$f")"
@@ -40,7 +40,7 @@ hash_files() {
 (
 export GOGC=${DOCKER_BUILD_GOGC:-1000}
 
-if [[ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]]; then
+if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARCH)" ]; then
 	# must be cross-compiling!
 	case "$(go env GOOS)/$(go env GOARCH)" in
 		windows/amd64)
@@ -68,7 +68,7 @@ go build \
 		$LDFLAGS_STATIC_DOCKER
 		$DOCKER_LDFLAGS
 	" \
-	${GO_PACKAGE}
+	$GO_PACKAGE
 )
 
 echo "Created binary: $DEST/$BINARY_FULLNAME"
