@@ -24,7 +24,7 @@ for pkg in $pkg_list; do
         -cover \
         -coverprofile=profile.out \
         -covermode=atomic \
-        ${TESTFLAGS} \
+        $TESTFLAGS \
         "${pkg}"
 
     if test -f profile.out; then

@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
-if [[ ! "$(go env GOOS)" = 'windows' ]]; then
+if [ ! "$(go env GOOS)" = 'windows' ]; then
 	for pidFile in $(find "$DEST" -name docker.pid); do
-		pid=$([[ -n "$TESTDEBUG" ]] && set -x; cat "$pidFile")
+		pid=$([ -n "$TESTDEBUG" ] && set -x; cat "$pidFile")
 		(
-			[[ -n "$TESTDEBUG" ]] && set -x
+			[ -n "$TESTDEBUG" ] && set -x
 			kill "$pid"
 		)
 		if ! wait "$pid"; then
@@ -12,11 +12,11 @@ if [[ ! "$(go env GOOS)" = 'windows' ]]; then
 		fi
 	done
 
-	if [[ -z "$DOCKER_TEST_HOST" ]]; then
+	if [ -z "$DOCKER_TEST_HOST" ]; then
 		# Stop apparmor if it is enabled
-		if [[ -e "/sys/module/apparmor/parameters/enabled" ]] && [[ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]]; then
+		if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then
 			(
-				[[ -n "$TESTDEBUG" ]] && set -x
+				[ -n "$TESTDEBUG" ] && set -x
 				/etc/init.d/apparmor stop
 			)
 		fi

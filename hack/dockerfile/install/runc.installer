@@ -25,6 +25,6 @@ install_runc() {
 		target="$1"
 	fi
 	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
-	mkdir -p "${PREFIX}"
-	cp runc "${PREFIX}/runc"
+	mkdir -p ${PREFIX}
+	cp runc ${PREFIX}/runc
 }

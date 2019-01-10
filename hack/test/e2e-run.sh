@@ -2,7 +2,7 @@
 set -e -u -o pipefail
 
 ARCH=$(uname -m)
-if [[ "$ARCH" == "x86_64" ]]; then
+if [ "$ARCH" == "x86_64" ]; then
   ARCH="amd64"
 fi
 
@@ -45,7 +45,7 @@ run_test_integration_legacy_suites() {
 test_env() {
 	(
 		set -e +u
-		[[ -n "$TESTDEBUG" ]] && set -x
+		[ -n "$TESTDEBUG" ] && set -x
 		env -i \
 			DOCKER_API_VERSION="$DOCKER_API_VERSION" \
 			DOCKER_INTEGRATION_DAEMON_DEST="$DOCKER_INTEGRATION_DAEMON_DEST" \
