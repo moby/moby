@@ -84,25 +84,26 @@ func (daemon *Daemon) reloadDebug(conf *config.Config, attributes map[string]str
 func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config, attributes map[string]string) {
 	// If no value is set for max-concurrent-downloads we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
+	maxConcurrentDownloads := config.DefaultMaxConcurrentDownloads
 	if conf.IsValueSet("max-concurrent-downloads") && conf.MaxConcurrentDownloads != nil {
-		*daemon.configStore.MaxConcurrentDownloads = *conf.MaxConcurrentDownloads
-	} else {
-		maxConcurrentDownloads := config.DefaultMaxConcurrentDownloads
-		daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
+		maxConcurrentDownloads = *conf.MaxConcurrentDownloads
 	}
+	daemon.configStore.MaxConcurrentDownloads = &maxConcurrentDownloads
 	logrus.Debugf("Reset Max Concurrent Downloads: %d", *daemon.configStore.MaxConcurrentDownloads)
 
 	// If no value is set for max-concurrent-upload we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
+	maxConcurrentUploads := config.DefaultMaxConcurrentUploads
 	if conf.IsValueSet("max-concurrent-uploads") && conf.MaxConcurrentUploads != nil {
-		*daemon.configStore.MaxConcurrentUploads = *conf.MaxConcurrentUploads
-	} else {
-		maxConcurrentUploads := config.DefaultMaxConcurrentUploads
-		daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
+		maxConcurrentUploads = *conf.MaxConcurrentUploads
 	}
+	daemon.configStore.MaxConcurrentUploads = &maxConcurrentUploads
 	logrus.Debugf("Reset Max Concurrent Uploads: %d", *daemon.configStore.MaxConcurrentUploads)
 
-	daemon.imageService.UpdateConfig(conf.MaxConcurrentDownloads, conf.MaxConcurrentUploads)
+	if daemon.imageService != nil {
+		daemon.imageService.UpdateConfig(&maxConcurrentDownloads, &maxConcurrentUploads)
+	}
+
 	// prepare reload event attributes with updatable configurations
 	attributes["max-concurrent-downloads"] = fmt.Sprintf("%d", *daemon.configStore.MaxConcurrentDownloads)
 	// prepare reload event attributes with updatable configurations
