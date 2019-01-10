@@ -86,8 +86,8 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--storage-driver "$DOCKER_GRAPHDRIVER" \
 			--pidfile "$DEST/docker.pid" \
 			--userland-proxy="$DOCKER_USERLANDPROXY" \
-			$storage_params \
-			$extra_params \
+			${storage_params} \
+			${extra_params} \
 				&> "$DEST/docker.log"
 	) &
 else
@@ -97,7 +97,7 @@ fi
 # give it a little time to come up so it's "ready"
 tries=60
 echo "INFO: Waiting for daemon to start..."
-while ! $TEST_CLIENT_BINARY version &> /dev/null; do
+while ! ${TEST_CLIENT_BINARY} version &> /dev/null; do
 	(( tries-- ))
 	if [ $tries -le 0 ]; then
 		printf "\n"
@@ -106,7 +106,7 @@ while ! $TEST_CLIENT_BINARY version &> /dev/null; do
 			echo >&2 "  check $DEST/docker.log for details"
 		else
 			echo >&2 "error: daemon at $DOCKER_HOST fails to '$TEST_CLIENT_BINARY version':"
-			$TEST_CLIENT_BINARY version >&2 || true
+			${TEST_CLIENT_BINARY} version >&2 || true
 			# Additional Windows CI debugging as this is a common error as of
 			# January 2016
 			if [ "$(go env GOOS)" = 'windows' ]; then

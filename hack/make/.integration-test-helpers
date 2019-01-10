@@ -5,7 +5,7 @@
 #
 #     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
-if [ -z $MAKEDIR ]; then
+if [ -z ${MAKEDIR} ]; then
 	export MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 fi
 source "$MAKEDIR/.go-autogen"
@@ -26,11 +26,11 @@ run_test_integration() {
 
 run_test_integration_suites() {
 	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
-	for dir in $integration_api_dirs; do
+	for dir in ${integration_api_dirs}; do
 		if ! (
-			cd $dir
+			cd "$dir"
 			echo "Running $PWD"
-			test_env ./test.main $flags
+			test_env ./test.main ${flags}
 		); then exit 1; fi
 	done
 }
@@ -50,7 +50,7 @@ build_test_suite_binaries() {
 		return
 	fi
 	build_test_suite_binary ./integration-cli "test.main"
-	for dir in $integration_api_dirs; do
+	for dir in ${integration_api_dirs}; do
 		build_test_suite_binary "$dir" "test.main"
 	done
 }
@@ -70,7 +70,7 @@ cleanup_test_suite_binaries() {
 }
 
 repeat() {
-	for i in $(seq 1 $TEST_REPEAT); do
+	for i in $(seq 1 ${TEST_REPEAT}); do
 		echo "Running integration-test (iteration $i)"
 		$@
 	done
@@ -115,7 +115,7 @@ error_on_leaked_containerd_shims() {
 	            awk '$2 == "containerd-shim" && $4 ~ /.*\/bundles\/.*\/test-integration/ { print $1 }')
 	if [ -n "$leftovers" ]; then
 		ps aux
-		kill -9 $leftovers 2> /dev/null
+		kill -9 ${leftovers} 2> /dev/null
 		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
 		exit 1
 	fi

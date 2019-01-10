@@ -26,5 +26,5 @@ if [ ! -f "${dir}/${bin}.installer" ]; then
 	exit 1
 fi
 
-. $dir/$bin.installer
-install_$bin "$@"
+. ${dir}/${bin}.installer
+install_${bin} "$@"
