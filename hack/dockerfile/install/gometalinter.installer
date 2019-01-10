@@ -7,6 +7,6 @@ install_gometalinter() {
 	go get -d github.com/alecthomas/gometalinter
 	cd "$GOPATH/src/github.com/alecthomas/gometalinter"
 	git checkout -q "$GOMETALINTER_COMMIT"
-	go build -buildmode=pie -o ${PREFIX}/gometalinter github.com/alecthomas/gometalinter
-	GOBIN=${PREFIX} ${PREFIX}/gometalinter --install
+	go build -buildmode=pie -o "${PREFIX}/gometalinter" "github.com/alecthomas/gometalinter"
+	GOBIN=${PREFIX} "${PREFIX}/gometalinter" --install
 }

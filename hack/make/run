@@ -35,10 +35,10 @@ fi
 
 args="--debug \
 	--host tcp://0.0.0.0:${listen_port} --host unix:///var/run/docker.sock \
-	--storage-driver "$DOCKER_GRAPHDRIVER" \
-	--userland-proxy="$DOCKER_USERLANDPROXY" \
+	--storage-driver "${DOCKER_GRAPHDRIVER}" \
+	--userland-proxy="${DOCKER_USERLANDPROXY}" \
 	$storage_params \
 	$extra_params"
 
-echo dockerd $args
-exec dockerd $args
+echo dockerd ${args}
+exec dockerd ${args}

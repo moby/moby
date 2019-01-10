@@ -21,7 +21,7 @@ check_dco() {
 	grep -qE "$dcoRegex"
 }
 
-if [ $adds -eq 0 -a $dels -eq 0 ]; then
+if [ ${adds} -eq 0 -a ${dels} -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
 else
 	commits=( $(validate_log --format='format:%H%n') )
