@@ -73,11 +73,25 @@ RUN set -x \
 
 
 FROM base AS docker-py
+
+RUN apt-get update && apt-get install -y \
+# libffi-dev is required for compiling paramiko
+	libffi-dev \
+	python3-dev \
+	python3-venv \
+	python3-pip \
+	python3-setuptools \
+	--no-install-recommends
+
+
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
-RUN git clone https://github.com/docker/docker-py.git /build \
-	&& cd /build \
-	&& git checkout -q $DOCKER_PY_COMMIT
+WORKDIR /docker-py
+RUN git clone https://github.com/docker/docker-py.git . \
+ && git checkout -q $DOCKER_PY_COMMIT
+
+RUN python3 -m venv .
+RUN . bin/activate && pip install --ignore-installed -r requirements.txt -r test-requirements.txt
 
 
 
@@ -184,19 +198,12 @@ RUN apt-get update && apt-get install -y \
 	jq \
 	libcap2-bin \
 	libdevmapper-dev \
-# libffi-dev and libssl-dev appear to be required for compiling paramiko on s390x/ppc64le
-	libffi-dev \
-	libssl-dev \
 	libudev-dev \
 	libsystemd-dev \
 	binutils-mingw-w64 \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
-	python-dev \
-	python-pip \
-	python-setuptools \
-	python-wheel \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
@@ -207,15 +214,13 @@ RUN apt-get update && apt-get install -y \
 	--no-install-recommends
 
 # Install yamllint for validating swagger.yaml.
-RUN	pip install yamllint==1.5.0
+#RUN	pip install yamllint==1.5.0
 
 # TODO: This is for the docker-py tests, which shouldn't really be needed for
 # this image, but currently CI is expecting to run this image. This should be
 # split out into a separate image, including all the `python-*` deps installed
 # above.
-COPY --from=docker-py /build/ /docker-py
-RUN cd /docker-py && pip install -r requirements.txt -r test-requirements.txt
-
+COPY --from=docker-py /docker-py/ /docker-py
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=gometalinter /build/ /usr/local/bin/
@@ -228,7 +233,8 @@ COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
 
-ENV PATH=/usr/local/cli:$PATH
+ENV VIRTUAL_ENV=/docker-py
+ENV PATH=/usr/local/cli:${VIRTUAL_ENV}/bin:${PATH}
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 # Options for hack/validate/gometalinter
 ENV GOMETALINTER_OPTS="--deadline=2m"
