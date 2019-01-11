@@ -207,8 +207,8 @@ func ensureBasicPluginBin() (string, error) {
 	}
 	installPath := filepath.Join(os.Getenv("GOPATH"), "bin", name)
 	sourcePath := filepath.Join("github.com", "docker", "docker", "internal", "test", "fixtures", "plugin", "basic")
-	cmd := exec.Command(goBin, "build", "-o", installPath, sourcePath)
-	cmd.Env = append(cmd.Env, "GOPATH="+os.Getenv("GOPATH"), "CGO_ENABLED=0")
+	cmd := exec.Command(goBin, "build", "-tags", "netgo", "-o", installPath, sourcePath)
+	cmd.Env = append(cmd.Env, "GOPATH="+os.Getenv("GOPATH"))
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return "", errors.Wrapf(err, "error building basic plugin bin: %s", string(out))
 	}
