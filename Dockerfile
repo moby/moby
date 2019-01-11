@@ -74,7 +74,8 @@ RUN set -x \
 
 FROM base AS docker-py
 
-RUN apt-get update && apt-get install -y \
+RUN if [ "x86_64" != `uname -m` ]; then exit 0; fi; \
+	apt-get update && apt-get install -y \
 # libffi-dev is required for compiling paramiko
 	libffi-dev \
 	python3-dev \
@@ -83,15 +84,17 @@ RUN apt-get update && apt-get install -y \
 	python3-setuptools \
 	--no-install-recommends
 
-
 # Get the "docker-py" source so we can run their integration tests
 ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
 WORKDIR /docker-py
-RUN git clone https://github.com/docker/docker-py.git . \
- && git checkout -q $DOCKER_PY_COMMIT
 
-RUN python3 -m venv .
-RUN . bin/activate && pip install --ignore-installed -r requirements.txt -r test-requirements.txt
+RUN if [ "x86_64" != `uname -m` ]; then exit 0; fi; \
+	git clone https://github.com/docker/docker-py.git . \
+	&& git checkout -q $DOCKER_PY_COMMIT
+
+RUN if [ "x86_64" != `uname -m` ]; then exit 0; fi; python3 -m venv .
+RUN if [ "x86_64" != `uname -m` ]; then exit 0; fi; . bin/activate \
+	&& pip install --ignore-installed -r requirements.txt -r test-requirements.txt
 
 
 
