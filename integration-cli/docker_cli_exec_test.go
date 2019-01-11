@@ -529,3 +529,68 @@ func (s *DockerSuite) TestExecEnvLinksHost(c *testing.T) {
 	assert.Check(c, is.Contains(out, "HOSTNAME=myhost"))
 	assert.Check(c, is.Contains(out, "DB_NAME=/bar/db"))
 }
+
+func (s *DockerSuite) TestExecWindowsOpenHandles(c *testing.T) {
+	testRequires(c, DaemonIsWindows)
+	runSleepingContainer(c, "-d", "--name", "test")
+	exec := make(chan bool)
+	go func() {
+		dockerCmd(c, "exec", "test", "cmd", "/c", "start sleep 10")
+		exec <- true
+	}()
+
+	count := 0
+	for {
+		top := make(chan string)
+		var out string
+		go func() {
+			out, _ := dockerCmd(c, "top", "test")
+			top <- out
+		}()
+
+		select {
+		case <-time.After(time.Second * 5):
+			c.Fatal("timed out waiting for top while exec is exiting")
+		case out = <-top:
+			break
+		}
+
+		if strings.Count(out, "busybox.exe") == 2 && !strings.Contains(out, "cmd.exe") {
+			// The initial exec process (cmd.exe) has exited, and both sleeps are currently running
+			break
+		}
+		count++
+		if count >= 30 {
+			c.Fatal("too many retries")
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	inspect := make(chan bool)
+	go func() {
+		dockerCmd(c, "inspect", "test")
+		inspect <- true
+	}()
+
+	select {
+	case <-time.After(time.Second * 5):
+		c.Fatal("timed out waiting for inspect while exec is exiting")
+	case <-inspect:
+		break
+	}
+
+	// Ensure the background sleep is still running
+	out, _ := dockerCmd(c, "top", "test")
+	assert.Assert(c, strings.Count(out, "busybox.exe") == 2, "busybox sleep process does not exists")
+
+	// The exec should exit when the background sleep exits
+	select {
+	case <-time.After(time.Second * 15):
+		c.Fatal("timed out waiting for async exec to exit")
+	case <-exec:
+		// Ensure the background sleep has actually exited
+		out, _ := dockerCmd(c, "top", "test")
+		assert.Assert(c, strings.Count(out, "busybox.exe") == 1, "busybox process didn't exited")
+		break
+	}
+}
