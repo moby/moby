@@ -78,6 +78,7 @@
 			"chanwit",
 			"fntlnz",
 			"gianarb",
+			"kolyshkin",
 			"olljanat",
 			"programmerq",
 			"rheinwein",
@@ -365,6 +366,11 @@
 	Name = "Justin Cormack"
 	Email = "justin.cormack@docker.com"
 	GitHub = "justincormack"
+
+	[people.kolyshkin]
+	Name = "Kir Kolyshkin"
+	Email = "kolyshkin@gmail.com"
+	GitHub = "kolyshkin"
 
 	[people.lk4d4]
 	Name = "Alexander Morozov"
