@@ -36,7 +36,7 @@ DOCKER_CLIENT_GOARCH=${DOCKER_CLIENT_GOARCH:=amd64}
 
 DOCKERFILE='Dockerfile'
 
-if [[ "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" = "windows" ]]; then
+if [ "${DOCKER_ENGINE_GOOS:-$DOCKER_CLIENT_GOOS}" = "windows" ]; then
 	DOCKERFILE='Dockerfile.windows'
 fi
 

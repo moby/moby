@@ -21,13 +21,13 @@ check_dco() {
 	grep -qE "$dcoRegex"
 }
 
-if [[ ${adds} -eq 0 && ${dels} -eq 0 ]]; then
+if [ ${adds} -eq 0 -a ${dels} -eq 0 ]; then
 	echo '0 adds, 0 deletions; nothing to validate! :)'
 else
 	commits=( $(validate_log --format='format:%H%n') )
 	badCommits=()
 	for commit in "${commits[@]}"; do
-		if [[ -z "$(git log -1 --format='format:' --name-status "$commit")" ]]; then
+		if [ -z "$(git log -1 --format='format:' --name-status "$commit")" ]; then
 			# no content (ie, Merge commit, etc)
 			continue
 		fi
@@ -35,7 +35,7 @@ else
 			badCommits+=( "$commit" )
 		fi
 	done
-	if [[ ${#badCommits[@]} -eq 0 ]]; then
+	if [ ${#badCommits[@]} -eq 0 ]; then
 		echo "Congratulations!  All commits are properly signed with the DCO!"
 	else
 		{

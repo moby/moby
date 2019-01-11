@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -e
 
-if [[ ${platform} == "windows/amd64" ]]; then
+if [ ${platform} == "windows/amd64" ]; then
 	source "${MAKEDIR}/containerutility"
 fi

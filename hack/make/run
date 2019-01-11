@@ -13,7 +13,7 @@ DOCKER_USERLANDPROXY=${DOCKER_USERLANDPROXY:-true}
 
 # example usage: DOCKER_STORAGE_OPTS="dm.basesize=20G,dm.loopdatasize=200G"
 storage_params=""
-if [[ -n "$DOCKER_STORAGE_OPTS" ]]; then
+if [ -n "$DOCKER_STORAGE_OPTS" ]; then
 	IFS=','
 	for i in ${DOCKER_STORAGE_OPTS}; do
 		storage_params="--storage-opt $i $storage_params"
@@ -23,13 +23,13 @@ fi
 
 
 listen_port=2375
-if [[ -n "$DOCKER_PORT" ]]; then
+if [ -n "$DOCKER_PORT" ]; then
 	IFS=':' read -r -a ports <<< "$DOCKER_PORT"
 	listen_port="${ports[-1]}"
 fi
 
 extra_params="$DOCKERD_ARGS"
-if [[ "$DOCKER_REMAP_ROOT" ]]; then
+if [ "$DOCKER_REMAP_ROOT" ]; then
 	extra_params="$extra_params --userns-remap $DOCKER_REMAP_ROOT"
 fi
 

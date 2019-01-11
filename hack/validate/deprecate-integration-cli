@@ -9,7 +9,7 @@ new_tests=$(
     grep -E '^\+func (.*) Test' || true
 )
 
-if [[ -z "$new_tests" ]]; then
+if [ -z "$new_tests" ]; then
 	echo 'Congratulations!  No new tests added to integration-cli.'
     exit
 fi

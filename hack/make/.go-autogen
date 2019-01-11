@@ -43,7 +43,7 @@ const (
 DVEOF
 
 # Compile the Windows resources into the sources
-if [[ "$(go env GOOS)" = "windows" ]]; then
+if [ "$(go env GOOS)" = "windows" ]; then
 	mkdir -p autogen/winresources/tmp autogen/winresources/docker autogen/winresources/dockerd
 	cp hack/make/.resources-windows/resources.go autogen/winresources/docker/
 	cp hack/make/.resources-windows/resources.go autogen/winresources/dockerd/
@@ -62,9 +62,9 @@ if [[ "$(go env GOOS)" = "windows" ]]; then
 
 	# Pass version and commit information into the resource compiler
 	defs=
-	[[ ! -z $VERSION ]]      && defs="$defs -D DOCKER_VERSION=\"$VERSION\""
-	[[ ! -z $VERSION_QUAD ]] && defs="$defs -D DOCKER_VERSION_QUAD=$VERSION_QUAD"
-	[[ ! -z $GITCOMMIT ]]    && defs="$defs -D DOCKER_COMMIT=\"$GITCOMMIT\""
+	[ ! -z $VERSION ]      && defs="$defs -D DOCKER_VERSION=\"$VERSION\""
+	[ ! -z $VERSION_QUAD ] && defs="$defs -D DOCKER_VERSION_QUAD=$VERSION_QUAD"
+	[ ! -z $GITCOMMIT ]    && defs="$defs -D DOCKER_COMMIT=\"$GITCOMMIT\""
 
 	function makeres {
 		${WINDRES} \

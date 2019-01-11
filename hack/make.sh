@@ -31,17 +31,17 @@ export PKG_CONFIG=${PKG_CONFIG:-pkg-config}
 # We're a nice, sexy, little shell script, and people might try to run us;
 # but really, they shouldn't. We want to be in a container!
 inContainer="AssumeSoInitially"
-if [[ "$(go env GOHOSTOS)" = 'windows' ]]; then
-	if [[ -z "$FROM_DOCKERFILE" ]]; then
+if [ "$(go env GOHOSTOS)" = 'windows' ]; then
+	if [ -z "$FROM_DOCKERFILE" ]; then
 		unset inContainer
 	fi
 else
-	if [[ "$PWD" != "/go/src/$DOCKER_PKG" ]]; then
+	if [ "$PWD" != "/go/src/$DOCKER_PKG" ]; then
 		unset inContainer
 	fi
 fi
 
-if [[ -z "$inContainer" ]]; then
+if [ -z "$inContainer" ]; then
 	{
 		echo "# WARNING! I don't seem to be running in a Docker container."
 		echo "# The result of this command might be an incorrect build, and will not be"
@@ -67,11 +67,11 @@ DEFAULT_BUNDLES=(
 
 VERSION=${VERSION:-dev}
 ! BUILDTIME=$(date -u -d "@${SOURCE_DATE_EPOCH:-$(date +%s)}" --rfc-3339 ns 2> /dev/null | sed -e 's/ /T/')
-if [[ "$DOCKER_GITCOMMIT" ]]; then
+if [ "$DOCKER_GITCOMMIT" ]; then
 	GITCOMMIT="$DOCKER_GITCOMMIT"
 elif command -v git &> /dev/null && [ -e .git ] && git rev-parse &> /dev/null; then
 	GITCOMMIT=$(git rev-parse --short HEAD)
-	if [[ -n "$(git status --porcelain --untracked-files=no)" ]]; then
+	if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
 		GITCOMMIT="$GITCOMMIT-unsupported"
 		echo "#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		echo "# GITCOMMIT = $GITCOMMIT"
@@ -90,14 +90,14 @@ else
 	exit 1
 fi
 
-if [[ "$AUTO_GOPATH" ]]; then
+if [ "$AUTO_GOPATH" ]; then
 	rm -rf .gopath
 	mkdir -p .gopath/src/"$(dirname "${DOCKER_PKG}")"
 	ln -sf ../../../.. .gopath/src/"${DOCKER_PKG}"
 	export GOPATH="${PWD}/.gopath"
 fi
 
-if [[ ! "$GOPATH" ]]; then
+if [ ! "$GOPATH" ]; then
 	echo >&2 'error: missing GOPATH; please see https://golang.org/doc/code.html#GOPATH'
 	echo >&2 '  alternatively, set AUTO_GOPATH=1'
 	exit 1
@@ -137,7 +137,7 @@ fi
 # Use these flags when compiling the tests and final binary
 
 IAMSTATIC='true'
-if [[ -z "$DOCKER_DEBUG" ]]; then
+if [ -z "$DOCKER_DEBUG" ]; then
 	LDFLAGS='-w'
 fi
 
@@ -151,9 +151,9 @@ ORIG_BUILDFLAGS=( -tags "autogen netgo osusergo static_build $DOCKER_BUILDTAGS" 
 BUILDFLAGS=( ${BUILDFLAGS} "${ORIG_BUILDFLAGS[@]}" )
 
 # Test timeout.
-if [[ "${DOCKER_ENGINE_GOARCH}" == "arm64" ]] || [[ "${DOCKER_ENGINE_GOARCH}" == "arm" ]]; then
+if [ "${DOCKER_ENGINE_GOARCH}" == "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" == "arm" ]; then
 	: ${TIMEOUT:=10m}
-elif [[ "${DOCKER_ENGINE_GOARCH}" == "windows" ]]; then
+elif [ "${DOCKER_ENGINE_GOARCH}" == "windows" ]; then
 	: ${TIMEOUT:=8m}
 else
 	: ${TIMEOUT:=5m}
@@ -164,7 +164,7 @@ LDFLAGS_STATIC_DOCKER="
 	-extldflags \"$EXTLDFLAGS_STATIC\"
 "
 
-if [[ "$(uname -s)" = 'FreeBSD' ]]; then
+if [ "$(uname -s)" = 'FreeBSD' ]; then
 	# Tell cgo the compiler is Clang, not GCC
 	# https://code.google.com/p/go/source/browse/src/cmd/cgo/gcc.go?spec=svne77e74371f2340ee08622ce602e9f7b15f29d8d3&r=e6794866ebeba2bf8818b9261b54e2eef1c9e588#752
 	export CC=clang
@@ -181,7 +181,7 @@ bundle() {
 }
 
 main() {
-	if [[ -z "${KEEPBUNDLE-}" ]]; then
+	if [ -z "${KEEPBUNDLE-}" ]; then
 		echo "Removing bundles/"
 		rm -rf "bundles/*"
 		echo
@@ -189,13 +189,13 @@ main() {
 	mkdir -p bundles
 
 	# Windows and symlinks don't get along well
-	if [[ "$(go env GOHOSTOS)" != 'windows' ]]; then
+	if [ "$(go env GOHOSTOS)" != 'windows' ]; then
 		rm -f bundles/latest
 		# preserve latest symlink for backward compatibility
 		ln -sf . bundles/latest
 	fi
 
-	if [[ $# -lt 1 ]]; then
+	if [ $# -lt 1 ]; then
 		bundles=(${DEFAULT_BUNDLES[@]})
 	else
 		bundles=($@)
