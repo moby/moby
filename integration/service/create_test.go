@@ -119,7 +119,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	err = client.NetworkRemove(context.Background(), overlayID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(context.Background(), client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
@@ -177,9 +177,9 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	assert.NilError(t, err)
 
 	// Make sure networks have been destroyed.
-	poll.WaitOn(t, networkIsRemoved(client, n3), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, networkIsRemoved(client, n2), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
-	poll.WaitOn(t, networkIsRemoved(client, n1), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(context.Background(), client, n3), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(context.Background(), client, n2), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(context.Background(), client, n1), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func TestCreateServiceSecretFileMode(t *testing.T) {
@@ -363,16 +363,6 @@ func serviceIsRemoved(client client.ServiceAPIClient, serviceID string) func(log
 		})
 		if err == nil {
 			return poll.Continue("waiting for service %s to be deleted", serviceID)
-		}
-		return poll.Success()
-	}
-}
-
-func networkIsRemoved(client client.NetworkAPIClient, networkID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		_, err := client.NetworkInspect(context.Background(), networkID, types.NetworkInspectOptions{})
-		if err == nil {
-			return poll.Continue("waiting for network %s to be removed", networkID)
 		}
 		return poll.Success()
 	}
