@@ -91,7 +91,7 @@ func TestInspectNetwork(t *testing.T) {
 	err = client.NetworkRemove(context.Background(), overlayID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(context.Background(), client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
 }
 
 func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
@@ -114,16 +114,6 @@ func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, 
 		default:
 			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
 		}
-	}
-}
-
-func networkIsRemoved(client client.NetworkAPIClient, networkID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		_, err := client.NetworkInspect(context.Background(), networkID, types.NetworkInspectOptions{})
-		if err == nil {
-			return poll.Continue("waiting for network %s to be removed", networkID)
-		}
-		return poll.Success()
 	}
 }
 
