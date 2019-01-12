@@ -13,7 +13,5 @@ daemon/graphdriver/windows/**           @johnstep @jhowardmsft
 daemon/logger/awslogs/**                @samuelkarp  
 hack/**                                 @tianon
 hack/integration-cli-on-swarm/**        @AkihiroSuda
-integration-cli/**                      @vdemeester
-integration/**                          @vdemeester
 plugin/**                               @cpuguy83
 project/**                              @thaJeztah
