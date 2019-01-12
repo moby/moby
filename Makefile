@@ -165,6 +165,9 @@ test-integration-cli: test-integration ## (DEPRECATED) use test-integration
 test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
 
+test-integration-flaky: build ## run the stress test for all new integration tests
+	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-flaky
+
 test-unit: build ## run the unit tests
 	$(DOCKER_RUN_DOCKER) hack/test/unit
 
