@@ -1014,7 +1014,7 @@ func checkSwarmLockedToUnlocked(c *check.C, d *daemon.Daemon) {
 	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, false)
 
 	d.RestartNode(c)
-	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateActive)
+	waitAndAssert(c, time.Second, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Daemon) {
@@ -1022,7 +1022,7 @@ func checkSwarmUnlockedToLocked(c *check.C, d *daemon.Daemon) {
 	waitAndAssert(c, defaultReconciliationTimeout, checkKeyIsEncrypted(d), checker.Equals, true)
 
 	d.RestartNode(c)
-	c.Assert(getNodeStatus(c, d), checker.Equals, swarm.LocalNodeStateLocked)
+	waitAndAssert(c, time.Second, d.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateLocked)
 }
 
 func (s *DockerSwarmSuite) TestUnlockEngineAndUnlockedSwarm(c *check.C) {
@@ -1197,7 +1197,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 	// joined workers start off unlocked
 	d2 := s.AddDaemon(c, true, false)
 	d2.RestartNode(c)
-	c.Assert(getNodeStatus(c, d2), checker.Equals, swarm.LocalNodeStateActive)
+	waitAndAssert(c, time.Second, d2.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// promote worker
 	outs, err = d1.Cmd("node", "promote", d2.NodeID())
@@ -1242,7 +1242,7 @@ func (s *DockerSwarmSuite) TestSwarmJoinPromoteLocked(c *check.C) {
 
 	// by now, it should *never* be locked on restart
 	d3.RestartNode(c)
-	c.Assert(getNodeStatus(c, d3), checker.Equals, swarm.LocalNodeStateActive)
+	waitAndAssert(c, time.Second, d3.CheckLocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 }
 
 func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
