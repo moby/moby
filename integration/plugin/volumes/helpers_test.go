@@ -37,7 +37,7 @@ func ensurePlugin(t *testing.T, name string) string {
 	}
 
 	cmd := exec.Command(goBin, "build", "-o", installPath, "./"+filepath.Join("cmd", name))
-	cmd.Env = append(cmd.Env, "CGO_ENABLED=0")
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatal(errors.Wrapf(err, "error building basic plugin bin: %s", string(out)))
 	}
