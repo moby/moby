@@ -3,7 +3,6 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -43,7 +42,7 @@ func TestTrap(t *testing.T) {
 
 	for _, v := range sigmap {
 		cmd := exec.Command(exePath)
-		cmd.Env = append(os.Environ(), fmt.Sprintf("SIGNAL_TYPE=%s", v.name))
+		cmd.Env = append(os.Environ(), "SIGNAL_TYPE="+v.name)
 		if v.multiple {
 			cmd.Env = append(cmd.Env, "IF_MULTIPLE=1")
 		}
