@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/testutil"
+	"gotest.tools/assert"
 	"gotest.tools/skip"
 )
 
@@ -34,16 +35,13 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	var tarBuffer bytes.Buffer
 
 	tw := tar.NewWriter(&tarBuffer)
-	if err := tw.Close(); err != nil {
-		t.Fatal(err)
-	}
+	err := tw.Close()
+	assert.NilError(t, err)
 	imageRdr := io.MultiReader(&tarBuffer, io.LimitReader(testutil.DevZero, 8*1024*1024*1024))
 
-	_, err := client.ImageImport(context.Background(),
+	_, err = client.ImageImport(context.Background(),
 		types.ImageImportSource{Source: imageRdr, SourceName: "-"},
 		"test1234:v42",
 		types.ImageImportOptions{})
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
