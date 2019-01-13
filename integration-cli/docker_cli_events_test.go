@@ -9,6 +9,7 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 	"time"
 
@@ -314,29 +315,38 @@ func (s *DockerSuite) TestEventsFilterImageName(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsFilterLabels(c *check.C) {
-	since := daemonUnixTime(c)
+	since := strconv.FormatUint(uint64(daemonTime(c).Unix()), 10)
 	label := "io.docker.testing=foo"
 
-	out, _ := dockerCmd(c, "run", "-d", "-l", label, "busybox:latest", "true")
+	out, exit := dockerCmd(c, "create", "-l", label, "busybox")
+	c.Assert(exit, checker.Equals, 0)
 	container1 := strings.TrimSpace(out)
 
-	out, _ = dockerCmd(c, "run", "-d", "busybox", "true")
+	out, exit = dockerCmd(c, "create", "busybox")
+	c.Assert(exit, checker.Equals, 0)
 	container2 := strings.TrimSpace(out)
 
+	// fetch events with `--until`, so that the client detaches after a second
+	// instead of staying attached, waiting for more events to arrive.
 	out, _ = dockerCmd(
 		c,
 		"events",
 		"--since", since,
-		"--until", daemonUnixTime(c),
-		"--filter", fmt.Sprintf("label=%s", label))
+		"--until", strconv.FormatUint(uint64(daemonTime(c).Add(time.Second).Unix()), 10),
+		"--filter", "label="+label,
+	)
 
 	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.Equals, 3)
+	c.Assert(len(events), checker.GreaterThan, 0)
 
+	var found bool
 	for _, e := range events {
-		c.Assert(e, checker.Contains, container1)
+		if strings.Contains(e, container1) {
+			found = true
+		}
 		c.Assert(e, checker.Not(checker.Contains), container2)
 	}
+	c.Assert(found, checker.Equals, true)
 }
 
 func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
