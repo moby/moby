@@ -394,8 +394,8 @@ Try {
         if ($Daemon) { Execute-Build "daemon" "daemon" "dockerd" }
         if ($Client) {
             # Get the Docker channel and version from the environment, or use the defaults.
-            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "edge" }
-            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "17.06.0-ce" }
+            if (-not ($channel = $env:DOCKERCLI_CHANNEL)) { $channel = "stable" }
+            if (-not ($version = $env:DOCKERCLI_VERSION)) { $version = "17.06.2-ce" }
 
             # Download the zip file and extract the client executable.
             Write-Host "INFO: Downloading docker/cli version $version from $channel..."

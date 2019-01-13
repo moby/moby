@@ -1,22 +1,22 @@
 #!/bin/sh
 
-DOCKERCLI_CHANNEL=${DOCKERCLI_CHANNEL:-edge}
-DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.0-ce}
+DOCKERCLI_CHANNEL=${DOCKERCLI_CHANNEL:-stable}
+DOCKERCLI_VERSION=${DOCKERCLI_VERSION:-17.06.2-ce}
 
 install_dockercli() {
 	echo "Install docker/cli version $DOCKERCLI_VERSION from $DOCKERCLI_CHANNEL"
 
 	arch=$(uname -m)
 	# No official release of these platforms
-	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ]; then
+	if [ "$arch" != "x86_64" ] && [ "$arch" != "s390x" ] && [ "$arch" != "armhf" ]; then
 		build_dockercli
 		return
 	fi
 
 	url=https://download.docker.com/linux/static
 	curl -Ls "${url}/${DOCKERCLI_CHANNEL}/${arch}/docker-${DOCKERCLI_VERSION}.tgz" | tar -xz docker/docker
-	mkdir -p ${PREFIX}
-	mv docker/docker ${PREFIX}/
+	mkdir -p "${PREFIX}"
+	mv docker/docker "${PREFIX}/"
 	rmdir docker
 }
 
