@@ -8,9 +8,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Nvveen/Gotty"
 	"github.com/docker/docker/pkg/term"
 	"github.com/docker/go-units"
+	"github.com/nvveen/gotty"
 )
 
 // RFC3339NanoFixed is time.RFC3339Nano with nanoseconds padded using zeros to
