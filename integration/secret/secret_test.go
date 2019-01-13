@@ -303,7 +303,7 @@ func TestTemplatedSecret(t *testing.T) {
 
 	var tasks []swarmtypes.Task
 	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
-		tasks = swarm.GetRunningTasks(t, d, serviceID)
+		tasks = swarm.GetRunningTasks(t, client, serviceID)
 		return len(tasks) > 0
 	})
 

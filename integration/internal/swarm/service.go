@@ -9,6 +9,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/client"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/environment"
 	"gotest.tools/assert"
@@ -180,19 +181,16 @@ func ServiceWithSysctls(sysctls map[string]string) ServiceSpecOpt {
 }
 
 // GetRunningTasks gets the list of running tasks for a service
-func GetRunningTasks(t *testing.T, d *daemon.Daemon, serviceID string) []swarmtypes.Task {
+func GetRunningTasks(t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
-	client := d.NewClientT(t)
-	defer client.Close()
 
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("desired-state", "running")
-	filterArgs.Add("service", serviceID)
+	tasks, err := c.TaskList(context.Background(), types.TaskListOptions{
+		Filters: filters.NewArgs(
+			filters.Arg("service", serviceID),
+			filters.Arg("desired-state", "running"),
+		),
+	})
 
-	options := types.TaskListOptions{
-		Filters: filterArgs,
-	}
-	tasks, err := client.TaskList(context.Background(), options)
 	assert.NilError(t, err)
 	return tasks
 }
