@@ -7107,10 +7107,23 @@ paths:
             Docker-Experimental:
               type: "boolean"
               description: "If the server is running with experimental mode enabled"
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
         500:
           description: "server error"
           schema:
             $ref: "#/definitions/ErrorResponse"
+          headers:
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
       tags: ["System"]
   /commit:
     post:
