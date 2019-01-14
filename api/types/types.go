@@ -507,6 +507,7 @@ type Checkpoint struct {
 type Runtime struct {
 	Path string   `json:"path"`
 	Args []string `json:"runtimeArgs,omitempty"`
+	Type string   `json:"type,omiemtpy"`
 }
 
 // DiskUsage contains response of Engine API:
