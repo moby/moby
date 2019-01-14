@@ -98,7 +98,7 @@ func TestInspectNetwork(t *testing.T) {
 	// TODO find out why removing networks is needed; other tests fail if the network is not removed, even though they run on a new daemon.
 	err := c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-	poll.WaitOn(t, serviceIsRemoved(c, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, c, serviceID), swarm.ServicePoll)
 	err = c.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
 	poll.WaitOn(t, network.IsRemoved(ctx, c, overlayID), swarm.NetworkPoll)
@@ -128,19 +128,5 @@ func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, 
 		default:
 			return poll.Continue("task count for service %s at %d waiting for %d", serviceID, len(tasks), instances)
 		}
-	}
-}
-
-func serviceIsRemoved(client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
-		_, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		if err == nil {
-			return poll.Continue("waiting for service %s to be deleted", serviceID)
-		}
-		return poll.Success()
 	}
 }
