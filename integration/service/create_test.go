@@ -79,9 +79,10 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
+	ctx := context.Background()
 
 	overlayName := "overlay1_" + t.Name()
-	overlayID := network.CreateNoError(t, context.Background(), client, overlayName,
+	overlayID := network.CreateNoError(t, ctx, client, overlayName,
 		network.WithCheckDuplicate(),
 		network.WithDriver("overlay"),
 	)
@@ -104,8 +105,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
-	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID), swarm.ServicePoll)
 
 	serviceID2 := swarm.CreateService(t, d, serviceSpec...)
 	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
@@ -113,8 +113,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	err = client.ServiceRemove(context.Background(), serviceID2)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID2), swarm.ServicePoll)
-	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID2), swarm.ServicePoll)
 
 	err = client.NetworkRemove(context.Background(), overlayID)
 	assert.NilError(t, err)
@@ -129,19 +128,14 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
+	ctx := context.Background()
 
 	name := "foo_" + t.Name()
-	n1 := network.CreateNoError(t, context.Background(), client, name,
-		network.WithDriver("bridge"),
-	)
-	n2 := network.CreateNoError(t, context.Background(), client, name,
-		network.WithDriver("bridge"),
-	)
+	n1 := network.CreateNoError(t, ctx, client, name, network.WithDriver("bridge"))
+	n2 := network.CreateNoError(t, ctx, client, name, network.WithDriver("bridge"))
 
 	// Duplicates with name but with different driver
-	n3 := network.CreateNoError(t, context.Background(), client, name,
-		network.WithDriver("overlay"),
-	)
+	n3 := network.CreateNoError(t, ctx, client, name, network.WithDriver("overlay"))
 
 	// Create Service with the same name
 	var instances uint64 = 1
@@ -155,16 +149,14 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 
 	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
-	resp, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	resp, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(n3, resp.Spec.TaskTemplate.Networks[0].Target))
 
-	// Remove Service
-	err = client.ServiceRemove(context.Background(), serviceID)
+	// Remove Service, and wait for its tasks to be removed
+	err = client.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-
-	// Make sure task has been destroyed.
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID), swarm.ServicePoll)
 
 	// Remove networks
 	err = client.NetworkRemove(context.Background(), n3)
@@ -240,9 +232,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 
 	err = client.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
-	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID), swarm.ServicePoll)
 
 	err = client.SecretRemove(ctx, secretName)
 	assert.NilError(t, err)
@@ -306,9 +296,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	err = client.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID))
-	poll.WaitOn(t, noTasks(client))
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID))
 
 	err = client.ConfigRemove(ctx, configName)
 	assert.NilError(t, err)
@@ -334,36 +322,5 @@ func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, 
 		default:
 			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
 		}
-	}
-}
-
-func noTasks(client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == 0:
-			return poll.Success()
-		default:
-			return poll.Continue("task count at %d waiting for 0", len(tasks))
-		}
-	}
-}
-
-func serviceIsRemoved(client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
-		_, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		if err == nil {
-			return poll.Continue("waiting for service %s to be deleted", serviceID)
-		}
-		return poll.Success()
 	}
 }
