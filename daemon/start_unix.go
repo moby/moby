@@ -13,22 +13,27 @@ import (
 	"github.com/pkg/errors"
 )
 
-func (daemon *Daemon) getRuntimeScript(container *container.Container) (string, error) {
+func (daemon *Daemon) getRuntimeScript(container *container.Container) (string, string, error) {
 	name := container.HostConfig.Runtime
 	rt := daemon.configStore.GetRuntime(name)
 	if rt == nil {
-		return "", errdefs.InvalidParameter(errors.Errorf("no such runtime '%s'", name))
+		return "", "", errdefs.InvalidParameter(errors.Errorf("no such runtime '%s'", name))
+	}
+
+	rtType := rt.Type
+	if container.HostConfig.RuntimeType != "" {
+		rtType = container.HostConfig.RuntimeType
 	}
 
 	if len(rt.Args) > 0 {
 		// First check that the target exist, as using it in a script won't
 		// give us the right error
 		if _, err := exec.LookPath(rt.Path); err != nil {
-			return "", translateContainerdStartErr(container.Path, container.SetExitCode, err)
+			return "", "", translateContainerdStartErr(container.Path, container.SetExitCode, err)
 		}
-		return filepath.Join(daemon.configStore.Root, "runtimes", name), nil
+		return filepath.Join(daemon.configStore.Root, "runtimes", name), rtType, nil
 	}
-	return rt.Path, nil
+	return rt.Path, rtType, nil
 }
 
 // getLibcontainerdCreateOptions callers must hold a lock on the container
@@ -39,9 +44,12 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		container.CheckpointTo(daemon.containersReplica)
 	}
 
-	path, err := daemon.getRuntimeScript(container)
+	path, rtType, err := daemon.getRuntimeScript(container)
 	if err != nil {
 		return nil, err
+	}
+	if rtType != "" {
+		path = path + ":" + rtType
 	}
 	opts := &runctypes.RuncOptions{
 		Runtime: path,

@@ -221,10 +221,18 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
+	runtime := fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS)
+	opts := runtimeOptions.(*runctypes.RuncOptions)
+	split := strings.Split(opts.Runtime, ":")
+	if len(split) == 2 {
+		opts.Runtime = split[0]
+		runtime = split[1]
+	}
+
 	cdCtr, err := c.client.NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
 		// TODO(mlaventure): when containerd support lcow, revisit runtime value
-		containerd.WithRuntime(fmt.Sprintf("io.containerd.runtime.v1.%s", runtime.GOOS), runtimeOptions))
+		containerd.WithRuntime(runtime, runtimeOptions))
 	if err != nil {
 		return wrapError(err)
 	}
