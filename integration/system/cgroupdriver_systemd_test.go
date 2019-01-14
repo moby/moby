@@ -29,11 +29,8 @@ func hasSystemd() bool {
 //  https://github.com/moby/moby/issues/35123
 func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
+	skip.If(t, !hasSystemd())
 	t.Parallel()
-
-	if !hasSystemd() {
-		t.Skip("systemd not available")
-	}
 
 	d := daemon.New(t)
 	c := d.NewClientT(t)
