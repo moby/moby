@@ -2,7 +2,7 @@
 Description=Docker Application Container Engine
 Documentation=https://docs.docker.com
 BindsTo=containerd.service
-After=network-online.target firewalld.service
+After=network-online.target firewalld.service containerd.service
 Wants=network-online.target
 Requires=docker.socket
 
