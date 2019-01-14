@@ -34,6 +34,11 @@ func (s *systemRouter) pingHandler(ctx context.Context, w http.ResponseWriter, r
 	if bv := builderVersion; bv != "" {
 		w.Header().Set("Builder-Version", string(bv))
 	}
+	if r.Method == http.MethodHead {
+		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+		w.Header().Set("Content-Length", "0")
+		return nil
+	}
 	_, err := w.Write([]byte{'O', 'K'})
 	return err
 }
