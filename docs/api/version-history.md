@@ -17,9 +17,14 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.40](https://docs.docker.com/engine/api/v1.40/) documentation
 
-* `GET /_ping` now sets `Cache-Control` and `Pragma` headers to prevent the result
-  from being cached. This change is not versioned, and affects all API versions
-  if the daemon has this patch.
+* The `/_ping` endpoint can now be accessed both using `GET` or `HEAD` requests.
+  when accessed using a `HEAD` request, all headers are returned, but the body
+  is empty (`Content-Length: 0`). This change is not versioned, and affects all
+  API versions if the daemon has this patch. Clients are recommended to try
+  using `HEAD`, but fallback to `GET` if the `HEAD` requests fails.
+* `GET /_ping` and `HEAD /_ping` now set `Cache-Control` and `Pragma` headers to
+  prevent the result from being cached. This change is not versioned, and affects
+  all API versions if the daemon has this patch.
 * `GET /services` now returns `Sysctls` as part of the `ContainerSpec`.
 * `GET /services/{id}` now returns `Sysctls` as part of the `ContainerSpec`.
 * `POST /services/create` now accepts `Sysctls` as part of the `ContainerSpec`.
