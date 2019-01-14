@@ -254,18 +254,19 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	poll.WaitOn(t, serviceRunningCount(c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := c.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	ctx := context.Background()
+	_, _, err := c.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	err = c.ServiceRemove(context.Background(), serviceID)
+	err = c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
 
-	poll.WaitOn(t, serviceIsRemoved(c, serviceID), swarm.ServicePoll)
-	poll.WaitOn(t, noServices(c), swarm.ServicePoll)
+	poll.WaitOn(t, noServices(ctx, c), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.NoTasks(ctx, c), swarm.ServicePoll)
 
 	// Ensure that "ingress" is not removed or corrupted
 	time.Sleep(10 * time.Second)
-	netInfo, err := c.NetworkInspect(context.Background(), ingressNet, types.NetworkInspectOptions{
+	netInfo, err := c.NetworkInspect(ctx, ingressNet, types.NetworkInspectOptions{
 		Verbose: true,
 		Scope:   "swarm",
 	})
@@ -312,16 +313,16 @@ func swarmIngressReady(client client.NetworkAPIClient) func(log poll.LogT) poll.
 	}
 }
 
-func noServices(client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
+func noServices(ctx context.Context, client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		services, err := client.ServiceList(context.Background(), types.ServiceListOptions{})
+		services, err := client.ServiceList(ctx, types.ServiceListOptions{})
 		switch {
 		case err != nil:
 			return poll.Error(err)
 		case len(services) == 0:
 			return poll.Success()
 		default:
-			return poll.Continue("Service count at %d waiting for 0", len(services))
+			return poll.Continue("waiting for all services to be removed: service count at %d", len(services))
 		}
 	}
 }
