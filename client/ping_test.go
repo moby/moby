@@ -32,13 +32,13 @@ func TestPingFail(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "some error with the server")
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
 
 	withHeader = true
 	ping2, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "some error with the server")
 	assert.Check(t, is.Equal(true, ping2.Experimental))
 	assert.Check(t, is.Equal("awesome", ping2.APIVersion))
 }
@@ -58,7 +58,7 @@ func TestPingWithError(t *testing.T) {
 	}
 
 	ping, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.ErrorContains(t, err, "some error")
 	assert.Check(t, is.Equal(false, ping.Experimental))
 	assert.Check(t, is.Equal("", ping.APIVersion))
 }
@@ -68,16 +68,16 @@ func TestPingWithError(t *testing.T) {
 func TestPingSuccess(t *testing.T) {
 	client := &Client{
 		client: newMockClient(func(req *http.Request) (*http.Response, error) {
-			resp := &http.Response{StatusCode: http.StatusInternalServerError}
+			resp := &http.Response{StatusCode: http.StatusOK}
 			resp.Header = http.Header{}
 			resp.Header.Set("API-Version", "awesome")
 			resp.Header.Set("Docker-Experimental", "true")
-			resp.Body = ioutil.NopCloser(strings.NewReader("some error with the server"))
+			resp.Body = ioutil.NopCloser(strings.NewReader("OK"))
 			return resp, nil
 		}),
 	}
 	ping, err := client.Ping(context.Background())
-	assert.Check(t, is.ErrorContains(err, ""))
+	assert.NilError(t, err)
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 }
