@@ -34,6 +34,7 @@ type Daemon struct {
 // The daemon will not automatically start.
 func New(t testingT, dockerBinary string, dockerdBinary string, ops ...func(*daemon.Daemon)) *Daemon {
 	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
+	ops = append(ops, daemon.WithInit)
 	d := daemon.New(t, ops...)
 	return &Daemon{
 		Daemon:       d,

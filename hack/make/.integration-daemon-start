@@ -63,6 +63,9 @@ if [  "$DOCKER_EXPERIMENTAL" ]; then
 	extra_params="$extra_params --experimental"
 fi
 
+# can't change this yet, because some tests (e.g. TestStopContainerWithTimeout) rely on the exit code (which is different with/without init)
+# extra_params="$extra_params --init"
+
 if [ -z "$DOCKER_TEST_HOST" ]; then
 	# Start apparmor if it is enabled
 	if [ -e "/sys/module/apparmor/parameters/enabled" ] && [ "$(cat /sys/module/apparmor/parameters/enabled)" == "Y" ]; then

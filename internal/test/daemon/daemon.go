@@ -126,6 +126,7 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		log:             t,
 	}
 
+	ops = append(ops, WithInit)
 	for _, op := range ops {
 		op(d)
 	}
@@ -286,7 +287,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.Wait = wait
 
-	ticker := time.NewTicker(500 * time.Millisecond)
+	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	tick := ticker.C
 
