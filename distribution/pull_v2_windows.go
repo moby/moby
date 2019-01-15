@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/manifest/manifestlist"
 	"github.com/docker/distribution/manifest/schema2"
@@ -135,4 +136,11 @@ func checkImageCompatibility(imageOS, imageOSVersion string) error {
 		}
 	}
 	return nil
+}
+
+func formatPlatform(platform specs.Platform) string {
+	if platform.OS == "" {
+		platform = platforms.DefaultSpec()
+	}
+	return fmt.Sprintf("%s %s", platforms.Format(platform), system.GetOSVersion().ToString())
 }
