@@ -6,6 +6,7 @@ import (
 	"context"
 	"fmt"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -32,17 +33,11 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 
 	defaultRuntimeBinary := daemon.configStore.GetRuntime(v.DefaultRuntime).Path
 	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
-		parts := strings.Split(strings.TrimSpace(string(rv)), "\n")
-		if len(parts) == 3 {
-			parts = strings.Split(parts[1], ": ")
-			if len(parts) == 2 {
-				v.RuncCommit.ID = strings.TrimSpace(parts[1])
-			}
-		}
-
-		if v.RuncCommit.ID == "" {
-			logrus.Warnf("failed to retrieve %s version: unknown output format: %s", defaultRuntimeBinary, string(rv))
+		if _, commit, err := parseRuncVersion(string(rv)); err != nil {
+			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
 			v.RuncCommit.ID = "N/A"
+		} else {
+			v.RuncCommit.ID = commit
 		}
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
@@ -64,14 +59,19 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	// value as "ID" to prevent clients from reporting a version-mismatch
 	v.ContainerdCommit.Expected = v.ContainerdCommit.ID
 
+	// TODO is there still a need to check the expected version for tini?
+	// if not, we can change this, and just set "Expected" to v.InitCommit.ID
+	v.InitCommit.Expected = dockerversion.InitCommitID
+
 	defaultInitBinary := daemon.configStore.GetInitPath()
 	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
-		ver, err := parseInitVersion(string(rv))
-
-		if err != nil {
-			logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+		if _, commit, err := parseInitVersion(string(rv)); err != nil {
+			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
+			v.InitCommit.ID = "N/A"
+		} else {
+			v.InitCommit.ID = commit
+			v.InitCommit.Expected = dockerversion.InitCommitID[0:len(commit)]
 		}
-		v.InitCommit = ver
 	} else {
 		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
 		v.InitCommit.ID = "N/A"
@@ -115,6 +115,53 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	}
 }
 
+func (daemon *Daemon) fillPlatformVersion(v *types.Version) {
+	if rv, err := daemon.containerd.Version(context.Background()); err == nil {
+		v.Components = append(v.Components, types.ComponentVersion{
+			Name:    "containerd",
+			Version: rv.Version,
+			Details: map[string]string{
+				"GitCommit": rv.Revision,
+			},
+		})
+	}
+
+	defaultRuntime := daemon.configStore.GetDefaultRuntimeName()
+	defaultRuntimeBinary := daemon.configStore.GetRuntime(defaultRuntime).Path
+	if rv, err := exec.Command(defaultRuntimeBinary, "--version").Output(); err == nil {
+		if ver, commit, err := parseRuncVersion(string(rv)); err != nil {
+			logrus.Warnf("failed to parse %s version: %v", defaultRuntimeBinary, err)
+		} else {
+			v.Components = append(v.Components, types.ComponentVersion{
+				Name:    defaultRuntime,
+				Version: ver,
+				Details: map[string]string{
+					"GitCommit": commit,
+				},
+			})
+		}
+	} else {
+		logrus.Warnf("failed to retrieve %s version: %v", defaultRuntimeBinary, err)
+	}
+
+	defaultInitBinary := daemon.configStore.GetInitPath()
+	if rv, err := exec.Command(defaultInitBinary, "--version").Output(); err == nil {
+		if ver, commit, err := parseInitVersion(string(rv)); err != nil {
+			logrus.Warnf("failed to parse %s version: %s", defaultInitBinary, err)
+		} else {
+			v.Components = append(v.Components, types.ComponentVersion{
+				Name:    filepath.Base(defaultInitBinary),
+				Version: ver,
+				Details: map[string]string{
+					"GitCommit": commit,
+				},
+			})
+		}
+	} else {
+		logrus.Warnf("failed to retrieve %s version: %s", defaultInitBinary, err)
+	}
+}
+
 func fillDriverWarnings(v *types.Info) {
 	for _, pair := range v.DriverStatus {
 		if pair[0] == "Data loop file" {
@@ -149,24 +196,52 @@ func getBackingFs(v *types.Info) string {
 	return ""
 }
 
-// parseInitVersion parses a Tini version string, and extracts the version.
-func parseInitVersion(v string) (types.Commit, error) {
-	version := types.Commit{ID: "", Expected: dockerversion.InitCommitID}
+// parseInitVersion parses a Tini version string, and extracts the "version"
+// and "git commit" from the output.
+//
+// Output example from `docker-init --version`:
+//
+//     tini version 0.18.0 - git.fec3683
+func parseInitVersion(v string) (version string, commit string, err error) {
 	parts := strings.Split(strings.TrimSpace(v), " - ")
 
 	if len(parts) >= 2 {
 		gitParts := strings.Split(parts[1], ".")
 		if len(gitParts) == 2 && gitParts[0] == "git" {
-			version.ID = gitParts[1]
-			version.Expected = dockerversion.InitCommitID[0:len(version.ID)]
+			commit = gitParts[1]
 		}
 	}
-	if version.ID == "" && strings.HasPrefix(parts[0], "tini version ") {
-		version.ID = "v" + strings.TrimPrefix(parts[0], "tini version ")
+	if strings.HasPrefix(parts[0], "tini version ") {
+		version = strings.TrimPrefix(parts[0], "tini version ")
 	}
-	if version.ID == "" {
-		version.ID = "N/A"
-		return version, errors.Errorf("unknown output format: %s", v)
+	if version == "" && commit == "" {
+		err = errors.Errorf("unknown output format: %s", v)
 	}
-	return version, nil
+	return version, commit, err
+}
+
+// parseRuncVersion parses the output of `runc --version` and extracts the
+// "version" and "git commit" from the output.
+//
+// Output example from `runc --version`:
+//
+//   runc version 1.0.0-rc5+dev
+//   commit: 69663f0bd4b60df09991c08812a60108003fa340
+//   spec: 1.0.0
+func parseRuncVersion(v string) (version string, commit string, err error) {
+	lines := strings.Split(strings.TrimSpace(v), "\n")
+	for _, line := range lines {
+		if strings.HasPrefix(line, "runc version") {
+			version = strings.TrimSpace(strings.TrimPrefix(line, "runc version"))
+			continue
+		}
+		if strings.HasPrefix(line, "commit:") {
+			commit = strings.TrimSpace(strings.TrimPrefix(line, "commit:"))
+			continue
+		}
+	}
+	if version == "" && commit == "" {
+		err = errors.Errorf("unknown output format: %s", v)
+	}
+	return version, commit, err
 }
