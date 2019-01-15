@@ -63,7 +63,7 @@ func TestEventsExecDie(t *testing.T) {
 		assert.Equal(t, m.Actor.Attributes["execID"], id.ID)
 		assert.Equal(t, m.Actor.Attributes["exitCode"], "0")
 	case err = <-errors:
-		t.Fatal(err)
+		assert.NilError(t, err)
 	case <-time.After(time.Second * 3):
 		t.Fatal("timeout hit")
 	}
@@ -109,7 +109,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 			if err == io.EOF {
 				break
 			}
-			t.Fatal(err)
+			assert.NilError(t, err)
 		}
 		if event.Status == "create" && event.ID == cID {
 			containerCreateEvent = &event
