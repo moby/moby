@@ -3,7 +3,6 @@
 package signal // import "github.com/docker/docker/pkg/signal"
 
 import (
-	"fmt"
 	"io/ioutil"
 	"os"
 	"os/exec"
@@ -15,6 +14,7 @@ import (
 )
 
 func buildTestBinary(t *testing.T, tmpdir string, prefix string) (string, string) {
+	t.Helper()
 	tmpDir, err := ioutil.TempDir(tmpdir, prefix)
 	assert.NilError(t, err)
 	exePath := tmpDir + "/" + prefix
@@ -42,24 +42,25 @@ func TestTrap(t *testing.T) {
 	defer os.RemoveAll(tmpDir)
 
 	for _, v := range sigmap {
-		cmd := exec.Command(exePath)
-		cmd.Env = append(os.Environ(), fmt.Sprintf("SIGNAL_TYPE=%s", v.name))
-		if v.multiple {
-			cmd.Env = append(cmd.Env, "IF_MULTIPLE=1")
-		}
-		err := cmd.Start()
-		assert.NilError(t, err)
-		err = cmd.Wait()
-		if e, ok := err.(*exec.ExitError); ok {
+		t.Run(v.name, func(t *testing.T) {
+			cmd := exec.Command(exePath)
+			cmd.Env = append(os.Environ(), "SIGNAL_TYPE="+v.name)
+			if v.multiple {
+				cmd.Env = append(cmd.Env, "IF_MULTIPLE=1")
+			}
+			err := cmd.Start()
+			assert.NilError(t, err)
+			err = cmd.Wait()
+			e, ok := err.(*exec.ExitError)
+			assert.Assert(t, ok, "expected exec.ExitError, got %T", e)
+
 			code := e.Sys().(syscall.WaitStatus).ExitStatus()
 			if v.multiple {
 				assert.Check(t, is.DeepEqual(128+int(v.signal.(syscall.Signal)), code))
 			} else {
 				assert.Check(t, is.Equal(99, code))
 			}
-			continue
-		}
-		t.Fatal("process didn't end with any error")
+		})
 	}
 
 }
