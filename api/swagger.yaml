@@ -9767,6 +9767,7 @@ paths:
           description: "Only return this number of log lines from the end of the logs. Specify as an integer or `all` to output all log lines."
           type: "string"
           default: "all"
+      tags: ["Task"]
   /secrets:
     get:
       summary: "List secrets"
