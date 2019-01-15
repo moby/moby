@@ -81,13 +81,12 @@ func TestUpdateCPUQuota(t *testing.T) {
 		{desc: "a lower value", update: 10000},
 		{desc: "unset value", update: -1},
 	} {
-		if _, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
+		_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 			Resources: containertypes.Resources{
 				CPUQuota: test.update,
 			},
-		}); err != nil {
-			t.Fatal(err)
-		}
+		})
+		assert.NilError(t, err)
 
 		inspect, err := client.ContainerInspect(ctx, cID)
 		assert.NilError(t, err)
