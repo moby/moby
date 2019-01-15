@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/builder/dockerignore"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/urlutil"
 	"github.com/moby/buildkit/frontend/dockerfile/parser"
@@ -34,8 +35,9 @@ func Detect(config backend.BuildConfig) (remote builder.Source, dockerfile *pars
 	case remoteURL == ClientSessionRemote:
 		res, err := parser.Parse(config.Source)
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, errdefs.InvalidParameter(err)
 		}
+
 		return nil, res, nil
 	case urlutil.IsGitURL(remoteURL):
 		remote, dockerfile, err = newGitRemote(remoteURL, dockerfilePath)
@@ -106,7 +108,7 @@ func newURLRemote(url string, dockerfilePath string, progressReader func(in io.R
 	switch contentType {
 	case mimeTypes.TextPlain:
 		res, err := parser.Parse(progressReader(content))
-		return nil, res, err
+		return nil, res, errdefs.InvalidParameter(err)
 	default:
 		source, err := FromArchive(progressReader(content))
 		if err != nil {
@@ -146,11 +148,17 @@ func readAndParseDockerfile(name string, rc io.Reader) (*parser.Result, error) {
 	br := bufio.NewReader(rc)
 	if _, err := br.Peek(1); err != nil {
 		if err == io.EOF {
-			return nil, errors.Errorf("the Dockerfile (%s) cannot be empty", name)
+			return nil, errdefs.InvalidParameter(errors.Errorf("the Dockerfile (%s) cannot be empty", name))
 		}
 		return nil, errors.Wrap(err, "unexpected error reading Dockerfile")
 	}
-	return parser.Parse(br)
+
+	dockerfile, err := parser.Parse(br)
+	if err != nil {
+		return nil, errdefs.InvalidParameter(errors.Wrapf(err, "failed to parse %s", name))
+	}
+
+	return dockerfile, nil
 }
 
 func openAt(remote builder.Source, path string) (driver.File, error) {
