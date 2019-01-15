@@ -12,6 +12,7 @@ import (
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 var pluginBuildLock = locker.New()
@@ -32,9 +33,7 @@ func ensurePlugin(t *testing.T, name string) string {
 	}
 
 	goBin, err := exec.LookPath("go")
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 
 	cmd := exec.Command(goBin, "build", "-o", installPath, "./"+filepath.Join("cmd", name))
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
@@ -61,9 +60,7 @@ func createPlugin(t *testing.T, client plugin.CreateClient, alias, bin string, o
 	err := plugin.Create(ctx, client, alias, opts...)
 	cancel()
 
-	if err != nil {
-		t.Fatal(err)
-	}
+	assert.NilError(t, err)
 }
 
 func asVolumeDriver(cfg *plugin.Config) {
