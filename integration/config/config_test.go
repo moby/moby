@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/poll"
 	"gotest.tools/skip"
 )
 
@@ -268,18 +269,26 @@ func TestTemplatedConfig(t *testing.T) {
 	)
 
 	var tasks []swarmtypes.Task
-	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
+	getRunningTasks := func(log poll.LogT) poll.Result {
 		tasks = swarm.GetRunningTasks(t, client, serviceID)
-		return len(tasks) > 0
-	})
+		if len(tasks) > 0 {
+			return poll.Success()
+		}
+		return poll.Continue("task still waiting")
+	}
+	poll.WaitOn(t, getRunningTasks, swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
 
 	task := tasks[0]
-	waitAndAssert(t, 60*time.Second, func(t *testing.T) bool {
+	getTask := func(log poll.LogT) poll.Result {
 		if task.NodeID == "" || (task.Status.ContainerStatus == nil || task.Status.ContainerStatus.ContainerID == "") {
 			task, _, _ = client.TaskInspectWithRaw(context.Background(), task.ID)
 		}
-		return task.NodeID != "" && task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != ""
-	})
+		if task.NodeID != "" && task.Status.ContainerStatus != nil && task.Status.ContainerStatus.ContainerID != "" {
+			return poll.Success()
+		}
+		return poll.Continue("task still waiting")
+	}
+	poll.WaitOn(t, getTask, swarm.ServicePoll, poll.WithTimeout(1*time.Minute))
 
 	attach := swarm.ExecTask(t, d, task, types.ExecConfig{
 		Cmd:          []string{"/bin/cat", "/" + templatedConfigName},
@@ -305,22 +314,6 @@ func assertAttachedStream(t *testing.T, attach types.HijackedResponse, expect st
 	_, err := stdcopy.StdCopy(buf, buf, attach.Reader)
 	assert.NilError(t, err)
 	assert.Check(t, is.Contains(buf.String(), expect))
-}
-
-func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool) {
-	t.Helper()
-	after := time.After(timeout)
-	for {
-		select {
-		case <-after:
-			t.Fatalf("timed out waiting for condition")
-		default:
-		}
-		if f(t) {
-			return
-		}
-		time.Sleep(100 * time.Millisecond)
-	}
 }
 
 func TestConfigInspect(t *testing.T) {
