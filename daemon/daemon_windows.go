@@ -346,8 +346,10 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		controller.WalkNetworks(s)
 
 		drvOptions := make(map[string]string)
-
+		nid := ""
 		if n != nil {
+			nid = n.ID()
+
 			// global networks should not be deleted by local HNS
 			if n.Info().Scope() == datastore.GlobalScope {
 				continue
@@ -392,7 +394,7 @@ func (daemon *Daemon) initNetworkController(config *config.Config, activeSandbox
 		}
 
 		v6Conf := []*libnetwork.IpamConf{}
-		_, err := controller.NewNetwork(strings.ToLower(v.Type), name, "",
+		_, err := controller.NewNetwork(strings.ToLower(v.Type), name, nid,
 			libnetwork.NetworkOptionGeneric(options.Generic{
 				netlabel.GenericData: netOption,
 			}),
