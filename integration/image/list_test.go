@@ -47,3 +47,37 @@ func TestImagesFilterMultiReference(t *testing.T) {
 		}
 	}
 }
+
+// func TestImagesFilterContainsDigest(t *testing.T) {
+// 	defer setupTest(t)()
+// 	client := testEnv.APIClient()
+// 	ctx := context.Background()
+
+// 	name := "images_filter_contains_digest"
+// 	repoTags := []string{
+// 		name + ":v1",
+// 		name + ":v2",
+// 		name + ":v3",
+// 		name + ":v4",
+// 	}
+
+// 	for _, repoTag := range repoTags {
+// 		err := client.ImageTag(ctx, "busybox:latest", repoTag)
+// 		assert.NilError(t, err)
+// 		err = client.ImagePush(ctx, repoTag, types.ImagePushOptions{RegistryAuth: "{}"})
+// 		assert.NilError(t, err)
+// 	}
+
+// 	filter := filters.NewArgs()
+// 	filter.Add("reference", repoTags[0])
+// 	filter.Add("reference", repoTags[1])
+// 	filter.Add("reference", repoTags[2])
+// 	options := types.ImageListOptions{
+// 		All:     false,
+// 		Filters: filter,
+// 	}
+// 	images, err := client.ImageList(ctx, options)
+// 	assert.NilError(t, err)
+
+// 	assert.Check(t, is.Equal(len(images[0].RepoDigests), 3))
+// }
