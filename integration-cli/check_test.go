@@ -349,8 +349,7 @@ func (s *DockerSwarmSuite) TearDownTest(c *check.C) {
 	s.daemonsLock.Lock()
 	for _, d := range s.daemons {
 		if d != nil {
-			d.Stop(c)
-			d.Cleanup(c)
+			d.TearDown(c)
 		}
 	}
 	s.daemons = nil

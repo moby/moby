@@ -36,7 +36,7 @@ func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 			ops = append(ops, daemon.WithInit)
 		}
 		d := swarm.NewSwarm(t, testEnv, ops...)
-		defer d.Stop(t)
+		defer d.TearDown(t)
 		client := d.NewClientT(t)
 		defer client.Close()
 
@@ -78,7 +78,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -127,7 +127,7 @@ func TestCreateServiceConflict(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 	ctx := context.Background()
@@ -148,7 +148,7 @@ func TestCreateServiceConflict(t *testing.T) {
 func TestCreateServiceMaxReplicas(t *testing.T) {
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -169,7 +169,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -222,7 +222,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -286,7 +286,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -376,7 +376,7 @@ func TestCreateServiceSysctls(t *testing.T) {
 
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 

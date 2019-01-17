@@ -30,7 +30,7 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	d := daemon.New(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	d.Start(t)
 	d.Restart(t,
 		"--live-restore=true",
@@ -55,7 +55,7 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	defaultNetworkBridge := "docker0"
 	delInterface(t, defaultNetworkBridge)
 	d := daemon.New(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	d.Start(t,
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
@@ -97,7 +97,7 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -130,7 +130,7 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
 	d.Start(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -179,7 +179,7 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
 	defaultNetworkBridge := "docker0"
 	d := daemon.New(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	d.Start(t,
 		"--bip=172.60.0.1/16",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
@@ -201,7 +201,7 @@ func TestServiceWithPredefinedNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -232,7 +232,7 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -359,7 +359,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	err := c.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 	d.SwarmLeave(t, true)
-	d.Stop(t)
+	d.TearDown(t)
 
 	// Clean up , set it back to original one to make sure other tests don't fail
 	// call without datapath port option.
@@ -385,7 +385,7 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	err = c.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
 	d.SwarmLeave(t, true)
-	defer d.Stop(t)
+	d.TearDown(t)
 }
 
 func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
@@ -396,6 +396,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
 	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
 	d := swarm.NewSwarm(t, testEnv, ops...)
+	defer d.TearDown(t)
 
 	cli := d.NewClientT(t)
 	defer cli.Close()
@@ -428,14 +429,4 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	err = cli.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
-	d.SwarmLeave(t, true)
-	d.Stop(t)
-
-	// Clean up , set it back to original one to make sure other tests don't fail
-	ipAddr = []string{"10.0.0.0/8"}
-	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
-	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-	d = swarm.NewSwarm(t, testEnv, ops...)
-	d.SwarmLeave(t, true)
-	defer d.Stop(t)
 }

@@ -23,7 +23,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 
 	master := "dm-dummy0"
 	n.CreateMasterDummy(t, master)
@@ -70,7 +70,7 @@ func TestDockerNetworkMacvlan(t *testing.T) {
 
 		t.Run(tc.name, tc.test(c))
 
-		d.Stop(t)
+		d.TearDown(t)
 		// FIXME(vdemeester) clean network
 	}
 }

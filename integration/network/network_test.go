@@ -24,7 +24,7 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t, "-b", "none")
-	defer d.Stop(t)
+	defer d.TearDown(t)
 
 	c := d.NewClientT(t)
 	ctx := context.Background()

@@ -216,6 +216,12 @@ func (d *Daemon) Cleanup(t testingT) {
 	cleanupNetworkNamespace(t, d.execRoot)
 }
 
+// TearDown stops the daemon and cleans the daemon files : exec root (network namespaces, ...), swarmkit files
+func (d *Daemon) TearDown(t testingT) {
+	d.Stop(t)
+	d.Cleanup(t)
+}
+
 // Start starts the daemon and return once it is ready to receive requests.
 func (d *Daemon) Start(t testingT, args ...string) {
 	if ht, ok := t.(test.HelperT); ok {

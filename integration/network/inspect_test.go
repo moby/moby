@@ -16,7 +16,7 @@ func TestInspectNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -91,12 +91,4 @@ func TestInspectNetwork(t *testing.T) {
 			}
 		})
 	}
-
-	// TODO find out why removing networks is needed; other tests fail if the network is not removed, even though they run on a new daemon.
-	err := c.ServiceRemove(ctx, serviceID)
-	assert.NilError(t, err)
-	poll.WaitOn(t, swarm.NoTasksForService(ctx, c, serviceID), swarm.ServicePoll)
-	err = c.NetworkRemove(ctx, overlayID)
-	assert.NilError(t, err)
-	poll.WaitOn(t, network.IsRemoved(ctx, c, overlayID), swarm.NetworkPoll)
 }

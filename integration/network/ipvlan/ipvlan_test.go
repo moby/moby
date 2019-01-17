@@ -27,7 +27,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 
 	d := daemon.New(t)
 	d.StartWithBusybox(t)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 
 	// master dummy interface 'di' notation represent 'docker ipvlan'
 	master := "di-dummy0"
@@ -91,7 +91,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 
 		t.Run(tc.name, tc.test(c))
 
-		d.Stop(t)
+		d.TearDown(t)
 		// FIXME(vdemeester) clean network
 	}
 }

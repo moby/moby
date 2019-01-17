@@ -18,7 +18,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	defer d.TearDown(t)
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()

@@ -1210,6 +1210,9 @@ func (daemon *Daemon) Shutdown() error {
 
 	// trigger libnetwork Stop only if it's initialized
 	if daemon.netController != nil {
+		if paths := daemon.netController.GarbagePaths(); len(paths) > 0 {
+			logrus.Errorln("Networking namepaces to remove:", strings.Join(paths, ", "))
+		}
 		daemon.netController.Stop()
 	}
 
