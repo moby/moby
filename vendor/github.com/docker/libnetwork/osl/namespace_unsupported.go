@@ -2,6 +2,11 @@
 
 package osl
 
+// GarbagePaths returns the paths of namespaces marked for garbage collection
+func GarbagePaths() []string {
+	return nil
+}
+
 // GC triggers garbage collection of namespace path right away
 // and waits for it.
 func GC() {

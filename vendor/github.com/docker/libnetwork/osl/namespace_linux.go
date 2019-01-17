@@ -111,7 +111,7 @@ func removeUnusedPaths() {
 		gpmLock.Unlock()
 
 		for _, path := range pathList {
-			os.Remove(path)
+			_ = os.Remove(path)
 		}
 
 		gpmWg.Done()
@@ -131,6 +131,17 @@ func removeFromGarbagePaths(path string) {
 	gpmLock.Lock()
 	delete(garbagePathMap, path)
 	gpmLock.Unlock()
+}
+
+// GarbagePaths returns the paths of namespaces marked for garbage collection
+func GarbagePaths() []string {
+	var paths []string
+	gpmLock.Lock()
+	for p := range garbagePathMap {
+		paths = append(paths, p)
+	}
+	gpmLock.Unlock()
+	return paths
 }
 
 // GC triggers garbage collection of namespace path right away
@@ -475,7 +486,10 @@ func (n *networkNamespace) Destroy() error {
 	}
 	// Assuming no running process is executing in this network namespace,
 	// unmounting is sufficient to destroy it.
-	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil {
+	// Unmount the network namespace using MNT_DETACH (lazy unmount).
+	// Ignore EINVAL ("target is not a mount point"),
+	// which could occur if the network namespace was already gone.
+	if err := syscall.Unmount(n.path, syscall.MNT_DETACH); err != nil && err != syscall.EINVAL  {
 		return err
 	}
 

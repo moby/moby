@@ -18,6 +18,11 @@ func GetSandboxForExternalKey(path string, key string) (Sandbox, error) {
 	return nil, nil
 }
 
+// GarbagePaths returns the paths of namespaces marked for garbage collection
+func GarbagePaths() []string {
+	return nil
+}
+
 // GC triggers garbage collection of namespace path right away
 // and waits for it.
 func GC() {

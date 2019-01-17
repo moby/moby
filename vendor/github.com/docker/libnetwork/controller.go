@@ -118,6 +118,9 @@ type NetworkController interface {
 	// SandboxDestroy destroys a sandbox given a container ID
 	SandboxDestroy(id string) error
 
+	// GarbagePaths returns the list of network-namespaces that are marked for garbage-collection
+	GarbagePaths() []string
+
 	// Stop network controller
 	Stop()
 
@@ -1323,6 +1326,10 @@ func (c *controller) getIPAMDriver(name string) (ipamapi.Ipam, *ipamapi.Capabili
 	}
 
 	return id, cap, nil
+}
+
+func (c *controller) GarbagePaths() []string {
+	return osl.GarbagePaths()
 }
 
 func (c *controller) Stop() {
