@@ -9,17 +9,24 @@ import (
 // For a read/write layer, the mounted filesystem will appear as a volume on the
 // host, while a read-only layer is generally expected to be a no-op.
 // An activated layer must later be deactivated via DeactivateLayer.
-func ActivateLayer(path string) error {
-	title := "hcsshim::ActivateLayer "
-	logrus.Debugf(title+"path %s", path)
-
-	err := activateLayer(&stdDriverInfo, path)
-	if err != nil {
-		err = hcserror.Errorf(err, title, "path=%s", path)
-		logrus.Error(err)
-		return err
+func ActivateLayer(path string) (err error) {
+	title := "hcsshim::ActivateLayer"
+	fields := logrus.Fields{
+		"path": path,
 	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
-	logrus.Debugf(title+" - succeeded path=%s", path)
+	err = activateLayer(&stdDriverInfo, path)
+	if err != nil {
+		return hcserror.New(err, title+" - failed", "")
+	}
 	return nil
 }

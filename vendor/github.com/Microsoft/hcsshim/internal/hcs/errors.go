@@ -73,6 +73,9 @@ var (
 	// ErrVmcomputeUnknownMessage is an error encountered guest compute system doesn't support the message
 	ErrVmcomputeUnknownMessage = syscall.Errno(0xc037010b)
 
+	// ErrVmcomputeUnexpectedExit is an error encountered when the compute system terminates unexpectedly
+	ErrVmcomputeUnexpectedExit = syscall.Errno(0xC0370106)
+
 	// ErrNotSupported is an error encountered when hcs doesn't support the request
 	ErrPlatformNotSupported = errors.New("unsupported platform request")
 )
@@ -267,6 +270,22 @@ func IsNotSupported(err error) bool {
 		err == ErrInvalidData ||
 		err == ErrNotSupported ||
 		err == ErrVmcomputeUnknownMessage
+}
+
+// On RS1, RS2 builds GetContainers may fails with access denied error
+// when there is race condition, you can have retry loop in order 
+// to resolve this problem
+func IsOperationAccessIsDenied(err error) bool {
+	err = getInnerError(err)
+	return err == ErrVmcomputeOperationAccessIsDenied
+}
+
+// On RS1, RS2 build GetContainers may fails with invalid state error
+// when there is race condition, you can have retry loop in order 
+// to resolve this problem
+func IsOperationInvalidState(err error) bool {
+	err = getInnerError(err)
+	return err == ErrVmcomputeOperationInvalidState
 }
 
 func getInnerError(err error) error {

@@ -9,9 +9,20 @@ import (
 // This requires both the id of the direct parent layer, as well as the full list
 // of paths to all parent layers up to the base (and including the direct parent
 // whose id was provided).
-func CreateScratchLayer(path string, parentLayerPaths []string) error {
-	title := "hcsshim::CreateScratchLayer "
-	logrus.Debugf(title+"path %s", path)
+func CreateScratchLayer(path string, parentLayerPaths []string) (err error) {
+	title := "hcsshim::CreateScratchLayer"
+	fields := logrus.Fields{
+		"path": path,
+	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
 	// Generate layer descriptors
 	layers, err := layerPathsToDescriptors(parentLayerPaths)
@@ -21,11 +32,7 @@ func CreateScratchLayer(path string, parentLayerPaths []string) error {
 
 	err = createSandboxLayer(&stdDriverInfo, path, 0, layers)
 	if err != nil {
-		err = hcserror.Errorf(err, title, "path=%s", path)
-		logrus.Error(err)
-		return err
+		return hcserror.New(err, title+" - failed", "")
 	}
-
-	logrus.Debugf(title+"- succeeded path=%s", path)
 	return nil
 }

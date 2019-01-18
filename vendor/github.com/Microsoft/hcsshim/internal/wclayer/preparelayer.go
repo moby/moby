@@ -14,9 +14,20 @@ var prepareLayerLock sync.Mutex
 // parent layers, and is necessary in order to view or interact with the layer
 // as an actual filesystem (reading and writing files, creating directories, etc).
 // Disabling the filter must be done via UnprepareLayer.
-func PrepareLayer(path string, parentLayerPaths []string) error {
-	title := "hcsshim::PrepareLayer "
-	logrus.Debugf(title+"path %s", path)
+func PrepareLayer(path string, parentLayerPaths []string) (err error) {
+	title := "hcsshim::PrepareLayer"
+	fields := logrus.Fields{
+		"path": path,
+	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
 	// Generate layer descriptors
 	layers, err := layerPathsToDescriptors(parentLayerPaths)
@@ -30,11 +41,7 @@ func PrepareLayer(path string, parentLayerPaths []string) error {
 	defer prepareLayerLock.Unlock()
 	err = prepareLayer(&stdDriverInfo, path, layers)
 	if err != nil {
-		err = hcserror.Errorf(err, title, "path=%s", path)
-		logrus.Error(err)
-		return err
+		return hcserror.New(err, title+" - failed", "")
 	}
-
-	logrus.Debugf(title+"succeeded path=%s", path)
 	return nil
 }

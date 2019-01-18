@@ -230,6 +230,20 @@ func IsNotSupported(err error) bool {
 	return hcs.IsNotSupported(getInnerError(err))
 }
 
+// On RS1, RS2 builds GetContainers may fails with access denied error
+// when there is race condition, you can have retry loop in order 
+// to resolve this problem
+func IsOperationAccessIsDenied(err error) bool {
+	return hcs.IsOperationAccessIsDenied(getInnerError(err))
+}
+
+// On RS1, RS2 build GetContainers may fails with invalid state error
+// when there is race condition, you can have retry loop in order 
+// to resolve this problem
+func IsOperationInvalidState(err error) bool {
+	return hcs.IsOperationInvalidState(getInnerError(err))
+}
+
 func getInnerError(err error) error {
 	switch pe := err.(type) {
 	case nil:
