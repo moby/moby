@@ -71,5 +71,5 @@ type VolumeBackend interface {
 type ImageBackend interface {
 	PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error
 	// TODO: Provide interface to do shallow pull and get digest from Named and Auth
-	LookupImage(name string) (*types.ImageInspect, error)
+	LookupImage(ctx context.Context, name string) (*types.ImageInspect, error)
 }

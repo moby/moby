@@ -23,7 +23,7 @@ type imageBackend interface {
 	ImageDelete(ctx context.Context, imageRef string, force, prune bool) ([]types.ImageDeleteResponseItem, error)
 	ImageHistory(imageName string) ([]*image.HistoryResponseItem, error)
 	Images(ctx context.Context, imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error)
-	LookupImage(name string) (*types.ImageInspect, error)
+	LookupImage(ctx context.Context, name string) (*types.ImageInspect, error)
 	TagImage(ctx context.Context, imageName, repository, tag string) (string, error)
 	ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error)
 }

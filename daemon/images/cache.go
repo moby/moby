@@ -37,7 +37,7 @@ type cache struct {
 	m sync.RWMutex
 	// idCache maps Docker identifiers
 	idCache map[digest.Digest]*cachedImage
-	// dCache maps target digests to images
+	// tCache maps target digests to images
 	tCache map[digest.Digest]*cachedImage
 	ids    *digestset.Set
 }

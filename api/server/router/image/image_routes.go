@@ -215,7 +215,7 @@ func (s *imageRouter) deleteImages(ctx context.Context, w http.ResponseWriter, r
 }
 
 func (s *imageRouter) getImagesByName(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
-	imageInspect, err := s.backend.LookupImage(vars["name"])
+	imageInspect, err := s.backend.LookupImage(ctx, vars["name"])
 	if err != nil {
 		return err
 	}
