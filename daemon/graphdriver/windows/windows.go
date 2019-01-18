@@ -295,7 +295,7 @@ func (d *Driver) Remove(id string) error {
 		computeSystems, err = hcsshim.GetContainers(hcsshim.ComputeSystemQuery{})
 		if err != nil {
 			if (osv.Build < 15139) &&
-				((err == hcsshim.ErrVmcomputeOperationInvalidState) || (err == hcsshim.ErrVmcomputeOperationAccessIsDenied)) {
+				(hcsshim.IsOperationInvalidState(err) || hcsshim.IsOperationAccessIsDenied(err)) {
 				if retryCount >= 500 {
 					break
 				}
