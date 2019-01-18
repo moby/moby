@@ -126,11 +126,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	}
 
 	// In s.Process
-	s.Process.Args = append([]string{c.Path}, c.Args...)
-	if !c.Config.ArgsEscaped && img.OS == "windows" {
-		s.Process.Args = escapeArgs(s.Process.Args)
-	}
-
 	s.Process.Cwd = c.Config.WorkingDir
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
 	if c.Config.Tty {
@@ -244,6 +239,14 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		s.Process.Cwd = `C:\`
 	}
 
+	if c.Config.ArgsEscaped {
+		s.Process.CommandLine = c.Path
+		if len(c.Args) > 0 {
+			s.Process.CommandLine += " " + system.EscapeArgs(c.Args)
+		}
+	} else {
+		s.Process.Args = append([]string{c.Path}, c.Args...)
+	}
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
 		if c.BaseFS == nil {
@@ -360,6 +363,7 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 	if len(s.Process.Cwd) == 0 {
 		s.Process.Cwd = `/`
 	}
+	s.Process.Args = append([]string{c.Path}, c.Args...)
 	s.Root.Path = "rootfs"
 	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 

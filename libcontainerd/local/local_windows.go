@@ -652,11 +652,11 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(ctr.ociSpec.Process.Env)
-	if ctr.isWindows {
-		createProcessParms.CommandLine = strings.Join(ctr.ociSpec.Process.Args, " ")
-	} else {
-		createProcessParms.CommandArgs = ctr.ociSpec.Process.Args
-	}
+
+	// Configure the CommandLine/CommandArgs
+	setCommandLineAndArgs(ctr.isWindows, ctr.ociSpec.Process, createProcessParms)
+	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
+
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
 	// LCOW requires the raw OCI spec passed through HCS and onwards to
@@ -742,6 +742,19 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	return p.pid, nil
 }
 
+// setCommandLineAndArgs configures the HCS ProcessConfig based on an OCI process spec
+func setCommandLineAndArgs(isWindows bool, process *specs.Process, createProcessParms *hcsshim.ProcessConfig) {
+	if isWindows {
+		if process.CommandLine != "" {
+			createProcessParms.CommandLine = process.CommandLine
+		} else {
+			createProcessParms.CommandLine = system.EscapeArgs(process.Args)
+		}
+	} else {
+		createProcessParms.CommandArgs = process.Args
+	}
+}
+
 func newIOFromProcess(newProcess hcsshim.Process, terminal bool) (*cio.DirectIO, error) {
 	stdin, stdout, stderr, err := newProcess.Stdio()
 	if err != nil {
@@ -781,7 +794,7 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 	// docker can always grab the output through logs. We also tell HCS to always
 	// create stdin, even if it's not used - it will be closed shortly. Stderr
 	// is only created if it we're not -t.
-	createProcessParms := hcsshim.ProcessConfig{
+	createProcessParms := &hcsshim.ProcessConfig{
 		CreateStdInPipe:  true,
 		CreateStdOutPipe: true,
 		CreateStdErrPipe: !spec.Terminal,
@@ -804,17 +817,15 @@ func (c *client) Exec(ctx context.Context, containerID, processID string, spec *
 
 	// Configure the environment for the process
 	createProcessParms.Environment = setupEnvironmentVariables(spec.Env)
-	if ctr.isWindows {
-		createProcessParms.CommandLine = strings.Join(spec.Args, " ")
-	} else {
-		createProcessParms.CommandArgs = spec.Args
-	}
-	createProcessParms.User = spec.User.Username
 
+	// Configure the CommandLine/CommandArgs
+	setCommandLineAndArgs(ctr.isWindows, spec, createProcessParms)
 	logger.Debugf("exec commandLine: %s", createProcessParms.CommandLine)
 
+	createProcessParms.User = spec.User.Username
+
 	// Start the command running in the container.
-	newProcess, err := ctr.hcsContainer.CreateProcess(&createProcessParms)
+	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logger.WithError(err).Errorf("exec's CreateProcess() failed")
 		return -1, err
