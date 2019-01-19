@@ -42,18 +42,18 @@ func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 		booleanFalse := false
 
 		serviceID := swarm.CreateService(t, d)
-		poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
+		poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
 		i := inspectServiceContainer(t, client, serviceID)
 		// HostConfig.Init == nil means that it delegates to daemon configuration
 		assert.Check(t, i.HostConfig.Init == nil)
 
 		serviceID = swarm.CreateService(t, d, swarm.ServiceWithInit(&booleanTrue))
-		poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
+		poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
 		i = inspectServiceContainer(t, client, serviceID)
 		assert.Check(t, is.Equal(true, *i.HostConfig.Init))
 
 		serviceID = swarm.CreateService(t, d, swarm.ServiceWithInit(&booleanFalse))
-		poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
+		poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, 1), swarm.ServicePoll)
 		i = inspectServiceContainer(t, client, serviceID)
 		assert.Check(t, is.Equal(false, *i.HostConfig.Init))
 	}
@@ -97,7 +97,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	}
 
 	serviceID := swarm.CreateService(t, d, serviceSpec...)
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
 	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -108,7 +108,7 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 	poll.WaitOn(t, swarm.NoTasksForService(ctx, client, serviceID), swarm.ServicePoll)
 
 	serviceID2 := swarm.CreateService(t, d, serviceSpec...)
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
 
 	err = client.ServiceRemove(context.Background(), serviceID2)
 	assert.NilError(t, err)
@@ -147,7 +147,7 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 		swarm.ServiceWithNetwork(name),
 	)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
 	resp, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
@@ -210,7 +210,7 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 		}),
 	)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
 
 	filter := filters.NewArgs()
 	filter.Add("service", serviceID)
@@ -274,7 +274,7 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 		}),
 	)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances))
+	poll.WaitOn(t, swarm.RunningTasksCount(client, serviceID, instances))
 
 	filter := filters.NewArgs()
 	filter.Add("service", serviceID)
@@ -300,27 +300,4 @@ func TestCreateServiceConfigFileMode(t *testing.T) {
 
 	err = client.ConfigRemove(ctx, configName)
 	assert.NilError(t, err)
-}
-
-func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == int(instances):
-			for _, task := range tasks {
-				if task.Status.State != swarmtypes.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter run state")
-				}
-			}
-			return poll.Success()
-		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
-		}
-	}
 }
