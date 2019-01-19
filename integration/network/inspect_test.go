@@ -5,9 +5,6 @@ import (
 	"testing"
 
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/filters"
-	swarmtypes "github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/network"
 	"github.com/docker/docker/integration/internal/swarm"
 	"gotest.tools/assert"
@@ -38,7 +35,7 @@ func TestInspectNetwork(t *testing.T) {
 		swarm.ServiceWithNetwork(networkName),
 	)
 
-	poll.WaitOn(t, serviceRunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, swarm.RunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
 
 	tests := []struct {
 		name    string
@@ -102,31 +99,4 @@ func TestInspectNetwork(t *testing.T) {
 	err = c.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
 	poll.WaitOn(t, network.IsRemoved(ctx, c, overlayID), swarm.NetworkPoll)
-}
-
-func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filters.NewArgs(
-				filters.Arg("service", serviceID),
-				filters.Arg("desired-state", string(swarmtypes.TaskStateRunning)),
-			),
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == int(instances):
-			for _, task := range tasks {
-				if task.Status.Err != "" {
-					log.Log("task error:", task.Status.Err)
-				}
-				if task.Status.State != swarmtypes.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter run state (current status: %s)", task.Status.State)
-				}
-			}
-			return poll.Success()
-		default:
-			return poll.Continue("task count for service %s at %d waiting for %d", serviceID, len(tasks), instances)
-		}
-	}
 }
