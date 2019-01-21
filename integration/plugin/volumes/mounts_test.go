@@ -28,7 +28,7 @@ func TestPluginWithDevMounts(t *testing.T) {
 	ctx := context.Background()
 
 	testDir, err := ioutil.TempDir("", "test-dir")
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(testDir)
 
 	createPlugin(t, c, "test", "dummy", asVolumeDriver, func(c *plugin.Config) {
@@ -46,13 +46,13 @@ func TestPluginWithDevMounts(t *testing.T) {
 	})
 
 	err = c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer func() {
 		err := c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 		assert.Check(t, err)
 	}()
 
 	p, _, err := c.PluginInspectWithRaw(ctx, "test")
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, p.Enabled)
 }

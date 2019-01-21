@@ -22,11 +22,11 @@ func TestLocalVolumeSize(t *testing.T) {
 
 	ds := volumedrivers.NewStore(nil)
 	dir, err := ioutil.TempDir("", t.Name())
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
 	l, err := local.New(dir, idtools.Identity{UID: os.Getuid(), GID: os.Getegid()})
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, ds.Register(l, volume.DefaultDriverName))
 	assert.Assert(t, ds.Register(testutils.NewFakeDriver("fake"), "fake"))
 
@@ -35,20 +35,20 @@ func TestLocalVolumeSize(t *testing.T) {
 
 	ctx := context.Background()
 	v1, err := service.Create(ctx, "test1", volume.DefaultDriverName, opts.WithCreateReference("foo"))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	v2, err := service.Create(ctx, "test2", volume.DefaultDriverName)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	_, err = service.Create(ctx, "test3", "fake")
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 
 	data := make([]byte, 1024)
 	err = ioutil.WriteFile(filepath.Join(v1.Mountpoint, "data"), data, 0644)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = ioutil.WriteFile(filepath.Join(v2.Mountpoint, "data"), data[:1], 0644)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 
 	ls, err := service.LocalVolumesSize(ctx)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, is.Len(ls, 2))
 
 	for _, v := range ls {

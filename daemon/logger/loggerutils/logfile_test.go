@@ -60,7 +60,7 @@ func TestTailFiles(t *testing.T) {
 	case <-time.After(60 * time.Second):
 		t.Fatal("timeout waiting for tail line")
 	case err := <-watcher.Err:
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 	case msg := <-watcher.Msg:
 		assert.Assert(t, msg != nil)
 		assert.Assert(t, string(msg.Line) == "Roads?", string(msg.Line))
@@ -70,7 +70,7 @@ func TestTailFiles(t *testing.T) {
 	case <-time.After(60 * time.Second):
 		t.Fatal("timeout waiting for tail line")
 	case err := <-watcher.Err:
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 	case msg := <-watcher.Msg:
 		assert.Assert(t, msg != nil)
 		assert.Assert(t, string(msg.Line) == "Where we're going we don't need roads.", string(msg.Line))
