@@ -403,6 +403,10 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 		// TODO: Rewrite configuration logic to avoid same issue with other nullable values, like numbers.
 		namedOptions := make(map[string]interface{})
 		for key, value := range configSet {
+			if !CommonConfig[key] {
+				logrus.Warn(`Looks like your config has unknown option: ` + string(key))
+			}
+
 			f := flags.Lookup(key)
 			if f == nil { // ignore named flags that don't match
 				namedOptions[key] = value
