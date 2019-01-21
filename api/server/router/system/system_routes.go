@@ -73,6 +73,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 			info.OperatingSystem = "<unknown>"
 		}
 	}
+	info.BuilderVersion = build.BuilderVersion(*s.features)
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }
 

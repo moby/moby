@@ -190,6 +190,7 @@ type Info struct {
 	Name               string
 	Labels             []string
 	ExperimentalBuild  bool
+	BuilderVersion     BuilderVersion
 	ServerVersion      string
 	ClusterStore       string
 	ClusterAdvertise   string
