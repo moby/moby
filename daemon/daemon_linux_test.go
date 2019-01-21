@@ -236,30 +236,30 @@ func TestRootMountCleanup(t *testing.T) {
 	t.Parallel()
 
 	testRoot, err := ioutil.TempDir("", t.Name())
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(testRoot)
 	cfg := &config.Config{}
 
 	err = mount.MakePrivate(testRoot)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer mount.Unmount(testRoot)
 
 	cfg.ExecRoot = filepath.Join(testRoot, "exec")
 	cfg.Root = filepath.Join(testRoot, "daemon")
 
 	err = os.Mkdir(cfg.ExecRoot, 0755)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = os.Mkdir(cfg.Root, 0755)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 
 	d := &Daemon{configStore: cfg, root: cfg.Root}
 	unmountFile := getUnmountOnShutdownPath(cfg)
 
 	t.Run("regular dir no mountpoint", func(t *testing.T) {
 		err = setupDaemonRootPropagation(cfg)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		_, err = os.Stat(unmountFile)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		checkMounted(t, cfg.Root, true)
 
 		assert.Assert(t, d.cleanupMounts())
@@ -271,11 +271,11 @@ func TestRootMountCleanup(t *testing.T) {
 
 	t.Run("root is a private mountpoint", func(t *testing.T) {
 		err = mount.MakePrivate(cfg.Root)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
 		err = setupDaemonRootPropagation(cfg)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		assert.Check(t, ensureShared(cfg.Root))
 
 		_, err = os.Stat(unmountFile)
@@ -287,11 +287,11 @@ func TestRootMountCleanup(t *testing.T) {
 	// mount is pre-configured with a shared mount
 	t.Run("root is a shared mountpoint", func(t *testing.T) {
 		err = mount.MakeShared(cfg.Root)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		defer mount.Unmount(cfg.Root)
 
 		err = setupDaemonRootPropagation(cfg)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 
 		if _, err := os.Stat(unmountFile); err == nil {
 			t.Fatal("unmount file should not exist")
@@ -305,13 +305,13 @@ func TestRootMountCleanup(t *testing.T) {
 	// does not need mount but unmount file exists from previous run
 	t.Run("old mount file is cleaned up on setup if not needed", func(t *testing.T) {
 		err = mount.MakeShared(testRoot)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 		defer mount.MakePrivate(testRoot)
 		err = ioutil.WriteFile(unmountFile, nil, 0644)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 
 		err = setupDaemonRootPropagation(cfg)
-		assert.Assert(t, err)
+		assert.NilError(t, err)
 
 		_, err = os.Stat(unmountFile)
 		assert.Check(t, os.IsNotExist(err), err)
