@@ -77,15 +77,15 @@ func TestEncodeDecode(t *testing.T) {
 
 	decode := decodeFunc(buf)
 	msg, err := decode()
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 1\n", string(msg.Line))
 
 	msg, err = decode()
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 2\n")
 
 	msg, err = decode()
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	assert.Assert(t, string(msg.Line) == "hello 3\n")
 
 	_, err = decode()
