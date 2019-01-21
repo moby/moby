@@ -232,11 +232,11 @@ func TestNewTailReader(t *testing.T) {
 								assert.Assert(t, lines == 0)
 								return
 							}
-							assert.Assert(t, err)
+							assert.NilError(t, err)
 							assert.Check(t, lines == i, "%d -- %d", lines, i)
 
 							b, err := ioutil.ReadAll(tr)
-							assert.Assert(t, err)
+							assert.NilError(t, err)
 
 							expectLines := test.data[len(test.data)-i:]
 							assert.Check(t, len(expectLines) == i)
@@ -260,10 +260,10 @@ func TestNewTailReader(t *testing.T) {
 							return
 						}
 
-						assert.Assert(t, err)
+						assert.NilError(t, err)
 						assert.Check(t, lines == len(test.data), "%d -- %d", lines, len(test.data))
 						b, err := ioutil.ReadAll(tr)
-						assert.Assert(t, err)
+						assert.NilError(t, err)
 						assert.Check(t, bytes.Equal(b, []byte(s)), "\n%v\n%v", b, []byte(s))
 					})
 				})
@@ -273,16 +273,16 @@ func TestNewTailReader(t *testing.T) {
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("more than available", func(t *testing.T) {
 			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 3)
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, nLines == 2, nLines)
 
 			rdr := bufio.NewReader(tail)
 			data, _, err := rdr.ReadLine()
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, string(data) == "a", string(data))
 
 			data, _, err = rdr.ReadLine()
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
@@ -292,16 +292,16 @@ func TestNewTailReader(t *testing.T) {
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("exact", func(t *testing.T) {
 			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 2)
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, nLines == 2, nLines)
 
 			rdr := bufio.NewReader(tail)
 			data, _, err := rdr.ReadLine()
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, string(data) == "a", string(data))
 
 			data, _, err = rdr.ReadLine()
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
@@ -312,12 +312,12 @@ func TestNewTailReader(t *testing.T) {
 	t.Run("truncated last line", func(t *testing.T) {
 		t.Run("one line", func(t *testing.T) {
 			tail, nLines, err := NewTailReader(ctx, strings.NewReader("a\nb\nextra"), 1)
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, nLines == 1, nLines)
 
 			rdr := bufio.NewReader(tail)
 			data, _, err := rdr.ReadLine()
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 			assert.Check(t, string(data) == "b", string(data))
 
 			_, _, err = rdr.ReadLine()
