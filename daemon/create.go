@@ -96,6 +96,10 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 	}
 	containerActions.WithValues("create").UpdateSince(start)
 
+	if warnings == nil {
+		warnings = make([]string, 0) // Create an empty slice to avoid https://github.com/moby/moby/issues/38222
+	}
+
 	return containertypes.ContainerCreateCreatedBody{ID: container.ID, Warnings: warnings}, nil
 }
 
