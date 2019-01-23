@@ -21,7 +21,7 @@ exist on the repository should apply to issues.
  * `status/1-design-review`
  * `status/2-code-review`
  * `status/3-docs-review`
- * `status/4-ready-to-merge`
+ * `status/4-merge`
 
 Special status labels:
 
