@@ -50,15 +50,6 @@
 			"yongtang"
 		]
 
-	[Org."Docs maintainers"]
-
-	# TODO Describe the docs maintainers role.
-
-		people = [
-			"misty",
-			"thajeztah"
-		]
-
 	[Org.Curators]
 
 	# The curators help ensure that incoming issues and pull requests are properly triaged and
@@ -386,11 +377,6 @@
 	Name = "Morgan Bauer"
 	Email = "mbauer@us.ibm.com"
 	GitHub = "mhbauer"
-
-	[people.misty]
-	Name = "Misty Stanley-Jones"
-	Email = "misty@docker.com"
-	GitHub = "mistyhacks"
 
 	[people.mlaventure]
 	Name = "Kenfe-Mickaël Laventure"
