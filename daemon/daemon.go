@@ -647,7 +647,15 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 
 // DaemonJoinsCluster informs the daemon has joined the cluster and provides
 // the handler to query the cluster component
-func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
+func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider, forceNewCluster bool) {
+	// When forcing a new cluster, first clean up the existing agent
+	// ensuring that a new one will be created and started
+	if(forceNewCluster) {
+		daemon.setClusterProvider(nil)
+		// Wait for the networking cluster agent to stop
+		daemon.netController.AgentStopWait()
+	}
+	
 	daemon.setClusterProvider(clusterProvider)
 }
 

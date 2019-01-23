@@ -239,7 +239,7 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 		return nil, err
 	}
 
-	c.config.Backend.DaemonJoinsCluster(c)
+	c.config.Backend.DaemonJoinsCluster(c, conf.forceNewCluster)
 
 	return nr, nil
 }

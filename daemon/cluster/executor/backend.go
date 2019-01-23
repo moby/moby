@@ -51,7 +51,7 @@ type Backend interface {
 	SystemInfo() (*types.Info, error)
 	Containers(config *types.ContainerListOptions) ([]*types.Container, error)
 	SetNetworkBootstrapKeys([]*networktypes.EncryptionKey) error
-	DaemonJoinsCluster(provider cluster.Provider)
+	DaemonJoinsCluster(provider cluster.Provider, forceNewCluster bool)
 	DaemonLeavesCluster()
 	IsSwarmCompatible() error
 	SubscribeToEvents(since, until time.Time, filter filters.Args) ([]events.Message, chan interface{})
