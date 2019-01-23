@@ -45,6 +45,7 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 	}
 	defer layer.ReleaseAndLog(layerStore, l)
 
+	// TODO(containerd): put in containerd's image store
 	cc := image.ChildConfig{
 		ContainerID:     c.ContainerID,
 		Author:          c.Author,
