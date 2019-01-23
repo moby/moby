@@ -418,7 +418,7 @@ func getConflictFreeConfiguration(configFile string, flags *pflag.FlagSet) (*Con
 				}
 			}
 			if !valid {
-				logrus.Warn(`Looks like your config has unknown option: ` + string(key))
+				logrus.Warn(`Looks like your config has unknown option: ` + key)
 			}
 
 			f := flags.Lookup(key)
