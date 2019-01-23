@@ -1442,7 +1442,7 @@ func (s *DockerSuite) TestPutContainerArchiveErrSymlinkInVolumeToReadOnlyRootfs(
 	// directory outside the volume. This should cause an error because the
 	// rootfs is read-only.
 	var httpClient *http.Client
-	cli, err := client.NewClient(daemonHost(), "v1.20", httpClient, map[string]string{})
+	cli, err := client.NewClient(request.DaemonHost(), "v1.20", httpClient, map[string]string{})
 	c.Assert(err, checker.IsNil)
 
 	err = cli.CopyToContainer(context.Background(), cID, "/vol2/symlinkToAbsDir", nil, types.CopyToContainerOptions{})
