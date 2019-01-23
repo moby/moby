@@ -2,12 +2,19 @@
 # Entrypoint for jenkins janky CI build
 set -eu -o pipefail
 
+# Rebase to master so codecov will provide valid coverage diff report
+git config --global user.email "ci@moby"
+git config --global user.name "CI"
+git fetch origin master
+# Last no-merge commit (codecov is not run on merge commits)
+GIT_MASTER_COMMIT=$(git rev-list --no-merges -n 1 origin/master)
+git rebase --merge $GIT_MASTER_COMMIT
+
 hack/validate/default
 hack/test/unit
 bash <(curl -s https://codecov.io/bash) \
     -f coverage.txt \
-    -C "$GIT_SHA1" || \
-    echo 'Codecov failed to upload'
+    -C "$GIT_SHA1" -Z
 
 hack/make.sh \
 	binary-daemon \

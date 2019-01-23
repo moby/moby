@@ -1,17 +1,25 @@
+codecov:
+  ci:
+    - jenkins.dockerproject.org
+  notify:
+    after_n_builds: null
+    require_ci_to_pass: no
 comment:
-  layout: header, changes, diff, sunburst
+  layout: header, changes, diff, sunburst, files
 coverage:
   status:
     patch:
       default:
         target: 50%
         only_pulls: true
+        base: parent
     # project will give us the diff in the total code coverage between a commit
     # and its parent
     project:
       default:
         target: auto
         threshold: "15%"
+        base: parent
     changes: false
 ignore:
   - "vendor/*"
