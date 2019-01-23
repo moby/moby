@@ -249,7 +249,7 @@ func (s *imageRouter) getImagesJSON(ctx context.Context, w http.ResponseWriter, 
 
 func (s *imageRouter) getImagesHistory(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 	name := vars["name"]
-	history, err := s.backend.ImageHistory(name)
+	history, err := s.backend.ImageHistory(ctx, name)
 	if err != nil {
 		return err
 	}

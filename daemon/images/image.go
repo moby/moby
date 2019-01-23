@@ -101,6 +101,7 @@ func (i *ImageService) GetImage(refOrID string) (*image.Image, error) {
 	return img, nil
 }
 
+// TODO(containerd): remove or replace this function to return local type
 func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) (*image.Image, error) {
 	cs := i.client.ContentStore()
 
