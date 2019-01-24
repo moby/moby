@@ -15,7 +15,7 @@ reverse () {
 }
 
 source hack/validate/.validate
-COMMITS=( $(validate_log --format='format:%H%n') )
+COMMITS=( $(validate_log --format='format:%H%n' --no-merges) )
 COMMITS_ON_ORDER=$(reverse "${COMMITS[@]}")
 
 git config --global user.email "ci@moby"
