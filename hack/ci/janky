@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Entrypoint for jenkins janky CI build
-set -eu -o pipefail
+
+# FixMe
+# set -eu -o pipefail
 
 # Rebase to master so codecov will provide valid coverage diff report
 reverse () {
