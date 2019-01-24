@@ -1,8 +1,7 @@
 codecov:
   ci:
-    - jenkins.dockerproject.org
+    - !jenkins.dockerproject.org # Do not wait that build finishes
   notify:
-    after_n_builds: null
     require_ci_to_pass: no
 comment:
   layout: header, changes, diff, sunburst, files

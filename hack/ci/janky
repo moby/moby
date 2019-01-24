@@ -12,6 +12,8 @@ git rebase --merge $GIT_MASTER_COMMIT
 
 hack/validate/default
 hack/test/unit
+
+JENKINS_URL=https://jenkins.dockerproject.org \
 bash <(curl -s https://codecov.io/bash) \
     -f coverage.txt \
     -C "$GIT_SHA1" -Z
