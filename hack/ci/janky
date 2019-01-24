@@ -16,6 +16,9 @@ bash <(curl -s https://codecov.io/bash) \
     -f coverage.txt \
     -C "$GIT_SHA1" -Z
 
+# FixME: Just save some time during debug
+exit 0
+
 hack/make.sh \
 	binary-daemon \
 	dynbinary \

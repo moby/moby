@@ -22,4 +22,4 @@ coverage:
         base: parent
     changes: false
 ignore:
-  - "vendor/*"
+  - "vendor/**/*" # https://docs.codecov.io/docs/ignoring-paths
