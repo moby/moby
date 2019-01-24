@@ -3,12 +3,27 @@
 set -eu -o pipefail
 
 # Rebase to master so codecov will provide valid coverage diff report
+reverse () {
+    local out=()
+    while [ $# -gt 0 ]; do
+        out=("$1" "${out[@]}")
+        shift 1
+    done
+    echo "${out[@]}"
+}
+
+source hack/validate/.validate
+COMMITS=( $(validate_log --format='format:%H%n') )
+COMMITS_ON_ORDER=$(reverse "${COMMITS[@]}")
+
 git config --global user.email "ci@moby"
 git config --global user.name "CI"
 git fetch origin master
-# Last no-merge commit (codecov is not run on merge commits)
+# Using last non-merge commit (codecov is not run on merge commits)
 GIT_MASTER_COMMIT=$(git rev-list --no-merges -n 1 origin/master)
-git rebase --merge $GIT_MASTER_COMMIT
+git checkout $GIT_MASTER_COMMIT
+
+echo "${COMMITS_ON_ORDER[@]}" | xargs -n 1 git cherry-pick
 
 hack/validate/default
 hack/test/unit
