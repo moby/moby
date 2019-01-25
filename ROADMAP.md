@@ -44,8 +44,8 @@ Moby currently only utilizes containerd for basic runtime state management, e.g.
 and stopping a container, which is what the pre-containerd 1.0 daemon provided.
 Now that containerd is a full-fledged container runtime which supports full
 container life-cycle management, we would like to start relying more on containerd
-and removing the bits in Moby which are now duplicated. This will neccessitate
-a signficant effort to refactor and even remove large parts of Moby's codebase.
+and removing the bits in Moby which are now duplicated. This will necessitate
+a significant effort to refactor and even remove large parts of Moby's codebase.
 
 Tracking issues:
 
