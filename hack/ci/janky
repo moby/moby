@@ -23,7 +23,9 @@ git config --global user.name "CI"
 git fetch origin master
 # Using last non-merge commit (codecov is not run on merge commits)
 GIT_MASTER_COMMIT=$(git rev-list --no-merges -n 1 origin/master)
-git checkout $GIT_MASTER_COMMIT
+git checkout master
+echo Using master commit: $GIT_MASTER_COMMIT as base
+git reset --hard $GIT_MASTER_COMMIT
 
 echo "${COMMITS_ON_ORDER[@]}" | xargs -n 1 git cherry-pick
 
