@@ -397,7 +397,7 @@ func waitAndAssert(t *testing.T, timeout time.Duration, f func(*testing.T) bool)
 	for {
 		select {
 		case <-after:
-			t.Fatalf("timed out waiting for condition")
+			t.Fatal("timed out waiting for condition")
 		default:
 		}
 		if f(t) {
