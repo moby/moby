@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/daemon/network"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
+	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
@@ -295,9 +296,32 @@ func validateHostConfig(hostConfig *containertypes.HostConfig, platform string) 
 	if err := validateRestartPolicy(hostConfig.RestartPolicy); err != nil {
 		return err
 	}
+	if err := validateCapabilities(hostConfig); err != nil {
+		return err
+	}
 	if !hostConfig.Isolation.IsValid() {
 		return errors.Errorf("invalid isolation '%s' on %s", hostConfig.Isolation, runtime.GOOS)
 	}
+	return nil
+}
+
+func validateCapabilities(hostConfig *containertypes.HostConfig) error {
+	if len(hostConfig.CapAdd) > 0 && hostConfig.Capabilities != nil {
+		return errdefs.InvalidParameter(errors.Errorf("conflicting options: Capabilities and CapAdd"))
+	}
+	if len(hostConfig.CapDrop) > 0 && hostConfig.Capabilities != nil {
+		return errdefs.InvalidParameter(errors.Errorf("conflicting options: Capabilities and CapDrop"))
+	}
+	if _, err := caps.NormalizeLegacyCapabilities(hostConfig.CapAdd); err != nil {
+		return errors.Wrap(err, "invalid CapAdd")
+	}
+	if _, err := caps.NormalizeLegacyCapabilities(hostConfig.CapDrop); err != nil {
+		return errors.Wrap(err, "invalid CapDrop")
+	}
+	if err := caps.ValidateCapabilities(hostConfig.Capabilities); err != nil {
+		return errors.Wrap(err, "invalid Capabilities")
+	}
+	// TODO consider returning warnings if "Privileged" is combined with Capabilities, CapAdd and/or CapDrop
 	return nil
 }
 
