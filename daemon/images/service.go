@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -17,6 +18,8 @@ import (
 	dockerreference "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -120,28 +123,77 @@ func (i *ImageService) Children(id image.ID) []image.ID {
 	return i.imageStore.Children(id)
 }
 
+type createLayerOptions struct {
+	id        string
+	image     ocispec.Descriptor
+	container *container.Container
+	initFunc  layer.MountInit
+}
+
+type CreateLayerOpt func(*createLayerOptions)
+
+func WithLayerID(id string) CreateLayerOpt {
+	return func(o *createLayerOptions) {
+		o.id = id
+	}
+}
+
+func WithLayerContainer(container *container.Container) CreateLayerOpt {
+	return func(o *createLayerOptions) {
+		o.container = container
+	}
+}
+
+func WithLayerImage(config ocispec.Descriptor) CreateLayerOpt {
+	return func(o *createLayerOptions) {
+		o.image = config
+	}
+}
+
+func WithLayerInit(initFunc layer.MountInit) CreateLayerOpt {
+	return func(o *createLayerOptions) {
+		o.initFunc = initFunc
+	}
+}
+
 // CreateLayer creates a filesystem layer for a container.
 // called from create.go
-// TODO: accept an opt struct instead of container?
-func (i *ImageService) CreateLayer(container *container.Container, initFunc layer.MountInit) (layer.RWLayer, error) {
-	var layerID layer.ChainID
-	if container.ImageID != "" {
-		img, err := i.imageStore.Get(container.ImageID)
+func (i *ImageService) CreateLayer(ctx context.Context, opts ...CreateLayerOpt) (layer.RWLayer, error) {
+	var options createLayerOptions
+	for _, opt := range opts {
+		opt(&options)
+	}
+
+	var chainID digest.Digest
+	if options.image.Digest != "" {
+		diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), options.image)
 		if err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to resolve rootfs")
 		}
-		layerID = img.RootFS.ChainID()
+
+		chainID = identity.ChainID(diffIDs)
 	}
 
 	rwLayerOpts := &layer.CreateRWLayerOpts{
-		MountLabel: container.MountLabel,
-		InitFunc:   initFunc,
-		StorageOpt: container.HostConfig.StorageOpt,
+		InitFunc: options.initFunc,
+	}
+
+	if options.container != nil {
+		rwLayerOpts.MountLabel = options.container.MountLabel
+		rwLayerOpts.StorageOpt = options.container.HostConfig.StorageOpt
+		if options.id == "" {
+			options.id = options.container.ID
+		}
+	}
+
+	if options.id == "" {
+		return nil, errors.New("no layer id provided")
 	}
 
 	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
 	// caller), and guaranteed non-nil
-	return i.layerStores[container.OS].CreateRWLayer(container.ID, layerID, rwLayerOpts)
+	// TODO(containerd): resolve through descriptor
+	return i.layerStores[runtime.GOOS].CreateRWLayer(options.id, layer.ChainID(chainID), rwLayerOpts)
 }
 
 // GetLayerByID returns a layer by ID and operating system

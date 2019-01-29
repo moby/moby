@@ -12,7 +12,7 @@ func (i *ImageService) LogImageEvent(imageID, refName, action string) {
 // LogImageEventWithAttributes generates an event related to an image with specific given attributes.
 func (i *ImageService) LogImageEventWithAttributes(imageID, refName, action string, attributes map[string]string) {
 	// TODO(containerd): use i.getCachedRef(imageID)
-	img, err := i.GetImage(imageID)
+	img, err := i.getDockerImage(imageID)
 	if err == nil && img.V1Image.Config != nil {
 		// image has not been removed yet.
 		// it could be missing if the event is `delete`.

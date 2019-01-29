@@ -38,8 +38,18 @@ func (e ErrImageDoesNotExist) Error() string {
 // NotFound implements the NotFound interface
 func (e ErrImageDoesNotExist) NotFound() {}
 
+func (i *ImageService) GetImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
+	ci, err := i.getCachedRef(ctx, refOrID)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	return ci.config, nil
+}
+
 // GetImage returns an image corresponding to the image referred to by refOrID.
-func (i *ImageService) GetImage(refOrID string) (*image.Image, error) {
+// Deprecated: Use (i *ImageService).GetImage instead.
+func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)

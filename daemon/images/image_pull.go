@@ -78,7 +78,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	//  - Auth config
 	//  - Custom headers
 	// TODO: Platforms using `platform`
-	// TODO: progress tracking
+	// TODO(containerd): progress tracking
 	// TODO: unpack tracking, use download manager for now?
 
 	img, err := i.client.Pull(ctx, ref.String(), opts...)

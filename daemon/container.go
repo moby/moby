@@ -23,6 +23,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/docker/go-connections/nat"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -127,7 +128,7 @@ func (daemon *Daemon) Register(c *container.Container) error {
 	return c.CheckpointTo(daemon.containersReplica)
 }
 
-func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, imgID image.ID, managed bool) (*container.Container, error) {
+func (daemon *Daemon) newContainer(name string, operatingSystem string, config *containertypes.Config, hostConfig *containertypes.HostConfig, img ocispec.Descriptor, managed bool) (*container.Container, error) {
 	var (
 		id             string
 		err            error
@@ -157,7 +158,7 @@ func (daemon *Daemon) newContainer(name string, operatingSystem string, config *
 	base.Args = args //FIXME: de-duplicate from config
 	base.Config = config
 	base.HostConfig = &containertypes.HostConfig{}
-	base.ImageID = imgID
+	base.ImageID = image.ID(img.Digest)
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
 	base.Driver = daemon.imageService.GraphDriverForOS(operatingSystem)

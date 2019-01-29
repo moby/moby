@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"sort"
 	"strconv"
@@ -317,17 +318,17 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ancestor)
+			img, err := daemon.imageService.GetImage(context.TODO(), ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
 			}
-			if imagesFilter[img.ID()] {
+			if imagesFilter[image.ID(img.Digest)] {
 				// Already seen this ancestor, skip it
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, img.ID(), daemon.imageService.Children)
+			populateImageFilterByParents(imagesFilter, image.ID(img.Digest), daemon.imageService.Children)
 			return nil
 		})
 	}
@@ -583,18 +584,18 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 // refreshImage checks if the Image ref still points to the correct ID, and updates the ref to the actual ID when it doesn't
 func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*types.Container, error) {
 	c := s.Container
-	image := s.Image // keep the original ref if still valid (hasn't changed)
-	if image != s.ImageID {
-		img, err := daemon.imageService.GetImage(image)
+	updated := s.Image // keep the original ref if still valid (hasn't changed)
+	if updated != s.ImageID {
+		img, err := daemon.imageService.GetImage(context.TODO(), updated)
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
-		if err != nil || img.ImageID() != s.ImageID {
+		if err != nil || img.Digest.String() != s.ImageID {
 			// ref changed, we need to use original ID
-			image = s.ImageID
+			updated = s.ImageID
 		}
 	}
-	c.Image = image
+	c.Image = updated
 	return &c, nil
 }
 
