@@ -240,7 +240,7 @@ func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
 	cache := buildcache.New(i.imageStore)
 
 	for _, ref := range sourceRefs {
-		img, err := i.GetImage(ref)
+		img, err := i.getDockerImage(ref)
 		if err != nil {
 			logrus.Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
 			continue

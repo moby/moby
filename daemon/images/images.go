@@ -70,7 +70,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	var beforeFilter, sinceFilter *image.Image
 	err = imageFilters.WalkValues("before", func(value string) error {
 		var err error
-		beforeFilter, err = i.GetImage(value)
+		beforeFilter, err = i.getDockerImage(value)
 		return err
 	})
 	if err != nil {
@@ -79,7 +79,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 
 	err = imageFilters.WalkValues("since", func(value string) error {
 		var err error
-		sinceFilter, err = i.GetImage(value)
+		sinceFilter, err = i.getDockerImage(value)
 		return err
 	})
 	if err != nil {
