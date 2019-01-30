@@ -3216,7 +3216,7 @@ definitions:
     properties:
       Mode:
         description: "The mode of resolution to use for internal load balancing
-      between tasks."
+        between tasks."
         type: "string"
         enum:
           - "vip"
@@ -6386,9 +6386,9 @@ paths:
         - name: "networkmode"
           in: "query"
           description: "Sets the networking mode for the run commands during
-        build. Supported standard values are: `bridge`, `host`, `none`, and
-        `container:<name|id>`. Any other value is taken as a custom network's
-        name to which this container should connect to."
+          build. Supported standard values are: `bridge`, `host`, `none`, and
+          `container:<name|id>`. Any other value is taken as a custom network's
+          name to which this container should connect to."
           type: "string"
         - name: "Content-type"
           in: "header"
@@ -9423,15 +9423,15 @@ paths:
           in: "query"
           type: "string"
           description: "If the X-Registry-Auth header is not specified, this
-  parameter indicates where to find registry authorization credentials. The
-  valid values are `spec` and `previous-spec`."
+          parameter indicates where to find registry authorization credentials. The
+          valid values are `spec` and `previous-spec`."
           default: "spec"
         - name: "rollback"
           in: "query"
           type: "string"
           description: "Set to this parameter to `previous` to cause a
-  server-side rollback to the previous service spec. The supplied spec will be
-  ignored in this case."
+          server-side rollback to the previous service spec. The supplied spec will be
+          ignored in this case."
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration for pulling from private registries. [See the authentication section for details.](#section/Authentication)"
