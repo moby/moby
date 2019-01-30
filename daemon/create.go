@@ -31,16 +31,16 @@ type createOpts struct {
 }
 
 // CreateManagedContainer creates a container that is managed by a Service
-func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(context.TODO(), createOpts{
+func (daemon *Daemon) CreateManagedContainer(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 true,
 		ignoreImagesArgsEscaped: false})
 }
 
 // ContainerCreate creates a regular container
-func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(context.TODO(), createOpts{
+func (daemon *Daemon) ContainerCreate(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 false,
 		ignoreImagesArgsEscaped: false})
@@ -48,8 +48,8 @@ func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (conta
 
 // ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
 // and ensures that we do not take the images ArgsEscaped
-func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(context.TODO(), createOpts{
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context, params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(ctx, createOpts{
 		params:                  params,
 		managed:                 false,
 		ignoreImagesArgsEscaped: true})

@@ -441,7 +441,7 @@ func (b *Builder) create(runConfig *container.Config) (string, error) {
 
 	isWCOW := runtime.GOOS == "windows" && b.platform != nil && b.platform.OS == "windows"
 	hostConfig := hostConfigFromOptions(b.options, isWCOW)
-	container, err := b.containerManager.Create(runConfig, hostConfig)
+	container, err := b.containerManager.Create(b.clientCtx, runConfig, hostConfig)
 	if err != nil {
 		return "", err
 	}

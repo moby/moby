@@ -17,7 +17,7 @@ func (daemon *Daemon) SystemDiskUsage(ctx context.Context) (*types.DiskUsage, er
 	defer atomic.StoreInt32(&daemon.diskUsageRunning, 0)
 
 	// Retrieve container list
-	allContainers, err := daemon.Containers(&types.ContainerListOptions{
+	allContainers, err := daemon.Containers(ctx, &types.ContainerListOptions{
 		Size: true,
 		All:  true,
 	})

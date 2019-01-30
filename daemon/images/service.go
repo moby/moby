@@ -13,6 +13,7 @@ import (
 	"github.com/docker/docker/distribution"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	dockerreference "github.com/docker/docker/reference"
@@ -112,15 +113,35 @@ func (i *ImageService) DistributionServices() DistributionServices {
 
 // CountImages returns the number of images stored by ImageService
 // called from info.go
-func (i *ImageService) CountImages() int {
-	return i.imageStore.Len()
+func (i *ImageService) CountImages(ctx context.Context) (int, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return 0, err
+	}
+
+	c.m.RLock()
+	l := len(c.idCache)
+	c.m.RUnlock()
+
+	return l, nil
 }
 
-// Children returns the children image.IDs for a parent image.
+// ChildrenByID returns the children image digests for a parent image.
 // called from list.go to filter containers
-// TODO: refactor to expose an ancestry for image.ID?
-func (i *ImageService) Children(id image.ID) []image.ID {
-	return i.imageStore.Children(id)
+func (i *ImageService) ChildrenByID(ctx context.Context, id digest.Digest) ([]digest.Digest, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	c.m.RLock()
+	ci, ok := c.idCache[id]
+	c.m.RUnlock()
+	if !ok {
+		return nil, nil
+	}
+
+	return ci.children, nil
 }
 
 type createLayerOptions struct {
@@ -256,7 +277,10 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) e
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	var allLayersSize int64
-	layerRefs := i.getLayerRefs()
+	layerRefs, err := i.getLayerRefs(ctx)
+	if err != nil {
+		return 0, err
+	}
 	for _, ls := range i.layerStores {
 		allLayers := ls.Map()
 		for _, l := range allLayers {
@@ -266,7 +290,7 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 			default:
 				size, err := l.DiffSize()
 				if err == nil {
-					if _, ok := layerRefs[l.ChainID()]; ok {
+					if _, ok := layerRefs[digest.Digest(l.ChainID())]; ok {
 						allLayersSize += size
 					}
 				} else {
@@ -278,31 +302,47 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 	return allLayersSize, nil
 }
 
-func (i *ImageService) getLayerRefs() map[layer.ChainID]int {
-	tmpImages := i.imageStore.Map()
-	layerRefs := map[layer.ChainID]int{}
-	for id, img := range tmpImages {
-		dgst := digest.Digest(id)
-		if len(i.referenceStore.References(dgst)) == 0 && len(i.imageStore.Children(id)) != 0 {
+func (i *ImageService) getLayerRefs(ctx context.Context) (map[digest.Digest]int, error) {
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// Create copy and unlock cache
+	c.m.RLock()
+	imgs := make(map[digest.Digest]*cachedImage, len(c.idCache))
+	for dgst, ci := range c.idCache {
+		imgs[dgst] = ci
+	}
+	c.m.RUnlock()
+
+	layerRefs := map[digest.Digest]int{}
+	for _, img := range imgs {
+		if len(img.references) == 0 && len(img.children) != 0 {
 			continue
 		}
 
-		rootFS := *img.RootFS
-		rootFS.DiffIDs = nil
-		for _, id := range img.RootFS.DiffIDs {
-			rootFS.Append(id)
-			chid := rootFS.ChainID()
-			layerRefs[chid]++
+		diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), img.config)
+		if err != nil {
+			if errdefs.IsNotFound(err) {
+				continue
+			}
+			return nil, errors.Wrap(err, "failed to resolve rootfs")
+		}
+
+		for i := range diffIDs {
+			layerRefs[identity.ChainID(diffIDs[:i+1])]++
 		}
 	}
 
-	return layerRefs
+	return layerRefs, nil
 }
 
 // UpdateConfig values
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads *int) {
+	// TODO(containerd): store these locally to configure resolver
 	if i.downloadManager != nil && maxDownloads != nil {
 		i.downloadManager.SetConcurrency(*maxDownloads)
 	}
