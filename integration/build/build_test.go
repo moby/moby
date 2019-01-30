@@ -613,6 +613,43 @@ func TestBuildPreserveOwnership(t *testing.T) {
 	}
 }
 
+// TestBuildPreserveXattrs tests that user.pax extended attributes are preserved (#35699)
+func TestBuildPreserveXattrs(t *testing.T) {
+	ctx := context.Background()
+
+	dockerfile, err := ioutil.ReadFile("testdata/Dockerfile.testBuildPreserveXattrs")
+	assert.NilError(t, err)
+
+	source := fakecontext.New(t, "", fakecontext.WithDockerfile(string(dockerfile)))
+	defer func() { _ = source.Close() }()
+
+	apiClient := testEnv.APIClient()
+
+	for _, target := range []string{"testdata", "original", "copy_dir", "copy_file"} {
+		t.Run(target, func(t *testing.T) {
+			resp, err := apiClient.ImageBuild(
+				ctx,
+				source.AsTarReader(t),
+				types.ImageBuildOptions{
+					Remove:      true,
+					ForceRemove: true,
+					Target:      target,
+				},
+			)
+			assert.NilError(t, err)
+
+			out := bytes.NewBuffer(nil)
+			assert.NilError(t, err)
+			_, err = io.Copy(out, resp.Body)
+			_ = resp.Body.Close()
+			if err != nil {
+				t.Log(out)
+			}
+			assert.NilError(t, err)
+		})
+	}
+}
+
 func TestBuildPlatformInvalid(t *testing.T) {
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "experimental in older versions")
 

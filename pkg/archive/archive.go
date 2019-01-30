@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sys/unix"
 )
 
 var unpigzPath string
@@ -399,15 +400,72 @@ func fillGo18FileTypeBits(mode int64, fi os.FileInfo) int64 {
 	return mode
 }
 
-// ReadSecurityXattrToTarHeader reads security.capability xattr from filesystem
+// ReadSecurityXattrToTarHeader reads whitelisted xattrs from filesystem
 // to a tar header
 func ReadSecurityXattrToTarHeader(path string, hdr *tar.Header) error {
-	capability, _ := system.Lgetxattr(path, "security.capability")
-	if capability != nil {
-		hdr.Xattrs = make(map[string]string)
-		hdr.Xattrs["security.capability"] = string(capability)
+	whitelist := []string{"user.pax.", "security."}
+
+	xattrs, err := getXattrByPrefix(path, whitelist...)
+	if err != nil {
+		return err
+	}
+	if len(xattrs) > 0 {
+		hdr.Xattrs = make(map[string]string, len(xattrs))
+	}
+	for _, name := range xattrs {
+		xattr, _ := system.Lgetxattr(path, name)
+		if xattr != nil {
+			hdr.Xattrs[name] = string(xattr)
+		}
 	}
 	return nil
+}
+
+func getXattrByPrefix(path string, prefixes ...string) ([]string, error) {
+	var xattrs []string
+
+	size, err := unix.Listxattr(path, nil)
+	if err != nil {
+		if err == unix.ENOTSUP || err == unix.EOPNOTSUPP {
+			// filesystem does not support extended attributes
+			return xattrs, nil
+		}
+		return nil, err
+	}
+	if size <= 0 {
+		return nil, nil
+	}
+
+	buf := make([]byte, size)
+	read, err := unix.Listxattr(path, buf)
+	if err != nil {
+		return nil, err
+	}
+
+	allXattrs := stringsFromByteSlice(buf[:read])
+
+	for _, name := range allXattrs {
+		for _, prefix := range prefixes {
+			if strings.HasPrefix(name, prefix) {
+				xattrs = append(xattrs, name)
+			}
+		}
+	}
+
+	return xattrs, nil
+}
+
+// stringsFromByteSlice converts a sequence of attributes to a []string.
+func stringsFromByteSlice(buf []byte) []string {
+	var result []string
+	off := 0
+	for i, b := range buf {
+		if b == 0 {
+			result = append(result, string(buf[off:i]))
+			off = i + 1
+		}
+	}
+	return result
 }
 
 type tarWhiteoutConverter interface {
