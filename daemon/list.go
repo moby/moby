@@ -12,8 +12,8 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/go-connections/nat"
+	digest "github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -70,7 +70,7 @@ type listContext struct {
 	// names is a list of container names to filter with
 	names map[string][]string
 	// images is a list of images to filter with
-	images map[image.ID]bool
+	images map[digest.Digest]bool
 	// filters is a collection of arguments to filter with, specified by the user
 	filters filters.Args
 	// exitAllowed is a list of exit codes allowed to filter with
@@ -105,8 +105,8 @@ func (r byCreatedDescending) Less(i, j int) bool {
 }
 
 // Containers returns the list of containers to show given the user's filtering.
-func (daemon *Daemon) Containers(config *types.ContainerListOptions) ([]*types.Container, error) {
-	return daemon.reduceContainers(config, daemon.refreshImage)
+func (daemon *Daemon) Containers(ctx context.Context, config *types.ContainerListOptions) ([]*types.Container, error) {
+	return daemon.reduceContainers(ctx, config, daemon.refreshImage)
 }
 
 func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContext) ([]container.Snapshot, error) {
@@ -176,7 +176,7 @@ func (daemon *Daemon) filterByNameIDMatches(view container.View, ctx *listContex
 }
 
 // reduceContainers parses the user's filtering options and generates the list of containers to return based on a reducer.
-func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
+func (daemon *Daemon) reduceContainers(ctx context.Context, config *types.ContainerListOptions, reducer containerReducer) ([]*types.Container, error) {
 	if err := config.Filters.Validate(acceptedPsFilterTags); err != nil {
 		return nil, err
 	}
@@ -186,7 +186,7 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 		containers = []*types.Container{}
 	)
 
-	ctx, err := daemon.foldFilter(view, config)
+	lctx, err := daemon.foldFilter(ctx, view, config)
 	if err != nil {
 		return nil, err
 	}
@@ -194,13 +194,13 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 	// fastpath to only look at a subset of containers if specific name
 	// or ID matches were provided by the user--otherwise we potentially
 	// end up querying many more containers than intended
-	containerList, err := daemon.filterByNameIDMatches(view, ctx)
+	containerList, err := daemon.filterByNameIDMatches(view, lctx)
 	if err != nil {
 		return nil, err
 	}
 
 	for i := range containerList {
-		t, err := daemon.reducePsContainer(&containerList[i], ctx, reducer)
+		t, err := daemon.reducePsContainer(&containerList[i], lctx, reducer)
 		if err != nil {
 			if err != errStopIteration {
 				return nil, err
@@ -209,7 +209,7 @@ func (daemon *Daemon) reduceContainers(config *types.ContainerListOptions, reduc
 		}
 		if t != nil {
 			containers = append(containers, t)
-			ctx.idx++
+			lctx.idx++
 		}
 	}
 
@@ -242,7 +242,7 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 }
 
 // foldFilter generates the container filter based on the user's filtering options.
-func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerListOptions) (*listContext, error) {
+func (daemon *Daemon) foldFilter(ctx context.Context, view container.View, config *types.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filters
 
 	var filtExited []int
@@ -313,23 +313,22 @@ func (daemon *Daemon) foldFilter(view container.View, config *types.ContainerLis
 		return nil, err
 	}
 
-	imagesFilter := map[image.ID]bool{}
+	imagesFilter := map[digest.Digest]bool{}
 	var ancestorFilter bool
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(context.TODO(), ancestor)
+			img, err := daemon.imageService.GetImage(ctx, ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
 			}
-			if imagesFilter[image.ID(img.Digest)] {
+			if imagesFilter[img.Digest] {
 				// Already seen this ancestor, skip it
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			populateImageFilterByParents(imagesFilter, image.ID(img.Digest), daemon.imageService.Children)
-			return nil
+			return populateImageFilterByParents(ctx, imagesFilter, img.Digest, daemon.imageService.ChildrenByID)
 		})
 	}
 
@@ -520,7 +519,7 @@ func includeContainerInList(container *container.Snapshot, ctx *listContext) ite
 		if len(ctx.images) == 0 {
 			return excludeContainer
 		}
-		if !ctx.images[image.ID(container.ImageID)] {
+		if !ctx.images[digest.Digest(container.ImageID)] {
 			return excludeContainer
 		}
 	}
@@ -599,11 +598,18 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	return &c, nil
 }
 
-func populateImageFilterByParents(ancestorMap map[image.ID]bool, imageID image.ID, getChildren func(image.ID) []image.ID) {
+func populateImageFilterByParents(ctx context.Context, ancestorMap map[digest.Digest]bool, imageID digest.Digest, getChildren func(context.Context, digest.Digest) ([]digest.Digest, error)) error {
 	if !ancestorMap[imageID] {
-		for _, id := range getChildren(imageID) {
-			populateImageFilterByParents(ancestorMap, id, getChildren)
+		children, err := getChildren(ctx, imageID)
+		if err != nil {
+			return err
+		}
+		for _, id := range children {
+			if err := populateImageFilterByParents(ctx, ancestorMap, id, getChildren); err != nil {
+				return err
+			}
 		}
 		ancestorMap[imageID] = true
 	}
+	return nil
 }

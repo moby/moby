@@ -316,7 +316,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 	}, nil
 }
 
-func (cli *DaemonCli) reloadConfig() {
+func (cli *DaemonCli) reloadConfig(ctx context.Context) {
 	reload := func(c *config.Config) {
 
 		// Revalidate and reload the authorization plugins
@@ -339,7 +339,7 @@ func (cli *DaemonCli) reloadConfig() {
 			logrus.Warnf("Configured labels using reserved namespaces is deprecated: %s", err)
 		}
 
-		if err := cli.d.Reload(c); err != nil {
+		if err := cli.d.Reload(ctx, c); err != nil {
 			logrus.Errorf("Error reconfiguring the daemon: %v", err)
 			return
 		}
