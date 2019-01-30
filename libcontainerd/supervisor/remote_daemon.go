@@ -311,6 +311,8 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 				delay = time.After(time.Duration(transientFailureCount) * 200 * time.Millisecond)
 				continue
 			}
+			client.Close()
+			client = nil
 		}
 
 		if system.IsProcessAlive(r.daemonPid) {
@@ -318,8 +320,6 @@ func (r *remote) monitorDaemon(ctx context.Context) {
 			r.killDaemon()
 		}
 
-		client.Close()
-		client = nil
 		r.daemonPid = -1
 		delay = nil
 		transientFailureCount = 0
