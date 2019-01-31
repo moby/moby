@@ -52,6 +52,8 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		info.Swarm = s.cluster.Info()
 	}
 
+	info.Builder = build.BuilderVersion(*s.features)
+
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
 		type oldInfo struct {
