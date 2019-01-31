@@ -5,7 +5,10 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/docker/docker/pkg/stringid"
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/archive/compression"
@@ -16,6 +19,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/progress"
+	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -63,17 +68,26 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		return err
 	}
 
-	// Include a buffer so that slow client connections don't affect
-	// transfer performance.
-	//progressChan := make(chan progress.Progress, 100)
+	ongoing := newJobs(ref.Name())
 
-	//writesDone := make(chan struct{})
+	pctx, stopProgress := context.WithCancel(ctx)
+	progress := make(chan struct{})
 
-	//ctx, cancelFunc := context.WithCancel(ctx)
-
+	go func() {
+		// no progress bar, because it hides some debug logs
+		showProgress(pctx, ongoing, ref, i.client.ContentStore(), outStream)
+		close(progress)
+	}()
 	// TODO: Lease
-
-	opts := []containerd.RemoteOpt{}
+	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
+			ongoing.add(desc)
+		}
+		return nil, nil
+	})
+	opts := []containerd.RemoteOpt{
+		containerd.WithImageHandler(h),
+	}
 	// TODO: Custom resolver
 	//  - Auth config
 	//  - Custom headers
@@ -81,14 +95,14 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	// TODO(containerd): progress tracking
 	// TODO: unpack tracking, use download manager for now?
 
-	img, err := i.client.Pull(ctx, ref.String(), opts...)
+	img, err := i.client.Pull(pctx, ref.String(), opts...)
 
-	config, err := img.Config(ctx)
+	config, err := img.Config(pctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve configuration")
 	}
 
-	l, err := i.unpack(ctx, img.Target())
+	l, err := i.unpack(pctx, img.Target())
 	if err != nil {
 		return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
 	}
@@ -124,14 +138,9 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	}
 	c.tCache[img.Target().Digest] = ci
 	c.m.Unlock()
+	stopProgress()
+	<-progress
 
-	//go func() {
-	//	progressutils.WriteDistributionProgress(cancelFunc, outStream, progressChan)
-	//	close(writesDone)
-	//}()
-
-	//close(progressChan)
-	//<-writesDone
 	return err
 }
 
@@ -214,4 +223,173 @@ func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, 
 	}
 
 	return ls.Register(dc, layer.ChainID(parent))
+}
+func getTagOrDigest(ref reference.Named) string {
+	var (
+		// manifest    distribution.Manifest
+		tagOrDigest string // Used for logging/progress only
+	)
+	if digested, isDigested := ref.(reference.Canonical); isDigested {
+		tagOrDigest = digested.Digest().String()
+	} else if tagged, isTagged := ref.(reference.NamedTagged); isTagged {
+		tagOrDigest = tagged.Tag()
+	}
+	// todo: is it safe to assume it is always a tag or digest?
+	return tagOrDigest
+}
+
+const (
+	downloading = "Downloading"
+	dlcomplete  = "Download complete"
+	waiting     = "Waiting"
+	exists      = "Already exists"
+)
+
+func showProgress(ctx context.Context, ongoing *jobs, ref reference.Named, cs content.Store, out io.Writer) {
+	progressOutput := streamformatter.NewJSONProgressOutput(out, false)
+	progressOutput.WriteProgress(progress.Progress{ID: getTagOrDigest(ref), Message: "Pulling from " + reference.Path(ref)})
+	var (
+		ticker   = time.NewTicker(100 * time.Millisecond)
+		start    = time.Now()
+		statuses = map[string]StatusInfo{}
+		done     bool
+	)
+	defer ticker.Stop()
+
+outer:
+	for {
+		select {
+		case <-ticker.C:
+			activeSeen := map[string]struct{}{}
+			if !done {
+				active, err := cs.ListStatuses(ctx, "")
+				if err != nil {
+					logrus.Error("active check failed")
+					continue
+				}
+				// update status of active entries!
+				for _, active := range active {
+					descID := stringid.TruncateID(active.Ref)
+					if !strings.Contains(active.Ref, "layer") {
+						continue
+					}
+					progressOutput.WriteProgress(progress.Progress{ID: descID, Action: downloading, Current: active.Offset, Total: active.Total, LastUpdate: false})
+					statuses[descID] = StatusInfo{
+						Status: downloading, // Downloading
+					}
+					activeSeen[descID] = struct{}{}
+				}
+			}
+
+			// now, update the items in jobs that are not in active
+			for _, j := range ongoing.jobs() {
+				descID := stringid.TruncateID(j.Digest.String())
+				if _, ok := activeSeen[descID]; ok {
+					continue
+				}
+				// skip displaying non-layer info
+				if !isLayer(j) {
+					continue
+				}
+				status, ok := statuses[descID]
+				if !done && (!ok || status.Status == downloading) {
+					info, err := cs.Info(ctx, j.Digest)
+					if err != nil {
+						if !errdefs.IsNotFound(err) {
+							logrus.Errorf("failed to get content info")
+							continue outer
+						} else {
+							progressOutput.WriteProgress(progress.Progress{ID: descID, Action: waiting})
+							statuses[descID] = StatusInfo{
+								Status: waiting,
+							}
+						}
+					} else if info.CreatedAt.After(start) {
+						progressOutput.WriteProgress(progress.Progress{ID: descID, Action: dlcomplete})
+						statuses[descID] = StatusInfo{
+							Status: dlcomplete,
+						}
+					} else {
+						progressOutput.WriteProgress(progress.Progress{ID: descID, Action: exists})
+						statuses[descID] = StatusInfo{
+							Status: exists,
+						}
+					}
+				} else if done {
+					progressOutput.WriteProgress(progress.Progress{ID: descID, Action: dlcomplete})
+					if ok {
+						if status.Status != dlcomplete && status.Status != exists {
+							status.Status = dlcomplete
+							statuses[descID] = status
+						}
+					} else {
+						statuses[descID] = StatusInfo{
+							Status: dlcomplete,
+						}
+					}
+				}
+			}
+
+			if done {
+				return
+			}
+		case <-ctx.Done():
+			done = true // allow ui to update once more
+		}
+	}
+}
+
+// StatusInfo holds the status info for an upload or download
+type StatusInfo struct {
+	Status string
+}
+
+func isLayer(desc ocispec.Descriptor) bool {
+	switch desc.MediaType {
+	case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip,
+		images.MediaTypeDockerSchema2LayerForeign, images.MediaTypeDockerSchema2LayerForeignGzip,
+		ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerGzip,
+		ocispec.MediaTypeImageLayerNonDistributable, ocispec.MediaTypeImageLayerNonDistributableGzip:
+		return true
+	default:
+		return false
+	}
+}
+
+// jobs provides a way of identifying the download keys for a particular task
+// encountering during the pull walk.
+//
+// This is very minimal and will probably be replaced with something more
+// featured.
+type jobs struct {
+	name  string
+	added map[digest.Digest]struct{}
+	descs []ocispec.Descriptor
+	mu    sync.Mutex
+}
+
+func newJobs(name string) *jobs {
+	return &jobs{
+		name:  name,
+		added: map[digest.Digest]struct{}{},
+	}
+}
+
+func (j *jobs) add(desc ocispec.Descriptor) {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	if _, ok := j.added[desc.Digest]; ok {
+		return
+	}
+	j.descs = append(j.descs, desc)
+	j.added[desc.Digest] = struct{}{}
+}
+
+func (j *jobs) jobs() []ocispec.Descriptor {
+	j.mu.Lock()
+	defer j.mu.Unlock()
+
+	var descs []ocispec.Descriptor
+	return append(descs, j.descs...)
 }
