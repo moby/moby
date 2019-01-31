@@ -77,6 +77,11 @@ func Get(endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadC
 	return Do(endpoint, modifiers...)
 }
 
+// Head creates and execute a HEAD request on the specified host and endpoint, with the specified request modifiers
+func Head(endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
+	return Do(endpoint, append(modifiers, Method(http.MethodHead))...)
+}
+
 // Do creates and execute a request on the specified endpoint, with the specified request modifiers
 func Do(endpoint string, modifiers ...func(*Options)) (*http.Response, io.ReadCloser, error) {
 	opts := &Options{

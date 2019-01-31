@@ -195,17 +195,21 @@ func (cli *Client) checkResponseErr(serverResp serverResponse) error {
 		return nil
 	}
 
-	bodyMax := 1 * 1024 * 1024 // 1 MiB
-	bodyR := &io.LimitedReader{
-		R: serverResp.body,
-		N: int64(bodyMax),
-	}
-	body, err := ioutil.ReadAll(bodyR)
-	if err != nil {
-		return err
-	}
-	if bodyR.N == 0 {
-		return fmt.Errorf("request returned %s with a message (> %d bytes) for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), bodyMax, serverResp.reqURL)
+	var body []byte
+	var err error
+	if serverResp.body != nil {
+		bodyMax := 1 * 1024 * 1024 // 1 MiB
+		bodyR := &io.LimitedReader{
+			R: serverResp.body,
+			N: int64(bodyMax),
+		}
+		body, err = ioutil.ReadAll(bodyR)
+		if err != nil {
+			return err
+		}
+		if bodyR.N == 0 {
+			return fmt.Errorf("request returned %s with a message (> %d bytes) for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), bodyMax, serverResp.reqURL)
+		}
 	}
 	if len(body) == 0 {
 		return fmt.Errorf("request returned %s for API route and version %s, check if the server supports the requested API version", http.StatusText(serverResp.statusCode), serverResp.reqURL)

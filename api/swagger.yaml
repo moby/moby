@@ -7133,6 +7133,38 @@ paths:
               type: "string"
               default: "no-cache"
       tags: ["System"]
+    head:
+      summary: "Ping"
+      description: "This is a dummy endpoint you can use to test if the server is accessible."
+      operationId: "SystemPingHead"
+      produces: ["text/plain"]
+      responses:
+        200:
+          description: "no error"
+          schema:
+            type: "string"
+            example: "(empty)"
+          headers:
+            API-Version:
+              type: "string"
+              description: "Max API Version the server supports"
+            BuildKit-Version:
+              type: "string"
+              description: "Default version of docker image builder"
+            Docker-Experimental:
+              type: "boolean"
+              description: "If the server is running with experimental mode enabled"
+            Cache-Control:
+              type: "string"
+              default: "no-cache, no-store, must-revalidate"
+            Pragma:
+              type: "string"
+              default: "no-cache"
+        500:
+          description: "server error"
+          schema:
+            $ref: "#/definitions/ErrorResponse"
+      tags: ["System"]
   /commit:
     post:
       summary: "Create a new image from a container"

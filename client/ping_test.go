@@ -81,3 +81,49 @@ func TestPingSuccess(t *testing.T) {
 	assert.Check(t, is.Equal(true, ping.Experimental))
 	assert.Check(t, is.Equal("awesome", ping.APIVersion))
 }
+
+// TestPingHeadFallback tests that the client falls back to GET if HEAD fails.
+func TestPingHeadFallback(t *testing.T) {
+	tests := []struct {
+		status   int
+		expected string
+	}{
+		{
+			status:   http.StatusOK,
+			expected: "HEAD",
+		},
+		{
+			status:   http.StatusInternalServerError,
+			expected: "HEAD",
+		},
+		{
+			status:   http.StatusNotFound,
+			expected: "HEAD, GET",
+		},
+		{
+			status:   http.StatusMethodNotAllowed,
+			expected: "HEAD, GET",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(http.StatusText(tc.status), func(t *testing.T) {
+			var reqs []string
+			client := &Client{
+				client: newMockClient(func(req *http.Request) (*http.Response, error) {
+					reqs = append(reqs, req.Method)
+					resp := &http.Response{StatusCode: http.StatusOK}
+					if req.Method == http.MethodHead {
+						resp.StatusCode = tc.status
+					}
+					resp.Header = http.Header{}
+					resp.Header.Add("API-Version", strings.Join(reqs, ", "))
+					return resp, nil
+				}),
+			}
+			ping, _ := client.Ping(context.Background())
+			assert.Check(t, is.Equal(ping.APIVersion, tc.expected))
+		})
+	}
+}
