@@ -80,3 +80,56 @@ func TestContainerLabels(t *testing.T) {
 	labels := c.labels()
 	assert.DeepEqual(t, expected, labels)
 }
+
+func TestCredentialSpecConversion(t *testing.T) {
+	cases := []struct {
+		name string
+		from swarmapi.Privileges_CredentialSpec
+		to   []string
+	}{
+		{
+			name: "none",
+			from: swarmapi.Privileges_CredentialSpec{},
+			to:   nil,
+		},
+		{
+			name: "config",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Config{Config: "0bt9dmxjvjiqermk6xrop3ekq"},
+			},
+			to: []string{"credentialspec=config://0bt9dmxjvjiqermk6xrop3ekq"},
+		},
+		{
+			name: "file",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_File{File: "foo.json"},
+			},
+			to: []string{"credentialspec=file://foo.json"},
+		},
+		{
+			name: "registry",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Registry{Registry: "testing"},
+			},
+			to: []string{"credentialspec=registry://testing"},
+		},
+	}
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			task := swarmapi.Task{
+				Spec: swarmapi.TaskSpec{
+					Runtime: &swarmapi.TaskSpec_Container{
+						Container: &swarmapi.ContainerSpec{
+							Privileges: &swarmapi.Privileges{
+								CredentialSpec: &c.from,
+							},
+						},
+					},
+				},
+			}
+			config := containerConfig{task: &task}
+			assert.DeepEqual(t, c.to, config.hostConfig().SecurityOpt)
+		})
+	}
+}
