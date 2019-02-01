@@ -1087,7 +1087,7 @@ message Privileges {
 
 			// Config represents a Config ID from which to get the CredentialSpec.
 			// The Config MUST be included in the SecretReferences with a RuntimeTarget
-			string Config = 3;
+			string config = 3;
 		}
 	}
 	CredentialSpec credential_spec = 1;
