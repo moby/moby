@@ -194,10 +194,18 @@ func (r *Supervisor) Restart(ctx context.Context, tx store.Tx, cluster *api.Clus
 // restart policy.
 func (r *Supervisor) shouldRestart(ctx context.Context, t *api.Task, service *api.Service) bool {
 	// TODO(aluzzardi): This function should not depend on `service`.
-	condition := orchestrator.RestartCondition(t)
-
-	if condition != api.RestartOnAny &&
-		(condition != api.RestartOnFailure || t.Status.State == api.TaskStateCompleted) {
+	// There are 3 possible restart policies.
+	switch orchestrator.RestartCondition(t) {
+	case api.RestartOnAny:
+		// we will be restarting, we just need to do a few more checks
+	case api.RestartOnFailure:
+		// we won't restart if the task is in TaskStateCompleted, as this is a
+		// not a failed state -- it indicates that the task exited with 0
+		if t.Status.State == api.TaskStateCompleted {
+			return false
+		}
+	case api.RestartOnNone:
+		// RestartOnNone means we just don't restart, ever
 		return false
 	}
 

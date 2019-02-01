@@ -1010,10 +1010,16 @@ func (m *Manager) becomeLeader(ctx context.Context) {
 			cluster = store.GetCluster(tx, clusterID)
 		})
 		if cluster.DefaultAddressPool != nil {
+			if m.config.NetworkConfig == nil {
+				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+			}
 			m.config.NetworkConfig.DefaultAddrPool = append(m.config.NetworkConfig.DefaultAddrPool, cluster.DefaultAddressPool...)
 			m.config.NetworkConfig.SubnetSize = cluster.SubnetSize
 		}
 		if cluster.VXLANUDPPort != 0 {
+			if m.config.NetworkConfig == nil {
+				m.config.NetworkConfig = &cnmallocator.NetworkConfig{}
+			}
 			m.config.NetworkConfig.VXLANUDPPort = cluster.VXLANUDPPort
 		}
 	}
