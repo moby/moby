@@ -2623,8 +2623,19 @@ definitions:
                 type: "object"
                 description: "CredentialSpec for managed service account (Windows only)"
                 properties:
+                  Config:
+                    type: "string"
+                    example: "0bt9dmxjvjiqermk6xrop3ekq"
+                    description: |
+                      Load credential spec from a Swarm Config with the given ID.
+
+                      <p><br /></p>
+
+
+                      > **Note**: `CredentialSpec.File`, `CredentialSpec.Registry`, and `CredentialSpec.Config` are mutually exclusive.
                   File:
                     type: "string"
+                    example: "spec.json"
                     description: |
                       Load credential spec from this file. The file is read by the daemon, and must be present in the
                       `CredentialSpecs` subdirectory in the docker data directory, which defaults to
@@ -2634,7 +2645,7 @@ definitions:
 
                       <p><br /></p>
 
-                      > **Note**: `CredentialSpec.File` and `CredentialSpec.Registry` are mutually exclusive.
+                      > **Note**: `CredentialSpec.File`, `CredentialSpec.Registry`, and `CredentialSpec.Config` are mutually exclusive.
                   Registry:
                     type: "string"
                     description: |
@@ -2646,7 +2657,7 @@ definitions:
                       <p><br /></p>
 
 
-                      > **Note**: `CredentialSpec.File` and `CredentialSpec.Registry` are mutually exclusive.
+                      > **Note**: `CredentialSpec.File`, `CredentialSpec.Registry`, and `CredentialSpec.Config` are mutually exclusive.
               SELinuxContext:
                 type: "object"
                 description: "SELinux labels of the container"

@@ -218,6 +218,11 @@ func (sr *swarmRouter) createService(ctx context.Context, w http.ResponseWriter,
 				// Sysctls for docker swarm services weren't supported before
 				// API version 1.40
 				service.TaskTemplate.ContainerSpec.Sysctls = nil
+
+				if service.TaskTemplate.ContainerSpec.Privileges != nil && service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec != nil {
+					// Support for setting credential-spec through configs was added in API 1.40
+					service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec.Config = ""
+				}
 			}
 
 			if service.TaskTemplate.Placement != nil {
@@ -270,6 +275,11 @@ func (sr *swarmRouter) updateService(ctx context.Context, w http.ResponseWriter,
 				// Sysctls for docker swarm services weren't supported before
 				// API version 1.40
 				service.TaskTemplate.ContainerSpec.Sysctls = nil
+
+				if service.TaskTemplate.ContainerSpec.Privileges != nil && service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec != nil {
+					// Support for setting credential-spec through configs was added in API 1.40
+					service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec.Config = ""
+				}
 			}
 
 			if service.TaskTemplate.Placement != nil {

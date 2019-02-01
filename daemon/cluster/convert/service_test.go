@@ -233,6 +233,167 @@ func TestServiceConvertFromGRPCIsolation(t *testing.T) {
 	}
 }
 
+func TestServiceConvertToGRPCCredentialSpec(t *testing.T) {
+	cases := []struct {
+		name        string
+		from        swarmtypes.CredentialSpec
+		to          swarmapi.Privileges_CredentialSpec
+		expectedErr string
+	}{
+		{
+			name:        "empty credential spec",
+			from:        swarmtypes.CredentialSpec{},
+			to:          swarmapi.Privileges_CredentialSpec{},
+			expectedErr: `invalid CredentialSpec: must either provide "file", "registry", or "config" for credential spec`,
+		},
+		{
+			name: "config and file credential spec",
+			from: swarmtypes.CredentialSpec{
+				Config: "0bt9dmxjvjiqermk6xrop3ekq",
+				File:   "spec.json",
+			},
+			to:          swarmapi.Privileges_CredentialSpec{},
+			expectedErr: `invalid CredentialSpec: cannot specify both "config" and "file" credential specs`,
+		},
+		{
+			name: "config and registry credential spec",
+			from: swarmtypes.CredentialSpec{
+				Config:   "0bt9dmxjvjiqermk6xrop3ekq",
+				Registry: "testing",
+			},
+			to:          swarmapi.Privileges_CredentialSpec{},
+			expectedErr: `invalid CredentialSpec: cannot specify both "config" and "registry" credential specs`,
+		},
+		{
+			name: "file and registry credential spec",
+			from: swarmtypes.CredentialSpec{
+				File:     "spec.json",
+				Registry: "testing",
+			},
+			to:          swarmapi.Privileges_CredentialSpec{},
+			expectedErr: `invalid CredentialSpec: cannot specify both "file" and "registry" credential specs`,
+		},
+		{
+			name: "config and file and registry credential spec",
+			from: swarmtypes.CredentialSpec{
+				Config:   "0bt9dmxjvjiqermk6xrop3ekq",
+				File:     "spec.json",
+				Registry: "testing",
+			},
+			to:          swarmapi.Privileges_CredentialSpec{},
+			expectedErr: `invalid CredentialSpec: cannot specify both "config", "file", and "registry" credential specs`,
+		},
+		{
+			name: "config credential spec",
+			from: swarmtypes.CredentialSpec{Config: "0bt9dmxjvjiqermk6xrop3ekq"},
+			to: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Config{Config: "0bt9dmxjvjiqermk6xrop3ekq"},
+			},
+		},
+		{
+			name: "file credential spec",
+			from: swarmtypes.CredentialSpec{File: "foo.json"},
+			to: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_File{File: "foo.json"},
+			},
+		},
+		{
+			name: "registry credential spec",
+			from: swarmtypes.CredentialSpec{Registry: "testing"},
+			to: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Registry{Registry: "testing"},
+			},
+		},
+	}
+
+	for _, c := range cases {
+		c := c
+		t.Run(c.name, func(t *testing.T) {
+			s := swarmtypes.ServiceSpec{
+				TaskTemplate: swarmtypes.TaskSpec{
+					ContainerSpec: &swarmtypes.ContainerSpec{
+						Privileges: &swarmtypes.Privileges{
+							CredentialSpec: &c.from,
+						},
+					},
+				},
+			}
+
+			res, err := ServiceSpecToGRPC(s)
+			if c.expectedErr != "" {
+				assert.Error(t, err, c.expectedErr)
+				return
+			}
+
+			assert.NilError(t, err)
+			v, ok := res.Task.Runtime.(*swarmapi.TaskSpec_Container)
+			if !ok {
+				t.Fatal("expected type swarmapi.TaskSpec_Container")
+			}
+			assert.DeepEqual(t, c.to, *v.Container.Privileges.CredentialSpec)
+		})
+	}
+}
+
+func TestServiceConvertFromGRPCCredentialSpec(t *testing.T) {
+	cases := []struct {
+		name string
+		from swarmapi.Privileges_CredentialSpec
+		to   *swarmtypes.CredentialSpec
+	}{
+		{
+			name: "empty credential spec",
+			from: swarmapi.Privileges_CredentialSpec{},
+			to:   &swarmtypes.CredentialSpec{},
+		},
+		{
+			name: "config credential spec",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Config{Config: "0bt9dmxjvjiqermk6xrop3ekq"},
+			},
+			to: &swarmtypes.CredentialSpec{Config: "0bt9dmxjvjiqermk6xrop3ekq"},
+		},
+		{
+			name: "file credential spec",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_File{File: "foo.json"},
+			},
+			to: &swarmtypes.CredentialSpec{File: "foo.json"},
+		},
+		{
+			name: "registry credential spec",
+			from: swarmapi.Privileges_CredentialSpec{
+				Source: &swarmapi.Privileges_CredentialSpec_Registry{Registry: "testing"},
+			},
+			to: &swarmtypes.CredentialSpec{Registry: "testing"},
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			gs := swarmapi.Service{
+				Spec: swarmapi.ServiceSpec{
+					Task: swarmapi.TaskSpec{
+						Runtime: &swarmapi.TaskSpec_Container{
+							Container: &swarmapi.ContainerSpec{
+								Privileges: &swarmapi.Privileges{
+									CredentialSpec: &tc.from,
+								},
+							},
+						},
+					},
+				},
+			}
+
+			svc, err := ServiceFromGRPC(gs)
+			assert.NilError(t, err)
+			assert.DeepEqual(t, svc.Spec.TaskTemplate.ContainerSpec.Privileges.CredentialSpec, tc.to)
+		})
+	}
+}
+
 func TestServiceConvertToGRPCNetworkAtachmentRuntime(t *testing.T) {
 	someid := "asfjkl"
 	s := swarmtypes.ServiceSpec{

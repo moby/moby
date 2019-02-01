@@ -1,7 +1,6 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 
@@ -10,6 +9,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -52,13 +52,7 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 		containerSpec.Privileges = &types.Privileges{}
 
 		if c.Privileges.CredentialSpec != nil {
-			containerSpec.Privileges.CredentialSpec = &types.CredentialSpec{}
-			switch c.Privileges.CredentialSpec.Source.(type) {
-			case *swarmapi.Privileges_CredentialSpec_File:
-				containerSpec.Privileges.CredentialSpec.File = c.Privileges.CredentialSpec.GetFile()
-			case *swarmapi.Privileges_CredentialSpec_Registry:
-				containerSpec.Privileges.CredentialSpec.Registry = c.Privileges.CredentialSpec.GetRegistry()
-			}
+			containerSpec.Privileges.CredentialSpec = credentialSpecFromGRPC(c.Privileges.CredentialSpec)
 		}
 
 		if c.Privileges.SELinuxContext != nil {
@@ -272,22 +266,11 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		containerSpec.Privileges = &swarmapi.Privileges{}
 
 		if c.Privileges.CredentialSpec != nil {
-			containerSpec.Privileges.CredentialSpec = &swarmapi.Privileges_CredentialSpec{}
-
-			if c.Privileges.CredentialSpec.File != "" && c.Privileges.CredentialSpec.Registry != "" {
-				return nil, errors.New("cannot specify both \"file\" and \"registry\" credential specs")
+			cs, err := credentialSpecToGRPC(c.Privileges.CredentialSpec)
+			if err != nil {
+				return nil, errors.Wrap(err, "invalid CredentialSpec")
 			}
-			if c.Privileges.CredentialSpec.File != "" {
-				containerSpec.Privileges.CredentialSpec.Source = &swarmapi.Privileges_CredentialSpec_File{
-					File: c.Privileges.CredentialSpec.File,
-				}
-			} else if c.Privileges.CredentialSpec.Registry != "" {
-				containerSpec.Privileges.CredentialSpec.Source = &swarmapi.Privileges_CredentialSpec_Registry{
-					Registry: c.Privileges.CredentialSpec.Registry,
-				}
-			} else {
-				return nil, errors.New("must either provide \"file\" or \"registry\" for credential spec")
-			}
+			containerSpec.Privileges.CredentialSpec = cs
 		}
 
 		if c.Privileges.SELinuxContext != nil {
@@ -357,6 +340,60 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 	}
 
 	return containerSpec, nil
+}
+
+func credentialSpecFromGRPC(c *swarmapi.Privileges_CredentialSpec) *types.CredentialSpec {
+	cs := &types.CredentialSpec{}
+	switch c.Source.(type) {
+	case *swarmapi.Privileges_CredentialSpec_Config:
+		cs.Config = c.GetConfig()
+	case *swarmapi.Privileges_CredentialSpec_File:
+		cs.File = c.GetFile()
+	case *swarmapi.Privileges_CredentialSpec_Registry:
+		cs.Registry = c.GetRegistry()
+	}
+	return cs
+}
+
+func credentialSpecToGRPC(c *types.CredentialSpec) (*swarmapi.Privileges_CredentialSpec, error) {
+	var opts []string
+
+	if c.Config != "" {
+		opts = append(opts, `"config"`)
+	}
+	if c.File != "" {
+		opts = append(opts, `"file"`)
+	}
+	if c.Registry != "" {
+		opts = append(opts, `"registry"`)
+	}
+	l := len(opts)
+	switch {
+	case l == 0:
+		return nil, errors.New(`must either provide "file", "registry", or "config" for credential spec`)
+	case l == 2:
+		return nil, fmt.Errorf("cannot specify both %s and %s credential specs", opts[0], opts[1])
+	case l > 2:
+		return nil, fmt.Errorf("cannot specify both %s, and %s credential specs", strings.Join(opts[:l-1], ", "), opts[l-1])
+	}
+
+	spec := &swarmapi.Privileges_CredentialSpec{}
+	switch {
+	case c.Config != "":
+		spec.Source = &swarmapi.Privileges_CredentialSpec_Config{
+			Config: c.Config,
+		}
+	case c.File != "":
+		spec.Source = &swarmapi.Privileges_CredentialSpec_File{
+			File: c.File,
+		}
+	case c.Registry != "":
+		spec.Source = &swarmapi.Privileges_CredentialSpec_Registry{
+			Registry: c.Registry,
+		}
+	}
+
+	return spec, nil
 }
 
 func healthConfigFromGRPC(h *swarmapi.HealthConfig) *container.HealthConfig {
