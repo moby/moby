@@ -141,10 +141,17 @@ func (u *Updater) Run(ctx context.Context, slots []orchestrator.Slot) {
 	}
 	// Abort immediately if all tasks are clean.
 	if len(dirtySlots) == 0 {
-		if service.UpdateStatus != nil &&
-			(service.UpdateStatus.State == api.UpdateStatus_UPDATING ||
-				service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED) {
-			u.completeUpdate(ctx, service.ID)
+		if service.UpdateStatus == nil {
+			if u.annotationsUpdated(service) {
+				// Annotation-only update; mark the update as completed
+				u.completeUpdate(ctx, service.ID, true)
+			}
+			return
+		}
+		if service.UpdateStatus.State == api.UpdateStatus_UPDATING || service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
+			// Update or rollback was started, and is now complete
+			u.completeUpdate(ctx, service.ID, true)
+			return
 		}
 		return
 	}
@@ -303,7 +310,7 @@ slotsLoop:
 	// have reached RUNNING by this point.
 
 	if !stopped {
-		u.completeUpdate(ctx, service.ID)
+		u.completeUpdate(ctx, service.ID, false)
 	}
 }
 
@@ -616,25 +623,32 @@ func (u *Updater) rollbackUpdate(ctx context.Context, serviceID, message string)
 	}
 }
 
-func (u *Updater) completeUpdate(ctx context.Context, serviceID string) {
+func (u *Updater) completeUpdate(ctx context.Context, serviceID string, force bool) {
 	log.G(ctx).Debugf("update of service %s complete", serviceID)
 
 	err := u.store.Update(func(tx store.Tx) error {
 		service := store.GetService(tx, serviceID)
-		if service == nil {
+		switch {
+		case service == nil:
 			return nil
-		}
-		if service.UpdateStatus == nil {
+		case service.UpdateStatus == nil && force:
+			// Force marking the status as updated; to account for annotation-only updates.
+			service.UpdateStatus = &api.UpdateStatus{
+				StartedAt: ptypes.MustTimestampProto(time.Now()),
+				State:     api.UpdateStatus_COMPLETED,
+				Message:   "update completed",
+			}
+		case service.UpdateStatus == nil:
 			// The service was changed since we started this update
 			return nil
-		}
-		if service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED {
+		case service.UpdateStatus.State == api.UpdateStatus_ROLLBACK_STARTED:
 			service.UpdateStatus.State = api.UpdateStatus_ROLLBACK_COMPLETED
 			service.UpdateStatus.Message = "rollback completed"
-		} else {
+		default:
 			service.UpdateStatus.State = api.UpdateStatus_COMPLETED
 			service.UpdateStatus.Message = "update completed"
 		}
+
 		service.UpdateStatus.CompletedAt = ptypes.MustTimestampProto(time.Now())
 
 		return store.UpdateService(tx, service)
@@ -643,4 +657,11 @@ func (u *Updater) completeUpdate(ctx context.Context, serviceID string) {
 	if err != nil {
 		log.G(ctx).WithError(err).Errorf("failed to mark update of service %s complete", serviceID)
 	}
+}
+
+func (u *Updater) annotationsUpdated(service *api.Service) bool {
+	if service.PreviousSpec == nil {
+		return false
+	}
+	return !reflect.DeepEqual(service.Spec, service.PreviousSpec)
 }

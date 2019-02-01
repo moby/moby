@@ -246,6 +246,8 @@ message Mount {
 
 		// Propagation mode of mount.
 		Propagation propagation = 1;
+		// allows non-recursive bind-mount, i.e. mount(2) with "bind" rather than "rbind".
+		bool nonrecursive = 2 [(gogoproto.customname) = "NonRecursive"];
 	}
 
 	// VolumeOptions contains parameters for mounting the volume.
@@ -976,6 +978,12 @@ message FileTarget {
 	uint32 mode = 4 [(gogoproto.customtype) = "os.FileMode", (gogoproto.nullable) = false];
 }
 
+// RuntimeTarget represents that this secret is _not_ mounted into the
+// container, but is used for some other purpose by the container runtime.
+//
+// Currently, RuntimeTarget has no fields; it's just a placeholder.
+message RuntimeTarget {}
+
 // SecretReference is the linkage between a service and a secret that it uses.
 message SecretReference {
 	// SecretID represents the ID of the specific Secret that we're
@@ -1003,9 +1011,10 @@ message ConfigReference {
 	// lookup/display purposes. The config in the reference will be identified by its ID.
 	string config_name = 2;
 
-	// Target specifies how this secret should be exposed to the task.
+	// Target specifies how this config should be exposed to the task.
 	oneof target {
 		FileTarget file = 3;
+		RuntimeTarget runtime = 4;
 	}
 }
 
@@ -1075,6 +1084,10 @@ message Privileges {
 		oneof source {
 			string file = 1;
 			string registry = 2;
+
+			// Config represents a Config ID from which to get the CredentialSpec.
+			// The Config MUST be included in the SecretReferences with a RuntimeTarget
+			string Config = 3;
 		}
 	}
 	CredentialSpec credential_spec = 1;

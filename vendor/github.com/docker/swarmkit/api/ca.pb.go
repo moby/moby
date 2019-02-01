@@ -205,6 +205,7 @@
 		EncryptionKey
 		ManagerStatus
 		FileTarget
+		RuntimeTarget
 		SecretReference
 		ConfigReference
 		BlacklistedCertificate
