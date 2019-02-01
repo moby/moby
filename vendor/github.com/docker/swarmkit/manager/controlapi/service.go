@@ -682,7 +682,10 @@ func (s *Server) CreateService(ctx context.Context, request *api.CreateServiceRe
 	})
 	switch err {
 	case store.ErrNameConflict:
-		return nil, status.Errorf(codes.AlreadyExists, "service %s already exists", request.Spec.Annotations.Name)
+		// Enhance the name-confict error to include the service name. The original
+		// `ErrNameConflict` error-message is included for backward-compatibility
+		// with older consumers of the API performing string-matching.
+		return nil, status.Errorf(codes.AlreadyExists, "%s: service %s already exists", err.Error(), request.Spec.Annotations.Name)
 	case nil:
 		return &api.CreateServiceResponse{Service: service}, nil
 	default:
