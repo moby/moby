@@ -297,10 +297,9 @@ func TestParseMountRaw(t *testing.T) {
 	linParser := &linuxParser{}
 	winParser := &windowsParser{}
 	lcowParser := &lcowParser{}
+
 	tester := func(parser Parser, set parseMountRawTestSet) {
-
 		for _, path := range set.valid {
-
 			if _, err := parser.ParseMountRaw(path, "local"); err != nil {
 				t.Errorf("ParseMountRaw(`%q`) should succeed: error %q", path, err)
 			}
@@ -316,10 +315,10 @@ func TestParseMountRaw(t *testing.T) {
 			}
 		}
 	}
+
 	tester(linParser, linuxSet)
 	tester(winParser, windowsSet)
 	tester(lcowParser, lcowSet)
-
 }
 
 // testParseMountRaw is a structure used by TestParseMountRawSplit for
@@ -380,53 +379,72 @@ func TestParseMountRawSplit(t *testing.T) {
 		{"local/name:/tmp:rw", "", mount.TypeVolume, "/tmp", "", "local/name", "", true, false},
 		{"/tmp:tmp", "", mount.TypeBind, "", "", "", "", true, true},
 	}
-	linParser := &linuxParser{}
-	winParser := &windowsParser{}
-	lcowParser := &lcowParser{}
-	tester := func(parser Parser, cases []testParseMountRaw) {
-		for i, c := range cases {
-			t.Logf("case %d", i)
-			m, err := parser.ParseMountRaw(c.bind, c.driver)
-			if c.fail {
-				if err == nil {
-					t.Errorf("Expected error, was nil, for spec %s\n", c.bind)
-				}
-				continue
-			}
 
-			if m == nil || err != nil {
-				t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err.Error())
-				continue
+	tester := func(t *testing.T, parser Parser, c testParseMountRaw) {
+		m, err := parser.ParseMountRaw(c.bind, c.driver)
+		if c.fail {
+			if err == nil {
+				t.Errorf("Expected error, was nil, for spec %s\n%+v\n", c.bind, m)
 			}
+			return
+		}
 
-			if m.Destination != c.expDest {
-				t.Errorf("Expected destination '%s, was %s', for spec '%s'", c.expDest, m.Destination, c.bind)
-			}
+		if m == nil || err != nil {
+			t.Errorf("ParseMountRaw failed for spec '%s', driver '%s', error '%v'", c.bind, c.driver, err.Error())
+			return
+		}
 
-			if m.Source != c.expSource {
-				t.Errorf("Expected source '%s', was '%s', for spec '%s'", c.expSource, m.Source, c.bind)
-			}
+		if m.Destination != c.expDest {
+			t.Errorf("Expected destination '%s, was %s', for spec '%s'", c.expDest, m.Destination, c.bind)
+		}
 
-			if m.Name != c.expName {
-				t.Errorf("Expected name '%s', was '%s' for spec '%s'", c.expName, m.Name, c.bind)
-			}
+		if m.Source != c.expSource {
+			t.Errorf("Expected source '%s', was '%s', for spec '%s'", c.expSource, m.Source, c.bind)
+		}
 
-			if m.Driver != c.expDriver {
-				t.Errorf("Expected driver '%s', was '%s', for spec '%s'", c.expDriver, m.Driver, c.bind)
-			}
+		if m.Name != c.expName {
+			t.Errorf("Expected name '%s', was '%s' for spec '%s'", c.expName, m.Name, c.bind)
+		}
 
-			if m.RW != c.expRW {
-				t.Errorf("Expected RW '%v', was '%v' for spec '%s'", c.expRW, m.RW, c.bind)
-			}
-			if m.Type != c.expType {
-				t.Fatalf("Expected type '%s', was '%s', for spec '%s'", c.expType, m.Type, c.bind)
-			}
+		if m.Driver != c.expDriver {
+			t.Errorf("Expected driver '%s', was '%s', for spec '%s'", c.expDriver, m.Driver, c.bind)
+		}
+
+		if m.RW != c.expRW {
+			t.Errorf("Expected RW '%v', was '%v' for spec '%s'", c.expRW, m.RW, c.bind)
+		}
+		if m.Type != c.expType {
+			t.Fatalf("Expected type '%s', was '%s', for spec '%s'", c.expType, m.Type, c.bind)
 		}
 	}
 
-	tester(linParser, linuxCases)
-	tester(winParser, windowsCases)
-	tester(lcowParser, lcowCases)
+	linParser := &linuxParser{}
+	winParser := &windowsParser{}
+	lcowParser := &lcowParser{}
+
+	t.Run("linuxParser", func(t *testing.T) {
+		for _, c := range linuxCases {
+			t.Run(c.driver+"/"+c.bind, func(t *testing.T) {
+				tester(t, linParser, c)
+			})
+		}
+	})
+
+	t.Run("windowsParser", func(t *testing.T) {
+		for _, c := range windowsCases {
+			t.Run(c.driver+"/"+c.bind, func(t *testing.T) {
+				tester(t, winParser, c)
+			})
+		}
+	})
+
+	t.Run("lcowParser", func(t *testing.T) {
+		for _, c := range lcowCases {
+			t.Run(c.driver+"/"+c.bind, func(t *testing.T) {
+				tester(t, lcowParser, c)
+			})
+		}
+	})
 }
 
 func TestParseMountSpec(t *testing.T) {
