@@ -756,7 +756,7 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 	manifestMatches := filterManifests(mfstList.Manifests, platform)
 
 	if len(manifestMatches) == 0 {
-		errMsg := fmt.Sprintf("no matching manifest for %s in the manifest list entries", platforms.Format(platform))
+		errMsg := fmt.Sprintf("no matching manifest for %s in the manifest list entries", formatPlatform(platform))
 		logrus.Debugf(errMsg)
 		return "", "", errors.New(errMsg)
 	}
