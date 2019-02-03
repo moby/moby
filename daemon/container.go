@@ -231,13 +231,9 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 	return container.CheckpointTo(daemon.containersReplica)
 }
 
-// verifyContainerSettings performs validation of the hostconfig and config
-// structures.
-func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, config *containertypes.Config, update bool) (warnings []string, err error) {
+// verifyContainerSettings performs validation of the hostConfig.
+func (daemon *Daemon) verifyContainerSettings(platform string, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
-	if err = validateContainerConfig(config, platform); err != nil {
-		return warnings, err
-	}
 	if err := validateHostConfig(hostConfig, platform); err != nil {
 		return warnings, err
 	}
