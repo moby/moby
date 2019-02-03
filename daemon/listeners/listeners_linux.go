@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/coreos/go-systemd/activation"
+	"github.com/docker/docker/pkg/homedir"
 	"github.com/docker/go-connections/sockets"
 	"github.com/sirupsen/logrus"
 )
@@ -44,6 +45,10 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
 			return nil, fmt.Errorf("can't create unix socket %s: %v", addr, err)
+		}
+		if _, err := homedir.StickRuntimeDirContents([]string{addr}); err != nil {
+			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
+			logrus.WithError(err).Warnf("cannot set sticky bit on socket %s under XDG_RUNTIME_DIR", addr)
 		}
 		ls = append(ls, l)
 	default:

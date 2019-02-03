@@ -15,11 +15,33 @@ import (
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
+	"github.com/docker/docker/pkg/homedir"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/libnetwork/portallocator"
 	"golang.org/x/sys/unix"
 )
 
-const defaultDaemonConfigFile = "/etc/docker/daemon.json"
+func getDefaultDaemonConfigDir() (string, error) {
+	if !rootless.RunningWithNonRootUsername() {
+		return "/etc/docker", nil
+	}
+	// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
+	// ~/.docker was not designed to store daemon configurations.
+	// In future, the daemon directory may be renamed to ~/.config/moby-engine (?).
+	configHome, err := homedir.GetConfigHome()
+	if err != nil {
+		return "", nil
+	}
+	return filepath.Join(configHome, "docker"), nil
+}
+
+func getDefaultDaemonConfigFile() (string, error) {
+	dir, err := getDefaultDaemonConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "daemon.json"), nil
+}
 
 // setDefaultUmask sets the umask to 0022 to avoid problems
 // caused by custom umask
@@ -33,8 +55,8 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(_ string) string {
-	return "/etc/docker"
+func getDaemonConfDir(_ string) (string, error) {
+	return getDefaultDaemonConfigDir()
 }
 
 func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt, error) {

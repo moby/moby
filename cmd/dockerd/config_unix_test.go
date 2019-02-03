@@ -15,7 +15,8 @@ func TestDaemonParseShmSize(t *testing.T) {
 	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
 
 	conf := &config.Config{}
-	installConfigFlags(conf, flags)
+	err := installConfigFlags(conf, flags)
+	assert.NilError(t, err)
 	// By default `--default-shm-size=64M`
 	assert.Check(t, is.Equal(int64(64*1024*1024), conf.ShmSize.Value()))
 	assert.Check(t, flags.Set("default-shm-size", "128M"))

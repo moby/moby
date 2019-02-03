@@ -26,4 +26,6 @@ install_binary() {
 	install_binary "${DEST}/${DOCKER_CONTAINERD_SHIM_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_PROXY_BINARY_NAME}"
 	install_binary "${DEST}/${DOCKER_INIT_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_ROOTLESSKIT_BINARY_NAME}"
+	install_binary "${DEST}/${DOCKER_DAEMON_ROOTLESS_SH_BINARY_NAME}"
 )

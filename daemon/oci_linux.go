@@ -17,10 +17,12 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/rootless/specconv"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
 	"github.com/opencontainers/runc/libcontainer/devices"
+	rsystem "github.com/opencontainers/runc/libcontainer/system"
 	"github.com/opencontainers/runc/libcontainer/user"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -89,7 +91,7 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 	// Build lists of devices allowed and created within the container.
 	var devs []specs.LinuxDevice
 	devPermissions := s.Linux.Resources.Devices
-	if c.HostConfig.Privileged {
+	if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
 		hostDevices, err := devices.HostDevices()
 		if err != nil {
 			return err
@@ -867,6 +869,11 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		s.Linux.ReadonlyPaths = c.HostConfig.ReadonlyPaths
 	}
 
+	if daemon.configStore.Rootless {
+		if err := specconv.ToRootless(&s); err != nil {
+			return nil, err
+		}
+	}
 	return &s, nil
 }
 

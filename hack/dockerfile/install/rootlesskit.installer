@@ -1,0 +1,34 @@
+#!/bin/sh
+
+# v0.3.0-alpha.0
+ROOTLESSKIT_COMMIT=3c4582e950e3a67795c2832179c125b258b78124
+
+install_rootlesskit() {
+	case "$1" in
+	"dynamic")
+		install_rootlesskit_dynamic
+		return
+		;;
+	"")
+		export CGO_ENABLED=0
+		_install_rootlesskit
+		;;
+	*)
+		echo 'Usage: $0 [dynamic]'
+		;;
+	esac
+}
+
+install_rootlesskit_dynamic() {
+	export ROOTLESSKIT_LDFLAGS="-linkmode=external" install_rootlesskit
+	export BUILD_MODE="-buildmode=pie"
+	_install_rootlesskit
+}
+
+_install_rootlesskit() {
+	echo "Install rootlesskit version $ROOTLESSKIT_COMMIT"
+	git clone https://github.com/rootless-containers/rootlesskit.git "$GOPATH/src/github.com/rootless-containers/rootlesskit"
+	cd "$GOPATH/src/github.com/rootless-containers/rootlesskit"
+	git checkout -q "$ROOTLESSKIT_COMMIT"
+	go build $BUILD_MODE -ldflags="$ROOTLESSKIT_LDFLAGS" -o "${PREFIX}/rootlesskit" github.com/rootless-containers/rootlesskit/cmd/rootlesskit
+}

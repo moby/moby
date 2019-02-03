@@ -39,6 +39,7 @@ type Config struct {
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`
+	Rootless   bool   `json:"rootless,omitempty"`
 }
 
 // BridgeConfig stores all the bridge driver specific
@@ -86,4 +87,9 @@ func verifyDefaultIpcMode(mode string) error {
 // ValidatePlatformConfig checks if any platform-specific configuration settings are invalid.
 func (conf *Config) ValidatePlatformConfig() error {
 	return verifyDefaultIpcMode(conf.IpcMode)
+}
+
+// IsRootless returns conf.Rootless
+func (conf *Config) IsRootless() bool {
+	return conf.Rootless
 }

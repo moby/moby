@@ -51,7 +51,9 @@ func New(quiet bool) *SysInfo {
 
 	// Check if AppArmor is supported.
 	if _, err := os.Stat("/sys/kernel/security/apparmor"); !os.IsNotExist(err) {
-		sysInfo.AppArmor = true
+		if _, err := ioutil.ReadFile("/sys/kernel/security/apparmor/profiles"); err == nil {
+			sysInfo.AppArmor = true
+		}
 	}
 
 	// Check if Seccomp is supported, via CONFIG_SECCOMP.

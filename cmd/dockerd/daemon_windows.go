@@ -12,15 +12,17 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var defaultDaemonConfigFile = ""
+func getDefaultDaemonConfigFile() (string, error) {
+	return "", nil
+}
 
 // setDefaultUmask doesn't do anything on windows
 func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(root string) string {
-	return filepath.Join(root, `\config`)
+func getDaemonConfDir(root string) (string, error) {
+	return filepath.Join(root, `\config`), nil
 }
 
 // preNotifySystem sends a message to the host when the API is active, but before the daemon is

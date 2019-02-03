@@ -13,6 +13,8 @@ var (
 )
 
 // Dir returns the path to the configuration directory as specified by the DOCKER_CONFIG environment variable.
+// If DOCKER_CONFIG is unset, Dir returns ~/.docker .
+// Dir ignores XDG_CONFIG_HOME (same as the docker client).
 // TODO: this was copied from cli/config/configfile and should be removed once cmd/dockerd moves
 func Dir() string {
 	return configDir
