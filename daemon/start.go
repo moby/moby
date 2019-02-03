@@ -88,7 +88,7 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 
 	// check if hostConfig is in line with the current system settings.
 	// It may happen cgroups are umounted or the like.
-	if _, err = daemon.verifyContainerSettings(container.OS, container.HostConfig, false); err != nil {
+	if _, err = daemon.validateContainerHostConfig(container.OS, container.HostConfig, false); err != nil {
 		return errdefs.InvalidParameter(err)
 	}
 	return daemon.containerStart(container, checkpoint, checkpointDir, true)
