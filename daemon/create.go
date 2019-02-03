@@ -72,6 +72,11 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		}
 	}
 
+	err := daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
+	if err != nil {
+		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(err)
+	}
+
 	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
@@ -84,10 +89,6 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 
 	if opts.params.HostConfig == nil {
 		opts.params.HostConfig = &containertypes.HostConfig{}
-	}
-	err = daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
-	if err != nil {
-		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
 	container, err := daemon.create(opts)

@@ -73,6 +73,12 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 				}
 			}
 			container.InitDNSHostConfig()
+
+			// Adapt for old containers in case we have updates in this function and
+			// old containers never have chance to call the new function in create stage.
+			if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
+				return errdefs.InvalidParameter(err)
+			}
 		}
 	} else {
 		if hostConfig != nil {
@@ -84,13 +90,6 @@ func (daemon *Daemon) ContainerStart(name string, hostConfig *containertypes.Hos
 	// It may happen cgroups are umounted or the like.
 	if _, err = daemon.verifyContainerSettings(container.OS, container.HostConfig, nil, false); err != nil {
 		return errdefs.InvalidParameter(err)
-	}
-	// Adapt for old containers in case we have updates in this function and
-	// old containers never have chance to call the new function in create stage.
-	if hostConfig != nil {
-		if err := daemon.adaptContainerSettings(container.HostConfig, false); err != nil {
-			return errdefs.InvalidParameter(err)
-		}
 	}
 	return daemon.containerStart(container, checkpoint, checkpointDir, true)
 }
