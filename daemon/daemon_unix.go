@@ -328,15 +328,11 @@ func checkKernel() error {
 // adaptContainerSettings is called during container creation to modify any
 // settings necessary in the HostConfig structure.
 func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConfig, adjustCPUShares bool) error {
-	if adjustCPUShares && hostConfig.CPUShares > 0 {
-		// Handle unsupported CPUShares
-		if hostConfig.CPUShares < linuxMinCPUShares {
-			logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", hostConfig.CPUShares, linuxMinCPUShares)
-			hostConfig.CPUShares = linuxMinCPUShares
-		} else if hostConfig.CPUShares > linuxMaxCPUShares {
-			logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", hostConfig.CPUShares, linuxMaxCPUShares)
-			hostConfig.CPUShares = linuxMaxCPUShares
-		}
+	if hostConfig == nil {
+		return nil
+	}
+	if adjustCPUShares {
+		hostConfig.CPUShares = adaptCPUShares(hostConfig.CPUShares)
 	}
 	if hostConfig.Memory > 0 && hostConfig.MemorySwap == 0 {
 		// By default, MemorySwap is set to twice the size of Memory.
@@ -380,6 +376,22 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 	}
 
 	return nil
+}
+
+// adaptCPUShares limits CPUShares to its min/max limit, and is used on API versions before v1.19.
+func adaptCPUShares(cpuShares int64) int64 {
+	switch {
+	case cpuShares <= 0:
+		return cpuShares
+	case cpuShares < linuxMinCPUShares:
+		logrus.Warnf("Changing requested CPUShares of %d to minimum allowed of %d", cpuShares, linuxMinCPUShares)
+		return linuxMinCPUShares
+	case cpuShares > linuxMaxCPUShares:
+		logrus.Warnf("Changing requested CPUShares of %d to maximum allowed of %d", cpuShares, linuxMaxCPUShares)
+		return linuxMaxCPUShares
+	default:
+		return cpuShares
+	}
 }
 
 // adaptSharedNamespaceContainer replaces container name with its ID in hostConfig.
