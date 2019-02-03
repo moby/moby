@@ -425,9 +425,7 @@ func adaptSharedNamespaceContainer(daemon containerGetter, hostConfig *container
 }
 
 // verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
-func verifyPlatformContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo, update bool) (warnings []string, err error) {
-	fixMemorySwappiness(resources)
-
+func verifyPlatformContainerResources(resources *containertypes.Resources, sysInfo *sysinfo.SysInfo) (warnings []string, err error) {
 	// memory subsystem checks and adjustments
 	if resources.Memory != 0 && resources.Memory < linuxMinMemory {
 		return warnings, fmt.Errorf("Minimum memory limit allowed is 4MB")
@@ -444,7 +442,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 	if resources.Memory > 0 && resources.MemorySwap > 0 && resources.MemorySwap < resources.Memory {
 		return warnings, fmt.Errorf("Minimum memoryswap limit should be larger than memory limit, see usage")
 	}
-	if resources.Memory == 0 && resources.MemorySwap > 0 && !update {
+	if resources.Memory == 0 && resources.MemorySwap > 0 {
 		return warnings, fmt.Errorf("You should always set the Memory limit when using Memoryswap limit, see usage")
 	}
 	if resources.MemorySwappiness != nil && !sysInfo.MemorySwappiness {
@@ -639,13 +637,13 @@ func UsingSystemd(config *config.Config) bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
 	sysInfo := sysinfo.New(true)
 
-	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo, update)
+	w, err := verifyPlatformContainerResources(&hostConfig.Resources, sysInfo)
 
 	// no matter err is nil or not, w could have data in itself.
 	warnings = append(warnings, w...)

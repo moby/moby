@@ -238,7 +238,6 @@ func TestVerifyPlatformContainerResources(t *testing.T) {
 		name             string
 		resources        containertypes.Resources
 		sysInfo          sysinfo.SysInfo
-		update           bool
 		expectedWarnings []string
 	}{
 		{
@@ -301,7 +300,7 @@ func TestVerifyPlatformContainerResources(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			warnings, err := verifyPlatformContainerResources(&tc.resources, &tc.sysInfo, tc.update)
+			warnings, err := verifyPlatformContainerResources(&tc.resources, &tc.sysInfo)
 			assert.NilError(t, err)
 			for _, w := range tc.expectedWarnings {
 				assert.Assert(t, is.Contains(warnings, w))

@@ -232,14 +232,14 @@ func (daemon *Daemon) setHostConfig(container *container.Container, hostConfig *
 }
 
 // validateContainerHostConfig performs validation of the hostConfig.
-func (daemon *Daemon) validateContainerHostConfig(platform string, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func (daemon *Daemon) validateContainerHostConfig(platform string, hostConfig *containertypes.HostConfig) (warnings []string, err error) {
 	// First perform verification of settings common across all platforms.
 	if err := validateHostConfig(hostConfig, platform); err != nil {
 		return warnings, err
 	}
 
 	// Now do platform-specific verification
-	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig, update)
+	warnings, err = verifyPlatformContainerSettings(daemon, hostConfig)
 	for _, w := range warnings {
 		logrus.Warn(w)
 	}

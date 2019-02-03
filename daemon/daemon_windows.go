@@ -77,7 +77,6 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 // verifyPlatformContainerResources performs platform-specific validation of the container's resource-configuration
 func verifyPlatformContainerResources(resources *containertypes.Resources, isHyperv bool) (warnings []string, err error) {
-	fixMemorySwappiness(resources)
 	if !isHyperv {
 		// The processor resource controls are mutually exclusive on
 		// Windows Server Containers, the order of precedence is
@@ -187,7 +186,7 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, isHyp
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}

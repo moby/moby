@@ -82,7 +82,7 @@ func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.Container
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(err)
 	}
 
-	warnings, err := daemon.validateContainerHostConfig(os, opts.params.HostConfig, false)
+	warnings, err := daemon.validateContainerHostConfig(os, opts.params.HostConfig)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}

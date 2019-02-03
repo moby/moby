@@ -197,7 +197,12 @@ func (s *containerRouter) postContainersStart(ctx context.Context, w http.Respon
 	if err := httputils.ParseForm(r); err != nil {
 		return err
 	}
-
+	if hostConfig != nil {
+		// the CLI sends a -1 to unset the swappiness value; clear it on the server side
+		if hostConfig.MemorySwappiness != nil && *hostConfig.MemorySwappiness == -1 {
+			hostConfig.MemorySwappiness = nil
+		}
+	}
 	checkpoint := r.Form.Get("checkpoint")
 	checkpointDir := r.Form.Get("checkpoint-dir")
 	if err := s.backend.ContainerStart(vars["name"], hostConfig, checkpoint, checkpointDir); err != nil {
@@ -436,6 +441,10 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 		updateConfig.PidsLimit = &unlimited
 	}
 
+	// the CLI sends a -1 to unset the swappiness value; clear it on the server side
+	if updateConfig.MemorySwappiness != nil && *updateConfig.MemorySwappiness == -1 {
+		updateConfig.MemorySwappiness = nil
+	}
 	hostConfig := &container.HostConfig{
 		Resources:     updateConfig.Resources,
 		RestartPolicy: updateConfig.RestartPolicy,
@@ -466,6 +475,13 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 	}
 	version := httputils.VersionFromContext(ctx)
 	adjustCPUShares := versions.LessThan(version, "1.19")
+
+	if hostConfig != nil {
+		// the CLI sends a -1 to unset the swappiness value; clear it on the server side
+		if hostConfig.MemorySwappiness != nil && *hostConfig.MemorySwappiness == -1 {
+			hostConfig.MemorySwappiness = nil
+		}
+	}
 
 	// When using API 1.24 and under, the client is responsible for removing the container
 	if hostConfig != nil && versions.LessThan(version, "1.25") {
