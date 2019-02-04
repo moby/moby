@@ -1104,6 +1104,11 @@ func (fgc *fileGetCloserFromSVM) Get(filename string) (io.ReadCloser, error) {
 		return nil, fmt.Errorf("inconsistency detected: couldn't get short container path for %+v in utility VM %s", fgc.mvd, fgc.svm.config.Name)
 	}
 	file := path.Join(actualContainerPath, filename)
+
+	// Ugly fix for MSFT internal bug VSO#19696554
+	// If a file name contains a space, pushing an image fails.
+	// Using solution from https://groups.google.com/forum/#!topic/Golang-Nuts/DpldsmrhPio to escape for shell execution
+	file = "'" + strings.Join(strings.Split(file, "'"), `'"'"'`) + "'"
 	if err := fgc.svm.runProcess(fmt.Sprintf("cat %s", file), nil, outOut, errOut); err != nil {
 		logrus.Debugf("cat %s failed: %s", file, errOut.String())
 		return nil, err
