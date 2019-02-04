@@ -158,6 +158,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	if resetRestartManager {
 		container.ResetRestartManager(true)
+		container.HasBeenManuallyStopped = false
 	}
 
 	if daemon.saveApparmorConfig(container); err != nil {
@@ -194,7 +195,6 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	container.SetRunning(pid, true)
-	container.HasBeenManuallyStopped = false
 	container.HasBeenStartedBefore = true
 	daemon.setStateCounter(container)
 
