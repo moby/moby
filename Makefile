@@ -15,6 +15,7 @@ export DOCKER_GITCOMMIT
 # against these are used in hack/validate/.validate to check what changed in the PR.
 export VALIDATE_REPO
 export VALIDATE_BRANCH
+export VALIDATE_ORIGIN_BRANCH
 
 # env vars passed through directly to Docker's build scripts
 # to allow things like `make KEEPBUNDLE=1 binary` easily
@@ -54,6 +55,7 @@ DOCKER_ENVS := \
 	-e TIMEOUT \
 	-e VALIDATE_REPO \
 	-e VALIDATE_BRANCH \
+	-e VALIDATE_ORIGIN_BRANCH \
 	-e HTTP_PROXY \
 	-e HTTPS_PROXY \
 	-e NO_PROXY \
