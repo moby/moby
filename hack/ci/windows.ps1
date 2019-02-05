@@ -105,7 +105,7 @@ if ($env:BUILD_TAG -match "-WoW") { $env:LCOW_MODE="" }
 # -------------------------------------------------------------------------------------------
 
 
-$SCRIPT_VER="28-Aug-2018 09:33 PDT" 
+$SCRIPT_VER="05-Feb-2019 09:03 PDT" 
 $FinallyColour="Cyan"
 
 #$env:DOCKER_DUT_DEBUG="yes" # Comment out to not be in debug mode
@@ -625,7 +625,6 @@ Try {
 
         $tries--
         if ($tries -le 0) {
-            $DumpDaemonLog=1
             Throw "ERROR: Failed to get a response from the daemon under test"
         }
         Write-Host -NoNewline "."
@@ -641,7 +640,6 @@ Try {
     $ErrorActionPreference = "Stop"
     if ($LastExitCode -ne 0) {
         Throw "ERROR: The daemon under test does not appear to be running."
-        $DumpDaemonLog=1
     }
     Write-Host
 
@@ -653,7 +651,6 @@ Try {
     $ErrorActionPreference = "Stop"
     if ($LastExitCode -ne 0) {
         Throw "ERROR: The daemon under test does not appear to be running."
-        $DumpDaemonLog=1
     }
     Write-Host
 
@@ -665,7 +662,6 @@ Try {
     $ErrorActionPreference = "Stop"
     if ($LastExitCode -ne 0) {
         Throw "ERROR: The daemon under test does not appear to be running."
-        $DumpDaemonLog=1
     }
     Write-Host
 
@@ -788,7 +784,6 @@ Try {
             $ErrorActionPreference = "Stop"
             if ($LastExitCode -ne 0) {
                 Throw "ERROR: The daemon under test does not appear to be running."
-                $DumpDaemonLog=1
             }
             Write-Host
         }
@@ -923,7 +918,6 @@ Try {
         $ErrorActionPreference = "Stop"
         if ($LastExitCode -ne 0) {
             Throw "ERROR: The daemon under test does not appear to be running."
-            $DumpDaemonLog=1
         }
         Write-Host
     }
@@ -969,19 +963,19 @@ Finally {
     if ($null -ne $origGOROOT) { $env:GOROOT=$origGOROOT }
     if ($null -ne $origGOPATH) { $env:GOPATH=$origGOPATH }
 
-    # Dump the daemon log if asked to 
-    if ($daemonStarted -eq 1) {
-        if ($dumpDaemonLog -eq 1) {
-            Write-Host -ForegroundColor Cyan "----------- DAEMON LOG ------------"
-            Get-Content "$env:TEMP\dut.err" -ErrorAction SilentlyContinue | Write-Host -ForegroundColor Cyan
-            Write-Host -ForegroundColor Cyan "----------- END DAEMON LOG --------"
-        }
+    # Dump the daemon log. This will include any possible panic stack in the .err.
+    if (($daemonStarted -eq 1) -and  ($(Get-Item "$env:TEMP\dut.err").Length -gt 0)) {
+        Write-Host -ForegroundColor Cyan "----------- DAEMON LOG ------------"
+        Get-Content "$env:TEMP\dut.err" -ErrorAction SilentlyContinue | Write-Host -ForegroundColor Cyan
+        Write-Host -ForegroundColor Cyan "----------- END DAEMON LOG --------"
     }
 
     # Save the daemon under test log
     if ($daemonStarted -eq 1) {
-        Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to $TEMPORIG\CIDUT.log"
-        Copy-Item  "$env:TEMP\dut.err" "$TEMPORIG\CIDUT.log" -Force -ErrorAction SilentlyContinue
+        Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.out) to $TEMPORIG\CIDUT.out"
+        Copy-Item  "$env:TEMP\dut.out" "$TEMPORIG\CIDUT.out" -Force -ErrorAction SilentlyContinue
+        Write-Host -ForegroundColor Green "INFO: Saving daemon under test log ($env:TEMP\dut.err) to $TEMPORIG\CIDUT.err"
+        Copy-Item  "$env:TEMP\dut.err" "$TEMPORIG\CIDUT.err" -Force -ErrorAction SilentlyContinue
     }
 
     Set-Location "$env:SOURCES_DRIVE\$env:SOURCES_SUBDIR" -ErrorAction SilentlyContinue
