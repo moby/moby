@@ -368,6 +368,18 @@
 		},
 		{
 			"names": [
+				"ptrace"
+			],
+			"action": "SCMP_ACT_ALLOW",
+			"args": null,
+			"comment": "",
+			"includes": {
+				"minKernel": "4.8.0"
+			},
+			"excludes": {}
+		},
+		{
+			"names": [
 				"personality"
 			],
 			"action": "SCMP_ACT_ALLOW",
