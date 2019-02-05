@@ -10,17 +10,20 @@ import (
 // image store and return descriptive info about those images for the purpose
 // of registering them with the graphdriver, graph, and tagstore.
 func GetSharedBaseImages() (imageData string, err error) {
-	title := "hcsshim::GetSharedBaseImages "
+	title := "hcsshim::GetSharedBaseImages"
+	logrus.Debug(title)
+	defer func() {
+		if err != nil {
+			logrus.WithError(err).Error(err)
+		} else {
+			logrus.WithField("imageData", imageData).Debug(title + " - succeeded")
+		}
+	}()
 
-	logrus.Debugf("Calling proc")
 	var buffer *uint16
 	err = getBaseImages(&buffer)
 	if err != nil {
-		err = hcserror.New(err, title, "")
-		logrus.Error(err)
-		return
+		return "", hcserror.New(err, title+" - failed", "")
 	}
-	imageData = interop.ConvertAndFreeCoTaskMemString(buffer)
-	logrus.Debugf(title+" - succeeded output=%s", imageData)
-	return
+	return interop.ConvertAndFreeCoTaskMemString(buffer), nil
 }
