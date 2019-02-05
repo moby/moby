@@ -152,7 +152,7 @@ func TestBlobFetch(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if bytes.Compare(b, b1) != 0 {
+	if !bytes.Equal(b, b1) {
 		t.Fatalf("Wrong bytes values fetched: [%d]byte != [%d]byte", len(b), len(b1))
 	}
 
