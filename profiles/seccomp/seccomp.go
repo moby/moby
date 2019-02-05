@@ -96,21 +96,6 @@ func setupSeccomp(config *types.Seccomp, rs *specs.Spec) (*specs.LinuxSeccomp, e
 
 	newConfig.DefaultAction = specs.LinuxSeccompAction(config.DefaultAction)
 
-	var currentKernelVersion *kernel.VersionInfo
-	kernelGreaterEqualThan := func(v string) (bool, error) {
-		version, err := kernel.ParseRelease(v)
-		if err != nil {
-			return false, err
-		}
-		if currentKernelVersion == nil {
-			currentKernelVersion, err = kernel.GetKernelVersion()
-			if err != nil {
-				return false, err
-			}
-		}
-		return kernel.CompareKernelVersion(*version, *currentKernelVersion) <= 0, nil
-	}
-
 Loop:
 	// Loop through all syscall blocks and convert them to libcontainer format after filtering them
 	for _, call := range config.Syscalls {
@@ -187,4 +172,20 @@ func createSpecsSyscall(name string, action types.Action, args []*types.Arg) spe
 		newCall.Args = append(newCall.Args, newArg)
 	}
 	return newCall
+}
+
+var currentKernelVersion *kernel.VersionInfo
+
+func kernelGreaterEqualThan(v string) (bool, error) {
+	version, err := kernel.ParseRelease(v)
+	if err != nil {
+		return false, err
+	}
+	if currentKernelVersion == nil {
+		currentKernelVersion, err = kernel.GetKernelVersion()
+		if err != nil {
+			return false, err
+		}
+	}
+	return kernel.CompareKernelVersion(*version, *currentKernelVersion) <= 0, nil
 }
