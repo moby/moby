@@ -360,7 +360,7 @@ func DefaultProfile() *types.Seccomp {
 			Names:  []string{"ptrace"},
 			Action: types.ActAllow,
 			Includes: types.Filter{
-				MinKernel: "4.8.0",
+				MinKernel: "4.8",
 			},
 		},
 		{
