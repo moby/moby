@@ -23,7 +23,9 @@ type HNSEndpoint struct {
 	DisableICC         bool              `json:",omitempty"`
 	PrefixLength       uint8             `json:",omitempty"`
 	IsRemoteEndpoint   bool              `json:",omitempty"`
+	EnableLowMetric    bool              `json:",omitempty"`
 	Namespace          *Namespace        `json:",omitempty"`
+	EncapOverhead      uint16            `json:",omitempty"`
 }
 
 //SystemType represents the type of the system on which actions are done

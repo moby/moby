@@ -1,6 +1,8 @@
 package guestrequest
 
-import "github.com/Microsoft/hcsshim/internal/schema2"
+import (
+	"github.com/Microsoft/hcsshim/internal/schema2"
+)
 
 // Arguably, many of these (at least CombinedLayers) should have been generated
 // by swagger.
@@ -45,6 +47,19 @@ type LCOWMappedDirectory struct {
 type LCOWMappedVPMemDevice struct {
 	DeviceNumber uint32 `json:"DeviceNumber,omitempty"`
 	MountPath    string `json:"MountPath,omitempty"` // /tmp/pN
+}
+
+type LCOWNetworkAdapter struct {
+	NamespaceID     string `json:",omitempty"`
+	ID              string `json:",omitempty"`
+	MacAddress      string `json:",omitempty"`
+	IPAddress       string `json:",omitempty"`
+	PrefixLength    uint8  `json:",omitempty"`
+	GatewayAddress  string `json:",omitempty"`
+	DNSSuffix       string `json:",omitempty"`
+	DNSServerList   string `json:",omitempty"`
+	EnableLowMetric bool   `json:",omitempty"`
+	EncapOverhead   uint16 `json:",omitempty"`
 }
 
 type ResourceType string

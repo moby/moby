@@ -7,17 +7,25 @@ import (
 
 // CreateLayer creates a new, empty, read-only layer on the filesystem based on
 // the parent layer provided.
-func CreateLayer(path, parent string) error {
-	title := "hcsshim::CreateLayer "
-	logrus.Debugf(title+"ID %s parent %s", path, parent)
-
-	err := createLayer(&stdDriverInfo, path, parent)
-	if err != nil {
-		err = hcserror.Errorf(err, title, "path=%s parent=%s", path, parent)
-		logrus.Error(err)
-		return err
+func CreateLayer(path, parent string) (err error) {
+	title := "hcsshim::CreateLayer"
+	fields := logrus.Fields{
+		"parent": parent,
+		"path":   path,
 	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
-	logrus.Debugf(title+"- succeeded path=%s parent=%s", path, parent)
+	err = createLayer(&stdDriverInfo, path, parent)
+	if err != nil {
+		return hcserror.New(err, title+" - failed", "")
+	}
 	return nil
 }
