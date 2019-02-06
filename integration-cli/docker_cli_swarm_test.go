@@ -116,7 +116,7 @@ func (s *DockerSwarmSuite) TestSwarmInit(c *check.C) {
 	c.Assert(spec.CAConfig.ExternalCAs[0].CACert, checker.Equals, "")
 	c.Assert(spec.CAConfig.ExternalCAs[1].CACert, checker.Equals, string(expected))
 
-	c.Assert(d.SwarmLeave(true), checker.IsNil)
+	c.Assert(d.SwarmLeave(c, true), checker.IsNil)
 	cli.Docker(cli.Args("swarm", "init"), cli.Daemon(d)).Assert(c, icmd.Success)
 
 	spec = getSpec()
@@ -426,7 +426,7 @@ func (s *DockerSwarmSuite) TestOverlayAttachableOnSwarmLeave(c *check.C) {
 	c.Assert(err, checker.IsNil, check.Commentf("%s", out))
 
 	// Leave the swarm
-	c.Assert(d.SwarmLeave(true), checker.IsNil)
+	c.Assert(d.SwarmLeave(c, true), checker.IsNil)
 
 	// Check the container is disconnected
 	out, err = d.Cmd("inspect", "c1", "--format", "{{.NetworkSettings.Networks."+nwName+"}}")
