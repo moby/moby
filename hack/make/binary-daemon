@@ -20,6 +20,14 @@ copy_binaries() {
 			hash_files "$dir/$file"
 		fi
 	done
+
+	# vpnkit is amd64 only
+	if which "vpnkit.$(uname -m)" 2>&1 >/dev/null; then
+		cp -f `which "vpnkit.$(uname -m)"` "$dir/vpnkit"
+		if [ "$hash" == "hash" ]; then
+			hash_files "$dir/vpnkit"
+		fi
+	fi
 }
 
 [ -z "$KEEPDEST" ] && rm -rf "$DEST"
