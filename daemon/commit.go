@@ -155,7 +155,7 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		return "", err
 	}
 
-	id, err := daemon.imageService.CommitImage(backend.CommitConfig{
+	desc, err := daemon.imageService.CommitImage(ctx, backend.CommitConfig{
 		Author:              c.Author,
 		Comment:             c.Comment,
 		Config:              newConfig,
@@ -171,16 +171,16 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 
 	var imageRef string
 	if c.Repo != "" {
-		imageRef, err = daemon.imageService.TagImage(ctx, string(id), c.Repo, c.Tag)
+		imageRef, err = daemon.imageService.TagImage(ctx, string(desc.Digest), c.Repo, c.Tag)
 		if err != nil {
 			return "", err
 		}
 	}
 	daemon.LogContainerEventWithAttributes(container, "commit", map[string]string{
 		"comment":  c.Comment,
-		"imageID":  id.String(),
+		"imageID":  desc.Digest.String(),
 		"imageRef": imageRef,
 	})
 	containerActions.WithValues("commit").UpdateSince(start)
-	return id.String(), nil
+	return desc.Digest.String(), nil
 }

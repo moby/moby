@@ -95,39 +95,50 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 	}
 
 	for _, img := range imgs {
-		ref, err := reference.Parse(img.Name)
-		if err != nil {
-			log.G(ctx).WithError(err).WithField("name", img.Name).Debug("skipping invalid image name")
-			continue
-		}
+		var (
+			named reference.Named
+			id    ocispec.Descriptor
+		)
 
-		named, hasName := ref.(reference.Named)
+		if danglingID, ok := img.Labels[LabelImageDangling]; !ok {
+			ref, err := reference.Parse(img.Name)
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("name", img.Name).Debug("skipping invalid image name")
+				continue
+			}
+			var ok bool
+			named, ok = ref.(reference.Named)
+			if !ok {
+				log.G(ctx).WithField("name", img.Name).Debug("skipping invalid image name with no name component")
+				continue
+			}
+		} else {
+			dgst, err := digest.Parse(danglingID)
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("id", danglingID).Debug("skipping invalid image id label (dangling)")
+				continue
+			}
+			id = ocispec.Descriptor{
+				MediaType: ocispec.MediaTypeImageConfig,
+				Digest:    dgst,
+			}
+		}
 
 		ci := c.tCache[img.Target.Digest]
 		if ci == nil {
-			var id ocispec.Descriptor
-			if !hasName {
-				digested, ok := ref.(reference.Digested)
-				if ok {
-					id = ocispec.Descriptor{
-						MediaType: ocispec.MediaTypeImageConfig,
-						Digest:    digested.Digest(),
-					}
-				}
-			}
 			if img.Target.MediaType == images.MediaTypeDockerSchema2Config || img.Target.MediaType == ocispec.MediaTypeImageConfig {
 				id = img.Target
-
 			}
 			if id.Digest == "" {
 				idstr, ok := img.Labels[LabelImageID]
 				if !ok {
 					cs := i.client.ContentStore()
 					// TODO(containerd): resolve architecture from context
+					// TODO(containerd): support multi-platform images
 					platform := platforms.Default()
 					desc, err := images.Config(ctx, cs, img.Target, platform)
 					if err != nil {
-						log.G(ctx).WithError(err).WithField("name", img.Name).Debug("TODO: no label")
+						log.G(ctx).WithError(err).WithField("name", img.Name).Debug("unable to resolve image config for platform")
 						continue
 					}
 					id = desc
@@ -163,7 +174,7 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 			}
 			c.tCache[img.Target.Digest] = ci
 		}
-		if hasName {
+		if named != nil {
 			ci.addReference(named)
 		}
 	}
