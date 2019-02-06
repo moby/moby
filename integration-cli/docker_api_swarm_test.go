@@ -47,7 +47,7 @@ func (s *DockerSwarmSuite) TestAPISwarmInit(c *check.C) {
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
 
 	// Leaving cluster
-	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	c.Assert(d2.SwarmLeave(c, false), checker.IsNil)
 
 	info = d2.SwarmInfo(c)
 	c.Assert(info.ControlAvailable, checker.False)
@@ -115,7 +115,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	})
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	c.Assert(d2.SwarmLeave(c, false), checker.IsNil)
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
@@ -137,7 +137,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	d2.SwarmJoin(c, swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.SwarmListenAddr()}})
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	c.Assert(d2.SwarmLeave(c, false), checker.IsNil)
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 
@@ -156,7 +156,7 @@ func (s *DockerSwarmSuite) TestAPISwarmJoinToken(c *check.C) {
 	d2.SwarmJoin(c, swarm.JoinRequest{JoinToken: workerToken, RemoteAddrs: []string{d1.SwarmListenAddr()}})
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
-	c.Assert(d2.SwarmLeave(false), checker.IsNil)
+	c.Assert(d2.SwarmLeave(c, false), checker.IsNil)
 	info = d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateInactive)
 }
@@ -423,8 +423,8 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveRemovesContainer(c *check.C) {
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, instances+1)
 
-	c.Assert(d.SwarmLeave(false), checker.NotNil)
-	c.Assert(d.SwarmLeave(true), checker.IsNil)
+	c.Assert(d.SwarmLeave(c, false), checker.NotNil)
+	c.Assert(d.SwarmLeave(c, true), checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckActiveContainerCount, checker.Equals, 1)
 
@@ -454,7 +454,7 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaveOnPendingJoin(c *check.C) {
 	info := d2.SwarmInfo(c)
 	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStatePending)
 
-	c.Assert(d2.SwarmLeave(true), checker.IsNil)
+	c.Assert(d2.SwarmLeave(c, true), checker.IsNil)
 
 	waitAndAssert(c, defaultReconciliationTimeout, d2.CheckActiveContainerCount, checker.Equals, 1)
 
@@ -874,7 +874,7 @@ func (s *DockerSwarmSuite) TestAPISwarmServicesUpdateWithName(c *check.C) {
 // Unlocking an unlocked swarm results in an error
 func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *check.C) {
 	d := s.AddDaemon(c, true, true)
-	err := d.SwarmUnlock(swarm.UnlockRequest{UnlockKey: "wrong-key"})
+	err := d.SwarmUnlock(c, swarm.UnlockRequest{UnlockKey: "wrong-key"})
 	c.Assert(err, checker.NotNil)
 	c.Assert(err.Error(), checker.Contains, "swarm is not locked")
 }
