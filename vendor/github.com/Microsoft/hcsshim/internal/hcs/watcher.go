@@ -1,7 +1,7 @@
 package hcs
 
 import (
-	"time"
+	"context"
 
 	"github.com/Microsoft/hcsshim/internal/logfields"
 	"github.com/Microsoft/hcsshim/internal/timeout"
@@ -17,17 +17,25 @@ import (
 //
 // Usage is:
 //
-// completed := false
-// go syscallWatcher(context, &completed)
-// <syscall>
-// completed = true
+// syscallWatcher(logContext, func() {
+//    err = <syscall>(args...)
+// })
 //
-func syscallWatcher(context logrus.Fields, syscallCompleted *bool) {
-	time.Sleep(timeout.SyscallWatcher)
-	if *syscallCompleted {
-		return
+
+func syscallWatcher(logContext logrus.Fields, syscallLambda func()) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout.SyscallWatcher)
+	defer cancel()
+	go watchFunc(ctx, logContext)
+	syscallLambda()
+}
+
+func watchFunc(ctx context.Context, logContext logrus.Fields) {
+	select {
+	case <-ctx.Done():
+		if ctx.Err() != context.Canceled {
+			logrus.WithFields(logContext).
+				WithField(logfields.Timeout, timeout.SyscallWatcher).
+				Warning("Syscall did not complete within operation timeout. This may indicate a platform issue. If it appears to be making no forward progress, obtain the stacks and see if there is a syscall stuck in the platform API for a significant length of time.")
+		}
 	}
-	logrus.WithFields(context).
-		WithField(logfields.Timeout, timeout.SyscallWatcher).
-		Warning("Syscall did not complete within operation timeout. This may indicate a platform issue. If it appears to be making no forward progress, obtain the stacks and see if there is a syscall stuck in the platform API for a significant length of time.")
 }

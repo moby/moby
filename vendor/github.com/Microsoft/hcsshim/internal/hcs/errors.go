@@ -73,6 +73,9 @@ var (
 	// ErrVmcomputeUnknownMessage is an error encountered guest compute system doesn't support the message
 	ErrVmcomputeUnknownMessage = syscall.Errno(0xc037010b)
 
+	// ErrVmcomputeUnexpectedExit is an error encountered when the compute system terminates unexpectedly
+	ErrVmcomputeUnexpectedExit = syscall.Errno(0xC0370106)
+
 	// ErrNotSupported is an error encountered when hcs doesn't support the request
 	ErrPlatformNotSupported = errors.New("unsupported platform request")
 )
