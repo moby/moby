@@ -2,6 +2,8 @@
 
 # When updating RUNC_COMMIT, also update runc in vendor.conf accordingly
 RUNC_COMMIT=69663f0bd4b60df09991c08812a60108003fa340
+RUNC_OVERRIDE_COMMIT=a592beb5bc4c4092b1b1bac971afed27687340c5
+RUNC_BUNDLE=/go/src/github.com/docker/docker/git-bundles/CVE-2019-5736.bundle
 
 install_runc() {
 	# Do not build with ambient capabilities support
@@ -11,12 +13,26 @@ install_runc() {
 	git clone https://github.com/opencontainers/runc.git "$GOPATH/src/github.com/opencontainers/runc"
 	cd "$GOPATH/src/github.com/opencontainers/runc"
 	git checkout -q "$RUNC_COMMIT"
+
+	if [ -f "$RUNC_BUNDLE" ];then
+		git bundle unbundle "$RUNC_BUNDLE"
+		git checkout -q "$RUNC_OVERRIDE_COMMIT"
+		if [ "$(git rev-parse HEAD)" != "$RUNC_OVERRIDE_COMMIT" ]; then
+			echo "ERROR: Commit with bundle does not match override commit"
+			echo "       $(git rev-parse HEAD) != '$RUNC_OVERRIDE_COMMIT'"
+			exit 1
+		fi
+		RUNC_COMMIT=$RUNC_OVERRIDE_COMMIT
+	fi
+
 	if [ -z "$1" ]; then
 		target=static
 	else
 		target="$1"
 	fi
-	make BUILDTAGS="$RUNC_BUILDTAGS" "$target"
+
+	OVERRIDE_VERSION="1.0.0-rc5+dev.docker-18.06"
+	make BUILDTAGS="$RUNC_BUILDTAGS" COMMIT="$RUNC_COMMIT" VERSION="$OVERRIDE_VERSION" "$target"
 	mkdir -p ${PREFIX}
 	cp runc ${PREFIX}/docker-runc
 }
