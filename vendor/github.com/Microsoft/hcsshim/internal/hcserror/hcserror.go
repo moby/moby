@@ -36,10 +36,6 @@ func New(err error, title, rest string) error {
 	return &HcsError{title, rest, err}
 }
 
-func Errorf(err error, title, format string, a ...interface{}) error {
-	return New(err, title, fmt.Sprintf(format, a...))
-}
-
 func Win32FromError(err error) uint32 {
 	if herr, ok := err.(*HcsError); ok {
 		return Win32FromError(herr.Err)
