@@ -164,6 +164,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	if cli.Config.ContainerdAddr == "" && runtime.GOOS != "windows" {
 		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
 		if err != nil {
+			cancel()
 			return errors.Wrap(err, "could not determine whether the system containerd is running")
 		}
 		if !ok {
