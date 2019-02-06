@@ -20,6 +20,7 @@
 package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
+	"context"
 	"reflect"
 	"runtime"
 	"strconv"
@@ -105,6 +106,7 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 
 // dispatchState is a data object which is modified by dispatchers
 type dispatchState struct {
+	ctx             context.Context
 	runConfig       *container.Config
 	maintainer      string
 	cmdSet          bool
@@ -115,10 +117,10 @@ type dispatchState struct {
 	operatingSystem string
 }
 
-func newDispatchState(baseArgs *BuildArgs) *dispatchState {
+func newDispatchState(ctx context.Context, baseArgs *BuildArgs) *dispatchState {
 	args := baseArgs.Clone()
 	args.ResetAllowed()
-	return &dispatchState{runConfig: &container.Config{}, buildArgs: args}
+	return &dispatchState{ctx: ctx, runConfig: &container.Config{}, buildArgs: args}
 }
 
 type stagesBuildResults struct {
@@ -195,7 +197,7 @@ type dispatchRequest struct {
 
 func newDispatchRequest(builder *Builder, escapeToken rune, source builder.Source, buildArgs *BuildArgs, stages *stagesBuildResults) dispatchRequest {
 	return dispatchRequest{
-		state:   newDispatchState(buildArgs),
+		state:   newDispatchState(builder.clientCtx, buildArgs),
 		shlex:   shell.NewLex(escapeToken),
 		builder: builder,
 		source:  source,

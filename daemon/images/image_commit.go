@@ -1,26 +1,81 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"strings"
+	"time"
 
+	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/system"
+	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
 // CommitImage creates a new image from a commit config
-func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) (ocispec.Descriptor, error) {
+	cache, err := i.getCache(ctx)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	var img struct {
+		ocispec.Image
+
+		// Overwrite config for custom Docker fields
+		Container       string            `json:"container,omitempty"`
+		ContainerConfig container.Config  `json:"container_config,omitempty"`
+		Config          *container.Config `json:"config,omitempty"`
+
+		Comment    string   `json:"comment,omitempty"`
+		OSVersion  string   `json:"os.version,omitempty"`
+		OSFeatures []string `json:"os.features,omitempty"`
+		Variant    string   `json:"variant,omitempty"`
+		// TODO: Overwrite this with a label from config
+		DockerVersion string `json:"docker_version,omitempty"`
+	}
+
+	if c.ParentImageID == "" {
+		img.RootFS.Type = "layers"
+	} else {
+		cache.m.RLock()
+		pci, ok := cache.idCache[digest.Digest(c.ParentImageID)]
+		cache.m.RUnlock()
+
+		if !ok {
+			return ocispec.Descriptor{}, errors.Wrap(errdefs.ErrNotFound, "parent not found")
+		}
+
+		b, err := content.ReadBlob(ctx, i.client.ContentStore(), pci.config)
+		if err != nil {
+			return ocispec.Descriptor{}, errors.Wrap(err, "unable to read config")
+		}
+
+		if err := json.Unmarshal(b, &img); err != nil {
+			return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal config")
+		}
+	}
+
 	layerStore, ok := i.layerStores[c.ContainerOS]
 	if !ok {
-		return "", system.ErrNotSupportedOperatingSystem
+		return ocispec.Descriptor{}, system.ErrNotSupportedOperatingSystem
 	}
 	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
-		return "", err
+		return ocispec.Descriptor{}, err
 	}
 	defer func() {
 		if rwTar != nil {
@@ -28,48 +83,102 @@ func (i *ImageService) CommitImage(c backend.CommitConfig) (image.ID, error) {
 		}
 	}()
 
-	var parent *image.Image
-	if c.ParentImageID == "" {
-		parent = new(image.Image)
-		parent.RootFS = image.NewRootFS()
+	// TODO(containerd): Tee compressed output to content store
+	// for generation of the manifest.
+	l, err := layerStore.Register(rwTar, layer.ChainID(identity.ChainID(img.RootFS.DiffIDs)))
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	created := time.Now().UTC()
+	diffID := l.DiffID()
+
+	img.Created = &created
+
+	isEmptyLayer := layer.IsEmpty(diffID)
+	if !isEmptyLayer {
+		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(diffID))
+	}
+	img.History = append(img.History, ocispec.History{
+		Author:     c.Author,
+		Created:    &created,
+		CreatedBy:  strings.Join(c.ContainerConfig.Cmd, " "),
+		Comment:    c.Comment,
+		EmptyLayer: isEmptyLayer,
+	})
+
+	img.DockerVersion = dockerversion.Version
+	img.Author = c.Author
+	img.Comment = c.Comment
+	if img.OS == "" {
+		img.OS = c.ContainerOS
+	}
+	img.Container = c.ContainerID
+	img.Config = c.Config
+	img.ContainerConfig = *c.ContainerConfig
+
+	config, err := json.Marshal(img)
+	if err != nil {
+		layer.ReleaseAndLog(layerStore, l)
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal committed image")
+	}
+
+	desc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageConfig,
+		Digest:    digest.FromBytes(config),
+		Size:      int64(len(config)),
+	}
+
+	// TODO(containerd): Add labels (parent, etc)
+	ref := fmt.Sprintf("config-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
+	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc); err != nil {
+		layer.ReleaseAndLog(layerStore, l)
+		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store config")
+	}
+
+	// Create a dangling image
+	_, err = i.client.ImageService().Create(ctx, images.Image{
+		Name:      desc.Digest.String(),
+		Target:    desc,
+		CreatedAt: created,
+		UpdatedAt: created,
+		Labels: map[string]string{
+			LabelImageDangling: desc.Digest.String(),
+		},
+	})
+	if err != nil {
+		layer.ReleaseAndLog(layerStore, l)
+		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store image")
+	}
+
+	cache.m.Lock()
+	if _, ok := cache.idCache[desc.Digest]; !ok {
+		ci := &cachedImage{
+			config: desc,
+			parent: digest.Digest(c.ParentImageID),
+			layer:  l,
+		}
+		cache.idCache[desc.Digest] = ci
+
+		// TODO(containerd): Refer to manifest here
+		cache.tCache[desc.Digest] = ci
+
+		if ci.parent != "" {
+			pci, ok := cache.idCache[ci.parent]
+			if ok {
+				pci.m.Lock()
+				pci.children = append(pci.children, desc.Digest)
+				pci.m.Unlock()
+			}
+		}
 	} else {
-		parent, err = i.imageStore.Get(image.ID(c.ParentImageID))
-		if err != nil {
-			return "", err
-		}
+		// Image already exists, don't hold onto layer
+		defer layer.ReleaseAndLog(layerStore, l)
 	}
 
-	l, err := layerStore.Register(rwTar, parent.RootFS.ChainID())
-	if err != nil {
-		return "", err
-	}
-	defer layer.ReleaseAndLog(layerStore, l)
+	cache.m.Unlock()
 
-	// TODO(containerd): put in containerd's image store
-	cc := image.ChildConfig{
-		ContainerID:     c.ContainerID,
-		Author:          c.Author,
-		Comment:         c.Comment,
-		ContainerConfig: c.ContainerConfig,
-		Config:          c.Config,
-		DiffID:          l.DiffID(),
-	}
-	config, err := json.Marshal(image.NewChildImage(parent, cc, c.ContainerOS))
-	if err != nil {
-		return "", err
-	}
-
-	id, err := i.imageStore.Create(config)
-	if err != nil {
-		return "", err
-	}
-
-	if c.ParentImageID != "" {
-		if err := i.imageStore.SetParent(id, image.ID(c.ParentImageID)); err != nil {
-			return "", err
-		}
-	}
-	return id, nil
+	return desc, nil
 }
 
 func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, err error) {
@@ -115,7 +224,7 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //   * it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
 	container := i.containers.Get(c.ContainerID)
 	if container == nil {
 		// TODO: use typed error
@@ -124,5 +233,9 @@ func (i *ImageService) CommitBuildStep(c backend.CommitConfig) (image.ID, error)
 	c.ContainerMountLabel = container.MountLabel
 	c.ContainerOS = container.OS
 	c.ParentImageID = string(container.ImageID)
-	return i.CommitImage(c)
+	desc, err := i.CommitImage(ctx, c)
+	if err != nil {
+		return "", err
+	}
+	return image.ID(desc.Digest.String()), nil
 }

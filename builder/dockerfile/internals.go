@@ -106,7 +106,7 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 		ContainerID:     id,
 	}
 
-	imageID, err := b.docker.CommitBuildStep(commitCfg)
+	imageID, err := b.docker.CommitBuildStep(dispatchState.ctx, commitCfg)
 	dispatchState.imageID = string(imageID)
 	return err
 }

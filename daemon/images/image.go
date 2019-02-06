@@ -20,6 +20,10 @@ import (
 const (
 	LabelImageID     = "docker.io/image.id"
 	LabelImageParent = "docker.io/image.parent"
+
+	// LabelImageDangling refers to images with no name
+	// Stored on images and points to the image config digest
+	LabelImageDangling = "docker.io/image.dangling"
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
