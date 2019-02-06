@@ -5,12 +5,13 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"gotest.tools/assert"
 	"gotest.tools/poll"
 )
 
 // PluginIsRunning provides a poller to check if the specified plugin is running
-func (d *Daemon) PluginIsRunning(name string) func(poll.LogT) poll.Result {
-	return withClient(d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsRunning(t assert.TestingT, name string) func(poll.LogT) poll.Result {
+	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.Enabled {
 			return poll.Success()
 		}
@@ -19,8 +20,8 @@ func (d *Daemon) PluginIsRunning(name string) func(poll.LogT) poll.Result {
 }
 
 // PluginIsNotRunning provides a poller to check if the specified plugin is not running
-func (d *Daemon) PluginIsNotRunning(name string) func(poll.LogT) poll.Result {
-	return withClient(d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsNotRunning(t assert.TestingT, name string) func(poll.LogT) poll.Result {
+	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if !plugin.Enabled {
 			return poll.Success()
 		}
@@ -29,8 +30,8 @@ func (d *Daemon) PluginIsNotRunning(name string) func(poll.LogT) poll.Result {
 }
 
 // PluginIsNotPresent provides a poller to check if the specified plugin is not present
-func (d *Daemon) PluginIsNotPresent(name string) func(poll.LogT) poll.Result {
-	return withClient(d, func(c client.APIClient, t poll.LogT) poll.Result {
+func (d *Daemon) PluginIsNotPresent(t assert.TestingT, name string) func(poll.LogT) poll.Result {
+	return withClient(t, d, func(c client.APIClient, t poll.LogT) poll.Result {
 		_, _, err := c.PluginInspectWithRaw(context.Background(), name)
 		if client.IsErrNotFound(err) {
 			return poll.Success()
@@ -43,8 +44,8 @@ func (d *Daemon) PluginIsNotPresent(name string) func(poll.LogT) poll.Result {
 }
 
 // PluginReferenceIs provides a poller to check if the specified plugin has the specified reference
-func (d *Daemon) PluginReferenceIs(name, expectedRef string) func(poll.LogT) poll.Result {
-	return withClient(d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+func (d *Daemon) PluginReferenceIs(t assert.TestingT, name, expectedRef string) func(poll.LogT) poll.Result {
+	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.PluginReference == expectedRef {
 			return poll.Success()
 		}
@@ -66,12 +67,9 @@ func withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result
 
 }
 
-func withClient(d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {
-	return func(t poll.LogT) poll.Result {
-		c, err := d.NewClient()
-		if err != nil {
-			poll.Error(err)
-		}
-		return f(c, t)
+func withClient(t assert.TestingT, d *Daemon, f func(client.APIClient, poll.LogT) poll.Result) func(poll.LogT) poll.Result {
+	return func(pt poll.LogT) poll.Result {
+		c := d.NewClientT(t)
+		return f(c, pt)
 	}
 }

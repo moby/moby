@@ -165,16 +165,7 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 	return ioutil.ReadFile(d.logFile.Name())
 }
 
-// NewClient creates new client based on daemon's socket path
-// FIXME(vdemeester): replace NewClient with NewClientT
-func (d *Daemon) NewClient() (*client.Client, error) {
-	return client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithHost(d.Sock()))
-}
-
 // NewClientT creates new client based on daemon's socket path
-// FIXME(vdemeester): replace NewClient with NewClientT
 func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()

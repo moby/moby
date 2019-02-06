@@ -365,7 +365,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 
 	err = cli.ServiceRemove(context.Background(), serviceID)
 	assert.NilError(t, err)
-	d.SwarmLeave(true)
+	d.SwarmLeave(t, true)
 	d.Stop(t)
 
 	// Clean up , set it back to original one to make sure other tests don't fail
@@ -373,6 +373,6 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
 	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
 	d = swarm.NewSwarm(t, testEnv, ops...)
-	d.SwarmLeave(true)
+	d.SwarmLeave(t, true)
 	defer d.Stop(t)
 }
