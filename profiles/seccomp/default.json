@@ -374,7 +374,7 @@
 			"args": null,
 			"comment": "",
 			"includes": {
-				"minKernel": "4.8.0"
+				"minKernel": "4.8"
 			},
 			"excludes": {}
 		},
