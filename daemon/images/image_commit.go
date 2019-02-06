@@ -129,9 +129,15 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		Size:      int64(len(config)),
 	}
 
-	// TODO(containerd): Add labels (parent, etc)
+	opts := []content.Opt{}
+
+	if c.ParentImageID != "" {
+		opts = append(opts, content.WithLabels(map[string]string{
+			LabelImageParent: c.ParentImageID,
+		}))
+	}
 	ref := fmt.Sprintf("config-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
-	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc); err != nil {
+	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc, opts...); err != nil {
 		layer.ReleaseAndLog(layerStore, l)
 		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store config")
 	}

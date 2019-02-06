@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"runtime"
 	"sync"
 
 	"github.com/containerd/containerd/images"
@@ -14,6 +15,7 @@ import (
 	buildcache "github.com/docker/docker/image/cache"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
@@ -168,11 +170,24 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 						ci.parent = pid
 					}
 				}
+				diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), ci.config)
+				if err != nil {
+					log.G(ctx).WithError(err).WithField("name", img.Name).Debug("unable to load image rootfs")
+					continue
+				}
+				// TODO(containerd): choose correct platform
+				ci.layer, err = i.layerStores[runtime.GOOS].Get(layer.ChainID(identity.ChainID(diffIDs)))
+				if err != nil {
+					log.G(ctx).WithError(err).WithField("name", img.Name).Debug("no layer for image")
+					continue
+				}
 
 				c.idCache[id.Digest] = ci
 				c.ids.Add(id.Digest)
 			}
 			c.tCache[img.Target.Digest] = ci
+
+			// Load image layer to prevent removal
 		}
 		if named != nil {
 			ci.addReference(named)

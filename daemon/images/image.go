@@ -18,7 +18,12 @@ import (
 )
 
 const (
-	LabelImageID     = "docker.io/image.id"
+	// LabelImageID refers to the image ID used by Docker
+	// Deprecate this to support multi-arch images
+	LabelImageID = "docker.io/image.id"
+
+	// LabelImageParent is Docker's parent image ID
+	// Stored on the image config blob
 	LabelImageParent = "docker.io/image.parent"
 
 	// LabelImageDangling refers to images with no name
