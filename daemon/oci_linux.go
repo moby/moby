@@ -681,13 +681,7 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	s.Process.Terminal = c.Config.Tty
 
 	s.Hostname = c.Config.Hostname
-	// There isn't a field in the OCI for the NIS domainname, but luckily there
-	// is a sysctl which has an identical effect to setdomainname(2) so there's
-	// no explicit need for runtime support.
-	s.Linux.Sysctl = make(map[string]string)
-	if c.Config.Domainname != "" {
-		s.Linux.Sysctl["kernel.domainname"] = c.Config.Domainname
-	}
+	setLinuxDomainname(c, s)
 
 	return nil
 }

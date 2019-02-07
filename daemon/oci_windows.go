@@ -43,9 +43,6 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// this is done in VMCompute. Further, we couldn't do it for Hyper-V
 	// containers anyway.
 
-	// In base spec
-	s.Hostname = c.FullHostname()
-
 	if err := daemon.setupSecretDir(c); err != nil {
 		return nil, err
 	}
@@ -128,8 +125,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// In s.Process
 	s.Process.Cwd = c.Config.WorkingDir
 	s.Process.Env = c.CreateDaemonEnvironment(c.Config.Tty, linkedEnv)
+	s.Process.Terminal = c.Config.Tty
+
 	if c.Config.Tty {
-		s.Process.Terminal = c.Config.Tty
 		s.Process.ConsoleSize = &specs.Box{
 			Height: c.HostConfig.ConsoleSize[0],
 			Width:  c.HostConfig.ConsoleSize[1],
@@ -227,6 +225,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 // Sets the Windows-specific fields of the OCI spec
 func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.Spec, isHyperV bool) error {
+
+	s.Hostname = c.FullHostname()
 
 	if len(s.Process.Cwd) == 0 {
 		// We default to C:\ to workaround the oddity of the case that the
@@ -360,13 +360,20 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 // TODO: @jhowardmsft LCOW Support. We need to do a lot more pulling in what can
 // be pulled in from oci_linux.go.
 func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spec) error {
+	s.Root = &specs.Root{
+		Path:     "rootfs",
+		Readonly: c.HostConfig.ReadonlyRootfs,
+	}
+
+	s.Hostname = c.Config.Hostname
+	setLinuxDomainname(c, s)
+
 	if len(s.Process.Cwd) == 0 {
 		s.Process.Cwd = `/`
 	}
 	s.Process.Args = append([]string{c.Path}, c.Args...)
-	s.Root.Path = "rootfs"
-	s.Root.Readonly = c.HostConfig.ReadonlyRootfs
 
+	// Note these are against the UVM.
 	setResourcesInSpec(c, s, true) // LCOW is Hyper-V only
 
 	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
