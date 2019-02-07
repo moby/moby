@@ -2628,6 +2628,7 @@ definitions:
                     example: "0bt9dmxjvjiqermk6xrop3ekq"
                     description: |
                       Load credential spec from a Swarm Config with the given ID.
+                      The specified config must also be present in the Configs field with the Runtime property set.
 
                       <p><br /></p>
 
@@ -2768,7 +2769,12 @@ definitions:
               type: "object"
               properties:
                 File:
-                  description: "File represents a specific target that is backed by a file."
+                  description: |
+                    File represents a specific target that is backed by a file.
+
+                    <p><br /><p>
+
+                    > **Note**: `Configs.File` and `Configs.Runtime` are mutually exclusive
                   type: "object"
                   properties:
                     Name:
@@ -2784,6 +2790,14 @@ definitions:
                       description: "Mode represents the FileMode of the file."
                       type: "integer"
                       format: "uint32"
+                Runtime:
+                  description: |
+                    Runtime represents a target that is not mounted into the container but is used by the task
+
+                    <p><br /><p>
+
+                    > **Note**: `Configs.File` and `Configs.Runtime` are mutually exclusive
+                  type: "object"
                 ConfigID:
                   description: "ConfigID represents the ID of the specific config that we're referencing."
                   type: "string"
