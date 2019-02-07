@@ -180,3 +180,10 @@ func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
 		c.HostConfig.CgroupnsMode = containertypes.CgroupnsMode(mode)
 	}
 }
+
+// WithStdin sets the container's OpenStdin
+func WithStdin(stdin bool) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.OpenStdin = stdin
+	}
+}
