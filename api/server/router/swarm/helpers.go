@@ -9,6 +9,8 @@ import (
 	"github.com/docker/docker/api/server/httputils"
 	basictypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/docker/docker/api/types/versions"
 )
 
 // swarmLogs takes an http response, request, and selector, and writes the logs
@@ -63,4 +65,34 @@ func (sr *swarmRouter) swarmLogs(ctx context.Context, w io.Writer, r *http.Reque
 
 	httputils.WriteLogStream(ctx, w, msgs, logsConfig, !tty)
 	return nil
+}
+
+// adjustForAPIVersion takes a version and service spec and removes fields to
+// make the spec compatible with the specified version.
+func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
+	if cliVersion == "" {
+		return
+	}
+	if versions.LessThan(cliVersion, "1.40") {
+		if service.TaskTemplate.ContainerSpec != nil {
+			// Sysctls for docker swarm services weren't supported before
+			// API version 1.40
+			service.TaskTemplate.ContainerSpec.Sysctls = nil
+
+			if service.TaskTemplate.ContainerSpec.Privileges != nil && service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec != nil {
+				// Support for setting credential-spec through configs was added in API 1.40
+				service.TaskTemplate.ContainerSpec.Privileges.CredentialSpec.Config = ""
+			}
+			for _, config := range service.TaskTemplate.ContainerSpec.Configs {
+				// support for the Runtime target was added in API 1.40
+				config.Runtime = nil
+			}
+		}
+
+		if service.TaskTemplate.Placement != nil {
+			// MaxReplicas for docker swarm services weren't supported before
+			// API version 1.40
+			service.TaskTemplate.Placement.MaxReplicas = 0
+		}
+	}
 }

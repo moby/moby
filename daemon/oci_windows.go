@@ -289,18 +289,23 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 					return err
 				}
 			} else if match, csValue = getCredentialSpec("config://", splitsOpt[1]); match {
+				// if the container does not have a DependencyStore, then it
+				// isn't swarmkit managed. In order to avoid creating any
+				// impression that `config://` is a valid API, return the same
+				// error as if you'd passed any other random word.
+				if c.DependencyStore == nil {
+					return fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
+				}
+
+				// after this point, we can return regular swarmkit-relevant
+				// errors, because we'll know this container is managed.
 				if csValue == "" {
 					return fmt.Errorf("no value supplied for config:// credential spec security option")
 				}
 
-				// if the container does not have a DependencyStore, then we
-				// return an error
-				if c.DependencyStore == nil {
-					return fmt.Errorf("cannot use config:// credential spec security option if not swarmkit managed")
-				}
 				csConfig, err := c.DependencyStore.Configs().Get(csValue)
 				if err != nil {
-					return fmt.Errorf("error getting value from config store: %v", err)
+					return errors.Wrap(err, "error getting value from config store")
 				}
 				// stuff the resulting secret data into a string to use as the
 				// CredentialSpec

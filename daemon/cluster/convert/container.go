@@ -178,14 +178,26 @@ func secretReferencesFromGRPC(sr []*swarmapi.SecretReference) []*types.SecretRef
 	return refs
 }
 
-func configReferencesToGRPC(sr []*types.ConfigReference) []*swarmapi.ConfigReference {
+func configReferencesToGRPC(sr []*types.ConfigReference) ([]*swarmapi.ConfigReference, error) {
 	refs := make([]*swarmapi.ConfigReference, 0, len(sr))
 	for _, s := range sr {
 		ref := &swarmapi.ConfigReference{
 			ConfigID:   s.ConfigID,
 			ConfigName: s.ConfigName,
 		}
-		if s.File != nil {
+		switch {
+		case s.Runtime == nil && s.File == nil:
+			return nil, errors.New("either File or Runtime should be set")
+		case s.Runtime != nil && s.File != nil:
+			return nil, errors.New("cannot specify both File and Runtime")
+		case s.Runtime != nil:
+			// Runtime target was added in API v1.40 and takes precedence over
+			// File target. However, File and Runtime targets are mutually exclusive,
+			// so we should never have both.
+			ref.Target = &swarmapi.ConfigReference_Runtime{
+				Runtime: &swarmapi.RuntimeTarget{},
+			}
+		case s.File != nil:
 			ref.Target = &swarmapi.ConfigReference_File{
 				File: &swarmapi.FileTarget{
 					Name: s.File.Name,
@@ -199,28 +211,32 @@ func configReferencesToGRPC(sr []*types.ConfigReference) []*swarmapi.ConfigRefer
 		refs = append(refs, ref)
 	}
 
-	return refs
+	return refs, nil
 }
 
 func configReferencesFromGRPC(sr []*swarmapi.ConfigReference) []*types.ConfigReference {
 	refs := make([]*types.ConfigReference, 0, len(sr))
 	for _, s := range sr {
-		target := s.GetFile()
-		if target == nil {
-			// not a file target
-			logrus.Warnf("config target not a file: config=%s", s.ConfigID)
-			continue
+
+		r := &types.ConfigReference{
+			ConfigID:   s.ConfigID,
+			ConfigName: s.ConfigName,
 		}
-		refs = append(refs, &types.ConfigReference{
-			File: &types.ConfigReferenceFileTarget{
+		if target := s.GetRuntime(); target != nil {
+			r.Runtime = &types.ConfigReferenceRuntimeTarget{}
+		} else if target := s.GetFile(); target != nil {
+			r.File = &types.ConfigReferenceFileTarget{
 				Name: target.Name,
 				UID:  target.UID,
 				GID:  target.GID,
 				Mode: target.Mode,
-			},
-			ConfigID:   s.ConfigID,
-			ConfigName: s.ConfigName,
-		})
+			}
+		} else {
+			// not a file target
+			logrus.Warnf("config target not known: config=%s", s.ConfigID)
+			continue
+		}
+		refs = append(refs, r)
 	}
 
 	return refs
@@ -243,7 +259,6 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 		ReadOnly:   c.ReadOnly,
 		Hosts:      c.Hosts,
 		Secrets:    secretReferencesToGRPC(c.Secrets),
-		Configs:    configReferencesToGRPC(c.Configs),
 		Isolation:  isolationToGRPC(c.Isolation),
 		Init:       initToGRPC(c.Init),
 		Sysctls:    c.Sysctls,
@@ -282,6 +297,14 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 				Level:   c.Privileges.SELinuxContext.Level,
 			}
 		}
+	}
+
+	if c.Configs != nil {
+		configs, err := configReferencesToGRPC(c.Configs)
+		if err != nil {
+			return nil, errors.Wrap(err, "invalid Config")
+		}
+		containerSpec.Configs = configs
 	}
 
 	// Mounts

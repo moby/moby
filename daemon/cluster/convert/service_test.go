@@ -467,3 +467,147 @@ func TestTaskConvertFromGRPCNetworkAttachment(t *testing.T) {
 		t.Fatalf("expected Runtime to be %v", swarmtypes.RuntimeNetworkAttachment)
 	}
 }
+
+// TestServiceConvertFromGRPCConfigs tests that converting config references
+// from GRPC is correct
+func TestServiceConvertFromGRPCConfigs(t *testing.T) {
+	cases := []struct {
+		name string
+		from *swarmapi.ConfigReference
+		to   *swarmtypes.ConfigReference
+	}{
+		{
+			name: "file",
+			from: &swarmapi.ConfigReference{
+				ConfigID:   "configFile",
+				ConfigName: "configFile",
+				Target: &swarmapi.ConfigReference_File{
+					// skip mode, if everything else here works mode will too. otherwise we'd need to import os.
+					File: &swarmapi.FileTarget{Name: "foo", UID: "bar", GID: "baz"},
+				},
+			},
+			to: &swarmtypes.ConfigReference{
+				ConfigID:   "configFile",
+				ConfigName: "configFile",
+				File:       &swarmtypes.ConfigReferenceFileTarget{Name: "foo", UID: "bar", GID: "baz"},
+			},
+		},
+		{
+			name: "runtime",
+			from: &swarmapi.ConfigReference{
+				ConfigID:   "configRuntime",
+				ConfigName: "configRuntime",
+				Target:     &swarmapi.ConfigReference_Runtime{Runtime: &swarmapi.RuntimeTarget{}},
+			},
+			to: &swarmtypes.ConfigReference{
+				ConfigID:   "configRuntime",
+				ConfigName: "configRuntime",
+				Runtime:    &swarmtypes.ConfigReferenceRuntimeTarget{},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			grpcService := swarmapi.Service{
+				Spec: swarmapi.ServiceSpec{
+					Task: swarmapi.TaskSpec{
+						Runtime: &swarmapi.TaskSpec_Container{
+							Container: &swarmapi.ContainerSpec{
+								Configs: []*swarmapi.ConfigReference{tc.from},
+							},
+						},
+					},
+				},
+			}
+
+			engineService, err := ServiceFromGRPC(grpcService)
+			assert.NilError(t, err)
+			assert.DeepEqual(t,
+				engineService.Spec.TaskTemplate.ContainerSpec.Configs[0],
+				tc.to,
+			)
+		})
+	}
+}
+
+// TestServiceConvertToGRPCConfigs tests that converting config references to
+// GRPC is correct
+func TestServiceConvertToGRPCConfigs(t *testing.T) {
+	cases := []struct {
+		name        string
+		from        *swarmtypes.ConfigReference
+		to          *swarmapi.ConfigReference
+		expectedErr string
+	}{
+		{
+			name: "file",
+			from: &swarmtypes.ConfigReference{
+				ConfigID:   "configFile",
+				ConfigName: "configFile",
+				File:       &swarmtypes.ConfigReferenceFileTarget{Name: "foo", UID: "bar", GID: "baz"},
+			},
+			to: &swarmapi.ConfigReference{
+				ConfigID:   "configFile",
+				ConfigName: "configFile",
+				Target: &swarmapi.ConfigReference_File{
+					// skip mode, if everything else here works mode will too. otherwise we'd need to import os.
+					File: &swarmapi.FileTarget{Name: "foo", UID: "bar", GID: "baz"},
+				},
+			},
+		},
+		{
+			name: "runtime",
+			from: &swarmtypes.ConfigReference{
+				ConfigID:   "configRuntime",
+				ConfigName: "configRuntime",
+				Runtime:    &swarmtypes.ConfigReferenceRuntimeTarget{},
+			},
+			to: &swarmapi.ConfigReference{
+				ConfigID:   "configRuntime",
+				ConfigName: "configRuntime",
+				Target:     &swarmapi.ConfigReference_Runtime{Runtime: &swarmapi.RuntimeTarget{}},
+			},
+		},
+		{
+			name: "file and runtime",
+			from: &swarmtypes.ConfigReference{
+				ConfigID:   "fileAndRuntime",
+				ConfigName: "fileAndRuntime",
+				File:       &swarmtypes.ConfigReferenceFileTarget{},
+				Runtime:    &swarmtypes.ConfigReferenceRuntimeTarget{},
+			},
+			expectedErr: "invalid Config: cannot specify both File and Runtime",
+		},
+		{
+			name: "none",
+			from: &swarmtypes.ConfigReference{
+				ConfigID:   "none",
+				ConfigName: "none",
+			},
+			expectedErr: "invalid Config: either File or Runtime should be set",
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			engineServiceSpec := swarmtypes.ServiceSpec{
+				TaskTemplate: swarmtypes.TaskSpec{
+					ContainerSpec: &swarmtypes.ContainerSpec{
+						Configs: []*swarmtypes.ConfigReference{tc.from},
+					},
+				},
+			}
+
+			grpcServiceSpec, err := ServiceSpecToGRPC(engineServiceSpec)
+			if tc.expectedErr != "" {
+				assert.Error(t, err, tc.expectedErr)
+				return
+			}
+
+			assert.NilError(t, err)
+			taskRuntime := grpcServiceSpec.Task.Runtime.(*swarmapi.TaskSpec_Container)
+			assert.DeepEqual(t, taskRuntime.Container.Configs[0], tc.to)
+		})
+	}
+}
