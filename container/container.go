@@ -69,6 +69,7 @@ type Container struct {
 	Managed         bool
 	Path            string
 	Args            []string
+	AutoRange		swarmtypes.AutoRange
 	Config          *containertypes.Config
 	ImageID         image.ID `json:"Image"`
 	NetworkSettings *network.Settings

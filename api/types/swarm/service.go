@@ -2,6 +2,8 @@ package swarm // import "github.com/docker/docker/api/types/swarm"
 
 import "time"
 
+type AutoRange map[string]map[string]string
+
 // Service represents a service.
 type Service struct {
 	ID string
@@ -28,6 +30,7 @@ type ServiceSpec struct {
 	// This field will be removed in a future release.
 	Networks     []NetworkAttachmentConfig `json:",omitempty"`
 	EndpointSpec *EndpointSpec             `json:",omitempty"`
+	AutoRange	 AutoRange				   `json:",omitempty"`
 }
 
 // ServiceMode represents the mode of a service.

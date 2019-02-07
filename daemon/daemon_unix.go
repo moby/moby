@@ -1420,6 +1420,17 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		}
 	}
 
+	if len(c.AutoRange) > 0 {
+		sl := make(types.AutoRange)
+		for k := range c.AutoRange {
+			sl[k] = make(map[string]string)
+			for sk, sv := range c.AutoRange[k] {
+				sl[k][string(sk)] = sv
+			}
+		}
+		s.AutoRange = sl
+	}
+
 	return s, nil
 }
 
