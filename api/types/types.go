@@ -146,7 +146,7 @@ type Commit struct {
 // GET "/info"
 type Info struct {
 	ID                 string
-	Builder            BuilderVersion
+	Builder            string `json:",omitempty"`
 	Containers         int
 	ContainersRunning  int
 	ContainersPaused   int

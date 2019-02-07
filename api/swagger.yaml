@@ -3584,6 +3584,17 @@ definitions:
           > should not be considered stable.
         type: "string"
         example: "7TRN:IPZB:QYBB:VPBQ:UMPP:KARE:6ZNR:XE6T:7EWV:PKF4:ZOJD:TPYS"
+      Builder:
+        description: |
+          Default docker builder version as set in the daemon configuration. The
+          client should follow this version when performing a build, but is
+          allowed to choose a different version.
+
+          If this value is not set, or empty, it is up to the client to choose
+          which builder to use.
+        type: "string"
+        x-nullable: true
+        example: "2"
       Containers:
         description: "Total number of containers on the host."
         type: "integer"

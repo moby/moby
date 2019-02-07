@@ -52,8 +52,6 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		info.Swarm = s.cluster.Info()
 	}
 
-	info.Builder = build.BuilderVersion(*s.features)
-
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
 		// TODO: handle this conversion in engine-api
 		type oldInfo struct {
@@ -82,6 +80,9 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 		if info.OperatingSystem == "" {
 			info.OperatingSystem = "<unknown>"
 		}
+	}
+	if versions.GreaterThanOrEqualTo(httputils.VersionFromContext(ctx), "1.40") {
+		info.Builder = string(build.BuilderVersion(*s.features))
 	}
 	return httputils.WriteJSON(w, http.StatusOK, info)
 }

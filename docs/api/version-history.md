@@ -47,9 +47,10 @@ keywords: "API, Docker, rcli, REST, documentation"
   `BindOptions.NonRecursive`.
 * `POST /swarm/init` now accepts a `DataPathPort` property to set data path port number.
 * `GET /info` now returns information about `DataPathPort` that is currently used in swarm
+* `GET /info` now returns a `Builder` field, containing the default builder version
+  to use, if configured on the daemon.
 * `GET /info` now returns `PidsLimit` boolean to indicate if the host kernel has
   PID limit support enabled.
-
 * `GET /swarm` endpoint now returns DataPathPort info
 * `POST /containers/create` now takes `KernelMemoryTCP` field to set hard limit for kernel TCP buffer memory.
 * `GET /service` now  returns `MaxReplicas` as part of the `Placement`.
