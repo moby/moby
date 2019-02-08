@@ -68,6 +68,6 @@ func (i *ImageService) tagImage(ctx context.Context, img imageLink) error {
 	}
 
 	// TODO(containerd): Set last updated for target
-	i.LogImageEvent(img.target.Digest.String(), reference.FamiliarString(img.name), "tag")
+	i.LogImageEvent(ctx, img.target.Digest.String(), reference.FamiliarString(img.name), "tag")
 	return i.updateCache(ctx, img)
 }

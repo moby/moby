@@ -104,7 +104,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		}
 
 		deletedRefs = append(deletedRefs, parsedRef)
-		i.LogImageEvent(imgID, imgID, "untag")
+		i.LogImageEvent(ctx, imgID, imgID, "untag")
 
 		// If a tag reference was removed and the only remaining
 		// references to the same repository are digest references,
@@ -164,7 +164,7 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 			return nil, conflict
 		}
 
-		i.LogImageEvent(imgID, imgID, "untag")
+		i.LogImageEvent(ctx, imgID, imgID, "untag")
 	}
 
 	// TODO(containerd): Lock, perform deletion,
@@ -345,7 +345,7 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 		return records, err
 	}
 
-	i.LogImageEvent(img.config.Digest.String(), img.config.Digest.String(), "delete")
+	i.LogImageEvent(ctx, img.config.Digest.String(), img.config.Digest.String(), "delete")
 	records = append(records, types.ImageDeleteResponseItem{Deleted: img.config.Digest.String()})
 
 	// TODO(containerd): Snapshot integration will obsolete this section,
