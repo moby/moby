@@ -86,7 +86,7 @@ func (s *imageRouter) postImagesCreate(ctx context.Context, w http.ResponseWrite
 			if platform != nil {
 				os = platform.OS
 			}
-			err = s.backend.ImportImage(src, repo, os, tag, message, r.Body, output, r.Form["changes"])
+			err = s.backend.ImportImage(ctx, src, repo, os, tag, message, r.Body, output, r.Form["changes"])
 		}
 	}
 	if err != nil {

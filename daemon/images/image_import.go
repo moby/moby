@@ -1,6 +1,7 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -27,7 +28,7 @@ import (
 // inConfig (if src is "-"), or from a URI specified in src. Progress output is
 // written to outStream. Repository and tag names can optionally be given in
 // the repo and tag arguments, respectively.
-func (i *ImageService) ImportImage(src string, repository, os string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
+func (i *ImageService) ImportImage(ctx context.Context, src string, repository, os string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error {
 	var (
 		rc     io.ReadCloser
 		resp   *http.Response
@@ -133,7 +134,7 @@ func (i *ImageService) ImportImage(src string, repository, os string, tag string
 	//	}
 	//}
 
-	i.LogImageEvent(id.String(), id.String(), "import")
+	i.LogImageEvent(ctx, id.String(), id.String(), "import")
 	outStream.Write(streamformatter.FormatStatus("", id.String()))
 	return nil
 }
