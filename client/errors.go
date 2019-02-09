@@ -33,9 +33,10 @@ func ErrorConnectionFailed(host string) error {
 	return errConnectionFailed{host: host}
 }
 
+// Deprecated: use the errdefs.NotFound() interface instead. Kept for backward compatibility
 type notFound interface {
 	error
-	NotFound()
+	NotFound() bool
 }
 
 // IsErrNotFound returns true if the error is a NotFound error, which is returned
