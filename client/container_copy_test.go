@@ -121,6 +121,7 @@ func TestCopyToContainerNotFoundError(t *testing.T) {
 	}
 }
 
+// TODO TestCopyToContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyToContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
@@ -200,6 +201,7 @@ func TestCopyFromContainerNotFoundError(t *testing.T) {
 	}
 }
 
+// TODO TestCopyFromContainerNotStatusOKError expects a non-error status-code ("204 No Content") to produce an error; verify if this is the desired behavior
 func TestCopyFromContainerNotStatusOKError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusNoContent, "No content")),
