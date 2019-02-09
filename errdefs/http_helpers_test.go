@@ -1,11 +1,10 @@
-package httputils
+package errdefs
 
 import (
 	"fmt"
 	"net/http"
 	"testing"
 
-	"github.com/docker/docker/errdefs"
 	"gotest.tools/assert"
 )
 
@@ -20,67 +19,67 @@ func TestFromStatusCode(t *testing.T) {
 		{
 			err:    testErr,
 			status: http.StatusNotFound,
-			check:  errdefs.IsNotFound,
+			check:  IsNotFound,
 		},
 		{
 			err:    testErr,
 			status: http.StatusBadRequest,
-			check:  errdefs.IsInvalidParameter,
+			check:  IsInvalidParameter,
 		},
 		{
 			err:    testErr,
 			status: http.StatusConflict,
-			check:  errdefs.IsConflict,
+			check:  IsConflict,
 		},
 		{
 			err:    testErr,
 			status: http.StatusUnauthorized,
-			check:  errdefs.IsUnauthorized,
+			check:  IsUnauthorized,
 		},
 		{
 			err:    testErr,
 			status: http.StatusServiceUnavailable,
-			check:  errdefs.IsUnavailable,
+			check:  IsUnavailable,
 		},
 		{
 			err:    testErr,
 			status: http.StatusForbidden,
-			check:  errdefs.IsForbidden,
+			check:  IsForbidden,
 		},
 		{
 			err:    testErr,
 			status: http.StatusNotModified,
-			check:  errdefs.IsNotModified,
+			check:  IsNotModified,
 		},
 		{
 			err:    testErr,
 			status: http.StatusNotImplemented,
-			check:  errdefs.IsNotImplemented,
+			check:  IsNotImplemented,
 		},
 		{
 			err:    testErr,
 			status: http.StatusInternalServerError,
-			check:  errdefs.IsSystem,
+			check:  IsSystem,
 		},
 		{
-			err:    errdefs.Unknown(testErr),
+			err:    Unknown(testErr),
 			status: http.StatusInternalServerError,
-			check:  errdefs.IsUnknown,
+			check:  IsUnknown,
 		},
 		{
-			err:    errdefs.DataLoss(testErr),
+			err:    DataLoss(testErr),
 			status: http.StatusInternalServerError,
-			check:  errdefs.IsDataLoss,
+			check:  IsDataLoss,
 		},
 		{
-			err:    errdefs.Deadline(testErr),
+			err:    Deadline(testErr),
 			status: http.StatusInternalServerError,
-			check:  errdefs.IsDeadline,
+			check:  IsDeadline,
 		},
 		{
-			err:    errdefs.Cancelled(testErr),
+			err:    Cancelled(testErr),
 			status: http.StatusInternalServerError,
-			check:  errdefs.IsCancelled,
+			check:  IsCancelled,
 		},
 	}
 
