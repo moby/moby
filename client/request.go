@@ -13,9 +13,9 @@ import (
 	"os"
 	"strings"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
 )
 
@@ -121,10 +121,10 @@ func (cli *Client) sendRequest(ctx context.Context, method, path string, query u
 	}
 	resp, err := cli.doRequest(ctx, req)
 	if err != nil {
-		return resp, httputils.FromStatusCode(err, resp.statusCode)
+		return resp, errdefs.FromStatusCode(err, resp.statusCode)
 	}
 	err = cli.checkResponseErr(resp)
-	return resp, httputils.FromStatusCode(err, resp.statusCode)
+	return resp, errdefs.FromStatusCode(err, resp.statusCode)
 }
 
 func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResponse, error) {

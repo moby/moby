@@ -1,22 +1,14 @@
-package httputils // import "github.com/docker/docker/api/server/httputils"
+package errdefs // import "github.com/docker/docker/errdefs"
 
 import (
 	"fmt"
 	"net/http"
 
 	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
-	"github.com/docker/docker/errdefs"
-	"github.com/gorilla/mux"
 	"github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 )
-
-type causer interface {
-	Cause() error
-}
 
 // GetHTTPErrorStatusCode retrieves status code from error message.
 func GetHTTPErrorStatusCode(err error) int {
@@ -32,23 +24,23 @@ func GetHTTPErrorStatusCode(err error) int {
 
 	// Note that the below functions are already checking the error causal chain for matches.
 	switch {
-	case errdefs.IsNotFound(err):
+	case IsNotFound(err):
 		statusCode = http.StatusNotFound
-	case errdefs.IsInvalidParameter(err):
+	case IsInvalidParameter(err):
 		statusCode = http.StatusBadRequest
-	case errdefs.IsConflict(err) || errdefs.IsAlreadyExists(err):
+	case IsConflict(err) || IsAlreadyExists(err):
 		statusCode = http.StatusConflict
-	case errdefs.IsUnauthorized(err):
+	case IsUnauthorized(err):
 		statusCode = http.StatusUnauthorized
-	case errdefs.IsUnavailable(err):
+	case IsUnavailable(err):
 		statusCode = http.StatusServiceUnavailable
-	case errdefs.IsForbidden(err):
+	case IsForbidden(err):
 		statusCode = http.StatusForbidden
-	case errdefs.IsNotModified(err):
+	case IsNotModified(err):
 		statusCode = http.StatusNotModified
-	case errdefs.IsNotImplemented(err):
+	case IsNotImplemented(err):
 		statusCode = http.StatusNotImplemented
-	case errdefs.IsSystem(err) || errdefs.IsUnknown(err) || errdefs.IsDataLoss(err) || errdefs.IsDeadline(err) || errdefs.IsCancelled(err):
+	case IsSystem(err) || IsUnknown(err) || IsDataLoss(err) || IsDeadline(err) || IsCancelled(err):
 		statusCode = http.StatusInternalServerError
 	default:
 		statusCode = statusCodeFromGRPCError(err)
@@ -76,31 +68,31 @@ func GetHTTPErrorStatusCode(err error) int {
 	return statusCode
 }
 
-// FromStatusCode creates an errdef error, based on the provided status-code
+// FromStatusCode creates an errdef error, based on the provided HTTP status-code
 func FromStatusCode(err error, statusCode int) error {
 	if err == nil {
 		return err
 	}
 	switch statusCode {
 	case http.StatusNotFound:
-		err = errdefs.NotFound(err)
+		err = NotFound(err)
 	case http.StatusBadRequest:
-		err = errdefs.InvalidParameter(err)
+		err = InvalidParameter(err)
 	case http.StatusConflict:
-		err = errdefs.Conflict(err)
+		err = Conflict(err)
 	case http.StatusUnauthorized:
-		err = errdefs.Unauthorized(err)
+		err = Unauthorized(err)
 	case http.StatusServiceUnavailable:
-		err = errdefs.Unavailable(err)
+		err = Unavailable(err)
 	case http.StatusForbidden:
-		err = errdefs.Forbidden(err)
+		err = Forbidden(err)
 	case http.StatusNotModified:
-		err = errdefs.NotModified(err)
+		err = NotModified(err)
 	case http.StatusNotImplemented:
-		err = errdefs.NotImplemented(err)
+		err = NotImplemented(err)
 	case http.StatusInternalServerError:
-		if !errdefs.IsSystem(err) && !errdefs.IsUnknown(err) && !errdefs.IsDataLoss(err) && !errdefs.IsDeadline(err) && !errdefs.IsCancelled(err) {
-			err = errdefs.System(err)
+		if !IsSystem(err) && !IsUnknown(err) && !IsDataLoss(err) && !IsDeadline(err) && !IsCancelled(err) {
+			err = System(err)
 		}
 	default:
 		logrus.WithFields(logrus.Fields{
@@ -112,36 +104,14 @@ func FromStatusCode(err error, statusCode int) error {
 		case statusCode >= 200 && statusCode < 400:
 			// it's a client error
 		case statusCode >= 400 && statusCode < 500:
-			err = errdefs.InvalidParameter(err)
+			err = InvalidParameter(err)
 		case statusCode >= 500 && statusCode < 600:
-			err = errdefs.System(err)
+			err = System(err)
 		default:
-			err = errdefs.Unknown(err)
+			err = Unknown(err)
 		}
 	}
 	return err
-}
-
-func apiVersionSupportsJSONErrors(version string) bool {
-	const firstAPIVersionWithJSONErrors = "1.23"
-	return version == "" || versions.GreaterThan(version, firstAPIVersionWithJSONErrors)
-}
-
-// MakeErrorHandler makes an HTTP handler that decodes a Docker error and
-// returns it in the response.
-func MakeErrorHandler(err error) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		statusCode := GetHTTPErrorStatusCode(err)
-		vars := mux.Vars(r)
-		if apiVersionSupportsJSONErrors(vars["version"]) {
-			response := &types.ErrorResponse{
-				Message: err.Error(),
-			}
-			WriteJSON(w, statusCode, response)
-		} else {
-			http.Error(w, status.Convert(err).Message(), statusCode)
-		}
-	}
 }
 
 // statusCodeFromGRPCError returns status code according to gRPC error

@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/docker/docker/api/server/httputils"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental",
@@ -49,7 +49,7 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 	var ping types.Ping
 	if resp.header == nil {
 		err := cli.checkResponseErr(resp)
-		return ping, httputils.FromStatusCode(err, resp.statusCode)
+		return ping, errdefs.FromStatusCode(err, resp.statusCode)
 	}
 	ping.APIVersion = resp.header.Get("API-Version")
 	ping.OSType = resp.header.Get("OSType")
@@ -60,5 +60,5 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 		ping.BuilderVersion = types.BuilderVersion(bv)
 	}
 	err := cli.checkResponseErr(resp)
-	return ping, httputils.FromStatusCode(err, resp.statusCode)
+	return ping, errdefs.FromStatusCode(err, resp.statusCode)
 }
