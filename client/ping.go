@@ -38,10 +38,10 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 		return ping, err
 	}
 	serverResp, err = cli.doRequest(ctx, req)
+	defer ensureReaderClosed(serverResp)
 	if err != nil {
 		return ping, err
 	}
-	defer ensureReaderClosed(serverResp)
 	return parsePingResponse(cli, serverResp)
 }
 

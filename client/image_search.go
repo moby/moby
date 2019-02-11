@@ -29,6 +29,7 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options types.I
 	}
 
 	resp, err := cli.tryImageSearch(ctx, query, options.RegistryAuth)
+	defer ensureReaderClosed(resp)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {
 		newAuthHeader, privilegeErr := options.PrivilegeFunc()
 		if privilegeErr != nil {
@@ -41,7 +42,6 @@ func (cli *Client) ImageSearch(ctx context.Context, term string, options types.I
 	}
 
 	err = json.NewDecoder(resp.body).Decode(&results)
-	ensureReaderClosed(resp)
 	return results, err
 }
 
