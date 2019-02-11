@@ -40,6 +40,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   was used and the architecture was ignored. If no `platform` option is set, the
   host's operating system and architecture as used as default. This change is not
   versioned, and affects all API versions if the daemon has this patch.
+* `POST /exec/{id}/signal` is a new endpoint that can be used for sending a signal to an exec instance.
 
 ## v1.41 API changes
 

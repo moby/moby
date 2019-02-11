@@ -6,6 +6,7 @@ import (
 	"io"
 	"runtime"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -286,7 +287,7 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 
 		select {
 		case <-timeout.C:
-			logrus.Infof("Container %v, process %v failed to exit within %v of signal TERM - using the force", c.ID, name, termProcessTimeout)
+			logrus.Infof("Container %v, process %v failed to exit within %d seconds of signal TERM - using the force", c.ID, name, termProcessTimeout)
 			daemon.containerd.SignalProcess(ctx, c.ID, name, int(signal.SignalMap["KILL"]))
 		case <-attachErr:
 			// TERM signal worked
@@ -304,6 +305,32 @@ func (daemon *Daemon) ContainerExecStart(ctx context.Context, name string, stdin
 		}
 	}
 	return nil
+}
+
+// ContainerExecSignal sends a signal to an exec instance.
+func (daemon *Daemon) ContainerExecSignal(ctx context.Context, name string, config types.ExecSignalConfig) error {
+
+	var err error
+	var sig syscall.Signal
+
+	if config.Signal != "" {
+		if sig, err = signal.ParseSignal(config.Signal); err != nil {
+			return errdefs.InvalidParameter(err)
+		}
+		if !signal.ValidSignalForPlatform(sig) {
+			return errdefs.InvalidParameter(fmt.Errorf("the %s daemon does not support signal %d", runtime.GOOS, sig))
+		}
+	} else {
+		// If no signal is passed, default to SIGKILL
+		sig = signal.SignalMap["KILL"]
+	}
+
+	e, err := daemon.getExecConfig(name)
+	if err != nil {
+		return err
+	}
+
+	return daemon.containerd.SignalProcess(ctx, e.ContainerID, name, int(sig))
 }
 
 // execCommandGC runs a ticker to clean up the daemon references

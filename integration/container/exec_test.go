@@ -3,6 +3,7 @@ package container // import "github.com/docker/docker/integration/container"
 import (
 	"context"
 	"io"
+	"runtime"
 	"testing"
 	"time"
 
@@ -139,4 +140,38 @@ func TestExecUser(t *testing.T) {
 	assert.NilError(t, err)
 
 	assert.Assert(t, is.Contains(result.Stdout(), "uid=1(daemon) gid=1(daemon)"), "exec command not running as uid/gid 1")
+}
+
+func TestContainerExecSignal(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.42"), "skip test from new feature")
+	defer setupTest(t)()
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	err := client.ContainerExecSignal(ctx, "nil", "TERM")
+	assert.ErrorContains(t, err, "No such exec instance")
+
+	cID := container.Run(ctx, t, client)
+
+	cmd := []string{"top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "999"}
+	}
+
+	id, err := client.ContainerExecCreate(ctx, cID,
+		types.ExecConfig{
+			AttachStdout: true,
+			Cmd:          strslice.StrSlice(cmd),
+		},
+	)
+	assert.NilError(t, err)
+
+	client.ContainerExecStart(ctx, id.ID, types.ExecStartCheck{
+		Detach: true,
+		Tty:    false,
+	})
+
+	err = client.ContainerExecSignal(ctx, id.ID, "TERM")
+	assert.NilError(t, err)
+
 }
