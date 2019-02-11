@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	containerderrors "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	ctdreference "github.com/containerd/containerd/reference"
@@ -36,7 +36,7 @@ import (
 	"github.com/moby/buildkit/util/progress"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -654,7 +654,7 @@ func showProgress(ctx context.Context, ongoing *jobs, cs content.Store, pw progr
 			if !j.done {
 				info, err := cs.Info(context.TODO(), j.Digest)
 				if err != nil {
-					if errdefs.IsNotFound(err) {
+					if containerderrors.IsNotFound(err) {
 						// pw.Write(j.Digest.String(), progress.Status{
 						// 	Action: "waiting",
 						// })
