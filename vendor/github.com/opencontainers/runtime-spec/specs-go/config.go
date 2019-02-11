@@ -38,7 +38,9 @@ type Process struct {
 	// User specifies user information for the process.
 	User User `json:"user"`
 	// Args specifies the binary and arguments for the application to execute.
-	Args []string `json:"args"`
+	Args []string `json:"args,omitempty"`
+	// CommandLine specifies the full command line for the application to execute on Windows.
+	CommandLine string `json:"commandLine,omitempty" platform:"windows"`
 	// Env populates the process environment for the process.
 	Env []string `json:"env,omitempty"`
 	// Cwd is the current working directory for the process and must be
@@ -528,7 +530,7 @@ type VMHypervisor struct {
 	// Path is the host path to the hypervisor used to manage the virtual machine.
 	Path string `json:"path"`
 	// Parameters specifies parameters to pass to the hypervisor.
-	Parameters string `json:"parameters,omitempty"`
+	Parameters []string `json:"parameters,omitempty"`
 }
 
 // VMKernel contains information about the kernel to use for a virtual machine.
@@ -536,7 +538,7 @@ type VMKernel struct {
 	// Path is the host path to the kernel used to boot the virtual machine.
 	Path string `json:"path"`
 	// Parameters specifies parameters to pass to the kernel.
-	Parameters string `json:"parameters,omitempty"`
+	Parameters []string `json:"parameters,omitempty"`
 	// InitRD is the host path to an initial ramdisk to be used by the kernel.
 	InitRD string `json:"initrd,omitempty"`
 }
@@ -632,7 +634,9 @@ type LinuxIntelRdt struct {
 	// Format: "L3:<cache_id0>=<cbm0>;<cache_id1>=<cbm1>;..."
 	L3CacheSchema string `json:"l3CacheSchema,omitempty"`
 
-	// The schema of memory bandwidth percentage per L3 cache id
+	// The schema of memory bandwidth per L3 cache id
 	// Format: "MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;..."
+	// The unit of memory bandwidth is specified in "percentages" by
+	// default, and in "MBps" if MBA Software Controller is enabled.
 	MemBwSchema string `json:"memBwSchema,omitempty"`
 }
