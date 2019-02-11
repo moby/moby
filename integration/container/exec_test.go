@@ -12,6 +12,7 @@ import (
 
 	cerrdefs "github.com/containerd/errdefs"
 	"github.com/moby/moby/api/types/common"
+	"github.com/moby/moby/api/types/versions"
 	"github.com/moby/moby/client"
 	"github.com/moby/moby/v2/integration/internal/build"
 	"github.com/moby/moby/v2/integration/internal/container"
@@ -428,4 +429,36 @@ func TestExecWithGroupAdd(t *testing.T) {
 
 	const expected = "uid=0(root) gid=0(root) groups=0(root),10(wheel),29(audio),50(staff),777"
 	assert.Check(t, is.Equal(strings.TrimSpace(result.Stdout()), expected), "exec command not keeping additional groups w/ user")
+}
+
+func TestContainerExecSignal(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.52"), "skip test from new feature")
+
+	ctx := setupTest(t)
+	apiClient := testEnv.APIClient()
+
+	err := apiClient.ContainerExecSignal(ctx, "nil", "TERM")
+	assert.ErrorContains(t, err, "No such exec instance")
+
+	cID := container.Run(ctx, t, apiClient)
+
+	cmd := []string{"top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "999"}
+	}
+
+	id, err := apiClient.ContainerExecCreate(ctx, cID, client.ExecCreateOptions{
+		AttachStdout: true,
+		Cmd:          cmd,
+	})
+	assert.NilError(t, err)
+
+	err = apiClient.ContainerExecStart(ctx, id.ID, client.ExecStartOptions{
+		Detach: true,
+		Tty:    false,
+	})
+	assert.NilError(t, err)
+
+	err = apiClient.ContainerExecSignal(ctx, id.ID, "TERM")
+	assert.NilError(t, err)
 }

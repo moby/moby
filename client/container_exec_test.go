@@ -168,3 +168,33 @@ func TestContainerExecInspect(t *testing.T) {
 	assert.Check(t, is.Equal(inspect.ExecID, "exec_id"))
 	assert.Check(t, is.Equal(inspect.ContainerID, "container_id"))
 }
+
+func TestContainerExecSignalError(t *testing.T) {
+	client := &Client{
+		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
+	}
+
+	err := client.ContainerExecSignal(context.Background(), "nothing", "TERM")
+	if err == nil || err.Error() != "Error response from daemon: Server error" {
+		t.Fatalf("expected a Server Error, got %v", err)
+	}
+}
+
+func TestContainerExecSignal(t *testing.T) {
+	expectedURL := "/exec/exec_id/signal"
+	client := &Client{
+		client: newMockClient(func(req *http.Request) (*http.Response, error) {
+			if !strings.HasPrefix(req.URL.Path, expectedURL) {
+				return nil, fmt.Errorf("Expected URL '%s', got '%s'", expectedURL, req.URL)
+			}
+			return &http.Response{
+				StatusCode: http.StatusNoContent,
+			}, nil
+		}),
+	}
+
+	err := client.ContainerExecSignal(context.Background(), "exec_id", "TERM")
+	if err != nil {
+		t.Fatal(err)
+	}
+}

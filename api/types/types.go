@@ -66,3 +66,8 @@ type PushResult struct {
 	Digest string
 	Size   int
 }
+
+// ExecSignalConfig holds options to signal a container
+type ExecSignalConfig struct {
+	Signal string
+}
