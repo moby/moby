@@ -2,6 +2,7 @@ package swarm // import "github.com/docker/docker/api/types/swarm"
 
 import "time"
 
+// AutoRange is a map containing the autorange configuration transmitted by the API
 type AutoRange map[string]map[string]string
 
 // Service represents a service.
@@ -30,7 +31,7 @@ type ServiceSpec struct {
 	// This field will be removed in a future release.
 	Networks     []NetworkAttachmentConfig `json:",omitempty"`
 	EndpointSpec *EndpointSpec             `json:",omitempty"`
-	AutoRange	 AutoRange				   `json:",omitempty"`
+	AutoRange    AutoRange                 `json:",omitempty"`
 }
 
 // ServiceMode represents the mode of a service.

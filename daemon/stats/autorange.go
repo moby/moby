@@ -13,25 +13,25 @@ package stats // import "github.com/docker/docker/daemon/stats"
 // How?
 // It uses swarm labels and require swarm mode to be enabled (see #improvements).
 // The logic behind the feature can be described in 3 points:
-	// - First, we collect the metrics and apply transformations on it to generate two values.
-	// Those values represent a “box” around the actual consumption.
-	// - Then, we transform these values into timeseries, using some of the keydata collected previously to weight our operations.
-	// The amplitude of change between values is monitored to know if it’s a good time to stop measurements.
-	// - Finally, we obtain refined values that we apply as limitation to the service.
-	// The data is then kept in a reduced form to limit memory usage.
+// - First, we collect the metrics and apply transformations on it to generate two values.
+// Those values represent a “box” around the actual consumption.
+// - Then, we transform these values into timeseries, using some of the keydata collected previously to weight our operations.
+// The amplitude of change between values is monitored to know if it’s a good time to stop measurements.
+// - Finally, we obtain refined values that we apply as limitation to the service.
+// The data is then kept in a reduced form to limit memory usage.
 // The functionnality is declared by adding the autorange key to the docker-compose.yml.
 // The mechanism works for cpu% and memory, with or without basevalues.
 // Below is an example of both.
 // autorange:
-    // memory:
-    // cpu%:
+// memory:
+// cpu%:
 // The available keys are:- min (in octets)- max (in octets)- threshold% (only for memory, represents a security margin that will be refined by the algorithm)
 // autorange:
-	// memory:
+// memory:
 //         min: "110000"
 // 		   max: "120000"
 // 		   threshold%: "10"
-	// cpu%:
+// cpu%:
 // 		   min: "60"
 // 		   max: "70"
 // This functionality is deployed with docker stack deploy --compose-file=/your/compose/file and
@@ -40,15 +40,14 @@ package stats // import "github.com/docker/docker/daemon/stats"
 // You can always leave the docker container stats screen and
 // come back later, the mechanism will be paused and the accumulated datas won’t be lost.
 
-
 import (
-	_ "fmt"
 	"math"
 	"strconv"
 	"strings"
 	"time"
 
 	"context"
+
 	ctn "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
 
@@ -59,43 +58,49 @@ import (
 )
 
 const (
-	KiB                    = 1024
-	MiB                    = 1024 * KiB
-	GiB                    = 1024 * MiB
-	TiB                    = 1024 * GiB
-	PiB                    = 1024 * TiB
-	minAllowedMemoryLimit  = 5 * MiB
+	kiB                   = 1024
+	miB                   = 1024 * kiB
+	giB                   = 1024 * miB
+	tiB                   = 1024 * giB
+	piB                   = 1024 * tiB
+	minAllowedMemoryLimit = 5 * miB
 )
 
-type PredictedValueRam struct {
+// PredictedValueRAM is a struct that holds the values used to generate the memory limits
+type PredictedValueRAM struct {
 	min, max, threshold []uint64
 }
 
-type TimeSerieRam struct {
+// TimeSerieRAM is a struct that holds everything needed for memory limit generation
+type TimeSerieRAM struct {
 	min, max, usage, highest, lowest, amplitude []uint64
 	timestamps                                  []time.Time
 	started                                     time.Time
-	PredictedValues                             PredictedValueRam
+	PredictedValues                             PredictedValueRAM
 	MemoryPrediction                            bool
 }
 
+// PredictedValueCPU is a struct that holds the values used to generate the CPU limits
 type PredictedValueCPU struct {
 	percent, usage []float64
 }
 
+// TimeSerieCPU is a struct that holds everything needed for CPU limit generation
 type TimeSerieCPU struct {
 	percent, usage  []float64
 	timestamps      []time.Time
 	started         time.Time
 	PredictedValues PredictedValueCPU
-	CpuPrediction   bool
+	CPUPrediction   bool
 }
 
+// Observor is the struct that holds the timeserie for the watcher
 type Observor struct {
-	TimeSerieRam
+	TimeSerieRAM
 	TimeSerieCPU
 }
 
+// AutoRangeWatcher is the struct that holds everything required to enable autorange functionnality
 type AutoRangeWatcher struct {
 	Output, Input chan types.StatsJSON
 	WaitChan      chan bool
@@ -109,9 +114,10 @@ type AutoRangeWatcher struct {
 	Finished      bool
 }
 
+// NewObservor returns a newly initialized observor that will be used by the watcher
 func NewObservor(size int) *Observor {
 	return &Observor{
-		TimeSerieRam: TimeSerieRam{
+		TimeSerieRAM: TimeSerieRAM{
 			min:              make([]uint64, 0, size),
 			max:              make([]uint64, 0, size),
 			usage:            make([]uint64, 0, size),
@@ -119,7 +125,7 @@ func NewObservor(size int) *Observor {
 			lowest:           make([]uint64, 0, size),
 			amplitude:        make([]uint64, 0, size),
 			MemoryPrediction: false,
-			PredictedValues: PredictedValueRam{
+			PredictedValues: PredictedValueRAM{
 				min:       make([]uint64, 0, size),
 				max:       make([]uint64, 0, size),
 				threshold: make([]uint64, 0, size),
@@ -128,7 +134,7 @@ func NewObservor(size int) *Observor {
 		TimeSerieCPU: TimeSerieCPU{
 			percent:       make([]float64, 0, size),
 			usage:         make([]float64, 0, size),
-			CpuPrediction: false,
+			CPUPrediction: false,
 			PredictedValues: PredictedValueCPU{
 				percent: make([]float64, 0, size),
 				usage:   make([]float64, 0, size),
@@ -180,7 +186,7 @@ func highestOf(arr []uint64) int {
 }
 
 func percent(value int) int {
-	return int(value / 100)
+	return value / 100
 }
 
 func percentageBetween(old, new int) (delta int) {
@@ -190,14 +196,16 @@ func percentageBetween(old, new int) (delta int) {
 }
 
 func percentOf(f, s int) int {
-	return int(s / f)
+	return s / f
 }
 
+// SetNewContext helps for the start and stops of the collector
 func (ar *AutoRangeWatcher) SetNewContext(ctx context.Context) {
 	ar.Ctx = ctx
 	ar.WaitChan <- true
 }
 
+// UpdateResources is the function that handle the verification and application of the generated limits
 func (ar *AutoRangeWatcher) UpdateResources() error {
 	var update ctn.UpdateConfig
 
@@ -211,9 +219,9 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 		// error probability. It's generaly a subtle ajustement.
 		// The docker daemon does not permit memory limit lesser than 6mb
 
-		update.Resources.Memory = int64((sugMax + highestOf(ar.Obs.TimeSerieRam.highest)) / 2)
+		update.Resources.Memory = int64((sugMax + highestOf(ar.Obs.TimeSerieRAM.highest)) / 2)
 		if update.Resources.Memory < minAllowedMemoryLimit {
-			update.Resources.Memory = minAllowedMemoryLimit + MiB
+			update.Resources.Memory = minAllowedMemoryLimit + miB
 		}
 
 		// Memoryswap should always be greater than memory limit, but can be illimited (-1)
@@ -225,9 +233,9 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 
 		// Here we do pretty much the same as above, to further refine the limit and better fit
 		// the observed consumption
-		update.Resources.MemoryReservation = int64((uint64(sugMin) + lowestOf(ar.Obs.TimeSerieRam.lowest)))
+		update.Resources.MemoryReservation = int64((uint64(sugMin) + lowestOf(ar.Obs.TimeSerieRAM.lowest)))
 		if update.Resources.MemoryReservation/2 < minAllowedMemoryLimit {
-			update.Resources.MemoryReservation = minAllowedMemoryLimit + 5*MiB
+			update.Resources.MemoryReservation = minAllowedMemoryLimit + 5*miB
 		}
 
 		if update.Resources.MemoryReservation > update.Resources.Memory {
@@ -264,7 +272,7 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Container: %s (Service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
+	logrus.Infof("container: %s (service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
 
 	return nil
 }
@@ -273,10 +281,10 @@ func nSetCPU(cpus string) (string, string) {
 	var cpuConfig string
 
 	pcpus, _ := strconv.ParseFloat(cpus, 32)
-	n := int(pcpus / 100) + 1
+	n := int(pcpus/100) + 1
 	for i := 0; i < n; i++ {
 		cpuConfig += strconv.Itoa(i)
-		if i + 1 < n {
+		if i+1 < n {
 			cpuConfig += ","
 		}
 	}
@@ -284,12 +292,14 @@ func nSetCPU(cpus string) (string, string) {
 	return cpuConfig, strconv.Itoa(n)
 }
 
+// Watch is the function that will keep the goroutine alive, process the metrics and generate the time series
 func (ar *AutoRangeWatcher) Watch() {
 
 	var (
-		input                                                    types.StatsJSON
-		lowest, highest, oldUsage, oldSystem                     uint64 = 0, 0, 0, 0
-		cpuMin, cpuMax, min, max, threshold, cpuTurn, memoryTurn int    = 0, 0, 0, 0, 0, 0, 0
+		input                                    types.StatsJSON
+		lowest, highest, oldUsage, oldSystem     uint64 = 0, 0, 0, 0
+		min, max, threshold, cpuTurn, memoryTurn int    = 0, 0, 0, 0, 0
+		cpuMin, cpuMax                           int
 	)
 
 	// Recover base config, those values will be used as base values
@@ -325,10 +335,10 @@ func (ar *AutoRangeWatcher) Watch() {
 	time.Sleep(ar.TickRate)
 	started := false
 
-	logrus.Infof("Container: %s (Service: %s) started with activated AutoRanges\n", ar.Target.Name, ar.ServiceName)
+	logrus.Infof("container: %s (service: %s) started with activated autorange\n", ar.Target.Name, ar.ServiceName)
 	for range ticker.C {
 		select {
-		case in, _ := <-ar.Input:
+		case in := <-ar.Input:
 			input = in
 		case <-ar.Ctx.Done(): // Handler for signal interrupt
 			<-ar.WaitChan
@@ -337,8 +347,8 @@ func (ar *AutoRangeWatcher) Watch() {
 
 		// Healthchecking is required before every loops to ensure data integrity
 		// We don't want false prediction because the container was offline
-		if !ar.Target.IsRunning() || ar.Target.IsDead() {
-			logrus.Infof("Container: %s (Service: %s) exited, removing AutoRange\n", ar.Target.Name, ar.ServiceName)
+		if ar.Target.State.Dead || !ar.Target.State.Running {
+			logrus.Infof("container: %s (service: %s) exited, removing autorange\n", ar.Target.Name, ar.ServiceName)
 			return
 		}
 
@@ -346,7 +356,7 @@ func (ar *AutoRangeWatcher) Watch() {
 		if !started {
 			input.Stats.MemoryStats.MaxUsage, lowest = input.Stats.MemoryStats.Usage, input.Stats.MemoryStats.Usage
 			started = true
-		} else if ar.Obs.TimeSerieRam.MemoryPrediction && ar.Obs.TimeSerieCPU.CpuPrediction && !ar.Finished {
+		} else if ar.Obs.TimeSerieRAM.MemoryPrediction && ar.Obs.TimeSerieCPU.CPUPrediction && !ar.Finished {
 			ar.Finished = true
 
 			err := ar.UpdateResources()
@@ -357,7 +367,7 @@ func (ar *AutoRangeWatcher) Watch() {
 		}
 
 		for category := range ar.Config {
-			if strings.Compare(category, "memory") == 0 && !ar.Obs.TimeSerieRam.MemoryPrediction {
+			if strings.Compare(category, "memory") == 0 && !ar.Obs.TimeSerieRAM.MemoryPrediction {
 
 				// Follow memory usage and change min and max accordingly.
 				// These values represent the "bearings" around the usage value
@@ -371,9 +381,9 @@ func (ar *AutoRangeWatcher) Watch() {
 					highest = input.Stats.MemoryStats.Usage
 				}
 
-				ar.Obs.TimeSerieRam.min = fifoUint(ar.Obs.TimeSerieRam.min, uint64(min), ar.Limit)
-				ar.Obs.TimeSerieRam.max = fifoUint(ar.Obs.TimeSerieRam.max, uint64(max), ar.Limit)
-				ar.Obs.TimeSerieRam.usage = fifoUint(ar.Obs.TimeSerieRam.usage, input.Stats.MemoryStats.Usage, ar.Limit)
+				ar.Obs.TimeSerieRAM.min = fifoUint(ar.Obs.TimeSerieRAM.min, uint64(min), ar.Limit)
+				ar.Obs.TimeSerieRAM.max = fifoUint(ar.Obs.TimeSerieRAM.max, uint64(max), ar.Limit)
+				ar.Obs.TimeSerieRAM.usage = fifoUint(ar.Obs.TimeSerieRAM.usage, input.Stats.MemoryStats.Usage, ar.Limit)
 
 				// Timeserie arrays are ready to be processed
 				if memoryTurn >= ar.Limit {
@@ -381,41 +391,41 @@ func (ar *AutoRangeWatcher) Watch() {
 
 					// Stats about the serie
 					// Amplitude represent the space between lowest and highest
-					ar.Obs.TimeSerieRam.highest = fifoUint(ar.Obs.TimeSerieRam.highest, highest, ar.Limit)
-					ar.Obs.TimeSerieRam.lowest = fifoUint(ar.Obs.TimeSerieRam.lowest, lowest, ar.Limit)
-					ar.Obs.TimeSerieRam.amplitude = fifoUint(ar.Obs.TimeSerieRam.amplitude, uint64(percentOf(int(lowest), int(highest))), ar.Limit)
+					ar.Obs.TimeSerieRAM.highest = fifoUint(ar.Obs.TimeSerieRAM.highest, highest, ar.Limit)
+					ar.Obs.TimeSerieRAM.lowest = fifoUint(ar.Obs.TimeSerieRAM.lowest, lowest, ar.Limit)
+					ar.Obs.TimeSerieRAM.amplitude = fifoUint(ar.Obs.TimeSerieRAM.amplitude, uint64(percentOf(int(lowest), int(highest))), ar.Limit)
 
 					// Generate predicted values
-					aMin, aMax := averrage(ar.Obs.TimeSerieRam.min), averrage(ar.Obs.TimeSerieRam.max)
+					aMin, aMax := averrage(ar.Obs.TimeSerieRAM.min), averrage(ar.Obs.TimeSerieRAM.max)
 					aMin = aMin + (aMin/100)*uint64(percentageBetween(int(aMin), int(lowest)))
 					aMax = aMax + (aMax/100)*uint64(percentageBetween(int(aMax), int(highest)))
 
 					// Stock predicted values
-					ar.Obs.TimeSerieRam.PredictedValues.min = fifoUint(ar.Obs.TimeSerieRam.PredictedValues.min, aMin, ar.Limit)
-					ar.Obs.TimeSerieRam.PredictedValues.max = fifoUint(ar.Obs.TimeSerieRam.PredictedValues.max, aMax, ar.Limit)
+					ar.Obs.TimeSerieRAM.PredictedValues.min = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.min, aMin, ar.Limit)
+					ar.Obs.TimeSerieRAM.PredictedValues.max = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.max, aMax, ar.Limit)
 
 					highest, lowest = 0, input.Stats.MemoryStats.Usage
 
 					// When the number of timeseries is big enough, or if the rate of change <= 2
 					// we can assume that the optimal limits can be calculated
-					medAmplitude, lenSerie := averrage(ar.Obs.TimeSerieRam.amplitude), len(ar.Obs.TimeSerieRam.PredictedValues.min)
-					ar.Obs.TimeSerieRam.PredictedValues.threshold = fifoUint(ar.Obs.TimeSerieRam.PredictedValues.threshold, medAmplitude, ar.Limit)
+					medAmplitude, lenSerie := averrage(ar.Obs.TimeSerieRAM.amplitude), len(ar.Obs.TimeSerieRAM.PredictedValues.min)
+					ar.Obs.TimeSerieRAM.PredictedValues.threshold = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.threshold, medAmplitude, ar.Limit)
 					if lenSerie >= ar.Limit || (lenSerie > ar.Limit/2 && medAmplitude <= 2) {
 
 						// This flag is set to stop data gathering and enable limit application
-						ar.Obs.TimeSerieRam.MemoryPrediction = true
+						ar.Obs.TimeSerieRAM.MemoryPrediction = true
 					}
 
 					// Display result
-					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRam.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRam.PredictedValues.min, ar.Obs.TimeSerieRam.lowest)))
-					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRam.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRam.PredictedValues.max, ar.Obs.TimeSerieRam.highest)))
-					ar.Config["memoryAR"]["opti"] = strconv.Itoa(int(averrage(ar.Obs.TimeSerieRam.PredictedValues.threshold)))
+					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
+					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
+					ar.Config["memoryAR"]["opti"] = strconv.Itoa(int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold)))
 					ar.Config["memoryAR"]["usage"] = strconv.Itoa(int(input.Stats.MemoryStats.Usage))
 				} else {
 					memoryTurn++
 				}
 
-			} else if strings.Compare(category, "cpu%") == 0 && !ar.Obs.TimeSerieCPU.CpuPrediction {
+			} else if strings.Compare(category, "cpu%") == 0 && !ar.Obs.TimeSerieCPU.CPUPrediction {
 
 				// The logic for the cpu loop is pretty much the same as memory, but more focused
 				// on cpu cores
@@ -446,7 +456,7 @@ func (ar *AutoRangeWatcher) Watch() {
 						ar.Config["cpuAR"]["percentOpti"] = strconv.FormatFloat(cBestPercent, 'f', 3, 64)
 						ar.Config["cpuAR"]["usageOpti"] = strconv.FormatFloat(cBestUsage, 'f', 0, 64)
 
-						ar.Obs.TimeSerieCPU.CpuPrediction = true
+						ar.Obs.TimeSerieCPU.CPUPrediction = true
 
 					}
 				} else {
@@ -510,23 +520,24 @@ func averrage(arr []uint64) uint64 {
 func processMemoryStats(mstats types.MemoryStats, min, max, threshold int) (int, int) {
 	usage := int(mstats.Usage)
 
-	if usage > min + percent(max - min) * threshold {
+	if usage > min+percent(max-min)*threshold {
 
 		distance := percentageBetween(min, usage)
 
 		min += distance * percent(min)
-		max = min + threshold * percent(min)
+		max = min + threshold*percent(min)
 
-	} else if usage < (min - percent(max - min)) * threshold {
+	} else if usage < (min-percent(max-min))*threshold {
 
-		min = usage + threshold * percent(usage)
-		max = min + threshold * percent(min)
+		min = usage + threshold*percent(usage)
+		max = min + threshold*percent(min)
 
 	}
 
 	return min, max
 }
 
+// ConvertAutoRange is a function that is used to convert from swarm.AutoRange to types.AutoRange
 func ConvertAutoRange(autoRange swarm.AutoRange) types.AutoRange {
 	sl := make(types.AutoRange)
 	for key := range autoRange {

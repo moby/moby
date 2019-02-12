@@ -1425,7 +1425,7 @@ func (daemon *Daemon) stats(c *container.Container) (*types.StatsJSON, error) {
 		for k := range c.AutoRange {
 			sl[k] = make(map[string]string)
 			for sk, sv := range c.AutoRange[k] {
-				sl[k][string(sk)] = sv
+				sl[k][sk] = sv
 			}
 		}
 		s.AutoRange = sl

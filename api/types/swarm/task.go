@@ -85,7 +85,7 @@ type TaskSpec struct {
 	Runtime RuntimeType `json:",omitempty"`
 
 	// Autorange propagation from ServiceSpec to TaskSpec
-	AutoRange	AutoRange	`json:",omitempty"`
+	AutoRange AutoRange `json:",omitempty"`
 }
 
 // Resources represents resources (CPU/Memory).
