@@ -463,7 +463,7 @@ func WriteCgroupProc(dir string, pid int) error {
 		return fmt.Errorf("no such directory for %s", CgroupProcesses)
 	}
 
-	// Dont attach any pid to the cgroup if -1 is specified as a pid
+	// Don't attach any pid to the cgroup if -1 is specified as a pid
 	if pid != -1 {
 		if err := ioutil.WriteFile(filepath.Join(dir, CgroupProcesses), []byte(strconv.Itoa(pid)), 0700); err != nil {
 			return fmt.Errorf("failed to write %v to %v: %v", pid, CgroupProcesses, err)

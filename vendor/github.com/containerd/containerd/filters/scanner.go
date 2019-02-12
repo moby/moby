@@ -185,7 +185,6 @@ func (s *scanner) scanQuoted(quote rune) {
 			ch = s.next()
 		}
 	}
-	return
 }
 
 func (s *scanner) scanEscape(quote rune) rune {

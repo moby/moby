@@ -185,8 +185,10 @@ func (t *task) Start(ctx context.Context) error {
 		ContainerID: t.id,
 	})
 	if err != nil {
-		t.io.Cancel()
-		t.io.Close()
+		if t.io != nil {
+			t.io.Cancel()
+			t.io.Close()
+		}
 		return errdefs.FromGRPC(err)
 	}
 	t.pid = r.Pid

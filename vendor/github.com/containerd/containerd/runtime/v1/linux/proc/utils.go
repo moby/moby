@@ -23,6 +23,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/containerd/containerd/errdefs"
@@ -30,6 +31,18 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
+
+// safePid is a thread safe wrapper for pid.
+type safePid struct {
+	sync.Mutex
+	pid int
+}
+
+func (s *safePid) get() int {
+	s.Lock()
+	defer s.Unlock()
+	return s.pid
+}
 
 // TODO(mlaventure): move to runc package?
 func getLastRuntimeError(r *runc.Runc) (string, error) {

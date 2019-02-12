@@ -111,9 +111,11 @@ func (p *process) Start(ctx context.Context) error {
 		ExecID:      p.id,
 	})
 	if err != nil {
-		p.io.Cancel()
-		p.io.Wait()
-		p.io.Close()
+		if p.io != nil {
+			p.io.Cancel()
+			p.io.Wait()
+			p.io.Close()
+		}
 		return errdefs.FromGRPC(err)
 	}
 	p.pid = r.Pid

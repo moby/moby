@@ -160,7 +160,7 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 		return p.runtimeError(err, "OCI runtime create failed")
 	}
 	if r.Stdin != "" {
-		sc, err := fifo.OpenFifo(ctx, r.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		sc, err := fifo.OpenFifo(context.Background(), r.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open stdin fifo %s", r.Stdin)
 		}
@@ -169,21 +169,19 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	}
 	var copyWaitGroup sync.WaitGroup
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	if socket != nil {
 		console, err := socket.ReceiveMaster()
 		if err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
 		console, err = p.Platform.CopyConsole(ctx, console, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup)
 		if err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to start console copy")
 		}
 		p.console = console
 	} else if !hasNoIO(r) {
 		if err := copyPipes(ctx, p.io, r.Stdin, r.Stdout, r.Stderr, &p.wg, &copyWaitGroup); err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
@@ -191,7 +189,6 @@ func (p *Init) Create(ctx context.Context, r *CreateConfig) error {
 	copyWaitGroup.Wait()
 	pid, err := runc.ReadPidFile(pidFile)
 	if err != nil {
-		cancel()
 		return errors.Wrap(err, "failed to retrieve OCI runtime container pid")
 	}
 	p.pid = pid
@@ -409,6 +406,7 @@ func (p *Init) exec(ctx context.Context, path string, r *ExecConfig) (proc.Proce
 			Terminal: r.Terminal,
 		},
 		waitBlock: make(chan struct{}),
+		pid:       &safePid{},
 	}
 	e.execState = &execCreatedState{p: e}
 	return e, nil

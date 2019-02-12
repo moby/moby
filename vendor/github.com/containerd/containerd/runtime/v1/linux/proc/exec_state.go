@@ -31,7 +31,6 @@ type execState interface {
 	Delete(context.Context) error
 	Kill(context.Context, uint32, bool) error
 	SetExited(int)
-	Pid() int
 }
 
 type execCreatedState struct {
@@ -83,12 +82,6 @@ func (s *execCreatedState) SetExited(status int) {
 	}
 }
 
-func (s *execCreatedState) Pid() int {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-	return s.p.pidv()
-}
-
 type execRunningState struct {
 	p *execProcess
 }
@@ -127,12 +120,6 @@ func (s *execRunningState) SetExited(status int) {
 	}
 }
 
-func (s *execRunningState) Pid() int {
-	s.p.mu.Lock()
-	defer s.p.mu.Unlock()
-	return s.p.pidv()
-}
-
 type execStoppedState struct {
 	p *execProcess
 }
@@ -169,8 +156,4 @@ func (s *execStoppedState) Kill(ctx context.Context, sig uint32, all bool) error
 
 func (s *execStoppedState) SetExited(status int) {
 	// no op
-}
-
-func (s *execStoppedState) Pid() int {
-	return s.p.pidv()
 }

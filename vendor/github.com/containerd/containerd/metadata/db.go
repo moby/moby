@@ -154,7 +154,7 @@ func (m *DB) Init(ctx context.Context) error {
 				if err := m.migrate(tx); err != nil {
 					return errors.Wrapf(err, "failed to migrate to %s.%d", m.schema, m.version)
 				}
-				log.G(ctx).WithField("d", time.Now().Sub(t0)).Debugf("finished database migration to %s.%d", m.schema, m.version)
+				log.G(ctx).WithField("d", time.Since(t0)).Debugf("finished database migration to %s.%d", m.schema, m.version)
 			}
 		}
 
@@ -306,7 +306,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 				m.cleanupSnapshotter(snapshotterName)
 
 				sl.Lock()
-				stats.SnapshotD[snapshotterName] = time.Now().Sub(st1)
+				stats.SnapshotD[snapshotterName] = time.Since(st1)
 				sl.Unlock()
 
 				wg.Done()
@@ -321,7 +321,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 		go func() {
 			ct1 := time.Now()
 			m.cleanupContent()
-			stats.ContentD = time.Now().Sub(ct1)
+			stats.ContentD = time.Since(ct1)
 			wg.Done()
 		}()
 		m.dirtyCS = false
@@ -329,7 +329,7 @@ func (m *DB) GarbageCollect(ctx context.Context) (gc.Stats, error) {
 
 	m.dirtyL.Unlock()
 
-	stats.MetaD = time.Now().Sub(t1)
+	stats.MetaD = time.Since(t1)
 	m.wlock.Unlock()
 
 	wg.Wait()
