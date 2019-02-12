@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 )
@@ -97,7 +96,7 @@ func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 
 	lastReaderOffset := hrs.readerOffset
 
-	if whence == os.SEEK_SET && hrs.rc == nil {
+	if whence == io.SeekStart && hrs.rc == nil {
 		// If no request has been made yet, and we are seeking to an
 		// absolute position, set the read offset as well to avoid an
 		// unnecessary request.
@@ -113,14 +112,14 @@ func (hrs *httpReadSeeker) Seek(offset int64, whence int) (int64, error) {
 	newOffset := hrs.seekOffset
 
 	switch whence {
-	case os.SEEK_CUR:
+	case io.SeekCurrent:
 		newOffset += offset
-	case os.SEEK_END:
+	case io.SeekEnd:
 		if hrs.size < 0 {
 			return 0, errors.New("content length not known")
 		}
 		newOffset = hrs.size + offset
-	case os.SEEK_SET:
+	case io.SeekStart:
 		newOffset = offset
 	}
 

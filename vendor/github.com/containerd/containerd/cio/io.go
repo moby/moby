@@ -275,3 +275,7 @@ func Load(set *FIFOSet) (IO, error) {
 		closers: []io.Closer{set},
 	}, nil
 }
+
+func (p *pipes) closers() []io.Closer {
+	return []io.Closer{p.Stdin, p.Stdout, p.Stderr}
+}

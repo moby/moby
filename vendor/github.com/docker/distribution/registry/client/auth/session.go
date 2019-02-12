@@ -68,7 +68,6 @@ func NewAuthorizer(manager challenge.Manager, handlers ...AuthenticationHandler)
 type endpointAuthorizer struct {
 	challenges challenge.Manager
 	handlers   []AuthenticationHandler
-	transport  http.RoundTripper
 }
 
 func (ea *endpointAuthorizer) ModifyRequest(req *http.Request) error {
@@ -121,7 +120,6 @@ type clock interface {
 }
 
 type tokenHandler struct {
-	header    http.Header
 	creds     CredentialStore
 	transport http.RoundTripper
 	clock     clock
