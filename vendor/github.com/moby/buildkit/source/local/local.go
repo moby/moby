@@ -28,14 +28,12 @@ import (
 const keySharedKey = "local.sharedKey"
 
 type Opt struct {
-	SessionManager *session.Manager
-	CacheAccessor  cache.Accessor
-	MetadataStore  *metadata.Store
+	CacheAccessor cache.Accessor
+	MetadataStore *metadata.Store
 }
 
 func NewSource(opt Opt) (source.Source, error) {
 	ls := &localSource{
-		sm: opt.SessionManager,
 		cm: opt.CacheAccessor,
 		md: opt.MetadataStore,
 	}
@@ -43,7 +41,6 @@ func NewSource(opt Opt) (source.Source, error) {
 }
 
 type localSource struct {
-	sm *session.Manager
 	cm cache.Accessor
 	md *metadata.Store
 }
@@ -52,7 +49,7 @@ func (ls *localSource) ID() string {
 	return source.LocalScheme
 }
 
-func (ls *localSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
+func (ls *localSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
 	localIdentifier, ok := id.(*source.LocalIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid local identifier %v", id)
@@ -60,12 +57,14 @@ func (ls *localSource) Resolve(ctx context.Context, id source.Identifier) (sourc
 
 	return &localSourceHandler{
 		src:         *localIdentifier,
+		sm:          sm,
 		localSource: ls,
 	}, nil
 }
 
 type localSourceHandler struct {
 	src source.LocalIdentifier
+	sm  *session.Manager
 	*localSource
 }
 

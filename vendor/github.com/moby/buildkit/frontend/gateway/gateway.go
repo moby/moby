@@ -7,6 +7,7 @@ import (
 	"io"
 	"net"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -193,12 +194,20 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 
 	env = append(env, "BUILDKIT_EXPORTEDPRODUCT="+apicaps.ExportedProduct)
 
-	err = llbBridge.Exec(ctx, executor.Meta{
+	meta := executor.Meta{
 		Env:            env,
 		Args:           args,
 		Cwd:            cwd,
 		ReadonlyRootFS: readonly,
-	}, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
+	}
+
+	if v, ok := img.Config.Labels["moby.buildkit.frontend.network.none"]; ok {
+		if ok, _ := strconv.ParseBool(v); ok {
+			meta.NetMode = opspb.NetMode_NONE
+		}
+	}
+
+	err = llbBridge.Exec(ctx, meta, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
 
 	if err != nil {
 		// An existing error (set via Return rpc) takes
@@ -397,13 +406,37 @@ func (lbf *llbBridgeForwarder) ResolveImageConfig(ctx context.Context, req *pb.R
 	}, nil
 }
 
+func translateLegacySolveRequest(req *pb.SolveRequest) error {
+	// translates ImportCacheRefs to new CacheImports (v0.4.0)
+	for _, legacyImportRef := range req.ImportCacheRefsDeprecated {
+		im := &pb.CacheOptionsEntry{
+			Type:  "registry",
+			Attrs: map[string]string{"ref": legacyImportRef},
+		}
+		// FIXME(AkihiroSuda): skip append if already exists
+		req.CacheImports = append(req.CacheImports, im)
+	}
+	req.ImportCacheRefsDeprecated = nil
+	return nil
+}
+
 func (lbf *llbBridgeForwarder) Solve(ctx context.Context, req *pb.SolveRequest) (*pb.SolveResponse, error) {
+	if err := translateLegacySolveRequest(req); err != nil {
+		return nil, err
+	}
+	var cacheImports []frontend.CacheOptionsEntry
+	for _, e := range req.CacheImports {
+		cacheImports = append(cacheImports, frontend.CacheOptionsEntry{
+			Type:  e.Type,
+			Attrs: e.Attrs,
+		})
+	}
 	ctx = tracing.ContextWithSpanFromContext(ctx, lbf.callCtx)
 	res, err := lbf.llbBridge.Solve(ctx, frontend.SolveRequest{
-		Definition:      req.Definition,
-		Frontend:        req.Frontend,
-		FrontendOpt:     req.FrontendOpt,
-		ImportCacheRefs: req.ImportCacheRefs,
+		Definition:   req.Definition,
+		Frontend:     req.Frontend,
+		FrontendOpt:  req.FrontendOpt,
+		CacheImports: cacheImports,
 	})
 	if err != nil {
 		return nil, err

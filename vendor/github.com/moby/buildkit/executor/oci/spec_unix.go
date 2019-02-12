@@ -22,14 +22,35 @@ import (
 
 // Ideally we don't have to import whole containerd just for the default spec
 
+// ProcMode configures PID namespaces
+type ProcessMode int
+
+const (
+	// ProcessSandbox unshares pidns and mount procfs.
+	ProcessSandbox ProcessMode = iota
+	// NoProcessSandbox uses host pidns and bind-mount procfs.
+	// Note that NoProcessSandbox allows build containers to kill (and potentially ptrace) an arbitrary process in the BuildKit host namespace.
+	// NoProcessSandbox should be enabled only when the BuildKit is running in a container as an unprivileged user.
+	NoProcessSandbox
+)
+
 // GenerateSpec generates spec using containerd functionality.
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+// opts are ignored for s.Process, s.Hostname, and s.Mounts .
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
 	_, ok := namespaces.Namespace(ctx)
 	if !ok {
 		ctx = namespaces.WithNamespace(ctx, "buildkit")
+	}
+
+	switch processMode {
+	case NoProcessSandbox:
+		// Mount for /proc is replaced in GetMounts()
+		opts = append(opts,
+			oci.WithHostNamespace(specs.PIDNamespace))
+		// TODO(AkihiroSuda): Configure seccomp to disable ptrace (and prctl?) explicitly
 	}
 
 	// Note that containerd.GenerateSpec is namespaced so as to make
@@ -48,10 +69,14 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 	s.Process.NoNewPrivileges = false // reset nonewprivileges
 	s.Hostname = "buildkitsandbox"
 
-	s.Mounts = GetMounts(ctx,
+	s.Mounts, err = GetMounts(ctx,
+		withProcessMode(processMode),
 		withROBind(resolvConf, "/etc/resolv.conf"),
 		withROBind(hostsFile, "/etc/hosts"),
 	)
+	if err != nil {
+		return nil, nil, err
+	}
 
 	s.Mounts = append(s.Mounts, specs.Mount{
 		Destination: "/sys/fs/cgroup",
