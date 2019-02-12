@@ -133,7 +133,8 @@ func translateContainerdStartErr(cmd string, setExitCode func(int), err error) e
 	if contains(errDesc, cmd) &&
 		(contains(errDesc, "executable file not found") ||
 			contains(errDesc, "no such file or directory") ||
-			contains(errDesc, "system cannot find the file specified")) {
+			contains(errDesc, "system cannot find the file specified") ||
+			contains(errDesc, "failed to run runc create/exec call")) {
 		setExitCode(127)
 		retErr = startInvalidConfigError(errDesc)
 	}
