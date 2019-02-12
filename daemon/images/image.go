@@ -29,6 +29,11 @@ const (
 	// LabelImageDangling refers to images with no name
 	// Stored on images and points to the image config digest
 	LabelImageDangling = "docker.io/image.dangling"
+
+	// LabelLayerPrefix is used as the label prefix for layer stores
+	// Stores the layer reference in the given layerstore.
+	// The value always represents the digest of the ChainID
+	LabelLayerPrefix = "docker.io/layer."
 )
 
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
@@ -54,6 +59,70 @@ func (i *ImageService) GetImage(ctx context.Context, refOrID string) (ocispec.De
 	}
 
 	return ci.config, nil
+}
+
+// SearchImage searches for an image based on the given
+// reference or identifier. Returns the descriptor of
+// the image, could be manifest list, manifest, or config.
+func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
+	parsed, err := reference.ParseAnyReference(refOrID)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	is := i.client.ImageService()
+
+	c, err := i.getCache(ctx)
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	c.m.RLock()
+	defer c.m.RUnlock()
+
+	namedRef, ok := parsed.(reference.Named)
+	if !ok {
+		digested, ok := parsed.(reference.Digested)
+		if !ok {
+			return ocispec.Descriptor{}, errdefs.InvalidParameter(errors.New("bad reference"))
+		}
+
+		// Check if descriptor is cached
+		desc, ok := c.descriptors[digested.Digest()]
+		if ok {
+			return desc, nil
+		}
+
+		imgs, err := is.List(ctx, fmt.Sprintf("target.digest==%s", digested.Digest()))
+		if err != nil {
+			return ocispec.Descriptor{}, errors.Wrap(err, "failed to lookup digest")
+		}
+		if len(imgs) == 0 {
+			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("image not find with digest"))
+		}
+
+		return imgs[0].Target, nil
+	}
+
+	img, err := is.Get(ctx, namedRef.String())
+	if err != nil {
+		if !cerrdefs.IsNotFound(err) {
+			return ocispec.Descriptor{}, err
+		}
+		dgst, err := c.targets.Lookup(refOrID)
+		if err != nil {
+			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("reference not found"))
+		}
+
+		desc, ok := c.descriptors[dgst]
+		if ok {
+			return desc, nil
+		}
+
+		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("id not found"))
+	}
+
+	return img.Target, nil
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.

@@ -40,8 +40,10 @@ type cache struct {
 	// idCache maps Docker identifiers
 	idCache map[digest.Digest]*cachedImage
 	// tCache maps target digests to images
-	tCache map[digest.Digest]*cachedImage
-	ids    *digestset.Set
+	tCache      map[digest.Digest]*cachedImage
+	ids         *digestset.Set
+	targets     *digestset.Set
+	descriptors map[digest.Digest]ocispec.Descriptor
 }
 
 func (c *cache) byID(id digest.Digest) *cachedImage {
@@ -83,9 +85,11 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 	defer i.cacheL.Unlock()
 
 	c := &cache{
-		idCache: map[digest.Digest]*cachedImage{},
-		tCache:  map[digest.Digest]*cachedImage{},
-		ids:     digestset.NewSet(),
+		idCache:     map[digest.Digest]*cachedImage{},
+		tCache:      map[digest.Digest]*cachedImage{},
+		ids:         digestset.NewSet(),
+		targets:     digestset.NewSet(),
+		descriptors: map[digest.Digest]ocispec.Descriptor{},
 	}
 
 	is := i.client.ImageService()
@@ -186,6 +190,8 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 				c.ids.Add(id.Digest)
 			}
 			c.tCache[img.Target.Digest] = ci
+			c.targets.Add(img.Target.Digest)
+			c.descriptors[img.Target.Digest] = img.Target
 
 			// Load image layer to prevent removal
 		}
