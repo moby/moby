@@ -157,17 +157,32 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, runtimeO
 		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
-	// spec.Linux must be nil for Windows containers, but spec.Windows
-	// will be filled in regardless of container platform.  This is a
-	// temporary workaround due to LCOW requiring layer folder paths,
-	// which are stored under spec.Windows.
-	//
-	// TODO: @darrenstahlmsft fix this once the OCI spec is updated to
-	// support layer folder paths for LCOW
+	var err error
 	if spec.Linux == nil {
-		return c.createWindows(id, spec, runtimeOptions)
+		err = c.createWindows(id, spec, runtimeOptions)
+	} else {
+		err = c.createLinux(id, spec, runtimeOptions)
 	}
-	return c.createLinux(id, spec, runtimeOptions)
+
+	if err == nil {
+		c.eventQ.Append(id, func() {
+			ei := libcontainerdtypes.EventInfo{
+				ContainerID: id,
+			}
+			c.logger.WithFields(logrus.Fields{
+				"container": id,
+				"event":     libcontainerdtypes.EventCreate,
+			}).Info("sending event")
+			err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
+			if err != nil {
+				c.logger.WithError(err).WithFields(logrus.Fields{
+					"container": id,
+					"event":     libcontainerdtypes.EventCreate,
+				}).Error("failed to process event")
+			}
+		})
+	}
+	return err
 }
 
 func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) error {
@@ -561,23 +576,6 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 	c.containers[id] = ctr
 	c.Unlock()
 
-	c.eventQ.Append(id, func() {
-		ei := libcontainerdtypes.EventInfo{
-			ContainerID: id,
-		}
-		c.logger.WithFields(logrus.Fields{
-			"container": ctr.id,
-			"event":     libcontainerdtypes.EventCreate,
-		}).Info("sending event")
-		err := c.backend.ProcessEvent(id, libcontainerdtypes.EventCreate, ei)
-		if err != nil {
-			c.logger.WithError(err).WithFields(logrus.Fields{
-				"container": id,
-				"event":     libcontainerdtypes.EventCreate,
-			}).Error("failed to process event")
-		}
-	})
-
 	logger.Debug("createLinux() completed successfully")
 	return nil
 }
@@ -655,7 +653,9 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 
 	// Configure the CommandLine/CommandArgs
 	setCommandLineAndArgs(ctr.isWindows, ctr.ociSpec.Process, createProcessParms)
-	logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
+	if ctr.isWindows {
+		logger.Debugf("start commandLine: %s", createProcessParms.CommandLine)
+	}
 
 	createProcessParms.User = ctr.ociSpec.Process.User.Username
 
@@ -671,14 +671,31 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	}
 
 	ctr.Lock()
-	defer ctr.Unlock()
 
 	// Start the command running in the container.
 	newProcess, err := ctr.hcsContainer.CreateProcess(createProcessParms)
 	if err != nil {
 		logger.WithError(err).Error("CreateProcess() failed")
+		// Fix for https://github.com/moby/moby/issues/38719.
+		// If the init process failed to launch, we still need to reap the
+		// container to avoid leaking it.
+		//
+		// Note we use the explicit exit code of 127 which is the
+		// Linux shell equivalent of "command not found". Windows cannot
+		// know ahead of time whether or not the command exists, especially
+		// in the case of Hyper-V containers.
+		ctr.Unlock()
+		exitedAt := time.Now()
+		p := &process{
+			id:  libcontainerdtypes.InitProcessName,
+			pid: 0,
+		}
+		c.reapContainer(ctr, p, 127, exitedAt, nil, logger)
 		return -1, err
 	}
+
+	defer ctr.Unlock()
+
 	defer func() {
 		if err != nil {
 			if err := newProcess.Kill(); err != nil {
@@ -701,6 +718,12 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	}
 	logger.WithField("pid", p.pid).Debug("init process started")
 
+	ctr.status = libcontainerdtypes.StatusRunning
+	ctr.init = p
+
+	// Spin up a go routine waiting for exit to handle cleanup
+	go c.reapProcess(ctr, p)
+
 	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
@@ -708,14 +731,9 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	}
 	_, err = attachStdio(dio)
 	if err != nil {
-		logger.WithError(err).Error("failed to attache stdio")
+		logger.WithError(err).Error("failed to attach stdio")
 		return -1, err
 	}
-	ctr.status = libcontainerdtypes.StatusRunning
-	ctr.init = p
-
-	// Spin up a go routine waiting for exit to handle cleanup
-	go c.reapProcess(ctr, p)
 
 	// Generate the associated event
 	c.eventQ.Append(id, func() {
@@ -1326,37 +1344,7 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 	}
 
 	if p.id == libcontainerdtypes.InitProcessName {
-		// Update container status
-		ctr.Lock()
-		ctr.status = libcontainerdtypes.StatusStopped
-		ctr.exitedAt = exitedAt
-		ctr.exitCode = uint32(exitCode)
-		close(ctr.waitCh)
-
-		if err := c.shutdownContainer(ctr); err != nil {
-			exitCode = -1
-			logger.WithError(err).Warn("failed to shutdown container")
-			thisErr := fmt.Errorf("failed to shutdown container: %s", err)
-			if eventErr != nil {
-				eventErr = fmt.Errorf("%s: %s", eventErr, thisErr)
-			} else {
-				eventErr = thisErr
-			}
-		} else {
-			logger.Debug("completed container shutdown")
-		}
-		ctr.Unlock()
-
-		if err := ctr.hcsContainer.Close(); err != nil {
-			exitCode = -1
-			logger.WithError(err).Error("failed to clean hcs container resources")
-			thisErr := fmt.Errorf("failed to terminate container: %s", err)
-			if eventErr != nil {
-				eventErr = fmt.Errorf("%s: %s", eventErr, thisErr)
-			} else {
-				eventErr = thisErr
-			}
-		}
+		exitCode, eventErr = c.reapContainer(ctr, p, exitCode, exitedAt, eventErr, logger)
 	}
 
 	c.eventQ.Append(ctr.id, func() {
@@ -1389,4 +1377,41 @@ func (c *client) reapProcess(ctr *container, p *process) int {
 	})
 
 	return exitCode
+}
+
+// reapContainer shuts down the container and releases associated resources. It returns
+// the error to be logged in the eventInfo sent back to the monitor.
+func (c *client) reapContainer(ctr *container, p *process, exitCode int, exitedAt time.Time, eventErr error, logger *logrus.Entry) (int, error) {
+	// Update container status
+	ctr.Lock()
+	ctr.status = libcontainerdtypes.StatusStopped
+	ctr.exitedAt = exitedAt
+	ctr.exitCode = uint32(exitCode)
+	close(ctr.waitCh)
+
+	if err := c.shutdownContainer(ctr); err != nil {
+		exitCode = -1
+		logger.WithError(err).Warn("failed to shutdown container")
+		thisErr := errors.Wrap(err, "failed to shutdown container")
+		if eventErr != nil {
+			eventErr = errors.Wrap(eventErr, thisErr.Error())
+		} else {
+			eventErr = thisErr
+		}
+	} else {
+		logger.Debug("completed container shutdown")
+	}
+	ctr.Unlock()
+
+	if err := ctr.hcsContainer.Close(); err != nil {
+		exitCode = -1
+		logger.WithError(err).Error("failed to clean hcs container resources")
+		thisErr := errors.Wrap(err, "failed to terminate container")
+		if eventErr != nil {
+			eventErr = errors.Wrap(eventErr, thisErr.Error())
+		} else {
+			eventErr = thisErr
+		}
+	}
+	return exitCode, eventErr
 }
