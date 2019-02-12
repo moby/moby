@@ -68,7 +68,7 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 		numFields := len(fields)
 		if numFields < 10 {
 			// should be at least 10 fields
-			return nil, fmt.Errorf("Parsing '%s' failed: not enough fields (%d)", text, numFields)
+			return nil, fmt.Errorf("parsing '%s' failed: not enough fields (%d)", text, numFields)
 		}
 		p := Info{}
 		// ignore any numbers parsing errors, as there should not be any
@@ -76,7 +76,7 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 		p.Parent, _ = strconv.Atoi(fields[1])
 		mm := strings.Split(fields[2], ":")
 		if len(mm) != 2 {
-			return nil, fmt.Errorf("Parsing '%s' failed: unexpected minor:major pair %s", text, mm)
+			return nil, fmt.Errorf("parsing '%s' failed: unexpected minor:major pair %s", text, mm)
 		}
 		p.Major, _ = strconv.Atoi(mm[0])
 		p.Minor, _ = strconv.Atoi(mm[1])
@@ -101,11 +101,11 @@ func parseInfoFile(r io.Reader) ([]Info, error) {
 			}
 		}
 		if i == numFields {
-			return nil, fmt.Errorf("Parsing '%s' failed: missing separator ('-')", text)
+			return nil, fmt.Errorf("parsing '%s' failed: missing separator ('-')", text)
 		}
 		// There should be 3 fields after the separator...
 		if i+4 > numFields {
-			return nil, fmt.Errorf("Parsing '%s' failed: not enough fields after a separator", text)
+			return nil, fmt.Errorf("parsing '%s' failed: not enough fields after a separator", text)
 		}
 		// ... but in Linux <= 3.9 mounting a cifs with spaces in a share name
 		// (like "//serv/My Documents") _may_ end up having a space in the last field

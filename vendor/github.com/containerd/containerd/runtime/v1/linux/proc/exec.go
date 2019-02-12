@@ -49,7 +49,7 @@ type execProcess struct {
 	io      runc.IO
 	status  int
 	exited  time.Time
-	pid     int
+	pid     *safePid
 	closers []io.Closer
 	stdin   io.Closer
 	stdio   proc.Stdio
@@ -69,11 +69,7 @@ func (e *execProcess) ID() string {
 }
 
 func (e *execProcess) Pid() int {
-	return e.execState.Pid()
-}
-
-func (e *execProcess) pidv() int {
-	return e.pid
+	return e.pid.get()
 }
 
 func (e *execProcess) ExitStatus() int {
@@ -145,7 +141,7 @@ func (e *execProcess) Kill(ctx context.Context, sig uint32, _ bool) error {
 }
 
 func (e *execProcess) kill(ctx context.Context, sig uint32, _ bool) error {
-	pid := e.pid
+	pid := e.pid.get()
 	if pid != 0 {
 		if err := unix.Kill(pid, syscall.Signal(sig)); err != nil {
 			return errors.Wrapf(checkKillError(err), "exec kill error")
@@ -170,6 +166,12 @@ func (e *execProcess) Start(ctx context.Context) error {
 }
 
 func (e *execProcess) start(ctx context.Context) (err error) {
+	// The reaper may receive exit signal right after
+	// the container is started, before the e.pid is updated.
+	// In that case, we want to block the signal handler to
+	// access e.pid until it is updated.
+	e.pid.Lock()
+	defer e.pid.Unlock()
 	var (
 		socket  *runc.Socket
 		pidfile = filepath.Join(e.path, fmt.Sprintf("%s.pid", e.id))
@@ -201,7 +203,7 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 		return e.parent.runtimeError(err, "OCI runtime exec failed")
 	}
 	if e.stdio.Stdin != "" {
-		sc, err := fifo.OpenFifo(ctx, e.stdio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		sc, err := fifo.OpenFifo(context.Background(), e.stdio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open stdin fifo %s", e.stdio.Stdin)
 		}
@@ -210,29 +212,26 @@ func (e *execProcess) start(ctx context.Context) (err error) {
 	}
 	var copyWaitGroup sync.WaitGroup
 	ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+	defer cancel()
 	if socket != nil {
 		console, err := socket.ReceiveMaster()
 		if err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to retrieve console master")
 		}
 		if e.console, err = e.parent.Platform.CopyConsole(ctx, console, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to start console copy")
 		}
 	} else if !e.stdio.IsNull() {
 		if err := copyPipes(ctx, e.io, e.stdio.Stdin, e.stdio.Stdout, e.stdio.Stderr, &e.wg, &copyWaitGroup); err != nil {
-			cancel()
 			return errors.Wrap(err, "failed to start io pipe copy")
 		}
 	}
 	copyWaitGroup.Wait()
 	pid, err := runc.ReadPidFile(opts.PidFile)
 	if err != nil {
-		cancel()
 		return errors.Wrap(err, "failed to retrieve OCI runtime exec pid")
 	}
-	e.pid = pid
+	e.pid.pid = pid
 	return nil
 }
 
@@ -250,11 +249,11 @@ func (e *execProcess) Status(ctx context.Context) (string, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	// if we don't have a pid then the exec process has just been created
-	if e.pid == 0 {
+	if e.pid.get() == 0 {
 		return "created", nil
 	}
 	// if we have a pid and it can be signaled, the process is running
-	if err := unix.Kill(e.pid, 0); err == nil {
+	if err := unix.Kill(e.pid.get(), 0); err == nil {
 		return "running", nil
 	}
 	// else if we have a pid but it can nolonger be signaled, it has stopped

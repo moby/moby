@@ -628,7 +628,7 @@ func (s *snapshotter) garbageCollect(ctx context.Context) (d time.Duration, err 
 			}
 		}
 		if err == nil {
-			d = time.Now().Sub(t1)
+			d = time.Since(t1)
 		}
 	}()
 

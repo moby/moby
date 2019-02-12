@@ -69,4 +69,8 @@ type PlatformRuntime interface {
 	// Tasks returns all the current tasks for the runtime.
 	// Any container runs at most one task at a time.
 	Tasks(context.Context, bool) ([]Task, error)
+	// Add adds a task into runtime.
+	Add(context.Context, Task) error
+	// Delete remove a task.
+	Delete(context.Context, string)
 }

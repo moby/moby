@@ -303,6 +303,16 @@ func (r *Runtime) Get(ctx context.Context, id string) (runtime.Task, error) {
 	return r.tasks.Get(ctx, id)
 }
 
+// Add a runtime task
+func (r *Runtime) Add(ctx context.Context, task runtime.Task) error {
+	return r.tasks.Add(ctx, task)
+}
+
+// Delete a runtime task
+func (r *Runtime) Delete(ctx context.Context, id string) {
+	r.tasks.Delete(ctx, id)
+}
+
 func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 	dir, err := ioutil.ReadDir(filepath.Join(r.state, ns))
 	if err != nil {
