@@ -32,7 +32,7 @@ func NewContentHashFunc(selectors []string) solver.ResultBasedCacheFunc {
 			// FIXME(tonistiigi): enabling this parallelization seems to create wrong results for some big inputs(like gobuild)
 			// func(i int) {
 			// 	eg.Go(func() error {
-			dgst, err := contenthash.Checksum(ctx, ref.ImmutableRef, path.Join("/", sel))
+			dgst, err := contenthash.Checksum(ctx, ref.ImmutableRef, path.Join("/", sel), true)
 			if err != nil {
 				return "", err
 			}

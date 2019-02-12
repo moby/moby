@@ -17,6 +17,7 @@ import (
 	units "github.com/docker/go-units"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
+	"github.com/moby/buildkit/cache/remotecache"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
@@ -167,11 +168,13 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	return control.NewController(control.Opt{
-		SessionManager:           opt.SessionManager,
-		WorkerController:         wc,
-		Frontends:                frontends,
-		CacheKeyStorage:          cacheStorage,
-		ResolveCacheImporterFunc: registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
+		SessionManager:   opt.SessionManager,
+		WorkerController: wc,
+		Frontends:        frontends,
+		CacheKeyStorage:  cacheStorage,
+		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
+			"registry": registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
+		},
 		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
 }
