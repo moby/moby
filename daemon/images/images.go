@@ -10,6 +10,7 @@ import (
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -61,21 +62,38 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			return nil, invalidFilter{"dangling", imageFilters.Get("dangling")}
 		}
 	}
+	cs := i.client.ContentStore()
 
-	var beforeFilter, sinceFilter *image.Image
+	var beforeFilter, sinceFilter *time.Time
 	err = imageFilters.WalkValues("before", func(value string) error {
-		var err error
-		beforeFilter, err = i.getDockerImage(value)
-		return err
+		img, err := i.ResolveImage(ctx, value)
+		if err != nil {
+			return err
+		}
+		info, err := cs.Info(ctx, img.Digest)
+		if err != nil {
+			return err
+		}
+
+		beforeFilter = &info.CreatedAt
+		return nil
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	err = imageFilters.WalkValues("since", func(value string) error {
-		var err error
-		sinceFilter, err = i.getDockerImage(value)
-		return err
+		img, err := i.ResolveImage(ctx, value)
+		if err != nil {
+			return err
+		}
+		info, err := cs.Info(ctx, img.Digest)
+		if err != nil {
+			return err
+		}
+
+		sinceFilter = &info.CreatedAt
+		return nil
 	})
 	if err != nil {
 		return nil, err
@@ -86,7 +104,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		filters = append(filters, "name~=/sha256:[a-z0-9]+/")
 	} else if imageFilters.Contains("reference") {
 		for _, v := range imageFilters.Get("reference") {
-			// TODO: Parse reference, if only partial match then
+			// TODO(containerd): Parse reference, if only partial match then
 			// use as regex
 			filters = append(filters, "name=="+v)
 		}
@@ -120,38 +138,26 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	}
 
 	m := map[digest.Digest][]images.Image{}
+	created := map[digest.Digest]time.Time{}
 
 	c.m.RLock()
 	for _, img := range allImages {
-		if beforeFilter != nil && beforeFilter.Image.Created != nil {
-			created := img.Labels["docker.io/created"]
-			if created != "" {
-				t, err := time.Parse(created, time.RFC3339)
-				if err == nil && t.Equal(*beforeFilter.Image.Created) || t.After(*beforeFilter.Image.Created) {
-					continue
-				}
-			}
-		}
-
-		if sinceFilter != nil && sinceFilter.Image.Created != nil {
-			created := img.Labels["docker.io/created"]
-			if created != "" {
-				t, err := time.Parse(created, time.RFC3339)
-				if err == nil && t.Equal(*sinceFilter.Image.Created) || t.Before(*sinceFilter.Image.Created) {
-					continue
-				}
-			}
-
-		}
-
-		ci, ok := c.tCache[img.Target.Digest]
-		if !ok {
-			// TODO(containerd): Lookup config and update cache
-			log.G(ctx).WithField("name", img.Name).Debugf("skipping non-cached image")
+		info, err := cs.Info(ctx, img.Target.Digest)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("name", img.Name).Warnf("failed to stat target")
 			continue
 		}
 
-		m[ci.config.Digest] = append(m[ci.config.Digest], img)
+		if beforeFilter != nil && !info.CreatedAt.Before(*beforeFilter) {
+			continue
+		}
+
+		if sinceFilter != nil && !info.CreatedAt.After(*sinceFilter) {
+			continue
+		}
+
+		m[img.Target.Digest] = append(m[img.Target.Digest], img)
+		created[img.Target.Digest] = info.CreatedAt
 
 		//var size int64
 		// TODO: this seems pretty dumb to do
@@ -229,29 +235,51 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	//var allLayers map[layer.ChainID]layer.Layer
 	//var allContainers []*container.Container
 
-	// TODO: For each found image ID, add references
-	for config, imgs := range m {
+	for dgst, imgs := range m {
 		newImage := new(types.ImageSummary)
-		newImage.ID = config.String()
+		newImage.ID = dgst.String()
+		newImage.Created = created[dgst].Unix()
 
-		image, err := i.getImage(ctx, ocispec.Descriptor{Digest: config})
-		if err != nil {
-			// TODO(containerd): log this
-			continue
-		}
-		if image.Image.Created != nil {
-			newImage.Created = image.Image.Created.Unix()
+		var target = imgs[0].Target
+		var config ocispec.Descriptor
+
+		switch target.MediaType {
+		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+		default:
+			// TODO(containerd): Set this more globally and to
+			// an appropriate value for Windows
+			platform := platforms.Default()
+
+			desc, err := images.Config(ctx, cs, imgs[0].Target, platform)
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("image", dgst.String()).Warnf("unable to resolve config")
+				continue
+			}
+			config = desc
 		}
 
-		// TODO: Fill this in from config and content labels
-		//newImage.ParentID = image.Parent.String()
-		//newImage.Size = size
-		//newImage.VirtualSize = size
-		//newImage.SharedSize = -1
-		//newImage.Containers = -1
-		//if image.Config != nil {
-		//	newImage.Labels = image.Config.Labels
-		//}
+		// TODO(containerd): Stat config
+		if info, err := cs.Info(ctx, config.Digest); err == nil {
+			for label, value := range info.Labels {
+				if label == LabelImageParent {
+					newImage.ParentID = value
+				} else if strings.HasPrefix(label, LabelLayerPrefix) {
+					// TODO: Lookup from layer store
+				}
+				// TODO(containerd): Store size in label
+			}
+			// TODO(containerd): Resolve config for current platform
+			// TODO(containerd): Fill this in from config and content labels
+			//newImage.Size = size
+			//newImage.VirtualSize = size
+			//newImage.SharedSize = -1
+			//newImage.Containers = -1
+			//if image.Config != nil {
+			//	newImage.Labels = image.Config.Labels
+			//}
+		} else {
+			log.G(ctx).WithError(err).WithField("digest", config.Digest.String()).Warnf("unable to get image config info")
+		}
 
 		// TODO: Add each image reference
 		// For these, unique them by manifest, none:none or none@digest
