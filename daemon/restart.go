@@ -2,6 +2,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"fmt"
+	"runtime"
 
 	"github.com/docker/docker/container"
 	"github.com/sirupsen/logrus"
@@ -34,11 +35,16 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
 func (daemon *Daemon) containerRestart(container *container.Container, seconds int) error {
-	// Avoid unnecessarily unmounting and then directly mounting
+
+	// Optimization: avoid unnecessarily unmounting and then directly mounting
 	// the container when the container stops and then starts
-	// again
-	if err := daemon.Mount(container); err == nil {
-		defer daemon.Unmount(container)
+	// again. Doesn't work on Windows.
+	if runtime.GOOS != "windows" {
+		if err := daemon.Mount(container); err == nil {
+			defer daemon.Unmount(container)
+		} else {
+			logrus.Warningf("can't mount container (%s) fs for faster restart: %v", container.ID, err)
+		}
 	}
 
 	if container.IsRunning() {
