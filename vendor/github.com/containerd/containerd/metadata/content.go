@@ -762,7 +762,7 @@ func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, er
 	t1 := time.Now()
 	defer func() {
 		if err == nil {
-			d = time.Now().Sub(t1)
+			d = time.Since(t1)
 		}
 		cs.l.Unlock()
 	}()

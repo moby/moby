@@ -99,8 +99,7 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 		})
 	}
 
-	var handler images.HandlerFunc
-	handler = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+	var handler images.HandlerFunc = func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		// Only save images at top level
 		if desc.Digest != index.Digest {
 			return images.Children(ctx, cs, desc)

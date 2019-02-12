@@ -74,7 +74,7 @@ func tarName(p string) (string, error) {
 	// in file names, it is mostly safe to replace however we must
 	// check just in case
 	if strings.Contains(p, "/") {
-		return "", fmt.Errorf("Windows path contains forward slash: %s", p)
+		return "", fmt.Errorf("windows path contains forward slash: %s", p)
 	}
 
 	return strings.Replace(p, string(os.PathSeparator), "/", -1), nil
@@ -130,11 +130,7 @@ func skipFile(hdr *tar.Header) bool {
 	// specific or Linux-specific, this warning should be changed to an error
 	// to cater for the situation where someone does manage to upload a Linux
 	// image but have it tagged as Windows inadvertently.
-	if strings.Contains(hdr.Name, ":") {
-		return true
-	}
-
-	return false
+	return strings.Contains(hdr.Name, ":")
 }
 
 // handleTarTypeBlockCharFifo is an OS-specific helper function used by

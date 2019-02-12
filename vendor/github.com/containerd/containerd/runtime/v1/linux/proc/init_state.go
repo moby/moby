@@ -172,7 +172,7 @@ func (s *createdCheckpointState) Start(ctx context.Context) error {
 		return p.runtimeError(err, "OCI runtime restore failed")
 	}
 	if sio.Stdin != "" {
-		sc, err := fifo.OpenFifo(ctx, sio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
+		sc, err := fifo.OpenFifo(context.Background(), sio.Stdin, syscall.O_WRONLY|syscall.O_NONBLOCK, 0)
 		if err != nil {
 			return errors.Wrapf(err, "failed to open stdin fifo %s", sio.Stdin)
 		}
