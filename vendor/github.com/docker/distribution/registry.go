@@ -54,6 +54,11 @@ type RepositoryEnumerator interface {
 	Enumerate(ctx context.Context, ingester func(string) error) error
 }
 
+// RepositoryRemover removes given repository
+type RepositoryRemover interface {
+	Remove(ctx context.Context, name reference.Named) error
+}
+
 // ManifestServiceOption is a function argument for Manifest Service methods
 type ManifestServiceOption interface {
 	Apply(ManifestService) error
