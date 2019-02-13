@@ -2,6 +2,7 @@ package system // import "github.com/docker/docker/api/server/router/system"
 
 import (
 	"github.com/docker/docker/api/server/router"
+	"github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/fscache"
 )
 
