@@ -143,10 +143,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}()
 	}
 
-	// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
-	if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
-		// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
-		logrus.WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
+	if cli.Config.IsRootless() {
+		// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
+		if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
+			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
+			logrus.WithError(err).Warn("cannot set sticky bit on files under XDG_RUNTIME_DIR")
+		}
 	}
 
 	serverConfig, err := newAPIServerConfig(cli)
