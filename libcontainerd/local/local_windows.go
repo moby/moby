@@ -724,7 +724,9 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	// Spin up a go routine waiting for exit to handle cleanup
 	go c.reapProcess(ctr, p)
 
-	dio, err := newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
+	// Don't shadow err here due to our deferred clean-up.
+	var dio *cio.DirectIO
+	dio, err = newIOFromProcess(newProcess, ctr.ociSpec.Process.Terminal)
 	if err != nil {
 		logger.WithError(err).Error("failed to get stdio pipes")
 		return -1, err
