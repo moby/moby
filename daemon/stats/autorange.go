@@ -62,7 +62,6 @@ const (
 	miB                   = 1024 * kiB
 	giB                   = 1024 * miB
 	tiB                   = 1024 * giB
-	piB                   = 1024 * tiB
 	minAllowedMemoryLimit = 5 * miB
 )
 
@@ -505,7 +504,7 @@ func averrageF(arr []float64) float64 {
 	for _, n := range arr {
 		total += n
 	}
-	return float64(total / float64(len(arr)))
+	return total / float64(len(arr))
 }
 
 func averrage(arr []uint64) uint64 {
