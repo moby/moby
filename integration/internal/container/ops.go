@@ -136,3 +136,10 @@ func WithLogDriver(driver string) func(*TestContainerConfig) {
 func WithAutoRemove(c *TestContainerConfig) {
 	c.HostConfig.AutoRemove = true
 }
+
+// WithRestartPolicy sets container's restart policy
+func WithRestartPolicy(policy string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.HostConfig.RestartPolicy.Name = policy
+	}
+}
