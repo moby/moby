@@ -15,7 +15,7 @@ func (d *Daemon) setupDumpStackTrap(root string) {
 	// Windows does not support signals like *nix systems. So instead of
 	// trapping on SIGUSR1 to dump stacks, we wait on a Win32 event to be
 	// signaled. ACL'd to builtin administrators and local system
-	event := "Global\\docker-daemon-" + fmt.Sprint(os.Getpid())
+	event := "Global\\stackdump-" + fmt.Sprint(os.Getpid())
 	ev, _ := windows.UTF16PtrFromString(event)
 	sd, err := winio.SddlToSecurityDescriptor("D:P(A;;GA;;;BA)(A;;GA;;;SY)")
 	if err != nil {
