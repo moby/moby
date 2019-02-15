@@ -276,15 +276,20 @@ func (process *Process) ExitCode() (_ int, err error) {
 
 	properties, err := process.Properties()
 	if err != nil {
-		return 0, makeProcessError(process, operation, err, nil)
+		return -1, makeProcessError(process, operation, err, nil)
 	}
 
 	if properties.Exited == false {
-		return 0, makeProcessError(process, operation, ErrInvalidProcessState, nil)
+		return -1, makeProcessError(process, operation, ErrInvalidProcessState, nil)
 	}
 
 	if properties.LastWaitResult != 0 {
-		return 0, makeProcessError(process, operation, syscall.Errno(properties.LastWaitResult), nil)
+		logrus.WithFields(logrus.Fields{
+			logfields.ContainerID: process.SystemID(),
+			logfields.ProcessID:   process.processID,
+			"wait-result":         properties.LastWaitResult,
+		}).Warn("hcsshim::Process::ExitCode - Non-zero last wait result")
+		return -1, nil
 	}
 
 	return int(properties.ExitCode), nil
@@ -450,7 +455,7 @@ func (process *Process) unregisterCallback() error {
 	closeChannels(context.channels)
 
 	callbackMapLock.Lock()
-	callbackMap[callbackNumber] = nil
+	delete(callbackMap, callbackNumber)
 	callbackMapLock.Unlock()
 
 	handle = 0
