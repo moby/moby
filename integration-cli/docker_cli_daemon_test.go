@@ -2958,47 +2958,6 @@ func (s *DockerDaemonSuite) TestDaemonStartWithIpcModes(c *check.C) {
 	}
 }
 
-// TestDaemonRestartIpcMode makes sure a container keeps its ipc mode
-// (derived from daemon default) even after the daemon is restarted
-// with a different default ipc mode.
-func (s *DockerDaemonSuite) TestDaemonRestartIpcMode(c *check.C) {
-	f, err := ioutil.TempFile("", "test-daemon-ipc-config-restart")
-	c.Assert(err, checker.IsNil)
-	file := f.Name()
-	defer os.Remove(file)
-	c.Assert(f.Close(), checker.IsNil)
-
-	config := []byte(`{"default-ipc-mode": "private"}`)
-	c.Assert(ioutil.WriteFile(file, config, 0644), checker.IsNil)
-	s.d.StartWithBusybox(c, "--config-file", file)
-
-	// check the container is created with private ipc mode as per daemon default
-	name := "ipc1"
-	_, err = s.d.Cmd("run", "-d", "--name", name, "--restart=always", "busybox", "top")
-	c.Assert(err, checker.IsNil)
-	m, err := s.d.InspectField(name, ".HostConfig.IpcMode")
-	c.Assert(err, check.IsNil)
-	c.Assert(m, checker.Equals, "private")
-
-	// restart the daemon with shareable default ipc mode
-	config = []byte(`{"default-ipc-mode": "shareable"}`)
-	c.Assert(ioutil.WriteFile(file, config, 0644), checker.IsNil)
-	s.d.Restart(c, "--config-file", file)
-
-	// check the container is still having private ipc mode
-	m, err = s.d.InspectField(name, ".HostConfig.IpcMode")
-	c.Assert(err, check.IsNil)
-	c.Assert(m, checker.Equals, "private")
-
-	// check a new container is created with shareable ipc mode as per new daemon default
-	name = "ipc2"
-	_, err = s.d.Cmd("run", "-d", "--name", name, "busybox", "top")
-	c.Assert(err, checker.IsNil)
-	m, err = s.d.InspectField(name, ".HostConfig.IpcMode")
-	c.Assert(err, check.IsNil)
-	c.Assert(m, checker.Equals, "shareable")
-}
-
 // TestFailedPluginRemove makes sure that a failed plugin remove does not block
 // the daemon from starting
 func (s *DockerDaemonSuite) TestFailedPluginRemove(c *check.C) {
