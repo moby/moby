@@ -280,7 +280,7 @@ func (computeSystem *System) Shutdown() (err error) {
 	operation := "hcsshim::ComputeSystem::Shutdown"
 	computeSystem.logOperationBegin(operation)
 	defer func() {
-		if IsAlreadyStopped(err) {
+		if IsAlreadyStopped(err) || IsPending(err) {
 			computeSystem.logOperationEnd(operation, nil)
 		} else {
 			computeSystem.logOperationEnd(operation, err)
@@ -640,7 +640,7 @@ func (computeSystem *System) unregisterCallback() error {
 	closeChannels(context.channels)
 
 	callbackMapLock.Lock()
-	callbackMap[callbackNumber] = nil
+	delete(callbackMap, callbackNumber)
 	callbackMapLock.Unlock()
 
 	handle = 0
