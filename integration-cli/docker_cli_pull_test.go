@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"regexp"
 	"strings"
 	"sync"
@@ -271,4 +272,16 @@ func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "microsoft/nanoserver")
 	c.Assert(err.Error(), checker.Contains, "cannot be used on this platform")
+}
+
+// Regression test for https://github.com/docker/escalation/issues/1098
+func (s *DockerSuite) TestPullWindowsServercoreImage(c *check.C) {
+	testRequires(c, DaemonIsWindows, Network)
+	repoName := "mcr.microsoft.com/windows/servercore"
+	out, code, err := dockerCmdWithError("pull", repoName)
+	c.Assert(err, checker.IsNil)
+	if code != 0 {
+		_, err = os.Stdout.WriteString(out)
+		c.Fatalf("non zero exit code: %d", code)
+	}
 }
