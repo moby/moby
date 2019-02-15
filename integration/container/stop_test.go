@@ -17,9 +17,11 @@ func TestStopContainerWithRestartPolicyAlways(t *testing.T) {
 
 	names := []string{"verifyRestart1-" + t.Name(), "verifyRestart2-" + t.Name()}
 	for _, name := range names {
-		container.Run(t, ctx, client, container.WithName(name), container.WithCmd("false"), func(c *container.TestContainerConfig) {
-			c.HostConfig.RestartPolicy.Name = "always"
-		})
+		container.Run(t, ctx, client,
+			container.WithName(name),
+			container.WithCmd("false"),
+			container.WithRestartPolicy("always"),
+		)
 	}
 
 	for _, name := range names {
