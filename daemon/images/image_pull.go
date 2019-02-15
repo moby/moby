@@ -4,31 +4,33 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"runtime"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/docker/docker/pkg/stringid"
-
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
-	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/streamformatter"
+	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+// default maximum concurrent downloads allowed during docker pull
+const defaultMaxConcurrentDownloads = 3
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
@@ -69,26 +71,92 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		return err
 	}
 
+	progressOutput := streamformatter.NewJSONProgressOutput(outStream, false)
 	ongoing := newJobs(ref.Name())
-
 	pctx, stopProgress := context.WithCancel(ctx)
 	progress := make(chan struct{})
 
 	go func() {
 		// no progress bar, because it hides some debug logs
-		showProgress(pctx, ongoing, ref, i.client.ContentStore(), outStream)
+		showProgress(pctx, ongoing, ref, i.client.ContentStore(), progressOutput)
 		close(progress)
 	}()
-	// TODO: Lease
-	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+
+	h := images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
 		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ongoing.add(desc)
 		}
 		return nil, nil
 	})
+
+	var (
+		l          layer.Layer
+		layers     []specs.Descriptor
+		dlStatus   = map[digest.Digest]bool{}
+		dlChan     = make(chan digest.Digest, 5)
+		unpackChan = make(chan struct{})
+	)
+	// unpackHandler handles layer unpacking concurrently as soon as
+	// a layer in order has been downloaded
+	unpackHandler := func(h images.Handler) images.Handler {
+		return images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+			logrus.Infof("parent desc -> type=%s id=%s", desc.MediaType, stringid.TruncateID(desc.Digest.String()))
+			children, err := h.Handle(ctx, desc)
+			if err != nil {
+				return children, err
+			}
+			// manifest downloaded
+			if len(children) > 1 {
+				// trim off config descriptor only keep the layer descriptors
+				layers = children[1:]
+				// start the message broker to track layer downloading status
+				go func() {
+					// check the layers downloading status according to
+					// the order from manifest so that the unpacking
+					// process will be signaled in the same order as well.
+					// Also buffer the layers which downloaded faster
+					// ahead of the order.
+					for i := 0; i < len(layers); {
+						if ok := dlStatus[layers[i].Digest]; ok {
+							unpackChan <- struct{}{}
+							i++
+							continue
+						}
+						select {
+						case d := <-dlChan:
+							if d == layers[i].Digest {
+								unpackChan <- struct{}{}
+								i++
+							}
+							dlStatus[d] = true
+						}
+					}
+				}()
+			}
+
+			switch desc.MediaType {
+			case images.MediaTypeDockerSchema2Config:
+				// handle unpack
+				l, err = i.unpack(pctx, desc, layers, progressOutput, unpackChan)
+				if err != nil {
+					return nil, errors.Wrapf(err, "failed to unpack %s", desc.Digest)
+				}
+			case images.MediaTypeDockerSchema2LayerGzip:
+				// a layer has been downloaded, signal downloaded status
+				dlChan <- desc.Digest
+			}
+
+			return children, nil
+		})
+	}
+
 	opts := []containerd.RemoteOpt{
 		containerd.WithImageHandler(h),
+		containerd.WithImageHandlerWrapper(unpackHandler),
+		containerd.WithMaxConcurrentDownloads(defaultMaxConcurrentDownloads),
 	}
+
+	// TODO: Lease
 	// TODO: Custom resolver
 	//  - Auth config
 	//  - Custom headers
@@ -97,15 +165,12 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	// TODO: unpack tracking, use download manager for now?
 
 	img, err := i.client.Pull(pctx, ref.String(), opts...)
-
+	if err != nil {
+		return errors.Wrap(err, "failed to pull image")
+	}
 	config, err := img.Config(pctx)
 	if err != nil {
 		return errors.Wrap(err, "failed to resolve configuration")
-	}
-
-	l, err := i.unpack(pctx, img.Target())
-	if err != nil {
-		return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
 	}
 
 	// TODO: Unpack into layer store
@@ -147,37 +212,34 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 
 // TODO: Add shallow pull function which returns descriptor
 
-func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (layer.Layer, error) {
+func (i *ImageService) unpack(ctx context.Context, config specs.Descriptor, layers []specs.Descriptor, progressOutput progress.Output, unpackChan chan struct{}) (layer.Layer, error) {
 	var (
 		cs = i.client.ContentStore()
+		ls = i.layerStores[runtime.GOOS]
 	)
 
-	manifest, err := images.Manifest(ctx, cs, target, platforms.Default())
-	if err != nil {
-		return nil, err
-	}
-
-	diffIDs, err := images.RootFS(ctx, cs, manifest.Config)
+	diffIDs, err := images.RootFS(ctx, cs, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to resolve rootfs")
 	}
-	if len(diffIDs) != len(manifest.Layers) {
+	if len(diffIDs) != len(layers) {
 		return nil, errors.Errorf("mismatched image rootfs and manifest layers")
 	}
 
 	var (
 		chain = []digest.Digest{}
 		l     layer.Layer
-		ls    = i.layerStores[runtime.GOOS]
 	)
 	for d := range diffIDs {
 		chain = append(chain, diffIDs[d])
-
-		nl, err := i.applyLayer(ctx, manifest.Layers[d], chain)
+		// start unpacking upon signaled after current layer downloading complete
+		<-unpackChan
+		nl, err := i.applyLayer(ctx, layers[d], chain, progressOutput)
 		if err != nil {
+			logrus.Errorf("apply layer failed -> %s", err)
 			return nil, errors.Wrapf(err, "failed to apply layer %d", d)
 		}
-		logrus.Debugf("Layer applied: %s (%s)", nl.DiffID(), diffIDs[d])
+		logrus.Debugf("Layer applied: chain=%s %s (%s)", nl.ChainID(), nl.DiffID(), diffIDs[d])
 
 		if l != nil {
 			metadata, err := ls.Release(l)
@@ -194,7 +256,7 @@ func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (l
 
 	key := fmt.Sprintf("%s%s", LabelLayerPrefix, ls.DriverName())
 	info := content.Info{
-		Digest: manifest.Config.Digest,
+		Digest: config.Digest,
 		Labels: map[string]string{
 			key: l.ChainID().String(),
 		},
@@ -208,7 +270,7 @@ func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (l
 	return l, nil
 }
 
-func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, layers []digest.Digest) (layer.Layer, error) {
+func (i *ImageService) applyLayer(ctx context.Context, blob specs.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
 	var (
 		cs = i.client.ContentStore()
 		ls = i.layerStores[runtime.GOOS]
@@ -227,7 +289,12 @@ func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, 
 	}
 	defer ra.Close()
 
-	dc, err := compression.DecompressStream(content.NewReader(ra))
+	rc := ioutil.NopCloser(content.NewReader(ra))
+	blobId := stringid.TruncateID(blob.Digest.String())
+	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, rc), progressOutput, blob.Size, blobId, "Extracting")
+	defer reader.Close()
+
+	dc, err := compression.DecompressStream(reader)
 	if err != nil {
 		return nil, err
 	}
@@ -240,6 +307,7 @@ func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, 
 
 	return ls.Register(dc, layer.ChainID(parent))
 }
+
 func getTagOrDigest(ref reference.Named) string {
 	var (
 		// manifest    distribution.Manifest
@@ -255,14 +323,15 @@ func getTagOrDigest(ref reference.Named) string {
 }
 
 const (
-	downloading = "Downloading"
-	dlcomplete  = "Download complete"
-	waiting     = "Waiting"
-	exists      = "Already exists"
+	downloading  = "Downloading"
+	dlcomplete   = "Download complete"
+	waiting      = "Waiting"
+	exists       = "Already exists"
+	pullcomplete = "Pull complete"
 )
 
-func showProgress(ctx context.Context, ongoing *jobs, ref reference.Named, cs content.Store, out io.Writer) {
-	progressOutput := streamformatter.NewJSONProgressOutput(out, false)
+func showProgress(ctx context.Context, ongoing *jobs, ref reference.Named, cs content.Store, progressOutput progress.Output) {
+	// progressOutput := streamformatter.NewJSONProgressOutput(out, false)
 	progressOutput.WriteProgress(progress.Progress{ID: getTagOrDigest(ref), Message: "Pulling from " + reference.Path(ref)})
 	var (
 		ticker   = time.NewTicker(100 * time.Millisecond)
@@ -332,15 +401,15 @@ outer:
 						}
 					}
 				} else if done {
-					progressOutput.WriteProgress(progress.Progress{ID: descID, Action: dlcomplete})
+					progressOutput.WriteProgress(progress.Progress{ID: descID, Action: pullcomplete})
 					if ok {
 						if status.Status != dlcomplete && status.Status != exists {
-							status.Status = dlcomplete
+							status.Status = pullcomplete
 							statuses[descID] = status
 						}
 					} else {
 						statuses[descID] = StatusInfo{
-							Status: dlcomplete,
+							Status: pullcomplete,
 						}
 					}
 				}
@@ -360,12 +429,12 @@ type StatusInfo struct {
 	Status string
 }
 
-func isLayer(desc ocispec.Descriptor) bool {
+func isLayer(desc specs.Descriptor) bool {
 	switch desc.MediaType {
 	case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip,
 		images.MediaTypeDockerSchema2LayerForeign, images.MediaTypeDockerSchema2LayerForeignGzip,
-		ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerGzip,
-		ocispec.MediaTypeImageLayerNonDistributable, ocispec.MediaTypeImageLayerNonDistributableGzip:
+		specs.MediaTypeImageLayer, specs.MediaTypeImageLayerGzip,
+		specs.MediaTypeImageLayerNonDistributable, specs.MediaTypeImageLayerNonDistributableGzip:
 		return true
 	default:
 		return false
@@ -380,7 +449,7 @@ func isLayer(desc ocispec.Descriptor) bool {
 type jobs struct {
 	name  string
 	added map[digest.Digest]struct{}
-	descs []ocispec.Descriptor
+	descs []specs.Descriptor
 	mu    sync.Mutex
 }
 
@@ -391,7 +460,7 @@ func newJobs(name string) *jobs {
 	}
 }
 
-func (j *jobs) add(desc ocispec.Descriptor) {
+func (j *jobs) add(desc specs.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -402,10 +471,10 @@ func (j *jobs) add(desc ocispec.Descriptor) {
 	j.added[desc.Digest] = struct{}{}
 }
 
-func (j *jobs) jobs() []ocispec.Descriptor {
+func (j *jobs) jobs() []specs.Descriptor {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	var descs []ocispec.Descriptor
+	var descs []specs.Descriptor
 	return append(descs, j.descs...)
 }
