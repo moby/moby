@@ -2,6 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"runtime"
 	"strings"
@@ -167,6 +168,7 @@ func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (l
 	var (
 		chain = []digest.Digest{}
 		l     layer.Layer
+		ls    = i.layerStores[runtime.GOOS]
 	)
 	for d := range diffIDs {
 		chain = append(chain, diffIDs[d])
@@ -178,7 +180,7 @@ func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (l
 		logrus.Debugf("Layer applied: %s (%s)", nl.DiffID(), diffIDs[d])
 
 		if l != nil {
-			metadata, err := i.layerStores[runtime.GOOS].Release(l)
+			metadata, err := ls.Release(l)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to release layer")
 			}
@@ -189,6 +191,20 @@ func (i *ImageService) unpack(ctx context.Context, target ocispec.Descriptor) (l
 
 		l = nl
 	}
+
+	key := fmt.Sprintf("%s%s", LabelLayerPrefix, ls.DriverName())
+	info := content.Info{
+		Digest: manifest.Config.Digest,
+		Labels: map[string]string{
+			key: l.ChainID().String(),
+		},
+	}
+
+	if _, err := cs.Update(ctx, info, "labels."+key); err != nil {
+		layer.ReleaseAndLog(ls, l)
+		return nil, errors.Wrap(err, "failed to update image config label")
+	}
+
 	return l, nil
 }
 

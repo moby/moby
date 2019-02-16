@@ -129,13 +129,16 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		Size:      int64(len(config)),
 	}
 
-	opts := []content.Opt{}
+	labels := map[string]string{
+		fmt.Sprintf("%s%s", LabelLayerPrefix, layerStore.DriverName()): l.ChainID().String(),
+	}
 
 	if c.ParentImageID != "" {
-		opts = append(opts, content.WithLabels(map[string]string{
-			LabelImageParent: c.ParentImageID,
-		}))
+		labels[LabelImageParent] = c.ParentImageID
 	}
+
+	opts := []content.Opt{content.WithLabels(labels)}
+
 	ref := fmt.Sprintf("config-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
 	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc, opts...); err != nil {
 		layer.ReleaseAndLog(layerStore, l)
