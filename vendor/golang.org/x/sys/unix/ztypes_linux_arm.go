@@ -6,11 +6,11 @@
 package unix
 
 const (
-	sizeofPtr      = 0x4
-	sizeofShort    = 0x2
-	sizeofInt      = 0x4
-	sizeofLong     = 0x4
-	sizeofLongLong = 0x8
+	SizeofPtr      = 0x4
+	SizeofShort    = 0x2
+	SizeofInt      = 0x4
+	SizeofLong     = 0x4
+	SizeofLongLong = 0x8
 	PathMax        = 0x1000
 )
 
@@ -98,7 +98,6 @@ type _Gid_t uint32
 type Stat_t struct {
 	Dev     uint64
 	_       uint16
-	_       [2]byte
 	_       uint32
 	Mode    uint32
 	Nlink   uint32
@@ -106,7 +105,7 @@ type Stat_t struct {
 	Gid     uint32
 	Rdev    uint64
 	_       uint16
-	_       [6]byte
+	_       [4]byte
 	Size    int64
 	Blksize int32
 	_       [4]byte
@@ -260,7 +259,6 @@ type RawSockaddrRFCOMM struct {
 
 type RawSockaddrCAN struct {
 	Family  uint16
-	_       [2]byte
 	Ifindex int32
 	Addr    [8]byte
 }
@@ -288,6 +286,8 @@ type RawSockaddrXDP struct {
 	Queue_id       uint32
 	Shared_umem_fd uint32
 }
+
+type RawSockaddrPPPoX [0x1e]byte
 
 type RawSockaddr struct {
 	Family uint16
@@ -383,7 +383,6 @@ type TCPInfo struct {
 	Probes         uint8
 	Backoff        uint8
 	Options        uint8
-	_              [2]byte
 	Rto            uint32
 	Ato            uint32
 	Snd_mss        uint32
@@ -424,6 +423,7 @@ const (
 	SizeofSockaddrALG       = 0x58
 	SizeofSockaddrVM        = 0x10
 	SizeofSockaddrXDP       = 0x10
+	SizeofSockaddrPPPoX     = 0x1e
 	SizeofLinger            = 0x8
 	SizeofIovec             = 0x8
 	SizeofIPMreq            = 0x8
@@ -497,7 +497,7 @@ const (
 	IFLA_EVENT           = 0x2c
 	IFLA_NEW_NETNSID     = 0x2d
 	IFLA_IF_NETNSID      = 0x2e
-	IFLA_MAX             = 0x31
+	IFLA_MAX             = 0x33
 	RT_SCOPE_UNIVERSE    = 0x0
 	RT_SCOPE_SITE        = 0xc8
 	RT_SCOPE_LINK        = 0xfd
@@ -652,7 +652,6 @@ type SockFilter struct {
 
 type SockFprog struct {
 	Len    uint16
-	_      [2]byte
 	Filter *SockFilter
 }
 
@@ -749,7 +748,30 @@ type Sigset_t struct {
 	Val [32]uint32
 }
 
-const RNDGETENTCNT = 0x80045200
+type SignalfdSiginfo struct {
+	Signo     uint32
+	Errno     int32
+	Code      int32
+	Pid       uint32
+	Uid       uint32
+	Fd        int32
+	Tid       uint32
+	Band      uint32
+	Overrun   uint32
+	Trapno    uint32
+	Status    int32
+	Int       int32
+	Ptr       uint64
+	Utime     uint64
+	Stime     uint64
+	Addr      uint64
+	Addr_lsb  uint16
+	_         uint16
+	Syscall   int32
+	Call_addr uint64
+	Arch      uint32
+	_         [28]uint8
+}
 
 const PERF_IOC_FLAG_GROUP = 0x1
 
@@ -773,11 +795,10 @@ type Winsize struct {
 
 type Taskstats struct {
 	Version                   uint16
-	_                         [2]byte
 	Ac_exitcode               uint32
 	Ac_flag                   uint8
 	Ac_nice                   uint8
-	_                         [6]byte
+	_                         [4]byte
 	Cpu_count                 uint64
 	Cpu_delay_total           uint64
 	Blkio_count               uint64
@@ -819,6 +840,8 @@ type Taskstats struct {
 	Cpu_scaled_run_real_total uint64
 	Freepages_count           uint64
 	Freepages_delay_total     uint64
+	Thrashing_count           uint64
+	Thrashing_delay_total     uint64
 }
 
 const (
@@ -1852,7 +1875,6 @@ type RTCTime struct {
 type RTCWkAlrm struct {
 	Enabled uint8
 	Pending uint8
-	_       [2]byte
 	Time    RTCTime
 }
 
@@ -1926,4 +1948,71 @@ type XDPDesc struct {
 	Addr    uint64
 	Len     uint32
 	Options uint32
+}
+
+const (
+	NCSI_CMD_UNSPEC                 = 0x0
+	NCSI_CMD_PKG_INFO               = 0x1
+	NCSI_CMD_SET_INTERFACE          = 0x2
+	NCSI_CMD_CLEAR_INTERFACE        = 0x3
+	NCSI_ATTR_UNSPEC                = 0x0
+	NCSI_ATTR_IFINDEX               = 0x1
+	NCSI_ATTR_PACKAGE_LIST          = 0x2
+	NCSI_ATTR_PACKAGE_ID            = 0x3
+	NCSI_ATTR_CHANNEL_ID            = 0x4
+	NCSI_PKG_ATTR_UNSPEC            = 0x0
+	NCSI_PKG_ATTR                   = 0x1
+	NCSI_PKG_ATTR_ID                = 0x2
+	NCSI_PKG_ATTR_FORCED            = 0x3
+	NCSI_PKG_ATTR_CHANNEL_LIST      = 0x4
+	NCSI_CHANNEL_ATTR_UNSPEC        = 0x0
+	NCSI_CHANNEL_ATTR               = 0x1
+	NCSI_CHANNEL_ATTR_ID            = 0x2
+	NCSI_CHANNEL_ATTR_VERSION_MAJOR = 0x3
+	NCSI_CHANNEL_ATTR_VERSION_MINOR = 0x4
+	NCSI_CHANNEL_ATTR_VERSION_STR   = 0x5
+	NCSI_CHANNEL_ATTR_LINK_STATE    = 0x6
+	NCSI_CHANNEL_ATTR_ACTIVE        = 0x7
+	NCSI_CHANNEL_ATTR_FORCED        = 0x8
+	NCSI_CHANNEL_ATTR_VLAN_LIST     = 0x9
+	NCSI_CHANNEL_ATTR_VLAN_ID       = 0xa
+)
+
+type ScmTimestamping struct {
+	Ts [3]Timespec
+}
+
+const (
+	SOF_TIMESTAMPING_TX_HARDWARE  = 0x1
+	SOF_TIMESTAMPING_TX_SOFTWARE  = 0x2
+	SOF_TIMESTAMPING_RX_HARDWARE  = 0x4
+	SOF_TIMESTAMPING_RX_SOFTWARE  = 0x8
+	SOF_TIMESTAMPING_SOFTWARE     = 0x10
+	SOF_TIMESTAMPING_SYS_HARDWARE = 0x20
+	SOF_TIMESTAMPING_RAW_HARDWARE = 0x40
+	SOF_TIMESTAMPING_OPT_ID       = 0x80
+	SOF_TIMESTAMPING_TX_SCHED     = 0x100
+	SOF_TIMESTAMPING_TX_ACK       = 0x200
+	SOF_TIMESTAMPING_OPT_CMSG     = 0x400
+	SOF_TIMESTAMPING_OPT_TSONLY   = 0x800
+	SOF_TIMESTAMPING_OPT_STATS    = 0x1000
+	SOF_TIMESTAMPING_OPT_PKTINFO  = 0x2000
+	SOF_TIMESTAMPING_OPT_TX_SWHW  = 0x4000
+
+	SOF_TIMESTAMPING_LAST = 0x4000
+	SOF_TIMESTAMPING_MASK = 0x7fff
+
+	SCM_TSTAMP_SND   = 0x0
+	SCM_TSTAMP_SCHED = 0x1
+	SCM_TSTAMP_ACK   = 0x2
+)
+
+type SockExtendedErr struct {
+	Errno  uint32
+	Origin uint8
+	Type   uint8
+	Code   uint8
+	Pad    uint8
+	Info   uint32
+	Data   uint32
 }

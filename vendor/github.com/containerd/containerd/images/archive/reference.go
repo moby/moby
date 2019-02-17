@@ -19,8 +19,8 @@ package archive
 import (
 	"strings"
 
-	"github.com/containerd/cri/pkg/util"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/docker/distribution/reference"
+	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 )
 
@@ -69,7 +69,7 @@ func isImagePrefix(s, prefix string) bool {
 
 func normalizeReference(ref string) (string, error) {
 	// TODO: Replace this function to not depend on reference package
-	normalized, err := util.NormalizeImageRef(ref)
+	normalized, err := reference.ParseDockerRef(ref)
 	if err != nil {
 		return "", errors.Wrapf(err, "normalize image ref %q", ref)
 	}

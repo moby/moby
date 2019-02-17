@@ -152,7 +152,3 @@ func NewDirectIO(ctx context.Context, fifos *FIFOSet) (*DirectIO, error) {
 		},
 	}, err
 }
-
-func (p *pipes) closers() []io.Closer {
-	return []io.Closer{p.Stdin, p.Stdout, p.Stderr}
-}

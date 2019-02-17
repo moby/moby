@@ -13,10 +13,7 @@
 
 package unix
 
-import (
-	"syscall"
-	"unsafe"
-)
+import "unsafe"
 
 /*
  * Wrapped
@@ -230,7 +227,7 @@ func anyToSockaddr(fd int, rsa *RawSockaddrAny) (Sockaddr, error) {
 
 		// Some versions of AIX have a bug in getsockname (see IV78655).
 		// We can't rely on sa.Len being set correctly.
-		n := SizeofSockaddrUnix - 3 // substract leading Family, Len, terminating NUL.
+		n := SizeofSockaddrUnix - 3 // subtract leading Family, Len, terminating NUL.
 		for i := 0; i < n; i++ {
 			if pp.Path[i] == 0 {
 				n = i
@@ -271,6 +268,13 @@ func Gettimeofday(tv *Timeval) (err error) {
 	return
 }
 
+func Sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
+	if raceenabled {
+		raceReleaseMerge(unsafe.Pointer(&ioSync))
+	}
+	return sendfile(outfd, infd, offset, count)
+}
+
 // TODO
 func sendfile(outfd int, infd int, offset *int64, count int) (written int, err error) {
 	return -1, ENOSYS
@@ -305,11 +309,11 @@ func Wait4(pid int, wstatus *WaitStatus, options int, rusage *Rusage) (wpid int,
 type WaitStatus uint32
 
 func (w WaitStatus) Stopped() bool { return w&0x40 != 0 }
-func (w WaitStatus) StopSignal() syscall.Signal {
+func (w WaitStatus) StopSignal() Signal {
 	if !w.Stopped() {
 		return -1
 	}
-	return syscall.Signal(w>>8) & 0xFF
+	return Signal(w>>8) & 0xFF
 }
 
 func (w WaitStatus) Exited() bool { return w&0xFF == 0 }
@@ -321,11 +325,11 @@ func (w WaitStatus) ExitStatus() int {
 }
 
 func (w WaitStatus) Signaled() bool { return w&0x40 == 0 && w&0xFF != 0 }
-func (w WaitStatus) Signal() syscall.Signal {
+func (w WaitStatus) Signal() Signal {
 	if !w.Signaled() {
 		return -1
 	}
-	return syscall.Signal(w>>16) & 0xFF
+	return Signal(w>>16) & 0xFF
 }
 
 func (w WaitStatus) Continued() bool { return w&0x01000000 != 0 }
@@ -383,9 +387,7 @@ func IoctlGetTermios(fd int, req uint) (*Termios, error) {
 // FcntlFlock performs a fcntl syscall for the F_GETLK, F_SETLK or F_SETLKW command.
 //sys	FcntlFlock(fd uintptr, cmd int, lk *Flock_t) (err error) = fcntl
 
-func Flock(fd int, how int) (err error) {
-	return syscall.Flock(fd, how)
-}
+//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 
 /*
  * Direct access
@@ -396,15 +398,12 @@ func Flock(fd int, how int) (err error) {
 //sys	Chroot(path string) (err error)
 //sys	Close(fd int) (err error)
 //sys	Dup(oldfd int) (fd int, err error)
-//sys	Dup3(oldfd int, newfd int, flags int) (err error)
 //sys	Exit(code int)
 //sys	Faccessat(dirfd int, path string, mode uint32, flags int) (err error)
-//sys	Fallocate(fd int, mode uint32, off int64, len int64) (err error)
 //sys	Fchdir(fd int) (err error)
 //sys	Fchmod(fd int, mode uint32) (err error)
 //sys	Fchmodat(dirfd int, path string, mode uint32, flags int) (err error)
 //sys	Fchownat(dirfd int, path string, uid int, gid int, flags int) (err error)
-//sys	fcntl(fd int, cmd int, arg int) (val int, err error)
 //sys	Fdatasync(fd int) (err error)
 //sys	Fsync(fd int) (err error)
 // readdir_r
@@ -417,7 +416,7 @@ func Flock(fd int, how int) (err error) {
 //sys	Getpriority(which int, who int) (prio int, err error)
 //sysnb	Getrusage(who int, rusage *Rusage) (err error)
 //sysnb	Getsid(pid int) (sid int, err error)
-//sysnb	Kill(pid int, sig syscall.Signal) (err error)
+//sysnb	Kill(pid int, sig Signal) (err error)
 //sys	Klogctl(typ int, buf []byte) (n int, err error) = syslog
 //sys	Mkdir(dirfd int, path string, mode uint32) (err error)
 //sys	Mkdirat(dirfd int, path string, mode uint32) (err error)
@@ -429,7 +428,6 @@ func Flock(fd int, how int) (err error) {
 //sys   Openat(dirfd int, path string, flags int, mode uint32) (fd int, err error)
 //sys	read(fd int, p []byte) (n int, err error)
 //sys	Readlink(path string, buf []byte) (n int, err error)
-//sys	Removexattr(path string, attr string) (err error)
 //sys	Renameat(olddirfd int, oldpath string, newdirfd int, newpath string) (err error)
 //sys	Setdomainname(p []byte) (err error)
 //sys	Sethostname(p []byte) (err error)
@@ -443,7 +441,6 @@ func Flock(fd int, how int) (err error) {
 //sys	Setpriority(which int, who int, prio int) (err error)
 //sys	Statx(dirfd int, path string, flags int, mask int, stat *Statx_t) (err error)
 //sys	Sync()
-//sys	Tee(rfd int, wfd int, len int, flags int) (n int64, err error)
 //sysnb	Times(tms *Tms) (ticks uintptr, err error)
 //sysnb	Umask(mask int) (oldmask int)
 //sysnb	Uname(buf *Utsname) (err error)
@@ -451,7 +448,6 @@ func Flock(fd int, how int) (err error) {
 // //sys	Unmount(target string, flags int) (err error) = umount
 //sys   Unlink(path string) (err error)
 //sys   Unlinkat(dirfd int, path string, flags int) (err error)
-//sys	Unshare(flags int) (err error)
 //sys	Ustat(dev int, ubuf *Ustat_t) (err error)
 //sys	write(fd int, p []byte) (n int, err error)
 //sys	readlen(fd int, p *byte, np int) (n int, err error) = read
@@ -532,19 +528,6 @@ func Pipe(p []int) (err error) {
 	}
 	var pp [2]_C_int
 	err = pipe(&pp)
-	p[0] = int(pp[0])
-	p[1] = int(pp[1])
-	return
-}
-
-//sysnb pipe2(p *[2]_C_int, flags int) (err error)
-
-func Pipe2(p []int, flags int) (err error) {
-	if len(p) != 2 {
-		return EINVAL
-	}
-	var pp [2]_C_int
-	err = pipe2(&pp, flags)
 	p[0] = int(pp[0])
 	p[1] = int(pp[1])
 	return

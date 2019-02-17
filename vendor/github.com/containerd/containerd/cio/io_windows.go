@@ -17,6 +17,7 @@
 package cio
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net"
@@ -141,6 +142,25 @@ func NewDirectIO(stdin io.WriteCloser, stdout, stderr io.ReadCloser, terminal bo
 		},
 		cio: cio{
 			config: Config{Terminal: terminal},
+		},
+	}
+}
+
+// NewDirectIOFromFIFOSet returns an IO implementation that exposes the IO streams as io.ReadCloser
+// and io.WriteCloser.
+func NewDirectIOFromFIFOSet(ctx context.Context, stdin io.WriteCloser, stdout, stderr io.ReadCloser, fifos *FIFOSet) *DirectIO {
+	_, cancel := context.WithCancel(ctx)
+	pipes := pipes{
+		Stdin:  stdin,
+		Stdout: stdout,
+		Stderr: stderr,
+	}
+	return &DirectIO{
+		pipes: pipes,
+		cio: cio{
+			config:  fifos.Config,
+			closers: append(pipes.closers(), fifos),
+			cancel:  cancel,
 		},
 	}
 }

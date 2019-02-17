@@ -14,15 +14,6 @@ const (
 	RouteNameCatalog         = "catalog"
 )
 
-var allEndpoints = []string{
-	RouteNameManifest,
-	RouteNameCatalog,
-	RouteNameTags,
-	RouteNameBlob,
-	RouteNameBlobUpload,
-	RouteNameBlobUploadChunk,
-}
-
 // Router builds a gorilla router with named routes for the various API
 // methods. This can be used directly by both server implementations and
 // clients.

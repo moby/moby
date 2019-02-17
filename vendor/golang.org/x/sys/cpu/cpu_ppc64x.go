@@ -7,3 +7,26 @@
 package cpu
 
 const cacheLineSize = 128
+
+// HWCAP/HWCAP2 bits. These are exposed by the kernel.
+const (
+	// ISA Level
+	_PPC_FEATURE2_ARCH_2_07 = 0x80000000
+	_PPC_FEATURE2_ARCH_3_00 = 0x00800000
+
+	// CPU features
+	_PPC_FEATURE2_DARN = 0x00200000
+	_PPC_FEATURE2_SCV  = 0x00100000
+)
+
+func doinit() {
+	// HWCAP2 feature bits
+	PPC64.IsPOWER8 = isSet(HWCap2, _PPC_FEATURE2_ARCH_2_07)
+	PPC64.IsPOWER9 = isSet(HWCap2, _PPC_FEATURE2_ARCH_3_00)
+	PPC64.HasDARN = isSet(HWCap2, _PPC_FEATURE2_DARN)
+	PPC64.HasSCV = isSet(HWCap2, _PPC_FEATURE2_SCV)
+}
+
+func isSet(hwc uint, value uint) bool {
+	return hwc&value != 0
+}
