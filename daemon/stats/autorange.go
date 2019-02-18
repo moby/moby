@@ -60,8 +60,6 @@ import (
 const (
 	kiB                   = 1024
 	miB                   = 1024 * kiB
-	giB                   = 1024 * miB
-	tiB                   = 1024 * giB
 	minAllowedMemoryLimit = 5 * miB
 )
 
@@ -142,60 +140,68 @@ func NewObservor(size int) *Observor {
 	}
 }
 
-func fifoUint(arr []uint64, newv uint64, limit int) []uint64 {
-	if len(arr) < limit {
-		arr = append(arr, newv)
-		return arr
+func fifoUint(array []uint64, value uint64, size int) []uint64 {
+	if size == 0 {
+		return array
 	}
-	_, arr = arr[0], arr[1:]
-	arr = append(arr, newv)
-	return arr
+
+	start := 0
+	if len(array) >= size {
+		start = 1
+	}
+	return append(array[start:], value)
 }
 
-func fifoFloat(arr []float64, newv float64, limit int) []float64 {
-	if len(arr) < limit {
-		arr = append(arr, newv)
-		return arr
+func fifoFloat(array []float64, value float64, size int) []float64 {
+	if size == 0 {
+		return array
 	}
-	_, arr = arr[0], arr[1:]
-	arr = append(arr, newv)
-	return arr
+
+	start := 0
+	if len(array) >= size {
+		start = 1
+	}
+	return append(array[start:], value)
 }
 
-func lowestOf(arr []uint64) uint64 {
-	lowest := arr[0]
+func lowestOf(array []uint64) (lowest uint64) {
+	lowest = array[0]
 
-	for _, val := range arr {
-		if val < lowest {
-			lowest = val
+	for _, value := range array {
+		if value < lowest {
+			lowest = value
 		}
 	}
-	return lowest
-}
-
-func highestOf(arr []uint64) int {
-	highest := arr[0]
-
-	for _, val := range arr {
-		if val > highest {
-			highest = val
-		}
-	}
-	return int(highest)
-}
-
-func percent(value int) int {
-	return value / 100
-}
-
-func percentageBetween(old, new int) (delta int) {
-	diff := float64(new - old)
-	delta = int((diff / float64(old)) * 100)
 	return
 }
 
-func percentOf(f, s int) int {
-	return s / f
+func highestOf(array []uint64) (highest int) {
+	best := array[0]
+
+	for _, value := range array {
+		if value > best {
+			best = value
+		}
+	}
+	highest = int(best)
+	return
+}
+
+func percent(value int) (percent int) {
+	if value == 0 {
+		return value
+	}
+	percent = value / 100
+	return
+}
+
+func percentageBetween(this, that int) (delta int) {
+	if this == 0 {
+		return this
+	}
+	diff := that - this
+	delta = int((float64(diff) / float64(this)) * 100)
+	return
 }
 
 // SetNewContext helps for the start and stops of the collector
@@ -204,15 +210,23 @@ func (ar *AutoRangeWatcher) SetNewContext(ctx context.Context) {
 	ar.WaitChan <- true
 }
 
+// IsActivated returns a true if category is found in config
+func (ar *AutoRangeWatcher) IsActivated(category string) bool {
+	_, exist := ar.Config[category]
+	return exist
+}
+
 // UpdateResources is the function that handle the verification and application of the generated limits
 func (ar *AutoRangeWatcher) UpdateResources() error {
 	var update ctn.UpdateConfig
 
-	if _, exist := ar.Config["memoryAR"]; exist {
+	if ar.IsActivated("memoryAR") {
 
-		sugMin, _ := strconv.Atoi(ar.Config["memoryAR"]["nmin"])
-		sugMax, _ := strconv.Atoi(ar.Config["memoryAR"]["nmax"])
-		threshold, _ := strconv.Atoi(ar.Config["memoryAR"]["opti"])
+		config := ar.Config["memoryAR"]
+
+		sugMin, _ := strconv.Atoi(config["nmin"])
+		sugMax, _ := strconv.Atoi(config["nmax"])
+		threshold, _ := strconv.Atoi(config["opti"])
 
 		// One last sum with the highest usage to smooth the prediction and reduce the
 		// error probability. It's generaly a subtle ajustement.
@@ -250,12 +264,12 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 
 	}
 
-	if _, exist := ar.Config["cpuAR"]; exist {
+	if ar.IsActivated("cpuAR") {
 
 		sugMax, _ := strconv.Atoi(ar.Config["cpuAR"]["usageOpti"])
 
 		update.Resources.CPURealtimeRuntime = int64(sugMax)
-		update.Resources.CpusetCpus, ar.Config["cpuAR"]["numCPU"] = nSetCPU(ar.Config["cpuAR"]["percentOpti"])
+		update.Resources.CpusetCpus, ar.Config["cpuAR"]["numCPU"] = CPUUsageToConfig(ar.Config["cpuAR"]["percentOpti"])
 
 	}
 
@@ -276,19 +290,30 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 	return nil
 }
 
-func nSetCPU(cpus string) (string, string) {
-	var cpuConfig string
+// Continue checks if the loop should continue for the given category
+func (ar *AutoRangeWatcher) Continue(category, value string, done bool) bool {
+	if strings.Compare(category, value) == 0 && !done {
+		return true
+	}
+	return false
+}
 
-	pcpus, _ := strconv.ParseFloat(cpus, 32)
-	n := int(pcpus/100) + 1
-	for i := 0; i < n; i++ {
-		cpuConfig += strconv.Itoa(i)
-		if i+1 < n {
-			cpuConfig += ","
-		}
+// CPUUsageToConfig convert usage as a string to docker cpu config string and number to display
+func CPUUsageToConfig(usage string) (config, number string) {
+	fUsage, _ := strconv.ParseFloat(usage, 32)
+	if fUsage <= 0 {
+		return
 	}
 
-	return cpuConfig, strconv.Itoa(n)
+	n := 1 + int(fUsage/100)
+	for i := 0; i < n; i++ {
+		config += strconv.Itoa(i)
+		if i+1 < n {
+			config += ","
+		}
+	}
+	number = strconv.Itoa(n)
+	return
 }
 
 // Watch is the function that will keep the goroutine alive, process the metrics and generate the time series
@@ -302,7 +327,7 @@ func (ar *AutoRangeWatcher) Watch() {
 	)
 
 	// Recover base config, those values will be used as base values
-	if _, exist := ar.Config["memory"]; exist {
+	if ar.IsActivated("memory") {
 		min, _ = strconv.Atoi(ar.Config["memory"]["min"])
 		if min == 0 {
 			min = 1
@@ -320,7 +345,7 @@ func (ar *AutoRangeWatcher) Watch() {
 		ar.Config["memoryAR"] = make(map[string]string)
 	}
 
-	if _, exist := ar.Config["cpu%"]; exist {
+	if ar.IsActivated("cpu%") {
 		cpuMin, _ = strconv.Atoi(ar.Config["cpu%"]["min"])
 		cpuMax, _ = strconv.Atoi(ar.Config["cpu%"]["max"])
 		if cpuMin != 0 && cpuMax != 0 {
@@ -366,11 +391,11 @@ func (ar *AutoRangeWatcher) Watch() {
 		}
 
 		for category := range ar.Config {
-			if strings.Compare(category, "memory") == 0 && !ar.Obs.TimeSerieRAM.MemoryPrediction {
+			if ar.Continue(category, "memory", ar.Obs.TimeSerieRAM.MemoryPrediction) {
 
 				// Follow memory usage and change min and max accordingly.
 				// These values represent the "bearings" around the usage value
-				min, max = processMemoryStats(input.Stats.MemoryStats, min, max, threshold)
+				min, max = processMemoryStats(input.Stats.MemoryStats.Usage, min, max, threshold)
 
 				// Always get the lowest and highest point in the serie,
 				// as we'll use them for weighting purposes
@@ -392,7 +417,7 @@ func (ar *AutoRangeWatcher) Watch() {
 					// Amplitude represent the space between lowest and highest
 					ar.Obs.TimeSerieRAM.highest = fifoUint(ar.Obs.TimeSerieRAM.highest, highest, ar.Limit)
 					ar.Obs.TimeSerieRAM.lowest = fifoUint(ar.Obs.TimeSerieRAM.lowest, lowest, ar.Limit)
-					ar.Obs.TimeSerieRAM.amplitude = fifoUint(ar.Obs.TimeSerieRAM.amplitude, uint64(percentOf(int(lowest), int(highest))), ar.Limit)
+					ar.Obs.TimeSerieRAM.amplitude = fifoUint(ar.Obs.TimeSerieRAM.amplitude, highest/lowest, ar.Limit)
 
 					// Generate predicted values
 					aMin, aMax := averrage(ar.Obs.TimeSerieRAM.min), averrage(ar.Obs.TimeSerieRAM.max)
@@ -416,15 +441,15 @@ func (ar *AutoRangeWatcher) Watch() {
 					}
 
 					// Display result
-					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
-					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(wAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
+					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
+					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
 					ar.Config["memoryAR"]["opti"] = strconv.Itoa(int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold)))
 					ar.Config["memoryAR"]["usage"] = strconv.Itoa(int(input.Stats.MemoryStats.Usage))
 				} else {
 					memoryTurn++
 				}
 
-			} else if strings.Compare(category, "cpu%") == 0 && !ar.Obs.TimeSerieCPU.CPUPrediction {
+			} else if ar.Continue(category, "cpu%", ar.Obs.TimeSerieCPU.CPUPrediction) {
 
 				// The logic for the cpu loop is pretty much the same as memory, but more focused
 				// on cpu cores
@@ -442,14 +467,14 @@ func (ar *AutoRangeWatcher) Watch() {
 				if cpuTurn > ar.Limit {
 					cpuTurn = 0
 
-					avPercent, avUsage := averrageF(ar.Obs.TimeSerieCPU.percent), averrageF(ar.Obs.TimeSerieCPU.usage)
+					avPercent, avUsage := averrageFloat(ar.Obs.TimeSerieCPU.percent), averrageFloat(ar.Obs.TimeSerieCPU.usage)
 
 					ar.Obs.TimeSerieCPU.PredictedValues.percent = fifoFloat(ar.Obs.TimeSerieCPU.PredictedValues.percent, avPercent, ar.Limit)
 					ar.Obs.TimeSerieCPU.PredictedValues.usage = fifoFloat(ar.Obs.TimeSerieCPU.PredictedValues.usage, avUsage, ar.Limit)
 
 					if len(ar.Obs.TimeSerieCPU.PredictedValues.percent) >= ar.Limit {
-						cBestPercent := averrageF(ar.Obs.TimeSerieCPU.PredictedValues.percent)
-						cBestUsage := averrageF(ar.Obs.TimeSerieCPU.PredictedValues.usage)
+						cBestPercent := averrageFloat(ar.Obs.TimeSerieCPU.PredictedValues.percent)
+						cBestUsage := averrageFloat(ar.Obs.TimeSerieCPU.PredictedValues.usage)
 
 						// Display
 						ar.Config["cpuAR"]["percentOpti"] = strconv.FormatFloat(cBestPercent, 'f', 3, 64)
@@ -473,13 +498,19 @@ func (ar *AutoRangeWatcher) Watch() {
 	}
 }
 
-func generateMemoryWeight(arr, h []uint64) []float32 {
-	highest := highestOf(h)
+func generateMemoryWeight(array, highestArray []uint64) []float32 {
+	weight := make([]float32, 0, len(array))
 
-	weight := make([]float32, 0, len(arr))
+	highest := highestOf(highestArray)
+	if highest == 0 {
+		return weight
+	}
 
-	for _, n := range arr {
-		distance := float32((uint64(highest) / n))
+	for _, number := range array {
+		if number == 0 {
+			break
+		}
+		distance := float32((uint64(highest) / number))
 		toAdd := 1 / distance
 		if math.IsInf(float64(toAdd), 1) {
 			toAdd = 1.0
@@ -489,35 +520,48 @@ func generateMemoryWeight(arr, h []uint64) []float32 {
 	return weight
 }
 
-func wAverrage(arr []uint64, weight []float32) int {
+func weightedAverrage(array []uint64, weight []float32) (averrage int) {
 	var total int
 
-	for i, n := range arr {
-		total += int(float32(n) / weight[i])
+	if len(array) <= 0 || len(weight) <= 0 {
+		return 0
 	}
-	return total / len(arr)
+
+	for index, number := range array {
+		total += int(float32(number) / weight[index])
+	}
+	averrage = total / len(array)
+	return
 }
 
-func averrageF(arr []float64) float64 {
-	var total float64
-
-	for _, n := range arr {
-		total += n
+func averrageFloat(array []float64) (total float64) {
+	arrayLen := len(array)
+	if arrayLen <= 0 {
+		return 0
 	}
-	return total / float64(len(arr))
+
+	for _, number := range array {
+		total += number
+	}
+	total = total / float64(arrayLen)
+	return
 }
 
-func averrage(arr []uint64) uint64 {
-	var total uint64
-
-	for _, n := range arr {
-		total += n
+func averrage(array []uint64) (total uint64) {
+	arrayLen := len(array)
+	if arrayLen <= 0 {
+		return 0
 	}
-	return total / uint64(len(arr))
+
+	for _, number := range array {
+		total += number
+	}
+	total = total / uint64(arrayLen)
+	return
 }
 
-func processMemoryStats(mstats types.MemoryStats, min, max, threshold int) (int, int) {
-	usage := int(mstats.Usage)
+func processMemoryStats(mUsage uint64, min, max, threshold int) (int, int) {
+	usage := int(mUsage)
 
 	if usage > min+percent(max-min)*threshold {
 
@@ -538,12 +582,12 @@ func processMemoryStats(mstats types.MemoryStats, min, max, threshold int) (int,
 
 // ConvertAutoRange is a function that is used to convert from swarm.AutoRange to types.AutoRange
 func ConvertAutoRange(autoRange swarm.AutoRange) types.AutoRange {
-	sl := make(types.AutoRange)
+	ar := make(types.AutoRange)
 	for key := range autoRange {
-		sl[key] = make(map[string]string)
+		ar[key] = make(map[string]string)
 		for subKey, subValue := range autoRange[key] {
-			sl[key][subKey] = subValue
+			ar[key][subKey] = subValue
 		}
 	}
-	return sl
+	return ar
 }
