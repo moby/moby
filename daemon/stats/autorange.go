@@ -1,44 +1,46 @@
 package stats // import "github.com/docker/docker/daemon/stats"
 
-// #AutoRange
-// a feature that help the user predict and apply the best limits to his services.
-// 	Why?
-// This collector extension was thought as a way to monitor and predict the optimal configuration
-// for a service.
-// The goal was to find the point where a service could function properly, but still save as much
-// resources as possible, by monitoring activity and deducing optimal values.
-// It was written as a way to answer the question
-//	 `How to optimise the number of services running on our infrastructure without losing quality of service?`
+/*
+ #AutoRange
+ a feature that help the user predict and apply the best limits to his services.
+ 	Why?
+ This collector extension was thought as a way to monitor and predict the optimal configuration
+ for a service.
+ The goal was to find the point where a service could function properly, but still save as much
+ resources as possible, by monitoring activity and deducing optimal values.
+ It was written as a way to answer the question
+	 `How to optimise the number of services running on our infrastructure without losing quality of service?`
 
-// How?
-// It uses swarm labels and require swarm mode to be enabled (see #improvements).
-// The logic behind the feature can be described in 3 points:
-// - First, we collect the metrics and apply transformations on it to generate two values.
-// Those values represent a “box” around the actual consumption.
-// - Then, we transform these values into timeseries, using some of the keydata collected previously to weight our operations.
-// The amplitude of change between values is monitored to know if it’s a good time to stop measurements.
-// - Finally, we obtain refined values that we apply as limitation to the service.
-// The data is then kept in a reduced form to limit memory usage.
-// The functionnality is declared by adding the autorange key to the docker-compose.yml.
-// The mechanism works for cpu% and memory, with or without basevalues.
-// Below is an example of both.
-// autorange:
-// memory:
-// cpu%:
-// The available keys are:- min (in octets)- max (in octets)- threshold% (only for memory, represents a security margin that will be refined by the algorithm)
-// autorange:
-// memory:
-//         min: "110000"
-// 		   max: "120000"
-// 		   threshold%: "10"
-// cpu%:
-// 		   min: "60"
-// 		   max: "70"
-// This functionality is deployed with docker stack deploy --compose-file=/your/compose/file and
-// then docker container stats --format AutoRange(format is not necessary but shows the predicted values).
-//          The `docker container stats` command is mandatory to start and keep running the collector.
-// You can always leave the docker container stats screen and
-// come back later, the mechanism will be paused and the accumulated datas won’t be lost.
+ How?
+ It uses swarm labels and require swarm mode to be enabled (see #improvements).
+ The logic behind the feature can be described in 3 points:
+ - First, we collect the metrics and apply transformations on it to generate two values.
+ Those values represent a “box” around the actual consumption.
+ - Then, we transform these values into timeseries, using some of the keydata collected previously to weight our operations.
+ The amplitude of change between values is monitored to know if it’s a good time to stop measurements.
+ - Finally, we obtain refined values that we apply as limitation to the service.
+ The data is then kept in a reduced form to limit memory usage.
+ The functionnality is declared by adding the autorange key to the docker-compose.yml.
+ The mechanism works for cpu% and memory, with or without basevalues.
+ Below is an example of both.
+ autorange:
+ memory:
+ cpu%:
+ The available keys are:- min (in octets)- max (in octets)- threshold% (only for memory, represents a security margin that will be refined by the algorithm)
+ autorange:
+ memory:
+         min: "110000"
+ 		   max: "120000"
+ 		   threshold%: "10"
+ cpu%:
+ 		   min: "60"
+ 		   max: "70"
+ This functionality is deployed with docker stack deploy --compose-file=/your/compose/file and
+ then docker container stats --format AutoRange(format is not necessary but shows the predicted values).
+          The `docker container stats` command is mandatory to start and keep running the collector.
+ You can always leave the docker container stats screen and
+ come back later, the mechanism will be paused and the accumulated datas won’t be lost.
+*/
 
 import (
 	"math"
@@ -348,9 +350,6 @@ func (ar *AutoRangeWatcher) Watch() {
 	if ar.IsActivated("cpu%") {
 		cpuMin, _ = strconv.Atoi(ar.Config["cpu%"]["min"])
 		cpuMax, _ = strconv.Atoi(ar.Config["cpu%"]["max"])
-		if cpuMin != 0 && cpuMax != 0 {
-			fifoFloat(ar.Obs.TimeSerieCPU.percent, float64((cpuMin+cpuMax)/2), ar.Limit)
-		}
 		ar.Config["cpuAR"] = make(map[string]string)
 	}
 
@@ -379,6 +378,9 @@ func (ar *AutoRangeWatcher) Watch() {
 		// Initalisation / End routines
 		if !started {
 			input.Stats.MemoryStats.MaxUsage, lowest = input.Stats.MemoryStats.Usage, input.Stats.MemoryStats.Usage
+			if cpuMin != 0 && cpuMax != 0 {
+				fifoFloat(ar.Obs.TimeSerieCPU.percent, float64(((cpuMin+cpuMax)/2)/int(input.Stats.CPUStats.OnlineCPUs)), ar.Limit)
+			}
 			started = true
 		} else if ar.Obs.TimeSerieRAM.MemoryPrediction && ar.Obs.TimeSerieCPU.CPUPrediction && !ar.Finished {
 			ar.Finished = true

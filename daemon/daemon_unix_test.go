@@ -6,9 +6,12 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"reflect"
 	"testing"
 
+	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -243,6 +246,53 @@ func TestParseNNPSecurityOptions(t *testing.T) {
 	}
 	if !container.NoNewPrivileges {
 		t.Fatalf("container.NoNewPrivileges should be TRUE: %v", container.NoNewPrivileges)
+	}
+}
+
+func TestConvertAutoRange(t *testing.T) {
+	testAutoRanges := []swarm.AutoRange{
+		{},
+		{
+			"cpu%":   {},
+			"memory": {},
+		},
+		{
+			"cpu%": {
+				"max": "120",
+				"min": "110",
+			},
+			"memory": {
+				"max":       "2795920",
+				"min":       "2795920",
+				"threshold": "20",
+			},
+		},
+	}
+
+	expected := []types.AutoRange{
+		{},
+		{
+			"cpu%":   {},
+			"memory": {},
+		},
+		{
+			"cpu%": {
+				"max": "120",
+				"min": "110",
+			},
+			"memory": {
+				"max":       "2795920",
+				"min":       "2795920",
+				"threshold": "20",
+			},
+		},
+	}
+
+	for index, test := range testAutoRanges {
+		result := convertAutoRange(test)
+		if !reflect.DeepEqual(result, expected[index]) {
+			t.Fail()
+		}
 	}
 }
 

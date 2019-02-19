@@ -147,35 +147,36 @@ func AutoRangeFromGRPC(autoRange *swarmapi.AutoRange) types.AutoRange {
 		return types.AutoRange{}
 	}
 
-	sl := make(types.AutoRange)
-	for k := range autoRange.Range {
-		sl[k] = make(map[string]string)
-		for sk, sv := range autoRange.Range[k].Step {
-			sl[k][sk] = sv
+	ar := make(types.AutoRange)
+	for key := range autoRange.Range {
+		ar[key] = make(map[string]string)
+		for subKey, subValue := range autoRange.Range[key].Step {
+			ar[key][subKey] = subValue
 		}
 	}
 
-	return sl
+	return ar
 }
 
 // AutoRangeToGRPC converts a AutoRange from a GRPC AutoRange
 func AutoRangeToGRPC(autoRange types.AutoRange) *swarmapi.AutoRange {
 	if len(autoRange) <= 0 {
-		return &swarmapi.AutoRange{}
+		return nil
 	}
 
-	sl := make([]swarmapi.AutoRange, 1)
-	sa := sl[0]
+	ar := make([]swarmapi.AutoRange, 1)
+	sa := ar[0]
 	sa.Range = make(map[string]*swarmapi.Range)
-	for k := range autoRange {
-		var rg swarmapi.Range
+	for key := range autoRange {
 
-		rg.Step = make(map[string]string)
+		var rang swarmapi.Range
 
-		for sk, sv := range autoRange[k] {
-			rg.Step[sk] = sv
+		rang.Step = make(map[string]string)
+
+		for subKey, subValue := range autoRange[key] {
+			rang.Step[subKey] = subValue
 		}
-		sa.Range[k] = &rg
+		sa.Range[key] = &rang
 	}
 
 	return &sa
