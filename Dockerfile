@@ -155,7 +155,6 @@ FROM runtime-dev AS runc
 ENV INSTALL_BINARY_NAME=runc
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
-COPY git-bundles git-bundles
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 
 FROM base AS tini
