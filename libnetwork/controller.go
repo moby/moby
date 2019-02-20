@@ -679,6 +679,29 @@ func (c *controller) isAgent() bool {
 	return c.cfg.Daemon.ClusterProvider.IsAgent()
 }
 
+func (c *controller) hasIPTablesEnabled() bool {
+	c.Lock()
+	defer c.Unlock()
+
+	if c.cfg == nil || c.cfg.Daemon.DriverCfg[netlabel.GenericData] == nil {
+		return false
+	}
+
+	genericData, ok := c.cfg.Daemon.DriverCfg[netlabel.GenericData]
+	if !ok {
+		return false
+	}
+
+	optMap := genericData.(map[string]interface{})
+
+	enabled, ok := optMap["EnableIPTables"].(bool)
+	if !ok {
+		return false
+	}
+
+	return enabled
+}
+
 func (c *controller) isDistributedControl() bool {
 	return !c.isManager() && !c.isAgent()
 }
@@ -902,7 +925,9 @@ addToStore:
 		c.Unlock()
 	}
 
-	c.arrangeUserFilterRule()
+	if c.hasIPTablesEnabled() {
+		c.arrangeUserFilterRule()
+	}
 
 	return network, nil
 }
