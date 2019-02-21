@@ -44,7 +44,14 @@ func (daemon *Daemon) setupConfigDir(c *container.Container) (setupErr error) {
 	for _, configRef := range c.ConfigReferences {
 		// TODO (ehazlett): use type switch when more are supported
 		if configRef.File == nil {
-			logrus.Error("config target type is not a file target")
+			// Runtime configs are not mounted into the container, but they're
+			// a valid type of config so we should not error when we encounter
+			// one.
+			if configRef.Runtime == nil {
+				logrus.Error("config target type is not a file or runtime target")
+			}
+			// However, in any case, this isn't a file config, so we have no
+			// further work to do
 			continue
 		}
 

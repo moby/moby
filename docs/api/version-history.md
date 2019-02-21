@@ -29,6 +29,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /services/{id}` now returns `Sysctls` as part of the `ContainerSpec`.
 * `POST /services/create` now accepts `Sysctls` as part of the `ContainerSpec`.
 * `POST /services/{id}/update` now accepts `Sysctls` as part of the `ContainerSpec`.
+* `POST /services/create` now accepts `Config` as part of `ContainerSpec.Privileges.CredentialSpec`.
+* `POST /services/{id}/update` now accepts `Config` as part of `ContainerSpec.Privileges.CredentialSpec`.
+* `POST /services/create` now includes `Runtime` as an option in `ContainerSpec.Configs`
+* `POST /services/{id}/update` now includes `Runtime` as an option in `ContainerSpec.Configs`
 * `GET /tasks` now  returns `Sysctls` as part of the `ContainerSpec`.
 * `GET /tasks/{id}` now  returns `Sysctls` as part of the `ContainerSpec`.
 * `GET /nodes` now supports a filter type `node.label` filter to filter nodes based
