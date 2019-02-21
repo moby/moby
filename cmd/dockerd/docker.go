@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/daemon/config"
@@ -70,13 +69,7 @@ func main() {
 	// Set terminal emulation based on platform as required.
 	_, stdout, stderr := term.StdStreams()
 
-	// @jhowardmsft - maybe there is a historic reason why on non-Windows, stderr is used
-	// here. However, on Windows it makes no sense and there is no need.
-	if runtime.GOOS == "windows" {
-		logrus.SetOutput(stdout)
-	} else {
-		logrus.SetOutput(stderr)
-	}
+	initLogging(stdout, stderr)
 
 	onError := func(err error) {
 		fmt.Fprintf(stderr, "%s\n", err)
