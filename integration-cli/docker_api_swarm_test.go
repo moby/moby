@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -294,6 +295,13 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderProxy(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
+	if runtime.GOARCH == "s390x" {
+		c.Skip("Disabled on s390x")
+	}
+	if runtime.GOARCH == "ppc64le" {
+		c.Skip("Disabled on  ppc64le")
+	}
+
 	// Create 3 nodes
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
@@ -357,6 +365,13 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
+	if runtime.GOARCH == "s390x" {
+		c.Skip("Disabled on s390x")
+	}
+	if runtime.GOARCH == "ppc64le" {
+		c.Skip("Disabled on  ppc64le")
+	}
+
 	d1 := s.AddDaemon(c, true, true)
 	d2 := s.AddDaemon(c, true, true)
 	d3 := s.AddDaemon(c, true, true)
