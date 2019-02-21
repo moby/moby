@@ -497,7 +497,7 @@ func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
-	testRequires(c, kernelMemorySupport)
+	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	file := "/sys/fs/cgroup/memory/memory.kmem.limit_in_bytes"
 	cli.DockerCmd(c, "run", "--kernel-memory", "50M", "--name", "test1", "busybox", "cat", file).Assert(c, icmd.Expected{
@@ -510,7 +510,7 @@ func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
-	testRequires(c, kernelMemorySupport)
+	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
 	c.Assert(err, check.NotNil)
