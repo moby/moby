@@ -59,6 +59,8 @@ func copyFileInfo(fi os.FileInfo, name string) error {
 	return nil
 }
 
+const maxSSizeT = int64(^uint(0) >> 1)
+
 func copyFileContent(dst, src *os.File) error {
 	st, err := src.Stat()
 	if err != nil {
@@ -71,7 +73,16 @@ func copyFileContent(dst, src *os.File) error {
 	dstFd := int(dst.Fd())
 
 	for size > 0 {
-		n, err := unix.CopyFileRange(srcFd, nil, dstFd, nil, int(size), 0)
+		// Ensure that we are never trying to copy more than SSIZE_MAX at a
+		// time and at the same time avoids overflows when the file is larger
+		// than 4GB on 32-bit systems.
+		var copySize int
+		if size > maxSSizeT {
+			copySize = int(maxSSizeT)
+		} else {
+			copySize = int(size)
+		}
+		n, err := unix.CopyFileRange(srcFd, nil, dstFd, nil, copySize, 0)
 		if err != nil {
 			if (err != unix.ENOSYS && err != unix.EXDEV) || !first {
 				return errors.Wrap(err, "copy file range failed")
@@ -90,18 +101,34 @@ func copyFileContent(dst, src *os.File) error {
 	return nil
 }
 
-func copyXAttrs(dst, src string) error {
+func copyXAttrs(dst, src string, xeh XAttrErrorHandler) error {
 	xattrKeys, err := sysx.LListxattr(src)
 	if err != nil {
-		return errors.Wrapf(err, "failed to list xattrs on %s", src)
+		e := errors.Wrapf(err, "failed to list xattrs on %s", src)
+		if xeh != nil {
+			e = xeh(dst, src, "", e)
+		}
+		return e
 	}
 	for _, xattr := range xattrKeys {
 		data, err := sysx.LGetxattr(src, xattr)
 		if err != nil {
-			return errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
+			e := errors.Wrapf(err, "failed to get xattr %q on %s", xattr, src)
+			if xeh != nil {
+				if e = xeh(dst, src, xattr, e); e == nil {
+					continue
+				}
+			}
+			return e
 		}
 		if err := sysx.LSetxattr(dst, xattr, data, 0); err != nil {
-			return errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
+			e := errors.Wrapf(err, "failed to set xattr %q on %s", xattr, dst)
+			if xeh != nil {
+				if e = xeh(dst, src, xattr, e); e == nil {
+					continue
+				}
+			}
+			return e
 		}
 	}
 
