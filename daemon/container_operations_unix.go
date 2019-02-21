@@ -26,6 +26,7 @@ import (
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {
+	// NOTE(dperny): this method has been fixed to return only errdefs errors.
 	var env []string
 	children := daemon.children(container)
 
@@ -36,12 +37,12 @@ func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]s
 
 	for linkAlias, child := range children {
 		if !child.IsRunning() {
-			return nil, fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias)
+			return nil, errdefs.InvalidParameter(fmt.Errorf("Cannot link to a non running container: %s AS %s", child.Name, linkAlias))
 		}
 
 		childBridgeSettings := child.NetworkSettings.Networks[runconfig.DefaultDaemonNetworkMode().NetworkName()]
 		if childBridgeSettings == nil || childBridgeSettings.EndpointSettings == nil {
-			return nil, fmt.Errorf("container %s not attached to default bridge network", child.ID)
+			return nil, errdefs.InvalidParameter(fmt.Errorf("container %s not attached to default bridge network", child.ID))
 		}
 
 		link := links.NewLink(
@@ -72,10 +73,10 @@ func (daemon *Daemon) getIpcContainer(id string) (*container.Container, error) {
 	// Check the container ipc is shareable
 	if st, err := os.Stat(container.ShmPath); err != nil || !st.IsDir() {
 		if err == nil || os.IsNotExist(err) {
-			return nil, errors.New(errMsg + ": non-shareable IPC")
+			return nil, errdefs.InvalidParameter(errors.New(errMsg + ": non-shareable IPC"))
 		}
 		// stat() failed?
-		return nil, errors.Wrap(err, errMsg+": unexpected error from stat "+container.ShmPath)
+		return nil, errdefs.System(errors.Wrap(err, errMsg+": unexpected error from stat "+container.ShmPath))
 	}
 
 	return container, nil

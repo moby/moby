@@ -112,3 +112,32 @@ func IsDataLoss(err error) bool {
 	_, ok := getImplementer(err).(ErrDataLoss)
 	return ok
 }
+
+// IsKnownErrorType returns if the passed in error is one of the error types
+// defined in this package. Note that "Unknown" is a known error type.
+func IsKnownErrorType(err error) bool {
+	// this code is almost identical to the code in getImplementer, but instead
+	// of returning the error, it returns a boolean
+	switch e := err.(type) {
+	case
+		ErrNotFound,
+		ErrInvalidParameter,
+		ErrConflict,
+		ErrUnauthorized,
+		ErrUnavailable,
+		ErrForbidden,
+		ErrSystem,
+		ErrNotModified,
+		ErrAlreadyExists,
+		ErrNotImplemented,
+		ErrCancelled,
+		ErrDeadline,
+		ErrDataLoss,
+		ErrUnknown:
+		return true
+	case causer:
+		return IsKnownErrorType(e.Cause())
+	default:
+		return false
+	}
+}

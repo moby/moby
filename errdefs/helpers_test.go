@@ -3,6 +3,8 @@ package errdefs // import "github.com/docker/docker/errdefs"
 import (
 	"errors"
 	"testing"
+
+	pkgErrors "github.com/pkg/errors"
 )
 
 var errTest = errors.New("this is a test")
@@ -19,6 +21,9 @@ func TestNotFound(t *testing.T) {
 	if !IsNotFound(e) {
 		t.Fatalf("expected not found error, got: %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected NotFound to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -31,6 +36,9 @@ func TestConflict(t *testing.T) {
 	e := Conflict(errTest)
 	if !IsConflict(e) {
 		t.Fatalf("expected conflict error, got: %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Conflict to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -45,6 +53,9 @@ func TestForbidden(t *testing.T) {
 	if !IsForbidden(e) {
 		t.Fatalf("expected forbidden error, got: %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Forbidden to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -57,6 +68,9 @@ func TestInvalidParameter(t *testing.T) {
 	e := InvalidParameter(errTest)
 	if !IsInvalidParameter(e) {
 		t.Fatalf("expected invalid argument error, got %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected InvalidParameter to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -71,6 +85,9 @@ func TestNotImplemented(t *testing.T) {
 	if !IsNotImplemented(e) {
 		t.Fatalf("expected not implemented error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected NotImplemented to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -83,6 +100,9 @@ func TestNotModified(t *testing.T) {
 	e := NotModified(errTest)
 	if !IsNotModified(e) {
 		t.Fatalf("expected not modified error, got %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected NotModified to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -97,6 +117,9 @@ func TestAlreadyExists(t *testing.T) {
 	if !IsAlreadyExists(e) {
 		t.Fatalf("expected already exists error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected AlreadyExists to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -109,6 +132,9 @@ func TestUnauthorized(t *testing.T) {
 	e := Unauthorized(errTest)
 	if !IsUnauthorized(e) {
 		t.Fatalf("expected unauthorized error, got %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Unauthorized to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -123,6 +149,9 @@ func TestUnknown(t *testing.T) {
 	if !IsUnknown(e) {
 		t.Fatalf("expected unknown error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Unknown to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -135,6 +164,9 @@ func TestCancelled(t *testing.T) {
 	e := Cancelled(errTest)
 	if !IsCancelled(e) {
 		t.Fatalf("expected cancelled error, got %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Canceled to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -149,6 +181,9 @@ func TestDeadline(t *testing.T) {
 	if !IsDeadline(e) {
 		t.Fatalf("expected deadline error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Deadline to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -161,6 +196,9 @@ func TestDataLoss(t *testing.T) {
 	e := DataLoss(errTest)
 	if !IsDataLoss(e) {
 		t.Fatalf("expected data loss error, got %T", e)
+	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected DataLoss to be known error type")
 	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
@@ -175,6 +213,9 @@ func TestUnavailable(t *testing.T) {
 	if !IsUnavailable(e) {
 		t.Fatalf("expected unavaillable error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected Unavailable to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
 	}
@@ -188,7 +229,21 @@ func TestSystem(t *testing.T) {
 	if !IsSystem(e) {
 		t.Fatalf("expected system error, got %T", e)
 	}
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected System to be known error type")
+	}
 	if cause := e.(causal).Cause(); cause != errTest {
 		t.Fatalf("causual should be errTest, got: %v", cause)
+	}
+}
+
+func TestKnownErrorTypeRecursive(t *testing.T) {
+	e := pkgErrors.Wrap(
+		pkgErrors.Wrap(Unknown(errTest), "wrapping this error"),
+		"wrapping it again",
+	)
+
+	if !IsKnownErrorType(e) {
+		t.Fatalf("expected a wrapped error to still be a known error type")
 	}
 }

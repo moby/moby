@@ -13,6 +13,7 @@ import (
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
@@ -637,10 +638,14 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) error {
 	if c.BaseFS == nil {
-		return errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil")
+		// Return System, because it's unlikely that the requester screwed
+		// something up to cause this
+		return errdefs.System(errors.New("populateCommonSpec: BaseFS of container " + c.ID + " is unexpectedly nil"))
 	}
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {
+		// all of the errors returned from setupLinkedContainers should already
+		// be of errdefs types, so we can safely return it raw.
 		return err
 	}
 	s.Root = &specs.Root{
@@ -648,7 +653,9 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 		Readonly: c.HostConfig.ReadonlyRootfs,
 	}
 	if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
-		return err
+		// all of the errors in SetupWorkingDirectory are not really the
+		// requester's fault, so return System
+		return errdefs.System(err)
 	}
 	cwd := c.Config.WorkingDir
 	if len(cwd) == 0 {
@@ -667,7 +674,10 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 			if path == "" {
 				path, err = exec.LookPath(daemonconfig.DefaultInitBinary)
 				if err != nil {
-					return err
+					// If we can't find the daemon's default init, then that's
+					// a System error, because the configuration of the daemon
+					// is invalid, but not the user's request.
+					return errdefs.System(err)
 				}
 			}
 			s.Mounts = append(s.Mounts, specs.Mount{
@@ -695,8 +705,13 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 }
 
 func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
+	// NOTE(dperny): this method has been updated so that all errors returned
+	// are errdefs errors. most of the errors returned have been annotated with
+	// comments to explain the choice of error type.
 	s := oci.DefaultSpec()
 	if err := daemon.populateCommonSpec(&s, c); err != nil {
+		// all of the errors returned by populateCommonSpec are errdefs types,
+		// so we can safely return the error without wrapping it
 		return nil, err
 	}
 
@@ -723,7 +738,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	s.Linux.CgroupsPath = cgroupsPath
 
 	if err := setResources(&s, c.HostConfig.Resources); err != nil {
-		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
+		return nil, errdefs.InvalidParameter(fmt.Errorf("linux runtime spec resources: %v", err))
 	}
 	// We merge the sysctls injected above with the HostConfig (latter takes
 	// precedence for backwards-compatibility reasons).
@@ -733,13 +748,15 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 
 	p := s.Linux.CgroupsPath
 	if useSystemd {
+		// these calls don't rely on any user input, so if they fails, that's
+		// on us, and we should return a System error
 		initPath, err := cgroups.GetInitCgroup("cpu")
 		if err != nil {
-			return nil, err
+			return nil, errdefs.System(err)
 		}
 		_, err = cgroups.GetOwnCgroup("cpu")
 		if err != nil {
-			return nil, err
+			return nil, errdefs.System(err)
 		}
 		p = filepath.Join(initPath, s.Linux.CgroupsPath)
 	}
@@ -751,37 +768,56 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	}
 
 	if err := daemon.initCgroupsPath(parentPath); err != nil {
-		return nil, fmt.Errorf("linux init cgroups path: %v", err)
+		// all of the errors in initCgroupsPath are things like failing to make
+		// a directory, or are otherwise the result of a function call with
+		// hard-coded arguments, so return a System error if it fails.
+		return nil, errdefs.System(fmt.Errorf("linux init cgroups path: %v", err))
 	}
 	if err := setDevices(&s, c); err != nil {
-		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
+		// The errors resulting from devices are generally more of a
+		// user-configured-it-wrong error, so return InvalidParameter
+		return nil, errdefs.InvalidParameter(fmt.Errorf("linux runtime spec devices: %v", err))
 	}
 	if err := daemon.setRlimits(&s, c); err != nil {
-		return nil, fmt.Errorf("linux runtime spec rlimits: %v", err)
+		// as of this writing, setRlimits doesn't return any errors at all, so
+		// we return error type Unknown if it happens.
+		return nil, errdefs.Unknown(fmt.Errorf("linux runtime spec rlimits: %v", err))
 	}
 	if err := setUser(&s, c); err != nil {
-		return nil, fmt.Errorf("linux spec user: %v", err)
+		// setUser fails if you specify a bad user, so it's an InvalidParameter
+		return nil, errdefs.InvalidParameter(fmt.Errorf("linux spec user: %v", err))
 	}
 	if err := setNamespaces(daemon, &s, c); err != nil {
-		return nil, fmt.Errorf("linux spec namespaces: %v", err)
+		// setNamespaces has been fixed to return all errdefs errors, so we
+		// don't need to choose one here. additionally, the errdefs package is
+		// aware of the "causer" interface from github.com/pkg/errors, so we
+		// can safely wrap this error so that the actual error message still
+		// starts with "linux spec namespaces"
+		return nil, errors.Wrap(err, "linux spec namespaces")
 	}
 	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
 	if err != nil {
-		return nil, fmt.Errorf("linux spec capabilities: %v", err)
+		// caps.TweakCapabilities also uses all errdefs errors
+		return nil, errors.Wrap(err, "linux spec capabilities")
 	}
 	if err := oci.SetCapabilities(&s, capabilities); err != nil {
-		return nil, fmt.Errorf("linux spec capabilities: %v", err)
+		// SetCapabilities returned no error in this revision, so if it fails,
+		// we don't know why
+		return nil, errdefs.Unknown(fmt.Errorf("linux spec capabilities: %v", err))
 	}
 	if err := setSeccomp(daemon, &s, c); err != nil {
-		return nil, fmt.Errorf("linux seccomp: %v", err)
+		// if setting Seccomp fails, then it's probably your fault.
+		return nil, errdefs.InvalidParameter(fmt.Errorf("linux seccomp: %v", err))
 	}
 
 	if err := daemon.setupContainerMountsRoot(c); err != nil {
-		return nil, err
+		// it shouldn't be the user's fault if this fails.
+		return nil, errdefs.System(err)
 	}
 
 	if err := daemon.setupIpcDirs(c); err != nil {
-		return nil, err
+		// this will fail if the user configures it wrongly
+		return nil, errdefs.InvalidParameter(err)
 	}
 
 	defer func() {
@@ -790,13 +826,16 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		}
 	}()
 
+	// the next several calls only return System errors, because their failures
+	// are not really caused by user input.
+
 	if err := daemon.setupSecretDir(c); err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 
 	ms, err := daemon.setupMounts(c)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 
 	if !c.HostConfig.IpcMode.IsPrivate() && !c.HostConfig.IpcMode.IsEmpty() {
@@ -805,19 +844,19 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 
 	tmpfsMounts, err := c.TmpfsMounts()
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	ms = append(ms, tmpfsMounts...)
 
 	secretMounts, err := c.SecretMounts()
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	ms = append(ms, secretMounts...)
 
 	sort.Sort(mounts(ms))
 	if err := setMounts(daemon, &s, c, ms); err != nil {
-		return nil, fmt.Errorf("linux mounts: %v", err)
+		return nil, errdefs.System(fmt.Errorf("linux mounts: %v", err))
 	}
 
 	for _, ns := range s.Linux.Namespaces {
@@ -850,7 +889,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 			// sure that we keep the default profile enabled we dynamically
 			// reload it if necessary.
 			if err := ensureDefaultAppArmorProfile(); err != nil {
-				return nil, err
+				return nil, errdefs.System(err)
 			}
 		}
 
@@ -871,7 +910,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 
 	if daemon.configStore.Rootless {
 		if err := specconv.ToRootless(&s); err != nil {
-			return nil, err
+			// in the current revision, ToRootless doesn't return any known
+			// error.
+			return nil, errdefs.Unknown(err)
 		}
 	}
 	return &s, nil
