@@ -69,7 +69,7 @@ func withDockerfileFromContext(c modifiableContext, dockerfilePath string) (buil
 					return withDockerfileFromContext(c, lowercase)
 				}
 			}
-			return nil, nil, errors.Errorf("Cannot locate specified Dockerfile: %s", dockerfilePath) // backwards compatible error
+			return nil, nil, errors.Errorf("Cannot locate specified Dockerfile: %s. This can happen if you have a .dockerignore file that is ignoring the path to the dockerfile.", dockerfilePath) // backwards compatible error
 		}
 		c.Close()
 		return nil, nil, err

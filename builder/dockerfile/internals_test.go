@@ -37,7 +37,7 @@ func TestSymlinkDockerfile(t *testing.T) {
 	// in the builder, the symlink is resolved within the context, therefore
 	// Dockerfile -> /etc/passwd becomes etc/passwd from the context which is
 	// a nonexistent file.
-	expectedError := fmt.Sprintf("Cannot locate specified Dockerfile: %s", builder.DefaultDockerfileName)
+	expectedError := fmt.Sprintf("Cannot locate specified Dockerfile: %s. This can happen if you have a .dockerignore file that is ignoring the path to the dockerfile.", builder.DefaultDockerfileName)
 
 	readAndCheckDockerfile(t, "symlinkDockerfile", contextDir, builder.DefaultDockerfileName, expectedError)
 }
