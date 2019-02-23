@@ -78,7 +78,8 @@ func containerSpecFromGRPC(c *swarmapi.ContainerSpec) *types.ContainerSpec {
 
 		if m.BindOptions != nil {
 			mount.BindOptions = &mounttypes.BindOptions{
-				Propagation: mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				Propagation:  mounttypes.Propagation(strings.ToLower(swarmapi.Mount_BindOptions_MountPropagation_name[int32(m.BindOptions.Propagation)])),
+				NonRecursive: m.BindOptions.NonRecursive,
 			}
 		}
 
@@ -331,9 +332,11 @@ func containerToGRPC(c *types.ContainerSpec) (*swarmapi.ContainerSpec, error) {
 			}
 
 			if m.BindOptions.NonRecursive {
-				// TODO(AkihiroSuda): NonRecursive is unsupported for Swarm-mode now because of mutual vendoring
-				// across moby and swarmkit. Will be available soon after the moby PR gets merged.
-				return nil, fmt.Errorf("invalid NonRecursive: %q", m.BindOptions.Propagation)
+				if mount.BindOptions == nil {
+					// the propagation defaults to rprivate
+					mount.BindOptions = &swarmapi.Mount_BindOptions{}
+				}
+				mount.BindOptions.NonRecursive = m.BindOptions.NonRecursive
 			}
 		}
 

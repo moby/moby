@@ -281,7 +281,9 @@ func convertMount(m api.Mount) enginemount.Mount {
 	}
 
 	if m.BindOptions != nil {
-		mount.BindOptions = &enginemount.BindOptions{}
+		mount.BindOptions = &enginemount.BindOptions{
+			NonRecursive: m.BindOptions.NonRecursive,
+		}
 		switch m.BindOptions.Propagation {
 		case api.MountPropagationRPrivate:
 			mount.BindOptions.Propagation = enginemount.PropagationRPrivate
