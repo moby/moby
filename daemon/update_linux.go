@@ -50,5 +50,6 @@ func toContainerdResources(resources container.Resources) *libcontainerd.Resourc
 		r.Memory.Swap = &resources.MemorySwap
 	}
 
+	r.Pids = getPidsLimit(resources)
 	return &r
 }

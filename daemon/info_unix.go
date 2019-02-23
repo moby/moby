@@ -27,6 +27,7 @@ func (daemon *Daemon) fillPlatformInfo(v *types.Info, sysInfo *sysinfo.SysInfo) 
 	v.CPUCfsQuota = sysInfo.CPUCfsQuota
 	v.CPUShares = sysInfo.CPUShares
 	v.CPUSet = sysInfo.Cpuset
+	v.PidsLimit = sysInfo.PidsLimit
 	v.Runtimes = daemon.configStore.GetAllRuntimes()
 	v.DefaultRuntime = daemon.configStore.GetDefaultRuntimeName()
 	v.InitBinary = daemon.configStore.GetInitPath()
