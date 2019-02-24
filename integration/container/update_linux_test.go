@@ -132,6 +132,10 @@ func TestUpdatePidsLimit(t *testing.T) {
 		{desc: "update lower", update: intPtr(16), expect: 16, expectCg: "16"},
 		{desc: "update on old api ignores value", oldAPI: true, update: intPtr(10), expect: 16, expectCg: "16"},
 		{desc: "unset limit", update: intPtr(0), expect: 0, expectCg: "max"},
+		{desc: "reset", update: intPtr(32), expect: 32, expectCg: "32"},
+		{desc: "unset limit with minus one", update: intPtr(-1), expect: 0, expectCg: "max"},
+		{desc: "reset", update: intPtr(32), expect: 32, expectCg: "32"},
+		{desc: "unset limit with minus two", update: intPtr(-2), expect: 0, expectCg: "max"},
 	} {
 		c := apiClient
 		if test.oldAPI {
