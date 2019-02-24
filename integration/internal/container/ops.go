@@ -137,6 +137,16 @@ func WithAutoRemove(c *TestContainerConfig) {
 	c.HostConfig.AutoRemove = true
 }
 
+// WithPidsLimit sets the container's "pids-limit
+func WithPidsLimit(limit *int64) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.PidsLimit = limit
+	}
+}
+
 // WithRestartPolicy sets container's restart policy
 func WithRestartPolicy(policy string) func(c *TestContainerConfig) {
 	return func(c *TestContainerConfig) {
