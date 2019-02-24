@@ -460,7 +460,8 @@ definitions:
         type: "boolean"
         x-nullable: true
       PidsLimit:
-        description: "Tune a container's pids limit. Set 0 or -1 for unlimited. Leave null to not change"
+        description: |
+          Tune a container's PIDs limit. Set `0` or `-1` for unlimited, or `null` to not change.
         type: "integer"
         format: "int64"
         x-nullable: true
