@@ -24,7 +24,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -34,7 +34,7 @@ const defaultMaxConcurrentDownloads = 3
 
 // PullImage initiates a pull operation. image is the repository name to pull, and
 // tag may be either empty, or indicate a specific tag to pull.
-func (i *ImageService) PullImage(ctx context.Context, image, tag string, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PullImage(ctx context.Context, image, tag string, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	start := time.Now()
 	// Special case: "pull -a" may send an image name with a
 	// trailing :. This is ugly, but let's not break API
@@ -65,7 +65,7 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 	return err
 }
 
-func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *specs.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	c, err := i.getCache(ctx)
 	if err != nil {
 		return err
@@ -82,7 +82,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		close(progress)
 	}()
 
-	h := images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 		if desc.MediaType != images.MediaTypeDockerSchema1Manifest {
 			ongoing.add(desc)
 		}
@@ -90,60 +90,43 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		l          layer.Layer
-		layers     []specs.Descriptor
-		dlStatus   = map[digest.Digest]bool{}
-		dlChan     = make(chan digest.Digest, 5)
-		unpackChan = make(chan struct{})
+		l         layer.Layer
+		layers    = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus  = map[digest.Digest]bool{}
+		delayed   = true // delayed unpack flag for schema 1
+		lock      = sync.Mutex{}
+		cond      = sync.NewCond(&lock)
+		unpackErr = make(chan error)
 	)
 	// unpackHandler handles layer unpacking concurrently as soon as
-	// a layer in order has been downloaded
+	// a layer has been downloaded in order
 	unpackHandler := func(h images.Handler) images.Handler {
-		return images.HandlerFunc(func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
-			logrus.Infof("parent desc -> type=%s id=%s", desc.MediaType, stringid.TruncateID(desc.Digest.String()))
+		return images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			children, err := h.Handle(ctx, desc)
 			if err != nil {
 				return children, err
 			}
-			// manifest downloaded
-			if len(children) > 1 {
-				// trim off config descriptor only keep the layer descriptors
-				layers = children[1:]
-				// start the message broker to track layer downloading status
-				go func() {
-					// check the layers downloading status according to
-					// the order from manifest so that the unpacking
-					// process will be signaled in the same order as well.
-					// Also buffer the layers which downloaded faster
-					// ahead of the order.
-					for i := 0; i < len(layers); {
-						if ok := dlStatus[layers[i].Digest]; ok {
-							unpackChan <- struct{}{}
-							i++
-							continue
-						}
-						select {
-						case d := <-dlChan:
-							if d == layers[i].Digest {
-								unpackChan <- struct{}{}
-								i++
-							}
-							dlStatus[d] = true
-						}
-					}
-				}()
-			}
 
 			switch desc.MediaType {
-			case images.MediaTypeDockerSchema2Config:
-				// handle unpack
-				l, err = i.unpack(pctx, desc, layers, progressOutput, unpackChan)
-				if err != nil {
-					return nil, errors.Wrapf(err, "failed to unpack %s", desc.Digest)
-				}
-			case images.MediaTypeDockerSchema2LayerGzip:
+			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+				lock.Lock()
+				// map the config to layers
+				layers[children[0].Digest] = children[1:]
+				lock.Unlock()
+			case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+				// handle schema2 unpack concurrently
+				delayed = false
+				go func() {
+					l, err = i.unpack(pctx, desc, layers[desc.Digest], progressOutput, cond, dlStatus)
+					unpackErr <- errors.Wrapf(err, "failed to unpack %s", desc.Digest)
+				}()
+			case images.MediaTypeDockerSchema2LayerGzip, images.MediaTypeDockerSchema2Layer,
+				ocispec.MediaTypeImageLayerGzip, ocispec.MediaTypeImageLayer:
 				// a layer has been downloaded, signal downloaded status
-				dlChan <- desc.Digest
+				lock.Lock()
+				dlStatus[desc.Digest] = true
+				lock.Unlock()
+				cond.Broadcast()
 			}
 
 			return children, nil
@@ -170,7 +153,24 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	}
 	config, err := img.Config(pctx)
 	if err != nil {
-		return errors.Wrap(err, "failed to resolve configuration")
+		return errors.Wrap(err, "failed to pull image")
+	}
+	// delayed unpacking for schema 1
+	if delayed {
+		l, err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
+		}
+	} else {
+		// wait schema2 unpack to finish
+		select {
+		case <-pctx.Done():
+			return errors.New("pull context cancelled")
+		case err = <-unpackErr:
+			if err != nil {
+				return err
+			}
+		}
 	}
 
 	// TODO: Unpack into layer store
@@ -212,7 +212,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 
 // TODO: Add shallow pull function which returns descriptor
 
-func (i *ImageService) unpack(ctx context.Context, config specs.Descriptor, layers []specs.Descriptor, progressOutput progress.Output, unpackChan chan struct{}) (layer.Layer, error) {
+func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, layers []ocispec.Descriptor, progressOutput progress.Output, cond *sync.Cond, status map[digest.Digest]bool) (layer.Layer, error) {
 	var (
 		cs = i.client.ContentStore()
 		ls = i.layerStores[runtime.GOOS]
@@ -232,8 +232,16 @@ func (i *ImageService) unpack(ctx context.Context, config specs.Descriptor, laye
 	)
 	for d := range diffIDs {
 		chain = append(chain, diffIDs[d])
-		// start unpacking upon signaled after current layer downloading complete
-		<-unpackChan
+		// start extracting upon signaled after current layer downloading complete
+		// otherwise wait upon the resource is ready
+		if cond != nil && status != nil {
+			cond.L.Lock()
+			for !status[layers[d].Digest] {
+				cond.Wait()
+			}
+			cond.L.Unlock()
+		}
+
 		nl, err := i.applyLayer(ctx, layers[d], chain, progressOutput)
 		if err != nil {
 			logrus.Errorf("apply layer failed -> %s", err)
@@ -270,7 +278,7 @@ func (i *ImageService) unpack(ctx context.Context, config specs.Descriptor, laye
 	return l, nil
 }
 
-func (i *ImageService) applyLayer(ctx context.Context, blob specs.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
+func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
 	var (
 		cs = i.client.ContentStore()
 		ls = i.layerStores[runtime.GOOS]
@@ -429,12 +437,12 @@ type StatusInfo struct {
 	Status string
 }
 
-func isLayer(desc specs.Descriptor) bool {
+func isLayer(desc ocispec.Descriptor) bool {
 	switch desc.MediaType {
 	case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip,
 		images.MediaTypeDockerSchema2LayerForeign, images.MediaTypeDockerSchema2LayerForeignGzip,
-		specs.MediaTypeImageLayer, specs.MediaTypeImageLayerGzip,
-		specs.MediaTypeImageLayerNonDistributable, specs.MediaTypeImageLayerNonDistributableGzip:
+		ocispec.MediaTypeImageLayer, ocispec.MediaTypeImageLayerGzip,
+		ocispec.MediaTypeImageLayerNonDistributable, ocispec.MediaTypeImageLayerNonDistributableGzip:
 		return true
 	default:
 		return false
@@ -449,7 +457,7 @@ func isLayer(desc specs.Descriptor) bool {
 type jobs struct {
 	name  string
 	added map[digest.Digest]struct{}
-	descs []specs.Descriptor
+	descs []ocispec.Descriptor
 	mu    sync.Mutex
 }
 
@@ -460,7 +468,7 @@ func newJobs(name string) *jobs {
 	}
 }
 
-func (j *jobs) add(desc specs.Descriptor) {
+func (j *jobs) add(desc ocispec.Descriptor) {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
@@ -471,10 +479,10 @@ func (j *jobs) add(desc specs.Descriptor) {
 	j.added[desc.Digest] = struct{}{}
 }
 
-func (j *jobs) jobs() []specs.Descriptor {
+func (j *jobs) jobs() []ocispec.Descriptor {
 	j.mu.Lock()
 	defer j.mu.Unlock()
 
-	var descs []specs.Descriptor
+	var descs []ocispec.Descriptor
 	return append(descs, j.descs...)
 }
