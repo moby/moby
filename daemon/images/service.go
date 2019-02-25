@@ -8,6 +8,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/docker/distribution"
@@ -68,6 +69,9 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		referenceStore:            config.ReferenceStore,
 		registryService:           config.RegistryService,
 		uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
+
+		// TODO(containerd): derive from configured layerstores
+		platforms: platforms.Ordered(platforms.DefaultSpec()),
 	}
 }
 
@@ -78,6 +82,7 @@ type ImageService struct {
 	containers    containerStore
 	eventsService *daemonevents.Events
 	layerStores   map[string]layer.Store // By operating system
+	platforms     platforms.MatchComparer
 	pruneRunning  int32
 
 	// namespaced cache

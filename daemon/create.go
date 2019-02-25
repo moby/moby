@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -26,6 +26,7 @@ import (
 
 type createOpts struct {
 	params                  types.ContainerCreateConfig
+	rImage                  images.RuntimeImage
 	managed                 bool
 	ignoreImagesArgsEscaped bool
 }
@@ -61,23 +62,26 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
-	os := runtime.GOOS
-	// TODO(containerd): Resolve os for LCOW
-	// TODO(containerd): Why is this lookup done twice just for LCOW??
-	//if opts.params.Config.Image != "" {
-	//	_, img, err := daemon.imageService.GetImage(context.TODO(), params.Config.Image)
-	//	if err == nil {
-	//		os = img.OS
-	//	}
-	//} else {
-	//	// This mean scratch. On Windows, we can safely assume that this is a linux
-	//	// container. On other platforms, it's the host OS (which it already is)
-	//	if runtime.GOOS == "windows" && system.LCOWSupported() {
-	//		os = "linux"
-	//	}
-	//}
+	if opts.params.Config.Image != "" {
+		var err error
+		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, opts.params.Config.Image)
+		if err != nil {
+			return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(err)
+		}
+	} else {
+		// TODO(containerd): move this logic to image service
+		opts.rImage.Platform = platforms.DefaultSpec()
 
-	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
+		// This mean scratch. On Windows, we can safely assume that this is a linux
+		// container. On other platforms, it's the host OS (which it already is)
+		if opts.rImage.Platform.OS == "windows" && system.LCOWSupported() {
+			opts.rImage.Platform.OS = "linux"
+			opts.rImage.Platform.OSVersion = ""
+			opts.rImage.Platform.OSFeatures = []string{}
+		}
+	}
+
+	warnings, err := daemon.verifyContainerSettings(opts.rImage.Platform, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
@@ -112,18 +116,10 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *container.Container, retErr error) {
 	var (
 		container *container.Container
-		desc      ocispec.Descriptor
 		err       error
 	)
 
-	if opts.params.Config.Image != "" {
-		desc, err = daemon.imageService.GetImage(ctx, opts.params.Config.Image)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	if err := daemon.mergeAndVerifyConfig(ctx, opts.params.Config, desc); err != nil {
+	if err := daemon.mergeAndVerifyConfig(ctx, opts.params.Config, opts.rImage.ConfigBytes); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
@@ -131,33 +127,8 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	os := runtime.GOOS
-	if os == "windows" {
-		if desc.Digest != "" {
-			// TODO(containerd): resolve os for LCOW on Windows
-			// TODO(containerd): ensure platform in descriptor?
-			// TODO(containerd): Read blob
-			// TODO(containerd): Unmarshal OS
-
-			//if img.OS != "" {
-			//	os = img.OS
-			//} else {
-			//	// default to the host OS except on Windows with LCOW
-			//	if runtime.GOOS == "windows" && system.LCOWSupported() {
-			//		os = "linux"
-			//	}
-			//}
-			//imgID = desc.Digest
-
-			//if runtime.GOOS == "windows" && img.OS == "linux" && !system.LCOWSupported() {
-			//	return nil, errors.New("operating system on which parent image was created is not Windows")
-			//}
-		} else {
-			os = "linux" // 'scratch' case.
-		}
-	}
-
-	if container, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, desc, opts.managed); err != nil {
+	// TODO(containerd): Move this before OS and image check, remove desc and os from here
+	if container, err = daemon.newContainer(opts.params.Name, opts.params.Config, opts.params.HostConfig, opts.rImage, opts.managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -193,11 +164,13 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 
 	// Set RWLayer for container after mount labels have been set
 	createOpts := []images.CreateLayerOpt{
-		images.WithLayerImage(desc),
+		images.WithLayerImage(opts.rImage.Config),
 		images.WithLayerContainer(container),
 		images.WithLayerInit(setupInitLayer(daemon.idMapping)),
+		// TODO(containerd): pass in platform
 	}
 
+	// TODO(containerd): return non layer type
 	rwLayer, err := daemon.imageService.CreateLayer(ctx, createOpts...)
 	if err != nil {
 		return nil, errdefs.System(err)
@@ -217,6 +190,7 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 		return nil, err
 	}
 
+	// TODO(containerd): Add containerd GC and Docker layer labels
 	if err := daemon.createContainerOSSpecificSettings(container, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
@@ -303,18 +277,13 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 	return nil, nil
 }
 
-func (daemon *Daemon) mergeAndVerifyConfig(ctx context.Context, config *containertypes.Config, img ocispec.Descriptor) error {
-	if img.Digest != "" {
-		p, err := content.ReadBlob(ctx, daemon.containerdCli.ContentStore(), img)
-		if err != nil {
-			return errors.Wrap(err, "failed to read config")
-		}
-
+func (daemon *Daemon) mergeAndVerifyConfig(ctx context.Context, config *containertypes.Config, configBytes []byte) error {
+	if len(configBytes) != 0 {
 		// Only parse out the config key
 		var imgConfig struct {
 			Config *containertypes.Config `json:"config,omitempty"`
 		}
-		if err := json.Unmarshal(p, &imgConfig); err != nil {
+		if err := json.Unmarshal(configBytes, &imgConfig); err != nil {
 			return errors.Wrap(err, "failed to parse image config")
 		}
 

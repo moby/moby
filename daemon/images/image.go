@@ -4,10 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 
 	"github.com/containerd/containerd/content"
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
@@ -123,6 +125,165 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 	}
 
 	return img.Target, nil
+}
+
+// RuntimeImage represents a platform-specific image along with the
+// image configuration and targeted image ID.
+type RuntimeImage struct {
+	Target      ocispec.Descriptor
+	Config      ocispec.Descriptor
+	ConfigBytes []byte
+	Platform    ocispec.Platform
+}
+
+// ResolveRuntimeImage resolves an image down to the platform-specific
+// runtime configuration for the image.
+// A runtime image is platform specific.
+// The platform is resolved based on availability in the image and
+// the order preference of the backend storage drivers.
+func (i *ImageService) ResolveRuntimeImage(ctx context.Context, refOrID string) (RuntimeImage, error) {
+	desc, err := i.ResolveImage(ctx, refOrID)
+	if err != nil {
+		return RuntimeImage{}, err
+	}
+
+	runtimeImages, err := i.runtimeImages(ctx, desc)
+	if err != nil {
+		return RuntimeImage{}, err
+	}
+
+	// filter platforms, do inplace filtering since small sized array
+	for j := 0; j < len(runtimeImages); {
+		if !i.platforms.Match(runtimeImages[j].Platform) {
+			copy(runtimeImages[j:], runtimeImages[j+1:])
+			runtimeImages = runtimeImages[:len(runtimeImages)-1]
+		} else {
+			j++
+		}
+	}
+
+	sort.SliceStable(runtimeImages, func(j, k int) bool {
+		return i.platforms.Less(runtimeImages[j].Platform, runtimeImages[k].Platform)
+	})
+
+	if len(runtimeImages) == 0 {
+		return RuntimeImage{}, errdefs.NotFound(errors.New("no runtime image found"))
+	}
+
+	ri := runtimeImages[0]
+	if len(ri.ConfigBytes) == 0 {
+		ri.ConfigBytes, err = content.ReadBlob(ctx, i.client.ContentStore(), ri.Config)
+		if err != nil {
+			return RuntimeImage{}, err
+		}
+	}
+
+	return ri, nil
+}
+
+func (i *ImageService) runtimeImages(ctx context.Context, image ocispec.Descriptor) ([]RuntimeImage, error) {
+	var (
+		imageMap      = map[digest.Digest]RuntimeImage{}
+		runtimeImages []RuntimeImage
+		cs            = i.client.ContentStore()
+	)
+
+	if err := images.Walk(ctx, images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+			image, ok := imageMap[desc.Digest]
+			if !ok {
+				image = RuntimeImage{
+					Target: desc,
+				}
+			}
+			image.Config = desc
+
+			p, err := content.ReadBlob(ctx, cs, desc)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					log.G(ctx).Debugf("image config missing: %s", desc.Digest.String())
+					return nil, nil
+				}
+				return nil, err
+			}
+
+			if err := json.Unmarshal(p, &image.Platform); err != nil {
+				return nil, err
+			}
+
+			if image.Platform.OS == "" {
+				log.G(ctx).Warnf("image is missing platform: %s", desc.Digest.String())
+				return nil, nil
+			}
+
+			image.Platform = platforms.Normalize(image.Platform)
+			image.ConfigBytes = p
+
+			runtimeImages = append(runtimeImages, image)
+			return nil, nil
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+			p, err := content.ReadBlob(ctx, cs, desc)
+			if err != nil {
+				if cerrdefs.IsNotFound(err) {
+					log.G(ctx).Debugf("image manifest missing: %s", desc.Digest.String())
+					return nil, nil
+				}
+				return nil, err
+			}
+
+			var manifest ocispec.Manifest
+			if err := json.Unmarshal(p, &manifest); err != nil {
+				return nil, err
+			}
+
+			if image, ok := imageMap[desc.Digest]; ok {
+				if image.Platform.OS != "" {
+					// Use platform from manifest list
+					image.Config = manifest.Config
+					runtimeImages = append(runtimeImages, image)
+					return nil, nil
+				} else {
+					// Map config to the runtime image
+					imageMap[manifest.Config.Digest] = image
+				}
+			} else {
+				imageMap[manifest.Config.Digest] = RuntimeImage{
+					Target: desc,
+				}
+			}
+
+			return []ocispec.Descriptor{manifest.Config}, nil
+		case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+			p, err := content.ReadBlob(ctx, cs, desc)
+			if err != nil {
+				return nil, err
+			}
+
+			var idx ocispec.Index
+			if err := json.Unmarshal(p, &idx); err != nil {
+				return nil, err
+			}
+
+			for _, m := range idx.Manifests {
+				ri := RuntimeImage{
+					Target: desc,
+				}
+				if m.Platform != nil {
+					ri.Platform = platforms.Normalize(*m.Platform)
+				}
+				imageMap[m.Digest] = ri
+			}
+
+			return idx.Manifests, nil
+
+		}
+		return nil, errdefs.NotFound(errors.Errorf("unexpected media type %v for %v", desc.MediaType, desc.Digest))
+	}), image); err != nil {
+		return nil, err
+	}
+
+	return runtimeImages, nil
 }
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
