@@ -11,7 +11,8 @@ import (
 
 // ContainerCreateConfig is the parameter set to ContainerCreate()
 type ContainerCreateConfig struct {
-	Name             string
+	Name string
+	// TODO(containerd): Add Platform (OS, Architecture, Variant)
 	Config           *container.Config
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
