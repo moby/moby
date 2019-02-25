@@ -29,6 +29,7 @@ type Config struct {
 	CgroupParent         string                   `json:"cgroup-parent,omitempty"`
 	EnableSelinuxSupport bool                     `json:"selinux-enabled,omitempty"`
 	RemappedRoot         string                   `json:"userns-remap,omitempty"`
+	DisableRemappedRoot  bool                     `json:"userns-disable-remap,omitempty"`
 	Ulimits              map[string]*units.Ulimit `json:"default-ulimits,omitempty"`
 	CPURealtimePeriod    int64                    `json:"cpu-rt-period,omitempty"`
 	CPURealtimeRuntime   int64                    `json:"cpu-rt-runtime,omitempty"`
