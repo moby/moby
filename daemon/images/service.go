@@ -21,7 +21,6 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
-	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -149,77 +148,22 @@ func (i *ImageService) ChildrenByID(ctx context.Context, id digest.Digest) ([]di
 	return ci.children, nil
 }
 
-type createLayerOptions struct {
-	id        string
-	image     ocispec.Descriptor
-	container *container.Container
-	initFunc  layer.MountInit
-}
-
-type CreateLayerOpt func(*createLayerOptions)
-
-func WithLayerID(id string) CreateLayerOpt {
-	return func(o *createLayerOptions) {
-		o.id = id
+// GetImageBackend returns the storage backend used by the given image
+// TODO(containerd): return more abstract interface to support snapshotters
+func (i *ImageService) GetImageBackend(image RuntimeImage) (layer.Store, error) {
+	if image.Config.Digest != "" {
+		// TODO(containerd): Get from content-store label
+		// TODO(containerd): Lookup by layer store names
 	}
-}
-
-func WithLayerContainer(container *container.Container) CreateLayerOpt {
-	return func(o *createLayerOptions) {
-		o.container = container
+	if image.Platform.OS == "" {
+		image.Platform = platforms.DefaultSpec()
 	}
-}
-
-func WithLayerImage(config ocispec.Descriptor) CreateLayerOpt {
-	return func(o *createLayerOptions) {
-		o.image = config
-	}
-}
-
-func WithLayerInit(initFunc layer.MountInit) CreateLayerOpt {
-	return func(o *createLayerOptions) {
-		o.initFunc = initFunc
-	}
-}
-
-// CreateLayer creates a filesystem layer for a container.
-// called from create.go
-func (i *ImageService) CreateLayer(ctx context.Context, opts ...CreateLayerOpt) (layer.RWLayer, error) {
-	var options createLayerOptions
-	for _, opt := range opts {
-		opt(&options)
+	ls, ok := i.layerStores[image.Platform.OS]
+	if !ok {
+		return nil, errdefs.Unavailable(errors.Errorf("no storage backend configured for %s", image.Platform.OS))
 	}
 
-	var chainID digest.Digest
-	if options.image.Digest != "" {
-		diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), options.image)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to resolve rootfs")
-		}
-
-		chainID = identity.ChainID(diffIDs)
-	}
-
-	rwLayerOpts := &layer.CreateRWLayerOpts{
-		InitFunc: options.initFunc,
-	}
-
-	if options.container != nil {
-		rwLayerOpts.MountLabel = options.container.MountLabel
-		rwLayerOpts.StorageOpt = options.container.HostConfig.StorageOpt
-		if options.id == "" {
-			options.id = options.container.ID
-		}
-	}
-
-	if options.id == "" {
-		return nil, errors.New("no layer id provided")
-	}
-
-	// Indexing by OS is safe here as validation of OS has already been performed in create() (the only
-	// caller), and guaranteed non-nil
-	// TODO(containerd): resolve through descriptor
-	return i.layerStores[runtime.GOOS].CreateRWLayer(options.id, layer.ChainID(chainID), rwLayerOpts)
+	return ls, nil
 }
 
 // GetLayerByID returns a layer by ID and operating system
