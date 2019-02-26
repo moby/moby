@@ -3331,9 +3331,6 @@ func (s *DockerSuite) TestBuildVerifySingleQuoteFails(c *check.C) {
 	// it should barf on it.
 	name := "testbuildsinglequotefails"
 	expectedExitCode := 2
-	if testEnv.OSType == "windows" {
-		expectedExitCode = 127
-	}
 
 	buildImageSuccessfully(c, name, build.WithDockerfile(`FROM busybox
 		CMD [ '/bin/sh', '-c', 'echo hi' ]`))
@@ -6052,13 +6049,7 @@ FROM busybox
 WORKDIR /foo/bar
 `))
 	out, _ := dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
-
-	// The Windows busybox image has a blank `cmd`
-	lookingFor := `["sh"]`
-	if testEnv.OSType == "windows" {
-		lookingFor = "null"
-	}
-	c.Assert(strings.TrimSpace(out), checker.Equals, lookingFor)
+	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
 
 	image = "testworkdirlabelimagecmd"
 	buildImageSuccessfully(c, image, build.WithDockerfile(`
@@ -6068,7 +6059,7 @@ LABEL a=b
 `))
 
 	out, _ = dockerCmd(c, "inspect", "--format", "{{ json .Config.Cmd }}", image)
-	c.Assert(strings.TrimSpace(out), checker.Equals, lookingFor)
+	c.Assert(strings.TrimSpace(out), checker.Equals, `["sh"]`)
 }
 
 // Test case for 28902/28909
