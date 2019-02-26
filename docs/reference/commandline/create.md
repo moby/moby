@@ -86,7 +86,7 @@ Options:
       --memory-reservation string     Memory soft limit
       --memory-swap string            Swap limit equal to memory plus swap: '-1' to enable unlimited swap
       --memory-swappiness int         Tune container memory swappiness (0 to 100) (default -1)
-      --mount value                   Attach a filesytem mount to the container (default [])
+      --mount value                   Attach a filesystem mount to the container (default [])
       --name string                   Assign a name to the container
       --network-alias value           Add network-scoped alias for the container (default [])
       --network string                Connect a container to a network (default "default")
@@ -257,5 +257,5 @@ docker create --device-cgroup-rule='c 42:* rmw' -name my-container my-image
 Then, a user could ask `udev` to execute a script that would `docker exec my-container mknod newDevX c 42 <minor>`
 the required device when it is added.
 
-NOTE: initially present devices still need to be explicitely added to
+NOTE: initially present devices still need to be explicitly added to
 the create/run command
