@@ -56,6 +56,7 @@ const (
 // Soft Conflict:
 // 	- any stopped container using the image.
 // 	- any repository tag or digest references to the image.
+//      - TODO(containerd): has label "io.cri-containerd.image==managed"
 //
 // The image cannot be removed if there are any hard conflicts and can be
 // removed if there are soft conflicts only if force is true.

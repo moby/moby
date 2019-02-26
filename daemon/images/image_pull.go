@@ -187,7 +187,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		if ll != nil {
 			metadata, err := i.layerStores[runtime.GOOS].Release(ll)
 			if err != nil {
-				return errors.Wrap(err, "failed to release layer")
+				return errors.Wrap(err, "failed to release already retained layer")
 			}
 			layer.LogReleaseMetadata(metadata)
 		}
@@ -252,7 +252,7 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 		if l != nil {
 			metadata, err := ls.Release(l)
 			if err != nil {
-				return nil, errors.Wrap(err, "failed to release layer")
+				return nil, errors.Wrap(err, "failed to release layer after apply")
 			}
 			layer.LogReleaseMetadata(metadata)
 		}

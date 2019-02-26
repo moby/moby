@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	cimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
@@ -16,9 +17,12 @@ import (
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/images"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/runconfig"
+	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	"github.com/opencontainers/selinux/go-selinux/label"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -114,11 +118,6 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 
 // Create creates a new container from the given configuration with a given name.
 func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *container.Container, retErr error) {
-	var (
-		container *container.Container
-		err       error
-	)
-
 	if err := daemon.mergeAndVerifyConfig(ctx, opts.params.Config, opts.rImage.ConfigBytes); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
@@ -127,8 +126,8 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	// TODO(containerd): Move this before OS and image check, remove desc and os from here
-	if container, err = daemon.newContainer(opts.params.Name, opts.params.Config, opts.params.HostConfig, opts.rImage, opts.managed); err != nil {
+	container, err := daemon.newContainer(opts.params.Name, opts.params.Config, opts.params.HostConfig, opts.rImage, opts.managed)
+	if err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -162,20 +161,10 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 		}
 	}
 
-	// Set RWLayer for container after mount labels have been set
-	createOpts := []images.CreateLayerOpt{
-		images.WithLayerImage(opts.rImage.Config),
-		images.WithLayerContainer(container),
-		images.WithLayerInit(setupInitLayer(daemon.idMapping)),
-		// TODO(containerd): pass in platform
-	}
-
-	// TODO(containerd): return non layer type
-	rwLayer, err := daemon.imageService.CreateLayer(ctx, createOpts...)
+	container.RWLayer, err = daemon.createRWLayer(ctx, opts.rImage, container)
 	if err != nil {
 		return nil, errdefs.System(err)
 	}
-	container.RWLayer = rwLayer
 
 	rootIDs := daemon.idMapping.RootPair()
 
@@ -210,6 +199,32 @@ func (daemon *Daemon) create(ctx context.Context, opts createOpts) (retC *contai
 	stateCtr.set(container.ID, "stopped")
 	daemon.LogContainerEvent(container, "create")
 	return container, nil
+}
+
+func (daemon *Daemon) createRWLayer(ctx context.Context, img images.RuntimeImage, container *container.Container) (layer.RWLayer, error) {
+	var chainID digest.Digest
+	if img.Config.Digest != "" {
+		cs := daemon.containerdCli.ContentStore()
+		diffIDs, err := cimages.RootFS(ctx, cs, img.Config)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to resolve rootfs")
+		}
+
+		chainID = identity.ChainID(diffIDs)
+	}
+
+	ls, err := daemon.imageService.GetImageBackend(img)
+	if err != nil {
+		return nil, err
+	}
+
+	rwLayerOpts := &layer.CreateRWLayerOpts{
+		MountLabel: container.MountLabel,
+		StorageOpt: container.HostConfig.StorageOpt,
+		InitFunc:   setupInitLayer(daemon.idMapping),
+	}
+
+	return ls.CreateRWLayer(container.ID, layer.ChainID(chainID), rwLayerOpts)
 }
 
 func toHostConfigSelinuxLabels(labels []string) []string {
