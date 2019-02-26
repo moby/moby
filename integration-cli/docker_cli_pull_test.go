@@ -12,8 +12,8 @@ import (
 	"github.com/opencontainers/go-digest"
 )
 
-// TestPullFromCentralRegistry pulls an image from the central registry and verifies that the client
-// prints all expected output.
+// TestPullFromCentralRegistry pulls an image from the central registry 
+// and verifies that the client prints all expected output.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	out := s.Cmd(c, "pull", "hello-world")
@@ -36,8 +36,8 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistry(c *check.C) {
 	c.Assert(splitImg[1], checker.Matches, `hello-world\s+latest.*?`, check.Commentf("invalid output for `docker images` (expected image and tag name"))
 }
 
-// TestPullNonExistingImage pulls non-existing images from the central registry, with different
-// combinations of implicit tag and library prefix.
+// TestPullNonExistingImage pulls non-existing images from the central 
+// registry with different combinations of implicit tag and library prefix.
 func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 
@@ -90,7 +90,7 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 		}
 	}
 
-	// Wait for completion
+	// Wait for completion.
 	group.Wait()
 	close(recordChan)
 
@@ -106,12 +106,12 @@ func (s *DockerHubPullSuite) TestPullNonExistingImage(c *check.C) {
 			c.Assert(record.out, checker.Not(checker.Contains), "unauthorized", check.Commentf(`message should not contain "unauthorized"`))
 		}
 	}
-
 }
 
-// TestPullFromCentralRegistryImplicitRefParts pulls an image from the central registry and verifies
-// that pulling the same image with different combinations of implicit elements of the image
-// reference (tag, repository, central registry url, ...) doesn't trigger a new pull nor leads to
+// TestPullFromCentralRegistryImplicitRefParts pulls an image from the 
+// central registry and verifies that pulling the same image with different 
+// combinations of implicit elements of the image reference (tag, repository, 
+// central registry url, ...) doesn't trigger a new pull nor leads to
 // multiple images.
 func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *check.C) {
 	testRequires(c, DaemonIsLinux)
@@ -136,7 +136,6 @@ func (s *DockerHubPullSuite) TestPullFromCentralRegistryImplicitRefParts(c *chec
 
 			v1Retries++
 		}
-
 		return v1Retries, out
 	}
 
@@ -189,8 +188,8 @@ func (s *DockerHubPullSuite) TestPullScratchNotAllowed(c *check.C) {
 	c.Assert(out, checker.Not(checker.Contains), "Pulling repository scratch")
 }
 
-// TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given image and verifies that it
-// results in more images than a naked pull.
+// TestPullAllTagsFromCentralRegistry pulls using `all-tags` for a given 
+// image and verifies that it results in more images than a naked pull.
 func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	testRequires(c, DaemonIsLinux)
 	s.Cmd(c, "pull", "dockercore/engine-pull-all-test-fixture")
@@ -203,7 +202,8 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	linesCount := strings.Count(outImageAllTagCmd, "\n")
 	c.Assert(linesCount, checker.GreaterThan, 2, check.Commentf("pulling all tags should provide more than two images, got %s", outImageAllTagCmd))
 
-	// Verify that the line for 'dockercore/engine-pull-all-test-fixture:latest' is left unchanged.
+	// Verify that the line for 'dockercore/engine-pull-all-test-fixture:latest' 
+	// is left unchanged.
 	var latestLine string
 	for _, line := range strings.Split(outImageAllTagCmd, "\n") {
 		if strings.HasPrefix(line, "dockercore/engine-pull-all-test-fixture") && strings.Contains(line, "latest") {
@@ -231,8 +231,8 @@ func (s *DockerHubPullSuite) TestPullAllTagsFromCentralRegistry(c *check.C) {
 	c.Assert(splitLatest, checker.DeepEquals, splitCurrent, check.Commentf("dockercore/engine-pull-all-test-fixture:latest was changed after pulling all tags"))
 }
 
-// TestPullClientDisconnect kills the client during a pull operation and verifies that the operation
-// gets cancelled.
+// TestPullClientDisconnect kills the client during a pull operation 
+// and verifies that the operation gets cancelled.
 //
 // Ref: docker/docker#15589
 func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
