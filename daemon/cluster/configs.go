@@ -7,6 +7,7 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/convert"
 	swarmapi "github.com/docker/swarmkit/api"
+	"google.golang.org/grpc"
 )
 
 // GetConfig returns a config from a managed swarm cluster
@@ -44,7 +45,8 @@ func (c *Cluster) GetConfigs(options apitypes.ConfigListOptions) ([]types.Config
 	defer cancel()
 
 	r, err := state.controlClient.ListConfigs(ctx,
-		&swarmapi.ListConfigsRequest{Filters: filters})
+		&swarmapi.ListConfigsRequest{Filters: filters},
+		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse))
 	if err != nil {
 		return nil, err
 	}
