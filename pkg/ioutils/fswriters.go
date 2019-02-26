@@ -7,10 +7,18 @@ import (
 	"path/filepath"
 )
 
-// NewAtomicFileWriter returns WriteCloser so that writing to it writes to a
-// temporary file and closing it atomically changes the temporary file to
-// destination path. Writing and closing concurrently is not allowed.
-func NewAtomicFileWriter(filename string, perm os.FileMode) (io.WriteCloser, error) {
+// AtomicFileWriter is an atomic file writer that writes to a temporary file and
+// move it to the destination path when Close is called.
+// Close MUST NOT be called when Write fails.
+// If error occurs when calling the Write function, Abort should be called to remove
+// the temporary file.
+type AtomicFileWriter interface {
+	io.WriteCloser
+	Abort()
+}
+
+// NewAtomicFileWriter returns AtomicFileWriter. Writing and closing concurrently is not allowed.
+func NewAtomicFileWriter(filename string, perm os.FileMode) (AtomicFileWriter, error) {
 	f, err := ioutil.TempFile(filepath.Dir(filename), ".tmp-"+filepath.Base(filename))
 	if err != nil {
 		return nil, err
@@ -79,6 +87,11 @@ func (w *atomicFileWriter) Close() (retErr error) {
 		return os.Rename(w.f.Name(), w.fn)
 	}
 	return nil
+}
+
+func (w *atomicFileWriter) Abort() {
+	w.f.Close()
+	os.Remove(w.f.Name())
 }
 
 // AtomicWriteSet is used to atomically write a set

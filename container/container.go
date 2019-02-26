@@ -153,7 +153,7 @@ func (container *Container) FromDisk() error {
 }
 
 // toDisk saves the container configuration on disk and returns a deep copy.
-func (container *Container) toDisk() (*Container, error) {
+func (container *Container) toDisk() (c *Container, err error) {
 	var (
 		buf      bytes.Buffer
 		deepCopy Container
@@ -168,7 +168,13 @@ func (container *Container) toDisk() (*Container, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err == nil {
+			err = f.Close()
+		} else {
+			f.Abort()
+		}
+	}()
 
 	w := io.MultiWriter(&buf, f)
 	if err := json.NewEncoder(w).Encode(container); err != nil {
@@ -227,7 +233,7 @@ func (container *Container) readHostConfig() error {
 
 // WriteHostConfig saves the host configuration on disk for the container,
 // and returns a deep copy of the saved object. Callers must hold a Container lock.
-func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error) {
+func (container *Container) WriteHostConfig() (hc *containertypes.HostConfig, err error) {
 	var (
 		buf      bytes.Buffer
 		deepCopy containertypes.HostConfig
@@ -242,7 +248,13 @@ func (container *Container) WriteHostConfig() (*containertypes.HostConfig, error
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() {
+		if err == nil {
+			err = f.Close()
+		} else {
+			f.Abort()
+		}
+	}()
 
 	w := io.MultiWriter(&buf, f)
 	if err := json.NewEncoder(w).Encode(&container.HostConfig); err != nil {
