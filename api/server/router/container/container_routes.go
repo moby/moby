@@ -425,6 +425,9 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if err := decoder.Decode(&updateConfig); err != nil {
 		return err
 	}
+	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
+		updateConfig.PidsLimit = nil
+	}
 
 	hostConfig := &container.HostConfig{
 		Resources:     updateConfig.Resources,
