@@ -33,7 +33,7 @@ LimitNOFILE=infinity
 LimitNPROC=infinity
 LimitCORE=infinity
 
-# Comment TasksMax if your systemd version does not supports it.
+# Comment TasksMax if your systemd version does not support it.
 # Only systemd 226 and above support this option.
 TasksMax=infinity
 
