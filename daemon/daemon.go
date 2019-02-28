@@ -922,11 +922,9 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		if err != nil {
 			return nil, err
 		}
-	}
 
-	// As layerstore initialization may set the driver
-	for os := range d.graphDrivers {
-		d.graphDrivers[os] = layerStores[os].DriverName()
+		// As layerstore initialization may set the driver
+		d.graphDrivers[operatingSystem] = layerStores[operatingSystem].DriverName()
 	}
 
 	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
