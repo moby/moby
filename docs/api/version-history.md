@@ -35,6 +35,10 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /services/{id}/update` now includes `Runtime` as an option in `ContainerSpec.Configs`
 * `GET /tasks` now  returns `Sysctls` as part of the `ContainerSpec`.
 * `GET /tasks/{id}` now  returns `Sysctls` as part of the `ContainerSpec`.
+* `GET /networks` now supports a `dangling` filter type. When set to `true` (or
+  `1`), the endpoint returns all networks that are not in use by a container. When
+  set to `false` (or `0`), only networks that are in use by one or more containers
+  are returned.
 * `GET /nodes` now supports a filter type `node.label` filter to filter nodes based
   on the node.label. The format of the label filter is `node.label=<key>`/`node.label=<key>=<value>`
   to return those with the specified labels, or `node.label!=<key>`/`node.label!=<key>=<value>`
