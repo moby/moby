@@ -55,18 +55,30 @@ func RunningTasksCount(client client.ServiceAPIClient, serviceID string, instanc
 		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
 			Filters: filter,
 		})
+		var running int
+		var taskError string
+		for _, task := range tasks {
+			switch task.Status.State {
+			case swarmtypes.TaskStateRunning:
+				running++
+			case swarmtypes.TaskStateFailed:
+				if task.Status.Err != "" {
+					taskError = task.Status.Err
+				}
+			}
+		}
+
 		switch {
 		case err != nil:
 			return poll.Error(err)
-		case len(tasks) == int(instances):
-			for _, task := range tasks {
-				if task.Status.State != swarmtypes.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter run state")
-				}
-			}
+		case running > int(instances):
+			return poll.Continue("waiting for tasks to terminate")
+		case running < int(instances) && taskError != "":
+			return poll.Continue("waiting for tasks to enter run state. task failed with error: %s", taskError)
+		case running == int(instances):
 			return poll.Success()
 		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
+			return poll.Continue("running task count at %d waiting for %d (total tasks: %d)", running, instances, len(tasks))
 		}
 	}
 }
