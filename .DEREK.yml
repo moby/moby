@@ -17,3 +17,5 @@ curators:
 
 features:
   - comments
+  - pr_description_required
+
