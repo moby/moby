@@ -75,6 +75,7 @@ type Opt struct {
 	DefaultCgroupParent string
 	ResolverOpt         resolver.ResolveOptionsFunc
 	BuilderConfig       config.BuilderConfig
+	Rootless            bool
 }
 
 // Builder can build using BuildKit backend

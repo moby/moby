@@ -175,7 +175,7 @@ func (daemon *Daemon) fillSecurityOptions(v *types.Info, sysInfo *sysinfo.SysInf
 	if rootIDs := daemon.idMapping.RootPair(); rootIDs.UID != 0 || rootIDs.GID != 0 {
 		securityOptions = append(securityOptions, "name=userns")
 	}
-	if daemon.configStoreRootless() {
+	if daemon.Rootless() {
 		securityOptions = append(securityOptions, "name=rootless")
 	}
 	v.SecurityOptions = securityOptions
