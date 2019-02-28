@@ -85,6 +85,8 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 			}
 			daemon.LogContainerEventWithAttributes(c, "die", attributes)
 			daemon.Cleanup(c)
+			daemon.setStateCounter(c)
+			cpErr := c.CheckpointTo(daemon.containersReplica)
 
 			if err == nil && restart {
 				go func() {
@@ -101,6 +103,8 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 					if err != nil {
 						c.Lock()
 						c.SetStopped(&exitStatus)
+						daemon.setStateCounter(c)
+						c.CheckpointTo(daemon.containersReplica)
 						c.Unlock()
 						defer daemon.autoRemove(c)
 						if err != restartmanager.ErrRestartCanceled {
@@ -110,8 +114,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerd.EventType, ei libc
 				}()
 			}
 
-			daemon.setStateCounter(c)
-			return c.CheckpointTo(daemon.containersReplica)
+			return cpErr
 		}
 
 		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
