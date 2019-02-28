@@ -8088,6 +8088,10 @@ paths:
           description: |
             JSON encoded value of the filters (a `map[string][]string`) to process on the networks list. Available filters:
 
+            - `dangling=<boolean>` When set to `true` (or `1`), returns all
+               networks that are not in use by a container. When set to `false`
+               (or `0`), only networks that are in use by one or more
+               containers are returned.
             - `driver=<driver-name>` Matches a network's driver.
             - `id=<network-id>` Matches all or part of a network ID.
             - `label=<key>` or `label=<key>=<value>` of a network label.
