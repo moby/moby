@@ -45,7 +45,6 @@ import (
 
 // SourceOpt is options for creating the image source
 type SourceOpt struct {
-	SessionManager  *session.Manager
 	ContentStore    content.Store
 	CacheAccessor   cache.Accessor
 	ReferenceStore  reference.Store
@@ -73,19 +72,19 @@ func (is *imageSource) ID() string {
 	return source.DockerImageScheme
 }
 
-func (is *imageSource) getResolver(ctx context.Context, rfn resolver.ResolveOptionsFunc, ref string) remotes.Resolver {
+func (is *imageSource) getResolver(ctx context.Context, rfn resolver.ResolveOptionsFunc, ref string, sm *session.Manager) remotes.Resolver {
 	opt := docker.ResolverOptions{
 		Client: tracing.DefaultClient,
 	}
 	if rfn != nil {
 		opt = rfn(ref)
 	}
-	opt.Credentials = is.getCredentialsFromSession(ctx)
+	opt.Credentials = is.getCredentialsFromSession(ctx, sm)
 	r := docker.NewResolver(opt)
 	return r
 }
 
-func (is *imageSource) getCredentialsFromSession(ctx context.Context) func(string) (string, string, error) {
+func (is *imageSource) getCredentialsFromSession(ctx context.Context, sm *session.Manager) func(string) (string, string, error) {
 	id := session.FromContext(ctx)
 	if id == "" {
 		// can be removed after containerd/containerd#2812
@@ -97,7 +96,7 @@ func (is *imageSource) getCredentialsFromSession(ctx context.Context) func(strin
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		caller, err := is.SessionManager.Get(timeoutCtx, id)
+		caller, err := sm.Get(timeoutCtx, id)
 		if err != nil {
 			return "", "", err
 		}
@@ -122,13 +121,13 @@ func (is *imageSource) resolveLocal(refStr string) ([]byte, error) {
 	return img.RawJSON(), nil
 }
 
-func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform) (digest.Digest, []byte, error) {
+func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *ocispec.Platform, sm *session.Manager) (digest.Digest, []byte, error) {
 	type t struct {
 		dgst digest.Digest
 		dt   []byte
 	}
 	res, err := is.g.Do(ctx, ref, func(ctx context.Context) (interface{}, error) {
-		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx, is.ResolverOpt, ref), is.ContentStore, platform)
+		dgst, dt, err := imageutil.Config(ctx, ref, is.getResolver(ctx, is.ResolverOpt, ref, sm), is.ContentStore, platform)
 		if err != nil {
 			return nil, err
 		}
@@ -142,14 +141,14 @@ func (is *imageSource) resolveRemote(ctx context.Context, ref string, platform *
 	return typed.dgst, typed.dt, nil
 }
 
-func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
 	resolveMode, err := source.ParseImageResolveMode(opt.ResolveMode)
 	if err != nil {
 		return "", nil, err
 	}
 	switch resolveMode {
 	case source.ResolveModeForcePull:
-		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform)
+		dgst, dt, err := is.resolveRemote(ctx, ref, opt.Platform, sm)
 		// TODO: pull should fallback to local in case of failure to allow offline behavior
 		// the fallback doesn't work currently
 		return dgst, dt, err
@@ -171,13 +170,13 @@ func (is *imageSource) ResolveImageConfig(ctx context.Context, ref string, opt g
 			return "", dt, err
 		}
 		// fallback to remote
-		return is.resolveRemote(ctx, ref, opt.Platform)
+		return is.resolveRemote(ctx, ref, opt.Platform, sm)
 	}
 	// should never happen
 	return "", nil, fmt.Errorf("builder cannot resolve image %s: invalid mode %q", ref, opt.ResolveMode)
 }
 
-func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (source.SourceInstance, error) {
+func (is *imageSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
 	imageIdentifier, ok := id.(*source.ImageIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid image identifier %v", id)
@@ -191,8 +190,9 @@ func (is *imageSource) Resolve(ctx context.Context, id source.Identifier) (sourc
 	p := &puller{
 		src:      imageIdentifier,
 		is:       is,
-		resolver: is.getResolver(ctx, is.ResolverOpt, imageIdentifier.Reference.String()),
+		resolver: is.getResolver(ctx, is.ResolverOpt, imageIdentifier.Reference.String(), sm),
 		platform: platform,
+		sm:       sm,
 	}
 	return p, nil
 }
@@ -208,6 +208,7 @@ type puller struct {
 	resolver         remotes.Resolver
 	config           []byte
 	platform         ocispec.Platform
+	sm               *session.Manager
 }
 
 func (p *puller) mainManifestKey(dgst digest.Digest, platform ocispec.Platform) (digest.Digest, error) {
@@ -294,7 +295,7 @@ func (p *puller) resolve(ctx context.Context) error {
 				resolveProgressDone(err)
 				return
 			}
-			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)})
+			_, dt, err := p.is.ResolveImageConfig(ctx, ref.String(), gw.ResolveImageConfigOpt{Platform: &p.platform, ResolveMode: resolveModeToString(p.src.ResolveMode)}, p.sm)
 			if err != nil {
 				p.resolveErr = err
 				resolveProgressDone(err)
@@ -420,7 +421,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		)
 	}
 
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), p.desc); err != nil {
+	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, p.desc); err != nil {
 		stopProgress()
 		return nil, err
 	}

@@ -18,10 +18,10 @@ import (
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/cache/remotecache"
+	inlineremotecache "github.com/moby/buildkit/cache/remotecache/inline"
 	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
-	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/frontend"
 	dockerfile "github.com/moby/buildkit/frontend/dockerfile/builder"
 	"github.com/moby/buildkit/frontend/gateway"
@@ -95,7 +95,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 	}
 
 	src, err := containerimage.NewSource(containerimage.SourceOpt{
-		SessionManager:  opt.SessionManager,
 		CacheAccessor:   cm,
 		ContentStore:    store,
 		DownloadManager: dist.DownloadManager,
@@ -139,7 +138,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 
 	wopt := mobyworker.Opt{
 		ID:                "moby",
-		SessionManager:    opt.SessionManager,
 		MetadataStore:     md,
 		ContentStore:      store,
 		CacheManager:      cm,
@@ -149,10 +147,8 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ImageSource:       src,
 		DownloadManager:   dist.DownloadManager,
 		V2MetadataService: dist.V2MetadataService,
-		Exporters: map[string]exporter.Exporter{
-			"moby": exp,
-		},
-		Transport: rt,
+		Exporter:          exp,
+		Transport:         rt,
 	}
 
 	wc := &worker.Controller{}
@@ -174,6 +170,9 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		CacheKeyStorage:  cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
 			"registry": registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
+		},
+		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
+			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
 		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
