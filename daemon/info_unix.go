@@ -247,6 +247,7 @@ func parseRuncVersion(v string) (version string, commit string, err error) {
 	return version, commit, err
 }
 
-func (daemon *Daemon) configStoreRootless() bool {
+// Rootless returns true if daemon is running in rootless mode
+func (daemon *Daemon) Rootless() bool {
 	return daemon.configStore.Rootless
 }
