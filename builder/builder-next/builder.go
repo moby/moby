@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -318,6 +319,16 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		exporterAttrs["name"] = strings.Join(opt.Options.Tags, ",")
 	}
 
+	cache := controlapi.CacheOptions{}
+
+	if inlineCache := opt.Options.BuildArgs["BUILDKIT_INLINE_CACHE"]; inlineCache != nil {
+		if b, err := strconv.ParseBool(*inlineCache); err == nil && b {
+			cache.Exports = append(cache.Exports, &controlapi.CacheOptionsEntry{
+				Type: "inline",
+			})
+		}
+	}
+
 	req := &controlapi.SolveRequest{
 		Ref:           id,
 		Exporter:      "moby",
@@ -325,6 +336,7 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		Frontend:      "dockerfile.v0",
 		FrontendAttrs: frontendAttrs,
 		Session:       opt.Options.SessionID,
+		Cache:         cache,
 	}
 
 	if opt.Options.NetworkMode == "host" {

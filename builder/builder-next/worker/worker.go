@@ -23,6 +23,7 @@ import (
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/exporter"
+	localexporter "github.com/moby/buildkit/exporter/local"
 	"github.com/moby/buildkit/frontend"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
@@ -47,17 +48,16 @@ type Opt struct {
 	ID                string
 	Labels            map[string]string
 	GCPolicy          []client.PruneInfo
-	SessionManager    *session.Manager
 	MetadataStore     *metadata.Store
 	Executor          executor.Executor
 	Snapshotter       snapshot.Snapshotter
 	ContentStore      content.Store
 	CacheManager      cache.Manager
 	ImageSource       source.Source
-	Exporters         map[string]exporter.Exporter
 	DownloadManager   distribution.RootFSDownloadManager
 	V2MetadataService distmetadata.V2MetadataService
 	Transport         nethttp.RoundTripper
+	Exporter          exporter.Exporter
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -99,9 +99,8 @@ func NewWorker(opt Opt) (*Worker, error) {
 	}
 
 	ss, err := local.NewSource(local.Opt{
-		SessionManager: opt.SessionManager,
-		CacheAccessor:  cm,
-		MetadataStore:  opt.MetadataStore,
+		CacheAccessor: cm,
+		MetadataStore: opt.MetadataStore,
 	})
 	if err == nil {
 		sm.Register(ss)
@@ -146,13 +145,13 @@ func (w *Worker) LoadRef(id string, hidden bool) (cache.ImmutableRef, error) {
 }
 
 // ResolveOp converts a LLB vertex into a LLB operation
-func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solver.Op, error) {
+func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge, sm *session.Manager) (solver.Op, error) {
 	if baseOp, ok := v.Sys().(*pb.Op); ok {
 		switch op := baseOp.Op.(type) {
 		case *pb.Op_Source:
-			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, w)
+			return ops.NewSourceOp(v, op, baseOp.Platform, w.SourceManager, sm, w)
 		case *pb.Op_Exec:
-			return ops.NewExecOp(v, op, w.CacheManager, w.Opt.SessionManager, w.MetadataStore, w.Executor, w)
+			return ops.NewExecOp(v, op, baseOp.Platform, w.CacheManager, sm, w.MetadataStore, w.Executor, w)
 		case *pb.Op_Build:
 			return ops.NewBuildOp(v, op, s, w)
 		}
@@ -161,13 +160,13 @@ func (w *Worker) ResolveOp(v solver.Vertex, s frontend.FrontendLLBBridge) (solve
 }
 
 // ResolveImageConfig returns image config for an image
-func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error) {
+func (w *Worker) ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error) {
 	// ImageSource is typically source/containerimage
 	resolveImageConfig, ok := w.ImageSource.(resolveImageConfig)
 	if !ok {
 		return "", nil, errors.Errorf("worker %q does not implement ResolveImageConfig", w.ID())
 	}
-	return resolveImageConfig.ResolveImageConfig(ctx, ref, opt)
+	return resolveImageConfig.ResolveImageConfig(ctx, ref, opt, sm)
 }
 
 // Exec executes a process directly on a worker
@@ -191,12 +190,17 @@ func (w *Worker) Prune(ctx context.Context, ch chan client.UsageInfo, info ...cl
 }
 
 // Exporter returns exporter by name
-func (w *Worker) Exporter(name string) (exporter.Exporter, error) {
-	exp, ok := w.Exporters[name]
-	if !ok {
+func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, error) {
+	switch name {
+	case "moby":
+		return w.Opt.Exporter, nil
+	case client.ExporterLocal:
+		return localexporter.New(localexporter.Opt{
+			SessionManager: sm,
+		})
+	default:
 		return nil, errors.Errorf("exporter %q could not be found", name)
 	}
-	return exp, nil
 }
 
 // GetRemote returns a remote snapshot reference for a local one
@@ -338,5 +342,5 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 }
 
 type resolveImageConfig interface {
-	ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt) (digest.Digest, []byte, error)
+	ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error)
 }
