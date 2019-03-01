@@ -340,6 +340,8 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 	}
 	log.G(ctx).Debugf("%s: removing references", img.config.Digest)
 
+	// TODO(containerd): Get list of configs and ChainIDs
+
 	// Delete all repository tag/digest references to this image.
 	records, err := i.removeImageRefs(ctx, img, repoRefs, true)
 	if err != nil {
@@ -348,6 +350,10 @@ func (i *ImageService) imageDeleteHelper(ctx context.Context, img *cachedImage, 
 
 	i.LogImageEvent(ctx, img.config.Digest.String(), img.config.Digest.String(), "delete")
 	records = append(records, types.ImageDeleteResponseItem{Deleted: img.config.Digest.String()})
+
+	// TODO(containerd): lock cache
+	// TODO(containerd): get all cached layers for chain ids
+	// TODO(containerd): for each layer, check current containerd namespace for reference
 
 	// TODO(containerd): Snapshot integration will obsolete this section,
 	// containerd's garbage collector can own the removal of the layer

@@ -25,6 +25,7 @@ import (
 	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
+	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/remotes/docker"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
@@ -42,6 +43,7 @@ import (
 	"github.com/docker/docker/errdefs"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 
 	// register graph drivers
@@ -829,29 +831,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		}
 	}
 
-	// On Windows we don't support the environment variable, or a user supplied graphdriver
-	// as Windows has no choice in terms of which graphdrivers to use. It's a case of
-	// running Windows containers on Windows - windowsfilter, running Linux containers on Windows,
-	// lcow. Unix platforms however run a single graphdriver for all containers, and it can
-	// be set through an environment variable, a daemon start parameter, or chosen through
-	// initialization of the layerstore through driver priority order for example.
-	d.graphDrivers = make(map[string]string)
-	layerStores := make(map[string]layer.Store)
-	if runtime.GOOS == "windows" {
-		d.graphDrivers[runtime.GOOS] = "windowsfilter"
-		if system.LCOWSupported() {
-			d.graphDrivers["linux"] = "lcow"
-		}
-	} else {
-		driverName := os.Getenv("DOCKER_DRIVER")
-		if driverName == "" {
-			driverName = config.GraphDriver
-		} else {
-			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
-		}
-		d.graphDrivers[runtime.GOOS] = driverName // May still be empty. Layerstore init determines instead.
-	}
-
 	d.RegistryService = registryService
 	logger.RegisterPluginGetter(d.PluginStore)
 
@@ -911,23 +890,65 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	for operatingSystem, gd := range d.graphDrivers {
-		layerStores[operatingSystem], err = layer.NewStoreFromOptions(layer.StoreOptions{
+	type storageDriver struct {
+		platform ocispec.Platform
+		name     string
+	}
+	var storageDrivers []storageDriver
+
+	if runtime.GOOS == "windows" {
+		// On Windows we don't support the environment variable, or a user supplied graphdriver
+		// as Windows has no choice in terms of which graphdrivers to use. It's a case of
+		// running Windows containers on Windows - windowsfilter, running Linux containers on Windows,
+		// lcow. Unix platforms however run a single graphdriver for all containers, and it can
+		// be set through an environment variable, a daemon start parameter, or chosen through
+		// initialization of the layerstore through driver priority order for example.
+		p := platforms.DefaultSpec()
+		storageDrivers = append(storageDrivers, storageDriver{p, "windowsfilter"})
+		if system.LCOWSupported() {
+			p.OS = "linux"
+			p.OSVersion = ""
+			p.OSFeatures = nil
+			storageDrivers = append([]storageDriver{{p, "lcow"}}, storageDrivers...)
+
+		}
+	} else {
+		driverName := os.Getenv("DOCKER_DRIVER")
+		if driverName == "" {
+			driverName = config.GraphDriver
+		} else {
+			logrus.Infof("Setting the storage driver from the $DOCKER_DRIVER environment variable (%s)", driverName)
+		}
+		storageDrivers = append(storageDrivers, storageDriver{platforms.DefaultSpec(), driverName})
+
+		// TODO(containerd): probe system for additional configured graph drivers
+	}
+
+	layerStores := make(map[string]layer.Store)
+
+	var backends []images.LayerBackend
+	d.graphDrivers = make(map[string]string)
+	for _, driver := range storageDrivers {
+		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
 			Root: config.Root,
 			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
-			GraphDriver:               gd,
+			GraphDriver:               driver.name,
 			GraphDriverOptions:        config.GraphOptions,
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,
-			OS:                        operatingSystem,
+			OS:                        driver.platform.OS,
 		})
 		if err != nil {
 			return nil, err
 		}
 
 		// As layerstore initialization may set the driver
-		d.graphDrivers[operatingSystem] = layerStores[operatingSystem].DriverName()
+		d.graphDrivers[driver.platform.OS] = ls.DriverName()
+		backends = append(backends, images.LayerBackend{
+			Store:    ls,
+			Platform: platforms.Any(driver.platform),
+		})
 	}
 
 	// Configure and validate the kernels security support. Note this is a Linux/FreeBSD
@@ -1023,12 +1044,14 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// used above to run migration. They could be initialized in ImageService
 	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(images.ImageServiceConfig{
+		DefaultNamespace:          ContainersNamespace,
+		DefaultPlatform:           storageDrivers[0].platform,
 		Client:                    d.containerdCli,
 		ContainerStore:            d.containers,
 		DistributionMetadataStore: distributionMetadataStore,
 		EventsService:             d.EventsService,
 		ImageStore:                imageStore,
-		LayerStores:               layerStores,
+		LayerBackends:             backends,
 		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
 		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
 		ReferenceStore:            rs,
