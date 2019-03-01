@@ -210,6 +210,43 @@ definitions:
       PathInContainer: "/dev/deviceName"
       CgroupPermissions: "mrw"
 
+  DeviceRequest:
+    type: "object"
+    description: "A request for devices to be sent to device drivers"
+    properties:
+      Driver:
+        type: "string"
+        example: "nvidia"
+      Count:
+        type: "integer"
+        example: -1
+      DeviceIDs:
+        type: "array"
+        items:
+          type: "string"
+        example:
+          - "0"
+          - "1"
+          - "GPU-fef8089b-4820-abfc-e83e-94318197576e"
+      Capabilities:
+        description: |
+          A list of capabilities; an OR list of AND lists of capabilities.
+        type: "array"
+        items:
+          type: "array"
+          items:
+            type: "string"
+        example:
+          # gpu AND nvidia AND compute
+          - ["gpu", "nvidia", "compute"]
+      Options:
+        description: |
+          Driver-specific options, specified as a key/value pairs. These options
+          are passed directly to the driver.
+        type: "object"
+        additionalProperties:
+          type: "string"
+
   ThrottleDevice:
     type: "object"
     properties:
@@ -421,6 +458,11 @@ definitions:
         items:
           type: "string"
           example: "c 13:* rwm"
+      DeviceRequests:
+        description: "a list of requests for devices to be sent to device drivers"
+        type: "array"
+        items:
+          $ref: "#/definitions/DeviceRequest"
       DiskQuota:
         description: "Disk limit (in bytes)."
         type: "integer"

@@ -49,6 +49,8 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /info` now returns information about `DataPathPort` that is currently used in swarm
 * `GET /info` now returns `PidsLimit` boolean to indicate if the host kernel has
   PID limit support enabled.
+* `POST /containers/create` now accepts `DeviceRequests` as part of `HostConfig`.
+  Can be used to set Nvidia GPUs.
 * `GET /swarm` endpoint now returns DataPathPort info
 * `POST /containers/create` now takes `KernelMemoryTCP` field to set hard limit for kernel TCP buffer memory.
 * `GET /service` now  returns `MaxReplicas` as part of the `Placement`.
