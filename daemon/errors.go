@@ -80,6 +80,17 @@ func (e invalidIdentifier) Error() string {
 
 func (invalidIdentifier) InvalidParameter() {}
 
+type incompatibleDeviceRequest struct {
+	driver string
+	caps   [][]string
+}
+
+func (i incompatibleDeviceRequest) Error() string {
+	return fmt.Sprintf("could not select device driver %q with capabilities: %v", i.driver, i.caps)
+}
+
+func (incompatibleDeviceRequest) InvalidParameter() {}
+
 type duplicateMountPointError string
 
 func (e duplicateMountPointError) Error() string {
