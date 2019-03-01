@@ -2,9 +2,10 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"runtime"
+	"fmt"
 	"sync"
 
+	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
@@ -15,7 +16,6 @@ import (
 	buildcache "github.com/docker/docker/image/cache"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/sirupsen/logrus"
 )
@@ -36,14 +36,18 @@ type cachedImage struct {
 }
 
 type cache struct {
-	m sync.RWMutex
-	// idCache maps Docker identifiers
-	idCache map[digest.Digest]*cachedImage
-	// tCache maps target digests to images
-	tCache      map[digest.Digest]*cachedImage
+	m           sync.RWMutex
 	ids         *digestset.Set
 	targets     *digestset.Set
 	descriptors map[digest.Digest]ocispec.Descriptor
+	layers      map[string]map[digest.Digest]layer.Layer
+
+	// idCache maps Docker identifiers
+	// deprecated
+	idCache map[digest.Digest]*cachedImage
+	// tCache maps target digests to images
+	// deprecated
+	tCache map[digest.Digest]*cachedImage
 }
 
 func (c *cache) byID(id digest.Digest) *cachedImage {
@@ -75,6 +79,7 @@ func (i *ImageService) LoadCache(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	log.G(ctx).WithField("namespace", namespace).Debugf("loading cache")
 
 	_, err = i.loadNSCache(ctx, namespace)
 	return err
@@ -84,15 +89,46 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 	i.cacheL.Lock()
 	defer i.cacheL.Unlock()
 
-	c := &cache{
-		idCache:     map[digest.Digest]*cachedImage{},
-		tCache:      map[digest.Digest]*cachedImage{},
-		ids:         digestset.NewSet(),
-		targets:     digestset.NewSet(),
-		descriptors: map[digest.Digest]ocispec.Descriptor{},
-	}
+	var (
+		cs = i.client.ContentStore()
+		is = i.client.ImageService()
+		c  = &cache{
+			targets:     digestset.NewSet(),
+			descriptors: map[digest.Digest]ocispec.Descriptor{},
+			layers:      map[string]map[digest.Digest]layer.Layer{},
 
-	is := i.client.ImageService()
+			// Deprecated
+			ids:     digestset.NewSet(),
+			idCache: map[digest.Digest]*cachedImage{},
+			tCache:  map[digest.Digest]*cachedImage{},
+		}
+	)
+
+	// Load layers
+	for _, backend := range i.layerBackends {
+		backendCache := map[digest.Digest]layer.Layer{}
+		name := backend.DriverName()
+		label := fmt.Sprintf("%s%s", LabelLayerPrefix, name)
+		err := cs.Walk(ctx, func(info content.Info) error {
+			value := digest.Digest(info.Labels[label])
+			if _, ok := backendCache[value]; ok {
+				return nil
+			}
+			l, err := backend.Get(layer.ChainID(value))
+			if err != nil {
+				log.G(ctx).WithError(err).WithField("digest", info.Digest).WithField("driver", name).Warnf("unable to get layer")
+			} else {
+				log.G(ctx).WithField("digest", info.Digest).WithField("driver", name).Debugf("retaining layer %s", value)
+				backendCache[value] = l
+			}
+			return nil
+		}, fmt.Sprintf("labels.%q", label))
+		if err != nil {
+			return nil, err
+		}
+
+		c.layers[name] = backendCache
+	}
 
 	// TODO(containerd): This must use some streaming approach
 	imgs, err := is.List(ctx)
@@ -174,17 +210,18 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 						ci.parent = pid
 					}
 				}
-				diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), ci.config)
-				if err != nil {
-					log.G(ctx).WithError(err).WithField("name", img.Name).Debug("unable to load image rootfs")
-					continue
-				}
-				// TODO(containerd): choose correct platform
-				ci.layer, err = i.layerStores[runtime.GOOS].Get(layer.ChainID(identity.ChainID(diffIDs)))
-				if err != nil {
-					log.G(ctx).WithError(err).WithField("name", img.Name).Debug("no layer for image")
-					continue
-				}
+				//diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), ci.config)
+				//if err != nil {
+				//	log.G(ctx).WithError(err).WithField("name", img.Name).Debug("unable to load image rootfs")
+				//	continue
+				//}
+
+				//// TODO(containerd): choose correct platform
+				//ci.layer, err = i.backends[0].Get(layer.ChainID(identity.ChainID(diffIDs)))
+				//if err != nil {
+				//	log.G(ctx).WithError(err).WithField("name", img.Name).Debug("no layer for image")
+				//	continue
+				//}
 
 				c.idCache[id.Digest] = ci
 				c.ids.Add(id.Digest)

@@ -18,7 +18,6 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
-	"github.com/docker/docker/pkg/system"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -69,9 +68,10 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		}
 	}
 
-	layerStore, ok := i.layerStores[c.ContainerOS]
-	if !ok {
-		return ocispec.Descriptor{}, system.ErrNotSupportedOperatingSystem
+	// TODO(containerd): get from container metadata
+	layerStore, err := i.getLayerStoreByOS(c.ContainerOS)
+	if err != nil {
+		return ocispec.Descriptor{}, err
 	}
 	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
 	if err != nil {
@@ -152,6 +152,7 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		CreatedAt: created,
 		UpdatedAt: created,
 		Labels: map[string]string{
+			// TODO(containerd): name can be used to determine this
 			LabelImageDangling: desc.Digest.String(),
 		},
 	})
@@ -161,11 +162,19 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 	}
 
 	cache.m.Lock()
+	layerKey := digest.Digest(l.ChainID())
+	if _, ok := cache.layers[layerStore.DriverName()][layerKey]; !ok {
+		cache.layers[layerStore.DriverName()][layerKey] = l
+	} else {
+		// Image already retained, don't hold onto layer
+		defer layer.ReleaseAndLog(layerStore, l)
+	}
+
+	// TODO(containerd): remove this, no longer used
 	if _, ok := cache.idCache[desc.Digest]; !ok {
 		ci := &cachedImage{
 			config: desc,
 			parent: digest.Digest(c.ParentImageID),
-			layer:  l,
 		}
 		cache.idCache[desc.Digest] = ci
 
@@ -180,9 +189,6 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 				pci.m.Unlock()
 			}
 		}
-	} else {
-		// Image already exists, don't hold onto layer
-		defer layer.ReleaseAndLog(layerStore, l)
 	}
 
 	cache.m.Unlock()

@@ -45,11 +45,6 @@ func (r byCreated) Less(i, j int) bool { return r[i].Created < r[j].Created }
 // named all controls whether all images in the graph are filtered, or just
 // the heads.
 func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, all bool, withExtraAttrs bool) ([]*types.ImageSummary, error) {
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	if err := imageFilters.Validate(acceptedImageFilterTags); err != nil {
 		return nil, err
 	}
@@ -65,7 +60,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	cs := i.client.ContentStore()
 
 	var beforeFilter, sinceFilter *time.Time
-	err = imageFilters.WalkValues("before", func(value string) error {
+	err := imageFilters.WalkValues("before", func(value string) error {
 		img, err := i.ResolveImage(ctx, value)
 		if err != nil {
 			return err
@@ -140,7 +135,6 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	m := map[digest.Digest][]images.Image{}
 	created := map[digest.Digest]time.Time{}
 
-	c.m.RLock()
 	for _, img := range allImages {
 		info, err := cs.Info(ctx, img.Target.Digest)
 		if err != nil {
@@ -228,7 +222,6 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 
 		//images = append(images, newImage)
 	}
-	c.m.RUnlock()
 
 	imageSums := []*types.ImageSummary{}
 	//var layerRefs map[layer.ChainID]int

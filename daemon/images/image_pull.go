@@ -2,10 +2,10 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -14,6 +14,8 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/errdefs"
@@ -66,11 +68,6 @@ func (i *ImageService) PullImage(ctx context.Context, image, tag string, platfor
 }
 
 func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference.Named, platform *ocispec.Platform, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return err
-	}
-
 	progressOutput := streamformatter.NewJSONProgressOutput(outStream, false)
 	ongoing := newJobs(ref.Name())
 	pctx, stopProgress := context.WithCancel(ctx)
@@ -90,12 +87,13 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		l         layer.Layer
-		layers    = map[digest.Digest][]ocispec.Descriptor{}
-		dlStatus  = map[digest.Digest]bool{}
-		delayed   = true // delayed unpack flag for schema 1
-		lock      = sync.Mutex{}
-		cond      = sync.NewCond(&lock)
+		l        layer.Layer
+		layers   = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus = map[digest.Digest]bool{}
+		delayed  = true // delayed unpack flag for schema 1
+		lock     = sync.Mutex{}
+		cond     = sync.NewCond(&lock)
+		// TODO(containerd): replace this with errgroup
 		unpackErr = make(chan error)
 	)
 	// unpackHandler handles layer unpacking concurrently as soon as
@@ -157,10 +155,14 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	}
 	// delayed unpacking for schema 1
 	if delayed {
+		// TODO(containerd): Just resolve config here
+
 		l, err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
 		if err != nil {
 			return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
 		}
+
+		// TODO(containerd): cache that layer?
 	} else {
 		// wait schema2 unpack to finish
 		select {
@@ -173,57 +175,44 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		}
 	}
 
-	// TODO: Unpack into layer store
-	// TODO: only unpack image types (does containerd already do this?)
-
-	// TODO: Update image with ID label
-	// TODO(containerd): Create manifest reference and add image
-
-	c.m.Lock()
-	ci, ok := c.idCache[config.Digest]
-	if ok {
-		ll := ci.layer
-		ci.layer = l
-		if ll != nil {
-			metadata, err := i.layerStores[runtime.GOOS].Release(ll)
-			if err != nil {
-				return errors.Wrap(err, "failed to release already retained layer")
-			}
-			layer.LogReleaseMetadata(metadata)
-		}
-
-		ci.addReference(ref)
-		// TODO: Add manifest digest ref
-	} else {
-		ci = &cachedImage{
-			config:     config,
-			references: []reference.Named{ref},
-			layer:      l,
-		}
-		c.idCache[config.Digest] = ci
-	}
-	c.tCache[img.Target().Digest] = ci
-	c.m.Unlock()
 	stopProgress()
 	<-progress
 
 	return err
 }
 
-// TODO: Add shallow pull function which returns descriptor
-
 func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, layers []ocispec.Descriptor, progressOutput progress.Output, cond *sync.Cond, status map[digest.Digest]bool) (layer.Layer, error) {
-	var (
-		cs = i.client.ContentStore()
-		ls = i.layerStores[runtime.GOOS]
-	)
-
-	diffIDs, err := images.RootFS(ctx, cs, config)
+	c, err := i.getCache(ctx)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to resolve rootfs")
+		return nil, err
 	}
+
+	cs := i.client.ContentStore()
+	p, err := content.ReadBlob(ctx, cs, config)
+	if err != nil {
+		return nil, err
+	}
+
+	var cfg struct {
+		ocispec.Platform
+
+		// RootFS references the layer content addresses used by the image.
+		RootFS ocispec.RootFS `json:"rootfs"`
+	}
+
+	if err := json.Unmarshal(p, &cfg); err != nil {
+		return nil, errors.Wrap(err, "failed to parse config")
+	}
+
+	diffIDs := cfg.RootFS.DiffIDs
 	if len(diffIDs) != len(layers) {
 		return nil, errors.Errorf("mismatched image rootfs and manifest layers")
+	}
+
+	// Resolve layerstore
+	ls, err := i.getLayerStore(platforms.Normalize(cfg.Platform))
+	if err != nil {
+		return nil, err
 	}
 
 	var (
@@ -242,9 +231,10 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 			cond.L.Unlock()
 		}
 
-		nl, err := i.applyLayer(ctx, layers[d], chain, progressOutput)
+		nl, err := i.applyLayer(ctx, ls, layers[d], chain, progressOutput)
 		if err != nil {
-			logrus.Errorf("apply layer failed -> %s", err)
+			log.G(ctx).WithError(err).Errorf("apply layer failed")
+			layer.ReleaseAndLog(ls, l)
 			return nil, errors.Wrapf(err, "failed to apply layer %d", d)
 		}
 		logrus.Debugf("Layer applied: chain=%s %s (%s)", nl.ChainID(), nl.DiffID(), diffIDs[d])
@@ -252,12 +242,16 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 		if l != nil {
 			metadata, err := ls.Release(l)
 			if err != nil {
+				layer.ReleaseAndLog(ls, nl)
 				return nil, errors.Wrap(err, "failed to release layer after apply")
 			}
 			layer.LogReleaseMetadata(metadata)
 		}
 
-		// TODO(containerd): verify diff ID
+		if digest.Digest(l.DiffID()) != diffIDs[d] {
+			layer.ReleaseAndLog(ls, nl)
+			return nil, errors.Errorf("invalid diff id %s, expected %s", l.DiffID(), diffIDs[d])
+		}
 
 		l = nl
 	}
@@ -275,15 +269,28 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 		return nil, errors.Wrap(err, "failed to update image config label")
 	}
 
+	c.m.Lock()
+	blayers, ok := c.layers[ls.DriverName()]
+	if !ok {
+		blayers = map[digest.Digest]layer.Layer{}
+		c.layers[ls.DriverName()] = blayers
+	}
+	if ll, ok := blayers[digest.Digest(l.ChainID())]; ok {
+		metadata, err := ls.Release(ll)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("driver", ls.DriverName()).WithField("name", string(ll.ChainID())).Errorf("failed to release retained layer")
+		} else {
+			layer.LogReleaseMetadata(metadata)
+		}
+	}
+	blayers[digest.Digest(l.ChainID())] = l
+	c.m.Unlock()
+
 	return l, nil
 }
 
-func (i *ImageService) applyLayer(ctx context.Context, blob ocispec.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
-	var (
-		cs = i.client.ContentStore()
-		ls = i.layerStores[runtime.GOOS]
-	)
-
+func (i *ImageService) applyLayer(ctx context.Context, ls layer.Store, blob ocispec.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
+	cs := i.client.ContentStore()
 	l, err := ls.Get(layer.ChainID(identity.ChainID(layers)))
 	if err == nil {
 		return l, nil
