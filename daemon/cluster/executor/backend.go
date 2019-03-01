@@ -61,6 +61,7 @@ type Backend interface {
 	PluginManager() *plugin.Manager
 	PluginGetter() *plugin.Store
 	GetAttachmentStore() *networkSettings.AttachmentStore
+	HasExperimental() bool
 }
 
 // VolumeBackend is used by an executor to perform volume operations
