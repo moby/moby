@@ -142,39 +142,6 @@ func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 }
 
 func init() {
-	check.Suite(&DockerSchema1RegistrySuite{
-		ds: &DockerSuite{},
-	})
-}
-
-type DockerSchema1RegistrySuite struct {
-	ds  *DockerSuite
-	reg *registry.V2
-	d   *daemon.Daemon
-}
-
-func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
-	s.d.DumpStackAndQuit()
-}
-
-func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
-	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, testEnv.IsLocalDaemon)
-	s.reg = registry.NewV2(c, registry.Schema1)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
-}
-
-func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
-	if s.reg != nil {
-		s.reg.Close()
-	}
-	if s.d != nil {
-		s.d.Stop(c)
-	}
-	s.ds.TearDownTest(c)
-}
-
-func init() {
 	check.Suite(&DockerRegistryAuthHtpasswdSuite{
 		ds: &DockerSuite{},
 	})
