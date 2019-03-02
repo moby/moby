@@ -5177,15 +5177,15 @@ paths:
         Note: This endpoint works only for containers with the `json-file` or `journald` logging driver.
       operationId: "ContainerLogs"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: |
+                  logs returned as a stream in response body.
+                  For the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+                  Note that unlike the attach endpoint, the logs endpoint does not upgrade the connection and does not
+                  set Content-Type.
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such container"
           schema:
@@ -5205,10 +5205,7 @@ paths:
           type: "string"
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"
@@ -9569,23 +9566,16 @@ paths:
     get:
       summary: "Get service logs"
       description: |
-        Get `stdout` and `stderr` logs from a service.
+        Get `stdout` and `stderr` logs from a service. See also [`/containers/{id}/logs`](#operation/ContainerLogs).
 
-        **Note**: This endpoint works only for services with the `json-file` or `journald` logging drivers.
+        **Note**: This endpoint works only for services with the `local`, `json-file` or `journald` logging drivers.
       operationId: "ServiceLogs"
-      produces:
-        - "application/vnd.docker.raw-stream"
-        - "application/json"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: "logs returned as a stream in response body"
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such service"
           schema:
@@ -9614,10 +9604,7 @@ paths:
           default: false
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"
@@ -9826,23 +9813,16 @@ paths:
     get:
       summary: "Get task logs"
       description: |
-        Get `stdout` and `stderr` logs from a task.
+        Get `stdout` and `stderr` logs from a task. See also [`/containers/{id}/logs`](#operation/ContainerLogs).
 
-        **Note**: This endpoint works only for services with the `json-file` or `journald` logging drivers.
+        **Note**: This endpoint works only for services with the `local`, `json-file` or `journald` logging drivers.
       operationId: "TaskLogs"
-      produces:
-        - "application/vnd.docker.raw-stream"
-        - "application/json"
       responses:
-        101:
-          description: "logs returned as a stream"
+        200:
+          description: "logs returned as a stream in response body"
           schema:
             type: "string"
             format: "binary"
-        200:
-          description: "logs returned as a string in response body"
-          schema:
-            type: "string"
         404:
           description: "no such task"
           schema:
@@ -9871,10 +9851,7 @@ paths:
           default: false
         - name: "follow"
           in: "query"
-          description: |
-            Return the logs as a stream.
-
-            This will return a `101` HTTP response with a `Connection: upgrade` header, then hijack the HTTP connection to send raw output. For more information about hijacking and the stream format, [see the documentation for the attach endpoint](#operation/ContainerAttach).
+          description: "Keep connection after returning logs."
           type: "boolean"
           default: false
         - name: "stdout"
