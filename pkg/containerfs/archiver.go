@@ -186,8 +186,8 @@ func (archiver *Archiver) IdentityMapping() *idtools.IdentityMapping {
 }
 
 func remapIDs(idMapping *idtools.IdentityMapping, hdr *tar.Header) error {
-	ids, err := idMapping.ToHost(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
-	hdr.Uid, hdr.Gid = ids.UID, ids.GID
+	var err error
+	hdr.Uid, hdr.Gid, err = idMapping.ToContainer(idtools.Identity{UID: hdr.Uid, GID: hdr.Gid})
 	return err
 }
 
