@@ -25,6 +25,7 @@ import (
 	"github.com/docker/docker/api/server/router/network"
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
 	sessionrouter "github.com/docker/docker/api/server/router/session"
+	stacksrouter "github.com/docker/docker/api/server/router/stacks"
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
@@ -50,6 +51,8 @@ import (
 	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
+	stacksbackend "github.com/docker/stacks/pkg/controller/backend"
+	stacksinterfaces "github.com/docker/stacks/pkg/interfaces"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
@@ -247,6 +250,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	}
 	routerOptions.api = cli.api
 	routerOptions.cluster = c
+	routerOptions.stacksBackend = createStacksBackend(c)
 
 	initRouter(routerOptions)
 
@@ -289,6 +293,7 @@ type routerOptions struct {
 	daemon         *daemon.Daemon
 	api            *apiserver.Server
 	cluster        *cluster.Cluster
+	stacksBackend  stacksinterfaces.StacksBackend
 }
 
 func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, error) {
@@ -501,6 +506,7 @@ func initRouter(opts routerOptions) {
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
+		stacksrouter.NewRouter(opts.stacksBackend),
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {
@@ -662,6 +668,15 @@ func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, 
 	err = c.Start()
 
 	return c, err
+}
+
+// createStacksBackend creates a new stacksBackend for the stacks router. The
+// cluster object passed to this method must not be nil.
+func createStacksBackend(c *cluster.Cluster) stacksinterfaces.StacksBackend {
+	// TODO(dperny): VERY VERY IMPORTANT: THIS FAKE STACK STORE MUST BE REMOVED
+	// AND REPLACED WITH A REAL ONE BEFORE WE MERGE
+	store := stacksinterfaces.NewFakeStackStore()
+	return stacksbackend.NewDefaultStacksBackend(store, c)
 }
 
 // validates that the plugins requested with the --authorization-plugin flag are valid AuthzDriver
