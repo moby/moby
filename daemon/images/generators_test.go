@@ -12,6 +12,7 @@ import (
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/archive/tartest"
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/vmihailenco/bufio"
@@ -46,7 +47,7 @@ func multiIngest(ingests ...ingest) ingest {
 	}
 }
 
-func bytesIngest(p []byte, m string) ingest {
+func bytesIngest(p []byte, m string, opts ...content.Opt) ingest {
 	desc := ocispec.Descriptor{
 		MediaType: m,
 		Digest:    digest.FromBytes(p),
@@ -54,7 +55,7 @@ func bytesIngest(p []byte, m string) ingest {
 	}
 
 	return func(ctx context.Context, i content.Store) error {
-		return content.WriteBlob(ctx, i, desc.Digest.String(), bytes.NewReader(p), desc)
+		return content.WriteBlob(ctx, i, desc.Digest.String(), bytes.NewReader(p), desc, opts...)
 	}
 }
 
@@ -97,6 +98,7 @@ func withLayers(layers ...tartest.WriterToTar) manifestOpt {
 			if _, err := io.Copy(cw, r); err != nil {
 				return errIngest(err)
 			}
+			cw.Close()
 			p := br.Bytes()
 			desc := ocispec.Descriptor{
 				MediaType: ocispec.MediaTypeImageLayerGzip,
@@ -115,7 +117,11 @@ func withLayers(layers ...tartest.WriterToTar) manifestOpt {
 }
 
 func createConfig(opts ...configOpt) construct {
-	var config ocispec.Image
+	p := platforms.DefaultSpec()
+	config := ocispec.Image{
+		OS:           p.OS,
+		Architecture: p.Architecture,
+	}
 	for _, opt := range opts {
 		opt(&config)
 	}
@@ -157,7 +163,13 @@ func createManifest(opts ...manifestOpt) construct {
 			Digest:    digest.FromBytes(p),
 			Size:      int64(len(p)),
 		}
-		return multiIngest(append(ingests, bytesIngest(p, desc.MediaType))...)
+		labels := map[string]string{
+			"containerd.io/gc.ref.content.config": m.Config.Digest.String(),
+		}
+		for i, l := range m.Layers {
+			labels[fmt.Sprintf("containerd.io/gc.ref.content.l%d", i)] = l.Digest.String()
+		}
+		return multiIngest(append(ingests, bytesIngest(p, desc.MediaType, content.WithLabels(labels)))...)
 
 	}
 }
@@ -182,7 +194,11 @@ func createIndex(references ...construct) construct {
 			Digest:    digest.FromBytes(p),
 			Size:      int64(len(p)),
 		}
-		return multiIngest(append(ingests, bytesIngest(p, desc.MediaType))...)
+		labels := map[string]string{}
+		for i, m := range idx.Manifests {
+			labels[fmt.Sprintf("containerd.io/gc.ref.content.m%d", i)] = m.Digest.String()
+		}
+		return multiIngest(append(ingests, bytesIngest(p, desc.MediaType, content.WithLabels(labels)))...)
 
 	}
 }
@@ -204,7 +220,7 @@ func randomLayer(size int) tartest.WriterToTar {
 func randomManifest(layers int) construct {
 	layerOpts := make([]tartest.WriterToTar, layers)
 	for i := range layerOpts {
-		layerOpts[i] = randomLayer(10 * i)
+		layerOpts[i] = randomLayer(64 + 10*i)
 	}
 	return createManifest(withLayers(layerOpts...), withConfig())
 }

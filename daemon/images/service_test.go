@@ -25,8 +25,11 @@ import (
 	"github.com/containerd/containerd/services/server"
 	srvconfig "github.com/containerd/containerd/services/server/config"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/archive"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 
 	_ "github.com/containerd/containerd/diff/walking/plugin"
 	_ "github.com/containerd/containerd/gc/scheduler"
@@ -43,6 +46,11 @@ var (
 	plugins    []*plugin.Registration
 	pluginLoad sync.Once
 )
+
+func init() {
+	logrus.SetLevel(logrus.DebugLevel)
+	graphdriver.ApplyUncompressedLayer = archive.ApplyUncompressedLayer
+}
 
 func loadPlugins(ctx context.Context, config *srvconfig.Config) ([]*plugin.Registration, error) {
 	var err error

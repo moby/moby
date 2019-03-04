@@ -339,7 +339,10 @@ func (i *ImageService) applyLayer(ctx context.Context, ls layer.Store, blob ocis
 
 	rc := ioutil.NopCloser(content.NewReader(ra))
 	blobId := stringid.TruncateID(blob.Digest.String())
-	reader := progress.NewProgressReader(ioutils.NewCancelReadCloser(ctx, rc), progressOutput, blob.Size, blobId, "Extracting")
+	reader := ioutils.NewCancelReadCloser(ctx, rc)
+	if progressOutput != nil {
+		reader = progress.NewProgressReader(reader, progressOutput, blob.Size, blobId, "Extracting")
+	}
 	defer reader.Close()
 
 	dc, err := compression.DecompressStream(reader)

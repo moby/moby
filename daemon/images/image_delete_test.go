@@ -6,23 +6,25 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/container"
 	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
+
 	type testImage struct {
-		names []string
-		image construct
-		// TODO(containerd): parent index
+		names  []string
+		image  construct
+		parent int
 
 		expected []string
 		deleted  bool
 	}
-
 	type testDelete struct {
 		ref      string
 		id       int // index of image to delete, if ref is empty
@@ -45,7 +47,7 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 			images: []testImage{
 				{
 					names:   []string{"docker.io/library/img1:latest"},
-					image:   randomManifest(1),
+					image:   randomManifest(2),
 					deleted: true,
 				},
 				{
@@ -67,26 +69,62 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				},
 				{
 					ref:      "img3:latest",
-					untagged: []string{"img3:latest", "img3;latest@2"},
+					untagged: []string{"img3:latest", "img3:latest@2"},
+				},
+			},
+		},
+		{
+			name: "RemoveParentFirst",
+			images: []testImage{
+				{
+					names:   []string{"docker.io/library/img1:latest"},
+					image:   randomManifest(2),
+					deleted: true,
+				},
+				{
+					names:   []string{"docker.io/library/img2:latest"},
+					image:   randomManifest(2),
+					parent:  -1,
+					deleted: true,
+				},
+			},
+			deletes: []testDelete{
+				{
+					ref:      "img1:latest",
+					untagged: []string{"img1:latest", "img1:latest@0"},
+					deleted:  []int{0},
+				},
+				{
+					ref:      "img2:latest",
+					untagged: []string{"img2:latest", "img2:latest@1"},
+					deleted:  []int{1},
 				},
 			},
 		},
 	} {
-		ctx, cleanup, err := is.client.WithLease(ctx)
-		if err != nil {
-			t.Fatal(err)
-		}
+
 		var created []string
 		t.Run(tc.name, func(t *testing.T) {
 			var imgs []ocispec.Descriptor
+
 			deleted := map[digest.Digest]bool{}
 			expected := map[string]*ocispec.Descriptor{}
 
 			cis := is.client.ImageService()
-			for i, imagec := range tc.images {
+			cs := is.client.ContentStore()
+			ctx, cleanup, err := is.client.WithLease(ctx)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			// TODO(containerd): store there per platform (map to img?)
+			var configs []ocispec.Descriptor
+			var chainIDs []digest.Digest
+			for _, imagec := range tc.images {
 				var desc ocispec.Descriptor
-				if err := imagec.image(&desc)(ctx, is.client.ContentStore()); err != nil {
-					t.Fatal(err)
+				if err := imagec.image(&desc)(ctx, cs); err != nil {
+					t.Error(err)
+					break
 				}
 
 				for _, name := range imagec.names {
@@ -110,7 +148,8 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					img.Name = img.Name + "@" + desc.Digest.String()
 					_, err = cis.Create(ctx, img)
 					if err != nil {
-						t.Fatal(err)
+						t.Error(err)
+						break
 					}
 					created = append(created, img.Name)
 					expected[img.Name] = nil
@@ -124,12 +163,45 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					expected[tag+"@"+desc.Digest.String()] = &desc
 				}
 
-				// TODO(containerd): Unpack image and store layer
+				// TODO(containerd): Handle multiplatform cases (for each?)
+				m, err := images.Manifest(ctx, cs, desc, is.platforms)
+				if err != nil {
+					t.Fatal(err)
+				}
 
-				// TODO(containerd): Set parent
+				if err := is.unpack(ctx, m.Config, m.Layers, nil, nil, nil); err != nil {
+					t.Fatal(err)
+				}
+
+				if imagec.parent < 0 {
+					parentImg := configs[len(configs)+imagec.parent]
+
+					info := content.Info{
+						Digest: m.Config.Digest,
+						Labels: map[string]string{
+							LabelImageParent: parentImg.Digest.String(),
+						},
+					}
+					info, err := cs.Update(ctx, info, "labels."+LabelImageParent)
+					if err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				diffIDs, err := images.RootFS(ctx, cs, m.Config)
+				if err != nil {
+					t.Fatal(err)
+				}
+				configs = append(configs, m.Config)
+				chainIDs = append(chainIDs, identity.ChainID(diffIDs))
 
 				imgs = append(imgs, desc)
-				t.Logf("Image %d: %s", i, desc.Digest.String())
+			}
+			if err := cleanup(ctx); err != nil {
+				t.Fatal(err)
+			}
+			if t.Failed() {
+				t.FailNow()
 			}
 
 			is.containers = mockContainerStore{tc.containers}
@@ -143,7 +215,7 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					t.Fatal(err)
 				}
 				if expected := len(del.deleted) + len(del.untagged); len(items) != expected {
-					t.Errorf("Wrong number of items: expected %d, actual %d", expected, len(items))
+					t.Errorf("Wrong number of items: expected %d, actual %v", expected, items)
 				} else {
 					untags := map[string]struct{}{}
 					for _, ut := range del.untagged {
@@ -157,18 +229,21 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 						if item.Deleted != "" {
 							if _, ok := deletes[item.Deleted]; !ok {
 								t.Errorf("Unexpected delete: %s", item.Deleted)
+							} else {
+								delete(deletes, item.Deleted)
 							}
 						}
 						if item.Untagged != "" {
 							if _, ok := untags[item.Untagged]; !ok {
 								t.Errorf("Unexpected untag: %s", item.Untagged)
+							} else {
+								delete(untags, item.Untagged)
 							}
 						}
 					}
 				}
 			}
 
-			cs := is.client.ContentStore()
 			for _, img := range imgs {
 				_, err := cs.Info(ctx, img.Digest)
 				if err != nil {
@@ -178,8 +253,11 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					if !deleted[img.Digest] {
 						t.Errorf("Missing image %s", img.Digest)
 					}
+					// Ensure layers are gone!
 				} else if deleted[img.Digest] {
 					t.Errorf("Expected image %s to be deleted", img.Digest)
+				} else {
+					// Ensure layers are there
 				}
 			}
 
@@ -201,9 +279,6 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 			}
 
 		})
-		if err := cleanup(ctx); err != nil {
-			t.Fatal(err)
-		}
 		cis := is.client.ImageService()
 		for i, name := range created {
 			var opts []images.DeleteOpt
