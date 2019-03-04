@@ -25,8 +25,8 @@ const (
 	LabelImageID = "docker.io/image.id"
 
 	// LabelImageParent is Docker's parent image ID
-	// Stored on the image config blob
-	LabelImageParent = "docker.io/image.parent"
+	// Stored on the image blob (config or manifest)
+	LabelImageParent = "containerd.io/gc.ref.content.parent"
 
 	// LabelImageDangling refers to images with no name
 	// Stored on images and points to the image config digest
