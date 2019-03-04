@@ -393,21 +393,12 @@ func (c *client) createLinux(id string, spec *specs.Spec, runtimeOptions interfa
 		ContainerType:               "linux",
 		Owner:                       defaultOwner,
 		TerminateOnLastHandleClosed: true,
-	}
-
-	if lcowConfig.ActualMode == opengcs.ModeActualVhdx {
-		configuration.HvRuntime = &hcsshim.HvRuntime{
-			ImagePath:          lcowConfig.Vhdx,
-			BootSource:         "Vhd",
-			WritableBootSource: false,
-		}
-	} else {
-		configuration.HvRuntime = &hcsshim.HvRuntime{
+		HvRuntime: &hcsshim.HvRuntime{
 			ImagePath:           lcowConfig.KirdPath,
 			LinuxKernelFile:     lcowConfig.KernelFile,
 			LinuxInitrdFile:     lcowConfig.InitrdFile,
 			LinuxBootParameters: lcowConfig.BootParameters,
-		}
+		},
 	}
 
 	if spec.Windows == nil {

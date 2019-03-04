@@ -43,10 +43,6 @@
 //        -- Possible values:      Any valid linux kernel boot options
 //        -- Default if omitted:  <nil>
 //
-//   * lcow.vhdx - Specifies a custom vhdx file to boot (instead of a kernel+initrd)
-//        -- Possible values:      Any valid filename
-//        -- Default if omitted:  uvm.vhdx under `lcow.kirdpath`
-//
 //   * lcow.timeout - Specifies a timeout for utility VM operations in seconds
 //        -- Possible values:      >=0
 //        -- Default if omitted:  300
