@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/containerd/containerd"
@@ -29,6 +30,7 @@ import (
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
+	"golang.org/x/sync/errgroup"
 )
 
 // default maximum concurrent downloads allowed during docker pull
@@ -87,15 +89,14 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		l        layer.Layer
-		layers   = map[digest.Digest][]ocispec.Descriptor{}
-		dlStatus = map[digest.Digest]bool{}
-		delayed  = true // delayed unpack flag for schema 1
-		lock     = sync.Mutex{}
-		cond     = sync.NewCond(&lock)
-		// TODO(containerd): replace this with errgroup
-		unpackErr = make(chan error)
+		layers         = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus       = map[digest.Digest]bool{}
+		unpacks  int32 = 0 // how many unpacks occurred
+		lock           = sync.Mutex{}
+		cond           = sync.NewCond(&lock)
 	)
+	grp, pctx := errgroup.WithContext(pctx)
+
 	// unpackHandler handles layer unpacking concurrently as soon as
 	// a layer has been downloaded in order
 	unpackHandler := func(h images.Handler) images.Handler {
@@ -107,17 +108,19 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 
 			switch desc.MediaType {
 			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
-				lock.Lock()
-				// map the config to layers
-				layers[children[0].Digest] = children[1:]
-				lock.Unlock()
+				// TODO(container): remove layer children if not on a configured platform
+				if len(children) > 1 {
+					lock.Lock()
+					// map the config to layers
+					layers[children[0].Digest] = children[1:]
+					lock.Unlock()
+				}
 			case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
-				// handle schema2 unpack concurrently
-				delayed = false
-				go func() {
-					l, err = i.unpack(pctx, desc, layers[desc.Digest], progressOutput, cond, dlStatus)
-					unpackErr <- errors.Wrapf(err, "failed to unpack %s", desc.Digest)
-				}()
+				// TODO(containerd): only start unpack if on a configured platform
+				atomic.AddInt32(&unpacks, 1)
+				grp.Go(func() error {
+					return i.unpack(pctx, desc, layers[desc.Digest], progressOutput, cond, dlStatus)
+				})
 			case images.MediaTypeDockerSchema2LayerGzip, images.MediaTypeDockerSchema2Layer,
 				ocispec.MediaTypeImageLayerGzip, ocispec.MediaTypeImageLayer:
 				// a layer has been downloaded, signal downloaded status
@@ -131,47 +134,44 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		})
 	}
 
+	pctx, done, err := i.client.WithLease(pctx)
+	if err != nil {
+		return err
+	}
+
+	defer done(pctx)
+
+	// TODO(containerd): Custom resolver
+	//  - Auth config
+	//  - Custom headers
+	// TODO(containerd): Platforms using a passed in `platform`
+	// TODO(containerd): progress tracking
 	opts := []containerd.RemoteOpt{
 		containerd.WithImageHandler(h),
 		containerd.WithImageHandlerWrapper(unpackHandler),
 		containerd.WithMaxConcurrentDownloads(defaultMaxConcurrentDownloads),
 	}
 
-	// TODO: Lease
-	// TODO: Custom resolver
-	//  - Auth config
-	//  - Custom headers
-	// TODO: Platforms using `platform`
-	// TODO(containerd): progress tracking
-	// TODO: unpack tracking, use download manager for now?
-
 	img, err := i.client.Pull(pctx, ref.String(), opts...)
 	if err != nil {
 		return errors.Wrap(err, "failed to pull image")
 	}
-	config, err := img.Config(pctx)
-	if err != nil {
-		return errors.Wrap(err, "failed to pull image")
-	}
-	// delayed unpacking for schema 1
-	if delayed {
-		// TODO(containerd): Just resolve config here
 
-		l, err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
+	if unpacks > 0 {
+		if err := grp.Wait(); err != nil {
+			return err
+		}
+	} else {
+		// try to resolve config to unpack if none was done previously
+		// schema 1 must be resolved and unpacked after pull
+		config, err := img.Config(pctx)
 		if err != nil {
-			return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
+			return errors.Wrap(err, "failed to resolve image config for unpack")
 		}
 
-		// TODO(containerd): cache that layer?
-	} else {
-		// wait schema2 unpack to finish
-		select {
-		case <-pctx.Done():
-			return errors.New("pull context cancelled")
-		case err = <-unpackErr:
-			if err != nil {
-				return err
-			}
+		err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
+		if err != nil {
+			return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
 		}
 	}
 
@@ -181,16 +181,16 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	return err
 }
 
-func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, layers []ocispec.Descriptor, progressOutput progress.Output, cond *sync.Cond, status map[digest.Digest]bool) (layer.Layer, error) {
+func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, layers []ocispec.Descriptor, progressOutput progress.Output, cond *sync.Cond, status map[digest.Digest]bool) error {
 	c, err := i.getCache(ctx)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	cs := i.client.ContentStore()
 	p, err := content.ReadBlob(ctx, cs, config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var cfg struct {
@@ -201,18 +201,18 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 	}
 
 	if err := json.Unmarshal(p, &cfg); err != nil {
-		return nil, errors.Wrap(err, "failed to parse config")
+		return errors.Wrap(err, "failed to parse config")
 	}
 
 	diffIDs := cfg.RootFS.DiffIDs
 	if len(diffIDs) != len(layers) {
-		return nil, errors.Errorf("mismatched image rootfs and manifest layers")
+		return errors.Errorf("mismatched image rootfs and manifest layers")
 	}
 
 	// Resolve layerstore
 	ls, err := i.getLayerStore(platforms.Normalize(cfg.Platform))
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	var (
@@ -235,7 +235,7 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 		if err != nil {
 			log.G(ctx).WithError(err).Errorf("apply layer failed")
 			layer.ReleaseAndLog(ls, l)
-			return nil, errors.Wrapf(err, "failed to apply layer %d", d)
+			return errors.Wrapf(err, "failed to apply layer %d", d)
 		}
 		logrus.Debugf("Layer applied: chain=%s %s (%s)", nl.ChainID(), nl.DiffID(), diffIDs[d])
 
@@ -243,14 +243,14 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 			metadata, err := ls.Release(l)
 			if err != nil {
 				layer.ReleaseAndLog(ls, nl)
-				return nil, errors.Wrap(err, "failed to release layer after apply")
+				return errors.Wrap(err, "failed to release layer after apply")
 			}
 			layer.LogReleaseMetadata(metadata)
 		}
 
-		if digest.Digest(l.DiffID()) != diffIDs[d] {
+		if digest.Digest(nl.DiffID()) != diffIDs[d] {
 			layer.ReleaseAndLog(ls, nl)
-			return nil, errors.Errorf("invalid diff id %s, expected %s", l.DiffID(), diffIDs[d])
+			return errors.Errorf("invalid diff id %s, expected %s", nl.DiffID(), diffIDs[d])
 		}
 
 		l = nl
@@ -266,7 +266,7 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 
 	if _, err := cs.Update(ctx, info, "labels."+key); err != nil {
 		layer.ReleaseAndLog(ls, l)
-		return nil, errors.Wrap(err, "failed to update image config label")
+		return errors.Wrap(err, "failed to update image config label")
 	}
 
 	c.m.Lock()
@@ -286,7 +286,7 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 	blayers[digest.Digest(l.ChainID())] = l
 	c.m.Unlock()
 
-	return l, nil
+	return nil
 }
 
 func (i *ImageService) applyLayer(ctx context.Context, ls layer.Store, blob ocispec.Descriptor, layers []digest.Digest, progressOutput progress.Output) (layer.Layer, error) {
