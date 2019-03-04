@@ -33,8 +33,6 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 				config.KernelFile = v
 			case "lcow.initrd":
 				config.InitrdFile = v
-			case "lcow.vhdx":
-				config.Vhdx = v
 			case "lcow.bootparameters":
 				config.BootParameters = v
 			}
