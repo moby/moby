@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"encoding/json"
+	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
@@ -12,6 +13,7 @@ import (
 	"github.com/docker/docker/api/types"
 	containertype "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
+	"github.com/docker/docker/layer"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -26,6 +28,7 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		return nil, err
 	}
 
+	lastUpdated := time.Unix(0, 0)
 	repoTags := []string{}
 	repoDigests := []string{}
 	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Digest.String())
@@ -45,14 +48,23 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		case reference.NamedTagged:
 			repoTags = append(repoTags, reference.FamiliarString(ref))
 		}
+		if img.UpdatedAt.After(lastUpdated) {
+			lastUpdated = img.UpdatedAt
+		}
 	}
 
 	cs := i.client.ContentStore()
 
 	config, err := images.Config(ctx, cs, desc, i.platforms)
 	if err != nil {
-		log.G(ctx).WithError(err).Debugf("resolve failed")
+		// TODO(containerd): handle case where config fails to resume
+		// due to missing data caused by multiple matches
 		return nil, errors.Wrap(err, "failed to resolve config")
+	}
+
+	info, err := cs.Info(ctx, config.Digest)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get config info")
 	}
 
 	p, err := content.ReadBlob(ctx, cs, config)
@@ -80,23 +92,31 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 
 	var size int64
 	var layerMetadata map[string]string
-	layerID := identity.ChainID(img.RootFS.DiffIDs)
-	if layerID != "" {
-		// Read layer store from labels
-		//l, err := i.layerStores[runtime.GOOS].Get(layer.ChainID(layerID))
-		//if err != nil {
-		//	return nil, err
-		//}
-		//defer layer.ReleaseAndLog(i.layerStores[runtime.GOOS], l)
-		//size, err = l.Size()
-		//if err != nil {
-		//	return nil, err
-		//}
+	var lsname string
+	if layerID := identity.ChainID(img.RootFS.DiffIDs); layerID != "" {
+		for k, v := range info.Labels {
+			if strings.HasPrefix(k, LabelLayerPrefix) && v == string(layerID) {
+				lsname = k[len(LabelLayerPrefix):]
+			} else {
+				log.G(ctx).Debugf("not the label: %q => %q", k, v)
+			}
+		}
+		if ls, ok := i.layerStores[lsname]; ok {
+			l, err := ls.Get(layer.ChainID(layerID))
+			if err != nil {
+				return nil, err
+			}
+			defer layer.ReleaseAndLog(ls, l)
+			size, err = l.Size()
+			if err != nil {
+				return nil, err
+			}
 
-		//layerMetadata, err = l.Metadata()
-		//if err != nil {
-		//	return nil, err
-		//}
+			layerMetadata, err = l.Metadata()
+			if err != nil {
+				return nil, err
+			}
+		}
 	}
 
 	comment := img.Comment
@@ -104,17 +124,11 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		comment = img.History[len(img.History)-1].Comment
 	}
 
-	// TODO(containerd): Get from label?
-	//lastUpdated, err := i.imageStore.GetLastUpdated(img.ID())
-	//if err != nil {
-	//	return nil, err
-	//}
-
-	imageInspect := &types.ImageInspect{
-		ID:          desc.Digest.String(),
-		RepoTags:    repoTags,
-		RepoDigests: repoDigests,
-		//Parent:        ci.parent.String(),
+	return &types.ImageInspect{
+		ID:            desc.Digest.String(),
+		RepoTags:      repoTags,
+		RepoDigests:   repoDigests,
+		Parent:        info.Labels[LabelImageParent],
 		Comment:       comment,
 		Created:       img.Created.Format(time.RFC3339Nano),
 		DockerVersion: img.DockerVersion,
@@ -126,16 +140,14 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		Size:          size,
 		VirtualSize:   size, // TODO: field unused, deprecate
 		RootFS:        rootFSToAPIType(img.RootFS),
-		// TODO(containerd): Get from labels?
-		//Metadata: types.ImageMetadata{
-		//	LastTagTime: lastUpdated,
-		//},
-	}
-
-	//imageInspect.GraphDriver.Name = i.layerStores[runtime.GOOS].DriverName()
-	imageInspect.GraphDriver.Data = layerMetadata
-
-	return imageInspect, nil
+		Metadata: types.ImageMetadata{
+			LastTagTime: lastUpdated,
+		},
+		GraphDriver: types.GraphDriverData{
+			Name: lsname,
+			Data: layerMetadata,
+		},
+	}, nil
 }
 
 func rootFSToAPIType(rootfs ocispec.RootFS) types.RootFS {
