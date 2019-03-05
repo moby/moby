@@ -147,6 +147,7 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 
 	// Create a dangling image
 	_, err = i.client.ImageService().Create(ctx, images.Image{
+		// TODO(containerd): Add a name component here
 		Name:      desc.Digest.String(),
 		Target:    desc,
 		CreatedAt: created,

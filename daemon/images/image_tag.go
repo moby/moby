@@ -34,6 +34,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageName, repository, tag 
 	}
 	img.name = newTag
 
+	// TODO(containerd): Also add image for name@digest
 	err = i.tagImage(ctx, img)
 	return reference.FamiliarString(newTag), err
 }
@@ -48,7 +49,7 @@ func (i *ImageService) TagImageWithReference(ctx context.Context, target ocispec
 	if ci == nil {
 		return errdefs.NotFound(errors.New("target not found"))
 	}
-
+	// TODO(containerd): Also add image for name@digest
 	return i.tagImage(ctx, imageLink{
 		name:   newTag,
 		target: &target,

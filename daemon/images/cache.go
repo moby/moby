@@ -38,7 +38,6 @@ type cachedImage struct {
 type cache struct {
 	m           sync.RWMutex
 	ids         *digestset.Set
-	targets     *digestset.Set
 	descriptors map[digest.Digest]ocispec.Descriptor
 	layers      map[string]map[digest.Digest]layer.Layer
 
@@ -93,7 +92,6 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 		cs = i.client.ContentStore()
 		is = i.client.ImageService()
 		c  = &cache{
-			targets:     digestset.NewSet(),
 			descriptors: map[digest.Digest]ocispec.Descriptor{},
 			layers:      map[string]map[digest.Digest]layer.Layer{},
 
@@ -227,7 +225,6 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 				c.ids.Add(id.Digest)
 			}
 			c.tCache[img.Target.Digest] = ci
-			c.targets.Add(img.Target.Digest)
 			c.descriptors[img.Target.Digest] = img.Target
 
 			// Load image layer to prevent removal

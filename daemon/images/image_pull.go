@@ -89,11 +89,12 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		layers         = map[digest.Digest][]ocispec.Descriptor{}
-		dlStatus       = map[digest.Digest]bool{}
-		unpacks  int32 = 0 // how many unpacks occurred
-		lock           = sync.Mutex{}
-		cond           = sync.NewCond(&lock)
+		layers           = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus         = map[digest.Digest]bool{}
+		unpackDesc       = map[digest.Digest]struct{}{}
+		unpacks    int32 = 0 // how many unpacks occurred
+		lock             = sync.Mutex{}
+		cond             = sync.NewCond(&lock)
 	)
 	grp, pctx := errgroup.WithContext(pctx)
 
@@ -107,20 +108,41 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 			}
 
 			switch desc.MediaType {
+			case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+				lock.Lock()
+				var unknown []ocispec.Descriptor
+				for _, d := range children {
+					if d.Platform == nil {
+						unknown = append(unknown, d)
+					} else if i.platforms.Match(*d.Platform) {
+						unpackDesc[d.Digest] = struct{}{}
+					}
+				}
+				if len(unpackDesc) == 0 && len(unknown) > 0 {
+					unpackDesc[unknown[0].Digest] = struct{}{}
+				}
+				lock.Unlock()
 			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
-				// TODO(container): remove layer children if not on a configured platform
+				lock.Lock()
+				if _, ok := unpackDesc[desc.Digest]; !ok {
+					children = children[:1]
+
+				}
 				if len(children) > 1 {
-					lock.Lock()
 					// map the config to layers
 					layers[children[0].Digest] = children[1:]
-					lock.Unlock()
 				}
+				lock.Unlock()
 			case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
-				// TODO(containerd): only start unpack if on a configured platform
-				atomic.AddInt32(&unpacks, 1)
-				grp.Go(func() error {
-					return i.unpack(pctx, desc, layers[desc.Digest], progressOutput, cond, dlStatus)
-				})
+				lock.Lock()
+				unpackLayers := layers[desc.Digest]
+				lock.Unlock()
+				if len(unpackLayers) > 0 {
+					atomic.AddInt32(&unpacks, 1)
+					grp.Go(func() error {
+						return i.unpack(pctx, desc, unpackLayers, progressOutput, cond, dlStatus)
+					})
+				}
 			case images.MediaTypeDockerSchema2LayerGzip, images.MediaTypeDockerSchema2Layer,
 				ocispec.MediaTypeImageLayerGzip, ocispec.MediaTypeImageLayer:
 				// a layer has been downloaded, signal downloaded status
@@ -144,15 +166,13 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	// TODO(containerd): Custom resolver
 	//  - Auth config
 	//  - Custom headers
-	// TODO(containerd): Platforms using a passed in `platform`
-	// TODO(containerd): progress tracking
 	opts := []containerd.RemoteOpt{
 		containerd.WithImageHandler(h),
 		containerd.WithImageHandlerWrapper(unpackHandler),
 		containerd.WithMaxConcurrentDownloads(defaultMaxConcurrentDownloads),
 	}
 
-	img, err := i.client.Pull(pctx, ref.String(), opts...)
+	img, err := i.client.Fetch(pctx, ref.String(), opts...)
 	if err != nil {
 		return errors.Wrap(err, "failed to pull image")
 	}
@@ -164,16 +184,18 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	} else {
 		// try to resolve config to unpack if none was done previously
 		// schema 1 must be resolved and unpacked after pull
-		config, err := img.Config(pctx)
+		config, err := img.Config(pctx, i.client.ContentStore(), i.platforms)
 		if err != nil {
 			return errors.Wrap(err, "failed to resolve image config for unpack")
 		}
 
 		err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
 		if err != nil {
-			return errors.Wrapf(err, "failed to unpack %s", img.Target().Digest)
+			return errors.Wrapf(err, "failed to unpack %s", img.Target.Digest)
 		}
 	}
+
+	// TODO(containerd): Tag name@hash to hold for dangling image case
 
 	stopProgress()
 	<-progress
@@ -234,7 +256,9 @@ func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, la
 		nl, err := i.applyLayer(ctx, ls, layers[d], chain, progressOutput)
 		if err != nil {
 			log.G(ctx).WithError(err).Errorf("apply layer failed")
-			layer.ReleaseAndLog(ls, l)
+			if l != nil {
+				layer.ReleaseAndLog(ls, l)
+			}
 			return errors.Wrapf(err, "failed to apply layer %d", d)
 		}
 		logrus.Debugf("Layer applied: chain=%s %s (%s)", nl.ChainID(), nl.DiffID(), diffIDs[d])

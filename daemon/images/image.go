@@ -30,6 +30,9 @@ const (
 
 	// LabelImageDangling refers to images with no name
 	// Stored on images and points to the image config digest
+	// TODO(containerd): Deprecate this, use name@hash approach
+	// to hold onto images and avoid calculating the dangling
+	// property after every retag
 	LabelImageDangling = "docker.io/image.dangling"
 
 	// LabelLayerPrefix is used as the label prefix for layer stores
@@ -106,21 +109,40 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 		return imgs[0].Target, nil
 	}
 
+	// TODO(containerd): If namedRef matches COULD be interpreted as a
+	// digest prefer, do a lookup via `is.List` instead
+	// with an or clause
+	// TODO(containerd): Ensure named only
+	ref := namedRef.String()
+	if len(refOrID) < 64 {
+		filters := []string{
+			fmt.Sprintf("name==%q", namedRef.String()),
+			fmt.Sprintf(`target.digest~="sha256:%s[0-9a-fA-F]{%d}"`, refOrID, 64-len(refOrID)),
+		}
+		imgs, err := is.List(ctx, filters...)
+		if err != nil {
+			return ocispec.Descriptor{}, err
+		}
+		if len(imgs) == 1 {
+			return imgs[0].Target, nil
+		}
+		if len(imgs) == 0 {
+			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("list returned no images"))
+		}
+		for _, img := range imgs {
+			if img.Name == ref {
+				return img.Target, nil
+			}
+		}
+
+		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("ambiguous reference"))
+	}
 	img, err := is.Get(ctx, namedRef.String())
 	if err != nil {
+		// TODO(containerd): Translate error directly
 		if !cerrdefs.IsNotFound(err) {
 			return ocispec.Descriptor{}, err
 		}
-		dgst, err := c.targets.Lookup(refOrID)
-		if err != nil {
-			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("reference not found"))
-		}
-
-		desc, ok := c.descriptors[dgst]
-		if ok {
-			return desc, nil
-		}
-
 		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("id not found"))
 	}
 
