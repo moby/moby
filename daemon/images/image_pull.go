@@ -195,7 +195,16 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		}
 	}
 
-	// TODO(containerd): Tag name@hash to hold for dangling image case
+	c, err := reference.WithDigest(ref, img.Target.Digest)
+	if err != nil {
+		return errors.Wrap(err, "failed to create digest ref")
+	}
+
+	img.Name = c.String()
+	_, err = i.client.ImageService().Create(ctx, img)
+	if err != nil {
+		return errors.Wrap(err, "failed to save canonical image")
+	}
 
 	stopProgress()
 	<-progress
