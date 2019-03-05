@@ -238,11 +238,12 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 
 		switch target.MediaType {
 		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
+			config = target
 		default:
-			// TODO(containerd): Set this more globally and to
-			// an appropriate value for Windows
+			// TODO(containerd): use global platforms matcher
 			platform := platforms.Default()
 
+			// TODO(containerd): config matcher which ignores NotFound items?
 			desc, err := images.Config(ctx, cs, imgs[0].Target, platform)
 			if err != nil {
 				log.G(ctx).WithError(err).WithField("image", dgst.String()).Warnf("unable to resolve config")

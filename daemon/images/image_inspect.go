@@ -3,15 +3,15 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 	"encoding/json"
-	"runtime"
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertype "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
-	"github.com/docker/docker/layer"
 	"github.com/docker/go-connections/nat"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -21,25 +21,41 @@ import (
 // LookupImage looks up an image by name and returns it as an ImageInspect
 // structure.
 func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.ImageInspect, error) {
-	ci, err := i.getCachedRef(ctx, name)
+	desc, err := i.ResolveImage(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
 	repoTags := []string{}
 	repoDigests := []string{}
-	for _, ref := range ci.references {
+	imgs, err := i.client.ImageService().List(ctx, "target.digest=="+desc.Digest.String())
+	if err != nil {
+		return nil, err
+	}
+	for _, img := range imgs {
+		// Parse name
+		ref, err := reference.Parse(img.Name)
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("target", desc.Digest.String()).Warnf("skipping reference %q", img.Name)
+			continue
+		}
 		switch ref.(type) {
-		case reference.NamedTagged:
-			repoTags = append(repoTags, reference.FamiliarString(ref))
-		// TODO(containerd): these references may need to come from
-		// metadata used for cross repository push
 		case reference.Canonical:
 			repoDigests = append(repoDigests, reference.FamiliarString(ref))
+		case reference.NamedTagged:
+			repoTags = append(repoTags, reference.FamiliarString(ref))
 		}
 	}
 
-	p, err := content.ReadBlob(ctx, i.client.ContentStore(), ci.config)
+	cs := i.client.ContentStore()
+
+	config, err := images.Config(ctx, cs, desc, i.platforms)
+	if err != nil {
+		log.G(ctx).WithError(err).Debugf("resolve failed")
+		return nil, errors.Wrap(err, "failed to resolve config")
+	}
+
+	p, err := content.ReadBlob(ctx, cs, config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read config")
 	}
@@ -66,20 +82,21 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 	var layerMetadata map[string]string
 	layerID := identity.ChainID(img.RootFS.DiffIDs)
 	if layerID != "" {
-		l, err := i.layerStores[runtime.GOOS].Get(layer.ChainID(layerID))
-		if err != nil {
-			return nil, err
-		}
-		defer layer.ReleaseAndLog(i.layerStores[runtime.GOOS], l)
-		size, err = l.Size()
-		if err != nil {
-			return nil, err
-		}
+		// Read layer store from labels
+		//l, err := i.layerStores[runtime.GOOS].Get(layer.ChainID(layerID))
+		//if err != nil {
+		//	return nil, err
+		//}
+		//defer layer.ReleaseAndLog(i.layerStores[runtime.GOOS], l)
+		//size, err = l.Size()
+		//if err != nil {
+		//	return nil, err
+		//}
 
-		layerMetadata, err = l.Metadata()
-		if err != nil {
-			return nil, err
-		}
+		//layerMetadata, err = l.Metadata()
+		//if err != nil {
+		//	return nil, err
+		//}
 	}
 
 	comment := img.Comment
@@ -94,10 +111,10 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 	//}
 
 	imageInspect := &types.ImageInspect{
-		ID:            ci.config.Digest.String(),
-		RepoTags:      repoTags,
-		RepoDigests:   repoDigests,
-		Parent:        ci.parent.String(),
+		ID:          desc.Digest.String(),
+		RepoTags:    repoTags,
+		RepoDigests: repoDigests,
+		//Parent:        ci.parent.String(),
 		Comment:       comment,
 		Created:       img.Created.Format(time.RFC3339Nano),
 		DockerVersion: img.DockerVersion,
@@ -115,7 +132,7 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		//},
 	}
 
-	imageInspect.GraphDriver.Name = i.layerStores[runtime.GOOS].DriverName()
+	//imageInspect.GraphDriver.Name = i.layerStores[runtime.GOOS].DriverName()
 	imageInspect.GraphDriver.Data = layerMetadata
 
 	return imageInspect, nil

@@ -171,6 +171,8 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 
 	var imageRef string
 	if c.Repo != "" {
+		// TODO(containerd): Pass this into commit image?
+		// Commit image must retain the image through a name or `none@` tag
 		imageRef, err = daemon.imageService.TagImage(ctx, string(desc.Digest), c.Repo, c.Tag)
 		if err != nil {
 			return "", err
