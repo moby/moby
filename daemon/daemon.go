@@ -65,6 +65,7 @@ import (
 	"github.com/docker/libnetwork"
 	"github.com/docker/libnetwork/cluster"
 	nwconfig "github.com/docker/libnetwork/config"
+	"github.com/docker/stacks/pkg/reconciler"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/semaphore"
 )
@@ -124,6 +125,11 @@ type Daemon struct {
 
 	attachmentStore       network.AttachmentStore
 	attachableNetworkLock *locker.Locker
+
+	// stacksReconciler is the server-side stacks reconciler manager. It is
+	// included so that it can receive the JoinCluster and LeaveCluster
+	// callbacks
+	stacksReconciler *reconciler.Manager
 }
 
 // StoreHosts stores the addresses the daemon is listening on
@@ -648,11 +654,17 @@ func (daemon *Daemon) registerLink(parent, child *container.Container, alias str
 // DaemonJoinsCluster informs the daemon has joined the cluster and provides
 // the handler to query the cluster component
 func (daemon *Daemon) DaemonJoinsCluster(clusterProvider cluster.Provider) {
+	if daemon.stacksReconciler != nil {
+		daemon.stacksReconciler.JoinCluster()
+	}
 	daemon.setClusterProvider(clusterProvider)
 }
 
 // DaemonLeavesCluster informs the daemon has left the cluster
 func (daemon *Daemon) DaemonLeavesCluster() {
+	if daemon.stacksReconciler != nil {
+		daemon.stacksReconciler.LeaveCluster()
+	}
 	// Daemon is in charge of removing the attachable networks with
 	// connected containers when the node leaves the swarm
 	daemon.clearAttachableNetworks()
@@ -1397,6 +1409,11 @@ func (daemon *Daemon) GetCluster() Cluster {
 // SetCluster sets the cluster
 func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
+}
+
+// SetStackReconciler sets the stacksReconciler
+func (daemon *Daemon) SetStacksReconciler(m *reconciler.Manager) {
+	daemon.stacksReconciler = m
 }
 
 func (daemon *Daemon) pluginShutdown() {

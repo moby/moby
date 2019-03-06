@@ -29,6 +29,8 @@ import (
 	swarmrouter "github.com/docker/docker/api/server/router/swarm"
 	systemrouter "github.com/docker/docker/api/server/router/system"
 	"github.com/docker/docker/api/server/router/volume"
+	"github.com/docker/docker/api/types/events"
+	"github.com/docker/docker/api/types/filters"
 	buildkit "github.com/docker/docker/builder/builder-next"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/builder/fscache"
@@ -53,6 +55,7 @@ import (
 	"github.com/docker/go-connections/tlsconfig"
 	stacksbackend "github.com/docker/stacks/pkg/controller/backend"
 	stacksinterfaces "github.com/docker/stacks/pkg/interfaces"
+	stacksreconciler "github.com/docker/stacks/pkg/reconciler"
 	swarmapi "github.com/docker/swarmkit/api"
 	"github.com/moby/buildkit/session"
 	"github.com/pkg/errors"
@@ -244,17 +247,19 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	cli.d = d
 
+	sb := createStacksBackend(c)
 	routerOptions, err := newRouterOptions(cli.Config, d)
 	if err != nil {
 		return err
 	}
 	routerOptions.api = cli.api
 	routerOptions.cluster = c
-	routerOptions.stacksBackend = createStacksBackend(c)
+	routerOptions.stacksBackend = sb
 
 	initRouter(routerOptions)
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
+	m := createAndStartStacksReconciler(d, c, sb)
 
 	cli.setupConfigReloadTrap()
 
@@ -272,6 +277,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	errAPI := <-serveAPIWait
 	c.Cleanup()
 
+	m.Stop()
 	shutdownDaemon(d)
 
 	// Stop notification processing and any background processes
@@ -670,9 +676,53 @@ func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, 
 	return c, err
 }
 
+// combinedStacksBackend is a type that rolls the daemon, cluster, and stacks
+// backend all into one object to fulfill the stacksinterfaces.BackendClient
+// interface. it also exposes the SubscribeToEvents and UnsubscribeFromEvents
+// methods from the daemon.
+//
+// Shockingly, this works. Go's method promotion means all the right methods
+// are defined on this object.
+type combinedStacksBackend struct {
+	// daemon isn't actually embedded, because its network methods conflict
+	// with those defined on SwarmResourceBackend, and we only need
+	// SubscribeToEvents and UnsubscribeFromEvents
+	d *daemon.Daemon
+	// embed these as interfaces, which forces the disambiguation between the
+	// conflicting Stacks methods on the Cluster and DefaultStacksBackend
+	stacksinterfaces.StacksBackend
+	stacksinterfaces.SwarmResourceBackend
+}
+
+// SubscribeToEvents forwards that method from the daemon
+func (c combinedStacksBackend) SubscribeToEvents(since, until time.Time, filters filters.Args) ([]events.Message, chan interface{}) {
+	return c.d.SubscribeToEvents(since, until, filters)
+}
+
+func (c combinedStacksBackend) UnsubscribeFromEvents(listener chan interface{}) {
+	c.d.UnsubscribeFromEvents(listener)
+}
+
+// createAndStartStacksReconciler creates and starts the manager for the stacks
+// reconciler component. The manager handles all the hard parts about running
+// the reconciler, we just need to start it in a goroutine. We won't return
+// an error, because we don't yet have any good way to handle it if one occurs
+func createAndStartStacksReconciler(d *daemon.Daemon, c *cluster.Cluster, sb *stacksbackend.DefaultStacksBackend) *stacksreconciler.Manager {
+	// create a combinedBackend object, which is just an anonymous type with the
+	// daemon, the cluster, and the stacks backend all embedded
+	combinedBackend := combinedStacksBackend{d: d, StacksBackend: sb, SwarmResourceBackend: c}
+
+	m := stacksreconciler.New(combinedBackend)
+	go func() {
+		m.Run()
+	}()
+	d.SetStacksReconciler(m)
+	return m
+}
+
 // createStacksBackend creates a new stacksBackend for the stacks router. The
 // cluster object passed to this method must not be nil.
-func createStacksBackend(c *cluster.Cluster) stacksinterfaces.StacksBackend {
+func createStacksBackend(c *cluster.Cluster) *stacksbackend.DefaultStacksBackend {
 	// lol @ passing the same variable for both args
 	return stacksbackend.NewDefaultStacksBackend(c, c)
 }
