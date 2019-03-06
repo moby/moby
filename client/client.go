@@ -54,6 +54,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/go-connections/sockets"
+	stackClient "github.com/docker/stacks/pkg/client"
 	"github.com/pkg/errors"
 )
 
@@ -81,6 +82,9 @@ type Client struct {
 	customHTTPHeaders map[string]string
 	// manualOverride is set to true when the version was set by users.
 	manualOverride bool
+
+	// embed the stacks api client
+	stackClient.Client
 }
 
 // CheckRedirect specifies the policy for dealing with redirect responses:
@@ -142,6 +146,20 @@ func NewClientWithOpts(ops ...func(*Client) error) (*Client, error) {
 			c.scheme = "https"
 		}
 	}
+	sc, err := stackClient.NewClientWithSettings(stackClient.Settings{
+		Scheme:            c.scheme,
+		Host:              c.host,
+		Proto:             c.proto,
+		Addr:              c.addr,
+		BasePath:          c.basePath,
+		Client:            c.client,
+		Version:           c.version,
+		CustomHTTPHeaders: c.customHTTPHeaders,
+	})
+	if err != nil {
+		return nil, err
+	}
+	c.Client = *sc
 
 	return c, nil
 }

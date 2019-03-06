@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/api/types/registry"
 	"github.com/docker/docker/api/types/swarm"
 	volumetypes "github.com/docker/docker/api/types/volume"
+	stackClient "github.com/docker/stacks/pkg/client"
 )
 
 // CommonAPIClient is the common methods between stable and experimental versions of APIClient.
@@ -32,6 +33,7 @@ type CommonAPIClient interface {
 	SecretAPIClient
 	SystemAPIClient
 	VolumeAPIClient
+	stackClient.StackAPIClient
 	ClientVersion() string
 	DaemonHost() string
 	HTTPClient() *http.Client
