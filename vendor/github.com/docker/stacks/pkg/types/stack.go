@@ -69,11 +69,11 @@ type StackSpec struct {
 
 // StackResources links to the running instances of the StackSpec
 type StackResources struct {
-	Services []StackResource `json:"services,omitempty"`
-	Configs  []StackResource `json:"configs,omitempty"`
-	Secrets  []StackResource `json:"secrets,omitempty"`
-	Networks []StackResource `json:"networks,omitempty"`
-	Volumes  []StackResource `json:"volumes,omitempty"`
+	Services map[string]StackResource `json:"services,omitempty"`
+	Configs  map[string]StackResource `json:"configs,omitempty"`
+	Secrets  map[string]StackResource `json:"secrets,omitempty"`
+	Networks map[string]StackResource `json:"networks,omitempty"`
+	Volumes  map[string]StackResource `json:"volumes,omitempty"`
 }
 
 // StackResource contains a link to a single instance of the spec
@@ -92,7 +92,19 @@ type StackStatus struct {
 	Message       string `json:"message"`
 	Phase         string `json:"phase"`
 	OverallHealth string `json:"overall_health"`
-	LastUpdated   string `json:"last_updated"`
+	// ServicesStatus contains the last known status of the service
+	// The service name is the key in the map.
+	ServicesStatus map[string]ServiceStatus `json:"services_status"`
+	LastUpdated    string                   `json:"last_updated"`
+}
+
+// ServiceStatus represents the latest known status of a service
+type ServiceStatus struct {
+	// DesiredTasks represents the expected number of running tasks
+	// given the current service spec settings, and number of nodes
+	// in the cluster that satisfy those constraints.
+	DesiredTasks uint64 `json:"desired_tasks"`
+	RunningTasks uint64 `json:"running_tasks"`
 }
 
 // StackTaskList contains a summary of the underlying tasks that make up this Stack

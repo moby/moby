@@ -194,6 +194,11 @@ func (n *nodeRunner) handleControlSocketChange(ctx context.Context, node *swarmn
 			} else {
 				n.controlClient = swarmapi.NewControlClient(conn)
 				n.logsClient = swarmapi.NewLogsClient(conn)
+				// there's no really direct way to observe the node changing
+				// from a worker to a manager. instead, we observe it
+				// indirectly by seeing a control socket change, which
+				// indicates that the node has become a manager.
+
 				// push store changes to daemon
 				go n.watchClusterEvents(ctx, conn)
 			}
@@ -226,6 +231,12 @@ func (n *nodeRunner) watchClusterEvents(ctx context.Context, conn *grpc.ClientCo
 			},
 			{
 				Kind:   "config",
+				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
+			},
+			{
+				// Resource events need some extra processing to make them
+				// work, but we still need to subscribe to them here.
+				Kind:   "resource",
 				Action: swarmapi.WatchActionKindCreate | swarmapi.WatchActionKindUpdate | swarmapi.WatchActionKindRemove,
 			},
 		},

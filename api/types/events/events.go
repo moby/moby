@@ -21,6 +21,8 @@ const (
 	SecretEventType = "secret"
 	// ConfigEventType is the event type that configs generate
 	ConfigEventType = "config"
+	// StackEventType is the event type that stacks generate
+	StackEventType = "stack"
 )
 
 // Actor describes something that generates events,

@@ -36,7 +36,12 @@ type StacksBackend interface {
 type SwarmResourceBackend interface {
 	network.ClusterBackend
 
+	// Info isn't actually in the swarm.Backend interface, but it is defined on
+	// the Cluster object, which provides the rest of the implementation
+	Info() swarm.Info
+
 	// The following methods are part of the swarm.Backend interface
+	GetNode(id string) (swarm.Node, error)
 	GetServices(dockerTypes.ServiceListOptions) ([]swarm.Service, error)
 	GetService(idOrName string, insertDefaults bool) (swarm.Service, error)
 	CreateService(swarm.ServiceSpec, string, bool) (*dockerTypes.ServiceCreateResponse, error)

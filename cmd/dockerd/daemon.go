@@ -673,10 +673,8 @@ func createAndStartCluster(cli *DaemonCli, d *daemon.Daemon) (*cluster.Cluster, 
 // createStacksBackend creates a new stacksBackend for the stacks router. The
 // cluster object passed to this method must not be nil.
 func createStacksBackend(c *cluster.Cluster) stacksinterfaces.StacksBackend {
-	// TODO(dperny): VERY VERY IMPORTANT: THIS FAKE STACK STORE MUST BE REMOVED
-	// AND REPLACED WITH A REAL ONE BEFORE WE MERGE
-	store := stacksinterfaces.NewFakeStackStore()
-	return stacksbackend.NewDefaultStacksBackend(store, c)
+	// lol @ passing the same variable for both args
+	return stacksbackend.NewDefaultStacksBackend(c, c)
 }
 
 // validates that the plugins requested with the --authorization-plugin flag are valid AuthzDriver

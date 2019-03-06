@@ -52,8 +52,10 @@ import (
 	types "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/daemon/cluster/controllers/plugin"
 	executorpkg "github.com/docker/docker/daemon/cluster/executor"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/pkg/signal"
 	lncluster "github.com/docker/libnetwork/cluster"
+	stackstore "github.com/docker/stacks/pkg/store"
 	swarmapi "github.com/docker/swarmkit/api"
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/pkg/errors"
@@ -238,6 +240,28 @@ func (c *Cluster) newNodeRunner(conf nodeStartConfig) (*nodeRunner, error) {
 	if err := nr.Start(conf); err != nil {
 		return nil, err
 	}
+
+	// storing Stacks in swarmkit requires creating an Extension for them.
+	// other possible future Resource types will also depend on Extensions
+	// being created. In order to accomodate this, whenever we launch a
+	// nodeRunner, we should try creating all of the extensions. This should
+	// not cause an error in the case that all extensions already exist.
+	//
+	// to do this, launch a goroutine. When the nodeRunner becomes ready, try
+	// creating extensions. Doing this here guarantees that we try to create
+	// extensions in every possible case that a node is starting, as
+	// newNodeRunner is called when a swarm is started, when a swarm is joined,
+	// when a node is restarted, when a swarm is unlocked, and probably even
+	// more.
+	go func() {
+		select {
+		case <-nr.ready:
+			c.initExtensions()
+		case <-nr.done:
+			// if the nodeRunner happens to exit before it gets ready, we can
+			// abandon this routine
+		}
+	}()
 
 	c.config.Backend.DaemonJoinsCluster(c)
 
@@ -449,4 +473,18 @@ func (c *Cluster) SendClusterEvent(event lncluster.ConfigEventType) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 	c.configEvent <- event
+}
+
+// initExtensions is the one-stop shop for us to initialize any swarmkit
+// Extensions we might depend on
+func (c *Cluster) initExtensions() {
+	err := c.lockedManagerAction(func(ctx context.Context, state nodeState) error {
+		return stackstore.InitExtension(ctx, state.controlClient)
+	})
+	// we should log any errors that occur. However, if this is an Unavailable
+	// error, then it's not _really_ an error that the user needs to be
+	// concerned with.
+	if !errdefs.IsUnavailable(err) {
+		logrus.Errorf("error initializing extensions: %v", err)
+	}
 }

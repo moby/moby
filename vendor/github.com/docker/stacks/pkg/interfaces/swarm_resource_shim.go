@@ -25,6 +25,24 @@ func NewSwarmAPIClientShim(dclient client.CommonAPIClient) SwarmResourceBackend 
 	}
 }
 
+// Info returns the swarm info
+func (c *SwarmResourceAPIClientShim) Info() swarm.Info {
+	// calls to Info return an error, but there's nothing we can do about that.
+	// because Backend call doesn't. So just return the empty Info object even
+	// if we get an error.
+	info, _ := c.dclient.Info(context.Background())
+	return info.Swarm
+}
+
+// GetNode returns a specific node by ID.
+func (c *SwarmResourceAPIClientShim) GetNode(id string) (swarm.Node, error) {
+	node, _, err := c.dclient.NodeInspectWithRaw(context.Background(), id)
+	if client.IsErrNotFound(err) {
+		return node, errdefs.NotFound(err)
+	}
+	return node, err
+}
+
 // GetServices lists services.
 func (c *SwarmResourceAPIClientShim) GetServices(options dockerTypes.ServiceListOptions) ([]swarm.Service, error) {
 	return c.dclient.ServiceList(context.Background(), options)

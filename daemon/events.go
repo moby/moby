@@ -11,6 +11,7 @@ import (
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
 	"github.com/docker/libnetwork"
+	"github.com/docker/stacks/pkg/store"
 	swarmapi "github.com/docker/swarmkit/api"
 	gogotypes "github.com/gogo/protobuf/types"
 	"github.com/sirupsen/logrus"
@@ -153,6 +154,8 @@ func (daemon *Daemon) generateClusterEvent(msg *swarmapi.WatchMessage) {
 			daemon.logSecretEvent(event.Action, v.Secret, event.OldObject.GetSecret())
 		case *swarmapi.Object_Config:
 			daemon.logConfigEvent(event.Action, v.Config, event.OldObject.GetConfig())
+		case *swarmapi.Object_Resource:
+			daemon.logResourceEvent(event.Action, v.Resource, event.OldObject.GetResource())
 		default:
 			logrus.Warnf("unrecognized event: %v", event)
 		}
@@ -273,6 +276,28 @@ func (daemon *Daemon) logServiceEvent(action swarmapi.WatchActionKind, service *
 		}
 	}
 	daemon.logClusterEvent(action, service.ID, "service", attributes, eventTime)
+}
+
+func (daemon *Daemon) logResourceEvent(action swarmapi.WatchActionKind, resource *swarmapi.Resource, oldResource *swarmapi.Resource) {
+	attributes := map[string]string{
+		"name": resource.Annotations.Name,
+	}
+	eventTime := eventTimestamp(resource.Meta, action)
+	// In this revision, we only have one kind of resource: stacks. However,
+	// this code below has been structured to accomodate many different kinds
+	// of resources. Just add cases to the switch.
+	//
+	// It may seem odd that we don't just pick the Kind out of the Resource and
+	// use it verbatim. It's a good idea to not do so in case some other
+	// Resource types get added later, but shouldn't have events issued. This
+	// prevents us from accidentally adding new event types.
+	switch resource.Kind {
+	case store.StackResourceKind:
+		daemon.logClusterEvent(action, resource.ID, events.StackEventType, attributes, eventTime)
+	default:
+		// issue a warn.
+		logrus.Warnf("received event for unknown resource kind %q", resource.Kind)
+	}
 }
 
 func (daemon *Daemon) logClusterEvent(action swarmapi.WatchActionKind, id, eventType string, attributes map[string]string, eventTime time.Time) {

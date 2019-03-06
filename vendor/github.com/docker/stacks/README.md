@@ -4,6 +4,9 @@ This repository contains API definitions and implementations relating
 to Docker Stacks, the runtime instantiation of Docker Compose based
 applications.
 
+The code is designed to be used standalone, or be vendored into other
+projects.
+
 
 ### Standalone Runtime
 
@@ -36,3 +39,9 @@ can run the e2e tests with something along the following lines:
 docker run --net host -e DOCKER_HOST=tcp://localhost:8080 dockereng/stack-e2e:latest
 ```
 Additional flags can be passed as command arguments - try `-help` for usage.
+
+
+## License
+docker/stacks is licensed under the Apache License, Version 2.0. See
+[LICENSE](https://github.com/docker/stacks/blob/master/LICENSE) for the full
+license text.
