@@ -6,6 +6,7 @@ import "github.com/docker/swarmkit/api/specs.proto";
 import "github.com/docker/swarmkit/api/objects.proto";
 import "github.com/docker/swarmkit/api/types.proto";
 import "gogoproto/gogo.proto";
+import "google/protobuf/any.proto";
 import "github.com/docker/swarmkit/protobuf/plugin/plugin.proto";
 
 // Control defines the RPC methods for controlling a cluster.
@@ -159,6 +160,80 @@ service Control {
 	// - Returns `NotFound` if the a config named `RemoveConfigRequest.ID` is not found.
 	// - Returns an error if the deletion fails.
 	rpc RemoveConfig(RemoveConfigRequest) returns (RemoveConfigResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// --- extension APIs ---
+
+	// GetExtension returns a `GetExtensionResponse` with a `Extension` with the same
+	// id as `GetExtensionRequest.ExtensionId`
+	// - Returns `NotFound` if the Extension with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetExtensionRequest.ExtensionId` is empty.
+	// - Returns an error if the get fails.
+	rpc GetExtension(GetExtensionRequest) returns (GetExtensionResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// CreateExtension creates an `Extension` based on the provided `CreateExtensionRequest.Extension`
+	// and returns a `CreateExtensionResponse`.
+	// - Returns `InvalidArgument` if the `CreateExtensionRequest.Extension` is malformed,
+	//   or fails validation.
+	// - Returns an error if the creation fails.
+	rpc CreateExtension(CreateExtensionRequest) returns (CreateExtensionResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// RemoveExtension removes the extension referenced by `RemoveExtensionRequest.ID`.
+	// - Returns `InvalidArgument` if `RemoveExtensionRequest.ExtensionId` is empty.
+	// - Returns `NotFound` if the an extension named `RemoveExtensionRequest.ExtensionId` is not found.
+	// - Returns an error if the deletion fails.
+	rpc RemoveExtension(RemoveExtensionRequest) returns (RemoveExtensionResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// --- resource APIs ---
+
+	// GetResource returns a `GetResourceResponse` with a `Resource` with the same
+	// id as `GetResourceRequest.Resource`
+	// - Returns `NotFound` if the Resource with the given id is not found.
+	// - Returns `InvalidArgument` if the `GetResourceRequest.Resource` is empty.
+	// - Returns an error if getting fails.
+	rpc GetResource(GetResourceRequest) returns (GetResourceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// UpdateResource updates the resource with the given `UpdateResourceRequest.Resource.Id` using the given `UpdateResourceRequest.Resource` and returns a `UpdateResourceResponse`.
+	// - Returns `NotFound` if the Resource with the given `UpdateResourceRequest.Resource.Id` is not found.
+	// - Returns `InvalidArgument` if the UpdateResourceRequest.Resource.Id` is empty.
+	// - Returns an error if updating fails.
+	rpc UpdateResource(UpdateResourceRequest) returns (UpdateResourceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// ListResources returns a `ListResourcesResponse` with a list of `Resource`s stored in the raft store,
+	// or all resources matching any name in `ListConfigsRequest.Names`, any
+	// name prefix in `ListResourcesRequest.NamePrefixes`, any id in
+	// `ListResourcesRequest.ResourceIDs`, or any id prefix in `ListResourcesRequest.IDPrefixes`,
+	// extension name equal to `ListResourcesRequest.Extension`.
+	// - Returns an error if listing fails.
+	rpc ListResources(ListResourcesRequest) returns (ListResourcesResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// CreateResource returns a `CreateResourceResponse` after creating a `Resource` based
+	// on the provided `CreateResourceRequest.Resource`.
+	// - Returns `InvalidArgument` if the `CreateResourceRequest.Resource` is malformed,
+	//   or if the config data is too long or contains invalid characters.
+	// - Returns an error if the creation fails.
+	rpc CreateResource(CreateResourceRequest) returns (CreateResourceResponse) {
+		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
+	}
+
+	// RemoveResource removes the `Resource` referenced by `RemoveResourceRequest.ResourceID`.
+	// - Returns `InvalidArgument` if `RemoveResourceRequest.ResourceID` is empty.
+	// - Returns `NotFound` if the a resource named `RemoveResourceRequest.ResourceID` is not found.
+	// - Returns an error if the deletion fails.
+	rpc RemoveResource(RemoveResourceRequest) returns (RemoveResourceResponse) {
 		option (docker.protobuf.plugin.tls_authorization) = { roles: "swarm-manager" };
 	}
 }
@@ -556,3 +631,111 @@ message RemoveConfigRequest {
 // RemoveConfigResponse is an empty object indicating the successful removal of
 // a config.
 message RemoveConfigResponse {}
+
+// CreateExtensionRequest creates a new extension as specified by the provided
+// parameters
+message CreateExtensionRequest {
+	Annotations annotations = 1;
+	string description = 2;
+}
+
+// CreateExtensionResponse contains the newly created `Extension` corresponding
+// to the parameters in the CreateExtensionRequest.
+message CreateExtensionResponse {
+	Extension extension = 1;
+}
+
+// RemoveExtensionRequest contains the ID of the extension that should be removed. This
+// removes all versions of the extension.
+message RemoveExtensionRequest {
+	string extension_id = 1;
+}
+
+// RemoveExtensionResponse is an empty object indicating the successful removal
+// of an extension.
+message RemoveExtensionResponse {
+}
+
+// GetResourceRequest is the request to get a Extension object given a extension id.
+message GetExtensionRequest {
+	string extension_id = 1;
+}
+
+// GetExtensionResponse contains the Extension corresponding to the id in
+// `GetExtensionRequest`.
+message GetExtensionResponse {
+	Extension extension = 1;
+}
+
+// CreateResourceRequest creates a new resource specified by the included
+// resource object. An existing resource will not be updated.
+message CreateResourceRequest {
+	Annotations annotations = 1;
+	string kind = 2;
+	google.protobuf.Any payload = 3;
+}
+
+// CreateResourceResponse contains the newly created `Resource` corresponding
+// to the resource in the CreateResourceRequest.
+message CreateResourceResponse {
+	Resource resource = 1;
+}
+
+// RemoveResourceRequest contains the ID of the resource that should be removed. This
+// removes all versions of the resource.
+message RemoveResourceRequest {
+	string resource_id = 1;
+}
+
+// RemoveResourceResponse is an empty object indicating the successful removal
+// of a resource.
+message RemoveResourceResponse {
+}
+
+// UpdateResourceRequest updates the resource specified by the given resource object.
+message UpdateResourceRequest {
+	string resource_id = 1;
+	Version resource_version = 2;
+	// Annotations describes the annotations to update. If the Annotations should
+	// be unchanged, then this field should be left empty. Note that the name of
+	// a Resource cannot be changed, only its labels.
+	Annotations annotations = 3;
+	// Payload describes the new payload of the resource. If the Payload should
+	// be unchanged, then this field should be left empty.
+	google.protobuf.Any payload = 4;
+}
+
+message UpdateResourceResponse {
+	Resource resource = 1;
+}
+
+// GetResourceRequest is the request to get a Resource object given a resource id.
+message GetResourceRequest {
+	string resource_id = 1;
+}
+
+// GetResourceResponse contains the Resource corresponding to the id in
+// `GetResourceRequest`.
+message GetResourceResponse {
+	Resource resource = 1;
+}
+
+// ListResourcesRequest is the request to list all resources in the raft store,
+// or all resources filtered by (name or name prefix or id prefix), labels and extension.
+message ListResourcesRequest {
+	message Filters {
+		repeated string names = 1;
+		repeated string id_prefixes = 2;
+		map<string, string> labels = 3;
+		repeated string name_prefixes = 4;
+		string kind = 5;
+	}
+
+	Filters filters = 1;
+}
+
+// ListResourcesResponse contains a list of all the resources that match the name or
+// name prefix filters provided in `ListResourcesRequest`.
+message ListResourcesResponse {
+	repeated Resource resources = 1;
+}

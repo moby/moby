@@ -4,6 +4,7 @@ package docker.swarmkit.v1;
 
 import "google/protobuf/timestamp.proto";
 import "google/protobuf/duration.proto";
+import "google/protobuf/wrappers.proto";
 import "gogoproto/gogo.proto";
 
 // This file contains types that are common to objects and spec or that are not
@@ -77,6 +78,17 @@ message Resources {
 message ResourceRequirements {
 	Resources limits = 1;
 	Resources reservations = 2;
+
+	// Amount of swap in bytes - can only be used together with a memory limit
+	// -1 means unlimited
+	// a null pointer indicates that the default behaviour of granting twice
+	// the memory is maintained
+	google.protobuf.Int64Value swap_bytes = 3;
+
+	// Tune container memory swappiness (0 to 100) - if not specified, defaults
+	// to the container OS's default - generally 60, or the value predefined in
+	// the image; set to -1 to unset a previously set value
+	google.protobuf.Int64Value memory_swappiness = 4;
 }
 
 message Platform {
