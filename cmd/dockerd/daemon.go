@@ -432,14 +432,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		conf.CommonTLSOptions.KeyFile = opts.TLSOptions.KeyFile
 	}
 
-	if conf.TrustKeyPath == "" {
-		daemonConfDir, err := getDaemonConfDir(conf.Root)
-		if err != nil {
-			return nil, err
-		}
-		conf.TrustKeyPath = filepath.Join(daemonConfDir, defaultTrustKeyFile)
-	}
-
 	if flags.Changed("graph") && flags.Changed("data-root") {
 		return nil, errors.New(`cannot specify both "--graph" and "--data-root" option`)
 	}
@@ -460,17 +452,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 
 	if err := config.Validate(conf); err != nil {
 		return nil, err
-	}
-
-	if runtime.GOOS != "windows" {
-		if flags.Changed("disable-legacy-registry") {
-			// TODO: Remove this error after 3 release cycles (18.03)
-			return nil, errors.New("ERROR: The '--disable-legacy-registry' flag has been removed. Interacting with legacy (v1) registries is no longer supported")
-		}
-		if !conf.V2Only {
-			// TODO: Remove this error after 3 release cycles (18.03)
-			return nil, errors.New("ERROR: The 'disable-legacy-registry' configuration option has been removed. Interacting with legacy (v1) registries is no longer supported")
-		}
 	}
 
 	if flags.Changed("graph") {
