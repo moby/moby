@@ -257,6 +257,30 @@ func TestCopyErrDstNotDir(t *testing.T) {
 	}
 }
 
+// Test to check if CopyTo works with a long (>100 characters) destination file name.
+// This is a regression (see https://github.com/docker/for-linux/issues/484).
+func TestCopyLongDstFilename(t *testing.T) {
+	const longName = "a_very_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx_long_filename_that_is_101_characters"
+	tmpDirA, tmpDirB := getTestTempDirs(t)
+	defer removeAllPaths(tmpDirA, tmpDirB)
+
+	// Load A with some sample files and directories.
+	createSampleDir(t, tmpDirA)
+
+	srcInfo := CopyInfo{Path: filepath.Join(tmpDirA, "file1"), Exists: true, IsDir: false}
+
+	content, err := TarResource(srcInfo)
+	if err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+	defer content.Close()
+
+	err = CopyTo(content, srcInfo, filepath.Join(tmpDirB, longName))
+	if err != nil {
+		t.Fatalf("unexpected error %T: %s", err, err)
+	}
+}
+
 // Possibilities are reduced to the remaining 10 cases:
 //
 //  case | srcIsDir | onlyDirContents | dstExists | dstIsDir | dstTrSep | action
