@@ -31,7 +31,7 @@ RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
 
 FROM base AS criu
 # Install CRIU for checkpoint/restore support
-ENV CRIU_VERSION 3.6
+ENV CRIU_VERSION 3.11
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y \
 	libnet-dev \
@@ -203,6 +203,9 @@ RUN apt-get update && apt-get install -y \
 	zip \
 	bzip2 \
 	xz-utils \
+	libprotobuf-c1 \
+	libnet1 \
+	libnl-3-200 \
 	--no-install-recommends
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
