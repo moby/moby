@@ -10,6 +10,7 @@ import (
 
 	"github.com/docker/stacks/pkg/compose/loader"
 	"github.com/docker/stacks/pkg/compose/template"
+
 	composetypes "github.com/docker/stacks/pkg/compose/types"
 	"github.com/docker/stacks/pkg/types"
 )

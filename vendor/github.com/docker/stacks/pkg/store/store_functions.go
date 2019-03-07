@@ -121,8 +121,12 @@ func UpdateStack(ctx context.Context, rc ResourcesClient, id string, st types.St
 		&swarmapi.UpdateResourceRequest{
 			ResourceID:      id,
 			ResourceVersion: &swarmapi.Version{Index: version},
-			// we don't need to set the value of Annotations. leaving it empty
-			// indicates no change
+			Annotations: &swarmapi.Annotations{
+				// Swarmkit will return an error if any changes to the
+				// name occur.
+				Name:   sst.Annotations.Name,
+				Labels: sst.Annotations.Labels,
+			},
 			Payload: any,
 		},
 	)

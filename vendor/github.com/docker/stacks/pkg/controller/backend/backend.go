@@ -3,6 +3,7 @@ package backend
 import (
 	"fmt"
 
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/stacks/pkg/compose/convert"
 	"github.com/docker/stacks/pkg/compose/loader"
 	composetypes "github.com/docker/stacks/pkg/compose/types"
@@ -36,20 +37,14 @@ func (b *DefaultStacksBackend) CreateStack(create types.StackCreate) (types.Stac
 		return types.StackCreateResponse{}, fmt.Errorf("invalid orchestrator type %s. This backend only supports orchestrator type swarm", create.Orchestrator)
 	}
 
-	err := validateSpec(create.Spec)
-	if err != nil {
-		return types.StackCreateResponse{}, fmt.Errorf("invalid stack spec: %s", err)
-	}
-
 	// Create the Swarm Stack object
 	stack := types.Stack{
-		Metadata:     create.Metadata,
 		Spec:         create.Spec,
 		Orchestrator: types.OrchestratorSwarm,
 	}
 
 	// Convert to the Stack to a SwarmStack
-	swarmSpec, err := b.convertToSwarmStackSpec(create.Metadata.Name, create.Spec)
+	swarmSpec, err := b.convertToSwarmStackSpec(create.Spec)
 	if err != nil {
 		return types.StackCreateResponse{}, fmt.Errorf("unable to translate swarm spec: %s", err)
 	}
@@ -102,23 +97,9 @@ func (b *DefaultStacksBackend) ListSwarmStacks() ([]interfaces.SwarmStack, error
 
 // UpdateStack updates a stack.
 func (b *DefaultStacksBackend) UpdateStack(id string, spec types.StackSpec, version uint64) error {
-	err := validateSpec(spec)
-	if err != nil {
-		return fmt.Errorf("invalid stack spec: %s", err)
-	}
-
-	// Inspect the existing stack of the same ID so we can retain the name of
-	// the stack in its labels. If the stack has changed since the user's
-	// request, the underlying StackStore should return an "update out of
-	// sequence" error.
-	stack, err := b.stackStore.GetStack(id)
-	if err != nil {
-		return fmt.Errorf("unable to retrieve existing stack: %s", err)
-	}
-
 	// Convert the new StackSpec to a SwarmStackSpec, while retaining the
 	// namespace label.
-	swarmSpec, err := b.convertToSwarmStackSpec(stack.Name, spec)
+	swarmSpec, err := b.convertToSwarmStackSpec(spec)
 	if err != nil {
 		return fmt.Errorf("unable to translate swarm spec: %s", err)
 	}
@@ -131,26 +112,19 @@ func (b *DefaultStacksBackend) DeleteStack(id string) error {
 	return b.stackStore.DeleteStack(id)
 }
 
-// validateSpec returns an error if the provided StackSpec is not valid.
-func validateSpec(_ types.StackSpec) error {
-	// TODO(alexmavr): implement
-	return nil
-}
-
 // ParseComposeInput parses a compose file and returns the StackCreate object with the spec and any properties
 func (b *DefaultStacksBackend) ParseComposeInput(input types.ComposeInput) (*types.StackCreate, error) {
 	return loader.ParseComposeInput(input)
 }
 
-func (b *DefaultStacksBackend) convertToSwarmStackSpec(name string, spec types.StackSpec) (interfaces.SwarmStackSpec, error) {
-
+func (b *DefaultStacksBackend) convertToSwarmStackSpec(spec types.StackSpec) (interfaces.SwarmStackSpec, error) {
 	// Substitute variables with desired property values
 	substitutedSpec, err := substitution.DoSubstitution(spec)
 	if err != nil {
 		return interfaces.SwarmStackSpec{}, err
 	}
 
-	namespace := convert.NewNamespace(name)
+	namespace := convert.NewNamespace(spec.Metadata.Name)
 
 	services, err := convert.Services(namespace, substitutedSpec, b.swarmBackend)
 	if err != nil {
@@ -172,6 +146,10 @@ func (b *DefaultStacksBackend) convertToSwarmStackSpec(name string, spec types.S
 	// TODO: validate external networks?
 
 	stackSpec := interfaces.SwarmStackSpec{
+		Annotations: swarm.Annotations{
+			Name:   spec.Metadata.Name,
+			Labels: spec.Metadata.Labels,
+		},
 		Services: services,
 		Configs:  configs,
 		Secrets:  secrets,

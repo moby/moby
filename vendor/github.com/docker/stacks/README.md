@@ -7,6 +7,7 @@ applications.
 The code is designed to be used standalone, or be vendored into other
 projects.
 
+This repository is solely maintained by Docker, Inc.
 
 ### Standalone Runtime
 
