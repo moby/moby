@@ -5,13 +5,13 @@ The Moby Project
 
 Moby is an open-source project created by Docker to enable and accelerate software containerization.
 
-It provides a "Lego set" of toolkit components, the framework for assembling them into custom container-based systems, and a place for all container enthusiasts and professionals to experiment and exchange ideas.
-Components include container build tools, a container registry, orchestration tools, a runtime and more, and these can be used as building blocks in conjunction with other tools and projects.
+Moby provides a "Lego set" of toolkit components, the framework for assembling them into custom container-based systems, and a place for all container enthusiasts and professionals to experiment and exchange ideas.
+Components include container build tools, a container registry, orchestration tools, a runtime and more. The components can be used in conjunction with other tools and projects.
 
 ## Principles
 
-Moby is an open project guided by strong principles, aiming to be modular, flexible and without too strong an opinion on user experience.
-It is open to the community to help set its direction.
+Moby is an open project guided by strong principles. It aims to be modular, flexible and without too strong an opinion on user experience.
+Moby is open to community help for its direction.
 
 - Modular: the project includes lots of components that have well-defined functions and APIs that work together.
 - Batteries included but swappable: Moby includes enough components to build fully featured container system, but its modular architecture ensures that most of the components can be swapped by different implementations.
