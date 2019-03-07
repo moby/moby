@@ -185,7 +185,7 @@ validate: build ## validate DCO, Seccomp profile generation, gofmt,\n./pkg/ isol
 	$(DOCKER_RUN_DOCKER) hack/validate/all
 
 win: build ## cross build the binary for windows
-	$(DOCKER_RUN_DOCKER) hack/make.sh win
+	$(DOCKER_RUN_DOCKER) DOCKER_CROSSPLATFORMS=windows/amd64 hack/make.sh cross
 
 .PHONY: swagger-gen
 swagger-gen:
