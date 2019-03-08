@@ -4,6 +4,7 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 // non-contiguous functionality. Please read the comments.
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -14,11 +15,11 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/containerfs"
@@ -26,7 +27,6 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/go-connections/nat"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -113,47 +113,31 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
+	logrus.Infof("state.imageID=%s parent.ImageID=%s", state.imageID, parent.ImageID())
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
 	}
 
-	parentImage, ok := parent.(*image.Image)
-	if !ok {
-		return errors.Errorf("unexpected image type")
-	}
-
-	platform := &specs.Platform{
-		OS:           parentImage.OS,
-		Architecture: parentImage.Architecture,
-		Variant:      parentImage.Variant,
-	}
-
 	// add an image mount without an image so the layer is properly unmounted
 	// if there is an error before we can add the full mount with image
-	b.imageSources.Add(newImageMount(nil, newLayer), platform)
+	// TODO(containerd): get platform from parent, use more than just OS
+	p := platforms.DefaultSpec()
+	b.imageSources.Add(newImageMount(nil, newLayer), &p)
 
-	newImage := image.NewChildImage(parentImage, image.ChildConfig{
+	config := backend.NewImageConfig{
+		ParentImageID:   parent.ImageID(),
 		Author:          state.maintainer,
 		ContainerConfig: runConfig,
-		DiffID:          newLayer.DiffID(),
 		Config:          copyRunConfig(state.runConfig),
-	}, parentImage.OS)
-
-	// TODO: it seems strange to marshal this here instead of just passing in the
-	// image struct
-	config, err := newImage.MarshalJSON()
-	if err != nil {
-		return errors.Wrap(err, "failed to encode image config")
 	}
-
-	exportedImage, err := b.docker.CreateImage(config, state.imageID)
+	exportedImage, err := b.docker.CreateImage(context.Background(), config, newLayer)
 	if err != nil {
 		return errors.Wrapf(err, "failed to export image")
 	}
 
-	state.imageID = exportedImage.ImageID()
-	b.imageSources.Add(newImageMount(exportedImage, newLayer), platform)
+	state.imageID = exportedImage.Digest.String()
+	b.imageSources.Add(newImageMount(newContainerdImage(exportedImage, b.containerdCli, copyRunConfig(state.runConfig)), newLayer))
 	return nil
 }
 

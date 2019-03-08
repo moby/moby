@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -48,17 +49,19 @@ const (
 
 // BuildManager is shared across all Builder objects
 type BuildManager struct {
-	idMapping *idtools.IdentityMapping
-	backend   builder.Backend
-	pathCache pathCache // TODO: make this persistent
+	idMapping     *idtools.IdentityMapping
+	backend       builder.Backend
+	pathCache     pathCache // TODO: make this persistent
+	containerdCli *containerd.Client
 }
 
 // NewBuildManager creates a BuildManager
-func NewBuildManager(b builder.Backend, identityMapping *idtools.IdentityMapping) (*BuildManager, error) {
+func NewBuildManager(b builder.Backend, sg SessionGetter, identityMapping *idtools.IdentityMapping, containerdCli *containerd.Client) (*BuildManager, error) {
 	bm := &BuildManager{
-		backend:   b,
-		pathCache: &syncmap.Map{},
-		idMapping: identityMapping,
+		backend:       b,
+		pathCache:     &syncmap.Map{},
+		idMapping:     identityMapping,
+		containerdCli: containerdCli,
 	}
 	return bm, nil
 }
@@ -95,6 +98,7 @@ func (bm *BuildManager) Build(ctx context.Context, config backend.BuildConfig) (
 		Backend:        bm.backend,
 		PathCache:      bm.pathCache,
 		IDMapping:      bm.idMapping,
+		containerdCli:  bm.containerdCli,
 	}
 	b, err := newBuilder(ctx, builderOptions)
 	if err != nil {
@@ -110,6 +114,7 @@ type builderOptions struct {
 	ProgressWriter backend.ProgressWriter
 	PathCache      pathCache
 	IDMapping      *idtools.IdentityMapping
+	containerdCli  *containerd.Client
 }
 
 // Builder is a Dockerfile builder
@@ -122,8 +127,9 @@ type Builder struct {
 	Aux    *streamformatter.AuxFormatter
 	Output io.Writer
 
-	docker    builder.Backend
-	clientCtx context.Context
+	docker        builder.Backend
+	containerdCli *containerd.Client
+	clientCtx     context.Context
 
 	idMapping        *idtools.IdentityMapping
 	disableCommit    bool
@@ -149,6 +155,7 @@ func newBuilder(clientCtx context.Context, options builderOptions) (*Builder, er
 		Aux:              options.ProgressWriter.AuxFormatter,
 		Output:           options.ProgressWriter.Output,
 		docker:           options.Backend,
+		containerdCli:    options.containerdCli,
 		idMapping:        options.IDMapping,
 		imageSources:     newImageSources(clientCtx, options),
 		pathCache:        options.PathCache,

@@ -1532,6 +1532,11 @@ func (daemon *Daemon) ImageService() *images.ImageService {
 	return daemon.imageService
 }
 
+// ContainerdClient returns the containerd client used by the daemon
+func (daemon *Daemon) ContainerdClient() *containerd.Client {
+	return daemon.containerdCli
+}
+
 // BuilderBackend returns the backend used by builder
 func (daemon *Daemon) BuilderBackend() builder.Backend {
 	return struct {

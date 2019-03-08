@@ -282,7 +282,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, errors.Wrap(err, "failed to create sessionmanager")
 	}
 
-	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping())
+	manager, err := dockerfile.NewBuildManager(d.BuilderBackend(), d.IdentityMapping(), d.ContainerdClient())
 	if err != nil {
 		return opts, err
 	}
