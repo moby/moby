@@ -1,10 +1,20 @@
 package images // import "github.com/docker/docker/daemon/images"
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"runtime"
+	"strings"
+	"time"
 
+	"github.com/docker/docker/api/types/container"
+
+	"github.com/containerd/containerd/images"
+
+	"github.com/containerd/containerd/content"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
@@ -15,7 +25,8 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -140,7 +151,7 @@ func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLay
 
 // TODO: could this use the regular daemon PullImage ?
 // TODO(containerd): don't return *image.Image type
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *specs.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *ocispec.Platform) (*image.Image, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
 		return nil, err
@@ -210,18 +221,125 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // CreateImage creates a new image by adding a config and ID to the image store.
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
-func (i *ImageService) CreateImage(config []byte, parent string) (builder.Image, error) {
+func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImageConfig, newROLayer builder.ROLayer) (ocispec.Descriptor, error) {
 	// TODO(containerd): use containerd's image store
-	id, err := i.imageStore.Create(config)
+
+	cache, err := i.getCache(ctx)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create image")
+		return ocispec.Descriptor{}, err
 	}
 
-	if parent != "" {
-		if err := i.imageStore.SetParent(id, image.ID(parent)); err != nil {
-			return nil, errors.Wrapf(err, "failed to set parent %s", parent)
+	var img struct {
+		ocispec.Image
+
+		// Overwrite config for custom Docker fields
+		Container       string            `json:"container,omitempty"`
+		ContainerConfig container.Config  `json:"container_config,omitempty"`
+		Config          *container.Config `json:"config,omitempty"`
+
+		Comment    string   `json:"comment,omitempty"`
+		OSVersion  string   `json:"os.version,omitempty"`
+		OSFeatures []string `json:"os.features,omitempty"`
+		Variant    string   `json:"variant,omitempty"`
+		// TODO: Overwrite this with a label from config
+		DockerVersion string `json:"docker_version,omitempty"`
+	}
+
+	if newImage.ParentImageID == "" {
+		img.RootFS.Type = "layers"
+	} else {
+		desc := ocispec.Descriptor{
+			MediaType: ocispec.MediaTypeImageConfig,
+			Digest:    digest.Digest(newImage.ParentImageID),
+		}
+
+		b, err := content.ReadBlob(ctx, i.client.ContentStore(), desc)
+		if err != nil {
+			return ocispec.Descriptor{}, errors.Wrap(err, "unable to read config")
+		}
+
+		if err := json.Unmarshal(b, &img); err != nil {
+			return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal config")
 		}
 	}
+	created := time.Now().UTC()
+	img.Created = &created
 
-	return i.imageStore.Get(id)
+	isEmptyLayer := layer.IsEmpty(newROLayer.DiffID())
+	if !isEmptyLayer {
+		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(newROLayer.DiffID()))
+	}
+	img.History = append(img.History, ocispec.History{
+		Author:     newImage.Author,
+		Created:    &created,
+		CreatedBy:  strings.Join(newImage.ContainerConfig.Cmd, " "),
+		EmptyLayer: isEmptyLayer,
+	})
+	img.Author = newImage.Author
+	img.OS = newImage.OS
+	img.Config = newImage.Config
+	img.ContainerConfig = *newImage.ContainerConfig
+
+	store, err := i.getLayerStore(ocispec.Platform{OS: newImage.OS})
+	if err != nil {
+		return ocispec.Descriptor{}, err
+	}
+
+	config, err := json.Marshal(img)
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal committed image")
+	}
+
+	desc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageConfig,
+		Digest:    digest.FromBytes(config),
+		Size:      int64(len(config)),
+	}
+
+	newLayer, ok := newROLayer.(*roLayer)
+	if !ok {
+		return ocispec.Descriptor{}, errors.Errorf("unexpected image type")
+	}
+
+	driver := newLayer.layerStore.DriverName()
+	key := fmt.Sprintf("%s%s", LabelLayerPrefix, driver)
+	layerID := digest.Digest(newLayer.roLayer.ChainID())
+	labels := map[string]string{
+		key: layerID.String(),
+	}
+
+	if newImage.ParentImageID != "" {
+		labels[LabelImageParent] = newImage.ParentImageID
+	}
+
+	opts := []content.Opt{content.WithLabels(labels)}
+
+	// write image config data to content store
+	ref := fmt.Sprintf("config-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
+	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc, opts...); err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store config")
+	}
+
+	// create a dangling image
+	_, err = i.client.ImageService().Create(ctx, images.Image{
+		Name:      desc.Digest.String(),
+		Target:    desc,
+		CreatedAt: created,
+		UpdatedAt: created,
+	})
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrapf(err, "failed to create image")
+	}
+
+	cache.m.Lock()
+
+	if _, ok := cache.layers[driver][layerID]; !ok {
+		cache.layers[driver][layerID] = newLayer.roLayer
+	} else {
+		// Image already retained, don't hold onto layer
+		defer layer.ReleaseAndLog(store, newLayer.roLayer)
+	}
+	cache.m.Unlock()
+
+	return desc, nil
 }

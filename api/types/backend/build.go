@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/pkg/streamformatter"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 )
@@ -42,4 +43,12 @@ type GetImageAndLayerOptions struct {
 	AuthConfig map[string]types.AuthConfig
 	Output     io.Writer
 	Platform   *specs.Platform
+}
+
+type NewImageConfig struct {
+	ParentImageID   string
+	Author          string
+	OS              string
+	ContainerConfig *container.Config
+	Config          *container.Config
 }

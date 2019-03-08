@@ -15,6 +15,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 const (
@@ -46,7 +47,7 @@ type Backend interface {
 	// ContainerCreateWorkdir creates the workdir
 	ContainerCreateWorkdir(containerID string) error
 
-	CreateImage(config []byte, parent string) (Image, error)
+	CreateImage(ctx context.Context, newImage backend.NewImageConfig, newROLayer ROLayer) (ocispec.Descriptor, error)
 
 	ImageCacheBuilder
 }

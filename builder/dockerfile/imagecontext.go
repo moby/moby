@@ -4,15 +4,18 @@ import (
 	"context"
 	"runtime"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/content"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	dockerimage "github.com/docker/docker/image"
-	specs "github.com/opencontainers/image-spec/specs-go/v1"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
-type getAndMountFunc func(string, bool, *specs.Platform) (builder.Image, builder.ROLayer, error)
+type getAndMountFunc func(string, bool, *ocispec.Platform) (builder.Image, builder.ROLayer, error)
 
 // imageSources mounts images and provides a cache for mounted images. It tracks
 // all images so they can be unmounted at the end of the build.
@@ -23,7 +26,7 @@ type imageSources struct {
 }
 
 func newImageSources(ctx context.Context, options builderOptions) *imageSources {
-	getAndMount := func(idOrRef string, localOnly bool, platform *specs.Platform) (builder.Image, builder.ROLayer, error) {
+	getAndMount := func(idOrRef string, localOnly bool, platform *ocispec.Platform) (builder.Image, builder.ROLayer, error) {
 		pullOption := backend.PullOptionNoPull
 		if !localOnly {
 			if options.Options.PullParent {
@@ -46,7 +49,7 @@ func newImageSources(ctx context.Context, options builderOptions) *imageSources 
 	}
 }
 
-func (m *imageSources) Get(idOrRef string, localOnly bool, platform *specs.Platform) (*imageMount, error) {
+func (m *imageSources) Get(idOrRef string, localOnly bool, platform *ocispec.Platform) (*imageMount, error) {
 	if im, ok := m.byImageID[idOrRef]; ok {
 		return im, nil
 	}
@@ -119,4 +122,34 @@ func (im *imageMount) NewRWLayer() (builder.RWLayer, error) {
 
 func (im *imageMount) ImageID() string {
 	return im.image.ImageID()
+}
+
+type containerdImage struct {
+	desc          ocispec.Descriptor
+	containerdCli *containerd.Client
+	config        *container.Config
+}
+
+func newContainerdImage(desc ocispec.Descriptor, client *containerd.Client, config *container.Config) *containerdImage {
+	return &containerdImage{desc: desc, containerdCli: client, config: config}
+}
+
+func (ci *containerdImage) ImageID() string {
+	return ci.desc.Digest.String()
+}
+
+func (ci *containerdImage) RunConfig() *container.Config {
+	return ci.config
+}
+
+func (ci *containerdImage) OperatingSystem() string {
+	return ci.desc.Platform.OS
+}
+
+func (ci *containerdImage) MarshalJSON() ([]byte, error) {
+	b, err := content.ReadBlob(context.Background(), ci.containerdCli.ContentStore(), ci.desc)
+	if err != nil {
+		return nil, errors.Wrap(err, "unable to read config")
+	}
+	return b, nil
 }
