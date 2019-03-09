@@ -223,6 +223,7 @@ RUN apt-get update && apt-get install -y \
 	aufs-tools \
 	bash-completion \
 	btrfs-tools \
+	fuse \
 	iptables \
 	jq \
 	libcap2-bin \
@@ -281,7 +282,6 @@ RUN cd /docker-py \
 	&& pip install -r test-requirements.txt
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e /vpnkit /usr/local/bin/vpnkit.x86_64
-
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux
 # Options for hack/validate/gometalinter

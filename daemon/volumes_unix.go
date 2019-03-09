@@ -3,8 +3,10 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"encoding/base64"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -12,8 +14,10 @@ import (
 	mounttypes "github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/fileutils"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
 	volumemounts "github.com/docker/docker/volume/mounts"
+	"github.com/pkg/errors"
 )
 
 // setupMounts iterates through each of the mount points for a container and
@@ -29,6 +33,11 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	}
 	for _, m := range tmpfsMountInfo {
 		tmpfsMounts[m.Destination] = true
+	}
+
+	mappedMountsPath, err := c.GetRootResourcePath("mapped_mounts")
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting container's mapped mounts path for uid/gid mapped bind mounts")
 	}
 	for _, m := range c.MountPoints {
 		if tmpfsMounts[m.Destination] {
@@ -52,6 +61,24 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		if err != nil {
 			return nil, err
 		}
+
+		mappedPath := filepath.Join(mappedMountsPath, base64.StdEncoding.EncodeToString(([]byte(path))))
+
+		if err := idtools.MkdirAllAndChown(mappedPath, 0755, daemon.idMapping.RootPair()); err != nil {
+			return nil, errors.Wrap(err, "error preparing id mapped dir for bind mount")
+		}
+
+		// TODO: handle unmount somehow
+		var opts []string
+		if !m.RW {
+			opts = append(opts, "ro")
+		}
+		if _, err := idtools.MapFS(daemon.idMapping, path, mappedPath, opts); err != nil {
+			return nil, err
+		}
+
+		path = mappedPath
+
 		if !c.TrySetNetworkMount(m.Destination, path) {
 			mnt := container.Mount{
 				Source:      path,
