@@ -87,6 +87,16 @@ message ServiceSpec {
 	// Service endpoint specifies the user provided configuration
 	// to properly discover and load balance a service.
 	EndpointSpec endpoint = 8;
+
+	AutoRange AutoRange = 10;
+}
+
+message Range {
+	map<string, string> Step = 1;
+}
+
+message AutoRange {
+	map<string, Range> Range = 1;
 }
 
 // ReplicatedService sets the reconciliation target to certain number of replicas.
@@ -139,6 +149,8 @@ message TaskSpec {
 	//
 	// ResourceReferences is a list of ResourceReferences used by the task.
 	repeated ResourceReference resource_references = 11 [(gogoproto.nullable) = false];
+
+	AutoRange AutoRange = 12;
 }
 
 message ResourceReference {
@@ -341,6 +353,8 @@ message ContainerSpec {
 	// to the container OS's default - generally 60, or the value predefined in
 	// the image; set to -1 to unset a previously set value
 	google.protobuf.Int64Value memory_swappiness = 28;
+
+	AutoRange AutoRange = 29;
 }
 
 // EndpointSpec defines the properties that can be configured to

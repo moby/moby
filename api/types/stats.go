@@ -169,12 +169,17 @@ type Stats struct {
 	MemoryStats MemoryStats `json:"memory_stats,omitempty"`
 }
 
+// AutoRange is the map containing the results of autorange calculation
+type AutoRange map[string]map[string]string
+
 // StatsJSON is newly used Networks
 type StatsJSON struct {
 	Stats
 
 	Name string `json:"name,omitempty"`
 	ID   string `json:"id,omitempty"`
+
+	AutoRange `json:"autorange,omitempty"`
 
 	// Networks request version >=1.21
 	Networks map[string]NetworkStats `json:"networks,omitempty"`

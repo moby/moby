@@ -58,6 +58,7 @@ type ImageMetadata struct {
 type Container struct {
 	ID         string `json:"Id"`
 	Names      []string
+	AutoRange  AutoRange
 	Image      string
 	ImageID    string
 	Command    string

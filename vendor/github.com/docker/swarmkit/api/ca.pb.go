@@ -145,6 +145,8 @@
 		Snapshot
 		NodeSpec
 		ServiceSpec
+		Range
+		AutoRange
 		ReplicatedService
 		GlobalService
 		TaskSpec

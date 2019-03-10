@@ -1,6 +1,7 @@
 package convert // import "github.com/docker/docker/daemon/cluster/convert"
 
 import (
+	"reflect"
 	"testing"
 
 	containertypes "github.com/docker/docker/api/types/container"
@@ -440,6 +441,120 @@ func TestServiceConvertToGRPCMismatchedRuntime(t *testing.T) {
 			if _, err := ServiceSpecToGRPC(s); err != ErrMismatchedRuntime {
 				t.Fatalf("expected %v got %v", ErrMismatchedRuntime, err)
 			}
+		}
+	}
+}
+
+func TestAutoRangeFromGRPC(t *testing.T) {
+
+	testSwarmAutoRange := []*swarmapi.AutoRange{
+		nil,
+		{},
+		{
+			Range: map[string]*swarmapi.Range{
+				"cpu%":   {},
+				"memory": {},
+			},
+		},
+		{
+			Range: map[string]*swarmapi.Range{
+				"cpu%": {
+					Step: map[string]string{
+						"max": "120",
+						"min": "110",
+					},
+				},
+				"memory": {
+					Step: map[string]string{
+						"max":       "2795920",
+						"min":       "2795920",
+						"threshold": "20",
+					},
+				},
+			},
+		},
+	}
+
+	expected := []swarmtypes.AutoRange{
+		{},
+		{},
+		{
+			"cpu%":   {},
+			"memory": {},
+		},
+		{
+			"cpu%": {
+				"max": "120",
+				"min": "110",
+			},
+			"memory": {
+				"max":       "2795920",
+				"min":       "2795920",
+				"threshold": "20",
+			},
+		},
+	}
+
+	for index, test := range testSwarmAutoRange {
+		result := AutoRangeFromGRPC(test)
+		if !reflect.DeepEqual(result, expected[index]) {
+			t.Fail()
+		}
+	}
+}
+
+func TestAutoRangeToGRPC(t *testing.T) {
+	testAutoRange := []swarmtypes.AutoRange{
+		{},
+		{
+			"cpu%":   {},
+			"memory": {},
+		},
+		{
+			"cpu%": {
+				"max": "120",
+				"min": "110",
+			},
+			"memory": {
+				"max":       "2795920",
+				"min":       "2795920",
+				"threshold": "20",
+			},
+		},
+	}
+
+	expected := []*swarmapi.AutoRange{
+		nil,
+		{
+			Range: map[string]*swarmapi.Range{
+				"cpu%":   {Step: map[string]string{}},
+				"memory": {Step: map[string]string{}},
+			},
+		},
+		{
+			Range: map[string]*swarmapi.Range{
+				"cpu%": {
+					Step: map[string]string{
+						"max": "120",
+						"min": "110",
+					},
+				},
+				"memory": {
+					Step: map[string]string{
+						"max":       "2795920",
+						"min":       "2795920",
+						"threshold": "20",
+					},
+				},
+			},
+		},
+	}
+
+	for index, test := range testAutoRange {
+		result := AutoRangeToGRPC(test)
+		t.Logf("result: %+v | expected: %+v\n", result, expected[index])
+		if !reflect.DeepEqual(result, expected[index]) {
+			t.Fail()
 		}
 	}
 }
