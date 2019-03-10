@@ -230,12 +230,17 @@ drain:
 				kv := strings.SplitN(C.GoStringN(data, C.int(length)), "=", 2)
 				attrs = append(attrs, backend.LogAttr{Key: kv[0], Value: kv[1]})
 			}
-			// Send the log message.
-			logWatcher.Msg <- &logger.Message{
+			// Send the log message, unless the consumer is gone
+			select {
+			case <-logWatcher.WatchConsumerGone():
+				done = true // we won't be able to write anything anymore
+				break drain
+			case logWatcher.Msg <- &logger.Message{
 				Line:      line,
 				Source:    source,
 				Timestamp: timestamp.In(time.UTC),
 				Attrs:     attrs,
+			}:
 			}
 		}
 		// If we're at the end of the journal, we're done (for now).
