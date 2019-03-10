@@ -216,12 +216,12 @@ drain:
 			// the stream that we would have
 			// assigned that value.
 			source := ""
-			if C.get_priority(j, &priority) != 0 {
-				source = ""
-			} else if priority == C.int(journal.PriErr) {
-				source = "stderr"
-			} else if priority == C.int(journal.PriInfo) {
-				source = "stdout"
+			if C.get_priority(j, &priority) == 0 {
+				if priority == C.int(journal.PriErr) {
+					source = "stderr"
+				} else if priority == C.int(journal.PriInfo) {
+					source = "stdout"
+				}
 			}
 			// Retrieve the values of any variables we're adding to the journal.
 			var attrs []backend.LogAttr
