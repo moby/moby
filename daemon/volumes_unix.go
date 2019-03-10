@@ -5,6 +5,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"encoding/base64"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,6 +17,7 @@ import (
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/docker/pkg/system"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
 )
@@ -35,10 +37,16 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 		tmpfsMounts[m.Destination] = true
 	}
 
-	mappedMountsPath, err := c.GetRootResourcePath("mapped_mounts")
+	mappedMountsPath, err := c.GetMappedMountsPath()
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting container's mapped mounts path for uid/gid mapped bind mounts")
 	}
+	if len(c.MountPoints) > 0 && daemon.configStore.RemappedRoot != "" && !c.HostConfig.UsernsMode.IsHost() {
+		if err := idtools.MkdirAllAndChown(mappedMountsPath, 0755, daemon.idMapping.RootPair()); err != nil {
+			return nil, errors.Wrap(err, "error preparing userns remapped mounts path")
+		}
+	}
+
 	for _, m := range c.MountPoints {
 		if tmpfsMounts[m.Destination] {
 			continue
@@ -62,22 +70,48 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 			return nil, err
 		}
 
-		mappedPath := filepath.Join(mappedMountsPath, base64.StdEncoding.EncodeToString(([]byte(path))))
+		if daemon.configStore.RemappedRoot != "" && !c.HostConfig.UsernsMode.IsHost() {
+			// Create a new mount with the ownership of the files in the mount mapped to the usernamespace identities
 
-		if err := idtools.MkdirAllAndChown(mappedPath, 0755, daemon.idMapping.RootPair()); err != nil {
-			return nil, errors.Wrap(err, "error preparing id mapped dir for bind mount")
-		}
+			mappedPath := filepath.Join(mappedMountsPath, base64.StdEncoding.EncodeToString(([]byte(path))))
+			stat, err := system.Stat(m.Source)
+			if err != nil {
+				return nil, errors.Wrap(err, "could not stat mount source path")
+			}
 
-		// TODO: handle unmount somehow
-		var opts []string
-		if !m.RW {
-			opts = append(opts, "ro")
-		}
-		if _, err := idtools.MapFS(daemon.idMapping, path, mappedPath, opts); err != nil {
-			return nil, err
-		}
+			if stat.IsDir() {
+				if err := idtools.MkdirAllAndChown(mappedPath, 0755, daemon.idMapping.RootPair()); err != nil {
+					return nil, errors.Wrap(err, "error preparing userns id mapped dir for bind mount")
+				}
+			} else {
+				if err := ioutil.WriteFile(mappedPath, nil, 644); err != nil {
+					return nil, errors.Wrap(err, "error preparing userns id mapped file for bind mount")
+				}
+			}
 
-		path = mappedPath
+			if m.Spec.BindOptions != nil && stat.IsDir() {
+				if m.Spec.BindOptions.NonRecursive {
+					opts := "bind"
+					if !m.RW {
+						opts = opts + "," + "ro"
+					}
+					if err := mount.Mount(path, mappedPath, "none", opts); err != nil {
+						return nil, errors.Wrap(err, "error setting up non-recusrive bind-mount")
+					}
+				}
+			}
+
+			// TODO: handle unmount somehow
+			var opts []string
+			if !m.RW {
+				opts = append(opts, "ro")
+			}
+			if _, err := idtools.MapFS(daemon.idMapping, path, mappedPath, opts); err != nil {
+				return nil, err
+			}
+
+			path = mappedPath
+		}
 
 		if !c.TrySetNetworkMount(m.Destination, path) {
 			mnt := container.Mount{

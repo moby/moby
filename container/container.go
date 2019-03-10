@@ -334,6 +334,12 @@ func (container *Container) GetRootResourcePath(path string) (string, error) {
 	return symlink.FollowSymlinkInScope(filepath.Join(container.Root, cleanPath), container.Root)
 }
 
+// GetMappedMountsPath gets the path to where container mounts are re-mounted with
+// user namespace mapped ownership.
+func (container *Container) GetMappedMountsPath() (string, error) {
+	return container.GetRootResourcePath("mapped_mounts")
+}
+
 // ExitOnNext signals to the monitor that it should not restart the container
 // after we send the kill signal.
 func (container *Container) ExitOnNext() {
