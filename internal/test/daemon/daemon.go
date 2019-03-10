@@ -61,8 +61,14 @@ type clientConfig struct {
 
 // Daemon represents a Docker daemon for the testing framework
 type Daemon struct {
-	GlobalFlags       []string
-	Root              string
+	GlobalFlags []string
+
+	// This is read from the info API, which will contain the full path including
+	// the user namespace dir
+	Root string
+	// This is the root path that is actually specified in the daemon config.
+	configuredRoot string
+
 	Folder            string
 	Wait              chan error
 	UseDefaultHost    bool
@@ -130,11 +136,12 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		}
 	}
 	d := &Daemon{
-		id:            id,
-		Folder:        daemonFolder,
-		Root:          daemonRoot,
-		storageDriver: storageDriver,
-		userlandProxy: userlandProxy,
+		id:             id,
+		Folder:         daemonFolder,
+		Root:           daemonRoot,
+		configuredRoot: daemonRoot,
+		storageDriver:  storageDriver,
+		userlandProxy:  userlandProxy,
 		// dxr stands for docker-execroot (shortened for avoiding unix(7) path length limitation)
 		execRoot:        filepath.Join(os.TempDir(), "dxr", id),
 		dockerdBinary:   defaultDockerdBinary,
@@ -212,7 +219,7 @@ func (d *Daemon) Cleanup(t testingT) {
 		ht.Helper()
 	}
 	// Cleanup swarmkit wal files if present
-	cleanupRaftDir(t, d.Root)
+	cleanupRaftDir(t, d.configuredRoot)
 	cleanupNetworkNamespace(t, d.execRoot)
 }
 
@@ -247,7 +254,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	args := append(d.GlobalFlags,
 		"--containerd", containerdSocket,
-		"--data-root", d.Root,
+		"--data-root", d.configuredRoot,
 		"--exec-root", d.execRoot,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.Folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
