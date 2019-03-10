@@ -361,7 +361,6 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		untilUnixMicro = uint64(nano / 1000)
 	}
 	if config.Tail > 0 {
-		lines := config.Tail
 		// If until time provided, start from there.
 		// Otherwise start at the end of the journal.
 		if untilUnixMicro != 0 && C.sd_journal_seek_realtime_usec(j, C.uint64_t(untilUnixMicro)) < 0 {
@@ -371,29 +370,13 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			logWatcher.Err <- fmt.Errorf("error seeking to end of journal")
 			return
 		}
-		if C.sd_journal_previous(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error backtracking to previous journal entry")
-			return
-		}
-		// Walk backward.
-		for lines > 0 {
-			// Stop if the entry time is before our cutoff.
-			// We'll need the entry time if it isn't, so go
-			// ahead and parse it now.
-			if C.sd_journal_get_realtime_usec(j, &stamp) != 0 {
-				break
-			} else {
-				// Compare the timestamp on the entry to our threshold value.
-				if sinceUnixMicro != 0 && sinceUnixMicro > uint64(stamp) {
-					break
-				}
-			}
-			lines--
-			// If we're at the start of the journal, or
-			// don't need to back up past any more entries,
-			// stop.
-			if lines == 0 || C.sd_journal_previous(j) <= 0 {
-				break
+		// (Try to) skip backwards by the requested number of lines...
+		if C.sd_journal_previous_skip(j, C.uint64_t(config.Tail)) > 0 {
+			// ...but not before "since"
+			if sinceUnixMicro != 0 &&
+				C.sd_journal_get_realtime_usec(j, &stamp) == 0 &&
+				uint64(stamp) < sinceUnixMicro {
+				C.sd_journal_seek_realtime_usec(j, C.uint64_t(sinceUnixMicro))
 			}
 		}
 	} else {
