@@ -180,3 +180,13 @@ func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
 		c.HostConfig.CgroupnsMode = containertypes.CgroupnsMode(mode)
 	}
 }
+
+// WithUserns sets the userns mode
+func WithUserns(mode string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.UsernsMode = containertypes.UsernsMode(mode)
+	}
+}
