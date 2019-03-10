@@ -113,6 +113,7 @@ import (
 	"github.com/coreos/go-systemd/journal"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/daemon/logger"
+	"github.com/sirupsen/logrus"
 )
 
 func (s *journald) Close() error {
@@ -204,6 +205,16 @@ drain:
 				Attrs:     attrs,
 			}:
 				shown++
+			}
+			// Call sd_journal_process() periodically during the processing loop
+			// to close any opened file descriptors for rotated (deleted) journal files.
+			if shown%1024 == 0 {
+				if ret := C.sd_journal_process(j); ret < 0 {
+					// log a warning but ignore it for now
+					logrus.WithField("container", s.vars["CONTAINER_ID_FULL"]).
+						WithField("error", CErr(ret)).
+						Warn("journald: error processing journal")
+				}
 			}
 		}
 		// If we're at the end of the journal, we're done (for now).
