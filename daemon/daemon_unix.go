@@ -627,7 +627,7 @@ func UsingSystemd(config *config.Config) bool {
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
 // hostconfig and config structures.
-func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
+func (daemon *Daemon) verifyPlatformContainerSettings(config *containertypes.Config, hostConfig *containertypes.HostConfig, update bool) (warnings []string, err error) {
 	if hostConfig == nil {
 		return nil, nil
 	}
@@ -661,13 +661,33 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	// check for various conflicting options with user namespaces
 	if daemon.configStore.RemappedRoot != "" && hostConfig.UsernsMode.IsPrivate() {
 		if hostConfig.Privileged {
-			return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
+			if !daemon.configStore.EnableUsernsHostOnPrivileged {
+				return warnings, fmt.Errorf("privileged mode is incompatible with user namespaces.  You must run the container in the host namespace when running privileged mode")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to privileged mode being set to host per daemon configured policy")
 		}
 		if hostConfig.NetworkMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
+			if !daemon.configStore.EnableUsernsHostOnNetHost {
+				return warnings, fmt.Errorf("cannot share the host's network namespace when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured network mode being set to host per daemon configured policy")
 		}
 		if hostConfig.PidMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
-			return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
+			if !daemon.configStore.EnableUsernsHostOnPidHost {
+				return warnings, fmt.Errorf("cannot share the host PID namespace when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured pid mode being set to host per daemon configured policy")
+		}
+
+		if hostConfig.IpcMode.IsHost() && !hostConfig.UsernsMode.IsHost() {
+			if !daemon.configStore.EnableUsernsHostOnIPCHost {
+				return warnings, fmt.Errorf("cannot share host's ipc when user namespaces are enabled")
+			}
+			warnings = append(warnings, "Setting userns mode to host due to the configured ipc mode being set to host per daemon configured policy")
+		}
+
+		if config != nil && config.Domainname != "" && !hostConfig.UsernsMode.IsHost() {
+			warnings = append(warnings, "Cannot set domain name when userns is enabled")
 		}
 	}
 	if hostConfig.CgroupParent != "" && UsingSystemd(daemon.configStore) {

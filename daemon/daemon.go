@@ -755,6 +755,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	if err != nil {
 		return nil, err
 	}
+
 	rootIDs := idMapping.RootPair()
 	if err := setupDaemonProcess(config); err != nil {
 		return nil, err

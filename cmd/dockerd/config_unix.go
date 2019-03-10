@@ -49,8 +49,14 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	}
 	flags.StringVar(&conf.BridgeConfig.UserlandProxyPath, "userland-proxy-path", defaultUserlandProxyPath, "Path to the userland proxy binary")
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
+
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
 	flags.BoolVar(&conf.DisableRemappedRoot, "userns-disable-remap", false, "Disables userns root remapping")
+	flags.BoolVar(&conf.EnableUsernsHostOnNetHost, "enable-userns-host-on-net-host", false, "Sets the container userns=host when net=host")
+	flags.BoolVar(&conf.EnableUsernsHostOnPidHost, "enable-userns-host-on-pid-host", false, "Sets the container userns=host when pid=host")
+	flags.BoolVar(&conf.EnableUsernsHostOnIPCHost, "enable-userns-host-on-ipc-host", false, "Sets the container userns=host when ipc=host")
+	flags.BoolVar(&conf.EnableUsernsHostOnPrivileged, "enable-userns-host-on-privileged", false, "Sets the container userns=host when net=host")
+
 	flags.BoolVar(&conf.LiveRestoreEnabled, "live-restore", false, "Enable live restore of docker when containers are still running")
 	flags.IntVar(&conf.OOMScoreAdjust, "oom-score-adjust", -500, "Set the oom_score_adj for the daemon")
 	flags.BoolVar(&conf.Init, "init", false, "Run an init in the container to forward signals and reap processes")

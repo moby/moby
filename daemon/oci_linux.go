@@ -15,6 +15,7 @@ import (
 	coci "github.com/containerd/containerd/oci"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/daemon/config"
 	daemonconfig "github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
@@ -218,7 +219,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		userNS := false
 		// user
-		if c.HostConfig.UsernsMode.IsPrivate() {
+		if isUsernsModePrivate() {
 			uidMap := daemon.idMapping.UIDs()
 			if uidMap != nil {
 				userNS = true
@@ -322,6 +323,32 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 
 		return nil
 	}
+}
+
+func isUsernsModePrivate(c *container.Container, config *config.Config) bool {
+	if c.HostConfig.UsernsMode.IsHost() || config.DisableRemappedRoot {
+		return false
+	}
+
+	isPrivate := c.HostConfig.UsernsMode.IsPrivate()
+
+	if c.HostConfig.NetworkMode.IsHost() && config.EnableUsernsHostOnNetHost {
+		return !isPrivate
+	}
+
+	if c.HostConfig.PidMode.IsHost() && config.EnableUsernsHostOnPidHost {
+		return !isPrivate
+	}
+
+	if c.HostConfig.Privileged && config.EnableUsernsHostOnPrivileged {
+		return !isPrivate
+	}
+
+	if c.HostConfig.IpcMode.IsHost() && config.EnableUsernsHostOnIPCHost {
+		return !isPrivate
+	}
+
+	return isPrivate
 }
 
 func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
@@ -687,7 +714,6 @@ func WithMounts(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 
 		return nil
-
 	}
 }
 

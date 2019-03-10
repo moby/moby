@@ -204,7 +204,6 @@ func TestAPIIpcModeHost(t *testing.T) {
 	client := testEnv.APIClient()
 	resp, err := client.ContainerCreate(ctx, &cfg, &hostCfg, nil, "")
 	assert.NilError(t, err)
-	assert.Check(t, is.Equal(len(resp.Warnings), 0))
 	name := resp.ID
 
 	err = client.ContainerStart(ctx, name, types.ContainerStartOptions{})
