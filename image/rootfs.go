@@ -38,7 +38,7 @@ func (r *RootFS) Append(id layer.DiffID) {
 func (r *RootFS) Clone() *RootFS {
 	newRoot := NewRootFS()
 	newRoot.Type = r.Type
-	newRoot.DiffIDs = make([]layer.DiffID, len(r.DiffIDs)
+	newRoot.DiffIDs = make([]layer.DiffID, len(r.DiffIDs))
 	copy(newRoot.DiffIDs, r.DiffIDs)
 	return newRoot
 }
