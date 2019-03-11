@@ -80,6 +80,8 @@ type unmarshalInfo struct {
 	oldExtensions   field                         // offset of old-form extensions field (of type map[int]Extension)
 	extensionRanges []ExtensionRange              // if non-nil, implies extensions field is valid
 	isMessageSet    bool                          // if true, implies extensions field is valid
+
+	bytesExtensions field // offset of XXX_extensions with type []byte
 }
 
 // An unmarshaler takes a stream of bytes and a pointer to a field of a message.
@@ -232,10 +234,13 @@ func (u *unmarshalInfo) unmarshal(m pointer, b []byte) error {
 					z = &e.enc
 					break
 				}
+				if u.bytesExtensions.IsValid() {
+					z = m.offset(u.bytesExtensions).toBytes()
+					break
+				}
 				panic("no extensions field available")
 			}
 		}
-
 		// Use wire type to skip data.
 		var err error
 		b0 := b
@@ -278,6 +283,7 @@ func (u *unmarshalInfo) computeUnmarshalInfo() {
 	u.unrecognized = invalidField
 	u.extensions = invalidField
 	u.oldExtensions = invalidField
+	u.bytesExtensions = invalidField
 
 	// List of the generated type and offset for each oneof field.
 	type oneofField struct {
@@ -309,11 +315,14 @@ func (u *unmarshalInfo) computeUnmarshalInfo() {
 		}
 		if f.Name == "XXX_extensions" {
 			// An older form of the extensions field.
-			if f.Type != reflect.TypeOf((map[int32]Extension)(nil)) {
-				panic("bad type for XXX_extensions field: " + f.Type.Name())
+			if f.Type == reflect.TypeOf((map[int32]Extension)(nil)) {
+				u.oldExtensions = toField(&f)
+				continue
+			} else if f.Type == reflect.TypeOf(([]byte)(nil)) {
+				u.bytesExtensions = toField(&f)
+				continue
 			}
-			u.oldExtensions = toField(&f)
-			continue
+			panic("bad type for XXX_extensions field: " + f.Type.Name())
 		}
 		if f.Name == "XXX_NoUnkeyedLiteral" || f.Name == "XXX_sizecache" {
 			continue
@@ -364,7 +373,8 @@ func (u *unmarshalInfo) computeUnmarshalInfo() {
 	// Find any types associated with oneof fields.
 	// TODO: XXX_OneofFuncs returns more info than we need.  Get rid of some of it?
 	fn := reflect.Zero(reflect.PtrTo(t)).MethodByName("XXX_OneofFuncs")
-	if fn.IsValid() {
+	// gogo: len(oneofFields) > 0 is needed for embedded oneof messages, without a marshaler and unmarshaler
+	if fn.IsValid() && len(oneofFields) > 0 {
 		res := fn.Call(nil)[3] // last return value from XXX_OneofFuncs: []interface{}
 		for i := res.Len() - 1; i >= 0; i-- {
 			v := res.Index(i)                             // interface{}
@@ -403,7 +413,7 @@ func (u *unmarshalInfo) computeUnmarshalInfo() {
 	// Get extension ranges, if any.
 	fn = reflect.Zero(reflect.PtrTo(t)).MethodByName("ExtensionRangeArray")
 	if fn.IsValid() {
-		if !u.extensions.IsValid() && !u.oldExtensions.IsValid() {
+		if !u.extensions.IsValid() && !u.oldExtensions.IsValid() && !u.bytesExtensions.IsValid() {
 			panic("a message with extensions, but no extensions field in " + t.Name())
 		}
 		u.extensionRanges = fn.Call(nil)[0].Interface().([]ExtensionRange)
@@ -457,6 +467,10 @@ func typeUnmarshaler(t reflect.Type, tags string) unmarshaler {
 	tagArray := strings.Split(tags, ",")
 	encoding := tagArray[0]
 	name := "unknown"
+	ctype := false
+	isTime := false
+	isDuration := false
+	isWktPointer := false
 	proto3 := false
 	validateUTF8 := true
 	for _, tag := range tagArray[3:] {
@@ -465,6 +479,18 @@ func typeUnmarshaler(t reflect.Type, tags string) unmarshaler {
 		}
 		if tag == "proto3" {
 			proto3 = true
+		}
+		if strings.HasPrefix(tag, "customtype=") {
+			ctype = true
+		}
+		if tag == "stdtime" {
+			isTime = true
+		}
+		if tag == "stdduration" {
+			isDuration = true
+		}
+		if tag == "wktptr" {
+			isWktPointer = true
 		}
 	}
 	validateUTF8 = validateUTF8 && proto3
@@ -479,6 +505,152 @@ func typeUnmarshaler(t reflect.Type, tags string) unmarshaler {
 	if t.Kind() == reflect.Ptr {
 		pointer = true
 		t = t.Elem()
+	}
+
+	if ctype {
+		if reflect.PtrTo(t).Implements(customType) {
+			if slice {
+				return makeUnmarshalCustomSlice(getUnmarshalInfo(t), name)
+			}
+			if pointer {
+				return makeUnmarshalCustomPtr(getUnmarshalInfo(t), name)
+			}
+			return makeUnmarshalCustom(getUnmarshalInfo(t), name)
+		} else {
+			panic(fmt.Sprintf("custom type: type: %v, does not implement the proto.custom interface", t))
+		}
+	}
+
+	if isTime {
+		if pointer {
+			if slice {
+				return makeUnmarshalTimePtrSlice(getUnmarshalInfo(t), name)
+			}
+			return makeUnmarshalTimePtr(getUnmarshalInfo(t), name)
+		}
+		if slice {
+			return makeUnmarshalTimeSlice(getUnmarshalInfo(t), name)
+		}
+		return makeUnmarshalTime(getUnmarshalInfo(t), name)
+	}
+
+	if isDuration {
+		if pointer {
+			if slice {
+				return makeUnmarshalDurationPtrSlice(getUnmarshalInfo(t), name)
+			}
+			return makeUnmarshalDurationPtr(getUnmarshalInfo(t), name)
+		}
+		if slice {
+			return makeUnmarshalDurationSlice(getUnmarshalInfo(t), name)
+		}
+		return makeUnmarshalDuration(getUnmarshalInfo(t), name)
+	}
+
+	if isWktPointer {
+		switch t.Kind() {
+		case reflect.Float64:
+			if pointer {
+				if slice {
+					return makeStdDoubleValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdDoubleValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdDoubleValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdDoubleValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Float32:
+			if pointer {
+				if slice {
+					return makeStdFloatValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdFloatValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdFloatValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdFloatValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Int64:
+			if pointer {
+				if slice {
+					return makeStdInt64ValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdInt64ValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdInt64ValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdInt64ValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Uint64:
+			if pointer {
+				if slice {
+					return makeStdUInt64ValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdUInt64ValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdUInt64ValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdUInt64ValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Int32:
+			if pointer {
+				if slice {
+					return makeStdInt32ValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdInt32ValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdInt32ValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdInt32ValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Uint32:
+			if pointer {
+				if slice {
+					return makeStdUInt32ValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdUInt32ValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdUInt32ValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdUInt32ValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.Bool:
+			if pointer {
+				if slice {
+					return makeStdBoolValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdBoolValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdBoolValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdBoolValueUnmarshaler(getUnmarshalInfo(t), name)
+		case reflect.String:
+			if pointer {
+				if slice {
+					return makeStdStringValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdStringValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdStringValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdStringValueUnmarshaler(getUnmarshalInfo(t), name)
+		case uint8SliceType:
+			if pointer {
+				if slice {
+					return makeStdBytesValuePtrSliceUnmarshaler(getUnmarshalInfo(t), name)
+				}
+				return makeStdBytesValuePtrUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			if slice {
+				return makeStdBytesValueSliceUnmarshaler(getUnmarshalInfo(t), name)
+			}
+			return makeStdBytesValueUnmarshaler(getUnmarshalInfo(t), name)
+		default:
+			panic(fmt.Sprintf("unknown wktpointer type %#v", t))
+		}
 	}
 
 	// We'll never have both pointer and slice for basic types.
@@ -634,7 +806,13 @@ func typeUnmarshaler(t reflect.Type, tags string) unmarshaler {
 	case reflect.Struct:
 		// message or group field
 		if !pointer {
-			panic(fmt.Sprintf("message/group field %s:%s without pointer", t, encoding))
+			switch encoding {
+			case "bytes":
+				if slice {
+					return makeUnmarshalMessageSlice(getUnmarshalInfo(t), name)
+				}
+				return makeUnmarshalMessage(getUnmarshalInfo(t), name)
+			}
 		}
 		switch encoding {
 		case "bytes":
@@ -1733,8 +1911,24 @@ func makeUnmarshalMap(f *reflect.StructField) unmarshaler {
 	t := f.Type
 	kt := t.Key()
 	vt := t.Elem()
+	tagArray := strings.Split(f.Tag.Get("protobuf"), ",")
+	valTags := strings.Split(f.Tag.Get("protobuf_val"), ",")
+	for _, t := range tagArray {
+		if strings.HasPrefix(t, "customtype=") {
+			valTags = append(valTags, t)
+		}
+		if t == "stdtime" {
+			valTags = append(valTags, t)
+		}
+		if t == "stdduration" {
+			valTags = append(valTags, t)
+		}
+		if t == "wktptr" {
+			valTags = append(valTags, t)
+		}
+	}
 	unmarshalKey := typeUnmarshaler(kt, f.Tag.Get("protobuf_key"))
-	unmarshalVal := typeUnmarshaler(vt, f.Tag.Get("protobuf_val"))
+	unmarshalVal := typeUnmarshaler(vt, strings.Join(valTags, ","))
 	return func(b []byte, f pointer, w int) ([]byte, error) {
 		// The map entry is a submessage. Figure out how big it is.
 		if w != WireBytes {

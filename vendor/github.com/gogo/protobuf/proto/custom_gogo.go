@@ -1,6 +1,6 @@
 // Protocol Buffers for Go with Gadgets
 //
-// Copyright (c) 2013, The GoGo Authors. All rights reserved.
+// Copyright (c) 2018, The GoGo Authors. All rights reserved.
 // http://github.com/gogo/protobuf
 //
 // Redistribution and use in source and binary forms, with or without
@@ -28,6 +28,12 @@
 
 package proto
 
-func NewRequiredNotSetError(field string) *RequiredNotSetError {
-	return &RequiredNotSetError{field}
+import "reflect"
+
+type custom interface {
+	Marshal() ([]byte, error)
+	Unmarshal(data []byte) error
+	Size() int
 }
+
+var customType = reflect.TypeOf((*custom)(nil)).Elem()
