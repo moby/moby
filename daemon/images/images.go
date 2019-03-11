@@ -281,24 +281,15 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		tags := map[string]struct{}{}
 
 		for _, img := range imgs {
-			if _, ok := img.Labels[LabelImageDangling]; !ok {
-				ref, err := reference.Parse(img.Name)
-				if err != nil {
-					continue
-				}
-				if named, ok := ref.(reference.Named); ok {
-					if c, ok := named.(reference.Canonical); ok {
-						digests[reference.FamiliarString(c)] = struct{}{}
-					} else if t, ok := named.(reference.Tagged); ok {
-						tags[reference.FamiliarString(t)] = struct{}{}
-					}
-
-					switch img.Target.MediaType {
-					case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
-						// digest references only refer to manifests
-					default:
-						digests[reference.FamiliarName(named)+"@"+img.Target.Digest.String()] = struct{}{}
-					}
+			ref, err := reference.Parse(img.Name)
+			if err != nil {
+				continue
+			}
+			if named, ok := ref.(reference.Named); ok {
+				if c, ok := named.(reference.Canonical); ok {
+					digests[reference.FamiliarString(c)] = struct{}{}
+				} else if t, ok := named.(reference.Tagged); ok {
+					tags[reference.FamiliarString(t)] = struct{}{}
 				}
 			}
 		}
@@ -310,7 +301,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			newImage.RepoTags = append(newImage.RepoTags, t)
 		}
 
-		if len(newImage.RepoDigests) == 0 && len(newImage.RepoTags) == 0 {
+		if len(newImage.RepoTags) == 0 {
 			// TODO(containerd): also skip if has children
 			if !all {
 				continue
@@ -325,7 +316,11 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 				continue
 			}
 
-			newImage.RepoDigests = []string{"none@none"}
+			if len(newImage.RepoDigests) == 0 {
+				// TODO(containerd): Requires querying content store directly,
+				// not currently possible
+				newImage.RepoTags = []string{"none@none"}
+			}
 			newImage.RepoTags = []string{"none:none"}
 		}
 

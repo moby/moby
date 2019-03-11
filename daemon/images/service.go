@@ -44,17 +44,18 @@ type LayerBackend struct {
 
 // ImageServiceConfig is the configuration used to create a new ImageService
 type ImageServiceConfig struct {
-	DefaultNamespace          string
-	DefaultPlatform           ocispec.Platform
-	Client                    *containerd.Client
-	ContainerStore            containerStore
-	DistributionMetadataStore metadata.Store
-	EventsService             *daemonevents.Events
-	LayerBackends             []LayerBackend
-	MaxConcurrentDownloads    int
-	MaxConcurrentUploads      int
+	DefaultNamespace       string
+	DefaultPlatform        ocispec.Platform
+	Client                 *containerd.Client
+	ContainerStore         containerStore
+	EventsService          *daemonevents.Events
+	LayerBackends          []LayerBackend
+	MaxConcurrentDownloads int
+	MaxConcurrentUploads   int
 	MaxDownloadAttempts       int
 
+	// deprecated
+	DistributionMetadataStore metadata.Store
 	// deprecated
 	ImageStore image.Store
 	// deprecated
