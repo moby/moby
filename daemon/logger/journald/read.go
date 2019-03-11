@@ -330,6 +330,15 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		close(logWatcher.Msg)
 		return
 	}
+	if config.Follow {
+		// Initialize library inotify watches early
+		rc = C.sd_journal_get_fd(j)
+		if rc < 0 {
+			logWatcher.Err <- errors.New("error getting journald fd: " + CErr(rc))
+			close(logWatcher.Msg)
+			return
+		}
+	}
 	// If we end up following the log, we can set the journal context
 	// pointer and the channel pointer to nil so that we won't close them
 	// here, potentially while the goroutine that uses them is still
@@ -402,21 +411,16 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	}
 	cursor, _ = s.drainJournal(logWatcher, j, nil, untilUnixMicro)
 	if config.Follow {
-		// Allocate a descriptor for following the journal, if we'll
-		// need one.  Do it here so that we can report if it fails.
-		if fd := C.sd_journal_get_fd(j); fd < C.int(0) {
-			logWatcher.Err <- fmt.Errorf("error opening journald follow descriptor: %q", C.GoString(C.strerror(-fd)))
+		// Create a pipe that we can poll at the same time as
+		// the journald descriptor.
+		ret := C.pipe(&pipes[0])
+		if ret < 0 {
+			logWatcher.Err <- fmt.Errorf("error creating journald notification pipe")
 		} else {
-			// Create a pipe that we can poll at the same time as
-			// the journald descriptor.
-			if C.pipe(&pipes[0]) == C.int(-1) {
-				logWatcher.Err <- fmt.Errorf("error opening journald close notification pipe")
-			} else {
-				cursor = s.followJournal(logWatcher, j, pipes, cursor, untilUnixMicro)
-				// Let followJournal handle freeing the journal context
-				// object and closing the channel.
-				following = true
-			}
+			cursor = s.followJournal(logWatcher, j, pipes, cursor, untilUnixMicro)
+			// Let followJournal handle freeing the journal context
+			// object and closing the channel.
+			following = true
 		}
 	}
 
