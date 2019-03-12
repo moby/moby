@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/rootfs"
 	"github.com/docker/docker/distribution"
@@ -43,6 +44,14 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+const labelCreatedAt = "buildkit/createdat"
+
+// LayerAccess provides access to a moby layer from a snapshot
+type LayerAccess interface {
+	GetDiffIDs(ctx context.Context, key string) ([]layer.DiffID, error)
+	EnsureLayer(ctx context.Context, key string) ([]layer.DiffID, error)
+}
+
 // Opt defines a structure for creating a worker.
 type Opt struct {
 	ID                string
@@ -58,6 +67,7 @@ type Opt struct {
 	V2MetadataService distmetadata.V2MetadataService
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
+	Layers            LayerAccess
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -205,7 +215,36 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 
 // GetRemote returns a remote snapshot reference for a local one
 func (w *Worker) GetRemote(ctx context.Context, ref cache.ImmutableRef, createIfNeeded bool) (*solver.Remote, error) {
-	return nil, errors.Errorf("getremote not implemented")
+	var diffIDs []layer.DiffID
+	var err error
+	if !createIfNeeded {
+		diffIDs, err = w.Layers.GetDiffIDs(ctx, ref.ID())
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		if err := ref.Finalize(ctx, true); err != nil {
+			return nil, err
+		}
+		diffIDs, err = w.Layers.EnsureLayer(ctx, ref.ID())
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	descriptors := make([]ocispec.Descriptor, len(diffIDs))
+	for i, dgst := range diffIDs {
+		descriptors[i] = ocispec.Descriptor{
+			MediaType: images.MediaTypeDockerSchema2Layer,
+			Digest:    digest.Digest(dgst),
+			Size:      -1,
+		}
+	}
+
+	return &solver.Remote{
+		Descriptors: descriptors,
+		Provider:    &emptyProvider{},
+	}, nil
 }
 
 // FromRemote converts a remote snapshot reference to a local one
@@ -241,11 +280,32 @@ func (w *Worker) FromRemote(ctx context.Context, remote *solver.Remote) (cache.I
 	}
 	defer release()
 
-	ref, err := w.CacheManager.GetFromSnapshotter(ctx, string(rootFS.ChainID()), cache.WithDescription(fmt.Sprintf("imported %s", remote.Descriptors[len(remote.Descriptors)-1].Digest)))
-	if err != nil {
-		return nil, err
+	if len(rootFS.DiffIDs) != len(layers) {
+		return nil, errors.Errorf("invalid layer count mismatch %d vs %d", len(rootFS.DiffIDs), len(layers))
 	}
-	return ref, nil
+
+	for i := range rootFS.DiffIDs {
+		tm := time.Now()
+		if tmstr, ok := remote.Descriptors[i].Annotations[labelCreatedAt]; ok {
+			if err := (&tm).UnmarshalText([]byte(tmstr)); err != nil {
+				return nil, err
+			}
+		}
+		descr := fmt.Sprintf("imported %s", remote.Descriptors[i].Digest)
+		if v, ok := remote.Descriptors[i].Annotations["buildkit/description"]; ok {
+			descr = v
+		}
+		ref, err := w.CacheManager.GetFromSnapshotter(ctx, string(layer.CreateChainID(rootFS.DiffIDs[:i+1])), cache.WithDescription(descr), cache.WithCreationTime(tm))
+		if err != nil {
+			return nil, err
+		}
+		if i == len(remote.Descriptors)-1 {
+			return ref, nil
+		}
+		defer ref.Release(context.TODO())
+	}
+
+	return nil, errors.Errorf("unreachable")
 }
 
 type discardProgress struct{}
@@ -343,4 +403,11 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 
 type resolveImageConfig interface {
 	ResolveImageConfig(ctx context.Context, ref string, opt gw.ResolveImageConfigOpt, sm *session.Manager) (digest.Digest, []byte, error)
+}
+
+type emptyProvider struct {
+}
+
+func (p *emptyProvider) ReaderAt(ctx context.Context, dec ocispec.Descriptor) (content.ReaderAt, error) {
+	return nil, errors.Errorf("ReaderAt not implemented for empty provider")
 }

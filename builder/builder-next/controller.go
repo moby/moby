@@ -136,6 +136,11 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Wrap(err, "could not get builder GC policy")
 	}
 
+	layers, ok := sbase.(mobyworker.LayerAccess)
+	if !ok {
+		return nil, errors.Errorf("snapshotter doesn't support differ")
+	}
+
 	wopt := mobyworker.Opt{
 		ID:                "moby",
 		MetadataStore:     md,
@@ -149,6 +154,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		V2MetadataService: dist.V2MetadataService,
 		Exporter:          exp,
 		Transport:         rt,
+		Layers:            layers,
 	}
 
 	wc := &worker.Controller{}
@@ -174,7 +180,6 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
 		},
-		// TODO: set ResolveCacheExporterFunc for exporting cache
 	})
 }
 
