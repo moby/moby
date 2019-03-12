@@ -8,7 +8,7 @@ import fmt "fmt"
 import math "math"
 import google_protobuf "github.com/gogo/protobuf/types"
 import _ "github.com/gogo/protobuf/gogoproto"
-import google_protobuf3 "github.com/gogo/protobuf/types"
+import google_protobuf4 "github.com/gogo/protobuf/types"
 import _ "github.com/docker/swarmkit/protobuf/plugin"
 
 import deepcopy "github.com/docker/swarmkit/api/deepcopy"
@@ -357,7 +357,7 @@ type Resource struct {
 	Kind string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
 	// Payload bytes. This data is not interpreted in any way by SwarmKit.
 	// By convention, it should be a marshalled protocol buffers message.
-	Payload *google_protobuf3.Any `protobuf:"bytes,5,opt,name=payload" json:"payload,omitempty"`
+	Payload *google_protobuf4.Any `protobuf:"bytes,5,opt,name=payload" json:"payload,omitempty"`
 }
 
 func (m *Resource) Reset()                    { *m = Resource{} }
@@ -749,7 +749,7 @@ func (m *Resource) CopyFrom(src interface{}) {
 	deepcopy.Copy(&m.Meta, &o.Meta)
 	deepcopy.Copy(&m.Annotations, &o.Annotations)
 	if o.Payload != nil {
-		m.Payload = &google_protobuf3.Any{}
+		m.Payload = &google_protobuf4.Any{}
 		deepcopy.Copy(m.Payload, o.Payload)
 	}
 }
@@ -4958,7 +4958,7 @@ func (this *Resource) String() string {
 		`Meta:` + strings.Replace(strings.Replace(this.Meta.String(), "Meta", "Meta", 1), `&`, ``, 1) + `,`,
 		`Annotations:` + strings.Replace(strings.Replace(this.Annotations.String(), "Annotations", "Annotations", 1), `&`, ``, 1) + `,`,
 		`Kind:` + fmt.Sprintf("%v", this.Kind) + `,`,
-		`Payload:` + strings.Replace(fmt.Sprintf("%v", this.Payload), "Any", "google_protobuf3.Any", 1) + `,`,
+		`Payload:` + strings.Replace(fmt.Sprintf("%v", this.Payload), "Any", "google_protobuf4.Any", 1) + `,`,
 		`}`,
 	}, "")
 	return s
@@ -7976,7 +7976,7 @@ func (m *Resource) Unmarshal(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			if m.Payload == nil {
-				m.Payload = &google_protobuf3.Any{}
+				m.Payload = &google_protobuf4.Any{}
 			}
 			if err := m.Payload.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err

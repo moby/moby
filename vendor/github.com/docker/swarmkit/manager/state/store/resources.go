@@ -1,12 +1,20 @@
 package store
 
 import (
+	"strings"
+
 	"github.com/docker/swarmkit/api"
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/pkg/errors"
 )
 
 const tableResource = "resource"
+
+var (
+	// ErrNoKind is returned by resource create operations if the provided Kind
+	// of the resource does not exist
+	ErrNoKind = errors.New("object kind is unregistered")
+)
 
 func init() {
 	register(ObjectStoreConfig{
@@ -87,16 +95,25 @@ func confirmExtension(tx Tx, r *api.Resource) error {
 		return errors.Wrap(err, "failed to query extensions")
 	}
 	if len(extensions) == 0 {
-		return errors.Errorf("object kind %s is unregistered", r.Kind)
+		return ErrNoKind
 	}
 	return nil
 }
 
 // CreateResource adds a new resource object to the store.
 // Returns ErrExist if the ID is already taken.
+// Returns ErrNameConflict if a Resource with this Name already exists
+// Returns ErrNoKind if the specified Kind does not exist
 func CreateResource(tx Tx, r *api.Resource) error {
 	if err := confirmExtension(tx, r); err != nil {
 		return err
+	}
+	// TODO(dperny): currently the "name" index is unique, which means only one
+	// Resource of _any_ Kind can exist with that name. This isn't a problem
+	// right now, but the ideal case would be for names to be namespaced to the
+	// kind.
+	if tx.lookup(tableResource, indexName, strings.ToLower(r.Annotations.Name)) != nil {
+		return ErrNameConflict
 	}
 	return tx.create(tableResource, resourceEntry{r})
 }
@@ -130,7 +147,7 @@ func GetResource(tx ReadTx, id string) *api.Resource {
 func FindResources(tx ReadTx, by By) ([]*api.Resource, error) {
 	checkType := func(by By) error {
 		switch by.(type) {
-		case byIDPrefix, byName, byKind, byCustom, byCustomPrefix:
+		case byIDPrefix, byName, byNamePrefix, byKind, byCustom, byCustomPrefix:
 			return nil
 		default:
 			return ErrInvalidFindBy
