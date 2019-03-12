@@ -15,6 +15,9 @@ source "$MAKEDIR/.go-autogen"
 : ${TESTFLAGS:=}
 : ${TESTDEBUG:=}
 
+export TESTDIRS=github.com/docker/docker/integration-cli
+export TESTFLAGS='-check.vv -check.f DockerNetworkSuite.*'
+
 integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 	find ./integration -type d |
 	grep -vE '(^./integration($|/internal)|/testdata)')"}
