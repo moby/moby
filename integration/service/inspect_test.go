@@ -52,11 +52,11 @@ func TestInspect(t *testing.T) {
 			UpdatedAt: now,
 		},
 	}
-	assert.Check(t, is.DeepEqual(service, expected, cmpServiceOpts()))
+	assert.Check(t, is.DeepEqual(service, expected, cmpServiceOpts()...))
 }
 
 // TODO: use helpers from gotest.tools/assert/opt when available
-func cmpServiceOpts() cmp.Option {
+func cmpServiceOpts() []cmp.Option {
 	const threshold = 20 * time.Second
 
 	metaTimeFields := func(path cmp.Path) bool {
@@ -71,7 +71,23 @@ func cmpServiceOpts() cmp.Option {
 		return delta < threshold && delta > -threshold
 	})
 
-	return cmp.FilterPath(metaTimeFields, withinThreshold)
+	// comparing versions isn't really something we should do. different
+	// swarmkit revisions might change what operations require writing a
+	// service object, which is what bumps the version number. trying to test
+	// for a specific one will make this test flaky, and dependent on swarmkit
+	// versions.
+	metaVersionField := func(path cmp.Path) bool {
+		switch path.String() {
+		case "Meta.Version":
+			return true
+		}
+		return false
+	}
+
+	return []cmp.Option{
+		cmp.FilterPath(metaTimeFields, withinThreshold),
+		cmp.FilterPath(metaVersionField, cmp.Ignore()),
+	}
 }
 
 func fullSwarmServiceSpec(name string, replicas uint64) swarmtypes.ServiceSpec {
