@@ -801,7 +801,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 	return nil
 }
 
-func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error { // nolint: interfacer
+func updateJoinInfo(networkSettings *network.Settings, n libnetwork.Network, ep libnetwork.Endpoint) error {
 	if ep == nil {
 		return errors.New("invalid enppoint whhile building portmap info")
 	}
