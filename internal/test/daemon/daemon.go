@@ -261,6 +261,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--enable-userns-host-on-net-host",
 		"--enable-userns-host-on-pid-host",
 		"--enable-userns-host-on-ipc-host",
+		"--enable-userns-remapped-user-mounts",
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 		"--containerd-namespace", d.id,
 		"--containerd-plugins-namespace", d.id+"p",

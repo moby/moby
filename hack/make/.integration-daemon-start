@@ -90,6 +90,7 @@ if [ -z "$DOCKER_TEST_HOST" ]; then
 			--enable-userns-host-on-pid-host \
 			--enable-userns-host-on-ipc-host \
 			--enable-userns-host-on-privileged \
+			--enable-userns-remapped-user-mounts \
 			${storage_params} \
 			${extra_params} \
 				&> "$DEST/docker.log"

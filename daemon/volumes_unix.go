@@ -20,6 +20,7 @@ import (
 	"github.com/docker/docker/pkg/system"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // setupMounts iterates through each of the mount points for a container and
@@ -41,7 +42,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 	if err != nil {
 		return nil, errors.Wrap(err, "error getting container's mapped mounts path for uid/gid mapped bind mounts")
 	}
-	if len(c.MountPoints) > 0 && daemon.configStore.RemappedRoot != "" && !c.HostConfig.UsernsMode.IsHost() {
+	if daemon.configStore.EnableUsernsRemappedUserMounts && len(c.MountPoints) > 0 && daemon.configStore.RemappedRoot != "" && !c.HostConfig.UsernsMode.IsHost() {
 		if err := idtools.MkdirAllAndChown(mappedMountsPath, 0755, daemon.idMapping.RootPair()); err != nil {
 			return nil, errors.Wrap(err, "error preparing userns remapped mounts path")
 		}
@@ -70,15 +71,14 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 			return nil, err
 		}
 
-		if daemon.configStore.RemappedRoot != "" && !c.HostConfig.UsernsMode.IsHost() {
+		if daemon.configStore.RemappedRoot != "" && daemon.configStore.EnableUsernsRemappedUserMounts && !c.HostConfig.UsernsMode.IsHost() {
 			// Create a new mount with the ownership of the files in the mount mapped to the usernamespace identities
-
-			mappedPath := filepath.Join(mappedMountsPath, base64.StdEncoding.EncodeToString(([]byte(path))))
-			stat, err := system.Stat(m.Source)
+			stat, err := system.Stat(path)
 			if err != nil {
 				return nil, errors.Wrap(err, "could not stat mount source path")
 			}
 
+			mappedPath := filepath.Join(mappedMountsPath, base64.StdEncoding.EncodeToString(([]byte(path))))
 			if stat.IsDir() {
 				if err := idtools.MkdirAllAndChown(mappedPath, 0755, daemon.idMapping.RootPair()); err != nil {
 					return nil, errors.Wrap(err, "error preparing userns id mapped dir for bind mount")
@@ -110,6 +110,7 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 				return nil, err
 			}
 
+			logrus.WithField("container", c.ID).WithField("orig_path", path).WithField("mapped_path", mappedPath).Debug("remapped user mount")
 			path = mappedPath
 		}
 

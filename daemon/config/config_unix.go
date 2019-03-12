@@ -43,10 +43,11 @@ type Config struct {
 	RemappedRoot        string `json:"userns-remap,omitempty"`
 	DisableRemappedRoot bool   `json:"userns-disable-remap,omitempty"`
 	// TODO(cpuguy83): naming is hard
-	EnableUsernsHostOnNetHost    bool `json:"enable-userns-host-on-net-host"`
-	EnableUsernsHostOnPidHost    bool `json:"enable-userns-host-on-pid-host"`
-	EnableUsernsHostOnIPCHost    bool `json:"enable-userns-host-on-ipc-host"`
-	EnableUsernsHostOnPrivileged bool `json:"enable-userns-host-on-privileged"`
+	EnableUsernsHostOnNetHost      bool `json:"enable-userns-host-on-net-host"`
+	EnableUsernsHostOnPidHost      bool `json:"enable-userns-host-on-pid-host"`
+	EnableUsernsHostOnIPCHost      bool `json:"enable-userns-host-on-ipc-host"`
+	EnableUsernsHostOnPrivileged   bool `json:"enable-userns-host-on-privileged"`
+	EnableUsernsRemappedUserMounts bool `json:"enable-userns-remapped-user-mounts"`
 
 	// ResolvConf is the path to the configuration of the host resolver
 	ResolvConf string `json:"resolv-conf,omitempty"`

@@ -56,6 +56,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.BoolVar(&conf.EnableUsernsHostOnPidHost, "enable-userns-host-on-pid-host", false, "Sets the container userns=host when pid=host")
 	flags.BoolVar(&conf.EnableUsernsHostOnIPCHost, "enable-userns-host-on-ipc-host", false, "Sets the container userns=host when ipc=host")
 	flags.BoolVar(&conf.EnableUsernsHostOnPrivileged, "enable-userns-host-on-privileged", false, "Sets the container userns=host when net=host")
+	flags.BoolVar(&conf.EnableUsernsRemappedUserMounts, "enable-userns-remapped-user-mounts", false, "Automatically maps user mounts into the userns")
 
 	flags.BoolVar(&conf.LiveRestoreEnabled, "live-restore", false, "Enable live restore of docker when containers are still running")
 	flags.IntVar(&conf.OOMScoreAdjust, "oom-score-adjust", -500, "Set the oom_score_adj for the daemon")
