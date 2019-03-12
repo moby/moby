@@ -157,7 +157,7 @@ func (e *Execution) IsUserNamespace() bool {
 // HasExistingImage checks whether there is an image with the given reference.
 // Note that this is done by filtering and then checking whether there were any
 // results -- so ambiguous references might result in false-positives.
-func (e *Execution) HasExistingImage(t testingT, reference string) bool {
+func (e *Execution) HasExistingImage(t assert.TestingT, reference string) bool {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
