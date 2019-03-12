@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
-	"sync"
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/fixtures/load"
@@ -24,17 +23,13 @@ type logT interface {
 	Logf(string, ...interface{})
 }
 
-var ensureSyscallTestOnce sync.Once
-
 func ensureSyscallTest(c *check.C) {
-	var doIt bool
-	ensureSyscallTestOnce.Do(func() {
-		doIt = true
-	})
-	if !doIt {
+	defer testEnv.ProtectImage(c, "syscall-test:latest")
+
+	// If the image already exists, there's nothing left to do.
+	if testEnv.HasExistingImage(c, "syscall-test:latest") {
 		return
 	}
-	defer testEnv.ProtectImage(c, "syscall-test:latest")
 
 	// if no match, must build in docker, which is significantly slower
 	// (slower mostly because of the vfs graphdriver)
@@ -93,6 +88,14 @@ func ensureSyscallTestBuild(c *check.C) {
 
 func ensureNNPTest(c *check.C) {
 	defer testEnv.ProtectImage(c, "nnp-test:latest")
+
+	// If the image already exists, there's nothing left to do.
+	if testEnv.HasExistingImage(c, "nnp-test:latest") {
+		return
+	}
+
+	// if no match, must build in docker, which is significantly slower
+	// (slower mostly because of the vfs graphdriver)
 	if testEnv.OSType != runtime.GOOS {
 		ensureNNPTestBuild(c)
 		return
