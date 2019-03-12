@@ -707,7 +707,7 @@ func (c combinedStacksBackend) UnsubscribeFromEvents(listener chan interface{}) 
 // reconciler component. The manager handles all the hard parts about running
 // the reconciler, we just need to start it in a goroutine. We won't return
 // an error, because we don't yet have any good way to handle it if one occurs
-func createAndStartStacksReconciler(d *daemon.Daemon, c *cluster.Cluster, sb *stacksbackend.DefaultStacksBackend) *stacksreconciler.Manager {
+func createAndStartStacksReconciler(d *daemon.Daemon, c stacksinterfaces.SwarmResourceBackend, sb stacksinterfaces.StacksBackend) *stacksreconciler.Manager {
 	// create a combinedBackend object, which is just an anonymous type with the
 	// daemon, the cluster, and the stacks backend all embedded
 	combinedBackend := combinedStacksBackend{d: d, StacksBackend: sb, SwarmResourceBackend: c}

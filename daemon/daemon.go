@@ -1411,7 +1411,7 @@ func (daemon *Daemon) SetCluster(cluster Cluster) {
 	daemon.cluster = cluster
 }
 
-// SetStackReconciler sets the stacksReconciler
+// SetStacksReconciler sets the stacksReconciler
 func (daemon *Daemon) SetStacksReconciler(m *reconciler.Manager) {
 	daemon.stacksReconciler = m
 }
