@@ -332,7 +332,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		nano := config.Until.UnixNano()
 		untilUnixMicro = uint64(nano / 1000)
 	}
-	if config.Tail > 0 {
+	if config.Tail >= 0 {
 		// If until time provided, start from there.
 		// Otherwise start at the end of the journal.
 		if untilUnixMicro != 0 && C.sd_journal_seek_realtime_usec(j, C.uint64_t(untilUnixMicro)) < 0 {
@@ -343,7 +343,7 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			return
 		}
 		// (Try to) skip backwards by the requested number of lines...
-		if C.sd_journal_previous_skip(j, C.uint64_t(config.Tail)) > 0 {
+		if C.sd_journal_previous_skip(j, C.uint64_t(config.Tail)) >= 0 {
 			// ...but not before "since"
 			if sinceUnixMicro != 0 &&
 				C.sd_journal_get_realtime_usec(j, &stamp) == 0 &&
@@ -367,7 +367,9 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 			return
 		}
 	}
-	cursor, _, _ = s.drainJournal(logWatcher, j, nil, untilUnixMicro)
+	if config.Tail != 0 { // special case for --tail 0
+		cursor, _, _ = s.drainJournal(logWatcher, j, nil, untilUnixMicro)
+	}
 	if config.Follow {
 		cursor = s.followJournal(logWatcher, j, cursor, untilUnixMicro)
 		// Let followJournal handle freeing the journal context
