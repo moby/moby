@@ -29,10 +29,6 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 			switch k {
 			case "lcow.kirdpath":
 				config.KirdPath = v
-			case "lcow.kernel":
-				config.KernelFile = v
-			case "lcow.initrd":
-				config.InitrdFile = v
 			case "lcow.bootparameters":
 				config.BootParameters = v
 			}
