@@ -1138,7 +1138,17 @@ func (c *client) Summary(_ context.Context, containerID string) ([]libcontainerd
 
 	pl := make([]libcontainerdtypes.Summary, len(p))
 	for i := range p {
-		pl[i] = libcontainerdtypes.Summary(p[i])
+		pl[i] = libcontainerdtypes.Summary{
+			ImageName:                    p[i].ImageName,
+			CreatedAt:                    p[i].CreateTimestamp,
+			KernelTime_100Ns:             p[i].KernelTime100ns,
+			MemoryCommitBytes:            p[i].MemoryCommitBytes,
+			MemoryWorkingSetPrivateBytes: p[i].MemoryWorkingSetPrivateBytes,
+			MemoryWorkingSetSharedBytes:  p[i].MemoryWorkingSetSharedBytes,
+			ProcessID:                    p[i].ProcessId,
+			UserTime_100Ns:               p[i].UserTime100ns,
+			ExecID:                       "",
+		}
 	}
 	return pl, nil
 }

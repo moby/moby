@@ -6,8 +6,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
 	"github.com/containerd/containerd/cio"
-	"github.com/containerd/containerd/windows/hcsshimtypes"
+
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -17,16 +18,17 @@ const runtimeName = "io.containerd.runhcs.v1"
 
 func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 	switch pd := i.(type) {
-	case *hcsshimtypes.ProcessDetails:
+	case *options.ProcessDetails:
 		return &libcontainerdtypes.Summary{
-			CreateTimestamp:              pd.CreatedAt,
 			ImageName:                    pd.ImageName,
-			KernelTime100ns:              pd.KernelTime_100Ns,
+			CreatedAt:                    pd.CreatedAt,
+			KernelTime_100Ns:             pd.KernelTime_100Ns,
 			MemoryCommitBytes:            pd.MemoryCommitBytes,
 			MemoryWorkingSetPrivateBytes: pd.MemoryWorkingSetPrivateBytes,
 			MemoryWorkingSetSharedBytes:  pd.MemoryWorkingSetSharedBytes,
-			ProcessId:                    pd.ProcessID,
-			UserTime100ns:                pd.UserTime_100Ns,
+			ProcessID:                    pd.ProcessID,
+			UserTime_100Ns:               pd.UserTime_100Ns,
+			ExecID:                       pd.ExecID,
 		}, nil
 	default:
 		return nil, errors.Errorf("Unknown process details type %T", pd)
