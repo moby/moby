@@ -59,6 +59,7 @@ import (
 	"unsafe"
 
 	rsystem "github.com/opencontainers/runc/libcontainer/system"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 )
@@ -208,8 +209,8 @@ func setProjectQuota(backingFsBlockDev string, projectID uint32, quota Quota) er
 		uintptr(unsafe.Pointer(cs)), uintptr(d.d_id),
 		uintptr(unsafe.Pointer(&d)), 0, 0)
 	if errno != 0 {
-		return fmt.Errorf("Failed to set quota limit for projid %d on %s: %v",
-			projectID, backingFsBlockDev, errno.Error())
+		return errors.Wrapf(errno, "failed to set quota limit for projid %d on %s",
+			projectID, backingFsBlockDev)
 	}
 
 	return nil
@@ -235,8 +236,8 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 		uintptr(unsafe.Pointer(cs)), uintptr(C.__u32(projectID)),
 		uintptr(unsafe.Pointer(&d)), 0, 0)
 	if errno != 0 {
-		return fmt.Errorf("Failed to get quota limit for projid %d on %s: %v",
-			projectID, q.backingFsBlockDev, errno.Error())
+		return errors.Wrapf(errno, "Failed to get quota limit for projid %d on %s",
+			projectID, q.backingFsBlockDev)
 	}
 	quota.Size = uint64(d.d_blk_hardlimit) * 512
 
@@ -255,7 +256,7 @@ func getProjectID(targetPath string) (uint32, error) {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
-		return 0, fmt.Errorf("Failed to get projid for %s: %v", targetPath, errno.Error())
+		return 0, errors.Wrapf(errno, "failed to get projid for %s", targetPath)
 	}
 
 	return uint32(fsx.fsx_projid), nil
@@ -273,14 +274,14 @@ func setProjectID(targetPath string, projectID uint32) error {
 	_, _, errno := unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSGETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to get projid for %s: %v", targetPath, errno.Error())
+		return errors.Wrapf(errno, "failed to get projid for %s", targetPath)
 	}
 	fsx.fsx_projid = C.__u32(projectID)
 	fsx.fsx_xflags |= C.FS_XFLAG_PROJINHERIT
 	_, _, errno = unix.Syscall(unix.SYS_IOCTL, getDirFd(dir), C.FS_IOC_FSSETXATTR,
 		uintptr(unsafe.Pointer(&fsx)))
 	if errno != 0 {
-		return fmt.Errorf("Failed to set projid for %s: %v", targetPath, errno.Error())
+		return errors.Wrapf(errno, "failed to set projid for %s", targetPath)
 	}
 
 	return nil
@@ -323,7 +324,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, fmt.Errorf("Can't open dir")
+		return nil, fmt.Errorf("failed to open dir")
 	}
 	return dir, nil
 }
@@ -355,11 +356,11 @@ func makeBackingFsDev(home string) (string, error) {
 	case nil:
 		return backingFsBlockDev, nil
 
-	case unix.ENOSYS:
+	case unix.ENOSYS, unix.EPERM:
 		return "", ErrQuotaNotSupported
 
 	default:
-		return "", fmt.Errorf("Failed to mknod %s: %v", backingFsBlockDev, err)
+		return "", errors.Wrapf(err, "failed to mknod %s", backingFsBlockDev)
 	}
 }
 
