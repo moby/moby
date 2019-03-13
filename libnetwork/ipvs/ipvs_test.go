@@ -6,6 +6,7 @@ import (
 	"net"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/docker/libnetwork/testutils"
 	"github.com/vishvananda/netlink"
@@ -341,4 +342,25 @@ func TestDestination(t *testing.T) {
 
 		}
 	}
+}
+
+func TestTimeouts(t *testing.T) {
+	if testutils.RunningOnCircleCI() {
+		t.Skip("Skipping as not supported on CIRCLE CI kernel")
+	}
+	defer testutils.SetupTestOSContext(t)()
+
+	i, err := New("")
+	assert.NilError(t, err)
+
+	_, err = i.GetConfig()
+	assert.NilError(t, err)
+
+	cfg := Config{66 * time.Second, 66 * time.Second, 66 * time.Second}
+	err = i.SetConfig(&cfg)
+	assert.NilError(t, err)
+
+	c2, err := i.GetConfig()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, cfg, *c2)
 }
