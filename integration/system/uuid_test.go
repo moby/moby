@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/pborman/uuid"
+	"github.com/google/uuid"
 	"gotest.tools/assert"
 )
 
@@ -15,6 +15,6 @@ func TestUUIDGeneration(t *testing.T) {
 	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 
-	id := uuid.Parse(info.ID)
-	assert.Equal(t, id != nil, true)
+	_, err = uuid.Parse(info.ID)
+	assert.NilError(t, err)
 }
