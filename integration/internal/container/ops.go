@@ -134,3 +134,10 @@ func WithAutoRemove(c *TestContainerConfig) {
 	}
 	c.HostConfig.AutoRemove = true
 }
+
+// WithUser sets the user
+func WithUser(user string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.User = user
+	}
+}
