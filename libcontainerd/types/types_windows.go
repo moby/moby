@@ -4,10 +4,10 @@ import (
 	"time"
 
 	"github.com/Microsoft/hcsshim"
+	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
 )
 
-// Summary contains a ProcessList item from HCS to support `top`
-type Summary hcsshim.ProcessListItem
+type Summary options.ProcessDetails
 
 // Stats contains statistics from HCS
 type Stats struct {
