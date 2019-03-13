@@ -245,5 +245,5 @@ func TestImageService(t *testing.T) {
 	}
 
 	t.Run("ListImages", setupTest(ctx, td, service, testListImages))
-
+	t.Run("DeleteImages", setupTest(ctx, td, service, testDeleteImages))
 }

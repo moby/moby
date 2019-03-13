@@ -4,7 +4,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
+	"math/rand"
+	"time"
 
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/archive/tartest"
@@ -182,4 +185,26 @@ func createIndex(references ...construct) construct {
 		return multiIngest(append(ingests, bytesIngest(p, desc.MediaType))...)
 
 	}
+}
+
+func randomLayer(size int) tartest.WriterToTar {
+	now := time.Now()
+	tc := tartest.TarContext{}.WithModTime(now.UTC())
+	r := rand.New(rand.NewSource(now.UnixNano()))
+	p := make([]byte, size)
+	if l, err := r.Read(p); err != nil || l != size {
+		panic(fmt.Sprintf("unable to read rand bytes: %d %v", l, err))
+	}
+	return tartest.TarAll(
+		tc.Dir("/randomfiles", 0755),
+		tc.File("/randomfiles/1", p, 0644),
+	)
+}
+
+func randomManifest(layers int) construct {
+	layerOpts := make([]tartest.WriterToTar, layers)
+	for i := range layerOpts {
+		layerOpts[i] = randomLayer(10 * i)
+	}
+	return createManifest(withLayers(layerOpts...), withConfig())
 }

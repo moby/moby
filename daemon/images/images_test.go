@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"testing"
-	"time"
 
-	"github.com/containerd/containerd/archive/tartest"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types"
@@ -16,8 +14,6 @@ import (
 )
 
 func testListImages(ctx context.Context, t *testing.T, is *ImageService) {
-	tc := tartest.TarContext{}.WithModTime(time.Now().UTC())
-
 	type testImage struct {
 		names []string
 		image construct
@@ -84,15 +80,7 @@ func testListImages(ctx context.Context, t *testing.T, is *ImageService) {
 			images: []testImage{
 				{
 					names: []string{"docker.io/library/someimage:latest"},
-					image: createManifest(
-						withLayers(
-							tartest.TarAll(
-								tc.Dir("dummy", 0755),
-								tc.File("/dummy/file", []byte("unimportant"), 0644),
-							),
-						),
-						withConfig(),
-					),
+					image: randomManifest(1),
 				},
 			},
 			expected: []imageCheck{
@@ -104,27 +92,11 @@ func testListImages(ctx context.Context, t *testing.T, is *ImageService) {
 			images: []testImage{
 				{
 					names: []string{"docker.io/library/someimage:latest"},
-					image: createManifest(
-						withLayers(
-							tartest.TarAll(
-								tc.Dir("dummy", 0755),
-								tc.File("/dummy/file", []byte("unimportant"), 0644),
-							),
-						),
-						withConfig(),
-					),
+					image: randomManifest(1),
 				},
 				{
 					names: []string{"docker.io/library/someimage:latest"},
-					image: createManifest(
-						withLayers(
-							tartest.TarAll(
-								tc.Dir("dummy", 0755),
-								tc.File("/dummy/file", []byte("updated"), 0644),
-							),
-						),
-						withConfig(),
-					),
+					image: randomManifest(2),
 				},
 			},
 			expected: []imageCheck{

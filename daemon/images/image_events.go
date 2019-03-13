@@ -10,6 +10,10 @@ import (
 
 // LogImageEvent generates an event related to an image with only the default attributes.
 func (i *ImageService) LogImageEvent(ctx context.Context, imageID, refName, action string) {
+	if i.eventsService == nil {
+		return
+	}
+
 	// image has not been removed yet.
 	// it could be missing if the event is `delete`.
 	attributes, _ := i.getImageLabels(ctx, imageID)
