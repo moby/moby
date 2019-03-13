@@ -363,4 +363,13 @@ func TestTimeouts(t *testing.T) {
 	c2, err := i.GetConfig()
 	assert.NilError(t, err)
 	assert.DeepEqual(t, cfg, *c2)
+
+	//  A timeout value 0 means that the current timeout value of the corresponding entry is preserved
+	cfg = Config{77 * time.Second, 0 * time.Second, 77 * time.Second}
+	err = i.SetConfig(&cfg)
+	assert.NilError(t, err)
+
+	c3, err := i.GetConfig()
+	assert.NilError(t, err)
+	assert.DeepEqual(t, *c3, Config{77 * time.Second, 66 * time.Second, 77 * time.Second})
 }
