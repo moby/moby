@@ -105,7 +105,6 @@ import "C"
 
 import (
 	"errors"
-	"fmt"
 	"strings"
 	"time"
 	"unsafe"
@@ -282,16 +281,14 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	)
 
 	// Get a handle to the journal.
-	rc := C.sd_journal_open(&j, C.int(0))
-	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error opening journal")
+	if rc := C.sd_journal_open(&j, C.int(0)); rc != 0 {
+		logWatcher.Err <- errors.New("error opening journal: " + CErr(rc))
 		close(logWatcher.Msg)
 		return
 	}
 	if config.Follow {
 		// Initialize library inotify watches early
-		rc = C.sd_journal_get_fd(j)
-		if rc < 0 {
+		if rc := C.sd_journal_get_fd(j); rc < 0 {
 			logWatcher.Err <- errors.New("error getting journald fd: " + CErr(rc))
 			close(logWatcher.Msg)
 			return
@@ -309,17 +306,15 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		C.sd_journal_close(j)
 	}()
 	// Remove limits on the size of data items that we'll retrieve.
-	rc = C.sd_journal_set_data_threshold(j, C.size_t(0))
-	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error setting journal data threshold")
+	if rc := C.sd_journal_set_data_threshold(j, C.size_t(0)); rc != 0 {
+		logWatcher.Err <- errors.New("error setting journal data threshold: " + CErr(rc))
 		return
 	}
 	// Add a match to have the library do the searching for us.
 	cmatch = C.CString("CONTAINER_ID_FULL=" + s.vars["CONTAINER_ID_FULL"])
 	defer C.free(unsafe.Pointer(cmatch))
-	rc = C.sd_journal_add_match(j, unsafe.Pointer(cmatch), C.strlen(cmatch))
-	if rc != 0 {
-		logWatcher.Err <- fmt.Errorf("error setting journal match")
+	if rc := C.sd_journal_add_match(j, unsafe.Pointer(cmatch), C.strlen(cmatch)); rc != 0 {
+		logWatcher.Err <- errors.New("error setting journal match: " + CErr(rc))
 		return
 	}
 	// If we have a cutoff time, convert it to Unix time once.
@@ -335,11 +330,13 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 	if config.Tail >= 0 {
 		// If until time provided, start from there.
 		// Otherwise start at the end of the journal.
-		if untilUnixMicro != 0 && C.sd_journal_seek_realtime_usec(j, C.uint64_t(untilUnixMicro)) < 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking provided until value")
-			return
-		} else if C.sd_journal_seek_tail(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to end of journal")
+		if untilUnixMicro != 0 {
+			if rc := C.sd_journal_seek_realtime_usec(j, C.uint64_t(untilUnixMicro)); rc != 0 {
+				logWatcher.Err <- errors.New("error seeking provided until value: " + CErr(rc))
+				return
+			}
+		} else if rc := C.sd_journal_seek_tail(j); rc != 0 {
+			logWatcher.Err <- errors.New("error seeking to end of journal: " + CErr(rc))
 			return
 		}
 		// (Try to) skip backwards by the requested number of lines...
@@ -353,17 +350,19 @@ func (s *journald) readLogs(logWatcher *logger.LogWatcher, config logger.ReadCon
 		}
 	} else {
 		// Start at the beginning of the journal.
-		if C.sd_journal_seek_head(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to start of journal")
+		if rc := C.sd_journal_seek_head(j); rc != 0 {
+			logWatcher.Err <- errors.New("error seeking to start of journal: " + CErr(rc))
 			return
 		}
 		// If we have a cutoff date, fast-forward to it.
-		if sinceUnixMicro != 0 && C.sd_journal_seek_realtime_usec(j, C.uint64_t(sinceUnixMicro)) != 0 {
-			logWatcher.Err <- fmt.Errorf("error seeking to start time in journal")
-			return
+		if sinceUnixMicro != 0 {
+			if rc := C.sd_journal_seek_realtime_usec(j, C.uint64_t(sinceUnixMicro)); rc != 0 {
+				logWatcher.Err <- errors.New("error seeking to start time in journal: " + CErr(rc))
+				return
+			}
 		}
-		if C.sd_journal_next(j) < 0 {
-			logWatcher.Err <- fmt.Errorf("error skipping to next journal entry")
+		if rc := C.sd_journal_next(j); rc < 0 {
+			logWatcher.Err <- errors.New("error skipping to next journal entry: " + CErr(rc))
 			return
 		}
 	}
