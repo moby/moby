@@ -57,7 +57,12 @@ func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
 func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
+		c.Logf("completed stopping daemon")
 		s.ds.TearDownTest(c)
+		c.Logf("completed teardown test")
+
+		// Make the test fail so that it prints all the logs YOLO
+		c.Fail()
 	}
 }
 
