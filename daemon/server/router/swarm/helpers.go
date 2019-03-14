@@ -77,6 +77,14 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 	if cliVersion == "" {
 		return
 	}
+
+	if versions.LessThan(cliVersion, "1.52") {
+		if service.TaskTemplate.Resources != nil {
+			service.TaskTemplate.Resources.SwapBytes = nil
+			service.TaskTemplate.Resources.MemorySwappiness = nil
+		}
+	}
+
 	if versions.LessThan(cliVersion, "1.46") {
 		if service.TaskTemplate.ContainerSpec != nil {
 			for i, mount := range service.TaskTemplate.ContainerSpec.Mounts {
@@ -107,6 +115,20 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 			// MaxReplicas for docker swarm services weren't supported before
 			// API version 1.40
 			service.TaskTemplate.Placement.MaxReplicas = 0
+		}
+
+		if service.TaskTemplate.Resources != nil {
+			if service.TaskTemplate.Resources.SwapBytes != nil {
+				// Setting services' swap size wasn't supported before
+				// API version 1.40
+				service.TaskTemplate.Resources.SwapBytes = nil
+			}
+
+			if service.TaskTemplate.Resources.MemorySwappiness != nil {
+				// Setting services' swappiness wasn't supported before
+				// API version 1.40
+				service.TaskTemplate.Resources.MemorySwappiness = nil
+			}
 		}
 	}
 	if versions.LessThan(cliVersion, "1.41") {
