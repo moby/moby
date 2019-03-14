@@ -63,6 +63,12 @@ keywords: "API, Docker, rcli, REST, documentation"
   set).
 * `POST /containers/{id}/update` now accepts a `PidsLimit` field to tune a container's
   PID limit. Set `0` or `-1` for unlimited. Leave `null` to not change the current value.
+* `GET /services` now returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
+* `GET /services/{id}` now returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
+* `POST /services/create` now accepts `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
+* `POST /services/{id}/update` now accepts `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
+* `GET /tasks` now  returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
+* `GET /tasks/{id}` now  returns `SwapBytes` and `MemorySwappiness` fields as part of the `Resource` requirements.
 
 ## V1.39 API changes
 
