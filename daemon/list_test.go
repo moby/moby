@@ -11,8 +11,8 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/image"
+	"github.com/google/uuid"
 	"github.com/opencontainers/go-digest"
-	"github.com/pborman/uuid"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -36,7 +36,7 @@ func TestMain(m *testing.M) {
 func setupContainerWithName(t *testing.T, name string, daemon *Daemon) *container.Container {
 	t.Helper()
 	var (
-		id              = uuid.New()
+		id              = uuid.New().String()
 		computedImageID = digest.FromString(id)
 		cRoot           = filepath.Join(root, id)
 	)
