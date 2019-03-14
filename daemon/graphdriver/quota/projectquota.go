@@ -52,7 +52,6 @@ const int Q_XGETQSTAT_PRJQUOTA = QCMD(Q_XGETQSTAT, PRJQUOTA);
 */
 import "C"
 import (
-	"fmt"
 	"io/ioutil"
 	"path"
 	"path/filepath"
@@ -221,7 +220,7 @@ func (q *Control) GetQuota(targetPath string, quota *Quota) error {
 
 	projectID, ok := q.quotas[targetPath]
 	if !ok {
-		return fmt.Errorf("quota not found for path : %s", targetPath)
+		return errors.Errorf("quota not found for path: %s", targetPath)
 	}
 
 	//
@@ -292,7 +291,7 @@ func setProjectID(targetPath string, projectID uint32) error {
 func (q *Control) findNextProjectID(home string) error {
 	files, err := ioutil.ReadDir(home)
 	if err != nil {
-		return fmt.Errorf("read directory failed : %s", home)
+		return errors.Errorf("read directory failed: %s", home)
 	}
 	for _, file := range files {
 		if !file.IsDir() {
@@ -324,7 +323,7 @@ func openDir(path string) (*C.DIR, error) {
 
 	dir := C.opendir(Cpath)
 	if dir == nil {
-		return nil, fmt.Errorf("failed to open dir")
+		return nil, errors.Errorf("failed to open dir: %s", path)
 	}
 	return dir, nil
 }
