@@ -8,6 +8,7 @@ import (
 	"github.com/containerd/containerd/content/local"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
+	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
 	"github.com/docker/docker/builder/builder-next/adapters/snapshot"
 	containerimageexp "github.com/docker/docker/builder/builder-next/exporter"
 	"github.com/docker/docker/builder/builder-next/imagerefchecker"
@@ -19,7 +20,6 @@ import (
 	"github.com/moby/buildkit/cache/metadata"
 	"github.com/moby/buildkit/cache/remotecache"
 	inlineremotecache "github.com/moby/buildkit/cache/remotecache/inline"
-	registryremotecache "github.com/moby/buildkit/cache/remotecache/registry"
 	"github.com/moby/buildkit/client"
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/frontend"
@@ -175,7 +175,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Frontends:        frontends,
 		CacheKeyStorage:  cacheStorage,
 		ResolveCacheImporterFuncs: map[string]remotecache.ResolveCacheImporterFunc{
-			"registry": registryremotecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt),
+			"registry": localinlinecache.ResolveCacheImporterFunc(opt.SessionManager, opt.ResolverOpt, dist.ReferenceStore, dist.ImageStore),
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
