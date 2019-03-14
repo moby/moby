@@ -9,6 +9,7 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/oci"
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/sysinfo"
@@ -25,8 +26,12 @@ const (
 )
 
 func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
+	// NOTE(dperny): this method has been updated so that all errors returned
+	// are errdefs errors. most of the errors returned have been annotated with
+	// comments to explain the choice of error type.
 	img, err := daemon.imageService.GetImage(string(c.ImageID))
 	if err != nil {
+		// The errors returned by GetImage are already errdefs errors.
 		return nil, err
 	}
 
@@ -34,6 +39,8 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 
 	linkedEnv, err := daemon.setupLinkedContainers(c)
 	if err != nil {
+		// The errors returned by setupLinkedContainers are already errdefs
+		// errors
 		return nil, err
 	}
 
@@ -44,18 +51,21 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	// In base spec
 	s.Hostname = c.FullHostname()
 
+	// the next few errors are all System errors, because they involves things
+	// like mount failures.
+
 	if err := daemon.setupSecretDir(c); err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 
 	if err := daemon.setupConfigDir(c); err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 
 	// In s.Mounts
 	mounts, err := daemon.setupMounts(c)
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 
 	var isHyperV bool
@@ -82,21 +92,21 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 		// except for Hyper-V containers, so mount it here in that case.
 		if isHyperV {
 			if err := daemon.Mount(c); err != nil {
-				return nil, err
+				return nil, errdefs.System(err)
 			}
 			defer daemon.Unmount(c)
 		}
 		if err := c.CreateSecretSymlinks(); err != nil {
-			return nil, err
+			return nil, errdefs.System(err)
 		}
 		if err := c.CreateConfigSymlinks(); err != nil {
-			return nil, err
+			return nil, errdefs.System(err)
 		}
 	}
 
 	secretMounts, err := c.SecretMounts()
 	if err != nil {
-		return nil, err
+		return nil, errdefs.System(err)
 	}
 	if secretMounts != nil {
 		mounts = append(mounts, secretMounts...)
@@ -141,7 +151,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	s.Process.User.Username = c.Config.User
 	s.Windows.LayerFolders, err = daemon.imageService.GetLayerFolders(img, c.RWLayer)
 	if err != nil {
-		return nil, errors.Wrapf(err, "container %s", c.ID)
+		return nil, errdefs.System(errors.Wrapf(err, "container %s", c.ID))
 	}
 
 	dnsSearch := daemon.getDNSSearchSettings(c)
@@ -206,17 +216,21 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 	switch img.OS {
 	case "windows":
 		if err := daemon.createSpecWindowsFields(c, &s, isHyperV); err != nil {
+			// createSpecWindowsFields has been updated to return all errdefs
+			// errors.
 			return nil, err
 		}
 	case "linux":
 		if !system.LCOWSupported() {
-			return nil, fmt.Errorf("Linux containers on Windows are not supported")
+			return nil, errdefs.InvalidParameter(fmt.Errorf("Linux containers on Windows are not supported"))
 		}
 		if err := daemon.createSpecLinuxFields(c, &s); err != nil {
+			// createSpecLinuxFields has been updated to return all errdefs
+			// errors
 			return nil, err
 		}
 	default:
-		return nil, fmt.Errorf("Unsupported platform %q", img.OS)
+		return nil, errdefs.InvalidParameter(fmt.Errorf("Unsupported platform %q", img.OS))
 	}
 
 	return (*specs.Spec)(&s), nil
@@ -238,7 +252,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	s.Root.Readonly = false // Windows does not support a read-only root filesystem
 	if !isHyperV {
 		if c.BaseFS == nil {
-			return errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil")
+			return errdefs.System(errors.New("createSpecWindowsFields: BaseFS of container " + c.ID + " is unexpectedly nil"))
 		}
 
 		s.Root.Path = c.BaseFS.Path() // This is not set for Hyper-V containers
@@ -256,17 +270,20 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	if c.HostConfig.SecurityOpt != nil {
 		cs := ""
 		for _, sOpt := range c.HostConfig.SecurityOpt {
+			// most of the SecurityOpts errors are InvalidParameter, because
+			// they're caused by the user improperly constructing the
+			// SecurityOpt.
 			sOpt = strings.ToLower(sOpt)
 			if !strings.Contains(sOpt, "=") {
-				return fmt.Errorf("invalid security option: no equals sign in supplied value %s", sOpt)
+				return errdefs.InvalidParameter(fmt.Errorf("invalid security option: no equals sign in supplied value %s", sOpt))
 			}
 			var splitsOpt []string
 			splitsOpt = strings.SplitN(sOpt, "=", 2)
 			if len(splitsOpt) != 2 {
-				return fmt.Errorf("invalid security option: %s", sOpt)
+				return errdefs.InvalidParameter(fmt.Errorf("invalid security option: %s", sOpt))
 			}
 			if splitsOpt[0] != "credentialspec" {
-				return fmt.Errorf("security option not supported: %s", splitsOpt[0])
+				return errdefs.InvalidParameter(fmt.Errorf("security option not supported: %s", splitsOpt[0]))
 			}
 
 			var (
@@ -276,17 +293,17 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 			)
 			if match, csValue = getCredentialSpec("file://", splitsOpt[1]); match {
 				if csValue == "" {
-					return fmt.Errorf("no value supplied for file:// credential spec security option")
+					return errdefs.InvalidParameter(fmt.Errorf("no value supplied for file:// credential spec security option"))
 				}
 				if cs, err = readCredentialSpecFile(c.ID, daemon.root, filepath.Clean(csValue)); err != nil {
-					return err
+					return errdefs.InvalidParameter(err)
 				}
 			} else if match, csValue = getCredentialSpec("registry://", splitsOpt[1]); match {
 				if csValue == "" {
-					return fmt.Errorf("no value supplied for registry:// credential spec security option")
+					return errdefs.InvalidParameter(fmt.Errorf("no value supplied for registry:// credential spec security option"))
 				}
 				if cs, err = readCredentialSpecRegistry(c.ID, csValue); err != nil {
-					return err
+					return errdefs.InvalidParameter(err)
 				}
 			} else if match, csValue = getCredentialSpec("config://", splitsOpt[1]); match {
 				// if the container does not have a DependencyStore, then it
@@ -294,24 +311,24 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 				// impression that `config://` is a valid API, return the same
 				// error as if you'd passed any other random word.
 				if c.DependencyStore == nil {
-					return fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
+					return errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value"))
 				}
 
 				// after this point, we can return regular swarmkit-relevant
 				// errors, because we'll know this container is managed.
 				if csValue == "" {
-					return fmt.Errorf("no value supplied for config:// credential spec security option")
+					return errdefs.InvalidParameter(fmt.Errorf("no value supplied for config:// credential spec security option"))
 				}
 
 				csConfig, err := c.DependencyStore.Configs().Get(csValue)
 				if err != nil {
-					return errors.Wrap(err, "error getting value from config store")
+					return errdefs.System(errors.Wrap(err, "error getting value from config store"))
 				}
 				// stuff the resulting secret data into a string to use as the
 				// CredentialSpec
 				cs = string(csConfig.Spec.Data)
 			} else {
-				return fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value")
+				return errdefs.InvalidParameter(fmt.Errorf("invalid credential spec security option - value must be prefixed file:// or registry:// followed by a value"))
 			}
 		}
 		s.Windows.CredentialSpec = cs
@@ -320,18 +337,18 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 	// Do we have any assigned devices?
 	if len(c.HostConfig.Devices) > 0 {
 		if isHyperV {
-			return errors.New("device assignment is not supported for HyperV containers")
+			return errdefs.InvalidParameter(errors.New("device assignment is not supported for HyperV containers"))
 		}
 		if system.GetOSVersion().Build < 17763 {
-			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
+			return errdefs.InvalidParameter(errors.New("device assignment requires Windows builds RS5 (17763+) or later"))
 		}
 		for _, deviceMapping := range c.HostConfig.Devices {
 			srcParts := strings.SplitN(deviceMapping.PathOnHost, "/", 2)
 			if len(srcParts) != 2 {
-				return errors.New("invalid device assignment path")
+				return errdefs.InvalidParameter(errors.New("invalid device assignment path"))
 			}
 			if srcParts[0] != "class" {
-				return errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0])
+				return errdefs.InvalidParameter(errors.Errorf("invalid device assignment type: '%s' should be 'class'", srcParts[0]))
 			}
 			wd := specs.WindowsDevice{
 				ID:     srcParts[1],
@@ -358,14 +375,15 @@ func (daemon *Daemon) createSpecLinuxFields(c *container.Container, s *specs.Spe
 
 	capabilities, err := caps.TweakCapabilities(oci.DefaultCapabilities(), c.HostConfig.CapAdd, c.HostConfig.CapDrop, c.HostConfig.Capabilities, c.HostConfig.Privileged)
 	if err != nil {
-		return fmt.Errorf("linux spec capabilities: %v", err)
+		// TweakCapabilities returns all errdefs errors
+		return errors.Wrap(err, "linux spec capabilities:")
 	}
 	if err := oci.SetCapabilities(s, capabilities); err != nil {
-		return fmt.Errorf("linux spec capabilities: %v", err)
+		return errdefs.Unknown(fmt.Errorf("linux spec capabilities: %v", err))
 	}
 	devPermissions, err := oci.AppendDevicePermissionsFromCgroupRules(nil, c.HostConfig.DeviceCgroupRules)
 	if err != nil {
-		return fmt.Errorf("linux runtime spec devices: %v", err)
+		return errdefs.System(fmt.Errorf("linux runtime spec devices: %v", err))
 	}
 	s.Linux.Resources.Devices = devPermissions
 	return nil

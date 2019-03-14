@@ -153,7 +153,15 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	spec, err := daemon.createSpec(container)
 	if err != nil {
-		return errdefs.System(err)
+		// daemon.createSpec has been updated to return all errdefs errors.
+		// However, this update may have been incomplete, and some things may
+		// have changed. To ensure that, no matter what, we get a valid error
+		// type, we will match on all known error types, and then wrap this
+		// error in "Unknown" if it is none of them
+		if !errdefs.IsKnownErrorType(err) {
+			return errdefs.Unknown(err)
+		}
+		return err
 	}
 
 	if resetRestartManager {
