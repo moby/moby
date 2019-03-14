@@ -474,11 +474,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		}
 		// Ignore KernelMemoryTCP because it was added in API 1.40.
 		hostConfig.KernelMemoryTCP = 0
-	}
 
-	// Ignore Capabilities because it was added in API 1.40.
-	if hostConfig != nil && versions.LessThan(version, "1.40") {
+		// Ignore Capabilities because it was added in API 1.40.
 		hostConfig.Capabilities = nil
+
+		// Older clients (API < 1.40) expects the default to be shareable, make them happy
+		if hostConfig.IpcMode.IsEmpty() {
+			hostConfig.IpcMode = container.IpcMode("shareable")
+		}
 	}
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
