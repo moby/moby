@@ -77,6 +77,14 @@ func adjustForAPIVersion(cliVersion string, service *serviceWithLegacy) {
 	if cliVersion == "" {
 		return
 	}
+
+	if versions.LessThan(cliVersion, "1.52") {
+		if service.TaskTemplate.Resources != nil {
+			service.TaskTemplate.Resources.SwapBytes = nil
+			service.TaskTemplate.Resources.MemorySwappiness = nil
+		}
+	}
+
 	if versions.LessThan(cliVersion, "1.46") {
 		if service.TaskTemplate.ContainerSpec != nil {
 			for i, mount := range service.TaskTemplate.ContainerSpec.Mounts {

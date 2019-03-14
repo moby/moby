@@ -8,6 +8,7 @@ import (
 	"time"
 
 	cerrdefs "github.com/containerd/errdefs"
+	"github.com/docker/go-units"
 	"github.com/moby/moby/api/types/container"
 	swarmtypes "github.com/moby/moby/api/types/swarm"
 	"github.com/moby/moby/client"
@@ -457,4 +458,163 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	assert.NilError(t, err)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityAdd, capAdd)
 	assert.DeepEqual(t, service.Spec.TaskTemplate.ContainerSpec.CapabilityDrop, capDrop)
+}
+
+func TestCreateServiceMemorySwap(t *testing.T) {
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	toPtr := func(v int64) *int64 { return &v }
+	tests := []struct {
+		testName string
+
+		swapSpec  *int64
+		limitSpec int64
+
+		// as reported by Docker
+		expectedDockerSwap int64
+	}{
+		{
+			testName: "default",
+		},
+		{
+			testName:           "memory-limit and memory-swap",
+			swapSpec:           toPtr(1 * units.MiB),
+			limitSpec:          20 * units.MiB,
+			expectedDockerSwap: 21 * units.MiB,
+		},
+		{
+			testName:           "memory-limit alone - should default to twice as much swap",
+			limitSpec:          20 * units.MiB,
+			expectedDockerSwap: 40 * units.MiB,
+		},
+		{
+			testName:           "memory-limit and zero memory-swap",
+			swapSpec:           toPtr(0),
+			limitSpec:          20 * units.MiB,
+			expectedDockerSwap: 20 * units.MiB,
+		},
+		{
+			testName:           "memory-limit and unlimited memory-swap",
+			swapSpec:           toPtr(-1),
+			limitSpec:          20 * units.MiB,
+			expectedDockerSwap: -1,
+		},
+	}
+
+	for _, testCase := range tests {
+		t.Run("service create with "+testCase.testName, func(t *testing.T) {
+			serviceID := swarm.CreateService(
+				ctx, t, d,
+				swarm.ServiceWithMemorySwap(testCase.swapSpec, testCase.limitSpec),
+			)
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
+
+			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+			assert.NilError(t, err)
+
+			filter := make(client.Filters)
+			filter.Add("service", serviceID)
+			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+				Filters: filter,
+			})
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(len(tasks), 1))
+			task := tasks[0]
+
+			if testCase.swapSpec == nil {
+				assert.Check(t, is.Nil(task.Spec.Resources.SwapBytes))
+				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.SwapBytes))
+			} else {
+				assert.Equal(t, *testCase.swapSpec, *task.Spec.Resources.SwapBytes)
+				assert.Equal(t, *testCase.swapSpec, *service.Spec.TaskTemplate.Resources.SwapBytes)
+			}
+
+			// if the host supports it (see https://github.com/moby/moby/blob/v17.03.2-ce/daemon/daemon_unix.go#L290-L294)
+			// then check that the swap option is set on the container, and properly reported by the group FS as well
+			if testEnv.DaemonInfo.SwapLimit {
+				ctnr, err := apiClient.ContainerInspect(ctx, task.Status.ContainerStatus.ContainerID)
+				assert.NilError(t, err)
+				assert.Equal(t, testCase.expectedDockerSwap, ctnr.HostConfig.Resources.MemorySwap)
+			}
+		})
+	}
+
+	t.Run("cannot create a service with a memory swap option without setting a memory limit", func(t *testing.T) {
+		serviceOpts := func(spec *swarmtypes.ServiceSpec) {
+			if spec.TaskTemplate.Resources == nil {
+				spec.TaskTemplate.Resources = &swarmtypes.ResourceRequirements{}
+			}
+			spec.TaskTemplate.Resources.SwapBytes = toPtr(10 * units.MiB)
+		}
+
+		spec := swarm.CreateServiceSpec(t, serviceOpts)
+		_, err := apiClient.ServiceCreate(context.Background(), spec, client.ServiceCreateOptions{})
+
+		assert.ErrorContains(t, err, "memory swap provided, but no memory-limit was set")
+	})
+}
+
+func TestCreateServiceMemorySwappiness(t *testing.T) {
+	ctx := setupTest(t)
+	d := swarm.NewSwarm(ctx, t, testEnv)
+	defer d.Stop(t)
+	apiClient := d.NewClientT(t)
+	defer apiClient.Close()
+
+	toPtr := func(v int64) *int64 { return &v }
+
+	tests := []struct {
+		testName       string
+		swappinessSpec *int64
+	}{
+		{testName: "default"},
+		{testName: "zero memory-swappiness", swappinessSpec: toPtr(0)},
+		{testName: "memory-swappiness", swappinessSpec: toPtr(28)},
+	}
+
+	for _, testCase := range tests {
+		t.Run("service create with "+testCase.testName, func(t *testing.T) {
+			serviceID := swarm.CreateService(
+				ctx, t, d,
+				swarm.ServiceWithMemorySwappiness(testCase.swappinessSpec),
+			)
+			poll.WaitOn(t, swarm.RunningTasksCount(ctx, apiClient, serviceID, 1))
+
+			filter := make(client.Filters)
+			filter.Add("service", serviceID)
+			tasks, err := apiClient.TaskList(ctx, client.TaskListOptions{
+				Filters: filter,
+			})
+			assert.NilError(t, err)
+			assert.Check(t, is.Equal(len(tasks), 1))
+			task := tasks[0]
+
+			service, _, err := apiClient.ServiceInspectWithRaw(ctx, serviceID, client.ServiceInspectOptions{})
+			assert.NilError(t, err)
+
+			// An earlier version of this test also inspected the container
+			// created by Swarm to ensure that MemorySwappiness was set on its
+			// HostConfig. However, on systems that do not support
+			// MemorySwappiness (the Github Actions platform is one, in late
+			// 2025), that field in the HostConfig is nilled out, and a warning
+			// is returned. Swarm doesn't do anything with the warning, so the
+			// setting is silently ignored. Getting the raw SysInfo can show if
+			// MemorySwappiness is supported, but that field is not present in
+			// a regular Info API call, and so is not part of
+			// testEnv.DaemonInfo and cannot be checked (easily) here. So,
+			// ultimately, we'll skip that check in the integration test.
+
+			if testCase.swappinessSpec == nil {
+				assert.Check(t, is.Nil(task.Spec.Resources.MemorySwappiness))
+				assert.Check(t, is.Nil(service.Spec.TaskTemplate.Resources.MemorySwappiness))
+			} else {
+				assert.Equal(t, *testCase.swappinessSpec, *task.Spec.Resources.MemorySwappiness)
+				assert.Equal(t, *testCase.swappinessSpec, *service.Spec.TaskTemplate.Resources.MemorySwappiness)
+			}
+		})
+	}
 }
