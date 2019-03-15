@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/containerd/containerd/content/local"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/builder/builder-next/adapters/containerimage"
 	"github.com/docker/docker/builder/builder-next/adapters/localinlinecache"
@@ -28,7 +29,9 @@ import (
 	"github.com/moby/buildkit/frontend/gateway/forwarder"
 	"github.com/moby/buildkit/snapshot/blobmapping"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
+	"github.com/moby/buildkit/util/binfmt_misc"
 	"github.com/moby/buildkit/worker"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -141,6 +144,11 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		return nil, errors.Errorf("snapshotter doesn't support differ")
 	}
 
+	p, err := parsePlatforms(binfmt_misc.SupportedPlatforms())
+	if err != nil {
+		return nil, err
+	}
+
 	wopt := mobyworker.Opt{
 		ID:                "moby",
 		MetadataStore:     md,
@@ -155,6 +163,7 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		Exporter:          exp,
 		Transport:         rt,
 		Layers:            layers,
+		Platforms:         p,
 	}
 
 	wc := &worker.Controller{}
@@ -222,4 +231,16 @@ func getGCPolicy(conf config.BuilderConfig, root string) ([]client.PruneInfo, er
 		}
 	}
 	return gcPolicy, nil
+}
+
+func parsePlatforms(platformsStr []string) ([]specs.Platform, error) {
+	out := make([]specs.Platform, 0, len(platformsStr))
+	for _, s := range platformsStr {
+		p, err := platforms.Parse(s)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, platforms.Normalize(p))
+	}
+	return out, nil
 }
