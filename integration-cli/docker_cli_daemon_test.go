@@ -1787,8 +1787,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartContainerLinksRestart(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
-	// Test requires local filesystem access on a Linux host
-	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
+	testRequires(c, DaemonIsLinux)
 
 	cgroupParent := "test"
 	name := "cgroup-test"
@@ -1796,20 +1795,10 @@ func (s *DockerDaemonSuite) TestDaemonCgroupParent(c *check.C) {
 	s.d.StartWithBusybox(c, "--cgroup-parent", cgroupParent)
 	defer s.d.Restart(c)
 
-	out, err := s.d.Cmd("run", "--name", name, "-d", "busybox", "top")
-	c.Assert(err, checker.IsNil)
-
-	// If cgroup namespaces are enabled, then processes running inside the container won't
-	// be able to see the parent namespace. Check that they have the correct parents from
-	// the host, which has the non-namespaced view of the hierarchy.
-
-	pid, err := s.d.Cmd("inspect", "-f", "{{.State.Pid}}", name)
-	c.Assert(err, checker.IsNil)
-	pid = strings.TrimSpace(string(pid))
-	paths := ReadCgroupPathsForPid(c, pid)
-	cgroupPaths := ParseCgroupPaths(paths)
-	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", paths))
-
+	out, err := s.d.Cmd("run", "--name", name, "busybox", "cat", "/proc/self/cgroup")
+	assert.NilError(c, err)
+	cgroupPaths := ParseCgroupPaths(string(out))
+	c.Assert(len(cgroupPaths), checker.Not(checker.Equals), 0, check.Commentf("unexpected output - %q", string(out)))
 	out, err = s.d.Cmd("inspect", "-f", "{{.Id}}", name)
 	assert.NilError(c, err)
 	id := strings.TrimSpace(string(out))

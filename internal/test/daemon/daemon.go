@@ -60,16 +60,17 @@ type Daemon struct {
 	UseDefaultHost    bool
 	UseDefaultTLSHost bool
 
-	id            string
-	logFile       *os.File
-	cmd           *exec.Cmd
-	storageDriver string
-	userlandProxy bool
-	execRoot      string
-	experimental  bool
-	init          bool
-	dockerdBinary string
-	log           logT
+	id                         string
+	logFile                    *os.File
+	cmd                        *exec.Cmd
+	storageDriver              string
+	userlandProxy              bool
+	defaultCgroupNamespaceMode string
+	execRoot                   string
+	experimental               bool
+	init                       bool
+	dockerdBinary              string
+	log                        logT
 
 	// swarm related field
 	swarmListenAddr string
@@ -169,13 +170,18 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 }
 
 // NewClientT creates new client based on daemon's socket path
-func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
+func (d *Daemon) NewClientT(t assert.TestingT, extraOpts ...client.Opt) *client.Client {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	c, err := client.NewClientWithOpts(
+
+	clientOpts := []client.Opt{
 		client.FromEnv,
-		client.WithHost(d.Sock()))
+		client.WithHost(d.Sock()),
+	}
+	clientOpts = append(clientOpts, extraOpts...)
+
+	c, err := client.NewClientWithOpts(clientOpts...)
 	assert.NilError(t, err, "cannot create daemon client")
 	return c
 }
@@ -225,6 +231,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.Folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
 	)
+	if d.defaultCgroupNamespaceMode != "" {
+		args = append(args, []string{"--default-cgroupns-mode", d.defaultCgroupNamespaceMode}...)
+	}
 	if d.experimental {
 		args = append(args, "--experimental")
 	}

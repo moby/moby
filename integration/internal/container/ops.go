@@ -160,3 +160,23 @@ func WithUser(user string) func(c *TestContainerConfig) {
 		c.Config.User = user
 	}
 }
+
+// WithPrivileged sets privileged mode for the container
+func WithPrivileged(privileged bool) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.Privileged = privileged
+	}
+}
+
+// WithCgroupnsMode sets the cgroup namespace mode for the container
+func WithCgroupnsMode(mode string) func(*TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		if c.HostConfig == nil {
+			c.HostConfig = &containertypes.HostConfig{}
+		}
+		c.HostConfig.CgroupnsMode = containertypes.CgroupnsMode(mode)
+	}
+}

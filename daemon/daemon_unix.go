@@ -356,6 +356,15 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 		hostConfig.IpcMode = containertypes.IpcMode(m)
 	}
 
+	// Set default cgroup namespace mode, if unset for container
+	if hostConfig.CgroupnsMode.IsEmpty() {
+		m := config.DefaultCgroupNamespaceMode
+		if daemon.configStore != nil {
+			m = daemon.configStore.CgroupNamespaceMode
+		}
+		hostConfig.CgroupnsMode = containertypes.CgroupnsMode(m)
+	}
+
 	adaptSharedNamespaceContainer(daemon, hostConfig)
 
 	var err error
@@ -672,6 +681,19 @@ func verifyPlatformContainerSettings(daemon *Daemon, hostConfig *containertypes.
 	for dest := range hostConfig.Tmpfs {
 		if err := parser.ValidateTmpfsMountDestination(dest); err != nil {
 			return warnings, err
+		}
+	}
+
+	if !hostConfig.CgroupnsMode.Valid() {
+		return warnings, fmt.Errorf("invalid cgroup namespace mode: %v", hostConfig.CgroupnsMode)
+	}
+	if hostConfig.CgroupnsMode.IsPrivate() {
+		if !sysInfo.CgroupNamespaces {
+			warnings = append(warnings, "Your kernel does not support cgroup namespaces.  Cgroup namespace setting discarded.")
+		}
+
+		if hostConfig.Privileged {
+			return warnings, fmt.Errorf("privileged mode is incompatible with private cgroup namespaces.  You must run the container in the host cgroup namespace when running privileged mode")
 		}
 	}
 

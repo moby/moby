@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -37,17 +36,6 @@ func transformCmd(execCmd *exec.Cmd) icmd.Cmd {
 		Stdin:   execCmd.Stdin,
 		Stdout:  execCmd.Stdout,
 	}
-}
-
-// ReadCgroupPathsForPid reads the cgroup path file for a pid in '/proc/<pid>/cgroup'
-func ReadCgroupPathsForPid(c *check.C, pid string) string {
-	cgroupFile := fmt.Sprintf("/proc/%s/cgroup", pid)
-	out, err := ioutil.ReadFile(cgroupFile)
-	if err != nil {
-		c.Fatalf("unexpected failure when reading cgroup file %s\n%v", cgroupFile, err)
-	}
-
-	return string(out)
 }
 
 // ParseCgroupPaths parses 'procCgroupData', which is output of '/proc/<pid>/cgroup', and returns

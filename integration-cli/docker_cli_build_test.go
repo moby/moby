@@ -3984,40 +3984,18 @@ func (s *DockerSuite) TestBuildContainerWithCgroupParent(c *check.C) {
 	if !found {
 		c.Fatalf("unable to find self memory cgroup path. CgroupsPath: %v", selfCgroupPaths)
 	}
-
-	doneCh := make(chan string)
-
-	// If cgroup namespaces are enabled, then processes running inside the container won't
-	// be able to see the parent namespace. Check that they have the correct parents from
-	// the host, which has the non-namespaced view of the hierarchy.
-
-	go func() {
-		result := buildImage("buildcgroupparent",
-			cli.WithFlags("--cgroup-parent", cgroupParent),
-			build.WithDockerfile(`
+	result := buildImage("buildcgroupparent",
+		cli.WithFlags("--cgroup-parent", cgroupParent),
+		build.WithDockerfile(`
 FROM busybox
-RUN sleep 10
-			`))
-		result.Assert(c, icmd.Success)
-		doneCh <- "done"
-	}()
-
-	// Wait until the build is well into the sleep
-	time.Sleep(3 * time.Second)
-	out, _, err := dockerCmdWithError("ps", "-q", "-l")
-	c.Assert(err, check.IsNil)
-	cID := strings.TrimSpace(out)
-
-	pid := inspectField(c, cID, "State.Pid")
-	paths := ReadCgroupPathsForPid(c, pid)
-	m, err := regexp.MatchString(fmt.Sprintf("memory:.*/%s/.*", cgroupParent), paths)
-	c.Assert(err, check.IsNil)
+RUN cat /proc/self/cgroup
+`))
+	result.Assert(c, icmd.Success)
+	m, err := regexp.MatchString(fmt.Sprintf("memory:.*/%s/.*", cgroupParent), result.Combined())
+	assert.NilError(c, err)
 	if !m {
-		c.Fatalf("There is no expected memory cgroup with parent /%s/: %s", cgroupParent, paths)
+		c.Fatalf("There is no expected memory cgroup with parent /%s/: %s", cgroupParent, result.Combined())
 	}
-
-	// Wait for the build to complete, otherwise it will exit with an error
-	<-doneCh
 }
 
 // FIXME(vdemeester) could be a unit test

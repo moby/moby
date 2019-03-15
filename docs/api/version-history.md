@@ -68,6 +68,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `POST /containers/{id}/update` now accepts a `PidsLimit` field to tune a container's
   PID limit. Set `0` or `-1` for unlimited. Leave `null` to not change the current value.
 * `POST /build` now accepts `outputs` key for configuring build outputs when using BuildKit mode.
+* `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
+  Set the property to `host` to create the container in the daemon's cgroup namespace, or
+  `private` to create the container in its own private cgroup namespace.  The per-daemon
+  default is `host`, and can be changed by using the`CgroupNamespaceMode` daemon configuration
+  parameter.
 
 ## V1.39 API changes
 

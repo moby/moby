@@ -489,6 +489,11 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		if hostConfig.IpcMode.IsEmpty() {
 			hostConfig.IpcMode = container.IpcMode("shareable")
 		}
+
+		// Older clients expect the default to be "host"
+		if hostConfig.CgroupnsMode.IsEmpty() {
+			hostConfig.CgroupnsMode = container.CgroupnsMode("host")
+		}
 	}
 
 	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
