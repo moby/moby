@@ -17,6 +17,9 @@
 package containerd
 
 import (
+	"fmt"
+	"strconv"
+	"strings"
 	"syscall"
 
 	"golang.org/x/sys/windows"
@@ -36,4 +39,25 @@ var signalMap = map[string]syscall.Signal{
 	"PIPE":   syscall.Signal(windows.SIGPIPE),
 	"ALRM":   syscall.Signal(windows.SIGALRM),
 	"TERM":   syscall.Signal(windows.SIGTERM),
+}
+
+// ParseSignal parses a given string into a syscall.Signal
+// the rawSignal can be a string with "SIG" prefix,
+// or a signal number in string format.
+func ParseSignal(rawSignal string) (syscall.Signal, error) {
+	s, err := strconv.Atoi(rawSignal)
+	if err == nil {
+		sig := syscall.Signal(s)
+		for _, msig := range signalMap {
+			if sig == msig {
+				return sig, nil
+			}
+		}
+		return -1, fmt.Errorf("unknown signal %q", rawSignal)
+	}
+	signal, ok := signalMap[strings.TrimPrefix(strings.ToUpper(rawSignal), "SIG")]
+	if !ok {
+		return -1, fmt.Errorf("unknown signal %q", rawSignal)
+	}
+	return signal, nil
 }

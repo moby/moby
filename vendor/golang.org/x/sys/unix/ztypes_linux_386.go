@@ -405,6 +405,11 @@ type TCPInfo struct {
 	Total_retrans  uint32
 }
 
+type CanFilter struct {
+	Id   uint32
+	Mask uint32
+}
+
 const (
 	SizeofSockaddrInet4     = 0x10
 	SizeofSockaddrInet6     = 0x1c
@@ -434,6 +439,7 @@ const (
 	SizeofICMPv6Filter      = 0x20
 	SizeofUcred             = 0xc
 	SizeofTCPInfo           = 0x68
+	SizeofCanFilter         = 0x8
 )
 
 const (
@@ -569,6 +575,7 @@ const (
 	SizeofIfAddrmsg      = 0x8
 	SizeofRtMsg          = 0xc
 	SizeofRtNexthop      = 0x8
+	SizeofNdUseroptmsg   = 0x10
 )
 
 type NlMsghdr struct {
@@ -632,6 +639,17 @@ type RtNexthop struct {
 	Flags   uint8
 	Hops    uint8
 	Ifindex int32
+}
+
+type NdUseroptmsg struct {
+	Family    uint8
+	Pad1      uint8
+	Opts_len  uint16
+	Ifindex   int32
+	Icmp_type uint8
+	Icmp_code uint8
+	Pad2      uint16
+	Pad3      uint32
 }
 
 const (

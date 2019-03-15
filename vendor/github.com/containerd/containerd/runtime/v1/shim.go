@@ -1,3 +1,5 @@
+// +build !windows
+
 /*
    Copyright The containerd Authors.
 
@@ -14,17 +16,23 @@
    limitations under the License.
 */
 
-package archive
+package v1
 
 import (
-	"time"
+	"context"
+	"io"
+	"path/filepath"
 
-	"github.com/pkg/errors"
+	"github.com/containerd/fifo"
+	"golang.org/x/sys/unix"
 )
 
-// as at MacOS 10.12 there is apparently no way to set timestamps
-// with nanosecond precision. We could fall back to utimes/lutimes
-// and lose the precision as a temporary workaround.
-func chtimes(path string, atime, mtime time.Time) error {
-	return errors.New("OSX missing UtimesNanoAt")
+// OpenShimStdoutLog opens the shim log for reading
+func OpenShimStdoutLog(ctx context.Context, logDirPath string) (io.ReadWriteCloser, error) {
+	return fifo.OpenFifo(ctx, filepath.Join(logDirPath, "shim.stdout.log"), unix.O_RDWR|unix.O_CREAT, 0700)
+}
+
+// OpenShimStderrLog opens the shim log
+func OpenShimStderrLog(ctx context.Context, logDirPath string) (io.ReadWriteCloser, error) {
+	return fifo.OpenFifo(ctx, filepath.Join(logDirPath, "shim.stderr.log"), unix.O_RDWR|unix.O_CREAT, 0700)
 }
