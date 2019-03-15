@@ -68,6 +68,7 @@ type Opt struct {
 	Transport         nethttp.RoundTripper
 	Exporter          exporter.Exporter
 	Layers            LayerAccess
+	Platforms         []ocispec.Platform
 }
 
 // Worker is a local worker instance with dedicated snapshotter, cache, and so on.
@@ -136,8 +137,10 @@ func (w *Worker) Labels() map[string]string {
 
 // Platforms returns one or more platforms supported by the image.
 func (w *Worker) Platforms() []ocispec.Platform {
-	// does not handle lcow
-	return []ocispec.Platform{platforms.DefaultSpec()}
+	if len(w.Opt.Platforms) == 0 {
+		return []ocispec.Platform{platforms.DefaultSpec()}
+	}
+	return w.Opt.Platforms
 }
 
 // GCPolicy returns automatic GC Policy
