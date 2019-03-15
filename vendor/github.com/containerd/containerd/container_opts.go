@@ -23,6 +23,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/platforms"
+	"github.com/containerd/containerd/snapshots"
 	"github.com/containerd/typeurl"
 	"github.com/gogo/protobuf/types"
 	"github.com/opencontainers/image-spec/identity"
@@ -118,7 +119,7 @@ func WithSnapshot(id string) NewContainerOpts {
 
 // WithNewSnapshot allocates a new snapshot to be used by the container as the
 // root filesystem in read-write mode
-func WithNewSnapshot(id string, i Image) NewContainerOpts {
+func WithNewSnapshot(id string, i Image, opts ...snapshots.Opt) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
 		if err != nil {
@@ -126,7 +127,7 @@ func WithNewSnapshot(id string, i Image) NewContainerOpts {
 		}
 		setSnapshotterIfEmpty(c)
 		parent := identity.ChainID(diffIDs).String()
-		if _, err := client.SnapshotService(c.Snapshotter).Prepare(ctx, id, parent); err != nil {
+		if _, err := client.SnapshotService(c.Snapshotter).Prepare(ctx, id, parent, opts...); err != nil {
 			return err
 		}
 		c.SnapshotKey = id
@@ -148,7 +149,7 @@ func WithSnapshotCleanup(ctx context.Context, client *Client, c containers.Conta
 
 // WithNewSnapshotView allocates a new snapshot to be used by the container as the
 // root filesystem in read-only mode
-func WithNewSnapshotView(id string, i Image) NewContainerOpts {
+func WithNewSnapshotView(id string, i Image, opts ...snapshots.Opt) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
 		diffIDs, err := i.(*image).i.RootFS(ctx, client.ContentStore(), platforms.Default())
 		if err != nil {
@@ -156,7 +157,7 @@ func WithNewSnapshotView(id string, i Image) NewContainerOpts {
 		}
 		setSnapshotterIfEmpty(c)
 		parent := identity.ChainID(diffIDs).String()
-		if _, err := client.SnapshotService(c.Snapshotter).View(ctx, id, parent); err != nil {
+		if _, err := client.SnapshotService(c.Snapshotter).View(ctx, id, parent, opts...); err != nil {
 			return err
 		}
 		c.SnapshotKey = id

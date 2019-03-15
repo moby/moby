@@ -141,8 +141,10 @@ func WithEnv(environmentVariables []string) SpecOpts {
 // replaced by env key or appended to the list
 func replaceOrAppendEnvValues(defaults, overrides []string) []string {
 	cache := make(map[string]int, len(defaults))
+	results := make([]string, 0, len(defaults))
 	for i, e := range defaults {
 		parts := strings.SplitN(e, "=", 2)
+		results = append(results, e)
 		cache[parts[0]] = i
 	}
 
@@ -150,7 +152,7 @@ func replaceOrAppendEnvValues(defaults, overrides []string) []string {
 		// Values w/o = means they want this env to be removed/unset.
 		if !strings.Contains(value, "=") {
 			if i, exists := cache[value]; exists {
-				defaults[i] = "" // Used to indicate it should be removed
+				results[i] = "" // Used to indicate it should be removed
 			}
 			continue
 		}
@@ -158,21 +160,21 @@ func replaceOrAppendEnvValues(defaults, overrides []string) []string {
 		// Just do a normal set/update
 		parts := strings.SplitN(value, "=", 2)
 		if i, exists := cache[parts[0]]; exists {
-			defaults[i] = value
+			results[i] = value
 		} else {
-			defaults = append(defaults, value)
+			results = append(results, value)
 		}
 	}
 
 	// Now remove all entries that we want to "unset"
-	for i := 0; i < len(defaults); i++ {
-		if defaults[i] == "" {
-			defaults = append(defaults[:i], defaults[i+1:]...)
+	for i := 0; i < len(results); i++ {
+		if results[i] == "" {
+			results = append(results[:i], results[i+1:]...)
 			i--
 		}
 	}
 
-	return defaults
+	return results
 }
 
 // WithProcessArgs replaces the args on the generated spec
@@ -310,7 +312,7 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 
 		setProcess(s)
 		if s.Linux != nil {
-			s.Process.Env = append(s.Process.Env, config.Env...)
+			s.Process.Env = replaceOrAppendEnvValues(s.Process.Env, config.Env)
 			cmd := config.Cmd
 			if len(args) > 0 {
 				cmd = args
@@ -332,8 +334,14 @@ func WithImageConfigArgs(image Image, args []string) SpecOpts {
 			// even if there is no specified user in the image config
 			return WithAdditionalGIDs("root")(ctx, client, c, s)
 		} else if s.Windows != nil {
-			s.Process.Env = config.Env
-			s.Process.Args = append(config.Entrypoint, config.Cmd...)
+			s.Process.Env = replaceOrAppendEnvValues(s.Process.Env, config.Env)
+			cmd := config.Cmd
+			if len(args) > 0 {
+				cmd = args
+			}
+			s.Process.Args = append(config.Entrypoint, cmd...)
+
+			s.Process.Cwd = config.WorkingDir
 			s.Process.User = specs.User{
 				Username: config.User,
 			}
@@ -1025,4 +1033,47 @@ func WithWindowsHyperV(_ context.Context, _ Client, _ *containers.Container, s *
 		s.Windows.HyperV = &specs.WindowsHyperV{}
 	}
 	return nil
+}
+
+// WithMemoryLimit sets the `Linux.LinuxResources.Memory.Limit` section to the
+// `limit` specified if the `Linux` section is not `nil`. Additionally sets the
+// `Windows.WindowsResources.Memory.Limit` section if the `Windows` section is
+// not `nil`.
+func WithMemoryLimit(limit uint64) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if s.Linux != nil {
+			if s.Linux.Resources == nil {
+				s.Linux.Resources = &specs.LinuxResources{}
+			}
+			if s.Linux.Resources.Memory == nil {
+				s.Linux.Resources.Memory = &specs.LinuxMemory{}
+			}
+			l := int64(limit)
+			s.Linux.Resources.Memory.Limit = &l
+		}
+		if s.Windows != nil {
+			if s.Windows.Resources == nil {
+				s.Windows.Resources = &specs.WindowsResources{}
+			}
+			if s.Windows.Resources.Memory == nil {
+				s.Windows.Resources.Memory = &specs.WindowsMemoryResources{}
+			}
+			s.Windows.Resources.Memory.Limit = &limit
+		}
+		return nil
+	}
+}
+
+// WithAnnotations appends or replaces the annotations on the spec with the
+// provided annotations
+func WithAnnotations(annotations map[string]string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		if s.Annotations == nil {
+			s.Annotations = make(map[string]string)
+		}
+		for k, v := range annotations {
+			s.Annotations[k] = v
+		}
+		return nil
+	}
 }

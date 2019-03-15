@@ -20,6 +20,7 @@ package linux
 
 import (
 	"context"
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -114,12 +115,12 @@ func (b *bundle) NewShimClient(ctx context.Context, namespace string, getClientO
 
 // Delete deletes the bundle from disk
 func (b *bundle) Delete() error {
-	err := os.RemoveAll(b.path)
+	err := atomicDelete(b.path)
 	if err == nil {
-		return os.RemoveAll(b.workDir)
+		return atomicDelete(b.workDir)
 	}
 	// error removing the bundle path; still attempt removing work dir
-	err2 := os.RemoveAll(b.workDir)
+	err2 := atomicDelete(b.workDir)
 	if err2 == nil {
 		return err
 	}
@@ -151,4 +152,14 @@ func (b *bundle) shimConfig(namespace string, c *Config, runcOptions *runctypes.
 		RuntimeRoot:   runtimeRoot,
 		SystemdCgroup: systemdCgroup,
 	}
+}
+
+// atomicDelete renames the path to a hidden file before removal
+func atomicDelete(path string) error {
+	// create a hidden dir for an atomic removal
+	atomicPath := filepath.Join(filepath.Dir(path), fmt.Sprintf(".%s", filepath.Base(path)))
+	if err := os.Rename(path, atomicPath); err != nil {
+		return err
+	}
+	return os.RemoveAll(atomicPath)
 }

@@ -37,6 +37,7 @@ import (
 
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/log"
+	v1 "github.com/containerd/containerd/runtime/v1"
 	"github.com/containerd/containerd/runtime/v1/shim"
 	shimapi "github.com/containerd/containerd/runtime/v1/shim/v1"
 	"github.com/containerd/containerd/sys"
@@ -62,7 +63,24 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		}
 		defer f.Close()
 
-		cmd, err := newCommand(binary, daemonAddress, debug, config, f)
+		var stdoutLog io.ReadWriteCloser
+		var stderrLog io.ReadWriteCloser
+		if debug {
+			stdoutLog, err = v1.OpenShimStdoutLog(ctx, config.WorkDir)
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "failed to create stdout log")
+			}
+
+			stderrLog, err = v1.OpenShimStderrLog(ctx, config.WorkDir)
+			if err != nil {
+				return nil, nil, errors.Wrapf(err, "failed to create stderr log")
+			}
+
+			go io.Copy(os.Stdout, stdoutLog)
+			go io.Copy(os.Stderr, stderrLog)
+		}
+
+		cmd, err := newCommand(binary, daemonAddress, debug, config, f, stdoutLog, stderrLog)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -77,6 +95,12 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 		go func() {
 			cmd.Wait()
 			exitHandler()
+			if stdoutLog != nil {
+				stderrLog.Close()
+			}
+			if stdoutLog != nil {
+				stderrLog.Close()
+			}
 		}()
 		log.G(ctx).WithFields(logrus.Fields{
 			"pid":     cmd.Process.Pid,
@@ -104,7 +128,7 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 	}
 }
 
-func newCommand(binary, daemonAddress string, debug bool, config shim.Config, socket *os.File) (*exec.Cmd, error) {
+func newCommand(binary, daemonAddress string, debug bool, config shim.Config, socket *os.File, stdout, stderr io.Writer) (*exec.Cmd, error) {
 	selfExe, err := os.Executable()
 	if err != nil {
 		return nil, err
@@ -137,10 +161,8 @@ func newCommand(binary, daemonAddress string, debug bool, config shim.Config, so
 	cmd.SysProcAttr = getSysProcAttr()
 	cmd.ExtraFiles = append(cmd.ExtraFiles, socket)
 	cmd.Env = append(os.Environ(), "GOMAXPROCS=2")
-	if debug {
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
-	}
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
 	return cmd, nil
 }
 

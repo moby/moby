@@ -75,6 +75,15 @@ const (
 	GCPlugin Type = "io.containerd.gc.v1"
 )
 
+const (
+	// RuntimeLinuxV1 is the legacy linux runtime
+	RuntimeLinuxV1 = "io.containerd.runtime.v1.linux"
+	// RuntimeRuncV1 is the runc runtime that supports a single container
+	RuntimeRuncV1 = "io.containerd.runc.v1"
+	// RuntimeRuncV2 is the runc runtime that supports multiple containers per shim
+	RuntimeRuncV2 = "io.containerd.runc.v2"
+)
+
 // Registration contains information for registering a plugin
 type Registration struct {
 	// Type of the plugin

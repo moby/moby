@@ -156,7 +156,7 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 //
 // Base handlers can be provided which will be called before any push specific
 // handlers.
-func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, platform platforms.MatchComparer, baseHandlers ...images.Handler) error {
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
 	var m sync.Mutex
 	manifestStack := []ocispec.Descriptor{}
 
@@ -175,13 +175,16 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, pr
 
 	pushHandler := PushHandler(pusher, provider)
 
-	handlers := append(baseHandlers,
+	var handler images.Handler = images.Handlers(
 		images.FilterPlatforms(images.ChildrenHandler(provider), platform),
 		filterHandler,
 		pushHandler,
 	)
+	if wrapper != nil {
+		handler = wrapper(handler)
+	}
 
-	if err := images.Dispatch(ctx, images.Handlers(handlers...), desc); err != nil {
+	if err := images.Dispatch(ctx, handler, nil, desc); err != nil {
 		return err
 	}
 
