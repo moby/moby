@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/errdefs"
 )
 
 // Ping pings the server and returns the value of the "Docker-Experimental",
@@ -14,6 +15,10 @@ import (
 // by the daemon.
 func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 	var ping types.Ping
+
+	// Using cli.buildRequest() + cli.doRequest() instead of cli.sendRequest()
+	// because ping requests are used during  API version negotiation, so we want
+	// to hit the non-versioned /_ping endpoint, not /v1.xx/_ping
 	req, err := cli.buildRequest("HEAD", path.Join(cli.basePath, "/_ping"), nil, nil)
 	if err != nil {
 		return ping, err
@@ -43,7 +48,8 @@ func (cli *Client) Ping(ctx context.Context) (types.Ping, error) {
 func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 	var ping types.Ping
 	if resp.header == nil {
-		return ping, cli.checkResponseErr(resp)
+		err := cli.checkResponseErr(resp)
+		return ping, errdefs.FromStatusCode(err, resp.statusCode)
 	}
 	ping.APIVersion = resp.header.Get("API-Version")
 	ping.OSType = resp.header.Get("OSType")
@@ -53,5 +59,6 @@ func parsePingResponse(cli *Client, resp serverResponse) (types.Ping, error) {
 	if bv := resp.header.Get("Builder-Version"); bv != "" {
 		ping.BuilderVersion = types.BuilderVersion(bv)
 	}
-	return ping, cli.checkResponseErr(resp)
+	err := cli.checkResponseErr(resp)
+	return ping, errdefs.FromStatusCode(err, resp.statusCode)
 }

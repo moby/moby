@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/url"
-	"strings"
 
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
@@ -44,9 +43,6 @@ func (cli *Client) ContainerCreate(ctx context.Context, config *container.Config
 
 	serverResp, err := cli.post(ctx, "/containers/create", query, body, nil)
 	if err != nil {
-		if serverResp.statusCode == 404 && strings.Contains(err.Error(), "No such image") {
-			return response, objectNotFoundError{object: "image", id: config.Image}
-		}
 		return response, err
 	}
 
