@@ -381,6 +381,7 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		return nil, err
 	}
 
+	platform := platforms.Only(p.platform)
 	var (
 		schema1Converter *schema1.Converter
 		handlers         []images.Handler
@@ -413,7 +414,9 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		// Set any children labels for that content
 		childrenHandler = images.SetChildrenLabels(p.is.ContentStore, childrenHandler)
 		// Filter the children by the platform
-		childrenHandler = images.FilterPlatforms(childrenHandler, platforms.Default())
+		childrenHandler = images.FilterPlatforms(childrenHandler, platform)
+		// Limit manifests pulled to the best match in an index
+		childrenHandler = images.LimitManifests(childrenHandler, platform, 1)
 
 		handlers = append(handlers,
 			remotes.FetchHandler(p.is.ContentStore, fetcher),
@@ -434,12 +437,12 @@ func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
 		}
 	}
 
-	mfst, err := images.Manifest(ctx, p.is.ContentStore, p.desc, platforms.Default())
+	mfst, err := images.Manifest(ctx, p.is.ContentStore, p.desc, platform)
 	if err != nil {
 		return nil, err
 	}
 
-	config, err := images.Config(ctx, p.is.ContentStore, p.desc, platforms.Default())
+	config, err := images.Config(ctx, p.is.ContentStore, p.desc, platform)
 	if err != nil {
 		return nil, err
 	}
