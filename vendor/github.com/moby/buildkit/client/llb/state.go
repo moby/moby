@@ -405,10 +405,14 @@ func WithDescription(m map[string]string) ConstraintsOpt {
 	})
 }
 
-func WithCustomName(name string, a ...interface{}) ConstraintsOpt {
+func WithCustomName(name string) ConstraintsOpt {
 	return WithDescription(map[string]string{
-		"llb.customname": fmt.Sprintf(name, a...),
+		"llb.customname": name,
 	})
+}
+
+func WithCustomNamef(name string, a ...interface{}) ConstraintsOpt {
+	return WithCustomName(fmt.Sprintf(name, a...))
 }
 
 // WithExportCache forces results for this vertex to be exported with the cache

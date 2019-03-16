@@ -259,13 +259,33 @@ func (c *grpcClient) Solve(ctx context.Context, creq client.SolveRequest) (*clie
 			}
 		}
 	}
+	var (
+		// old API
+		legacyRegistryCacheImports []string
+		// new API (CapImportCaches)
+		cacheImports []*pb.CacheOptionsEntry
+	)
+	supportCapImportCaches := c.caps.Supports(pb.CapImportCaches) == nil
+	for _, im := range creq.CacheImports {
+		if !supportCapImportCaches && im.Type == "registry" {
+			legacyRegistryCacheImports = append(legacyRegistryCacheImports, im.Attrs["ref"])
+		} else {
+			cacheImports = append(cacheImports, &pb.CacheOptionsEntry{
+				Type:  im.Type,
+				Attrs: im.Attrs,
+			})
+		}
+	}
 
 	req := &pb.SolveRequest{
 		Definition:        creq.Definition,
 		Frontend:          creq.Frontend,
 		FrontendOpt:       creq.FrontendOpt,
-		ImportCacheRefs:   creq.ImportCacheRefs,
 		AllowResultReturn: true,
+		// old API
+		ImportCacheRefsDeprecated: legacyRegistryCacheImports,
+		// new API
+		CacheImports: cacheImports,
 	}
 
 	// backwards compatibility with inline return

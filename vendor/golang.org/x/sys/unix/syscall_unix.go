@@ -28,6 +28,11 @@ var (
 	errENOENT error = syscall.ENOENT
 )
 
+var (
+	signalNameMapOnce sync.Once
+	signalNameMap     map[string]syscall.Signal
+)
+
 // errnoErr returns common boxed Errno values, to prevent
 // allocations at runtime.
 func errnoErr(e syscall.Errno) error {
@@ -64,6 +69,19 @@ func SignalName(s syscall.Signal) string {
 		return signalList[i].name
 	}
 	return ""
+}
+
+// SignalNum returns the syscall.Signal for signal named s,
+// or 0 if a signal with such name is not found.
+// The signal name should start with "SIG".
+func SignalNum(s string) syscall.Signal {
+	signalNameMapOnce.Do(func() {
+		signalNameMap = make(map[string]syscall.Signal)
+		for _, signal := range signalList {
+			signalNameMap[signal.name] = signal.num
+		}
+	})
+	return signalNameMap[s]
 }
 
 // clen returns the index of the first NULL byte in n or len(n) if n contains no NULL byte.

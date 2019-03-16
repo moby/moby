@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
+// +build linux
 // +build ppc64 ppc64le
 
 package cpu
@@ -21,10 +22,10 @@ const (
 
 func doinit() {
 	// HWCAP2 feature bits
-	PPC64.IsPOWER8 = isSet(HWCap2, _PPC_FEATURE2_ARCH_2_07)
-	PPC64.IsPOWER9 = isSet(HWCap2, _PPC_FEATURE2_ARCH_3_00)
-	PPC64.HasDARN = isSet(HWCap2, _PPC_FEATURE2_DARN)
-	PPC64.HasSCV = isSet(HWCap2, _PPC_FEATURE2_SCV)
+	PPC64.IsPOWER8 = isSet(hwCap2, _PPC_FEATURE2_ARCH_2_07)
+	PPC64.IsPOWER9 = isSet(hwCap2, _PPC_FEATURE2_ARCH_3_00)
+	PPC64.HasDARN = isSet(hwCap2, _PPC_FEATURE2_DARN)
+	PPC64.HasSCV = isSet(hwCap2, _PPC_FEATURE2_SCV)
 }
 
 func isSet(hwc uint, value uint) bool {

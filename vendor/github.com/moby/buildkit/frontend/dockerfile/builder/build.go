@@ -14,6 +14,7 @@ import (
 
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/builder/dockerignore"
+	controlapi "github.com/moby/buildkit/api/services/control"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
@@ -25,22 +26,25 @@ import (
 )
 
 const (
-	LocalNameContext      = "context"
-	LocalNameDockerfile   = "dockerfile"
-	keyTarget             = "target"
-	keyFilename           = "filename"
-	keyCacheFrom          = "cache-from"
-	defaultDockerfileName = "Dockerfile"
-	dockerignoreFilename  = ".dockerignore"
-	buildArgPrefix        = "build-arg:"
-	labelPrefix           = "label:"
-	keyNoCache            = "no-cache"
-	keyTargetPlatform     = "platform"
-	keyMultiPlatform      = "multi-platform"
-	keyImageResolveMode   = "image-resolve-mode"
-	keyGlobalAddHosts     = "add-hosts"
-	keyForceNetwork       = "force-network-mode"
-	keyOverrideCopyImage  = "override-copy-image" // remove after CopyOp implemented
+	DefaultLocalNameContext    = "context"
+	DefaultLocalNameDockerfile = "dockerfile"
+	keyTarget                  = "target"
+	keyFilename                = "filename"
+	keyCacheFrom               = "cache-from"    // for registry only. deprecated in favor of keyCacheImports
+	keyCacheImports            = "cache-imports" // JSON representation of []CacheOptionsEntry
+	defaultDockerfileName      = "Dockerfile"
+	dockerignoreFilename       = ".dockerignore"
+	buildArgPrefix             = "build-arg:"
+	labelPrefix                = "label:"
+	keyNoCache                 = "no-cache"
+	keyTargetPlatform          = "platform"
+	keyMultiPlatform           = "multi-platform"
+	keyImageResolveMode        = "image-resolve-mode"
+	keyGlobalAddHosts          = "add-hosts"
+	keyForceNetwork            = "force-network-mode"
+	keyOverrideCopyImage       = "override-copy-image" // remove after CopyOp implemented
+	keyNameContext             = "contextkey"
+	keyNameDockerfile          = "dockerfilekey"
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
@@ -51,6 +55,16 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	caps := c.BuildOpts().LLBCaps
 
 	marshalOpts := []llb.ConstraintsOpt{llb.WithCaps(caps)}
+
+	localNameContext := DefaultLocalNameContext
+	if v, ok := opts[keyNameContext]; ok {
+		localNameContext = v
+	}
+
+	localNameDockerfile := DefaultLocalNameDockerfile
+	if v, ok := opts[keyNameDockerfile]; ok {
+		localNameDockerfile = v
+	}
 
 	defaultBuildPlatform := platforms.DefaultSpec()
 	if workers := c.BuildOpts().Workers; len(workers) > 0 && len(workers[0].Platforms) > 0 {
@@ -98,19 +112,19 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	name := "load build definition from " + filename
 
-	src := llb.Local(LocalNameDockerfile,
+	src := llb.Local(localNameDockerfile,
 		llb.FollowPaths([]string{filename}),
 		llb.SessionID(c.BuildOpts().SessionID),
-		llb.SharedKeyHint(defaultDockerfileName),
+		llb.SharedKeyHint(localNameDockerfile),
 		dockerfile2llb.WithInternalName(name),
 	)
 	var buildContext *llb.State
 	isScratchContext := false
-	if st, ok := detectGitContext(opts[LocalNameContext]); ok {
+	if st, ok := detectGitContext(opts[localNameContext]); ok {
 		src = *st
 		buildContext = &src
-	} else if httpPrefix.MatchString(opts[LocalNameContext]) {
-		httpContext := llb.HTTP(opts[LocalNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
+	} else if httpPrefix.MatchString(opts[localNameContext]) {
+		httpContext := llb.HTTP(opts[localNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
 		def, err := httpContext.Marshal(marshalOpts...)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to marshal httpcontext")
@@ -187,10 +201,10 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		eg.Go(func() error {
 			dockerignoreState := buildContext
 			if dockerignoreState == nil {
-				st := llb.Local(LocalNameContext,
+				st := llb.Local(localNameContext,
 					llb.SessionID(c.BuildOpts().SessionID),
 					llb.FollowPaths([]string{dockerignoreFilename}),
-					llb.SharedKeyHint(dockerignoreFilename),
+					llb.SharedKeyHint(localNameContext+"-"+dockerignoreFilename),
 					dockerfile2llb.WithInternalName("load "+dockerignoreFilename),
 				)
 				dockerignoreState = &st
@@ -289,14 +303,35 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 					return errors.Wrapf(err, "failed to marshal image config")
 				}
 
-				var cacheFrom []string
+				var cacheImports []client.CacheOptionsEntry
+				// new API
+				if cacheImportsStr := opts[keyCacheImports]; cacheImportsStr != "" {
+					var cacheImportsUM []controlapi.CacheOptionsEntry
+					if err := json.Unmarshal([]byte(cacheImportsStr), &cacheImportsUM); err != nil {
+						return errors.Wrapf(err, "failed to unmarshal %s (%q)", keyCacheImports, cacheImportsStr)
+					}
+					for _, um := range cacheImportsUM {
+						cacheImports = append(cacheImports, client.CacheOptionsEntry{Type: um.Type, Attrs: um.Attrs})
+					}
+				}
+				// old API
 				if cacheFromStr := opts[keyCacheFrom]; cacheFromStr != "" {
-					cacheFrom = strings.Split(cacheFromStr, ",")
+					cacheFrom := strings.Split(cacheFromStr, ",")
+					for _, s := range cacheFrom {
+						im := client.CacheOptionsEntry{
+							Type: "registry",
+							Attrs: map[string]string{
+								"ref": s,
+							},
+						}
+						// FIXME(AkihiroSuda): skip append if already exists
+						cacheImports = append(cacheImports, im)
+					}
 				}
 
 				r, err := c.Solve(ctx, client.SolveRequest{
-					Definition:      def.ToPB(),
-					ImportCacheRefs: cacheFrom,
+					Definition:   def.ToPB(),
+					CacheImports: cacheImports,
 				})
 				if err != nil {
 					return err

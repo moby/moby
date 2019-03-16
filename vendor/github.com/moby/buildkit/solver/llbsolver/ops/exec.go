@@ -10,13 +10,13 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"runtime"
 	"sort"
 	"strings"
 	"sync"
 	"time"
 
 	"github.com/containerd/containerd/mount"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -34,6 +34,7 @@ import (
 	utilsystem "github.com/moby/buildkit/util/system"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
+	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/system"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -51,12 +52,13 @@ type execOp struct {
 	md        *metadata.Store
 	exec      executor.Executor
 	w         worker.Worker
+	platform  *pb.Platform
 	numInputs int
 
 	cacheMounts map[string]*cacheRefShare
 }
 
-func NewExecOp(v solver.Vertex, op *pb.Op_Exec, cm cache.Manager, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
+func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
 	return &execOp{
 		op:          op.Exec,
 		cm:          cm,
@@ -65,6 +67,7 @@ func NewExecOp(v solver.Vertex, op *pb.Op_Exec, cm cache.Manager, sm *session.Ma
 		exec:        exec,
 		numInputs:   len(v.Inputs()),
 		w:           w,
+		platform:    platform,
 		cacheMounts: map[string]*cacheRefShare{},
 	}, nil
 }
@@ -98,16 +101,27 @@ func (e *execOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, boo
 	}
 	op.Meta.ProxyEnv = nil
 
+	p := platforms.DefaultSpec()
+	if e.platform != nil {
+		p = specs.Platform{
+			OS:           e.platform.OS,
+			Architecture: e.platform.Architecture,
+			Variant:      e.platform.Variant,
+		}
+	}
+
 	dt, err := json.Marshal(struct {
-		Type string
-		Exec *pb.ExecOp
-		OS   string
-		Arch string
+		Type    string
+		Exec    *pb.ExecOp
+		OS      string
+		Arch    string
+		Variant string `json:",omitempty"`
 	}{
-		Type: execCacheType,
-		Exec: &op,
-		OS:   runtime.GOOS,
-		Arch: runtime.GOARCH,
+		Type:    execCacheType,
+		Exec:    &op,
+		OS:      p.OS,
+		Arch:    p.Architecture,
+		Variant: p.Variant,
 	})
 	if err != nil {
 		return nil, false, err
@@ -151,7 +165,7 @@ func dedupePaths(inp []string) []string {
 	for p1 := range old {
 		var skip bool
 		for p2 := range old {
-			if p1 != p2 && strings.HasPrefix(p1, p2) {
+			if p1 != p2 && strings.HasPrefix(p1, p2+"/") {
 				skip = true
 				break
 			}

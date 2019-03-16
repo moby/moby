@@ -83,6 +83,44 @@ type ProxyPlugin struct {
 	Address string `toml:"address"`
 }
 
+// BoltConfig defines the configuration values for the bolt plugin, which is
+// loaded here, rather than back registered in the metadata package.
+type BoltConfig struct {
+	// ContentSharingPolicy sets the sharing policy for content between
+	// namespaces.
+	//
+	// The default mode "shared" will make blobs available in all
+	// namespaces once it is pulled into any namespace. The blob will be pulled
+	// into the namespace if a writer is opened with the "Expected" digest that
+	// is already present in the backend.
+	//
+	// The alternative mode, "isolated" requires that clients prove they have
+	// access to the content by providing all of the content to the ingest
+	// before the blob is added to the namespace.
+	//
+	// Both modes share backing data, while "shared" will reduce total
+	// bandwidth across namespaces, at the cost of allowing access to any blob
+	// just by knowing its digest.
+	ContentSharingPolicy string `toml:"content_sharing_policy"`
+}
+
+const (
+	// SharingPolicyShared represents the "shared" sharing policy
+	SharingPolicyShared = "shared"
+	// SharingPolicyIsolated represents the "isolated" sharing policy
+	SharingPolicyIsolated = "isolated"
+)
+
+// Validate validates if BoltConfig is valid
+func (bc *BoltConfig) Validate() error {
+	switch bc.ContentSharingPolicy {
+	case SharingPolicyShared, SharingPolicyIsolated:
+		return nil
+	default:
+		return errors.Wrapf(errdefs.ErrInvalidArgument, "unknown policy: %s", bc.ContentSharingPolicy)
+	}
+}
+
 // Decode unmarshals a plugin specific configuration by plugin id
 func (c *Config) Decode(id string, v interface{}) (interface{}, error) {
 	data, ok := c.Plugins[id]

@@ -39,6 +39,8 @@ type Opt struct {
 	Rootless bool
 	// DefaultCgroupParent is the cgroup-parent name for executor
 	DefaultCgroupParent string
+	// ProcessMode
+	ProcessMode oci.ProcessMode
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -50,6 +52,7 @@ type runcExecutor struct {
 	cgroupParent     string
 	rootless         bool
 	networkProviders map[pb.NetMode]network.Provider
+	processMode      oci.ProcessMode
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -105,6 +108,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		cgroupParent:     opt.DefaultCgroupParent,
 		rootless:         opt.Rootless,
 		networkProviders: networkProviders,
+		processMode:      opt.ProcessMode,
 	}
 	return w, nil
 }
@@ -193,7 +197,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		}
 		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
 	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, opts...)
 	if err != nil {
 		return err
 	}

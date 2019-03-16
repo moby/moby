@@ -80,10 +80,20 @@ func RuntimePlatforms(p []specs.Platform) LoadOpt {
 				defaultPlatform = &pb.Platform{
 					OS:           p.OS,
 					Architecture: p.Architecture,
+					Variant:      p.Variant,
 				}
 			}
 			op.Platform = defaultPlatform
 		}
+		platform := specs.Platform{OS: op.Platform.OS, Architecture: op.Platform.Architecture, Variant: op.Platform.Variant}
+		normalizedPlatform := platforms.Normalize(platform)
+
+		op.Platform = &pb.Platform{
+			OS:           normalizedPlatform.OS,
+			Architecture: normalizedPlatform.Architecture,
+			Variant:      normalizedPlatform.Variant,
+		}
+
 		if _, ok := op.Op.(*pb.Op_Exec); ok {
 			var found bool
 			for _, pp := range pp {
@@ -186,7 +196,11 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 		if v, ok := cache[dgst]; ok {
 			return v, nil
 		}
-		v, err := fn(dgst, allOps[dgst], rec)
+		op, ok := allOps[dgst]
+		if !ok {
+			return nil, errors.Errorf("invalid missing input digest %s", dgst)
+		}
+		v, err := fn(dgst, op, rec)
 		if err != nil {
 			return nil, err
 		}
