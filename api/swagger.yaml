@@ -6459,6 +6459,11 @@ paths:
           description: "Target build stage"
           type: "string"
           default: ""
+        - name: "outputs"
+          in: "query"
+          description: "BuildKit output configuration"
+          type: "string"
+          default: ""
       responses:
         200:
           description: "no error"

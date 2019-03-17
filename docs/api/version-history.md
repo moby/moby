@@ -65,6 +65,7 @@ keywords: "API, Docker, rcli, REST, documentation"
   back to `shareable` by using `DefaultIpcMode` daemon configuration parameter.
 * `POST /containers/{id}/update` now accepts a `PidsLimit` field to tune a container's
   PID limit. Set `0` or `-1` for unlimited. Leave `null` to not change the current value.
+* `POST /build` now accepts `outputs` key for configuring build outputs when using BuildKit mode.
 
 ## V1.39 API changes
 
