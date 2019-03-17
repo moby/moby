@@ -321,7 +321,11 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 	}
 
 	if p.config != nil {
-		return cacheKeyFromConfig(p.config).String(), true, nil
+		k := cacheKeyFromConfig(p.config).String()
+		if k == "" {
+			return digest.FromBytes(p.config).String(), true, nil
+		}
+		return k, true, nil
 	}
 
 	if err := p.resolve(ctx); err != nil {
@@ -336,7 +340,16 @@ func (p *puller) CacheKey(ctx context.Context, index int) (string, bool, error) 
 		return dgst.String(), false, nil
 	}
 
-	return cacheKeyFromConfig(p.config).String(), true, nil
+	k := cacheKeyFromConfig(p.config).String()
+	if k == "" {
+		dgst, err := p.mainManifestKey(p.desc.Digest, p.platform)
+		if err != nil {
+			return "", false, err
+		}
+		return dgst.String(), true, nil
+	}
+
+	return k, true, nil
 }
 
 func (p *puller) Snapshot(ctx context.Context) (cache.ImmutableRef, error) {
@@ -776,8 +789,8 @@ func cacheKeyFromConfig(dt []byte) digest.Digest {
 	if err != nil {
 		return digest.FromBytes(dt)
 	}
-	if img.RootFS.Type != "layers" {
-		return digest.FromBytes(dt)
+	if img.RootFS.Type != "layers" || len(img.RootFS.DiffIDs) == 0 {
+		return ""
 	}
 	return identity.ChainID(img.RootFS.DiffIDs)
 }
