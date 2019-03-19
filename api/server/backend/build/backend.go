@@ -82,8 +82,8 @@ func (b *Backend) Build(ctx context.Context, config backend.BuildConfig) (string
 	if !useBuildKit {
 		stdout := config.ProgressWriter.StdoutFormatter
 		fmt.Fprintf(stdout, "Successfully built %s\n", stringid.TruncateID(imageID))
-		err = tagger.TagImages(image.ID(imageID))
 	}
+	err = tagger.TagImages(image.ID(imageID))
 	return imageID, err
 }
 
