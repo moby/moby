@@ -161,7 +161,11 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		return err
 	}
 
-	defer done(pctx)
+	defer func() {
+		if err := done(context.Background()); err != nil {
+			log.G(pctx).WithError(err).Errorf("failed to remove lease")
+		}
+	}()
 
 	// TODO(containerd): Custom resolver
 	//  - Auth config
