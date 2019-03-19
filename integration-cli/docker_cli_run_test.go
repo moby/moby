@@ -715,7 +715,7 @@ func (s *DockerSuite) TestRunExitCode(c *check.C) {
 func (s *DockerSuite) TestRunUserDefaults(c *check.C) {
 	expected := "uid=0(root) gid=0(root)"
 	if testEnv.OSType == "windows" {
-		expected = "uid=1000(ContainerAdministrator) gid=1000(ContainerAdministrator)"
+		expected = "uid=0(root) gid=0(root) groups=0(root)"
 	}
 	out, _ := dockerCmd(c, "run", "busybox", "id")
 	if !strings.Contains(out, expected) {
