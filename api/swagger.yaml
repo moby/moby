@@ -4375,7 +4375,6 @@ definitions:
       recognizes up to 9 decimal places `.000000001` being one nanosecond.
     type: number
     format: double
-    example: 1552404408.123456789
 paths:
   /containers/json:
     get:
@@ -7347,15 +7346,11 @@ paths:
         - name: "since"
           in: "query"
           description: "Show events created since this timestamp then stream new events. This is a UNIX timestamp with nanosecond precision."
-          schema:
-            $ref: "#/definitions/UnixTimestampWithNanos"
-          example: 1552403443
+          $ref: "#/definitions/UnixTimestampWithNanos"
         - name: "until"
           in: "query"
           description: "Show events created until this timestamp then stop streaming. This is a UNIX timestamp with nanosecond precision."
-          schema:
-            $ref: "#/definitions/UnixTimestampWithNanos"
-          example: 1552403443.123456789
+          $ref: "#/definitions/UnixTimestampWithNanos"
         - name: "filters"
           in: "query"
           description: |
