@@ -50,6 +50,7 @@ func (s *systemRouter) getInfo(ctx context.Context, w http.ResponseWriter, r *ht
 	}
 	if s.cluster != nil {
 		info.Swarm = s.cluster.Info()
+		info.Warnings = append(info.Warnings, info.Swarm.Warnings...)
 	}
 
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.25") {
