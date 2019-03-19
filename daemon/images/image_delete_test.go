@@ -10,6 +10,7 @@ import (
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/container"
+	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
 	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -18,12 +19,20 @@ import (
 func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 
 	type testImage struct {
-		names  []string
-		image  construct
+		names []string
+		image construct
+
+		// Index of parent relative to current image, must be negative
 		parent int
 
+		// Tags expected after deletion
 		expected []string
-		deleted  bool
+
+		// Whether the image object is expected to exist after deletion
+		deleted bool
+
+		// Whether layers are expected to exist after deletion
+		layers bool
 	}
 	type testDelete struct {
 		ref      string
@@ -54,11 +63,13 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					names:    []string{"docker.io/library/img2:latest"},
 					image:    randomManifest(2),
 					expected: []string{"docker.io/library/img2:latest"},
+					layers:   true,
 				},
 				{
 					names:    []string{"docker.io/library/img3:latest", "docker.io/library/img4:latest"},
 					image:    randomManifest(3),
 					expected: []string{"docker.io/library/img4:latest"},
+					layers:   true,
 				},
 			},
 			deletes: []testDelete{
@@ -101,13 +112,71 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				},
 			},
 		},
+		{
+			name: "RemoveChild",
+			images: []testImage{
+				{
+					names:    []string{"docker.io/library/img1:latest"},
+					image:    randomManifest(2),
+					expected: []string{"docker.io/library/img1:latest"},
+					layers:   true,
+				},
+				{
+					names:   []string{"docker.io/library/img2:latest"},
+					image:   randomManifest(2),
+					parent:  -1,
+					deleted: true,
+				},
+			},
+			deletes: []testDelete{
+				{
+					ref:      "img2:latest",
+					untagged: []string{"img2:latest", "img2:latest@1"},
+					deleted:  []int{1},
+				},
+			},
+		},
+		{
+			name: "RemoveParent",
+			images: []testImage{
+				{
+					names:   []string{"docker.io/library/img1:latest"},
+					image:   randomManifest(2),
+					deleted: true,
+					layers:  true,
+				},
+				{
+					names:    []string{"docker.io/library/img2:latest"},
+					expected: []string{"docker.io/library/img2:latest"},
+					image:    randomManifest(2),
+					parent:   -1,
+					layers:   true,
+				},
+			},
+			deletes: []testDelete{
+				{
+					ref:      "img1:latest",
+					untagged: []string{"img1:latest", "img1:latest@0"},
+					deleted:  []int{0},
+				},
+			},
+		},
 	} {
 
 		var created []string
 		t.Run(tc.name, func(t *testing.T) {
 			var imgs []ocispec.Descriptor
+			type finalState struct {
+				digest  digest.Digest
+				deleted bool
 
-			deleted := map[digest.Digest]bool{}
+				layersDeleted bool
+				// TODO(containerd): store by platform
+				config  digest.Digest
+				diffIDs []digest.Digest
+			}
+			var states []finalState
+
 			expected := map[string]*ocispec.Descriptor{}
 
 			cis := is.client.ImageService()
@@ -117,9 +186,6 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				t.Fatal(err)
 			}
 
-			// TODO(containerd): store there per platform (map to img?)
-			var configs []ocispec.Descriptor
-			var chainIDs []digest.Digest
 			for _, imagec := range tc.images {
 				var desc ocispec.Descriptor
 				if err := imagec.image(&desc)(ctx, cs); err != nil {
@@ -155,9 +221,6 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 					expected[img.Name] = nil
 				}
 
-				if imagec.deleted {
-					deleted[desc.Digest] = true
-				}
 				for _, tag := range imagec.expected {
 					expected[tag] = &desc
 					expected[tag+"@"+desc.Digest.String()] = &desc
@@ -174,12 +237,12 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				}
 
 				if imagec.parent < 0 {
-					parentImg := configs[len(configs)+imagec.parent]
+					parentImg := states[len(states)+imagec.parent]
 
 					info := content.Info{
 						Digest: m.Config.Digest,
 						Labels: map[string]string{
-							LabelImageParent: parentImg.Digest.String(),
+							LabelImageParent: parentImg.config.String(),
 						},
 					}
 					info, err := cs.Update(ctx, info, "labels."+LabelImageParent)
@@ -192,8 +255,14 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				configs = append(configs, m.Config)
-				chainIDs = append(chainIDs, identity.ChainID(diffIDs))
+				states = append(states, finalState{
+					digest:  desc.Digest,
+					deleted: imagec.deleted,
+
+					layersDeleted: !imagec.layers,
+					config:        m.Config.Digest,
+					diffIDs:       diffIDs,
+				})
 
 				imgs = append(imgs, desc)
 			}
@@ -244,20 +313,35 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 				}
 			}
 
-			for _, img := range imgs {
-				_, err := cs.Info(ctx, img.Digest)
+			for _, state := range states {
+				_, err := cs.Info(ctx, state.digest)
 				if err != nil {
 					if !errdefs.IsNotFound(err) {
 						t.Fatal(err)
 					}
-					if !deleted[img.Digest] {
-						t.Errorf("Missing image %s", img.Digest)
+					if !state.deleted {
+						t.Errorf("Missing image %s", state.digest)
 					}
-					// Ensure layers are gone!
-				} else if deleted[img.Digest] {
-					t.Errorf("Expected image %s to be deleted", img.Digest)
-				} else {
-					// Ensure layers are there
+				} else if state.deleted {
+					t.Errorf("Expected image %s to be deleted", state.digest)
+				}
+				if len(state.diffIDs) > 0 {
+					chainID := identity.ChainID(state.diffIDs)
+					ls := is.layerStores["vfs"]
+					l, err := ls.Get(layer.ChainID(chainID))
+					if err != nil {
+						if err != layer.ErrLayerDoesNotExist {
+							t.Fatal(err)
+						}
+						if !state.layersDeleted {
+							t.Errorf("Missing image %s layer", state.digest)
+						}
+					} else {
+						layer.ReleaseAndLog(ls, l)
+						if state.layersDeleted {
+							t.Errorf("Expected image %s layers to be deleted", state.digest)
+						}
+					}
 				}
 			}
 
