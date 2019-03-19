@@ -85,7 +85,7 @@ func setResources(s *specs.Spec, r containertypes.Resources) error {
 	return nil
 }
 
-func setDevices(s *specs.Spec, c *container.Container) error {
+func (daemon *Daemon) setDevices(s *specs.Spec, c *container.Container) error {
 	// Build lists of devices allowed and created within the container.
 	var devs []specs.LinuxDevice
 	devPermissions := s.Linux.Resources.Devices
@@ -122,6 +122,13 @@ func setDevices(s *specs.Spec, c *container.Container) error {
 
 	s.Linux.Devices = append(s.Linux.Devices, devs...)
 	s.Linux.Resources.Devices = devPermissions
+
+	for _, req := range c.HostConfig.DeviceRequests {
+		if err := daemon.handleDevice(req, s); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -751,7 +758,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if err := daemon.initCgroupsPath(parentPath); err != nil {
 		return nil, fmt.Errorf("linux init cgroups path: %v", err)
 	}
-	if err := setDevices(&s, c); err != nil {
+	if err := daemon.setDevices(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
 	}
 	if err := daemon.setRlimits(&s, c); err != nil {
@@ -818,15 +825,16 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 		return nil, fmt.Errorf("linux mounts: %v", err)
 	}
 
+	if s.Hooks == nil {
+		s.Hooks = &specs.Hooks{}
+	}
 	for _, ns := range s.Linux.Namespaces {
 		if ns.Type == "network" && ns.Path == "" && !c.Config.NetworkDisabled {
 			target := filepath.Join("/proc", strconv.Itoa(os.Getpid()), "exe")
-			s.Hooks = &specs.Hooks{
-				Prestart: []specs.Hook{{
-					Path: target,
-					Args: []string{"libnetwork-setkey", "-exec-root=" + daemon.configStore.GetExecRoot(), c.ID, daemon.netController.ID()},
-				}},
-			}
+			s.Hooks.Prestart = append(s.Hooks.Prestart, specs.Hook{
+				Path: target,
+				Args: []string{"libnetwork-setkey", "-exec-root=" + daemon.configStore.GetExecRoot(), c.ID, daemon.netController.ID()},
+			})
 		}
 	}
 
