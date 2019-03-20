@@ -21,25 +21,46 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+type createOpts struct {
+	params                  types.ContainerCreateConfig
+	managed                 bool
+	ignoreImagesArgsEscaped bool
+}
+
 // CreateManagedContainer creates a container that is managed by a Service
 func (daemon *Daemon) CreateManagedContainer(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(params, true)
+	return daemon.containerCreate(createOpts{
+		params:                  params,
+		managed:                 true,
+		ignoreImagesArgsEscaped: false})
 }
 
 // ContainerCreate creates a regular container
 func (daemon *Daemon) ContainerCreate(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
-	return daemon.containerCreate(params, false)
+	return daemon.containerCreate(createOpts{
+		params:                  params,
+		managed:                 false,
+		ignoreImagesArgsEscaped: false})
 }
 
-func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, managed bool) (containertypes.ContainerCreateCreatedBody, error) {
+// ContainerCreateIgnoreImagesArgsEscaped creates a regular container. This is called from the builder RUN case
+// and ensures that we do not take the images ArgsEscaped
+func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(params types.ContainerCreateConfig) (containertypes.ContainerCreateCreatedBody, error) {
+	return daemon.containerCreate(createOpts{
+		params:                  params,
+		managed:                 false,
+		ignoreImagesArgsEscaped: true})
+}
+
+func (daemon *Daemon) containerCreate(opts createOpts) (containertypes.ContainerCreateCreatedBody, error) {
 	start := time.Now()
-	if params.Config == nil {
+	if opts.params.Config == nil {
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
 	os := runtime.GOOS
-	if params.Config.Image != "" {
-		img, err := daemon.imageService.GetImage(params.Config.Image)
+	if opts.params.Config.Image != "" {
+		img, err := daemon.imageService.GetImage(opts.params.Config.Image)
 		if err == nil {
 			os = img.OS
 		}
@@ -51,25 +72,25 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 		}
 	}
 
-	warnings, err := daemon.verifyContainerSettings(os, params.HostConfig, params.Config, false)
+	warnings, err := daemon.verifyContainerSettings(os, opts.params.HostConfig, opts.params.Config, false)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	err = verifyNetworkingConfig(params.NetworkingConfig)
+	err = verifyNetworkingConfig(opts.params.NetworkingConfig)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	if params.HostConfig == nil {
-		params.HostConfig = &containertypes.HostConfig{}
+	if opts.params.HostConfig == nil {
+		opts.params.HostConfig = &containertypes.HostConfig{}
 	}
-	err = daemon.adaptContainerSettings(params.HostConfig, params.AdjustCPUShares)
+	err = daemon.adaptContainerSettings(opts.params.HostConfig, opts.params.AdjustCPUShares)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, errdefs.InvalidParameter(err)
 	}
 
-	container, err := daemon.create(params, managed)
+	container, err := daemon.create(opts)
 	if err != nil {
 		return containertypes.ContainerCreateCreatedBody{Warnings: warnings}, err
 	}
@@ -79,7 +100,7 @@ func (daemon *Daemon) containerCreate(params types.ContainerCreateConfig, manage
 }
 
 // Create creates a new container from the given configuration with a given name.
-func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (retC *container.Container, retErr error) {
+func (daemon *Daemon) create(opts createOpts) (retC *container.Container, retErr error) {
 	var (
 		container *container.Container
 		img       *image.Image
@@ -88,8 +109,8 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 	)
 
 	os := runtime.GOOS
-	if params.Config.Image != "" {
-		img, err = daemon.imageService.GetImage(params.Config.Image)
+	if opts.params.Config.Image != "" {
+		img, err = daemon.imageService.GetImage(opts.params.Config.Image)
 		if err != nil {
 			return nil, err
 		}
@@ -112,15 +133,23 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		}
 	}
 
-	if err := daemon.mergeAndVerifyConfig(params.Config, img); err != nil {
+	// On WCOW, if are not being invoked by the builder to create this container (where
+	// ignoreImagesArgEscaped will be true) - if the image already has its arguments escaped,
+	// ensure that this is replicated across to the created container to avoid double-escaping
+	// of the arguments/command line when the runtime attempts to run the container.
+	if os == "windows" && !opts.ignoreImagesArgsEscaped && img != nil && img.RunConfig().ArgsEscaped {
+		opts.params.Config.ArgsEscaped = true
+	}
+
+	if err := daemon.mergeAndVerifyConfig(opts.params.Config, img); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if err := daemon.mergeAndVerifyLogConfig(&params.HostConfig.LogConfig); err != nil {
+	if err := daemon.mergeAndVerifyLogConfig(&opts.params.HostConfig.LogConfig); err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	if container, err = daemon.newContainer(params.Name, os, params.Config, params.HostConfig, imgID, managed); err != nil {
+	if container, err = daemon.newContainer(opts.params.Name, os, opts.params.Config, opts.params.HostConfig, imgID, opts.managed); err != nil {
 		return nil, err
 	}
 	defer func() {
@@ -131,11 +160,11 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		}
 	}()
 
-	if err := daemon.setSecurityOptions(container, params.HostConfig); err != nil {
+	if err := daemon.setSecurityOptions(container, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
-	container.HostConfig.StorageOpt = params.HostConfig.StorageOpt
+	container.HostConfig.StorageOpt = opts.params.HostConfig.StorageOpt
 
 	// Fixes: https://github.com/moby/moby/issues/34074 and
 	// https://github.com/docker/for-win/issues/999.
@@ -170,17 +199,17 @@ func (daemon *Daemon) create(params types.ContainerCreateConfig, managed bool) (
 		return nil, err
 	}
 
-	if err := daemon.setHostConfig(container, params.HostConfig); err != nil {
+	if err := daemon.setHostConfig(container, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
-	if err := daemon.createContainerOSSpecificSettings(container, params.Config, params.HostConfig); err != nil {
+	if err := daemon.createContainerOSSpecificSettings(container, opts.params.Config, opts.params.HostConfig); err != nil {
 		return nil, err
 	}
 
 	var endpointsConfigs map[string]*networktypes.EndpointSettings
-	if params.NetworkingConfig != nil {
-		endpointsConfigs = params.NetworkingConfig.EndpointsConfig
+	if opts.params.NetworkingConfig != nil {
+		endpointsConfigs = opts.params.NetworkingConfig.EndpointsConfig
 	}
 	// Make sure NetworkMode has an acceptable value. We do this to ensure
 	// backwards API compatibility.

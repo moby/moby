@@ -31,21 +31,9 @@
 //        -- Possible values:      Any local path that is not a mapped drive
 //        -- Default if omitted:  %ProgramFiles%\Linux Containers
 //
-//   * lcow.kernel - Specifies a custom kernel file located in the `lcow.kirdpath` path
-//        -- Possible values:      Any valid filename
-//        -- Default if omitted:  bootx64.efi
-//
-//   * lcow.initrd - Specifies a custom initrd file located in the `lcow.kirdpath` path
-//        -- Possible values:      Any valid filename
-//        -- Default if omitted:  initrd.img
-//
 //   * lcow.bootparameters - Specifies additional boot parameters for booting in kernel+initrd mode
 //        -- Possible values:      Any valid linux kernel boot options
 //        -- Default if omitted:  <nil>
-//
-//   * lcow.vhdx - Specifies a custom vhdx file to boot (instead of a kernel+initrd)
-//        -- Possible values:      Any valid filename
-//        -- Default if omitted:  uvm.vhdx under `lcow.kirdpath`
 //
 //   * lcow.timeout - Specifies a timeout for utility VM operations in seconds
 //        -- Possible values:      >=0

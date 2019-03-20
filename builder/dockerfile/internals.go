@@ -308,6 +308,12 @@ func withCmd(cmd []string) runConfigModifier {
 	}
 }
 
+func withArgsEscaped(argsEscaped bool) runConfigModifier {
+	return func(runConfig *container.Config) {
+		runConfig.ArgsEscaped = argsEscaped
+	}
+}
+
 // withCmdComment sets Cmd to a nop comment string. See withCmdCommentString for
 // why there are two almost identical versions of this.
 func withCmdComment(comment string, platform string) runConfigModifier {
