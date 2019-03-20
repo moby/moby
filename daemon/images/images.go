@@ -283,6 +283,11 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		for _, img := range imgs {
 			ref, err := reference.Parse(img.Name)
 			if err != nil {
+				if strings.HasPrefix(img.Name, "<") {
+					if idx := strings.Index(img.Name, ">@"); idx > 0 {
+						digests["none"+img.Name[idx+1:]] = struct{}{}
+					}
+				}
 				// TODO(containerd): Check for format such as <commit>@
 				continue
 			}
