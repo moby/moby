@@ -10,7 +10,6 @@ import (
 
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -240,11 +239,8 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		case images.MediaTypeDockerSchema2Config, ocispec.MediaTypeImageConfig:
 			config = target
 		default:
-			// TODO(containerd): use global platforms matcher
-			platform := platforms.Default()
-
 			// TODO(containerd): config matcher which ignores NotFound items?
-			desc, err := images.Config(ctx, cs, imgs[0].Target, platform)
+			desc, err := images.Config(ctx, cs, imgs[0].Target, i.platforms)
 			if err != nil {
 				log.G(ctx).WithError(err).WithField("image", dgst.String()).Warnf("unable to resolve config")
 				continue
@@ -254,20 +250,39 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 
 		// TODO(containerd): Stat config
 		if info, err := cs.Info(ctx, config.Digest); err == nil {
+			var sizeSet bool
+			var size int64
 			for label, value := range info.Labels {
 				if label == LabelImageParent {
 					newImage.ParentID = value
-				} else if strings.HasPrefix(label, LabelLayerPrefix) {
-					// TODO: Lookup from layer store
+				} else if !sizeSet && strings.HasPrefix(label, LabelLayerPrefix) {
+					name := label[len(LabelLayerPrefix):]
+					ls, ok := i.layerStores[name]
+					if ok {
+						l, err := ls.Get(layer.ChainID(value))
+						if err != nil {
+							log.G(ctx).WithError(err).WithField("driver", name).WithField("layer", name).Warnf("unable to get layer")
+							continue
+						}
+						size, err = l.Size()
+						layer.ReleaseAndLog(ls, l)
+						if err != nil {
+							log.G(ctx).WithError(err).WithField("driver", name).WithField("layer", name).Warnf("unable to get layer size")
+							continue
+						}
+
+						break
+					}
 				}
-				// TODO(containerd): Store size in label
+				// TODO(containerd): Allow size in label?
 			}
-			// TODO(containerd): Resolve config for current platform
-			// TODO(containerd): Fill this in from config and content labels
-			//newImage.Size = size
-			//newImage.VirtualSize = size
-			//newImage.SharedSize = -1
-			//newImage.Containers = -1
+
+			newImage.Size = size
+			newImage.VirtualSize = size
+			newImage.SharedSize = -1
+			newImage.Containers = -1
+
+			// TODO(containerd): read config and set labels
 			//if image.Config != nil {
 			//	newImage.Labels = image.Config.Labels
 			//}
