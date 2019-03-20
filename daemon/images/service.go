@@ -8,7 +8,6 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -22,7 +21,6 @@ import (
 	dockerreference "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
-	"github.com/opencontainers/image-spec/identity"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -298,66 +296,37 @@ func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, driver string) error 
 // LayerDiskUsage returns the number of bytes used by layer stores
 // called from disk_usage.go
 func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
-	var allLayersSize int64
-	layerRefs, err := i.getLayerRefs(ctx)
+	c, err := i.getCache(ctx)
 	if err != nil {
 		return 0, err
 	}
-	for _, ls := range i.layerStores {
-		allLayers := ls.Map()
-		for _, l := range allLayers {
-			select {
-			case <-ctx.Done():
-				return allLayersSize, ctx.Err()
-			default:
-				size, err := l.DiffSize()
-				if err == nil {
-					if _, ok := layerRefs[digest.Digest(l.ChainID())]; ok {
-						allLayersSize += size
-					}
-				} else {
-					logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
-				}
+
+	var layers []layer.Layer
+	c.m.RLock()
+	for _, lm := range c.layers {
+		for _, l := range lm {
+			layers = append(layers, l)
+		}
+	}
+	c.m.RUnlock()
+
+	// TODO(containerd): Get from containerd snapshotters also
+
+	var allLayersSize int64
+	for _, l := range layers {
+		select {
+		case <-ctx.Done():
+			return allLayersSize, ctx.Err()
+		default:
+			size, err := l.DiffSize()
+			if err == nil {
+				allLayersSize += size
+			} else {
+				logrus.Warnf("failed to get diff size for layer %v", l.ChainID())
 			}
 		}
 	}
 	return allLayersSize, nil
-}
-
-func (i *ImageService) getLayerRefs(ctx context.Context) (map[digest.Digest]int, error) {
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Create copy and unlock cache
-	c.m.RLock()
-	imgs := make(map[digest.Digest]*cachedImage, len(c.idCache))
-	for dgst, ci := range c.idCache {
-		imgs[dgst] = ci
-	}
-	c.m.RUnlock()
-
-	layerRefs := map[digest.Digest]int{}
-	for _, img := range imgs {
-		if len(img.references) == 0 && len(img.children) != 0 {
-			continue
-		}
-
-		diffIDs, err := images.RootFS(ctx, i.client.ContentStore(), img.config)
-		if err != nil {
-			if errdefs.IsNotFound(err) {
-				continue
-			}
-			return nil, errors.Wrap(err, "failed to resolve rootfs")
-		}
-
-		for i := range diffIDs {
-			layerRefs[identity.ChainID(diffIDs[:i+1])]++
-		}
-	}
-
-	return layerRefs, nil
 }
 
 // UpdateConfig values
