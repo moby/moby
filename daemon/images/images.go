@@ -283,6 +283,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		for _, img := range imgs {
 			ref, err := reference.Parse(img.Name)
 			if err != nil {
+				// TODO(containerd): Check for format such as <commit>@
 				continue
 			}
 			if named, ok := ref.(reference.Named); ok {

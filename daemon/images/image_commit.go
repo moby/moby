@@ -9,12 +9,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
-	"github.com/containerd/containerd/errdefs"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/log"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
@@ -26,10 +29,16 @@ import (
 
 // CommitImage creates a new image from a commit config
 func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) (ocispec.Descriptor, error) {
-	cache, err := i.getCache(ctx)
+	ctx, done, err := i.client.WithLease(ctx)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
+
+	defer func() {
+		if err := done(context.Background()); err != nil {
+			log.G(ctx).WithError(err).Errorf("failed to remove lease")
+		}
+	}()
 
 	var img struct {
 		ocispec.Image
@@ -50,15 +59,12 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 	if c.ParentImageID == "" {
 		img.RootFS.Type = "layers"
 	} else {
-		cache.m.RLock()
-		pci, ok := cache.idCache[digest.Digest(c.ParentImageID)]
-		cache.m.RUnlock()
-
-		if !ok {
-			return ocispec.Descriptor{}, errors.Wrap(errdefs.ErrNotFound, "parent not found")
+		parent := ocispec.Descriptor{
+			MediaType: images.MediaTypeDockerSchema2Config,
+			Digest:    digest.Digest(c.ParentImageID),
 		}
 
-		b, err := content.ReadBlob(ctx, i.client.ContentStore(), pci.config)
+		b, err := content.ReadBlob(ctx, i.client.ContentStore(), parent)
 		if err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "unable to read config")
 		}
@@ -68,36 +74,31 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		}
 	}
 
-	// TODO(containerd): get from container metadata
-	layerStore, err := i.getLayerStoreByOS(c.ContainerOS)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
+	cl, err := i.commitLayer(ctx, identity.ChainID(img.RootFS.DiffIDs), c)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 	defer func() {
-		if rwTar != nil {
-			rwTar.Close()
+		if cl.layer != nil {
+			layer.ReleaseAndLog(cl.store, cl.layer)
 		}
 	}()
 
-	// TODO(containerd): Tee compressed output to content store
-	// for generation of the manifest.
-	l, err := layerStore.Register(rwTar, layer.ChainID(identity.ChainID(img.RootFS.DiffIDs)))
+	// Get compressed layer descriptors, migrate is needed
+	layers, err := i.compressedLayers(ctx, img.RootFS.DiffIDs)
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
 
+	// Create and write config
 	created := time.Now().UTC()
-	diffID := l.DiffID()
 
 	img.Created = &created
 
-	isEmptyLayer := layer.IsEmpty(diffID)
+	isEmptyLayer := layer.IsEmpty(layer.DiffID(cl.uncompressed.Digest))
 	if !isEmptyLayer {
-		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, digest.Digest(diffID))
+		img.RootFS.DiffIDs = append(img.RootFS.DiffIDs, cl.uncompressed.Digest)
+		layers = append(layers, cl.compressed)
 	}
 	img.History = append(img.History, ocispec.History{
 		Author:     c.Author,
@@ -119,18 +120,20 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 
 	config, err := json.Marshal(img)
 	if err != nil {
-		layer.ReleaseAndLog(layerStore, l)
 		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal committed image")
 	}
 
 	desc := ocispec.Descriptor{
-		MediaType: ocispec.MediaTypeImageConfig,
+		MediaType: images.MediaTypeDockerSchema2Config,
 		Digest:    digest.FromBytes(config),
 		Size:      int64(len(config)),
 	}
 
-	labels := map[string]string{
-		fmt.Sprintf("%s%s", LabelLayerPrefix, layerStore.DriverName()): l.ChainID().String(),
+	labels := map[string]string{}
+
+	if cl.layer != nil {
+		key := fmt.Sprintf("%s%s", LabelLayerPrefix, cl.store.DriverName())
+		labels[key] = cl.layer.ChainID().String()
 	}
 
 	if c.ParentImageID != "" {
@@ -141,60 +144,257 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 
 	ref := fmt.Sprintf("config-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
 	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(config), desc, opts...); err != nil {
-		layer.ReleaseAndLog(layerStore, l)
 		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store config")
+	}
+
+	// Create and write manifest
+	m := struct {
+		SchemaVersion int                  `json:"schemaVersion"`
+		MediaType     string               `json:"mediaType"`
+		Config        ocispec.Descriptor   `json:"config"`
+		Layers        []ocispec.Descriptor `json:"layers"`
+	}{
+		SchemaVersion: 2,
+		MediaType:     images.MediaTypeDockerSchema2Manifest,
+		Config:        desc,
+		Layers:        layers,
+	}
+
+	mb, err := json.Marshal(m)
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal committed image")
+	}
+
+	desc = ocispec.Descriptor{
+		MediaType: images.MediaTypeDockerSchema2Manifest,
+		Digest:    digest.FromBytes(mb),
+		Size:      int64(len(mb)),
+	}
+
+	labels = map[string]string{
+		"containerd.io/gc.ref.content.config": m.Config.Digest.String(),
+	}
+	for i, l := range m.Layers {
+		labels[fmt.Sprintf("containerd.io/gc.ref.content.l%d", i)] = l.Digest.String()
+	}
+
+	opts = []content.Opt{content.WithLabels(labels)}
+	ref = fmt.Sprintf("manifest-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
+	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(mb), desc, opts...); err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store manifest")
 	}
 
 	// Create a dangling image
 	_, err = i.client.ImageService().Create(ctx, images.Image{
-		// TODO(containerd): Add a name component here
-		Name:      desc.Digest.String(),
+		// TODO(containerd): Add a more meaningful name component?
+		Name:      "<commit>@" + desc.Digest.String(),
 		Target:    desc,
 		CreatedAt: created,
 		UpdatedAt: created,
-		Labels: map[string]string{
-			// TODO(containerd): name can be used to determine this
-			LabelImageDangling: desc.Digest.String(),
-		},
 	})
 	if err != nil {
-		layer.ReleaseAndLog(layerStore, l)
 		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store image")
 	}
 
-	cache.m.Lock()
-	layerKey := digest.Digest(l.ChainID())
-	if _, ok := cache.layers[layerStore.DriverName()][layerKey]; !ok {
-		cache.layers[layerStore.DriverName()][layerKey] = l
-	} else {
-		// Image already retained, don't hold onto layer
-		defer layer.ReleaseAndLog(layerStore, l)
-	}
-
-	// TODO(containerd): remove this, no longer used
-	if _, ok := cache.idCache[desc.Digest]; !ok {
-		ci := &cachedImage{
-			config: desc,
-			parent: digest.Digest(c.ParentImageID),
+	if cl.layer != nil {
+		cache, err := i.getCache(ctx)
+		if err != nil {
+			return ocispec.Descriptor{}, err
 		}
-		cache.idCache[desc.Digest] = ci
-
-		// TODO(containerd): Refer to manifest here
-		cache.tCache[desc.Digest] = ci
-
-		if ci.parent != "" {
-			pci, ok := cache.idCache[ci.parent]
-			if ok {
-				pci.m.Lock()
-				pci.children = append(pci.children, desc.Digest)
-				pci.m.Unlock()
-			}
+		cache.m.Lock()
+		layerKey := digest.Digest(cl.layer.ChainID())
+		if _, ok := cache.layers[cl.store.DriverName()][layerKey]; !ok {
+			cache.layers[cl.store.DriverName()][layerKey] = cl.layer
+			// Unset this to prevent defer from releasing
+			cl.layer = nil
 		}
+		cache.m.Unlock()
 	}
-
-	cache.m.Unlock()
 
 	return desc, nil
+}
+
+type committedLayer struct {
+	uncompressed ocispec.Descriptor
+	compressed   ocispec.Descriptor
+	layer        layer.Layer
+	store        layer.Store
+}
+
+func (i *ImageService) commitLayer(ctx context.Context, parent digest.Digest, c backend.CommitConfig) (committedLayer, error) {
+	// TODO(containerd): get from container metadata
+	layerStore, err := i.getLayerStoreByOS(c.ContainerOS)
+	if err != nil {
+		return committedLayer{}, err
+	}
+	rwTar, err := exportContainerRw(layerStore, c.ContainerID, c.ContainerMountLabel)
+	if err != nil {
+		return committedLayer{}, err
+	}
+	defer rwTar.Close()
+
+	cs := i.client.ContentStore()
+
+	// TODO(containerd): Handle unavailable error or use random id?
+	w, err := cs.Writer(ctx, content.WithRef("container-commit-"+c.ContainerID))
+	if err != nil {
+		return committedLayer{}, err
+	}
+	defer func() {
+		if err := w.Close(); err != nil {
+			log.G(ctx).WithError(err).Errorf("failed to close writer")
+		}
+	}()
+	if err := w.Truncate(0); err != nil {
+		return committedLayer{}, err
+	}
+
+	dc, err := compression.CompressStream(w, compression.Gzip)
+	if err != nil {
+		return committedLayer{}, err
+	}
+
+	l, err := layerStore.Register(io.TeeReader(rwTar, dc), layer.ChainID(parent))
+	if err != nil {
+		return committedLayer{}, err
+	}
+	dc.Close()
+
+	diffID := digest.Digest(l.DiffID())
+	cdgst := w.Digest()
+	info, err := w.Status()
+	if err != nil {
+		return committedLayer{}, err
+
+	}
+	size := info.Offset
+	if size == 0 {
+		return committedLayer{}, errors.New("empty write for layer")
+	}
+
+	labels := map[string]string{
+		"containerd.io/uncompressed": diffID.String(),
+	}
+
+	if err := w.Commit(ctx, size, cdgst, content.WithLabels(labels)); err != nil {
+		if !cerrdefs.IsAlreadyExists(err) {
+			return committedLayer{}, err
+		}
+
+	}
+
+	return committedLayer{
+		uncompressed: ocispec.Descriptor{
+			MediaType: images.MediaTypeDockerSchema2Layer,
+			Digest:    diffID,
+			Size:      -1,
+		},
+		compressed: ocispec.Descriptor{
+			MediaType: images.MediaTypeDockerSchema2LayerGzip,
+			Digest:    cdgst,
+			Size:      size,
+		},
+		layer: l,
+		store: layerStore,
+	}, nil
+}
+
+func (i *ImageService) compressedLayers(ctx context.Context, diffs []digest.Digest) ([]ocispec.Descriptor, error) {
+	var filters []string
+	for _, diff := range diffs {
+		filters = append(filters, fmt.Sprintf("labels.\"containerd.io/uncompressed\"==%s", diff.String()))
+	}
+	descs := make([]ocispec.Descriptor, len(diffs))
+
+	i.client.ContentStore().Walk(ctx, func(info content.Info) error {
+		udgst := digest.Digest(info.Labels["containerd.io/uncompressed"])
+		for i, diff := range diffs {
+			if diff == udgst {
+				descs[i] = ocispec.Descriptor{
+					MediaType: images.MediaTypeDockerSchema2LayerGzip,
+					Digest:    info.Digest,
+					Size:      info.Size,
+				}
+			}
+		}
+		return nil
+	}, filters...)
+
+	for j, diff := range diffs {
+		if descs[j].Digest != "" {
+			continue
+		}
+		log.G(ctx).WithField("diff", diff).Debugf("compressed blob not found, migrating")
+
+		// Look in all configured layer stores
+		for _, store := range i.layerBackends {
+			l, err := store.Get(layer.ChainID(identity.ChainID(diffs[:j+1])))
+			if err != nil {
+				if err == layer.ErrLayerDoesNotExist {
+					continue
+				}
+				return nil, errors.Wrapf(err, "cannot get layer for %s", diff.String())
+			}
+			defer layer.ReleaseAndLog(store, l)
+
+			cs := i.client.ContentStore()
+
+			// TODO(containerd): Handle unavailable and synchronize
+			w, err := cs.Writer(ctx, content.WithRef("layer-migrate-"+diff.String()))
+			if err != nil {
+				return nil, err
+			}
+			// Ensure any leftover data is abandoned
+			if err := w.Truncate(0); err != nil {
+				return nil, err
+			}
+
+			dc, err := compression.CompressStream(w, compression.Gzip)
+			if err != nil {
+				return nil, err
+			}
+
+			rc, err := l.TarStream()
+			if err != nil {
+				return nil, err
+			}
+
+			n, err := io.Copy(dc, rc)
+			rc.Close()
+			if err != nil {
+				return nil, err
+			}
+
+			dc.Close()
+
+			labels := map[string]string{
+				"containerd.io/uncompressed": diff.String(),
+			}
+
+			cdgst := w.Digest()
+			if err := w.Commit(ctx, n, cdgst, content.WithLabels(labels)); err != nil {
+				if !cerrdefs.IsAlreadyExists(err) {
+					return nil, err
+				}
+				if err := w.Close(); err != nil {
+					log.G(ctx).WithError(err).Errorf("failed to close writer")
+				}
+			}
+
+			descs[j] = ocispec.Descriptor{
+				MediaType: images.MediaTypeDockerSchema2LayerGzip,
+				Digest:    cdgst,
+				Size:      n,
+			}
+			break
+		}
+
+		if descs[j].Digest == "" {
+			return nil, errdefs.NotFound(errors.New("layer not found"))
+		}
+	}
+
+	return descs, nil
 }
 
 func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.ReadCloser, err error) {

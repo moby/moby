@@ -360,7 +360,34 @@ func (i *ImageService) applyLayer(ctx context.Context, ls layer.Store, blob ocis
 		parent = identity.ChainID(layers[:len(layers)-1])
 	}
 
-	return ls.Register(dc, layer.ChainID(parent))
+	var r io.Reader
+	var dgstr digest.Digester
+	if dc.GetCompression() == compression.Gzip {
+		dgstr = digest.Canonical.Digester()
+		r = io.TeeReader(dc, dgstr.Hash())
+	} else {
+		r = dc
+	}
+
+	nl, err := ls.Register(r, layer.ChainID(parent))
+	if err != nil {
+		return nil, err
+	}
+
+	if dgstr != nil {
+		info := content.Info{
+			Digest: blob.Digest,
+			Labels: map[string]string{
+				"containerd.io/uncompressed": dgstr.Digest().String(),
+			},
+		}
+		_, err := cs.Update(ctx, info, "labels.containerd.io/uncompressed")
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("digest", blob.Digest.String()).Warnf("unable to set uncompressed label")
+		}
+	}
+
+	return nl, nil
 }
 
 func getTagOrDigest(ref reference.Named) string {

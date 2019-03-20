@@ -155,13 +155,16 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 				if err := is.Delete(ctx, ref); err != nil && !errdefs.IsNotFound(err) {
 					return records, errors.Wrapf(err, "failed to delete ref: %s", ref)
 				}
-				pref, err := reference.ParseNormalizedNamed(ref)
-				if err != nil {
-					return records, errors.Wrapf(err, "failed to parse ref: %s", ref)
+				var fref string
+				if !strings.HasPrefix(ref, "<") {
+					pref, err := reference.ParseNormalizedNamed(ref)
+					if err != nil {
+						return records, errors.Wrapf(err, "failed to parse ref: %s", ref)
+					}
+					fref = reference.FamiliarString(pref)
+					i.LogImageEvent(ctx, imgID, fref, "untag")
+					records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
 				}
-				fref := reference.FamiliarString(pref)
-				i.LogImageEvent(ctx, imgID, fref, "untag")
-				records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
 			}
 			return records, nil
 		}
@@ -247,13 +250,15 @@ func (i *ImageService) ImageDelete(ctx context.Context, imageRef string, force, 
 		if err := is.Delete(ctx, img.Name, opts...); err != nil && !errdefs.IsNotFound(err) {
 			return records, errors.Wrapf(err, "failed to delete ref: %s", img.Name)
 		}
-		pref, err := reference.ParseNormalizedNamed(img.Name)
-		if err != nil {
-			return records, errors.Wrapf(err, "failed to parse ref: %s", img.Name)
+		if !strings.HasPrefix(img.Name, "<") {
+			pref, err := reference.ParseNormalizedNamed(img.Name)
+			if err != nil {
+				return records, errors.Wrapf(err, "failed to parse ref: %s", img.Name)
+			}
+			fref := reference.FamiliarString(pref)
+			i.LogImageEvent(ctx, imgID, fref, "untag")
+			records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
 		}
-		fref := reference.FamiliarString(pref)
-		i.LogImageEvent(ctx, imgID, fref, "untag")
-		records = append(records, types.ImageDeleteResponseItem{Untagged: fref})
 	}
 
 	// Lookup image to see if it was deleted
