@@ -182,11 +182,6 @@ func (container *Container) BuildHostnameFile() error {
 	return nil
 }
 
-// EnableServiceDiscoveryOnDefaultNetwork Enable service discovery on default network
-func (container *Container) EnableServiceDiscoveryOnDefaultNetwork() bool {
-	return true
-}
-
 // GetMountPoints gives a platform specific transformation to types.MountPoint. Callers must hold a Container lock.
 func (container *Container) GetMountPoints() []types.MountPoint {
 	mountPoints := make([]types.MountPoint, 0, len(container.MountPoints))

@@ -657,7 +657,7 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libn
 		if hasUserDefinedIPAddress(endpointConfig) && !enableIPOnPredefinedNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndIP
 		}
-		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 && !container.EnableServiceDiscoveryOnDefaultNetwork() {
+		if endpointConfig != nil && len(endpointConfig.Aliases) > 0 && !serviceDiscoveryOnDefaultNetwork() {
 			return runconfig.ErrUnsupportedNetworkAndAlias
 		}
 	} else {
