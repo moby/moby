@@ -154,6 +154,11 @@ func enableIPOnPredefinedNetwork() bool {
 	return true
 }
 
+// serviceDiscoveryOnDefaultNetwork indicates if service discovery is supported on the default network
+func serviceDiscoveryOnDefaultNetwork() bool {
+	return true
+}
+
 func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
 	return nil
 }
