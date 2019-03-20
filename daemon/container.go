@@ -163,8 +163,8 @@ func (daemon *Daemon) newContainer(name string, config *containertypes.Config, h
 	base.ImageID = image.ID(img.Config.Digest)
 	base.NetworkSettings = &network.Settings{IsAnonymousEndpoint: noExplicitName}
 	base.Name = name
-	// TODO(containerd): Rename this function or pass it in, get it after layer created?
-	base.Driver = daemon.imageService.GraphDriverForOS(img.Platform.OS)
+	// TODO(containerd): set this after layer created based on the graph driver
+	base.Driver = daemon.imageService.DriverName(img.Platform)
 	base.OS = img.Platform.OS
 	// TODO(containerd): Set architecture
 	// TODO(containerd): Set variant
