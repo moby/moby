@@ -6,7 +6,6 @@ import (
 	"net"
 	"os"
 	"path"
-	"runtime"
 	"strings"
 	"time"
 
@@ -1040,8 +1039,6 @@ func (daemon *Daemon) ConnectToNetwork(container *container.Container, idOrName 
 				EndpointSettings: endpointConfig,
 			}
 		}
-	} else if !daemon.isNetworkHotPluggable() {
-		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
 	} else {
 		if err := daemon.connectToNetwork(container, idOrName, endpointConfig, true); err != nil {
 			return err
@@ -1070,8 +1067,6 @@ func (daemon *Daemon) DisconnectFromNetwork(container *container.Container, netw
 			return fmt.Errorf("container %s is not connected to the network %s", container.ID, networkName)
 		}
 		delete(container.NetworkSettings.Networks, networkName)
-	} else if err == nil && !daemon.isNetworkHotPluggable() {
-		return fmt.Errorf(runtime.GOOS + " does not support connecting a running container to a network")
 	} else if err == nil {
 		if container.HostConfig.NetworkMode.IsHost() && containertypes.NetworkMode(n.Type()).IsHost() {
 			return runconfig.ErrConflictHostNetwork

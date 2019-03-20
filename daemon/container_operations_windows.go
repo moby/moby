@@ -154,10 +154,6 @@ func enableIPOnPredefinedNetwork() bool {
 	return true
 }
 
-func (daemon *Daemon) isNetworkHotPluggable() bool {
-	return true
-}
-
 func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {
 	return nil
 }
