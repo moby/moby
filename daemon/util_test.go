@@ -21,8 +21,8 @@ func (c *MockContainerdClient) Version(ctx context.Context) (containerd.Version,
 func (c *MockContainerdClient) Restore(ctx context.Context, containerID string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error) {
 	return false, 0, nil
 }
-func (c *MockContainerdClient) Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error {
-	return nil
+func (c *MockContainerdClient) Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) (containerd.Container, error) {
+	return nil, nil
 }
 func (c *MockContainerdClient) Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (pid int, err error) {
 	return 0, nil

@@ -15,7 +15,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/plugins"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/plugin/v2"
+	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/opencontainers/go-digest"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -58,7 +58,7 @@ func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
 	}
 
 	stdout, stderr := makeLoggerStreams(p.GetID())
-	if err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
+	if _, err := pm.executor.Create(p.GetID(), *spec, stdout, stderr); err != nil {
 		if p.PluginObj.Config.PropagatedMount != "" {
 			if err := mount.Unmount(propRoot); err != nil {
 				logrus.WithField("plugin", p.Name()).WithError(err).Warn("Failed to unmount vplugin propagated mount root")

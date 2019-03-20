@@ -30,7 +30,7 @@ type ExitHandler interface {
 // TODO(@cpuguy83): This should really just be based off the containerd client interface.
 // However right now this whole package is tied to github.com/docker/docker/libcontainerd
 type Client interface {
-	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error
+	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) (containerd.Container, error)
 	Restore(ctx context.Context, containerID string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error)
 	Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error)
 	Delete(ctx context.Context, containerID string) error
@@ -75,12 +75,12 @@ func deleteTaskAndContainer(ctx context.Context, cli Client, id string) {
 }
 
 // Create creates a new container
-func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) (containerd.Container, error) {
 	opts := runctypes.RuncOptions{
 		RuntimeRoot: filepath.Join(e.rootDir, "runtime-root"),
 	}
 	ctx := context.Background()
-	err := e.client.Create(ctx, id, &spec, &opts)
+	ctr, err := e.client.Create(ctx, id, &spec, &opts)
 	if err != nil {
 		status, err2 := e.client.Status(ctx, id)
 		if err2 != nil {
@@ -92,12 +92,12 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 				if err2 := e.client.Delete(ctx, id); err2 != nil && !errdefs.IsNotFound(err2) {
 					logrus.WithError(err2).WithField("plugin", id).Error("Error cleaning up containerd container")
 				}
-				err = e.client.Create(ctx, id, &spec, &opts)
+				ctr, err = e.client.Create(ctx, id, &spec, &opts)
 			}
 		}
 
 		if err != nil {
-			return errors.Wrap(err, "error creating containerd container")
+			return nil, errors.Wrap(err, "error creating containerd container")
 		}
 	}
 
@@ -105,7 +105,7 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 	if err != nil {
 		deleteTaskAndContainer(ctx, e.client, id)
 	}
-	return err
+	return ctr, err
 }
 
 // Restore restores a container

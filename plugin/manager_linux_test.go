@@ -8,11 +8,12 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/containerd/containerd"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/plugin/v2"
+	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"gotest.tools/skip"
@@ -89,8 +90,8 @@ func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
 type simpleExecutor struct {
 }
 
-func (e *simpleExecutor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
-	return errors.New("Create failed")
+func (e *simpleExecutor) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) (containerd.Container, error) {
+	return nil, errors.New("Create failed")
 }
 
 func (e *simpleExecutor) Restore(id string, stdout, stderr io.WriteCloser) (bool, error) {
@@ -147,7 +148,7 @@ type executorWithRunning struct {
 	exitChans map[string]chan struct{}
 }
 
-func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error {
+func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) (containerd.Container, error) {
 	sockAddr := filepath.Join(e.root, id, "plugin.sock")
 	ch := make(chan struct{})
 	if e.exitChans == nil {
@@ -155,7 +156,7 @@ func (e *executorWithRunning) Create(id string, spec specs.Spec, stdout, stderr 
 	}
 	e.exitChans[id] = ch
 	listenTestPlugin(sockAddr, ch)
-	return nil
+	return nil, nil
 }
 
 func (e *executorWithRunning) IsRunning(id string) (bool, error) {
@@ -214,7 +215,7 @@ func TestPluginAlreadyRunningOnStartup(t *testing.T) {
 			executor := &executorWithRunning{root: config.ExecRoot}
 			config.CreateExecutor = func(m *Manager) (Executor, error) { executor.m = m; return executor, nil }
 
-			if err := executor.Create(p.GetID(), specs.Spec{}, nil, nil); err != nil {
+			if _, err := executor.Create(p.GetID(), specs.Spec{}, nil, nil); err != nil {
 				t.Fatal(err)
 			}
 

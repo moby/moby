@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -23,22 +24,22 @@ func TestLifeCycle(t *testing.T) {
 
 	id := "test-create"
 	mock.simulateStartError(true, id)
-	err := exec.Create(id, specs.Spec{}, nil, nil)
+	_, err := exec.Create(id, specs.Spec{}, nil, nil)
 	assert.Assert(t, err != nil)
 	mock.simulateStartError(false, id)
 
-	err = exec.Create(id, specs.Spec{}, nil, nil)
+	_, err = exec.Create(id, specs.Spec{}, nil, nil)
 	assert.NilError(t, err)
 	running, _ := exec.IsRunning(id)
 	assert.Assert(t, running)
 
 	// create with the same ID
-	err = exec.Create(id, specs.Spec{}, nil, nil)
+	_, err = exec.Create(id, specs.Spec{}, nil, nil)
 	assert.Assert(t, err != nil)
 
 	mock.HandleExitEvent(id) // simulate a plugin that exits
 
-	err = exec.Create(id, specs.Spec{}, nil, nil)
+	_, err = exec.Create(id, specs.Spec{}, nil, nil)
 	assert.NilError(t, err)
 }
 
@@ -70,16 +71,16 @@ func newMockClient() *mockClient {
 	}
 }
 
-func (c *mockClient) Create(ctx context.Context, id string, _ *specs.Spec, _ interface{}) error {
+func (c *mockClient) Create(ctx context.Context, id string, _ *specs.Spec, _ interface{}) (containerd.Container, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	if _, ok := c.containers[id]; ok {
-		return errors.New("exists")
+		return nil, errors.New("exists")
 	}
 
 	c.containers[id] = false
-	return nil
+	return nil, nil
 }
 
 func (c *mockClient) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error) {

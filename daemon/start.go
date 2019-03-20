@@ -178,8 +178,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 	}
 
 	ctx := context.TODO()
-
-	err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
+	_, err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
 	if err != nil {
 		if errdefs.IsConflict(err) {
 			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
@@ -188,7 +187,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
 				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
 			}
-			err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
+			_, err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
 		}
 		if err != nil {
 			return translateContainerdStartErr(container.Path, container.SetExitCode, err)

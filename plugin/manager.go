@@ -12,6 +12,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/containerd/containerd"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/image"
@@ -21,7 +22,7 @@ import (
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/docker/pkg/pubsub"
 	"github.com/docker/docker/pkg/system"
-	"github.com/docker/docker/plugin/v2"
+	v2 "github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -36,7 +37,7 @@ var validFullID = regexp.MustCompile(`^([a-f0-9]{64})$`)
 
 // Executor is the interface that the plugin manager uses to interact with for starting/stopping plugins
 type Executor interface {
-	Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) error
+	Create(id string, spec specs.Spec, stdout, stderr io.WriteCloser) (containerd.Container, error)
 	IsRunning(id string) (bool, error)
 	Restore(id string, stdout, stderr io.WriteCloser) (alive bool, err error)
 	Signal(id string, signal int) error
