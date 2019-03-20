@@ -4,11 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"runtime"
+	"strings"
 	"time"
 
 	"github.com/containerd/containerd/content"
-	"github.com/docker/distribution/reference"
+	cerrdefs "github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types/image"
 	"github.com/docker/docker/layer"
 	"github.com/opencontainers/image-spec/identity"
@@ -20,12 +21,18 @@ import (
 // name by walking the image lineage.
 func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.HistoryResponseItem, error) {
 	start := time.Now()
-	ci, err := i.getCachedRef(ctx, name)
+	desc, err := i.ResolveImage(ctx, name)
 	if err != nil {
 		return nil, err
 	}
 
-	p, err := content.ReadBlob(ctx, i.client.ContentStore(), ci.config)
+	cs := i.client.ContentStore()
+	m, err := images.Manifest(ctx, cs, desc, i.platforms)
+	if err != nil {
+		return nil, err
+	}
+
+	p, err := content.ReadBlob(ctx, cs, m.Config)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read config")
 	}
@@ -41,6 +48,22 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.
 	rootFS := img.RootFS
 	rootFS.DiffIDs = nil
 
+	info, err := cs.Info(ctx, m.Config.Digest)
+	if err != nil {
+		return nil, errors.Wrapf(err, "unable to get config %s", m.Config.Digest.String())
+	}
+	var ls layer.Store
+	for k := range info.Labels {
+		if strings.HasPrefix(k, LabelLayerPrefix) {
+			name := k[len(LabelLayerPrefix):]
+			ils, ok := i.layerStores[name]
+			if ok {
+				ls = ils
+				break
+			}
+		}
+	}
+
 	for _, h := range img.History {
 		var layerSize int64
 
@@ -49,17 +72,21 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.
 				return nil, fmt.Errorf("too many non-empty layers in History section")
 			}
 			rootFS.DiffIDs = append(rootFS.DiffIDs, img.RootFS.DiffIDs[layerCounter])
-			l, err := i.layerStores[runtime.GOOS].Get(layer.ChainID(identity.ChainID(rootFS.DiffIDs)))
-			if err != nil {
-				return nil, err
-			}
-			layerSize, err = l.DiffSize()
-			layer.ReleaseAndLog(i.layerStores[runtime.GOOS], l)
-			if err != nil {
-				return nil, err
-			}
 
 			layerCounter++
+
+			if ls != nil {
+				l, err := ls.Get(layer.ChainID(identity.ChainID(rootFS.DiffIDs)))
+				if err != nil {
+					return nil, err
+				}
+				layerSize, err = l.DiffSize()
+				layer.ReleaseAndLog(ls, l)
+				if err != nil {
+					return nil, err
+				}
+			}
+
 		}
 
 		history = append([]*image.HistoryResponseItem{{
@@ -71,33 +98,32 @@ func (i *ImageService) ImageHistory(ctx context.Context, name string) ([]*image.
 		}}, history...)
 	}
 
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	// Fill in image IDs and tags
-	histImg := ci
-	id := ci.config.Digest
+	//// Fill in image IDs
+	id := desc.Digest
 	for _, h := range history {
+		// TODO(containerd): is it ok that parent IDs may not match images
 		h.ID = id.String()
 
-		var tags []string
-		for _, r := range histImg.references {
-			if _, ok := r.(reference.NamedTagged); ok {
-				tags = append(tags, reference.FamiliarString(r))
+		// TODO(containerd): fill in tags or just ignore
+		//	var tags []string
+		//	for _, r := range histImg.references {
+		//		if _, ok := r.(reference.NamedTagged); ok {
+		//			tags = append(tags, reference.FamiliarString(r))
+		//		}
+		//	}
+
+		//	h.Tags = tags
+
+		parent := info.Labels[LabelImageParent]
+		if parent == "" {
+			break
+		}
+		info, err = cs.Info(ctx, m.Config.Digest)
+		if err != nil {
+			if cerrdefs.IsNotFound(err) {
+				break
 			}
-		}
-
-		h.Tags = tags
-
-		id = histImg.parent
-		if id == "" {
-			break
-		}
-		histImg = c.byID(id)
-		if histImg == nil {
-			break
+			return nil, errors.Wrapf(err, "unable to get parent config %s", parent)
 		}
 	}
 	imageActions.WithValues("history").UpdateSince(start)
