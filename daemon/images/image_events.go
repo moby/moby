@@ -2,9 +2,7 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"encoding/json"
 
-	"github.com/containerd/containerd/content"
 	"github.com/docker/docker/api/types/events"
 )
 
@@ -34,25 +32,9 @@ func (i *ImageService) LogImageEvent(ctx context.Context, imageID, refName, acti
 }
 
 func (i *ImageService) getImageLabels(ctx context.Context, imageID string) (map[string]string, error) {
-	img, err := i.GetImage(ctx, imageID)
-	if err != nil {
-		return nil, err
-	}
-
-	p, err := content.ReadBlob(ctx, i.client.ContentStore(), img)
-	if err != nil {
-		return nil, err
-	}
-
-	var config struct {
-		Config struct {
-			Labels map[string]string
-		}
-	}
-
-	if err := json.Unmarshal(p, &config); err != nil {
-		return nil, err
-	}
-
-	return config.Config.Labels, nil
+	return nil, nil
+	// TODO(containerd): why is this expensive operation necessary
+	// would require resolving imageID to manifest, then reading
+	// and unmarshalling the config, this would also require
+	// resolving manifest list if imageID is a manifest list
 }

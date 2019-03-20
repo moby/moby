@@ -57,7 +57,7 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 
 	config, err := images.Config(ctx, cs, desc, i.platforms)
 	if err != nil {
-		// TODO(containerd): handle case where config fails to resume
+		// TODO(containerd): handle case where config fails to resolve
 		// due to missing data caused by multiple matches
 		return nil, errors.Wrap(err, "failed to resolve config")
 	}

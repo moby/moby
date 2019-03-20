@@ -20,20 +20,9 @@ import (
 )
 
 const (
-	// LabelImageID refers to the image ID used by Docker
-	// Deprecate this to support multi-arch images
-	LabelImageID = "docker.io/image.id"
-
 	// LabelImageParent is Docker's parent image ID
 	// Stored on the image blob (config or manifest)
 	LabelImageParent = "containerd.io/gc.ref.content.parent"
-
-	// LabelImageDangling refers to images with no name
-	// Stored on images and points to the image config digest
-	// TODO(containerd): Deprecate this, use name@hash approach
-	// to hold onto images and avoid calculating the dangling
-	// property after every retag
-	LabelImageDangling = "docker.io/image.dangling"
 
 	// LabelLayerPrefix is used as the label prefix for layer stores
 	// Stores the layer reference in the given layerstore.
@@ -57,15 +46,6 @@ func (e ErrImageDoesNotExist) Error() string {
 // NotFound implements the NotFound interface
 func (e ErrImageDoesNotExist) NotFound() {}
 
-func (i *ImageService) GetImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
-	ci, err := i.getCachedRef(ctx, refOrID)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	return ci.config, nil
-}
-
 // SearchImage searches for an image based on the given
 // reference or identifier. Returns the descriptor of
 // the image, could be manifest list, manifest, or config.
@@ -77,25 +57,11 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 
 	is := i.client.ImageService()
 
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
-
-	c.m.RLock()
-	defer c.m.RUnlock()
-
 	namedRef, ok := parsed.(reference.Named)
 	if !ok {
 		digested, ok := parsed.(reference.Digested)
 		if !ok {
 			return ocispec.Descriptor{}, errdefs.InvalidParameter(errors.New("bad reference"))
-		}
-
-		// Check if descriptor is cached
-		desc, ok := c.descriptors[digested.Digest()]
-		if ok {
-			return desc, nil
 		}
 
 		imgs, err := is.List(ctx, fmt.Sprintf("target.digest==%s", digested.Digest()))
@@ -392,125 +358,4 @@ func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) 
 		Config: target,
 		Image:  &img,
 	}, nil
-}
-
-func (i *ImageService) getReferences(ctx context.Context, imageID digest.Digest) ([]reference.Named, error) {
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return nil, err
-	}
-	img := c.byID(imageID)
-	if img == nil {
-		return nil, errdefs.NotFound(errors.New("no image with given id"))
-	}
-
-	return img.references, nil
-}
-
-func (i *ImageService) getCachedRef(ctx context.Context, ref string) (*cachedImage, error) {
-	img, err := i.getImageByRef(ctx, ref)
-	if err != nil {
-		return nil, err
-	}
-	return img.cached, nil
-}
-
-type imageLink struct {
-	name   reference.Named
-	target *ocispec.Descriptor
-	cached *cachedImage
-}
-
-func (i *ImageService) getImageByRef(ctx context.Context, ref string) (imageLink, error) {
-	parsed, err := reference.ParseAnyReference(ref)
-	if err != nil {
-		return imageLink{}, err
-	}
-
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return imageLink{}, err
-	}
-
-	c.m.RLock()
-	defer c.m.RUnlock()
-
-	namedRef, ok := parsed.(reference.Named)
-	if !ok {
-		digested, ok := parsed.(reference.Digested)
-		if !ok {
-			return imageLink{}, errdefs.InvalidParameter(errors.New("bad reference"))
-		}
-
-		ci, ok := c.idCache[digested.Digest()]
-		if !ok {
-			return imageLink{}, errdefs.NotFound(errors.New("id not found"))
-		}
-		return imageLink{
-			cached: ci,
-		}, nil
-	}
-
-	img, err := i.client.ImageService().Get(ctx, namedRef.String())
-	if err != nil {
-		if !cerrdefs.IsNotFound(err) {
-			return imageLink{}, err
-		}
-		dgst, err := c.ids.Lookup(ref)
-		if err != nil {
-			return imageLink{}, errdefs.NotFound(errors.New("reference not found"))
-		}
-		ci, ok := c.idCache[dgst]
-		if !ok {
-			return imageLink{}, errdefs.NotFound(errors.New("id not found"))
-		}
-		return imageLink{
-			cached: ci,
-		}, nil
-	}
-	ci, ok := c.tCache[img.Target.Digest]
-	if !ok {
-		// TODO(containerd): Update cache and return
-		return imageLink{}, errdefs.NotFound(errors.New("id not found"))
-	}
-
-	return imageLink{
-		name:   namedRef,
-		target: &img.Target,
-		cached: ci,
-	}, nil
-}
-
-func (i *ImageService) updateCache(ctx context.Context, img imageLink) error {
-	c, err := i.getCache(ctx)
-	if err != nil {
-		return err
-	}
-
-	img.cached.m.Lock()
-	img.cached.addReference(img.name)
-	img.cached.m.Unlock()
-
-	var parent *cachedImage
-
-	c.m.Lock()
-	if _, ok := c.tCache[img.target.Digest]; !ok {
-		c.tCache[img.target.Digest] = img.cached
-	}
-	if _, ok := c.idCache[img.cached.config.Digest]; !ok {
-		c.idCache[img.cached.config.Digest] = img.cached
-		c.ids.Add(img.cached.config.Digest)
-	}
-	if img.cached.parent != "" {
-		parent = c.idCache[img.cached.parent]
-	}
-	c.m.Unlock()
-
-	if parent != nil {
-		parent.m.Lock()
-		parent.addChild(img.cached.config.Digest)
-		parent.m.Unlock()
-	}
-
-	return nil
 }

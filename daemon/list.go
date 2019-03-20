@@ -318,7 +318,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view container.View, confi
 	if psFilters.Contains("ancestor") {
 		ancestorFilter = true
 		psFilters.WalkValues("ancestor", func(ancestor string) error {
-			img, err := daemon.imageService.GetImage(ctx, ancestor)
+			img, err := daemon.imageService.ResolveImage(ctx, ancestor)
 			if err != nil {
 				logrus.Warnf("Error while looking up for image %v", ancestor)
 				return nil
@@ -585,7 +585,7 @@ func (daemon *Daemon) refreshImage(s *container.Snapshot, ctx *listContext) (*ty
 	c := s.Container
 	updated := s.Image // keep the original ref if still valid (hasn't changed)
 	if updated != s.ImageID {
-		img, err := daemon.imageService.GetImage(context.TODO(), updated)
+		img, err := daemon.imageService.ResolveImage(context.TODO(), updated)
 		if _, isDNE := err.(images.ErrImageDoesNotExist); err != nil && !isDNE {
 			return nil, err
 		}
