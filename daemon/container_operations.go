@@ -726,8 +726,7 @@ func (daemon *Daemon) connectToNetwork(container *container.Container, idOrName 
 		}
 	}
 
-	err = daemon.updateNetworkConfig(container, n, endpointConfig, updateSettings)
-	if err != nil {
+	if err := daemon.updateNetworkConfig(container, n, endpointConfig, updateSettings); err != nil {
 		return err
 	}
 
