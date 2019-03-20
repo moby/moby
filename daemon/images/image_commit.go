@@ -14,6 +14,7 @@ import (
 	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
@@ -222,8 +223,12 @@ type committedLayer struct {
 }
 
 func (i *ImageService) commitLayer(ctx context.Context, parent digest.Digest, c backend.CommitConfig) (committedLayer, error) {
-	// TODO(containerd): get from container metadata
-	layerStore, err := i.getLayerStoreByOS(c.ContainerOS)
+	// TODO(containerd): get driver name from container metadata
+	p := platforms.DefaultSpec()
+	p.OS = c.ContainerOS
+	p.OSVersion = ""
+	p.OSFeatures = nil
+	layerStore, err := i.getLayerStore(p)
 	if err != nil {
 		return committedLayer{}, err
 	}

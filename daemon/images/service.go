@@ -227,16 +227,12 @@ func (i *ImageService) getLayerStore(platform ocispec.Platform) (layer.Store, er
 	return nil, errdefs.Unavailable(errors.Errorf("no layer storage backend configured for %s", platform.OS))
 }
 
-func (i *ImageService) getLayerStoreByOS(os string) (layer.Store, error) {
-	return i.getLayerStore(ocispec.Platform{OS: os})
-}
-
 // GetLayerByID returns a layer by ID and operating system
 // called from daemon.go Daemon.restore(), and Daemon.containerExport()
-func (i *ImageService) GetLayerByID(cid string, os string) (layer.RWLayer, error) {
-	ls, err := i.getLayerStoreByOS(os)
-	if err != nil {
-		return nil, err
+func (i *ImageService) GetLayerByID(cid string, driver string) (layer.RWLayer, error) {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return nil, errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
 	}
 
 	return ls.GetRWLayer(cid)
@@ -256,10 +252,10 @@ func (i *ImageService) LayerStoreStatus() map[string][][2]string {
 // called from daemon.go Daemon.Shutdown(), and Daemon.Cleanup() (cleanup is actually continerCleanup)
 // TODO: needs to be refactored to Unmount (see callers), or removed and replaced
 // with GetLayerByID
-func (i *ImageService) GetLayerMountID(cid string, os string) (string, error) {
-	ls, err := i.getLayerStoreByOS(os)
-	if err != nil {
-		return "", err
+func (i *ImageService) GetLayerMountID(cid string, driver string) (string, error) {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return "", errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
 	}
 
 	return ls.GetMountID(cid)
@@ -275,32 +271,26 @@ func (i *ImageService) Cleanup() {
 	}
 }
 
-// GraphDriverForOS returns the name of the graph drvier
-// moved from Daemon.GraphDriverName, used by:
-// - newContainer
-// - to report an error in Daemon.Mount(container)
-func (i *ImageService) GraphDriverForOS(os string) string {
-	ls, err := i.getLayerStoreByOS(os)
+// GraphDriverForOS returns the name of the graph driver for the given platform
+func (i *ImageService) DriverName(p ocispec.Platform) string {
+	ls, err := i.getLayerStore(p)
 	if err != nil {
-		// TODO(containerd): more graceful return is possible
-		panic(err)
+		return ""
 	}
 
 	return ls.DriverName()
 }
 
 // ReleaseLayer releases a layer allowing it to be removed
-// called from delete.go Daemon.cleanupContainer(), and Daemon.containerExport()
-func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, containerOS string) error {
-	ls, err := i.getLayerStoreByOS(containerOS)
-	if err != nil {
-		return err
+func (i *ImageService) ReleaseLayer(rwlayer layer.RWLayer, driver string) error {
+	ls, ok := i.layerStores[driver]
+	if !ok {
+		return errdefs.NotFound(errors.Errorf("driver not found: %s", driver))
 	}
 	metadata, err := ls.ReleaseRWLayer(rwlayer)
 	layer.LogReleaseMetadata(metadata)
 	if err != nil && err != layer.ErrMountDoesNotExist && !os.IsNotExist(errors.Cause(err)) {
-		return errors.Wrapf(err, "driver %q failed to remove root filesystem",
-			i.layerStores[containerOS].DriverName())
+		return errors.Wrapf(err, "driver %q failed to remove root filesystem", ls.DriverName())
 	}
 	return nil
 }
