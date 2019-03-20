@@ -1885,6 +1885,11 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 		testRequires(c, DaemonIsLinux, NotUserNamespace)
 	}
 
+	if testEnv.OSType == "windows" {
+		// Disabled prior to RS5 due to how volumes are mapped
+		testRequires(c,  DaemonIsWindowsAtLeastBuild(17763))
+	}
+
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
 
 	tmpDir, err := ioutil.TempDir("", "docker-test-container")
@@ -1896,7 +1901,7 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 	writeFile(path.Join(tmpDir, "touch-me"), "", c)
 
 	// Test reading from a read-only bind mount
-	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmp:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmp")
+	out, _ := dockerCmd(c, "run", "-v", fmt.Sprintf("%s:%s/tmpx:ro", tmpDir, prefix), "busybox", "ls", prefix+"/tmpx")
 	if !strings.Contains(out, "touch-me") {
 		c.Fatal("Container failed to read from bind mount")
 	}
