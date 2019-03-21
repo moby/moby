@@ -35,6 +35,7 @@ type containerStore interface {
 	Get(string) *container.Container
 }
 
+// LayerBackend represents a layer storage backend along with its platform
 type LayerBackend struct {
 	layer.Store
 	Platform platforms.Matcher
@@ -269,7 +270,7 @@ func (i *ImageService) Cleanup() {
 	}
 }
 
-// GraphDriverForOS returns the name of the graph driver for the given platform
+// DriverName returns the name of the graph driver for the given platform
 func (i *ImageService) DriverName(p ocispec.Platform) string {
 	ls, err := i.getLayerStore(p)
 	if err != nil {

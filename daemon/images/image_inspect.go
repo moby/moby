@@ -133,7 +133,7 @@ func (i *ImageService) LookupImage(ctx context.Context, name string) (*types.Ima
 		Created:       img.Created.Format(time.RFC3339Nano),
 		DockerVersion: img.DockerVersion,
 		Author:        img.Author,
-		Config:        configToApiType(img.Config),
+		Config:        configToAPIType(img.Config),
 		Architecture:  img.Architecture,
 		Os:            img.OS,
 		OsVersion:     img.OSVersion,
@@ -161,10 +161,10 @@ func rootFSToAPIType(rootfs ocispec.RootFS) types.RootFS {
 	}
 }
 
-func configToApiType(c imageConfig) *containertype.Config {
+func configToAPIType(c imageConfig) *containertype.Config {
 	return &containertype.Config{
 		User:         c.User,
-		ExposedPorts: portSetToApiType(c.ExposedPorts),
+		ExposedPorts: portSetToAPIType(c.ExposedPorts),
 		Env:          c.Env,
 		WorkingDir:   c.WorkingDir,
 		Labels:       c.Labels,
@@ -182,7 +182,7 @@ func configToApiType(c imageConfig) *containertype.Config {
 	}
 }
 
-func portSetToApiType(ports map[string]struct{}) nat.PortSet {
+func portSetToAPIType(ports map[string]struct{}) nat.PortSet {
 	ps := nat.PortSet{}
 	for p := range ports {
 		ps[nat.Port(p)] = struct{}{}
