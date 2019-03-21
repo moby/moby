@@ -298,7 +298,7 @@ func prepareSyncedDirs(def *llb.Definition, localDirs map[string]string) ([]file
 			return nil, errors.Errorf("%s not a directory", d)
 		}
 	}
-	resetUIDAndGID := func(st *fstypes.Stat) bool {
+	resetUIDAndGID := func(p string, st *fstypes.Stat) bool {
 		st.Uid = 0
 		st.Gid = 0
 		return true

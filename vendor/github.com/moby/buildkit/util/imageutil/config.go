@@ -63,7 +63,7 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	handlers := []images.Handler{
-		remotes.FetchHandler(cache, fetcher),
+		fetchWithoutRoot(remotes.FetchHandler(cache, fetcher)),
 		childrenConfigHandler(cache, platform),
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
@@ -80,6 +80,16 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	}
 
 	return desc.Digest, dt, nil
+}
+
+func fetchWithoutRoot(fetch images.HandlerFunc) images.HandlerFunc {
+	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		if desc.Annotations == nil {
+			desc.Annotations = map[string]string{}
+		}
+		desc.Annotations["buildkit/noroot"] = "true"
+		return fetch(ctx, desc)
+	}
 }
 
 func childrenConfigHandler(provider content.Provider, platform platforms.MatchComparer) images.HandlerFunc {

@@ -311,7 +311,7 @@ func (sr *mutableRef) updateLastUsed() bool {
 
 func (sr *mutableRef) commit(ctx context.Context) (ImmutableRef, error) {
 	if !sr.mutable || len(sr.refs) == 0 {
-		return nil, errors.Wrapf(errInvalid, "invalid mutable ref")
+		return nil, errors.Wrapf(errInvalid, "invalid mutable ref %p", sr)
 	}
 
 	id := identity.NewID()

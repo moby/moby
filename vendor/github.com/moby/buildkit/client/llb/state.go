@@ -229,6 +229,15 @@ func (s State) Run(ro ...RunOption) ExecState {
 	}
 }
 
+func (s State) File(a *FileAction, opts ...ConstraintsOpt) State {
+	var c Constraints
+	for _, o := range opts {
+		o.SetConstraintsOption(&c)
+	}
+
+	return s.WithOutput(NewFileOp(s, a, c).Output())
+}
+
 func (s State) AddEnv(key, value string) State {
 	return s.AddEnvf(key, value)
 }
@@ -294,6 +303,8 @@ func (s State) With(so ...StateOption) State {
 func (s State) AddExtraHost(host string, ip net.IP) State {
 	return extraHost(host, ip)(s)
 }
+
+func (s State) isFileOpCopyInput() {}
 
 type output struct {
 	vertex   Vertex
