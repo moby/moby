@@ -61,7 +61,7 @@ func eventUnregister(providerHandle providerHandle) (win32err error) {
 	return
 }
 
-func eventWriteTransfer(providerHandle providerHandle, descriptor *EventDescriptor, activityID *windows.GUID, relatedActivityID *windows.GUID, dataDescriptorCount uint32, dataDescriptors *eventDataDescriptor) (win32err error) {
+func eventWriteTransfer(providerHandle providerHandle, descriptor *eventDescriptor, activityID *windows.GUID, relatedActivityID *windows.GUID, dataDescriptorCount uint32, dataDescriptors *eventDataDescriptor) (win32err error) {
 	r0, _, _ := syscall.Syscall6(procEventWriteTransfer.Addr(), 6, uintptr(providerHandle), uintptr(unsafe.Pointer(descriptor)), uintptr(unsafe.Pointer(activityID)), uintptr(unsafe.Pointer(relatedActivityID)), uintptr(dataDescriptorCount), uintptr(unsafe.Pointer(dataDescriptors)))
 	if r0 != 0 {
 		win32err = syscall.Errno(r0)

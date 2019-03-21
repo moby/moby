@@ -5,7 +5,7 @@ import (
 )
 
 type eventOptions struct {
-	descriptor        *EventDescriptor
+	descriptor        *eventDescriptor
 	activityID        *windows.GUID
 	relatedActivityID *windows.GUID
 	tags              uint32
@@ -24,7 +24,7 @@ func WithEventOpts(opts ...EventOpt) []EventOpt {
 // WithLevel specifies the level of the event to be written.
 func WithLevel(level Level) EventOpt {
 	return func(options *eventOptions) {
-		options.descriptor.Level = level
+		options.descriptor.level = level
 	}
 }
 
@@ -32,13 +32,13 @@ func WithLevel(level Level) EventOpt {
 // of this option are OR'd together.
 func WithKeyword(keyword uint64) EventOpt {
 	return func(options *eventOptions) {
-		options.descriptor.Keyword |= keyword
+		options.descriptor.keyword |= keyword
 	}
 }
 
 func WithChannel(channel Channel) EventOpt {
 	return func(options *eventOptions) {
-		options.descriptor.Channel = channel
+		options.descriptor.channel = channel
 	}
 }
 
