@@ -15,31 +15,30 @@ import (
 	imagessrv "github.com/containerd/containerd/api/services/images/v1"
 	namespacessrv "github.com/containerd/containerd/api/services/namespaces/v1"
 	"github.com/containerd/containerd/content"
+	_ "github.com/containerd/containerd/diff/walking/plugin"
 	"github.com/containerd/containerd/events/exchange"
+	_ "github.com/containerd/containerd/gc/scheduler"
 	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/plugin"
 	"github.com/containerd/containerd/services"
-	"github.com/containerd/containerd/services/server"
-	srvconfig "github.com/containerd/containerd/services/server/config"
-	"github.com/containerd/containerd/snapshots"
-	"github.com/docker/docker/daemon/graphdriver"
-	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/archive"
-	"github.com/pkg/errors"
-	"github.com/sirupsen/logrus"
-
-	_ "github.com/containerd/containerd/diff/walking/plugin"
-	_ "github.com/containerd/containerd/gc/scheduler"
 	_ "github.com/containerd/containerd/services/containers"
 	_ "github.com/containerd/containerd/services/content"
 	_ "github.com/containerd/containerd/services/diff"
 	_ "github.com/containerd/containerd/services/images"
 	_ "github.com/containerd/containerd/services/leases"
 	_ "github.com/containerd/containerd/services/namespaces"
+	"github.com/containerd/containerd/services/server"
+	srvconfig "github.com/containerd/containerd/services/server/config"
 	_ "github.com/containerd/containerd/services/snapshots"
+	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/docker/docker/layer"
+	"github.com/docker/docker/pkg/archive"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 var (
@@ -205,9 +204,9 @@ func setupTest(ctx context.Context, root string, service containerd.ClientOpt, f
 			t.Fatal(err)
 		}
 		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root: root,
-			MetadataStorePathTemplate: filepath.Join(root, "layerdb"),
+			Root:                      root,
 			GraphDriver:               testgraphdriver,
+			MetadataStorePathTemplate: filepath.Join(root, "layerdb"),
 			IDMapping:                 idMapping,
 			OS:                        platform.OS,
 		})

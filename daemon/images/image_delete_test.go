@@ -245,7 +245,7 @@ func testDeleteImages(ctx context.Context, t *testing.T, is *ImageService) {
 							LabelImageParent: parentImg.config.String(),
 						},
 					}
-					info, err := cs.Update(ctx, info, "labels."+LabelImageParent)
+					_, err := cs.Update(ctx, info, "labels."+LabelImageParent)
 					if err != nil {
 						t.Fatal(err)
 					}

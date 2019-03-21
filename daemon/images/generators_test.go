@@ -15,7 +15,6 @@ import (
 	"github.com/containerd/containerd/platforms"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
-	"github.com/vmihailenco/bufio"
 )
 
 type ingest func(context.Context, content.Store) error
@@ -88,7 +87,7 @@ func withLayers(layers ...tartest.WriterToTar) manifestOpt {
 	return func(m *ocispec.Manifest) ingest {
 		var ingests []ingest
 		for _, l := range layers {
-			br := bufio.NewBuffer(nil)
+			br := bytes.NewBuffer(nil)
 			dgstr := digest.Canonical.Digester()
 			cw, err := compression.CompressStream(br, compression.Gzip)
 			if err != nil {

@@ -32,7 +32,7 @@ func (i *ImageService) TagImage(ctx context.Context, imageName, repository, tag 
 }
 
 // TagImageWithReference adds the given reference to the image ID provided.
-func (i *ImageService) TagImageWithReference(ctx context.Context, target ocispec.Descriptor, newTag reference.Named) error {
+func (i *ImageService) TagImageWithReference(ctx context.Context, target ocispec.Descriptor, newTag reference.Reference) error {
 	im := images.Image{
 		Name:   newTag.String(),
 		Target: target,

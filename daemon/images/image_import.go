@@ -51,7 +51,8 @@ func (i *ImageService) ImportImage(ctx context.Context, src string, repository, 
 		}
 
 		if tag != "" {
-			newRef, err = reference.WithTag(newRef, tag)
+			//set newRef
+			_, err = reference.WithTag(newRef, tag)
 			if err != nil {
 				return errdefs.InvalidParameter(err)
 			}

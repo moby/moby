@@ -49,7 +49,7 @@ func (e ErrImageDoesNotExist) Error() string {
 // NotFound implements the NotFound interface
 func (e ErrImageDoesNotExist) NotFound() {}
 
-// SearchImage searches for an image based on the given
+// ResolveImage searches for an image based on the given
 // reference or identifier. Returns the descriptor of
 // the image, could be manifest list, manifest, or config.
 func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
@@ -236,10 +236,9 @@ func (i *ImageService) runtimeImages(ctx context.Context, image ocispec.Descript
 					image.Config = manifest.Config
 					runtimeImages = append(runtimeImages, image)
 					return nil, nil
-				} else {
-					// Map config to the runtime image
-					imageMap[manifest.Config.Digest] = image
 				}
+				// Map config to the runtime image
+				imageMap[manifest.Config.Digest] = image
 			} else {
 				imageMap[manifest.Config.Digest] = RuntimeImage{
 					Target: desc,
@@ -317,17 +316,16 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 			//	return img, nil
 			//}
 			return nil, ErrImageDoesNotExist{ref}
-		} else {
-			d, err := images.Config(context.TODO(), cs, img.Target, i.platforms)
-			if err != nil {
-				if errdefs.IsNotFound(err) {
-					return nil, ErrImageDoesNotExist{ref}
-				}
-				return nil, errors.Wrap(err, "unable to resolve image")
-			}
-			target = d
-			references = append(references, img.Target)
 		}
+		d, err := images.Config(context.TODO(), cs, img.Target, i.platforms)
+		if err != nil {
+			if errdefs.IsNotFound(err) {
+				return nil, ErrImageDoesNotExist{ref}
+			}
+			return nil, errors.Wrap(err, "unable to resolve image")
+		}
+		target = d
+		references = append(references, img.Target)
 	}
 
 	img, err := i.getImage(context.TODO(), target)

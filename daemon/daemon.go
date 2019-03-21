@@ -954,10 +954,10 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	d.graphDrivers = make(map[string]string)
 	for _, driver := range storageDrivers {
 		ls, err := layer.NewStoreFromOptions(layer.StoreOptions{
-			Root: config.Root,
-			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
+			Root:                      config.Root,
 			GraphDriver:               driver.name,
 			GraphDriverOptions:        config.GraphOptions,
+			MetadataStorePathTemplate: filepath.Join(config.Root, "image", "%s", "layerdb"),
 			IDMapping:                 idMapping,
 			PluginGetter:              d.PluginStore,
 			ExperimentalEnabled:       config.Experimental,

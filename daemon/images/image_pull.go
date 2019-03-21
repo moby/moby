@@ -89,12 +89,12 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		layers           = map[digest.Digest][]ocispec.Descriptor{}
-		dlStatus         = map[digest.Digest]bool{}
-		unpackDesc       = map[digest.Digest]struct{}{}
-		unpacks    int32 = 0 // how many unpacks occurred
-		lock             = sync.Mutex{}
-		cond             = sync.NewCond(&lock)
+		layers     = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus   = map[digest.Digest]bool{}
+		unpackDesc = map[digest.Digest]struct{}{}
+		unpacks    int32 // how many unpacks occurred
+		lock       = sync.Mutex{}
+		cond       = sync.NewCond(&lock)
 	)
 	grp, pctx := errgroup.WithContext(pctx)
 
@@ -342,10 +342,10 @@ func (i *ImageService) applyLayer(ctx context.Context, ls layer.Store, blob ocis
 	defer ra.Close()
 
 	rc := ioutil.NopCloser(content.NewReader(ra))
-	blobId := stringid.TruncateID(blob.Digest.String())
+	blobID := stringid.TruncateID(blob.Digest.String())
 	reader := ioutils.NewCancelReadCloser(ctx, rc)
 	if progressOutput != nil {
-		reader = progress.NewProgressReader(reader, progressOutput, blob.Size, blobId, "Extracting")
+		reader = progress.NewProgressReader(reader, progressOutput, blob.Size, blobID, "Extracting")
 	}
 	defer reader.Close()
 
