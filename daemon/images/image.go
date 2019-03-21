@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"regexp"
 	"sort"
 
 	"github.com/containerd/containerd/content"
@@ -30,6 +31,8 @@ const (
 	LabelLayerPrefix = "docker.io/layer."
 )
 
+var shortID = regexp.MustCompile(`^([a-f0-9]{4,64})$`)
+
 // ErrImageDoesNotExist is error returned when no image can be found for a reference.
 type ErrImageDoesNotExist struct {
 	ref reference.Reference
@@ -52,7 +55,7 @@ func (e ErrImageDoesNotExist) NotFound() {}
 func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return ocispec.Descriptor{}, err
+		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
 	}
 
 	is := i.client.ImageService()
@@ -75,37 +78,39 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 		return imgs[0].Target, nil
 	}
 
-	// TODO(containerd): If namedRef matches COULD be interpreted as a
-	// digest prefer, do a lookup via `is.List` instead
-	// with an or clause
-	// TODO(containerd): Ensure named only
-	ref := namedRef.String()
-	if len(refOrID) < 64 {
+	// If the identifier could be a short ID, attempt to match
+	if shortID.MatchString(refOrID) {
 		filters := []string{
 			fmt.Sprintf("name==%q", namedRef.String()),
-			fmt.Sprintf(`target.digest~="sha256:%s[0-9a-fA-F]{%d}"`, refOrID, 64-len(refOrID)),
+			fmt.Sprintf(`target.digest~=/sha256:%s[0-9a-fA-F]{%d}/`, refOrID, 64-len(refOrID)),
 		}
 		imgs, err := is.List(ctx, filters...)
 		if err != nil {
 			return ocispec.Descriptor{}, err
 		}
-		if len(imgs) == 1 {
-			return imgs[0].Target, nil
-		}
+
 		if len(imgs) == 0 {
 			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("list returned no images"))
 		}
-		for _, img := range imgs {
-			if img.Name == ref {
-				return img.Target, nil
+		if len(imgs) > 1 {
+			ref := namedRef.String()
+			digests := map[digest.Digest]struct{}{}
+			for _, img := range imgs {
+				if img.Name == ref {
+					return img.Target, nil
+				}
+				digests[img.Target.Digest] = struct{}{}
+			}
+
+			if len(digests) > 1 {
+				return ocispec.Descriptor{}, errdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
-
-		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("ambiguous reference"))
+		return imgs[0].Target, nil
 	}
 	img, err := is.Get(ctx, namedRef.String())
 	if err != nil {
-		// TODO(containerd): Translate error directly
+		// TODO(containerd): error translation can use common function
 		if !cerrdefs.IsNotFound(err) {
 			return ocispec.Descriptor{}, err
 		}
@@ -276,6 +281,7 @@ func (i *ImageService) runtimeImages(ctx context.Context, image ocispec.Descript
 
 // GetImage returns an image corresponding to the image referred to by refOrID.
 // Deprecated: Use (i *ImageService).GetImage instead.
+// TODO(containerd): remove this function and replace with ResolveImage
 func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 	ref, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
@@ -312,8 +318,7 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 			//}
 			return nil, ErrImageDoesNotExist{ref}
 		} else {
-			// TODO: Choose correct platform
-			d, err := images.Config(context.TODO(), cs, img.Target, platforms.Default())
+			d, err := images.Config(context.TODO(), cs, img.Target, i.platforms)
 			if err != nil {
 				if errdefs.IsNotFound(err) {
 					return nil, ErrImageDoesNotExist{ref}
@@ -325,7 +330,6 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 		}
 	}
 
-	// TODO(containerd): Move the reference setting and resolution
 	img, err := i.getImage(context.TODO(), target)
 	if err != nil {
 		if errdefs.IsNotFound(err) {
@@ -338,11 +342,10 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 	return img, nil
 }
 
-// TODO(containerd): remove or replace this function to return local type
+// TODO(containerd): remove this function and replace with ResolveImage
 func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) (*image.Image, error) {
 	cs := i.client.ContentStore()
 
-	// TODO(containerd): If not config, resolve
 	b, err := content.ReadBlob(ctx, cs, target)
 	if err != nil {
 		return nil, errors.Wrap(err, "unable to read target blob")
@@ -353,7 +356,6 @@ func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) 
 		return nil, errors.Wrap(err, "unable to unmarshal image config")
 	}
 
-	// TODO(containerd): read labels from blob to get parent and Docker calculated size
 	return &image.Image{
 		Config: target,
 		Image:  &img,
