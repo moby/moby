@@ -94,13 +94,20 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 	}
 
 	var filters []string
-	if danglingOnly {
-		filters = append(filters, "name~=/sha256:[a-z0-9]+/")
-	} else if imageFilters.Contains("reference") {
+	if imageFilters.Contains("reference") {
 		for _, v := range imageFilters.Get("reference") {
-			// TODO(containerd): Parse reference, if only partial match then
-			// use as regex
-			filters = append(filters, "name=="+v)
+			named, err := reference.ParseNormalizedNamed(v)
+			if err != nil {
+				return nil, invalidFilter{"reference", v}
+			}
+
+			// TODO(containerd): handle canonical names
+			if nt, ok := named.(reference.NamedTagged); ok {
+				filters = append(filters, "name=="+nt.String())
+			} else {
+				escaped := strings.Replace(named.Name(), "/", "\\/", -1)
+				filters = append(filters, fmt.Sprintf("name~=/%s:.*/", escaped))
+			}
 		}
 	}
 
@@ -323,8 +330,8 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		}
 
 		if len(newImage.RepoTags) == 0 {
-			// TODO(containerd): also skip if has children
-			if !all {
+			// TODO(containerd): also skip if has children?
+			if !all && !danglingOnly {
 				continue
 			}
 
@@ -343,6 +350,8 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 				newImage.RepoTags = []string{"none@none"}
 			}
 			newImage.RepoTags = []string{"none:none"}
+		} else if danglingOnly {
+			continue
 		}
 
 		imageSums = append(imageSums, newImage)
