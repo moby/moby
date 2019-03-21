@@ -4,26 +4,31 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/Microsoft/go-winio/internal/etw"
+	"github.com/Microsoft/go-winio/pkg/etw"
 	"github.com/sirupsen/logrus"
 )
 
 // Hook is a Logrus hook which logs received events to ETW.
 type Hook struct {
-	provider *etw.Provider
+	provider      *etw.Provider
+	closeProvider bool
 }
 
-// NewHook registers a new ETW provider and returns a hook to log from it.
+// NewHook registers a new ETW provider and returns a hook to log from it. The
+// provider will be closed when the hook is closed.
 func NewHook(providerName string) (*Hook, error) {
-	hook := Hook{}
-
 	provider, err := etw.NewProvider(providerName, nil)
 	if err != nil {
 		return nil, err
 	}
-	hook.provider = provider
 
-	return &hook, nil
+	return &Hook{provider, true}, nil
+}
+
+// NewHookFromProvider creates a new hook based on an existing ETW provider. The
+// provider will not be closed when the hook is closed.
+func NewHookFromProvider(provider *etw.Provider) (*Hook, error) {
+	return &Hook{provider, false}, nil
 }
 
 // Levels returns the set of levels that this hook wants to receive log entries
@@ -40,9 +45,22 @@ func (h *Hook) Levels() []logrus.Level {
 	}
 }
 
+var logrusToETWLevelMap = map[logrus.Level]etw.Level{
+	logrus.PanicLevel: etw.LevelAlways,
+	logrus.FatalLevel: etw.LevelCritical,
+	logrus.ErrorLevel: etw.LevelError,
+	logrus.WarnLevel:  etw.LevelWarning,
+	logrus.InfoLevel:  etw.LevelInfo,
+	logrus.DebugLevel: etw.LevelVerbose,
+	logrus.TraceLevel: etw.LevelVerbose,
+}
+
 // Fire receives each Logrus entry as it is logged, and logs it to ETW.
 func (h *Hook) Fire(e *logrus.Entry) error {
-	level := etw.Level(e.Level)
+	// Logrus defines more levels than ETW typically uses, but analysis is
+	// easiest when using a consistent set of levels across ETW providers, so we
+	// map the Logrus levels to ETW levels.
+	level := logrusToETWLevelMap[e.Level]
 	if !h.provider.IsEnabledForLevel(level) {
 		return nil
 	}
@@ -56,9 +74,6 @@ func (h *Hook) Fire(e *logrus.Entry) error {
 		fields = append(fields, getFieldOpt(k, v))
 	}
 
-	// We could try to map Logrus levels to ETW levels, but we would lose some
-	// fidelity as there are fewer ETW levels. So instead we use the level
-	// directly.
 	return h.provider.WriteEvent(
 		"LogrusEntry",
 		etw.WithEventOpts(etw.WithLevel(level)),
@@ -186,7 +201,12 @@ func getFieldOpt(k string, v interface{}) etw.FieldOpt {
 	return etw.StringField(k, fmt.Sprintf("(Unsupported: %T) %v", v, v))
 }
 
-// Close cleans up the hook and closes the ETW provider.
+// Close cleans up the hook and closes the ETW provider. If the provder was
+// registered by etwlogrus, it will be closed as part of `Close`. If the
+// provider was passed in, it will not be closed.
 func (h *Hook) Close() error {
-	return h.provider.Close()
+	if h.closeProvider {
+		return h.provider.Close()
+	}
+	return nil
 }
