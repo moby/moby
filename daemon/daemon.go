@@ -7,6 +7,7 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -25,6 +26,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
+	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/platforms"
@@ -1028,6 +1030,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
 	}
 
+	if os.Getenv("DOCKER_MIGRATE_IMAGE_STORE") != "" {
+		if err := d.Migrate(ctx, ifs, rs); err != nil {
+			return nil, err
+		}
+		os.Exit(0)
+	}
+
 	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
 	if err != nil {
 		return nil, err
@@ -1543,4 +1552,82 @@ func (daemon *Daemon) BuilderBackend() builder.Backend {
 		*Daemon
 		*images.ImageService
 	}{daemon, daemon.imageService}
+}
+
+func (d *Daemon) Migrate(ctx context.Context, ifs image.StoreBackend, rs refstore.WalkableStore) error {
+	if d.containerdCli == nil {
+		return errors.New("unable to migrate without containerd")
+	}
+
+	ctx, done, err := d.containerdCli.WithLease(ctx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err := done(context.Background()); err != nil {
+			logrus.WithError(err).Error("failed to remove lease")
+		}
+	}()
+
+	if err := image.MigrateImageStore(ctx, ifs, d.containerdCli.ContentStore(), images.LabelImageParent); err != nil {
+		return err
+	}
+
+	print("Migrating references ")
+	numRef := 0
+	rs.Walk(func(ref reference.Named) error {
+		id, err := rs.Get(ref)
+		if err != nil {
+			logrus.WithError(err).Warnf("can't get digest for %s", id)
+			return nil
+		}
+		config, err := ifs.Get(id)
+		if err != nil {
+			logrus.WithError(err).Warnf("can't get config for %s", id)
+			return nil
+		}
+
+		desc := ocispec.Descriptor{
+			MediaType: ocispec.MediaTypeImageConfig,
+			Digest:    id,
+			Size:      int64(len(config)),
+		}
+
+		// find out created time
+		var img image.Image
+		if err := json.Unmarshal(config, &img); err != nil {
+			logrus.WithError(err).Warn("can't parse image")
+			return nil
+		}
+		created := img.Created
+		// find out updated time
+		updated := created
+		if updatedStr, err := ifs.GetMetadata(id, "lastUpdated"); err == nil {
+			updated, err = time.Parse(time.RFC3339Nano, string(updatedStr))
+			if err != nil {
+				logrus.WithError(err).Warn("can't parse lastUpdated time %q for %s", string(updatedStr), id)
+				updated = created
+			}
+		}
+		_, err = d.containerdCli.ImageService().Create(ctx, containerdimages.Image{
+			Name:      ref.String(),
+			Target:    desc,
+			CreatedAt: created,
+			UpdatedAt: updated,
+			Labels:    map[string]string{}, // TODO any labels here?
+		})
+		if err != nil {
+			logrus.WithError(err).Warn("can't create image")
+			return nil
+		}
+		print(".")
+		// TODO
+		// rs.Delete(ref)
+
+		numRef++
+		return nil
+	})
+	println(" done,", numRef, "references")
+	return nil
 }
