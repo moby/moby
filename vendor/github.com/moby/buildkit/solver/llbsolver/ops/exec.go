@@ -149,7 +149,7 @@ func (e *execOp) CacheMap(ctx context.Context, index int) (*solver.CacheMap, boo
 			cm.Deps[i].Selector = digest.FromBytes(bytes.Join(dgsts, []byte{0}))
 		}
 		if !dep.NoContentBasedHash {
-			cm.Deps[i].ComputeDigestFunc = llbsolver.NewContentHashFunc(dedupePaths(dep.Selectors))
+			cm.Deps[i].ComputeDigestFunc = llbsolver.NewContentHashFunc(toSelectors(dedupePaths(dep.Selectors)))
 		}
 	}
 
@@ -178,6 +178,14 @@ func dedupePaths(inp []string) []string {
 		return paths[i] < paths[j]
 	})
 	return paths
+}
+
+func toSelectors(p []string) []llbsolver.Selector {
+	sel := make([]llbsolver.Selector, 0, len(p))
+	for _, p := range p {
+		sel = append(sel, llbsolver.Selector{Path: p, FollowLinks: true})
+	}
+	return sel
 }
 
 type dep struct {

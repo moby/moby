@@ -82,10 +82,10 @@ func syncTargetDiffCopy(ds grpc.Stream, dest string) error {
 	}
 	return fsutil.Receive(ds.Context(), ds, dest, fsutil.ReceiveOpt{
 		Merge: true,
-		Filter: func() func(*fstypes.Stat) bool {
+		Filter: func() func(string, *fstypes.Stat) bool {
 			uid := os.Getuid()
 			gid := os.Getgid()
-			return func(st *fstypes.Stat) bool {
+			return func(p string, st *fstypes.Stat) bool {
 				st.Uid = uint32(uid)
 				st.Gid = uint32(gid)
 				return true

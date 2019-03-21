@@ -1,6 +1,7 @@
 package llbsolver
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/containerd/containerd/platforms"
@@ -228,9 +229,29 @@ func llbOpName(op *pb.Op) string {
 		return op.Source.Identifier
 	case *pb.Op_Exec:
 		return strings.Join(op.Exec.Meta.Args, " ")
+	case *pb.Op_File:
+		return fileOpName(op.File.Actions)
 	case *pb.Op_Build:
 		return "build"
 	default:
 		return "unknown"
 	}
+}
+
+func fileOpName(actions []*pb.FileAction) string {
+	names := make([]string, 0, len(actions))
+	for _, action := range actions {
+		switch a := action.Action.(type) {
+		case *pb.FileAction_Mkdir:
+			names = append(names, fmt.Sprintf("mkdir %s", a.Mkdir.Path))
+		case *pb.FileAction_Mkfile:
+			names = append(names, fmt.Sprintf("mkfile %s", a.Mkfile.Path))
+		case *pb.FileAction_Rm:
+			names = append(names, fmt.Sprintf("rm %s", a.Rm.Path))
+		case *pb.FileAction_Copy:
+			names = append(names, fmt.Sprintf("copy %s %s", a.Copy.Src, a.Copy.Dest))
+		}
+	}
+
+	return strings.Join(names, ", ")
 }

@@ -151,6 +151,10 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			switch cmd.(type) {
 			case *instructions.AddCommand, *instructions.CopyCommand, *instructions.RunCommand:
 				total++
+			case *instructions.WorkdirCommand:
+				if useFileOp(opt.BuildArgs, opt.LLBCaps) {
+					total++
+				}
 			}
 		}
 		ds.cmdTotal = total
@@ -307,7 +311,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 			d.state = d.state.AddEnv(k, v)
 		}
 		if d.image.Config.WorkingDir != "" {
-			if err = dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false); err != nil {
+			if err = dispatchWorkdir(d, &instructions.WorkdirCommand{Path: d.image.Config.WorkingDir}, false, nil); err != nil {
 				return nil, nil, err
 			}
 		}
@@ -468,9 +472,9 @@ func dispatch(d *dispatchState, cmd command, opt dispatchOpt) error {
 	case *instructions.RunCommand:
 		err = dispatchRun(d, c, opt.proxyEnv, cmd.sources, opt)
 	case *instructions.WorkdirCommand:
-		err = dispatchWorkdir(d, c, true)
+		err = dispatchWorkdir(d, c, true, &opt)
 	case *instructions.AddCommand:
-		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, "", opt)
+		err = dispatchCopy(d, c.SourcesAndDest, opt.buildContext, true, c, c.Chown, opt)
 		if err == nil {
 			for _, src := range c.Sources() {
 				if !strings.HasPrefix(src, "http://") && !strings.HasPrefix(src, "https://") {
@@ -648,7 +652,7 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	return commitToHistory(&d.image, "RUN "+runCommandString(args, d.buildArgs), true, &d.state)
 }
 
-func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bool) error {
+func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bool, opt *dispatchOpt) error {
 	d.state = d.state.Dir(c.Path)
 	wd := c.Path
 	if !path.IsAbs(c.Path) {
@@ -656,13 +660,115 @@ func dispatchWorkdir(d *dispatchState, c *instructions.WorkdirCommand, commit bo
 	}
 	d.image.Config.WorkingDir = wd
 	if commit {
-		return commitToHistory(&d.image, "WORKDIR "+wd, false, nil)
+		withLayer := false
+		if wd != "/" && opt != nil && useFileOp(opt.buildArgValues, opt.llbCaps) {
+			mkdirOpt := []llb.MkdirOption{llb.WithParents(true)}
+			if user := d.image.Config.User; user != "" {
+				mkdirOpt = append(mkdirOpt, llb.WithUser(user))
+			}
+			platform := opt.targetPlatform
+			if d.platform != nil {
+				platform = *d.platform
+			}
+			d.state = d.state.File(llb.Mkdir(wd, 0755, mkdirOpt...), llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, c.String(), d.state.Env())), d.prefixPlatform, &platform)))
+			withLayer = true
+		}
+		return commitToHistory(&d.image, "WORKDIR "+wd, withLayer, nil)
 	}
 	return nil
 }
 
+func dispatchCopyFileOp(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, opt dispatchOpt) error {
+	dest := path.Join("/", pathRelativeToWorkingDir(d.state, c.Dest()))
+	if c.Dest() == "." || c.Dest() == "" || c.Dest()[len(c.Dest())-1] == filepath.Separator {
+		dest += string(filepath.Separator)
+	}
+
+	var copyOpt []llb.CopyOption
+
+	if chown != "" {
+		copyOpt = append(copyOpt, llb.WithUser(chown))
+	}
+
+	commitMessage := bytes.NewBufferString("")
+	if isAddCommand {
+		commitMessage.WriteString("ADD")
+	} else {
+		commitMessage.WriteString("COPY")
+	}
+
+	var a *llb.FileAction
+
+	for _, src := range c.Sources() {
+		commitMessage.WriteString(" " + src)
+		if strings.HasPrefix(src, "http://") || strings.HasPrefix(src, "https://") {
+			if !isAddCommand {
+				return errors.New("source can't be a URL for COPY")
+			}
+
+			// Resources from remote URLs are not decompressed.
+			// https://docs.docker.com/engine/reference/builder/#add
+			//
+			// Note: mixing up remote archives and local archives in a single ADD instruction
+			// would result in undefined behavior: https://github.com/moby/buildkit/pull/387#discussion_r189494717
+			u, err := url.Parse(src)
+			f := "__unnamed__"
+			if err == nil {
+				if base := path.Base(u.Path); base != "." && base != "/" {
+					f = base
+				}
+			}
+
+			st := llb.HTTP(src, llb.Filename(f), dfCmd(c))
+
+			opts := append([]llb.CopyOption{&llb.CopyInfo{
+				CreateDestPath: true,
+			}}, copyOpt...)
+
+			if a == nil {
+				a = llb.Copy(st, f, dest, opts...)
+			} else {
+				a = a.Copy(st, f, dest, opts...)
+			}
+		} else {
+			opts := append([]llb.CopyOption{&llb.CopyInfo{
+				FollowSymlinks:      true,
+				CopyDirContentsOnly: true,
+				AttemptUnpack:       isAddCommand,
+				CreateDestPath:      true,
+				AllowWildcard:       true,
+				AllowEmptyWildcard:  true,
+			}}, copyOpt...)
+
+			if a == nil {
+				a = llb.Copy(sourceState, src, dest, opts...)
+			} else {
+				a = a.Copy(sourceState, src, dest, opts...)
+			}
+		}
+	}
+
+	commitMessage.WriteString(" " + c.Dest())
+
+	platform := opt.targetPlatform
+	if d.platform != nil {
+		platform = *d.platform
+	}
+
+	fileOpt := []llb.ConstraintsOpt{llb.WithCustomName(prefixCommand(d, uppercaseCmd(processCmdEnv(opt.shlex, cmdToPrint.String(), d.state.Env())), d.prefixPlatform, &platform))}
+	if d.ignoreCache {
+		fileOpt = append(fileOpt, llb.IgnoreCache)
+	}
+
+	d.state = d.state.File(a, fileOpt...)
+	return commitToHistory(&d.image, commitMessage.String(), true, &d.state)
+}
+
 func dispatchCopy(d *dispatchState, c instructions.SourcesAndDest, sourceState llb.State, isAddCommand bool, cmdToPrint fmt.Stringer, chown string, opt dispatchOpt) error {
-	// TODO: this should use CopyOp instead. Current implementation is inefficient
+	if useFileOp(opt.buildArgValues, opt.llbCaps) {
+		return dispatchCopyFileOp(d, c, sourceState, isAddCommand, cmdToPrint, chown, opt)
+	}
+
 	img := llb.Image(opt.copyImage, llb.MarkImageInternal, llb.Platform(opt.buildPlatforms[0]), WithInternalName("helper image for file operations"))
 
 	dest := path.Join(".", pathRelativeToWorkingDir(d.state, c.Dest()))
@@ -1175,4 +1281,14 @@ func prefixCommand(ds *dispatchState, str string, prefixPlatform bool, platform 
 	ds.cmdIndex++
 	out += fmt.Sprintf("%d/%d] ", ds.cmdIndex, ds.cmdTotal)
 	return out + str
+}
+
+func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
+	enabled := true
+	if v, ok := args["BUILDKIT_DISABLE_FILEOP"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			enabled = !b
+		}
+	}
+	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
 }
