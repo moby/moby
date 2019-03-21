@@ -255,7 +255,10 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 		if err != nil {
 			return nil, err
 		}
-		ipcLabel = label.DupSecOpt(c.ProcessLabel)
+		ipcLabel, err = label.DupSecOpt(c.ProcessLabel)
+		if err != nil {
+			return nil, err
+		}
 		if pidContainer == "" {
 			return toHostConfigSelinuxLabels(ipcLabel), err
 		}
@@ -266,7 +269,10 @@ func (daemon *Daemon) generateSecurityOpt(hostConfig *containertypes.HostConfig)
 			return nil, err
 		}
 
-		pidLabel = label.DupSecOpt(c.ProcessLabel)
+		pidLabel, err = label.DupSecOpt(c.ProcessLabel)
+		if err != nil {
+			return nil, err
+		}
 		if ipcContainer == "" {
 			return toHostConfigSelinuxLabels(pidLabel), err
 		}
