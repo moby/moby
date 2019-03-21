@@ -428,6 +428,13 @@ func (s *containerRouter) postContainerUpdate(ctx context.Context, w http.Respon
 	if versions.LessThan(httputils.VersionFromContext(ctx), "1.40") {
 		updateConfig.PidsLimit = nil
 	}
+	if updateConfig.PidsLimit != nil && *updateConfig.PidsLimit <= 0 {
+		// Both `0` and `-1` are accepted to set "unlimited" when updating.
+		// Historically, any negative value was accepted, so treat them as
+		// "unlimited" as well.
+		var unlimited int64
+		updateConfig.PidsLimit = &unlimited
+	}
 
 	hostConfig := &container.HostConfig{
 		Resources:     updateConfig.Resources,
@@ -482,6 +489,14 @@ func (s *containerRouter) postContainersCreate(ctx context.Context, w http.Respo
 		if hostConfig.IpcMode.IsEmpty() {
 			hostConfig.IpcMode = container.IpcMode("shareable")
 		}
+	}
+
+	if hostConfig != nil && hostConfig.PidsLimit != nil && *hostConfig.PidsLimit <= 0 {
+		// Don't set a limit if either no limit was specified, or "unlimited" was
+		// explicitly set.
+		// Both `0` and `-1` are accepted as "unlimited", and historically any
+		// negative value was accepted, so treat those as "unlimited" as well.
+		hostConfig.PidsLimit = nil
 	}
 
 	ccr, err := s.backend.ContainerCreate(types.ContainerCreateConfig{
