@@ -101,7 +101,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 				return nil, invalidFilter{"reference", v}
 			}
 
-			// TODO(containerd): handle canonical names
+			// TODO(containerd): handle canonical names (tag + digest)
 			if nt, ok := named.(reference.NamedTagged); ok {
 				filters = append(filters, "name=="+nt.String())
 			} else {
@@ -182,15 +182,15 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		for _, img := range imgs {
 			ref, err := reference.Parse(img.Name)
 			if err != nil {
+				// Handle formats such as <commit>@sha256:...
 				if strings.HasPrefix(img.Name, "<") {
 					if idx := strings.Index(img.Name, ">@"); idx > 0 {
 						digests["none"+img.Name[idx+1:]] = struct{}{}
+						continue
 					}
 				}
-				// TODO(containerd): Check for format such as <commit>@
-				continue
-			}
-			if named, ok := ref.(reference.Named); ok {
+				log.G(ctx).WithError(err).WithField("name", img.Name).Debug("skipping image with unknown format")
+			} else if named, ok := ref.(reference.Named); ok {
 				if c, ok := named.(reference.Canonical); ok {
 					digests[reference.FamiliarString(c)] = struct{}{}
 				} else if t, ok := named.(reference.Tagged); ok {
@@ -207,7 +207,6 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		}
 
 		if len(newImage.RepoTags) == 0 {
-			// TODO(containerd): also skip if has children?
 			if !all && !danglingOnly {
 				continue
 			}
@@ -222,8 +221,6 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			}
 
 			if len(newImage.RepoDigests) == 0 {
-				// TODO(containerd): Requires querying content store directly,
-				// not currently possible
 				newImage.RepoTags = []string{"none@none"}
 			}
 			newImage.RepoTags = []string{"none:none"}
@@ -247,7 +244,6 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			config = desc
 		}
 
-		// TODO(containerd): Stat config
 		if info, err := cs.Info(ctx, config.Digest); err == nil {
 			var sizeSet bool
 			var size int64
@@ -289,6 +285,7 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			log.G(ctx).WithError(err).WithField("digest", config.Digest.String()).Warnf("unable to get image config info")
 		}
 
+		// TODO(containerd): Support extra attrs
 		//if withExtraAttrs {
 		//	// lazily init variables
 		//	if imagesMap == nil {
