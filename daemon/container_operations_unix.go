@@ -368,8 +368,9 @@ func enableIPOnPredefinedNetwork() bool {
 	return false
 }
 
-func (daemon *Daemon) isNetworkHotPluggable() bool {
-	return true
+// serviceDiscoveryOnDefaultNetwork indicates if service discovery is supported on the default network
+func serviceDiscoveryOnDefaultNetwork() bool {
+	return false
 }
 
 func (daemon *Daemon) setupPathsAndSandboxOptions(container *container.Container, sboxOptions *[]libnetwork.SandboxOption) error {

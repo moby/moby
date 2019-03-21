@@ -305,30 +305,31 @@ func verifyNetworkingConfig(nwConfig *networktypes.NetworkingConfig) error {
 	if nwConfig == nil || len(nwConfig.EndpointsConfig) == 0 {
 		return nil
 	}
-	if len(nwConfig.EndpointsConfig) == 1 {
-		for k, v := range nwConfig.EndpointsConfig {
-			if v == nil {
-				return errdefs.InvalidParameter(errors.Errorf("no EndpointSettings for %s", k))
+	if len(nwConfig.EndpointsConfig) > 1 {
+		l := make([]string, 0, len(nwConfig.EndpointsConfig))
+		for k := range nwConfig.EndpointsConfig {
+			l = append(l, k)
+		}
+		return errors.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	}
+
+	for k, v := range nwConfig.EndpointsConfig {
+		if v == nil {
+			return errdefs.InvalidParameter(errors.Errorf("no EndpointSettings for %s", k))
+		}
+		if v.IPAMConfig != nil {
+			if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
+				return errors.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
 			}
-			if v.IPAMConfig != nil {
-				if v.IPAMConfig.IPv4Address != "" && net.ParseIP(v.IPAMConfig.IPv4Address).To4() == nil {
-					return errors.Errorf("invalid IPv4 address: %s", v.IPAMConfig.IPv4Address)
-				}
-				if v.IPAMConfig.IPv6Address != "" {
-					n := net.ParseIP(v.IPAMConfig.IPv6Address)
-					// if the address is an invalid network address (ParseIP == nil) or if it is
-					// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
-					if n == nil || n.To4() != nil {
-						return errors.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
-					}
+			if v.IPAMConfig.IPv6Address != "" {
+				n := net.ParseIP(v.IPAMConfig.IPv6Address)
+				// if the address is an invalid network address (ParseIP == nil) or if it is
+				// an IPv4 address (To4() != nil), then it is an invalid IPv6 address
+				if n == nil || n.To4() != nil {
+					return errors.Errorf("invalid IPv6 address: %s", v.IPAMConfig.IPv6Address)
 				}
 			}
 		}
-		return nil
 	}
-	l := make([]string, 0, len(nwConfig.EndpointsConfig))
-	for k := range nwConfig.EndpointsConfig {
-		l = append(l, k)
-	}
-	return errors.Errorf("Container cannot be connected to network endpoints: %s", strings.Join(l, ", "))
+	return nil
 }
