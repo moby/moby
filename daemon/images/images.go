@@ -159,74 +159,10 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		m[img.Target.Digest] = append(m[img.Target.Digest], img)
 		created[img.Target.Digest] = info.CreatedAt
 
-		//var size int64
-		// TODO: this seems pretty dumb to do
-		//   Maybe we resolve a config and add size as a config label
-		//layerID := img.RootFS.ChainID()
-		//if layerID != "" {
-		//	l, err := i.layerStores[img.OperatingSystem()].Get(layerID)
-		//	if err != nil {
-		//		// The layer may have been deleted between the call to `Map()` or
-		//		// `Heads()` and the call to `Get()`, so we just ignore this error
-		//		if err == layer.ErrLayerDoesNotExist {
-		//			continue
-		//		}
-		//		return nil, err
-		//	}
-
-		//	size, err = l.Size()
-		//	layer.ReleaseAndLog(i.layerStores[img.OperatingSystem()], l)
-		//	if err != nil {
-		//		return nil, err
-		//	}
-		//}
-
-		//newImage := newImage(img, size)
-
 		// TODO: Resolve config blob to get extra metadata
 		// TODO: Store by target
 		// TODO: Defer creation of image summary
 
-		//if withExtraAttrs {
-		//	// lazily init variables
-		//	if imagesMap == nil {
-		//		allContainers = i.containers.List()
-
-		//		// allLayers is built from all layerstores combined
-		//		allLayers = make(map[layer.ChainID]layer.Layer)
-		//		for _, ls := range i.layerStores {
-		//			layers := ls.Map()
-		//			for k, v := range layers {
-		//				allLayers[k] = v
-		//			}
-		//		}
-		//		imagesMap = make(map[*image.Image]*types.ImageSummary)
-		//		layerRefs = make(map[layer.ChainID]int)
-		//	}
-
-		//	// Get container count
-		//	newImage.Containers = 0
-		//	for _, c := range allContainers {
-		//		if c.ImageID == id {
-		//			newImage.Containers++
-		//		}
-		//	}
-
-		//	// count layer references
-		//	rootFS := *img.RootFS
-		//	rootFS.DiffIDs = nil
-		//	for _, id := range img.RootFS.DiffIDs {
-		//		rootFS.Append(id)
-		//		chid := rootFS.ChainID()
-		//		layerRefs[chid]++
-		//		if _, ok := allLayers[chid]; !ok {
-		//			return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
-		//		}
-		//	}
-		//	imagesMap[img] = newImage
-		//}
-
-		//images = append(images, newImage)
 	}
 
 	imageSums := []*types.ImageSummary{}
@@ -238,6 +174,62 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 		newImage := new(types.ImageSummary)
 		newImage.ID = dgst.String()
 		newImage.Created = created[dgst].Unix()
+
+		// For these, unique them by manifest, none:none or none@digest
+		digests := map[string]struct{}{}
+		tags := map[string]struct{}{}
+
+		for _, img := range imgs {
+			ref, err := reference.Parse(img.Name)
+			if err != nil {
+				if strings.HasPrefix(img.Name, "<") {
+					if idx := strings.Index(img.Name, ">@"); idx > 0 {
+						digests["none"+img.Name[idx+1:]] = struct{}{}
+					}
+				}
+				// TODO(containerd): Check for format such as <commit>@
+				continue
+			}
+			if named, ok := ref.(reference.Named); ok {
+				if c, ok := named.(reference.Canonical); ok {
+					digests[reference.FamiliarString(c)] = struct{}{}
+				} else if t, ok := named.(reference.Tagged); ok {
+					tags[reference.FamiliarString(t)] = struct{}{}
+				}
+			}
+		}
+
+		for d := range digests {
+			newImage.RepoDigests = append(newImage.RepoDigests, d)
+		}
+		for t := range tags {
+			newImage.RepoTags = append(newImage.RepoTags, t)
+		}
+
+		if len(newImage.RepoTags) == 0 {
+			// TODO(containerd): also skip if has children?
+			if !all && !danglingOnly {
+				continue
+			}
+
+			if imageFilters.Contains("dangling") && !danglingOnly {
+				//dangling=false case, so dangling image is not needed
+				continue
+			}
+
+			if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
+				continue
+			}
+
+			if len(newImage.RepoDigests) == 0 {
+				// TODO(containerd): Requires querying content store directly,
+				// not currently possible
+				newImage.RepoTags = []string{"none@none"}
+			}
+			newImage.RepoTags = []string{"none:none"}
+		} else if danglingOnly {
+			continue
+		}
 
 		var target = imgs[0].Target
 		var config ocispec.Descriptor
@@ -297,62 +289,44 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 			log.G(ctx).WithError(err).WithField("digest", config.Digest.String()).Warnf("unable to get image config info")
 		}
 
-		// TODO: Add each image reference
-		// For these, unique them by manifest, none:none or none@digest
-		digests := map[string]struct{}{}
-		tags := map[string]struct{}{}
+		//if withExtraAttrs {
+		//	// lazily init variables
+		//	if imagesMap == nil {
+		//		allContainers = i.containers.List()
 
-		for _, img := range imgs {
-			ref, err := reference.Parse(img.Name)
-			if err != nil {
-				if strings.HasPrefix(img.Name, "<") {
-					if idx := strings.Index(img.Name, ">@"); idx > 0 {
-						digests["none"+img.Name[idx+1:]] = struct{}{}
-					}
-				}
-				// TODO(containerd): Check for format such as <commit>@
-				continue
-			}
-			if named, ok := ref.(reference.Named); ok {
-				if c, ok := named.(reference.Canonical); ok {
-					digests[reference.FamiliarString(c)] = struct{}{}
-				} else if t, ok := named.(reference.Tagged); ok {
-					tags[reference.FamiliarString(t)] = struct{}{}
-				}
-			}
-		}
+		//		// allLayers is built from all layerstores combined
+		//		allLayers = make(map[layer.ChainID]layer.Layer)
+		//		for _, ls := range i.layerStores {
+		//			layers := ls.Map()
+		//			for k, v := range layers {
+		//				allLayers[k] = v
+		//			}
+		//		}
+		//		imagesMap = make(map[*image.Image]*types.ImageSummary)
+		//		layerRefs = make(map[layer.ChainID]int)
+		//	}
 
-		for d := range digests {
-			newImage.RepoDigests = append(newImage.RepoDigests, d)
-		}
-		for t := range tags {
-			newImage.RepoTags = append(newImage.RepoTags, t)
-		}
+		//	// Get container count
+		//	newImage.Containers = 0
+		//	for _, c := range allContainers {
+		//		if c.ImageID == id {
+		//			newImage.Containers++
+		//		}
+		//	}
 
-		if len(newImage.RepoTags) == 0 {
-			// TODO(containerd): also skip if has children?
-			if !all && !danglingOnly {
-				continue
-			}
-
-			if imageFilters.Contains("dangling") && !danglingOnly {
-				//dangling=false case, so dangling image is not needed
-				continue
-			}
-
-			if imageFilters.Contains("reference") { // skip images with no references if filtering by reference
-				continue
-			}
-
-			if len(newImage.RepoDigests) == 0 {
-				// TODO(containerd): Requires querying content store directly,
-				// not currently possible
-				newImage.RepoTags = []string{"none@none"}
-			}
-			newImage.RepoTags = []string{"none:none"}
-		} else if danglingOnly {
-			continue
-		}
+		//	// count layer references
+		//	rootFS := *img.RootFS
+		//	rootFS.DiffIDs = nil
+		//	for _, id := range img.RootFS.DiffIDs {
+		//		rootFS.Append(id)
+		//		chid := rootFS.ChainID()
+		//		layerRefs[chid]++
+		//		if _, ok := allLayers[chid]; !ok {
+		//			return nil, fmt.Errorf("layer %v was not found (corruption?)", chid)
+		//		}
+		//	}
+		//	imagesMap[img] = newImage
+		//}
 
 		imageSums = append(imageSums, newImage)
 	}
