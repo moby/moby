@@ -43,7 +43,7 @@ func (cli *Client) TaskLogs(ctx context.Context, taskID string, options types.Co
 	}
 	query.Set("tail", options.Tail)
 
-	resp, err := cli.get(ctx, "/tasks/"+taskID+"/logs", query, nil)
+	resp, err := cli.get(ctx, "/tasks/"+FilterURL(taskID)+"/logs", query, nil)
 	if err != nil {
 		return nil, err
 	}

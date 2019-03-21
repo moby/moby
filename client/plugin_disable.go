@@ -13,7 +13,7 @@ func (cli *Client) PluginDisable(ctx context.Context, name string, options types
 	if options.Force {
 		query.Set("force", "1")
 	}
-	resp, err := cli.post(ctx, "/plugins/"+name+"/disable", query, nil, nil)
+	resp, err := cli.post(ctx, "/plugins/"+FilterURL(name)+"/disable", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

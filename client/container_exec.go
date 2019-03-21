@@ -15,7 +15,7 @@ func (cli *Client) ContainerExecCreate(ctx context.Context, container string, co
 		return response, err
 	}
 
-	resp, err := cli.post(ctx, "/containers/"+container+"/exec", nil, config, nil)
+	resp, err := cli.post(ctx, "/containers/"+FilterURL(container)+"/exec", nil, config, nil)
 	if err != nil {
 		return response, err
 	}

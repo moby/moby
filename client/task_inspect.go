@@ -14,7 +14,7 @@ func (cli *Client) TaskInspectWithRaw(ctx context.Context, taskID string) (swarm
 	if taskID == "" {
 		return swarm.Task{}, nil, objectNotFoundError{object: "task", id: taskID}
 	}
-	serverResp, err := cli.get(ctx, "/tasks/"+taskID, nil, nil)
+	serverResp, err := cli.get(ctx, "/tasks/"+FilterURL(taskID), nil, nil)
 	if err != nil {
 		return swarm.Task{}, nil, wrapResponseError(err, serverResp, "task", taskID)
 	}

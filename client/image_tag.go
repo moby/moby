@@ -31,7 +31,7 @@ func (cli *Client) ImageTag(ctx context.Context, source, target string) error {
 		query.Set("tag", tagged.Tag())
 	}
 
-	resp, err := cli.post(ctx, "/images/"+source+"/tag", query, nil, nil)
+	resp, err := cli.post(ctx, "/images/"+FilterURL(source)+"/tag", query, nil, nil)
 	ensureReaderClosed(resp)
 	return err
 }

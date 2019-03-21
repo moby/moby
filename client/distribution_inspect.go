@@ -27,7 +27,7 @@ func (cli *Client) DistributionInspect(ctx context.Context, image, encodedRegist
 		}
 	}
 
-	resp, err := cli.get(ctx, "/distribution/"+image+"/json", url.Values{}, headers)
+	resp, err := cli.get(ctx, "/distribution/"+FilterURL(image)+"/json", url.Values{}, headers)
 	if err != nil {
 		return distributionInspect, err
 	}

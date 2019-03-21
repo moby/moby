@@ -15,7 +15,7 @@ func (cli *Client) SecretUpdate(ctx context.Context, id string, version swarm.Ve
 	}
 	query := url.Values{}
 	query.Set("version", strconv.FormatUint(version.Index, 10))
-	resp, err := cli.post(ctx, "/secrets/"+id+"/update", query, secret, nil)
+	resp, err := cli.post(ctx, "/secrets/"+FilterURL(id)+"/update", query, secret, nil)
 	ensureReaderClosed(resp)
 	return err
 }

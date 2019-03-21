@@ -21,7 +21,7 @@ func (cli *Client) ContainerRemove(ctx context.Context, containerID string, opti
 		query.Set("force", "1")
 	}
 
-	resp, err := cli.delete(ctx, "/containers/"+containerID, query, nil)
+	resp, err := cli.delete(ctx, "/containers/"+FilterURL(containerID), query, nil)
 	ensureReaderClosed(resp)
 	return wrapResponseError(err, resp, "container", containerID)
 }

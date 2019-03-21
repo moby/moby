@@ -33,7 +33,7 @@ func (cli *Client) NetworkInspectWithRaw(ctx context.Context, networkID string, 
 	if options.Scope != "" {
 		query.Set("scope", options.Scope)
 	}
-	resp, err = cli.get(ctx, "/networks/"+networkID, query, nil)
+	resp, err = cli.get(ctx, "/networks/"+FilterURL(networkID), query, nil)
 	if err != nil {
 		return networkResource, nil, wrapResponseError(err, resp, "network", networkID)
 	}

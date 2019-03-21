@@ -14,7 +14,7 @@ func (cli *Client) NodeInspectWithRaw(ctx context.Context, nodeID string) (swarm
 	if nodeID == "" {
 		return swarm.Node{}, nil, objectNotFoundError{object: "node", id: nodeID}
 	}
-	serverResp, err := cli.get(ctx, "/nodes/"+nodeID, nil, nil)
+	serverResp, err := cli.get(ctx, "/nodes/"+FilterURL(nodeID), nil, nil)
 	if err != nil {
 		return swarm.Node{}, nil, wrapResponseError(err, serverResp, "node", nodeID)
 	}

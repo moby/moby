@@ -35,7 +35,7 @@ func (cli *Client) ContainerWait(ctx context.Context, containerID string, condit
 	query := url.Values{}
 	query.Set("condition", string(condition))
 
-	resp, err := cli.post(ctx, "/containers/"+containerID+"/wait", query, nil, nil)
+	resp, err := cli.post(ctx, "/containers/"+FilterURL(containerID)+"/wait", query, nil, nil)
 	if err != nil {
 		defer ensureReaderClosed(resp)
 		errC <- err

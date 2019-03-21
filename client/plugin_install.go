@@ -44,7 +44,7 @@ func (cli *Client) PluginInstall(ctx context.Context, name string, options types
 		}
 		defer func() {
 			if err != nil {
-				delResp, _ := cli.delete(ctx, "/plugins/"+name, nil, nil)
+				delResp, _ := cli.delete(ctx, "/plugins/"+FilterURL(name), nil, nil)
 				ensureReaderClosed(delResp)
 			}
 		}()

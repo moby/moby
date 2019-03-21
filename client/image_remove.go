@@ -20,7 +20,7 @@ func (cli *Client) ImageRemove(ctx context.Context, imageID string, options type
 	}
 
 	var dels []types.ImageDeleteResponseItem
-	resp, err := cli.delete(ctx, "/images/"+imageID, query, nil)
+	resp, err := cli.delete(ctx, "/images/"+FilterURL(imageID), query, nil)
 	if err != nil {
 		return dels, wrapResponseError(err, resp, "image", imageID)
 	}
