@@ -289,7 +289,6 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 
 	var target ocispec.Descriptor
 	cs := i.client.ContentStore()
-	references := []ocispec.Descriptor{}
 
 	namedRef, ok := ref.(reference.Named)
 	if !ok {
@@ -325,7 +324,6 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 			return nil, errors.Wrap(err, "unable to resolve image")
 		}
 		target = d
-		references = append(references, img.Target)
 	}
 
 	img, err := i.getImage(context.TODO(), target)
@@ -335,7 +333,6 @@ func (i *ImageService) getDockerImage(refOrID string) (*image.Image, error) {
 		}
 		return nil, err
 	}
-	img.References = references
 
 	return img, nil
 }
@@ -349,13 +346,10 @@ func (i *ImageService) getImage(ctx context.Context, target ocispec.Descriptor) 
 		return nil, errors.Wrap(err, "unable to read target blob")
 	}
 
-	var img ocispec.Image
+	var img image.Image
 	if err := json.Unmarshal(b, &img); err != nil {
 		return nil, errors.Wrap(err, "unable to unmarshal image config")
 	}
 
-	return &image.Image{
-		Config: target,
-		Image:  &img,
-	}, nil
+	return &img, nil
 }

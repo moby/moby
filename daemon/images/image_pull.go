@@ -207,8 +207,13 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 
 	img.Name = c.String()
 	_, err = i.client.ImageService().Create(ctx, img)
-	if err != nil && !ctrerrdefs.IsAlreadyExists(err) {
-		return errors.Wrap(err, "failed to save canonical image")
+	if err != nil {
+		if ctrerrdefs.IsAlreadyExists(err) {
+			_, err = i.client.ImageService().Update(ctx, img)
+		}
+		if err != nil {
+			return errors.Wrap(err, "failed to create image")
+		}
 	}
 
 	stopProgress()
