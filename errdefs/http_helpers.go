@@ -28,7 +28,7 @@ func GetHTTPErrorStatusCode(err error) int {
 		statusCode = http.StatusNotFound
 	case IsInvalidParameter(err):
 		statusCode = http.StatusBadRequest
-	case IsConflict(err) || IsAlreadyExists(err):
+	case IsConflict(err):
 		statusCode = http.StatusConflict
 	case IsUnauthorized(err):
 		statusCode = http.StatusUnauthorized
