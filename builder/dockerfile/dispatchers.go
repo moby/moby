@@ -126,7 +126,9 @@ func dispatchCopy(d dispatchRequest, c *instructions.CopyCommand) error {
 		return err
 	}
 	copyInstruction.chownStr = c.Chown
-
+	if c.From != "" && copyInstruction.chownStr == "" {
+		copyInstruction.preserveOwnership = true
+	}
 	return d.builder.performCopy(d, copyInstruction)
 }
 
