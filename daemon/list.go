@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/content"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/container"
@@ -241,6 +242,21 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 	return newC, nil
 }
 
+func (daemon *Daemon) childrenByID(ctx context.Context, id digest.Digest) ([]digest.Digest, error) {
+	cs := daemon.containerdCli.ContentStore()
+
+	var children []digest.Digest
+	err := cs.Walk(ctx, func(info content.Info) error {
+		children = append(children, info.Digest)
+		return nil
+	}, fmt.Sprintf("labels.%q==%s", images.LabelImageParent, id.String()))
+	if err != nil {
+		return nil, err
+	}
+
+	return children, nil
+}
+
 // foldFilter generates the container filter based on the user's filtering options.
 func (daemon *Daemon) foldFilter(ctx context.Context, view container.View, config *types.ContainerListOptions) (*listContext, error) {
 	psFilters := config.Filters
@@ -328,7 +344,7 @@ func (daemon *Daemon) foldFilter(ctx context.Context, view container.View, confi
 				return nil
 			}
 			// Then walk down the graph and put the imageIds in imagesFilter
-			return populateImageFilterByParents(ctx, imagesFilter, img.Digest, daemon.imageService.ChildrenByID)
+			return populateImageFilterByParents(ctx, imagesFilter, img.Digest, daemon.childrenByID)
 		})
 	}
 

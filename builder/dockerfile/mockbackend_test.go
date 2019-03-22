@@ -14,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 // MockBackend implements the builder.Backend interface for unit testing
@@ -81,8 +82,8 @@ func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
 	return nil
 }
 
-func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
-	return nil, nil
+func (m *MockBackend) CreateImage(ctx context.Context, newImage backend.NewImageConfig, newROLayer builder.ROLayer) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{}, nil
 }
 
 type mockImage struct {

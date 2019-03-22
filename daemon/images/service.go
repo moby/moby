@@ -2,12 +2,10 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"sync"
 
 	"github.com/containerd/containerd"
-	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
@@ -20,7 +18,6 @@ import (
 	"github.com/docker/docker/pkg/system"
 	dockerreference "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
-	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -178,23 +175,6 @@ func (i *ImageService) CountImages(ctx context.Context) (int, error) {
 	}
 
 	return len(imgs), nil
-}
-
-// ChildrenByID returns the children image digests for a parent image.
-// called from list.go to filter containers
-func (i *ImageService) ChildrenByID(ctx context.Context, id digest.Digest) ([]digest.Digest, error) {
-	cs := i.client.ContentStore()
-
-	var children []digest.Digest
-	err := cs.Walk(ctx, func(info content.Info) error {
-		children = append(children, info.Digest)
-		return nil
-	}, fmt.Sprintf("labels.%q==%s", LabelImageParent, id.String()))
-	if err != nil {
-		return nil, err
-	}
-
-	return children, nil
 }
 
 // GetImageBackend returns the storage backend used by the given image

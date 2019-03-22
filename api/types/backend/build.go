@@ -45,6 +45,7 @@ type GetImageAndLayerOptions struct {
 	Platform   *specs.Platform
 }
 
+// NewImageConfig are options for creating new images
 type NewImageConfig struct {
 	ParentImageID   string
 	Author          string
