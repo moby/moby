@@ -7,14 +7,6 @@ package container
 // See hack/generate-swagger-api.sh
 // ----------------------------------------------------------------------------
 
-// ContainerWaitOKBodyError container waiting error, if any
-// swagger:model ContainerWaitOKBodyError
-type ContainerWaitOKBodyError struct {
-
-	// Details of an error
-	Message string `json:"Message,omitempty"`
-}
-
 // ContainerWaitOKBody OK response to ContainerWait operation
 // swagger:model ContainerWaitOKBody
 type ContainerWaitOKBody struct {
@@ -26,4 +18,12 @@ type ContainerWaitOKBody struct {
 	// Exit code of the container
 	// Required: true
 	StatusCode int64 `json:"StatusCode"`
+}
+
+// ContainerWaitOKBodyError container waiting error, if any
+// swagger:model ContainerWaitOKBodyError
+type ContainerWaitOKBodyError struct {
+
+	// Details of an error
+	Message string `json:"Message,omitempty"`
 }
