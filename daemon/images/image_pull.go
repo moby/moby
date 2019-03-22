@@ -14,6 +14,7 @@ import (
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/archive/compression"
 	"github.com/containerd/containerd/content"
+	ctrerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/platforms"
@@ -206,14 +207,13 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 
 	img.Name = c.String()
 	_, err = i.client.ImageService().Create(ctx, img)
-	if err != nil {
+	if err != nil && !ctrerrdefs.IsAlreadyExists(err) {
 		return errors.Wrap(err, "failed to save canonical image")
 	}
 
 	stopProgress()
 	<-progress
-
-	return err
+	return nil
 }
 
 func (i *ImageService) unpack(ctx context.Context, config ocispec.Descriptor, layers []ocispec.Descriptor, progressOutput progress.Output, cond *sync.Cond, status map[digest.Digest]bool) error {
