@@ -219,9 +219,9 @@ func (provider *Provider) IsEnabledForLevelAndKeywords(level Level, keywords uin
 // constructed based on the EventOpt and FieldOpt values that are passed as
 // opts.
 func (provider *Provider) WriteEvent(name string, eventOpts []EventOpt, fieldOpts []FieldOpt) error {
-	options := eventOptions{descriptor: NewEventDescriptor()}
-	em := &EventMetadata{}
-	ed := &EventData{}
+	options := eventOptions{descriptor: newEventDescriptor()}
+	em := &eventMetadata{}
+	ed := &eventData{}
 
 	// We need to evaluate the EventOpts first since they might change tags, and
 	// we write out the tags before evaluating FieldOpts.
@@ -229,11 +229,11 @@ func (provider *Provider) WriteEvent(name string, eventOpts []EventOpt, fieldOpt
 		opt(&options)
 	}
 
-	if !provider.IsEnabledForLevelAndKeywords(options.descriptor.Level, options.descriptor.Keyword) {
+	if !provider.IsEnabledForLevelAndKeywords(options.descriptor.level, options.descriptor.keyword) {
 		return nil
 	}
 
-	em.WriteEventHeader(name, options.tags)
+	em.writeEventHeader(name, options.tags)
 
 	for _, opt := range fieldOpts {
 		opt(em, ed)
@@ -243,22 +243,22 @@ func (provider *Provider) WriteEvent(name string, eventOpts []EventOpt, fieldOpt
 	// event metadata (e.g. for the name) so we don't need to do this check for
 	// the metadata.
 	dataBlobs := [][]byte{}
-	if len(ed.Bytes()) > 0 {
-		dataBlobs = [][]byte{ed.Bytes()}
+	if len(ed.bytes()) > 0 {
+		dataBlobs = [][]byte{ed.bytes()}
 	}
 
-	return provider.WriteEventRaw(options.descriptor, nil, nil, [][]byte{em.Bytes()}, dataBlobs)
+	return provider.writeEventRaw(options.descriptor, nil, nil, [][]byte{em.bytes()}, dataBlobs)
 }
 
-// WriteEventRaw writes a single ETW event from the provider. This function is
+// writeEventRaw writes a single ETW event from the provider. This function is
 // less abstracted than WriteEvent, and presents a fairly direct interface to
 // the event writing functionality. It expects a series of event metadata and
 // event data blobs to be passed in, which must conform to the TraceLogging
 // schema. The functions on EventMetadata and EventData can help with creating
 // these blobs. The blobs of each type are effectively concatenated together by
 // the ETW infrastructure.
-func (provider *Provider) WriteEventRaw(
-	descriptor *EventDescriptor,
+func (provider *Provider) writeEventRaw(
+	descriptor *eventDescriptor,
 	activityID *windows.GUID,
 	relatedActivityID *windows.GUID,
 	metadataBlobs [][]byte,

@@ -7,7 +7,7 @@ import (
 
 // FieldOpt defines the option function type that can be passed to
 // Provider.WriteEvent to add fields to the event.
-type FieldOpt func(em *EventMetadata, ed *EventData)
+type FieldOpt func(em *eventMetadata, ed *eventData)
 
 // WithFields returns the variadic arguments as a single slice.
 func WithFields(opts ...FieldOpt) []FieldOpt {
@@ -16,46 +16,46 @@ func WithFields(opts ...FieldOpt) []FieldOpt {
 
 // BoolField adds a single bool field to the event.
 func BoolField(name string, value bool) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeUint8, OutTypeBoolean, 0)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeUint8, outTypeBoolean, 0)
 		bool8 := uint8(0)
 		if value {
 			bool8 = uint8(1)
 		}
-		ed.WriteUint8(bool8)
+		ed.writeUint8(bool8)
 	}
 }
 
 // BoolArray adds an array of bool to the event.
 func BoolArray(name string, values []bool) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeUint8, OutTypeBoolean, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeUint8, outTypeBoolean, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
 			bool8 := uint8(0)
 			if v {
 				bool8 = uint8(1)
 			}
-			ed.WriteUint8(bool8)
+			ed.writeUint8(bool8)
 		}
 	}
 }
 
 // StringField adds a single string field to the event.
 func StringField(name string, value string) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeANSIString, OutTypeUTF8, 0)
-		ed.WriteString(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeANSIString, outTypeUTF8, 0)
+		ed.writeString(value)
 	}
 }
 
 // StringArray adds an array of string to the event.
 func StringArray(name string, values []string) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeANSIString, OutTypeUTF8, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeANSIString, outTypeUTF8, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteString(v)
+			ed.writeString(v)
 		}
 	}
 }
@@ -74,22 +74,22 @@ func IntField(name string, value int) FieldOpt {
 
 // IntArray adds an array of int to the event.
 func IntArray(name string, values []int) FieldOpt {
-	inType := InTypeNull
-	var writeItem func(*EventData, int)
+	inType := inTypeNull
+	var writeItem func(*eventData, int)
 	switch unsafe.Sizeof(values[0]) {
 	case 4:
-		inType = InTypeInt32
-		writeItem = func(ed *EventData, item int) { ed.WriteInt32(int32(item)) }
+		inType = inTypeInt32
+		writeItem = func(ed *eventData, item int) { ed.writeInt32(int32(item)) }
 	case 8:
-		inType = InTypeInt64
-		writeItem = func(ed *EventData, item int) { ed.WriteInt64(int64(item)) }
+		inType = inTypeInt64
+		writeItem = func(ed *eventData, item int) { ed.writeInt64(int64(item)) }
 	default:
 		panic("Unsupported int size")
 	}
 
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, inType, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inType, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
 			writeItem(ed, v)
 		}
@@ -98,76 +98,76 @@ func IntArray(name string, values []int) FieldOpt {
 
 // Int8Field adds a single int8 field to the event.
 func Int8Field(name string, value int8) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeInt8, OutTypeDefault, 0)
-		ed.WriteInt8(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeInt8, outTypeDefault, 0)
+		ed.writeInt8(value)
 	}
 }
 
 // Int8Array adds an array of int8 to the event.
 func Int8Array(name string, values []int8) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeInt8, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeInt8, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteInt8(v)
+			ed.writeInt8(v)
 		}
 	}
 }
 
 // Int16Field adds a single int16 field to the event.
 func Int16Field(name string, value int16) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeInt16, OutTypeDefault, 0)
-		ed.WriteInt16(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeInt16, outTypeDefault, 0)
+		ed.writeInt16(value)
 	}
 }
 
 // Int16Array adds an array of int16 to the event.
 func Int16Array(name string, values []int16) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeInt16, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeInt16, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteInt16(v)
+			ed.writeInt16(v)
 		}
 	}
 }
 
 // Int32Field adds a single int32 field to the event.
 func Int32Field(name string, value int32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeInt32, OutTypeDefault, 0)
-		ed.WriteInt32(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeInt32, outTypeDefault, 0)
+		ed.writeInt32(value)
 	}
 }
 
 // Int32Array adds an array of int32 to the event.
 func Int32Array(name string, values []int32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeInt32, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeInt32, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteInt32(v)
+			ed.writeInt32(v)
 		}
 	}
 }
 
 // Int64Field adds a single int64 field to the event.
 func Int64Field(name string, value int64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeInt64, OutTypeDefault, 0)
-		ed.WriteInt64(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeInt64, outTypeDefault, 0)
+		ed.writeInt64(value)
 	}
 }
 
 // Int64Array adds an array of int64 to the event.
 func Int64Array(name string, values []int64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeInt64, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeInt64, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteInt64(v)
+			ed.writeInt64(v)
 		}
 	}
 }
@@ -186,22 +186,22 @@ func UintField(name string, value uint) FieldOpt {
 
 // UintArray adds an array of uint to the event.
 func UintArray(name string, values []uint) FieldOpt {
-	inType := InTypeNull
-	var writeItem func(*EventData, uint)
+	inType := inTypeNull
+	var writeItem func(*eventData, uint)
 	switch unsafe.Sizeof(values[0]) {
 	case 4:
-		inType = InTypeUint32
-		writeItem = func(ed *EventData, item uint) { ed.WriteUint32(uint32(item)) }
+		inType = inTypeUint32
+		writeItem = func(ed *eventData, item uint) { ed.writeUint32(uint32(item)) }
 	case 8:
-		inType = InTypeUint64
-		writeItem = func(ed *EventData, item uint) { ed.WriteUint64(uint64(item)) }
+		inType = inTypeUint64
+		writeItem = func(ed *eventData, item uint) { ed.writeUint64(uint64(item)) }
 	default:
 		panic("Unsupported uint size")
 	}
 
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, inType, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inType, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
 			writeItem(ed, v)
 		}
@@ -210,119 +210,119 @@ func UintArray(name string, values []uint) FieldOpt {
 
 // Uint8Field adds a single uint8 field to the event.
 func Uint8Field(name string, value uint8) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeUint8, OutTypeDefault, 0)
-		ed.WriteUint8(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeUint8, outTypeDefault, 0)
+		ed.writeUint8(value)
 	}
 }
 
 // Uint8Array adds an array of uint8 to the event.
 func Uint8Array(name string, values []uint8) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeUint8, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeUint8, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint8(v)
+			ed.writeUint8(v)
 		}
 	}
 }
 
 // Uint16Field adds a single uint16 field to the event.
 func Uint16Field(name string, value uint16) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeUint16, OutTypeDefault, 0)
-		ed.WriteUint16(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeUint16, outTypeDefault, 0)
+		ed.writeUint16(value)
 	}
 }
 
 // Uint16Array adds an array of uint16 to the event.
 func Uint16Array(name string, values []uint16) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeUint16, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeUint16, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint16(v)
+			ed.writeUint16(v)
 		}
 	}
 }
 
 // Uint32Field adds a single uint32 field to the event.
 func Uint32Field(name string, value uint32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeUint32, OutTypeDefault, 0)
-		ed.WriteUint32(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeUint32, outTypeDefault, 0)
+		ed.writeUint32(value)
 	}
 }
 
 // Uint32Array adds an array of uint32 to the event.
 func Uint32Array(name string, values []uint32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeUint32, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeUint32, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint32(v)
+			ed.writeUint32(v)
 		}
 	}
 }
 
 // Uint64Field adds a single uint64 field to the event.
 func Uint64Field(name string, value uint64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeUint64, OutTypeDefault, 0)
-		ed.WriteUint64(value)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeUint64, outTypeDefault, 0)
+		ed.writeUint64(value)
 	}
 }
 
 // Uint64Array adds an array of uint64 to the event.
 func Uint64Array(name string, values []uint64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeUint64, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeUint64, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint64(v)
+			ed.writeUint64(v)
 		}
 	}
 }
 
 // UintptrField adds a single uintptr field to the event.
 func UintptrField(name string, value uintptr) FieldOpt {
-	inType := InTypeNull
-	var writeItem func(*EventData, uintptr)
+	inType := inTypeNull
+	var writeItem func(*eventData, uintptr)
 	switch unsafe.Sizeof(value) {
 	case 4:
-		inType = InTypeHexInt32
-		writeItem = func(ed *EventData, item uintptr) { ed.WriteUint32(uint32(item)) }
+		inType = inTypeHexInt32
+		writeItem = func(ed *eventData, item uintptr) { ed.writeUint32(uint32(item)) }
 	case 8:
-		inType = InTypeHexInt64
-		writeItem = func(ed *EventData, item uintptr) { ed.WriteUint64(uint64(item)) }
+		inType = inTypeHexInt64
+		writeItem = func(ed *eventData, item uintptr) { ed.writeUint64(uint64(item)) }
 	default:
 		panic("Unsupported uintptr size")
 	}
 
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, inType, OutTypeDefault, 0)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inType, outTypeDefault, 0)
 		writeItem(ed, value)
 	}
 }
 
 // UintptrArray adds an array of uintptr to the event.
 func UintptrArray(name string, values []uintptr) FieldOpt {
-	inType := InTypeNull
-	var writeItem func(*EventData, uintptr)
+	inType := inTypeNull
+	var writeItem func(*eventData, uintptr)
 	switch unsafe.Sizeof(values[0]) {
 	case 4:
-		inType = InTypeHexInt32
-		writeItem = func(ed *EventData, item uintptr) { ed.WriteUint32(uint32(item)) }
+		inType = inTypeHexInt32
+		writeItem = func(ed *eventData, item uintptr) { ed.writeUint32(uint32(item)) }
 	case 8:
-		inType = InTypeHexInt64
-		writeItem = func(ed *EventData, item uintptr) { ed.WriteUint64(uint64(item)) }
+		inType = inTypeHexInt64
+		writeItem = func(ed *eventData, item uintptr) { ed.writeUint64(uint64(item)) }
 	default:
 		panic("Unsupported uintptr size")
 	}
 
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, inType, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inType, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
 			writeItem(ed, v)
 		}
@@ -331,38 +331,38 @@ func UintptrArray(name string, values []uintptr) FieldOpt {
 
 // Float32Field adds a single float32 field to the event.
 func Float32Field(name string, value float32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeFloat, OutTypeDefault, 0)
-		ed.WriteUint32(math.Float32bits(value))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeFloat, outTypeDefault, 0)
+		ed.writeUint32(math.Float32bits(value))
 	}
 }
 
 // Float32Array adds an array of float32 to the event.
 func Float32Array(name string, values []float32) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeFloat, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeFloat, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint32(math.Float32bits(v))
+			ed.writeUint32(math.Float32bits(v))
 		}
 	}
 }
 
 // Float64Field adds a single float64 field to the event.
 func Float64Field(name string, value float64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteField(name, InTypeDouble, OutTypeDefault, 0)
-		ed.WriteUint64(math.Float64bits(value))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeField(name, inTypeDouble, outTypeDefault, 0)
+		ed.writeUint64(math.Float64bits(value))
 	}
 }
 
 // Float64Array adds an array of float64 to the event.
 func Float64Array(name string, values []float64) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteArray(name, InTypeDouble, OutTypeDefault, 0)
-		ed.WriteUint16(uint16(len(values)))
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeArray(name, inTypeDouble, outTypeDefault, 0)
+		ed.writeUint16(uint16(len(values)))
 		for _, v := range values {
-			ed.WriteUint64(math.Float64bits(v))
+			ed.writeUint64(math.Float64bits(v))
 		}
 	}
 }
@@ -370,8 +370,8 @@ func Float64Array(name string, values []float64) FieldOpt {
 // Struct adds a nested struct to the event, the FieldOpts in the opts argument
 // are used to specify the fields of the struct.
 func Struct(name string, opts ...FieldOpt) FieldOpt {
-	return func(em *EventMetadata, ed *EventData) {
-		em.WriteStruct(name, uint8(len(opts)), 0)
+	return func(em *eventMetadata, ed *eventData) {
+		em.writeStruct(name, uint8(len(opts)), 0)
 		for _, opt := range opts {
 			opt(em, ed)
 		}

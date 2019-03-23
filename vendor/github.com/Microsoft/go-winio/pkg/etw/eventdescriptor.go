@@ -28,24 +28,24 @@ const (
 )
 
 // EventDescriptor represents various metadata for an ETW event.
-type EventDescriptor struct {
+type eventDescriptor struct {
 	id      uint16
 	version uint8
-	Channel Channel
-	Level   Level
-	Opcode  uint8
-	Task    uint16
-	Keyword uint64
+	channel Channel
+	level   Level
+	opcode  uint8
+	task    uint16
+	keyword uint64
 }
 
 // NewEventDescriptor returns an EventDescriptor initialized for use with
 // TraceLogging.
-func NewEventDescriptor() *EventDescriptor {
+func newEventDescriptor() *eventDescriptor {
 	// Standard TraceLogging events default to the TraceLogging channel, and
 	// verbose level.
-	return &EventDescriptor{
-		Channel: ChannelTraceLogging,
-		Level:   LevelVerbose,
+	return &eventDescriptor{
+		channel: ChannelTraceLogging,
+		level:   LevelVerbose,
 	}
 }
 
@@ -53,7 +53,7 @@ func NewEventDescriptor() *EventDescriptor {
 // should uniquely identify the other event metadata (contained in
 // EventDescriptor, and field metadata). Only the lower 24 bits of this value
 // are relevant.
-func (ed *EventDescriptor) Identity() uint32 {
+func (ed *eventDescriptor) identity() uint32 {
 	return (uint32(ed.version) << 16) | uint32(ed.id)
 }
 
@@ -61,7 +61,7 @@ func (ed *EventDescriptor) Identity() uint32 {
 // should uniquely identify the other event metadata (contained in
 // EventDescriptor, and field metadata). Only the lower 24 bits of this value
 // are relevant.
-func (ed *EventDescriptor) SetIdentity(identity uint32) {
+func (ed *eventDescriptor) setIdentity(identity uint32) {
 	ed.id = uint16(identity)
 	ed.version = uint8(identity >> 16)
 }
