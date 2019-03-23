@@ -10,15 +10,6 @@ import (
 	"testing"
 )
 
-type bufConn struct {
-	net.Conn
-	buf *bytes.Buffer
-}
-
-func (bc *bufConn) Read(b []byte) (int, error) {
-	return bc.buf.Read(b)
-}
-
 func TestHeaderOverrideHack(t *testing.T) {
 	tests := [][2][]byte{
 		{
@@ -49,18 +40,12 @@ func TestHeaderOverrideHack(t *testing.T) {
 	tests = append(tests, [2][]byte{[]byte(h0), []byte(h0)})
 
 	for _, pair := range tests {
-		read := make([]byte, 4096)
-		client := &bufConn{
-			buf: bytes.NewBuffer(pair[0]),
-		}
-		l := MalformedHostHeaderOverrideConn{client, true}
-
-		n, err := l.Read(read)
+		n, err := stripInvalidHeader(len(pair[0]), pair[0])
 		if err != nil && err != io.EOF {
-			t.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(read[:n]))
+			t.Fatalf("read: %d - %d, err: %v\n%s", n, len(pair[0]), err, string(pair[0][:n]))
 		}
-		if !bytes.Equal(read[:n], pair[1][:n]) {
-			t.Fatalf("\n%s\n%s\n", read[:n], pair[1][:n])
+		if !bytes.Equal(pair[0][:n], pair[1][:n]) {
+			t.Fatalf("\n%s\n%s\n", pair[0][:n], pair[1][:n])
 		}
 	}
 }
@@ -72,26 +57,28 @@ func BenchmarkWithHack(b *testing.B) {
 	read := make([]byte, 4096)
 	b.SetBytes(int64(len(req) * 30))
 
-	l := MalformedHostHeaderOverrideConn{client, true}
 	go func() {
 		for {
 			if _, err := srv.Write(req); err != nil {
 				srv.Close()
 				break
 			}
-			l.first = true // make sure each subsequent run uses the hack parsing
 		}
 		close(done)
 	}()
 
 	for i := 0; i < b.N; i++ {
 		for i := 0; i < 30; i++ {
-			if n, err := l.Read(read); err != nil && err != io.EOF {
+			n := -1
+			if n, err := client.Read(read); err != nil && err != io.EOF {
+				b.Fatalf("read: %d - %d, err: %v\n%s", n, len(req), err, string(read[:n]))
+			}
+			if n, err := stripInvalidHeader(n, read); err != nil && err != io.EOF {
 				b.Fatalf("read: %d - %d, err: %v\n%s", n, len(req), err, string(read[:n]))
 			}
 		}
 	}
-	l.Close()
+	client.Close()
 	<-done
 }
 

@@ -15,11 +15,75 @@ type MalformedHostHeaderOverride struct {
 // connection and keeps track of the first read from http.Server
 // which just reads the headers.
 type MalformedHostHeaderOverrideConn struct {
-	net.Conn
+	net.UnixConn
 	first bool
 }
 
 var closeConnHeader = []byte("\r\nConnection: close\r")
+
+// stripInvalidHeader does check whether an old client sends an invalid host head or not
+func stripInvalidHeader(c int, b []byte) (n int, err error) {
+	var (
+		start, end    int
+		firstLineFeed = -1
+		buf           []byte
+	)
+	for i := 0; i <= c-1-7; i++ {
+		if b[i] == '\n' && firstLineFeed == -1 {
+			firstLineFeed = i
+		}
+		if b[i] != '\n' {
+			continue
+		}
+
+		if b[i+1] == '\r' && b[i+2] == '\n' {
+			return c, nil
+		}
+
+		if b[i+1] != 'H' {
+			continue
+		}
+		if b[i+2] != 'o' {
+			continue
+		}
+		if b[i+3] != 's' {
+			continue
+		}
+		if b[i+4] != 't' {
+			continue
+		}
+		if b[i+5] != ':' {
+			continue
+		}
+		if b[i+6] != ' ' {
+			continue
+		}
+		if b[i+7] != '/' {
+			continue
+		}
+		// ensure clients other than the docker clients do not get this hack
+		if i != firstLineFeed {
+			return c, nil
+		}
+		start = i + 7
+		// now find where the value ends
+		for ii, bbb := range b[start:c] {
+			if bbb == '\n' {
+				end = start + ii
+				break
+			}
+		}
+		buf = make([]byte, 0, c+len(closeConnHeader)-(end-start))
+		// strip the value of the host header and
+		// inject `Connection: close` to ensure we don't reuse this connection
+		buf = append(buf, b[:start]...)
+		buf = append(buf, closeConnHeader...)
+		buf = append(buf, b[end:c]...)
+		copy(b, buf)
+		return len(buf), nil
+	}
+	return c, nil
+}
 
 // Read reads the first *read* request from http.Server to inspect
 // the Host header. If the Host starts with / then we're talking to
@@ -38,76 +102,13 @@ func (l *MalformedHostHeaderOverrideConn) Read(b []byte) (n int, err error) {
 		// DefaultMaxHeaderBytes (usually 1 << 20) + 4096.
 		// Here we do the first read which gets us all the http headers to
 		// be inspected and modified below.
-		c, err := l.Conn.Read(b)
+		c, err := l.UnixConn.Read(b)
 		if err != nil {
 			return c, err
 		}
-
-		var (
-			start, end    int
-			firstLineFeed = -1
-			buf           []byte
-		)
-		for i := 0; i <= c-1-7; i++ {
-			if b[i] == '\n' && firstLineFeed == -1 {
-				firstLineFeed = i
-			}
-			if b[i] != '\n' {
-				continue
-			}
-
-			if b[i+1] == '\r' && b[i+2] == '\n' {
-				return c, nil
-			}
-
-			if b[i+1] != 'H' {
-				continue
-			}
-			if b[i+2] != 'o' {
-				continue
-			}
-			if b[i+3] != 's' {
-				continue
-			}
-			if b[i+4] != 't' {
-				continue
-			}
-			if b[i+5] != ':' {
-				continue
-			}
-			if b[i+6] != ' ' {
-				continue
-			}
-			if b[i+7] != '/' {
-				continue
-			}
-			// ensure clients other than the docker clients do not get this hack
-			if i != firstLineFeed {
-				return c, nil
-			}
-			start = i + 7
-			// now find where the value ends
-			for ii, bbb := range b[start:c] {
-				if bbb == '\n' {
-					end = start + ii
-					break
-				}
-			}
-			buf = make([]byte, 0, c+len(closeConnHeader)-(end-start))
-			// strip the value of the host header and
-			// inject `Connection: close` to ensure we don't reuse this connection
-			buf = append(buf, b[:start]...)
-			buf = append(buf, closeConnHeader...)
-			buf = append(buf, b[end:c]...)
-			copy(b, buf)
-			break
-		}
-		if len(buf) == 0 {
-			return c, nil
-		}
-		return len(buf), nil
+		return stripInvalidHeader(c, b)
 	}
-	return l.Conn.Read(b)
+	return l.UnixConn.Read(b)
 }
 
 // Accept makes the listener accepts connections and wraps the connection
@@ -117,5 +118,8 @@ func (l *MalformedHostHeaderOverride) Accept() (net.Conn, error) {
 	if err != nil {
 		return c, err
 	}
-	return &MalformedHostHeaderOverrideConn{c, true}, nil
+	if unixConn, ok := c.(*net.UnixConn); ok {
+		return &MalformedHostHeaderOverrideConn{*unixConn, true}, nil
+	}
+	return c, err
 }
