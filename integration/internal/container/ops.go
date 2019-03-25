@@ -153,3 +153,10 @@ func WithRestartPolicy(policy string) func(c *TestContainerConfig) {
 		c.HostConfig.RestartPolicy.Name = policy
 	}
 }
+
+// WithUser sets the user
+func WithUser(user string) func(c *TestContainerConfig) {
+	return func(c *TestContainerConfig) {
+		c.Config.User = user
+	}
+}
