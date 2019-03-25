@@ -7,7 +7,9 @@ import (
 	"path/filepath"
 
 	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/containers"
 
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
@@ -35,9 +37,12 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 	}
 }
 
-func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
-	// TODO: (containerd) Determine if we need to use system.MkdirAllWithACL here
-	return bundleDir, os.MkdirAll(bundleDir, 0755)
+// WithBundle creates the bundle for the container
+func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
+	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+		// TODO: (containerd) Determine if we need to use system.MkdirAllWithACL here
+		return os.MkdirAll(bundleDir, 0755)
+	}
 }
 
 func pipeName(containerID, processID, name string) string {
