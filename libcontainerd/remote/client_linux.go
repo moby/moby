@@ -23,7 +23,7 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 }
 
 func (c *client) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
-	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
+	p, err := c.getProcess(ctx, containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -62,8 +62,12 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 // WithBundle creates the bundle for the container
 func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
 	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
+		}
 		uid, gid := getSpecUser(ociSpec)
 		if uid == 0 && gid == 0 {
+			c.Labels[DockerContainerBundlePath] = bundleDir
 			return idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
 		}
 
@@ -82,6 +86,10 @@ func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOp
 				}
 			}
 		}
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
+		}
+		c.Labels[DockerContainerBundlePath] = p
 		return nil
 	}
 }

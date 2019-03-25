@@ -1085,7 +1085,7 @@ func (c *client) Stats(_ context.Context, containerID string) (*libcontainerdtyp
 }
 
 // Restore is the handler for restoring a container
-func (c *client) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (bool, int, error) {
+func (c *client) Restore(ctx context.Context, id string, attachStdio libcontainerdtypes.StdioCallback) (bool, int, libcontainerdtypes.Process, error) {
 	c.logger.WithField("container", id).Debug("restore()")
 
 	// TODO Windows: On RS1, a re-attach isn't possible.
@@ -1107,10 +1107,13 @@ func (c *client) Restore(ctx context.Context, id string, attachStdio libcontaine
 
 		if err != nil {
 			c.logger.WithField("container", id).WithError(err).Debug("terminate failed on restore")
-			return false, -1, err
+			return false, -1, nil, err
 		}
 	}
-	return false, -1, nil
+	return false, -1, &restoredProcess{
+		c:  c,
+		id: id,
+	}, nil
 }
 
 // GetPidsForContainer returns a list of process IDs running in a container.
@@ -1151,6 +1154,15 @@ func (c *client) Summary(_ context.Context, containerID string) ([]libcontainerd
 		}
 	}
 	return pl, nil
+}
+
+type restoredProcess struct {
+	id string
+	c  *client
+}
+
+func (p *restoredProcess) Delete(ctx context.Context) (uint32, time.Time, error) {
+	return p.c.DeleteTask(ctx, p.id)
 }
 
 func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error) {
