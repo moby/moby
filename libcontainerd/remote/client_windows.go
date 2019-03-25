@@ -41,6 +41,10 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
 	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
 		// TODO: (containerd) Determine if we need to use system.MkdirAllWithACL here
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
+		}
+		c.Labels[DockerContainerBundlePath] = bundleDir
 		return os.MkdirAll(bundleDir, 0755)
 	}
 }

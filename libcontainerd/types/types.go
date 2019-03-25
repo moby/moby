@@ -41,11 +41,16 @@ type Backend interface {
 	ProcessEvent(containerID string, event EventType, ei EventInfo) error
 }
 
+// Process of a container
+type Process interface {
+	Delete(context.Context) (uint32, time.Time, error)
+}
+
 // Client provides access to containerd features.
 type Client interface {
 	Version(ctx context.Context) (containerd.Version, error)
 
-	Restore(ctx context.Context, containerID string, attachStdio StdioCallback) (alive bool, pid int, err error)
+	Restore(ctx context.Context, containerID string, attachStdio StdioCallback) (alive bool, pid int, p Process, err error)
 
 	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error
 	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio StdioCallback) (pid int, err error)
