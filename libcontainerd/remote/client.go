@@ -212,16 +212,14 @@ func (c *client) Create(ctx context.Context, id string, ociSpec *specs.Spec, run
 		return errors.WithStack(errdefs.Conflict(errors.New("id already in use")))
 	}
 
-	bdir, err := prepareBundleDir(filepath.Join(c.stateDir, id), ociSpec)
-	if err != nil {
-		return errdefs.System(errors.Wrap(err, "prepare bundle dir failed"))
-	}
-
+	bdir := filepath.Join(c.stateDir, id)
 	c.logger.WithField("bundle", bdir).WithField("root", ociSpec.Root.Path).Debug("bundle dir created")
 
 	cdCtr, err := c.client.NewContainer(ctx, id,
 		containerd.WithSpec(ociSpec),
-		containerd.WithRuntime(runtimeName, runtimeOptions))
+		containerd.WithRuntime(runtimeName, runtimeOptions),
+		WithBundle(bdir, ociSpec),
+	)
 	if err != nil {
 		return wrapError(err)
 	}
