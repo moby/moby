@@ -29,7 +29,7 @@ type imageBackend interface {
 }
 
 type importExportBackend interface {
-	LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error
+	LoadImage(ctx context.Context, inTar io.ReadCloser, outStream io.Writer, quiet bool) error
 	ImportImage(ctx context.Context, src string, repository, platform string, tag string, msg string, inConfig io.ReadCloser, outStream io.Writer, changes []string) error
 	ExportImage(names []string, outStream io.Writer) error
 }

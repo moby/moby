@@ -18,13 +18,3 @@ func (i *ImageService) ExportImage(names []string, outStream io.Writer) error {
 	//return imageExporter.Save(names, outStream)
 	return errdefs.ErrNotImplemented
 }
-
-// LoadImage uploads a set of images into the repository. This is the
-// complement of ImageExport.  The input stream is an uncompressed tar
-// ball containing images and metadata.
-func (i *ImageService) LoadImage(inTar io.ReadCloser, outStream io.Writer, quiet bool) error {
-	// TODO(containerd): use containerd's archive importer
-	//imageExporter := tarexport.NewTarExporter(i.imageStore, i.layerStores, i.referenceStore, i)
-	//return imageExporter.Load(inTar, outStream, quiet)
-	return errdefs.ErrNotImplemented
-}
