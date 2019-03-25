@@ -39,8 +39,8 @@ func init() {
 		capset:     capset,
 		updateSpec: setNvidiaGPUs,
 	}
-	for c := range capset {
-		nvidiaDriver.capset[c] = struct{}{}
+	for c := range allNvidiaCaps {
+		nvidiaDriver.capset[string(c)] = struct{}{}
 	}
 	registerDeviceDriver("nvidia", nvidiaDriver)
 }

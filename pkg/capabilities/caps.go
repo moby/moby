@@ -19,5 +19,6 @@ anyof:
 		}
 		return andList
 	}
+	// match anything
 	return nil
 }
