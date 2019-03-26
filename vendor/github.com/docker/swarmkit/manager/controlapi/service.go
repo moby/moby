@@ -392,6 +392,21 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 		return nil
 	}
 
+	// check if we're using a config as a CredentialSpec -- if so, we need to
+	// verify
+	var (
+		credSpecConfig      string
+		credSpecConfigFound bool
+	)
+	if p := container.Privileges; p != nil {
+		if cs := p.CredentialSpec; cs != nil {
+			// if there is no config in the credspec, then this will just be
+			// assigned to emptystring anyway, so we don't need to check
+			// existence.
+			credSpecConfig = cs.GetConfig()
+		}
+	}
+
 	// Keep a map to track all the targets that will be exposed
 	// The string returned is only used for logging. It could as well be struct{}{}
 	existingTargets := make(map[string]string)
@@ -421,6 +436,20 @@ func validateConfigRefsSpec(spec api.TaskSpec) error {
 
 			existingTargets[fileName] = configRef.ConfigName
 		}
+
+		if configRef.GetRuntime() != nil {
+			if configRef.ConfigID == credSpecConfig {
+				credSpecConfigFound = true
+			}
+		}
+	}
+
+	if credSpecConfig != "" && !credSpecConfigFound {
+		return status.Errorf(
+			codes.InvalidArgument,
+			"CredentialSpec references config '%s', but that config isn't in config references with RuntimeTarget",
+			credSpecConfig,
+		)
 	}
 
 	return nil
