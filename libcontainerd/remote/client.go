@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
+	hcsoptions "github.com/Microsoft/hcsshim/cmd/containerd-shim-runhcs-v1/options"
 	"github.com/containerd/containerd"
 	apievents "github.com/containerd/containerd/api/events"
 	"github.com/containerd/containerd/api/types"
@@ -24,6 +24,7 @@ import (
 	"github.com/containerd/containerd/events"
 	"github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/runtime/linux/runctypes"
+	runcoptions "github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/containerd/typeurl"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/libcontainerd/queue"
@@ -293,7 +294,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 		func(_ context.Context, _ *containerd.Client, info *containerd.TaskInfo) error {
 			info.Checkpoint = cp
 			if runtime.GOOS != "windows" {
-				info.Options = &runctypes.CreateOptions{
+				info.Options = &runcoptions.Options{
 					IoUid:       uint32(uid),
 					IoGid:       uint32(gid),
 					NoPivotRoot: os.Getenv("DOCKER_RAMDISK") != "",
@@ -301,7 +302,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 			} else {
 				// Make sure we set the runhcs options to debug if we are at debug level.
 				if c.logger.Level == logrus.DebugLevel {
-					info.Options = &options.Options{Debug: true}
+					info.Options = &hcsoptions.Options{Debug: true}
 				}
 			}
 			return nil

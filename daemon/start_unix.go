@@ -7,7 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
-	"github.com/containerd/containerd/runtime/linux/runctypes"
+	"github.com/containerd/containerd/runtime/v2/runc/options"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
 	"github.com/pkg/errors"
@@ -39,13 +39,8 @@ func (daemon *Daemon) getLibcontainerdCreateOptions(container *container.Contain
 		container.CheckpointTo(daemon.containersReplica)
 	}
 
-	path, err := daemon.getRuntimeScript(container)
-	if err != nil {
-		return nil, err
-	}
-	opts := &runctypes.RuncOptions{
-		Runtime: path,
-		RuntimeRoot: filepath.Join(daemon.configStore.ExecRoot,
+	opts := &options.Options{
+		Root: filepath.Join(daemon.configStore.ExecRoot,
 			fmt.Sprintf("runtime-%s", container.HostConfig.Runtime)),
 	}
 
