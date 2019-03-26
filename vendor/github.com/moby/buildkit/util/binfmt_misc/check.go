@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"syscall"
 )
 
 func check(bin string) error {
@@ -35,5 +36,10 @@ func check(bin string) error {
 	}
 	f.Close()
 
-	return exec.Command(pp).Run()
+	cmd := exec.Command("/check")
+	cmd.SysProcAttr = &syscall.SysProcAttr{
+		Chroot: tmpdir,
+	}
+	err = cmd.Run()
+	return err
 }

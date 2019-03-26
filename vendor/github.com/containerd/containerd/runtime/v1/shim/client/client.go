@@ -20,10 +20,12 @@ package client
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 	"syscall"
@@ -107,6 +109,10 @@ func WithStart(binary, address, daemonAddress, cgroup string, debug bool, exitHa
 			"address": address,
 			"debug":   debug,
 		}).Infof("shim %s started", binary)
+
+		if err := writeAddress(filepath.Join(config.Path, "address"), address); err != nil {
+			return nil, nil, err
+		}
 		// set shim in cgroup if it is provided
 		if cgroup != "" {
 			if err := setCgroup(cgroup, cmd); err != nil {
@@ -164,6 +170,25 @@ func newCommand(binary, daemonAddress string, debug bool, config shim.Config, so
 	cmd.Stdout = stdout
 	cmd.Stderr = stderr
 	return cmd, nil
+}
+
+// writeAddress writes a address file atomically
+func writeAddress(path, address string) error {
+	path, err := filepath.Abs(path)
+	if err != nil {
+		return err
+	}
+	tempPath := filepath.Join(filepath.Dir(path), fmt.Sprintf(".%s", filepath.Base(path)))
+	f, err := os.OpenFile(tempPath, os.O_RDWR|os.O_CREATE|os.O_EXCL|os.O_SYNC, 0666)
+	if err != nil {
+		return err
+	}
+	_, err = f.WriteString(address)
+	f.Close()
+	if err != nil {
+		return err
+	}
+	return os.Rename(tempPath, path)
 }
 
 func newSocket(address string) (*net.UnixListener, error) {
