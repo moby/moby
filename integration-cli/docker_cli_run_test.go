@@ -1887,7 +1887,7 @@ func (s *DockerSuite) TestRunBindMounts(c *check.C) {
 
 	if testEnv.OSType == "windows" {
 		// Disabled prior to RS5 due to how volumes are mapped
-		testRequires(c,  DaemonIsWindowsAtLeastBuild(17763))
+		testRequires(c, DaemonIsWindowsAtLeastBuild(17763))
 	}
 
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
