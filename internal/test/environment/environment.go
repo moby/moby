@@ -8,9 +8,12 @@ import (
 	"strings"
 
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/internal/test"
 	"github.com/docker/docker/internal/test/fixtures/load"
 	"github.com/pkg/errors"
+	"gotest.tools/assert"
 )
 
 // Execution contains information about the current test execution and daemon
@@ -149,6 +152,26 @@ func (e *Execution) APIClient() client.APIClient {
 func (e *Execution) IsUserNamespace() bool {
 	root := os.Getenv("DOCKER_REMAP_ROOT")
 	return root != ""
+}
+
+// HasExistingImage checks whether there is an image with the given reference.
+// Note that this is done by filtering and then checking whether there were any
+// results -- so ambiguous references might result in false-positives.
+func (e *Execution) HasExistingImage(t assert.TestingT, reference string) bool {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
+	client := e.APIClient()
+	filter := filters.NewArgs()
+	filter.Add("dangling", "false")
+	filter.Add("reference", reference)
+	imageList, err := client.ImageList(context.Background(), types.ImageListOptions{
+		All:     true,
+		Filters: filter,
+	})
+	assert.NilError(t, err, "failed to list images")
+
+	return len(imageList) > 0
 }
 
 // EnsureFrozenImagesLinux loads frozen test images into the daemon
