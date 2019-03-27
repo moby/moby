@@ -74,12 +74,12 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	progressOutput := streamformatter.NewJSONProgressOutput(outStream, false)
 	ongoing := newJobs(ref.Name())
 	pctx, stopProgress := context.WithCancel(ctx)
-	progress := make(chan struct{})
+	progressC := make(chan struct{})
 
 	go func() {
 		// no progress bar, because it hides some debug logs
 		showProgress(pctx, ongoing, ref, i.client.ContentStore(), progressOutput)
-		close(progress)
+		close(progressC)
 	}()
 
 	h := images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
@@ -200,24 +200,29 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 		}
 	}
 
+	fref := reference.FamiliarString(ref)
 	c, err := reference.WithDigest(ref, img.Target.Digest)
 	if err != nil {
 		return errors.Wrap(err, "failed to create digest ref")
 	}
 
+	var newImage bool
 	img.Name = c.String()
 	_, err = i.client.ImageService().Create(ctx, img)
 	if err != nil {
-		if ctrerrdefs.IsAlreadyExists(err) {
-			_, err = i.client.ImageService().Update(ctx, img)
-		}
-		if err != nil {
+		if !ctrerrdefs.IsAlreadyExists(err) {
 			return errors.Wrap(err, "failed to create image")
 		}
+	} else {
+		newImage = true
 	}
 
 	stopProgress()
-	<-progress
+	<-progressC
+	progress.Messagef(progressOutput, "", "Digest: %s", img.Target.Digest.String())
+	if newImage {
+		progress.Messagef(progressOutput, "", "Downloaded newer image for %s", fref)
+	}
 	return nil
 }
 
