@@ -23,14 +23,26 @@ func (e *Execution) Clean(t assert.TestingT) {
 
 	platform := e.OSType
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
+		t.Log("start unpauseAllContainers")
 		unpauseAllContainers(t, client)
+		t.Log("end unpauseAllContainers")
 	}
+	t.Log("start deleteAllContainers")
 	deleteAllContainers(t, client, e.protectedElements.containers)
+	t.Log("end deleteAllContainers")
+	t.Log("start deleteAllImages")
 	deleteAllImages(t, client, e.protectedElements.images)
+	t.Log("end deleteAllImages")
+	t.Log("start deleteAllVolumes")
 	deleteAllVolumes(t, client, e.protectedElements.volumes)
+	t.Log("end deleteAllVolumes")
+	t.Log("start deleteAllNetworks")
 	deleteAllNetworks(t, client, platform, e.protectedElements.networks)
+	t.Log("end deleteAllNetworks")
 	if platform == "linux" {
+		t.Log("start deleteAllPlugins")
 		deleteAllPlugins(t, client, e.protectedElements.plugins)
+		t.Log("end deleteAllPlugins")
 	}
 }
 
