@@ -40,6 +40,25 @@ func TestCheckpoint(t *testing.T) {
 	t.Logf("%s", stdoutStderr)
 	assert.NilError(t, err)
 
+	{
+		// FIXME: ipv6 iptables modules are not uploaded in the test environment
+		cmd := exec.Command("bash", "-c", "set -x; "+
+			"mount --bind $(type -P true) $(type -P ip6tables-restore) && "+
+			"mount --bind $(type -P true) $(type -P ip6tables-save)")
+		stdoutStderr, err = cmd.CombinedOutput()
+		t.Logf("%s", stdoutStderr)
+		assert.NilError(t, err)
+
+		defer func() {
+			cmd := exec.Command("bash", "-c", "set -x; "+
+				"umount -c -i -l $(type -P ip6tables-restore); "+
+				"umount -c -i -l $(type -P ip6tables-save)")
+			stdoutStderr, err = cmd.CombinedOutput()
+			t.Logf("%s", stdoutStderr)
+			assert.NilError(t, err)
+		}()
+	}
+
 	ctx := context.Background()
 	client := request.NewAPIClient(t)
 
@@ -58,25 +77,6 @@ func TestCheckpoint(t *testing.T) {
 	cptOpt := types.CheckpointCreateOptions{
 		Exit:         false,
 		CheckpointID: "test",
-	}
-
-	{
-		// FIXME: ipv6 iptables modules are not uploaded in the test environment
-		cmd := exec.Command("bash", "-c", "set -x; "+
-			"mount --bind $(type -P true) $(type -P ip6tables-restore) && "+
-			"mount --bind $(type -P true) $(type -P ip6tables-save)")
-		stdoutStderr, err = cmd.CombinedOutput()
-		t.Logf("%s", stdoutStderr)
-		assert.NilError(t, err)
-
-		defer func() {
-			cmd := exec.Command("bash", "-c", "set -x; "+
-				"umount -c -i -l $(type -P ip6tables-restore); "+
-				"umount -c -i -l $(type -P ip6tables-save)")
-			stdoutStderr, err = cmd.CombinedOutput()
-			t.Logf("%s", stdoutStderr)
-			assert.NilError(t, err)
-		}()
 	}
 	t.Log("Do a checkpoint and leave the container running")
 	err = client.CheckpointCreate(ctx, cID, cptOpt)

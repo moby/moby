@@ -742,6 +742,8 @@ func (c *client) processEvent(ctr *container, et libcontainerdtypes.EventType, e
 				c.logger.WithError(err).WithFields(logrus.Fields{
 					"container": ei.ContainerID,
 					"process":   ei.ProcessID,
+					"p.ID":      p.ID(),
+					"p.PID":     p.Pid(),
 				}).Warn("failed to delete process")
 			}
 			ctr.deleteProcess(ei.ProcessID)

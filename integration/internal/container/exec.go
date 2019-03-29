@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
+	"github.com/pkg/errors"
 )
 
 // ExecResult represents a result returned from Exec()
@@ -80,6 +81,9 @@ func Exec(ctx context.Context, cli client.APIClient, id string, cmd []string) (E
 	iresp, err := cli.ContainerExecInspect(ctx, execID)
 	if err != nil {
 		return ExecResult{}, err
+	}
+	if iresp.Running == true {
+		return ExecResult{}, errors.New("exec still running!")
 	}
 
 	return ExecResult{ExitCode: iresp.ExitCode, outBuffer: &outBuf, errBuffer: &errBuf}, nil
