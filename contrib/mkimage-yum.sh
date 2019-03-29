@@ -30,9 +30,9 @@ if [ -f /etc/dnf/dnf.conf ] && command -v dnf &> /dev/null; then
 	yum_config=/etc/dnf/dnf.conf
 	alias yum=dnf
 fi
-install_groups=('Core')
 # for names with spaces, use double quotes (") as install_groups=('Core' '"Compute Node"')
-install_packages=('')
+install_groups=()
+install_packages=()
 version=
 while getopts ":y:p:g:t:h" opt; do
     case $opt in
@@ -62,6 +62,11 @@ name=$1
 
 if [[ -z $name ]]; then
     usage
+fi
+
+# default to Core group if not specified otherwise
+if [ ${#install_groups[*]} -eq 0 ]; then
+   install_groups=('Core')
 fi
 
 target=$(mktemp -d --tmpdir $(basename $0).XXXXXX)
