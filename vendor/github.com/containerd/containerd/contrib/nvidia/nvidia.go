@@ -29,7 +29,8 @@ import (
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 )
 
-const nvidiaCLI = "nvidia-container-cli"
+// NvidiaCLI is the path to the Nvidia helper binary
+const NvidiaCLI = "nvidia-container-cli"
 
 // Capability specifies capabilities for the gpu inside the container
 // Detailed explanation of options can be found:
@@ -51,13 +52,16 @@ const (
 	Display Capability = "display"
 )
 
-var allCaps = []Capability{
-	Compute,
-	Compat32,
-	Graphics,
-	Utility,
-	Video,
-	Display,
+// AllCaps returns the complete list of supported Nvidia capabilties.
+func AllCaps() []Capability {
+	return []Capability{
+		Compute,
+		Compat32,
+		Graphics,
+		Utility,
+		Video,
+		Display,
+	}
 }
 
 // WithGPUs adds NVIDIA gpu support to a container
@@ -76,7 +80,7 @@ func WithGPUs(opts ...Opts) oci.SpecOpts {
 			}
 			c.OCIHookPath = path
 		}
-		nvidiaPath, err := exec.LookPath(nvidiaCLI)
+		nvidiaPath, err := exec.LookPath(NvidiaCLI)
 		if err != nil {
 			return err
 		}
@@ -166,7 +170,7 @@ func WithAllDevices(c *config) error {
 
 // WithAllCapabilities adds all capabilities to the container for the gpus
 func WithAllCapabilities(c *config) error {
-	c.Capabilities = allCaps
+	c.Capabilities = AllCaps()
 	return nil
 }
 
