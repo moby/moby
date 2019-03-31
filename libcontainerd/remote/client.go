@@ -515,7 +515,7 @@ func (c *client) DeleteTask(ctx context.Context, containerID string) (uint32, ti
 		return 255, time.Now(), nil
 	}
 
-	status, err := p.(containerd.Task).Delete(ctx)
+	status, err := p.(containerd.Task).Delete(ctx, containerd.WithProcessKill)
 	if err != nil {
 		return 255, time.Now(), nil
 	}
