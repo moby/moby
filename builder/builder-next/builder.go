@@ -31,6 +31,7 @@ import (
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/grpc"
 	grpcmetadata "google.golang.org/grpc/metadata"
 )
 
@@ -102,6 +103,11 @@ func New(opt Opt) (*Builder, error) {
 		jobs:           map[string]*buildJob{},
 	}
 	return b, nil
+}
+
+// RegisterGRPC registers controller to the grpc server.
+func (b *Builder) RegisterGRPC(s *grpc.Server) {
+	b.controller.Register(s)
 }
 
 // Cancel cancels a build using ID
