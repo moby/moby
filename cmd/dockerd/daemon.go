@@ -21,6 +21,7 @@ import (
 	checkpointrouter "github.com/docker/docker/api/server/router/checkpoint"
 	"github.com/docker/docker/api/server/router/container"
 	distributionrouter "github.com/docker/docker/api/server/router/distribution"
+	grpcrouter "github.com/docker/docker/api/server/router/grpc"
 	"github.com/docker/docker/api/server/router/image"
 	"github.com/docker/docker/api/server/router/network"
 	pluginrouter "github.com/docker/docker/api/server/router/plugin"
@@ -479,6 +480,16 @@ func initRouter(opts routerOptions) {
 		swarmrouter.NewRouter(opts.cluster),
 		pluginrouter.NewRouter(opts.daemon.PluginManager()),
 		distributionrouter.NewRouter(opts.daemon.ImageService()),
+	}
+
+	grpcBackends := []grpcrouter.Backend{}
+	for _, b := range []interface{}{opts.daemon, opts.buildBackend} {
+		if b, ok := b.(grpcrouter.Backend); ok {
+			grpcBackends = append(grpcBackends, b)
+		}
+	}
+	if len(grpcBackends) > 0 {
+		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
 	}
 
 	if opts.daemon.NetworkControllerEnabled() {
