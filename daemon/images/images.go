@@ -143,7 +143,21 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 
 		newImage := newImage(img, size)
 
+		// we will keep track of last tag and digest values and combine them later if required
+		repoTag := ""
+		repoDigest := ""
+		idFilterMatched := false
 		for _, ref := range i.referenceStore.References(id.Digest()) {
+			_, isCanonical := ref.(reference.Canonical)
+			_, isNamedTagged := ref.(reference.NamedTagged)
+
+			if isCanonical {
+				repoDigest = reference.FamiliarString(ref)
+			}
+			if isNamedTagged {
+				repoTag = reference.FamiliarString(ref)
+			}
+
 			if imageFilters.Contains("reference") {
 				var found bool
 				var matchErr error
@@ -153,6 +167,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 						return nil, matchErr
 					}
 					if found {
+						idFilterMatched = true
 						break
 					}
 				}
@@ -160,13 +175,26 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 					continue
 				}
 			}
-			if _, ok := ref.(reference.Canonical); ok {
-				newImage.RepoDigests = append(newImage.RepoDigests, reference.FamiliarString(ref))
+
+			if isCanonical {
+				newImage.RepoDigests = append(newImage.RepoDigests, repoDigest)
 			}
-			if _, ok := ref.(reference.NamedTagged); ok {
-				newImage.RepoTags = append(newImage.RepoTags, reference.FamiliarString(ref))
+			if isNamedTagged {
+				newImage.RepoTags = append(newImage.RepoTags, repoTag)
 			}
 		}
+
+		// no need to enter this block if no filter was specified, since everything is added to the list either way
+		if idFilterMatched {
+			if len(newImage.RepoDigests) == 0 && repoDigest != "" {
+				newImage.RepoDigests = append(newImage.RepoDigests, repoDigest)
+			}
+
+			if len(newImage.RepoTags) == 0 && repoTag != "" {
+				newImage.RepoTags = append(newImage.RepoTags, repoTag)
+			}
+		}
+
 		if newImage.RepoDigests == nil && newImage.RepoTags == nil {
 			if all || len(i.imageStore.Children(id)) == 0 {
 
