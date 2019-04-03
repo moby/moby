@@ -388,7 +388,17 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 				Warn("Unable to unmount")
 		}
 	}
-	return container.UnmountVolumes(volumeEventLog)
+
+	err := container.UnmountVolumes(volumeEventLog)
+
+	// (daemon *).mountVolumes() calls mount.MakeRUnbindable() for
+	// container root, which results in an extra bind mount in case
+	// vfs graph driver is used. Undo this.
+	if root, err := container.GetResourcePath(""); err == nil {
+		mount.Unmount(root)
+	}
+
+	return err
 }
 
 // ignoreUnsupportedXAttrs ignores errors when extended attributes

@@ -118,6 +118,28 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 		return err
 	}
 
+	// mountVolumes() is called to temporary mount volumes to the host,
+	// for the purpose of copying the files to/from a container.
+	// If the container bind mounts part of host filesystem including
+	// the daemon root (e.g. `docker run -v /var:/hostvar`), AND there
+	// is another mount namespace on the host (such as one created by
+	// systemd unit file with PrivateTmp=true), this leads to some kind
+	// of vicious circle, in which all the mounts from the container
+	// will be multiplied in that other mount namespace, eventually
+	// leading to kernel mount table exhaustion, making any mount
+	// return ENOSPC (aka "can't mount: no space left on device").
+	//
+	// To solve this crysis, make container root (to which all the volumes
+	// will be mounted) unbindable, thus breaking the vicious circle.
+	// This relies on container being locked for the whole duration
+	// of copy operation, and needs to be undone, which happens in
+	// (container *).DetachAndUnmount().
+	root, err := container.GetResourcePath("")
+	if err != nil {
+		return err
+	}
+	mount.MakeRUnbindable(root)
+
 	for _, m := range mounts {
 		dest, err := container.GetResourcePath(m.Destination)
 		if err != nil {
