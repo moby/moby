@@ -333,6 +333,11 @@ func writeCon(fpath string, val string) error {
 	if fpath == "" {
 		return ErrEmptyPath
 	}
+	if val == "" {
+		if !GetEnabled() {
+			return nil
+		}
+	}
 
 	out, err := os.OpenFile(fpath, os.O_WRONLY, 0)
 	if err != nil {
