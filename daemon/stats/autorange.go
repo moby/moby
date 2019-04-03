@@ -43,12 +43,11 @@ package stats // import "github.com/docker/docker/daemon/stats"
 */
 
 import (
+	"context"
 	"math"
 	"strconv"
 	"strings"
 	"time"
-
-	"context"
 
 	ctn "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
@@ -332,12 +331,12 @@ func (ar *AutoRangeWatcher) Watch() {
 	if ar.IsActivated("memory") {
 		min, _ = strconv.Atoi(ar.Config["memory"]["min"])
 		if min == 0 {
-			min = 1
+			min = 10000
 		}
 
 		max, _ = strconv.Atoi(ar.Config["memory"]["max"])
 		if max == 0 {
-			max = 1
+			max = 20000
 		}
 
 		threshold, _ = strconv.Atoi(ar.Config["memory"]["threshold"])
@@ -436,6 +435,7 @@ func (ar *AutoRangeWatcher) Watch() {
 					// we can assume that the optimal limits can be calculated
 					medAmplitude, lenSerie := averrage(ar.Obs.TimeSerieRAM.amplitude), len(ar.Obs.TimeSerieRAM.PredictedValues.min)
 					ar.Obs.TimeSerieRAM.PredictedValues.threshold = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.threshold, medAmplitude, ar.Limit)
+					threshold = int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold))
 					if lenSerie >= ar.Limit || (lenSerie > ar.Limit/2 && medAmplitude <= 2) {
 
 						// This flag is set to stop data gathering and enable limit application
@@ -445,7 +445,7 @@ func (ar *AutoRangeWatcher) Watch() {
 					// Display result
 					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
 					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
-					ar.Config["memoryAR"]["opti"] = strconv.Itoa(int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold)))
+					ar.Config["memoryAR"]["opti"] = strconv.Itoa(threshold)
 					ar.Config["memoryAR"]["usage"] = strconv.Itoa(int(input.Stats.MemoryStats.Usage))
 				} else {
 					memoryTurn++
@@ -565,14 +565,14 @@ func averrage(array []uint64) (total uint64) {
 func processMemoryStats(mUsage uint64, min, max, threshold int) (int, int) {
 	usage := int(mUsage)
 
-	if usage > min+percent(max-min)*threshold {
+	if usage > (min+percent(max-min)/100)*threshold {
 
 		distance := percentageBetween(min, usage)
 
 		min += distance * percent(min)
 		max = min + threshold*percent(min)
 
-	} else if usage < (min-percent(max-min))*threshold {
+	} else if usage < (min-percent(max-min)/100)*threshold {
 
 		min = usage + threshold*percent(usage)
 		max = min + threshold*percent(min)
