@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/exporter"
 	"github.com/moby/buildkit/session"
@@ -68,6 +69,7 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source)
 		return func() error {
 			var src string
 			var err error
+			var idmap *idtools.IdentityMapping
 			if ref == nil {
 				src, err = ioutil.TempDir("", "buildkit")
 				if err != nil {
@@ -86,17 +88,40 @@ func (e *localExporterInstance) Export(ctx context.Context, inp exporter.Source)
 				if err != nil {
 					return err
 				}
+
+				idmap = mount.IdentityMapping()
+
 				defer lm.Unmount()
 			}
 
-			fs := fsutil.NewFS(src, nil)
+			walkOpt := &fsutil.WalkOpt{}
+
+			if idmap != nil {
+				walkOpt.Map = func(p string, st *fstypes.Stat) bool {
+					uid, gid, err := idmap.ToContainer(idtools.Identity{
+						UID: int(st.Uid),
+						GID: int(st.Gid),
+					})
+					if err != nil {
+						return false
+					}
+					st.Uid = uint32(uid)
+					st.Gid = uint32(gid)
+					return true
+				}
+			}
+
+			fs := fsutil.NewFS(src, walkOpt)
 			lbl := "copying files"
 			if isMap {
 				lbl += " " + k
-				fs = fsutil.SubDirFS(fs, fstypes.Stat{
+				fs, err = fsutil.SubDirFS([]fsutil.Dir{{FS: fs, Stat: fstypes.Stat{
 					Mode: uint32(os.ModeDir | 0755),
 					Path: strings.Replace(k, "/", "_", -1),
-				})
+				}}})
+				if err != nil {
+					return err
+				}
 			}
 
 			progress := newProgressHandler(ctx, lbl)

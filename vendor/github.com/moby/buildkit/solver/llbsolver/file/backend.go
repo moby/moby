@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/containerd/continuity/fs"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver/llbsolver/ops/fileoptypes"
 	"github.com/moby/buildkit/solver/pb"
@@ -25,8 +26,31 @@ func timestampToTime(ts int64) *time.Time {
 	return &tm
 }
 
-func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.ChownOpt) error {
+func mapUser(user *copy.ChownOpt, idmap *idtools.IdentityMapping) (*copy.ChownOpt, error) {
+	if idmap == nil {
+		return user, nil
+	}
+	if user == nil {
+		identity := idmap.RootPair()
+		return &copy.ChownOpt{Uid: identity.UID, Gid: identity.GID}, nil
+	}
+	identity, err := idmap.ToHost(idtools.Identity{
+		UID: user.Uid,
+		GID: user.Gid,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &copy.ChownOpt{Uid: identity.UID, Gid: identity.GID}, nil
+}
+
+func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
 	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
+	if err != nil {
+		return err
+	}
+
+	user, err = mapUser(user, idmap)
 	if err != nil {
 		return err
 	}
@@ -53,8 +77,13 @@ func mkdir(ctx context.Context, d string, action pb.FileActionMkDir, user *copy.
 	return nil
 }
 
-func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *copy.ChownOpt) error {
+func mkfile(ctx context.Context, d string, action pb.FileActionMkFile, user *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
 	p, err := fs.RootPath(d, filepath.Join(filepath.Join("/", action.Path)))
+	if err != nil {
+		return err
+	}
+
+	user, err = mapUser(user, idmap)
 	if err != nil {
 		return err
 	}
@@ -90,7 +119,7 @@ func rm(ctx context.Context, d string, action pb.FileActionRm) error {
 	return nil
 }
 
-func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.ChownOpt) error {
+func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *copy.ChownOpt, idmap *idtools.IdentityMapping) error {
 	srcPath := cleanPath(action.Src)
 	destPath := cleanPath(action.Dest)
 
@@ -107,6 +136,12 @@ func docopy(ctx context.Context, src, dest string, action pb.FileActionCopy, u *
 	xattrErrorHandler := func(dst, src, key string, err error) error {
 		log.Println(err)
 		return nil
+	}
+
+	// TODO(tonistiigi): this is wrong. fsutil.Copy can't handle non-forced user
+	u, err := mapUser(u, idmap)
+	if err != nil {
+		return err
 	}
 
 	opt := []copy.Opt{
@@ -195,7 +230,7 @@ func (fb *Backend) Mkdir(ctx context.Context, m, user, group fileoptypes.Mount, 
 		return err
 	}
 
-	return mkdir(ctx, dir, action, u)
+	return mkdir(ctx, dir, action, u, mnt.m.IdentityMapping())
 }
 
 func (fb *Backend) Mkfile(ctx context.Context, m, user, group fileoptypes.Mount, action pb.FileActionMkFile) error {
@@ -216,7 +251,7 @@ func (fb *Backend) Mkfile(ctx context.Context, m, user, group fileoptypes.Mount,
 		return err
 	}
 
-	return mkfile(ctx, dir, action, u)
+	return mkfile(ctx, dir, action, u, mnt.m.IdentityMapping())
 }
 func (fb *Backend) Rm(ctx context.Context, m fileoptypes.Mount, action pb.FileActionRm) error {
 	mnt, ok := m.(*Mount)
@@ -262,5 +297,5 @@ func (fb *Backend) Copy(ctx context.Context, m1, m2, user, group fileoptypes.Mou
 		return err
 	}
 
-	return docopy(ctx, src, dest, action, u)
+	return docopy(ctx, src, dest, action, u, mnt2.m.IdentityMapping())
 }

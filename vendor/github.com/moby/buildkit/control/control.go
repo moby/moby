@@ -32,6 +32,7 @@ type Opt struct {
 	CacheKeyStorage           solver.CacheKeyStorage
 	ResolveCacheExporterFuncs map[string]remotecache.ResolveCacheExporterFunc
 	ResolveCacheImporterFuncs map[string]remotecache.ResolveCacheImporterFunc
+	Entitlements              []string
 }
 
 type Controller struct { // TODO: ControlService
@@ -48,7 +49,7 @@ func NewController(opt Opt) (*Controller, error) {
 
 	gatewayForwarder := controlgateway.NewGatewayForwarder()
 
-	solver, err := llbsolver.New(opt.WorkerController, opt.Frontends, cache, opt.ResolveCacheImporterFuncs, gatewayForwarder, opt.SessionManager)
+	solver, err := llbsolver.New(opt.WorkerController, opt.Frontends, cache, opt.ResolveCacheImporterFuncs, gatewayForwarder, opt.SessionManager, opt.Entitlements)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create solver")
 	}

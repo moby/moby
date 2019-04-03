@@ -6,7 +6,7 @@ import (
 	api "github.com/containerd/containerd/api/services/content/v1"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
-	contentservice "github.com/containerd/containerd/services/content"
+	"github.com/containerd/containerd/services/content/contentserver"
 	"github.com/moby/buildkit/session"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -120,7 +120,7 @@ type attachable struct {
 // A key of the store map is an ID string that is used for choosing underlying store.
 func NewAttachable(stores map[string]content.Store) session.Attachable {
 	store := &attachableContentStore{stores: stores}
-	service := contentservice.NewService(store)
+	service := contentserver.New(store)
 	a := attachable{
 		service: service,
 	}

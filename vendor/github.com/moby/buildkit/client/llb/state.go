@@ -214,6 +214,7 @@ func (s State) Run(ro ...RunOption) ExecState {
 		ProxyEnv:   ei.ProxyEnv,
 		ExtraHosts: getExtraHosts(ei.State),
 		Network:    getNetwork(ei.State),
+		Security:   getSecurity(ei.State),
 	}
 
 	exec := NewExecOp(s.Output(), meta, ei.ReadonlyRootFS, ei.Constraints)
@@ -291,6 +292,13 @@ func (s State) Network(n pb.NetMode) State {
 
 func (s State) GetNetwork() pb.NetMode {
 	return getNetwork(s)
+}
+func (s State) Security(n pb.SecurityMode) State {
+	return security(n)(s)
+}
+
+func (s State) GetSecurity() pb.SecurityMode {
+	return getSecurity(s)
 }
 
 func (s State) With(so ...StateOption) State {

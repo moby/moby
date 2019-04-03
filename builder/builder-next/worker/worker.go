@@ -25,6 +25,7 @@ import (
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/exporter"
 	localexporter "github.com/moby/buildkit/exporter/local"
+	tarexporter "github.com/moby/buildkit/exporter/tar"
 	"github.com/moby/buildkit/frontend"
 	gw "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session"
@@ -211,6 +212,10 @@ func (w *Worker) Exporter(name string, sm *session.Manager) (exporter.Exporter, 
 		return w.Opt.Exporter, nil
 	case client.ExporterLocal:
 		return localexporter.New(localexporter.Opt{
+			SessionManager: sm,
+		})
+	case client.ExporterTar:
+		return tarexporter.New(tarexporter.Opt{
 			SessionManager: sm,
 		})
 	default:

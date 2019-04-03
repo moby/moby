@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/containerd/containerd/contrib/seccomp"
 	"github.com/containerd/containerd/mount"
 	containerdoci "github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
 	runc "github.com/containerd/go-runc"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/oci"
@@ -25,7 +25,6 @@ import (
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/util/network"
 	rootlessspecconv "github.com/moby/buildkit/util/rootless/specconv"
-	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
@@ -40,7 +39,8 @@ type Opt struct {
 	// DefaultCgroupParent is the cgroup-parent name for executor
 	DefaultCgroupParent string
 	// ProcessMode
-	ProcessMode oci.ProcessMode
+	ProcessMode     oci.ProcessMode
+	IdentityMapping *idtools.IdentityMapping
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -53,6 +53,7 @@ type runcExecutor struct {
 	rootless         bool
 	networkProviders map[pb.NetMode]network.Provider
 	processMode      oci.ProcessMode
+	idmap            *idtools.IdentityMapping
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -109,6 +110,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		rootless:         opt.Rootless,
 		networkProviders: networkProviders,
 		processMode:      opt.ProcessMode,
+		idmap:            opt.IdentityMapping,
 	}
 	return w, nil
 }
@@ -159,8 +161,14 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		return err
 	}
 	defer os.RemoveAll(bundle)
+
+	identity := idtools.Identity{}
+	if w.idmap != nil {
+		identity = w.idmap.RootPair()
+	}
+
 	rootFSPath := filepath.Join(bundle, "rootfs")
-	if err := os.Mkdir(rootFSPath, 0700); err != nil {
+	if err := idtools.MkdirAllAndChown(rootFSPath, 0700, identity); err != nil {
 		return err
 	}
 	if err := mount.All(rootMount, rootFSPath); err != nil {
@@ -180,9 +188,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	defer f.Close()
 
 	opts := []containerdoci.SpecOpts{oci.WithUIDGID(uid, gid, sgids)}
-	if system.SeccompSupported() {
-		opts = append(opts, seccomp.WithDefaultProfile())
-	}
+
 	if meta.ReadonlyRootFS {
 		opts = append(opts, containerdoci.WithRootFSReadonly())
 	}
@@ -197,7 +203,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		}
 		opts = append(opts, containerdoci.WithCgroup(cgroupsPath))
 	}
-	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, opts...)
+	spec, cleanup, err := oci.GenerateSpec(ctx, meta, mounts, id, resolvConf, hostsFile, namespace, w.processMode, w.idmap, opts...)
 	if err != nil {
 		return err
 	}
@@ -212,7 +218,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 	if err != nil {
 		return errors.Wrapf(err, "working dir %s points to invalid target", newp)
 	}
-	if err := os.MkdirAll(newp, 0755); err != nil {
+	if err := idtools.MkdirAllAndChown(newp, 0755, identity); err != nil {
 		return errors.Wrapf(err, "failed to create working directory %s", newp)
 	}
 

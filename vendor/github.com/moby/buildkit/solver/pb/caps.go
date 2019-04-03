@@ -33,6 +33,7 @@ const (
 	CapExecMetaBase            apicaps.CapID = "exec.meta.base"
 	CapExecMetaProxy           apicaps.CapID = "exec.meta.proxyenv"
 	CapExecMetaNetwork         apicaps.CapID = "exec.meta.network"
+	CapExecMetaSecurity        apicaps.CapID = "exec.meta.security"
 	CapExecMetaSetsDefaultPath apicaps.CapID = "exec.meta.setsdefaultpath"
 	CapExecMountBind           apicaps.CapID = "exec.mount.bind"
 	CapExecMountCache          apicaps.CapID = "exec.mount.cache"
@@ -176,6 +177,12 @@ func init() {
 
 	Caps.Init(apicaps.Cap{
 		ID:      CapExecMetaSetsDefaultPath,
+		Enabled: true,
+		Status:  apicaps.CapStatusExperimental,
+	})
+
+	Caps.Init(apicaps.Cap{
+		ID:      CapExecMetaSecurity,
 		Enabled: true,
 		Status:  apicaps.CapStatusExperimental,
 	})

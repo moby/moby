@@ -20,6 +20,7 @@ package linux
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -103,7 +104,7 @@ func ShimLocal(c *Config, exchange *exchange.Exchange) ShimOpt {
 // ShimConnect is a ShimOpt for connecting to an existing remote shim
 func ShimConnect(c *Config, onClose func()) ShimOpt {
 	return func(b *bundle, ns string, ropts *runctypes.RuncOptions) (shim.Config, client.Opt) {
-		return b.shimConfig(ns, c, ropts), client.WithConnect(b.shimAddress(ns), onClose)
+		return b.shimConfig(ns, c, ropts), client.WithConnect(b.decideShimAddress(ns), onClose)
 	}
 }
 
@@ -127,8 +128,30 @@ func (b *bundle) Delete() error {
 	return errors.Wrapf(err, "Failed to remove both bundle and workdir locations: %v", err2)
 }
 
-func (b *bundle) shimAddress(namespace string) string {
+func (b *bundle) legacyShimAddress(namespace string) string {
 	return filepath.Join(string(filepath.Separator), "containerd-shim", namespace, b.id, "shim.sock")
+}
+
+func (b *bundle) shimAddress(namespace string) string {
+	d := sha256.Sum256([]byte(filepath.Join(namespace, b.id)))
+	return filepath.Join(string(filepath.Separator), "containerd-shim", fmt.Sprintf("%x.sock", d))
+}
+
+func (b *bundle) loadAddress() (string, error) {
+	addressPath := filepath.Join(b.path, "address")
+	data, err := ioutil.ReadFile(addressPath)
+	if err != nil {
+		return "", err
+	}
+	return string(data), nil
+}
+
+func (b *bundle) decideShimAddress(namespace string) string {
+	address, err := b.loadAddress()
+	if err != nil {
+		return b.legacyShimAddress(namespace)
+	}
+	return address
 }
 
 func (b *bundle) shimConfig(namespace string, c *Config, runcOptions *runctypes.RuncOptions) shim.Config {

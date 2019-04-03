@@ -2,6 +2,6 @@
 
 package binfmt_misc
 
-func arm64Supported() bool {
-	return check(Binaryarm64) == nil
+func arm64Supported() error {
+	return check(Binaryarm64)
 }

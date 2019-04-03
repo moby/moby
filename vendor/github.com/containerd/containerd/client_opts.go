@@ -194,3 +194,12 @@ func WithMaxConcurrentDownloads(max int) RemoteOpt {
 		return nil
 	}
 }
+
+// WithAppendDistributionSourceLabel allows fetcher to add distribute source
+// label for each blob content, which doesn't work for legacy schema1.
+func WithAppendDistributionSourceLabel() RemoteOpt {
+	return func(_ *Client, c *RemoteContext) error {
+		c.AppendDistributionSourceLabel = true
+		return nil
+	}
+}

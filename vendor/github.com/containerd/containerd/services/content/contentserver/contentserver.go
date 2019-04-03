@@ -14,7 +14,7 @@
    limitations under the License.
 */
 
-package content
+package contentserver
 
 import (
 	"context"
@@ -25,8 +25,6 @@ import (
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/log"
-	"github.com/containerd/containerd/plugin"
-	"github.com/containerd/containerd/services"
 	ptypes "github.com/gogo/protobuf/types"
 	digest "github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -48,35 +46,8 @@ var bufPool = sync.Pool{
 	},
 }
 
-var _ api.ContentServer = &service{}
-
-func init() {
-	plugin.Register(&plugin.Registration{
-		Type: plugin.GRPCPlugin,
-		ID:   "content",
-		Requires: []plugin.Type{
-			plugin.ServicePlugin,
-		},
-		InitFn: func(ic *plugin.InitContext) (interface{}, error) {
-			plugins, err := ic.GetByType(plugin.ServicePlugin)
-			if err != nil {
-				return nil, err
-			}
-			p, ok := plugins[services.ContentService]
-			if !ok {
-				return nil, errors.New("content store service not found")
-			}
-			cs, err := p.Instance()
-			if err != nil {
-				return nil, err
-			}
-			return NewService(cs.(content.Store)), nil
-		},
-	})
-}
-
-// NewService returns the content GRPC server
-func NewService(cs content.Store) api.ContentServer {
+// New returns the content GRPC server
+func New(cs content.Store) api.ContentServer {
 	return &service{store: cs}
 }
 

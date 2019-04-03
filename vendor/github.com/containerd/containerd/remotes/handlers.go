@@ -206,3 +206,38 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, pr
 
 	return nil
 }
+
+// FilterManifestByPlatformHandler allows Handler to handle non-target
+// platform's manifest and configuration data.
+func FilterManifestByPlatformHandler(f images.HandlerFunc, m platforms.Matcher) images.HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		// no platform information
+		if desc.Platform == nil || m == nil {
+			return children, nil
+		}
+
+		var descs []ocispec.Descriptor
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
+			if m.Match(*desc.Platform) {
+				descs = children
+			} else {
+				for _, child := range children {
+					if child.MediaType == images.MediaTypeDockerSchema2Config ||
+						child.MediaType == ocispec.MediaTypeImageConfig {
+
+						descs = append(descs, child)
+					}
+				}
+			}
+		default:
+			descs = children
+		}
+		return descs, nil
+	}
+}
