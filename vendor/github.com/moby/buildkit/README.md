@@ -184,6 +184,14 @@ The local client will copy the files directly to the client. This is useful if B
 buildctl build ... --output type=local,dest=path/to/output-dir
 ```
 
+Tar exporter is similar to local exporter but transfers the files through a tarball.
+
+```
+buildctl build ... --output type=tar,dest=out.tar
+buildctl build ... --output type=tar > out.tar
+```
+
+
 ##### Exporting built image to Docker
 
 ```

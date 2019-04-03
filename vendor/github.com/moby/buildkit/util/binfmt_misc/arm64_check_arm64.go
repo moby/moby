@@ -2,6 +2,6 @@
 
 package binfmt_misc
 
-func arm64Supported() bool {
-	return true
+func arm64Supported() error {
+	return nil
 }

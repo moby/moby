@@ -35,5 +35,8 @@ func check(bin string) error {
 	}
 	f.Close()
 
-	return exec.Command(pp).Run()
+	cmd := exec.Command("/check")
+	withChroot(cmd, tmpdir)
+	err = cmd.Run()
+	return err
 }

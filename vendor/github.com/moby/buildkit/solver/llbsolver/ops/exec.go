@@ -17,6 +17,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/platforms"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -209,7 +210,7 @@ func (e *execOp) getMountDeps() ([]dep, error) {
 			deps[m.Input].Selectors = append(deps[m.Input].Selectors, sel)
 		}
 
-		if !m.Readonly || m.Dest == pb.RootMount { // exclude read-only rootfs
+		if (!m.Readonly || m.Dest == pb.RootMount) && m.Output != -1 { // exclude read-only rootfs && read-write mounts
 			deps[m.Input].NoContentBasedHash = true
 		}
 	}
@@ -329,30 +330,47 @@ func (e *execOp) getSSHMountable(ctx context.Context, m *pb.Mount) (cache.Mounta
 		return nil, err
 	}
 
-	return &sshMount{mount: m, caller: caller}, nil
+	return &sshMount{mount: m, caller: caller, idmap: e.cm.IdentityMapping()}, nil
 }
 
 type sshMount struct {
 	mount  *pb.Mount
 	caller session.Caller
+	idmap  *idtools.IdentityMapping
 }
 
 func (sm *sshMount) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
-	return &sshMountInstance{sm: sm}, nil
+	return &sshMountInstance{sm: sm, idmap: sm.idmap}, nil
 }
 
 type sshMountInstance struct {
 	sm      *sshMount
 	cleanup func() error
+	idmap   *idtools.IdentityMapping
 }
 
 func (sm *sshMountInstance) Mount() ([]mount.Mount, error) {
 	ctx, cancel := context.WithCancel(context.TODO())
 
+	uid := int(sm.sm.mount.SSHOpt.Uid)
+	gid := int(sm.sm.mount.SSHOpt.Gid)
+
+	if sm.idmap != nil {
+		identity, err := sm.idmap.ToHost(idtools.Identity{
+			UID: uid,
+			GID: gid,
+		})
+		if err != nil {
+			return nil, err
+		}
+		uid = identity.UID
+		gid = identity.GID
+	}
+
 	sock, cleanup, err := sshforward.MountSSHSocket(ctx, sm.sm.caller, sshforward.SocketOpt{
 		ID:   sm.sm.mount.SSHOpt.ID,
-		UID:  int(sm.sm.mount.SSHOpt.Uid),
-		GID:  int(sm.sm.mount.SSHOpt.Gid),
+		UID:  uid,
+		GID:  gid,
 		Mode: int(sm.sm.mount.SSHOpt.Mode & 0777),
 	})
 	if err != nil {
@@ -382,6 +400,10 @@ func (sm *sshMountInstance) Release() error {
 		}
 	}
 	return nil
+}
+
+func (sm *sshMountInstance) IdentityMapping() *idtools.IdentityMapping {
+	return sm.idmap
 }
 
 func (e *execOp) getSecretMountable(ctx context.Context, m *pb.Mount) (cache.Mountable, error) {
@@ -416,21 +438,23 @@ func (e *execOp) getSecretMountable(ctx context.Context, m *pb.Mount) (cache.Mou
 		return nil, err
 	}
 
-	return &secretMount{mount: m, data: dt}, nil
+	return &secretMount{mount: m, data: dt, idmap: e.cm.IdentityMapping()}, nil
 }
 
 type secretMount struct {
 	mount *pb.Mount
 	data  []byte
+	idmap *idtools.IdentityMapping
 }
 
 func (sm *secretMount) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
-	return &secretMountInstance{sm: sm}, nil
+	return &secretMountInstance{sm: sm, idmap: sm.idmap}, nil
 }
 
 type secretMountInstance struct {
-	sm   *secretMount
-	root string
+	sm    *secretMount
+	root  string
+	idmap *idtools.IdentityMapping
 }
 
 func (sm *secretMountInstance) Mount() ([]mount.Mount, error) {
@@ -465,7 +489,22 @@ func (sm *secretMountInstance) Mount() ([]mount.Mount, error) {
 		return nil, err
 	}
 
-	if err := os.Chown(fp, int(sm.sm.mount.SecretOpt.Uid), int(sm.sm.mount.SecretOpt.Gid)); err != nil {
+	uid := int(sm.sm.mount.SecretOpt.Uid)
+	gid := int(sm.sm.mount.SecretOpt.Gid)
+
+	if sm.idmap != nil {
+		identity, err := sm.idmap.ToHost(idtools.Identity{
+			UID: uid,
+			GID: gid,
+		})
+		if err != nil {
+			return nil, err
+		}
+		uid = identity.UID
+		gid = identity.GID
+	}
+
+	if err := os.Chown(fp, uid, gid); err != nil {
 		return nil, err
 	}
 
@@ -488,6 +527,10 @@ func (sm *secretMountInstance) Release() error {
 		return os.RemoveAll(sm.root)
 	}
 	return nil
+}
+
+func (sm *secretMountInstance) IdentityMapping() *idtools.IdentityMapping {
+	return sm.idmap
 }
 
 func addDefaultEnvvar(env []string, k, v string) []string {
@@ -585,7 +628,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 			}
 
 		case pb.MountType_TMPFS:
-			mountable = newTmpfs()
+			mountable = newTmpfs(e.cm.IdentityMapping())
 
 		case pb.MountType_SECRET:
 			secretMount, err := e.getSecretMountable(ctx, m)
@@ -653,6 +696,7 @@ func (e *execOp) Exec(ctx context.Context, inputs []solver.Result) ([]solver.Res
 		ReadonlyRootFS: readonlyRootFS,
 		ExtraHosts:     extraHosts,
 		NetMode:        e.op.Network,
+		SecurityMode:   e.op.Security,
 	}
 
 	if e.op.Meta.ProxyEnv != nil {
@@ -701,19 +745,21 @@ func proxyEnvList(p *pb.ProxyEnv) []string {
 	return out
 }
 
-func newTmpfs() cache.Mountable {
-	return &tmpfs{}
+func newTmpfs(idmap *idtools.IdentityMapping) cache.Mountable {
+	return &tmpfs{idmap: idmap}
 }
 
 type tmpfs struct {
+	idmap *idtools.IdentityMapping
 }
 
 func (f *tmpfs) Mount(ctx context.Context, readonly bool) (snapshot.Mountable, error) {
-	return &tmpfsMount{readonly: readonly}, nil
+	return &tmpfsMount{readonly: readonly, idmap: f.idmap}, nil
 }
 
 type tmpfsMount struct {
 	readonly bool
+	idmap    *idtools.IdentityMapping
 }
 
 func (m *tmpfsMount) Mount() ([]mount.Mount, error) {
@@ -729,6 +775,10 @@ func (m *tmpfsMount) Mount() ([]mount.Mount, error) {
 }
 func (m *tmpfsMount) Release() error {
 	return nil
+}
+
+func (m *tmpfsMount) IdentityMapping() *idtools.IdentityMapping {
+	return m.idmap
 }
 
 var cacheRefsLocker = locker.New()

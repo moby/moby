@@ -8,14 +8,19 @@ import (
 	"sync"
 
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/contrib/seccomp"
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/continuity/fs"
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/mitchellh/hashstructure"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/snapshot"
+	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/network"
+	"github.com/moby/buildkit/util/system"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
 )
@@ -36,13 +41,18 @@ const (
 
 // GenerateSpec generates spec using containerd functionality.
 // opts are ignored for s.Process, s.Hostname, and s.Mounts .
-func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
+func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mount, id, resolvConf, hostsFile string, namespace network.Namespace, processMode ProcessMode, idmap *idtools.IdentityMapping, opts ...oci.SpecOpts) (*specs.Spec, func(), error) {
 	c := &containers.Container{
 		ID: id,
 	}
 	_, ok := namespaces.Namespace(ctx)
 	if !ok {
 		ctx = namespaces.WithNamespace(ctx, "buildkit")
+	}
+	if meta.SecurityMode == pb.SecurityMode_INSECURE {
+		opts = append(opts, entitlements.WithInsecureSpec())
+	} else if system.SeccompSupported() && meta.SecurityMode == pb.SecurityMode_SANDBOX {
+		opts = append(opts, seccomp.WithDefaultProfile())
 	}
 
 	switch processMode {
@@ -85,7 +95,22 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		Options:     []string{"ro", "nosuid", "noexec", "nodev"},
 	})
 
-	// TODO: User
+	if meta.SecurityMode == pb.SecurityMode_INSECURE {
+		//make sysfs rw mount for insecure mode.
+		for _, m := range s.Mounts {
+			if m.Type == "sysfs" {
+				m.Options = []string{"nosuid", "noexec", "nodev", "rw"}
+			}
+		}
+	}
+
+	if idmap != nil {
+		s.Linux.Namespaces = append(s.Linux.Namespaces, specs.LinuxNamespace{
+			Type: specs.UserNamespace,
+		})
+		s.Linux.UIDMappings = specMapping(idmap.UIDs())
+		s.Linux.GIDMappings = specMapping(idmap.GIDs())
+	}
 
 	sm := &submounts{}
 
@@ -209,4 +234,16 @@ func sub(m mount.Mount, subPath string) (mount.Mount, error) {
 	}
 	m.Source = src
 	return m, nil
+}
+
+func specMapping(s []idtools.IDMap) []specs.LinuxIDMapping {
+	var ids []specs.LinuxIDMapping
+	for _, item := range s {
+		ids = append(ids, specs.LinuxIDMapping{
+			HostID:      uint32(item.HostID),
+			ContainerID: uint32(item.ContainerID),
+			Size:        uint32(item.Size),
+		})
+	}
+	return ids
 }

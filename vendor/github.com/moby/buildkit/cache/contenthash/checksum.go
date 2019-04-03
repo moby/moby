@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	iradix "github.com/hashicorp/go-immutable-radix"
 	"github.com/hashicorp/golang-lru/simplelru"
@@ -51,8 +52,8 @@ func ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, path string, 
 	return getDefaultManager().ChecksumWildcard(ctx, ref, path, followLinks)
 }
 
-func GetCacheContext(ctx context.Context, md *metadata.StorageItem) (CacheContext, error) {
-	return getDefaultManager().GetCacheContext(ctx, md)
+func GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
+	return getDefaultManager().GetCacheContext(ctx, md, idmap)
 }
 
 func SetCacheContext(ctx context.Context, md *metadata.StorageItem, cc CacheContext) error {
@@ -81,7 +82,7 @@ type cacheManager struct {
 }
 
 func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool) (digest.Digest, error) {
-	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()))
+	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()), ref.IdentityMapping())
 	if err != nil {
 		return "", nil
 	}
@@ -89,14 +90,14 @@ func (cm *cacheManager) Checksum(ctx context.Context, ref cache.ImmutableRef, p 
 }
 
 func (cm *cacheManager) ChecksumWildcard(ctx context.Context, ref cache.ImmutableRef, p string, followLinks bool) (digest.Digest, error) {
-	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()))
+	cc, err := cm.GetCacheContext(ctx, ensureOriginMetadata(ref.Metadata()), ref.IdentityMapping())
 	if err != nil {
 		return "", nil
 	}
 	return cc.ChecksumWildcard(ctx, ref, p, followLinks)
 }
 
-func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.StorageItem) (CacheContext, error) {
+func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.StorageItem, idmap *idtools.IdentityMapping) (CacheContext, error) {
 	cm.locker.Lock(md.ID())
 	cm.lruMu.Lock()
 	v, ok := cm.lru.Get(md.ID())
@@ -106,7 +107,7 @@ func (cm *cacheManager) GetCacheContext(ctx context.Context, md *metadata.Storag
 		v.(*cacheContext).linkMap = map[string][][]byte{}
 		return v.(*cacheContext), nil
 	}
-	cc, err := newCacheContext(md)
+	cc, err := newCacheContext(md, idmap)
 	if err != nil {
 		cm.locker.Unlock(md.ID())
 		return nil, err
@@ -152,6 +153,7 @@ type cacheContext struct {
 	node     *iradix.Node
 	dirtyMap map[string]struct{}
 	linkMap  map[string][][]byte
+	idmap    *idtools.IdentityMapping
 }
 
 type mount struct {
@@ -191,12 +193,13 @@ func (m *mount) clean() error {
 	return nil
 }
 
-func newCacheContext(md *metadata.StorageItem) (*cacheContext, error) {
+func newCacheContext(md *metadata.StorageItem, idmap *idtools.IdentityMapping) (*cacheContext, error) {
 	cc := &cacheContext{
 		md:       md,
 		tree:     iradix.New(),
 		dirtyMap: map[string]struct{}{},
 		linkMap:  map[string][][]byte{},
+		idmap:    idmap,
 	}
 	if err := cc.load(); err != nil {
 		return nil, err

@@ -6,6 +6,7 @@ import (
 
 	"github.com/containerd/containerd/mount"
 	"github.com/containerd/containerd/snapshots"
+	"github.com/docker/docker/pkg/idtools"
 	digest "github.com/opencontainers/go-digest"
 )
 
@@ -13,6 +14,7 @@ type Mountable interface {
 	// ID() string
 	Mount() ([]mount.Mount, error)
 	Release() error
+	IdentityMapping() *idtools.IdentityMapping
 }
 
 type SnapshotterBase interface {
@@ -27,6 +29,7 @@ type SnapshotterBase interface {
 	Remove(ctx context.Context, key string) error
 	Walk(ctx context.Context, fn func(context.Context, snapshots.Info) error) error
 	Close() error
+	IdentityMapping() *idtools.IdentityMapping
 }
 
 // Snapshotter defines interface that any snapshot implementation should satisfy
@@ -40,12 +43,13 @@ type Blobmapper interface {
 	SetBlob(ctx context.Context, key string, diffID, blob digest.Digest) error
 }
 
-func FromContainerdSnapshotter(s snapshots.Snapshotter) SnapshotterBase {
-	return &fromContainerd{Snapshotter: s}
+func FromContainerdSnapshotter(s snapshots.Snapshotter, idmap *idtools.IdentityMapping) SnapshotterBase {
+	return &fromContainerd{Snapshotter: s, idmap: idmap}
 }
 
 type fromContainerd struct {
 	snapshots.Snapshotter
+	idmap *idtools.IdentityMapping
 }
 
 func (s *fromContainerd) Mounts(ctx context.Context, key string) (Mountable, error) {
@@ -53,7 +57,7 @@ func (s *fromContainerd) Mounts(ctx context.Context, key string) (Mountable, err
 	if err != nil {
 		return nil, err
 	}
-	return &staticMountable{mounts}, nil
+	return &staticMountable{mounts, s.idmap}, nil
 }
 func (s *fromContainerd) Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error {
 	_, err := s.Snapshotter.Prepare(ctx, key, parent, opts...)
@@ -64,11 +68,15 @@ func (s *fromContainerd) View(ctx context.Context, key, parent string, opts ...s
 	if err != nil {
 		return nil, err
 	}
-	return &staticMountable{mounts}, nil
+	return &staticMountable{mounts, s.idmap}, nil
+}
+func (s *fromContainerd) IdentityMapping() *idtools.IdentityMapping {
+	return s.idmap
 }
 
 type staticMountable struct {
 	mounts []mount.Mount
+	idmap  *idtools.IdentityMapping
 }
 
 func (m *staticMountable) Mount() ([]mount.Mount, error) {
@@ -77,6 +85,10 @@ func (m *staticMountable) Mount() ([]mount.Mount, error) {
 
 func (cm *staticMountable) Release() error {
 	return nil
+}
+
+func (cm *staticMountable) IdentityMapping() *idtools.IdentityMapping {
+	return cm.idmap
 }
 
 // NewContainerdSnapshotter converts snapshotter to containerd snapshotter

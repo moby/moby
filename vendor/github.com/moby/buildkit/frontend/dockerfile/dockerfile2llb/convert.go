@@ -623,8 +623,10 @@ func dispatchRun(d *dispatchState, c *instructions.RunCommand, proxy *llb.ProxyE
 	env := d.state.Env()
 	opt := []llb.RunOption{llb.Args(args)}
 	for _, arg := range d.buildArgs {
-		env = append(env, fmt.Sprintf("%s=%s", arg.Key, arg.ValueString()))
-		opt = append(opt, llb.AddEnv(arg.Key, arg.ValueString()))
+		if arg.Value != nil {
+			env = append(env, fmt.Sprintf("%s=%s", arg.Key, arg.ValueString()))
+			opt = append(opt, llb.AddEnv(arg.Key, arg.ValueString()))
+		}
 	}
 	opt = append(opt, dfCmd(c))
 	if d.ignoreCache {
@@ -1066,7 +1068,9 @@ func toEnvMap(args []instructions.KeyValuePairOptional, env []string) map[string
 		if _, ok := m[arg.Key]; ok {
 			continue
 		}
-		m[arg.Key] = arg.ValueString()
+		if arg.Value != nil {
+			m[arg.Key] = arg.ValueString()
+		}
 	}
 	return m
 }

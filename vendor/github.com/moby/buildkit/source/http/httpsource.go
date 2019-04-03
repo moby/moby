@@ -15,6 +15,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/locker"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/cache/metadata"
@@ -278,8 +279,22 @@ func (hs *httpSourceHandler) save(ctx context.Context, resp *http.Response) (ref
 	}
 	f = nil
 
-	if hs.src.UID != 0 || hs.src.GID != 0 {
-		if err := os.Chown(fp, hs.src.UID, hs.src.GID); err != nil {
+	uid := hs.src.UID
+	gid := hs.src.GID
+	if idmap := mount.IdentityMapping(); idmap != nil {
+		identity, err := idmap.ToHost(idtools.Identity{
+			UID: int(uid),
+			GID: int(gid),
+		})
+		if err != nil {
+			return nil, "", err
+		}
+		uid = identity.UID
+		gid = identity.GID
+	}
+
+	if gid != 0 || uid != 0 {
+		if err := os.Chown(fp, uid, gid); err != nil {
 			return nil, "", err
 		}
 	}
