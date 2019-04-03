@@ -38,6 +38,17 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 	return types.HijackedResponse{Conn: conn, Reader: bufio.NewReader(conn)}, err
 }
 
+// DialHijack returns a hijacked connection with negotiated protocol proto.
+func (cli *Client) DialHijack(ctx context.Context, url, proto string, meta map[string][]string) (net.Conn, error) {
+	req, err := http.NewRequest("POST", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req = cli.addHeaders(req, meta)
+
+	return cli.setupHijackConn(ctx, req, proto)
+}
+
 // fallbackDial is used when WithDialer() was not called.
 // See cli.Dialer().
 func fallbackDial(proto, addr string, tlsConfig *tls.Config) (net.Conn, error) {
