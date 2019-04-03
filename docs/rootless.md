@@ -45,6 +45,8 @@ penguin:231072:65536
   * Apparmor
   * Checkpoint
   * Overlay network
+  * Exposing SCTP ports
+* To expose a TCP/UDP port, the host port number needs to be set to >= 1024.
 
 ## Usage
 
@@ -53,9 +55,10 @@ penguin:231072:65536
 You need to run `dockerd-rootless.sh` instead of `dockerd`.
 
 ```console
-$ dockerd-rootless.sh --experimental"
+$ dockerd-rootless.sh --experimental --userland-proxy --userland-proxy-path=$(which rootlesskit-docker-proxy)"
 ```
 As Rootless mode is experimental per se, currently you always need to run `dockerd-rootless.sh` with `--experimental`.
+Also, to expose ports, you need to set `--userland-proxy-path` to the path of `rootlesskit-docker-proxy` binary.
 
 Remarks:
 * The socket path is set to `$XDG_RUNTIME_DIR/docker.sock` by default. `$XDG_RUNTIME_DIR` is typically set to `/run/user/$UID`.
@@ -71,17 +74,6 @@ You can just use the upstream Docker client but you need to set the socket path 
 ```console
 $ docker -H unix://$XDG_RUNTIME_DIR/docker.sock run -d nginx
 ```
-
-### Exposing ports
-
-In addition to exposing container ports to the `dockerd` network namespace, you also need to expose the ports in the `dockerd` network namespace to the host network namespace.
-
-```console
-$ docker -H unix://$XDG_RUNTIME_DIR/docker.sock run -d -p 80:80 nginx
-$ socat -t -- TCP-LISTEN:8080,reuseaddr,fork EXEC:"nsenter -U -n -t $(cat $XDG_RUNTIME_DIR/docker.pid) socat -t -- STDIN TCP4\:127.0.0.1\:80"
-```
-
-In future, `dockerd` will be able to expose the ports automatically.
 
 ### Routing ping packets
 

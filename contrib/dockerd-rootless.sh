@@ -3,6 +3,8 @@
 #
 # Usage: dockerd-rootless.sh --experimental [DOCKERD_OPTIONS]
 # Currently, specifying --experimental is mandatory.
+# Also, to expose ports, you need to specify
+# --userland-proxy-path=/path/to/rootlesskit-docker-proxy
 #
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
@@ -64,7 +66,7 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 	#         (by either systemd-networkd or NetworkManager)
 	# * /run: copy-up is required so that we can create /run/docker (hardcoded for plugins) in our namespace
 	$rootlesskit \
-		--net=$net --mtu=$mtu --disable-host-loopback \
+		--net=$net --mtu=$mtu --disable-host-loopback --port-driver=builtin \
 		--copy-up=/etc --copy-up=/run \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
 		$0 $@
