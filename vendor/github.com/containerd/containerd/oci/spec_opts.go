@@ -33,7 +33,7 @@ import (
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/continuity/fs"
-	"github.com/opencontainers/image-spec/specs-go/v1"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/opencontainers/runc/libcontainer/user"
 	specs "github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -741,9 +741,11 @@ func WithCapabilities(caps []string) SpecOpts {
 }
 
 // WithAllCapabilities sets all linux capabilities for the process
-var WithAllCapabilities = WithCapabilities(getAllCapabilities())
+var WithAllCapabilities = WithCapabilities(GetAllCapabilities())
 
-func getAllCapabilities() []string {
+// GetAllCapabilities returns all caps up to CAP_LAST_CAP
+// or CAP_BLOCK_SUSPEND on RHEL6
+func GetAllCapabilities() []string {
 	last := capability.CAP_LAST_CAP
 	// hack for RHEL6 which has no /proc/sys/kernel/cap_last_cap
 	if last == capability.Cap(63) {
@@ -757,6 +759,61 @@ func getAllCapabilities() []string {
 		caps = append(caps, "CAP_"+strings.ToUpper(cap.String()))
 	}
 	return caps
+}
+
+func capsContain(caps []string, s string) bool {
+	for _, c := range caps {
+		if c == s {
+			return true
+		}
+	}
+	return false
+}
+
+func removeCap(caps *[]string, s string) {
+	for i, c := range *caps {
+		if c == s {
+			*caps = append((*caps)[:i], (*caps)[i+1:]...)
+		}
+	}
+}
+
+// WithAddedCapabilities adds the provided capabilities
+func WithAddedCapabilities(caps []string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCapabilities(s)
+		for _, c := range caps {
+			for _, cl := range []*[]string{
+				&s.Process.Capabilities.Bounding,
+				&s.Process.Capabilities.Effective,
+				&s.Process.Capabilities.Permitted,
+				&s.Process.Capabilities.Inheritable,
+			} {
+				if !capsContain(*cl, c) {
+					*cl = append(*cl, c)
+				}
+			}
+		}
+		return nil
+	}
+}
+
+// WithDroppedCapabilities removes the provided capabilities
+func WithDroppedCapabilities(caps []string) SpecOpts {
+	return func(_ context.Context, _ Client, _ *containers.Container, s *Spec) error {
+		setCapabilities(s)
+		for _, c := range caps {
+			for _, cl := range []*[]string{
+				&s.Process.Capabilities.Bounding,
+				&s.Process.Capabilities.Effective,
+				&s.Process.Capabilities.Permitted,
+				&s.Process.Capabilities.Inheritable,
+			} {
+				removeCap(cl, c)
+			}
+		}
+		return nil
+	}
 }
 
 // WithAmbientCapabilities set the Linux ambient capabilities for the process

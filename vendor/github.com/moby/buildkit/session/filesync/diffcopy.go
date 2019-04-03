@@ -57,7 +57,7 @@ func (wc *streamWriterCloser) Close() error {
 	return nil
 }
 
-func recvDiffCopy(ds grpc.Stream, dest string, cu CacheUpdater, progress progressCb) error {
+func recvDiffCopy(ds grpc.Stream, dest string, cu CacheUpdater, progress progressCb, filter func(string, *fstypes.Stat) bool) error {
 	st := time.Now()
 	defer func() {
 		logrus.Debugf("diffcopy took: %v", time.Since(st))
@@ -73,6 +73,7 @@ func recvDiffCopy(ds grpc.Stream, dest string, cu CacheUpdater, progress progres
 		NotifyHashed:  cf,
 		ContentHasher: ch,
 		ProgressCb:    progress,
+		Filter:        fsutil.FilterFunc(filter),
 	})
 }
 

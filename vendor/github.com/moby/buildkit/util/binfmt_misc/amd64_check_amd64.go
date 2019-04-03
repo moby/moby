@@ -2,6 +2,6 @@
 
 package binfmt_misc
 
-func amd64Supported() bool {
-	return true
+func amd64Supported() error {
+	return nil
 }

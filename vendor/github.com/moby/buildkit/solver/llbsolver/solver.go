@@ -45,9 +45,10 @@ type Solver struct {
 	platforms                 []specs.Platform
 	gatewayForwarder          *controlgateway.GatewayForwarder
 	sm                        *session.Manager
+	entitlements              []string
 }
 
-func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI map[string]remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder, sm *session.Manager) (*Solver, error) {
+func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.CacheManager, resolveCI map[string]remotecache.ResolveCacheImporterFunc, gatewayForwarder *controlgateway.GatewayForwarder, sm *session.Manager, ents []string) (*Solver, error) {
 	s := &Solver{
 		workerController:          wc,
 		resolveWorker:             defaultResolver(wc),
@@ -55,6 +56,7 @@ func New(wc *worker.Controller, f map[string]frontend.Frontend, cache solver.Cac
 		resolveCacheImporterFuncs: resolveCI,
 		gatewayForwarder:          gatewayForwarder,
 		sm:                        sm,
+		entitlements:              ents,
 	}
 
 	// executing is currently only allowed on default worker
@@ -101,7 +103,7 @@ func (s *Solver) Solve(ctx context.Context, id string, req frontend.SolveRequest
 
 	defer j.Discard()
 
-	set, err := entitlements.WhiteList(ent, supportedEntitlements())
+	set, err := entitlements.WhiteList(ent, supportedEntitlements(s.entitlements))
 	if err != nil {
 		return nil, err
 	}
@@ -343,12 +345,15 @@ func notifyCompleted(ctx context.Context, v *client.Vertex, err error, cached bo
 	pw.Write(v.Digest.String(), *v)
 }
 
-var AllowNetworkHostUnstable = false // TODO: enable in constructor
-
-func supportedEntitlements() []entitlements.Entitlement {
+func supportedEntitlements(ents []string) []entitlements.Entitlement {
 	out := []entitlements.Entitlement{} // nil means no filter
-	if AllowNetworkHostUnstable {
-		out = append(out, entitlements.EntitlementNetworkHost)
+	for _, e := range ents {
+		if e == string(entitlements.EntitlementNetworkHost) {
+			out = append(out, entitlements.EntitlementNetworkHost)
+		}
+		if e == string(entitlements.EntitlementSecurityInsecure) {
+			out = append(out, entitlements.EntitlementSecurityInsecure)
+		}
 	}
 	return out
 }

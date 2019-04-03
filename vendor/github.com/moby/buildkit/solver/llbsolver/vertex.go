@@ -120,9 +120,10 @@ func ValidateEntitlements(ent entitlements.Set) LoadOpt {
 					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkHost)
 				}
 			}
-			if op.Exec.Network == pb.NetMode_NONE {
-				if !ent.Allowed(entitlements.EntitlementNetworkNone) {
-					return errors.Errorf("%s is not allowed", entitlements.EntitlementNetworkNone)
+
+			if op.Exec.Security == pb.SecurityMode_INSECURE {
+				if !ent.Allowed(entitlements.EntitlementSecurityInsecure) {
+					return errors.Errorf("%s is not allowed", entitlements.EntitlementSecurityInsecure)
 				}
 			}
 		}
@@ -155,6 +156,7 @@ func newVertex(dgst digest.Digest, op *pb.Op, opMeta *pb.OpMetadata, load func(d
 			return nil, err
 		}
 	}
+
 	vtx := &vertex{sys: op, options: opt, digest: dgst, name: llbOpName(op)}
 	for _, in := range op.Inputs {
 		sub, err := load(in.Digest)

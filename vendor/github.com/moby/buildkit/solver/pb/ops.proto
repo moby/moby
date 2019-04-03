@@ -44,6 +44,7 @@ message ExecOp {
 	Meta meta = 1;
 	repeated Mount mounts = 2;
 	NetMode network = 3;
+	SecurityMode security = 4;
 }
 
 // Meta is a set of arguments for ExecOp.
@@ -62,6 +63,11 @@ enum NetMode {
 	UNSET = 0; // sandbox
 	HOST = 1;
 	NONE = 2;
+}
+
+enum SecurityMode {
+	SANDBOX = 0;
+	INSECURE = 1; // privileged mode
 }
 
 // Mount specifies how to mount an input Op as a filesystem.

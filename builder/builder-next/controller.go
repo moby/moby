@@ -30,6 +30,7 @@ import (
 	"github.com/moby/buildkit/snapshot/blobmapping"
 	"github.com/moby/buildkit/solver/bboltcachestorage"
 	"github.com/moby/buildkit/util/binfmt_misc"
+	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/worker"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -188,6 +189,10 @@ func newController(rt http.RoundTripper, opt Opt) (*control.Controller, error) {
 		},
 		ResolveCacheExporterFuncs: map[string]remotecache.ResolveCacheExporterFunc{
 			"inline": inlineremotecache.ResolveCacheExporterFunc(),
+		},
+		Entitlements: []string{
+			string(entitlements.EntitlementNetworkHost),
+			// string(entitlements.EntitlementSecurityInsecure),
 		},
 	})
 }

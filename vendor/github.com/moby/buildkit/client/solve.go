@@ -124,7 +124,7 @@ func (c *Client) solve(ctx context.Context, def *llb.Definition, runGateway runG
 			return nil, errors.New("output directory is required for local exporter")
 		}
 		s.Allow(filesync.NewFSSyncTargetDir(ex.OutputDir))
-	case ExporterOCI, ExporterDocker:
+	case ExporterOCI, ExporterDocker, ExporterTar:
 		if ex.OutputDir != "" {
 			return nil, errors.Errorf("output directory %s is not supported by %s exporter", ex.OutputDir, ex.Type)
 		}

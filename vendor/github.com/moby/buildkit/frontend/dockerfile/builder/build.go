@@ -113,7 +113,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	name := "load build definition from " + filename
 
 	src := llb.Local(localNameDockerfile,
-		llb.FollowPaths([]string{filename}),
+		llb.FollowPaths([]string{filename, filename + ".dockerignore"}),
 		llb.SessionID(c.BuildOpts().SessionID),
 		llb.SharedKeyHint(localNameDockerfile),
 		dockerfile2llb.WithInternalName(name),
@@ -175,6 +175,8 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	eg, ctx2 := errgroup.WithContext(ctx)
 	var dtDockerfile []byte
+	var dtDockerignore []byte
+	var dtDockerignoreDefault []byte
 	eg.Go(func() error {
 		res, err := c.Solve(ctx2, client.SolveRequest{
 			Definition: def.ToPB(),
@@ -193,6 +195,13 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		})
 		if err != nil {
 			return errors.Wrapf(err, "failed to read dockerfile")
+		}
+
+		dt, err := ref.ReadFile(ctx2, client.ReadRequest{
+			Filename: filename + ".dockerignore",
+		})
+		if err == nil {
+			dtDockerignore = dt
 		}
 		return nil
 	})
@@ -223,14 +232,11 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			if err != nil {
 				return err
 			}
-			dtDockerignore, err := ref.ReadFile(ctx2, client.ReadRequest{
+			dtDockerignoreDefault, err = ref.ReadFile(ctx2, client.ReadRequest{
 				Filename: dockerignoreFilename,
 			})
-			if err == nil {
-				excludes, err = dockerignore.ReadAll(bytes.NewBuffer(dtDockerignore))
-				if err != nil {
-					return errors.Wrap(err, "failed to parse dockerignore")
-				}
+			if err != nil {
+				return nil
 			}
 			return nil
 		})
@@ -238,6 +244,16 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 	if err := eg.Wait(); err != nil {
 		return nil, err
+	}
+
+	if dtDockerignore == nil {
+		dtDockerignore = dtDockerignoreDefault
+	}
+	if dtDockerignore != nil {
+		excludes, err = dockerignore.ReadAll(bytes.NewBuffer(dtDockerignore))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to parse dockerignore")
+		}
 	}
 
 	if _, ok := opts["cmdline"]; !ok {

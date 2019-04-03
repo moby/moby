@@ -25,7 +25,6 @@ import (
 	"github.com/moby/buildkit/control"
 	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
-	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/util/entitlements"
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
@@ -62,10 +61,6 @@ var cacheFields = map[string]bool{
 	// fields from buildkit that are not exposed
 	"mutable":   false,
 	"immutable": false,
-}
-
-func init() {
-	llbsolver.AllowNetworkHostUnstable = true
 }
 
 // Opt is option struct required for creating the builder
