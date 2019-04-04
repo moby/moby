@@ -32,7 +32,7 @@ type ExitHandler interface {
 type Client interface {
 	Create(ctx context.Context, containerID string, spec *specs.Spec, runtimeOptions interface{}) error
 	Restore(ctx context.Context, containerID string, attachStdio libcontainerdtypes.StdioCallback) (alive bool, pid int, err error)
-	Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error)
+	Status(ctx context.Context, containerID string) (containerd.ProcessStatus, error)
 	Delete(ctx context.Context, containerID string) error
 	DeleteTask(ctx context.Context, containerID string) (uint32, time.Time, error)
 	Start(ctx context.Context, containerID, checkpointDir string, withStdin bool, attachStdio libcontainerdtypes.StdioCallback) (pid int, err error)
@@ -88,7 +88,7 @@ func (e *Executor) Create(id string, spec specs.Spec, stdout, stderr io.WriteClo
 				logrus.WithError(err2).WithField("id", id).Warn("Received an error while attempting to read plugin status")
 			}
 		} else {
-			if status != libcontainerdtypes.StatusRunning && status != libcontainerdtypes.StatusUnknown {
+			if status != containerd.Running && status != containerd.Unknown {
 				if err2 := e.client.Delete(ctx, id); err2 != nil && !errdefs.IsNotFound(err2) {
 					logrus.WithError(err2).WithField("plugin", id).Error("Error cleaning up containerd container")
 				}
@@ -123,7 +123,7 @@ func (e *Executor) Restore(id string, stdout, stderr io.WriteCloser) (bool, erro
 // IsRunning returns if the container with the given id is running
 func (e *Executor) IsRunning(id string) (bool, error) {
 	status, err := e.client.Status(context.Background(), id)
-	return status == libcontainerdtypes.StatusRunning, err
+	return status == containerd.Running, err
 }
 
 // Signal sends the specified signal to the container
