@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/docker/docker/internal/test/fixtures/load"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 type testingT interface {
@@ -39,21 +39,21 @@ func ensureSyscallTest(c *check.C) {
 	}
 
 	tmp, err := ioutil.TempDir("", "syscall-test-build")
-	c.Assert(err, checker.IsNil, check.Commentf("couldn't create temp dir"))
+	assert.NilError(c, err, "couldn't create temp dir")
 	defer os.RemoveAll(tmp)
 
 	gcc, err := exec.LookPath("gcc")
-	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
+	assert.NilError(c, err, "could not find gcc")
 
 	tests := []string{"userns", "ns", "acct", "setuid", "setgid", "socket", "raw"}
 	for _, test := range tests {
 		out, err := exec.Command(gcc, "-g", "-Wall", "-static", fmt.Sprintf("../contrib/syscall-test/%s.c", test), "-o", fmt.Sprintf("%s/%s-test", tmp, test)).CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+		assert.NilError(c, err, string(out))
 	}
 
 	if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" {
 		out, err := exec.Command(gcc, "-s", "-m32", "-nostdlib", "-static", "../contrib/syscall-test/exit32.s", "-o", tmp+"/"+"exit32-test").CombinedOutput()
-		c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+		assert.NilError(c, err, string(out))
 	}
 
 	dockerFile := filepath.Join(tmp, "Dockerfile")
@@ -62,7 +62,7 @@ func ensureSyscallTest(c *check.C) {
 	COPY . /usr/bin/
 	`)
 	err = ioutil.WriteFile(dockerFile, content, 600)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var buildArgs []string
 	if arg := os.Getenv("DOCKER_BUILD_ARGS"); strings.TrimSpace(arg) != "" {
@@ -75,7 +75,7 @@ func ensureSyscallTest(c *check.C) {
 
 func ensureSyscallTestBuild(c *check.C) {
 	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var buildArgs []string
 	if arg := os.Getenv("DOCKER_BUILD_ARGS"); strings.TrimSpace(arg) != "" {
@@ -102,13 +102,13 @@ func ensureNNPTest(c *check.C) {
 	}
 
 	tmp, err := ioutil.TempDir("", "docker-nnp-test")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	gcc, err := exec.LookPath("gcc")
-	c.Assert(err, checker.IsNil, check.Commentf("could not find gcc"))
+	assert.NilError(c, err, "could not find gcc")
 
 	out, err := exec.Command(gcc, "-g", "-Wall", "-static", "../contrib/nnp-test/nnp-test.c", "-o", filepath.Join(tmp, "nnp-test")).CombinedOutput()
-	c.Assert(err, checker.IsNil, check.Commentf(string(out)))
+	assert.NilError(c, err, string(out))
 
 	dockerfile := filepath.Join(tmp, "Dockerfile")
 	content := `
@@ -117,7 +117,7 @@ func ensureNNPTest(c *check.C) {
 	RUN chmod +s /usr/bin/nnp-test
 	`
 	err = ioutil.WriteFile(dockerfile, []byte(content), 600)
-	c.Assert(err, checker.IsNil, check.Commentf("could not write Dockerfile for nnp-test image"))
+	assert.NilError(c, err, "could not write Dockerfile for nnp-test image")
 
 	var buildArgs []string
 	if arg := os.Getenv("DOCKER_BUILD_ARGS"); strings.TrimSpace(arg) != "" {
@@ -130,7 +130,7 @@ func ensureNNPTest(c *check.C) {
 
 func ensureNNPTestBuild(c *check.C) {
 	err := load.FrozenImagesLinux(testEnv.APIClient(), "buildpack-deps:jessie")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	var buildArgs []string
 	if arg := os.Getenv("DOCKER_BUILD_ARGS"); strings.TrimSpace(arg) != "" {
