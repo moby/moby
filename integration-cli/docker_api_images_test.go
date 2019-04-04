@@ -8,7 +8,6 @@ import (
 	"strconv"
 	"strings"
 
-	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -56,41 +55,6 @@ func (s *DockerSuite) TestAPIImagesFilter(c *check.C) {
 
 	images = getImages("*5000*/*")
 	c.Assert(images[0].RepoTags, checker.HasLen, 1)
-}
-
-func (s *DockerRegistrySuite) TestAPIImagesFilterHasDigest(c *check.C) {
-	repoName := fmt.Sprintf("%v/busybox:mytag", privateRegistryURL)
-	repoName2 := fmt.Sprintf("%v/busybox:mytag2", privateRegistryURL)
-	repoName3 := fmt.Sprintf("%v/utest:tag1", privateRegistryURL)
-	for _, n := range []string{repoName, repoName2, repoName3} {
-		dockerCmd(c, "tag", "busybox", n)
-	}
-
-	// Push only some images to compute the digest
-	dockerCmd(c, "push", repoName)
-	dockerCmd(c, "push", repoName2)
-
-	type image types.ImageSummary
-	getImages := func(filter string) []image {
-		v := url.Values{}
-		v.Set("filter", filter)
-		status, b, err := request.SockRequest("GET", "/images/json?"+v.Encode(), nil, daemonHost())
-		c.Assert(err, checker.IsNil)
-		c.Assert(status, checker.Equals, http.StatusOK)
-
-		var images []image
-		err = json.Unmarshal(b, &images)
-		c.Assert(err, checker.IsNil)
-
-		return images
-	}
-
-	images := getImages(privateRegistryURL + "/utest")
-	c.Assert(images[0].RepoDigests, checker.HasLen, 0)
-
-	images = getImages(privateRegistryURL + "/busybox")
-	c.Assert(images[0].RepoDigests, checker.HasLen, 1)
-	c.Assert(images[0].RepoTags, checker.HasLen, 2)
 }
 
 func (s *DockerSuite) TestAPIImagesSaveAndLoad(c *check.C) {
