@@ -16,13 +16,9 @@ var (
 	Not        = check.Not
 	NotNil     = check.NotNil
 
-	Contains           = shakers.Contains
-	Count              = shakers.Count
-	Equals             = shakers.Equals
-	False              = shakers.False
-	GreaterOrEqualThan = shakers.GreaterOrEqualThan
-	GreaterThan        = shakers.GreaterThan
-	HasPrefix          = shakers.HasPrefix
-	LessOrEqualThan    = shakers.LessOrEqualThan
-	True               = shakers.True
+	Contains    = shakers.Contains
+	Equals      = shakers.Equals
+	False       = shakers.False
+	GreaterThan = shakers.GreaterThan
+	True        = shakers.True
 )
