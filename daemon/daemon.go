@@ -357,11 +357,11 @@ func (daemon *Daemon) restore() error {
 						logrus.WithField("container", c.ID).WithField("state", s).
 							Info("restored container paused")
 						switch s {
-						case libcontainerdtypes.StatusPaused, libcontainerdtypes.StatusPausing:
+						case containerd.Paused, containerd.Pausing:
 							// nothing to do
-						case libcontainerdtypes.StatusStopped:
+						case containerd.Stopped:
 							alive = false
-						case libcontainerdtypes.StatusUnknown:
+						case containerd.Unknown:
 							logrus.WithField("container", c.ID).
 								Error("Unknown status for container during restore")
 						default:

@@ -550,23 +550,23 @@ func (c *client) Delete(ctx context.Context, containerID string) error {
 	return nil
 }
 
-func (c *client) Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error) {
+func (c *client) Status(ctx context.Context, containerID string) (containerd.ProcessStatus, error) {
 	ctr := c.getContainer(containerID)
 	if ctr == nil {
-		return libcontainerdtypes.StatusUnknown, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
+		return containerd.Unknown, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	}
 
 	t := ctr.getTask()
 	if t == nil {
-		return libcontainerdtypes.StatusUnknown, errors.WithStack(errdefs.NotFound(errors.New("no such task")))
+		return containerd.Unknown, errors.WithStack(errdefs.NotFound(errors.New("no such task")))
 	}
 
 	s, err := t.Status(ctx)
 	if err != nil {
-		return libcontainerdtypes.StatusUnknown, wrapError(err)
+		return containerd.Unknown, wrapError(err)
 	}
 
-	return libcontainerdtypes.Status(s.Status), nil
+	return s.Status, nil
 }
 
 func (c *client) CreateCheckpoint(ctx context.Context, containerID, checkpointDir string, exit bool) error {

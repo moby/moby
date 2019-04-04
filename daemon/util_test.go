@@ -54,7 +54,7 @@ func (c *MockContainerdClient) DeleteTask(ctx context.Context, containerID strin
 	return 0, time.Time{}, nil
 }
 func (c *MockContainerdClient) Delete(ctx context.Context, containerID string) error { return nil }
-func (c *MockContainerdClient) Status(ctx context.Context, containerID string) (libcontainerdtypes.Status, error) {
+func (c *MockContainerdClient) Status(ctx context.Context, containerID string) (containerd.ProcessStatus, error) {
 	return "null", nil
 }
 func (c *MockContainerdClient) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
