@@ -44,7 +44,6 @@ package stats // import "github.com/docker/docker/daemon/stats"
 
 import (
 	"context"
-	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -124,7 +123,7 @@ func NewObservor(size int) *Observor {
 			highest:          make([]uint64, 0, size),
 			lowest:           make([]uint64, 0, size),
 			amplitude:        make([]uint64, 0, size),
-			MemoryPrediction: false,
+			MemoryPrediction: true,
 			PredictedValues: PredictedValueRAM{
 				min:       make([]uint64, 0, size),
 				max:       make([]uint64, 0, size),
@@ -134,7 +133,7 @@ func NewObservor(size int) *Observor {
 		TimeSerieCPU: TimeSerieCPU{
 			percent:       make([]float64, 0, size),
 			usage:         make([]float64, 0, size),
-			CPUPrediction: false,
+			CPUPrediction: true,
 			PredictedValues: PredictedValueCPU{
 				percent: make([]float64, 0, size),
 				usage:   make([]float64, 0, size),
@@ -279,12 +278,23 @@ func (ar *AutoRangeWatcher) UpdateResources() {
 		return
 	}
 
-	_, err = cli.ContainerUpdate(ar.Ctx, ar.Target.ID, update)
-	if err != nil {
-		logrus.Errorf("%v\n", err)
-		return
+	timer := time.Second * 30
+	ticker := time.NewTicker(timer)
+	count := 10
+	for ; true; <-ticker.C {
+		_, err = cli.ContainerUpdate(ar.Ctx, ar.Target.ID, update)
+		if err == nil {
+			logrus.Infof("container: %s (service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
+			break
+		} else if count == 0 {
+			logrus.Errorf("failed to update container with new limits after %d attempt", count)
+			break
+		} else {
+			logrus.Errorf("%v\n", err)
+			logrus.Errorf("retrying in %v..", timer)
+		}
+		count--
 	}
-	logrus.Infof("container: %s (service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
 
 	return
 }
@@ -323,7 +333,6 @@ func CPUUsageToConfig(usage string) (config, number string) {
 
 func (ar *AutoRangeWatcher) baseValueMemory() (min, max, threshold int) {
 	if ar.IsActivated("memory") {
-		fmt.Printf("activated\n")
 		min, _ = strconv.Atoi(ar.Config["memory"]["min"])
 		if min == 0 {
 			min = 10000
@@ -385,6 +394,14 @@ func checkMemoryEndCondition(lenSerie, limit int, mediumAmplitude uint64) bool {
 }
 
 func (ar *AutoRangeWatcher) startRoutine(ncpus uint32, cpuMin, cpuMax int) {
+	if ar.IsActivated("memory") {
+		ar.Obs.TimeSerieRAM.MemoryPrediction = false
+	}
+
+	if ar.IsActivated("cpu%") {
+		ar.Obs.TimeSerieCPU.CPUPrediction = false
+	}
+
 	if cpuMin != 0 && cpuMax != 0 {
 		fifoFloat(ar.Obs.TimeSerieCPU.percent, float64(((cpuMin+cpuMax)/2)/int(ncpus)), ar.Limit)
 	}
