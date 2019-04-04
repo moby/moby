@@ -10,14 +10,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/docker/docker/api/types/container"
-
-	"github.com/containerd/containerd/images"
-
 	"github.com/containerd/containerd/content"
+	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
@@ -231,7 +229,8 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 	if err != nil {
 		return ocispec.Descriptor{}, err
 	}
-
+	// creates a intermediate image that reads parent image info
+	// and then merge with the new image config
 	var img struct {
 		ocispec.Image
 
@@ -265,6 +264,8 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 			return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal config")
 		}
 	}
+
+	// merge with new image config
 	created := time.Now().UTC()
 	img.Created = &created
 
@@ -282,11 +283,6 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 	img.OS = newImage.OS
 	img.Config = newImage.Config
 	img.ContainerConfig = *newImage.ContainerConfig
-
-	store, err := i.getLayerStore(ocispec.Platform{OS: newImage.OS})
-	if err != nil {
-		return ocispec.Descriptor{}, err
-	}
 
 	config, err := json.Marshal(img)
 	if err != nil {
@@ -335,12 +331,11 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 	}
 
 	cache.m.Lock()
-
 	if _, ok := cache.layers[driver][layerID]; !ok {
 		cache.layers[driver][layerID] = newLayer.roLayer
 	} else {
 		// Image already retained, don't hold onto layer
-		defer layer.ReleaseAndLog(store, newLayer.roLayer)
+		defer layer.ReleaseAndLog(newLayer.layerStore, newLayer.roLayer)
 	}
 	cache.m.Unlock()
 

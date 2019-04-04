@@ -113,7 +113,6 @@ func (b *Builder) commitContainer(dispatchState *dispatchState, id string, conta
 }
 
 func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, parent builder.Image, runConfig *container.Config) error {
-	logrus.Infof("state.imageID=%s parent.ImageID=%s", state.imageID, parent.ImageID())
 	newLayer, err := layer.Commit()
 	if err != nil {
 		return err
