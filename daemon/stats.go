@@ -62,7 +62,7 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	// AutoRange initialisation
 	if autoRange, serviceName, ok := getAutoRange(ctx, container.ID); ok {
 		if _, exist := daemon.statsCollector.AutoRangeWatcher[container.ID]; !exist {
-			limit := 60 // Size limit of timeserie
+			limit := 10 // Size limit of timeserie
 			daemon.statsCollector.AutoRangeWatcher[container.ID] = &stats.AutoRangeWatcher{
 				Config:      autoRange,
 				TickRate:    time.Second,

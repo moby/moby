@@ -44,6 +44,7 @@ package stats // import "github.com/docker/docker/daemon/stats"
 
 import (
 	"context"
+	"fmt"
 	"math"
 	"strconv"
 	"strings"
@@ -109,7 +110,8 @@ type AutoRangeWatcher struct {
 	Obs           *Observor
 	Ctx           context.Context
 	Limit         int
-	Finished      bool
+
+	Finished, started bool
 }
 
 // NewObservor returns a newly initialized observor that will be used by the watcher
@@ -211,14 +213,8 @@ func (ar *AutoRangeWatcher) SetNewContext(ctx context.Context) {
 	ar.WaitChan <- true
 }
 
-// IsActivated returns a true if category is found in config
-func (ar *AutoRangeWatcher) IsActivated(category string) bool {
-	_, exist := ar.Config[category]
-	return exist
-}
-
 // UpdateResources is the function that handle the verification and application of the generated limits
-func (ar *AutoRangeWatcher) UpdateResources() error {
+func (ar *AutoRangeWatcher) UpdateResources() {
 	var update ctn.UpdateConfig
 
 	if ar.IsActivated("memoryAR") {
@@ -279,20 +275,28 @@ func (ar *AutoRangeWatcher) UpdateResources() error {
 	// Updating is done using the docker client API
 	cli, err := client.NewEnvClient()
 	if err != nil {
-		return err
+		logrus.Errorf("%v\n", err)
+		return
 	}
 
 	_, err = cli.ContainerUpdate(ar.Ctx, ar.Target.ID, update)
 	if err != nil {
-		return err
+		logrus.Errorf("%v\n", err)
+		return
 	}
 	logrus.Infof("container: %s (service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
 
-	return nil
+	return
+}
+
+// IsActivated returns a true if category is found in config
+func (ar *AutoRangeWatcher) IsActivated(category string) bool {
+	_, exist := ar.Config[category]
+	return exist
 }
 
 // Continue checks if the loop should continue for the given category
-func (ar *AutoRangeWatcher) Continue(category, value string, done bool) bool {
+func continueIteration(category, value string, done bool) bool {
 	if strings.Compare(category, value) == 0 && !done {
 		return true
 	}
@@ -317,18 +321,9 @@ func CPUUsageToConfig(usage string) (config, number string) {
 	return
 }
 
-// Watch is the function that will keep the goroutine alive, process the metrics and generate the time series
-func (ar *AutoRangeWatcher) Watch() {
-
-	var (
-		input                                    types.StatsJSON
-		lowest, highest, oldUsage, oldSystem     uint64 = 0, 0, 0, 0
-		min, max, threshold, cpuTurn, memoryTurn int    = 0, 0, 0, 0, 0
-		cpuMin, cpuMax                           int
-	)
-
-	// Recover base config, those values will be used as base values
+func (ar *AutoRangeWatcher) baseValueMemory() (min, max, threshold int) {
 	if ar.IsActivated("memory") {
+		fmt.Printf("activated\n")
 		min, _ = strconv.Atoi(ar.Config["memory"]["min"])
 		if min == 0 {
 			min = 10000
@@ -344,18 +339,77 @@ func (ar *AutoRangeWatcher) Watch() {
 			threshold = 10
 		}
 		ar.Config["memoryAR"] = make(map[string]string)
+	} else {
+		min, max, threshold = 0, 0, 0
 	}
+	return
+}
 
+func (ar *AutoRangeWatcher) baseValueCPU() (cpuMin, cpuMax int) {
 	if ar.IsActivated("cpu%") {
 		cpuMin, _ = strconv.Atoi(ar.Config["cpu%"]["min"])
 		cpuMax, _ = strconv.Atoi(ar.Config["cpu%"]["max"])
 		ar.Config["cpuAR"] = make(map[string]string)
+	} else {
+		cpuMin, cpuMax = 0, 0
 	}
+	return
+}
+
+func (ar *AutoRangeWatcher) isInBadState() bool {
+	return (ar.Target.State.Dead || !ar.Target.State.Running)
+}
+
+func (ar *AutoRangeWatcher) isStarted() bool {
+	return ar.started
+}
+
+func (ar *AutoRangeWatcher) isFinished() bool {
+	return (ar.Obs.TimeSerieRAM.MemoryPrediction && ar.Obs.TimeSerieCPU.CPUPrediction && !ar.Finished)
+}
+
+func getExtremeValues(usage, lowest, highest uint64) (uint64, uint64) {
+	if usage < lowest {
+		lowest = usage
+	} else if usage > highest {
+		highest = usage
+	}
+	return lowest, highest
+}
+
+func checkMemoryEndCondition(lenSerie, limit int, mediumAmplitude uint64) bool {
+	if lenSerie >= limit || (lenSerie > limit/2 && mediumAmplitude <= 2) {
+		return true
+	}
+	return false
+}
+
+func (ar *AutoRangeWatcher) startRoutine(ncpus uint32, cpuMin, cpuMax int) {
+	if cpuMin != 0 && cpuMax != 0 {
+		fifoFloat(ar.Obs.TimeSerieCPU.percent, float64(((cpuMin+cpuMax)/2)/int(ncpus)), ar.Limit)
+	}
+	ar.started = true
+}
+
+// Watch is the function that will keep the goroutine alive, process the metrics and generate the time series
+func (ar *AutoRangeWatcher) Watch() {
+
+	var (
+		input                                types.StatsJSON
+		lowest, highest, oldUsage, oldSystem uint64 = 0, 0, 0, 0
+		cpuTurn, memoryTurn                  int    = 0, 0
+	)
+
+	// Recover base config, those values will be used as base values
+	// If no base config is provided, it use dummy values as starter
+	min, max, threshold := ar.baseValueMemory()
+
+	cpuMin, cpuMax := ar.baseValueCPU()
 
 	// Initialisation time
 	ticker := time.NewTicker(ar.TickRate)
 	time.Sleep(ar.TickRate)
-	started := false
+	ar.started = false
 
 	logrus.Infof("container: %s (service: %s) started with activated autorange\n", ar.Target.Name, ar.ServiceName)
 	for range ticker.C {
@@ -369,30 +423,24 @@ func (ar *AutoRangeWatcher) Watch() {
 
 		// Healthchecking is required before every loops to ensure data integrity
 		// We don't want false prediction because the container was offline
-		if ar.Target.State.Dead || !ar.Target.State.Running {
+		if ar.isInBadState() {
 			logrus.Infof("container: %s (service: %s) exited, removing autorange\n", ar.Target.Name, ar.ServiceName)
 			return
 		}
 
 		// Initalisation / End routines
-		if !started {
+		if !ar.isStarted() {
 			input.Stats.MemoryStats.MaxUsage, lowest = input.Stats.MemoryStats.Usage, input.Stats.MemoryStats.Usage
-			if cpuMin != 0 && cpuMax != 0 {
-				fifoFloat(ar.Obs.TimeSerieCPU.percent, float64(((cpuMin+cpuMax)/2)/int(input.Stats.CPUStats.OnlineCPUs)), ar.Limit)
-			}
-			started = true
-		} else if ar.Obs.TimeSerieRAM.MemoryPrediction && ar.Obs.TimeSerieCPU.CPUPrediction && !ar.Finished {
-			ar.Finished = true
+			ar.startRoutine(input.Stats.CPUStats.OnlineCPUs, cpuMin, cpuMax)
 
-			err := ar.UpdateResources()
-			if err != nil {
-				logrus.Errorf("err: %v\n", err)
-			}
+		} else if ar.isFinished() {
+			ar.UpdateResources()
+			ar.Finished = true
 			return
 		}
 
 		for category := range ar.Config {
-			if ar.Continue(category, "memory", ar.Obs.TimeSerieRAM.MemoryPrediction) {
+			if continueIteration(category, "memory", ar.Obs.TimeSerieRAM.MemoryPrediction) {
 
 				// Follow memory usage and change min and max accordingly.
 				// These values represent the "bearings" around the usage value
@@ -400,11 +448,7 @@ func (ar *AutoRangeWatcher) Watch() {
 
 				// Always get the lowest and highest point in the serie,
 				// as we'll use them for weighting purposes
-				if input.Stats.MemoryStats.Usage < lowest {
-					lowest = input.Stats.MemoryStats.Usage
-				} else if input.Stats.MemoryStats.Usage > highest {
-					highest = input.Stats.MemoryStats.Usage
-				}
+				lowest, highest = getExtremeValues(input.Stats.MemoryStats.Usage, lowest, highest)
 
 				ar.Obs.TimeSerieRAM.min = fifoUint(ar.Obs.TimeSerieRAM.min, uint64(min), ar.Limit)
 				ar.Obs.TimeSerieRAM.max = fifoUint(ar.Obs.TimeSerieRAM.max, uint64(max), ar.Limit)
@@ -436,22 +480,19 @@ func (ar *AutoRangeWatcher) Watch() {
 					medAmplitude, lenSerie := averrage(ar.Obs.TimeSerieRAM.amplitude), len(ar.Obs.TimeSerieRAM.PredictedValues.min)
 					ar.Obs.TimeSerieRAM.PredictedValues.threshold = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.threshold, medAmplitude, ar.Limit)
 					threshold = int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold))
-					if lenSerie >= ar.Limit || (lenSerie > ar.Limit/2 && medAmplitude <= 2) {
 
-						// This flag is set to stop data gathering and enable limit application
-						ar.Obs.TimeSerieRAM.MemoryPrediction = true
-					}
+					ar.Obs.TimeSerieRAM.MemoryPrediction = checkMemoryEndCondition(lenSerie, ar.Limit, medAmplitude)
 
 					// Display result
 					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
 					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
 					ar.Config["memoryAR"]["opti"] = strconv.Itoa(threshold)
 					ar.Config["memoryAR"]["usage"] = strconv.Itoa(int(input.Stats.MemoryStats.Usage))
-				} else {
-					memoryTurn++
+					continue
 				}
+				memoryTurn++
 
-			} else if ar.Continue(category, "cpu%", ar.Obs.TimeSerieCPU.CPUPrediction) {
+			} else if continueIteration(category, "cpu%", ar.Obs.TimeSerieCPU.CPUPrediction) {
 
 				// The logic for the cpu loop is pretty much the same as memory, but more focused
 				// on cpu cores
@@ -466,7 +507,7 @@ func (ar *AutoRangeWatcher) Watch() {
 				ar.Obs.TimeSerieCPU.usage = fifoFloat(ar.Obs.TimeSerieCPU.usage, deltaUsage, ar.Limit)
 
 				// Timeserie arrays are ready to be processed
-				if cpuTurn > ar.Limit {
+				if cpuTurn >= ar.Limit {
 					cpuTurn = 0
 
 					avPercent, avUsage := averrageFloat(ar.Obs.TimeSerieCPU.percent), averrageFloat(ar.Obs.TimeSerieCPU.usage)
@@ -485,9 +526,9 @@ func (ar *AutoRangeWatcher) Watch() {
 						ar.Obs.TimeSerieCPU.CPUPrediction = true
 
 					}
-				} else {
-					cpuTurn++
+					continue
 				}
+				cpuTurn++
 				oldSystem, oldUsage = input.Stats.CPUStats.SystemUsage, input.Stats.CPUStats.CPUUsage.TotalUsage
 			}
 		}
