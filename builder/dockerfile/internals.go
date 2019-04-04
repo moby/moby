@@ -136,7 +136,7 @@ func (b *Builder) exportImage(state *dispatchState, layer builder.RWLayer, paren
 	}
 
 	state.imageID = exportedImage.Digest.String()
-	b.imageSources.Add(newImageMount(newContainerdImage(exportedImage, b.containerdCli, copyRunConfig(state.runConfig)), newLayer))
+	b.imageSources.Add(newImageMount(NewContainerdImage(exportedImage, b.containerdCli, copyRunConfig(state.runConfig)), newLayer))
 	return nil
 }
 

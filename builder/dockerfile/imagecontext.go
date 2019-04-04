@@ -140,7 +140,7 @@ type containerdImage struct {
 	config        *container.Config
 }
 
-func newContainerdImage(desc ocispec.Descriptor, client *containerd.Client, config *container.Config) *containerdImage {
+func NewContainerdImage(desc ocispec.Descriptor, client *containerd.Client, config *container.Config) *containerdImage {
 	return &containerdImage{desc: desc, containerdCli: client, config: config}
 }
 

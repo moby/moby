@@ -15,7 +15,7 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
-	digest "github.com/opencontainers/go-digest"
+	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -134,12 +134,7 @@ type RuntimeImage struct {
 // A runtime image is platform specific.
 // The platform is resolved based on availability in the image and
 // the order preference of the backend storage drivers.
-func (i *ImageService) ResolveRuntimeImage(ctx context.Context, refOrID string) (RuntimeImage, error) {
-	desc, err := i.ResolveImage(ctx, refOrID)
-	if err != nil {
-		return RuntimeImage{}, err
-	}
-
+func (i *ImageService) ResolveRuntimeImage(ctx context.Context, desc ocispec.Descriptor) (RuntimeImage, error) {
 	runtimeImages, err := i.runtimeImages(ctx, desc)
 	if err != nil {
 		return RuntimeImage{}, err

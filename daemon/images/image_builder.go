@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/opencontainers/image-spec/identity"
+
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference"
@@ -17,6 +19,7 @@ import (
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
+	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
@@ -134,15 +137,15 @@ func (l *rwLayer) Release() error {
 	return nil
 }
 
-func newROLayerForImage(img *image.Image, layerStore layer.Store) (builder.ROLayer, error) {
-	if img == nil || img.RootFS.ChainID() == "" {
+func newROLayerForImage(chainID layer.ChainID, layerStore layer.Store) (builder.ROLayer, error) {
+	if chainID == "" {
 		return &roLayer{layerStore: layerStore}, nil
 	}
 	// Hold a reference to the image layer so that it can't be removed before
 	// it is released
-	layer, err := layerStore.Get(img.RootFS.ChainID())
+	layer, err := layerStore.Get(chainID)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get layer for image %s", img.ImageID())
+		return nil, err
 	}
 	return &roLayer{layerStore: layerStore, roLayer: layer}, nil
 }
@@ -189,22 +192,39 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 		if !system.IsOSSupported(os) {
 			return nil, nil, system.ErrNotSupportedOperatingSystem
 		}
-		layer, err := newROLayerForImage(nil, i.layerStores[os])
+		layer, err := newROLayerForImage("", i.layerStores[os])
 		return nil, layer, err
 	}
 
 	if opts.PullOption != backend.PullOptionForcePull {
-		image, err := i.getDockerImage(refOrID)
-		if err != nil && opts.PullOption == backend.PullOptionNoPull {
-			return nil, nil, err
+		desc, err := i.ResolveImage(ctx, refOrID)
+		if err != nil {
+			return nil, nil, errors.Wrapf(err, "failed to resolve image %s", refOrID)
 		}
-		// TODO: shouldn't we error out if error is different from "not found" ?
-		if image != nil {
-			if !system.IsOSSupported(image.OperatingSystem()) {
-				return nil, nil, system.ErrNotSupportedOperatingSystem
+		rImage, err := i.ResolveRuntimeImage(ctx, desc)
+		if err != nil {
+			if opts.PullOption == backend.PullOptionNoPull {
+				return nil, nil, err
 			}
-			layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
-			return image, layer, err
+		} else {
+			var img struct {
+				ocispec.Image
+				Config *container.Config `json:"config,omitempty"`
+			}
+
+			if err := json.Unmarshal(rImage.ConfigBytes, &img); err != nil {
+				return nil, nil, errors.Wrap(err, "failed to unmarshal config")
+			}
+			ci := dockerfile.NewContainerdImage(rImage.Config, i.client, img.Config)
+			store, err := i.getLayerStore(rImage.Platform)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to get layer store")
+			}
+			layer, err := newROLayerForImage(layer.ChainID(identity.ChainID(img.RootFS.DiffIDs)), store)
+			if err != nil {
+				err = errors.Wrapf(err, "failed to get layer for image %s", refOrID)
+			}
+			return ci, layer, err
 		}
 	}
 
@@ -215,7 +235,7 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 	if !system.IsOSSupported(image.OperatingSystem()) {
 		return nil, nil, system.ErrNotSupportedOperatingSystem
 	}
-	layer, err := newROLayerForImage(image, i.layerStores[image.OperatingSystem()])
+	layer, err := newROLayerForImage(image.RootFS.ChainID(), i.layerStores[image.OperatingSystem()])
 	return image, layer, err
 }
 
@@ -223,8 +243,6 @@ func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID s
 // This is similar to LoadImage() except that it receives JSON encoded bytes of
 // an image instead of a tar archive.
 func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImageConfig, newROLayer builder.ROLayer) (ocispec.Descriptor, error) {
-	// TODO(containerd): use containerd's image store
-
 	cache, err := i.getCache(ctx)
 	if err != nil {
 		return ocispec.Descriptor{}, err

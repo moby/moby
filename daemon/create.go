@@ -61,14 +61,26 @@ func (daemon *Daemon) ContainerCreateIgnoreImagesArgsEscaped(ctx context.Context
 }
 
 func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (containertypes.ContainerCreateCreatedBody, error) {
-	start := time.Now()
+	var (
+		err   error
+		start = time.Now()
+	)
+
 	if opts.params.Config == nil {
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
-	if opts.params.Config.Image != "" {
-		var err error
-		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, opts.params.Config.Image)
+	if opts.params.Descriptor != nil {
+		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, *opts.params.Descriptor)
+		if err != nil {
+			return containertypes.ContainerCreateCreatedBody{}, errors.Wrapf(err, "no runtime image found")
+		}
+	} else if opts.params.Config.Image != "" {
+		desc, err := daemon.imageService.ResolveImage(ctx, opts.params.Config.Image)
+		if err != nil {
+			return containertypes.ContainerCreateCreatedBody{}, errors.Wrapf(err, "failed to resolve image %s", opts.params.Config.Image)
+		}
+		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, desc)
 		if err != nil {
 			return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(err)
 		}

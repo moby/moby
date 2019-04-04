@@ -10,6 +10,8 @@ import (
 	"github.com/docker/docker/builder"
 	containerpkg "github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/stringid"
+	"github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
@@ -29,7 +31,16 @@ func newContainerManager(docker builder.ExecBackend) *containerManager {
 
 // Create a container
 func (c *containerManager) Create(ctx context.Context, runConfig *container.Config, hostConfig *container.HostConfig) (container.ContainerCreateCreatedBody, error) {
+	// note that all callers calling this function should
+	// only intend to run an intermediate container during
+	// the build process so that we can safely make the
+	// assumption of MediaTypeImageConfig type
+	desc := ocispec.Descriptor{
+		MediaType: ocispec.MediaTypeImageConfig,
+		Digest:    digest.Digest(runConfig.Image),
+	}
 	container, err := c.backend.ContainerCreateIgnoreImagesArgsEscaped(ctx, types.ContainerCreateConfig{
+		Descriptor: &desc,
 		Config:     runConfig,
 		HostConfig: hostConfig,
 	})

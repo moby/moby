@@ -3,6 +3,7 @@ package images // import "github.com/docker/docker/daemon/images"
 import (
 	"context"
 
+	"github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
 	"github.com/docker/distribution/reference"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -41,7 +42,12 @@ func (i *ImageService) TagImageWithReference(ctx context.Context, target ocispec
 	is := i.client.ImageService()
 	_, err := is.Create(ctx, im)
 	if err != nil {
-		return errors.Wrap(err, "failed to create image")
+		if errdefs.IsAlreadyExists(err) {
+			_, err = i.client.ImageService().Update(ctx, im)
+		}
+		if err != nil {
+			return errors.Wrap(err, "failed to create image")
+		}
 	}
 
 	i.LogImageEvent(ctx, target.Digest.String(), reference.FamiliarString(newTag), "tag")
