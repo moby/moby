@@ -2,7 +2,6 @@ package images // import "github.com/docker/docker/daemon/images"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"sort"
 	"strings"
@@ -17,9 +16,9 @@ import (
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
-	"github.com/docker/docker/pkg/system"
 )
 
 var acceptedImageFilterTags = map[string]bool{
@@ -361,86 +360,89 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
 func (i *ImageService) SquashImage(id, parent string) (string, error) {
+	return "", errdefs.NotImplemented(errors.New("squash not implemented"))
 
-	var (
-		img *image.Image
-		err error
-	)
-	if img, err = i.imageStore.Get(image.ID(id)); err != nil {
-		return "", err
-	}
+	/*
+		var (
+			img *image.Image
+			err error
+		)
+		if img, err = i.imageStore.Get(image.ID(id)); err != nil {
+			return "", err
+		}
 
-	var parentImg *image.Image
-	var parentChainID layer.ChainID
-	if len(parent) != 0 {
-		parentImg, err = i.imageStore.Get(image.ID(parent))
+		var parentImg *image.Image
+		var parentChainID layer.ChainID
+		if len(parent) != 0 {
+			parentImg, err = i.imageStore.Get(image.ID(parent))
+			if err != nil {
+				return "", errors.Wrap(err, "error getting specified parent layer")
+			}
+			parentChainID = parentImg.RootFS.ChainID()
+		} else {
+			rootFS := image.NewRootFS()
+			parentImg = &image.Image{RootFS: rootFS}
+		}
+		if !system.IsOSSupported(img.OperatingSystem()) {
+			return "", errors.Wrap(err, system.ErrNotSupportedOperatingSystem.Error())
+		}
+		l, err := i.layerStores[img.OperatingSystem()].Get(img.RootFS.ChainID())
 		if err != nil {
-			return "", errors.Wrap(err, "error getting specified parent layer")
+			return "", errors.Wrap(err, "error getting image layer")
 		}
-		parentChainID = parentImg.RootFS.ChainID()
-	} else {
-		rootFS := image.NewRootFS()
-		parentImg = &image.Image{RootFS: rootFS}
-	}
-	if !system.IsOSSupported(img.OperatingSystem()) {
-		return "", errors.Wrap(err, system.ErrNotSupportedOperatingSystem.Error())
-	}
-	l, err := i.layerStores[img.OperatingSystem()].Get(img.RootFS.ChainID())
-	if err != nil {
-		return "", errors.Wrap(err, "error getting image layer")
-	}
-	defer i.layerStores[img.OperatingSystem()].Release(l)
+		defer i.layerStores[img.OperatingSystem()].Release(l)
 
-	ts, err := l.TarStreamFrom(parentChainID)
-	if err != nil {
-		return "", errors.Wrapf(err, "error getting tar stream to parent")
-	}
-	defer ts.Close()
-
-	newL, err := i.layerStores[img.OperatingSystem()].Register(ts, parentChainID)
-	if err != nil {
-		return "", errors.Wrap(err, "error registering layer")
-	}
-	defer i.layerStores[img.OperatingSystem()].Release(newL)
-
-	newImage := *img
-	newImage.RootFS = nil
-
-	rootFS := *parentImg.RootFS
-	rootFS.DiffIDs = append(rootFS.DiffIDs, newL.DiffID())
-	newImage.RootFS = &rootFS
-
-	for i, hi := range newImage.History {
-		if i >= len(parentImg.History) {
-			hi.EmptyLayer = true
+		ts, err := l.TarStreamFrom(parentChainID)
+		if err != nil {
+			return "", errors.Wrapf(err, "error getting tar stream to parent")
 		}
-		newImage.History[i] = hi
-	}
+		defer ts.Close()
 
-	now := time.Now()
-	var historyComment string
-	if len(parent) > 0 {
-		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
-	} else {
-		historyComment = fmt.Sprintf("create new from %s", id)
-	}
+		newL, err := i.layerStores[img.OperatingSystem()].Register(ts, parentChainID)
+		if err != nil {
+			return "", errors.Wrap(err, "error registering layer")
+		}
+		defer i.layerStores[img.OperatingSystem()].Release(newL)
 
-	newImage.History = append(newImage.History, image.History{
-		Created: now,
-		Comment: historyComment,
-	})
-	newImage.Created = now
+		newImage := *img
+		newImage.RootFS = nil
 
-	b, err := json.Marshal(&newImage)
-	if err != nil {
-		return "", errors.Wrap(err, "error marshalling image config")
-	}
+		rootFS := *parentImg.RootFS
+		rootFS.DiffIDs = append(rootFS.DiffIDs, newL.DiffID())
+		newImage.RootFS = &rootFS
 
-	newImgID, err := i.imageStore.Create(b)
-	if err != nil {
-		return "", errors.Wrap(err, "error creating new image after squash")
-	}
-	return string(newImgID), nil
+		for i, hi := range newImage.History {
+			if i >= len(parentImg.History) {
+				hi.EmptyLayer = true
+			}
+			newImage.History[i] = hi
+		}
+
+		now := time.Now()
+		var historyComment string
+		if len(parent) > 0 {
+			historyComment = fmt.Sprintf("merge %s to %s", id, parent)
+		} else {
+			historyComment = fmt.Sprintf("create new from %s", id)
+		}
+
+		newImage.History = append(newImage.History, image.History{
+			Created: now,
+			Comment: historyComment,
+		})
+		newImage.Created = now
+
+		b, err := json.Marshal(&newImage)
+		if err != nil {
+			return "", errors.Wrap(err, "error marshalling image config")
+		}
+
+		newImgID, err := i.imageStore.Create(b)
+		if err != nil {
+			return "", errors.Wrap(err, "error creating new image after squash")
+		}
+		return string(newImgID), nil
+	*/
 }
 
 func newImage(image *image.Image, size int64) *types.ImageSummary {

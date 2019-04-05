@@ -287,10 +287,14 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 	cgroupParent := newCgroupParent(config)
+	ds, err := d.DistributionServices()
+	if err != nil {
+		return opts, errors.Wrap(err, "failed to get distribution services")
+	}
 	bk, err := buildkit.New(buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(config.Root, "buildkit"),
-		Dist:                d.DistributionServices(),
+		Dist:                ds,
 		NetworkController:   d.NetworkController(),
 		DefaultCgroupParent: cgroupParent,
 		ResolverOpt:         d.NewResolveOptionsFunc(),

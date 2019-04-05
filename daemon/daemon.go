@@ -7,7 +7,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -26,7 +25,6 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/defaults"
-	containerdimages "github.com/containerd/containerd/images"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/pkg/dialer"
 	"github.com/containerd/containerd/platforms"
@@ -53,9 +51,7 @@ import (
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	"github.com/docker/docker/daemon/stats"
-	dmetadata "github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/libcontainerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
@@ -67,7 +63,6 @@ import (
 	"github.com/docker/docker/pkg/truncindex"
 	"github.com/docker/docker/plugin"
 	pluginexec "github.com/docker/docker/plugin/executor/containerd"
-	refstore "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	"github.com/docker/docker/runconfig"
 	volumesservice "github.com/docker/docker/volume/service"
@@ -950,8 +945,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		// TODO(containerd): probe system for additional configured graph drivers
 	}
 
-	layerStores := make(map[string]layer.Store)
-
 	var backends []images.LayerBackend
 	d.graphDrivers = make(map[string]string)
 	for _, driver := range storageDrivers {
@@ -983,21 +976,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	imageRoot := filepath.Join(config.Root, "image", d.graphDrivers[runtime.GOOS])
-	ifs, err := image.NewFSStoreBackend(filepath.Join(imageRoot, "imagedb"))
-	if err != nil {
-		return nil, err
-	}
-
-	lgrMap := make(map[string]image.LayerGetReleaser)
-	for os, ls := range layerStores {
-		lgrMap[os] = ls
-	}
-	imageStore, err := image.NewImageStore(ifs, lgrMap)
-	if err != nil {
-		return nil, err
-	}
-
 	d.volumes, err = volumesservice.NewVolumeService(config.Root, d.PluginStore, rootIDs, d)
 	if err != nil {
 		return nil, err
@@ -1014,32 +992,13 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// We have a single tag/reference store for the daemon globally. However, it's
-	// stored under the graphdriver. On host platforms which only support a single
-	// container OS, but multiple selectable graphdrivers, this means depending on which
-	// graphdriver is chosen, the global reference store is under there. For
-	// platforms which support multiple container operating systems, this is slightly
-	// more problematic as where does the global ref store get located? Fortunately,
-	// for Windows, which is currently the only daemon supporting multiple container
-	// operating systems, the list of graphdrivers available isn't user configurable.
-	// For backwards compatibility, we just put it under the windowsfilter
-	// directory regardless.
-	refStoreLocation := filepath.Join(imageRoot, `repositories.json`)
-	rs, err := refstore.NewReferenceStore(refStoreLocation)
-	if err != nil {
-		return nil, fmt.Errorf("Couldn't create reference store repository: %s", err)
-	}
-
+	// TODO(containerd): Check migration from on disk state
+	// TODO(containerd): Perform migration after image service creation
 	if os.Getenv("DOCKER_MIGRATE_IMAGE_STORE") != "" {
-		if err := d.Migrate(ctx, ifs, rs); err != nil {
+		// TODO(containerd): Pass in preferred driver name for OS
+		if err := d.Migrate(ctx, config.Root); err != nil {
 			return nil, err
 		}
-		os.Exit(0)
-	}
-
-	distributionMetadataStore, err := dmetadata.NewFSMetadataStore(filepath.Join(imageRoot, "distribution"))
-	if err != nil {
-		return nil, err
 	}
 
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
@@ -1077,20 +1036,16 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	// used above to run migration. They could be initialized in ImageService
 	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(images.ImageServiceConfig{
-		DefaultNamespace:          ContainersNamespace,
-		DefaultPlatform:           storageDrivers[0].platform,
-		Client:                    d.containerdCli,
-		ContainerStore:            d.containers,
-		DistributionMetadataStore: distributionMetadataStore,
-		EventsService:             d.EventsService,
-		ImageStore:                imageStore,
-		LayerBackends:             backends,
-		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
-		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
-		MaxDownloadAttempts:       *config.MaxDownloadAttempts,
-		ReferenceStore:            rs,
-		RegistryService:           registryService,
-		TrustKey:                  trustKey,
+		DefaultNamespace:       ContainersNamespace,
+		DefaultPlatform:        storageDrivers[0].platform,
+		Client:                 d.containerdCli,
+		ContainerStore:         d.containers,
+		EventsService:          d.EventsService,
+		LayerBackends:          backends,
+		MaxConcurrentDownloads: *config.MaxConcurrentDownloads,
+		MaxConcurrentUploads:   *config.MaxConcurrentUploads,
+		MaxDownloadAttempts:    *config.MaxDownloadAttempts,
+		RegistryService:        registryService,
 	})
 
 	// TODO(containerd): create earlier, background, and wait at end
@@ -1146,11 +1101,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	}).Info("Docker daemon")
 
 	return d, nil
-}
-
-// DistributionServices returns services controlling daemon storage
-func (daemon *Daemon) DistributionServices() images.DistributionServices {
-	return daemon.imageService.DistributionServices()
 }
 
 func (daemon *Daemon) waitForStartupDone() {
@@ -1552,82 +1502,4 @@ func (daemon *Daemon) BuilderBackend() builder.Backend {
 		*Daemon
 		*images.ImageService
 	}{daemon, daemon.imageService}
-}
-
-func (d *Daemon) Migrate(ctx context.Context, ifs image.StoreBackend, rs refstore.WalkableStore) error {
-	if d.containerdCli == nil {
-		return errors.New("unable to migrate without containerd")
-	}
-
-	ctx, done, err := d.containerdCli.WithLease(ctx)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		if err := done(context.Background()); err != nil {
-			logrus.WithError(err).Error("failed to remove lease")
-		}
-	}()
-
-	if err := image.MigrateImageStore(ctx, ifs, d.containerdCli.ContentStore(), images.LabelImageParent); err != nil {
-		return err
-	}
-
-	print("Migrating references ")
-	numRef := 0
-	rs.Walk(func(ref reference.Named) error {
-		id, err := rs.Get(ref)
-		if err != nil {
-			logrus.WithError(err).Warnf("can't get digest for %s", id)
-			return nil
-		}
-		config, err := ifs.Get(id)
-		if err != nil {
-			logrus.WithError(err).Warnf("can't get config for %s", id)
-			return nil
-		}
-
-		desc := ocispec.Descriptor{
-			MediaType: ocispec.MediaTypeImageConfig,
-			Digest:    id,
-			Size:      int64(len(config)),
-		}
-
-		// find out created time
-		var img image.Image
-		if err := json.Unmarshal(config, &img); err != nil {
-			logrus.WithError(err).Warn("can't parse image")
-			return nil
-		}
-		created := img.Created
-		// find out updated time
-		updated := created
-		if updatedStr, err := ifs.GetMetadata(id, "lastUpdated"); err == nil {
-			updated, err = time.Parse(time.RFC3339Nano, string(updatedStr))
-			if err != nil {
-				logrus.WithError(err).Warn("can't parse lastUpdated time %q for %s", string(updatedStr), id)
-				updated = created
-			}
-		}
-		_, err = d.containerdCli.ImageService().Create(ctx, containerdimages.Image{
-			Name:      ref.String(),
-			Target:    desc,
-			CreatedAt: created,
-			UpdatedAt: updated,
-			Labels:    map[string]string{}, // TODO any labels here?
-		})
-		if err != nil {
-			logrus.WithError(err).Warn("can't create image")
-			return nil
-		}
-		print(".")
-		// TODO
-		// rs.Delete(ref)
-
-		numRef++
-		return nil
-	})
-	println(" done,", numRef, "references")
-	return nil
 }

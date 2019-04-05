@@ -9,10 +9,8 @@ import (
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
 	"github.com/docker/docker/builder"
-	buildcache "github.com/docker/docker/image/cache"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
-	"github.com/sirupsen/logrus"
 )
 
 type cache struct {
@@ -97,20 +95,23 @@ func (i *ImageService) getCache(ctx context.Context) (c *cache, err error) {
 
 // MakeImageCache creates a stateful image cache for build.
 func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
-	if len(sourceRefs) == 0 {
-		return buildcache.NewLocal(i.imageStore)
-	}
-
-	cache := buildcache.New(i.imageStore)
-
-	for _, ref := range sourceRefs {
-		img, err := i.getDockerImage(ref)
-		if err != nil {
-			logrus.Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
-			continue
+	return nil
+	/*
+		if len(sourceRefs) == 0 {
+			return buildcache.NewLocal(i.imageStore)
 		}
-		cache.Populate(img)
-	}
 
-	return cache
+		cache := buildcache.New(i.imageStore)
+
+		for _, ref := range sourceRefs {
+			img, err := i.getDockerImage(ref)
+			if err != nil {
+				logrus.Warnf("Could not look up %s for cache resolution, skipping: %+v", ref, err)
+				continue
+			}
+			cache.Populate(img)
+		}
+
+		return cache
+	*/
 }

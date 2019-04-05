@@ -9,14 +9,9 @@ import (
 	"github.com/containerd/containerd/platforms"
 	"github.com/docker/docker/container"
 	daemonevents "github.com/docker/docker/daemon/events"
-	"github.com/docker/docker/distribution"
-	"github.com/docker/docker/distribution/metadata"
-	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/system"
-	dockerreference "github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -43,20 +38,18 @@ type ImageServiceConfig struct {
 	DefaultNamespace       string
 	DefaultPlatform        ocispec.Platform
 	Client                 *containerd.Client
-	ContainerStore         containerStore
 	EventsService          *daemonevents.Events
 	LayerBackends          []LayerBackend
 	MaxConcurrentDownloads int
 	MaxConcurrentUploads   int
 	MaxDownloadAttempts       int
 
-	// deprecated
-	DistributionMetadataStore metadata.Store
-	// deprecated
-	ImageStore image.Store
-	// deprecated
-	ReferenceStore dockerreference.Store
-	// deprecated
+	// TODO(containerd): use containerd client after containers updated
+	// to store all metadata in containerd
+	ContainerStore containerStore
+
+	// TODO(containerd): deprecated, move functions which require this
+	// out of image service
 	RegistryService registry.Service
 }
 
@@ -72,7 +65,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		pc.matchers = append(pc.matchers, backend.Platform)
 		layerStores[backend.DriverName()] = backend.Store
 	}
-	// TODO(containerd): Store backends by name and ordered
+
 	return &ImageService{
 		namespace:       config.DefaultNamespace,
 		defaultPlatform: config.DefaultPlatform,
@@ -84,12 +77,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 		layerBackends:   config.LayerBackends,
 		layerStores:     layerStores,
 
-		distributionMetadataStore: config.DistributionMetadataStore,
-		imageStore:                config.ImageStore,
-		referenceStore:            config.ReferenceStore,
-		registryService:           config.RegistryService,
-		//downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
-		//uploadManager:             xfer.NewLayerUploadManager(config.MaxConcurrentUploads),
+		registryService: config.RegistryService,
 	}
 }
 
@@ -138,33 +126,7 @@ type ImageService struct {
 	cacheL sync.RWMutex
 
 	// To be replaced by containerd client
-	registryService           registry.Service
-	referenceStore            dockerreference.Store
-	imageStore                image.Store
-	distributionMetadataStore metadata.Store
-	downloadManager           *xfer.LayerDownloadManager
-	uploadManager             *xfer.LayerUploadManager
-}
-
-// DistributionServices provides daemon image storage services
-type DistributionServices struct {
-	DownloadManager   distribution.RootFSDownloadManager
-	V2MetadataService metadata.V2MetadataService
-	LayerStore        layer.Store // TODO: lcow
-	ImageStore        image.Store
-	ReferenceStore    dockerreference.Store
-}
-
-// DistributionServices return services controlling daemon image storage
-// deprecated: use containerd client
-func (i *ImageService) DistributionServices() DistributionServices {
-	return DistributionServices{
-		DownloadManager:   i.downloadManager,
-		V2MetadataService: metadata.NewV2MetadataService(i.distributionMetadataStore),
-		LayerStore:        i.layerBackends[0].Store,
-		ImageStore:        i.imageStore,
-		ReferenceStore:    i.referenceStore,
-	}
+	registryService registry.Service
 }
 
 // CountImages returns the number of images stored by ImageService
@@ -196,6 +158,12 @@ func (i *ImageService) GetImageBackend(image RuntimeImage) (layer.Store, error) 
 	}
 
 	return nil, errdefs.System(errors.Wrapf(system.ErrNotSupportedOperatingSystem, "no layer storage backend configured for %s", image.Platform.OS))
+}
+
+// GetLayerStore returns the best layer store for the given platform
+// Deprecated: Do not access layer stores directly, snapshotters may be used
+func (i *ImageService) GetLayerStore(platform ocispec.Platform) (layer.Store, error) {
+	return i.getLayerStore(platform)
 }
 
 func (i *ImageService) getLayerStore(platform ocispec.Platform) (layer.Store, error) {
@@ -316,11 +284,5 @@ func (i *ImageService) LayerDiskUsage(ctx context.Context) (int64, error) {
 //
 // called from reload.go
 func (i *ImageService) UpdateConfig(maxDownloads, maxUploads *int) {
-	// TODO(containerd): store these locally to configure resolver
-	if i.downloadManager != nil && maxDownloads != nil {
-		i.downloadManager.SetConcurrency(*maxDownloads)
-	}
-	if i.uploadManager != nil && maxUploads != nil {
-		i.uploadManager.SetConcurrency(*maxUploads)
-	}
+	// TODO(containerd): store these locally to configure download/upload
 }
