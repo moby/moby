@@ -290,8 +290,7 @@ func (ar *AutoRangeWatcher) UpdateResources() {
 			logrus.Errorf("failed to update container with new limits after %d attempt", count)
 			break
 		} else {
-			logrus.Errorf("%v\n", err)
-			logrus.Errorf("retrying in %v..", timer)
+			logrus.Errorf("%v\nretrying in %v..", err, timer)
 		}
 		count--
 	}
@@ -334,12 +333,12 @@ func CPUUsageToConfig(usage string) (config, number string) {
 func (ar *AutoRangeWatcher) baseValueMemory() (min, max, threshold int) {
 	if ar.IsActivated("memory") {
 		min, _ = strconv.Atoi(ar.Config["memory"]["min"])
-		if min == 0 {
+		if min < 10000 {
 			min = 10000
 		}
 
 		max, _ = strconv.Atoi(ar.Config["memory"]["max"])
-		if max == 0 {
+		if max < 20000 {
 			max = 20000
 		}
 
@@ -410,7 +409,6 @@ func (ar *AutoRangeWatcher) startRoutine(ncpus uint32, cpuMin, cpuMax int) {
 
 // Watch is the function that will keep the goroutine alive, process the metrics and generate the time series
 func (ar *AutoRangeWatcher) Watch() {
-
 	var (
 		input                                types.StatsJSON
 		lowest, highest, oldUsage, oldSystem uint64 = 0, 0, 0, 0

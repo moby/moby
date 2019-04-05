@@ -335,7 +335,7 @@ func TestBaseValueMemory(t *testing.T) {
 	ars := []AutoRangeWatcher{
 		{
 			Config: map[string]map[string]string{
-				"memory": map[string]string{
+				"memory": {
 					"min":       "0",
 					"max":       "0",
 					"threshold": "0",
@@ -344,16 +344,16 @@ func TestBaseValueMemory(t *testing.T) {
 		},
 		{
 			Config: map[string]map[string]string{
-				"memory": map[string]string{
-					"min":       "1234",
-					"max":       "2345",
+				"memory": {
+					"min":       "12340",
+					"max":       "23450",
 					"threshold": "20",
 				},
 			},
 		},
 		{
 			Config: map[string]map[string]string{
-				"cpu": map[string]string{
+				"cpu": {
 					"min":       "0",
 					"max":       "0",
 					"threshold": "0",
@@ -371,8 +371,8 @@ func TestBaseValueMemory(t *testing.T) {
 			threshold: 10,
 		},
 		{
-			min:       1234,
-			max:       2345,
+			min:       12340,
+			max:       23450,
 			threshold: 20,
 		},
 		{
@@ -394,7 +394,7 @@ func TestBaseValueCPU(t *testing.T) {
 	ars := []AutoRangeWatcher{
 		{
 			Config: map[string]map[string]string{
-				"cpu%": map[string]string{
+				"cpu%": {
 					"min": "0",
 					"max": "0",
 				},
@@ -402,7 +402,7 @@ func TestBaseValueCPU(t *testing.T) {
 		},
 		{
 			Config: map[string]map[string]string{
-				"cpu%": map[string]string{
+				"cpu%": {
 					"min": "60",
 					"max": "90",
 				},
@@ -410,7 +410,7 @@ func TestBaseValueCPU(t *testing.T) {
 		},
 		{
 			Config: map[string]map[string]string{
-				"memory": map[string]string{
+				"memory": {
 					"min": "10",
 					"max": "20",
 				},
