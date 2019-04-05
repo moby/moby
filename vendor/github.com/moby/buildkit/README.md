@@ -218,8 +218,8 @@ buildctl build ... --import-cache type=registry,ref=localhost:5000/myrepo:buildc
 #### To/From local filesystem
 
 ```
-buildctl build ... --export-cache type=local,src=path/to/input-dir
-buildctl build ... --import-cache type=local,dest=path/to/output-dir
+buildctl build ... --export-cache type=local,dest=path/to/input-dir
+buildctl build ... --import-cache type=local,src=path/to/output-dir
 ```
 
 The directory layout conforms to OCI Image Spec v1.0.
@@ -228,11 +228,11 @@ The directory layout conforms to OCI Image Spec v1.0.
 * `mode=min` (default): only export layers for the resulting image
 * `mode=max`: export all the layers of all intermediate steps
 * `ref=docker.io/user/image:tag`: reference for `registry` cache exporter
-* `src=path/to/output-dir`: directory for `local` cache exporter
+* `dest=path/to/output-dir`: directory for `local` cache exporter
 
 #### `--import-cache` options
 * `ref=docker.io/user/image:tag`: reference for `registry` cache importer
-* `dest=path/to/input-dir`: directory for `local` cache importer
+* `src=path/to/input-dir`: directory for `local` cache importer
 * `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer. Defaults to the digest of "latest" tag in `index.json`
 
 ### Other
