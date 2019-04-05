@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/containerd/containerd"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/opencontainers/runtime-spec/specs-go"
 	"github.com/pkg/errors"
@@ -86,18 +87,18 @@ func (c *mockClient) Restore(ctx context.Context, id string, attachStdio libcont
 	return false, 0, nil
 }
 
-func (c *mockClient) Status(ctx context.Context, id string) (libcontainerdtypes.Status, error) {
+func (c *mockClient) Status(ctx context.Context, id string) (containerd.ProcessStatus, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
 	running, ok := c.containers[id]
 	if !ok {
-		return libcontainerdtypes.StatusUnknown, errors.New("not found")
+		return containerd.Unknown, errors.New("not found")
 	}
 	if running {
-		return libcontainerdtypes.StatusRunning, nil
+		return containerd.Running, nil
 	}
-	return libcontainerdtypes.StatusStopped, nil
+	return containerd.Stopped, nil
 }
 
 func (c *mockClient) Delete(ctx context.Context, id string) error {
