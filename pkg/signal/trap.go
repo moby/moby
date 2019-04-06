@@ -100,5 +100,17 @@ func DumpStacks(dir string) (string, error) {
 	if _, err := f.Write(buf); err != nil {
 		return "", errors.Wrap(err, "failed to write goroutine stacks")
 	}
+
+	// Write to file in temp for gathering diagnostics
+	if dir == "" {
+		name := filepath.Join(os.TempDir(), fmt.Sprintf("dockerd.%d.stacks.log", os.Getpid()))
+		f, err := os.Create(name)
+		if err != nil {
+			return "", nil
+		}
+		defer f.Close()
+		f.WriteString(string(buf))
+	}
+
 	return f.Name(), nil
 }
