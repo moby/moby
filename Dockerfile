@@ -24,6 +24,8 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
+ARG CROSS="false"
+
 FROM golang:1.12.3 AS base
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
@@ -93,11 +95,31 @@ RUN /download-frozen-image-v2.sh /build \
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
 # Just a little hack so we don't have to install these deps twice, once for runc and once for dockerd
-FROM base AS runtime-dev
+FROM base AS runtime-dev-cross-false
 RUN apt-get update && apt-get install -y \
 	libapparmor-dev \
 	libseccomp-dev
 
+FROM runtime-dev-cross-false AS runtime-dev-cross-true
+RUN dpkg --add-architecture armhf
+RUN dpkg --add-architecture arm64
+RUN dpkg --add-architecture armel
+# These crossbuild packages rely on gcc-<arch>, but this doesn't want to install
+# on non-amd64 systems.
+# Additionally, the crossbuild-amd64 is currently only on debian:buster, so
+# other architectures cannnot crossbuild amd64.
+RUN if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
+	apt-get update \
+	&& apt-get install -y \
+		crossbuild-essential-armhf \
+		crossbuild-essential-arm64 \
+		crossbuild-essential-armel \
+		libseccomp-dev:armhf \
+		libseccomp-dev:arm64 \
+		libseccomp-dev:armel; \
+	fi
+
+FROM runtime-dev-cross-${CROSS} AS runtime-dev
 
 FROM base AS tomlv
 ENV INSTALL_BINARY_NAME=tomlv
