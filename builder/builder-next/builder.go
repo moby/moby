@@ -590,7 +590,7 @@ func toBuildkitPruneInfo(opts types.BuildCachePruneOptions) (client.PruneInfo, e
 
 	bkFilter := make([]string, 0, opts.Filters.Len())
 	for cacheField := range cacheFields {
-		if opts.Filters.Include(cacheField) {
+		if opts.Filters.Contains(cacheField) {
 			values := opts.Filters.Get(cacheField)
 			switch len(values) {
 			case 0:
