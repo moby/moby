@@ -23,7 +23,7 @@ func (cli *Client) postHijacked(ctx context.Context, path string, query url.Valu
 		return types.HijackedResponse{}, err
 	}
 
-	apiPath := cli.getAPIPath(path, query)
+	apiPath := cli.getAPIPath(ctx, path, query)
 	req, err := http.NewRequest("POST", apiPath, bodyEncoded)
 	if err != nil {
 		return types.HijackedResponse{}, err

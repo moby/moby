@@ -115,7 +115,7 @@ func (cli *Client) buildRequest(method, path string, body io.Reader, headers hea
 }
 
 func (cli *Client) sendRequest(ctx context.Context, method, path string, query url.Values, body io.Reader, headers headers) (serverResponse, error) {
-	req, err := cli.buildRequest(method, cli.getAPIPath(path, query), body, headers)
+	req, err := cli.buildRequest(method, cli.getAPIPath(ctx, path, query), body, headers)
 	if err != nil {
 		return serverResponse{}, err
 	}
