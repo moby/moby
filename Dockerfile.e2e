@@ -1,5 +1,5 @@
 ## Step 1: Build tests
-FROM golang:1.12.2-alpine as builder
+FROM golang:1.12.3-alpine as builder
 
 RUN apk --no-cache add \
     bash \

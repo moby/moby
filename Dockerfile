@@ -24,7 +24,7 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM golang:1.12.2 AS base
+FROM golang:1.12.3 AS base
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
 RUN sed -ri "s/(httpredir|deb).debian.org/$APT_MIRROR/g" /etc/apt/sources.list
