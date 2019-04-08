@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strconv"
 
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/daemon/config"
@@ -13,6 +14,10 @@ import (
 	"github.com/moby/buildkit/util/apicaps"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
+)
+
+var (
+	honorXDG bool
 )
 
 func newDaemonCommand() (*cobra.Command, error) {
@@ -53,6 +58,8 @@ func init() {
 	if dockerversion.ProductName != "" {
 		apicaps.ExportedProduct = dockerversion.ProductName
 	}
+	b, err := strconv.ParseBool(os.Getenv("DOCKER_HONOR_XDG"))
+	honorXDG = err == nil && b
 }
 
 func main() {

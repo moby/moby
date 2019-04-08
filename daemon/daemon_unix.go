@@ -73,6 +73,7 @@ const (
 	// constant for cgroup drivers
 	cgroupFsDriver      = "cgroupfs"
 	cgroupSystemdDriver = "systemd"
+	cgroupNoneDriver    = "none" // experimental
 
 	// DefaultRuntimeName is the default runtime to be used by
 	// containerd if none is specified
@@ -580,6 +581,9 @@ func (daemon *Daemon) getCgroupDriver() string {
 	if UsingSystemd(daemon.configStore) {
 		cgroupDriver = cgroupSystemdDriver
 	}
+	if UsingNoneCgroup(daemon.configStore) {
+		cgroupDriver = cgroupNoneDriver
+	}
 	return cgroupDriver
 }
 
@@ -601,12 +605,63 @@ func VerifyCgroupDriver(config *config.Config) error {
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
 	}
+	if cd == cgroupNoneDriver {
+		if config.Experimental {
+			if rsystem.RunningInUserNS() {
+				return nil
+			}
+			return fmt.Errorf("native.cgroupdriver option %s only supported when the daemon is running in userns", cd)
+		}
+		return fmt.Errorf("native.cgroupdriver option %s only supported in experimental", cd)
+	}
 	return fmt.Errorf("native.cgroupdriver option %s not supported", cd)
 }
 
 // UsingSystemd returns true if cli option includes native.cgroupdriver=systemd
 func UsingSystemd(config *config.Config) bool {
 	return getCD(config) == cgroupSystemdDriver
+}
+
+// UsingNoneCgroup returns true if cli option includes native.cgroupdriver=none
+func UsingNoneCgroup(config *config.Config) bool {
+	return getCD(config) == cgroupNoneDriver
+}
+
+func (daemon *Daemon) getRestrictOOMScoreAdj() bool {
+	rosa := getROSA(daemon.configStore)
+	b, err := strconv.ParseBool(rosa)
+	return err == nil && b
+}
+
+// getROSA gets the raw value of the native.restrict_oom_score_adj option, if set.
+func getROSA(config *config.Config) string {
+	for _, option := range config.ExecOptions {
+		key, val, err := parsers.ParseKeyValueOpt(option)
+		if err != nil || !strings.EqualFold(key, "native.restrict_oom_score_adj") {
+			continue
+		}
+		return val
+	}
+	return ""
+}
+
+// VerifyRestrictOOMScoreAdj validates native.restrict_oom_score_adj
+func VerifyRestrictOOMScoreAdj(config *config.Config) error {
+	rosa := getROSA(config)
+	if rosa == "" {
+		return nil
+	}
+	b, err := strconv.ParseBool(rosa)
+	if err != nil {
+		return err
+	}
+	if b {
+		if config.Experimental {
+			return nil
+		}
+		return fmt.Errorf("native.restrict_oom_score_adj option %s only supported in experimental", rosa)
+	}
+	return fmt.Errorf("native.restrict_oom_score_adj option %s not supported", rosa)
 }
 
 // verifyPlatformContainerSettings performs platform-specific validation of the
@@ -745,6 +800,9 @@ func verifyDaemonSettings(conf *config.Config) error {
 		if len(conf.CgroupParent) <= 6 || !strings.HasSuffix(conf.CgroupParent, ".slice") {
 			return fmt.Errorf("cgroup-parent for systemd cgroup should be a valid slice named as \"xxx.slice\"")
 		}
+	}
+	if err := VerifyRestrictOOMScoreAdj(conf); err != nil {
+		return err
 	}
 
 	if conf.DefaultRuntime == "" {

@@ -48,7 +48,6 @@ import (
 	"github.com/docker/docker/pkg/signal"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/plugin"
-	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/go-connections/tlsconfig"
 	swarmapi "github.com/docker/swarmkit/api"
@@ -100,12 +99,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 
 	if cli.Config.Experimental {
 		logrus.Warn("Running experimental build")
-		if cli.Config.IsRootless() {
-			logrus.Warn("Running in rootless mode. Cgroups, AppArmor, and CRIU are disabled.")
-		}
 	} else {
-		if cli.Config.IsRootless() {
-			return fmt.Errorf("rootless mode is supported only when running in experimental mode")
+		if honorXDG {
+			return fmt.Errorf("environment variable DOCKER_HONOR_XDG is only supported in experimental mode")
 		}
 	}
 	// return human-friendly error before creating files
@@ -144,7 +140,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		}()
 	}
 
-	if cli.Config.IsRootless() {
+	if honorXDG {
 		// Set sticky bit if XDG_RUNTIME_DIR is set && the file is actually under XDG_RUNTIME_DIR
 		if _, err := homedir.StickRuntimeDirContents(potentiallyUnderRuntimeDir); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
@@ -300,6 +296,13 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		return opts, err
 	}
 	cgroupParent := newCgroupParent(config)
+	bkRootless := false
+	for _, kv := range config.ExecOptions {
+		if kv == "native.cgroupdriver=none" {
+			bkRootless = true
+		}
+		// FIXME(AkihiroSuda): currently bk always restricts OOMScoreAdj despite the value of native.restrict_oom_score_adj
+	}
 	bk, err := buildkit.New(buildkit.Opt{
 		SessionManager:      sm,
 		Root:                filepath.Join(config.Root, "buildkit"),
@@ -308,7 +311,7 @@ func newRouterOptions(config *config.Config, d *daemon.Daemon) (routerOptions, e
 		DefaultCgroupParent: cgroupParent,
 		ResolverOpt:         d.NewResolveOptionsFunc(),
 		BuilderConfig:       config.Builder,
-		Rootless:            d.Rootless(),
+		Rootless:            bkRootless,
 	})
 	if err != nil {
 		return opts, err
@@ -591,7 +594,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	var hosts []string
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, rootless.RunningWithNonRootUsername(), cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, honorXDG, cli.Config.Hosts[i]); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 
@@ -668,9 +671,9 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 	return nil
 }
 
-func systemContainerdRunning(isRootless bool) (string, bool, error) {
+func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 	addr := containerddefaults.DefaultAddress
-	if isRootless {
+	if honorXDG {
 		runtimeDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return "", false, err

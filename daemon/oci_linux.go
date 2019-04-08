@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -20,7 +21,6 @@ import (
 	"github.com/docker/docker/oci/caps"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/mount"
-	"github.com/docker/docker/rootless/specconv"
 	volumemounts "github.com/docker/docker/volume/mounts"
 	"github.com/opencontainers/runc/libcontainer/apparmor"
 	"github.com/opencontainers/runc/libcontainer/cgroups"
@@ -79,11 +79,6 @@ func WithLibnetwork(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		}
 		return nil
 	}
-}
-
-// WithRootless sets the spec to the rootless configuration
-func WithRootless(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
-	return specconv.ToRootless(s)
 }
 
 // WithOOMScore sets the oom score
@@ -947,8 +942,15 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	if c.HostConfig.ReadonlyPaths != nil {
 		opts = append(opts, coci.WithReadonlyPaths(c.HostConfig.ReadonlyPaths))
 	}
-	if daemon.configStore.Rootless {
-		opts = append(opts, WithRootless)
+	// --exec-opt native.cgroupdriver=none
+	// (specified when the daemon lacks permissions for setting cgroups)
+	if daemon.getCgroupDriver() == cgroupNoneDriver {
+		opts = append(opts, WithNoCgroup())
+	}
+	// --exec-opt native.restrict_oom_score_adj=1
+	// (specified when the daemon lacks CAP_SYS_RESOURCE in the initial ns)
+	if daemon.getRestrictOOMScoreAdj() {
+		opts = append(opts, WithRestrictOOMScoreAdj())
 	}
 	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
 		ID: c.ID,
@@ -979,4 +981,36 @@ func (daemon *Daemon) mergeUlimits(c *containertypes.HostConfig) {
 		}
 	}
 	c.Ulimits = ulimits
+}
+
+// WithNoCgroup is for "none" cgroup driver
+func WithNoCgroup() coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		s.Linux.Resources = nil
+		s.Linux.CgroupsPath = ""
+		return nil
+	}
+}
+
+func getCurrentOOMScoreAdj() int {
+	b, err := ioutil.ReadFile("/proc/self/oom_score_adj")
+	if err != nil {
+		return 0
+	}
+	i, err := strconv.Atoi(string(b))
+	if err != nil {
+		return 0
+	}
+	return i
+}
+
+// WithRestrictOOMScoreAdj restricts oom_score_adj to /proc/self/oom_score_adj
+func WithRestrictOOMScoreAdj() coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		currentOOMScoreAdj := getCurrentOOMScoreAdj()
+		if s.Process.OOMScoreAdj != nil && *s.Process.OOMScoreAdj < currentOOMScoreAdj {
+			*s.Process.OOMScoreAdj = currentOOMScoreAdj
+		}
+		return nil
+	}
 }

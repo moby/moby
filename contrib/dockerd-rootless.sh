@@ -1,10 +1,7 @@
 #!/bin/sh
 # dockerd-rootless.sh executes dockerd in rootless mode.
 #
-# Usage: dockerd-rootless.sh --experimental [DOCKERD_OPTIONS]
-# Currently, specifying --experimental is mandatory.
-# Also, to expose ports, you need to specify
-# --userland-proxy-path=/path/to/rootlesskit-docker-proxy
+# Usage: dockerd-rootless.sh [DOCKERD_OPTIONS]
 #
 # External dependencies:
 # * newuidmap and newgidmap needs to be installed.
@@ -12,6 +9,9 @@
 # * Either slirp4netns (v0.3+) or VPNKit needs to be installed.
 #
 # See the documentation for the further information.
+
+# The default flags used for running dockerd
+: ${DOCKERD_ROOTLESS_DOCKERD_FLAGS:="--experimental --exec-opt native.cgroupdriver=none --exec-opt native.restrict_oom_score_adj=1 --userland-proxy --userland-proxy-path=$(which rootlesskit-docker-proxy)"}
 
 set -e -x
 if ! [ -w $XDG_RUNTIME_DIR ]; then
@@ -69,11 +69,13 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 		--net=$net --mtu=$mtu --disable-host-loopback --port-driver=builtin \
 		--copy-up=/etc --copy-up=/run \
 		$DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS \
-		$0 $@
+		$0 $DOCKERD_ROOTLESS_DOCKERD_FLAGS $@
 else
 	[ $_DOCKERD_ROOTLESS_CHILD = 1 ]
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
 	rm -f /run/docker /run/xtables.lock
+	DOCKER_HONOR_XDG=1
+	export DOCKER_HONOR_XDG
 	dockerd $@
 fi
