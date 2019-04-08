@@ -145,30 +145,31 @@ func newCgroupParent(config *config.Config) string {
 	return cgroupParent
 }
 
-func (cli *DaemonCli) initContainerD(ctx context.Context) error {
+func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
+	var waitForShutdown func(time.Duration) error
 	if cli.Config.ContainerdAddr == "" {
 		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
 		if err != nil {
-			return errors.Wrap(err, "could not determine whether the system containerd is running")
+			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
 		}
 		if !ok {
 			opts, err := cli.getContainerdDaemonOpts()
 			if err != nil {
-				return errors.Wrap(err, "failed to generate containerd options")
+				return nil, errors.Wrap(err, "failed to generate containerd options")
 			}
 
 			r, err := supervisor.Start(ctx, filepath.Join(cli.Config.Root, "containerd"), filepath.Join(cli.Config.ExecRoot, "containerd"), opts...)
 			if err != nil {
-				return errors.Wrap(err, "failed to start containerd")
+				return nil, errors.Wrap(err, "failed to start containerd")
 			}
 			cli.Config.ContainerdAddr = r.Address()
 
 			// Try to wait for containerd to shutdown
-			defer r.WaitTimeout(10 * time.Second)
+			waitForShutdown = r.WaitTimeout
 		} else {
 			cli.Config.ContainerdAddr = systemContainerdAddr
 		}
 	}
 
-	return nil
+	return waitForShutdown, nil
 }
