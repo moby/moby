@@ -23,6 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
+// Migrate migrates the given root directory to containerd
 func (d *Daemon) Migrate(ctx context.Context, root string) error {
 	if d.containerdCli == nil {
 		return errors.New("unable to migrate without containerd")
@@ -138,8 +139,8 @@ type DistributionServices struct {
 
 // DistributionServices returns services controlling daemon storage
 // TODO(containerd): Remove this
-func (daemon *Daemon) DistributionServices() (DistributionServices, error) {
-	ls, err := daemon.imageService.GetLayerStore(platforms.DefaultSpec())
+func (d *Daemon) DistributionServices() (DistributionServices, error) {
+	ls, err := d.imageService.GetLayerStore(platforms.DefaultSpec())
 	if err != nil {
 		return DistributionServices{}, err
 	}

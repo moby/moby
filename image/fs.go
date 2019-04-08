@@ -178,6 +178,7 @@ func (s *fs) DeleteMetadata(dgst digest.Digest, key string) error {
 	return os.RemoveAll(filepath.Join(s.metadataDir(dgst), key))
 }
 
+// MigrateImageStore migrates the given image store to containerd content store
 func MigrateImageStore(ctx context.Context, from StoreBackend, to content.Store, labelParent string) error {
 	print(`Migrating image store `)
 	num := 0

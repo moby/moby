@@ -39,6 +39,7 @@ type Store interface {
 // RefWalkFunc is a callback function type used by WalkableStore.Walk
 type RefWalkFunc func(a reference.Named) error
 
+// WalkableStore represents a walkable reference store
 type WalkableStore interface {
 	Store
 	Walk(f RefWalkFunc) error

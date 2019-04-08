@@ -9,16 +9,16 @@ import (
 	"github.com/pkg/errors"
 )
 
-var imagesAcceptedFilters = map[string]bool{
-	"dangling": true,
-	"label":    true,
-	"label!":   true,
-	"until":    true,
-}
+//var imagesAcceptedFilters = map[string]bool{
+//	"dangling": true,
+//	"label":    true,
+//	"label!":   true,
+//	"until":    true,
+//}
 
 // errPruneRunning is returned when a prune request is received while
 // one is in progress
-var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
+//var errPruneRunning = errdefs.Conflict(errors.New("a prune operation is already running"))
 
 // ImagesPrune removes unused images
 func (i *ImageService) ImagesPrune(ctx context.Context, pruneFilters filters.Args) (*types.ImagesPruneReport, error) {
