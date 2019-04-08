@@ -9,6 +9,7 @@ import (
 
 	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/cio"
+	"github.com/containerd/containerd/containers"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/opencontainers/runtime-spec/specs-go"
@@ -22,7 +23,7 @@ func summaryFromInterface(i interface{}) (*libcontainerdtypes.Summary, error) {
 }
 
 func (c *client) UpdateResources(ctx context.Context, containerID string, resources *libcontainerdtypes.Resources) error {
-	p, err := c.getProcess(containerID, libcontainerdtypes.InitProcessName)
+	p, err := c.getProcess(ctx, containerID, libcontainerdtypes.InitProcessName)
 	if err != nil {
 		return err
 	}
@@ -58,29 +59,39 @@ func getSpecUser(ociSpec *specs.Spec) (int, int) {
 	return uid, gid
 }
 
-func prepareBundleDir(bundleDir string, ociSpec *specs.Spec) (string, error) {
-	uid, gid := getSpecUser(ociSpec)
-	if uid == 0 && gid == 0 {
-		return bundleDir, idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
-	}
-
-	p := string(filepath.Separator)
-	components := strings.Split(bundleDir, string(filepath.Separator))
-	for _, d := range components[1:] {
-		p = filepath.Join(p, d)
-		fi, err := os.Stat(p)
-		if err != nil && !os.IsNotExist(err) {
-			return "", err
+// WithBundle creates the bundle for the container
+func WithBundle(bundleDir string, ociSpec *specs.Spec) containerd.NewContainerOpts {
+	return func(ctx context.Context, client *containerd.Client, c *containers.Container) error {
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
 		}
-		if os.IsNotExist(err) || fi.Mode()&1 == 0 {
-			p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
-			if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
-				return "", err
+		uid, gid := getSpecUser(ociSpec)
+		if uid == 0 && gid == 0 {
+			c.Labels[DockerContainerBundlePath] = bundleDir
+			return idtools.MkdirAllAndChownNew(bundleDir, 0755, idtools.Identity{UID: 0, GID: 0})
+		}
+
+		p := string(filepath.Separator)
+		components := strings.Split(bundleDir, string(filepath.Separator))
+		for _, d := range components[1:] {
+			p = filepath.Join(p, d)
+			fi, err := os.Stat(p)
+			if err != nil && !os.IsNotExist(err) {
+				return err
+			}
+			if os.IsNotExist(err) || fi.Mode()&1 == 0 {
+				p = fmt.Sprintf("%s.%d.%d", p, uid, gid)
+				if err := idtools.MkdirAndChown(p, 0700, idtools.Identity{UID: uid, GID: gid}); err != nil && !os.IsExist(err) {
+					return err
+				}
 			}
 		}
+		if c.Labels == nil {
+			c.Labels = make(map[string]string)
+		}
+		c.Labels[DockerContainerBundlePath] = p
+		return nil
 	}
-
-	return p, nil
 }
 
 func newFIFOSet(bundleDir, processID string, withStdin, withTerminal bool) *cio.FIFOSet {
