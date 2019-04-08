@@ -20,6 +20,7 @@ type ELBPolicy struct {
 	SourceVIP string   `json:"SourceVIP,omitempty"`
 	VIPs      []string `json:"VIPs,omitempty"`
 	ILB       bool     `json:"ILB,omitempty"`
+	DSR       bool     `json:"IsDSR,omitempty"`
 }
 
 // LBPolicy is a structure defining schema for LoadBalancing based Policy

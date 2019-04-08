@@ -75,13 +75,13 @@ func layerPathsToDescriptors(parentLayerPaths []string) ([]WC_LAYER_DESCRIPTOR, 
 	for i := 0; i < len(parentLayerPaths); i++ {
 		g, err := LayerID(parentLayerPaths[i])
 		if err != nil {
-			logrus.Debugf("Failed to convert name to guid %s", err)
+			logrus.WithError(err).Debug("Failed to convert name to guid")
 			return nil, err
 		}
 
 		p, err := syscall.UTF16PtrFromString(parentLayerPaths[i])
 		if err != nil {
-			logrus.Debugf("Failed conversion of parentLayerPath to pointer %s", err)
+			logrus.WithError(err).Debug("Failed conversion of parentLayerPath to pointer")
 			return nil, err
 		}
 
