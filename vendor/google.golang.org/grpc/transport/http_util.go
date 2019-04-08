@@ -531,10 +531,14 @@ func (w *bufWriter) Write(b []byte) (n int, err error) {
 	if w.err != nil {
 		return 0, w.err
 	}
-	n = copy(w.buf[w.offset:], b)
-	w.offset += n
-	if w.offset >= w.batchSize {
-		err = w.Flush()
+	for len(b) > 0 {
+		nn := copy(w.buf[w.offset:], b)
+		b = b[nn:]
+		w.offset += nn
+		n += nn
+		if w.offset >= w.batchSize {
+			err = w.Flush()
+		}
 	}
 	return n, err
 }
