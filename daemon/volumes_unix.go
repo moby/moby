@@ -142,7 +142,7 @@ func (daemon *Daemon) mountVolumes(container *container.Container) error {
 			writeMode = "rw"
 		}
 		opts := strings.Join([]string{bindMode, writeMode}, ",")
-		if err := mount.Mount(m.Source, dest, bindMountType, opts); err != nil {
+		if err := mount.Mount(m.Source, dest, "", opts); err != nil {
 			return err
 		}
 
