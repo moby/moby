@@ -59,7 +59,7 @@ func MakeMount(mnt string) error {
 		return nil
 	}
 
-	return Mount(mnt, mnt, "none", "bind")
+	return ForceMount(mnt, mnt, "none", "bind")
 }
 
 func ensureMountedAs(mountPoint, options string) error {
