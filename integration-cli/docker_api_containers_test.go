@@ -2115,8 +2115,7 @@ func (s *DockerSuite) TestContainersAPICreateMountsCreate(c *check.C) {
 			assert.NilError(c, err)
 			defer os.RemoveAll(tmpDir3)
 
-			c.Assert(mount.Mount(tmpDir3, tmpDir3, "none", "bind,rw"), checker.IsNil)
-			c.Assert(mount.ForceMount("", tmpDir3, "none", "shared"), checker.IsNil)
+			c.Assert(mount.Mount(tmpDir3, tmpDir3, "none", "bind,shared"), checker.IsNil)
 
 			cases = append(cases, []testCase{
 				{
