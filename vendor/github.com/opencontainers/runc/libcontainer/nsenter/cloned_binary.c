@@ -249,7 +249,7 @@ static int make_execfd(int *fdtype)
 {
 	int fd = -1;
 	char template[PATH_MAX] = {0};
-	char *prefix = secure_getenv("_LIBCONTAINER_STATEDIR");
+	char *prefix = getenv("_LIBCONTAINER_STATEDIR");
 
 	if (!prefix || *prefix != '/')
 		prefix = "/tmp";
@@ -351,7 +351,7 @@ static int try_bindfd(void)
 {
 	int fd, ret = -1;
 	char template[PATH_MAX] = {0};
-	char *prefix = secure_getenv("_LIBCONTAINER_STATEDIR");
+	char *prefix = getenv("_LIBCONTAINER_STATEDIR");
 
 	if (!prefix || *prefix != '/')
 		prefix = "/tmp";
