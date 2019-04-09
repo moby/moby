@@ -107,7 +107,7 @@ func CheckRedirect(req *http.Request, via []*http.Request) error {
 // It won't send any version information if the version number is empty. It is
 // highly recommended that you set a version or your client may break if the
 // server is upgraded.
-func NewClientWithOpts(ops ...func(*Client) error) (*Client, error) {
+func NewClientWithOpts(ops ...Opt) (*Client, error) {
 	client, err := defaultHTTPClient(DefaultDockerHost)
 	if err != nil {
 		return nil, err
