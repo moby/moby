@@ -139,11 +139,14 @@ func WithTLSClientConfig(cacertPath, certPath, keyPath string) Opt {
 	}
 }
 
-// WithVersion overrides the client version with the specified one
+// WithVersion overrides the client version with the specified one. If an empty
+// version is specified, the value will be ignored to allow version negotiation.
 func WithVersion(version string) Opt {
 	return func(c *Client) error {
-		c.version = version
-		c.manualOverride = true
+		if version != "" {
+			c.version = version
+			c.manualOverride = true
+		}
 		return nil
 	}
 }
