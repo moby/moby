@@ -265,6 +265,26 @@ func TestNegotiateAPVersionOverride(t *testing.T) {
 	assert.Check(t, is.Equal(expected, client.version))
 }
 
+// TestNegotiateAPIVersionWithEmptyVersion asserts that initializing a client
+// with an empty version string does still allow API-version negotiation
+func TestNegotiateAPIVersionWithEmptyVersion(t *testing.T) {
+	client, err := NewClientWithOpts(WithVersion(""))
+	assert.NilError(t, err)
+
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.35"})
+	assert.Equal(t, client.version, "1.35")
+}
+
+// TestNegotiateAPIVersionWithFixedVersion asserts that initializing a client
+// with an fixed version disables API-version negotiation
+func TestNegotiateAPIVersionWithFixedVersion(t *testing.T) {
+	client, err := NewClientWithOpts(WithVersion("1.35"))
+	assert.NilError(t, err)
+
+	client.NegotiateAPIVersionPing(types.Ping{APIVersion: "1.31"})
+	assert.Equal(t, client.version, "1.35")
+}
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (rtf roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
