@@ -1,6 +1,7 @@
 package daemon // import "github.com/docker/docker/daemon"
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/containerd/containerd/containers"
+	coci "github.com/containerd/containerd/oci"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	daemonconfig "github.com/docker/docker/daemon/config"
@@ -34,104 +37,6 @@ const (
 	inContainerInitPath = "/sbin/" + daemonconfig.DefaultInitBinary
 )
 
-func setResources(s *specs.Spec, r containertypes.Resources) error {
-	weightDevices, err := getBlkioWeightDevices(r)
-	if err != nil {
-		return err
-	}
-	readBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadBps)
-	if err != nil {
-		return err
-	}
-	writeBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteBps)
-	if err != nil {
-		return err
-	}
-	readIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadIOps)
-	if err != nil {
-		return err
-	}
-	writeIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteIOps)
-	if err != nil {
-		return err
-	}
-
-	memoryRes := getMemoryResources(r)
-	cpuRes, err := getCPUResources(r)
-	if err != nil {
-		return err
-	}
-	blkioWeight := r.BlkioWeight
-
-	specResources := &specs.LinuxResources{
-		Memory: memoryRes,
-		CPU:    cpuRes,
-		BlockIO: &specs.LinuxBlockIO{
-			Weight:                  &blkioWeight,
-			WeightDevice:            weightDevices,
-			ThrottleReadBpsDevice:   readBpsDevice,
-			ThrottleWriteBpsDevice:  writeBpsDevice,
-			ThrottleReadIOPSDevice:  readIOpsDevice,
-			ThrottleWriteIOPSDevice: writeIOpsDevice,
-		},
-		Pids: getPidsLimit(r),
-	}
-
-	if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {
-		specResources.Devices = s.Linux.Resources.Devices
-	}
-
-	s.Linux.Resources = specResources
-	return nil
-}
-
-func (daemon *Daemon) setDevices(s *specs.Spec, c *container.Container) error {
-	// Build lists of devices allowed and created within the container.
-	var devs []specs.LinuxDevice
-	devPermissions := s.Linux.Resources.Devices
-	if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
-		hostDevices, err := devices.HostDevices()
-		if err != nil {
-			return err
-		}
-		for _, d := range hostDevices {
-			devs = append(devs, oci.Device(d))
-		}
-		devPermissions = []specs.LinuxDeviceCgroup{
-			{
-				Allow:  true,
-				Access: "rwm",
-			},
-		}
-	} else {
-		for _, deviceMapping := range c.HostConfig.Devices {
-			d, dPermissions, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, deviceMapping.CgroupPermissions)
-			if err != nil {
-				return err
-			}
-			devs = append(devs, d...)
-			devPermissions = append(devPermissions, dPermissions...)
-		}
-
-		var err error
-		devPermissions, err = oci.AppendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
-		if err != nil {
-			return err
-		}
-	}
-
-	s.Linux.Devices = append(s.Linux.Devices, devs...)
-	s.Linux.Resources.Devices = devPermissions
-
-	for _, req := range c.HostConfig.DeviceRequests {
-		if err := daemon.handleDevice(req, s); err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
 func (daemon *Daemon) setRlimits(s *specs.Spec, c *container.Container) error {
 	var rlimits []specs.POSIXRlimit
 
@@ -148,17 +53,6 @@ func (daemon *Daemon) setRlimits(s *specs.Spec, c *container.Container) error {
 	}
 
 	s.Process.Rlimits = rlimits
-	return nil
-}
-
-func setUser(s *specs.Spec, c *container.Container) error {
-	uid, gid, additionalGids, err := getUser(c, c.Config.User)
-	if err != nil {
-		return err
-	}
-	s.Process.User.UID = uid
-	s.Process.User.GID = gid
-	s.Process.User.AdditionalGids = additionalGids
 	return nil
 }
 
@@ -693,73 +587,200 @@ func (daemon *Daemon) populateCommonSpec(s *specs.Spec, c *container.Container) 
 	return nil
 }
 
+func withCgroups(daemon *Daemon, c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		var cgroupsPath string
+		scopePrefix := "docker"
+		parent := "/docker"
+		useSystemd := UsingSystemd(daemon.configStore)
+		if useSystemd {
+			parent = "system.slice"
+		}
+
+		if c.HostConfig.CgroupParent != "" {
+			parent = c.HostConfig.CgroupParent
+		} else if daemon.configStore.CgroupParent != "" {
+			parent = daemon.configStore.CgroupParent
+		}
+
+		if useSystemd {
+			cgroupsPath = parent + ":" + scopePrefix + ":" + c.ID
+			logrus.Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
+		} else {
+			cgroupsPath = filepath.Join(parent, c.ID)
+		}
+		s.Linux.CgroupsPath = cgroupsPath
+		p := cgroupsPath
+		if useSystemd {
+			initPath, err := cgroups.GetInitCgroup("cpu")
+			if err != nil {
+				return err
+			}
+			_, err = cgroups.GetOwnCgroup("cpu")
+			if err != nil {
+				return err
+			}
+			p = filepath.Join(initPath, s.Linux.CgroupsPath)
+		}
+
+		// Clean path to guard against things like ../../../BAD
+		parentPath := filepath.Dir(p)
+		if !filepath.IsAbs(parentPath) {
+			parentPath = filepath.Clean("/" + parentPath)
+		}
+
+		if err := daemon.initCgroupsPath(parentPath); err != nil {
+			return fmt.Errorf("linux init cgroups path: %v", err)
+		}
+		return nil
+	}
+}
+
+func withContainerDevices(daemon *Daemon, c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		// Build lists of devices allowed and created within the container.
+		var devs []specs.LinuxDevice
+		devPermissions := s.Linux.Resources.Devices
+		if c.HostConfig.Privileged && !rsystem.RunningInUserNS() {
+			hostDevices, err := devices.HostDevices()
+			if err != nil {
+				return err
+			}
+			for _, d := range hostDevices {
+				devs = append(devs, oci.Device(d))
+			}
+			devPermissions = []specs.LinuxDeviceCgroup{
+				{
+					Allow:  true,
+					Access: "rwm",
+				},
+			}
+		} else {
+			for _, deviceMapping := range c.HostConfig.Devices {
+				d, dPermissions, err := oci.DevicesFromPath(deviceMapping.PathOnHost, deviceMapping.PathInContainer, deviceMapping.CgroupPermissions)
+				if err != nil {
+					return err
+				}
+				devs = append(devs, d...)
+				devPermissions = append(devPermissions, dPermissions...)
+			}
+
+			var err error
+			devPermissions, err = oci.AppendDevicePermissionsFromCgroupRules(devPermissions, c.HostConfig.DeviceCgroupRules)
+			if err != nil {
+				return err
+			}
+		}
+
+		s.Linux.Devices = append(s.Linux.Devices, devs...)
+		s.Linux.Resources.Devices = devPermissions
+
+		for _, req := range c.HostConfig.DeviceRequests {
+			if err := daemon.handleDevice(req, s); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+}
+
+func withResources(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		r := c.HostConfig.Resources
+		weightDevices, err := getBlkioWeightDevices(r)
+		if err != nil {
+			return err
+		}
+		readBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadBps)
+		if err != nil {
+			return err
+		}
+		writeBpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteBps)
+		if err != nil {
+			return err
+		}
+		readIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceReadIOps)
+		if err != nil {
+			return err
+		}
+		writeIOpsDevice, err := getBlkioThrottleDevices(r.BlkioDeviceWriteIOps)
+		if err != nil {
+			return err
+		}
+
+		memoryRes := getMemoryResources(r)
+		cpuRes, err := getCPUResources(r)
+		if err != nil {
+			return err
+		}
+		blkioWeight := r.BlkioWeight
+
+		specResources := &specs.LinuxResources{
+			Memory: memoryRes,
+			CPU:    cpuRes,
+			BlockIO: &specs.LinuxBlockIO{
+				Weight:                  &blkioWeight,
+				WeightDevice:            weightDevices,
+				ThrottleReadBpsDevice:   readBpsDevice,
+				ThrottleWriteBpsDevice:  writeBpsDevice,
+				ThrottleReadIOPSDevice:  readIOpsDevice,
+				ThrottleWriteIOPSDevice: writeIOpsDevice,
+			},
+			Pids: getPidsLimit(r),
+		}
+
+		if s.Linux.Resources != nil && len(s.Linux.Resources.Devices) > 0 {
+			specResources.Devices = s.Linux.Resources.Devices
+		}
+
+		s.Linux.Resources = specResources
+		return nil
+	}
+}
+
+func withSysctls(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		// We merge the sysctls injected above with the HostConfig (latter takes
+		// precedence for backwards-compatibility reasons).
+		for k, v := range c.HostConfig.Sysctls {
+			s.Linux.Sysctl[k] = v
+		}
+		return nil
+	}
+}
+
+func withUser(c *container.Container) coci.SpecOpts {
+	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
+		uid, gid, additionalGids, err := getUser(c, c.Config.User)
+		if err != nil {
+			return err
+		}
+		s.Process.User.UID = uid
+		s.Process.User.GID = gid
+		s.Process.User.AdditionalGids = additionalGids
+		return nil
+	}
+}
+
 func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, err error) {
-	s := oci.DefaultSpec()
+	var (
+		opts []coci.SpecOpts
+		s    = oci.DefaultSpec()
+	)
 	if err := daemon.populateCommonSpec(&s, c); err != nil {
 		return nil, err
 	}
 
-	var cgroupsPath string
-	scopePrefix := "docker"
-	parent := "/docker"
-	useSystemd := UsingSystemd(daemon.configStore)
-	if useSystemd {
-		parent = "system.slice"
-	}
+	opts = append(opts,
+		withCgroups(daemon, c),
+		withResources(c),
+		withSysctls(c),
+		withContainerDevices(daemon, c),
+		withUser(c),
+	)
 
-	if c.HostConfig.CgroupParent != "" {
-		parent = c.HostConfig.CgroupParent
-	} else if daemon.configStore.CgroupParent != "" {
-		parent = daemon.configStore.CgroupParent
-	}
-
-	if useSystemd {
-		cgroupsPath = parent + ":" + scopePrefix + ":" + c.ID
-		logrus.Debugf("createSpec: cgroupsPath: %s", cgroupsPath)
-	} else {
-		cgroupsPath = filepath.Join(parent, c.ID)
-	}
-	s.Linux.CgroupsPath = cgroupsPath
-
-	if err := setResources(&s, c.HostConfig.Resources); err != nil {
-		return nil, fmt.Errorf("linux runtime spec resources: %v", err)
-	}
-	// We merge the sysctls injected above with the HostConfig (latter takes
-	// precedence for backwards-compatibility reasons).
-	for k, v := range c.HostConfig.Sysctls {
-		s.Linux.Sysctl[k] = v
-	}
-
-	p := s.Linux.CgroupsPath
-	if useSystemd {
-		initPath, err := cgroups.GetInitCgroup("cpu")
-		if err != nil {
-			return nil, err
-		}
-		_, err = cgroups.GetOwnCgroup("cpu")
-		if err != nil {
-			return nil, err
-		}
-		p = filepath.Join(initPath, s.Linux.CgroupsPath)
-	}
-
-	// Clean path to guard against things like ../../../BAD
-	parentPath := filepath.Dir(p)
-	if !filepath.IsAbs(parentPath) {
-		parentPath = filepath.Clean("/" + parentPath)
-	}
-
-	if err := daemon.initCgroupsPath(parentPath); err != nil {
-		return nil, fmt.Errorf("linux init cgroups path: %v", err)
-	}
-	if err := daemon.setDevices(&s, c); err != nil {
-		return nil, fmt.Errorf("linux runtime spec devices: %v", err)
-	}
 	if err := daemon.setRlimits(&s, c); err != nil {
 		return nil, fmt.Errorf("linux runtime spec rlimits: %v", err)
-	}
-	if err := setUser(&s, c); err != nil {
-		return nil, fmt.Errorf("linux spec user: %v", err)
 	}
 	if err := setNamespaces(daemon, &s, c); err != nil {
 		return nil, fmt.Errorf("linux spec namespaces: %v", err)
@@ -874,7 +895,9 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 			return nil, err
 		}
 	}
-	return &s, nil
+	return &s, coci.ApplyOpts(context.Background(), nil, &containers.Container{
+		ID: c.ID,
+	}, &s, opts...)
 }
 
 func clearReadOnly(m *specs.Mount) {
