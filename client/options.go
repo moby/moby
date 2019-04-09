@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/docker/go-connections/sockets"
 	"github.com/docker/go-connections/tlsconfig"
@@ -98,6 +99,14 @@ func WithHTTPClient(client *http.Client) Opt {
 		if client != nil {
 			c.client = client
 		}
+		return nil
+	}
+}
+
+// WithTimeout configures the time limit for requests made by the HTTP client
+func WithTimeout(timeout time.Duration) Opt {
+	return func(c *Client) error {
+		c.client.Timeout = timeout
 		return nil
 	}
 }
