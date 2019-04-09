@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"sync"
 
 	"github.com/Microsoft/hcsshim"
 	"github.com/docker/docker/pkg/system"
@@ -28,6 +29,13 @@ type endpoint struct {
 	disablegateway bool
 	portMapping    []types.PortBinding // Operation port bindings
 }
+
+var (
+	//Server 2016 (RS1) does not support concurrent add/delete of endpoints.  Therefore, we need
+	//to use this mutex and serialize the add/delete of endpoints on RS1.
+	endpointMu   sync.Mutex
+	windowsBuild = system.GetOSVersion().Build
+)
 
 func validateID(nid, eid string) error {
 	if nid == "" {
@@ -77,8 +85,7 @@ func (n *network) removeEndpointWithAddress(addr *net.IPNet) {
 
 	if networkEndpoint != nil {
 		logrus.Debugf("Removing stale endpoint from HNS")
-		_, err := hcsshim.HNSEndpointRequest("DELETE", networkEndpoint.profileID, "")
-
+		_, err := endpointRequest("DELETE", networkEndpoint.profileID, "")
 		if err != nil {
 			logrus.Debugf("Failed to delete stale overlay endpoint (%.7s) from hns", networkEndpoint.id)
 		}
@@ -101,8 +108,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 	if ep != nil {
 		logrus.Debugf("Deleting stale endpoint %s", eid)
 		n.deleteEndpoint(eid)
-
-		_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+		_, err := endpointRequest("DELETE", ep.profileID, "")
 		if err != nil {
 			return err
 		}
@@ -179,7 +185,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 		return err
 	}
 
-	hnsresponse, err := hcsshim.HNSEndpointRequest("POST", "", string(configurationb))
+	hnsresponse, err := endpointRequest("POST", "", string(configurationb))
 	if err != nil {
 		return err
 	}
@@ -199,7 +205,7 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 
 	ep.portMapping, err = windows.ParsePortBindingPolicies(hnsresponse.Policies)
 	if err != nil {
-		hcsshim.HNSEndpointRequest("DELETE", hnsresponse.Id, "")
+		endpointRequest("DELETE", hnsresponse.Id, "")
 		return err
 	}
 
@@ -225,7 +231,7 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 
 	n.deleteEndpoint(eid)
 
-	_, err := hcsshim.HNSEndpointRequest("DELETE", ep.profileID, "")
+	_, err := endpointRequest("DELETE", ep.profileID, "")
 	if err != nil {
 		return err
 	}
@@ -262,4 +268,15 @@ func (d *driver) EndpointOperInfo(nid, eid string) (map[string]interface{}, erro
 	}
 
 	return data, nil
+}
+
+func endpointRequest(method, path, request string) (*hcsshim.HNSEndpoint, error) {
+	if windowsBuild == 14393 {
+		endpointMu.Lock()
+	}
+	hnsresponse, err := hcsshim.HNSEndpointRequest(method, path, request)
+	if windowsBuild == 14393 {
+		endpointMu.Unlock()
+	}
+	return hnsresponse, err
 }
