@@ -60,27 +60,12 @@ func (l *MalformedHostHeaderOverrideConn) Read(b []byte) (n int, err error) {
 				return c, nil
 			}
 
-			if b[i+1] != 'H' {
+			if b[i+1] != 'H' || b[i+2] != 'o' || b[i+3] != 's' ||
+				b[i+4] != 't' || b[i+5] != ':' ||  b[i+6] != ' ' ||
+				b[i+7] != '/' {
 				continue
 			}
-			if b[i+2] != 'o' {
-				continue
-			}
-			if b[i+3] != 's' {
-				continue
-			}
-			if b[i+4] != 't' {
-				continue
-			}
-			if b[i+5] != ':' {
-				continue
-			}
-			if b[i+6] != ' ' {
-				continue
-			}
-			if b[i+7] != '/' {
-				continue
-			}
+			
 			// ensure clients other than the docker clients do not get this hack
 			if i != firstLineFeed {
 				return c, nil
