@@ -58,9 +58,6 @@ func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
 		s.ds.TearDownTest(c)
-
-		// Make the test fail so that it prints all the logs YOLO
-		c.Fail()
 	}
 }
 
