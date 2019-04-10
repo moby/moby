@@ -1383,6 +1383,10 @@ func TestValidRemoteDriver(t *testing.T) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
 		fmt.Fprintf(w, "null")
 	})
+	mux.HandleFunc(fmt.Sprintf("/%s.DeleteNetwork", driverapi.NetworkPluginEndpointType), func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
+		fmt.Fprintf(w, "null")
+	})
 
 	if err := os.MkdirAll("/etc/docker/plugins", 0755); err != nil {
 		t.Fatal(err)
