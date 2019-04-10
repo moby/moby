@@ -19,7 +19,7 @@ type NsHandle int
 
 // Equal determines if two network handles refer to the same network
 // namespace. This is done by comparing the device and inode that the
-// file descripors point to.
+// file descriptors point to.
 func (ns NsHandle) Equal(other NsHandle) bool {
 	if ns == other {
 		return true
@@ -46,6 +46,19 @@ func (ns NsHandle) String() string {
 	return fmt.Sprintf("NS(%d: %d, %d)", ns, s.Dev, s.Ino)
 }
 
+// UniqueId returns a string which uniquely identifies the namespace
+// associated with the network handle.
+func (ns NsHandle) UniqueId() string {
+	var s syscall.Stat_t
+	if ns == -1 {
+		return "NS(none)"
+	}
+	if err := syscall.Fstat(int(ns), &s); err != nil {
+		return "NS(unknown)"
+	}
+	return fmt.Sprintf("NS(%d:%d)", s.Dev, s.Ino)
+}
+
 // IsOpen returns true if Close() has not been called.
 func (ns NsHandle) IsOpen() bool {
 	return ns != -1
@@ -61,7 +74,7 @@ func (ns *NsHandle) Close() error {
 	return nil
 }
 
-// Get an empty (closed) NsHandle
+// None gets an empty (closed) NsHandle.
 func None() NsHandle {
 	return NsHandle(-1)
 }

@@ -12,7 +12,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"syscall"
 
 	"github.com/docker/docker/pkg/reexec"
 	"github.com/docker/libnetwork/datastore"
@@ -27,6 +26,7 @@ import (
 	"github.com/vishvananda/netlink"
 	"github.com/vishvananda/netlink/nl"
 	"github.com/vishvananda/netns"
+	"golang.org/x/sys/unix"
 )
 
 var (
@@ -97,18 +97,18 @@ func setDefaultVlan() {
 	}
 
 	// make sure the sysfs mount doesn't propagate back
-	if err = syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
+	if err = unix.Unshare(unix.CLONE_NEWNS); err != nil {
 		logrus.Errorf("unshare failed, %v", err)
 		os.Exit(1)
 	}
 
-	flag := syscall.MS_PRIVATE | syscall.MS_REC
-	if err = syscall.Mount("", "/", "", uintptr(flag), ""); err != nil {
+	flag := unix.MS_PRIVATE | unix.MS_REC
+	if err = unix.Mount("", "/", "", uintptr(flag), ""); err != nil {
 		logrus.Errorf("root mount failed, %v", err)
 		os.Exit(1)
 	}
 
-	if err = syscall.Mount("sysfs", "/sys", "sysfs", 0, ""); err != nil {
+	if err = unix.Mount("sysfs", "/sys", "sysfs", 0, ""); err != nil {
 		logrus.Errorf("mounting sysfs failed, %v", err)
 		os.Exit(1)
 	}
@@ -427,7 +427,7 @@ func populateVNITbl() {
 			}
 			defer ns.Close()
 
-			nlh, err := netlink.NewHandleAt(ns, syscall.NETLINK_ROUTE)
+			nlh, err := netlink.NewHandleAt(ns, unix.NETLINK_ROUTE)
 			if err != nil {
 				logrus.Errorf("Could not open netlink handle during vni population for ns %s: %v", path, err)
 				return nil
@@ -583,7 +583,7 @@ func (n *network) setupSubnetSandbox(s *subnet, brName, vxlanName string) error 
 
 		if ok {
 			deleteVxlanByVNI(path, s.vni)
-			if err := syscall.Unmount(path, syscall.MNT_FORCE); err != nil {
+			if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
 				logrus.Errorf("unmount of %s failed: %v", path, err)
 			}
 			os.Remove(path)
@@ -693,7 +693,7 @@ func (n *network) cleanupStaleSandboxes() {
 			if strings.Contains(n.id, pattern) {
 				// Delete all vnis
 				deleteVxlanByVNI(path, 0)
-				syscall.Unmount(path, syscall.MNT_DETACH)
+				unix.Unmount(path, unix.MNT_DETACH)
 				os.Remove(path)
 
 				// Now that we have destroyed this
@@ -755,12 +755,12 @@ func (n *network) initSandbox(restore bool) error {
 
 	var nlSock *nl.NetlinkSocket
 	sbox.InvokeFunc(func() {
-		nlSock, err = nl.Subscribe(syscall.NETLINK_ROUTE, syscall.RTNLGRP_NEIGH)
+		nlSock, err = nl.Subscribe(unix.NETLINK_ROUTE, unix.RTNLGRP_NEIGH)
 		if err != nil {
 			return
 		}
 		// set the receive timeout to not remain stuck on the RecvFrom if the fd gets closed
-		tv := syscall.NsecToTimeval(soTimeout.Nanoseconds())
+		tv := unix.NsecToTimeval(soTimeout.Nanoseconds())
 		err = nlSock.SetReceiveTimeout(&tv)
 	})
 	n.nlSocket = nlSock
@@ -803,7 +803,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 				return
 			}
 			// When the receive timeout expires the receive will return EAGAIN
-			if err == syscall.EAGAIN {
+			if err == unix.EAGAIN {
 				// we continue here to avoid spam for timeouts
 				continue
 			}
@@ -812,7 +812,7 @@ func (n *network) watchMiss(nlSock *nl.NetlinkSocket, nsPath string) {
 		}
 
 		for _, msg := range msgs {
-			if msg.Header.Type != syscall.RTM_GETNEIGH && msg.Header.Type != syscall.RTM_NEWNEIGH {
+			if msg.Header.Type != unix.RTM_GETNEIGH && msg.Header.Type != unix.RTM_NEWNEIGH {
 				continue
 			}
 
