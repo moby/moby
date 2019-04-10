@@ -142,10 +142,8 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 		ht.Helper()
 	}
 	ctx := context.Background()
-	t.Log("deleteAllVolumes: start c.VolumeList")
 	volumes, err := c.VolumeList(ctx, filters.Args{})
 	assert.Check(t, err, "failed to list volumes")
-	t.Log("deleteAllVolumes: end c.VolumeList")
 
 	for _, v := range volumes.Volumes {
 		if _, ok := protectedVolumes[v.Name]; ok {
