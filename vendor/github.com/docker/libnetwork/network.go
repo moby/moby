@@ -1381,14 +1381,18 @@ func delIPToName(ipMap setmatrix.SetMatrix, name, serviceID string, ip net.IP) {
 }
 
 func addNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
-	svcMap.Insert(name, svcMapEntry{
+	// Since DNS name resolution is case-insensitive, Use the lower-case form
+	// of the name as the key into svcMap
+	lowerCaseName := strings.ToLower(name)
+	svcMap.Insert(lowerCaseName, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
 }
 
 func delNameToIP(svcMap setmatrix.SetMatrix, name, serviceID string, epIP net.IP) {
-	svcMap.Remove(name, svcMapEntry{
+	lowerCaseName := strings.ToLower(name)
+	svcMap.Remove(lowerCaseName, svcMapEntry{
 		ip:        epIP.String(),
 		serviceID: serviceID,
 	})
@@ -1956,6 +1960,7 @@ func (n *network) ResolveName(req string, ipType int) ([]net.IP, bool) {
 	}
 
 	req = strings.TrimSuffix(req, ".")
+	req = strings.ToLower(req)
 	ipSet, ok := sr.svcMap.Get(req)
 
 	if ipType == types.IPv6 {
