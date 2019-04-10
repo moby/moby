@@ -2,6 +2,7 @@ package environment // import "github.com/docker/docker/internal/test/environmen
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 
@@ -23,26 +24,16 @@ func (e *Execution) Clean(t assert.TestingT) {
 
 	platform := e.OSType
 	if (platform != "windows") || (platform == "windows" && e.DaemonInfo.Isolation == "hyperv") {
-		t.Log("start unpauseAllContainers")
 		unpauseAllContainers(t, client)
-		t.Log("end unpauseAllContainers")
 	}
-	t.Log("start deleteAllContainers")
 	deleteAllContainers(t, client, e.protectedElements.containers)
-	t.Log("end deleteAllContainers")
-	t.Log("start deleteAllImages")
 	deleteAllImages(t, client, e.protectedElements.images)
-	t.Log("end deleteAllImages")
 	t.Log("start deleteAllVolumes")
 	deleteAllVolumes(t, client, e.protectedElements.volumes)
 	t.Log("end deleteAllVolumes")
-	t.Log("start deleteAllNetworks")
 	deleteAllNetworks(t, client, platform, e.protectedElements.networks)
-	t.Log("end deleteAllNetworks")
 	if platform == "linux" {
-		t.Log("start deleteAllPlugins")
 		deleteAllPlugins(t, client, e.protectedElements.plugins)
-		t.Log("end deleteAllPlugins")
 	}
 }
 
@@ -153,19 +144,32 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
+	t.Log("deleteAllVolumes: start c.VolumeList")
 	volumes, err := c.VolumeList(context.Background(), filters.Args{})
 	assert.Check(t, err, "failed to list volumes")
+	t.Log("deleteAllVolumes: end c.VolumeList")
 
+	t.Log(fmt.Sprintf("deleteAllVolumes: start cleaning up: found %d volumes, have %d proteced volumes", len(volumes.Volumes), len(protectedVolumes)))
+
+	t.Log("deleteAllVolumes: start cleaning up: ")
 	for _, v := range volumes.Volumes {
 		if _, ok := protectedVolumes[v.Name]; ok {
+			t.Log(fmt.Sprintf("deleteAllVolumes: SKIP volume %s", v.Name))
 			continue
 		}
+		t.Log(fmt.Sprintf("deleteAllVolumes: REMOVE volume %s", v.Name))
 		err := c.VolumeRemove(context.Background(), v.Name, true)
 		// Docker EE may list volumes that no longer exist.
 		if isErrNotFoundSwarmClassic(err) {
+			t.Log(fmt.Sprintf("deleteAllVolumes: FAILED due to isErrNotFoundSwarmClassic: volume %s, err: %s", v.Name, err.Error()))
 			continue
 		}
 		assert.Check(t, err, "failed to remove volume %s", v.Name)
+		if err != nil {
+			t.Log(fmt.Sprintf("deleteAllVolumes: ERROR removing volume %s, err: %s", v.Name, err.Error()))
+		} else {
+			t.Log(fmt.Sprintf("deleteAllVolumes: SUCCESSFULLY removed volume %s", v.Name))
+		}
 	}
 }
 
