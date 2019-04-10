@@ -38,41 +38,50 @@ func (i *ImageService) loadNSCache(ctx context.Context, namespace string) (*cach
 	defer i.cacheL.Unlock()
 
 	var (
-		cs = i.client.ContentStore()
-		c  = &cache{
+		c = &cache{
 			layers: map[string]map[digest.Digest]layer.Layer{},
 		}
 	)
 
 	// Load layers
 	for _, backend := range i.layerBackends {
-		backendCache := map[digest.Digest]layer.Layer{}
-		name := backend.DriverName()
-		label := fmt.Sprintf("%s%s", LabelLayerPrefix, name)
-		err := cs.Walk(ctx, func(info content.Info) error {
-			value := digest.Digest(info.Labels[label])
-			if _, ok := backendCache[value]; ok {
-				return nil
-			}
-			l, err := backend.Get(layer.ChainID(value))
-			if err != nil {
-				log.G(ctx).WithError(err).WithField("digest", info.Digest).WithField("driver", name).Warnf("unable to get layer")
-			} else {
-				log.G(ctx).WithField("digest", info.Digest).WithField("driver", name).Debugf("retaining layer %s", value)
-				backendCache[value] = l
-			}
-			return nil
-		}, fmt.Sprintf("labels.%q", label))
+		backendCache, err := i.loadLayers(ctx, backend)
 		if err != nil {
 			return nil, err
 		}
 
-		c.layers[name] = backendCache
+		c.layers[backend.DriverName()] = backendCache
 	}
 
 	i.cache[namespace] = c
 
 	return c, nil
+}
+
+func (i *ImageService) loadLayers(ctx context.Context, backend layer.Store) (map[digest.Digest]layer.Layer, error) {
+	cs := i.client.ContentStore()
+	backendCache := map[digest.Digest]layer.Layer{}
+	name := backend.DriverName()
+	label := fmt.Sprintf("%s%s", LabelLayerPrefix, name)
+	err := cs.Walk(ctx, func(info content.Info) error {
+		value := digest.Digest(info.Labels[label])
+		if _, ok := backendCache[value]; ok {
+			return nil
+		}
+		l, err := backend.Get(layer.ChainID(value))
+		if err != nil {
+			log.G(ctx).WithError(err).WithField("digest", info.Digest).WithField("driver", name).Warnf("unable to get layer")
+		} else {
+			log.G(ctx).WithField("digest", info.Digest).WithField("driver", name).Debugf("retaining layer %s", value)
+			backendCache[value] = l
+		}
+		return nil
+	}, fmt.Sprintf("labels.%q", label))
+	if err != nil {
+		return nil, err
+	}
+
+	return backendCache, nil
 }
 
 func (i *ImageService) getCache(ctx context.Context) (c *cache, err error) {

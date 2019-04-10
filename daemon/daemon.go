@@ -992,15 +992,6 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	// TODO(containerd): Check migration from on disk state
-	// TODO(containerd): Perform migration after image service creation
-	if os.Getenv("DOCKER_MIGRATE_IMAGE_STORE") != "" {
-		// TODO(containerd): Pass in preferred driver name for OS
-		if err := d.Migrate(ctx, config.Root); err != nil {
-			return nil, err
-		}
-	}
-
 	// Discovery is only enabled when the daemon is launched with an address to advertise.  When
 	// initialized, the daemon is registered and we can store the discovery backend as it's read-only
 	if err := d.initDiscovery(config); err != nil {
@@ -1032,25 +1023,27 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 
 	d.linkIndex = newLinkIndex()
 
-	// TODO: imageStore, distributionMetadataStore, and ReferenceStore are only
-	// used above to run migration. They could be initialized in ImageService
-	// if migration is called from daemon/images. layerStore might move as well.
 	d.imageService = images.NewImageService(images.ImageServiceConfig{
 		DefaultNamespace:       ContainersNamespace,
 		DefaultPlatform:        storageDrivers[0].platform,
 		Client:                 d.containerdCli,
-		ContainerStore:         d.containers,
 		EventsService:          d.EventsService,
 		LayerBackends:          backends,
 		MaxConcurrentDownloads: *config.MaxConcurrentDownloads,
 		MaxConcurrentUploads:   *config.MaxConcurrentUploads,
 		MaxDownloadAttempts:    *config.MaxDownloadAttempts,
-		RegistryService:        registryService,
+
+		// TODO(containerd): Remove registry service from image service
+		RegistryService: registryService,
+
+		// TODO(containerd): Use containerd's container store after the
+		// containerd metadata is completely moved to containerd
+		ContainerStore: d.containers,
 	})
 
-	// TODO(containerd): create earlier, background, and wait at end
-	if err := d.imageService.LoadCache(namespaces.WithNamespace(ctx, ContainersNamespace)); err != nil {
-		return nil, errors.Wrap(err, "failed to load image cache from containerd")
+	nctx := namespaces.WithNamespace(ctx, ContainersNamespace)
+	if err := d.imageService.Load(nctx, config.Root); err != nil {
+		return nil, errors.Wrap(err, "failed to load image service")
 	}
 
 	go d.execCommandGC()
