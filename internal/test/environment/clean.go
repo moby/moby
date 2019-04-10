@@ -144,8 +144,9 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
+	ctx := context.Background()
 	t.Log("deleteAllVolumes: start c.VolumeList")
-	volumes, err := c.VolumeList(context.Background(), filters.Args{})
+	volumes, err := c.VolumeList(ctx, filters.Args{})
 	assert.Check(t, err, "failed to list volumes")
 	t.Log("deleteAllVolumes: end c.VolumeList")
 
@@ -158,7 +159,7 @@ func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolu
 			continue
 		}
 		t.Log(fmt.Sprintf("deleteAllVolumes: REMOVE volume %s", v.Name))
-		err := c.VolumeRemove(context.Background(), v.Name, true)
+		err := c.VolumeRemove(ctx, v.Name, true)
 		// Docker EE may list volumes that no longer exist.
 		if isErrNotFoundSwarmClassic(err) {
 			t.Log(fmt.Sprintf("deleteAllVolumes: FAILED due to isErrNotFoundSwarmClassic: volume %s, err: %s", v.Name, err.Error()))

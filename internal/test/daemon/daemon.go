@@ -77,6 +77,7 @@ type Daemon struct {
 	execRoot                   string
 	experimental               bool
 	init                       bool
+	shutdownTimeout            int
 	dockerdBinary              string
 	log                        logT
 	imageService               *images.ImageService
@@ -141,6 +142,7 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		swarmListenAddr: defaultSwarmListenAddr,
 		SwarmPort:       DefaultSwarmPort,
 		log:             t,
+		shutdownTimeout: 1,
 	}
 
 	for _, op := range ops {
@@ -262,6 +264,9 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	}
 	if d.init {
 		args = append(args, "--init")
+	}
+	if d.shutdownTimeout != 0 {
+		args = append(args, "--shutdown-timeout", strconv.Itoa(d.shutdownTimeout))
 	}
 	if !(d.UseDefaultHost || d.UseDefaultTLSHost) {
 		args = append(args, []string{"--host", d.Sock()}...)
