@@ -73,25 +73,25 @@ func DefaultLinuxSpec() specs.Spec {
 			Destination: "/proc",
 			Type:        "proc",
 			Source:      "proc",
-			Options:     []string{"nosuid", "noexec", "nodev"},
+			Options:     []string{"rw", "nosuid", "noexec", "nodev"},
 		},
 		{
 			Destination: "/dev",
 			Type:        "tmpfs",
 			Source:      "tmpfs",
-			Options:     []string{"nosuid", "strictatime", "mode=755", "size=65536k"},
+			Options:     []string{"rw", "nosuid", "strictatime", "mode=755", "size=65536k"},
 		},
 		{
 			Destination: "/dev/pts",
 			Type:        "devpts",
 			Source:      "devpts",
-			Options:     []string{"nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
+			Options:     []string{"rw", "nosuid", "noexec", "newinstance", "ptmxmode=0666", "mode=0620", "gid=5"},
 		},
 		{
 			Destination: "/sys",
 			Type:        "sysfs",
 			Source:      "sysfs",
-			Options:     []string{"nosuid", "noexec", "nodev", "ro"},
+			Options:     []string{"ro", "nosuid", "noexec", "nodev"},
 		},
 		{
 			Destination: "/sys/fs/cgroup",
@@ -103,13 +103,13 @@ func DefaultLinuxSpec() specs.Spec {
 			Destination: "/dev/mqueue",
 			Type:        "mqueue",
 			Source:      "mqueue",
-			Options:     []string{"nosuid", "noexec", "nodev"},
+			Options:     []string{"rw", "nosuid", "noexec", "nodev"},
 		},
 		{
 			Destination: "/dev/shm",
 			Type:        "tmpfs",
 			Source:      "shm",
-			Options:     []string{"nosuid", "noexec", "nodev", "mode=1777"},
+			Options:     []string{"rw", "nosuid", "noexec", "nodev", "mode=1777"},
 		},
 	}
 

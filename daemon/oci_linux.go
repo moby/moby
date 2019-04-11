@@ -456,17 +456,6 @@ var (
 	}
 )
 
-// inSlice tests whether a string is contained in a slice of strings or not.
-// Comparison is case sensitive
-func inSlice(slice []string, s string) bool {
-	for _, ss := range slice {
-		if s == ss {
-			return true
-		}
-	}
-	return false
-}
-
 func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []container.Mount) error {
 	userMounts := make(map[string]struct{})
 	for _, m := range mounts {
@@ -503,13 +492,13 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 
 		defaultMounts = append(defaultMounts, m)
 	}
-
 	s.Mounts = defaultMounts
+
 	for _, m := range mounts {
 		if m.Source == "tmpfs" {
 			data := m.Data
 			parser := volumemounts.NewParser("linux")
-			options := []string{"noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
+			options := []string{"rw", "noexec", "nosuid", "nodev", string(parser.DefaultPropagationMode())}
 			if data != "" {
 				options = append(options, strings.Split(data, ",")...)
 			}
@@ -578,7 +567,9 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 			bindMode = "bind"
 		}
 		opts := []string{bindMode}
-		if !m.Writable {
+		if m.Writable {
+			opts = append(opts, "rw")
+		} else {
 			opts = append(opts, "ro")
 		}
 		if pFlag != 0 {
@@ -609,18 +600,16 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 				continue
 			}
 			if _, ok := userMounts[m.Destination]; !ok {
-				if !inSlice(m.Options, "ro") {
-					s.Mounts[i].Options = append(s.Mounts[i].Options, "ro")
-				}
+				makeReadOnly(&s.Mounts[i])
 			}
 		}
 	}
 
 	if c.HostConfig.Privileged {
-		// clear readonly for /sys
+		// make /sys writeable
 		for i := range s.Mounts {
 			if s.Mounts[i].Destination == "/sys" {
-				clearReadOnly(&s.Mounts[i])
+				makeWritable(&s.Mounts[i])
 			}
 		}
 		s.Linux.ReadonlyPaths = nil
@@ -632,7 +621,7 @@ func setMounts(daemon *Daemon, s *specs.Spec, c *container.Container, mounts []c
 	if uidMap := daemon.idMapping.UIDs(); uidMap != nil || c.HostConfig.Privileged {
 		for i, m := range s.Mounts {
 			if m.Type == "cgroup" {
-				clearReadOnly(&s.Mounts[i])
+				makeWritable(&s.Mounts[i])
 			}
 		}
 	}
@@ -877,12 +866,36 @@ func (daemon *Daemon) createSpec(c *container.Container) (retSpec *specs.Spec, e
 	return &s, nil
 }
 
-func clearReadOnly(m *specs.Mount) {
-	var opt []string
+func makeWritable(m *specs.Mount) {
+	var found bool
+	opt := m.Options[:0]
 	for _, o := range m.Options {
+		if o == "rw" {
+			found = true
+		}
 		if o != "ro" {
 			opt = append(opt, o)
 		}
+	}
+	if !found {
+		opt = append(opt, "rw")
+	}
+	m.Options = opt
+}
+
+func makeReadOnly(m *specs.Mount) {
+	var found bool
+	opt := m.Options[:0]
+	for _, o := range m.Options {
+		if o == "ro" {
+			found = true
+		}
+		if o != "rw" {
+			opt = append(opt, o)
+		}
+	}
+	if !found {
+		opt = append(opt, "ro")
 	}
 	m.Options = opt
 }
