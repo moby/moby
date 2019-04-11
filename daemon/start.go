@@ -5,6 +5,9 @@ import (
 	"runtime"
 	"time"
 
+	"github.com/containerd/containerd"
+	"github.com/containerd/containerd/containers"
+	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
@@ -179,7 +182,12 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 
 	ctx := context.TODO()
 
-	err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
+	imageRef, err := reference.ParseNormalizedNamed(container.Config.Image)
+	if err != nil {
+		return err
+	}
+
+	err = daemon.containerd.Create(ctx, container.ID, spec, createOptions, withImageName(imageRef.String()))
 	if err != nil {
 		if errdefs.IsConflict(err) {
 			logrus.WithError(err).WithField("container", container.ID).Error("Container not cleaned up from containerd from previous run")
@@ -188,7 +196,7 @@ func (daemon *Daemon) containerStart(container *container.Container, checkpoint 
 			if err := daemon.containerd.Delete(ctx, container.ID); err != nil && !errdefs.IsNotFound(err) {
 				logrus.WithError(err).WithField("container", container.ID).Error("Error cleaning up stale containerd container object")
 			}
-			err = daemon.containerd.Create(ctx, container.ID, spec, createOptions)
+			err = daemon.containerd.Create(ctx, container.ID, spec, createOptions, withImageName(imageRef.String()))
 		}
 		if err != nil {
 			return translateContainerdStartErr(container.Path, container.SetExitCode, err)
@@ -263,5 +271,12 @@ func (daemon *Daemon) Cleanup(container *container.Container) {
 
 	if err := daemon.containerd.Delete(context.Background(), container.ID); err != nil {
 		logrus.Errorf("%s cleanup: failed to delete container from containerd: %v", container.ID, err)
+	}
+}
+
+func withImageName(n string) containerd.NewContainerOpts {
+	return func(ctx context.Context, _ *containerd.Client, c *containers.Container) error {
+		c.Image = n
+		return nil
 	}
 }
