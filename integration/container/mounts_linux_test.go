@@ -265,3 +265,44 @@ func TestContainerBindMountNonRecursive(t *testing.T) {
 		poll.WaitOn(t, container.IsSuccessful(ctx, client, c), poll.WithDelay(100*time.Millisecond))
 	}
 }
+
+// TestBindMountMultiplyAfterCp is a regression check, see Moby PR #38993
+func TestBindMountMultiplyAfterCp(t *testing.T) {
+	skip.If(t, testEnv.IsRemoteDaemon)
+	defer setupTest(t)()
+
+	ctx := context.Background()
+	client := testEnv.APIClient()
+
+	// bind mount a host directory which is a parent
+	// of container root directory (such as /var)
+	mnt := mounttypes.Mount{
+		Type:   "bind",
+		Source: "/var",
+		Target: "/hostvar",
+	}
+	cid := container.Run(t, ctx, client,
+		container.WithMount(mnt),
+		container.WithCmd("sleep", "1h"))
+
+	getMounts := func() string {
+		// If you want to see actual entries, remove -c option from grep below
+		res, err := container.Exec(ctx, client, cid,
+			[]string{"grep", "-c", " / /hostvar/", "/proc/self/mountinfo"})
+		assert.NilError(t, err)
+		assert.Equal(t, res.Stderr(), "")
+		assert.Equal(t, res.ExitCode, 0)
+		return res.Stdout()
+	}
+
+	mountsBeforeCp := getMounts()
+
+	// "docker cp"
+	_, _, err := client.CopyFromContainer(ctx, cid, "/etc/passwd")
+	assert.NilError(t, err)
+
+	// check no new /hostvar mounts were added
+	MountsAfterCp := getMounts()
+
+	assert.Equal(t, mountsBeforeCp, MountsAfterCp)
+}
