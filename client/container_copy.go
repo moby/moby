@@ -1,6 +1,7 @@
 package client // import "github.com/docker/docker/client"
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -37,6 +38,16 @@ func (cli *Client) CopyToContainer(ctx context.Context, containerID, dstPath str
 	if !options.AllowOverwriteDirWithFile {
 		query.Set("noOverwriteDirNonDir", "true")
 	}
+
+	// Only way to check if content was read before or is empty is trying to read it
+	var buf []byte
+	n, err := content.Read(buf)
+	if err != nil || n == 0 {
+		return fmt.Errorf("Empty or used reader received")
+	}
+
+	// If content is not empty, then returns buffer to its original reader
+	content = bytes.NewReader(buf)
 
 	if options.CopyUIDGID {
 		query.Set("copyUIDGID", "true")
