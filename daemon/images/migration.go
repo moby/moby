@@ -120,6 +120,9 @@ func (i *ImageService) migrateImages(ctx context.Context, root string, ls layer.
 	dir := filepath.Join(root, "content", string(digest.Canonical))
 	subs, err := ioutil.ReadDir(dir)
 	if err != nil {
+		if os.IsNotExist(err) {
+			return backendCache, updates, nil
+		}
 		return nil, nil, err
 	}
 	mpath := filepath.Join(root, "metadata", string(digest.Canonical))
@@ -206,6 +209,10 @@ func (i *ImageService) migrateImages(ctx context.Context, root string, ls layer.
 func (i *ImageService) migrateRepositories(ctx context.Context, root string, all map[digest.Digest]*time.Time) error {
 	b, err := ioutil.ReadFile(filepath.Join(root, `repositories.json`))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+
 		return errors.Wrap(err, "failed to read repositories file")
 	}
 	var repos struct {
