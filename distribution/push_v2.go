@@ -178,7 +178,10 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return err
 	}
 
-	putOptions := []distribution.ManifestServiceOption{distribution.WithTag(ref.Tag())}
+	var putOptions []distribution.ManifestServiceOption
+	if p.config.ApplyTagInRegistry {
+		putOptions = append(putOptions, distribution.WithTag(ref.Tag()))
+	}
 	if _, err = manSvc.Put(ctx, manifest, putOptions...); err != nil {
 		logrus.Warnf("failed to upload schema2 manifest: %v", err)
 		return err
@@ -203,9 +206,13 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 		return err
 	}
 
+	resultTag := ""
+	if p.config.ApplyTagInRegistry {
+		resultTag = ref.Tag()
+	}
 	// Signal digest to the trust client so it can sign the
 	// push, if appropriate.
-	progress.Aux(p.config.ProgressOutput, apitypes.PushResult{Tag: ref.Tag(), Digest: manifestDigest.String(), Size: len(canonicalManifest)})
+	progress.Aux(p.config.ProgressOutput, apitypes.PushResult{Tag: resultTag, Digest: manifestDigest.String(), Size: len(canonicalManifest)})
 
 	return nil
 }

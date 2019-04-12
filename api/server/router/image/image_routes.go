@@ -126,13 +126,21 @@ func (s *imageRouter) postImagesPush(ctx context.Context, w http.ResponseWriter,
 
 	image := vars["name"]
 	tag := r.Form.Get("tag")
+	tagInRegistry := true
+	if tagInRegistryString := r.Form.Get("registry-tag"); tagInRegistryString != "" {
+		parsed, err := strconv.ParseBool(tagInRegistryString)
+		if err != nil {
+			return err
+		}
+		tagInRegistry = parsed
+	}
 
 	output := ioutils.NewWriteFlusher(w)
 	defer output.Close()
 
 	w.Header().Set("Content-Type", "application/json")
 
-	if err := s.backend.PushImage(ctx, image, tag, metaHeaders, authConfig, output); err != nil {
+	if err := s.backend.PushImage(ctx, image, tag, tagInRegistry, metaHeaders, authConfig, output); err != nil {
 		if !output.Flushed() {
 			return err
 		}

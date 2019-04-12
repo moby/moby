@@ -20,12 +20,12 @@ func TestImagePushReferenceError(t *testing.T) {
 		}),
 	}
 	// An empty reference is an invalid reference
-	_, err := client.ImagePush(context.Background(), "", types.ImagePushOptions{})
+	_, err := client.ImagePush(context.Background(), "", types.ImagePushOptions{}, true)
 	if err == nil || !strings.Contains(err.Error(), "invalid reference format") {
 		t.Fatalf("expected an error, got %v", err)
 	}
 	// An canonical reference cannot be pushed
-	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", types.ImagePushOptions{})
+	_, err = client.ImagePush(context.Background(), "repo@sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", types.ImagePushOptions{}, true)
 	if err == nil || err.Error() != "cannot push a digest reference" {
 		t.Fatalf("expected an error, got %v", err)
 	}
@@ -35,7 +35,7 @@ func TestImagePushAnyError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusInternalServerError, "Server error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
+	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{}, true)
 	if err == nil || err.Error() != "Error response from daemon: Server error" {
 		t.Fatalf("expected a Server Error, got %v", err)
 	}
@@ -48,7 +48,7 @@ func TestImagePushStatusUnauthorizedError(t *testing.T) {
 	client := &Client{
 		client: newMockClient(errorMock(http.StatusUnauthorized, "Unauthorized error")),
 	}
-	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{})
+	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{}, true)
 	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
 		t.Fatalf("expected an Unauthorized Error, got %v", err)
 	}
@@ -63,7 +63,7 @@ func TestImagePushWithUnauthorizedErrorAndPrivilegeFuncError(t *testing.T) {
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
-	})
+	}, true)
 	if err == nil || err.Error() != "Error requesting privilege" {
 		t.Fatalf("expected an error requesting privilege, got %v", err)
 	}
@@ -78,7 +78,7 @@ func TestImagePushWithUnauthorizedErrorAndAnotherUnauthorizedError(t *testing.T)
 	}
 	_, err := client.ImagePush(context.Background(), "myimage", types.ImagePushOptions{
 		PrivilegeFunc: privilegeFunc,
-	})
+	}, true)
 	if err == nil || err.Error() != "Error response from daemon: Unauthorized error" {
 		t.Fatalf("expected an Unauthorized Error, got %v", err)
 	}
@@ -118,7 +118,7 @@ func TestImagePushWithPrivilegedFuncNoError(t *testing.T) {
 	resp, err := client.ImagePush(context.Background(), "myimage:tag", types.ImagePushOptions{
 		RegistryAuth:  "NotValid",
 		PrivilegeFunc: privilegeFunc,
-	})
+	}, true)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -135,19 +135,34 @@ func TestImagePushWithoutErrors(t *testing.T) {
 	expectedOutput := "hello world"
 	expectedURLFormat := "/images/%s/push"
 	pullCases := []struct {
-		reference     string
-		expectedImage string
-		expectedTag   string
+		reference      string
+		expectedImage  string
+		expectedTag    string
+		pushToRegistry bool
 	}{
 		{
-			reference:     "myimage",
-			expectedImage: "myimage",
-			expectedTag:   "",
+			reference:      "myimage",
+			expectedImage:  "myimage",
+			expectedTag:    "",
+			pushToRegistry: true,
 		},
 		{
-			reference:     "myimage:tag",
-			expectedImage: "myimage",
-			expectedTag:   "tag",
+			reference:      "myimage:tag",
+			expectedImage:  "myimage",
+			expectedTag:    "tag",
+			pushToRegistry: true,
+		},
+		{
+			reference:      "myimage",
+			expectedImage:  "myimage",
+			expectedTag:    "",
+			pushToRegistry: false,
+		},
+		{
+			reference:      "myimage:tag",
+			expectedImage:  "myimage",
+			expectedTag:    "tag",
+			pushToRegistry: false,
 		},
 	}
 	for _, pullCase := range pullCases {
@@ -162,13 +177,22 @@ func TestImagePushWithoutErrors(t *testing.T) {
 				if tag != pullCase.expectedTag {
 					return nil, fmt.Errorf("tag not set in URL query properly. Expected '%s', got %s", pullCase.expectedTag, tag)
 				}
+				if pullCase.pushToRegistry {
+					if query.Get("registry-tag") != "" {
+						return nil, fmt.Errorf("registry-tag should not be set (default value is true)")
+					}
+				} else {
+					if query.Get("registry-tag") != "false" {
+						return nil, fmt.Errorf("registry-tag should be false")
+					}
+				}
 				return &http.Response{
 					StatusCode: http.StatusOK,
 					Body:       ioutil.NopCloser(bytes.NewReader([]byte(expectedOutput))),
 				}, nil
 			}),
 		}
-		resp, err := client.ImagePush(context.Background(), pullCase.reference, types.ImagePushOptions{})
+		resp, err := client.ImagePush(context.Background(), pullCase.reference, types.ImagePushOptions{}, pullCase.pushToRegistry)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/v1"
+	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -354,7 +354,7 @@ func (p *v1Pusher) pushImageToEndpoint(ctx context.Context, endpoint string, ima
 				return err
 			}
 		}
-		if topImage, isTopImage := img.(*v1TopImage); isTopImage {
+		if topImage, isTopImage := img.(*v1TopImage); isTopImage && p.config.ApplyTagInRegistry {
 			for _, tag := range tags[topImage.imageID] {
 				progress.Messagef(p.config.ProgressOutput, "", "Pushing tag for rev [%s] on {%s}", stringid.TruncateID(v1ID), endpoint+"repositories/"+reference.Path(p.repoInfo.Name)+"/tags/"+tag)
 				if err := p.session.PushRegistryTag(p.repoInfo.Name, v1ID, tag, endpoint); err != nil {

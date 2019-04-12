@@ -6837,6 +6837,11 @@ paths:
           in: "query"
           description: "The tag to associate with the image on the registry."
           type: "string"
+        - name: "registry-tag"
+          in: "query"
+          type: "boolean"
+          default: true
+          description: "Tag the manifest in the registry (if false, push the manifest can only be retrieved by digest)"
         - name: "X-Registry-Auth"
           in: "header"
           description: "A base64-encoded auth configuration. [See the authentication section for details.](#section/Authentication)"

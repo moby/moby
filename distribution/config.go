@@ -48,6 +48,8 @@ type Config struct {
 	ReferenceStore refstore.Store
 	// RequireSchema2 ensures that only schema2 manifests are used.
 	RequireSchema2 bool
+	// ApplyTagInRegistry indicates if the manifest should be tagged or will only be retrieved by digest
+	ApplyTagInRegistry bool
 }
 
 // ImagePullConfig stores pull configuration.

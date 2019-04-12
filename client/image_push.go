@@ -15,7 +15,7 @@ import (
 // It executes the privileged function if the operation is unauthorized
 // and it tries one more time.
 // It's up to the caller to handle the io.ReadCloser and close it properly.
-func (cli *Client) ImagePush(ctx context.Context, image string, options types.ImagePushOptions) (io.ReadCloser, error) {
+func (cli *Client) ImagePush(ctx context.Context, image string, options types.ImagePushOptions, tagInRegistry bool) (io.ReadCloser, error) {
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
 		return nil, err
@@ -34,6 +34,9 @@ func (cli *Client) ImagePush(ctx context.Context, image string, options types.Im
 
 	query := url.Values{}
 	query.Set("tag", tag)
+	if !tagInRegistry {
+		query.Set("registry-tag", "false")
+	}
 
 	resp, err := cli.tryImagePush(ctx, name, query, options.RegistryAuth)
 	if errdefs.IsUnauthorized(err) && options.PrivilegeFunc != nil {

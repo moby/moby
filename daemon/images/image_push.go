@@ -14,7 +14,7 @@ import (
 )
 
 // PushImage initiates a push operation on the repository named localName.
-func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
+func (i *ImageService) PushImage(ctx context.Context, image, tag string, tagInRegistry bool, metaHeaders map[string][]string, authConfig *types.AuthConfig, outStream io.Writer) error {
 	start := time.Now()
 	ref, err := reference.ParseNormalizedNamed(image)
 	if err != nil {
@@ -43,14 +43,15 @@ func (i *ImageService) PushImage(ctx context.Context, image, tag string, metaHea
 
 	imagePushConfig := &distribution.ImagePushConfig{
 		Config: distribution.Config{
-			MetaHeaders:      metaHeaders,
-			AuthConfig:       authConfig,
-			ProgressOutput:   progress.ChanOutput(progressChan),
-			RegistryService:  i.registryService,
-			ImageEventLogger: i.LogImageEvent,
-			MetadataStore:    i.distributionMetadataStore,
-			ImageStore:       distribution.NewImageConfigStoreFromStore(i.imageStore),
-			ReferenceStore:   i.referenceStore,
+			MetaHeaders:        metaHeaders,
+			AuthConfig:         authConfig,
+			ProgressOutput:     progress.ChanOutput(progressChan),
+			RegistryService:    i.registryService,
+			ImageEventLogger:   i.LogImageEvent,
+			MetadataStore:      i.distributionMetadataStore,
+			ImageStore:         distribution.NewImageConfigStoreFromStore(i.imageStore),
+			ReferenceStore:     i.referenceStore,
+			ApplyTagInRegistry: tagInRegistry,
 		},
 		ConfigMediaType: schema2.MediaTypeImageConfig,
 		LayerStores:     distribution.NewLayerProvidersFromStores(i.layerStores),
