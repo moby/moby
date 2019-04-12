@@ -151,7 +151,7 @@ func dedupePaths(inp []string) []string {
 	for p1 := range old {
 		var skip bool
 		for p2 := range old {
-			if p1 != p2 && strings.HasPrefix(p1, p2) {
+			if p1 != p2 && strings.HasPrefix(p1, p2+"/") {
 				skip = true
 				break
 			}
