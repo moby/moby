@@ -60,9 +60,7 @@ func (l *MalformedHostHeaderOverrideConn) Read(b []byte) (n int, err error) {
 				return c, nil
 			}
 
-			if b[i+1] != 'H' || b[i+2] != 'o' || b[i+3] != 's' ||
-				b[i+4] != 't' || b[i+5] != ':' || b[i+6] != ' ' ||
-				b[i+7] != '/' {
+			if string(b[i:i+8]) != "\nHost: /" { 
 				continue
 			}
 
