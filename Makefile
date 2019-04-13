@@ -4,6 +4,9 @@
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
 
+# enable/disable cross-compile
+DOCKER_CROSS ?= false
+
 # get OS/Arch of docker engine
 DOCKER_OSARCH := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKER_ENGINE_OSARCH}')
 DOCKERFILE := $(shell bash -c 'source hack/make/.detect-daemon-osarch && echo $${DOCKERFILE}')
@@ -139,8 +142,6 @@ cross: build ## cross build the binaries for darwin, freebsd and\nwindows
 
 ifdef DOCKER_CROSSPLATFORMS
 build: DOCKER_CROSS := true
-else
-build: DOCKER_CROSS ?= false
 endif
 ifeq ($(BIND_DIR), .)
 build: DOCKER_BUILD_OPTS += --target=dev
