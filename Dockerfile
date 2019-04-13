@@ -131,8 +131,12 @@ ARG DEBIAN_FRONTEND
 # on non-amd64 systems.
 # Additionally, the crossbuild-amd64 is currently only on debian:buster, so
 # other architectures cannnot crossbuild amd64.
-RUN if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
-	apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+   	binutils-mingw-w64 \
+   	g++-mingw-w64-x86-64 \
+   	&& \
+    if [ "$(go env GOHOSTARCH)" = "amd64" ]; then \
+	apt-get install -y --no-install-recommends \
 		libseccomp-dev:armhf \
 		libseccomp-dev:arm64 \
 		libseccomp-dev:armel \
@@ -242,8 +246,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 	libdevmapper-dev \
 	libudev-dev \
 	libsystemd-dev \
-	binutils-mingw-w64 \
-	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
 	python3-pip \
