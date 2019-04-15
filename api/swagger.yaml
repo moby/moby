@@ -4611,9 +4611,9 @@ paths:
       parameters:
         - name: "name"
           in: "query"
-          description: "Assign the specified name to the container. Must match `/?[a-zA-Z0-9_-]+`."
+          description: "Assign the specified name to the container. Must match `/?[a-zA-Z0-9][a-zA-Z0-9_.-]+`."
           type: "string"
-          pattern: "/?[a-zA-Z0-9_-]+"
+          pattern: "^/?[a-zA-Z0-9][a-zA-Z0-9_.-]+$"
         - name: "body"
           in: "body"
           description: "Container to create"
