@@ -641,7 +641,6 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 		if err != nil {
 			return nil, err
 		}
-		ls = wrapListeners(proto, ls)
 		// If we're binding to a TCP port, make sure that a container doesn't try to use it.
 		if proto == "tcp" {
 			if err := allocateDaemonPort(addr); err != nil {

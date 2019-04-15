@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/containerd/containerd/runtime/v1/linux"
-	"github.com/docker/docker/cmd/dockerd/hack"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
@@ -120,18 +119,6 @@ func allocateDaemonPort(addr string) error {
 		}
 	}
 	return nil
-}
-
-func wrapListeners(proto string, ls []net.Listener) []net.Listener {
-	switch proto {
-	case "unix":
-		ls[0] = &hack.MalformedHostHeaderOverride{Listener: ls[0]}
-	case "fd":
-		for i := range ls {
-			ls[i] = &hack.MalformedHostHeaderOverride{Listener: ls[i]}
-		}
-	}
-	return ls
 }
 
 func newCgroupParent(config *config.Config) string {

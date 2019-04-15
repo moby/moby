@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -84,10 +83,6 @@ func (cli *DaemonCli) getSwarmRunRoot() string {
 
 func allocateDaemonPort(addr string) error {
 	return nil
-}
-
-func wrapListeners(proto string, ls []net.Listener) []net.Listener {
-	return ls
 }
 
 func newCgroupParent(config *config.Config) string {
