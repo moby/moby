@@ -72,27 +72,29 @@ func (e *executor) Describe(ctx context.Context) (*api.NodeDescription, error) {
 
 	// add v2 plugins
 	v2Plugins, err := e.backend.PluginManager().List(filters.NewArgs())
-	if err == nil {
-		for _, plgn := range v2Plugins {
-			for _, typ := range plgn.Config.Interface.Types {
-				if typ.Prefix != "docker" || !plgn.Enabled {
-					continue
-				}
-				plgnTyp := typ.Capability
-				switch typ.Capability {
-				case "volumedriver":
-					plgnTyp = "Volume"
-				case "networkdriver":
-					plgnTyp = "Network"
-				case "logdriver":
-					plgnTyp = "Log"
-				}
+	if err != nil {
+		return nil, err
+	}
 
-				plugins[api.PluginDescription{
-					Type: plgnTyp,
-					Name: plgn.Name,
-				}] = struct{}{}
+	for _, plgn := range v2Plugins {
+		for _, typ := range plgn.Config.Interface.Types {
+			if typ.Prefix != "docker" || !plgn.Enabled {
+				continue
 			}
+			plgnTyp := typ.Capability
+			switch typ.Capability {
+			case "volumedriver":
+				plgnTyp = "Volume"
+			case "networkdriver":
+				plgnTyp = "Network"
+			case "logdriver":
+				plgnTyp = "Log"
+			}
+
+			plugins[api.PluginDescription{
+				Type: plgnTyp,
+				Name: plgn.Name,
+			}] = struct{}{}
 		}
 	}
 
