@@ -3,7 +3,6 @@
 package fluentd // import "github.com/docker/docker/daemon/logger/fluentd"
 
 import (
-	"fmt"
 	"math"
 	"net"
 	"net/url"
@@ -70,7 +69,7 @@ func init() {
 // the context. The supported context configuration variable is
 // fluentd-address.
 func New(info logger.Info) (logger.Logger, error) {
-	loc, err := parseAddress(info.Config[addressKey])
+	fluentConfig, err := parseConfig(info.Config)
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
 	}
@@ -83,59 +82,6 @@ func New(info logger.Info) (logger.Logger, error) {
 	extra, err := info.ExtraAttributes(nil)
 	if err != nil {
 		return nil, errdefs.InvalidParameter(err)
-	}
-
-	bufferLimit := defaultBufferLimit
-	if info.Config[bufferLimitKey] != "" {
-		bl64, err := units.RAMInBytes(info.Config[bufferLimitKey])
-		if err != nil {
-			return nil, err
-		}
-		bufferLimit = int(bl64)
-	}
-
-	retryWait := defaultRetryWait
-	if info.Config[retryWaitKey] != "" {
-		rwd, err := time.ParseDuration(info.Config[retryWaitKey])
-		if err != nil {
-			return nil, err
-		}
-		retryWait = int(rwd.Seconds() * 1000)
-	}
-
-	maxRetries := defaultMaxRetries
-	if info.Config[maxRetriesKey] != "" {
-		mr64, err := strconv.ParseUint(info.Config[maxRetriesKey], 10, strconv.IntSize)
-		if err != nil {
-			return nil, err
-		}
-		maxRetries = int(mr64)
-	}
-
-	asyncConnect := false
-	if info.Config[asyncConnectKey] != "" {
-		if asyncConnect, err = strconv.ParseBool(info.Config[asyncConnectKey]); err != nil {
-			return nil, err
-		}
-	}
-
-	subSecondPrecision := false
-	if info.Config[subSecondPrecisionKey] != "" {
-		if subSecondPrecision, err = strconv.ParseBool(info.Config[subSecondPrecisionKey]); err != nil {
-			return nil, err
-		}
-	}
-
-	fluentConfig := fluent.Config{
-		FluentPort:         loc.port,
-		FluentHost:         loc.host,
-		FluentNetwork:      loc.protocol,
-		FluentSocketPath:   loc.path,
-		BufferLimit:        bufferLimit,
-		RetryWait:          retryWait,
-		MaxRetry:           maxRetries,
-		Async:              asyncConnect,
-		SubSecondPrecision: subSecondPrecision,
 	}
 
 	logrus.WithField("container", info.ContainerID).WithField("config", fluentConfig).
@@ -204,12 +150,76 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case subSecondPrecisionKey:
 			// Accepted
 		default:
-			return fmt.Errorf("unknown log opt '%s' for fluentd log driver", key)
+			return errors.Errorf("unknown log opt '%s' for fluentd log driver", key)
 		}
 	}
 
-	_, err := parseAddress(cfg[addressKey])
+	_, err := parseConfig(cfg)
 	return err
+}
+
+func parseConfig(cfg map[string]string) (fluent.Config, error) {
+	var config fluent.Config
+
+	loc, err := parseAddress(cfg[addressKey])
+	if err != nil {
+		return config, err
+	}
+
+	bufferLimit := defaultBufferLimit
+	if cfg[bufferLimitKey] != "" {
+		bl64, err := units.RAMInBytes(cfg[bufferLimitKey])
+		if err != nil {
+			return config, err
+		}
+		bufferLimit = int(bl64)
+	}
+
+	retryWait := defaultRetryWait
+	if cfg[retryWaitKey] != "" {
+		rwd, err := time.ParseDuration(cfg[retryWaitKey])
+		if err != nil {
+			return config, err
+		}
+		retryWait = int(rwd.Seconds() * 1000)
+	}
+
+	maxRetries := defaultMaxRetries
+	if cfg[maxRetriesKey] != "" {
+		mr64, err := strconv.ParseUint(cfg[maxRetriesKey], 10, strconv.IntSize)
+		if err != nil {
+			return config, err
+		}
+		maxRetries = int(mr64)
+	}
+
+	asyncConnect := false
+	if cfg[asyncConnectKey] != "" {
+		if asyncConnect, err = strconv.ParseBool(cfg[asyncConnectKey]); err != nil {
+			return config, err
+		}
+	}
+
+	subSecondPrecision := false
+	if cfg[subSecondPrecisionKey] != "" {
+		if subSecondPrecision, err = strconv.ParseBool(cfg[subSecondPrecisionKey]); err != nil {
+			return config, err
+		}
+	}
+
+	config = fluent.Config{
+		FluentPort:         loc.port,
+		FluentHost:         loc.host,
+		FluentNetwork:      loc.protocol,
+		FluentSocketPath:   loc.path,
+		BufferLimit:        bufferLimit,
+		RetryWait:          retryWait,
+		MaxRetry:           maxRetries,
+		Async:              asyncConnect,
+		SubSecondPrecision: subSecondPrecision,
+	}
+
+	return config, nil
 }
 
 func parseAddress(address string) (*location, error) {
