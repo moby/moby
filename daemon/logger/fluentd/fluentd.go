@@ -39,21 +39,21 @@ type location struct {
 const (
 	name = "fluentd"
 
-	defaultProtocol    = "tcp"
+	defaultBufferLimit = 1024 * 1024
 	defaultHost        = "127.0.0.1"
 	defaultPort        = 24224
-	defaultBufferLimit = 1024 * 1024
+	defaultProtocol    = "tcp"
 
 	// logger tries to reconnect 2**32 - 1 times
 	// failed (and panic) after 204 years [ 1.5 ** (2**32 - 1) - 1 seconds]
-	defaultRetryWait  = 1000
 	defaultMaxRetries = math.MaxInt32
+	defaultRetryWait  = 1000
 
 	addressKey            = "fluentd-address"
-	bufferLimitKey        = "fluentd-buffer-limit"
-	retryWaitKey          = "fluentd-retry-wait"
-	maxRetriesKey         = "fluentd-max-retries"
 	asyncConnectKey       = "fluentd-async-connect"
+	bufferLimitKey        = "fluentd-buffer-limit"
+	maxRetriesKey         = "fluentd-max-retries"
+	retryWaitKey          = "fluentd-retry-wait"
 	subSecondPrecisionKey = "fluentd-sub-second-precision"
 )
 
@@ -195,11 +195,12 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case "labels":
 		case "labels-regex":
 		case "tag":
+
 		case addressKey:
-		case bufferLimitKey:
-		case retryWaitKey:
-		case maxRetriesKey:
 		case asyncConnectKey:
+		case bufferLimitKey:
+		case maxRetriesKey:
+		case retryWaitKey:
 		case subSecondPrecisionKey:
 			// Accepted
 		default:
