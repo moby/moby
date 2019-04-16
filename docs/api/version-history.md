@@ -85,6 +85,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   on the node.label. The format of the label filter is `node.label=<key>`/`node.label=<key>=<value>`
   to return those with the specified labels, or `node.label!=<key>`/`node.label!=<key>=<value>`
   to return those without the specified labels.
+* `POST /containers/create` now accepts a `fluentd-async` option in `HostConfig.LogConfig.Config`
+  when using the Fluentd logging driver. This option deprecates the `fluentd-async-connect`
+  option, which remains funtional, but will be removed in a future release. Users
+  are encouraged to use the `fluentd-async` option going forward. This change is
+  not versioned, and affects all API versions if the daemon has this patch.
 * `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
   `BindOptions.NonRecursive`.
 * `POST /swarm/init` now accepts a `DataPathPort` property to set data path port number.
