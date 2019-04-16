@@ -80,6 +80,7 @@ case "$(go env GOOS)/$(go env GOARCH)" in
 esac
 
 echo "Building: $DEST/$BINARY_FULLNAME"
+echo "GOOS=\"${GOOS}\" GOARCH=\"${GOARCH}\" GOARM=\"${GOARM}\""
 go build \
 	-o "$DEST/$BINARY_FULLNAME" \
 	"${BUILDFLAGS[@]}" \
