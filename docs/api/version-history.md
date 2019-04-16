@@ -90,6 +90,12 @@ keywords: "API, Docker, rcli, REST, documentation"
   option, which remains funtional, but will be removed in a future release. Users
   are encouraged to use the `fluentd-async` option going forward. This change is
   not versioned, and affects all API versions if the daemon has this patch.
+* `POST /containers/create` now accepts a `fluentd-request-ack` option in
+  `HostConfig.LogConfig.Config` when using the Fluentd logging driver. If enabled,
+  the Fluentd logging driver sends the chunk option with a unique ID. The server
+  will respond with an acknowledgement. This option improves the reliability of
+  the message transmission. This change is not versioned, and affects all API
+  versions if the daemon has this patch.
 * `POST /containers/create`, `GET /containers/{id}/json`, and `GET /containers/json` now supports
   `BindOptions.NonRecursive`.
 * `POST /swarm/init` now accepts a `DataPathPort` property to set data path port number.

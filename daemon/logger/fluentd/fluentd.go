@@ -53,6 +53,7 @@ const (
 	asyncConnectKey       = "fluentd-async-connect" // deprecated option (use fluent-async instead)
 	bufferLimitKey        = "fluentd-buffer-limit"
 	maxRetriesKey         = "fluentd-max-retries"
+	requestAckKey         = "fluentd-request-ack"
 	retryWaitKey          = "fluentd-retry-wait"
 	subSecondPrecisionKey = "fluentd-sub-second-precision"
 )
@@ -148,6 +149,7 @@ func ValidateLogOpt(cfg map[string]string) error {
 		case asyncConnectKey:
 		case bufferLimitKey:
 		case maxRetriesKey:
+		case requestAckKey:
 		case retryWaitKey:
 		case subSecondPrecisionKey:
 			// Accepted
@@ -221,6 +223,13 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		}
 	}
 
+	requestAck := false
+	if cfg[requestAckKey] != "" {
+		if requestAck, err = strconv.ParseBool(cfg[requestAckKey]); err != nil {
+			return config, err
+		}
+	}
+
 	config = fluent.Config{
 		FluentPort:         loc.port,
 		FluentHost:         loc.host,
@@ -232,6 +241,7 @@ func parseConfig(cfg map[string]string) (fluent.Config, error) {
 		Async:              async,
 		AsyncConnect:       asyncConnect,
 		SubSecondPrecision: subSecondPrecision,
+		RequestAck:         requestAck,
 	}
 
 	return config, nil
