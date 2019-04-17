@@ -278,41 +278,46 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.Wait = wait
 
+	clientConfig, err := d.getClientConfig()
+	if err != nil {
+		return err
+	}
+	client := &http.Client{
+		Transport: clientConfig.transport,
+	}
+
+	req, err := http.NewRequest("GET", "/_ping", nil)
+	if err != nil {
+		return errors.Wrapf(err, "[%s] could not create new request", d.id)
+	}
+	req.URL.Host = clientConfig.addr
+	req.URL.Scheme = clientConfig.scheme
+
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	tick := ticker.C
 
+	timeout := time.NewTimer(60 * time.Second) // timeout for the whole loop
+	defer timeout.Stop()
+
 	// make sure daemon is ready to receive requests
-	startTime := time.Now().Unix()
 	for {
 		d.log.Logf("[%s] waiting for daemon to start", d.id)
-		if time.Now().Unix()-startTime > 5 {
-			// After 5 seconds, give up
-			return errors.Errorf("[%s] Daemon exited and never started", d.id)
-		}
+
 		select {
-		case <-time.After(2 * time.Second):
-			return errors.Errorf("[%s] timeout: daemon does not respond", d.id)
+		case <-timeout.C:
+			return errors.Errorf("[%s] Daemon exited and never started", d.id)
 		case <-tick:
-			clientConfig, err := d.getClientConfig()
-			if err != nil {
-				return err
-			}
+			ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+			req := req.WithContext(ctx)
 
-			client := &http.Client{
-				Transport: clientConfig.transport,
-			}
-
-			req, err := http.NewRequest("GET", "/_ping", nil)
-			if err != nil {
-				return errors.Wrapf(err, "[%s] could not create new request", d.id)
-			}
-			req.URL.Host = clientConfig.addr
-			req.URL.Scheme = clientConfig.scheme
 			resp, err := client.Do(req)
+			cancel()
 			if err != nil {
+				d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
 				continue
 			}
+
 			resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
@@ -412,8 +417,8 @@ func (d *Daemon) StopWithError() error {
 	if d.cmd == nil || d.Wait == nil {
 		return errDaemonNotStarted
 	}
-
 	defer func() {
+		d.log.Logf("[%s] Daemon stopped", d.id)
 		d.logFile.Close()
 		d.cmd = nil
 	}()
@@ -423,12 +428,15 @@ func (d *Daemon) StopWithError() error {
 	defer ticker.Stop()
 	tick := ticker.C
 
+	d.log.Logf("[%s] Stopping daemon", d.id)
+
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
 			return errDaemonNotStarted
 		}
 		return errors.Errorf("could not send signal: %v", err)
 	}
+
 out1:
 	for {
 		select {
@@ -482,6 +490,7 @@ func (d *Daemon) Restart(t testingT, args ...string) {
 // RestartWithError will restart the daemon by first stopping it and then starting it.
 func (d *Daemon) RestartWithError(arg ...string) error {
 	if err := d.StopWithError(); err != nil {
+		d.log.Logf("[%s] Error when stopping daemon: %v", d.id, err)
 		return err
 	}
 	return d.StartWithError(arg...)
