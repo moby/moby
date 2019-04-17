@@ -263,10 +263,11 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 }
 
 // Regression test for https://github.com/docker/docker/issues/26429
+// Regression test for https://github.com/moby/moby/pull/38574
 func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	assert.ErrorContains(c, err, "no matching manifest")
+	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
@@ -274,4 +275,11 @@ func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network)
 	_, _, err := dockerCmdWithError("pull", "microsoft/nanoserver")
 	assert.ErrorContains(c, err, "cannot be used on this platform")
+}
+
+// Regression test for https://github.com/moby/moby/pull/38574
+func (s *DockerSuite) TestPullWindowsImageFromManifestListFailsOnLinux(c *check.C) {
+	testRequires(c, DaemonIsLinux, Network)
+	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/nanoserver:1809")
+	assert.ErrorContains(c, err, "no matching manifest for linux")
 }
