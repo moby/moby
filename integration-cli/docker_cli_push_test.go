@@ -1,7 +1,6 @@
 package main
 
 import (
-	"archive/tar"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -9,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"sync"
+
+	"archive/tar"
 
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -252,31 +253,31 @@ func (s *DockerSchema1RegistrySuite) TestCrossRepositoryLayerPushNotSupported(c 
 	dockerCmd(c, "tag", "busybox", sourceRepoName)
 	// push the image to the registry
 	out1, _, err := dockerCmdWithError("push", sourceRepoName)
-	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out1))
+	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out1)
 	// ensure that none of the layers were mounted from another repository during push
-	c.Assert(strings.Contains(out1, "Mounted from"), check.Equals, false)
+	assert.Assert(c, !strings.Contains(out1, "Mounted from"))
 
 	digest1 := reference.DigestRegexp.FindString(out1)
-	c.Assert(len(digest1), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
+	assert.Assert(c, len(digest1) > 0, "no digest found for pushed manifest")
 
 	destRepoName := fmt.Sprintf("%v/dockercli/crossrepopush", privateRegistryURL)
 	// retag the image to upload the same layers to another repo in the same registry
 	dockerCmd(c, "tag", "busybox", destRepoName)
 	// push the image to the registry
 	out2, _, err := dockerCmdWithError("push", destRepoName)
-	c.Assert(err, check.IsNil, check.Commentf("pushing the image to the private registry has failed: %s", out2))
+	assert.NilError(c, err, "pushing the image to the private registry has failed: %s", out2)
 	// schema1 registry should not support cross-repo layer mounts, so ensure that this does not happen
-	c.Assert(strings.Contains(out2, "Mounted from"), check.Equals, false)
+	assert.Assert(c, !strings.Contains(out2, "Mounted from"))
 
 	digest2 := reference.DigestRegexp.FindString(out2)
-	c.Assert(len(digest2), checker.GreaterThan, 0, check.Commentf("no digest found for pushed manifest"))
-	c.Assert(digest1, check.Not(check.Equals), digest2)
+	assert.Assert(c, len(digest2) > 0, "no digest found for pushed manifest")
+	assert.Assert(c, digest1 != digest2)
 
 	// ensure that we can pull and run the second pushed repository
 	dockerCmd(c, "rmi", destRepoName)
 	dockerCmd(c, "pull", destRepoName)
 	out3, _ := dockerCmd(c, "run", destRepoName, "echo", "-n", "hello world")
-	c.Assert(out3, check.Equals, "hello world")
+	assert.Equal(c, out3, "hello world")
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestPushNoCredentialsNoRetry(c *check.C) {
