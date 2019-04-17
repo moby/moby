@@ -97,7 +97,7 @@ func (daemon *Daemon) createSpec(c *container.Container) (*specs.Spec, error) {
 			//TODO Reservation: ...,
 		},
 		Network: &specs.WindowsNetworkResources{
-		//TODO Bandwidth: ...,
+			//TODO Bandwidth: ...,
 		},
 		Storage: &specs.WindowsStorageResources{
 			Bps:  &c.HostConfig.IOMaximumBandwidth,

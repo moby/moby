@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/layer"
+	"github.com/sirupsen/logrus"
 )
 
 // Store is an interface for creating and accessing images

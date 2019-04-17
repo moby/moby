@@ -7,11 +7,11 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
+	"github.com/sirupsen/logrus"
 )
 
 var validHex = regexp.MustCompile(`^([a-f0-9]{64})$`)

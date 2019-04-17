@@ -8,8 +8,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) cleanupMountsByID(id string) error {

@@ -7,11 +7,11 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/signal"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

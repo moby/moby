@@ -5,9 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/pkg/graphdb"
+	"github.com/sirupsen/logrus"
 )
 
 // migrateLegacySqliteLinks migrates sqlite links to use links from HostConfig

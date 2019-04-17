@@ -11,7 +11,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/cloudflare/cfssl/log"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/links"
@@ -22,6 +21,7 @@ import (
 	"github.com/docker/libnetwork"
 	"github.com/opencontainers/runc/libcontainer/label"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 func (daemon *Daemon) setupLinkedContainers(container *container.Container) ([]string, error) {

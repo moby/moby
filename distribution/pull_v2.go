@@ -10,7 +10,6 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/manifestlist"
@@ -29,6 +28,7 @@ import (
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/reference"
 	"github.com/docker/docker/registry"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

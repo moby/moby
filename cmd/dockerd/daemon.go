@@ -10,7 +10,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/uuid"
 	"github.com/docker/docker/api"
 	apiserver "github.com/docker/docker/api/server"
@@ -45,6 +44,7 @@ import (
 	"github.com/docker/docker/runconfig"
 	"github.com/docker/docker/utils"
 	"github.com/docker/go-connections/tlsconfig"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 

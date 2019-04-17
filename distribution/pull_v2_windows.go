@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/context"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/registry/client/transport"
+	"github.com/sirupsen/logrus"
 )
 
 var _ distribution.Describable = &v2LayerDescriptor{}

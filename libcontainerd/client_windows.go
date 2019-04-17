@@ -13,9 +13,9 @@ import (
 	"golang.org/x/net/context"
 
 	"github.com/Microsoft/hcsshim"
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/sirupsen/logrus"
 )
 
 type client struct {
@@ -101,9 +101,9 @@ func (clnt *client) Create(containerID string, checkpoint string, checkpointDir 
 	logrus.Debugln("libcontainerd: client.Create() with spec", spec)
 
 	configuration := &hcsshim.ContainerConfig{
-		SystemType: "Container",
-		Name:       containerID,
-		Owner:      defaultOwner,
+		SystemType:              "Container",
+		Name:                    containerID,
+		Owner:                   defaultOwner,
 		IgnoreFlushesDuringBoot: false,
 		HostName:                spec.Hostname,
 		HvPartition:             false,

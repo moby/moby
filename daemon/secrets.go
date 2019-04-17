@@ -1,9 +1,9 @@
 package daemon
 
 import (
-	"github.com/Sirupsen/logrus"
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/swarmkit/agent/exec"
+	"github.com/sirupsen/logrus"
 )
 
 // SetContainerSecretStore sets the secret store backend for the container

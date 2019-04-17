@@ -29,8 +29,8 @@ func TestStrSliceMarshalJSON(t *testing.T) {
 
 func TestStrSliceUnmarshalJSON(t *testing.T) {
 	parts := map[string][]string{
-		"":   {"default", "values"},
-		"[]": {},
+		"":                        {"default", "values"},
+		"[]":                      {},
 		`["/bin/sh","-c","echo"]`: {"/bin/sh", "-c", "echo"},
 	}
 	for json, expectedParts := range parts {

@@ -18,7 +18,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	containerd "github.com/docker/containerd/api/grpc/types"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/types"
@@ -30,6 +29,7 @@ import (
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/plugin"
 	"github.com/docker/libnetwork/cluster"
+	"github.com/sirupsen/logrus"
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
 	dmetadata "github.com/docker/docker/distribution/metadata"

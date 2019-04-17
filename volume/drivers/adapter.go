@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/volume"
+	"github.com/sirupsen/logrus"
 )
 
 var (

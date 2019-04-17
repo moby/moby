@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api"
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/server/httputils"
@@ -17,6 +16,7 @@ import (
 	timetypes "github.com/docker/docker/api/types/time"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/pkg/ioutils"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

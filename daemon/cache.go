@@ -6,7 +6,6 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/dockerversion"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/runconfig"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 )
 
 // getLocalCachedImage returns the most recent created image that is a child

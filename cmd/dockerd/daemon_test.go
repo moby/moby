@@ -3,11 +3,11 @@ package main
 import (
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	cliflags "github.com/docker/docker/cli/flags"
 	"github.com/docker/docker/daemon"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/pkg/testutil/tempfile"
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 

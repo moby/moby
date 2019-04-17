@@ -4,7 +4,6 @@ import (
 	"encoding/hex"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	distreference "github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types/swarm"
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/registry"
 	"github.com/docker/notary/tuf/data"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

@@ -4,9 +4,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/sirupsen/logrus"
 )
 
 // GetLayerPath returns the path to a layer

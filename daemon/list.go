@@ -7,7 +7,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	networktypes "github.com/docker/docker/api/types/network"
@@ -15,6 +14,7 @@ import (
 	"github.com/docker/docker/image"
 	"github.com/docker/docker/volume"
 	"github.com/docker/go-connections/nat"
+	"github.com/sirupsen/logrus"
 )
 
 var acceptedVolumeFilterTags = map[string]bool{

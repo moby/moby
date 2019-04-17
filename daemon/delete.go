@@ -7,12 +7,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/errors"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/layer"
 	volumestore "github.com/docker/docker/volume/store"
+	"github.com/sirupsen/logrus"
 )
 
 // ContainerRm removes the container id from the filesystem. An error

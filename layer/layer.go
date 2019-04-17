@@ -13,10 +13,10 @@ import (
 	"errors"
 	"io"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/docker/pkg/archive"
+	"github.com/sirupsen/logrus"
 )
 
 var (

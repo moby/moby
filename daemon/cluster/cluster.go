@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	distreference "github.com/docker/distribution/reference"
 	apierrors "github.com/docker/docker/api/errors"
@@ -39,6 +38,7 @@ import (
 	swarmnode "github.com/docker/swarmkit/node"
 	"github.com/docker/swarmkit/protobuf/ptypes"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/grpc"
 )

@@ -16,7 +16,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/distribution/digest"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/docker/api/types"
@@ -32,6 +31,7 @@ import (
 	"github.com/docker/docker/plugin/v2"
 	"github.com/docker/docker/reference"
 	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 )
 

@@ -5,10 +5,10 @@ import (
 	"os"
 	"testing"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli/command"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/docker/docker/utils"
+	"github.com/sirupsen/logrus"
 )
 
 func TestClientDebugEnabled(t *testing.T) {

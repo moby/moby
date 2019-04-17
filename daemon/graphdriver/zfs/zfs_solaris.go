@@ -20,8 +20,8 @@ import (
 	"strings"
 	"unsafe"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/daemon/graphdriver"
+	"github.com/sirupsen/logrus"
 )
 
 func checkRootdirFs(rootdir string) error {

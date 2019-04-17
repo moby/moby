@@ -7,9 +7,9 @@ import (
 	"io"
 	"text/template"
 
-	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/cli"
 	"github.com/docker/docker/utils/templates"
+	"github.com/sirupsen/logrus"
 )
 
 // Inspector defines an interface to implement to process elements

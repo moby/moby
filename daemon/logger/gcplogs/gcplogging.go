@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/daemon/logger"
 
-	"github.com/Sirupsen/logrus"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/context"
 	"google.golang.org/cloud/compute/metadata"
 	"google.golang.org/cloud/logging"

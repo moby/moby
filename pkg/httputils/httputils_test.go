@@ -65,13 +65,13 @@ func TestNewHTTPRequestError(t *testing.T) {
 
 func TestParseServerHeader(t *testing.T) {
 	inputs := map[string][]string{
-		"bad header":           {"error"},
-		"(bad header)":         {"error"},
-		"(without/spaces)":     {"error"},
-		"(header/with spaces)": {"error"},
-		"foo/bar (baz)":        {"foo", "bar", "baz"},
-		"foo/bar":              {"error"},
-		"foo":                  {"error"},
+		"bad header":                    {"error"},
+		"(bad header)":                  {"error"},
+		"(without/spaces)":              {"error"},
+		"(header/with spaces)":          {"error"},
+		"foo/bar (baz)":                 {"foo", "bar", "baz"},
+		"foo/bar":                       {"error"},
+		"foo":                           {"error"},
 		"foo/bar (baz space)":           {"foo", "bar", "baz space"},
 		"  f  f  /  b  b  (  b  s  )  ": {"f  f", "b  b", "b  s"},
 		"foo/bar (baz) ignore":          {"foo", "bar", "baz"},
