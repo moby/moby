@@ -266,12 +266,12 @@ func (s *DockerHubPullSuite) TestPullClientDisconnect(c *check.C) {
 func (s *DockerSuite) TestPullLinuxImageFailsOnWindows(c *check.C) {
 	testRequires(c, DaemonIsWindows, Network)
 	_, _, err := dockerCmdWithError("pull", "ubuntu")
-	assert.ErrorContains(c, err, "no matching manifest")
+	assert.ErrorContains(c, err, "no matching manifest for windows")
 }
 
 // Regression test for https://github.com/docker/docker/issues/28892
 func (s *DockerSuite) TestPullWindowsImageFailsOnLinux(c *check.C) {
 	testRequires(c, DaemonIsLinux, Network)
-	_, _, err := dockerCmdWithError("pull", "microsoft/nanoserver")
-	assert.ErrorContains(c, err, "cannot be used on this platform")
+	_, _, err := dockerCmdWithError("pull", "mcr.microsoft.com/windows/servercore:ltsc2019")
+	assert.ErrorContains(c, err, "no matching manifest for linux")
 }
