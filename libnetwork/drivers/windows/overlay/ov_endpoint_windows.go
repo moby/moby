@@ -171,7 +171,19 @@ func (d *driver) CreateEndpoint(nid, eid string, ifInfo driverapi.InterfaceInfo,
 			return err
 		}
 
-		pbPolicy, err := windows.ConvertPortBindings(epConnectivity.PortBindings)
+		ep.portMapping = epConnectivity.PortBindings
+		ep.portMapping, err = windows.AllocatePorts(n.portMapper, ep.portMapping, ep.addr.IP)
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			if err != nil {
+				windows.ReleasePorts(n.portMapper, ep.portMapping)
+			}
+		}()
+
+		pbPolicy, err := windows.ConvertPortBindings(ep.portMapping)
 		if err != nil {
 			return err
 		}
@@ -228,6 +240,8 @@ func (d *driver) DeleteEndpoint(nid, eid string) error {
 	if ep == nil {
 		return fmt.Errorf("endpoint id %q not found", eid)
 	}
+
+	windows.ReleasePorts(n.portMapper, ep.portMapping)
 
 	n.deleteEndpoint(eid)
 
