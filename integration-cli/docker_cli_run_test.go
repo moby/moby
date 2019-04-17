@@ -23,6 +23,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration-cli/cli"
 	"github.com/docker/docker/integration-cli/cli/build"
@@ -1880,7 +1881,7 @@ func (s *DockerSuite) TestRunBindMounts(c *testing.T) {
 
 	if testEnv.OSType == "windows" {
 		// Disabled prior to RS5 due to how volumes are mapped
-		testRequires(c, DaemonIsWindowsAtLeastBuild(17763))
+		testRequires(c, DaemonIsWindowsAtLeastBuild(osversion.RS5))
 	}
 
 	prefix, _ := getPrefixAndSlashFromDaemonPlatform()
@@ -3915,16 +3916,16 @@ func (s *DockerSuite) TestRunNamedVolumesFromNotRemoved(c *testing.T) {
 }
 
 func (s *DockerSuite) TestRunAttachFailedNoLeak(c *testing.T) {
-	// TODO @msabansal - https://github.com/moby/moby/issues/35023. Duplicate
-	// port mappings are not errored out on RS3 builds. Temporarily disabling
-	// this test pending further investigation. Note we parse kernel.GetKernelVersion
-	// rather than system.GetOSVersion as test binaries aren't manifested, so would
-	// otherwise report build 9200.
 	if runtime.GOOS == "windows" {
+		// TODO @msabansal - https://github.com/moby/moby/issues/35023. Duplicate
+		// port mappings are not errored out on RS3 builds. Temporarily disabling
+		// this test pending further investigation. Note we parse kernel.GetKernelVersion
+		// rather than osversion.Build() as test binaries aren't manifested, so would
+		// otherwise report build 9200.
 		v, err := kernel.GetKernelVersion()
 		assert.NilError(c, err)
-		build, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
-		if build == 16299 {
+		buildNumber, _ := strconv.Atoi(strings.Split(strings.SplitN(v.String(), " ", 3)[2][1:], ".")[0])
+		if buildNumber == osversion.RS3 {
 			c.Skip("Temporarily disabled on RS3 builds")
 		}
 	}
@@ -4532,7 +4533,7 @@ func (s *DockerSuite) TestRunAddDeviceCgroupRule(c *testing.T) {
 
 // Verifies that running as local system is operating correctly on Windows
 func (s *DockerSuite) TestWindowsRunAsSystem(c *testing.T) {
-	testRequires(c, DaemonIsWindowsAtLeastBuild(15000))
+	testRequires(c, DaemonIsWindowsAtLeastBuild(osversion.RS3))
 	out, _ := dockerCmd(c, "run", "--net=none", `--user=nt authority\system`, "--hostname=XYZZY", minimalBaseImage(), "cmd", "/c", `@echo %USERNAME%`)
 	assert.Equal(c, strings.TrimSpace(out), "XYZZY$")
 }

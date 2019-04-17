@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/Microsoft/hcsshim/osversion"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
@@ -275,7 +276,7 @@ func (daemon *Daemon) createSpecWindowsFields(c *container.Container, s *specs.S
 		if isHyperV {
 			return errors.New("device assignment is not supported for HyperV containers")
 		}
-		if system.GetOSVersion().Build < 17763 {
+		if osversion.Build() < osversion.RS5 {
 			return errors.New("device assignment requires Windows builds RS5 (17763+) or later")
 		}
 		for _, deviceMapping := range c.HostConfig.Devices {
