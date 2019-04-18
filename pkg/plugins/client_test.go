@@ -2,7 +2,6 @@ package plugins // import "github.com/docker/docker/pkg/plugins"
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -237,6 +236,10 @@ func TestClientSendFile(t *testing.T) {
 }
 
 func TestClientWithRequestTimeout(t *testing.T) {
+	type timeoutError interface {
+		Timeout() bool
+	}
+
 	timeout := 1 * time.Millisecond
 	testHandler := func(w http.ResponseWriter, r *http.Request) {
 		time.Sleep(timeout + 1*time.Millisecond)
@@ -251,12 +254,8 @@ func TestClientWithRequestTimeout(t *testing.T) {
 	assert.Assert(t, is.ErrorContains(err, ""), "expected error")
 
 	err = errors.Cause(err)
-
-	switch e := err.(type) {
-	case *url.Error:
-		err = e.Err
-	}
-	assert.DeepEqual(t, context.DeadlineExceeded, err)
+	assert.ErrorType(t, err, (*timeoutError)(nil))
+	assert.Equal(t, err.(timeoutError).Timeout(), true)
 }
 
 type testRequestWrapper struct {
