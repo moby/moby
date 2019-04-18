@@ -626,6 +626,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	}
 	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
 	if err = unix.Mount("none", target, "aufs", 0, data); err != nil {
+		err = errors.Wrap(err, "mount target="+target+" data="+data)
 		return
 	}
 
@@ -633,6 +634,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
 		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
 		if err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
+			err = errors.Wrap(err, "mount target="+target+" flags=MS_REMOUNT data="+data)
 			return
 		}
 	}
