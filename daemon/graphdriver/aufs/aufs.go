@@ -72,7 +72,6 @@ func init() {
 
 // Driver contains information about the filesystem mounted.
 type Driver struct {
-	sync.Mutex
 	root          string
 	uidMaps       []idtools.IDMap
 	gidMaps       []idtools.IDMap
@@ -547,9 +546,6 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 }
 
 func (a *Driver) mount(id string, target string, mountLabel string, layers []string) error {
-	a.Lock()
-	defer a.Unlock()
-
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(target); err != nil || mounted {
 		return err
@@ -564,9 +560,6 @@ func (a *Driver) mount(id string, target string, mountLabel string, layers []str
 }
 
 func (a *Driver) unmount(mountPath string) error {
-	a.Lock()
-	defer a.Unlock()
-
 	if mounted, err := a.mounted(mountPath); err != nil || !mounted {
 		return err
 	}
