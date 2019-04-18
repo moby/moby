@@ -326,11 +326,11 @@ func (a *Driver) Remove(id string) error {
 			break
 		}
 
-		if err != unix.EBUSY {
-			return errors.Wrapf(err, "aufs: unmount error: %s", mountpoint)
+		if errors.Cause(err) != unix.EBUSY {
+			return errors.Wrap(err, "aufs: unmount error")
 		}
 		if retries >= 5 {
-			return errors.Wrapf(err, "aufs: unmount error after retries: %s", mountpoint)
+			return errors.Wrap(err, "aufs: unmount error after retries")
 		}
 		// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
 		retries++
@@ -436,7 +436,7 @@ func (a *Driver) Put(id string) error {
 
 	err := a.unmount(m)
 	if err != nil {
-		logger.Debugf("Failed to unmount %s aufs: %v", id, err)
+		logger.WithError(err).WithField("method", "Put()").Warn()
 	}
 	return err
 }
