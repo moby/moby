@@ -573,23 +573,20 @@ func (a *Driver) mounted(mountpoint string) (bool, error) {
 
 // Cleanup aufs and unmount all mountpoints
 func (a *Driver) Cleanup() error {
-	var dirs []string
-	if err := filepath.Walk(a.mntPath(), func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return nil
-		}
-		dirs = append(dirs, path)
-		return nil
-	}); err != nil {
-		return err
+	dir := a.mntPath()
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return errors.Wrap(err, "aufs readdir error")
 	}
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
 
-	for _, m := range dirs {
+		m := path.Join(dir, f.Name())
+
 		if err := a.unmount(m); err != nil {
-			logger.Debugf("error unmounting %s: %s", m, err)
+			logger.WithError(err).WithField("method", "Cleanup()").Warn()
 		}
 	}
 	return mount.RecursiveUnmount(a.root)
