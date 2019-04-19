@@ -44,7 +44,7 @@ ARG DOCKER_GITCOMMIT
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
 COPY . .
 RUN hack/make.sh build-integration-test-binary
-RUN mkdir -p /build/tests && find . -name test.main -exec cp --parents '{}' /build/tests \;
+RUN mkdir -p /build/ && find . -name test.main -exec cp --parents '{}' /build \;
 
 ## Generate testing image
 FROM alpine:3.9 as runner
@@ -77,4 +77,4 @@ COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=dockercli     /build/ /usr/bin/
 COPY --from=contrib       /build/ /tests/contrib/
-COPY --from=builder /build/tests /tests
+COPY --from=builder       /build/ /tests/
