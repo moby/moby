@@ -468,6 +468,7 @@ RUN for g in $(seq 0 8); do dd if=/dev/urandom of=rnd bs=1K count=1 seek=$((1024
 }
 
 func TestBuildWithEmptyDockerfile(t *testing.T) {
+	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.40"), "broken in earlier versions")
 	ctx := context.TODO()
 	defer setupTest(t)()
 
