@@ -133,7 +133,7 @@ func New(info logger.Info) (logger.Logger, error) {
 		BufferLimit:        bufferLimit,
 		RetryWait:          retryWait,
 		MaxRetry:           maxRetries,
-		AsyncConnect:       asyncConnect,
+		Async:              asyncConnect,
 		SubSecondPrecision: subSecondPrecision,
 	}
 
