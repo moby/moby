@@ -39,7 +39,7 @@ RUN hack/make.sh build-integration-test-binary
 RUN mkdir -p /output/tests && find . -name test.main -exec cp --parents '{}' /output/tests \;
 
 ## Step 2: Generate testing image
-FROM alpine:3.8 as runner
+FROM alpine:3.9 as runner
 
 # GNU tar is used for generating the emptyfs image
 RUN apk --no-cache add \
