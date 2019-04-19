@@ -20,7 +20,6 @@ $ grep ^$(whoami): /etc/subgid
 penguin:231072:65536
 ```
 
-* Either [slirp4netns](https://github.com/rootless-containers/slirp4netns) (v0.3+) or [VPNKit](https://github.com/moby/vpnkit) needs to be installed. slirp4netns is preferred for the best performance.
 
 ### Distribution-specific hint
 
@@ -82,3 +81,12 @@ To route ping packets, you need to set up `net.ipv4.ping_group_range` properly a
 ```console
 $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 ```
+
+### Changing network stack
+
+`dockerd-rootless.sh` uses [slirp4netns](https://github.com/rootless-containers/slirp4netns) (if installed) or [VPNKit](https://github.com/moby/vpnkit) as the network stack by default.
+These network stacks run in userspace and might have performance overhead. See [RootlessKit documentation](https://github.com/rootless-containers/rootlesskit/tree/v0.4.0#network-drivers) for further information.
+
+Optionally, you can use `lxc-user-nic` instead for the best performance.
+To use `lxc-user-nic`, you need to edit [`/etc/lxc/lxc-usernet`](https://github.com/rootless-containers/rootlesskit/tree/v0.4.0#--netlxc-user-nic-experimental) and set `$DOCKERD_ROOTLESS_ROOTLESSKIT_NET=lxc-user-nic`.
+
