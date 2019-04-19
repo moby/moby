@@ -46,6 +46,12 @@ func Get() OSVersion {
 	return osv
 }
 
+// Build gets the build-number on Windows
+// The calling application must be manifested to get the correct version information.
+func Build() uint16 {
+	return Get().Build
+}
+
 func (osv OSVersion) ToString() string {
 	return fmt.Sprintf("%d.%d.%d", osv.MajorVersion, osv.MinorVersion, osv.Build)
 }
