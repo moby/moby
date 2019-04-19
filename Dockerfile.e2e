@@ -29,17 +29,20 @@ COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
+# Build DockerSuite.TestBuild* dependency
+FROM base AS contrib
+COPY contrib/syscall-test           /build/syscall-test
+COPY contrib/httpserver/Dockerfile  /build/httpserver/Dockerfile
+COPY contrib/httpserver             contrib/httpserver
+RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver github.com/docker/docker/contrib/httpserver
+
+# Build the integration tests and copy the resulting binaries to /build/tests
 FROM base AS builder
 
 # Set tag and add sources
 ARG DOCKER_GITCOMMIT
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
 COPY . .
-
-# Build DockerSuite.TestBuild* dependency
-RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver github.com/docker/docker/contrib/httpserver
-
-# Build the integration tests and copy the resulting binaries to /build/tests
 RUN hack/make.sh build-integration-test-binary
 RUN mkdir -p /build/tests && find . -name test.main -exec cp --parents '{}' /build/tests \;
 
@@ -67,13 +70,11 @@ RUN apk --no-cache add \
 COPY hack/test/e2e-run.sh       /scripts/run.sh
 COPY hack/make/.ensure-emptyfs  /scripts/ensure-emptyfs.sh
 
-COPY contrib/httpserver/Dockerfile /tests/contrib/httpserver/Dockerfile
-COPY contrib/syscall-test /tests/contrib/syscall-test
 COPY integration/testdata       /tests/integration/testdata
 COPY integration/build/testdata /tests/integration/build/testdata
 COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=dockercli     /build/ /usr/bin/
-COPY --from=builder /build/httpserver /tests/contrib/httpserver/httpserver
+COPY --from=contrib       /build/ /tests/contrib/
 COPY --from=builder /build/tests /tests
