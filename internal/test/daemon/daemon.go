@@ -309,9 +309,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			return errors.Errorf("[%s] Daemon exited and never started", d.id)
 		case <-tick:
 			ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-			req := req.WithContext(ctx)
-
-			resp, err := client.Do(req)
+			resp, err := client.Do(req.WithContext(ctx))
 			cancel()
 			if err != nil {
 				d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
@@ -413,12 +411,16 @@ func (d *Daemon) Stop(t testingT) {
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
-func (d *Daemon) StopWithError() error {
+func (d *Daemon) StopWithError() (err error) {
 	if d.cmd == nil || d.Wait == nil {
 		return errDaemonNotStarted
 	}
 	defer func() {
-		d.log.Logf("[%s] Daemon stopped", d.id)
+		if err == nil {
+			d.log.Logf("[%s] Daemon stopped", d.id)
+		} else {
+			d.log.Logf("[%s] Error when stopping daemon: %v", d.id, err)
+		}
 		d.logFile.Close()
 		d.cmd = nil
 	}()
@@ -490,7 +492,6 @@ func (d *Daemon) Restart(t testingT, args ...string) {
 // RestartWithError will restart the daemon by first stopping it and then starting it.
 func (d *Daemon) RestartWithError(arg ...string) error {
 	if err := d.StopWithError(); err != nil {
-		d.log.Logf("[%s] Error when stopping daemon: %v", d.id, err)
 		return err
 	}
 	return d.StartWithError(arg...)
