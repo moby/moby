@@ -18,14 +18,13 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	"github.com/docker/docker/pkg/homedir"
-	"github.com/docker/docker/rootless"
 	"github.com/docker/libnetwork/portallocator"
 	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
 func getDefaultDaemonConfigDir() (string, error) {
-	if !rootless.RunningWithNonRootUsername() {
+	if !honorXDG {
 		return "/etc/docker", nil
 	}
 	// NOTE: CLI uses ~/.docker while the daemon uses ~/.config/docker, because
@@ -148,7 +147,7 @@ func newCgroupParent(config *config.Config) string {
 func (cli *DaemonCli) initContainerD(ctx context.Context) (func(time.Duration) error, error) {
 	var waitForShutdown func(time.Duration) error
 	if cli.Config.ContainerdAddr == "" {
-		systemContainerdAddr, ok, err := systemContainerdRunning(cli.Config.IsRootless())
+		systemContainerdAddr, ok, err := systemContainerdRunning(honorXDG)
 		if err != nil {
 			return nil, errors.Wrap(err, "could not determine whether the system containerd is running")
 		}
