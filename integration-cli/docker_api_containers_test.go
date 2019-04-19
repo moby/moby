@@ -623,29 +623,6 @@ func (s *DockerSuite) TestContainerAPICreateMultipleNetworksConfig(c *check.C) {
 	c.Assert(msg, checker.Contains, "net3")
 }
 
-func (s *DockerSuite) TestContainerAPICreateWithHostName(c *check.C) {
-	domainName := "test-domain"
-	hostName := "test-hostname"
-	config := containertypes.Config{
-		Image:      "busybox",
-		Hostname:   hostName,
-		Domainname: domainName,
-	}
-
-	cli, err := client.NewClientWithOpts(client.FromEnv)
-	assert.NilError(c, err)
-	defer cli.Close()
-
-	container, err := cli.ContainerCreate(context.Background(), &config, &containertypes.HostConfig{}, &networktypes.NetworkingConfig{}, "")
-	assert.NilError(c, err)
-
-	containerJSON, err := cli.ContainerInspect(context.Background(), container.ID)
-	assert.NilError(c, err)
-
-	c.Assert(containerJSON.Config.Hostname, checker.Equals, hostName, check.Commentf("Mismatched Hostname"))
-	c.Assert(containerJSON.Config.Domainname, checker.Equals, domainName, check.Commentf("Mismatched Domainname"))
-}
-
 func (s *DockerSuite) TestContainerAPICreateBridgeNetworkMode(c *check.C) {
 	// Windows does not support bridge
 	testRequires(c, DaemonIsLinux)
