@@ -414,18 +414,19 @@ func (computeSystem *System) Properties(types ...schema1.PropertyType) (_ *schem
 	computeSystem.logOperationBegin(operation)
 	defer func() { computeSystem.logOperationEnd(operation, err) }()
 
-	queryj, err := json.Marshal(schema1.PropertyQuery{types})
+	queryBytes, err := json.Marshal(schema1.PropertyQuery{PropertyTypes: types})
 	if err != nil {
 		return nil, makeSystemError(computeSystem, "Properties", "", err, nil)
 	}
 
+	queryString := string(queryBytes)
 	logrus.WithFields(computeSystem.logctx).
-		WithField(logfields.JSON, queryj).
+		WithField(logfields.JSON, queryString).
 		Debug("HCS ComputeSystem Properties Query")
 
 	var resultp, propertiesp *uint16
 	syscallWatcher(computeSystem.logctx, func() {
-		err = hcsGetComputeSystemProperties(computeSystem.handle, string(queryj), &propertiesp, &resultp)
+		err = hcsGetComputeSystemProperties(computeSystem.handle, string(queryString), &propertiesp, &resultp)
 	})
 	events := processHcsResult(resultp)
 	if err != nil {
@@ -625,7 +626,8 @@ func (computeSystem *System) Close() (err error) {
 
 func (computeSystem *System) registerCallback() error {
 	context := &notifcationWatcherContext{
-		channels: newChannels(),
+		channels: newSystemChannels(),
+		systemID: computeSystem.id,
 	}
 
 	callbackMapLock.Lock()
