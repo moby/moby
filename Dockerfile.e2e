@@ -23,12 +23,13 @@ RUN /download-frozen-image-v2.sh /build \
 	hello-world:latest@sha256:be0cd392e45be79ffeffa6b05338b98ebb16c87b255f48e297ec7f98e123905c
 # See also ensureFrozenImagesLinux() in "integration-cli/fixtures_linux_daemon_test.go" (which needs to be updated when adding images to this list)
 
-FROM base AS builder
+FROM base AS dockercli
+ENV INSTALL_BINARY_NAME=dockercli
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
-# Install dockercli
-# Please edit hack/dockerfile/install/<name>.installer to update them.
-COPY hack/dockerfile/install hack/dockerfile/install
-RUN ./hack/dockerfile/install/install.sh dockercli
+FROM base AS builder
 
 # Set tag and add sources
 ARG DOCKER_GITCOMMIT
@@ -73,6 +74,6 @@ COPY integration/build/testdata /tests/integration/build/testdata
 COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 
 COPY --from=frozen-images /build/ /docker-frozen-images
+COPY --from=dockercli     /build/ /usr/bin/
 COPY --from=builder /build/httpserver /tests/contrib/httpserver/httpserver
 COPY --from=builder /build/tests /tests
-COPY --from=builder /usr/local/bin/docker /usr/bin/docker
