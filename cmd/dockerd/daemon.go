@@ -91,6 +91,8 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return err
 	}
 
+	logrus.Info("Starting up")
+
 	cli.configFile = &opts.configFile
 	cli.flags = opts.flags
 
@@ -266,6 +268,7 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		return errors.Wrap(errAPI, "shutting down due to ServeAPI error")
 	}
 
+	logrus.Info("Daemon shutdown complete")
 	return nil
 }
 
