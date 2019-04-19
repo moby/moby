@@ -36,11 +36,11 @@ ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
 COPY . .
 
 # Build DockerSuite.TestBuild* dependency
-RUN CGO_ENABLED=0 go build -buildmode=pie -o /output/httpserver github.com/docker/docker/contrib/httpserver
+RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver github.com/docker/docker/contrib/httpserver
 
-# Build the integration tests and copy the resulting binaries to /output/tests
+# Build the integration tests and copy the resulting binaries to /build/tests
 RUN hack/make.sh build-integration-test-binary
-RUN mkdir -p /output/tests && find . -name test.main -exec cp --parents '{}' /output/tests \;
+RUN mkdir -p /build/tests && find . -name test.main -exec cp --parents '{}' /build/tests \;
 
 ## Generate testing image
 FROM alpine:3.9 as runner
@@ -73,6 +73,6 @@ COPY integration/build/testdata /tests/integration/build/testdata
 COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 
 COPY --from=frozen-images /build/ /docker-frozen-images
-COPY --from=builder /output/httpserver /tests/contrib/httpserver/httpserver
-COPY --from=builder /output/tests /tests
+COPY --from=builder /build/httpserver /tests/contrib/httpserver/httpserver
+COPY --from=builder /build/tests /tests
 COPY --from=builder /usr/local/bin/docker /usr/bin/docker
