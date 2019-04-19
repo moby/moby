@@ -33,7 +33,7 @@ RUN ./hack/dockerfile/install/install.sh dockercli
 # Set tag and add sources
 ARG DOCKER_GITCOMMIT
 ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
-ADD . .
+COPY . .
 
 # Build DockerSuite.TestBuild* dependency
 RUN CGO_ENABLED=0 go build -buildmode=pie -o /output/httpserver github.com/docker/docker/contrib/httpserver
@@ -44,6 +44,13 @@ RUN mkdir -p /output/tests && find . -name test.main -exec cp --parents '{}' /ou
 
 ## Generate testing image
 FROM alpine:3.9 as runner
+
+ENV DOCKER_REMOTE_DAEMON=1
+ENV DOCKER_INTEGRATION_DAEMON_DEST=/
+ENTRYPOINT ["/scripts/run.sh"]
+
+# Add an unprivileged user to be used for tests which need it
+RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
 
 # GNU tar is used for generating the emptyfs image
 RUN apk --no-cache add \
@@ -56,8 +63,8 @@ RUN apk --no-cache add \
     tar \
     xz
 
-# Add an unprivileged user to be used for tests which need it
-RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
+COPY hack/test/e2e-run.sh       /scripts/run.sh
+COPY hack/make/.ensure-emptyfs  /scripts/ensure-emptyfs.sh
 
 COPY contrib/httpserver/Dockerfile /tests/contrib/httpserver/Dockerfile
 COPY contrib/syscall-test /tests/contrib/syscall-test
@@ -65,14 +72,7 @@ COPY integration/testdata       /tests/integration/testdata
 COPY integration/build/testdata /tests/integration/build/testdata
 COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 
-COPY hack/test/e2e-run.sh /scripts/run.sh
-COPY hack/make/.ensure-emptyfs /scripts/ensure-emptyfs.sh
-
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=builder /output/httpserver /tests/contrib/httpserver/httpserver
 COPY --from=builder /output/tests /tests
 COPY --from=builder /usr/local/bin/docker /usr/bin/docker
-
-ENV DOCKER_REMOTE_DAEMON=1 DOCKER_INTEGRATION_DAEMON_DEST=/
-
-ENTRYPOINT ["/scripts/run.sh"]
