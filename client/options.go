@@ -159,3 +159,14 @@ func WithVersion(version string) Opt {
 		return nil
 	}
 }
+
+// WithAPIVersionNegotiation enables automatic API version negotiation for the client.
+// With this option enabled, the client automatically negotiates the API version
+// to use when making requests. API version negotiation is performed on the first
+// request; subsequent requests will not re-negotiate.
+func WithAPIVersionNegotiation() Opt {
+	return func(c *Client) error {
+		c.negotiateVersion = true
+		return nil
+	}
+}
