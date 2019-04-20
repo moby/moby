@@ -275,6 +275,11 @@ func Parse(rwc io.Reader) (*Result, error) {
 	if len(warnings) > 0 {
 		warnings = append(warnings, "[WARNING]: Empty continuation lines will become errors in a future release.")
 	}
+
+	if root.StartLine < 0 {
+		return nil, errors.New("file with no instructions.")
+	}
+
 	return &Result{
 		AST:         root,
 		Warnings:    warnings,
