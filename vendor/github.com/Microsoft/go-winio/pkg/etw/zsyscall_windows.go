@@ -53,7 +53,7 @@ func eventRegister(providerId *windows.GUID, callback uintptr, callbackContext u
 	return
 }
 
-func eventUnregister(providerHandle providerHandle) (win32err error) {
+func eventUnregister_64(providerHandle providerHandle) (win32err error) {
 	r0, _, _ := syscall.Syscall(procEventUnregister.Addr(), 1, uintptr(providerHandle), 0, 0)
 	if r0 != 0 {
 		win32err = syscall.Errno(r0)
@@ -61,7 +61,7 @@ func eventUnregister(providerHandle providerHandle) (win32err error) {
 	return
 }
 
-func eventWriteTransfer(providerHandle providerHandle, descriptor *eventDescriptor, activityID *windows.GUID, relatedActivityID *windows.GUID, dataDescriptorCount uint32, dataDescriptors *eventDataDescriptor) (win32err error) {
+func eventWriteTransfer_64(providerHandle providerHandle, descriptor *eventDescriptor, activityID *windows.GUID, relatedActivityID *windows.GUID, dataDescriptorCount uint32, dataDescriptors *eventDataDescriptor) (win32err error) {
 	r0, _, _ := syscall.Syscall6(procEventWriteTransfer.Addr(), 6, uintptr(providerHandle), uintptr(unsafe.Pointer(descriptor)), uintptr(unsafe.Pointer(activityID)), uintptr(unsafe.Pointer(relatedActivityID)), uintptr(dataDescriptorCount), uintptr(unsafe.Pointer(dataDescriptors)))
 	if r0 != 0 {
 		win32err = syscall.Errno(r0)
@@ -69,8 +69,32 @@ func eventWriteTransfer(providerHandle providerHandle, descriptor *eventDescript
 	return
 }
 
-func eventSetInformation(providerHandle providerHandle, class eventInfoClass, information uintptr, length uint32) (win32err error) {
+func eventSetInformation_64(providerHandle providerHandle, class eventInfoClass, information uintptr, length uint32) (win32err error) {
 	r0, _, _ := syscall.Syscall6(procEventSetInformation.Addr(), 4, uintptr(providerHandle), uintptr(class), uintptr(information), uintptr(length), 0, 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func eventUnregister_32(providerHandle_low uint32, providerHandle_high uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall(procEventUnregister.Addr(), 2, uintptr(providerHandle_low), uintptr(providerHandle_high), 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func eventWriteTransfer_32(providerHandle_low uint32, providerHandle_high uint32, descriptor *eventDescriptor, activityID *windows.GUID, relatedActivityID *windows.GUID, dataDescriptorCount uint32, dataDescriptors *eventDataDescriptor) (win32err error) {
+	r0, _, _ := syscall.Syscall9(procEventWriteTransfer.Addr(), 7, uintptr(providerHandle_low), uintptr(providerHandle_high), uintptr(unsafe.Pointer(descriptor)), uintptr(unsafe.Pointer(activityID)), uintptr(unsafe.Pointer(relatedActivityID)), uintptr(dataDescriptorCount), uintptr(unsafe.Pointer(dataDescriptors)), 0, 0)
+	if r0 != 0 {
+		win32err = syscall.Errno(r0)
+	}
+	return
+}
+
+func eventSetInformation_32(providerHandle_low uint32, providerHandle_high uint32, class eventInfoClass, information uintptr, length uint32) (win32err error) {
+	r0, _, _ := syscall.Syscall6(procEventSetInformation.Addr(), 5, uintptr(providerHandle_low), uintptr(providerHandle_high), uintptr(class), uintptr(information), uintptr(length), 0)
 	if r0 != 0 {
 		win32err = syscall.Errno(r0)
 	}
