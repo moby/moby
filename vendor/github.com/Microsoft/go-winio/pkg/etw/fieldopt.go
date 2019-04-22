@@ -1,7 +1,9 @@
 package etw
 
 import (
+	"fmt"
 	"math"
+	"reflect"
 	"unsafe"
 )
 
@@ -376,4 +378,125 @@ func Struct(name string, opts ...FieldOpt) FieldOpt {
 			opt(em, ed)
 		}
 	}
+}
+
+// Currently, we support logging basic builtin types (int, string, etc), slices
+// of basic builtin types, error, types derived from the basic types (e.g. "type
+// foo int"), and structs (recursively logging their fields). We do not support
+// slices of derived types (e.g. "[]foo").
+//
+// For types that we don't support, the value is formatted via fmt.Sprint, and
+// we also log a message that the type is unsupported along with the formatted
+// type. The intent of this is to make it easier to see which types are not
+// supported in traces, so we can evaluate adding support for more types in the
+// future.
+func SmartField(name string, v interface{}) FieldOpt {
+	switch v := v.(type) {
+	case bool:
+		return BoolField(name, v)
+	case []bool:
+		return BoolArray(name, v)
+	case string:
+		return StringField(name, v)
+	case []string:
+		return StringArray(name, v)
+	case int:
+		return IntField(name, v)
+	case []int:
+		return IntArray(name, v)
+	case int8:
+		return Int8Field(name, v)
+	case []int8:
+		return Int8Array(name, v)
+	case int16:
+		return Int16Field(name, v)
+	case []int16:
+		return Int16Array(name, v)
+	case int32:
+		return Int32Field(name, v)
+	case []int32:
+		return Int32Array(name, v)
+	case int64:
+		return Int64Field(name, v)
+	case []int64:
+		return Int64Array(name, v)
+	case uint:
+		return UintField(name, v)
+	case []uint:
+		return UintArray(name, v)
+	case uint8:
+		return Uint8Field(name, v)
+	case []uint8:
+		return Uint8Array(name, v)
+	case uint16:
+		return Uint16Field(name, v)
+	case []uint16:
+		return Uint16Array(name, v)
+	case uint32:
+		return Uint32Field(name, v)
+	case []uint32:
+		return Uint32Array(name, v)
+	case uint64:
+		return Uint64Field(name, v)
+	case []uint64:
+		return Uint64Array(name, v)
+	case uintptr:
+		return UintptrField(name, v)
+	case []uintptr:
+		return UintptrArray(name, v)
+	case float32:
+		return Float32Field(name, v)
+	case []float32:
+		return Float32Array(name, v)
+	case float64:
+		return Float64Field(name, v)
+	case []float64:
+		return Float64Array(name, v)
+	case error:
+		return StringField(name, v.Error())
+	default:
+		switch rv := reflect.ValueOf(v); rv.Kind() {
+		case reflect.Bool:
+			return SmartField(name, rv.Bool())
+		case reflect.Int:
+			return SmartField(name, int(rv.Int()))
+		case reflect.Int8:
+			return SmartField(name, int8(rv.Int()))
+		case reflect.Int16:
+			return SmartField(name, int16(rv.Int()))
+		case reflect.Int32:
+			return SmartField(name, int32(rv.Int()))
+		case reflect.Int64:
+			return SmartField(name, int64(rv.Int()))
+		case reflect.Uint:
+			return SmartField(name, uint(rv.Uint()))
+		case reflect.Uint8:
+			return SmartField(name, uint8(rv.Uint()))
+		case reflect.Uint16:
+			return SmartField(name, uint16(rv.Uint()))
+		case reflect.Uint32:
+			return SmartField(name, uint32(rv.Uint()))
+		case reflect.Uint64:
+			return SmartField(name, uint64(rv.Uint()))
+		case reflect.Uintptr:
+			return SmartField(name, uintptr(rv.Uint()))
+		case reflect.Float32:
+			return SmartField(name, float32(rv.Float()))
+		case reflect.Float64:
+			return SmartField(name, float64(rv.Float()))
+		case reflect.String:
+			return SmartField(name, rv.String())
+		case reflect.Struct:
+			fields := make([]FieldOpt, 0, rv.NumField())
+			for i := 0; i < rv.NumField(); i++ {
+				field := rv.Field(i)
+				if field.CanInterface() {
+					fields = append(fields, SmartField(name, field.Interface()))
+				}
+			}
+			return Struct(name, fields...)
+		}
+	}
+
+	return StringField(name, fmt.Sprintf("(Unsupported: %T) %v", v, v))
 }

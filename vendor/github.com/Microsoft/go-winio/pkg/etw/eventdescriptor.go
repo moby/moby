@@ -17,7 +17,7 @@ const (
 // will always be collected.
 type Level uint8
 
-// Predefined ETW log levels.
+// Predefined ETW log levels from winmeta.xml in the Windows SDK.
 const (
 	LevelAlways Level = iota
 	LevelCritical
@@ -27,13 +27,30 @@ const (
 	LevelVerbose
 )
 
+// Opcode represents the operation that the event indicates is being performed.
+type Opcode uint8
+
+// Predefined ETW opcodes from winmeta.xml in the Windows SDK.
+const (
+	// OpcodeInfo indicates an informational event.
+	OpcodeInfo Opcode = iota
+	// OpcodeStart indicates the start of an operation.
+	OpcodeStart
+	// OpcodeStop indicates the end of an operation.
+	OpcodeStop
+	// OpcodeDCStart indicates the start of a provider capture state operation.
+	OpcodeDCStart
+	// OpcodeDCStop indicates the end of a provider capture state operation.
+	OpcodeDCStop
+)
+
 // EventDescriptor represents various metadata for an ETW event.
 type eventDescriptor struct {
 	id      uint16
 	version uint8
 	channel Channel
 	level   Level
-	opcode  uint8
+	opcode  Opcode
 	task    uint16
 	keyword uint64
 }
