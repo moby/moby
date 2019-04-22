@@ -80,6 +80,7 @@ type Driver struct {
 	pathCache     map[string]string
 	naiveDiff     graphdriver.DiffDriver
 	locker        *locker.Locker
+	mntL          sync.Mutex
 }
 
 // Init returns a new AUFS driver.
@@ -597,7 +598,7 @@ func (a *Driver) Cleanup() error {
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {
 	defer func() {
 		if err != nil {
-			Unmount(target)
+			mount.Unmount(target)
 		}
 	}()
 
@@ -625,7 +626,10 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		opts += ",dirperm1"
 	}
 	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-	if err = unix.Mount("none", target, "aufs", 0, data); err != nil {
+	a.mntL.Lock()
+	err = unix.Mount("none", target, "aufs", 0, data)
+	a.mntL.Unlock()
+	if err != nil {
 		err = errors.Wrap(err, "mount target="+target+" data="+data)
 		return
 	}
@@ -633,7 +637,10 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 	for ; index < len(ro); index++ {
 		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
 		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-		if err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
+		a.mntL.Lock()
+		err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data)
+		a.mntL.Unlock()
+		if err != nil {
 			err = errors.Wrap(err, "mount target="+target+" flags=MS_REMOUNT data="+data)
 			return
 		}
