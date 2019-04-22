@@ -9,11 +9,15 @@ import (
 )
 
 func ioctlLoopCtlGetFree(fd uintptr) (int, error) {
-	index, err := unix.IoctlGetInt(int(fd), LoopCtlGetFree)
-	if err != nil {
+	// The ioctl interface for /dev/loop-control (since Linux 3.1) is a bit
+	// off compared to what you'd expect: instead of writing an integer to a
+	// parameter pointer like unix.IoctlGetInt() expects, it returns the first
+	// available loop device index directly.
+	ioctlReturn, _, err := unix.Syscall(unix.SYS_IOCTL, fd, LoopCtlGetFree, 0)
+	if err != 0 {
 		return 0, err
 	}
-	return index, nil
+	return int(ioctlReturn), nil
 }
 
 func ioctlLoopSetFd(loopFd, sparseFd uintptr) error {
