@@ -19,7 +19,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/errdefs"
-	"github.com/docker/docker/image"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/opencontainers/go-digest"
@@ -57,22 +56,19 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		DockerVersion string `json:"docker_version,omitempty"`
 	}
 
-	if c.ParentImageID == "" {
+	var parentID string
+	if c.ParentImage == nil {
 		img.RootFS.Type = "layers"
 	} else {
-		parent := ocispec.Descriptor{
-			MediaType: images.MediaTypeDockerSchema2Config,
-			Digest:    digest.Digest(c.ParentImageID),
-		}
-
-		b, err := content.ReadBlob(ctx, i.client.ContentStore(), parent)
+		ri, err := i.ResolveRuntimeImage(ctx, *c.ParentImage)
 		if err != nil {
-			return ocispec.Descriptor{}, errors.Wrap(err, "unable to read config")
+			return ocispec.Descriptor{}, errors.Wrap(err, "unable to resolve parent runtime image")
 		}
 
-		if err := json.Unmarshal(b, &img); err != nil {
+		if err := json.Unmarshal(ri.ConfigBytes, &img); err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal config")
 		}
+		parentID = ri.Config.Digest.String()
 	}
 
 	cl, err := i.commitLayer(ctx, identity.ChainID(img.RootFS.DiffIDs), c)
@@ -137,8 +133,8 @@ func (i *ImageService) CommitImage(ctx context.Context, c backend.CommitConfig) 
 		labels[key] = cl.layer.ChainID().String()
 	}
 
-	if c.ParentImageID != "" {
-		labels[LabelImageParent] = c.ParentImageID
+	if parentID != "" {
+		labels[LabelImageParent] = parentID
 	}
 
 	opts := []content.Opt{content.WithLabels(labels)}
@@ -364,13 +360,19 @@ func (i *ImageService) compressedLayers(ctx context.Context, diffs []digest.Dige
 				return nil, err
 			}
 
-			n, err := io.Copy(dc, rc)
+			_, err = io.Copy(dc, rc)
 			rc.Close()
 			if err != nil {
 				return nil, err
 			}
 
 			dc.Close()
+
+			info, err := w.Status()
+			if err != nil {
+				return nil, err
+			}
+			n := info.Offset
 
 			labels := map[string]string{
 				"containerd.io/uncompressed": diff.String(),
@@ -445,18 +447,13 @@ func exportContainerRw(layerStore layer.Store, id, mountLabel string) (arch io.R
 //   * it doesn't log a container commit event
 //
 // This is a temporary shim. Should be removed when builder stops using commit.
-func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (image.ID, error) {
+func (i *ImageService) CommitBuildStep(ctx context.Context, c backend.CommitConfig) (ocispec.Descriptor, error) {
 	container := i.containers.Get(c.ContainerID)
 	if container == nil {
-		// TODO: use typed error
-		return "", errors.Errorf("container not found: %s", c.ContainerID)
+		// TODO(containerd): Use typed error here other than not found
+		return ocispec.Descriptor{}, errors.Errorf("container not found: %s", c.ContainerID)
 	}
 	c.ContainerMountLabel = container.MountLabel
 	c.ContainerOS = container.OS
-	c.ParentImageID = string(container.ImageID)
-	desc, err := i.CommitImage(ctx, c)
-	if err != nil {
-		return "", err
-	}
-	return image.ID(desc.Digest.String()), nil
+	return i.CommitImage(ctx, c)
 }

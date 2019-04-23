@@ -382,7 +382,8 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if !ok {
 			return errors.Errorf("missing image id")
 		}
-		out.ImageID = id
+		// TODO(containerd): Use a descriptor
+		//out.ImageID = id
 		return aux.Emit("moby.image.id", types.BuildResult{ID: id})
 	})
 

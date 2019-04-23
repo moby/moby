@@ -90,18 +90,21 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 	})
 
 	var (
-		layers     = map[digest.Digest][]ocispec.Descriptor{}
-		dlStatus   = map[digest.Digest]bool{}
-		unpackDesc = map[digest.Digest]struct{}{}
-		unpacks    int32 // how many unpacks occurred
-		lock       = sync.Mutex{}
-		cond       = sync.NewCond(&lock)
+		layers   = map[digest.Digest][]ocispec.Descriptor{}
+		dlStatus = map[digest.Digest]bool{}
+		unpacks  int32 // how many unpacks occurred
 	)
 	grp, pctx := errgroup.WithContext(pctx)
 
 	// unpackHandler handles layer unpacking concurrently as soon as
 	// a layer has been downloaded in order
 	unpackHandler := func(h images.Handler) images.Handler {
+		var (
+			index      bool
+			unpackDesc = map[digest.Digest]struct{}{}
+			lock       = sync.Mutex{}
+			cond       = sync.NewCond(&lock)
+		)
 		return images.HandlerFunc(func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
 			children, err := h.Handle(ctx, desc)
 			if err != nil {
@@ -111,6 +114,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 			switch desc.MediaType {
 			case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
 				lock.Lock()
+				index = true
 				var unknown []ocispec.Descriptor
 				for _, d := range children {
 					if d.Platform == nil {
@@ -125,7 +129,7 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 				lock.Unlock()
 			case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest:
 				lock.Lock()
-				if _, ok := unpackDesc[desc.Digest]; !ok {
+				if _, ok := unpackDesc[desc.Digest]; !ok && index {
 					children = children[:1]
 
 				}
@@ -194,7 +198,12 @@ func (i *ImageService) pullImageWithReference(ctx context.Context, ref reference
 			return errors.Wrap(err, "failed to resolve image config for unpack")
 		}
 
-		err = i.unpack(pctx, config, layers[config.Digest], progressOutput, nil, nil)
+		l, ok := layers[config.Digest]
+		if !ok {
+			return errors.Wrap(err, "no layers found to unpack")
+		}
+
+		err = i.unpack(pctx, config, l, progressOutput, nil, nil)
 		if err != nil {
 			return errors.Wrapf(err, "failed to unpack %s", img.Target.Digest)
 		}

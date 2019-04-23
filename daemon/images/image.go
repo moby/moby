@@ -72,7 +72,7 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 			return ocispec.Descriptor{}, errors.Wrap(err, "failed to lookup digest")
 		}
 		if len(imgs) == 0 {
-			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("image not find with digest"))
+			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("image not found with digest"))
 		}
 
 		return imgs[0].Target, nil
@@ -167,6 +167,15 @@ func (i *ImageService) ResolveRuntimeImage(ctx context.Context, desc ocispec.Des
 	}
 
 	return ri, nil
+}
+
+// ResolveRuntimeConfig resolves the descriptor to a runtime image and returns the config
+func (i *ImageService) ResolveRuntimeConfig(ctx context.Context, desc ocispec.Descriptor) ([]byte, error) {
+	ri, err := i.ResolveRuntimeImage(ctx, desc)
+	if err != nil {
+		return nil, err
+	}
+	return ri.ConfigBytes, nil
 }
 
 func (i *ImageService) runtimeImages(ctx context.Context, image ocispec.Descriptor) ([]RuntimeImage, error) {

@@ -21,8 +21,8 @@ package dockerfile // import "github.com/docker/docker/builder/dockerfile"
 
 import (
 	"context"
+	"encoding/json"
 	"reflect"
-	"runtime"
 	"strconv"
 	"strings"
 
@@ -33,6 +33,7 @@ import (
 	"github.com/docker/docker/runconfig/opts"
 	"github.com/moby/buildkit/frontend/dockerfile/instructions"
 	"github.com/moby/buildkit/frontend/dockerfile/shell"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -106,14 +107,17 @@ func dispatch(d dispatchRequest, cmd instructions.Command) (err error) {
 
 // dispatchState is a data object which is modified by dispatchers
 type dispatchState struct {
-	ctx             context.Context
-	runConfig       *container.Config
-	maintainer      string
-	cmdSet          bool
-	imageID         string
-	baseImage       builder.Image
-	stageName       string
-	buildArgs       *BuildArgs
+	ctx         context.Context
+	runConfig   *container.Config
+	maintainer  string
+	cmdSet      bool
+	image       *ocispec.Descriptor
+	stageName   string
+	buildArgs   *BuildArgs
+	baseImage   *ocispec.Descriptor // How to represent scratch
+	noBaseImage bool
+
+	// TODO(containerd): remove these
 	operatingSystem string
 }
 
@@ -206,29 +210,32 @@ func newDispatchRequest(builder *Builder, escapeToken rune, source builder.Sourc
 }
 
 func (s *dispatchState) updateRunConfig() {
-	s.runConfig.Image = s.imageID
+	// TODO(containerd): Should this even be set in the run config?
+	if s.image != nil {
+		s.runConfig.Image = s.image.Digest.String()
+	}
 }
 
 // hasFromImage returns true if the builder has processed a `FROM <image>` line
 func (s *dispatchState) hasFromImage() bool {
-	return s.imageID != "" || (s.baseImage != nil && s.baseImage.ImageID() == "")
+	return s.image != nil || s.noBaseImage
 }
 
-func (s *dispatchState) beginStage(stageName string, image builder.Image) error {
+func (s *dispatchState) beginStage(stageName string, image *ocispec.Descriptor, config []byte) error {
 	s.stageName = stageName
-	s.imageID = image.ImageID()
-	s.operatingSystem = image.OperatingSystem()
-	if s.operatingSystem == "" { // In case it isn't set
-		s.operatingSystem = runtime.GOOS
-	}
-	if !system.IsOSSupported(s.operatingSystem) {
-		return system.ErrNotSupportedOperatingSystem
-	}
 
-	if image.RunConfig() != nil {
-		// copy avoids referencing the same instance when 2 stages have the same base
-		s.runConfig = copyRunConfig(image.RunConfig())
-	} else {
+	s.image = image
+
+	if len(config) > 0 {
+		var c struct {
+			Config *container.Config `json:"config,omitempty"`
+		}
+		if err := json.Unmarshal(config, &c); err != nil {
+			return err
+		}
+		s.runConfig = c.Config
+	}
+	if s.runConfig == nil {
 		s.runConfig = &container.Config{}
 	}
 	s.baseImage = image

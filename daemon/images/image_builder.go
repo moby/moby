@@ -6,25 +6,24 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"runtime"
 	"strings"
 	"time"
 
 	"github.com/opencontainers/image-spec/identity"
 
 	"github.com/containerd/containerd/content"
+	cerrdefs "github.com/containerd/containerd/errdefs"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/platforms"
 	"github.com/docker/distribution/reference"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/backend"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
-	"github.com/docker/docker/builder/dockerfile"
-	"github.com/docker/docker/image"
+	"github.com/docker/docker/errdefs"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/stringid"
-	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/opencontainers/go-digest"
 	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
@@ -151,11 +150,10 @@ func newROLayerForImage(chainID layer.ChainID, layerStore layer.Store) (builder.
 }
 
 // TODO: could this use the regular daemon PullImage ?
-// TODO(containerd): don't return *image.Image type
-func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *ocispec.Platform) (*image.Image, error) {
+func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConfigs map[string]types.AuthConfig, output io.Writer, platform *ocispec.Platform) (ocispec.Descriptor, error) {
 	ref, err := reference.ParseNormalizedNamed(name)
 	if err != nil {
-		return nil, err
+		return ocispec.Descriptor{}, err
 	}
 	ref = reference.TagNameOnly(ref)
 
@@ -164,7 +162,7 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 		// The request came with a full auth config, use it
 		repoInfo, err := i.registryService.ResolveRepository(ref)
 		if err != nil {
-			return nil, err
+			return ocispec.Descriptor{}, err
 		}
 
 		resolvedConfig := registry.ResolveAuthConfig(authConfigs, repoInfo.Index)
@@ -172,71 +170,87 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 	}
 
 	if err := i.pullImageWithReference(ctx, ref, platform, nil, pullRegistryAuth, output); err != nil {
-		return nil, err
+		return ocispec.Descriptor{}, err
 	}
-	return i.getDockerImage(name)
+
+	img, err := i.client.ImageService().Get(ctx, ref.String())
+	if err != nil {
+		// TODO(containerd): error translation can use common function
+		if !cerrdefs.IsNotFound(err) {
+			return ocispec.Descriptor{}, err
+		}
+		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("id not found"))
+	}
+
+	return img.Target, nil
 }
 
 // GetImageAndReleasableLayer returns an image and releaseable layer for a reference or ID.
 // Every call to GetImageAndReleasableLayer MUST call releasableLayer.Release() to prevent
 // leaking of layers.
-func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
+func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (*ocispec.Descriptor, builder.ROLayer, error) {
 	if refOrID == "" { // ie FROM scratch
-		os := runtime.GOOS
-		if runtime.GOOS == "windows" {
-			os = "linux"
-		}
+		var store layer.Store
 		if opts.Platform != nil {
-			os = opts.Platform.OS
-		}
-		if !system.IsOSSupported(os) {
-			return nil, nil, system.ErrNotSupportedOperatingSystem
-		}
-		layer, err := newROLayerForImage("", i.layerStores[os])
-		return nil, layer, err
-	}
-
-	if opts.PullOption != backend.PullOptionForcePull {
-		desc, err := i.ResolveImage(ctx, refOrID)
-		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to resolve image %s", refOrID)
-		}
-		rImage, err := i.ResolveRuntimeImage(ctx, desc)
-		if err != nil {
-			if opts.PullOption == backend.PullOptionNoPull {
-				return nil, nil, err
-			}
-		} else {
-			var img struct {
-				ocispec.Image
-				Config *container.Config `json:"config,omitempty"`
-			}
-
-			if err := json.Unmarshal(rImage.ConfigBytes, &img); err != nil {
-				return nil, nil, errors.Wrap(err, "failed to unmarshal config")
-			}
-			ci := dockerfile.NewContainerdImage(rImage.Config, i.client, img.Config)
-			store, err := i.getLayerStore(rImage.Platform)
+			var err error
+			store, err = i.getLayerStore(*opts.Platform)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to get layer store")
 			}
-			layer, err := newROLayerForImage(layer.ChainID(identity.ChainID(img.RootFS.DiffIDs)), store)
-			if err != nil {
-				err = errors.Wrapf(err, "failed to get layer for image %s", refOrID)
+		} else {
+			store = i.layerBackends[0]
+		}
+
+		layer, err := newROLayerForImage("", store)
+		return nil, layer, err
+	}
+
+	var rImage RuntimeImage
+	if opts.PullOption != backend.PullOptionForcePull {
+		desc, err := i.ResolveImage(ctx, refOrID)
+		if err == nil {
+			// TODO(containerd): Use opts.Platform to resolve
+			rImage, err = i.ResolveRuntimeImage(ctx, desc)
+			if err != nil && opts.PullOption == backend.PullOptionNoPull {
+				return nil, nil, err
 			}
-			return ci, layer, err
+		} else if opts.PullOption == backend.PullOptionNoPull {
+			return nil, nil, errors.Wrapf(err, "failed to resolve image %s", refOrID)
+		}
+	}
+	if rImage.ConfigBytes == nil {
+		image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		// TODO(containerd): Use opts.Platform to resolve
+		rImage, err = i.ResolveRuntimeImage(ctx, image)
+		if err != nil {
+			return nil, nil, err
 		}
 	}
 
-	image, err := i.pullForBuilder(ctx, refOrID, opts.AuthConfig, opts.Output, opts.Platform)
+	var img struct {
+		// RootFS references the layer content addresses used by the image.
+		RootFS ocispec.RootFS `json:"rootfs"`
+	}
+
+	if err := json.Unmarshal(rImage.ConfigBytes, &img); err != nil {
+		return nil, nil, errors.Wrap(err, "failed to unmarshal config")
+	}
+
+	store, err := i.getLayerStore(rImage.Platform)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, errors.Wrapf(err, "failed to get layer store for %q", platforms.Format(rImage.Platform))
 	}
-	if !system.IsOSSupported(image.OperatingSystem()) {
-		return nil, nil, system.ErrNotSupportedOperatingSystem
+
+	layer, err := newROLayerForImage(layer.ChainID(identity.ChainID(img.RootFS.DiffIDs)), store)
+	if err != nil {
+		err = errors.Wrapf(err, "failed to get layer for image %s", refOrID)
 	}
-	layer, err := newROLayerForImage(image.RootFS.ChainID(), i.layerStores[image.OperatingSystem()])
-	return image, layer, err
+
+	return &rImage.Config, layer, err
 }
 
 // CreateImage creates a new image by adding a config and ID to the image store.
@@ -265,22 +279,23 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 		DockerVersion string `json:"docker_version,omitempty"`
 	}
 
-	if newImage.ParentImageID == "" {
+	if newImage.ParentImage == nil {
 		img.RootFS.Type = "layers"
 	} else {
-		desc := ocispec.Descriptor{
-			MediaType: ocispec.MediaTypeImageConfig,
-			Digest:    digest.Digest(newImage.ParentImageID),
-		}
-
-		b, err := content.ReadBlob(ctx, i.client.ContentStore(), desc)
+		ri, err := i.ResolveRuntimeImage(ctx, *newImage.ParentImage)
 		if err != nil {
-			return ocispec.Descriptor{}, errors.Wrap(err, "unable to read config")
+			return ocispec.Descriptor{}, err
 		}
 
-		if err := json.Unmarshal(b, &img); err != nil {
+		if err := json.Unmarshal(ri.ConfigBytes, &img); err != nil {
 			return ocispec.Descriptor{}, errors.Wrap(err, "failed to unmarshal config")
 		}
+	}
+
+	// Get compressed layer descriptors, migrate is needed
+	layers, err := i.compressedLayers(ctx, img.RootFS.DiffIDs)
+	if err != nil {
+		return ocispec.Descriptor{}, err
 	}
 
 	// merge with new image config
@@ -298,7 +313,10 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 		EmptyLayer: isEmptyLayer,
 	})
 	img.Author = newImage.Author
-	img.OS = newImage.OS
+	if img.OS == "" {
+		// TODO(containerd): why isn't this getting set to anything
+		img.OS = newImage.OS
+	}
 	img.Config = newImage.Config
 	img.ContainerConfig = *newImage.ContainerConfig
 
@@ -325,8 +343,8 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 		key: layerID.String(),
 	}
 
-	if newImage.ParentImageID != "" {
-		labels[LabelImageParent] = newImage.ParentImageID
+	if newImage.ParentImage != nil {
+		labels[LabelImageParent] = newImage.ParentImage.Digest.String()
 	}
 
 	opts := []content.Opt{content.WithLabels(labels)}
@@ -337,14 +355,52 @@ func (i *ImageService) CreateImage(ctx context.Context, newImage backend.NewImag
 		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store config")
 	}
 
+	// Create and write manifest
+	m := struct {
+		SchemaVersion int                  `json:"schemaVersion"`
+		MediaType     string               `json:"mediaType"`
+		Config        ocispec.Descriptor   `json:"config"`
+		Layers        []ocispec.Descriptor `json:"layers"`
+	}{
+		SchemaVersion: 2,
+		MediaType:     images.MediaTypeDockerSchema2Manifest,
+		Config:        desc,
+		Layers:        layers,
+	}
+
+	mb, err := json.Marshal(m)
+	if err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "failed to marshal committed image")
+	}
+
+	desc = ocispec.Descriptor{
+		MediaType: images.MediaTypeDockerSchema2Manifest,
+		Digest:    digest.FromBytes(mb),
+		Size:      int64(len(mb)),
+	}
+
+	labels = map[string]string{
+		"containerd.io/gc.ref.content.config": m.Config.Digest.String(),
+	}
+	for i, l := range m.Layers {
+		labels[fmt.Sprintf("containerd.io/gc.ref.content.l%d", i)] = l.Digest.String()
+	}
+
+	opts = []content.Opt{content.WithLabels(labels)}
+	ref = fmt.Sprintf("manifest-%s-%s", desc.Digest.Algorithm().String(), desc.Digest.Encoded())
+	if err := content.WriteBlob(ctx, i.client.ContentStore(), ref, bytes.NewReader(mb), desc, opts...); err != nil {
+		return ocispec.Descriptor{}, errors.Wrap(err, "unable to store manifest")
+	}
+
 	// create a dangling image
 	_, err = i.client.ImageService().Create(ctx, images.Image{
-		Name:      desc.Digest.String(),
-		Target:    desc,
-		CreatedAt: created,
-		UpdatedAt: created,
+		Name:   "<build>@" + desc.Digest.String(),
+		Target: desc,
+		Labels: map[string]string{
+			// TODO(containerd): Add label pointing to cache id
+		},
 	})
-	if err != nil {
+	if err != nil && !cerrdefs.IsNotFound(err) {
 		return ocispec.Descriptor{}, errors.Wrapf(err, "failed to create image")
 	}
 

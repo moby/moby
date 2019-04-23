@@ -7,10 +7,13 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/containerd/images"
 	"github.com/docker/docker/api/types/backend"
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder/dockerfile"
 	"github.com/docker/docker/errdefs"
+	digest "github.com/opencontainers/go-digest"
+	ocispec "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
 
@@ -163,7 +166,11 @@ func (daemon *Daemon) CreateImageFromContainer(ctx context.Context, name string,
 		ContainerID:         container.ID,
 		ContainerMountLabel: container.MountLabel,
 		ContainerOS:         container.OS,
-		ParentImageID:       string(container.ImageID),
+		// TODO(containerd): store full descriptor in container
+		ParentImage: &ocispec.Descriptor{
+			MediaType: images.MediaTypeDockerSchema2Config,
+			Digest:    digest.Digest(container.ImageID),
+		},
 	})
 	if err != nil {
 		return "", err

@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/containerd/containerd"
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/log"
 	"github.com/containerd/containerd/namespaces"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/layer"
 	digest "github.com/opencontainers/go-digest"
@@ -102,9 +104,23 @@ func (i *ImageService) getCache(ctx context.Context) (c *cache, err error) {
 	return c, nil
 }
 
+// TODO(containerd): move this to separate package and replace
+// "github.com/docker/docker/image/cache" implementation
+type buildCache struct {
+	sources []string
+	client  *containerd.Client
+}
+
+func (bc *buildCache) GetCache(parentID string, cfg *container.Config) (imageID string, err error) {
+	return "", nil
+}
+
 // MakeImageCache creates a stateful image cache for build.
 func (i *ImageService) MakeImageCache(sourceRefs []string) builder.ImageCache {
-	return nil
+	return &buildCache{
+		sources: sourceRefs,
+		client:  i.client,
+	}
 	/*
 		if len(sourceRefs) == 0 {
 			return buildcache.NewLocal(i.imageStore)

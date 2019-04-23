@@ -359,8 +359,8 @@ func (i *ImageService) Images(ctx context.Context, imageFilters filters.Args, al
 // This new image contains only the layers from it's parent + 1 extra layer which contains the diff of all the layers in between.
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
-func (i *ImageService) SquashImage(id, parent string) (string, error) {
-	return "", errdefs.NotImplemented(errors.New("squash not implemented"))
+func (i *ImageService) SquashImage(ctx context.Context, id ocispec.Descriptor, parent *ocispec.Descriptor) (ocispec.Descriptor, error) {
+	return ocispec.Descriptor{}, errdefs.NotImplemented(errors.New("squash not implemented"))
 
 	/*
 		var (

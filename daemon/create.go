@@ -70,19 +70,22 @@ func (daemon *Daemon) containerCreate(ctx context.Context, opts createOpts) (con
 		return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(errors.New("Config cannot be empty in order to create a container"))
 	}
 
+	if opts.params.Descriptor == nil {
+		if opts.params.Config.RuntimeImage != nil {
+			opts.params.Descriptor = opts.params.Config.RuntimeImage
+		} else if opts.params.Config.Image != "" {
+			desc, err := daemon.imageService.ResolveImage(ctx, opts.params.Config.Image)
+			if err != nil {
+				return containertypes.ContainerCreateCreatedBody{}, errors.Wrapf(err, "failed to resolve image %s", opts.params.Config.Image)
+			}
+			opts.params.Descriptor = &desc
+		}
+	}
+
 	if opts.params.Descriptor != nil {
 		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, *opts.params.Descriptor)
 		if err != nil {
-			return containertypes.ContainerCreateCreatedBody{}, errors.Wrapf(err, "no runtime image found")
-		}
-	} else if opts.params.Config.Image != "" {
-		desc, err := daemon.imageService.ResolveImage(ctx, opts.params.Config.Image)
-		if err != nil {
-			return containertypes.ContainerCreateCreatedBody{}, errors.Wrapf(err, "failed to resolve image %s", opts.params.Config.Image)
-		}
-		opts.rImage, err = daemon.imageService.ResolveRuntimeImage(ctx, desc)
-		if err != nil {
-			return containertypes.ContainerCreateCreatedBody{}, errdefs.InvalidParameter(err)
+			return containertypes.ContainerCreateCreatedBody{}, err
 		}
 	} else {
 		// TODO(containerd): move this logic to image service
