@@ -18,9 +18,9 @@ import (
 // after migration the layer may be retrieved by the given name.
 func (ls *layerStore) CreateRWLayerByGraphID(name, graphID string, parent ChainID) (err error) {
 	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
-	m, ok := ls.mounts[name]
-	if ok {
+	m := ls.mounts[name]
+	ls.mountL.Unlock()
+	if m != nil {
 		if m.parent.chainID != parent {
 			return errors.New("name conflict, mismatched parent")
 		}
