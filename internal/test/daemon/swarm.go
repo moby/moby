@@ -16,26 +16,38 @@ const (
 	defaultSwarmListenAddr = "0.0.0.0"
 )
 
-// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
-func (d *Daemon) StartAndSwarmInit(t testingT) {
+var (
+	startArgs = []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
+)
+
+// StartNode starts daemon to be used as a swarm node
+func (d *Daemon) StartNode(t testingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
 	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
+	d.StartWithBusybox(t, startArgs...)
+}
 
+// RestartNode restarts a daemon to be used as a swarm node
+func (d *Daemon) RestartNode(t testingT) {
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
+	}
+	// avoid networking conflicts
+	d.Stop(t)
+	d.StartWithBusybox(t, startArgs...)
+}
+
+// StartAndSwarmInit starts the daemon (with busybox) and init the swarm
+func (d *Daemon) StartAndSwarmInit(t testingT) {
+	d.StartNode(t)
 	d.SwarmInit(t, swarm.InitRequest{})
 }
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
-	if ht, ok := t.(test.HelperT); ok {
-		ht.Helper()
-	}
-	// avoid networking conflicts
-	args := []string{"--iptables=false", "--swarm-default-advertise-addr=lo"}
-	d.StartWithBusybox(t, args...)
+	d.StartNode(t)
 
 	tokens := leader.JoinTokens(t)
 	token := tokens.Worker
@@ -96,17 +108,14 @@ func (d *Daemon) SwarmJoin(t assert.TestingT, req swarm.JoinRequest) {
 }
 
 // SwarmLeave forces daemon to leave current cluster.
-func (d *Daemon) SwarmLeave(force bool) error {
-	cli, err := d.NewClient()
-	if err != nil {
-		return fmt.Errorf("leaving swarm: failed to create client %v", err)
-	}
+//
+// The passed in TestingT is only used to validate that the client was successfully created
+// Some tests rely on error checking the result of the actual unlock, so allow
+// the error to be returned.
+func (d *Daemon) SwarmLeave(t assert.TestingT, force bool) error {
+	cli := d.NewClientT(t)
 	defer cli.Close()
-	err = cli.SwarmLeave(context.Background(), force)
-	if err != nil {
-		err = fmt.Errorf("leaving swarm: %v", err)
-	}
-	return err
+	return cli.SwarmLeave(context.Background(), force)
 }
 
 // SwarmInfo returns the swarm information of the daemon
@@ -121,13 +130,15 @@ func (d *Daemon) SwarmInfo(t assert.TestingT) swarm.Info {
 }
 
 // SwarmUnlock tries to unlock a locked swarm
-func (d *Daemon) SwarmUnlock(req swarm.UnlockRequest) error {
-	cli, err := d.NewClient()
-	if err != nil {
-		return fmt.Errorf("unlocking swarm: failed to create client %v", err)
-	}
+//
+// The passed in TestingT is only used to validate that the client was successfully created
+// Some tests rely on error checking the result of the actual unlock, so allow
+// the error to be returned.
+func (d *Daemon) SwarmUnlock(t assert.TestingT, req swarm.UnlockRequest) error {
+	cli := d.NewClientT(t)
 	defer cli.Close()
-	err = cli.SwarmUnlock(context.Background(), req)
+
+	err := cli.SwarmUnlock(context.Background(), req)
 	if err != nil {
 		err = errors.Wrap(err, "unlocking swarm")
 	}

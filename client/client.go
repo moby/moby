@@ -23,7 +23,7 @@ For example, to list running containers (the equivalent of "docker ps"):
 	)
 
 	func main() {
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts(client.FromEnv)
 		if err != nil {
 			panic(err)
 		}

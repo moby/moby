@@ -120,7 +120,7 @@ type NetworkStats struct {
 	RxBytes uint64 `json:"rx_bytes"`
 	// Packets received. Windows and Linux.
 	RxPackets uint64 `json:"rx_packets"`
-	// Received errors. Not used on Windows. Note that we dont `omitempty` this
+	// Received errors. Not used on Windows. Note that we don't `omitempty` this
 	// field as it is expected in the >=v1.21 API stats structure.
 	RxErrors uint64 `json:"rx_errors"`
 	// Incoming packets dropped. Windows and Linux.

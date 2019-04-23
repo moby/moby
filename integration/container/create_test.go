@@ -12,7 +12,6 @@ import (
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 	ctr "github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/oci"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -22,7 +21,7 @@ import (
 
 func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		doc           string
@@ -63,7 +62,7 @@ func TestCreateFailsWhenIdentifierDoesNotExist(t *testing.T) {
 
 func TestCreateWithInvalidEnv(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		env           string
@@ -106,7 +105,7 @@ func TestCreateTmpfsMountsTarget(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	testCases := []struct {
 		target        string
@@ -148,7 +147,7 @@ func TestCreateWithCustomMaskedPaths(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	testCases := []struct {
@@ -227,7 +226,7 @@ func TestCreateWithCustomReadonlyPaths(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	testCases := []struct {

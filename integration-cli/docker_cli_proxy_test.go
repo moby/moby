@@ -4,13 +4,13 @@ import (
 	"net"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
 func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "info"},
@@ -21,10 +21,10 @@ func (s *DockerSuite) TestCLIProxyDisableProxyUnixSock(c *check.C) {
 // Can't use localhost here since go has a special case to not use proxy if connecting to localhost
 // See https://golang.org/pkg/net/http/#ProxyFromEnvironment
 func (s *DockerDaemonSuite) TestCLIProxyProxyTCPSock(c *check.C) {
-	testRequires(c, SameHostDaemon)
+	testRequires(c, testEnv.IsLocalDaemon)
 	// get the IP to use to connect since we can't use localhost
 	addrs, err := net.InterfaceAddrs()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	var ip string
 	for _, addr := range addrs {
 		sAddr := addr.String()
@@ -35,7 +35,7 @@ func (s *DockerDaemonSuite) TestCLIProxyProxyTCPSock(c *check.C) {
 		}
 	}
 
-	c.Assert(ip, checker.Not(checker.Equals), "")
+	assert.Assert(c, ip != "")
 
 	s.d.Start(c, "-H", "tcp://"+ip+":2375")
 

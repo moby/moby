@@ -11,7 +11,6 @@ import (
 	"github.com/docker/docker/api/types/mount"
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/system"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -21,7 +20,7 @@ import (
 
 func TestContainerNetworkMountsNoChown(t *testing.T) {
 	// chown only applies to Linux bind mounted volumes; must be same host to verify
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 
 	defer setupTest(t)()
 
@@ -55,7 +54,7 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 		},
 	}
 
-	cli, err := client.NewEnvClient()
+	cli, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err)
 	defer cli.Close()
 
@@ -81,10 +80,10 @@ func TestContainerNetworkMountsNoChown(t *testing.T) {
 }
 
 func TestMountDaemonRoot(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows" || testEnv.IsRemoteDaemon())
-	t.Parallel()
+	skip.If(t, testEnv.IsRemoteDaemon)
 
-	client := request.NewAPIClient(t)
+	defer setupTest(t)()
+	client := testEnv.APIClient()
 	ctx := context.Background()
 	info, err := client.Info(ctx)
 	if err != nil {

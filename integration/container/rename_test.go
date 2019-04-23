@@ -10,7 +10,6 @@ import (
 	"github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/api/types/versions"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/docker/pkg/stringid"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -27,7 +26,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	aName := "a0" + t.Name()
 	bName := "b0" + t.Name()
@@ -52,7 +51,7 @@ func TestRenameLinkedContainer(t *testing.T) {
 func TestRenameStoppedContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
 	cID := container.Run(t, ctx, client, container.WithName(oldName), container.WithCmd("sh"))
@@ -74,7 +73,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 func TestRenameRunningContainerAndReuse(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
@@ -102,7 +101,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 func TestRenameInvalidName(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	oldName := "first_name" + t.Name()
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
@@ -127,7 +126,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	networkName := "network1" + t.Name()
 	_, err := client.NetworkCreate(ctx, networkName, types.NetworkCreate{})
@@ -173,7 +172,7 @@ func TestRenameAnonymousContainer(t *testing.T) {
 func TestRenameContainerWithSameName(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	oldName := "old" + t.Name()
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
@@ -191,12 +190,12 @@ func TestRenameContainerWithSameName(t *testing.T) {
 // of the linked container should be updated so that the other
 // container could still reference to the container that is renamed.
 func TestRenameContainerWithLinkedContainer(t *testing.T) {
-	skip.If(t, testEnv.IsRemoteDaemon())
+	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 
 	defer setupTest(t)()
 	ctx := context.Background()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 
 	db1Name := "db1" + t.Name()
 	db1ID := container.Run(t, ctx, client, container.WithName(db1Name))

@@ -9,7 +9,6 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
 )
@@ -67,8 +66,7 @@ func (d *Daemon) CheckServiceUpdateState(service string) func(*check.C) (interfa
 // CheckPluginRunning returns the runtime state of the plugin
 func (d *Daemon) CheckPluginRunning(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		apiclient, err := d.NewClient()
-		assert.NilError(c, err)
+		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
 			return false, check.Commentf("%v", err)
@@ -81,8 +79,7 @@ func (d *Daemon) CheckPluginRunning(plugin string) func(c *check.C) (interface{}
 // CheckPluginImage returns the runtime state of the plugin
 func (d *Daemon) CheckPluginImage(plugin string) func(c *check.C) (interface{}, check.CommentInterface) {
 	return func(c *check.C) (interface{}, check.CommentInterface) {
-		apiclient, err := d.NewClient()
-		assert.NilError(c, err)
+		apiclient := d.NewClientT(c)
 		resp, _, err := apiclient.PluginInspectWithRaw(context.Background(), plugin)
 		if client.IsErrNotFound(err) {
 			return false, check.Commentf("%v", err)
@@ -102,8 +99,7 @@ func (d *Daemon) CheckServiceTasks(service string) func(*check.C) (interface{}, 
 
 // CheckRunningTaskNetworks returns the number of times each network is referenced from a task.
 func (d *Daemon) CheckRunningTaskNetworks(c *check.C) (interface{}, check.CommentInterface) {
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	filterArgs := filters.NewArgs()
@@ -114,7 +110,7 @@ func (d *Daemon) CheckRunningTaskNetworks(c *check.C) (interface{}, check.Commen
 	}
 
 	tasks, err := cli.TaskList(context.Background(), options)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	result := make(map[string]int)
 	for _, task := range tasks {
@@ -127,8 +123,7 @@ func (d *Daemon) CheckRunningTaskNetworks(c *check.C) (interface{}, check.Commen
 
 // CheckRunningTaskImages returns the times each image is running as a task.
 func (d *Daemon) CheckRunningTaskImages(c *check.C) (interface{}, check.CommentInterface) {
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	filterArgs := filters.NewArgs()
@@ -139,7 +134,7 @@ func (d *Daemon) CheckRunningTaskImages(c *check.C) (interface{}, check.CommentI
 	}
 
 	tasks, err := cli.TaskList(context.Background(), options)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	result := make(map[string]int)
 	for _, task := range tasks {
@@ -171,14 +166,13 @@ func (d *Daemon) CheckLocalNodeState(c *check.C) (interface{}, check.CommentInte
 // CheckControlAvailable returns the current swarm control available
 func (d *Daemon) CheckControlAvailable(c *check.C) (interface{}, check.CommentInterface) {
 	info := d.SwarmInfo(c)
-	c.Assert(info.LocalNodeState, checker.Equals, swarm.LocalNodeStateActive)
+	assert.Equal(c, info.LocalNodeState, swarm.LocalNodeStateActive)
 	return info.ControlAvailable, nil
 }
 
 // CheckLeader returns whether there is a leader on the swarm or not
 func (d *Daemon) CheckLeader(c *check.C) (interface{}, check.CommentInterface) {
-	cli, err := d.NewClient()
-	c.Assert(err, checker.IsNil)
+	cli := d.NewClientT(c)
 	defer cli.Close()
 
 	errList := check.Commentf("could not get node list")

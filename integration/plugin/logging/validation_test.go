@@ -24,14 +24,13 @@ func TestDaemonStartWithLogOpt(t *testing.T) {
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 
-	client, err := d.NewClient()
-	assert.Check(t, err)
+	c := d.NewClientT(t)
 	ctx := context.Background()
 
-	createPlugin(t, client, "test", "dummy", asLogDriver)
-	err = client.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
+	createPlugin(t, c, "test", "dummy", asLogDriver)
+	err := c.PluginEnable(ctx, "test", types.PluginEnableOptions{Timeout: 30})
 	assert.Check(t, err)
-	defer client.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
+	defer c.PluginRemove(ctx, "test", types.PluginRemoveOptions{Force: true})
 
 	d.Stop(t)
 	d.Start(t, "--iptables=false", "--log-driver=test", "--log-opt=foo=bar")

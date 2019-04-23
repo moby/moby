@@ -21,7 +21,7 @@ func cleanupNetworkNamespace(t testingT, execRoot string) {
 	// new exec root.
 	netnsPath := filepath.Join(execRoot, "netns")
 	filepath.Walk(netnsPath, func(path string, info os.FileInfo, err error) error {
-		if err := unix.Unmount(path, unix.MNT_FORCE); err != nil {
+		if err := unix.Unmount(path, unix.MNT_DETACH); err != nil && err != unix.EINVAL && err != unix.ENOENT {
 			t.Logf("unmount of %s failed: %v", path, err)
 		}
 		os.Remove(path)

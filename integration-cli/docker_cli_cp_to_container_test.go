@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/integration-cli/checker"
 	"github.com/go-check/check"
+	"gotest.tools/assert"
 )
 
 // Try all of the test cases from the archive package which implements the
@@ -23,7 +24,7 @@ func (s *DockerSuite) TestCpToSymlinkDestination(c *check.C) {
 	//  stat /tmp/test-cp-to-symlink-destination-262430901/vol3 gets permission denied for the user
 	testRequires(c, NotUserNamespace)
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, SameHostDaemon) // Requires local volume mount bind.
+	testRequires(c, testEnv.IsLocalDaemon) // Requires local volume mount bind.
 
 	testVol := getTestDir(c, "test-cp-to-symlink-destination-")
 	defer os.RemoveAll(testVol)
@@ -155,7 +156,7 @@ func (s *DockerSuite) TestCpToCaseB(c *check.C) {
 	dstDir := containerCpPathTrailingSep(containerID, "testDir")
 
 	err := runDockerCp(c, srcPath, dstDir, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpDirNotExist(err), checker.True, check.Commentf("expected DirNotExists error, but got %T: %s", err, err))
 }
@@ -285,7 +286,7 @@ func (s *DockerSuite) TestCpToCaseF(c *check.C) {
 	dstFile := containerCpPath(containerID, "/root/file1")
 
 	err := runDockerCp(c, srcDir, dstFile, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
@@ -390,7 +391,7 @@ func (s *DockerSuite) TestCpToCaseI(c *check.C) {
 	dstFile := containerCpPath(containerID, "/root/file1")
 
 	err := runDockerCp(c, srcDir, dstFile, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyDir(err), checker.True, check.Commentf("expected ErrCannotCopyDir error, but got %T: %s", err, err))
 }
@@ -459,7 +460,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyRootfs(c *check.C) {
 	dstPath := containerCpPath(containerID, "/root/shouldNotExist")
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyReadOnly(err), checker.True, check.Commentf("expected ErrContainerRootfsReadonly error, but got %T: %s", err, err))
 
@@ -486,7 +487,7 @@ func (s *DockerSuite) TestCpToErrReadOnlyVolume(c *check.C) {
 	dstPath := containerCpPath(containerID, "/vol_ro/shouldNotExist")
 
 	err := runDockerCp(c, srcPath, dstPath, nil)
-	c.Assert(err, checker.NotNil)
+	assert.ErrorContains(c, err, "")
 
 	c.Assert(isCpCannotCopyReadOnly(err), checker.True, check.Commentf("expected ErrVolumeReadonly error, but got %T: %s", err, err))
 

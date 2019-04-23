@@ -7,7 +7,6 @@ import (
 
 	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/integration/internal/container"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/poll"
@@ -15,7 +14,7 @@ import (
 
 func TestUpdateRestartPolicy(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
 	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
@@ -48,12 +47,10 @@ func TestUpdateRestartPolicy(t *testing.T) {
 
 func TestUpdateRestartWithAutoRemove(t *testing.T) {
 	defer setupTest(t)()
-	client := request.NewAPIClient(t)
+	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
-		c.HostConfig.AutoRemove = true
-	})
+	cID := container.Run(t, ctx, client, container.WithAutoRemove)
 
 	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 		RestartPolicy: containertypes.RestartPolicy{

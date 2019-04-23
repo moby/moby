@@ -6,14 +6,14 @@ import (
 	"testing"
 
 	"github.com/docker/docker/internal/test/daemon"
-	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 	"gotest.tools/skip"
 )
 
 func TestInfoAPI(t *testing.T) {
-	client := request.NewAPIClient(t)
+	defer setupTest(t)()
+	client := testEnv.APIClient()
 
 	info, err := client.Info(context.Background())
 	assert.NilError(t, err)
@@ -46,14 +46,12 @@ func TestInfoAPI(t *testing.T) {
 func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
 	d := daemon.New(t)
-
-	client, err := d.NewClient()
-	assert.NilError(t, err)
+	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t, "-H=0.0.0.0:23756", "-H="+d.Sock())
 	defer d.Stop(t)
 
-	info, err := client.Info(context.Background())
+	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 
 	stringsToCheck := []string{

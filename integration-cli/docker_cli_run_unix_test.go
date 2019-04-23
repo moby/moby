@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/pkg/sysinfo"
 	"github.com/go-check/check"
 	"github.com/kr/pty"
+	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
 
@@ -39,7 +40,7 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 		cmd.Stdin = tty
 		cmd.Stdout = tty
 		cmd.Stderr = tty
-		c.Assert(cmd.Start(), checker.IsNil)
+		assert.NilError(c, cmd.Start())
 		ch := make(chan error)
 		go func() {
 			ch <- cmd.Wait()
@@ -61,9 +62,9 @@ func (s *DockerSuite) TestRunRedirectStdout(c *check.C) {
 // Test recursive bind mount works by default
 func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	// /tmp gets permission denied
-	testRequires(c, NotUserNamespace, SameHostDaemon)
+	testRequires(c, NotUserNamespace, testEnv.IsLocalDaemon)
 	tmpDir, err := ioutil.TempDir("", "docker_recursive_mount_test")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpDir)
 
@@ -73,7 +74,7 @@ func (s *DockerSuite) TestRunWithVolumesIsRecursive(c *check.C) {
 	c.Assert(mount.Mount("tmpfs", tmpfsDir, "tmpfs", ""), checker.IsNil, check.Commentf("failed to create a tmpfs mount at %s", tmpfsDir))
 
 	f, err := ioutil.TempFile(tmpfsDir, "touch-me")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer f.Close()
 
 	out, _ := dockerCmd(c, "run", "--name", "test-data", "--volume", fmt.Sprintf("%s:/tmp:ro", tmpDir), "busybox:latest", "ls", "/tmp/tmpfs")
@@ -101,27 +102,27 @@ func (s *DockerSuite) TestRunAttachDetach(c *check.C) {
 
 	cmd := exec.Command(dockerBinary, "attach", name)
 	stdout, err := cmd.StdoutPipe()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	cpty, tty, err := pty.Open()
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer cpty.Close()
 	cmd.Stdin = tty
-	c.Assert(cmd.Start(), checker.IsNil)
+	assert.NilError(c, cmd.Start())
 	c.Assert(waitRun(name), check.IsNil)
 
 	_, err = cpty.Write([]byte("hello\n"))
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	out, err := bufio.NewReader(stdout).ReadString('\n')
-	c.Assert(err, checker.IsNil)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "hello")
+	assert.NilError(c, err)
+	assert.Equal(c, strings.TrimSpace(out), "hello")
 
 	// escape sequence
 	_, err = cpty.Write([]byte{16})
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	time.Sleep(100 * time.Millisecond)
 	_, err = cpty.Write([]byte{17})
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	ch := make(chan struct{})
 	go func() {
@@ -235,7 +236,7 @@ func (s *DockerSuite) TestRunAttachDetachFromInvalidFlag(c *check.C) {
 	}
 	// it should print a warning to indicate the detach key flag is invalid
 	errStr := "Invalid detach keys (ctrl-A,a) provided"
-	c.Assert(strings.TrimSpace(out), checker.Equals, errStr)
+	assert.Equal(c, strings.TrimSpace(out), errStr)
 }
 
 // TestRunAttachDetachFromConfig checks attaching and detaching with the escape sequence specified via config file.
@@ -247,7 +248,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	homeKey := homedir.Key()
 	homeVal := homedir.Get()
 	tmpDir, err := ioutil.TempDir("", "fake-home")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
 	dotDocker := filepath.Join(tmpDir, ".docker")
@@ -262,7 +263,7 @@ func (s *DockerSuite) TestRunAttachDetachFromConfig(c *check.C) {
 	}`
 
 	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	// Then do the work
 	name := "attach-detach"
@@ -330,7 +331,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	homeKey := homedir.Key()
 	homeVal := homedir.Get()
 	tmpDir, err := ioutil.TempDir("", "fake-home")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	defer os.RemoveAll(tmpDir)
 
 	dotDocker := filepath.Join(tmpDir, ".docker")
@@ -345,7 +346,7 @@ func (s *DockerSuite) TestRunAttachDetachKeysOverrideConfig(c *check.C) {
 	}`
 
 	err = ioutil.WriteFile(tmpCfg, []byte(data), 0600)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	// Then do the work
 	name := "attach-detach"
@@ -460,10 +461,10 @@ func (s *DockerSuite) TestRunWithCPUQuota(c *check.C) {
 
 	file := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	out, _ := dockerCmd(c, "run", "--cpu-quota", "8000", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "8000")
+	assert.Equal(c, strings.TrimSpace(out), "8000")
 
 	out = inspectField(c, "test", "HostConfig.CpuQuota")
-	c.Assert(out, checker.Equals, "8000", check.Commentf("setting the CPU CFS quota failed"))
+	assert.Equal(c, out, "8000", "setting the CPU CFS quota failed")
 }
 
 func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
@@ -471,29 +472,29 @@ func (s *DockerSuite) TestRunWithCpuPeriod(c *check.C) {
 
 	file := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 	out, _ := dockerCmd(c, "run", "--cpu-period", "50000", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "50000")
+	assert.Equal(c, strings.TrimSpace(out), "50000")
 
 	out, _ = dockerCmd(c, "run", "--cpu-period", "0", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "100000")
+	assert.Equal(c, strings.TrimSpace(out), "100000")
 
 	out = inspectField(c, "test", "HostConfig.CpuPeriod")
-	c.Assert(out, checker.Equals, "50000", check.Commentf("setting the CPU CFS period failed"))
+	assert.Equal(c, out, "50000", "setting the CPU CFS period failed")
 }
 
 func (s *DockerSuite) TestRunWithInvalidCpuPeriod(c *check.C) {
 	testRequires(c, cpuCfsPeriod)
 	out, _, err := dockerCmdWithError("run", "--cpu-period", "900", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := "CPU cfs period can not be less than 1ms (i.e. 1000) or larger than 1s (i.e. 1000000)"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--cpu-period", "2000000", "busybox", "true")
-	c.Assert(err, check.NotNil)
-	c.Assert(out, checker.Contains, expected)
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--cpu-period", "-3", "busybox", "true")
-	c.Assert(err, check.NotNil)
-	c.Assert(out, checker.Contains, expected)
+	assert.ErrorContains(c, err, "")
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunWithKernelMemory(c *check.C) {
@@ -513,14 +514,14 @@ func (s *DockerSuite) TestRunWithInvalidKernelMemory(c *check.C) {
 	testRequires(c, DaemonIsLinux, kernelMemorySupport)
 
 	out, _, err := dockerCmdWithError("run", "--kernel-memory", "2M", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := "Minimum kernel memory limit allowed is 4MB"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--kernel-memory", "-16m", "--name", "test2", "busybox", "echo", "test")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected = "invalid size"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
@@ -528,10 +529,10 @@ func (s *DockerSuite) TestRunWithCPUShares(c *check.C) {
 
 	file := "/sys/fs/cgroup/cpu/cpu.shares"
 	out, _ := dockerCmd(c, "run", "--cpu-shares", "1000", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "1000")
+	assert.Equal(c, strings.TrimSpace(out), "1000")
 
 	out = inspectField(c, "test", "HostConfig.CPUShares")
-	c.Assert(out, check.Equals, "1000")
+	assert.Equal(c, out, "1000")
 }
 
 // "test" should be printed
@@ -548,10 +549,10 @@ func (s *DockerSuite) TestRunWithCpusetCpus(c *check.C) {
 
 	file := "/sys/fs/cgroup/cpuset/cpuset.cpus"
 	out, _ := dockerCmd(c, "run", "--cpuset-cpus", "0", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+	assert.Equal(c, strings.TrimSpace(out), "0")
 
 	out = inspectField(c, "test", "HostConfig.CpusetCpus")
-	c.Assert(out, check.Equals, "0")
+	assert.Equal(c, out, "0")
 }
 
 func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
@@ -559,10 +560,10 @@ func (s *DockerSuite) TestRunWithCpusetMems(c *check.C) {
 
 	file := "/sys/fs/cgroup/cpuset/cpuset.mems"
 	out, _ := dockerCmd(c, "run", "--cpuset-mems", "0", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+	assert.Equal(c, strings.TrimSpace(out), "0")
 
 	out = inspectField(c, "test", "HostConfig.CpusetMems")
-	c.Assert(out, check.Equals, "0")
+	assert.Equal(c, out, "0")
 }
 
 func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
@@ -570,48 +571,48 @@ func (s *DockerSuite) TestRunWithBlkioWeight(c *check.C) {
 
 	file := "/sys/fs/cgroup/blkio/blkio.weight"
 	out, _ := dockerCmd(c, "run", "--blkio-weight", "300", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "300")
+	assert.Equal(c, strings.TrimSpace(out), "300")
 
 	out = inspectField(c, "test", "HostConfig.BlkioWeight")
-	c.Assert(out, check.Equals, "300")
+	assert.Equal(c, out, "300")
 }
 
 func (s *DockerSuite) TestRunWithInvalidBlkioWeight(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--blkio-weight", "5", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 	expected := "Range of blkio weight is from 10 to 1000"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunWithInvalidPathforBlkioWeightDevice(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--blkio-weight-device", "/dev/sdX:100", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 }
 
 func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadBps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-bps", "/dev/sdX:500", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 }
 
 func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteBps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-bps", "/dev/sdX:500", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 }
 
 func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceReadIOps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-read-iops", "/dev/sdX:500", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 }
 
 func (s *DockerSuite) TestRunWithInvalidPathforBlkioDeviceWriteIOps(c *check.C) {
 	testRequires(c, blkioWeight)
 	out, _, err := dockerCmdWithError("run", "--device-write-iops", "/dev/sdX:500", "busybox", "true")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 }
 
 func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
@@ -628,7 +629,7 @@ func (s *DockerSuite) TestRunOOMExitCode(c *check.C) {
 
 	select {
 	case err := <-errChan:
-		c.Assert(err, check.IsNil)
+		assert.NilError(c, err)
 	case <-time.After(600 * time.Second):
 		c.Fatal("Timeout waiting for container to die on OOM")
 	}
@@ -661,45 +662,45 @@ func (s *DockerSuite) TestRunWithSwappiness(c *check.C) {
 	testRequires(c, memorySwappinessSupport)
 	file := "/sys/fs/cgroup/memory/memory.swappiness"
 	out, _ := dockerCmd(c, "run", "--memory-swappiness", "0", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "0")
+	assert.Equal(c, strings.TrimSpace(out), "0")
 
 	out = inspectField(c, "test", "HostConfig.MemorySwappiness")
-	c.Assert(out, check.Equals, "0")
+	assert.Equal(c, out, "0")
 }
 
 func (s *DockerSuite) TestRunWithSwappinessInvalid(c *check.C) {
 	testRequires(c, memorySwappinessSupport)
 	out, _, err := dockerCmdWithError("run", "--memory-swappiness", "101", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := "Valid memory swappiness range is 0-100"
 	c.Assert(out, checker.Contains, expected, check.Commentf("Expected output to contain %q, not %q", out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--memory-swappiness", "-10", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, expected, check.Commentf("Expected output to contain %q, not %q", out, expected))
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservation(c *check.C) {
-	testRequires(c, SameHostDaemon, memoryReservationSupport)
+	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 
 	file := "/sys/fs/cgroup/memory/memory.soft_limit_in_bytes"
 	out, _ := dockerCmd(c, "run", "--memory-reservation", "200M", "--name", "test", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "209715200")
+	assert.Equal(c, strings.TrimSpace(out), "209715200")
 
 	out = inspectField(c, "test", "HostConfig.MemoryReservation")
-	c.Assert(out, check.Equals, "209715200")
+	assert.Equal(c, out, "209715200")
 }
 
 func (s *DockerSuite) TestRunWithMemoryReservationInvalid(c *check.C) {
 	testRequires(c, memoryLimitSupport)
-	testRequires(c, SameHostDaemon, memoryReservationSupport)
+	testRequires(c, testEnv.IsLocalDaemon, memoryReservationSupport)
 	out, _, err := dockerCmdWithError("run", "-m", "500M", "--memory-reservation", "800M", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := "Minimum memory limit can not be less than memory reservation limit"
 	c.Assert(strings.TrimSpace(out), checker.Contains, expected, check.Commentf("run container should fail with invalid memory reservation"))
 
 	out, _, err = dockerCmdWithError("run", "--memory-reservation", "1k", "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected = "Minimum memory reservation allowed is 4MB"
 	c.Assert(strings.TrimSpace(out), checker.Contains, expected, check.Commentf("run container should fail with invalid memory reservation"))
 }
@@ -721,17 +722,17 @@ func (s *DockerSuite) TestRunSwapLessThanMemoryLimit(c *check.C) {
 	testRequires(c, swapMemorySupport)
 	out, _, err := dockerCmdWithError("run", "-m", "16m", "--memory-swap", "15m", "busybox", "echo", "test")
 	expected := "Minimum memoryswap limit should be larger than memory limit"
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
-	testRequires(c, cgroupCpuset, SameHostDaemon)
+	testRequires(c, cgroupCpuset, testEnv.IsLocalDaemon)
 
 	sysInfo := sysinfo.New(true)
 	cpus, err := parsers.ParseUintList(sysInfo.Cpus)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	var invalid int
 	for i := 0; i <= len(cpus)+1; i++ {
 		if !cpus[i] {
@@ -740,9 +741,9 @@ func (s *DockerSuite) TestRunInvalidCpusetCpusFlagValue(c *check.C) {
 		}
 	}
 	out, _, err := dockerCmdWithError("run", "--cpuset-cpus", strconv.Itoa(invalid), "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested CPUs are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Cpus)
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
@@ -750,7 +751,7 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 
 	sysInfo := sysinfo.New(true)
 	mems, err := parsers.ParseUintList(sysInfo.Mems)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	var invalid int
 	for i := 0; i <= len(mems)+1; i++ {
 		if !mems[i] {
@@ -759,27 +760,27 @@ func (s *DockerSuite) TestRunInvalidCpusetMemsFlagValue(c *check.C) {
 		}
 	}
 	out, _, err := dockerCmdWithError("run", "--cpuset-mems", strconv.Itoa(invalid), "busybox", "true")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	expected := fmt.Sprintf("Error response from daemon: Requested memory nodes are not available - requested %s, available: %s", strconv.Itoa(invalid), sysInfo.Mems)
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunInvalidCPUShares(c *check.C) {
 	testRequires(c, cpuShare, DaemonIsLinux)
 	out, _, err := dockerCmdWithError("run", "--cpu-shares", "1", "busybox", "echo", "test")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 	expected := "The minimum allowed cpu-shares is 2"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "-1", "busybox", "echo", "test")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 	expected = "shares: invalid argument"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 
 	out, _, err = dockerCmdWithError("run", "--cpu-shares", "99999999", "busybox", "echo", "test")
-	c.Assert(err, check.NotNil, check.Commentf("%s", out))
+	assert.ErrorContains(c, err, "", out)
 	expected = "The maximum allowed cpu-shares is"
-	c.Assert(out, checker.Contains, expected)
+	assert.Assert(c, strings.Contains(out, expected))
 }
 
 func (s *DockerSuite) TestRunWithDefaultShmSize(c *check.C) {
@@ -810,7 +811,7 @@ func (s *DockerSuite) TestRunWithShmSize(c *check.C) {
 
 func (s *DockerSuite) TestRunTmpfsMountsEnsureOrdered(c *check.C) {
 	tmpFile, err := ioutil.TempFile("", "test")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 	out, _ := dockerCmd(c, "run", "--tmpfs", "/run", "-v", tmpFile.Name()+":/run/test", "busybox", "ls", "/run")
 	c.Assert(out, checker.Contains, "test")
@@ -900,7 +901,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 	sysctls := make(map[string]string)
 	err = json.Unmarshal([]byte(out), &sysctls)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	c.Assert(sysctls["net.ipv4.ip_forward"], check.Equals, "1")
 
 	out, _ = dockerCmd(c, "run", "--sysctl", "net.ipv4.ip_forward=0", "--name", "test1", "busybox", "cat", "/proc/sys/net/ipv4/ip_forward")
@@ -909,7 +910,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 	out = inspectFieldJSON(c, "test1", "HostConfig.Sysctls")
 
 	err = json.Unmarshal([]byte(out), &sysctls)
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	c.Assert(sysctls["net.ipv4.ip_forward"], check.Equals, "0")
 
 	icmd.RunCommand(dockerBinary, "run", "--sysctl", "kernel.foobar=1", "--name", "test2",
@@ -921,7 +922,7 @@ func (s *DockerSuite) TestRunSysctls(c *check.C) {
 
 // TestRunSeccompProfileDenyUnshare checks that 'docker run --security-opt seccomp=/tmp/profile.json debian:jessie unshare' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -950,7 +951,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshare(c *check.C) {
 
 // TestRunSeccompProfileDenyChmod checks that 'docker run --security-opt seccomp=/tmp/profile.json busybox chmod 400 /etc/hostname' exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
 	"syscalls": [
@@ -969,7 +970,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 
 	if _, err := tmpFile.Write([]byte(jsonData)); err != nil {
@@ -985,7 +986,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyChmod(c *check.C) {
 // TestRunSeccompProfileDenyUnshareUserns checks that 'docker run debian:jessie unshare --map-root-user --user sh -c whoami' with a specific profile to
 // deny unshare of a userns exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotArm, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotArm, Apparmor)
 	// from sched.h
 	jsonData := fmt.Sprintf(`{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1023,7 +1024,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyUnshareUserns(c *check.C) {
 // TestRunSeccompProfileDenyCloneUserns checks that 'docker run syscall-test'
 // with a the default seccomp profile exits with operation not permitted.
 func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 	ensureSyscallTest(c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "userns-test", "id").Assert(c, icmd.Expected{
@@ -1035,7 +1036,7 @@ func (s *DockerSuite) TestRunSeccompProfileDenyCloneUserns(c *check.C) {
 // TestRunSeccompUnconfinedCloneUserns checks that
 // 'docker run --security-opt seccomp=unconfined syscall-test' allows creating a userns.
 func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace, unprivilegedUsernsClone)
 	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
@@ -1048,7 +1049,7 @@ func (s *DockerSuite) TestRunSeccompUnconfinedCloneUserns(c *check.C) {
 // TestRunSeccompAllowPrivCloneUserns checks that 'docker run --privileged syscall-test'
 // allows creating a userns.
 func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, UserNamespaceInKernel, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	// make sure running w privileged is ok
@@ -1060,7 +1061,7 @@ func (s *DockerSuite) TestRunSeccompAllowPrivCloneUserns(c *check.C) {
 // TestRunSeccompProfileAllow32Bit checks that 32 bit code can run on x86_64
 // with the default seccomp profile.
 func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, IsAmd64)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, IsAmd64)
 	ensureSyscallTest(c)
 
 	icmd.RunCommand(dockerBinary, "run", "syscall-test", "exit32-test").Assert(c, icmd.Success)
@@ -1068,14 +1069,14 @@ func (s *DockerSuite) TestRunSeccompProfileAllow32Bit(c *check.C) {
 
 // TestRunSeccompAllowSetrlimit checks that 'docker run debian:jessie ulimit -v 1048510' succeeds.
 func (s *DockerSuite) TestRunSeccompAllowSetrlimit(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	// ulimit uses setrlimit, so we want to make sure we don't break it
 	icmd.RunCommand(dockerBinary, "run", "debian:jessie", "bash", "-c", "ulimit -v 1048510").Assert(c, icmd.Success)
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "acct-test")
@@ -1105,7 +1106,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileAcct(c *check.C) {
 }
 
 func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled, NotUserNamespace)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled, NotUserNamespace)
 	ensureSyscallTest(c)
 
 	out, _, err := dockerCmdWithError("run", "syscall-test", "ns-test", "echo", "hello0")
@@ -1142,7 +1143,7 @@ func (s *DockerSuite) TestRunSeccompDefaultProfileNS(c *check.C) {
 // TestRunNoNewPrivSetuid checks that --security-opt='no-new-privileges=true' prevents
 // effective uid transtions on executing setuid binaries.
 func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
 	// test that running a setuid binary results in no effective uid transition
@@ -1155,7 +1156,7 @@ func (s *DockerSuite) TestRunNoNewPrivSetuid(c *check.C) {
 // TestLegacyRunNoNewPrivSetuid checks that --security-opt=no-new-privileges prevents
 // effective uid transtions on executing setuid binaries.
 func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureNNPTest(c)
 
 	// test that running a setuid binary results in no effective uid transition
@@ -1166,7 +1167,7 @@ func (s *DockerSuite) TestLegacyRunNoNewPrivSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_CHOWN
@@ -1184,7 +1185,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChown(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_DAC_OVERRIDE
@@ -1197,7 +1198,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesDacOverride(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_FOWNER
@@ -1213,7 +1214,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesFowner(c *check.C) {
 // TODO CAP_KILL
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETUID
@@ -1231,7 +1232,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetuid(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SETGID
@@ -1251,7 +1252,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesSetgid(c *check.C) {
 // TODO CAP_SETPCAP
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_BIND_SERVICE
@@ -1269,7 +1270,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetBindService(c *check.C) 
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_NET_RAW
@@ -1287,7 +1288,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesNetRaw(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
-	testRequires(c, DaemonIsLinux, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_SYS_CHROOT
@@ -1305,7 +1306,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesChroot(c *check.C) {
 }
 
 func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, testEnv.IsLocalDaemon)
 	ensureSyscallTest(c)
 
 	// test that a root user has default capability CAP_MKNOD
@@ -1327,7 +1328,7 @@ func (s *DockerSuite) TestUserNoEffectiveCapabilitiesMknod(c *check.C) {
 // TODO CAP_SETFCAP
 
 func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
-	testRequires(c, SameHostDaemon, Apparmor)
+	testRequires(c, testEnv.IsLocalDaemon, Apparmor)
 
 	// running w seccomp unconfined tests the apparmor profile
 	result := icmd.RunCommand(dockerBinary, "run", "--security-opt", "seccomp=unconfined", "busybox", "chmod", "777", "/proc/1/cgroup")
@@ -1346,39 +1347,39 @@ func (s *DockerSuite) TestRunApparmorProcDirectory(c *check.C) {
 // make sure the default profile can be successfully parsed (using unshare as it is
 // something which we know is blocked in the default profile)
 func (s *DockerSuite) TestRunSeccompWithDefaultProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	out, _, err := dockerCmdWithError("run", "--security-opt", "seccomp=../profiles/seccomp/default.json", "debian:jessie", "unshare", "--map-root-user", "--user", "sh", "-c", "whoami")
-	c.Assert(err, checker.NotNil, check.Commentf("%s", out))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "unshare: unshare failed: Operation not permitted")
+	assert.ErrorContains(c, err, "", out)
+	assert.Equal(c, strings.TrimSpace(out), "unshare: unshare failed: Operation not permitted")
 }
 
 // TestRunDeviceSymlink checks run with device that follows symlink (#13840 and #22271)
 func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
-	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, SameHostDaemon)
+	testRequires(c, DaemonIsLinux, NotUserNamespace, NotArm, testEnv.IsLocalDaemon)
 	if _, err := os.Stat("/dev/zero"); err != nil {
 		c.Skip("Host does not have /dev/zero")
 	}
 
 	// Create a temporary directory to create symlink
 	tmpDir, err := ioutil.TempDir("", "docker_device_follow_symlink_tests")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	defer os.RemoveAll(tmpDir)
 
 	// Create a symbolic link to /dev/zero
 	symZero := filepath.Join(tmpDir, "zero")
 	err = os.Symlink("/dev/zero", symZero)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	// Create a temporary file "temp" inside tmpDir, write some data to "tmpDir/temp",
 	// then create a symlink "tmpDir/file" to the temporary file "tmpDir/temp".
 	tmpFile := filepath.Join(tmpDir, "temp")
 	err = ioutil.WriteFile(tmpFile, []byte("temp"), 0666)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	symFile := filepath.Join(tmpDir, "file")
 	err = os.Symlink(tmpFile, symFile)
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 
 	// Create a symbolic link to /dev/zero, this time with a relative path (#22271)
 	err = os.Symlink("zero", "/dev/symzero")
@@ -1394,7 +1395,7 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 
 	// symlink "tmpDir/file" to a file "tmpDir/temp" will result in an error as it is not a device.
 	out, _, err = dockerCmdWithError("run", "--device", symFile+":/dev/symzero", "busybox", "sh", "-c", "dd if=/dev/symzero bs=4K count=8 | md5sum")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(strings.Trim(out, "\r\n"), checker.Contains, "not a device node", check.Commentf("expected output 'not a device node'"))
 
 	// md5sum of 'dd if=/dev/zero bs=4K count=8' is bb7df04e1b0a2570657527a7e108ae23 (this time check with relative path backed, see #22271)
@@ -1404,14 +1405,14 @@ func (s *DockerSuite) TestRunDeviceSymlink(c *check.C) {
 
 // TestRunPIDsLimit makes sure the pids cgroup is set with --pids-limit
 func (s *DockerSuite) TestRunPIDsLimit(c *check.C) {
-	testRequires(c, SameHostDaemon, pidsLimit)
+	testRequires(c, testEnv.IsLocalDaemon, pidsLimit)
 
 	file := "/sys/fs/cgroup/pids/pids.max"
 	out, _ := dockerCmd(c, "run", "--name", "skittles", "--pids-limit", "4", "busybox", "cat", file)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "4")
+	assert.Equal(c, strings.TrimSpace(out), "4")
 
 	out = inspectField(c, "skittles", "HostConfig.PidsLimit")
-	c.Assert(out, checker.Equals, "4", check.Commentf("setting the pids limit failed"))
+	assert.Equal(c, out, "4", "setting the pids limit failed")
 }
 
 func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
@@ -1420,7 +1421,7 @@ func (s *DockerSuite) TestRunPrivilegedAllowedDevices(c *check.C) {
 	file := "/sys/fs/cgroup/devices/devices.list"
 	out, _ := dockerCmd(c, "run", "--privileged", "busybox", "cat", file)
 	c.Logf("out: %q", out)
-	c.Assert(strings.TrimSpace(out), checker.Equals, "a *:* rwm")
+	assert.Equal(c, strings.TrimSpace(out), "a *:* rwm")
 }
 
 func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
@@ -1441,7 +1442,7 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1455,18 +1456,18 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Operation not permitted")
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1481,18 +1482,18 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "'name' and 'names' were specified in the seccomp profile, use either 'name' or 'names'")
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1518,24 +1519,24 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	out, err := s.d.Cmd("run", "--security-opt", "seccomp="+tmpFile.Name(), "busybox", "chmod", "777", ".")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "'architectures' and 'archMap' were specified in the seccomp profile, use either 'architectures' or 'archMap'")
 }
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
-	testRequires(c, SameHostDaemon, seccompEnabled)
+	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
 	// 1) verify I can run containers with the Docker default shipped profile which allows chmod
 	_, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	jsonData := `{
 	"defaultAction": "SCMP_ACT_ALLOW",
@@ -1547,16 +1548,16 @@ func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
 	]
 }`
 	tmpFile, err := ioutil.TempFile("", "profile.json")
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 	defer tmpFile.Close()
 	_, err = tmpFile.Write([]byte(jsonData))
-	c.Assert(err, check.IsNil)
+	assert.NilError(c, err)
 
 	// 2) restart the daemon and add a custom seccomp profile in which we deny chmod
 	s.d.Restart(c, "--seccomp-profile="+tmpFile.Name())
 
 	out, err := s.d.Cmd("run", "busybox", "chmod", "777", ".")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Operation not permitted")
 }
 
@@ -1566,20 +1567,20 @@ func (s *DockerSuite) TestRunWithNanoCPUs(c *check.C) {
 	file1 := "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
 	file2 := "/sys/fs/cgroup/cpu/cpu.cfs_period_us"
 	out, _ := dockerCmd(c, "run", "--cpus", "0.5", "--name", "test", "busybox", "sh", "-c", fmt.Sprintf("cat %s && cat %s", file1, file2))
-	c.Assert(strings.TrimSpace(out), checker.Equals, "50000\n100000")
+	assert.Equal(c, strings.TrimSpace(out), "50000\n100000")
 
-	clt, err := client.NewEnvClient()
-	c.Assert(err, checker.IsNil)
+	clt, err := client.NewClientWithOpts(client.FromEnv)
+	assert.NilError(c, err)
 	inspect, err := clt.ContainerInspect(context.Background(), "test")
-	c.Assert(err, checker.IsNil)
+	assert.NilError(c, err)
 	c.Assert(inspect.HostConfig.NanoCPUs, checker.Equals, int64(500000000))
 
 	out = inspectField(c, "test", "HostConfig.CpuQuota")
-	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS quota should be 0"))
+	assert.Equal(c, out, "0", "CPU CFS quota should be 0")
 	out = inspectField(c, "test", "HostConfig.CpuPeriod")
-	c.Assert(out, checker.Equals, "0", check.Commentf("CPU CFS period should be 0"))
+	assert.Equal(c, out, "0", "CPU CFS period should be 0")
 
 	out, _, err = dockerCmdWithError("run", "--cpus", "0.5", "--cpu-quota", "50000", "--cpu-period", "100000", "busybox", "sh")
-	c.Assert(err, check.NotNil)
+	assert.ErrorContains(c, err, "")
 	c.Assert(out, checker.Contains, "Conflicting options: Nano CPUs and CPU Period cannot both be set")
 }

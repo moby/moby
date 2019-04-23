@@ -3,7 +3,6 @@ package network // import "github.com/docker/docker/integration/network"
 import (
 	"context"
 	"testing"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -16,164 +15,118 @@ import (
 	"gotest.tools/skip"
 )
 
-const defaultSwarmPort = 2477
-
 func TestInspectNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
 	d := swarm.NewSwarm(t, testEnv)
 	defer d.Stop(t)
-	client := d.NewClientT(t)
-	defer client.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
-	overlayName := "overlay1"
-	overlayID := network.CreateNoError(t, context.Background(), client, overlayName,
+	networkName := "Overlay" + t.Name()
+	overlayID := network.CreateNoError(t, context.Background(), c, networkName,
 		network.WithDriver("overlay"),
 		network.WithCheckDuplicate(),
 	)
 
-	var instances uint64 = 4
+	var instances uint64 = 2
 	serviceName := "TestService" + t.Name()
 
 	serviceID := swarm.CreateService(t, d,
 		swarm.ServiceWithReplicas(instances),
 		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithNetwork(overlayName),
+		swarm.ServiceWithNetwork(networkName),
 	)
 
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID, instances), swarm.ServicePoll)
+	poll.WaitOn(t, serviceRunningTasksCount(c, serviceID, instances), swarm.ServicePoll)
 
-	_, _, err := client.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
+	tests := []struct {
+		name    string
+		network string
+		opts    types.NetworkInspectOptions
+	}{
+		{
+			name:    "full network id",
+			network: overlayID,
+			opts: types.NetworkInspectOptions{
+				Verbose: true,
+			},
+		},
+		{
+			name:    "partial network id",
+			network: overlayID[0:11],
+			opts: types.NetworkInspectOptions{
+				Verbose: true,
+			},
+		},
+		{
+			name:    "network name",
+			network: networkName,
+			opts: types.NetworkInspectOptions{
+				Verbose: true,
+			},
+		},
+		{
+			name:    "network name and swarm scope",
+			network: networkName,
+			opts: types.NetworkInspectOptions{
+				Verbose: true,
+				Scope:   "swarm",
+			},
+		},
+	}
+	ctx := context.Background()
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			nw, err := c.NetworkInspect(ctx, tc.network, tc.opts)
+			assert.NilError(t, err)
+
+			if service, ok := nw.Services[serviceName]; ok {
+				assert.Equal(t, len(service.Tasks), int(instances))
+			}
+
+			assert.Assert(t, nw.IPAM.Config != nil)
+
+			for _, cfg := range nw.IPAM.Config {
+				assert.Assert(t, cfg.Gateway != "")
+				assert.Assert(t, cfg.Subnet != "")
+			}
+		})
+	}
+
+	// TODO find out why removing networks is needed; other tests fail if the network is not removed, even though they run on a new daemon.
+	err := c.ServiceRemove(ctx, serviceID)
 	assert.NilError(t, err)
-
-	// Test inspect verbose with full NetworkID
-	networkVerbose, err := client.NetworkInspect(context.Background(), overlayID, types.NetworkInspectOptions{
-		Verbose: true,
-	})
+	poll.WaitOn(t, swarm.NoTasksForService(ctx, c, serviceID), swarm.ServicePoll)
+	err = c.NetworkRemove(ctx, overlayID)
 	assert.NilError(t, err)
-	assert.Assert(t, validNetworkVerbose(networkVerbose, serviceName, instances))
-
-	// Test inspect verbose with partial NetworkID
-	networkVerbose, err = client.NetworkInspect(context.Background(), overlayID[0:11], types.NetworkInspectOptions{
-		Verbose: true,
-	})
-	assert.NilError(t, err)
-	assert.Assert(t, validNetworkVerbose(networkVerbose, serviceName, instances))
-
-	// Test inspect verbose with Network name and swarm scope
-	networkVerbose, err = client.NetworkInspect(context.Background(), overlayName, types.NetworkInspectOptions{
-		Verbose: true,
-		Scope:   "swarm",
-	})
-	assert.NilError(t, err)
-	assert.Assert(t, validNetworkVerbose(networkVerbose, serviceName, instances))
-
-	err = client.ServiceRemove(context.Background(), serviceID)
-	assert.NilError(t, err)
-
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID), swarm.ServicePoll)
-	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
-
-	serviceID2 := swarm.CreateService(t, d,
-		swarm.ServiceWithReplicas(instances),
-		swarm.ServiceWithName(serviceName),
-		swarm.ServiceWithNetwork(overlayName),
-	)
-
-	poll.WaitOn(t, serviceRunningTasksCount(client, serviceID2, instances), swarm.ServicePoll)
-
-	err = client.ServiceRemove(context.Background(), serviceID2)
-	assert.NilError(t, err)
-
-	poll.WaitOn(t, serviceIsRemoved(client, serviceID2), swarm.ServicePoll)
-	poll.WaitOn(t, noTasks(client), swarm.ServicePoll)
-
-	err = client.NetworkRemove(context.Background(), overlayID)
-	assert.NilError(t, err)
-
-	poll.WaitOn(t, networkIsRemoved(client, overlayID), poll.WithTimeout(1*time.Minute), poll.WithDelay(10*time.Second))
+	poll.WaitOn(t, network.IsRemoved(ctx, c, overlayID), swarm.NetworkPoll)
 }
 
 func serviceRunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
 	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
 		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
+			Filters: filters.NewArgs(
+				filters.Arg("service", serviceID),
+				filters.Arg("desired-state", string(swarmtypes.TaskStateRunning)),
+			),
 		})
 		switch {
 		case err != nil:
 			return poll.Error(err)
 		case len(tasks) == int(instances):
 			for _, task := range tasks {
+				if task.Status.Err != "" {
+					log.Log("task error:", task.Status.Err)
+				}
 				if task.Status.State != swarmtypes.TaskStateRunning {
-					return poll.Continue("waiting for tasks to enter run state")
+					return poll.Continue("waiting for tasks to enter run state (current status: %s)", task.Status.State)
 				}
 			}
 			return poll.Success()
 		default:
-			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
+			return poll.Continue("task count for service %s at %d waiting for %d", serviceID, len(tasks), instances)
 		}
 	}
-}
-
-func networkIsRemoved(client client.NetworkAPIClient, networkID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		_, err := client.NetworkInspect(context.Background(), networkID, types.NetworkInspectOptions{})
-		if err == nil {
-			return poll.Continue("waiting for network %s to be removed", networkID)
-		}
-		return poll.Success()
-	}
-}
-
-func serviceIsRemoved(client client.ServiceAPIClient, serviceID string) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		filter.Add("service", serviceID)
-		_, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		if err == nil {
-			return poll.Continue("waiting for service %s to be deleted", serviceID)
-		}
-		return poll.Success()
-	}
-}
-
-func noTasks(client client.ServiceAPIClient) func(log poll.LogT) poll.Result {
-	return func(log poll.LogT) poll.Result {
-		filter := filters.NewArgs()
-		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
-			Filters: filter,
-		})
-		switch {
-		case err != nil:
-			return poll.Error(err)
-		case len(tasks) == 0:
-			return poll.Success()
-		default:
-			return poll.Continue("task count at %d waiting for 0", len(tasks))
-		}
-	}
-}
-
-// Check to see if Service and Tasks info are part of the inspect verbose response
-func validNetworkVerbose(network types.NetworkResource, service string, instances uint64) bool {
-	if service, ok := network.Services[service]; ok {
-		if len(service.Tasks) != int(instances) {
-			return false
-		}
-	}
-
-	if network.IPAM.Config == nil {
-		return false
-	}
-
-	for _, cfg := range network.IPAM.Config {
-		if cfg.Gateway == "" || cfg.Subnet == "" {
-			return false
-		}
-	}
-	return true
 }

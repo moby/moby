@@ -165,16 +165,7 @@ func (d *Daemon) ReadLogFile() ([]byte, error) {
 	return ioutil.ReadFile(d.logFile.Name())
 }
 
-// NewClient creates new client based on daemon's socket path
-// FIXME(vdemeester): replace NewClient with NewClientT
-func (d *Daemon) NewClient() (*client.Client, error) {
-	return client.NewClientWithOpts(
-		client.FromEnv,
-		client.WithHost(d.Sock()))
-}
-
 // NewClientT creates new client based on daemon's socket path
-// FIXME(vdemeester): replace NewClient with NewClientT
 func (d *Daemon) NewClientT(t assert.TestingT) *client.Client {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
@@ -284,7 +275,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.Wait = wait
 
-	tick := time.Tick(500 * time.Millisecond)
+	ticker := time.NewTicker(500 * time.Millisecond)
+	defer ticker.Stop()
+	tick := ticker.C
+
 	// make sure daemon is ready to receive requests
 	startTime := time.Now().Unix()
 	for {
@@ -422,7 +416,9 @@ func (d *Daemon) StopWithError() error {
 	}()
 
 	i := 1
-	tick := time.Tick(time.Second)
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	tick := ticker.C
 
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
@@ -552,7 +548,7 @@ func (d *Daemon) LoadBusybox(t assert.TestingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	clientHost, err := client.NewEnvClient()
+	clientHost, err := client.NewClientWithOpts(client.FromEnv)
 	assert.NilError(t, err, "failed to create client")
 	defer clientHost.Close()
 
@@ -561,11 +557,10 @@ func (d *Daemon) LoadBusybox(t assert.TestingT) {
 	assert.NilError(t, err, "failed to download busybox")
 	defer reader.Close()
 
-	client, err := d.NewClient()
-	assert.NilError(t, err, "failed to create client")
-	defer client.Close()
+	c := d.NewClientT(t)
+	defer c.Close()
 
-	resp, err := client.ImageLoad(ctx, reader, true)
+	resp, err := c.ImageLoad(ctx, reader, true)
 	assert.NilError(t, err, "failed to load busybox")
 	defer resp.Body.Close()
 }
@@ -625,7 +620,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 		return "", err
 	}
 
-	client := &http.Client{
+	c := &http.Client{
 		Transport: clientConfig.transport,
 	}
 
@@ -637,7 +632,7 @@ func (d *Daemon) queryRootDir() (string, error) {
 	req.URL.Host = clientConfig.addr
 	req.URL.Scheme = clientConfig.scheme
 
-	resp, err := client.Do(req)
+	resp, err := c.Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -665,9 +660,8 @@ func (d *Daemon) Info(t assert.TestingT) types.Info {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	apiclient, err := d.NewClient()
-	assert.NilError(t, err)
-	info, err := apiclient.Info(context.Background())
+	c := d.NewClientT(t)
+	info, err := c.Info(context.Background())
 	assert.NilError(t, err)
 	return info
 }

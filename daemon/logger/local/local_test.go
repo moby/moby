@@ -28,13 +28,13 @@ func TestWriteLog(t *testing.T) {
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", t.Name())
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
 	logPath := filepath.Join(dir, "test.log")
 
 	l, err := New(logger.Info{LogPath: logPath})
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer l.Close()
 
 	m1 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 30 * time.Minute), Line: []byte("message 1")}
@@ -43,14 +43,14 @@ func TestWriteLog(t *testing.T) {
 
 	// copy the log message because the underying log writer resets the log message and returns it to a buffer pool
 	err = l.Log(copyLogMessage(&m1))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m2))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m3))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 
 	f, err := os.Open(logPath)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer f.Close()
 	dec := protoio.NewUint32DelimitedReader(f, binary.BigEndian, 1e6)
 
@@ -66,19 +66,19 @@ func TestWriteLog(t *testing.T) {
 	}
 
 	err = dec.ReadMsg(&proto)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	messageToProto(&m1, &testProto, &partial)
 	assert.Check(t, is.DeepEqual(testProto, proto), "expected:\n%+v\ngot:\n%+v", testProto, proto)
 	seekMsgLen()
 
 	err = dec.ReadMsg(&proto)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	messageToProto(&m2, &testProto, &partial)
 	assert.Check(t, is.DeepEqual(testProto, proto))
 	seekMsgLen()
 
 	err = dec.ReadMsg(&proto)
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	messageToProto(&m3, &testProto, &partial)
 	assert.Check(t, is.DeepEqual(testProto, proto), "expected:\n%+v\ngot:\n%+v", testProto, proto)
 }
@@ -87,12 +87,12 @@ func TestReadLog(t *testing.T) {
 	t.Parallel()
 
 	dir, err := ioutil.TempDir("", t.Name())
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer os.RemoveAll(dir)
 
 	logPath := filepath.Join(dir, "test.log")
 	l, err := New(logger.Info{LogPath: logPath})
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	defer l.Close()
 
 	m1 := logger.Message{Source: "stdout", Timestamp: time.Now().Add(-1 * 30 * time.Minute), Line: []byte("a message")}
@@ -103,13 +103,13 @@ func TestReadLog(t *testing.T) {
 
 	// copy the log message because the underlying log writer resets the log message and returns it to a buffer pool
 	err = l.Log(copyLogMessage(&m1))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m2))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m3))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 	err = l.Log(copyLogMessage(&m4))
-	assert.Assert(t, err)
+	assert.NilError(t, err)
 
 	lr := l.(logger.LogReader)
 
@@ -121,12 +121,12 @@ func TestReadLog(t *testing.T) {
 		case <-ctx.Done():
 			assert.Assert(t, ctx.Err())
 		case err := <-lw.Err:
-			assert.Assert(t, err)
+			assert.NilError(t, err)
 		case msg, open := <-lw.Msg:
 			if !open {
 				select {
 				case err := <-lw.Err:
-					assert.Assert(t, err)
+					assert.NilError(t, err)
 				default:
 					assert.Assert(t, m == nil)
 					return

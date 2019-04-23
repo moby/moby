@@ -99,7 +99,7 @@ be found.
 * Add `--format` option to `docker node ls` [#30424](https://github.com/docker/docker/pull/30424)
 * Add `--prune` option to `docker stack deploy` to remove services that are no longer defined in the docker-compose file [#31302](https://github.com/docker/docker/pull/31302)
 * Add `PORTS` column for `docker service ls` when using `ingress` mode [#30813](https://github.com/docker/docker/pull/30813)
-- Fix unnescessary re-deploying of tasks when environment-variables are used [#32364](https://github.com/docker/docker/pull/32364)
+- Fix unnecessary re-deploying of tasks when environment-variables are used [#32364](https://github.com/docker/docker/pull/32364)
 - Fix `docker stack deploy` not supporting `endpoint_mode` when deploying from a docker compose file  [#32333](https://github.com/docker/docker/pull/32333)
 - Proceed with startup if cluster component cannot be created to allow recovering from a broken swarm setup [#31631](https://github.com/docker/docker/pull/31631)
 
