@@ -20,6 +20,7 @@ import (
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	"github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/apicaps"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
@@ -61,8 +62,10 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		localNameContext = v
 	}
 
+	forceLocalDockerfile := false
 	localNameDockerfile := DefaultLocalNameDockerfile
 	if v, ok := opts[keyNameDockerfile]; ok {
+		forceLocalDockerfile = true
 		localNameDockerfile = v
 	}
 
@@ -118,11 +121,14 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		llb.SharedKeyHint(localNameDockerfile),
 		dockerfile2llb.WithInternalName(name),
 	)
+
 	var buildContext *llb.State
 	isScratchContext := false
 	if st, ok := detectGitContext(opts[localNameContext]); ok {
-		src = *st
-		buildContext = &src
+		if !forceLocalDockerfile {
+			src = *st
+		}
+		buildContext = st
 	} else if httpPrefix.MatchString(opts[localNameContext]) {
 		httpContext := llb.HTTP(opts[localNameContext], llb.Filename("context"), dockerfile2llb.WithInternalName("load remote build context"))
 		def, err := httpContext.Marshal(marshalOpts...)
@@ -151,19 +157,35 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			copyImage := opts[keyOverrideCopyImage]
-			if copyImage == "" {
-				copyImage = dockerfile2llb.DefaultCopyImage
+			fileop := useFileOp(opts, &caps)
+			if fileop {
+				bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
+					AttemptUnpack: true,
+				}))
+				if !forceLocalDockerfile {
+					src = bc
+				}
+				buildContext = &bc
+			} else {
+				copyImage := opts[keyOverrideCopyImage]
+				if copyImage == "" {
+					copyImage = dockerfile2llb.DefaultCopyImage
+				}
+				unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+					Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
+				unpack.AddMount("/src", httpContext, llb.Readonly)
+				bc := unpack.AddMount("/out", llb.Scratch())
+				if !forceLocalDockerfile {
+					src = bc
+				}
+				buildContext = &bc
 			}
-			unpack := llb.Image(copyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
-				Run(llb.Shlex("copy --unpack /src/context /out/"), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("extracting build context"))
-			unpack.AddMount("/src", httpContext, llb.Readonly)
-			src = unpack.AddMount("/out", llb.Scratch())
-			buildContext = &src
 		} else {
 			filename = "context"
-			src = httpContext
-			buildContext = &src
+			if !forceLocalDockerfile {
+				src = httpContext
+			}
+			buildContext = &httpContext
 			isScratchContext = true
 		}
 	}
@@ -528,4 +550,14 @@ func parseNetMode(v string) (pb.NetMode, error) {
 	default:
 		return 0, errors.Errorf("invalid netmode %s", v)
 	}
+}
+
+func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
+	enabled := true
+	if v, ok := args["build-arg:BUILDKIT_DISABLE_FILEOP"]; ok {
+		if b, err := strconv.ParseBool(v); err == nil {
+			enabled = !b
+		}
+	}
+	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
 }

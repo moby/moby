@@ -38,7 +38,7 @@ BuildKit is used by the following projects:
 - [OpenFaaS Cloud](https://github.com/openfaas/openfaas-cloud)
 - [container build interface](https://github.com/containerbuilding/cbi)
 - [Knative Build Templates](https://github.com/knative/build-templates)
-- [boss](https://github.com/crosbymichael/boss)
+- [vab](https://github.com/stellarproject/vab)
 - [Rio](https://github.com/rancher/rio) (on roadmap)
 
 ### Quick start
@@ -100,7 +100,7 @@ To start building use `buildctl build` command. The example script accepts `--wi
 go run examples/buildkit0/buildkit.go | buildctl build
 ```
 
-`buildctl build` will show interactive progress bar by default while the build job is running. It will also show you the path to the trace file that contains all information about the timing of the individual steps and logs.
+`buildctl build` will show interactive progress bar by default while the build job is running. If the path to the trace file is specified, the trace file generated will contain all information about the timing of the individual steps and logs.
 
 Different versions of the example scripts show different ways of describing the build definition for this project to show the capabilities of the library. New versions have been added when new features have become available.
 
@@ -218,8 +218,8 @@ buildctl build ... --import-cache type=registry,ref=localhost:5000/myrepo:buildc
 #### To/From local filesystem
 
 ```
-buildctl build ... --export-cache type=local,src=path/to/input-dir
-buildctl build ... --import-cache type=local,dest=path/to/output-dir
+buildctl build ... --export-cache type=local,dest=path/to/output-dir
+buildctl build ... --import-cache type=local,src=path/to/input-dir
 ```
 
 The directory layout conforms to OCI Image Spec v1.0.
@@ -228,11 +228,11 @@ The directory layout conforms to OCI Image Spec v1.0.
 * `mode=min` (default): only export layers for the resulting image
 * `mode=max`: export all the layers of all intermediate steps
 * `ref=docker.io/user/image:tag`: reference for `registry` cache exporter
-* `src=path/to/output-dir`: directory for `local` cache exporter
+* `dest=path/to/output-dir`: directory for `local` cache exporter
 
 #### `--import-cache` options
 * `ref=docker.io/user/image:tag`: reference for `registry` cache importer
-* `dest=path/to/input-dir`: directory for `local` cache importer
+* `src=path/to/input-dir`: directory for `local` cache importer
 * `digest=sha256:deadbeef`: digest of the manifest list to import for `local` cache importer. Defaults to the digest of "latest" tag in `index.json`
 
 ### Other
@@ -270,6 +270,18 @@ buildctl build --help
 
 The images can be also built locally using `./hack/dockerfiles/test.Dockerfile` (or `./hack/dockerfiles/test.buildkit.Dockerfile` if you already have BuildKit).
 Run `make images` to build the images as `moby/buildkit:local` and `moby/buildkit:local-rootless`.
+
+#### Connection helpers
+
+If you are running `moby/buildkit:master` or `moby/buildkit:master-rootless` as a Docker/Kubernetes container, you can use special `BUILDKIT_HOST` URL for connecting to the BuildKit daemon in the container:
+
+```
+export BUILDKIT_HOST=docker://<container>
+```
+
+```
+export BUILDKIT_HOST=kube-pod://<pod>
+```
 
 ### Opentracing support
 
