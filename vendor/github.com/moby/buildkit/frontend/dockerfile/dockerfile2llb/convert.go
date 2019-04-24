@@ -390,6 +390,7 @@ func Dockerfile2LLB(ctx context.Context, dt []byte, opt ConvertOpt) (*llb.State,
 	if !platformOpt.implicitTarget {
 		target.image.OS = platformOpt.targetPlatform.OS
 		target.image.Architecture = platformOpt.targetPlatform.Architecture
+		target.image.Variant = platformOpt.targetPlatform.Variant
 	}
 
 	return &st, &target.image, nil

@@ -13,7 +13,7 @@ var arr []string
 
 func SupportedPlatforms() []string {
 	once.Do(func() {
-		def := platforms.DefaultString()
+		def := defaultPlatform()
 		arr = append(arr, def)
 		if p := "linux/amd64"; def != p && amd64Supported() == nil {
 			arr = append(arr, p)
@@ -34,7 +34,7 @@ func SupportedPlatforms() []string {
 //the end user could fix the issue based on those warning, and thus no need to drop
 //the platform from the candidates.
 func WarnIfUnsupported(pfs []string) {
-	def := platforms.DefaultString()
+	def := defaultPlatform()
 	for _, p := range pfs {
 		if p != def {
 			if p == "linux/amd64" {
@@ -54,6 +54,10 @@ func WarnIfUnsupported(pfs []string) {
 			}
 		}
 	}
+}
+
+func defaultPlatform() string {
+	return platforms.Format(platforms.Normalize(platforms.DefaultSpec()))
 }
 
 func printPlatfromWarning(p string, err error) {

@@ -35,10 +35,10 @@ type Opt struct {
 }
 
 type httpSource struct {
-	md     *metadata.Store
-	cache  cache.Accessor
-	locker *locker.Locker
-	client *http.Client
+	md        *metadata.Store
+	cache     cache.Accessor
+	locker    *locker.Locker
+	transport http.RoundTripper
 }
 
 func NewSource(opt Opt) (source.Source, error) {
@@ -47,12 +47,10 @@ func NewSource(opt Opt) (source.Source, error) {
 		transport = tracing.DefaultTransport
 	}
 	hs := &httpSource{
-		md:     opt.MetadataStore,
-		cache:  opt.CacheAccessor,
-		locker: locker.New(),
-		client: &http.Client{
-			Transport: transport,
-		},
+		md:        opt.MetadataStore,
+		cache:     opt.CacheAccessor,
+		locker:    locker.New(),
+		transport: transport,
 	}
 	return hs, nil
 }
@@ -66,17 +64,21 @@ type httpSourceHandler struct {
 	src      source.HttpIdentifier
 	refID    string
 	cacheKey digest.Digest
+	client   *http.Client
 }
 
-func (hs *httpSource) Resolve(ctx context.Context, id source.Identifier, _ *session.Manager) (source.SourceInstance, error) {
+func (hs *httpSource) Resolve(ctx context.Context, id source.Identifier, sm *session.Manager) (source.SourceInstance, error) {
 	httpIdentifier, ok := id.(*source.HttpIdentifier)
 	if !ok {
 		return nil, errors.Errorf("invalid http identifier %v", id)
 	}
 
+	sessionID := session.FromContext(ctx)
+
 	return &httpSourceHandler{
 		src:        *httpIdentifier,
 		httpSource: hs,
+		client:     &http.Client{Transport: newTransport(hs.transport, sm, sessionID)},
 	}, nil
 }
 

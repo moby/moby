@@ -14,7 +14,6 @@ import (
 	"github.com/moby/buildkit/exporter/containerimage/exptypes"
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/frontend/gateway"
-	"github.com/moby/buildkit/identity"
 	"github.com/moby/buildkit/session"
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/util/entitlements"
@@ -306,7 +305,7 @@ func oneOffProgress(ctx context.Context, id string) func(err error) error {
 
 func inVertexContext(ctx context.Context, name, id string, f func(ctx context.Context) error) error {
 	if id == "" {
-		id = identity.NewID()
+		id = name
 	}
 	v := client.Vertex{
 		Digest: digest.FromBytes([]byte(id)),
