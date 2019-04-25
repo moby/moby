@@ -57,7 +57,9 @@ RUN addgroup docker && adduser -D -G docker unprivilegeduser -s /bin/ash
 
 COPY contrib/httpserver/Dockerfile /tests/contrib/httpserver/Dockerfile
 COPY contrib/syscall-test /tests/contrib/syscall-test
-COPY integration-cli/fixtures /tests/integration-cli/fixtures
+COPY integration/testdata       /tests/integration/testdata
+COPY integration/build/testdata /tests/integration/build/testdata
+COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 
 COPY hack/test/e2e-run.sh /scripts/run.sh
 COPY hack/make/.ensure-emptyfs /scripts/ensure-emptyfs.sh
