@@ -54,10 +54,9 @@ penguin:231072:65536
 You need to run `dockerd-rootless.sh` instead of `dockerd`.
 
 ```console
-$ dockerd-rootless.sh --experimental --userland-proxy --userland-proxy-path=$(which rootlesskit-docker-proxy)"
+$ dockerd-rootless.sh --experimental
 ```
 As Rootless mode is experimental per se, currently you always need to run `dockerd-rootless.sh` with `--experimental`.
-Also, to expose ports, you need to set `--userland-proxy-path` to the path of `rootlesskit-docker-proxy` binary.
 
 Remarks:
 * The socket path is set to `$XDG_RUNTIME_DIR/docker.sock` by default. `$XDG_RUNTIME_DIR` is typically set to `/run/user/$UID`.
