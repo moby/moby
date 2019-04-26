@@ -52,12 +52,12 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	if name[0] != '/' {
 		name = "/" + name
 	}
-	parent, n := path.Split(name)
-	if parent == "/" {
+	nameParts := strings.Split(path.Clean(name), "/")
+	if len(nameParts) < 3 {
 		return fmt.Errorf("Conflict, cannot remove the default name of the container")
 	}
 
-	parent = strings.TrimSuffix(parent, "/")
+	parent := "/" + nameParts[1]
 	pe, err := daemon.containersReplica.Snapshot().GetID(parent)
 	if err != nil {
 		return fmt.Errorf("Cannot get parent %s for name %s", parent, name)
@@ -68,7 +68,7 @@ func (daemon *Daemon) rmLink(container *container.Container, name string) error 
 	if parentContainer != nil {
 		daemon.linkIndex.unlink(name, container, parentContainer)
 		if err := daemon.updateNetwork(parentContainer); err != nil {
-			logrus.Debugf("Could not update network to remove link %s: %v", n, err)
+			logrus.Debugf("Could not update network to remove link %s: %v", container.Name, err)
 		}
 	}
 	return nil
