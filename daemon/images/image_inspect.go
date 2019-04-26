@@ -76,6 +76,7 @@ func (i *ImageService) LookupImage(name string) (*types.ImageInspect, error) {
 		Author:          img.Author,
 		Config:          img.Config,
 		Architecture:    img.Architecture,
+		Variant:         img.Variant,
 		Os:              img.OperatingSystem(),
 		OsVersion:       img.OSVersion,
 		Size:            size,

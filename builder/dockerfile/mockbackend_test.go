@@ -82,7 +82,7 @@ func (m *MockBackend) MakeImageCache(cacheFrom []string) builder.ImageCache {
 }
 
 func (m *MockBackend) CreateImage(config []byte, parent string) (builder.Image, error) {
-	return nil, nil
+	return &mockImage{id: "test"}, nil
 }
 
 type mockImage struct {
