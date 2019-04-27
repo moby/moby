@@ -50,7 +50,7 @@ func withRemappedSnapshotBase(id string, i Image, uid, gid uint32, readonly bool
 			return err
 		}
 
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 
 		var (
 			snapshotter = client.SnapshotService(c.Snapshotter)

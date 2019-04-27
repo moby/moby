@@ -741,7 +741,9 @@ func WithCapabilities(caps []string) SpecOpts {
 }
 
 // WithAllCapabilities sets all linux capabilities for the process
-var WithAllCapabilities = WithCapabilities(GetAllCapabilities())
+var WithAllCapabilities = func(ctx context.Context, client Client, c *containers.Container, s *Spec) error {
+	return WithCapabilities(GetAllCapabilities())(ctx, client, c, s)
+}
 
 // GetAllCapabilities returns all caps up to CAP_LAST_CAP
 // or CAP_BLOCK_SUSPEND on RHEL6
@@ -771,11 +773,14 @@ func capsContain(caps []string, s string) bool {
 }
 
 func removeCap(caps *[]string, s string) {
-	for i, c := range *caps {
+	var newcaps []string
+	for _, c := range *caps {
 		if c == s {
-			*caps = append((*caps)[:i], (*caps)[i+1:]...)
+			continue
 		}
+		newcaps = append(newcaps, c)
 	}
+	*caps = newcaps
 }
 
 // WithAddedCapabilities adds the provided capabilities

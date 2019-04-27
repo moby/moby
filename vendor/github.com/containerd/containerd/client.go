@@ -136,6 +136,20 @@ func New(address string, opts ...ClientOpt) (*Client, error) {
 	if copts.services == nil && c.conn == nil {
 		return nil, errors.New("no grpc connection or services is available")
 	}
+
+	// check namespace labels for default runtime
+	if copts.defaultRuntime == "" && copts.defaultns != "" {
+		namespaces := c.NamespaceService()
+		ctx := context.Background()
+		if labels, err := namespaces.Labels(ctx, copts.defaultns); err == nil {
+			if defaultRuntime, ok := labels[defaults.DefaultRuntimeNSLabel]; ok {
+				c.runtime = defaultRuntime
+			}
+		} else {
+			return nil, err
+		}
+	}
+
 	return c, nil
 }
 
@@ -152,6 +166,20 @@ func NewWithConn(conn *grpc.ClientConn, opts ...ClientOpt) (*Client, error) {
 		conn:    conn,
 		runtime: fmt.Sprintf("%s.%s", plugin.RuntimePlugin, runtime.GOOS),
 	}
+
+	// check namespace labels for default runtime
+	if copts.defaultRuntime == "" && copts.defaultns != "" {
+		namespaces := c.NamespaceService()
+		ctx := context.Background()
+		if labels, err := namespaces.Labels(ctx, copts.defaultns); err == nil {
+			if defaultRuntime, ok := labels[defaults.DefaultRuntimeNSLabel]; ok {
+				c.runtime = defaultRuntime
+			}
+		} else {
+			return nil, err
+		}
+	}
+
 	if copts.services != nil {
 		c.services = *copts.services
 	}
@@ -592,6 +620,13 @@ func (c *Client) VersionService() versionservice.VersionClient {
 	c.connMu.Lock()
 	defer c.connMu.Unlock()
 	return versionservice.NewVersionClient(c.conn)
+}
+
+// Conn returns the underlying GRPC connection object
+func (c *Client) Conn() *grpc.ClientConn {
+	c.connMu.Lock()
+	defer c.connMu.Unlock()
+	return c.conn
 }
 
 // Version of containerd
