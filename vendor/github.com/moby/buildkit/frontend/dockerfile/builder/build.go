@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -46,6 +47,7 @@ const (
 	keyOverrideCopyImage       = "override-copy-image" // remove after CopyOp implemented
 	keyNameContext             = "contextkey"
 	keyNameDockerfile          = "dockerfilekey"
+	keyContextSubDir           = "contextsubdir"
 )
 
 var httpPrefix = regexp.MustCompile("^https?://")
@@ -122,6 +124,8 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 		dockerfile2llb.WithInternalName(name),
 	)
 
+	fileop := useFileOp(opts, &caps)
+
 	var buildContext *llb.State
 	isScratchContext := false
 	if st, ok := detectGitContext(opts[localNameContext]); ok {
@@ -157,7 +161,6 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			return nil, errors.Errorf("failed to read downloaded context")
 		}
 		if isArchive(dt) {
-			fileop := useFileOp(opts, &caps)
 			if fileop {
 				bc := llb.Scratch().File(llb.Copy(httpContext, "/context", "/", &llb.CopyInfo{
 					AttemptUnpack: true,
@@ -187,6 +190,12 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 			}
 			buildContext = &httpContext
 			isScratchContext = true
+		}
+	}
+
+	if buildContext != nil {
+		if sub, ok := opts[keyContextSubDir]; ok {
+			buildContext = scopeToSubDir(buildContext, fileop, sub)
 		}
 	}
 
@@ -560,4 +569,18 @@ func useFileOp(args map[string]string, caps *apicaps.CapSet) bool {
 		}
 	}
 	return enabled && caps != nil && caps.Supports(pb.CapFileBase) == nil
+}
+
+func scopeToSubDir(c *llb.State, fileop bool, dir string) *llb.State {
+	if fileop {
+		bc := llb.Scratch().File(llb.Copy(*c, dir, "/", &llb.CopyInfo{
+			CopyDirContentsOnly: true,
+		}))
+		return &bc
+	}
+	unpack := llb.Image(dockerfile2llb.DefaultCopyImage, dockerfile2llb.WithInternalName("helper image for file operations")).
+		Run(llb.Shlexf("copy %s/. /out/", path.Join("/src", dir)), llb.ReadonlyRootFS(), dockerfile2llb.WithInternalName("filtering build context"))
+	unpack.AddMount("/src", *c, llb.Readonly)
+	bc := unpack.AddMount("/out", llb.Scratch())
+	return &bc
 }

@@ -18,6 +18,7 @@ type Mountable interface {
 }
 
 type SnapshotterBase interface {
+	Name() string
 	Mounts(ctx context.Context, key string) (Mountable, error)
 	Prepare(ctx context.Context, key, parent string, opts ...snapshots.Opt) error
 	View(ctx context.Context, key, parent string, opts ...snapshots.Opt) (Mountable, error)
@@ -43,13 +44,18 @@ type Blobmapper interface {
 	SetBlob(ctx context.Context, key string, diffID, blob digest.Digest) error
 }
 
-func FromContainerdSnapshotter(s snapshots.Snapshotter, idmap *idtools.IdentityMapping) SnapshotterBase {
-	return &fromContainerd{Snapshotter: s, idmap: idmap}
+func FromContainerdSnapshotter(name string, s snapshots.Snapshotter, idmap *idtools.IdentityMapping) SnapshotterBase {
+	return &fromContainerd{name: name, Snapshotter: s, idmap: idmap}
 }
 
 type fromContainerd struct {
+	name string
 	snapshots.Snapshotter
 	idmap *idtools.IdentityMapping
+}
+
+func (s *fromContainerd) Name() string {
+	return s.name
 }
 
 func (s *fromContainerd) Mounts(ctx context.Context, key string) (Mountable, error) {
