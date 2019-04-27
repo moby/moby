@@ -3,14 +3,16 @@
 
 package descriptor
 
-import fmt "fmt"
-import strings "strings"
-import github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
-import sort "sort"
-import strconv "strconv"
-import reflect "reflect"
-import proto "github.com/gogo/protobuf/proto"
-import math "math"
+import (
+	fmt "fmt"
+	github_com_gogo_protobuf_proto "github.com/gogo/protobuf/proto"
+	proto "github.com/gogo/protobuf/proto"
+	math "math"
+	reflect "reflect"
+	sort "sort"
+	strconv "strconv"
+	strings "strings"
+)
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -358,7 +360,7 @@ func (this *FileOptions) GoString() string {
 	if this == nil {
 		return "nil"
 	}
-	s := make([]string, 0, 23)
+	s := make([]string, 0, 25)
 	s = append(s, "&descriptor.FileOptions{")
 	if this.JavaPackage != nil {
 		s = append(s, "JavaPackage: "+valueToGoStringDescriptor(this.JavaPackage, "string")+",\n")
@@ -413,6 +415,12 @@ func (this *FileOptions) GoString() string {
 	}
 	if this.PhpNamespace != nil {
 		s = append(s, "PhpNamespace: "+valueToGoStringDescriptor(this.PhpNamespace, "string")+",\n")
+	}
+	if this.PhpMetadataNamespace != nil {
+		s = append(s, "PhpMetadataNamespace: "+valueToGoStringDescriptor(this.PhpMetadataNamespace, "string")+",\n")
+	}
+	if this.RubyPackage != nil {
+		s = append(s, "RubyPackage: "+valueToGoStringDescriptor(this.RubyPackage, "string")+",\n")
 	}
 	if this.UninterpretedOption != nil {
 		s = append(s, "UninterpretedOption: "+fmt.Sprintf("%#v", this.UninterpretedOption)+",\n")
