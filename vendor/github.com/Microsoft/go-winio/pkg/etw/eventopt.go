@@ -1,13 +1,13 @@
 package etw
 
 import (
-	"golang.org/x/sys/windows"
+	"github.com/Microsoft/go-winio/pkg/guid"
 )
 
 type eventOptions struct {
 	descriptor        *eventDescriptor
-	activityID        *windows.GUID
-	relatedActivityID *windows.GUID
+	activityID        *guid.GUID
+	relatedActivityID *guid.GUID
 	tags              uint32
 }
 
@@ -36,9 +36,17 @@ func WithKeyword(keyword uint64) EventOpt {
 	}
 }
 
+// WithChannel specifies the channel of the event to be written.
 func WithChannel(channel Channel) EventOpt {
 	return func(options *eventOptions) {
 		options.descriptor.channel = channel
+	}
+}
+
+// WithOpcode specifies the opcode of the event to be written.
+func WithOpcode(opcode Opcode) EventOpt {
+	return func(options *eventOptions) {
+		options.descriptor.opcode = opcode
 	}
 }
 
@@ -50,13 +58,15 @@ func WithTags(newTags uint32) EventOpt {
 	}
 }
 
-func WithActivityID(activityID *windows.GUID) EventOpt {
+// WithActivityID specifies the activity ID of the event to be written.
+func WithActivityID(activityID *guid.GUID) EventOpt {
 	return func(options *eventOptions) {
 		options.activityID = activityID
 	}
 }
 
-func WithRelatedActivityID(activityID *windows.GUID) EventOpt {
+// WithRelatedActivityID specifies the parent activity ID of the event to be written.
+func WithRelatedActivityID(activityID *guid.GUID) EventOpt {
 	return func(options *eventOptions) {
 		options.relatedActivityID = activityID
 	}
