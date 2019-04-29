@@ -33,7 +33,7 @@ const (
 	attachErrorStateAttachFd
 )
 
-func attachErrorString(aes attachErrorState) string {
+func attachErrorStateString(aes attachErrorState) string {
 	switch aes {
 	case attachErrorStateNextFree:
 		return "nextFree"
