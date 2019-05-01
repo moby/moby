@@ -4,6 +4,9 @@
 # requires root
 set -e
 
+# reset umask to default
+umask 022
+
 hash pacstrap &>/dev/null || {
 	echo "Could not find pacstrap. Run pacman -S arch-install-scripts"
 	exit 1
@@ -14,20 +17,31 @@ hash expect &>/dev/null || {
 	exit 1
 }
 
-
 export LANG="C.UTF-8"
 
 ROOTFS=$(mktemp -d ${TMPDIR:-/var/tmp}/rootfs-archlinux-XXXXXXXXXX)
 chmod 755 $ROOTFS
 
+# required packages
+PKGREQUIRED=(
+    bash
+    haveged
+    pacman
+    pacman-mirrorlist
+)
+
 # packages to ignore for space savings
 PKGIGNORE=(
-    cryptsetup
-    device-mapper
     dhcpcd
+    diffutils
+    file
+    inetutils
     iproute2
+    iputils
     jfsutils
+    licenses
     linux
+    linux-firmware
     lvm2
     man-db
     man-pages
@@ -37,16 +51,30 @@ PKGIGNORE=(
     openresolv
     pciutils
     pcmciautils
+    psmisc
     reiserfsprogs
     s-nail
+    sysfsutils
     systemd-sysvcompat
     usbutils
     vi
+    which
     xfsprogs
 )
+
+PKGREMOVE=(
+    gawk
+    haveged 
+    less
+    linux-libre
+    linux-libre-firmware
+)
+
+PKGREQUIRED="${PKGREQUIRED[*]}"
 IFS=','
 PKGIGNORE="${PKGIGNORE[*]}"
 unset IFS
+PKGREMOVE="${PKGREMOVE[*]}"
 
 arch="$(uname -m)"
 case "$arch" in
@@ -87,7 +115,7 @@ expect <<EOF
 	}
 	set timeout $EXPECT_TIMEOUT
 
-	spawn pacstrap -C $PACMAN_CONF -c -d -G -i $ROOTFS base haveged $PACMAN_EXTRA_PKGS --ignore $PKGIGNORE
+  spawn pacstrap -C $PACMAN_CONF -c -d -G -i $ROOTFS base $PKGREQUIRED $PACMAN_EXTRA_PKGS --ignore $PKGIGNORE
 	expect {
 		-exact "anyway? \[Y/n\] " { send -- "n\r"; exp_continue }
 		-exact "(default=all): " { send -- "\r"; exp_continue }
@@ -97,11 +125,11 @@ expect <<EOF
 EOF
 
 arch-chroot $ROOTFS /bin/sh -c 'rm -r /usr/share/man/*'
-arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman -Rs --noconfirm haveged; pacman-key --populate $ARCH_KEYRING; pkill gpg-agent"
-arch-chroot $ROOTFS /bin/sh -c "ln -s /usr/share/zoneinfo/UTC /etc/localtime"
+arch-chroot $ROOTFS /bin/sh -c "haveged -w 1024; pacman-key --init; pkill haveged; pacman-key --populate $ARCH_KEYRING"
+arch-chroot $ROOTFS /bin/sh -c "ln -sf /usr/share/zoneinfo/UTC /etc/localtime"
+arch-chroot $ROOTFS /bin/sh -c "for pkg in $PKGREMOVE; do if pacman -Qi \$pkg > /dev/null 2>&1; then pacman -Rs --noconfirm \$pkg; fi; done"
 echo 'en_US.UTF-8 UTF-8' > $ROOTFS/etc/locale.gen
 arch-chroot $ROOTFS locale-gen
-arch-chroot $ROOTFS /bin/sh -c 'echo $PACMAN_MIRRORLIST > /etc/pacman.d/mirrorlist'
 
 # udev doesn't work in containers, rebuild /dev
 DEV=$ROOTFS/dev
