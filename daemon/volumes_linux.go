@@ -13,6 +13,9 @@ import (
 // from holding private references to a mount within the daemon root, which
 // can cause issues when the daemon attempts to remove the mountpoint.
 func (daemon *Daemon) validateBindDaemonRoot(m mount.Mount) (bool, error) {
+	// This excludes mount.TypeLocalBind as well. This is on purpose.
+	// The container owns all the mounts in its fs root, so the problems this is intended
+	// to prevent cannot occur in the localbind case as far as I understand.
 	if m.Type != mount.TypeBind {
 		return false, nil
 	}

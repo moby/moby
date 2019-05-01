@@ -11,6 +11,8 @@ type Type string
 const (
 	// TypeBind is the type for mounting host dir
 	TypeBind Type = "bind"
+	// TypeLocalBind is the type for internal bind mounts within the container
+	TypeLocalBind Type = "localbind"
 	// TypeVolume is the type for remote storage volumes
 	TypeVolume Type = "volume"
 	// TypeTmpfs is the type for mounting tmpfs

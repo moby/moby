@@ -61,7 +61,7 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 	}
 
 	switch mnt.Type {
-	case mount.TypeBind:
+	case mount.TypeBind, mount.TypeLocalBind:
 		if len(mnt.Source) == 0 {
 			return &errMountConfig{mnt, errMissingField("Source")}
 		}
@@ -81,7 +81,8 @@ func (p *linuxParser) validateMountConfigImpl(mnt *mount.Mount, validateBindSour
 			return &errMountConfig{mnt, err}
 		}
 
-		if validateBindSourceExists {
+		// Local bind source is evaluated much later (in setupMounts)
+		if validateBindSourceExists && mnt.Type != mount.TypeLocalBind {
 			exists, _, _ := currentFileInfoProvider.fileInfo(mnt.Source)
 			if !exists {
 				return &errMountConfig{mnt, errBindSourceDoesNotExist(mnt.Source)}
@@ -309,8 +310,12 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 				mp.CopyData = false
 			}
 		}
-	case mount.TypeBind:
-		mp.Source = path.Clean(filepath.ToSlash(cfg.Source))
+	case mount.TypeBind, mount.TypeLocalBind:
+		// Delay processing of cfg.Source for TypeLocalBind until setupMounts.
+		// Be sure to keep the processing of the source path in sync with code there.
+		if cfg.Type != mount.TypeLocalBind {
+			mp.Source = path.Clean(filepath.ToSlash(cfg.Source))
+		}
 		if cfg.BindOptions != nil && len(cfg.BindOptions.Propagation) > 0 {
 			mp.Propagation = cfg.BindOptions.Propagation
 		} else {
