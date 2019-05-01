@@ -98,3 +98,8 @@ func (rl *referencedRWLayer) Mount(mountLabel string) (containerfs.ContainerFS, 
 func (rl *referencedRWLayer) Unmount() error {
 	return rl.layerStore.driver.Put(rl.mountedLayer.mountID)
 }
+
+// ApplyDiff applies specified diff to the layer
+func (rl *referencedRWLayer) ApplyDiff(diff io.Reader) (int64, error) {
+	return rl.layerStore.driver.ApplyDiff(rl.mountID, rl.cacheParent(), diff)
+}
