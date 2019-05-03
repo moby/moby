@@ -359,7 +359,8 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 			networkName := n.Name()
 			containerName := strings.TrimPrefix(container.Name, "/")
 			if network, ok := container.NetworkSettings.Networks[networkName]; ok && network.EndpointID != "" {
-				return n, nil, types.ForbiddenErrorf("%s is already attached to network %s", containerName, networkName)
+				err := fmt.Errorf("%s is already attached to network %s", containerName, networkName)
+				return n, nil, errdefs.Conflict(err)
 			}
 		}
 	}
