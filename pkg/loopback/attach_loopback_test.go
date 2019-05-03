@@ -13,6 +13,26 @@ import (
 	"time"
 )
 
+// This is only used for debugging purposes within testing
+func attachErrorStateString(aes attachErrorState) string {
+	switch aes {
+	case attachErrorStateNextFree:
+		return "nextFree"
+	case attachErrorStateMknod:
+		return "mknod"
+	case attachErrorStateStat:
+		return "stat"
+	case attachErrorStateModeCheck:
+		return "modeCheck"
+	case attachErrorStateOpenBlock:
+		return "openBlock"
+	case attachErrorStateAttachFd:
+		return "attachFd"
+	default:
+		return "?"
+	}
+}
+
 type createOnNoStatFileInfo struct {
 	name string
 }
@@ -64,8 +84,7 @@ type createOnNoStatModuleContext struct {
 }
 
 func (ctx *createOnNoStatModuleContext) PerformPathStat(path string) (os.FileInfo, error) {
-	// n.b. this
-	ctx.pathStatCallCount += 1
+	ctx.pathStatCallCount++
 	if ctx.performMknodCount <= 0 {
 		return nil, os.ErrNotExist
 	}
@@ -73,12 +92,12 @@ func (ctx *createOnNoStatModuleContext) PerformPathStat(path string) (os.FileInf
 }
 
 func (ctx *createOnNoStatModuleContext) GetNextFreeDeviceIndex() (int, error) {
-	ctx.nextFreeDeviceIndexCount += 1
+	ctx.nextFreeDeviceIndexCount++
 	return 0, nil
 }
 
 func (ctx *createOnNoStatModuleContext) GetBaseDeviceNodeStat() (*syscall.Stat_t, error) {
-	ctx.baseDeviceNodeStatCount += 1
+	ctx.baseDeviceNodeStatCount++
 	return &syscall.Stat_t{
 		Uid: 0,
 		Gid: 0,
@@ -92,21 +111,21 @@ func (ctx *createOnNoStatModuleContext) OpenSysfsParameterFile(param string) (io
 	if err != nil {
 		ctx.testContext.Logf("Error in openLoopModuleSysfsParameter while testing: %s", err)
 	}
-	ctx.openSysfsParameterFileCount += 1
+	ctx.openSysfsParameterFileCount++
 	return succ, err
 }
 
 func (ctx *createOnNoStatModuleContext) GetMaxPartitionParameter() (uint, error) {
 	// keep
 	succ, err := getMaxPartitionParameter(ctx)
-	ctx.maxPartitionParameterCount += 1
+	ctx.maxPartitionParameterCount++
 	return succ, err
 }
 
 func (ctx *createOnNoStatModuleContext) GetPartitionShift() (uint, error) {
 	// keep
 	succ, err := getPartitionShift(ctx)
-	ctx.partitionShiftCount += 1
+	ctx.partitionShiftCount++
 	return succ, err
 }
 
@@ -116,29 +135,29 @@ func (ctx *createOnNoStatModuleContext) GetMknodDeviceNumber(index int) (int, er
 	if err != nil {
 		ctx.testContext.Logf("Error in getMknodDeviceNumber while testing: %s", err)
 	}
-	ctx.mknodDeviceNumberCount += 1
+	ctx.mknodDeviceNumberCount++
 	return succ, err
 }
 
 func (ctx *createOnNoStatModuleContext) PerformMknod(path string, mode uint32, dev int) error {
-	ctx.performMknodCount += 1
+	ctx.performMknodCount++
 	return nil
 }
 
 func (ctx *createOnNoStatModuleContext) MakeIndexNode(index int) (os.FileInfo, error) {
 	// keep
 	succ, err := directIndexMknod(ctx, index)
-	ctx.makeIndexNodeCount += 1
+	ctx.makeIndexNodeCount++
 	return succ, err
 }
 
 func (ctx *createOnNoStatModuleContext) OpenDeviceFile(path string) (*os.File, error) {
-	ctx.openDeviceFileCount += 1
+	ctx.openDeviceFileCount++
 	return &ctx.sentinelLoopFile, nil
 }
 
 func (ctx *createOnNoStatModuleContext) SetLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
-	ctx.setLoopFileFdCount += 1
+	ctx.setLoopFileFdCount++
 	return nil
 }
 
@@ -220,7 +239,7 @@ func TestFindOpenRaceResolution(t *testing.T) {
 	// Step 2: Open as many devices as we just did, but in parallel
 	var (
 		goroutineLaunchWg sync.WaitGroup
-		goroutineReturn   chan error = make(chan error)
+		goroutineReturn   = make(chan error)
 		returnCount       int
 		errorCount        int
 	)
@@ -247,11 +266,11 @@ func TestFindOpenRaceResolution(t *testing.T) {
 	for returnCount < len(backingFiles) {
 		err := <- goroutineReturn
 		t.Log("Got error")
-		returnCount += 1
+		returnCount++
 
 		if err != nil {
 			t.Logf("Error attaching to loop device: %s", err)
-			errorCount += 1
+			errorCount++
 		}
 	}
 

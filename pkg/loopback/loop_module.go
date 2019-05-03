@@ -33,25 +33,6 @@ const (
 	attachErrorStateAttachFd
 )
 
-func attachErrorStateString(aes attachErrorState) string {
-	switch aes {
-	case attachErrorStateNextFree:
-		return "nextFree"
-	case attachErrorStateMknod:
-		return "mknod"
-	case attachErrorStateStat:
-		return "stat"
-	case attachErrorStateModeCheck:
-		return "modeCheck"
-	case attachErrorStateOpenBlock:
-		return "openBlock"
-	case attachErrorStateAttachFd:
-		return "attachFd"
-	default:
-		return "?"
-	}
-}
-
 type attachError struct {
 	atState attachErrorState
 	underlying error
