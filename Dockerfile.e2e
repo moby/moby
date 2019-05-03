@@ -40,11 +40,13 @@ RUN CGO_ENABLED=0 go build -buildmode=pie -o /build/httpserver/httpserver github
 FROM base AS builder
 
 # Set tag and add sources
-ARG DOCKER_GITCOMMIT
-ENV DOCKER_GITCOMMIT=${DOCKER_GITCOMMIT:-undefined}
 COPY . .
+# Copy test sources tests that use assert can print errors
+RUN mkdir -p /build${PWD} && find integration integration-cli -name \*_test.go -exec cp --parents '{}' /build${PWD} \;
+# Build and install test binaries
+ARG DOCKER_GITCOMMIT=undefined
 RUN hack/make.sh build-integration-test-binary
-RUN mkdir -p /build/ && find . -name test.main -exec cp --parents '{}' /build \;
+RUN mkdir -p /build/tests && find . -name test.main -exec cp --parents '{}' /build/tests \;
 
 ## Generate testing image
 FROM alpine:3.9 as runner
@@ -77,4 +79,4 @@ COPY integration-cli/fixtures   /tests/integration-cli/fixtures
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=dockercli     /build/ /usr/bin/
 COPY --from=contrib       /build/ /tests/contrib/
-COPY --from=builder       /build/ /tests/
+COPY --from=builder       /build/ /
