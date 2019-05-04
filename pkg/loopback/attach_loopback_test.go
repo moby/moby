@@ -4,7 +4,6 @@ package loopback // import "github.com/docker/docker/pkg/loopback"
 
 import (
 	"fmt"
-	"io"
 	"io/ioutil"
 	"os"
 	"sync"
@@ -67,37 +66,26 @@ func (fi *createOnNoStatFileInfo) Sys() interface{} {
 }
 
 type createOnNoStatModuleContext struct {
-	testContext                 *testing.T
-	pathStatCallCount           int
 	nextFreeDeviceIndexCount    int
-	baseDeviceNodeStatCount     int
-	openSysfsParameterFileCount int
-	maxPartitionParameterCount  int
-	partitionShiftCount         int
-	mknodDeviceNumberCount      int
 	performMknodCount           int
-	makeIndexNodeCount          int
-	openDeviceFileCount         int
 	setLoopFileFdCount          int
 	sentinelLoopFile            os.File
 	sentinelSparseFile          os.File
 }
 
-func (ctx *createOnNoStatModuleContext) PerformPathStat(path string) (os.FileInfo, error) {
-	ctx.pathStatCallCount++
+func (ctx *createOnNoStatModuleContext) performPathStat(path string) (os.FileInfo, error) {
 	if ctx.performMknodCount <= 0 {
 		return nil, os.ErrNotExist
 	}
 	return &createOnNoStatFileInfo{name: path}, nil
 }
 
-func (ctx *createOnNoStatModuleContext) GetNextFreeDeviceIndex() (int, error) {
+func (ctx *createOnNoStatModuleContext) getNextFreeDeviceIndex() (int, error) {
 	ctx.nextFreeDeviceIndexCount++
 	return 0, nil
 }
 
-func (ctx *createOnNoStatModuleContext) GetBaseDeviceNodeStat() (*syscall.Stat_t, error) {
-	ctx.baseDeviceNodeStatCount++
+func (ctx *createOnNoStatModuleContext) getBaseDeviceNodeStat() (*syscall.Stat_t, error) {
 	return &syscall.Stat_t{
 		Uid: 0,
 		Gid: 0,
@@ -105,69 +93,23 @@ func (ctx *createOnNoStatModuleContext) GetBaseDeviceNodeStat() (*syscall.Stat_t
 	}, nil
 }
 
-func (ctx *createOnNoStatModuleContext) OpenSysfsParameterFile(param string) (io.ReadCloser, error) {
-	// keep
-	succ, err := openLoopModuleSysfsParameter(param)
-	if err != nil {
-		ctx.testContext.Logf("Error in openLoopModuleSysfsParameter while testing: %s", err)
-	}
-	ctx.openSysfsParameterFileCount++
-	return succ, err
-}
-
-func (ctx *createOnNoStatModuleContext) GetMaxPartitionParameter() (uint, error) {
-	// keep
-	succ, err := getMaxPartitionParameter(ctx)
-	ctx.maxPartitionParameterCount++
-	return succ, err
-}
-
-func (ctx *createOnNoStatModuleContext) GetPartitionShift() (uint, error) {
-	// keep
-	succ, err := getPartitionShift(ctx)
-	ctx.partitionShiftCount++
-	return succ, err
-}
-
-func (ctx *createOnNoStatModuleContext) GetMknodDeviceNumber(index int) (int, error) {
-	// keep
-	succ, err := getMknodDeviceNumber(ctx, index)
-	if err != nil {
-		ctx.testContext.Logf("Error in getMknodDeviceNumber while testing: %s", err)
-	}
-	ctx.mknodDeviceNumberCount++
-	return succ, err
-}
-
-func (ctx *createOnNoStatModuleContext) PerformMknod(path string, mode uint32, dev int) error {
+func (ctx *createOnNoStatModuleContext) performMknod(path string, mode uint32, dev int) error {
 	ctx.performMknodCount++
 	return nil
 }
 
-func (ctx *createOnNoStatModuleContext) MakeIndexNode(index int) (os.FileInfo, error) {
-	// keep
-	succ, err := directIndexMknod(ctx, index)
-	ctx.makeIndexNodeCount++
-	return succ, err
-}
-
-func (ctx *createOnNoStatModuleContext) OpenDeviceFile(path string) (*os.File, error) {
-	ctx.openDeviceFileCount++
+func (ctx *createOnNoStatModuleContext) openDeviceFile(path string) (*os.File, error) {
 	return &ctx.sentinelLoopFile, nil
 }
 
-func (ctx *createOnNoStatModuleContext) SetLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
+func (ctx *createOnNoStatModuleContext) setLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
 	ctx.setLoopFileFdCount++
 	return nil
 }
 
-func (ctx *createOnNoStatModuleContext) AttachToNextAvailableDevice(sparseFile *os.File) (*os.File, int, *attachError) {
-	return attachNextAvailableDevice(ctx, sparseFile)
-}
-
 func TestCreateOnNoStat(t *testing.T) {
-	modCtx := &createOnNoStatModuleContext{testContext: t}
-	loopFile, created, err := modCtx.AttachToNextAvailableDevice(&modCtx.sentinelSparseFile)
+	modCtx := &createOnNoStatModuleContext{}
+	loopFile, created, err := attachToNextAvailableDevice(modCtx, &modCtx.sentinelSparseFile)
 	if err != nil {
 		t.Fatalf("Error in AttachToNextAvailableDevice at state %s: %s", attachErrorStateString(err.atState), err)
 	}
@@ -179,9 +121,6 @@ func TestCreateOnNoStat(t *testing.T) {
 	// So the actual code should "create" it.
 	if created != 0 {
 		t.Fatalf("Expected 'created' to be 0, got %d", created)
-	}
-	if modCtx.makeIndexNodeCount <= 0 {
-		t.Fatal("modCtx.MakeIndexNode was never called")
 	}
 	if modCtx.setLoopFileFdCount <= 0 {
 		t.Fatal("modCtx.SetLoopFileFd was never called")
@@ -211,7 +150,7 @@ func TestFindOpenRaceResolution(t *testing.T) {
 			t.Fatalf("Could not create temporary file: %s", err)
 		}
 
-		loopFile, created, typedErr := modCtx.AttachToNextAvailableDevice(backingFile)
+		loopFile, created, typedErr := attachToNextAvailableDevice(modCtx, backingFile)
 		if created >= 0 {
 			t.Logf("Attempted to create loop device file %s", fmt.Sprintf(loopFormat, created))
 		}

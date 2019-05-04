@@ -5,7 +5,6 @@ package loopback // import "github.com/docker/docker/pkg/loopback"
 import (
 	"bufio"
 	"fmt"
-	"io"
 	"math/bits"
 	"os"
 	"strconv"
@@ -47,28 +46,15 @@ func (attachErr *attachError) Underlying() error {
 }
 
 type loopModuleContext interface {
-	PerformPathStat(path string) (os.FileInfo, error)
-	GetNextFreeDeviceIndex() (int, error)
-	GetBaseDeviceNodeStat() (*syscall.Stat_t, error)
-	OpenSysfsParameterFile(param string) (io.ReadCloser, error)
-	GetMaxPartitionParameter() (uint, error)
-	GetPartitionShift() (uint, error)
-	GetMknodDeviceNumber(index int) (int, error)
-	PerformMknod(path string, mode uint32, dev int) error
-	MakeIndexNode(index int) (os.FileInfo, error)
-	OpenDeviceFile(path string) (*os.File, error)
-	SetLoopFileFd(loopFile *os.File, sparseFile *os.File) error
-	// Returns:
-	// 1. The open loop device file, if applicable
-	// 2. The index of the loop device file that was created,
-	//    or -1 if no device file was created.
-	// 3. The error that occurred, or nil if no error occurred.
-	//    Note that err.atState == attachErrorStateMknod implies that
-	//    the index of the loop device is >= 0.
-	AttachToNextAvailableDevice(*os.File) (*os.File, int, *attachError)
+	performPathStat(path string) (os.FileInfo, error)
+	getNextFreeDeviceIndex() (int, error)
+	getBaseDeviceNodeStat() (*syscall.Stat_t, error)
+	performMknod(path string, mode uint32, dev int) error
+	openDeviceFile(path string) (*os.File, error)
+	setLoopFileFd(loopFile *os.File, sparseFile *os.File) error
 }
 
-func getNextFreeDeviceIndex() (int, error) {
+func getNextFreeDeviceIndexViaLoopControl() (int, error) {
 	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
 	if err != nil {
 		return 0, err
@@ -82,13 +68,13 @@ func getNextFreeDeviceIndex() (int, error) {
 	return index, err
 }
 
-// getBaseDeviceNodeStat inspects /dev/loop0 to collect uid,gid, and mode for
+// getBaseDeviceNodeStatVfs inspects /dev/loop0 to collect uid,gid, and mode for
 // the loop0 device on the system. If it does not exist we assume 0,0,0660 for
 // the stat data (the defaults at least for Ubuntu 18.10).
 //
 // Stolen from daemon/devmapper/graphdriver/devmapper/devmapper_test.go.
-func getBaseDeviceNodeStat(ctx loopModuleContext) (*syscall.Stat_t, error) {
-	loop0, err := ctx.PerformPathStat(loopZero)
+func getBaseDeviceNodeStatVfs(ctx loopModuleContext) (*syscall.Stat_t, error) {
+	loop0, err := ctx.performPathStat(loopZero)
 	if err != nil {
 		if os.IsNotExist(err) {
 			return &syscall.Stat_t{
@@ -102,12 +88,8 @@ func getBaseDeviceNodeStat(ctx loopModuleContext) (*syscall.Stat_t, error) {
 	return loop0.Sys().(*syscall.Stat_t), nil
 }
 
-func openLoopModuleSysfsParameter(param string) (io.ReadCloser, error) {
-	return os.Open(fmt.Sprintf(sysfsModuleFormat, param))
-}
-
-func getMaxPartitionParameter(ctx loopModuleContext) (uint, error) {
-	fp, err := ctx.OpenSysfsParameterFile("max_part")
+func getPartitionShift() (uint, error) {
+	fp, err := os.Open(fmt.Sprintf(sysfsModuleFormat, "max_part"))
 	if err != nil {
 		// This parameter is expected to exist for the forseseeable future
 		// but it wouldn't hurt to handle the case where it's missing.
@@ -126,11 +108,6 @@ func getMaxPartitionParameter(ctx loopModuleContext) (uint, error) {
 	}
 
 	maxPart, err := strconv.ParseUint(scanner.Text(), 10, 0)
-	return uint(maxPart), err
-}
-
-func getPartitionShift(ctx loopModuleContext) (uint, error) {
-	maxPart, err := ctx.GetMaxPartitionParameter()
 	if err != nil {
 		return 0, err
 	}
@@ -138,11 +115,11 @@ func getPartitionShift(ctx loopModuleContext) (uint, error) {
 	// part_shift = fls(max_part) as set at module init time,
 	// i.e. part_shift is the offset of the most significant
 	// set bit of max_part as passed as a module parameter.
-	return uint(bits.Len(maxPart)), nil
+	return uint(bits.Len(uint(maxPart))), nil
 }
 
-func getMknodDeviceNumber(ctx loopModuleContext, index int) (int, error) {
-	partShift, err := ctx.GetPartitionShift()
+func getMknodDeviceNumber(index int) (int, error) {
+	partShift, err := getPartitionShift()
 	if err != nil {
 		return 0, err
 	}
@@ -153,41 +130,48 @@ func getMknodDeviceNumber(ctx loopModuleContext, index int) (int, error) {
 func directIndexMknod(ctx loopModuleContext, index int) (os.FileInfo, error) {
 	loopPath := fmt.Sprintf(loopFormat, index)
 	// If the file already exists we don't need to create it
-	if incumbentStat, err := ctx.PerformPathStat(loopPath); err == nil {
+	if incumbentStat, err := ctx.performPathStat(loopPath); err == nil {
 		return incumbentStat, nil
 	}
 
-	baseStats, err := ctx.GetBaseDeviceNodeStat()
+	baseStats, err := ctx.getBaseDeviceNodeStat()
 	if err != nil {
 		return nil, err
 	}
 
-	deviceNumber, err := ctx.GetMknodDeviceNumber(index)
+	deviceNumber, err := getMknodDeviceNumber(index)
 	if err != nil {
 		return nil, err
 	}
 
-	if err = ctx.PerformMknod(loopPath, uint32(baseStats.Mode|syscall.S_IFBLK), deviceNumber); err != nil {
+	if err = ctx.performMknod(loopPath, uint32(baseStats.Mode|syscall.S_IFBLK), deviceNumber); err != nil {
 		// If the mknod call failed because it already exists, we're fine
 		if asErrno, ok := err.(syscall.Errno); !ok || asErrno != syscall.EEXIST {
 			return nil, err
 		}
 	}
-	return ctx.PerformPathStat(loopPath)
+	return ctx.performPathStat(loopPath)
 }
 
-func openDeviceFile(path string) (*os.File, error) {
+func openDeviceFileVfs(path string) (*os.File, error) {
 	// OpenFile adds O_CLOEXEC
 	return os.OpenFile(path, os.O_RDWR, 0644)
 }
 
-func setLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
+func setLoopFileFdIoctl(loopFile *os.File, sparseFile *os.File) error {
 	return ioctlLoopSetFd(loopFile.Fd(), sparseFile.Fd())
 }
 
-func attachNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loopFile *os.File, createdIndex int, err *attachError) {
+// Returns:
+// 1. The open loop device file, if applicable
+// 2. The index of the loop device file that was created, or -1 if
+//    no device file was created.
+// 3. The error that occurred, or nil if no error occurred.
+//    Note that err.atState == attachErrorStateMknod implies that the index
+//    of the loop device is >= 0.
+func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loopFile *os.File, createdIndex int, err *attachError) {
 	createdIndex = -1
-	index, underlying := ctx.GetNextFreeDeviceIndex()
+	index, underlying := ctx.getNextFreeDeviceIndex()
 	if underlying != nil {
 		err = &attachError{
 			atState: attachErrorStateNextFree,
@@ -197,10 +181,10 @@ func attachNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loop
 	}
 
 	target := fmt.Sprintf(loopFormat, index)
-	fi, underlying := ctx.PerformPathStat(target)
+	fi, underlying := ctx.performPathStat(target)
 	if underlying != nil && os.IsNotExist(underlying) {
 		createdIndex = index
-		fi, underlying = ctx.MakeIndexNode(index)
+		fi, underlying = directIndexMknod(ctx, index)
 	}
 	if underlying != nil {
 		if createdIndex >= 0 {
@@ -228,7 +212,7 @@ func attachNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loop
 	}
 
 	// OpenFile adds O_CLOEXEC
-	loopFile, underlying = ctx.OpenDeviceFile(target)
+	loopFile, underlying = ctx.openDeviceFile(target)
 	if underlying != nil {
 		err = &attachError{
 			atState: attachErrorStateOpenBlock,
@@ -237,7 +221,7 @@ func attachNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loop
 		return
 	}
 
-	if underlying = ctx.SetLoopFileFd(loopFile, sparseFile); underlying != nil {
+	if underlying = ctx.setLoopFileFd(loopFile, sparseFile); underlying != nil {
 		loopFile.Close()
 		loopFile = nil
 		err = &attachError{
@@ -251,50 +235,26 @@ func attachNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (loop
 
 type concreteLoopModuleContext struct {}
 
-func (ctx *concreteLoopModuleContext) PerformPathStat(path string) (os.FileInfo, error) {
+func (ctx *concreteLoopModuleContext) performPathStat(path string) (os.FileInfo, error) {
 	return os.Stat(path)
 }
 
-func (ctx *concreteLoopModuleContext) GetNextFreeDeviceIndex() (int, error) {
-	return getNextFreeDeviceIndex()
+func (ctx *concreteLoopModuleContext) getNextFreeDeviceIndex() (int, error) {
+	return getNextFreeDeviceIndexViaLoopControl()
 }
 
-func (ctx *concreteLoopModuleContext) GetBaseDeviceNodeStat() (*syscall.Stat_t, error) {
-	return getBaseDeviceNodeStat(ctx)
+func (ctx *concreteLoopModuleContext) getBaseDeviceNodeStat() (*syscall.Stat_t, error) {
+	return getBaseDeviceNodeStatVfs(ctx)
 }
 
-func (ctx *concreteLoopModuleContext) OpenSysfsParameterFile(param string) (io.ReadCloser, error) {
-	return openLoopModuleSysfsParameter(param)
-}
-
-func (ctx *concreteLoopModuleContext) GetMaxPartitionParameter() (uint, error) {
-	return getMaxPartitionParameter(ctx)
-}
-
-func (ctx *concreteLoopModuleContext) GetPartitionShift() (uint, error) {
-	return getPartitionShift(ctx)
-}
-
-func (ctx *concreteLoopModuleContext) GetMknodDeviceNumber(index int) (int, error) {
-	return getMknodDeviceNumber(ctx, index)
-}
-
-func (ctx *concreteLoopModuleContext) PerformMknod(path string, mode uint32, dev int) error {
+func (ctx *concreteLoopModuleContext) performMknod(path string, mode uint32, dev int) error {
 	return system.Mknod(path, mode, dev)
 }
 
-func (ctx *concreteLoopModuleContext) MakeIndexNode(index int) (os.FileInfo, error) {
-	return directIndexMknod(ctx, index)
+func (ctx *concreteLoopModuleContext) openDeviceFile(path string) (*os.File, error) {
+	return openDeviceFileVfs(path)
 }
 
-func (ctx *concreteLoopModuleContext) OpenDeviceFile(path string) (*os.File, error) {
-	return openDeviceFile(path)
-}
-
-func (ctx *concreteLoopModuleContext) SetLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
-	return setLoopFileFd(loopFile, sparseFile)
-}
-
-func (ctx *concreteLoopModuleContext) AttachToNextAvailableDevice(sparseFile *os.File) (*os.File, int, *attachError) {
-	return attachNextAvailableDevice(ctx, sparseFile)
+func (ctx *concreteLoopModuleContext) setLoopFileFd(loopFile *os.File, sparseFile *os.File) error {
+	return setLoopFileFdIoctl(loopFile, sparseFile)
 }

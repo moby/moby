@@ -99,7 +99,7 @@ func openNextAvailableLoopback(sparseFile *os.File) (loopFile *os.File, err erro
 	modCtx := &concreteLoopModuleContext{}
 
 	for i := 0; i < openAttempts; i++ {
-		loopFileAttempt, created, typedErr := modCtx.AttachToNextAvailableDevice(sparseFile)
+		loopFileAttempt, created, typedErr := attachToNextAvailableDevice(modCtx, sparseFile)
 		if created >= 0 {
 			loopName = fmt.Sprintf(loopFormat, created)
 			logrus.Warnf("Tried to forcibly create loopback device %s", loopName)
