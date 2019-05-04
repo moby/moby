@@ -3,6 +3,8 @@
 set -eu -o pipefail
 
 export DOCKER_EXPERIMENTAL=y
+export TEST_REPEAT=10
+export TESTFLAGS="-test.run TestService"
 
 hack/make.sh \
 	binary-daemon \
