@@ -80,7 +80,7 @@ var (
 )
 
 func getSleepTime() time.Duration {
-	rngLauncher.Do(func () {
+	rngLauncher.Do(func() {
 		rngChan = make(chan time.Duration)
 		go (func() {
 			gen := rand.New(rand.NewSource(time.Now().UnixNano()))

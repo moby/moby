@@ -66,11 +66,11 @@ func (fi *createOnNoStatFileInfo) Sys() interface{} {
 }
 
 type createOnNoStatModuleContext struct {
-	nextFreeDeviceIndexCount    int
-	performMknodCount           int
-	setLoopFileFdCount          int
-	sentinelLoopFile            os.File
-	sentinelSparseFile          os.File
+	nextFreeDeviceIndexCount int
+	performMknodCount        int
+	setLoopFileFdCount       int
+	sentinelLoopFile         os.File
+	sentinelSparseFile       os.File
 }
 
 func (ctx *createOnNoStatModuleContext) performPathStat(path string) (os.FileInfo, error) {
@@ -87,8 +87,8 @@ func (ctx *createOnNoStatModuleContext) getNextFreeDeviceIndex() (int, error) {
 
 func (ctx *createOnNoStatModuleContext) getBaseDeviceNodeStat() (*syscall.Stat_t, error) {
 	return &syscall.Stat_t{
-		Uid: 0,
-		Gid: 0,
+		Uid:  0,
+		Gid:  0,
 		Mode: 0640,
 	}, nil
 }
@@ -145,7 +145,7 @@ func TestFindOpenRaceResolution(t *testing.T) {
 	t.Log("Perform initial create")
 	for i := 0; i < maxOpenDevices; i++ {
 		// Step 1: open up to maxOpenDevices for our internal usage
-		backingFile, err := ioutil.TempFile("", "docker-loopback-test.*.img") 
+		backingFile, err := ioutil.TempFile("", "docker-loopback-test.*.img")
 		if err != nil {
 			t.Fatalf("Could not create temporary file: %s", err)
 		}
@@ -203,7 +203,7 @@ func TestFindOpenRaceResolution(t *testing.T) {
 
 	t.Log("Getting errors")
 	for returnCount < len(backingFiles) {
-		err := <- goroutineReturn
+		err := <-goroutineReturn
 		t.Log("Got error")
 		returnCount++
 

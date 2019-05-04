@@ -14,10 +14,10 @@ import (
 )
 
 const (
-	loopMajorDev = 7 // see /usr/include/linux/major.h
-	loopControl = "/dev/loop-control"
-	loopFormat = "/dev/loop%d"
-	loopZero = "/dev/loop0"
+	loopMajorDev      = 7 // see /usr/include/linux/major.h
+	loopControl       = "/dev/loop-control"
+	loopFormat        = "/dev/loop%d"
+	loopZero          = "/dev/loop0"
 	sysfsModuleFormat = "/sys/module/loop/parameters/%s"
 )
 
@@ -25,7 +25,7 @@ type attachErrorState = int
 
 const (
 	attachErrorStateNextFree = attachErrorState(iota)
-	attachErrorStateMknod // Only occurs when creating a new loop device
+	attachErrorStateMknod    // Only occurs when creating a new loop device
 	attachErrorStateStat
 	attachErrorStateModeCheck
 	attachErrorStateOpenBlock
@@ -33,7 +33,7 @@ const (
 )
 
 type attachError struct {
-	atState attachErrorState
+	atState    attachErrorState
 	underlying error
 }
 
@@ -174,7 +174,7 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 	index, underlying := ctx.getNextFreeDeviceIndex()
 	if underlying != nil {
 		err = &attachError{
-			atState: attachErrorStateNextFree,
+			atState:    attachErrorStateNextFree,
 			underlying: underlying,
 		}
 		return
@@ -189,12 +189,12 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 	if underlying != nil {
 		if createdIndex >= 0 {
 			err = &attachError{
-				atState: attachErrorStateMknod,
+				atState:    attachErrorStateMknod,
 				underlying: underlying,
 			}
 		} else {
 			err = &attachError{
-				atState: attachErrorStateStat,
+				atState:    attachErrorStateStat,
 				underlying: underlying,
 			}
 		}
@@ -205,7 +205,7 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 	// and have to bail out now.
 	if fi.Mode()&os.ModeDevice != os.ModeDevice {
 		err = &attachError{
-			atState: attachErrorStateModeCheck,
+			atState:    attachErrorStateModeCheck,
 			underlying: syscall.EINVAL,
 		}
 		return
@@ -215,7 +215,7 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 	loopFile, underlying = ctx.openDeviceFile(target)
 	if underlying != nil {
 		err = &attachError{
-			atState: attachErrorStateOpenBlock,
+			atState:    attachErrorStateOpenBlock,
 			underlying: underlying,
 		}
 		return
@@ -225,7 +225,7 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 		loopFile.Close()
 		loopFile = nil
 		err = &attachError{
-			atState: attachErrorStateAttachFd,
+			atState:    attachErrorStateAttachFd,
 			underlying: underlying,
 		}
 	}
@@ -233,7 +233,7 @@ func attachToNextAvailableDevice(ctx loopModuleContext, sparseFile *os.File) (lo
 	return
 }
 
-type concreteLoopModuleContext struct {}
+type concreteLoopModuleContext struct{}
 
 func (ctx *concreteLoopModuleContext) performPathStat(path string) (os.FileInfo, error) {
 	return os.Stat(path)
