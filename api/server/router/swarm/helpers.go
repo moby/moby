@@ -95,4 +95,11 @@ func adjustForAPIVersion(cliVersion string, service *swarm.ServiceSpec) {
 			service.TaskTemplate.Placement.MaxReplicas = 0
 		}
 	}
+	if versions.LessThan(cliVersion, "1.41") {
+		if service.TaskTemplate.ContainerSpec != nil {
+			// Capabilities for docker swarm services weren't supported before
+			// API version 1.41
+			service.TaskTemplate.ContainerSpec.Capabilities = nil
+		}
+	}
 }

@@ -17,12 +17,17 @@ keywords: "API, Docker, rcli, REST, documentation"
 
 [Docker Engine API v1.41](https://docs.docker.com/engine/api/v1.41/) documentation
 
+* `GET /services` now returns `Capabilities` as part of the `ContainerSpec`.
+* `GET /services/{id}` now returns `Capabilities` as part of the `ContainerSpec`.
+* `POST /services/create` now accepts `Capabilities` as part of the `ContainerSpec`.
+* `POST /services/{id}/update` now accepts `Capabilities` as part of the `ContainerSpec`.
+* `GET /tasks` now  returns `Capabilities` as part of the `ContainerSpec`.
+* `GET /tasks/{id}` now  returns `Capabilities` as part of the `ContainerSpec`.
 * `POST /containers/create` on Linux now accepts the `HostConfig.CgroupnsMode` property.
   Set the property to `host` to create the container in the daemon's cgroup namespace, or
   `private` to create the container in its own private cgroup namespace.  The per-daemon
   default is `host`, and can be changed by using the`CgroupNamespaceMode` daemon configuration
   parameter.
-
 
 ## v1.40 API changes
 
