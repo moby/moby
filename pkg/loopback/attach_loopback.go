@@ -119,7 +119,6 @@ func openNextAvailableLoopback(sparseFile *os.File) (loopFile *os.File, err erro
 			} else {
 				logrus.Errorf("Lost race to attach open loopback device (%d attempts)", openAttempts)
 			}
-			break // switch
 		case attachErrorStateNextFree:
 			logrus.Errorf("Error retrieving the next available loopback: %s", typedErr.underlying)
 			return

@@ -55,7 +55,7 @@ type loopModuleContext interface {
 }
 
 func getNextFreeDeviceIndexViaLoopControl() (int, error) {
-	f, err := os.OpenFile("/dev/loop-control", os.O_RDONLY, 0644)
+	f, err := os.OpenFile(loopControl, os.O_RDONLY, 0644)
 	if err != nil {
 		return 0, err
 	}
@@ -144,7 +144,7 @@ func directIndexMknod(ctx loopModuleContext, index int) (os.FileInfo, error) {
 		return nil, err
 	}
 
-	if err = ctx.performMknod(loopPath, uint32(baseStats.Mode|syscall.S_IFBLK), deviceNumber); err != nil {
+	if err = ctx.performMknod(loopPath, baseStats.Mode|syscall.S_IFBLK, deviceNumber); err != nil {
 		// If the mknod call failed because it already exists, we're fine
 		if asErrno, ok := err.(syscall.Errno); !ok || asErrno != syscall.EEXIST {
 			return nil, err
