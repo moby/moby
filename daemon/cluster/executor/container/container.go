@@ -362,6 +362,7 @@ func (c *containerConfig) hostConfig() *enginecontainer.HostConfig {
 		Isolation:      c.isolation(),
 		Init:           c.init(),
 		Sysctls:        c.spec().Sysctls,
+		Capabilities:   c.spec().Capabilities,
 	}
 
 	if c.spec().DNSConfig != nil {

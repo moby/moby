@@ -180,6 +180,14 @@ func ServiceWithSysctls(sysctls map[string]string) ServiceSpecOpt {
 	}
 }
 
+// ServiceWithCapabilities sets the Capabilities option of the service's ContainerSpec.
+func ServiceWithCapabilities(Capabilities []string) ServiceSpecOpt {
+	return func(spec *swarmtypes.ServiceSpec) {
+		ensureContainerSpec(spec)
+		spec.TaskTemplate.ContainerSpec.Capabilities = Capabilities
+	}
+}
+
 // GetRunningTasks gets the list of running tasks for a service
 func GetRunningTasks(t *testing.T, c client.ServiceAPIClient, serviceID string) []swarmtypes.Task {
 	t.Helper()
