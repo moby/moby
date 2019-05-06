@@ -376,6 +376,15 @@ func (r *controller) Shutdown(ctx context.Context) error {
 		return err
 	}
 
+	// Try removing networks referenced in this task in case this
+	// task is the last one referencing it
+	if err := r.adapter.removeNetworks(ctx); err != nil {
+		if isUnknownContainer(err) {
+			return nil
+		}
+		return err
+	}
+
 	return nil
 }
 
@@ -417,15 +426,6 @@ func (r *controller) Remove(ctx context.Context) error {
 		}
 		// This may fail if the task was already shut down.
 		log.G(ctx).WithError(err).Debug("shutdown failed on removal")
-	}
-
-	// Try removing networks referenced in this task in case this
-	// task is the last one referencing it
-	if err := r.adapter.removeNetworks(ctx); err != nil {
-		if isUnknownContainer(err) {
-			return nil
-		}
-		return err
 	}
 
 	if err := r.adapter.remove(ctx); err != nil {
