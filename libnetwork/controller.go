@@ -706,11 +706,17 @@ const overlayDSROptionString = "dsr"
 // NewNetwork creates a new network of the specified network type. The options
 // are network specific and modeled in a generic way.
 func (c *controller) NewNetwork(networkType, name string, id string, options ...NetworkOption) (Network, error) {
+	var (
+		cap *driverapi.Capability
+		err error
+		t   *network
+	)
+
 	if id != "" {
 		c.networkLocker.Lock(id)
 		defer c.networkLocker.Unlock(id)
 
-		if _, err := c.NetworkByID(id); err == nil {
+		if _, err = c.NetworkByID(id); err == nil {
 			return nil, NetworkNameError(id)
 		}
 	}
@@ -739,14 +745,9 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	}
 
 	network.processOptions(options...)
-	if err := network.validateConfiguration(); err != nil {
+	if err = network.validateConfiguration(); err != nil {
 		return nil, err
 	}
-
-	var (
-		cap *driverapi.Capability
-		err error
-	)
 
 	// Reset network types, force local scope and skip allocation and
 	// plumbing for configuration networks. Reset of the config-only
@@ -794,11 +795,11 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	// From this point on, we need the network specific configuration,
 	// which may come from a configuration-only network
 	if network.configFrom != "" {
-		t, err := c.getConfigNetwork(network.configFrom)
+		t, err = c.getConfigNetwork(network.configFrom)
 		if err != nil {
 			return nil, types.NotFoundErrorf("configuration network %q does not exist", network.configFrom)
 		}
-		if err := t.applyConfigurationTo(network); err != nil {
+		if err = t.applyConfigurationTo(network); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
 		defer func() {
