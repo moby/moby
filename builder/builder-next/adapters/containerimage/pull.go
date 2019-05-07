@@ -824,7 +824,7 @@ func (r *resolverCache) Add(ctx context.Context, ref string, resolver remotes.Re
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ref = r.domain(ref) + "-" + session.FromContext(ctx)
+	ref = r.repo(ref) + "-" + session.FromContext(ctx)
 
 	cr, ok := r.m[ref]
 	cr.timeout = time.Now().Add(time.Minute)
@@ -837,19 +837,19 @@ func (r *resolverCache) Add(ctx context.Context, ref string, resolver remotes.Re
 	return &cr
 }
 
-func (r *resolverCache) domain(refStr string) string {
+func (r *resolverCache) repo(refStr string) string {
 	ref, err := distreference.ParseNormalizedNamed(refStr)
 	if err != nil {
 		return refStr
 	}
-	return distreference.Domain(ref)
+	return ref.Name()
 }
 
 func (r *resolverCache) Get(ctx context.Context, ref string) remotes.Resolver {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	ref = r.domain(ref) + "-" + session.FromContext(ctx)
+	ref = r.repo(ref) + "-" + session.FromContext(ctx)
 
 	cr, ok := r.m[ref]
 	if !ok {
