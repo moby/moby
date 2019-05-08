@@ -463,10 +463,6 @@ definitions:
         type: "array"
         items:
           $ref: "#/definitions/DeviceRequest"
-      DiskQuota:
-        description: "Disk limit (in bytes)."
-        type: "integer"
-        format: "int64"
       KernelMemory:
         description: "Kernel memory limit in bytes."
         type: "integer"
