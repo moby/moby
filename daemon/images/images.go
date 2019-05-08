@@ -260,8 +260,7 @@ func (i *ImageService) Images(imageFilters filters.Args, all bool, withExtraAttr
 // This new image contains only the layers from it's parent + 1 extra layer which contains the diff of all the layers in between.
 // The existing image(s) is not destroyed.
 // If no parent is specified, a new image with the diff of all the specified image's layers merged into a new layer that has no parents.
-func (i *ImageService) SquashImage(id, parent string) (string, error) {
-
+func (i *ImageService) SquashImage(id string, parentImg *image.Image) (string, error) {
 	var (
 		img *image.Image
 		err error
@@ -270,13 +269,8 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 		return "", err
 	}
 
-	var parentImg *image.Image
 	var parentChainID layer.ChainID
-	if len(parent) != 0 {
-		parentImg, err = i.imageStore.Get(image.ID(parent))
-		if err != nil {
-			return "", errors.Wrap(err, "error getting specified parent layer")
-		}
+	if parentImg != nil {
 		parentChainID = parentImg.RootFS.ChainID()
 	} else {
 		rootFS := image.NewRootFS()
@@ -307,6 +301,7 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 	newImage.RootFS = nil
 
 	rootFS := *parentImg.RootFS
+
 	rootFS.DiffIDs = append(rootFS.DiffIDs, newL.DiffID())
 	newImage.RootFS = &rootFS
 
@@ -319,8 +314,8 @@ func (i *ImageService) SquashImage(id, parent string) (string, error) {
 
 	now := time.Now()
 	var historyComment string
-	if len(parent) > 0 {
-		historyComment = fmt.Sprintf("merge %s to %s", id, parent)
+	if parentImg != nil {
+		historyComment = fmt.Sprintf("merge %s to %s", id, parentImg.ID())
 	} else {
 		historyComment = fmt.Sprintf("create new from %s", id)
 	}

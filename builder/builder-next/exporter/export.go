@@ -94,9 +94,11 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source)
 	}
 
 	var config []byte
+	var baseConfig []byte
 	switch len(inp.Refs) {
 	case 0:
 		config = inp.Metadata[exptypes.ExporterImageConfigKey]
+		baseConfig = inp.Metadata[exptypes.ExporterBaseImageConfigKey]
 	case 1:
 		platformsBytes, ok := inp.Metadata[exptypes.ExporterPlatformsKey]
 		if !ok {
@@ -110,6 +112,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source)
 			return nil, errors.Errorf("number of platforms does not match references %d %d", len(p.Platforms), len(inp.Refs))
 		}
 		config = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, p.Platforms[0].ID)]
+		baseConfig = inp.Metadata[fmt.Sprintf("%s/%s", exptypes.ExporterBaseImageConfigKey, p.Platforms[0].ID)]
 	}
 
 	var diffs []digest.Digest
@@ -175,5 +178,6 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source)
 
 	return map[string]string{
 		"containerimage.digest": id.String(),
+		"containerimage.baseconfig": string(baseConfig),
 	}, nil
 }
