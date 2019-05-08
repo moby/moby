@@ -177,7 +177,7 @@ func (e *imageExporterInstance) Export(ctx context.Context, inp exporter.Source)
 	}
 
 	return map[string]string{
-		"containerimage.digest": id.String(),
+		"containerimage.digest":     id.String(),
 		"containerimage.baseconfig": string(baseConfig),
 	}, nil
 }
