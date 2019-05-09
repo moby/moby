@@ -268,8 +268,11 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	wait := make(chan error)
 
 	go func() {
-		wait <- d.cmd.Wait()
+		ret := d.cmd.Wait()
 		d.log.Logf("[%s] exiting daemon", d.id)
+		// If we send before logging, we might accidentally log _after_ the test is done.
+		// As of Go 1.12, this incurs a panic instead of silently being dropped.
+		wait <- ret
 		close(wait)
 	}()
 
