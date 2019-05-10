@@ -338,8 +338,12 @@ func (r *Runtime) loadTasks(ctx context.Context, ns string) ([]*Task, error) {
 		ctx = namespaces.WithNamespace(ctx, ns)
 		pid, _ := runc.ReadPidFile(filepath.Join(bundle.path, proc.InitPidFile))
 		s, err := bundle.NewShimClient(ctx, ns, ShimConnect(r.config, func() {
-			err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid)
+			_, err := r.tasks.Get(ctx, id)
 			if err != nil {
+				// Task was never started or was already successfully deleted
+				return
+			}
+			if err := r.cleanupAfterDeadShim(ctx, bundle, ns, id, pid); err != nil {
 				log.G(ctx).WithError(err).WithField("bundle", bundle.path).
 					Error("cleaning up after dead shim")
 			}
