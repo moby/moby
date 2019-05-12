@@ -307,6 +307,19 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 			s.Hostname = ""
 		}
 
+		// cgroup
+		if !c.HostConfig.CgroupnsMode.IsEmpty() {
+			cgroupNsMode := c.HostConfig.CgroupnsMode
+			if !cgroupNsMode.Valid() {
+				return fmt.Errorf("invalid cgroup namespace mode: %v", cgroupNsMode)
+			}
+
+			if cgroupNsMode.IsPrivate() && !c.HostConfig.Privileged {
+				nsCgroup := specs.LinuxNamespace{Type: "cgroup"}
+				setNamespace(s, nsCgroup)
+			}
+		}
+
 		return nil
 	}
 }

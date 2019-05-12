@@ -10,6 +10,29 @@ import (
 	"github.com/docker/go-units"
 )
 
+// CgroupnsMode represents the cgroup namespace mode of the container
+type CgroupnsMode string
+
+// IsPrivate indicates whether the container uses its own private cgroup namespace
+func (c CgroupnsMode) IsPrivate() bool {
+	return c == "private"
+}
+
+// IsHost indicates whether the container shares the host's cgroup namespace
+func (c CgroupnsMode) IsHost() bool {
+	return c == "host"
+}
+
+// IsEmpty indicates whether the container cgroup namespace mode is unset
+func (c CgroupnsMode) IsEmpty() bool {
+	return c == ""
+}
+
+// Valid indicates whether the cgroup namespace mode is valid
+func (c CgroupnsMode) Valid() bool {
+	return c.IsEmpty() || c.IsPrivate() || c.IsHost()
+}
+
 // Isolation represents the isolation technology of a container. The supported
 // values are platform specific
 type Isolation string
@@ -381,9 +404,10 @@ type HostConfig struct {
 	CapAdd          strslice.StrSlice // List of kernel capabilities to add to the container
 	CapDrop         strslice.StrSlice // List of kernel capabilities to remove from the container
 	Capabilities    []string          `json:"Capabilities"` // List of kernel capabilities to be available for container (this overrides the default set)
-	DNS             []string          `json:"Dns"`          // List of DNS server to lookup
-	DNSOptions      []string          `json:"DnsOptions"`   // List of DNSOption to look for
-	DNSSearch       []string          `json:"DnsSearch"`    // List of DNSSearch to look for
+	CgroupnsMode    CgroupnsMode      // Cgroup namespace mode to use for the container
+	DNS             []string          `json:"Dns"`        // List of DNS server to lookup
+	DNSOptions      []string          `json:"DnsOptions"` // List of DNSOption to look for
+	DNSSearch       []string          `json:"DnsSearch"`  // List of DNSSearch to look for
 	ExtraHosts      []string          // List of extra hosts
 	GroupAdd        []string          // List of additional groups that the container process will run as
 	IpcMode         IpcMode           // IPC namespace to use for the container

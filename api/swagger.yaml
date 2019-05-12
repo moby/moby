@@ -703,6 +703,19 @@ definitions:
             description: "A list of kernel capabilities to drop from the container. Conflicts with option 'Capabilities'"
             items:
               type: "string"
+          CgroupnsMode:
+            type: "string"
+            enum:
+              - "private"
+              - "host"
+            description: |
+                    cgroup namespace mode for the container. Possible values are:
+
+                    - `"private"`: the container runs in its own private cgroup namespace
+                    - `"host"`: use the host system's cgroup namespace
+
+                    If not specified, the daemon default is used, which can either be `"private"`
+                    or `"host"`, depending on daemon version, kernel support and configuration.
           Dns:
             type: "array"
             description: "A list of DNS servers for the container to use."
