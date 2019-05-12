@@ -927,32 +927,7 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 
 	ipamV4Conf = &libnetwork.IpamConf{AuxAddresses: make(map[string]string)}
 
-	nwList, nw6List, err := netutils.ElectInterfaceAddresses(bridgeName)
-	if err != nil {
-		return errors.Wrap(err, "list bridge addresses failed")
-	}
-
-	nw := nwList[0]
-	if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
-		_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
-		if err != nil {
-			return errors.Wrap(err, "parse CIDR failed")
-		}
-		// Iterate through in case there are multiple addresses for the bridge
-		for _, entry := range nwList {
-			if fCIDR.Contains(entry.IP) {
-				nw = entry
-				break
-			}
-		}
-	}
-
-	ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
-	hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
-	if hip.IsGlobalUnicast() {
-		ipamV4Conf.Gateway = nw.IP.String()
-	}
-
+	// Need first determine if bip is empty to avoid unnecessary errors about network overlaps
 	if config.BridgeConfig.IP != "" {
 		ipamV4Conf.PreferredPool = config.BridgeConfig.IP
 		ip, _, err := net.ParseCIDR(config.BridgeConfig.IP)
@@ -962,6 +937,38 @@ func initBridgeDriver(controller libnetwork.NetworkController, config *config.Co
 		ipamV4Conf.Gateway = ip.String()
 	} else if bridgeName == bridge.DefaultBridgeName && ipamV4Conf.PreferredPool != "" {
 		logrus.Infof("Default bridge (%s) is assigned with an IP address %s. Daemon option --bip can be used to set a preferred IP address", bridgeName, ipamV4Conf.PreferredPool)
+	}
+
+	nw6List := make([]*net.IPNet, 0)
+	nwList := make([]*net.IPNet, 0)
+	var err error
+	// There is no way to set ipv6 bip, so we need get predefined default networks again to retrieve ipv6 networks if necessary
+	if config.BridgeConfig.IP == "" || config.BridgeConfig.FixedCIDRv6 != "" {
+		nwList, nw6List, err = netutils.ElectInterfaceAddresses(bridgeName)
+		if err != nil {
+			return errors.Wrap(err, "list bridge addresses failed")
+		}
+
+		nw := nwList[0]
+		if len(nwList) > 1 && config.BridgeConfig.FixedCIDR != "" {
+			_, fCIDR, err := net.ParseCIDR(config.BridgeConfig.FixedCIDR)
+			if err != nil {
+				return errors.Wrap(err, "parse CIDR failed")
+			}
+			// Iterate through in case there are multiple addresses for the bridge
+			for _, entry := range nwList {
+				if fCIDR.Contains(entry.IP) {
+					nw = entry
+					break
+				}
+			}
+		}
+
+		ipamV4Conf.PreferredPool = lntypes.GetIPNetCanonical(nw).String()
+		hip, _ := lntypes.GetHostPartIP(nw.IP, nw.Mask)
+		if hip.IsGlobalUnicast() {
+			ipamV4Conf.Gateway = nw.IP.String()
+		}
 	}
 
 	if config.BridgeConfig.FixedCIDR != "" {
