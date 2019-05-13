@@ -410,9 +410,6 @@ func parseCacheOptions(opt SolveOpt) (*cacheOptions, error) {
 			if csDir == "" {
 				return nil, errors.New("local cache importer requires src")
 			}
-			if err := os.MkdirAll(csDir, 0755); err != nil {
-				return nil, err
-			}
 			cs, err := contentlocal.NewStore(csDir)
 			if err != nil {
 				return nil, err
