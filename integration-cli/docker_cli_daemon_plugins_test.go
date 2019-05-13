@@ -1,13 +1,11 @@
-// +build linux
-
 package main
 
 import (
+	"syscall"
 	"strings"
 
 	"github.com/docker/docker/pkg/mount"
 	"github.com/go-check/check"
-	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
@@ -143,7 +141,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 	}
 
 	for {
-		if err := unix.Kill(s.d.Pid(), 0); err == unix.ESRCH {
+		if err := s.d.Kill(); err == syscall.ESRCH {
 			break
 		}
 	}
