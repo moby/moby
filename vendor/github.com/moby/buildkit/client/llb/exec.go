@@ -177,7 +177,7 @@ func (e *ExecOp) Marshal(c *Constraints) (digest.Digest, []byte, *pb.OpMetadata,
 		addCap(&e.constraints, pb.CapExecMetaNetwork)
 	}
 
-	if e.meta.Security != SecurityModeInsecure {
+	if e.meta.Security != SecurityModeSandbox {
 		addCap(&e.constraints, pb.CapExecMetaSecurity)
 	}
 
