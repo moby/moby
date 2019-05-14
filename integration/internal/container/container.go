@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -23,10 +24,14 @@ type TestContainerConfig struct {
 // create creates a container with the specified options
 func create(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) (container.ContainerCreateCreatedBody, error) {
 	t.Helper()
+	cmd := []string{"top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "240"}
+	}
 	config := &TestContainerConfig{
 		Config: &container.Config{
 			Image: "busybox",
-			Cmd:   []string{"top"},
+			Cmd:   cmd,
 		},
 		HostConfig:       &container.HostConfig{},
 		NetworkingConfig: &network.NetworkingConfig{},
