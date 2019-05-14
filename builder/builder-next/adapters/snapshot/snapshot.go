@@ -74,6 +74,10 @@ func NewSnapshotter(opt Opt) (snapshot.SnapshotterBase, error) {
 	return s, nil
 }
 
+func (s *snapshotter) Name() string {
+	return "default"
+}
+
 func (s *snapshotter) IdentityMapping() *idtools.IdentityMapping {
 	return nil
 }

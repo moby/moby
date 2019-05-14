@@ -20,7 +20,9 @@ import (
 	"context"
 
 	"github.com/containerd/containerd/containers"
+	"github.com/containerd/containerd/defaults"
 	"github.com/containerd/containerd/errdefs"
+	"github.com/containerd/containerd/namespaces"
 	"github.com/containerd/containerd/oci"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/snapshots"
@@ -107,7 +109,7 @@ func WithSnapshotter(name string) NewContainerOpts {
 // WithSnapshot uses an existing root filesystem for the container
 func WithSnapshot(id string) NewContainerOpts {
 	return func(ctx context.Context, client *Client, c *containers.Container) error {
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		// check that the snapshot exists, if not, fail on creation
 		if _, err := client.SnapshotService(c.Snapshotter).Mounts(ctx, id); err != nil {
 			return err
@@ -125,7 +127,7 @@ func WithNewSnapshot(id string, i Image, opts ...snapshots.Opt) NewContainerOpts
 		if err != nil {
 			return err
 		}
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		parent := identity.ChainID(diffIDs).String()
 		if _, err := client.SnapshotService(c.Snapshotter).Prepare(ctx, id, parent, opts...); err != nil {
 			return err
@@ -155,7 +157,7 @@ func WithNewSnapshotView(id string, i Image, opts ...snapshots.Opt) NewContainer
 		if err != nil {
 			return err
 		}
-		setSnapshotterIfEmpty(c)
+		setSnapshotterIfEmpty(ctx, client, c)
 		parent := identity.ChainID(diffIDs).String()
 		if _, err := client.SnapshotService(c.Snapshotter).View(ctx, id, parent, opts...); err != nil {
 			return err
@@ -166,9 +168,18 @@ func WithNewSnapshotView(id string, i Image, opts ...snapshots.Opt) NewContainer
 	}
 }
 
-func setSnapshotterIfEmpty(c *containers.Container) {
+func setSnapshotterIfEmpty(ctx context.Context, client *Client, c *containers.Container) {
 	if c.Snapshotter == "" {
-		c.Snapshotter = DefaultSnapshotter
+		defaultSnapshotter := DefaultSnapshotter
+		namespaceService := client.NamespaceService()
+		if ns, err := namespaces.NamespaceRequired(ctx); err == nil {
+			if labels, err := namespaceService.Labels(ctx, ns); err == nil {
+				if snapshotLabel, ok := labels[defaults.DefaultSnapshotterNSLabel]; ok {
+					defaultSnapshotter = snapshotLabel
+				}
+			}
+		}
+		c.Snapshotter = defaultSnapshotter
 	}
 }
 

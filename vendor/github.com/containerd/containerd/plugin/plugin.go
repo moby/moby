@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"sync"
 
+	"github.com/containerd/ttrpc"
 	"github.com/pkg/errors"
 	"google.golang.org/grpc"
 )
@@ -121,6 +122,16 @@ func (r *Registration) URI() string {
 // Service allows GRPC services to be registered with the underlying server
 type Service interface {
 	Register(*grpc.Server) error
+}
+
+// TTRPCService allows TTRPC services to be registered with the underlying server
+type TTRPCService interface {
+	RegisterTTRPC(*ttrpc.Server) error
+}
+
+// TCPService allows GRPC services to be registered with the underlying tcp server
+type TCPService interface {
+	RegisterTCP(*grpc.Server) error
 }
 
 var register = struct {

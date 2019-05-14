@@ -158,7 +158,7 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 		rootFS = workerRef.ImmutableRef
 	}
 
-	lbf, err := newLLBBridgeForwarder(ctx, llbBridge, gf.workers)
+	lbf, ctx, err := newLLBBridgeForwarder(ctx, llbBridge, gf.workers)
 	defer lbf.conn.Close()
 	if err != nil {
 		return nil, err
@@ -210,6 +210,9 @@ func (gf *gatewayFrontend) Solve(ctx context.Context, llbBridge frontend.Fronten
 	err = llbBridge.Exec(ctx, meta, rootFS, lbf.Stdin, lbf.Stdout, os.Stderr)
 
 	if err != nil {
+		if errors.Cause(err) == context.Canceled && lbf.isErrServerClosed {
+			err = errors.Errorf("frontend grpc server closed unexpectedly")
+		}
 		// An existing error (set via Return rpc) takes
 		// precedence over this error, which in turn takes
 		// precedence over a success reported via Return.
@@ -294,15 +297,24 @@ func NewBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridg
 	return lbf
 }
 
-func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, error) {
+func newLLBBridgeForwarder(ctx context.Context, llbBridge frontend.FrontendLLBBridge, workers frontend.WorkerInfos) (*llbBridgeForwarder, context.Context, error) {
+	ctx, cancel := context.WithCancel(ctx)
 	lbf := NewBridgeForwarder(ctx, llbBridge, workers)
 	server := grpc.NewServer()
 	grpc_health_v1.RegisterHealthServer(server, health.NewServer())
 	pb.RegisterLLBBridgeServer(server, lbf)
 
-	go serve(ctx, server, lbf.conn)
+	go func() {
+		serve(ctx, server, lbf.conn)
+		select {
+		case <-ctx.Done():
+		default:
+			lbf.isErrServerClosed = true
+		}
+		cancel()
+	}()
 
-	return lbf, nil
+	return lbf, ctx, nil
 }
 
 type pipe struct {
@@ -372,11 +384,12 @@ type llbBridgeForwarder struct {
 	// lastRef      solver.CachedResult
 	// lastRefs     map[string]solver.CachedResult
 	// err          error
-	doneCh       chan struct{} // closed when result or err become valid through a call to a Return
-	result       *frontend.Result
-	err          error
-	exporterAttr map[string][]byte
-	workers      frontend.WorkerInfos
+	doneCh            chan struct{} // closed when result or err become valid through a call to a Return
+	result            *frontend.Result
+	err               error
+	exporterAttr      map[string][]byte
+	workers           frontend.WorkerInfos
+	isErrServerClosed bool
 	*pipe
 }
 

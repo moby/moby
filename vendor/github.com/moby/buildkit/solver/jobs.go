@@ -404,7 +404,9 @@ func (jl *Solver) Get(id string) (*Job, error) {
 
 	go func() {
 		<-ctx.Done()
+		jl.mu.Lock()
 		jl.updateCond.Broadcast()
+		jl.mu.Unlock()
 	}()
 
 	jl.mu.RLock()
