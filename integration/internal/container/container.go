@@ -2,6 +2,7 @@ package container
 
 import (
 	"context"
+	"runtime"
 	"testing"
 
 	"github.com/docker/docker/api/types"
@@ -24,10 +25,14 @@ type TestContainerConfig struct {
 // nolint: golint
 func create(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) (container.ContainerCreateCreatedBody, error) { // nolint: golint
 	t.Helper()
+	cmd := []string{"top"}
+	if runtime.GOOS == "windows" {
+		cmd = []string{"sleep", "240"}
+	}
 	config := &TestContainerConfig{
 		Config: &container.Config{
 			Image: "busybox",
-			Cmd:   []string{"top"},
+			Cmd:   cmd,
 		},
 		HostConfig:       &container.HostConfig{},
 		NetworkingConfig: &network.NetworkingConfig{},
