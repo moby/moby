@@ -95,6 +95,23 @@ func GenerateSpec(ctx context.Context, meta executor.Meta, mounts []executor.Mou
 		Options:     []string{"ro", "nosuid", "noexec", "nodev"},
 	})
 
+	if processMode == NoProcessSandbox {
+		var maskedPaths []string
+		for _, s := range s.Linux.MaskedPaths {
+			if !hasPrefix(s, "/proc") {
+				maskedPaths = append(maskedPaths, s)
+			}
+		}
+		s.Linux.MaskedPaths = maskedPaths
+		var readonlyPaths []string
+		for _, s := range s.Linux.ReadonlyPaths {
+			if !hasPrefix(s, "/proc") {
+				readonlyPaths = append(readonlyPaths, s)
+			}
+		}
+		s.Linux.ReadonlyPaths = readonlyPaths
+	}
+
 	if meta.SecurityMode == pb.SecurityMode_INSECURE {
 		//make sysfs rw mount for insecure mode.
 		for _, m := range s.Mounts {
