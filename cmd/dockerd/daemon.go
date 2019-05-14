@@ -103,6 +103,12 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 		if cli.Config.IsRootless() {
 			logrus.Warn("Running in rootless mode. Cgroups, AppArmor, and CRIU are disabled.")
 		}
+		if rootless.RunningWithRootlessKit() {
+			logrus.Info("Running with RootlessKit integration")
+			if !cli.Config.IsRootless() {
+				return fmt.Errorf("rootless mode needs to be enabled for running with RootlessKit")
+			}
+		}
 	} else {
 		if cli.Config.IsRootless() {
 			return fmt.Errorf("rootless mode is supported only when running in experimental mode")
@@ -591,7 +597,7 @@ func loadListeners(cli *DaemonCli, serverConfig *apiserver.Config) ([]string, er
 	var hosts []string
 	for i := 0; i < len(cli.Config.Hosts); i++ {
 		var err error
-		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, rootless.RunningWithNonRootUsername(), cli.Config.Hosts[i]); err != nil {
+		if cli.Config.Hosts[i], err = dopts.ParseHost(cli.Config.TLS, honorXDG, cli.Config.Hosts[i]); err != nil {
 			return nil, errors.Wrapf(err, "error parsing -H %s", cli.Config.Hosts[i])
 		}
 
@@ -668,9 +674,9 @@ func validateAuthzPlugins(requestedPlugins []string, pg plugingetter.PluginGette
 	return nil
 }
 
-func systemContainerdRunning(isRootless bool) (string, bool, error) {
+func systemContainerdRunning(honorXDG bool) (string, bool, error) {
 	addr := containerddefaults.DefaultAddress
-	if isRootless {
+	if honorXDG {
 		runtimeDir, err := homedir.GetRuntimeDir()
 		if err != nil {
 			return "", false, err
