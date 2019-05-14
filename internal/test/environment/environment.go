@@ -75,10 +75,13 @@ func getPlatformDefaults(info types.Info, osType string) PlatformDefaults {
 		}
 	case "windows":
 		baseImage := "microsoft/windowsservercore"
-		if override := os.Getenv("WINDOWS_BASE_IMAGE"); override != "" {
-			baseImage = override
-			fmt.Println("INFO: Windows Base image is ", baseImage)
+		if overrideBaseImage := os.Getenv("WINDOWS_BASE_IMAGE"); overrideBaseImage != "" {
+			baseImage = overrideBaseImage
+			if overrideBaseImageTag := os.Getenv("WINDOWS_BASE_IMAGE_TAG"); overrideBaseImageTag != "" {
+				baseImage = baseImage + ":" + overrideBaseImageTag
+			}
 		}
+		fmt.Println("INFO: Windows Base image is ", baseImage)
 		return PlatformDefaults{
 			BaseImage:            baseImage,
 			VolumesConfigPath:    filepath.FromSlash(volumesPath),
