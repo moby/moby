@@ -26,6 +26,10 @@ func TestVolumesCreateAndList(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name()
+	// Windows file system is case insensitive
+	if testEnv.OSType == "windows" {
+		name = strings.ToLower(name)
+	}
 	vol, err := client.VolumeCreate(ctx, volumetypes.VolumeCreateBody{
 		Name: name,
 	})
