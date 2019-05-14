@@ -170,6 +170,9 @@ func (i *ImageService) pullForBuilder(ctx context.Context, name string, authConf
 func (i *ImageService) GetImageAndReleasableLayer(ctx context.Context, refOrID string, opts backend.GetImageAndLayerOptions) (builder.Image, builder.ROLayer, error) {
 	if refOrID == "" { // ie FROM scratch
 		os := runtime.GOOS
+		if runtime.GOOS == "windows" {
+			os = "linux"
+		}
 		if opts.Platform != nil {
 			os = opts.Platform.OS
 		}
