@@ -462,7 +462,7 @@ func ConvertPortBindings(portBindings []types.PortBinding) ([]json.RawMessage, e
 			return nil, fmt.Errorf("Windows does not support more than one host port in NAT settings")
 		}
 
-		if len(elem.HostIP) != 0 {
+		if len(elem.HostIP) != 0 && !elem.HostIP.IsUnspecified() {
 			return nil, fmt.Errorf("Windows does not support host IP addresses in NAT settings")
 		}
 
