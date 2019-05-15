@@ -75,7 +75,7 @@ if [ -z $_DOCKERD_ROOTLESS_CHILD ]; then
 	#         namespace from being unexpectedly unmounted when `/etc/resolv.conf` is recreated on the host
 	#         (by either systemd-networkd or NetworkManager)
 	# * /run: copy-up is required so that we can create /run/docker (hardcoded for plugins) in our namespace
-	$rootlesskit \
+	exec $rootlesskit \
 		--net=$net --mtu=$mtu \
 		--disable-host-loopback --port-driver=builtin \
 		--copy-up=/etc --copy-up=/run \
@@ -86,5 +86,5 @@ else
 	# remove the symlinks for the existing files in the parent namespace if any,
 	# so that we can create our own files in our mount namespace.
 	rm -f /run/docker /run/xtables.lock
-	dockerd $@
+	exec dockerd $@
 fi
