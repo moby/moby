@@ -533,6 +533,7 @@ func (r *resolver) ServeDNS(w dns.ResponseWriter, query *dns.Msg) {
 			}
 			if resp.Answer == nil || answers == 0 {
 				logrus.Debugf("[resolver] external DNS %s:%s did not return any %s records for %q", proto, extDNS.IPStr, queryType, name)
+				continue
 			}
 			resp.Compress = true
 			break
