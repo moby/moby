@@ -167,6 +167,10 @@ func fifoFloat(array []float64, value float64, size int) []float64 {
 }
 
 func lowestOf(array []uint64) (lowest uint64) {
+	if len(array) <= 0 {
+		lowest = 1
+		return
+	}
 	lowest = array[0]
 
 	for _, value := range array {
@@ -178,6 +182,10 @@ func lowestOf(array []uint64) (lowest uint64) {
 }
 
 func highestOf(array []uint64) (highest int) {
+	if len(array) <= 0 {
+		highest = 0
+		return
+	}
 	best := array[0]
 
 	for _, value := range array {
@@ -228,31 +236,36 @@ func (ar *AutoRangeWatcher) UpdateResources() {
 		// error probability. It's generaly a subtle ajustement.
 		// The docker daemon does not permit memory limit lesser than 6mb
 
-		update.Resources.Memory = int64((sugMax + highestOf(ar.Obs.TimeSerieRAM.highest)) / 2)
+		var highest int
+		var lowest uint64
+		if ar.Obs != nil {
+			lowest = lowestOf(ar.Obs.TimeSerieRAM.lowest)
+			highest = highestOf(ar.Obs.TimeSerieRAM.highest)
+		} else {
+			lowest = uint64(sugMin)
+			highest = sugMax
+		}
+
+		if threshold < 10 {
+			threshold = 10
+		}
+
+		update.Resources.Memory = int64(sugMax + percent(highest)*(threshold*2))
 		if update.Resources.Memory < minAllowedMemoryLimit {
 			update.Resources.Memory = minAllowedMemoryLimit + miB
 		}
 
-		// Memoryswap should always be greater than memory limit, but can be illimited (-1)
-		if int64(sugMax*threshold) <= update.Resources.Memory {
-			update.Resources.MemorySwap = update.Resources.Memory + 1
-		} else {
-			update.Resources.MemorySwap = int64(sugMax + (percent(sugMax) * threshold))
-		}
+		update.Resources.MemorySwap = -1
 
 		// Here we do pretty much the same as above, to further refine the limit and better fit
 		// the observed consumption
-		update.Resources.MemoryReservation = int64((uint64(sugMin) + lowestOf(ar.Obs.TimeSerieRAM.lowest)))
-		if update.Resources.MemoryReservation/2 < minAllowedMemoryLimit {
+		update.Resources.MemoryReservation = int64((uint64(sugMin) + lowest)) / 2
+		if update.Resources.MemoryReservation < minAllowedMemoryLimit {
 			update.Resources.MemoryReservation = minAllowedMemoryLimit + 5*miB
 		}
 
 		if update.Resources.MemoryReservation > update.Resources.Memory {
 			update.Resources.MemoryReservation, update.Resources.Memory = update.Resources.Memory, update.Resources.MemoryReservation
-		}
-
-		if update.Resources.MemorySwap < update.Resources.Memory {
-			update.Resources.MemorySwap = -1
 		}
 
 		ar.Config["memoryAR"]["sugmin"] = strconv.Itoa(int(update.Resources.MemoryReservation))
@@ -269,8 +282,6 @@ func (ar *AutoRangeWatcher) UpdateResources() {
 
 	}
 
-	ar.Obs = nil
-
 	// Updating is done using the docker client API
 	cli, err := client.NewEnvClient()
 	if err != nil {
@@ -281,13 +292,14 @@ func (ar *AutoRangeWatcher) UpdateResources() {
 	timer := time.Second * 30
 	ticker := time.NewTicker(timer)
 	count := 10
+	baseCount := count
 	for ; true; <-ticker.C {
 		_, err = cli.ContainerUpdate(ar.Ctx, ar.Target.ID, update)
 		if err == nil {
 			logrus.Infof("container: %s (service: %s) now has limits applicated\n", ar.Target.Name, ar.ServiceName)
 			break
 		} else if count == 0 {
-			logrus.Errorf("failed to update container with new limits after %d attempt", count)
+			logrus.Errorf("failed to update container with new limits after %d attempt", baseCount)
 			break
 		} else {
 			logrus.Errorf("%v\nretrying in %v..", err, timer)
@@ -344,7 +356,7 @@ func (ar *AutoRangeWatcher) baseValueMemory() (min, max, threshold int) {
 
 		threshold, _ = strconv.Atoi(ar.Config["memory"]["threshold"])
 		if threshold == 0 {
-			threshold = 10
+			threshold = 30
 		}
 		ar.Config["memoryAR"] = make(map[string]string)
 	} else {
@@ -426,7 +438,7 @@ func (ar *AutoRangeWatcher) Watch() {
 	time.Sleep(ar.TickRate)
 	ar.started = false
 
-	logrus.Infof("container: %s (service: %s) started with activated autorange\n", ar.Target.Name, ar.ServiceName)
+	logrus.Infof("container: %s (service: %s) started with activated autorange", ar.Target.Name, ar.ServiceName)
 	for range ticker.C {
 		select {
 		case in := <-ar.Input:
@@ -439,7 +451,7 @@ func (ar *AutoRangeWatcher) Watch() {
 		// Healthchecking is required before every loops to ensure data integrity
 		// We don't want false prediction because the container was offline
 		if ar.isInBadState() {
-			logrus.Infof("container: %s (service: %s) exited, removing autorange\n", ar.Target.Name, ar.ServiceName)
+			logrus.Infof("container: %s (service: %s) exited, removing autorange", ar.Target.Name, ar.ServiceName)
 			return
 		}
 
@@ -494,13 +506,15 @@ func (ar *AutoRangeWatcher) Watch() {
 					// we can assume that the optimal limits can be calculated
 					medAmplitude, lenSerie := averrage(ar.Obs.TimeSerieRAM.amplitude), len(ar.Obs.TimeSerieRAM.PredictedValues.min)
 					ar.Obs.TimeSerieRAM.PredictedValues.threshold = fifoUint(ar.Obs.TimeSerieRAM.PredictedValues.threshold, medAmplitude, ar.Limit)
-					threshold = int(averrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold))
+					threshold = int(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.threshold, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.threshold, ar.Obs.TimeSerieRAM.PredictedValues.threshold)))
 
 					ar.Obs.TimeSerieRAM.MemoryPrediction = checkMemoryEndCondition(lenSerie, ar.Limit, medAmplitude)
 
 					// Display result
-					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest)))
-					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest)))
+					avMin := weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.min, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.min, ar.Obs.TimeSerieRAM.lowest))
+					avMax := weightedAverrage(ar.Obs.TimeSerieRAM.PredictedValues.max, generateMemoryWeight(ar.Obs.TimeSerieRAM.PredictedValues.max, ar.Obs.TimeSerieRAM.highest))
+					ar.Config["memoryAR"]["nmin"] = strconv.Itoa(avMin + percent(avMin)*threshold)
+					ar.Config["memoryAR"]["nmax"] = strconv.Itoa(avMax + percent(avMax)*threshold)
 					ar.Config["memoryAR"]["opti"] = strconv.Itoa(threshold)
 					ar.Config["memoryAR"]["usage"] = strconv.Itoa(int(input.Stats.MemoryStats.Usage))
 					continue
@@ -529,7 +543,6 @@ func (ar *AutoRangeWatcher) Watch() {
 
 					ar.Obs.TimeSerieCPU.PredictedValues.percent = fifoFloat(ar.Obs.TimeSerieCPU.PredictedValues.percent, avPercent, ar.Limit)
 					ar.Obs.TimeSerieCPU.PredictedValues.usage = fifoFloat(ar.Obs.TimeSerieCPU.PredictedValues.usage, avUsage, ar.Limit)
-
 					if len(ar.Obs.TimeSerieCPU.PredictedValues.percent) >= ar.Limit {
 						cBestPercent := averrageFloat(ar.Obs.TimeSerieCPU.PredictedValues.percent)
 						cBestUsage := averrageFloat(ar.Obs.TimeSerieCPU.PredictedValues.usage)
@@ -537,7 +550,6 @@ func (ar *AutoRangeWatcher) Watch() {
 						// Display
 						ar.Config["cpuAR"]["percentOpti"] = strconv.FormatFloat(cBestPercent, 'f', 3, 64)
 						ar.Config["cpuAR"]["usageOpti"] = strconv.FormatFloat(cBestUsage, 'f', 0, 64)
-
 						ar.Obs.TimeSerieCPU.CPUPrediction = true
 
 					}
@@ -592,17 +604,21 @@ func weightedAverrage(array []uint64, weight []float32) (averrage int) {
 	return
 }
 
-func averrageFloat(array []float64) (total float64) {
+func averrageFloat(array []float64) float64 {
 	arrayLen := len(array)
 	if arrayLen <= 0 {
 		return 0
 	}
 
+	var total float64 = 0
 	for _, number := range array {
+		if math.IsNaN(number) {
+			arrayLen--
+			continue
+		}
 		total += number
 	}
-	total = total / float64(arrayLen)
-	return
+	return total / float64(arrayLen)
 }
 
 func averrage(array []uint64) (total uint64) {

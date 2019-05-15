@@ -61,7 +61,12 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 
 	// AutoRange initialisation
 	if autoRange, serviceName, ok := getAutoRange(ctx, container.ID); ok {
-		if _, exist := daemon.statsCollector.AutoRangeWatcher[container.ID]; !exist {
+		if _, exist := daemon.statsCollector.AutoRangeWatcher[serviceName]; exist {
+			if daemon.statsCollector.AutoRangeWatcher[serviceName].Target != container {
+				daemon.statsCollector.AutoRangeWatcher[serviceName].Target = container
+				daemon.statsCollector.AutoRangeWatcher[serviceName].UpdateResources()
+			}
+		} else if _, exist := daemon.statsCollector.AutoRangeWatcher[container.ID]; !exist {
 			limit := 10 // Size limit of timeserie
 			daemon.statsCollector.AutoRangeWatcher[container.ID] = &stats.AutoRangeWatcher{
 				Config:      autoRange,
@@ -76,7 +81,11 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 				Limit:       limit,
 				Finished:    false,
 			}
-			go daemon.statsCollector.AutoRangeWatcher[container.ID].Watch()
+			go func() {
+				daemon.statsCollector.AutoRangeWatcher[container.ID].Watch()
+				daemon.statsCollector.AutoRangeWatcher[serviceName] = daemon.statsCollector.AutoRangeWatcher[container.ID]
+				delete(daemon.statsCollector.AutoRangeWatcher, container.ID)
+			}()
 		} else if !daemon.statsCollector.AutoRangeWatcher[container.ID].Finished {
 			daemon.statsCollector.AutoRangeWatcher[container.ID].SetNewContext(ctx)
 		}
