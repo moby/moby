@@ -3369,6 +3369,27 @@ definitions:
             format: "dateTime"
           Message:
             type: "string"
+      ServiceStatus:
+        description: |
+          The status of the service's tasks. Provided only when requested as
+          part of a ServiceList operation.
+        type: "object"
+        properties:
+          RunningTasks:
+            description: "The number of tasks for the service currently in the Running state"
+            type: "integer"
+            format: "uint64"
+            example: 7
+          DesiredTasks:
+            description: |
+              The number of tasks for the service desired to be running.
+              For replicated services, this is the replica count from the
+              service spec. For global services, this is computed by taking
+              count of all tasks for the service with a Desired State other
+              than Shutdown.
+            type: "integer"
+            format: "uint64"
+            example: 10
     example:
       ID: "9mnpnzenvg8p8tdbtq4wvbkcz"
       Version:
@@ -9316,6 +9337,10 @@ paths:
             - `label=<service label>`
             - `mode=["replicated"|"global"]`
             - `name=<service name>`
+        - name: "status"
+          in: "query"
+          type: "boolean"
+          description: "Include service status, with count of running and desired tasks"
       tags: ["Service"]
   /services/create:
     post:
