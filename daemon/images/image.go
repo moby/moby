@@ -108,7 +108,7 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 		}
 		return imgs[0].Target, nil
 	}
-	img, err := is.Get(ctx, namedRef.String())
+	img, err := is.Get(ctx, reference.TagNameOnly(namedRef).String())
 	if err != nil {
 		// TODO(containerd): error translation can use common function
 		if !cerrdefs.IsNotFound(err) {
