@@ -737,7 +737,7 @@ Try {
     if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_UNIT_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running unit tests at $(Get-Date)..."
-            $ErrorActionPreference = "SilentlyContinue"
+            $ErrorActionPreference = "Continue"
             $Duration=$(Measure-Command {docker run -e DOCKER_GITCOMMIT=$COMMITHASH$CommitUnsupported docker hack\make.ps1 -TestUnit | Out-Host })
             $ErrorActionPreference = "Stop"
             if (-not($LastExitCode -eq 0)) {
@@ -752,7 +752,7 @@ Try {
     # Add the Windows busybox image. Needed for WCOW integration tests
     if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
-            $ErrorActionPreference = "SilentlyContinue"
+            $ErrorActionPreference = "Continue"
             # Build it regardless while switching between nanoserver and windowsservercore
             #$bbCount = $(& "$env:TEMP\binary\docker-$COMMITHASH" "-H=$($DASHH_CUT)" images | Select-String "busybox" | Measure-Object -line).Lines
             #$ErrorActionPreference = "Stop"
@@ -761,7 +761,7 @@ Try {
             #}
             #if ($bbCount -eq 0) {
                 Write-Host -ForegroundColor Green "INFO: Building busybox"
-                $ErrorActionPreference = "SilentlyContinue"
+                $ErrorActionPreference = "Continue"
     
                 # This is a temporary hack for nanoserver
                 if ($env:WINDOWS_BASE_IMAGE -ne "microsoft/windowsservercore") {
@@ -793,7 +793,7 @@ Try {
     if (($null -eq $env:LCOW_MODE) -and ($null -eq $env:LCOW_BASIC_MODE)) {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running integration tests at $(Get-Date)..."
-            $ErrorActionPreference = "SilentlyContinue"
+            $ErrorActionPreference = "Continue"
     
             # Location of the daemon under test.
             $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
@@ -847,7 +847,7 @@ Try {
         if ($null -eq $env:SKIP_INTEGRATION_TESTS) {
             Write-Host -ForegroundColor Cyan "INFO: Running LCOW tests at $(Get-Date)..."
 
-            $ErrorActionPreference = "SilentlyContinue"
+            $ErrorActionPreference = "Continue"
     
             # Location of the daemon under test.
             $env:OrigDOCKER_HOST="$env:DOCKER_HOST"
