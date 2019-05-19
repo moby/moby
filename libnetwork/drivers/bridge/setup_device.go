@@ -35,18 +35,17 @@ func setupDevice(config *networkConfiguration, i *bridgeInterface) error {
 		setMac = kv.Kernel > 3 || (kv.Kernel == 3 && kv.Major >= 3)
 	}
 
+	if setMac {
+		hwAddr := netutils.GenerateRandomMAC()
+		i.Link.Attrs().HardwareAddr = hwAddr
+		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
+	}
+
 	if err = i.nlh.LinkAdd(i.Link); err != nil {
 		logrus.Debugf("Failed to create bridge %s via netlink. Trying ioctl", config.BridgeName)
 		return ioctlCreateBridge(config.BridgeName, setMac)
 	}
 
-	if setMac {
-		hwAddr := netutils.GenerateRandomMAC()
-		if err = i.nlh.LinkSetHardwareAddr(i.Link, hwAddr); err != nil {
-			return fmt.Errorf("failed to set bridge mac-address %s : %s", hwAddr, err.Error())
-		}
-		logrus.Debugf("Setting bridge mac address to %s", hwAddr)
-	}
 	return err
 }
 
