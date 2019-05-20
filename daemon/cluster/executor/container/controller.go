@@ -369,20 +369,17 @@ func (r *controller) Shutdown(ctx context.Context) error {
 	}
 
 	if err := r.adapter.shutdown(ctx); err != nil {
-		if isUnknownContainer(err) || isStoppedContainer(err) {
-			return nil
+		if !(isUnknownContainer(err) || isStoppedContainer(err)) {
+			return err
 		}
-
-		return err
 	}
 
 	// Try removing networks referenced in this task in case this
 	// task is the last one referencing it
 	if err := r.adapter.removeNetworks(ctx); err != nil {
-		if isUnknownContainer(err) {
-			return nil
+		if !isUnknownContainer(err) {
+			return err
 		}
-		return err
 	}
 
 	return nil
