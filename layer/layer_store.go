@@ -10,6 +10,7 @@ import (
 	"github.com/docker/distribution"
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/idtools"
+	"github.com/docker/docker/pkg/locker"
 	"github.com/docker/docker/pkg/plugingetter"
 	"github.com/docker/docker/pkg/stringid"
 	"github.com/docker/docker/pkg/system"
@@ -36,7 +37,11 @@ type layerStore struct {
 
 	mounts map[string]*mountedLayer
 	mountL sync.Mutex
-	os     string
+
+	// protect *RWLayer() methods from operating on the same name/id
+	locker *locker.Locker
+
+	os string
 }
 
 // StoreOptions are the options used to create a new Store instance
@@ -92,6 +97,7 @@ func newStoreFromGraphDriver(root string, driver graphdriver.Driver, os string) 
 		driver:      driver,
 		layerMap:    map[ChainID]*roLayer{},
 		mounts:      map[string]*mountedLayer{},
+		locker:      locker.New(),
 		useTarSplit: !caps.ReproducesExactDiffs,
 		os:          os,
 	}
@@ -191,7 +197,7 @@ func (ls *layerStore) loadLayer(layer ChainID) (*roLayer, error) {
 func (ls *layerStore) loadMount(mount string) error {
 	ls.mountL.Lock()
 	defer ls.mountL.Unlock()
-	if m := ls.mounts[mount]; m != nil {
+	if _, ok := ls.mounts[mount]; ok {
 		return nil
 	}
 
@@ -492,21 +498,15 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 		initFunc = opts.InitFunc
 	}
 
+	ls.locker.Lock(name)
+	defer ls.locker.Unlock(name)
+
 	ls.mountL.Lock()
-	if _, ok := ls.mounts[name]; ok {
-		ls.mountL.Unlock()
+	_, ok := ls.mounts[name]
+	ls.mountL.Unlock()
+	if ok {
 		return nil, ErrMountNameConflict
 	}
-	// Avoid name collision by temporary assigning nil
-	ls.mounts[name] = nil
-	ls.mountL.Unlock()
-	defer func() {
-		if err != nil {
-			ls.mountL.Lock()
-			delete(ls.mounts, name)
-			ls.mountL.Unlock()
-		}
-	}()
 
 	var pid string
 	var p *roLayer
@@ -558,6 +558,9 @@ func (ls *layerStore) CreateRWLayer(name string, parent ChainID, opts *CreateRWL
 }
 
 func (ls *layerStore) GetRWLayer(id string) (RWLayer, error) {
+	ls.locker.Lock(id)
+	defer ls.locker.Unlock(id)
+
 	ls.mountL.Lock()
 	mount := ls.mounts[id]
 	ls.mountL.Unlock()
@@ -570,8 +573,9 @@ func (ls *layerStore) GetRWLayer(id string) (RWLayer, error) {
 
 func (ls *layerStore) GetMountID(id string) (string, error) {
 	ls.mountL.Lock()
-	defer ls.mountL.Unlock()
 	mount := ls.mounts[id]
+	ls.mountL.Unlock()
+
 	if mount == nil {
 		return "", ErrMountDoesNotExist
 	}
@@ -581,8 +585,12 @@ func (ls *layerStore) GetMountID(id string) (string, error) {
 }
 
 func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
+	name := l.Name()
+	ls.locker.Lock(name)
+	defer ls.locker.Unlock(name)
+
 	ls.mountL.Lock()
-	m := ls.mounts[l.Name()]
+	m := ls.mounts[name]
 	ls.mountL.Unlock()
 	if m == nil {
 		return []Metadata{}, nil
@@ -617,7 +625,7 @@ func (ls *layerStore) ReleaseRWLayer(l RWLayer) ([]Metadata, error) {
 	}
 
 	ls.mountL.Lock()
-	delete(ls.mounts, m.Name())
+	delete(ls.mounts, name)
 	ls.mountL.Unlock()
 
 	ls.layerL.Lock()
