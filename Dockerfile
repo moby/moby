@@ -64,7 +64,7 @@ RUN set -x \
 
 FROM base AS docker-py
 # Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
+ENV DOCKER_PY_COMMIT ead0bb9e08c13dd3d1712759491eee06bf5a5602
 RUN git clone https://github.com/docker/docker-py.git /build \
 	&& cd /build \
 	&& git checkout -q $DOCKER_PY_COMMIT
