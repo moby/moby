@@ -553,6 +553,12 @@ Try {
     # Set the GOROOT to be our copy of go from the image
     $env:GOROOT="$env:TEMP\go"
     Write-Host -ForegroundColor Green "INFO: $(go version)"
+
+    # Clear Go cache but make sure that build does not fail if that fails
+    Write-Host -ForegroundColor Green "INFO: Clearing Go cache"
+    $ErrorActionPreference = "Continue"
+    go clean -cache
+    $ErrorActionPreference = "Stop"
     
     # Work out the -H parameter for the daemon under test (DASHH_DUT) and client under test (DASHH_CUT)
     #$DASHH_DUT="npipe:////./pipe/$COMMITHASH" # Can't do remote named pipe
