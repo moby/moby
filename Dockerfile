@@ -73,17 +73,6 @@ RUN set -x \
 	   esac \
 	&& rm -rf "$GOPATH"
 
-
-
-FROM base AS docker-py
-# Get the "docker-py" source so we can run their integration tests
-ENV DOCKER_PY_COMMIT ac922192959870774ad8428344d9faa0555f7ba6
-RUN git clone https://github.com/docker/docker-py.git /build \
-	&& cd /build \
-	&& git checkout -q $DOCKER_PY_COMMIT
-
-
-
 FROM base AS swagger
 # Install go-swagger for validating swagger.yaml
 ENV GO_SWAGGER_COMMIT c28258affb0b6251755d92489ef685af8d4ff3eb
@@ -93,7 +82,6 @@ RUN set -x \
 	&& (cd "$GOPATH/src/github.com/go-swagger/go-swagger" && git checkout -q "$GO_SWAGGER_COMMIT") \
 	&& go build -o /build/swagger github.com/go-swagger/go-swagger/cmd/swagger \
 	&& rm -rf "$GOPATH"
-
 
 FROM base AS frozen-images
 RUN apt-get update && apt-get install -y jq ca-certificates --no-install-recommends
@@ -228,25 +216,12 @@ RUN apt-get update && apt-get install -y \
 	jq \
 	libcap2-bin \
 	libdevmapper-dev \
-# libffi-dev and libssl-dev appear to be required for compiling paramiko on s390x/ppc64le
-	libffi-dev \
-	libssl-dev \
 	libudev-dev \
 	libsystemd-dev \
 	binutils-mingw-w64 \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
-	python-backports.ssl-match-hostname \
-	python-dev \
-# python-cffi appears to be required for compiling paramiko on s390x/ppc64le
-	python-cffi \
-	python-mock \
-	python-pip \
-	python-requests \
-	python-setuptools \
-	python-websocket \
-	python-wheel \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
@@ -270,16 +245,6 @@ COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
 COPY --from=criu /build/ /usr/local/
-COPY --from=docker-py /build/ /docker-py
-# TODO: This is for the docker-py tests, which shouldn't really be needed for
-# this image, but currently CI is expecting to run this image. This should be
-# split out into a separate image, including all the `python-*` deps installed
-# above.
-RUN cd /docker-py \
-	&& pip install docker-pycreds==0.4.0 \
-	&& pip install paramiko==2.4.2 \
-	&& pip install yamllint==1.5.0 \
-	&& pip install -r test-requirements.txt
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e /vpnkit /usr/local/bin/vpnkit.x86_64
 
