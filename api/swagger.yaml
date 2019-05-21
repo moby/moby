@@ -6235,6 +6235,7 @@ paths:
           description: "The input stream must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz."
           schema:
             type: "string"
+            format: "binary"
       tags: ["Container"]
   /containers/prune:
     post:
