@@ -3,17 +3,24 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"io"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/errdefs"
+	"github.com/docker/docker/rootless"
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/chrootarchive"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/system"
 	"github.com/pkg/errors"
 )
+
+// Should we auto-pause during archive operations? We only do this for Linux
+// and if we are privileged (that is, not running in rootless mode -- because
+// pausing is only support for privileged Docker).
+var doPause = runtime.GOOS == "linux" && !rootless.RunningWithRootlessKit()
 
 // ErrExtractPointNotDirectory is used to convey that the operation to extract
 // a tar archive to a directory in a container has failed because the specified
@@ -152,6 +159,23 @@ func (daemon *Daemon) containerStatPath(container *container.Container, path str
 	container.Lock()
 	defer container.Unlock()
 
+	if doPause {
+		// If the container is restarting we loop until it's started again.
+		for container.Restarting {
+			container.Unlock()
+			container.Lock()
+		}
+		// We must pause the container (if it is running) before doing
+		// filesystem operations in order to prevent active filesystem-based
+		// attacks such as CVE-2018-15664.
+		if container.Running && !container.Paused {
+			if err := daemon.containerLockedPause(container); err != nil {
+				return nil, err
+			}
+			defer daemon.containerLockedUnpause(container)
+		}
+	}
+
 	if err = daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -188,6 +212,28 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 			container.Unlock()
 		}
 	}()
+
+	if doPause {
+		// If the container is restarting we loop until it's started again.
+		for container.Restarting {
+			container.Unlock()
+			container.Lock()
+		}
+		// We must pause the container (if it is running) before doing
+		// filesystem operations in order to prevent active filesystem-based
+		// attacks such as CVE-2018-15664.
+		if container.Running && !container.Paused {
+			if err := daemon.containerLockedPause(container); err != nil {
+				return nil, nil, err
+			}
+			defer func() {
+				if err != nil {
+					// unpause the container
+					daemon.containerLockedUnpause(container)
+				}
+			}()
+		}
+	}
 
 	if err = daemon.Mount(container); err != nil {
 		return nil, nil, err
@@ -247,6 +293,9 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 		err := data.Close()
 		container.DetachAndUnmount(daemon.LogVolumeEvent)
 		daemon.Unmount(container)
+		if doPause {
+			daemon.containerLockedUnpause(container)
+		}
 		container.Unlock()
 		return err
 	})
@@ -265,6 +314,23 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 func (daemon *Daemon) containerExtractToDir(container *container.Container, path string, copyUIDGID, noOverwriteDirNonDir bool, content io.Reader) (err error) {
 	container.Lock()
 	defer container.Unlock()
+
+	if doPause {
+		// If the container is restarting we loop until it's started again.
+		for container.Restarting {
+			container.Unlock()
+			container.Lock()
+		}
+		// We must pause the container (if it is running) before doing
+		// filesystem operations in order to prevent active filesystem-based
+		// attacks such as CVE-2018-15664.
+		if container.Running && !container.Paused {
+			if err := daemon.containerLockedPause(container); err != nil {
+				return err
+			}
+			defer daemon.containerLockedUnpause(container)
+		}
+	}
 
 	if err = daemon.Mount(container); err != nil {
 		return err
@@ -391,6 +457,28 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		}
 	}()
 
+	if doPause {
+		// If the container is restarting we loop until it's started again.
+		for container.Restarting {
+			container.Unlock()
+			container.Lock()
+		}
+		// We must pause the container (if it is running) before doing
+		// filesystem operations in order to prevent active filesystem-based
+		// attacks such as CVE-2018-15664.
+		if container.Running && !container.Paused {
+			if err := daemon.containerLockedPause(container); err != nil {
+				return nil, err
+			}
+			defer func() {
+				if err != nil {
+					// unpause the container
+					daemon.containerLockedUnpause(container)
+				}
+			}()
+		}
+	}
+
 	if err := daemon.Mount(container); err != nil {
 		return nil, err
 	}
@@ -441,6 +529,9 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		err := archive.Close()
 		container.DetachAndUnmount(daemon.LogVolumeEvent)
 		daemon.Unmount(container)
+		if doPause {
+			daemon.containerLockedUnpause(container)
+		}
 		container.Unlock()
 		return err
 	})

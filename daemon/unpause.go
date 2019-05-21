@@ -27,6 +27,10 @@ func (daemon *Daemon) containerUnpause(container *container.Container) error {
 		return fmt.Errorf("Container %s is not paused", container.ID)
 	}
 
+	return daemon.containerLockedUnpause(container)
+}
+
+func (daemon *Daemon) containerLockedUnpause(container *container.Container) error {
 	if err := daemon.containerd.Resume(context.Background(), container.ID); err != nil {
 		return fmt.Errorf("Cannot unpause container %s: %s", container.ID, err)
 	}

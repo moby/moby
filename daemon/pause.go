@@ -38,6 +38,10 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 		return errContainerIsRestarting(container.ID)
 	}
 
+	return daemon.containerLockedPause(container)
+}
+
+func (daemon *Daemon) containerLockedPause(container *container.Container) error {
 	if err := daemon.containerd.Pause(context.Background(), container.ID); err != nil {
 		return fmt.Errorf("Cannot pause container %s: %s", container.ID, err)
 	}
@@ -50,6 +54,5 @@ func (daemon *Daemon) containerPause(container *container.Container) error {
 	if err := container.CheckpointTo(daemon.containersReplica); err != nil {
 		logrus.WithError(err).Warn("could not save container to disk")
 	}
-
 	return nil
 }
