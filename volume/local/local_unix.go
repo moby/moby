@@ -97,11 +97,12 @@ func (v *localVolume) mount() error {
 		return fmt.Errorf("missing device in volume options")
 	}
 	mountOpts := v.opts.MountOpts
-	if v.opts.MountType == "nfs" {
+	switch v.opts.MountType {
+	case "nfs", "cifs":
 		if addrValue := getAddress(v.opts.MountOpts); addrValue != "" && net.ParseIP(addrValue).To4() == nil {
 			ipAddr, err := net.ResolveIPAddr("ip", addrValue)
 			if err != nil {
-				return errors.Wrapf(err, "error resolving passed in nfs address")
+				return errors.Wrapf(err, "error resolving passed in network volume address")
 			}
 			mountOpts = strings.Replace(mountOpts, "addr="+addrValue, "addr="+ipAddr.String(), 1)
 		}
