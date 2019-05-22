@@ -333,13 +333,7 @@ func shortDispatchID(state *dispatchState) string {
 //
 // BuildFromConfig is used by the /commit endpoint, with the changes
 // coming from the query parameter of the same name.
-//
-// TODO(containerd): Remove this context less function?
-// At very least, add context and remove os arg
-func BuildFromConfig(config *container.Config, changes []string, os string) (*container.Config, error) {
-	if !system.IsOSSupported(os) {
-		return nil, errdefs.InvalidParameter(system.ErrNotSupportedOperatingSystem)
-	}
+func BuildFromConfig(ctx context.Context, config *container.Config, changes []string) (*container.Config, error) {
 	if len(changes) == 0 {
 		return config, nil
 	}
@@ -349,7 +343,7 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		return nil, errdefs.InvalidParameter(err)
 	}
 
-	b, err := newBuilder(context.Background(), builderOptions{
+	b, err := newBuilder(ctx, builderOptions{
 		Options: &types.ImageBuildOptions{NoCache: true},
 	})
 	if err != nil {
@@ -376,18 +370,9 @@ func BuildFromConfig(config *container.Config, changes []string, os string) (*co
 		commands = append(commands, cmd)
 	}
 
-	img, err := b.docker.ResolveImage(context.Background(), config.Image)
-	if err != nil {
-		// TODO(containerd): Resolve and wrap this error better?
-		return nil, errdefs.InvalidParameter(err)
-	}
-
 	dispatchRequest := newDispatchRequest(b, dockerfile.EscapeToken, nil, NewBuildArgs(b.options.BuildArgs), newStagesBuildResults())
 	// We make mutations to the configuration, ensure we have a copy
 	dispatchRequest.state.runConfig = copyRunConfig(config)
-	dispatchRequest.state.image = &img
-	// TODO(containerd): remove OS here after replaced by platform
-	dispatchRequest.state.operatingSystem = os
 	for _, cmd := range commands {
 		err := dispatch(dispatchRequest, cmd)
 		if err != nil {

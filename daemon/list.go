@@ -235,9 +235,12 @@ func (daemon *Daemon) reducePsContainer(container *container.Snapshot, ctx *list
 
 	// release lock because size calculation is slow
 	if ctx.Size {
-		sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(newC.ID)
-		newC.SizeRw = sizeRw
-		newC.SizeRootFs = sizeRootFs
+		// TODO(containerd): context + id + layer backend must be provided
+		return nil, errdefs.NotImplemented(errors.New("containerd layer size not implemented"))
+
+		//sizeRw, sizeRootFs := daemon.imageService.GetContainerLayerSize(newC.ID)
+		//newC.SizeRw = sizeRw
+		//newC.SizeRootFs = sizeRootFs
 	}
 	return newC, nil
 }
