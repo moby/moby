@@ -409,7 +409,7 @@ Try {
     # Redirect to a temporary location. 
     $TEMPORIG=$env:TEMP
     $env:TEMP="$env:TESTRUN_DRIVE`:\$env:TESTRUN_SUBDIR\CI-$COMMITHASH"
-    $env:LOCALAPPDATA="$TEMP\localappdata"
+    $env:LOCALAPPDATA="$env:TEMP\localappdata"
     $errorActionPreference='Stop'
     New-Item -ItemType Directory "$env:TEMP" -ErrorAction SilentlyContinue | Out-Null
     New-Item -ItemType Directory "$env:TEMP\userprofile" -ErrorAction SilentlyContinue  | Out-Null
