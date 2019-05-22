@@ -5,6 +5,8 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"fmt"
 	"os"
+	"path"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -48,13 +50,27 @@ func (daemon *Daemon) setupMounts(c *container.Container) ([]container.Mount, er
 			return nil
 		}
 
-		path, err := m.Setup(c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
-		if err != nil {
-			return nil, err
+		var src string
+
+		// The mount itself doesn't know enough to return its source path for local binds,
+		// so don't use m.Setup() in that case.
+		if m.Spec.Type == mounttypes.TypeLocalBind {
+			// For normal bind mounts, this cleaning is performed in parseMountSpec.
+			// This code should be kept in sync.
+			cleanedSource := path.Clean(filepath.ToSlash(m.Spec.Source))
+			src, err = c.GetResourcePath(cleanedSource)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			src, err = m.Setup(c.MountLabel, daemon.idMapping.RootPair(), checkfunc)
+			if err != nil {
+				return nil, err
+			}
 		}
-		if !c.TrySetNetworkMount(m.Destination, path) {
+		if !c.TrySetNetworkMount(m.Destination, src) {
 			mnt := container.Mount{
-				Source:      path,
+				Source:      src,
 				Destination: m.Destination,
 				Writable:    m.RW,
 				Propagation: string(m.Propagation),
