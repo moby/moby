@@ -44,54 +44,6 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 	assert.Assert(c, strings.Contains(out, "invalid syntax"), "couldn't find the invalid value warning")
 }
 
-func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-
-	out, _ := dockerCmd(c, "search", "--help")
-	assert.Assert(c, strings.Contains(out, "Usage:\tdocker search [OPTIONS] TERM"))
-
-	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
-	assert.Assert(c, strings.Count(outSearchCmd, "\n") > 3, outSearchCmd)
-	outSearchCmdNotrunc, _ := dockerCmd(c, "search", "--no-trunc=true", "busybox")
-	assert.Assert(c, len(outSearchCmd) <= len(outSearchCmdNotrunc), "The no-trunc option can't take effect.")
-
-	outSearchCmdautomated, _ := dockerCmd(c, "search", "--filter", "is-automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
-	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
-	for i := range outSearchCmdautomatedSlice {
-		assert.Assert(c, !strings.HasPrefix(outSearchCmdautomatedSlice[i], "busybox "), "The busybox is not an AUTOMATED image: %s", outSearchCmdautomated)
-	}
-
-	outSearchCmdNotOfficial, _ := dockerCmd(c, "search", "--filter", "is-official=false", "busybox") //The busybox is a busybox base image, official image.
-	outSearchCmdNotOfficialSlice := strings.Split(outSearchCmdNotOfficial, "\n")
-	for i := range outSearchCmdNotOfficialSlice {
-		assert.Assert(c, !strings.HasPrefix(outSearchCmdNotOfficialSlice[i], "busybox "), "The busybox is not an OFFICIAL image: %s", outSearchCmdNotOfficial)
-	}
-
-	outSearchCmdOfficial, _ := dockerCmd(c, "search", "--filter", "is-official=true", "busybox") //The busybox is a busybox base image, official image.
-	outSearchCmdOfficialSlice := strings.Split(outSearchCmdOfficial, "\n")
-	assert.Equal(c, len(outSearchCmdOfficialSlice), 3) // 1 header, 1 line, 1 carriage return
-	assert.Assert(c, strings.HasPrefix(outSearchCmdOfficialSlice[1], "busybox "), "The busybox is an OFFICIAL image: %s", outSearchCmdOfficial)
-
-	outSearchCmdStars, _ := dockerCmd(c, "search", "--filter", "stars=10", "busybox")
-	assert.Assert(c, strings.Count(outSearchCmdStars, "\n") <= strings.Count(outSearchCmd, "\n"), "Number of images with 10+ stars should be less than that of all images:\noutSearchCmdStars: %s\noutSearch: %s\n", outSearchCmdStars, outSearchCmd)
-
-	dockerCmd(c, "search", "--filter", "is-automated=true", "--filter", "stars=2", "--no-trunc=true", "busybox")
-
-	// --automated deprecated since Docker 1.13
-	outSearchCmdautomated1, _ := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
-	outSearchCmdautomatedSlice1 := strings.Split(outSearchCmdautomated1, "\n")
-	for i := range outSearchCmdautomatedSlice1 {
-		assert.Assert(c, !strings.HasPrefix(outSearchCmdautomatedSlice1[i], "busybox "), "The busybox is not an AUTOMATED image: %s", outSearchCmdautomated)
-	}
-
-	// -s --stars deprecated since Docker 1.13
-	outSearchCmdStars1, _ := dockerCmd(c, "search", "--stars=2", "busybox")
-	assert.Assert(c, strings.Count(outSearchCmdStars1, "[OK]") <= strings.Count(outSearchCmd, "[OK]"), "The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars1)
-
-	// -s --stars deprecated since Docker 1.13
-	dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
-}
-
 // search for repos which start with "ubuntu-" on the central registry
 func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
