@@ -71,9 +71,16 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 		}
 
 		for _, m := range idx.Manifests {
-			ref := m.Annotations[ocispec.AnnotationRefName]
+			ref := m.Annotations[images.AnnotationImageName]
 			if ref == "" {
-				log.G(ctx).Debugf("image skipped, no name for %s", m.Digest.String())
+				ref = m.Annotations[ocispec.AnnotationRefName]
+				if ref == "" {
+					log.G(ctx).Debugf("image skipped, no name for %s", m.Digest.String())
+				} else {
+					// TODO: Support OCI ref names by providing
+					// default repository through API
+					log.G(ctx).Debugf("image only containers OCI ref name %q, repository is missing for %s", ref, m.Digest.String())
+				}
 				continue
 			}
 
@@ -108,6 +115,7 @@ func (i *ImageService) LoadImage(ctx context.Context, inTar io.ReadCloser, outSt
 	}
 
 	handler = images.SetChildrenLabels(cs, handler)
+	handler = images.FilterPlatforms(handler, i.platforms)
 	if err := images.Walk(ctx, handler, index); err != nil {
 		return err
 	}

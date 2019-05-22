@@ -52,10 +52,15 @@ func (e ErrImageDoesNotExist) NotFound() {}
 // ResolveImage searches for an image based on the given
 // reference or identifier. Returns the descriptor of
 // the image, could be manifest list, manifest, or config.
-func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispec.Descriptor, error) {
+func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (d ocispec.Descriptor, err error) {
+	d, _, err = i.resolveImageName(ctx, refOrID)
+	return
+}
+
+func (i *ImageService) resolveImageName(ctx context.Context, refOrID string) (ocispec.Descriptor, reference.Named, error) {
 	parsed, err := reference.ParseAnyReference(refOrID)
 	if err != nil {
-		return ocispec.Descriptor{}, errdefs.InvalidParameter(err)
+		return ocispec.Descriptor{}, nil, errdefs.InvalidParameter(err)
 	}
 
 	is := i.client.ImageService()
@@ -64,18 +69,18 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 	if !ok {
 		digested, ok := parsed.(reference.Digested)
 		if !ok {
-			return ocispec.Descriptor{}, errdefs.InvalidParameter(errors.New("bad reference"))
+			return ocispec.Descriptor{}, nil, errdefs.InvalidParameter(errors.New("bad reference"))
 		}
 
 		imgs, err := is.List(ctx, fmt.Sprintf("target.digest==%s", digested.Digest()))
 		if err != nil {
-			return ocispec.Descriptor{}, errors.Wrap(err, "failed to lookup digest")
+			return ocispec.Descriptor{}, nil, errors.Wrap(err, "failed to lookup digest")
 		}
 		if len(imgs) == 0 {
-			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("image not found with digest"))
+			return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("image not found with digest"))
 		}
 
-		return imgs[0].Target, nil
+		return imgs[0].Target, nil, nil
 	}
 
 	// If the identifier could be a short ID, attempt to match
@@ -86,38 +91,39 @@ func (i *ImageService) ResolveImage(ctx context.Context, refOrID string) (ocispe
 		}
 		imgs, err := is.List(ctx, filters...)
 		if err != nil {
-			return ocispec.Descriptor{}, err
+			return ocispec.Descriptor{}, nil, err
 		}
 
 		if len(imgs) == 0 {
-			return ocispec.Descriptor{}, errdefs.NotFound(errors.New("list returned no images"))
+			return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("list returned no images"))
 		}
 		if len(imgs) > 1 {
 			ref := namedRef.String()
 			digests := map[digest.Digest]struct{}{}
 			for _, img := range imgs {
 				if img.Name == ref {
-					return img.Target, nil
+					return img.Target, nil, nil
 				}
 				digests[img.Target.Digest] = struct{}{}
 			}
 
 			if len(digests) > 1 {
-				return ocispec.Descriptor{}, errdefs.NotFound(errors.New("ambiguous reference"))
+				return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("ambiguous reference"))
 			}
 		}
-		return imgs[0].Target, nil
+		return imgs[0].Target, nil, nil
 	}
-	img, err := is.Get(ctx, reference.TagNameOnly(namedRef).String())
+	namedRef = reference.TagNameOnly(namedRef)
+	img, err := is.Get(ctx, namedRef.String())
 	if err != nil {
 		// TODO(containerd): error translation can use common function
 		if !cerrdefs.IsNotFound(err) {
-			return ocispec.Descriptor{}, err
+			return ocispec.Descriptor{}, nil, err
 		}
-		return ocispec.Descriptor{}, errdefs.NotFound(errors.New("id not found"))
+		return ocispec.Descriptor{}, nil, errdefs.NotFound(errors.New("id not found"))
 	}
 
-	return img.Target, nil
+	return img.Target, namedRef, nil
 }
 
 // RuntimeImage represents a platform-specific image along with the
