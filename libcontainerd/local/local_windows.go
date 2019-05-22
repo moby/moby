@@ -607,7 +607,7 @@ func (c *client) Start(_ context.Context, id, _ string, withStdin bool, attachSt
 	case ctr == nil:
 		return -1, errors.WithStack(errdefs.NotFound(errors.New("no such container")))
 	case ctr.init != nil:
-		return -1, errors.WithStack(errdefs.Conflict(errors.New("container already started")))
+		return -1, errors.WithStack(errdefs.NotModified(errors.New("container already started")))
 	}
 
 	logger := c.logger.WithField("container", id)
