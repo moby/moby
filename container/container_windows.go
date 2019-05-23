@@ -153,7 +153,6 @@ func (container *Container) UpdateContainer(hostConfig *containertypes.HostConfi
 		resources.CpusetMems != "" ||
 		len(resources.Devices) != 0 ||
 		len(resources.DeviceCgroupRules) != 0 ||
-		resources.DiskQuota != 0 ||
 		resources.KernelMemory != 0 ||
 		resources.MemoryReservation != 0 ||
 		resources.MemorySwap != 0 ||
