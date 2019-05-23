@@ -72,7 +72,6 @@ func init() {
 
 // Driver contains information about the filesystem mounted.
 type Driver struct {
-	sync.Mutex
 	root          string
 	uidMaps       []idtools.IDMap
 	gidMaps       []idtools.IDMap
@@ -81,6 +80,7 @@ type Driver struct {
 	pathCache     map[string]string
 	naiveDiff     graphdriver.DiffDriver
 	locker        *locker.Locker
+	mntL          sync.Mutex
 }
 
 // Init returns a new AUFS driver.
@@ -327,11 +327,11 @@ func (a *Driver) Remove(id string) error {
 			break
 		}
 
-		if err != unix.EBUSY {
-			return errors.Wrapf(err, "aufs: unmount error: %s", mountpoint)
+		if errors.Cause(err) != unix.EBUSY {
+			return errors.Wrap(err, "aufs: unmount error")
 		}
 		if retries >= 5 {
-			return errors.Wrapf(err, "aufs: unmount error after retries: %s", mountpoint)
+			return errors.Wrap(err, "aufs: unmount error after retries")
 		}
 		// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
 		retries++
@@ -437,7 +437,7 @@ func (a *Driver) Put(id string) error {
 
 	err := a.unmount(m)
 	if err != nil {
-		logger.Debugf("Failed to unmount %s aufs: %v", id, err)
+		logger.WithError(err).WithField("method", "Put()").Warn()
 	}
 	return err
 }
@@ -547,9 +547,6 @@ func (a *Driver) getParentLayerPaths(id string) ([]string, error) {
 }
 
 func (a *Driver) mount(id string, target string, mountLabel string, layers []string) error {
-	a.Lock()
-	defer a.Unlock()
-
 	// If the id is mounted or we get an error return
 	if mounted, err := a.mounted(target); err != nil || mounted {
 		return err
@@ -564,9 +561,6 @@ func (a *Driver) mount(id string, target string, mountLabel string, layers []str
 }
 
 func (a *Driver) unmount(mountPath string) error {
-	a.Lock()
-	defer a.Unlock()
-
 	if mounted, err := a.mounted(mountPath); err != nil || !mounted {
 		return err
 	}
@@ -579,23 +573,20 @@ func (a *Driver) mounted(mountpoint string) (bool, error) {
 
 // Cleanup aufs and unmount all mountpoints
 func (a *Driver) Cleanup() error {
-	var dirs []string
-	if err := filepath.Walk(a.mntPath(), func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() {
-			return nil
-		}
-		dirs = append(dirs, path)
-		return nil
-	}); err != nil {
-		return err
+	dir := a.mntPath()
+	files, err := ioutil.ReadDir(dir)
+	if err != nil {
+		return errors.Wrap(err, "aufs readdir error")
 	}
+	for _, f := range files {
+		if !f.IsDir() {
+			continue
+		}
 
-	for _, m := range dirs {
+		m := path.Join(dir, f.Name())
+
 		if err := a.unmount(m); err != nil {
-			logger.Debugf("error unmounting %s: %s", m, err)
+			logger.WithError(err).WithField("method", "Cleanup()").Warn()
 		}
 	}
 	return mount.RecursiveUnmount(a.root)
@@ -604,7 +595,7 @@ func (a *Driver) Cleanup() error {
 func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err error) {
 	defer func() {
 		if err != nil {
-			Unmount(target)
+			mount.Unmount(target)
 		}
 	}()
 
@@ -632,14 +623,29 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		opts += ",dirperm1"
 	}
 	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-	if err = unix.Mount("none", target, "aufs", 0, data); err != nil {
+	a.mntL.Lock()
+	err = unix.Mount("none", target, "aufs", 0, data)
+	a.mntL.Unlock()
+	if err != nil {
+		err = errors.Wrap(err, "mount target="+target+" data="+data)
 		return
 	}
 
-	for ; index < len(ro); index++ {
-		layer := fmt.Sprintf(":%s=ro+wh", ro[index])
-		data := label.FormatMountLabel(fmt.Sprintf("append%s", layer), mountLabel)
-		if err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data); err != nil {
+	for index < len(ro) {
+		bp = 0
+		for ; index < len(ro); index++ {
+			layer := fmt.Sprintf("append:%s=ro+wh,", ro[index])
+			if bp+len(layer) > len(b) {
+				break
+			}
+			bp += copy(b[bp:], layer)
+		}
+		data := label.FormatMountLabel(string(b[:bp]), mountLabel)
+		a.mntL.Lock()
+		err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data)
+		a.mntL.Unlock()
+		if err != nil {
+			err = errors.Wrap(err, "mount target="+target+" flags=MS_REMOUNT data="+data)
 			return
 		}
 	}
