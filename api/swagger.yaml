@@ -9106,7 +9106,9 @@ paths:
                 type: "string"
               RemoteAddrs:
                 description: "Addresses of manager nodes already participating in the swarm."
-                type: "string"
+                type: "array"
+                items:
+                  type: "string"
               JoinToken:
                 description: "Secret token for joining this swarm."
                 type: "string"
