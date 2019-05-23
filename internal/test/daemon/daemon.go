@@ -290,41 +290,44 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	d.Wait = wait
 
+	clientConfig, err := d.getClientConfig()
+	if err != nil {
+		return err
+	}
+	client := &http.Client{
+		Transport: clientConfig.transport,
+	}
+
+	req, err := http.NewRequest("GET", "/_ping", nil)
+	if err != nil {
+		return errors.Wrapf(err, "[%s] could not create new request", d.id)
+	}
+	req.URL.Host = clientConfig.addr
+	req.URL.Scheme = clientConfig.scheme
+
 	ticker := time.NewTicker(500 * time.Millisecond)
 	defer ticker.Stop()
 	tick := ticker.C
 
+	timeout := time.NewTimer(60 * time.Second) // timeout for the whole loop
+	defer timeout.Stop()
+
 	// make sure daemon is ready to receive requests
-	startTime := time.Now().Unix()
 	for {
 		d.log.Logf("[%s] waiting for daemon to start", d.id)
-		if time.Now().Unix()-startTime > 5 {
-			// After 5 seconds, give up
-			return errors.Errorf("[%s] Daemon exited and never started", d.id)
-		}
+
 		select {
-		case <-time.After(2 * time.Second):
-			return errors.Errorf("[%s] timeout: daemon does not respond", d.id)
+		case <-timeout.C:
+			return errors.Errorf("[%s] Daemon exited and never started", d.id)
 		case <-tick:
-			clientConfig, err := d.getClientConfig()
+			ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
+			resp, err := client.Do(req.WithContext(ctx))
+			cancel()
 			if err != nil {
-				return err
-			}
-
-			client := &http.Client{
-				Transport: clientConfig.transport,
-			}
-
-			req, err := http.NewRequest("GET", "/_ping", nil)
-			if err != nil {
-				return errors.Wrapf(err, "[%s] could not create new request", d.id)
-			}
-			req.URL.Host = clientConfig.addr
-			req.URL.Scheme = clientConfig.scheme
-			resp, err := client.Do(req)
-			if err != nil {
+				d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
 				continue
 			}
+
 			resp.Body.Close()
 			if resp.StatusCode != http.StatusOK {
 				d.log.Logf("[%s] received status != 200 OK: %s\n", d.id, resp.Status)
@@ -420,12 +423,16 @@ func (d *Daemon) Stop(t testingT) {
 // If it timeouts, a SIGKILL is sent.
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
-func (d *Daemon) StopWithError() error {
+func (d *Daemon) StopWithError() (err error) {
 	if d.cmd == nil || d.Wait == nil {
 		return errDaemonNotStarted
 	}
-
 	defer func() {
+		if err == nil {
+			d.log.Logf("[%s] Daemon stopped", d.id)
+		} else {
+			d.log.Logf("[%s] Error when stopping daemon: %v", d.id, err)
+		}
 		d.logFile.Close()
 		d.cmd = nil
 	}()
@@ -435,12 +442,15 @@ func (d *Daemon) StopWithError() error {
 	defer ticker.Stop()
 	tick := ticker.C
 
+	d.log.Logf("[%s] Stopping daemon", d.id)
+
 	if err := d.cmd.Process.Signal(os.Interrupt); err != nil {
 		if strings.Contains(err.Error(), "os: process already finished") {
 			return errDaemonNotStarted
 		}
 		return errors.Errorf("could not send signal: %v", err)
 	}
+
 out1:
 	for {
 		select {
