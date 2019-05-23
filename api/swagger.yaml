@@ -5462,7 +5462,7 @@ paths:
   /containers/{id}/resize:
     post:
       summary: "Resize a container TTY"
-      description: "Resize the TTY for a container. You must restart the container for the resize to take effect."
+      description: "Resize the TTY for a container."
       operationId: "ContainerResize"
       consumes:
         - "application/octet-stream"
