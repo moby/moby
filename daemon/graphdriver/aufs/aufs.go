@@ -28,10 +28,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/rand"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -80,7 +82,6 @@ type Driver struct {
 	pathCache     map[string]string
 	naiveDiff     graphdriver.DiffDriver
 	locker        *locker.Locker
-	mntL          sync.Mutex
 }
 
 // Init returns a new AUFS driver.
@@ -618,14 +619,14 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 		bp += copy(b[bp:], layer)
 	}
 
-	opts := "dio,xino=/dev/shm/aufs.xino"
+	// random 4 characters in the 0-9a-z range (e.g. "g6dz")
+	rnd := strconv.FormatInt(int64(1e9+rand.Uint32()%1e9), 36)[1:5]
+	opts := "dio,xino=/dev/shm/aufs." + rnd
 	if useDirperm() {
 		opts += ",dirperm1"
 	}
 	data := label.FormatMountLabel(fmt.Sprintf("%s,%s", string(b[:bp]), opts), mountLabel)
-	a.mntL.Lock()
 	err = unix.Mount("none", target, "aufs", 0, data)
-	a.mntL.Unlock()
 	if err != nil {
 		err = errors.Wrap(err, "mount target="+target+" data="+data)
 		return
@@ -641,9 +642,7 @@ func (a *Driver) aufsMount(ro []string, rw, target, mountLabel string) (err erro
 			bp += copy(b[bp:], layer)
 		}
 		data := label.FormatMountLabel(string(b[:bp]), mountLabel)
-		a.mntL.Lock()
 		err = unix.Mount("none", target, "aufs", unix.MS_REMOUNT, data)
-		a.mntL.Unlock()
 		if err != nil {
 			err = errors.Wrap(err, "mount target="+target+" flags=MS_REMOUNT data="+data)
 			return
