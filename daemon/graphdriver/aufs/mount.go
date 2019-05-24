@@ -5,17 +5,18 @@ package aufs // import "github.com/docker/docker/daemon/graphdriver/aufs"
 import (
 	"os/exec"
 	"syscall"
+	"time"
 
 	"github.com/docker/docker/pkg/mount"
+	"github.com/pkg/errors"
+	"golang.org/x/sys/unix"
 )
 
 // Unmount the target specified.
 func Unmount(target string) error {
-	const (
-		EINVAL  = 22 // if auplink returns this,
-		retries = 3  // retry a few times
-	)
+	const retries = 5
 
+	// auplink flush
 	for i := 0; ; i++ {
 		out, err := exec.Command("auplink", target, "flush").CombinedOutput()
 		if err == nil {
@@ -27,7 +28,7 @@ func Unmount(target string) error {
 				rc = status.ExitStatus()
 			}
 		}
-		if i >= retries || rc != EINVAL {
+		if i >= retries || rc != int(unix.EINVAL) {
 			logger.WithError(err).WithField("method", "Unmount").Warnf("auplink flush failed: %s", out)
 			break
 		}
@@ -37,5 +38,22 @@ func Unmount(target string) error {
 		logger.Debugf("auplink flush error (retrying %d/%d): %s", i+1, retries, out)
 	}
 
-	return mount.Unmount(target)
+	// unmount
+	var err error
+	for i := 0; i < retries; i++ {
+		err = mount.Unmount(target)
+		switch errors.Cause(err) {
+		case nil:
+			return nil
+		case unix.EBUSY:
+			logger.Debugf("aufs unmount %s failed with EBUSY (retrying %d/%d)", target, i+1, retries)
+			time.Sleep(100 * time.Millisecond)
+			continue // try again
+		default:
+			// any other error is fatal
+			break
+		}
+	}
+
+	return err
 }

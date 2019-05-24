@@ -34,7 +34,6 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/docker/docker/daemon/graphdriver"
 	"github.com/docker/docker/pkg/archive"
@@ -307,33 +306,9 @@ func (a *Driver) Remove(id string) error {
 		mountpoint = a.getMountpoint(id)
 	}
 
-	logger := logger.WithField("layer", id)
-
-	var retries int
-	for {
-		mounted, err := a.mounted(mountpoint)
-		if err != nil {
-			return err
-		}
-		if !mounted {
-			break
-		}
-
-		err = a.unmount(mountpoint)
-		if err == nil {
-			break
-		}
-
-		if errors.Cause(err) != unix.EBUSY {
-			return errors.Wrap(err, "aufs: unmount error")
-		}
-		if retries >= 5 {
-			return errors.Wrap(err, "aufs: unmount error after retries")
-		}
-		// If unmount returns EBUSY, it could be a transient error. Sleep and retry.
-		retries++
-		logger.Warnf("unmount failed due to EBUSY: retry count: %d", retries)
-		time.Sleep(100 * time.Millisecond)
+	if err := a.unmount(mountpoint); err != nil {
+		logger.WithError(err).WithField("method", "Remove()").Warn()
+		return err
 	}
 
 	// Remove the layers file for the id
