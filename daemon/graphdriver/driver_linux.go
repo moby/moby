@@ -118,6 +118,9 @@ func (c *defaultChecker) IsMounted(path string) bool {
 func Mounted(fsType FsMagic, mountPath string) (bool, error) {
 	var buf unix.Statfs_t
 	if err := unix.Statfs(mountPath, &buf); err != nil {
+		if err == unix.ENOENT { // not exist, thus not mounted
+			err = nil
+		}
 		return false, err
 	}
 	return FsMagic(buf.Type) == fsType, nil
