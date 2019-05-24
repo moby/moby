@@ -313,9 +313,6 @@ func (a *Driver) Remove(id string) error {
 	for {
 		mounted, err := a.mounted(mountpoint)
 		if err != nil {
-			if os.IsNotExist(err) {
-				break
-			}
 			return err
 		}
 		if !mounted {
