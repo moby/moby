@@ -4,7 +4,10 @@ package ipvlan
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -425,7 +428,21 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 	}
 }
 
-// ensure Kernel version is >= v4.2 for ipvlan support
+// ensure ipvlan is supported and enabled
+var (
+	once            sync.Once
+	ipvlanSupported bool
+)
+
 func ipvlanKernelSupport() bool {
-	return n.CheckKernelMajorVersionGreaterOrEqualThen(4, 2)
+	once.Do(func() {
+		_, err := os.Stat("/sys/module/ipvlan")
+		if err == nil {
+			ipvlanSupported = true
+		} else if !os.IsNotExist(err) {
+			fmt.Printf("WARNING: ipvlanKernelSupport: stat failed: %v\n", err)
+		}
+	})
+
+	return ipvlanSupported
 }
