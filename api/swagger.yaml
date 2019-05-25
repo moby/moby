@@ -1154,6 +1154,7 @@ definitions:
     type: "object"
     additionalProperties:
       type: "array"
+      x-nullable: true
       items:
         $ref: "#/definitions/PortBinding"
     example:
@@ -1178,7 +1179,6 @@ definitions:
       PortBinding represents a binding between a host IP address and a host
       port.
     type: "object"
-    x-nullable: true
     properties:
       HostIp:
         description: "Host IP address that the container's port is mapped to."
