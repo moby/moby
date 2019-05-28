@@ -48,6 +48,12 @@ func allocatePort(portMapper *portmapper.PortMapper, bnd *types.PortBinding, con
 		err  error
 	)
 
+	// Windows does not support a host ip for port bindings (this is validated in ConvertPortBindings()).
+	// If the HostIP is nil, force it to be 0.0.0.0 for use as the key in portMapper.
+	if bnd.HostIP == nil {
+		bnd.HostIP = net.IPv4zero
+	}
+
 	// Store the container interface address in the operational binding
 	bnd.IP = containerIP
 
