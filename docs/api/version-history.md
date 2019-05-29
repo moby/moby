@@ -230,6 +230,7 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /events` now supports service, node and secret events which are emitted when users create, update and remove service, node and secret
 * `GET /events` now supports network remove event which is emitted when users remove a swarm scoped network
 * `GET /events` now supports a filter type `scope` in which supported value could be swarm and local
+* `PUT /containers/(name)/archive` now accepts a `copyUIDGID` parameter to allow copy UID/GID maps to dest file or dir.
 
 ## v1.29 API changes
 
