@@ -87,3 +87,11 @@ func untarHandler(tarArchive io.Reader, dest string, options *archive.TarOptions
 
 	return invokeUnpack(r, dest, options, root)
 }
+
+// Tar tars the requested path while chrooted to the specified root.
+func Tar(srcPath string, options *archive.TarOptions, root string) (io.ReadCloser, error) {
+	if options == nil {
+		options = &archive.TarOptions{}
+	}
+	return invokePack(srcPath, options, root)
+}
