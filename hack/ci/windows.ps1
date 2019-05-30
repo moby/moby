@@ -252,10 +252,6 @@ Try {
     Get-ChildItem Env: | Out-String
 
     # REMOVE, trying to fix RS1 build servers without access to them
-    if ($env:COMPUTERNAME -eq "jenkins-rs1-3") {
-        Restart-Computer -Force
-        # throw "Just save some time, this one is already fixed"
-    }
     if ($env:COMPUTERNAME -eq "jenkins-rs1-4") {
         # Restart-Computer -Force
         throw "Just save some time, this one is already fixed"
@@ -317,6 +313,12 @@ Try {
         Throw "$(Get-Location) does not contain Dockerfile.windows!"
     }
     Write-Host  -ForegroundColor Green "INFO: docker/docker repository was found"
+
+    # REMOVE, trying to fix RS1 build servers without access to them
+    if ($env:COMPUTERNAME -eq "jenkins-rs1-3") {
+        Restart-Computer -Force
+        # throw "Just save some time, this one is already fixed"
+    }
 
     # Make sure microsoft/windowsservercore:latest image is installed in the control daemon. On public CI machines, windowsservercore.tar and nanoserver.tar
     # are pre-baked and tagged appropriately in the c:\baseimages directory, and can be directly loaded. 
