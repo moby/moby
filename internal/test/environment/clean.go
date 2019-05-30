@@ -134,7 +134,6 @@ func removeImage(ctx context.Context, t assert.TestingT, apiclient client.ImageA
 	if client.IsErrNotFound(err) {
 		return
 	}
-	assert.Check(t, err, "failed to remove image %s", ref)
 }
 
 func deleteAllVolumes(t assert.TestingT, c client.VolumeAPIClient, protectedVolumes map[string]struct{}) {
