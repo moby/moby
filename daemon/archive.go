@@ -39,11 +39,11 @@ func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarO
 	return chrootarchive.UntarWithRoot(src, dst, opts, root)
 }
 
-func archivePath(i interface{}, src string, opts *archive.TarOptions) (io.ReadCloser, error) {
+func archivePath(i interface{}, src string, opts *archive.TarOptions, root string) (io.ReadCloser, error) {
 	if ap, ok := i.(archiver); ok {
 		return ap.ArchivePath(src, opts)
 	}
-	return archive.TarWithOptions(src, opts)
+	return chrootarchive.Tar(src, opts, root)
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
@@ -239,7 +239,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	sourceDir, sourceBase := driver.Dir(resolvedPath), driver.Base(resolvedPath)
 	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts)
+	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -433,7 +433,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	archive, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
-	})
+	}, container.BaseFS.Path())
 	if err != nil {
 		return nil, err
 	}
