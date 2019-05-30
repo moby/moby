@@ -21,11 +21,14 @@ import (
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/docker/registry"
 	"github.com/docker/go-connections/sockets"
+	"github.com/docker/go-metrics"
 	"github.com/sirupsen/logrus"
 )
 
 // SystemInfo returns information about the host server the daemon is running on.
 func (daemon *Daemon) SystemInfo() (*types.Info, error) {
+	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_info"))()
+
 	sysInfo := sysinfo.New(true)
 	cRunning, cPaused, cStopped := stateCtr.get()
 
@@ -49,6 +52,7 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 		NEventsListener:    daemon.EventsService.SubscribersCount(),
 		KernelVersion:      kernelVersion(),
 		OperatingSystem:    operatingSystem(),
+		OSVersion:          osVersion(),
 		IndexServerAddress: registry.IndexServer,
 		OSType:             platform.OSType,
 		Architecture:       platform.Architecture,
@@ -82,6 +86,8 @@ func (daemon *Daemon) SystemInfo() (*types.Info, error) {
 
 // SystemVersion returns version information about the daemon.
 func (daemon *Daemon) SystemVersion() types.Version {
+	defer metrics.StartTimer(hostInfoFunctions.WithValues("system_version"))()
+
 	kernelVersion := kernelVersion()
 
 	v := types.Version{
@@ -240,8 +246,9 @@ func memInfo() *system.MemInfo {
 	return memInfo
 }
 
-func operatingSystem() string {
-	var operatingSystem string
+func operatingSystem() (operatingSystem string) {
+	defer metrics.StartTimer(hostInfoFunctions.WithValues("operating_system"))()
+
 	if s, err := operatingsystem.GetOperatingSystem(); err != nil {
 		logrus.Warnf("Could not get operating system name: %v", err)
 	} else {
@@ -256,7 +263,19 @@ func operatingSystem() string {
 			operatingSystem += " (containerized)"
 		}
 	}
+
 	return operatingSystem
+}
+
+func osVersion() (version string) {
+	defer metrics.StartTimer(hostInfoFunctions.WithValues("os_version"))()
+
+	version, err := operatingsystem.GetOperatingSystemVersion()
+	if err != nil {
+		logrus.Warnf("Could not get operating system version: %v", err)
+	}
+
+	return version
 }
 
 func maskCredentials(rawURL string) string {

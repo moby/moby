@@ -3852,6 +3852,17 @@ definitions:
           or "Windows Server 2016 Datacenter"
         type: "string"
         example: "Alpine Linux v3.5"
+      OSVersion:
+        description: |
+          Version of the host's operating system
+
+          <p><br /></p>
+
+          > **Note**: The information returned in this field, including its
+          > very existence, and the formatting of values, should not be considered
+          > stable, and may change without notice.
+        type: "string"
+        example: "16.04"
       OSType:
         description: |
           Generic type of the operating system of the host, as returned by the
