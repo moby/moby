@@ -177,6 +177,7 @@ type Info struct {
 	NEventsListener    int
 	KernelVersion      string
 	OperatingSystem    string
+	OSVersion          string
 	OSType             string
 	Architecture       string
 	IndexServerAddress string
