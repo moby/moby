@@ -316,8 +316,8 @@ Try {
 
     # REMOVE, trying to fix RS1 build servers without access to them
     if ($env:COMPUTERNAME -eq "jenkins-rs1-3") {
-        Restart-Computer -Force
-        # throw "Just save some time, this one is already fixed"
+        # Restart-Computer -Force
+        throw "Just save some time, this one is already fixed"
     }
 
     # Make sure microsoft/windowsservercore:latest image is installed in the control daemon. On public CI machines, windowsservercore.tar and nanoserver.tar
