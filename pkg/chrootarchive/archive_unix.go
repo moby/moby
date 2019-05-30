@@ -10,6 +10,7 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
 
 	"github.com/docker/docker/pkg/archive"
@@ -30,11 +31,21 @@ func untar() {
 		fatal(err)
 	}
 
-	if err := chroot(flag.Arg(0)); err != nil {
+	dst := flag.Arg(0)
+	var root string
+	if len(flag.Args()) > 1 {
+		root = flag.Arg(1)
+	}
+
+	if root == "" {
+		root = dst
+	}
+
+	if err := chroot(root); err != nil {
 		fatal(err)
 	}
 
-	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
+	if err := archive.Unpack(os.Stdin, dst, options); err != nil {
 		fatal(err)
 	}
 	// fully consume stdin in case it is zero padded
@@ -45,7 +56,7 @@ func untar() {
 	os.Exit(0)
 }
 
-func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions) error {
+func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
 
 	// We can't pass a potentially large exclude list directly via cmd line
 	// because we easily overrun the kernel's max argument/environment size
@@ -57,7 +68,21 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		return fmt.Errorf("Untar pipe failure: %v", err)
 	}
 
-	cmd := reexec.Command("docker-untar", dest)
+	if root != "" {
+		relDest, err := filepath.Rel(root, dest)
+		if err != nil {
+			return err
+		}
+		if relDest == "." {
+			relDest = "/"
+		}
+		if relDest[0] != '/' {
+			relDest = "/" + relDest
+		}
+		dest = relDest
+	}
+
+	cmd := reexec.Command("docker-untar", dest, root)
 	cmd.Stdin = decompressedArchive
 
 	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
@@ -69,6 +94,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		w.Close()
 		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
 	}
+
 	//write the options to the pipe for the untar exec to read
 	if err := json.NewEncoder(w).Encode(options); err != nil {
 		w.Close()
