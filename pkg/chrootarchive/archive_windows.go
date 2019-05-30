@@ -20,3 +20,10 @@ func invokeUnpack(decompressedArchive io.ReadCloser,
 	// do the unpack. We call inline instead within the daemon process.
 	return archive.Unpack(decompressedArchive, longpath.AddPrefix(dest), options)
 }
+
+func invokePack(srcPath string, options *archive.TarOptions, root string) (io.ReadCloser, error) {
+	// Windows is different to Linux here because Windows does not support
+	// chroot. Hence there is no point sandboxing a chrooted process to
+	// do the pack. We call inline instead within the daemon process.
+	return archive.TarWithOptions(srcPath, options)
+}
