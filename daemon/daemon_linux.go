@@ -9,16 +9,11 @@ import (
 	"strings"
 
 	"github.com/docker/docker/daemon/config"
-	"github.com/docker/docker/internal/procfs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/mount"
+	"github.com/docker/libnetwork/resolvconf"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-)
-
-const (
-	defaultResolvConf   = "/etc/resolv.conf"
-	alternateResolvConf = "/run/systemd/resolve/resolv.conf"
 )
 
 // On Linux, plugins use a static path for storing execution state,
@@ -148,20 +143,5 @@ func setupResolvConf(config *config.Config) {
 	if config.ResolvConf != "" {
 		return
 	}
-
-	config.ResolvConf = defaultResolvConf
-	pids, err := procfs.PidOf("systemd-resolved")
-	if err != nil {
-		logrus.Errorf("unable to check systemd-resolved status: %s", err)
-		return
-	}
-	if len(pids) > 0 && pids[0] > 0 {
-		_, err := os.Stat(alternateResolvConf)
-		if err == nil {
-			logrus.Infof("systemd-resolved is running, so using resolvconf: %s", alternateResolvConf)
-			config.ResolvConf = alternateResolvConf
-			return
-		}
-		logrus.Infof("systemd-resolved is running, but %s is not present, fallback to %s", alternateResolvConf, defaultResolvConf)
-	}
+	config.ResolvConf = resolvconf.Path()
 }
