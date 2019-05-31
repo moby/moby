@@ -1,4 +1,4 @@
-.PHONY: all all-local build build-local clean cross cross-local gosimple vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local check-protobuf
+.PHONY: all all-local build build-local clean cross cross-local vet lint misspell check check-local check-code check-format unit-tests protobuf protobuf-local check-protobuf
 SHELL=/bin/bash
 
 dockerbuildargs ?= --target dev - < Dockerfile
@@ -115,7 +115,7 @@ check: builder
 
 check-local: check-code check-format
 
-check-code: check-protobuf lint gosimple vet ineffassign
+check-code: check-protobuf lint vet ineffassign
 
 check-format: fmt misspell
 
@@ -163,10 +163,6 @@ lint: ## run go lint
 ineffassign: ## run ineffassign
 	@echo "🐳 $@"
 	@test -z "$$(ineffassign . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
-
-gosimple: ## run gosimple
-	@echo "🐳 $@"
-	@test -z "$$(gosimple . | grep -v vendor/ | grep -v ".pb.go:" | grep -v ".mock.go" | tee /dev/stderr)"
 
 # check-protobuf rebuilds .pb.go files and fails if they have changed
 check-protobuf: PROTOC_CHECK=1
