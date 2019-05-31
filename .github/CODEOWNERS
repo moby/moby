@@ -13,6 +13,5 @@ daemon/graphdriver/overlay2/**          @dmcgowan
 daemon/graphdriver/windows/**           @johnstep @jhowardmsft
 daemon/logger/awslogs/**                @samuelkarp  
 hack/**                                 @tianon
-hack/integration-cli-on-swarm/**        @AkihiroSuda
 plugin/**                               @cpuguy83
 project/**                              @thaJeztah
