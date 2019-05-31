@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# required by `make build-integration-cli-on-swarm`
+# required by https://github.com/AkihiroSuda/kube-moby-integration
 set -e
 
 source hack/make/.integration-test-helpers
