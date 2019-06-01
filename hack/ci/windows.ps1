@@ -119,6 +119,7 @@ $FinallyColour="Cyan"
 #$env:INTEGRATION_IN_CONTAINER="yes"
 #$env:WINDOWS_BASE_IMAGE=""
 #$env:SKIP_COPY_GO="yes"
+$env:DOCKER_BUILDKIT=1
 
 Function Nuke-Everything {
     $ErrorActionPreference = 'SilentlyContinue'
