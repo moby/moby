@@ -674,6 +674,18 @@ func (daemon *Daemon) updateNetworkConfig(container *container.Container, n libn
 		if addShortID {
 			endpointConfig.Aliases = append(endpointConfig.Aliases, shortID)
 		}
+		if container.Name != container.Config.Hostname {
+			addHostname := true
+			for _, alias := range endpointConfig.Aliases {
+				if alias == container.Config.Hostname {
+					addHostname = false
+					break
+				}
+			}
+			if addHostname {
+				endpointConfig.Aliases = append(endpointConfig.Aliases, container.Config.Hostname)
+			}
+		}
 	}
 
 	if err := validateNetworkingConfig(n, endpointConfig); err != nil {
