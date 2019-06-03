@@ -3805,7 +3805,7 @@ definitions:
         description: |
           The driver to use for managing cgroups.
         type: "string"
-        enum: ["cgroupfs", "systemd"]
+        enum: ["cgroupfs", "systemd", "none"]
         default: "cgroupfs"
         example: "cgroupfs"
       NEventsListener:
@@ -4040,7 +4040,7 @@ definitions:
       SecurityOptions:
         description: |
           List of security features that are enabled on the daemon, such as
-          apparmor, seccomp, SELinux, and user-namespaces (userns).
+          apparmor, seccomp, SELinux, user-namespaces (userns), and rootless.
 
           Additional configuration options for each security feature may
           be present, and are included as a comma-separated list of key/value
@@ -4053,6 +4053,7 @@ definitions:
           - "name=seccomp,profile=default"
           - "name=selinux"
           - "name=userns"
+          - "name=rootless"
       ProductLicense:
         description: |
           Reports a summary of the product license on the daemon.

@@ -64,6 +64,8 @@ Remarks:
 * The exec dir is set to `$XDG_RUNTIME_DIR/docker` by default.
 * The daemon config dir is set to `~/.config/docker` (not `~/.docker`, which is used by the client) by default.
 * The `dockerd-rootless.sh` script executes `dockerd` in its own user, mount, and network namespaces. You can enter the namespaces by running `nsenter -U --preserve-credentials -n -m -t $(cat $XDG_RUNTIME_DIR/docker.pid)`.
+* `docker info` shows `rootless` in `SecurityOptions`
+* `docker info` shows `none` as `Cgroup Driver`
 
 ### Client
 
