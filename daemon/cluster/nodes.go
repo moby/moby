@@ -8,6 +8,7 @@ import (
 	"github.com/docker/docker/daemon/cluster/convert"
 	"github.com/docker/docker/errdefs"
 	swarmapi "github.com/docker/swarmkit/api"
+	"google.golang.org/grpc"
 )
 
 // GetNodes returns a list of all nodes known to a cluster.
@@ -30,7 +31,9 @@ func (c *Cluster) GetNodes(options apitypes.NodeListOptions) ([]types.Node, erro
 
 	r, err := state.controlClient.ListNodes(
 		ctx,
-		&swarmapi.ListNodesRequest{Filters: filters})
+		&swarmapi.ListNodesRequest{Filters: filters},
+		grpc.MaxCallRecvMsgSize(defaultRecvSizeForListResponse),
+	)
 	if err != nil {
 		return nil, err
 	}
