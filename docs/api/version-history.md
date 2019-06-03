@@ -22,7 +22,11 @@ keywords: "API, Docker, rcli, REST, documentation"
   `private` to create the container in its own private cgroup namespace.  The per-daemon
   default is `host`, and can be changed by using the`CgroupNamespaceMode` daemon configuration
   parameter.
-
+* `GET /info` now includes `name=rootless` in `SecurityOptions` when the daemon is running in
+  rootless mode.  This change is not versioned, and affects all API versions if the daemon has
+  this patch.
+* `GET /info` now returns `none` as `CgroupDriver` when the daemon is running in rootless mode.
+  This change is not versioned, and affects all API versions if the daemon has this patch.
 
 ## v1.40 API changes
 
