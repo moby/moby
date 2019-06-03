@@ -73,6 +73,7 @@ const (
 	// constant for cgroup drivers
 	cgroupFsDriver      = "cgroupfs"
 	cgroupSystemdDriver = "systemd"
+	cgroupNoneDriver    = "none"
 
 	// DefaultRuntimeName is the default runtime to be used by
 	// containerd if none is specified
@@ -584,6 +585,9 @@ func verifyPlatformContainerResources(resources *containertypes.Resources, sysIn
 }
 
 func (daemon *Daemon) getCgroupDriver() string {
+	if daemon.Rootless() {
+		return cgroupNoneDriver
+	}
 	cgroupDriver := cgroupFsDriver
 
 	if UsingSystemd(daemon.configStore) {
@@ -609,6 +613,9 @@ func VerifyCgroupDriver(config *config.Config) error {
 	cd := getCD(config)
 	if cd == "" || cd == cgroupFsDriver || cd == cgroupSystemdDriver {
 		return nil
+	}
+	if cd == cgroupNoneDriver {
+		return fmt.Errorf("native.cgroupdriver option %s is internally used and cannot be specified manually", cd)
 	}
 	return fmt.Errorf("native.cgroupdriver option %s not supported", cd)
 }
