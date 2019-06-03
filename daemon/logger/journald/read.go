@@ -305,6 +305,9 @@ func (s *journald) followJournal(logWatcher *logger.LogWatcher, j *C.sd_journal,
 		// Notify the other goroutine that its work is done.
 		C.close(pfd[1])
 		cursor = <-newCursor
+	case <-logWatcher.WatchProducerGone():
+		C.close(pfd[1])
+		cursor = <-newCursor
 	}
 
 	return cursor
