@@ -185,7 +185,7 @@ func (c *client) Start(ctx context.Context, id, checkpointDir string, withStdin 
 	}
 	labels, err := ctr.Labels(ctx)
 	if err != nil {
-		return -1, errors.Wrap(err, "failed to retreive labels")
+		return -1, errors.Wrap(err, "failed to retrieve labels")
 	}
 	bundle := labels[DockerContainerBundlePath]
 	uid, gid := getSpecUser(spec)
