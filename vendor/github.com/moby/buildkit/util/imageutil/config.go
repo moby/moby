@@ -3,12 +3,17 @@ package imageutil
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"sync"
+	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/images"
+	"github.com/containerd/containerd/leases"
 	"github.com/containerd/containerd/platforms"
 	"github.com/containerd/containerd/reference"
 	"github.com/containerd/containerd/remotes"
+	"github.com/moby/buildkit/util/leaseutil"
 	digest "github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
@@ -19,7 +24,19 @@ type ContentCache interface {
 	content.Provider
 }
 
-func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, p *specs.Platform) (digest.Digest, []byte, error) {
+var leasesMu sync.Mutex
+var leasesF []func(context.Context) error
+
+func CancelCacheLeases() {
+	leasesMu.Lock()
+	for _, f := range leasesF {
+		f(context.TODO())
+	}
+	leasesF = nil
+	leasesMu.Unlock()
+}
+
+func Config(ctx context.Context, str string, resolver remotes.Resolver, cache ContentCache, leaseManager leases.Manager, p *specs.Platform) (digest.Digest, []byte, error) {
 	// TODO: fix buildkit to take interface instead of struct
 	var platform platforms.MatchComparer
 	if p != nil {
@@ -30,6 +47,20 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 	ref, err := reference.Parse(str)
 	if err != nil {
 		return "", nil, errors.WithStack(err)
+	}
+
+	if leaseManager != nil {
+		ctx2, done, err := leaseutil.WithLease(ctx, leaseManager, leases.WithExpiration(5*time.Minute))
+		if err != nil {
+			return "", nil, errors.WithStack(err)
+		}
+		ctx = ctx2
+		defer func() {
+			// this lease is not deleted to allow other components to access manifest/config from cache. It will be deleted after 5 min deadline or on pruning inactive builder
+			leasesMu.Lock()
+			leasesF = append(leasesF, done)
+			leasesMu.Unlock()
+		}()
 	}
 
 	desc := specs.Descriptor{
@@ -62,9 +93,14 @@ func Config(ctx context.Context, str string, resolver remotes.Resolver, cache Co
 		return readSchema1Config(ctx, ref.String(), desc, fetcher, cache)
 	}
 
+	children := childrenConfigHandler(cache, platform)
+	if m, ok := cache.(content.Manager); ok {
+		children = SetChildrenLabelsNonBlobs(m, children)
+	}
+
 	handlers := []images.Handler{
 		fetchWithoutRoot(remotes.FetchHandler(cache, fetcher)),
-		childrenConfigHandler(cache, platform),
+		children,
 	}
 	if err := images.Dispatch(ctx, images.Handlers(handlers...), nil, desc); err != nil {
 		return "", nil, err
@@ -170,4 +206,40 @@ func DetectManifestBlobMediaType(dt []byte) (string, error) {
 		return images.MediaTypeDockerSchema2Manifest, nil
 	}
 	return images.MediaTypeDockerSchema2ManifestList, nil
+}
+
+func SetChildrenLabelsNonBlobs(manager content.Manager, f images.HandlerFunc) images.HandlerFunc {
+	return func(ctx context.Context, desc specs.Descriptor) ([]specs.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return children, err
+		}
+
+		if len(children) > 0 {
+			info := content.Info{
+				Digest: desc.Digest,
+				Labels: map[string]string{},
+			}
+			fields := []string{}
+			for i, ch := range children {
+				switch ch.MediaType {
+				case images.MediaTypeDockerSchema2Layer, images.MediaTypeDockerSchema2LayerGzip, specs.MediaTypeImageLayer, specs.MediaTypeImageLayerGzip:
+					continue
+				default:
+				}
+
+				info.Labels[fmt.Sprintf("containerd.io/gc.ref.content.%d", i)] = ch.Digest.String()
+				fields = append(fields, fmt.Sprintf("labels.containerd.io/gc.ref.content.%d", i))
+			}
+
+			if len(info.Labels) > 0 {
+				_, err := manager.Update(ctx, info, fields...)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+
+		return children, err
+	}
 }
