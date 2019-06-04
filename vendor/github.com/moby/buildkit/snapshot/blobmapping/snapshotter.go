@@ -2,6 +2,7 @@ package blobmapping
 
 import (
 	"context"
+	"time"
 
 	"github.com/containerd/containerd/content"
 	"github.com/containerd/containerd/snapshots"
@@ -122,6 +123,16 @@ func (s *Snapshotter) SetBlob(ctx context.Context, key string, diffID, blobsum d
 			return err
 		}
 	}
+	// update gc.root cause blob might be held by lease only
+	if _, err := s.opt.Content.Update(ctx, content.Info{
+		Digest: blobsum,
+		Labels: map[string]string{
+			"containerd.io/gc.root": time.Now().UTC().Format(time.RFC3339Nano),
+		},
+	}, "labels.containerd.io/gc.root"); err != nil {
+		return err
+	}
+
 	md, _ := s.opt.MetadataStore.Get(key)
 
 	v, err := metadata.NewValue(DiffPair{DiffID: diffID, Blobsum: blobsum})
