@@ -133,6 +133,12 @@ func (ls *localSourceHandler) Snapshot(ctx context.Context) (out cache.Immutable
 
 	defer func() {
 		if retErr != nil && mutable != nil {
+			// on error remove the record as checksum update is in undefined state
+			cache.CachePolicyDefault(mutable)
+			if err := mutable.Metadata().Commit(); err != nil {
+				logrus.Errorf("failed to reset mutable cachepolicy: %v", err)
+			}
+			contenthash.ClearCacheContext(mutable.Metadata())
 			go mutable.Release(context.TODO())
 		}
 	}()

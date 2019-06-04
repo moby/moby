@@ -184,6 +184,19 @@ The local client will copy the files directly to the client. This is useful if B
 buildctl build ... --output type=local,dest=path/to/output-dir
 ```
 
+To export specific files use multi-stage builds with a scratch stage and copy the needed files into that stage with `COPY --from`.
+```dockerfile
+...
+FROM scratch as testresult
+
+COPY --from=builder /usr/src/app/testresult.xml .
+...
+```
+
+```
+buildctl build ... --opt target=testresult --output type=local,dest=path/to/output-dir
+```
+
 Tar exporter is similar to local exporter but transfers the files through a tarball.
 
 ```
@@ -266,6 +279,16 @@ To run daemon in a container:
 docker run -d --privileged -p 1234:1234 moby/buildkit:latest --addr tcp://0.0.0.0:1234
 export BUILDKIT_HOST=tcp://0.0.0.0:1234
 buildctl build --help
+```
+
+To run client and an ephemeral daemon in a single container ("daemonless mode"):
+
+```
+docker run -it --rm --privileged -v /path/to/dir:/tmp/work --entrypoint buildctl-daemonless.sh moby/buildkit:master build --frontend dockerfile.v0 --local context=/tmp/work --local dockerfile=/tmp/work
+```
+or
+```
+docker run -it --rm --security-opt seccomp=unconfined --security-opt apparmor=unconfined -e BUILDKITD_FLAGS=--oci-worker-no-process-sandbox -v /path/to/dir:/tmp/work --entrypoint buildctl-daemonless.sh moby/buildkit:master-rootless build --frontend dockerfile.v0 --local context=/tmp/work --local dockerfile=/tmp/work
 ```
 
 The images can be also built locally using `./hack/dockerfiles/test.Dockerfile` (or `./hack/dockerfiles/test.buildkit.Dockerfile` if you already have BuildKit).
