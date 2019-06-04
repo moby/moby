@@ -49,6 +49,11 @@ keywords: "API, Docker, rcli, REST, documentation"
 * `GET /info` now returns information about `DataPathPort` that is currently used in swarm
 * `GET /info` now returns `PidsLimit` boolean to indicate if the host kernel has
   PID limit support enabled.
+* `GET /info` now includes `name=rootless` in `SecurityOptions` when the daemon is running in
+  rootless mode.  This change is not versioned, and affects all API versions if the daemon has
+  this patch.
+* `GET /info` now returns `none` as `CgroupDriver` when the daemon is running in rootless mode.
+  This change is not versioned, and affects all API versions if the daemon has this patch.
 * `POST /containers/create` now accepts `DeviceRequests` as part of `HostConfig`.
   Can be used to set Nvidia GPUs.
 * `GET /swarm` endpoint now returns DataPathPort info
