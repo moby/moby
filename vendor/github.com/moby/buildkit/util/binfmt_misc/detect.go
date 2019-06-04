@@ -21,6 +21,9 @@ func SupportedPlatforms() []string {
 		if p := "linux/arm64"; def != p && arm64Supported() == nil {
 			arr = append(arr, p)
 		}
+		if p := "linux/riscv64"; def != p && riscv64Supported() == nil {
+			arr = append(arr, p)
+		}
 		if !strings.HasPrefix(def, "linux/arm/") && armSupported() == nil {
 			arr = append(arr, "linux/arm/v7", "linux/arm/v6")
 		} else if def == "linux/arm/v7" {
@@ -44,6 +47,11 @@ func WarnIfUnsupported(pfs []string) {
 			}
 			if p == "linux/arm64" {
 				if err := arm64Supported(); err != nil {
+					printPlatfromWarning(p, err)
+				}
+			}
+			if p == "linux/riscv64" {
+				if err := riscv64Supported(); err != nil {
 					printPlatfromWarning(p, err)
 				}
 			}

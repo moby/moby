@@ -3,6 +3,7 @@ package control
 import (
 	"context"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	controlapi "github.com/moby/buildkit/api/services/control"
@@ -17,6 +18,7 @@ import (
 	"github.com/moby/buildkit/solver"
 	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/pb"
+	"github.com/moby/buildkit/util/imageutil"
 	"github.com/moby/buildkit/util/throttle"
 	"github.com/moby/buildkit/worker"
 	"github.com/pkg/errors"
@@ -42,6 +44,7 @@ type Controller struct { // TODO: ControlService
 	gatewayForwarder *controlgateway.GatewayForwarder
 	throttledGC      func()
 	gcmu             sync.Mutex
+	buildCount       int64
 }
 
 func NewController(opt Opt) (*Controller, error) {
@@ -110,6 +113,10 @@ func (c *Controller) DiskUsage(ctx context.Context, r *controlapi.DiskUsageReque
 }
 
 func (c *Controller) Prune(req *controlapi.PruneRequest, stream controlapi.Control_PruneServer) error {
+	if atomic.LoadInt64(&c.buildCount) == 0 {
+		imageutil.CancelCacheLeases()
+	}
+
 	ch := make(chan client.UsageInfo)
 
 	eg, ctx := errgroup.WithContext(stream.Context())
@@ -207,6 +214,9 @@ func translateLegacySolveRequest(req *controlapi.SolveRequest) error {
 }
 
 func (c *Controller) Solve(ctx context.Context, req *controlapi.SolveRequest) (*controlapi.SolveResponse, error) {
+	atomic.AddInt64(&c.buildCount, 1)
+	defer atomic.AddInt64(&c.buildCount, -1)
+
 	if err := translateLegacySolveRequest(req); err != nil {
 		return nil, err
 	}
