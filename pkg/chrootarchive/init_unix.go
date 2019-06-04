@@ -14,6 +14,7 @@ import (
 func init() {
 	reexec.Register("docker-applyLayer", applyLayer)
 	reexec.Register("docker-untar", untar)
+	reexec.Register("docker-tar", tar)
 }
 
 func fatal(err error) {

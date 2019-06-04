@@ -10,10 +10,13 @@ import (
 	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/docker/docker/pkg/archive"
 	"github.com/docker/docker/pkg/reexec"
+	"github.com/pkg/errors"
 )
 
 // untar is the entry-point for docker-untar on re-exec. This is not used on
@@ -23,18 +26,28 @@ func untar() {
 	runtime.LockOSThread()
 	flag.Parse()
 
-	var options *archive.TarOptions
+	var options archive.TarOptions
 
 	//read the options from the pipe "ExtraFiles"
 	if err := json.NewDecoder(os.NewFile(3, "options")).Decode(&options); err != nil {
 		fatal(err)
 	}
 
-	if err := chroot(flag.Arg(0)); err != nil {
+	dst := flag.Arg(0)
+	var root string
+	if len(flag.Args()) > 1 {
+		root = flag.Arg(1)
+	}
+
+	if root == "" {
+		root = dst
+	}
+
+	if err := chroot(root); err != nil {
 		fatal(err)
 	}
 
-	if err := archive.Unpack(os.Stdin, "/", options); err != nil {
+	if err := archive.Unpack(os.Stdin, dst, &options); err != nil {
 		fatal(err)
 	}
 	// fully consume stdin in case it is zero padded
@@ -45,7 +58,10 @@ func untar() {
 	os.Exit(0)
 }
 
-func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions) error {
+func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.TarOptions, root string) error {
+	if root == "" {
+		return errors.New("must specify a root to chroot to")
+	}
 
 	// We can't pass a potentially large exclude list directly via cmd line
 	// because we easily overrun the kernel's max argument/environment size
@@ -57,7 +73,21 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		return fmt.Errorf("Untar pipe failure: %v", err)
 	}
 
-	cmd := reexec.Command("docker-untar", dest)
+	if root != "" {
+		relDest, err := filepath.Rel(root, dest)
+		if err != nil {
+			return err
+		}
+		if relDest == "." {
+			relDest = "/"
+		}
+		if relDest[0] != '/' {
+			relDest = "/" + relDest
+		}
+		dest = relDest
+	}
+
+	cmd := reexec.Command("docker-untar", dest, root)
 	cmd.Stdin = decompressedArchive
 
 	cmd.ExtraFiles = append(cmd.ExtraFiles, r)
@@ -69,6 +99,7 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		w.Close()
 		return fmt.Errorf("Untar error on re-exec cmd: %v", err)
 	}
+
 	//write the options to the pipe for the untar exec to read
 	if err := json.NewEncoder(w).Encode(options); err != nil {
 		w.Close()
@@ -85,4 +116,93 @@ func invokeUnpack(decompressedArchive io.Reader, dest string, options *archive.T
 		return fmt.Errorf("Error processing tar file(%v): %s", err, output)
 	}
 	return nil
+}
+
+func tar() {
+	runtime.LockOSThread()
+	flag.Parse()
+
+	src := flag.Arg(0)
+	var root string
+	if len(flag.Args()) > 1 {
+		root = flag.Arg(1)
+	}
+
+	if root == "" {
+		root = src
+	}
+
+	if err := realChroot(root); err != nil {
+		fatal(err)
+	}
+
+	var options archive.TarOptions
+	if err := json.NewDecoder(os.Stdin).Decode(&options); err != nil {
+		fatal(err)
+	}
+
+	rdr, err := archive.TarWithOptions(src, &options)
+	if err != nil {
+		fatal(err)
+	}
+	defer rdr.Close()
+
+	if _, err := io.Copy(os.Stdout, rdr); err != nil {
+		fatal(err)
+	}
+
+	os.Exit(0)
+}
+
+func invokePack(srcPath string, options *archive.TarOptions, root string) (io.ReadCloser, error) {
+	if root == "" {
+		return nil, errors.New("root path must not be empty")
+	}
+
+	relSrc, err := filepath.Rel(root, srcPath)
+	if err != nil {
+		return nil, err
+	}
+	if relSrc == "." {
+		relSrc = "/"
+	}
+	if relSrc[0] != '/' {
+		relSrc = "/" + relSrc
+	}
+
+	// make sure we didn't trim a trailing slash with the call to `Rel`
+	if strings.HasSuffix(srcPath, "/") && !strings.HasSuffix(relSrc, "/") {
+		relSrc += "/"
+	}
+
+	cmd := reexec.Command("docker-tar", relSrc, root)
+
+	errBuff := bytes.NewBuffer(nil)
+	cmd.Stderr = errBuff
+
+	tarR, tarW := io.Pipe()
+	cmd.Stdout = tarW
+
+	stdin, err := cmd.StdinPipe()
+	if err != nil {
+		return nil, errors.Wrap(err, "error getting options pipe for tar process")
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, errors.Wrap(err, "tar error on re-exec cmd")
+	}
+
+	go func() {
+		err := cmd.Wait()
+		err = errors.Wrapf(err, "error processing tar file: %s", errBuff)
+		tarW.CloseWithError(err)
+	}()
+
+	if err := json.NewEncoder(stdin).Encode(options); err != nil {
+		stdin.Close()
+		return nil, errors.Wrap(err, "tar json encode to pipe failed")
+	}
+	stdin.Close()
+
+	return tarR, nil
 }
