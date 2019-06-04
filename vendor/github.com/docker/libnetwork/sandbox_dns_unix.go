@@ -213,8 +213,8 @@ func (sb *sandbox) setupDNS() error {
 
 	originResolvConfPath := sb.config.originResolvConfPath
 	if originResolvConfPath == "" {
-		// if not specified fallback to default /etc/resolv.conf
-		originResolvConfPath = resolvconf.DefaultResolvConf
+		// fallback if not specified
+		originResolvConfPath = resolvconf.Path()
 	}
 	currRC, err := resolvconf.GetSpecific(originResolvConfPath)
 	if err != nil {

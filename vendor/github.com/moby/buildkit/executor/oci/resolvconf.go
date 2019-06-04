@@ -29,7 +29,7 @@ func GetResolvConf(ctx context.Context, stateDir string) (string, error) {
 				generate = true
 			}
 			if !generate {
-				fiMain, err := os.Stat("/etc/resolv.conf")
+				fiMain, err := os.Stat(resolvconf.Path())
 				if err != nil {
 					if !os.IsNotExist(err) {
 						return nil, err
