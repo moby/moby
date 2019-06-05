@@ -439,15 +439,11 @@ func (s *DockerSuite) TestPsListContainersFilterLabel(c *check.C) {
 func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 	runSleepingContainer(c, "--name=sleep")
 
-	dockerCmd(c, "run", "--name", "zero1", "busybox", "true")
-	firstZero := getIDByName(c, "zero1")
-
-	dockerCmd(c, "run", "--name", "zero2", "busybox", "true")
-	secondZero := getIDByName(c, "zero2")
+	firstZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
+	secondZero, _ := dockerCmd(c, "run", "-d", "busybox", "true")
 
 	out, _, err := dockerCmdWithError("run", "--name", "nonzero1", "busybox", "false")
 	c.Assert(err, checker.NotNil, check.Commentf("Should fail.", out, err))
-
 	firstNonZero := getIDByName(c, "nonzero1")
 
 	out, _, err = dockerCmdWithError("run", "--name", "nonzero2", "busybox", "false")
@@ -456,17 +452,16 @@ func (s *DockerSuite) TestPsListContainersFilterExited(c *check.C) {
 
 	// filter containers by exited=0
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=0")
-	ids := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(ids, checker.HasLen, 2, check.Commentf("Should be 2 zero exited containers got %d: %s", len(ids), out))
-	c.Assert(ids[0], checker.Equals, secondZero, check.Commentf("First in list should be %q, got %q", secondZero, ids[0]))
-	c.Assert(ids[1], checker.Equals, firstZero, check.Commentf("Second in list should be %q, got %q", firstZero, ids[1]))
+	c.Assert(out, checker.Contains, strings.TrimSpace(firstZero))
+	c.Assert(out, checker.Contains, strings.TrimSpace(secondZero))
+	c.Assert(out, checker.Not(checker.Contains), strings.TrimSpace(firstNonZero))
+	c.Assert(out, checker.Not(checker.Contains), strings.TrimSpace(secondNonZero))
 
 	out, _ = dockerCmd(c, "ps", "-a", "-q", "--no-trunc", "--filter=exited=1")
-	ids = strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(ids, checker.HasLen, 2, check.Commentf("Should be 2 zero exited containers got %d", len(ids)))
-	c.Assert(ids[0], checker.Equals, secondNonZero, check.Commentf("First in list should be %q, got %q", secondNonZero, ids[0]))
-	c.Assert(ids[1], checker.Equals, firstNonZero, check.Commentf("Second in list should be %q, got %q", firstNonZero, ids[1]))
-
+	c.Assert(out, checker.Contains, strings.TrimSpace(firstNonZero))
+	c.Assert(out, checker.Contains, strings.TrimSpace(secondNonZero))
+	c.Assert(out, checker.Not(checker.Contains), strings.TrimSpace(firstZero))
+	c.Assert(out, checker.Not(checker.Contains), strings.TrimSpace(secondZero))
 }
 
 func (s *DockerSuite) TestPsRightTagName(c *check.C) {
