@@ -55,7 +55,7 @@ func (s *Store) All() ([]*StorageItem, error) {
 			return nil
 		})
 	})
-	return out, err
+	return out, errors.WithStack(err)
 }
 
 func (s *Store) Probe(index string) (bool, error) {
@@ -77,7 +77,7 @@ func (s *Store) Probe(index string) (bool, error) {
 		}
 		return nil
 	})
-	return exists, err
+	return exists, errors.WithStack(err)
 }
 
 func (s *Store) Search(index string) ([]*StorageItem, error) {
@@ -114,7 +114,7 @@ func (s *Store) Search(index string) ([]*StorageItem, error) {
 		}
 		return nil
 	})
-	return out, err
+	return out, errors.WithStack(err)
 }
 
 func (s *Store) View(id string, fn func(b *bolt.Bucket) error) error {
@@ -132,7 +132,7 @@ func (s *Store) View(id string, fn func(b *bolt.Bucket) error) error {
 }
 
 func (s *Store) Clear(id string) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return errors.WithStack(s.db.Update(func(tx *bolt.Tx) error {
 		external := tx.Bucket([]byte(externalBucket))
 		if external != nil {
 			external.DeleteBucket([]byte(id))
@@ -160,21 +160,21 @@ func (s *Store) Clear(id string) error {
 			}
 		}
 		return main.DeleteBucket([]byte(id))
-	})
+	}))
 }
 
 func (s *Store) Update(id string, fn func(b *bolt.Bucket) error) error {
-	return s.db.Update(func(tx *bolt.Tx) error {
+	return errors.WithStack(s.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(mainBucket))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		b, err = b.CreateBucketIfNotExists([]byte(id))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		return fn(b)
-	})
+	}))
 }
 
 func (s *Store) Get(id string) (*StorageItem, bool) {
@@ -200,7 +200,7 @@ func (s *Store) Get(id string) (*StorageItem, bool) {
 }
 
 func (s *Store) Close() error {
-	return s.db.Close()
+	return errors.WithStack(s.db.Close())
 }
 
 type StorageItem struct {
@@ -222,13 +222,13 @@ func newStorageItem(id string, b *bolt.Bucket, s *Store) (*StorageItem, error) {
 			var sv Value
 			if len(v) > 0 {
 				if err := json.Unmarshal(v, &sv); err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 				si.values[string(k)] = &sv
 			}
 			return nil
 		}); err != nil {
-			return si, err
+			return si, errors.WithStack(err)
 		}
 	}
 	return si, nil
@@ -283,23 +283,23 @@ func (s *StorageItem) GetExternal(k string) ([]byte, error) {
 		return nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return dt, nil
 }
 
 func (s *StorageItem) SetExternal(k string, dt []byte) error {
-	return s.storage.db.Update(func(tx *bolt.Tx) error {
+	return errors.WithStack(s.storage.db.Update(func(tx *bolt.Tx) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(externalBucket))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		b, err = b.CreateBucketIfNotExists([]byte(s.id))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		return b.Put([]byte(k), dt)
-	})
+	}))
 }
 
 func (s *StorageItem) Queue(fn func(b *bolt.Bucket) error) {
@@ -311,15 +311,15 @@ func (s *StorageItem) Queue(fn func(b *bolt.Bucket) error) {
 func (s *StorageItem) Commit() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.Update(func(b *bolt.Bucket) error {
+	return errors.WithStack(s.Update(func(b *bolt.Bucket) error {
 		for _, fn := range s.queue {
 			if err := fn(b); err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 		}
 		s.queue = s.queue[:0]
 		return nil
-	})
+	}))
 }
 
 func (s *StorageItem) Indexes() (out []string) {
@@ -341,18 +341,18 @@ func (s *StorageItem) SetValue(b *bolt.Bucket, key string, v *Value) error {
 	}
 	dt, err := json.Marshal(v)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if err := b.Put([]byte(key), dt); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 	if v.Index != "" {
 		b, err := b.Tx().CreateBucketIfNotExists([]byte(indexBucket))
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		if err := b.Put([]byte(indexKey(v.Index, s.ID())), []byte{}); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 	}
 	s.values[key] = v
@@ -367,14 +367,13 @@ type Value struct {
 func NewValue(v interface{}) (*Value, error) {
 	dt, err := json.Marshal(v)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 	return &Value{Value: json.RawMessage(dt)}, nil
 }
 
 func (v *Value) Unmarshal(target interface{}) error {
-	err := json.Unmarshal(v.Value, target)
-	return err
+	return errors.WithStack(json.Unmarshal(v.Value, target))
 }
 
 func indexKey(index, target string) string {

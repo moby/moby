@@ -10,6 +10,7 @@ import (
 	"github.com/moby/buildkit/frontend"
 	"github.com/moby/buildkit/snapshot"
 	"github.com/moby/buildkit/solver"
+	"github.com/moby/buildkit/solver/llbsolver"
 	"github.com/moby/buildkit/solver/pb"
 	"github.com/moby/buildkit/worker"
 	digest "github.com/opencontainers/go-digest"
@@ -25,6 +26,9 @@ type buildOp struct {
 }
 
 func NewBuildOp(v solver.Vertex, op *pb.Op_Build, b frontend.FrontendLLBBridge, _ worker.Worker) (solver.Op, error) {
+	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
+		return nil, err
+	}
 	return &buildOp{
 		op: op.Build,
 		b:  b,

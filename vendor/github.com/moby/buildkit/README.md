@@ -299,7 +299,7 @@ Run `make images` to build the images as `moby/buildkit:local` and `moby/buildki
 If you are running `moby/buildkit:master` or `moby/buildkit:master-rootless` as a Docker/Kubernetes container, you can use special `BUILDKIT_HOST` URL for connecting to the BuildKit daemon in the container:
 
 ```
-export BUILDKIT_HOST=docker://<container>
+export BUILDKIT_HOST=docker-container://<container>
 ```
 
 ```

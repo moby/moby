@@ -43,6 +43,7 @@ type Opt struct {
 	IdentityMapping *idtools.IdentityMapping
 	// runc run --no-pivot (unrecommended)
 	NoPivot bool
+	DNS     *oci.DNSConfig
 }
 
 var defaultCommandCandidates = []string{"buildkit-runc", "runc"}
@@ -57,6 +58,7 @@ type runcExecutor struct {
 	processMode      oci.ProcessMode
 	idmap            *idtools.IdentityMapping
 	noPivot          bool
+	dns              *oci.DNSConfig
 }
 
 func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Executor, error) {
@@ -115,6 +117,7 @@ func New(opt Opt, networkProviders map[pb.NetMode]network.Provider) (executor.Ex
 		processMode:      opt.ProcessMode,
 		idmap:            opt.IdentityMapping,
 		noPivot:          opt.NoPivot,
+		dns:              opt.DNS,
 	}
 	return w, nil
 }
@@ -134,7 +137,7 @@ func (w *runcExecutor) Exec(ctx context.Context, meta executor.Meta, root cache.
 		logrus.Info("enabling HostNetworking")
 	}
 
-	resolvConf, err := oci.GetResolvConf(ctx, w.root, w.idmap)
+	resolvConf, err := oci.GetResolvConf(ctx, w.root, w.idmap, w.dns)
 	if err != nil {
 		return err
 	}
