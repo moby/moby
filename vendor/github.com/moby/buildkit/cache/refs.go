@@ -190,7 +190,7 @@ func (cr *cacheRecord) remove(ctx context.Context, removeSnapshot bool) error {
 	}
 	if removeSnapshot {
 		if err := cr.cm.Snapshotter.Remove(ctx, cr.ID()); err != nil {
-			return err
+			return errors.Wrapf(err, "failed to remove %s", cr.ID())
 		}
 	}
 	if err := cr.cm.md.Clear(cr.ID()); err != nil {
@@ -259,7 +259,7 @@ func (sr *immutableRef) release(ctx context.Context) error {
 	if len(sr.refs) == 0 {
 		if sr.viewMount != nil { // TODO: release viewMount earlier if possible
 			if err := sr.cm.Snapshotter.Remove(ctx, sr.view); err != nil {
-				return err
+				return errors.Wrapf(err, "failed to remove view %s", sr.view)
 			}
 			sr.view = ""
 			sr.viewMount = nil

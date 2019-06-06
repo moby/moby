@@ -100,7 +100,7 @@ func readBlob(ctx context.Context, provider content.Provider, desc ocispec.Descr
 			}
 		}
 	}
-	return dt, err
+	return dt, errors.WithStack(err)
 }
 
 func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte, id string, w worker.Worker) (solver.CacheManager, error) {
@@ -120,7 +120,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 				var m ocispec.Manifest
 
 				if err := json.Unmarshal(dt, &m); err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 
 				if m.Config.Digest == "" || len(m.Layers) == 0 {
@@ -129,13 +129,13 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 
 				p, err := content.ReadBlob(ctx, ci.provider, m.Config)
 				if err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 
 				var img image
 
 				if err := json.Unmarshal(p, &img); err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 
 				if len(img.Rootfs.DiffIDs) != len(m.Layers) {
@@ -149,7 +149,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 
 				var config v1.CacheConfig
 				if err := json.Unmarshal(img.Cache, &config.Records); err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 
 				createdDates, createdMsg, err := parseCreatedLayerInfo(img)
@@ -181,7 +181,7 @@ func (ci *contentCacheImporter) importInlineCache(ctx context.Context, dt []byte
 
 				dt, err = json.Marshal(config)
 				if err != nil {
-					return err
+					return errors.WithStack(err)
 				}
 
 				mu.Lock()
@@ -217,7 +217,7 @@ func (ci *contentCacheImporter) allDistributionManifests(ctx context.Context, dt
 	case images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
 		var index ocispec.Index
 		if err := json.Unmarshal(dt, &index); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		for _, d := range index.Manifests {
@@ -226,7 +226,7 @@ func (ci *contentCacheImporter) allDistributionManifests(ctx context.Context, dt
 			}
 			p, err := content.ReadBlob(ctx, ci.provider, d)
 			if err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 			if err := ci.allDistributionManifests(ctx, p, m); err != nil {
 				return err
