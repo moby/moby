@@ -113,7 +113,7 @@ func TestKillStoppedContainer(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := testEnv.APIClient()
-	id := container.Create(t, ctx, client)
+	id := container.Create(ctx, t, client)
 	err := client.ContainerKill(ctx, id, "SIGKILL")
 	assert.Assert(t, is.ErrorContains(err, ""))
 	assert.Assert(t, is.Contains(err.Error(), "is not running"))
@@ -124,7 +124,7 @@ func TestKillStoppedContainerAPIPre120(t *testing.T) {
 	defer setupTest(t)()
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
-	id := container.Create(t, ctx, client)
+	id := container.Create(ctx, t, client)
 	err := client.ContainerKill(ctx, id, "SIGKILL")
 	assert.NilError(t, err)
 }

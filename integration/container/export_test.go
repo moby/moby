@@ -67,7 +67,7 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	defer d.Stop(t)
 
 	ctx := context.Background()
-	ctrID := container.Create(t, ctx, c)
+	ctrID := container.Create(ctx, t, c)
 
 	d.Restart(t)
 
