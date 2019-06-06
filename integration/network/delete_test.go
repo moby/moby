@@ -28,9 +28,9 @@ func containsNetwork(nws []types.NetworkResource, networkID string) bool {
 //
 // After successful creation, properties of all three networks is returned
 func createAmbiguousNetworks(t *testing.T, ctx context.Context, client dclient.APIClient) (string, string, string) { // nolint: golint
-	testNet := network.CreateNoError(t, ctx, client, "testNet")
-	idPrefixNet := network.CreateNoError(t, ctx, client, testNet[:12])
-	fullIDNet := network.CreateNoError(t, ctx, client, testNet)
+	testNet := network.CreateNoError(ctx, t, client, "testNet")
+	idPrefixNet := network.CreateNoError(ctx, t, client, testNet[:12])
+	fullIDNet := network.CreateNoError(ctx, t, client, testNet)
 
 	nws, err := client.NetworkList(ctx, types.NetworkListOptions{})
 	assert.NilError(t, err)
@@ -49,7 +49,7 @@ func TestNetworkCreateDelete(t *testing.T) {
 	ctx := context.Background()
 
 	netName := "testnetwork_" + t.Name()
-	network.CreateNoError(t, ctx, client, netName,
+	network.CreateNoError(ctx, t, client, netName,
 		network.WithCheckDuplicate(),
 	)
 	assert.Check(t, IsNetworkAvailable(client, netName))

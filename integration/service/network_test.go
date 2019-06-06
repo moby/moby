@@ -24,7 +24,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name() + "test-alias"
-	net.CreateNoError(t, ctx, client, name,
+	net.CreateNoError(ctx, t, client, name,
 		net.WithDriver("overlay"),
 		net.WithAttachable(),
 	)
