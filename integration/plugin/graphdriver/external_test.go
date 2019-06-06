@@ -360,7 +360,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 
 			ctx := context.Background()
 
-			testGraphDriver(t, c, ctx, driverName, func(t *testing.T) {
+			testGraphDriver(ctx, t, c, driverName, func(t *testing.T) {
 				d.Restart(t, "-s", driverName)
 			})
 
@@ -434,11 +434,10 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	d.Stop(t)
 	d.StartWithBusybox(t, "-s", plugin, "--storage-opt", "overlay2.override_kernel_check=1")
 
-	testGraphDriver(t, client, ctx, plugin, nil)
+	testGraphDriver(ctx, t, client, plugin, nil)
 }
 
-// nolint: golint
-func testGraphDriver(t *testing.T, c client.APIClient, ctx context.Context, driverName string, afterContainerRunFn func(*testing.T)) { //nolint: golint
+func testGraphDriver(ctx context.Context, t *testing.T, c client.APIClient, driverName string, afterContainerRunFn func(*testing.T)) {
 	id := container.Run(ctx, t, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
 
 	if afterContainerRunFn != nil {
