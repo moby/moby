@@ -40,7 +40,7 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 
 	ctx := context.Background()
 
-	cID := container.Create(t, ctx, c)
+	cID := container.Create(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
 	err := c.ContainerStart(ctx, cID, types.ContainerStartOptions{})

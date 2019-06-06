@@ -83,7 +83,7 @@ func TestEventsBackwardsCompatible(t *testing.T) {
 	since := request.DaemonTime(ctx, t, client, testEnv)
 	ts := strconv.FormatInt(since.Unix(), 10)
 
-	cID := container.Create(t, ctx, client)
+	cID := container.Create(ctx, t, client)
 
 	// In case there is no events, the API should have responded immediately (not blocking),
 	// The test here makes sure the response time is less than 3 sec.

@@ -16,9 +16,9 @@ func TestPsFilter(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	prev := container.Create(t, ctx, client)
-	top := container.Create(t, ctx, client)
-	next := container.Create(t, ctx, client)
+	prev := container.Create(ctx, t, client)
+	top := container.Create(ctx, t, client)
+	next := container.Create(ctx, t, client)
 
 	containerIDs := func(containers []types.Container) []string {
 		var entries []string

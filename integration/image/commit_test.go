@@ -19,7 +19,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID1 := container.Create(t, ctx, client)
+	cID1 := container.Create(ctx, t, client)
 
 	commitResp1, err := client.ContainerCommit(ctx, cID1, types.ContainerCommitOptions{
 		Changes:   []string{"ENV PATH=/bin"},
@@ -33,7 +33,7 @@ func TestCommitInheritsEnv(t *testing.T) {
 	expectedEnv1 := []string{"PATH=/bin"}
 	assert.Check(t, is.DeepEqual(expectedEnv1, image1.Config.Env))
 
-	cID2 := container.Create(t, ctx, client, container.WithImage(image1.ID))
+	cID2 := container.Create(ctx, t, client, container.WithImage(image1.ID))
 
 	commitResp2, err := client.ContainerCommit(ctx, cID2, types.ContainerCommitOptions{
 		Changes:   []string{"ENV PATH=/usr/bin:$PATH"},
