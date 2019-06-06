@@ -29,7 +29,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 		net.WithAttachable(),
 	)
 
-	cID1 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},
@@ -52,7 +52,7 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 	assert.Check(t, is.Equal(len(ng1.NetworkSettings.Networks[name].Aliases), 2))
 	assert.Check(t, is.Equal(ng1.NetworkSettings.Networks[name].Aliases[0], "aaa"))
 
-	cID2 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID2 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},

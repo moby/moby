@@ -41,7 +41,7 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	const mem = 64 * 1024 * 1024 // 64 MB
 
 	ctx := context.Background()
-	ctrID := container.Create(t, ctx, c, func(ctr *container.TestContainerConfig) {
+	ctrID := container.Create(ctx, t, c, func(ctr *container.TestContainerConfig) {
 		ctr.HostConfig.Resources.Memory = mem
 	})
 	defer c.ContainerRemove(ctx, ctrID, types.ContainerRemoveOptions{Force: true})

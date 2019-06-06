@@ -51,7 +51,7 @@ func testCreateFailureWithCgroupNs(t *testing.T, daemonNsMode string, errStr str
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
-	container.CreateExpectingErr(t, ctx, client, errStr, containerOpts...)
+	container.CreateExpectingErr(ctx, t, client, errStr, containerOpts...)
 }
 
 func TestCgroupNamespacesRun(t *testing.T) {
