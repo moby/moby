@@ -188,8 +188,15 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 		allOps[dgst] = &op
 	}
 
+	if len(allOps) < 2 {
+		return solver.Edge{}, errors.Errorf("invalid LLB with %d vertexes", len(allOps))
+	}
+
 	lastOp := allOps[dgst]
 	delete(allOps, dgst)
+	if len(lastOp.Inputs) == 0 {
+		return solver.Edge{}, errors.Errorf("invalid LLB with no inputs on last vertex")
+	}
 	dgst = lastOp.Inputs[0].Digest
 
 	cache := make(map[digest.Digest]solver.Vertex)
@@ -203,6 +210,11 @@ func loadLLB(def *pb.Definition, fn func(digest.Digest, *pb.Op, func(digest.Dige
 		if !ok {
 			return nil, errors.Errorf("invalid missing input digest %s", dgst)
 		}
+
+		if err := ValidateOp(op); err != nil {
+			return nil, err
+		}
+
 		v, err := fn(dgst, op, rec)
 		if err != nil {
 			return nil, err
@@ -238,6 +250,55 @@ func llbOpName(op *pb.Op) string {
 	default:
 		return "unknown"
 	}
+}
+
+func ValidateOp(op *pb.Op) error {
+	if op == nil {
+		return errors.Errorf("invalid nil op")
+	}
+
+	switch op := op.Op.(type) {
+	case *pb.Op_Source:
+		if op.Source == nil {
+			return errors.Errorf("invalid nil source op")
+		}
+	case *pb.Op_Exec:
+		if op.Exec == nil {
+			return errors.Errorf("invalid nil exec op")
+		}
+		if op.Exec.Meta == nil {
+			return errors.Errorf("invalid exec op with no meta")
+		}
+		if len(op.Exec.Meta.Args) == 0 {
+			return errors.Errorf("invalid exec op with no args")
+		}
+		if len(op.Exec.Mounts) == 0 {
+			return errors.Errorf("invalid exec op with no mounts")
+		}
+
+		isRoot := false
+		for _, m := range op.Exec.Mounts {
+			if m.Dest == pb.RootMount {
+				isRoot = true
+				break
+			}
+		}
+		if !isRoot {
+			return errors.Errorf("invalid exec op with no rootfs")
+		}
+	case *pb.Op_File:
+		if op.File == nil {
+			return errors.Errorf("invalid nil file op")
+		}
+		if len(op.File.Actions) == 0 {
+			return errors.Errorf("invalid file op with no actions")
+		}
+	case *pb.Op_Build:
+		if op.Build == nil {
+			return errors.Errorf("invalid nil build op")
+		}
+	}
+	return nil
 }
 
 func fileOpName(actions []*pb.FileAction) string {

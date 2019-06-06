@@ -275,7 +275,7 @@ func CopyToCaller(ctx context.Context, fs fsutil.FS, c session.Caller, progress 
 
 	cc, err := client.DiffCopy(ctx)
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return sendDiffCopy(cc, fs, progress)
@@ -291,7 +291,7 @@ func CopyFileWriter(ctx context.Context, c session.Caller) (io.WriteCloser, erro
 
 	cc, err := client.DiffCopy(ctx)
 	if err != nil {
-		return nil, err
+		return nil, errors.WithStack(err)
 	}
 
 	return newStreamWriter(cc), nil

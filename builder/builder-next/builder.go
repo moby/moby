@@ -75,6 +75,7 @@ type Opt struct {
 	BuilderConfig       config.BuilderConfig
 	Rootless            bool
 	IdentityMapping     *idtools.IdentityMapping
+	DNSConfig           config.DNSConfig
 }
 
 // Builder can build using BuildKit backend
