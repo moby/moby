@@ -36,7 +36,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 
 	// create a network specifying the desired sub-interface name
 	netName := "di-persist"
-	net.CreateNoError(t, context.Background(), c, netName,
+	net.CreateNoError(context.Background(), t, c, netName,
 		net.WithIPvlan("di-dummy0.70", ""),
 	)
 
@@ -102,7 +102,7 @@ func testIpvlanSubinterface(client dclient.APIClient) func(*testing.T) {
 		defer n.DeleteInterface(t, master)
 
 		netName := "di-subinterface"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("di-dummy0.60", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -127,7 +127,7 @@ func testIpvlanOverlapParent(client dclient.APIClient) func(*testing.T) {
 		n.CreateVlanInterface(t, master, parent, "30")
 
 		netName := "di-subinterface"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan(parent, ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -144,7 +144,7 @@ func testIpvlanL2NilParent(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// ipvlan l2 mode - dummy parent interface is provisioned dynamically
 		netName := "di-nil-parent"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -161,7 +161,7 @@ func testIpvlanL2NilParent(client dclient.APIClient) func(*testing.T) {
 func testIpvlanL2InternalMode(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "di-internal"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", ""),
 			net.WithInternal(),
 		)
@@ -186,7 +186,7 @@ func testIpvlanL2InternalMode(client dclient.APIClient) func(*testing.T) {
 func testIpvlanL3NilParent(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "di-nil-parent-l3"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", "l3"),
 			net.WithIPAM("172.28.230.0/24", ""),
 			net.WithIPAM("172.28.220.0/24", ""),
@@ -211,7 +211,7 @@ func testIpvlanL3NilParent(client dclient.APIClient) func(*testing.T) {
 func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "di-internal-l3"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", "l3"),
 			net.WithInternal(),
 			net.WithIPAM("172.28.230.0/24", ""),
@@ -244,7 +244,7 @@ func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 func testIpvlanL2MultiSubnet(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "dualstackl2"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", ""),
 			net.WithIPv6(),
 			net.WithIPAM("172.28.200.0/24", ""),
@@ -311,7 +311,7 @@ func testIpvlanL2MultiSubnet(client dclient.APIClient) func(*testing.T) {
 func testIpvlanL3MultiSubnet(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "dualstackl3"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithIPvlan("", "l3"),
 			net.WithIPv6(),
 			net.WithIPAM("172.28.10.0/24", ""),
@@ -380,7 +380,7 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 		// Verify ipvlan l2 mode sets the proper default gateway routes via netlink
 		// for either an explicitly set route by the user or inferred via default IPAM
 		netNameL2 := "dualstackl2"
-		net.CreateNoError(t, context.Background(), client, netNameL2,
+		net.CreateNoError(context.Background(), t, client, netNameL2,
 			net.WithIPvlan("", "l2"),
 			net.WithIPv6(),
 			net.WithIPAM("172.28.140.0/24", "172.28.140.254"),
@@ -403,7 +403,7 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 
 		// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops
 		netNameL3 := "dualstackl3"
-		net.CreateNoError(t, context.Background(), client, netNameL3,
+		net.CreateNoError(context.Background(), t, client, netNameL3,
 			net.WithIPvlan("", "l3"),
 			net.WithIPv6(),
 			net.WithIPAM("172.28.160.0/24", "172.28.160.254"),

@@ -108,7 +108,7 @@ func TestHostnameDnsResolution(t *testing.T) {
 
 	// using user defined network as we want to use internal DNS
 	netName := "foobar-net"
-	net.CreateNoError(t, context.Background(), client, netName, net.WithDriver("bridge"))
+	net.CreateNoError(context.Background(), t, client, netName, net.WithDriver("bridge"))
 
 	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
 		c.Config.Hostname = hostname

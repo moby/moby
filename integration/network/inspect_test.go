@@ -21,7 +21,7 @@ func TestInspectNetwork(t *testing.T) {
 	defer c.Close()
 
 	networkName := "Overlay" + t.Name()
-	overlayID := network.CreateNoError(t, context.Background(), c, networkName,
+	overlayID := network.CreateNoError(context.Background(), t, c, networkName,
 		network.WithDriver("overlay"),
 		network.WithCheckDuplicate(),
 	)
