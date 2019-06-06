@@ -2882,6 +2882,18 @@ definitions:
             type: "object"
             additionalProperties:
               type: "string"
+          # This option is not used by Windows containers
+          Capabilities:
+            type: "array"
+            description: |
+              A list of kernel capabilities to be available for container (this overrides the default set).
+            items:
+              type: "string"
+            example:
+              - "CAP_NET_RAW"
+              - "CAP_SYS_ADMIN"
+              - "CAP_SYS_CHROOT"
+              - "CAP_SYSLOG"
       NetworkAttachmentSpec:
         description: |
           Read-only spec type for non-swarm containers attached to swarm overlay
