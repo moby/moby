@@ -94,7 +94,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	ctx := context.Background()
 
 	// check the container is created with private ipc mode as per daemon default
-	cID := container.Run(t, ctx, c,
+	cID := container.Run(ctx, t, c,
 		container.WithCmd("top"),
 		container.WithRestartPolicy("always"),
 	)
@@ -113,7 +113,7 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	assert.Check(t, is.Equal(string(inspect.HostConfig.IpcMode), "private"))
 
 	// check a new container is created with shareable ipc mode as per new daemon default
-	cID = container.Run(t, ctx, c)
+	cID = container.Run(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
 	inspect, err = c.ContainerInspect(ctx, cID)

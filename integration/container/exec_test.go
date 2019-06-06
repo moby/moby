@@ -24,7 +24,7 @@ func TestExecWithCloseStdin(t *testing.T) {
 	client := testEnv.APIClient()
 
 	// run top with detached mode
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 
 	expected := "closeIO"
 	execResp, err := client.ContainerExecCreate(ctx, cID,
@@ -90,7 +90,7 @@ func TestExec(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client, container.WithTty(true), container.WithWorkingDir("/root"))
+	cID := container.Run(ctx, t, client, container.WithTty(true), container.WithWorkingDir("/root"))
 
 	id, err := client.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{
@@ -125,7 +125,7 @@ func TestExecUser(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client, container.WithTty(true), container.WithUser("1:1"))
+	cID := container.Run(ctx, t, client, container.WithTty(true), container.WithUser("1:1"))
 
 	result, err := container.Exec(ctx, client, cID, []string{"id"})
 	assert.NilError(t, err)

@@ -153,8 +153,8 @@ func testIpvlanL2NilParent(client dclient.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
-		id2 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
+		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 		_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.NilError(t, err)
@@ -171,8 +171,8 @@ func testIpvlanL2InternalMode(client dclient.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
-		id2 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
+		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -197,11 +197,11 @@ func testIpvlanL3NilParent(client dclient.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.220.10"),
 		)
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.230.10"),
 		)
@@ -223,11 +223,11 @@ func testIpvlanL3InternalMode(client dclient.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.220.10"),
 		)
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.230.10"),
 		)
@@ -259,12 +259,12 @@ func testIpvlanL2MultiSubnet(client dclient.APIClient) func(*testing.T) {
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.200.20"),
 			container.WithIPv6(netName, "2001:db8:abc8::20"),
 		)
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.200.21"),
 			container.WithIPv6(netName, "2001:db8:abc8::21"),
@@ -280,12 +280,12 @@ func testIpvlanL2MultiSubnet(client dclient.APIClient) func(*testing.T) {
 		assert.NilError(t, err)
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-		id3 := container.Run(t, ctx, client,
+		id3 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.202.20"),
 			container.WithIPv6(netName, "2001:db8:abc6::20"),
 		)
-		id4 := container.Run(t, ctx, client,
+		id4 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.202.21"),
 			container.WithIPv6(netName, "2001:db8:abc6::21"),
@@ -326,12 +326,12 @@ func testIpvlanL3MultiSubnet(client dclient.APIClient) func(*testing.T) {
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.10.20"),
 			container.WithIPv6(netName, "2001:db8:abc9::20"),
 		)
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.10.21"),
 			container.WithIPv6(netName, "2001:db8:abc9::21"),
@@ -347,12 +347,12 @@ func testIpvlanL3MultiSubnet(client dclient.APIClient) func(*testing.T) {
 		assert.NilError(t, err)
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-		id3 := container.Run(t, ctx, client,
+		id3 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.12.20"),
 			container.WithIPv6(netName, "2001:db8:abc7::20"),
 		)
-		id4 := container.Run(t, ctx, client,
+		id4 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netName),
 			container.WithIPv4(netName, "172.28.12.21"),
 			container.WithIPv6(netName, "2001:db8:abc7::21"),
@@ -392,7 +392,7 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netNameL2))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netNameL2),
 		)
 		// Validate ipvlan l2 mode defaults gateway sets the default IPAM next-hop inferred from the subnet
@@ -414,7 +414,7 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netNameL3))
 
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode(netNameL3),
 		)
 		// Validate ipvlan l3 mode sets the v4 gateway to dev eth0 and disregards any explicit or inferred next-hops

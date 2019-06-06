@@ -55,7 +55,7 @@ func TestAuthZPluginV2AllowNonVolumeRequest(t *testing.T) {
 	d.LoadBusybox(t)
 
 	// Ensure docker run command and accompanying docker ps are successful
-	cID := container.Run(t, ctx, c)
+	cID := container.Run(ctx, t, c)
 
 	_, err = c.ContainerInspect(ctx, cID)
 	assert.NilError(t, err)

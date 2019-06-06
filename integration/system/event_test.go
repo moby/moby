@@ -30,7 +30,7 @@ func TestEventsExecDie(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 
 	id, err := client.ContainerExecCreate(ctx, cID,
 		types.ExecConfig{

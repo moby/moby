@@ -26,7 +26,7 @@ func TestUpdateMemory(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources = containertypes.Resources{
 			Memory: 200 * 1024 * 1024,
 		}
@@ -72,7 +72,7 @@ func TestUpdateCPUQuota(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 
 	for _, test := range []struct {
 		desc   string
@@ -140,7 +140,7 @@ func TestUpdatePidsLimit(t *testing.T) {
 
 		t.Run(test.desc, func(t *testing.T) {
 			// Using "network=host" to speed up creation (13.96s vs 6.54s)
-			cID := container.Run(t, ctx, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
+			cID := container.Run(ctx, t, apiClient, container.WithPidsLimit(test.initial), container.WithNetworkMode("host"))
 
 			_, err := c.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 				Resources: containertypes.Resources{

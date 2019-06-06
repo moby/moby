@@ -399,7 +399,7 @@ func testGraphDriverPull(c client.APIClient, d *daemon.Daemon) func(*testing.T) 
 		_, err = io.Copy(ioutil.Discard, r)
 		assert.NilError(t, err)
 
-		container.Run(t, ctx, c, container.WithImage("busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0"))
+		container.Run(ctx, t, c, container.WithImage("busybox:latest@sha256:bbc3a03235220b170ba48a157dd097dd1379299370e1ed99ce976df0355d24f0"))
 	}
 }
 
@@ -439,7 +439,7 @@ func TestGraphdriverPluginV2(t *testing.T) {
 
 // nolint: golint
 func testGraphDriver(t *testing.T, c client.APIClient, ctx context.Context, driverName string, afterContainerRunFn func(*testing.T)) { //nolint: golint
-	id := container.Run(t, ctx, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
+	id := container.Run(ctx, t, c, container.WithCmd("sh", "-c", "echo hello > /hello"))
 
 	if afterContainerRunFn != nil {
 		afterContainerRunFn(t)
