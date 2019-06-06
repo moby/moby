@@ -33,7 +33,7 @@ func TestDockerNetworkMacvlanPersistance(t *testing.T) {
 	c := d.NewClientT(t)
 
 	netName := "dm-persist"
-	net.CreateNoError(t, context.Background(), c, netName,
+	net.CreateNoError(context.Background(), t, c, netName,
 		net.WithMacvlan("dm-dummy0.60"),
 	)
 	assert.Check(t, n.IsNetworkAvailable(c, netName))
@@ -86,7 +86,7 @@ func testMacvlanOverlapParent(client client.APIClient) func(*testing.T) {
 
 		netName := "dm-subinterface"
 		parentName := "dm-dummy0.40"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(parentName),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -116,7 +116,7 @@ func testMacvlanSubinterface(client client.APIClient) func(*testing.T) {
 		n.CreateVlanInterface(t, master, parentName, "20")
 
 		netName := "dm-subinterface"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(parentName),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -135,7 +135,7 @@ func testMacvlanNilParent(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// macvlan bridge mode - dummy parent interface is provisioned dynamically
 		netName := "dm-nil-parent"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -153,7 +153,7 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// macvlan bridge mode - dummy parent interface is provisioned dynamically
 		netName := "dm-internal"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(""),
 			net.WithInternal(),
 		)
@@ -178,7 +178,7 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		netName := "dualstackbridge"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(""),
 			net.WithIPv6(),
 			net.WithIPAM("172.28.100.0/24", ""),
@@ -247,7 +247,7 @@ func testMacvlanAddressing(client client.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
 		// Ensure the default gateways, next-hops and default dev devices are properly set
 		netName := "dualstackbridge"
-		net.CreateNoError(t, context.Background(), client, netName,
+		net.CreateNoError(context.Background(), t, client, netName,
 			net.WithMacvlan(""),
 			net.WithIPv6(),
 			net.WithOption("macvlan_mode", "bridge"),
