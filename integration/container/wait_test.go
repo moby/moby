@@ -39,7 +39,7 @@ func TestWaitNonBlocked(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			containerID := container.Run(t, ctx, cli, container.WithCmd("sh", "-c", tc.cmd))
+			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "exited"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
 
 			waitresC, errC := cli.ContainerWait(ctx, containerID, "")
@@ -81,7 +81,7 @@ func TestWaitBlocked(t *testing.T) {
 		t.Run(tc.doc, func(t *testing.T) {
 			t.Parallel()
 			ctx := context.Background()
-			containerID := container.Run(t, ctx, cli, container.WithCmd("sh", "-c", tc.cmd))
+			containerID := container.Run(ctx, t, cli, container.WithCmd("sh", "-c", tc.cmd))
 			poll.WaitOn(t, container.IsInState(ctx, cli, containerID, "running"), poll.WithTimeout(30*time.Second), poll.WithDelay(100*time.Millisecond))
 
 			waitresC, errC := cli.ContainerWait(ctx, containerID, "")

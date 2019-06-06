@@ -17,7 +17,7 @@ func TestUpdateRestartPolicy(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", "sleep 1 && false"), func(c *container.TestContainerConfig) {
 		c.HostConfig.RestartPolicy = containertypes.RestartPolicy{
 			Name:              "on-failure",
 			MaximumRetryCount: 3,
@@ -50,7 +50,7 @@ func TestUpdateRestartWithAutoRemove(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithAutoRemove)
+	cID := container.Run(ctx, t, client, container.WithAutoRemove)
 
 	_, err := client.ContainerUpdate(ctx, cID, containertypes.UpdateConfig{
 		RestartPolicy: containertypes.RestartPolicy{

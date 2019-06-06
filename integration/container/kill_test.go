@@ -18,7 +18,7 @@ func TestKillContainerInvalidSignal(t *testing.T) {
 	defer setupTest(t)()
 	client := testEnv.APIClient()
 	ctx := context.Background()
-	id := container.Run(t, ctx, client)
+	id := container.Run(ctx, t, client)
 
 	err := client.ContainerKill(ctx, id, "0")
 	assert.Error(t, err, "Error response from daemon: Invalid signal: 0")
@@ -60,7 +60,7 @@ func TestKillContainer(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := context.Background()
-			id := container.Run(t, ctx, client)
+			id := container.Run(ctx, t, client)
 			err := client.ContainerKill(ctx, id, tc.signal)
 			assert.NilError(t, err)
 
@@ -95,7 +95,7 @@ func TestKillWithStopSignalAndRestartPolicies(t *testing.T) {
 		tc := tc
 		t.Run(tc.doc, func(t *testing.T) {
 			ctx := context.Background()
-			id := container.Run(t, ctx, client,
+			id := container.Run(ctx, t, client,
 				container.WithRestartPolicy("always"),
 				func(c *container.TestContainerConfig) {
 					c.Config.StopSignal = tc.stopsignal
@@ -137,7 +137,7 @@ func TestKillDifferentUserContainer(t *testing.T) {
 	ctx := context.Background()
 	client := request.NewAPIClient(t, client.WithVersion("1.19"))
 
-	id := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	id := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.User = "daemon"
 	})
 	poll.WaitOn(t, container.IsInState(ctx, client, id, "running"), poll.WithDelay(100*time.Millisecond))
@@ -154,7 +154,7 @@ func TestInspectOomKilledTrue(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", "x=a; while true; do x=$x$x$x$x; done"), func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources.Memory = 32 * 1024 * 1024
 	})
 
@@ -172,7 +172,7 @@ func TestInspectOomKilledFalse(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", "echo hello world"))
+	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", "echo hello world"))
 
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
