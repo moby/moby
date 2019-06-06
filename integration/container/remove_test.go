@@ -36,7 +36,7 @@ func TestRemoveContainerWithRemovedVolume(t *testing.T) {
 	tempDir := fs.NewDir(t, "test-rm-container-with-removed-volume", fs.WithMode(0755))
 	defer tempDir.Remove()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithBind(tempDir.Path(), prefix+slash+"test"))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	err := os.RemoveAll(tempDir.Path())
@@ -59,7 +59,7 @@ func TestRemoveContainerWithVolume(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
+	cID := container.Run(ctx, t, client, container.WithCmd("true"), container.WithVolume(prefix+slash+"srv"))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "exited"), poll.WithDelay(100*time.Millisecond))
 
 	insp, _, err := client.ContainerInspectWithRaw(ctx, cID, true)
@@ -82,7 +82,7 @@ func TestRemoveContainerRunning(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 
 	err := client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{})
 	assert.Check(t, is.ErrorContains(err, "cannot remove a running container"))
@@ -93,7 +93,7 @@ func TestRemoveContainerForceRemoveRunning(t *testing.T) {
 	ctx := context.Background()
 	client := testEnv.APIClient()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 
 	err := client.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{
 		Force: true,

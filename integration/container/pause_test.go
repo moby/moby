@@ -25,7 +25,7 @@ func TestPause(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	since := request.DaemonUnixTime(ctx, t, client, testEnv)
@@ -57,7 +57,7 @@ func TestPauseFailsOnWindowsServerContainers(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)
@@ -71,7 +71,7 @@ func TestPauseStopPausedContainer(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	err := client.ContainerPause(ctx, cID)

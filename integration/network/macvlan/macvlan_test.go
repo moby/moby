@@ -141,8 +141,8 @@ func testMacvlanNilParent(client client.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
-		id2 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
+		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 		_, err := container.Exec(ctx, client, id2, []string{"ping", "-c", "1", id1})
 		assert.Check(t, err == nil)
@@ -160,8 +160,8 @@ func testMacvlanInternalMode(client client.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
-		id2 := container.Run(t, ctx, client, container.WithNetworkMode(netName))
+		id1 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
+		id2 := container.Run(ctx, t, client, container.WithNetworkMode(netName))
 
 		timeoutCtx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 		defer cancel()
@@ -191,12 +191,12 @@ func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.100.0/24 and 2001:db8:abc2::/64
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode("dualstackbridge"),
 			container.WithIPv4("dualstackbridge", "172.28.100.20"),
 			container.WithIPv6("dualstackbridge", "2001:db8:abc2::20"),
 		)
-		id2 := container.Run(t, ctx, client,
+		id2 := container.Run(ctx, t, client,
 			container.WithNetworkMode("dualstackbridge"),
 			container.WithIPv4("dualstackbridge", "172.28.100.21"),
 			container.WithIPv6("dualstackbridge", "2001:db8:abc2::21"),
@@ -212,12 +212,12 @@ func testMacvlanMultiSubnet(client client.APIClient) func(*testing.T) {
 		assert.NilError(t, err)
 
 		// start dual stack containers and verify the user specified --ip and --ip6 addresses on subnets 172.28.102.0/24 and 2001:db8:abc4::/64
-		id3 := container.Run(t, ctx, client,
+		id3 := container.Run(ctx, t, client,
 			container.WithNetworkMode("dualstackbridge"),
 			container.WithIPv4("dualstackbridge", "172.28.102.20"),
 			container.WithIPv6("dualstackbridge", "2001:db8:abc4::20"),
 		)
-		id4 := container.Run(t, ctx, client,
+		id4 := container.Run(ctx, t, client,
 			container.WithNetworkMode("dualstackbridge"),
 			container.WithIPv4("dualstackbridge", "172.28.102.21"),
 			container.WithIPv6("dualstackbridge", "2001:db8:abc4::21"),
@@ -257,7 +257,7 @@ func testMacvlanAddressing(client client.APIClient) func(*testing.T) {
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
 
 		ctx := context.Background()
-		id1 := container.Run(t, ctx, client,
+		id1 := container.Run(ctx, t, client,
 			container.WithNetworkMode("dualstackbridge"),
 		)
 

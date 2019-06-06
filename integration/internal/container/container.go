@@ -54,8 +54,7 @@ func CreateExpectingErr(ctx context.Context, t *testing.T, client client.APIClie
 }
 
 // Run creates and start a container with the specified options
-// nolint: golint
-func Run(t *testing.T, ctx context.Context, client client.APIClient, ops ...func(*TestContainerConfig)) string { // nolint: golint
+func Run(ctx context.Context, t *testing.T, client client.APIClient, ops ...func(*TestContainerConfig)) string {
 	t.Helper()
 	id := Create(ctx, t, client, ops...)
 
