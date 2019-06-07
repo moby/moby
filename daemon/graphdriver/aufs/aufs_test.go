@@ -731,7 +731,7 @@ func BenchmarkConcurrentAccess(b *testing.B) {
 	// create a bunch of ids
 	var ids []string
 	for i := 0; i < numConcurrent; i++ {
-		ids = append(ids, stringid.GenerateNonCryptoID())
+		ids = append(ids, stringid.GenerateRandomID())
 	}
 
 	if err := d.Create(ids[0], "", nil); err != nil {
