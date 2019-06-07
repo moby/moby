@@ -146,6 +146,8 @@ func (pm *Manager) restore(p *v2.Plugin, c *controller) error {
 	return nil
 }
 
+const shutdownTimeout = 10 * time.Second
+
 func shutdownPlugin(p *v2.Plugin, ec chan bool, executor Executor) {
 	pluginID := p.GetID()
 
@@ -153,19 +155,26 @@ func shutdownPlugin(p *v2.Plugin, ec chan bool, executor Executor) {
 	if err != nil {
 		logrus.Errorf("Sending SIGTERM to plugin failed with error: %v", err)
 	} else {
+
+		timeout := time.NewTimer(shutdownTimeout)
+		defer timeout.Stop()
+
 		select {
 		case <-ec:
 			logrus.Debug("Clean shutdown of plugin")
-		case <-time.After(time.Second * 10):
+		case <-timeout.C:
 			logrus.Debug("Force shutdown plugin")
 			if err := executor.Signal(pluginID, int(unix.SIGKILL)); err != nil {
 				logrus.Errorf("Sending SIGKILL to plugin failed with error: %v", err)
 			}
+
+			timeout.Reset(shutdownTimeout)
+
 			select {
 			case <-ec:
 				logrus.Debug("SIGKILL plugin shutdown")
-			case <-time.After(time.Second * 10):
-				logrus.Debug("Force shutdown plugin FAILED")
+			case <-timeout.C:
+				logrus.WithField("plugin", p.Name).Warn("Force shutdown plugin FAILED")
 			}
 		}
 	}

@@ -146,9 +146,18 @@ func (w *filePoller) sendErr(e error, chClose <-chan struct{}) error {
 // upon finding changes to a file or errors, sendEvent/sendErr is called
 func (w *filePoller) watch(f *os.File, lastFi os.FileInfo, chClose chan struct{}) {
 	defer f.Close()
+
+	timer := time.NewTimer(watchWaitTime)
+	if !timer.Stop() {
+		<-timer.C
+	}
+	defer timer.Stop()
+
 	for {
+		timer.Reset(watchWaitTime)
+
 		select {
-		case <-time.After(watchWaitTime):
+		case <-timer.C:
 		case <-chClose:
 			logrus.Debugf("watch for %s closed", f.Name())
 			return
