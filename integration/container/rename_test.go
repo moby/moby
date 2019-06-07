@@ -61,7 +61,7 @@ func TestRenameStoppedContainer(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal("/"+oldName, inspect.Name))
 
-	newName := "new_name" + stringid.GenerateNonCryptoID()
+	newName := "new_name" + stringid.GenerateRandomID()
 	err = client.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 
@@ -79,7 +79,7 @@ func TestRenameRunningContainerAndReuse(t *testing.T) {
 	cID := container.Run(t, ctx, client, container.WithName(oldName))
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
-	newName := "new_name" + stringid.GenerateNonCryptoID()
+	newName := "new_name" + stringid.GenerateRandomID()
 	err := client.ContainerRename(ctx, oldName, newName)
 	assert.NilError(t, err)
 

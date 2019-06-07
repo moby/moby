@@ -558,7 +558,7 @@ func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverCapabilities(c *chec
 }
 
 func (s *DockerExternalVolumeSuite) TestExternalVolumeDriverOutOfBandDelete(c *check.C) {
-	driverName := stringid.GenerateNonCryptoID()
+	driverName := stringid.GenerateRandomID()
 	p := newVolumePlugin(c, driverName)
 	defer p.Close()
 
