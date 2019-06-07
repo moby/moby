@@ -64,7 +64,7 @@ func TestVolumesRemove(t *testing.T) {
 
 	prefix, slash := getPrefixAndSlashFromDaemonPlatform()
 
-	id := container.Create(t, ctx, client, container.WithVolume(prefix+slash+"foo"))
+	id := container.Create(ctx, t, client, container.WithVolume(prefix+slash+"foo"))
 
 	c, err := client.ContainerInspect(ctx, id)
 	assert.NilError(t, err)

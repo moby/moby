@@ -92,7 +92,7 @@ func TestAuthZPluginAllowRequest(t *testing.T) {
 	ctx := context.Background()
 
 	// Ensure command successful
-	cID := container.Run(t, ctx, c)
+	cID := container.Run(ctx, t, c)
 
 	assertURIRecorded(t, ctrl.requestsURIs, "/containers/create")
 	assertURIRecorded(t, ctrl.requestsURIs, fmt.Sprintf("/containers/%s/start", cID))
@@ -224,7 +224,7 @@ func TestAuthZPluginAllowEventStream(t *testing.T) {
 	defer cancel()
 
 	// Create a container and wait for the creation events
-	cID := container.Run(t, ctx, c)
+	cID := container.Run(ctx, t, c)
 	poll.WaitOn(t, container.IsInState(ctx, c, cID, "running"))
 
 	created := false
@@ -348,7 +348,7 @@ func TestAuthZPluginEnsureLoadImportWorking(t *testing.T) {
 
 	exportedImagePath := filepath.Join(tmp, "export.tar")
 
-	cID := container.Run(t, ctx, c)
+	cID := container.Run(ctx, t, c)
 
 	responseReader, err := c.ContainerExport(context.Background(), cID)
 	assert.NilError(t, err)
@@ -388,7 +388,7 @@ func TestAuthzPluginEnsureContainerCopyToFrom(t *testing.T) {
 	c := d.NewClientT(t)
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, c)
+	cID := container.Run(ctx, t, c)
 	defer c.ContainerRemove(ctx, cID, types.ContainerRemoveOptions{Force: true})
 
 	_, err = f.Seek(0, io.SeekStart)

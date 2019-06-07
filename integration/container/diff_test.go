@@ -19,7 +19,7 @@ func TestDiff(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))
+	cID := container.Run(ctx, t, client, container.WithCmd("sh", "-c", `mkdir /foo; echo xyzzy > /foo/bar`))
 
 	// Wait for it to exit as cannot diff a running container on Windows, and
 	// it will take a few seconds to exit. Also there's no way in Windows to

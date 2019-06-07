@@ -30,7 +30,7 @@ func TestKernelTCPMemory(t *testing.T) {
 		kernelMemoryTCP int64 = 200 * 1024 * 1024
 	)
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.HostConfig.Resources = containertypes.Resources{
 			KernelMemoryTCP: kernelMemoryTCP,
 		}
@@ -66,7 +66,7 @@ func TestNISDomainname(t *testing.T) {
 		domainname = "baz.cyphar.com"
 	)
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.Hostname = hostname
 		c.Config.Domainname = domainname
 	})
@@ -108,9 +108,9 @@ func TestHostnameDnsResolution(t *testing.T) {
 
 	// using user defined network as we want to use internal DNS
 	netName := "foobar-net"
-	net.CreateNoError(t, context.Background(), client, netName, net.WithDriver("bridge"))
+	net.CreateNoError(context.Background(), t, client, netName, net.WithDriver("bridge"))
 
-	cID := container.Run(t, ctx, client, func(c *container.TestContainerConfig) {
+	cID := container.Run(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.Config.Hostname = hostname
 		c.HostConfig.NetworkMode = containertypes.NetworkMode(netName)
 	})

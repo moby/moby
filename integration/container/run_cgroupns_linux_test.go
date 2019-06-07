@@ -34,7 +34,7 @@ func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...fun
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
-	cID := container.Run(t, ctx, client, containerOpts...)
+	cID := container.Run(ctx, t, client, containerOpts...)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)
@@ -51,7 +51,7 @@ func testCreateFailureWithCgroupNs(t *testing.T, daemonNsMode string, errStr str
 
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
-	container.CreateExpectingErr(t, ctx, client, errStr, containerOpts...)
+	container.CreateExpectingErr(ctx, t, client, errStr, containerOpts...)
 }
 
 func TestCgroupNamespacesRun(t *testing.T) {
@@ -143,7 +143,7 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
-	cID := container.Run(t, ctx, client)
+	cID := container.Run(ctx, t, client)
 	poll.WaitOn(t, container.IsInState(ctx, client, cID, "running"), poll.WithDelay(100*time.Millisecond))
 
 	daemonCgroup := d.CgroupNamespace(t)

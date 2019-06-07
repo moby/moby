@@ -24,7 +24,7 @@ func TestLinksEtcHostsContentMatch(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	cID := container.Run(t, ctx, client, container.WithNetworkMode("host"))
+	cID := container.Run(ctx, t, client, container.WithNetworkMode("host"))
 	res, err := container.Exec(ctx, client, cID, []string{"cat", "/etc/hosts"})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Len(res.Stderr(), 0))
@@ -42,8 +42,8 @@ func TestLinksContainerNames(t *testing.T) {
 
 	containerA := "first_" + t.Name()
 	containerB := "second_" + t.Name()
-	container.Run(t, ctx, client, container.WithName(containerA))
-	container.Run(t, ctx, client, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
+	container.Run(ctx, t, client, container.WithName(containerA))
+	container.Run(ctx, t, client, container.WithName(containerB), container.WithLinks(containerA+":"+containerA))
 
 	f := filters.NewArgs(filters.Arg("name", containerA))
 

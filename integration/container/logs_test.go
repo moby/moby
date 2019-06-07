@@ -21,7 +21,7 @@ func TestLogsFollowTailEmpty(t *testing.T) {
 	client := testEnv.APIClient()
 	ctx := context.Background()
 
-	id := container.Run(t, ctx, client, container.WithCmd("sleep", "100000"))
+	id := container.Run(ctx, t, client, container.WithCmd("sleep", "100000"))
 
 	logs, err := client.ContainerLogs(ctx, id, types.ContainerLogsOptions{ShowStdout: true, Tail: "2"})
 	if logs != nil {
