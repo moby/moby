@@ -1074,6 +1074,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		info.KernelVersion,
 		info.OperatingSystem,
 		info.OSType,
+		info.OSVersion,
 		info.ID,
 	).Set(1)
 	engineCpus.Set(float64(info.NCPU))
