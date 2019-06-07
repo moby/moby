@@ -1,5 +1,15 @@
 .PHONY: all binary dynbinary build cross help install manpages run shell test test-docker-py test-integration test-unit validate win
 
+ifdef USE_BUILDX
+BUILDX ?= $(shell command -v buildx)
+BUILDX ?= $(shell command -v docker-buildx)
+DOCKER_BUILDX_CLI_PLUGIN_PATH ?= ~/.docker/cli-plugins/docker-buildx
+BUILDX ?= $(shell if [ -x "$(DOCKER_BUILDX_CLI_PLUGIN_PATH)" ]; then echo $(DOCKER_BUILDX_CLI_PLUGIN_PATH); fi)
+endif
+
+BUILDX ?= bundles/buildx
+DOCKER ?= docker
+
 # set the graph driver as the current graphdriver if not set
 DOCKER_GRAPHDRIVER := $(if $(DOCKER_GRAPHDRIVER),$(DOCKER_GRAPHDRIVER),$(shell docker info 2>&1 | grep "Storage Driver" | sed 's/.*: //'))
 export DOCKER_GRAPHDRIVER
@@ -107,7 +117,7 @@ GIT_BRANCH_CLEAN := $(shell echo $(GIT_BRANCH) | sed -e "s/[^[:alnum:]]/-/g")
 DOCKER_IMAGE := docker-dev$(if $(GIT_BRANCH_CLEAN),:$(GIT_BRANCH_CLEAN))
 DOCKER_PORT_FORWARD := $(if $(DOCKER_PORT),-p "$(DOCKER_PORT)",)
 
-DOCKER_FLAGS := docker run --rm -i --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
+DOCKER_FLAGS := $(DOCKER) run --rm -i --privileged $(DOCKER_CONTAINER_NAME) $(DOCKER_ENVS) $(DOCKER_MOUNT) $(DOCKER_PORT_FORWARD)
 BUILD_APT_MIRROR := $(if $(DOCKER_BUILD_APT_MIRROR),--build-arg APT_MIRROR=$(DOCKER_BUILD_APT_MIRROR))
 export BUILD_APT_MIRROR
 
@@ -133,29 +143,30 @@ default: binary
 all: build ## validate all checks, build linux binaries, run all tests\ncross build non-linux binaries and generate archives
 	$(DOCKER_RUN_DOCKER) bash -c 'hack/validate/default && hack/make.sh'
 
+binary: DOCKER_BUILD_ARGS += --output=bundles/ --target=binary
 binary: build ## build the linux binaries
-	$(DOCKER_RUN_DOCKER) hack/make.sh binary
 
+dynbinary: DOCKER_BUILD_ARGS += --output=bundles/ --target=dynbinary
 dynbinary: build ## build the linux dynbinaries
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary
 
-
-
+cross: DOCKER_BUILD_ARGS += --output=bundles/ --target=cross --build-arg DOCKER_CROSSPLATFORMS=$(DOCKER_CROSSPLATFORMS)
 cross: DOCKER_CROSS := true
 cross: build ## cross build the binaries for darwin, freebsd and\nwindows
-	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary binary cross
 
 ifdef DOCKER_CROSSPLATFORMS
 build: DOCKER_CROSS := true
 endif
-ifeq ($(BIND_DIR), .)
-build: DOCKER_BUILD_OPTS += --target=dev
-endif
 build: DOCKER_BUILD_ARGS += --build-arg=CROSS=$(DOCKER_CROSS)
-build: DOCKER_BUILDKIT ?= 1
+ifdef GO_VERSION
+build: DOCKER_BUILD_ARGS += --build-arg=GO_VERSION=$(GO_VERSION)
+endif
+ifdef USE_BUILDX
+build: bundles buildx 
+	$(BUILDX) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" $(BUILDX_BUILD_EXTRA_OPTS) .
+else
 build: bundles
-	$(warning The docker client CLI has moved to github.com/docker/cli. For a dev-test cycle involving the CLI, run:${\n} DOCKER_CLI_PATH=/host/path/to/cli/binary make shell ${\n} then change the cli and compile into a binary at the same location.${\n})
-	DOCKER_BUILDKIT="${DOCKER_BUILDKIT}" docker build --build-arg=GO_VERSION ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+	$(DOCKER) build ${BUILD_APT_MIRROR} ${DOCKER_BUILD_ARGS} ${DOCKER_BUILD_OPTS} -t "$(DOCKER_IMAGE)" -f "$(DOCKERFILE)" .
+endif
 
 bundles:
 	mkdir bundles
@@ -176,7 +187,9 @@ install: ## install the linux binaries
 run: build ## run the docker daemon in a container
 	$(DOCKER_RUN_DOCKER) sh -c "KEEPBUNDLE=1 hack/make.sh install-binary run"
 
-shell: build ## start a shell inside the build env
+shell: DOCKER_BUILD_ARGS += --target=dev
+shell: BUILDX_BUILD_EXTRA_OPTS += --load
+shell: build  ## start a shell inside the build env
 	$(DOCKER_RUN_DOCKER) bash
 
 test: build test-unit ## run the unit, integration and docker-py tests
@@ -222,3 +235,24 @@ swagger-docs: ## preview the API documentation
 		-e 'REDOC_OPTIONS=hide-hostname="true" lazy-rendering' \
 		-p $(SWAGGER_DOCS_PORT):80 \
 		bfirsh/redoc:1.6.2
+
+.PHONY: buildx
+ifeq ($(BUILDX), bundles/buildx)
+buildx: bundles/buildx # build buildx cli tool
+else
+buildx:
+endif
+
+bundles/buildx: BUILDX_DOCKERFILE ?= Dockerfile.buildx
+bundles/buildx: BUILDX_COMMIT ?= v0.3.0
+bundles/buildx: bundles ## build buildx CLI tool
+	# This intetionally is not using the `--output` flag from the docker CLI which is a buildkit option
+	# The idea here being that if buildx is being used, it's because buildkit is not supported natively
+	docker build -f $(BUILDX_DOCKERFILE) -t "moby-buildx:$(BUILDX_COMMIT)" \
+		--build-arg BUILDX_COMMIT \
+		--build-arg BUILDX_REPO \
+		--build-arg GOOS=$$(if [ -n "$(GOOS)" ]; then echo $(GOOS); else go env GOHOSTOS || uname | awk '{print tolower($$0)}' || true; fi) \
+		--build-arg GOARCH=$$(if [ -n "$(GOARCH)" ]; then echo $(GOARCH); else go env GOHOSTARCH || true; fi) \
+		. && \
+		id=$$(docker create moby-buildx:$(BUILDX_COMMIT)); \
+		if [ -n "$${id}" ]; then docker cp $${id}:/usr/bin/buildx $@ && touch $@; docker rm -f $${id}; fi
