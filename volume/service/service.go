@@ -63,7 +63,7 @@ func (s *VolumesService) GetDriverList() []string {
 // When whatever is going to reference this volume is removed the caller should defeference the volume by calling `Release`.
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error) {
 	if name == "" {
-		name = stringid.GenerateNonCryptoID()
+		name = stringid.GenerateRandomID()
 	}
 	v, err := s.vs.Create(ctx, name, driverName, opts...)
 	if err != nil {

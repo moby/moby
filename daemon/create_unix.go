@@ -41,7 +41,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 	}
 
 	for spec := range config.Volumes {
-		name := stringid.GenerateNonCryptoID()
+		name := stringid.GenerateRandomID()
 		destination := filepath.Clean(spec)
 
 		// Skip volumes for which we already have something mounted on that
