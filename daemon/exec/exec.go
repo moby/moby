@@ -39,7 +39,7 @@ type Config struct {
 // NewConfig initializes the a new exec configuration
 func NewConfig() *Config {
 	return &Config{
-		ID:           stringid.GenerateNonCryptoID(),
+		ID:           stringid.GenerateRandomID(),
 		StreamConfig: stream.NewConfig(),
 		Started:      make(chan struct{}),
 	}

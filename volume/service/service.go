@@ -56,7 +56,7 @@ func (s *VolumesService) GetDriverList() []string {
 // Create creates a volume
 func (s *VolumesService) Create(ctx context.Context, name, driverName string, opts ...opts.CreateOption) (*types.Volume, error) {
 	if name == "" {
-		name = stringid.GenerateNonCryptoID()
+		name = stringid.GenerateRandomID()
 	}
 	v, err := s.vs.Create(ctx, name, driverName, opts...)
 	if err != nil {

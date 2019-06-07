@@ -292,7 +292,7 @@ func (p *linuxParser) parseMountSpec(cfg mount.Mount, validateBindSourceExists b
 	switch cfg.Type {
 	case mount.TypeVolume:
 		if cfg.Source == "" {
-			mp.Name = stringid.GenerateNonCryptoID()
+			mp.Name = stringid.GenerateRandomID()
 		} else {
 			mp.Name = cfg.Source
 		}

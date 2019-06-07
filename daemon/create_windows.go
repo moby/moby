@@ -38,7 +38,7 @@ func (daemon *Daemon) createContainerOSSpecificSettings(container *container.Con
 
 		// If the mountpoint doesn't have a name, generate one.
 		if len(mp.Name) == 0 {
-			mp.Name = stringid.GenerateNonCryptoID()
+			mp.Name = stringid.GenerateRandomID()
 		}
 
 		// Skip volumes for which we already have something mounted on that
