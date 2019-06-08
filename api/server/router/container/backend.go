@@ -37,7 +37,7 @@ type stateBackend interface {
 	ContainerPause(name string) error
 	ContainerRename(oldName, newName string) error
 	ContainerResize(name string, height, width int) error
-	ContainerRestart(name string, seconds *int) error
+	ContainerRestart(name string, seconds *int, checkpoint string, checkpointDir string) error
 	ContainerRm(name string, config *types.ContainerRmConfig) error
 	ContainerStart(name string, hostConfig *container.HostConfig, checkpoint string, checkpointDir string) error
 	ContainerStop(name string, seconds *int) error
