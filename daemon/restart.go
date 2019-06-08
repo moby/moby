@@ -14,7 +14,7 @@ import (
 // timeout, ContainerRestart will wait forever until a graceful
 // stop. Returns an error if the container cannot be found, or if
 // there is an underlying error at any stage of the restart.
-func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
+func (daemon *Daemon) ContainerRestart(name string, seconds *int, checkpoint string, checkpointDir string) error {
 	container, err := daemon.GetContainer(name)
 	if err != nil {
 		return err
@@ -23,7 +23,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 		stopTimeout := container.StopTimeout()
 		seconds = &stopTimeout
 	}
-	if err := daemon.containerRestart(container, *seconds); err != nil {
+	if err := daemon.containerRestart(container, *seconds, checkpoint, checkpointDir); err != nil {
 		return fmt.Errorf("Cannot restart container %s: %v", name, err)
 	}
 	return nil
@@ -34,7 +34,7 @@ func (daemon *Daemon) ContainerRestart(name string, seconds *int) error {
 // container. When stopping, wait for the given duration in seconds to
 // gracefully stop, before forcefully terminating the container. If
 // given a negative duration, wait forever for a graceful stop.
-func (daemon *Daemon) containerRestart(container *container.Container, seconds int) error {
+func (daemon *Daemon) containerRestart(container *container.Container, seconds int, checkpoint string, checkpointDir string) error {
 
 	// Determine isolation. If not specified in the hostconfig, use daemon default.
 	actualIsolation := container.HostConfig.Isolation
@@ -74,7 +74,7 @@ func (daemon *Daemon) containerRestart(container *container.Container, seconds i
 		}
 	}
 
-	if err := daemon.containerStart(container, "", "", true); err != nil {
+	if err := daemon.containerStart(container, checkpoint, checkpointDir, true); err != nil {
 		return err
 	}
 
