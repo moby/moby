@@ -954,7 +954,7 @@ func (s *DockerSuite) TestContainerAPIRestart(c *check.C) {
 	defer cli.Close()
 
 	timeout := 1 * time.Second
-	err = cli.ContainerRestart(context.Background(), name, &timeout)
+	err = cli.ContainerRestart(context.Background(), name, &timeout, types.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
@@ -970,7 +970,7 @@ func (s *DockerSuite) TestContainerAPIRestartNotimeoutParam(c *check.C) {
 	assert.NilError(c, err)
 	defer cli.Close()
 
-	err = cli.ContainerRestart(context.Background(), name, nil)
+	err = cli.ContainerRestart(context.Background(), name, nil, types.ContainerStartOptions{})
 	assert.NilError(c, err)
 
 	c.Assert(waitInspect(name, "{{ .State.Restarting  }} {{ .State.Running  }}", "false true", 15*time.Second), checker.IsNil)
