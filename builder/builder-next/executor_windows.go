@@ -5,12 +5,13 @@ import (
 	"errors"
 	"io"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/cache"
 	"github.com/moby/buildkit/executor"
 )
 
-func newExecutor(_, _ string, _ libnetwork.NetworkController, _ bool) (executor.Executor, error) {
+func newExecutor(_, _ string, _ libnetwork.NetworkController, _ bool, _ *idtools.IdentityMapping) (executor.Executor, error) {
 	return &winExecutor{}, nil
 }
 
