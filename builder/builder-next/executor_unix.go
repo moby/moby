@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork"
 	"github.com/moby/buildkit/executor"
 	"github.com/moby/buildkit/executor/runcexecutor"
@@ -20,7 +21,7 @@ import (
 
 const networkName = "bridge"
 
-func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, rootless bool) (executor.Executor, error) {
+func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, rootless bool, idmap *idtools.IdentityMapping) (executor.Executor, error) {
 	networkProviders := map[pb.NetMode]network.Provider{
 		pb.NetMode_UNSET: &bridgeProvider{NetworkController: net, Root: filepath.Join(root, "net")},
 		pb.NetMode_HOST:  network.NewHostProvider(),
@@ -32,6 +33,7 @@ func newExecutor(root, cgroupParent string, net libnetwork.NetworkController, ro
 		DefaultCgroupParent: cgroupParent,
 		Rootless:            rootless,
 		NoPivot:             os.Getenv("DOCKER_RAMDISK") != "",
+		IdentityMapping:     idmap,
 	}, networkProviders)
 }
 
