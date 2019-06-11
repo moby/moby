@@ -6217,6 +6217,10 @@ paths:
           in: "query"
           description: "If “1”, “true”, or “True” then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa."
           type: "string"
+        - name: "copyUIDGID"
+          in: "query"
+          description: "If “1”, “true”, then it will copy UID/GID maps to the dest file or dir"
+          type: "string"
         - name: "inputStream"
           in: "body"
           required: true
