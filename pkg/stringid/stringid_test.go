@@ -13,14 +13,6 @@ func TestGenerateRandomID(t *testing.T) {
 	}
 }
 
-func TestGenerateNonCryptoID(t *testing.T) {
-	id := GenerateNonCryptoID()
-
-	if len(id) != 64 {
-		t.Fatalf("Id returned is incorrect: %s", id)
-	}
-}
-
 func TestShortenId(t *testing.T) {
 	id := "90435eec5c4e124e741ef731e118be2fc799a68aba0466ec17717f24ce2ae6a2"
 	truncID := TruncateID(id)
