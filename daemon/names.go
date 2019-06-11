@@ -38,7 +38,7 @@ func (daemon *Daemon) registerName(container *container.Container) error {
 func (daemon *Daemon) generateIDAndName(name string) (string, string, error) {
 	var (
 		err error
-		id  = stringid.GenerateNonCryptoID()
+		id  = stringid.GenerateRandomID()
 	)
 
 	if name == "" {

@@ -70,7 +70,7 @@ func TestManagerWithPluginMounts(t *testing.T) {
 }
 
 func newTestPlugin(t *testing.T, name, cap, root string) *v2.Plugin {
-	id := stringid.GenerateNonCryptoID()
+	id := stringid.GenerateRandomID()
 	rootfs := filepath.Join(root, id)
 	if err := os.MkdirAll(rootfs, 0755); err != nil {
 		t.Fatal(err)
