@@ -17,6 +17,7 @@ import (
 	"github.com/docker/docker/builder"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/images"
+	"github.com/docker/docker/image"
 	"github.com/docker/docker/pkg/streamformatter"
 	"github.com/docker/docker/pkg/system"
 	"github.com/docker/libnetwork"
@@ -375,6 +376,17 @@ func (b *Builder) Build(ctx context.Context, opt backend.BuildConfig) (*builder.
 		if !ok {
 			return errors.Errorf("missing image id")
 		}
+
+		baseConfig, ok := resp.ExporterResponse["containerimage.baseconfig"]
+		if !ok {
+			return errors.Errorf("missing base image config")
+		}
+		baseImage, err := image.NewFromJSON([]byte(baseConfig))
+		if err != nil {
+			return err
+		}
+
+		out.FromImage = baseImage
 		out.ImageID = id
 		return aux.Emit("moby.image.id", types.BuildResult{ID: id})
 	})

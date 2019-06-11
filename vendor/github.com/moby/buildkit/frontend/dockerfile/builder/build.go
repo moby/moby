@@ -317,7 +317,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 	for i, tp := range targetPlatforms {
 		func(i int, tp *specs.Platform) {
 			eg.Go(func() error {
-				st, img, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
+				st, img, baseImg, err := dockerfile2llb.Dockerfile2LLB(ctx, dtDockerfile, dockerfile2llb.ConvertOpt{
 					Target:            opts[keyTarget],
 					MetaResolver:      c,
 					BuildArgs:         filter(opts, buildArgPrefix),
@@ -348,6 +348,11 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 				config, err := json.Marshal(img)
 				if err != nil {
 					return errors.Wrapf(err, "failed to marshal image config")
+				}
+
+				baseConfig, err := json.Marshal(baseImg)
+				if err != nil {
+					return errors.Wrapf(err, "failed to marshal base image config")
 				}
 
 				var cacheImports []client.CacheOptionsEntry
@@ -391,6 +396,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 				if !exportMap {
 					res.AddMeta(exptypes.ExporterImageConfigKey, config)
+					res.AddMeta(exptypes.ExporterBaseImageConfigKey, baseConfig)
 					res.SetRef(ref)
 				} else {
 					p := platforms.DefaultSpec()
@@ -400,6 +406,7 @@ func Build(ctx context.Context, c client.Client) (*client.Result, error) {
 
 					k := platforms.Format(p)
 					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterImageConfigKey, k), config)
+					res.AddMeta(fmt.Sprintf("%s/%s", exptypes.ExporterBaseImageConfigKey, k), baseConfig)
 					res.AddRef(k, ref)
 					expPlatforms.Platforms[i] = exptypes.Platform{
 						ID:       k,

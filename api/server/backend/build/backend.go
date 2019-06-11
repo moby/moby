@@ -19,7 +19,7 @@ import (
 
 // ImageComponent provides an interface for working with images
 type ImageComponent interface {
-	SquashImage(from string, to string) (string, error)
+	SquashImage(from string, to *image.Image) (string, error)
 	TagImageWithReference(image.ID, reference.Named) error
 }
 
@@ -135,11 +135,18 @@ func (b *Backend) Cancel(ctx context.Context, id string) error {
 }
 
 func squashBuild(build *builder.Result, imageComponent ImageComponent) (string, error) {
-	var fromID string
+	var from *image.Image
 	if build.FromImage != nil {
-		fromID = build.FromImage.ImageID()
+		baseConfig, err := build.FromImage.MarshalJSON()
+		if err != nil {
+			return "", errors.Wrap(err, "error squashing image")
+		}
+		from, err = image.NewFromJSON(baseConfig)
+		if err != nil {
+			return "", errors.Wrap(err, "error squashing image")
+		}
 	}
-	imageID, err := imageComponent.SquashImage(build.ImageID, fromID)
+	imageID, err := imageComponent.SquashImage(build.ImageID, from)
 	if err != nil {
 		return "", errors.Wrap(err, "error squashing image")
 	}
