@@ -163,6 +163,10 @@ func invokePack(srcPath string, options *archive.TarOptions, root string) (io.Re
 	if err != nil {
 		return nil, err
 	}
+	if strings.HasPrefix(relSrc, "..") {
+		return nil, errors.Errorf("source path %s must be within root path %s", srcPath, root)
+	}
+
 	if relSrc == "." {
 		relSrc = "/"
 	}

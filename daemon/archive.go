@@ -3,6 +3,7 @@ package daemon // import "github.com/docker/docker/daemon"
 import (
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -43,7 +44,17 @@ func archivePath(i interface{}, src string, opts *archive.TarOptions, root strin
 	if ap, ok := i.(archiver); ok {
 		return ap.ArchivePath(src, opts)
 	}
-	return chrootarchive.Tar(src, opts, root)
+
+	// handle a case where the source path that was passed in is actually the parent of `root`
+	// this would happen when the requested archive path *is* the root.
+	if filepath.Dir(root) == src {
+		root = src
+	}
+	rdr, err := chrootarchive.Tar(src, opts, root)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not create tar archive")
+	}
+	return rdr, nil
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
