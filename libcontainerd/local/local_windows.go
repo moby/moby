@@ -188,12 +188,13 @@ func (c *client) Create(_ context.Context, id string, spec *specs.Spec, runtimeO
 func (c *client) createWindows(id string, spec *specs.Spec, runtimeOptions interface{}) error {
 	logger := c.logger.WithField("container", id)
 	configuration := &hcsshim.ContainerConfig{
-		SystemType:              "Container",
-		Name:                    id,
-		Owner:                   defaultOwner,
-		IgnoreFlushesDuringBoot: spec.Windows.IgnoreFlushesDuringBoot,
-		HostName:                spec.Hostname,
-		HvPartition:             false,
+		SystemType:                  "Container",
+		Name:                        id,
+		Owner:                       defaultOwner,
+		IgnoreFlushesDuringBoot:     spec.Windows.IgnoreFlushesDuringBoot,
+		HostName:                    spec.Hostname,
+		HvPartition:                 false,
+		TerminateOnLastHandleClosed: true,
 	}
 
 	c.extractResourcesFromSpec(spec, configuration)
