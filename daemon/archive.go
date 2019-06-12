@@ -31,19 +31,18 @@ type archiver interface {
 }
 
 // helper functions to extract or archive
-func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions, root string) error {
+func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions) error {
 	if ea, ok := i.(extractor); ok {
 		return ea.ExtractArchive(src, dst, opts)
 	}
-
-	return chrootarchive.UntarWithRoot(src, dst, opts, root)
+	return chrootarchive.Untar(src, dst, opts)
 }
 
-func archivePath(i interface{}, src string, opts *archive.TarOptions, root string) (io.ReadCloser, error) {
+func archivePath(i interface{}, src string, opts *archive.TarOptions) (io.ReadCloser, error) {
 	if ap, ok := i.(archiver); ok {
 		return ap.ArchivePath(src, opts)
 	}
-	return chrootarchive.Tar(src, opts, root)
+	return archive.TarWithOptions(src, opts)
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
@@ -239,7 +238,7 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	sourceDir, sourceBase := driver.Dir(resolvedPath), driver.Base(resolvedPath)
 	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
+	data, err := archivePath(driver, sourceDir, opts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -368,7 +367,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	if err := extractArchive(driver, content, resolvedPath, options, container.BaseFS.Path()); err != nil {
+	if err := extractArchive(driver, content, resolvedPath, options); err != nil {
 		return err
 	}
 
@@ -433,7 +432,7 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 	archive, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
-	}, container.BaseFS.Path())
+	})
 	if err != nil {
 		return nil, err
 	}
