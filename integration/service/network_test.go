@@ -86,12 +86,12 @@ func TestDockerNetworkReConnect(t *testing.T) {
 	ctx := context.Background()
 
 	name := t.Name() + "dummyNet"
-	net.CreateNoError(t, ctx, client, name,
+	net.CreateNoError(ctx, t, client, name,
 		net.WithDriver("overlay"),
 		net.WithAttachable(),
 	)
 
-	c1 := container.Create(t, ctx, client, func(c *container.TestContainerConfig) {
+	c1 := container.Create(ctx, t, client, func(c *container.TestContainerConfig) {
 		c.NetworkingConfig = &network.NetworkingConfig{
 			EndpointsConfig: map[string]*network.EndpointSettings{
 				name: {},
