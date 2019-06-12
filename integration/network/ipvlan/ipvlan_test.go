@@ -4,7 +4,10 @@ package ipvlan
 
 import (
 	"context"
+	"os"
+	"os/exec"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,7 +24,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
+	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
 	d := daemon.New(t, daemon.WithExperimental)
 	d.StartWithBusybox(t)
@@ -49,7 +52,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 func TestDockerNetworkIpvlan(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
-	skip.If(t, !ipvlanKernelSupport(), "Kernel doesn't support ipvlan")
+	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
 	for _, tc := range []struct {
 		name string
@@ -425,7 +428,23 @@ func testIpvlanAddressing(client dclient.APIClient) func(*testing.T) {
 	}
 }
 
-// ensure Kernel version is >= v4.2 for ipvlan support
-func ipvlanKernelSupport() bool {
-	return n.CheckKernelMajorVersionGreaterOrEqualThen(4, 2)
+var (
+	once            sync.Once
+	ipvlanSupported bool
+)
+
+// figure out if ipvlan is supported by the kernel
+func ipvlanKernelSupport(t *testing.T) bool {
+	once.Do(func() {
+		// this may have the side effect of enabling the ipvlan module
+		exec.Command("modprobe", "ipvlan").Run()
+		_, err := os.Stat("/sys/module/ipvlan")
+		if err == nil {
+			ipvlanSupported = true
+		} else if !os.IsNotExist(err) {
+			t.Logf("WARNING: ipvlanKernelSupport: stat failed: %v\n", err)
+		}
+	})
+
+	return ipvlanSupported
 }
