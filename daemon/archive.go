@@ -31,12 +31,11 @@ type archiver interface {
 }
 
 // helper functions to extract or archive
-func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions, root string) error {
+func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions) error {
 	if ea, ok := i.(extractor); ok {
 		return ea.ExtractArchive(src, dst, opts)
 	}
-
-	return chrootarchive.UntarWithRoot(src, dst, opts, root)
+	return chrootarchive.Untar(src, dst, opts)
 }
 
 func archivePath(i interface{}, src string, opts *archive.TarOptions) (io.ReadCloser, error) {
@@ -368,7 +367,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	if err := extractArchive(driver, content, resolvedPath, options, container.BaseFS.Path()); err != nil {
+	if err := extractArchive(driver, content, resolvedPath, options); err != nil {
 		return err
 	}
 
