@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/libnetwork/resolvconf"
 	"github.com/moby/buildkit/util/flightcontrol"
 )
@@ -14,7 +15,7 @@ var g flightcontrol.Group
 var notFirstRun bool
 var lastNotEmpty bool
 
-func GetResolvConf(ctx context.Context, stateDir string) (string, error) {
+func GetResolvConf(ctx context.Context, stateDir string, idmap *idtools.IdentityMapping) (string, error) {
 	p := filepath.Join(stateDir, "resolv.conf")
 	_, err := g.Do(ctx, stateDir, func(ctx context.Context) (interface{}, error) {
 		generate := !notFirstRun
@@ -65,11 +66,19 @@ func GetResolvConf(ctx context.Context, stateDir string) (string, error) {
 			return "", err
 		}
 
-		if err := ioutil.WriteFile(p+".tmp", f.Content, 0644); err != nil {
+		tmpPath := p + ".tmp"
+		if err := ioutil.WriteFile(tmpPath, f.Content, 0644); err != nil {
 			return "", err
 		}
 
-		if err := os.Rename(p+".tmp", p); err != nil {
+		if idmap != nil {
+			root := idmap.RootPair()
+			if err := os.Chown(tmpPath, root.UID, root.GID); err != nil {
+				return "", err
+			}
+		}
+
+		if err := os.Rename(tmpPath, p); err != nil {
 			return "", err
 		}
 		return "", nil
