@@ -72,7 +72,7 @@ func TestCopyToContainerPathIsNotDir(t *testing.T) {
 	assert.Assert(t, is.ErrorContains(err, "not a directory"))
 }
 
-func TestCopyFromContainerRoot(t *testing.T) {
+func TestCopyFromContainer(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
 
@@ -84,9 +84,10 @@ func TestCopyFromContainerRoot(t *testing.T) {
 	defer os.RemoveAll(dir)
 
 	buildCtx := fakecontext.New(t, dir, fakecontext.WithFile("foo", "hello"), fakecontext.WithFile("baz", "world"), fakecontext.WithDockerfile(`
-		FROM scratch
+		FROM busybox
 		COPY foo /foo
-		COPY baz /bar/baz
+		COPY baz /bar/quux/baz
+		RUN ln -s notexist /bar/notarget && ln -s quux/baz /bar/filesymlink && ln -s quux /bar/dirsymlink && ln -s / /bar/root
 		CMD /fake
 	`))
 	defer buildCtx.Close()
@@ -106,43 +107,57 @@ func TestCopyFromContainerRoot(t *testing.T) {
 
 	cid := container.Create(ctx, t, apiClient, container.WithImage(imageID))
 
-	rdr, _, err := apiClient.CopyFromContainer(ctx, cid, "/")
-	assert.NilError(t, err)
-	defer rdr.Close()
+	for _, x := range []struct {
+		src    string
+		expect map[string]string
+	}{
+		{"/", map[string]string{"/": "", "/foo": "hello", "/bar/quux/baz": "world", "/bar/filesymlink": "", "/bar/dirsymlink": "", "/bar/notarget": ""}},
+		{"/bar/root", map[string]string{"root": ""}},
+		{"/bar/root/", map[string]string{"root/": "", "root/foo": "hello", "root/bar/quux/baz": "world", "root/bar/filesymlink": "", "root/bar/dirsymlink": "", "root/bar/notarget": ""}},
 
-	tr := tar.NewReader(rdr)
-	expect := map[string]string{
-		"/foo":     "hello",
-		"/bar/baz": "world",
+		{"bar/quux", map[string]string{"quux/": "", "quux/baz": "world"}},
+		{"bar/quux/", map[string]string{"quux/": "", "quux/baz": "world"}},
+		{"bar/quux/baz", map[string]string{"baz": "world"}},
+
+		{"bar/filesymlink", map[string]string{"filesymlink": ""}},
+		{"bar/dirsymlink", map[string]string{"dirsymlink": ""}},
+		{"bar/dirsymlink/", map[string]string{"dirsymlink/": "", "dirsymlink/baz": "world"}},
+		{"bar/notarget", map[string]string{"notarget": ""}},
+	} {
+		t.Run(x.src, func(t *testing.T) {
+			rdr, _, err := apiClient.CopyFromContainer(ctx, cid, x.src)
+			assert.NilError(t, err)
+			defer rdr.Close()
+
+			found := make(map[string]bool, len(x.expect))
+			var numFound int
+			tr := tar.NewReader(rdr)
+			for numFound < len(x.expect) {
+				h, err := tr.Next()
+				if err == io.EOF {
+					break
+				}
+				assert.NilError(t, err)
+
+				expected, exists := x.expect[h.Name]
+				if !exists {
+					// this archive will have extra stuff in it since we are copying from root
+					// and docker adds a bunch of stuff
+					continue
+				}
+
+				numFound++
+				found[h.Name] = true
+
+				buf, err := ioutil.ReadAll(tr)
+				if err == nil {
+					assert.Check(t, is.Equal(string(buf), expected))
+				}
+			}
+
+			for f := range x.expect {
+				assert.Check(t, found[f], f+" not found in archive")
+			}
+		})
 	}
-	found := make(map[string]bool, 2)
-	var numFound int
-	for {
-		h, err := tr.Next()
-		if err == io.EOF {
-			break
-		}
-		assert.NilError(t, err)
-
-		expected, exists := expect[h.Name]
-		if !exists {
-			// this archive will have extra stuff in it since we are copying from root
-			// and docker adds a bunch of stuff
-			continue
-		}
-
-		numFound++
-		found[h.Name] = true
-
-		buf, err := ioutil.ReadAll(tr)
-		assert.NilError(t, err)
-		assert.Check(t, is.Equal(string(buf), expected))
-
-		if numFound == len(expect) {
-			break
-		}
-	}
-
-	assert.Check(t, found["/foo"], "/foo file not found in archive")
-	assert.Check(t, found["/bar/baz"], "/bar/baz file not found in archive")
 }
