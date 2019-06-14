@@ -18,6 +18,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/docker/docker/pkg/containerfs"
 	"github.com/docker/docker/pkg/fileutils"
 	"github.com/docker/docker/pkg/idtools"
 	"github.com/docker/docker/pkg/ioutils"
@@ -57,17 +58,33 @@ type (
 	}
 )
 
+// TarFunc provides a function definition for a custom Tar function
+type TarFunc func(string, *TarOptions) (io.ReadCloser, error)
+
+// UntarFunc provides a function definition for a custom Untar function
+type UntarFunc func(io.Reader, string, *TarOptions) error
+
 // Archiver implements the Archiver interface and allows the reuse of most utility functions of
 // this package with a pluggable Untar function. Also, to facilitate the passing of specific id
 // mappings for untar, an Archiver can be created with maps which will then be passed to Untar operations.
 type Archiver struct {
-	Untar     func(io.Reader, string, *TarOptions) error
+	SrcDriver containerfs.Driver
+	DstDriver containerfs.Driver
+	Tar       TarFunc
+	Untar     UntarFunc
 	IDMapping *idtools.IdentityMapping
 }
 
 // NewDefaultArchiver returns a new Archiver without any IdentityMapping
 func NewDefaultArchiver() *Archiver {
-	return &Archiver{Untar: Untar, IDMapping: &idtools.IdentityMapping{}}
+	d := containerfs.NewLocalDriver()
+	return &Archiver{
+		SrcDriver: d,
+		DstDriver: d,
+		Tar:       TarWithOptions,
+		Untar:     Untar,
+		IDMapping: &idtools.IdentityMapping{},
+	}
 }
 
 // breakoutError is used to differentiate errors related to breaking out
@@ -794,6 +811,7 @@ func TarWithOptions(srcPath string, options *TarOptions) (io.ReadCloser, error) 
 				logrus.Warn("Tar: Can't archive a file with includes")
 			}
 
+			// FIXME: not sure we need SplitPathDirEntry anymore
 			dir, base := SplitPathDirEntry(srcPath)
 			srcPath = dir
 			options.IncludeFiles = []string{base}
@@ -1082,7 +1100,7 @@ func untarHandler(tarArchive io.Reader, dest string, options *TarOptions, decomp
 // TarUntar is a convenience function which calls Tar and Untar, with the output of one piped into the other.
 // If either Tar or Untar fails, TarUntar aborts and returns the error.
 func (archiver *Archiver) TarUntar(src, dst string) error {
-	archive, err := TarWithOptions(src, &TarOptions{Compression: Uncompressed})
+	archive, err := archiver.Tar(src, &TarOptions{Compression: Uncompressed})
 	if err != nil {
 		return err
 	}
@@ -1096,7 +1114,7 @@ func (archiver *Archiver) TarUntar(src, dst string) error {
 
 // UntarPath untar a file from path to a destination, src is the source tar file path.
 func (archiver *Archiver) UntarPath(src, dst string) error {
-	archive, err := os.Open(src)
+	archive, err := archiver.SrcDriver.Open(src)
 	if err != nil {
 		return err
 	}
@@ -1113,7 +1131,7 @@ func (archiver *Archiver) UntarPath(src, dst string) error {
 // The archive is streamed directly with fixed buffering and no
 // intermediary disk IO.
 func (archiver *Archiver) CopyWithTar(src, dst string) error {
-	srcSt, err := os.Stat(src)
+	srcSt, err := archiver.SrcDriver.Stat(src)
 	if err != nil {
 		return err
 	}
@@ -1136,7 +1154,10 @@ func (archiver *Archiver) CopyWithTar(src, dst string) error {
 // for a single file. It copies a regular file from path `src` to
 // path `dst`, and preserves all its metadata.
 func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
-	srcSt, err := os.Stat(src)
+	srcDriver := archiver.SrcDriver
+	dstDriver := archiver.DstDriver
+
+	srcSt, err := srcDriver.Stat(src)
 	if err != nil {
 		return err
 	}
@@ -1147,12 +1168,20 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 
 	// Clean up the trailing slash. This must be done in an operating
 	// system specific manner.
-	if dst[len(dst)-1] == os.PathSeparator {
-		dst = filepath.Join(dst, filepath.Base(src))
+	if dst[len(dst)-1] == dstDriver.Separator() {
+		dst = dstDriver.Join(dst, srcDriver.Base(src))
 	}
+
 	// Create the holding directory if necessary
-	if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil {
-		return err
+	if dstDriver.OS() == "windows" {
+		// Now we are WCOW
+		if err := system.MkdirAll(filepath.Dir(dst), 0700); err != nil {
+			return err
+		}
+	} else {
+		if err := dstDriver.MkdirAll(dstDriver.Dir(dst), 0700); err != nil {
+			return err
+		}
 	}
 
 	r, w := io.Pipe()
@@ -1164,7 +1193,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		errC <- func() error {
 			defer w.Close()
 
-			srcF, err := os.Open(src)
+			srcF, err := srcDriver.Open(src)
 			if err != nil {
 				return err
 			}
@@ -1178,7 +1207,14 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 			hdr.ModTime = hdr.ModTime.Truncate(time.Second)
 			hdr.AccessTime = time.Time{}
 			hdr.ChangeTime = time.Time{}
-			hdr.Name = filepath.Base(dst)
+			hdr.Name = dstDriver.Base(dst)
+
+			if dstDriver.OS() == "windows" {
+				hdr.Mode = int64(chmodWindowsTarEntry(os.FileMode(hdr.Mode)))
+			} else {
+				hdr.Mode = int64(os.FileMode(hdr.Mode))
+			}
+
 			hdr.Mode = int64(chmodTarEntry(os.FileMode(hdr.Mode)))
 
 			if err := remapIDs(archiver.IDMapping, hdr); err != nil {
@@ -1202,7 +1238,7 @@ func (archiver *Archiver) CopyFileWithTar(src, dst string) (err error) {
 		}
 	}()
 
-	err = archiver.Untar(r, filepath.Dir(dst), nil)
+	err = archiver.Untar(r, dstDriver.Dir(dst), nil)
 	if err != nil {
 		r.CloseWithError(err)
 	}
@@ -1308,4 +1344,17 @@ func (archive *TempArchive) Read(data []byte) (int, error) {
 		os.Remove(archive.File.Name())
 	}
 	return n, err
+}
+
+// chmodWindowsTarEntry is used to adjust the file permissions used in tar header based
+// on the platform the archival is done.
+func chmodWindowsTarEntry(perm os.FileMode) os.FileMode {
+	//perm &= 0755 // this 0-ed out tar flags (like link, regular file, directory marker etc.)
+	permPart := perm & os.ModePerm
+	noPermPart := perm &^ os.ModePerm
+	// Add the x bit: make everything +x from windows
+	permPart |= 0111
+	permPart &= 0755
+
+	return noPermPart | permPart
 }
