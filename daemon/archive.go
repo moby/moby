@@ -236,7 +236,13 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	if driver.Base(resolvedPath) == "." {
 		resolvedPath += string(driver.Separator()) + "."
 	}
-	sourceDir, sourceBase := driver.Dir(resolvedPath), driver.Base(resolvedPath)
+
+	sourceDir := resolvedPath
+	sourceBase := "."
+
+	if stat.Mode&os.ModeDir == 0 { // not dir
+		sourceDir, sourceBase = driver.Split(resolvedPath)
+	}
 	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
 
 	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
@@ -426,9 +432,6 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		d, f := driver.Split(basePath)
 		basePath = d
 		filter = []string{f}
-	} else {
-		filter = []string{driver.Base(basePath)}
-		basePath = driver.Dir(basePath)
 	}
 	archive, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
