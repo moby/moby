@@ -156,3 +156,7 @@ func (th *existingTokenHandler) AuthorizeRequest(req *http.Request, params map[s
 	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", th.token))
 	return nil
 }
+
+func schema1DeprecationMessage(ref reference.Named) string {
+	return fmt.Sprintf("[DEPRECATION NOTICE] registry v2 schema1 support will be removed in an upcoming release. Please contact admins of the %s registry NOW to avoid future disruption.", reference.Domain(ref))
+}
