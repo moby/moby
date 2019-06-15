@@ -188,6 +188,10 @@ func (p *v2Pusher) pushV2Tag(ctx context.Context, ref reference.NamedTagged, id 
 
 		logrus.Warnf("failed to upload schema2 manifest: %v - falling back to schema1", err)
 
+		msg := schema1DeprecationMessage(ref)
+		logrus.Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
+
 		manifestRef, err := reference.WithTag(p.repo.Named(), ref.Tag())
 		if err != nil {
 			return err
