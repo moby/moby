@@ -31,18 +31,19 @@ type archiver interface {
 }
 
 // helper functions to extract or archive
-func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions) error {
+func extractArchive(i interface{}, src io.Reader, dst string, opts *archive.TarOptions, root string) error {
 	if ea, ok := i.(extractor); ok {
 		return ea.ExtractArchive(src, dst, opts)
 	}
-	return chrootarchive.Untar(src, dst, opts)
+
+	return chrootarchive.UntarWithRoot(src, dst, opts, root)
 }
 
-func archivePath(i interface{}, src string, opts *archive.TarOptions) (io.ReadCloser, error) {
+func archivePath(i interface{}, src string, opts *archive.TarOptions, root string) (io.ReadCloser, error) {
 	if ap, ok := i.(archiver); ok {
 		return ap.ArchivePath(src, opts)
 	}
-	return archive.TarWithOptions(src, opts)
+	return chrootarchive.Tar(src, opts, root)
 }
 
 // ContainerCopy performs a deprecated operation of archiving the resource at
@@ -235,10 +236,16 @@ func (daemon *Daemon) containerArchivePath(container *container.Container, path 
 	if driver.Base(resolvedPath) == "." {
 		resolvedPath += string(driver.Separator()) + "."
 	}
-	sourceDir, sourceBase := driver.Dir(resolvedPath), driver.Base(resolvedPath)
+
+	sourceDir := resolvedPath
+	sourceBase := "."
+
+	if stat.Mode&os.ModeDir == 0 { // not dir
+		sourceDir, sourceBase = driver.Split(resolvedPath)
+	}
 	opts := archive.TarResourceRebaseOpts(sourceBase, driver.Base(absPath))
 
-	data, err := archivePath(driver, sourceDir, opts)
+	data, err := archivePath(driver, sourceDir, opts, container.BaseFS.Path())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -367,7 +374,7 @@ func (daemon *Daemon) containerExtractToDir(container *container.Container, path
 		}
 	}
 
-	if err := extractArchive(driver, content, resolvedPath, options); err != nil {
+	if err := extractArchive(driver, content, resolvedPath, options, container.BaseFS.Path()); err != nil {
 		return err
 	}
 
@@ -425,14 +432,11 @@ func (daemon *Daemon) containerCopy(container *container.Container, resource str
 		d, f := driver.Split(basePath)
 		basePath = d
 		filter = []string{f}
-	} else {
-		filter = []string{driver.Base(basePath)}
-		basePath = driver.Dir(basePath)
 	}
 	archive, err := archivePath(driver, basePath, &archive.TarOptions{
 		Compression:  archive.Uncompressed,
 		IncludeFiles: filter,
-	})
+	}, container.BaseFS.Path())
 	if err != nil {
 		return nil, err
 	}
