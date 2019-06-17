@@ -175,8 +175,8 @@ func (container *Container) HasMountFor(path string) bool {
 	return false
 }
 
-// UnmountIpcMount uses the provided unmount function to unmount shm if it was mounted
-func (container *Container) UnmountIpcMount(unmount func(pth string) error) error {
+// UnmountIpcMount unmounts shm if it was mounted
+func (container *Container) UnmountIpcMount() error {
 	if container.HasMountFor("/dev/shm") {
 		return nil
 	}
@@ -190,10 +190,8 @@ func (container *Container) UnmountIpcMount(unmount func(pth string) error) erro
 	if shmPath == "" {
 		return nil
 	}
-	if err = unmount(shmPath); err != nil && !os.IsNotExist(err) {
-		if mounted, mErr := mount.Mounted(shmPath); mounted || mErr != nil {
-			return errors.Wrapf(err, "umount %s", shmPath)
-		}
+	if err = mount.Unmount(shmPath); err != nil && !os.IsNotExist(err) {
+		return err
 	}
 	return nil
 }
@@ -383,7 +381,8 @@ func (container *Container) DetachAndUnmount(volumeEventLog func(name, action st
 
 	for _, mountPath := range mountPaths {
 		if err := mount.Unmount(mountPath); err != nil {
-			logrus.Warnf("%s unmountVolumes: Failed to do lazy umount fo volume '%s': %v", container.ID, mountPath, err)
+			logrus.WithError(err).WithField("container", container.ID).
+				Warn("Unable to unmount")
 		}
 	}
 	return container.UnmountVolumes(volumeEventLog)

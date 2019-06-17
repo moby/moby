@@ -7,6 +7,7 @@ import (
 	"path"
 	"testing"
 
+	"github.com/pkg/errors"
 	"golang.org/x/sys/unix"
 )
 
@@ -326,7 +327,7 @@ func TestSubtreeUnbindable(t *testing.T) {
 	}()
 
 	// then attempt to mount it to target. It should fail
-	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil && err != unix.EINVAL {
+	if err := Mount(sourceDir, targetDir, "none", "bind,rw"); err != nil && errors.Cause(err) != unix.EINVAL {
 		t.Fatal(err)
 	} else if err == nil {
 		t.Fatalf("%q should not have been bindable", sourceDir)
