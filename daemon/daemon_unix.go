@@ -174,8 +174,8 @@ func getBlkioWeightDevices(config containertypes.Resources) ([]specs.LinuxWeight
 		}
 		weight := weightDevice.Weight
 		d := specs.LinuxWeightDevice{Weight: &weight}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
+		d.Major = int64(unix.Major(stat.Rdev))
+		d.Minor = int64(unix.Minor(stat.Rdev))
 		blkioWeightDevices = append(blkioWeightDevices, d)
 	}
 
@@ -245,8 +245,8 @@ func getBlkioThrottleDevices(devs []*blkiodev.ThrottleDevice) ([]specs.LinuxThro
 			return nil, err
 		}
 		d := specs.LinuxThrottleDevice{Rate: d.Rate}
-		d.Major = int64(stat.Rdev / 256)
-		d.Minor = int64(stat.Rdev % 256)
+		d.Major = int64(unix.Major(stat.Rdev))
+		d.Minor = int64(unix.Minor(stat.Rdev))
 		throttleDevices = append(throttleDevices, d)
 	}
 
