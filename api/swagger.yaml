@@ -1082,6 +1082,7 @@ definitions:
     type: "object"
     additionalProperties:
       type: "array"
+      x-nullable: true
       items:
         $ref: "#/definitions/PortBinding"
     example:
@@ -1106,7 +1107,6 @@ definitions:
       PortBinding represents a binding between a host IP address and a host
       port.
     type: "object"
-    x-nullable: true
     properties:
       HostIp:
         description: "Host IP address that the container's port is mapped to."
@@ -5351,7 +5351,7 @@ paths:
   /containers/{id}/resize:
     post:
       summary: "Resize a container TTY"
-      description: "Resize the TTY for a container. You must restart the container for the resize to take effect."
+      description: "Resize the TTY for a container."
       operationId: "ContainerResize"
       consumes:
         - "application/octet-stream"
@@ -6105,12 +6105,17 @@ paths:
           in: "query"
           description: "If “1”, “true”, or “True” then it will be an error if unpacking the given content would cause an existing directory to be replaced with a non-directory and vice versa."
           type: "string"
+        - name: "copyUIDGID"
+          in: "query"
+          description: "If “1”, “true”, then it will copy UID/GID maps to the dest file or dir"
+          type: "string"
         - name: "inputStream"
           in: "body"
           required: true
           description: "The input stream must be a tar archive compressed with one of the following algorithms: identity (no compression), gzip, bzip2, xz."
           schema:
             type: "string"
+            format: "binary"
       tags: ["Container"]
   /containers/prune:
     post:
@@ -8932,7 +8937,9 @@ paths:
                 type: "string"
               RemoteAddrs:
                 description: "Addresses of manager nodes already participating in the swarm."
-                type: "string"
+                type: "array"
+                items:
+                  type: "string"
               JoinToken:
                 description: "Secret token for joining this swarm."
                 type: "string"
