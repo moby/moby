@@ -532,7 +532,7 @@ func TestWhenEmptyAuthConfig(t *testing.T) {
 					Scheme: "https",
 					Host:   "index.docker.io",
 				},
-				Version:      registry.APIVersion1,
+				Version:      registry.APIVersion2,
 				TrimHostname: true,
 			},
 		}

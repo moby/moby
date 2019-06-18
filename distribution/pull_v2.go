@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"net/url"
 	"os"
 	"runtime"
 	"strings"
@@ -19,8 +18,6 @@ import (
 	"github.com/docker/distribution/manifest/schema1"
 	"github.com/docker/distribution/manifest/schema2"
 	"github.com/docker/distribution/reference"
-	"github.com/docker/distribution/registry/api/errcode"
-	"github.com/docker/distribution/registry/client/auth"
 	"github.com/docker/distribution/registry/client/transport"
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
@@ -61,15 +58,12 @@ type v2Puller struct {
 	config            *ImagePullConfig
 	repoInfo          *registry.RepositoryInfo
 	repo              distribution.Repository
-	// confirmedV2 is set to true if we confirm we're talking to a v2
-	// registry. This is used to limit fallbacks to the v1 protocol.
-	confirmedV2   bool
-	manifestStore *manifestStore
+	manifestStore     *manifestStore
 }
 
 func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *specs.Platform) (err error) {
 	// TODO(tiborvass): was ReceiveTimeout
-	p.repo, p.confirmedV2, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		logrus.Warnf("Error getting v2 registry: %v", err)
 		return err
@@ -87,7 +81,6 @@ func (p *v2Puller) Pull(ctx context.Context, ref reference.Named, platform *spec
 		if continueOnError(err, p.endpoint.Mirror) {
 			return fallbackError{
 				err:         err,
-				confirmedV2: p.confirmedV2,
 				transportOK: true,
 			}
 		}
@@ -105,15 +98,8 @@ func (p *v2Puller) pullV2Repository(ctx context.Context, ref reference.Named, pl
 	} else {
 		tags, err := p.repo.Tags(ctx).All(ctx)
 		if err != nil {
-			// If this repository doesn't exist on V2, we should
-			// permit a fallback to V1.
-			return allowV1Fallback(err)
+			return err
 		}
-
-		// The v2 registry knows about this repository, so we will not
-		// allow fallback to the v1 protocol even if we encounter an
-		// error later on.
-		p.confirmedV2 = true
 
 		for _, tag := range tags {
 			tagRef, err := reference.WithTag(ref, tag)
@@ -353,7 +339,7 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		tagService := p.repo.Tags(ctx)
 		desc, err := tagService.Get(ctx, tagged.Tag())
 		if err != nil {
-			return false, allowV1Fallback(err)
+			return false, err
 		}
 
 		dgst = desc.Digest
@@ -426,10 +412,6 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 			return false, invalidManifestClassError{m.Manifest.Config.MediaType, configClass}
 		}
 	}
-
-	// If manSvc.Get succeeded, we can be confident that the registry on
-	// the other side speaks the v2 protocol.
-	p.confirmedV2 = true
 
 	logrus.Debugf("Pulling ref from V2 registry: %s", reference.FamiliarString(ref))
 	progress.Message(p.config.ProgressOutput, tagOrDigest, "Pulling from "+reference.FamiliarName(p.repo.Named()))
@@ -943,39 +925,6 @@ func schema2ManifestDigest(ref reference.Named, mfst distribution.Manifest) (dig
 	}
 
 	return digest.FromBytes(canonical), nil
-}
-
-// allowV1Fallback checks if the error is a possible reason to fallback to v1
-// (even if confirmedV2 has been set already), and if so, wraps the error in
-// a fallbackError with confirmedV2 set to false. Otherwise, it returns the
-// error unmodified.
-func allowV1Fallback(err error) error {
-	switch v := err.(type) {
-	case errcode.Errors:
-		if len(v) != 0 {
-			if v0, ok := v[0].(errcode.Error); ok && shouldV2Fallback(v0) {
-				return fallbackError{
-					err:         err,
-					confirmedV2: false,
-					transportOK: true,
-				}
-			}
-		}
-	case errcode.Error:
-		if shouldV2Fallback(v) {
-			return fallbackError{
-				err:         err,
-				confirmedV2: false,
-				transportOK: true,
-			}
-		}
-	case *url.Error:
-		if v.Err == auth.ErrNoBasicAuthCredentials {
-			return fallbackError{err: err, confirmedV2: false}
-		}
-	}
-
-	return err
 }
 
 func verifySchema1Manifest(signedManifest *schema1.SignedManifest, ref reference.Reference) (m *schema1.Manifest, err error) {
