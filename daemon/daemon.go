@@ -973,7 +973,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, err
 	}
 
-	uuid, err := loadOrCreateUUID(filepath.Join(config.Root, "engine_uuid"))
+	trustKey, err := loadOrCreateTrustKey(config.TrustKeyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -1018,7 +1018,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		return nil, errors.New("Devices cgroup isn't mounted")
 	}
 
-	d.ID = uuid
+	d.ID = trustKey.PublicKey().KeyID()
 	d.repository = daemonRepo
 	d.containers = container.NewMemoryStore()
 	if d.containersReplica, err = container.NewViewDB(); err != nil {
@@ -1050,6 +1050,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		MaxDownloadAttempts:	   *config.MaxDownloadAttempts,
 		ReferenceStore:            rs,
 		RegistryService:           registryService,
+		TrustKey:                  trustKey,
 	})
 
 	go d.execCommandGC()

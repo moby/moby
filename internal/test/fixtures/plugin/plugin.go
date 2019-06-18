@@ -92,7 +92,7 @@ func CreateInRegistry(ctx context.Context, repo string, auth *types.AuthConfig, 
 		return nil, nil
 	}
 
-	regService, err := registry.NewService(registry.ServiceOptions{})
+	regService, err := registry.NewService(registry.ServiceOptions{V2Only: true})
 	if err != nil {
 		return err
 	}
