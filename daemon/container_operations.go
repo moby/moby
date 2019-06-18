@@ -354,6 +354,15 @@ func (daemon *Daemon) findAndAttachNetwork(container *container.Container, idOrN
 		if container.Managed || !n.Info().Dynamic() {
 			return n, nil, nil
 		}
+		// Throw an error if the container is already attached to the network
+		if container.NetworkSettings.Networks != nil {
+			networkName := n.Name()
+			containerName := strings.TrimPrefix(container.Name, "/")
+			if network, ok := container.NetworkSettings.Networks[networkName]; ok && network.EndpointID != "" {
+				err := fmt.Errorf("%s is already attached to network %s", containerName, networkName)
+				return n, nil, errdefs.Conflict(err)
+			}
+		}
 	}
 
 	var addresses []string
