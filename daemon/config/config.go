@@ -36,7 +36,7 @@ const (
 	StockRuntimeName = "runc"
 	// DefaultMaxDownloadAttempts is the default value for
 	// maximum number of attempts that
-	// may take place for a pull
+	// may take place for a each pull
 	DefaultMaxDownloadAttempts = 5
 	// DefaultShmSize is the default value for container's shm size
 	DefaultShmSize = int64(67108864)
@@ -166,7 +166,7 @@ type CommonConfig struct {
 
 	// MaxDownloadAttempts is the maximum number of attempts that 
 	// may take place at a time for each pull
-	MaxDownloadAttempts = *int `json:"max-download-attempts"`
+	MaxDownloadAttempts *int `json:"max-download-attempts"`
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`

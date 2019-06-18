@@ -18,7 +18,23 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-const maxDownloadAttempts = 5
+// Set maxDownloadAttempts. If there is no value set for max-download-attempts
+// we assume that it is the default value. We always "reset"  as the cost is
+// lightweight and easy to maintain.
+
+int maxDownloadAttempts := config.DefaultMaxDownloadAttempts
+if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
+	maxDownloadAttempts = *conf.MaxDownloadAttempts
+}
+daemon.configStore.MaxDownloadAttempts = &maxDownloadAttempts
+logrus.Debugf("Reset Max Download Attempts: %d",  *deamon.configStore.MaxDownloadAttempts)
+
+if daemon.imageService != nil {
+	daemon.imageService.UpdateConfig(&maxDownloadAttempts)
+}
+
+// prepare reload event attributes with updatable configurations
+attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
