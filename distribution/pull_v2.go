@@ -23,7 +23,7 @@ import (
 	"github.com/docker/docker/distribution/metadata"
 	"github.com/docker/docker/distribution/xfer"
 	"github.com/docker/docker/image"
-	"github.com/docker/docker/image/v1"
+	v1 "github.com/docker/docker/image/v1"
 	"github.com/docker/docker/layer"
 	"github.com/docker/docker/pkg/ioutils"
 	"github.com/docker/docker/pkg/progress"
@@ -392,6 +392,10 @@ func (p *v2Puller) pullV2Tag(ctx context.Context, ref reference.Named, platform 
 		if p.config.RequireSchema2 {
 			return false, fmt.Errorf("invalid manifest: not schema2")
 		}
+		msg := schema1DeprecationMessage(ref)
+		logrus.Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
+
 		id, manifestDigest, err = p.pullSchema1(ctx, ref, v, platform)
 		if err != nil {
 			return false, err
@@ -787,6 +791,10 @@ func (p *v2Puller) pullManifestList(ctx context.Context, ref reference.Named, mf
 
 	switch v := manifest.(type) {
 	case *schema1.SignedManifest:
+		msg := schema1DeprecationMessage(ref)
+		logrus.Warn(msg)
+		progress.Message(p.config.ProgressOutput, "", msg)
+
 		platform := toOCIPlatform(manifestMatches[0].Platform)
 		id, _, err = p.pullSchema1(ctx, manifestRef, v, &platform)
 		if err != nil {

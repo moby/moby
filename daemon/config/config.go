@@ -63,6 +63,8 @@ var flatOptions = map[string]bool{
 var skipValidateOptions = map[string]bool{
 	"features": true,
 	"builder":  true,
+	// Corresponding flag has been removed because it was already unusable
+	"deprecated-key-path": true,
 }
 
 // skipDuplicates contains configuration keys that
@@ -133,6 +135,12 @@ type CommonConfig struct {
 	ExecRoot              string                    `json:"exec-root,omitempty"`
 	SocketGroup           string                    `json:"group,omitempty"`
 	CorsHeaders           string                    `json:"api-cors-header,omitempty"`
+
+	// TrustKeyPath is used to generate the daemon ID and for signing schema 1 manifests
+	// when pushing to a registry which does not support schema 2. This field is marked as
+	// deprecated because schema 1 manifests are deprecated in favor of schema 2 and the
+	// daemon ID will use a dedicated identifier not shared with exported signatures.
+	TrustKeyPath string `json:"deprecated-key-path,omitempty"`
 
 	// LiveRestoreEnabled determines whether we should keep containers
 	// alive upon daemon shutdown/start
@@ -239,7 +247,6 @@ func New() *Config {
 	config := Config{}
 	config.LogConfig.Config = make(map[string]string)
 	config.ClusterOpts = make(map[string]string)
-
 	return &config
 }
 
