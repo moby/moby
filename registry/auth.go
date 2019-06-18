@@ -87,7 +87,7 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 		authConfig: &credentialAuthConfig,
 	}
 
-	loginClient, foundV2, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
+	loginClient, err := v2AuthHTTPClient(endpoint.URL, authTransport, modifiers, creds, nil)
 	if err != nil {
 		return "", "", err
 	}
@@ -95,19 +95,12 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 	endpointStr := strings.TrimRight(endpoint.URL.String(), "/") + "/v2/"
 	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
 		return "", "", err
 	}
 
 	resp, err := loginClient.Do(req)
 	if err != nil {
 		err = translateV2AuthError(err)
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
-
 		return "", "", err
 	}
 	defer resp.Body.Close()
@@ -118,19 +111,13 @@ func loginV2(authConfig *types.AuthConfig, endpoint APIEndpoint, userAgent strin
 
 	// TODO(dmcgowan): Attempt to further interpret result, status code and error code string
 	err = errors.Errorf("login attempt to %s failed with status: %d %s", endpointStr, resp.StatusCode, http.StatusText(resp.StatusCode))
-	if !foundV2 {
-		err = fallbackError{err: err}
-	}
 	return "", "", err
 }
 
-func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, bool, error) {
-	challengeManager, foundV2, err := PingV2Registry(endpoint, authTransport)
+func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifiers []transport.RequestModifier, creds auth.CredentialStore, scopes []auth.Scope) (*http.Client, error) {
+	challengeManager, err := PingV2Registry(endpoint, authTransport)
 	if err != nil {
-		if !foundV2 {
-			err = fallbackError{err: err}
-		}
-		return nil, foundV2, err
+		return nil, err
 	}
 
 	tokenHandlerOptions := auth.TokenHandlerOptions{
@@ -148,8 +135,7 @@ func v2AuthHTTPClient(endpoint *url.URL, authTransport http.RoundTripper, modifi
 	return &http.Client{
 		Transport: tr,
 		Timeout:   15 * time.Second,
-	}, foundV2, nil
-
+	}, nil
 }
 
 // ConvertToHostname converts a registry url which has http|https prepended
@@ -198,18 +184,9 @@ func (err PingResponseError) Error() string {
 }
 
 // PingV2Registry attempts to ping a v2 registry and on success return a
-// challenge manager for the supported authentication types and
-// whether v2 was confirmed by the response. If a response is received but
-// cannot be interpreted a PingResponseError will be returned.
-func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, bool, error) {
-	var (
-		foundV2   = false
-		v2Version = auth.APIVersion{
-			Type:    "registry",
-			Version: "2.0",
-		}
-	)
-
+// challenge manager for the supported authentication types.
+// If a response is received but cannot be interpreted, a PingResponseError will be returned.
+func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.Manager, error) {
 	pingClient := &http.Client{
 		Transport: transport,
 		Timeout:   15 * time.Second,
@@ -217,32 +194,20 @@ func PingV2Registry(endpoint *url.URL, transport http.RoundTripper) (challenge.M
 	endpointStr := strings.TrimRight(endpoint.String(), "/") + "/v2/"
 	req, err := http.NewRequest(http.MethodGet, endpointStr, nil)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	resp, err := pingClient.Do(req)
 	if err != nil {
-		return nil, false, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
-	versions := auth.APIVersions(resp, DefaultRegistryVersionHeader)
-	for _, pingVersion := range versions {
-		if pingVersion == v2Version {
-			// The version header indicates we're definitely
-			// talking to a v2 registry. So don't allow future
-			// fallbacks to the v1 protocol.
-
-			foundV2 = true
-			break
-		}
-	}
-
 	challengeManager := challenge.NewSimpleManager()
 	if err := challengeManager.AddResponse(resp); err != nil {
-		return nil, foundV2, PingResponseError{
+		return nil, PingResponseError{
 			Err: err,
 		}
 	}
 
-	return challengeManager, foundV2, nil
+	return challengeManager, nil
 }

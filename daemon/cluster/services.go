@@ -633,7 +633,7 @@ func (c *Cluster) imageWithDigestString(ctx context.Context, image string, authC
 			return "", errors.Errorf("image reference not tagged: %s", image)
 		}
 
-		repo, _, err := c.config.ImageBackend.GetRepository(ctx, taggedRef, authConfig)
+		repo, err := c.config.ImageBackend.GetRepository(ctx, taggedRef, authConfig)
 		if err != nil {
 			return "", err
 		}

@@ -75,7 +75,7 @@ func testTokenPassThru(t *testing.T, ts *httptest.Server) {
 	}
 	p := puller.(*v2Puller)
 	ctx := context.Background()
-	p.repo, _, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
+	p.repo, err = NewV2Repository(ctx, p.repoInfo, p.endpoint, p.config.MetaHeaders, p.config.AuthConfig, "pull")
 	if err != nil {
 		t.Fatal(err)
 	}
