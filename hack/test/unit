@@ -19,10 +19,6 @@ TESTDIRS="${TESTDIRS:-"./..."}"
 exclude_paths="/vendor/|/integration"
 pkg_list=$(go list $TESTDIRS | grep -vE "($exclude_paths)")
 
-# install test dependencies once before running tests for each package. This
-# significantly reduces the runtime.
-go test -i "${BUILDFLAGS[@]}" $pkg_list
-
 for pkg in $pkg_list; do
     go test "${BUILDFLAGS[@]}" \
         -cover \
