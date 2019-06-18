@@ -11,6 +11,7 @@ import (
 	"io/ioutil"
 	"math/rand"
 	"net"
+	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -157,15 +158,18 @@ func (daemon *Daemon) NewResolveOptionsFunc() resolver.ResolveOptionsFunc {
 		)
 		// must trim "https://" or "http://" prefix
 		for i, v := range daemon.configStore.Mirrors {
-			v = strings.TrimPrefix(v, "https://")
-			v = strings.TrimPrefix(v, "http://")
+			if uri, err := url.Parse(v); err == nil {
+				v = uri.Host
+			}
 			mirrors[i] = v
 		}
 		// set "registry-mirrors"
 		m[registryKey] = resolver.RegistryConf{Mirrors: mirrors}
 		// set "insecure-registries"
 		for _, v := range daemon.configStore.InsecureRegistries {
-			v = strings.TrimPrefix(v, "http://")
+			if uri, err := url.Parse(v); err == nil {
+				v = uri.Host
+			}
 			m[v] = resolver.RegistryConf{
 				PlainHTTP: true,
 			}
