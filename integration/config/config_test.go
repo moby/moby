@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"io/ioutil"
+	"path/filepath"
 	"sort"
 	"testing"
 	"time"
@@ -13,6 +15,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/pkg/stdcopy"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
@@ -415,6 +418,26 @@ func TestConfigCreateResolve(t *testing.T) {
 	entries, err = client.ConfigList(ctx, types.ConfigListOptions{})
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(0, len(entries)))
+}
+
+func TestConfigDaemonLibtrustID(t *testing.T) {
+	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
+	defer setupTest(t)()
+
+	d := daemon.New(t)
+	defer d.Stop(t)
+
+	trustKey := filepath.Join(d.RootDir(), "key.json")
+	err := ioutil.WriteFile(trustKey, []byte(`{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`), 0644)
+	assert.NilError(t, err)
+
+	config := filepath.Join(d.RootDir(), "daemon.json")
+	err = ioutil.WriteFile(config, []byte(`{"deprecated-key-path": "`+trustKey+`"}`), 0644)
+	assert.NilError(t, err)
+
+	d.Start(t, "--config-file", config)
+	info := d.Info(t)
+	assert.Equal(t, info.ID, "WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB")
 }
 
 func configNamesFromList(entries []swarmtypes.Config) []string {
