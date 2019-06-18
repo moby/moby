@@ -34,6 +34,10 @@ const (
 	// StockRuntimeName is the reserved name/alias used to represent the
 	// OCI runtime being shipped with the docker daemon package.
 	StockRuntimeName = "runc"
+	// DefaultMaxDownloadAttempts is the default value for
+	// maximum number of attempts that
+	// may take place for a pull
+	DefaultMaxDownloadAttempts = 5
 	// DefaultShmSize is the default value for container's shm size
 	DefaultShmSize = int64(67108864)
 	// DefaultNetworkMtu is the default value for network MTU
@@ -160,6 +164,9 @@ type CommonConfig struct {
 	// may take place at a time for each push.
 	MaxConcurrentUploads *int `json:"max-concurrent-uploads,omitempty"`
 
+	// MaxDownloadAttempts is the maximum number of attempts that 
+	// may take place at a time for each pull
+	MaxDownloadAttempts = *int `json:"max-download-attempts"`
 	// ShutdownTimeout is the timeout value (in seconds) the daemon will wait for the container
 	// to stop when daemon is being shutdown
 	ShutdownTimeout int `json:"shutdown-timeout,omitempty"`
@@ -519,7 +526,8 @@ func findConfigurationConflicts(config map[string]interface{}, flags *pflag.Flag
 
 // Validate validates some specific configs.
 // such as config.DNS, config.Labels, config.DNSSearch,
-// as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads.
+// as well as config.MaxConcurrentDownloads, config.MaxConcurrentUploads
+// and config.MaxDownloadAttempts.
 func Validate(config *Config) error {
 	// validate DNS
 	for _, dns := range config.DNS {
@@ -549,6 +557,12 @@ func Validate(config *Config) error {
 	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
 		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
 	}
+
+        // validate MaxDownloadAttempts
+        if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
+                return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxDownloadAttempts)
+        }
+
 
 	// validate that "default" runtime is not reset
 	if runtimes := config.GetAllRuntimes(); len(runtimes) > 0 {
