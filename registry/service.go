@@ -309,20 +309,5 @@ func (s *DefaultService) LookupPushEndpoints(hostname string) (endpoints []APIEn
 }
 
 func (s *DefaultService) lookupEndpoints(hostname string) (endpoints []APIEndpoint, err error) {
-	endpoints, err = s.lookupV2Endpoints(hostname)
-	if err != nil {
-		return nil, err
-	}
-
-	if s.config.V2Only {
-		return endpoints, nil
-	}
-
-	legacyEndpoints, err := s.lookupV1Endpoints(hostname)
-	if err != nil {
-		return nil, err
-	}
-	endpoints = append(endpoints, legacyEndpoints...)
-
-	return endpoints, nil
+	return s.lookupV2Endpoints(hostname)
 }

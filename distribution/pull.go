@@ -39,12 +39,7 @@ func newPuller(endpoint registry.APIEndpoint, repoInfo *registry.RepositoryInfo,
 			repoInfo:          repoInfo,
 		}, nil
 	case registry.APIVersion1:
-		return &v1Puller{
-			v1IDService: metadata.NewV1IDService(imagePullConfig.MetadataStore),
-			endpoint:    endpoint,
-			config:      imagePullConfig,
-			repoInfo:    repoInfo,
-		}, nil
+		return nil, fmt.Errorf("protocol version %d no longer supported. Please contact admins of registry %s", endpoint.Version, endpoint.URL)
 	}
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }

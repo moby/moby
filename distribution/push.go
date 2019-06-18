@@ -41,13 +41,7 @@ func NewPusher(ref reference.Named, endpoint registry.APIEndpoint, repoInfo *reg
 			config:            imagePushConfig,
 		}, nil
 	case registry.APIVersion1:
-		return &v1Pusher{
-			v1IDService: metadata.NewV1IDService(imagePushConfig.MetadataStore),
-			ref:         ref,
-			endpoint:    endpoint,
-			repoInfo:    repoInfo,
-			config:      imagePushConfig,
-		}, nil
+		return nil, fmt.Errorf("protocol version %d no longer supported. Please contact admins of registry %s", endpoint.Version, endpoint.URL)
 	}
 	return nil, fmt.Errorf("unknown version %d for registry %s", endpoint.Version, endpoint.URL)
 }
