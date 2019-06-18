@@ -5,6 +5,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"gotest.tools/poll"
 )
@@ -42,6 +43,30 @@ func NoTasks(ctx context.Context, client client.ServiceAPIClient) func(log poll.
 			return poll.Success()
 		default:
 			return poll.Continue("waiting for all tasks to be removed: task count at %d", len(tasks))
+		}
+	}
+}
+
+// RunningTasksCount verifies there are `instances` tasks running for `serviceID`
+func RunningTasksCount(client client.ServiceAPIClient, serviceID string, instances uint64) func(log poll.LogT) poll.Result {
+	return func(log poll.LogT) poll.Result {
+		filter := filters.NewArgs()
+		filter.Add("service", serviceID)
+		tasks, err := client.TaskList(context.Background(), types.TaskListOptions{
+			Filters: filter,
+		})
+		switch {
+		case err != nil:
+			return poll.Error(err)
+		case len(tasks) == int(instances):
+			for _, task := range tasks {
+				if task.Status.State != swarmtypes.TaskStateRunning {
+					return poll.Continue("waiting for tasks to enter run state")
+				}
+			}
+			return poll.Success()
+		default:
+			return poll.Continue("task count at %d waiting for %d", len(tasks), instances)
 		}
 	}
 }
