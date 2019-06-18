@@ -83,13 +83,6 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	flags.IntVar(&conf.NetworkControlPlaneMTU, "network-control-plane-mtu", config.DefaultNetworkMtu, "Network Control plane MTU")
 
-	// "--deprecated-key-path" is to allow configuration of the key used
-	// for the daemon ID and the deprecated image signing. It was never
-	// exposed as a command line option but is added here to allow
-	// overriding the default path in configuration.
-	flags.Var(opts.NewQuotedString(&conf.TrustKeyPath), "deprecated-key-path", "Path to key file for ID and image signing")
-	flags.MarkHidden("deprecated-key-path")
-
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
 	return nil
@@ -103,10 +96,4 @@ func installRegistryServiceFlags(options *registry.ServiceOptions, flags *pflag.
 	flags.Var(ana, "allow-nondistributable-artifacts", "Allow push of nondistributable artifacts to registry")
 	flags.Var(mirrors, "registry-mirror", "Preferred Docker registry mirror")
 	flags.Var(insecureRegistries, "insecure-registry", "Enable insecure registry communication")
-
-	if runtime.GOOS != "windows" {
-		// TODO: Remove this flag after 3 release cycles (18.03)
-		flags.BoolVar(&options.V2Only, "disable-legacy-registry", true, "Disable contacting legacy registries")
-		flags.MarkHidden("disable-legacy-registry")
-	}
 }

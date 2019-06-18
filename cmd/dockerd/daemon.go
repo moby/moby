@@ -454,17 +454,6 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 		return nil, err
 	}
 
-	if runtime.GOOS != "windows" {
-		if flags.Changed("disable-legacy-registry") {
-			// TODO: Remove this error after 3 release cycles (18.03)
-			return nil, errors.New("ERROR: The '--disable-legacy-registry' flag has been removed. Interacting with legacy (v1) registries is no longer supported")
-		}
-		if !conf.V2Only {
-			// TODO: Remove this error after 3 release cycles (18.03)
-			return nil, errors.New("ERROR: The 'disable-legacy-registry' configuration option has been removed. Interacting with legacy (v1) registries is no longer supported")
-		}
-	}
-
 	if flags.Changed("graph") {
 		logrus.Warnf(`The "-g / --graph" flag is deprecated. Please use "--data-root" instead`)
 	}
