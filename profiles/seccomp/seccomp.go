@@ -143,20 +143,18 @@ Loop:
 		}
 
 		if call.Name != "" {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Name, call.Action, call.Args))
-		}
-
-		for _, n := range call.Names {
-			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(n, call.Action, call.Args))
+			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall([]string{call.Name}, call.Action, call.Args))
+		} else {
+			newConfig.Syscalls = append(newConfig.Syscalls, createSpecsSyscall(call.Names, call.Action, call.Args))
 		}
 	}
 
 	return newConfig, nil
 }
 
-func createSpecsSyscall(name string, action types.Action, args []*types.Arg) specs.LinuxSyscall {
+func createSpecsSyscall(names []string, action types.Action, args []*types.Arg) specs.LinuxSyscall {
 	newCall := specs.LinuxSyscall{
-		Names:  []string{name},
+		Names:  names,
 		Action: specs.LinuxSeccompAction(action),
 	}
 
