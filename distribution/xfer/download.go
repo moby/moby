@@ -18,7 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-var MaxDownloadAttempts int
+var MaxDownloadAttempts *int
 
 //func MaxDownloadAttempts(conf *config.Config) int {
 //	// If no value is set for max-download-attempts we assume it is the default value
