@@ -383,7 +383,7 @@ func (r *Route) PathPrefix(tpl string) *Route {
 // The above route will only match if the URL contains the defined queries
 // values, e.g.: ?foo=bar&id=42.
 //
-// It the value is an empty string, it will match any value if the key is set.
+// If the value is an empty string, it will match any value if the key is set.
 //
 // Variables can define an optional regexp pattern to be matched:
 //
