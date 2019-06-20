@@ -1,6 +1,7 @@
 package exec // import "github.com/docker/docker/daemon/exec"
 
 import (
+	"context"
 	"runtime"
 	"sync"
 
@@ -58,7 +59,7 @@ func (i *rio) Close() error {
 }
 
 func (i *rio) Wait() {
-	i.sc.Wait()
+	i.sc.Wait(context.Background())
 
 	i.IO.Wait()
 }
