@@ -20,10 +20,9 @@ import (
 )
 
 var maxDownloadAttempts = config.DefaultDownloadAttempts
-
-if config.Config.IsValueSet("max-download-attempts") && config.Config.MaxDownloadAttempts != nil {
-	maxDownloadAttempts = *config.Config.MaxDownloadAttempts
-}
+//if *config.Config.IsValueSet("max-download-attempts") && *config.Config.MaxDownloadAttempts != nil {
+	//maxDownloadAttempts = *config.Config.MaxDownloadAttempts
+//}
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
