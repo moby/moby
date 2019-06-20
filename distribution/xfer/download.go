@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 )
 
-func MaxDownloadAttempts(conf *config.Config) {
+func MaxDownloadAttempts(conf *config.Config) int {
 	// If no value is set for max-download-attempts we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
 	maxDownloadAttempts := config.DefaultDownloadAttempts
