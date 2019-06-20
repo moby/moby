@@ -7,6 +7,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/sirupsen/logrus"
+	"github.com/docker/docker/distribution/xfer"
 )
 
 // Reload reads configuration changes and modifies the
@@ -16,6 +17,7 @@ import (
 // - Daemon debug log level
 // - Daemon max concurrent downloads
 // - Daemon max concurrent uploads
+// - xfer max download attempts
 // - Daemon shutdown timeout (in seconds)
 // - Cluster discovery (reconfigure and restart)
 // - Daemon labels
@@ -44,6 +46,7 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	}
 	daemon.reloadDebug(conf, attributes)
 	daemon.reloadMaxConcurrentDownloadsAndUploads(conf, attributes)
+	daemon.reloadMaxDownloadAttempts(conf, attributes)
 	daemon.reloadShutdownTimeout(conf, attributes)
 	daemon.reloadFeatures(conf, attributes)
 
@@ -119,15 +122,15 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes 
 	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
 		maxDownloadAttempts = *conf.MaxDownloadAttempts
 	}
-	daemon.configStore.MaxDownloadAttempts = &maxDownloadAttempts
-	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
+	xfer.maxDownloadAttempts = &maxDownloadAttempts
+	logrus.Debugf("Reset Max Download Attempts: %d", *xfer.maxDownloadAttempts)
 
 	if daemon.imageService != nil {
 		daemon.imageService.UpdateConfig(&maxDownloadAttempts)
 	}
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
+	attributes["max-download-attempts"] = fmt.Sprintf("%d", *xfer.maxDownloadAttempts)
 }
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
