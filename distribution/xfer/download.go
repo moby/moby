@@ -16,9 +16,13 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
+	"github.com/docker/docker/daemon/config"
 )
 
-maxDownloadAttempts := config.DefaultDownloadAttempts
+maxDownloadAttempts = config.DefaultDownloadAttempts
+if config.Config.IsValueSet("max-download-attempts") && config.Config.MaxDownloadAttempts != nil {
+	maxDownloadAttempts = *config.Config.MaxDownloadAttempts
+}
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between

@@ -50,7 +50,7 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
-		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, config.MaxDownloadAttempts),
+		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads),
 		eventsService:             config.EventsService,
 		imageStore:                config.ImageStore,
 		layerStores:               config.LayerStores,
