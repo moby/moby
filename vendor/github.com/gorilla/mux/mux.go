@@ -283,6 +283,12 @@ func (r *Router) NewRoute() *Route {
 	return route
 }
 
+// Name registers a new route with a name.
+// See Route.Name().
+func (r *Router) Name(name string) *Route {
+	return r.NewRoute().Name(name)
+}
+
 // Handle registers a new route with a matcher for the URL path.
 // See Route.Path() and Route.Handler().
 func (r *Router) Handle(path string, handler http.Handler) *Route {
