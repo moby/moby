@@ -18,8 +18,7 @@ import (
 	"github.com/sirupsen/logrus"
 )
 
-maxDownloadAttempts int
-maxDownloadAttempts := daemon.configStore.MaxDownloadAttempts
+maxDownloadAttempts := config.DefaultDownloadAttempts
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
