@@ -1047,6 +1047,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 		LayerStores:               layerStores,
 		MaxConcurrentDownloads:    *config.MaxConcurrentDownloads,
 		MaxConcurrentUploads:      *config.MaxConcurrentUploads,
+		MaxDownloadAttempts:	   *config.MaxDownloadAttempts,
 		ReferenceStore:            rs,
 		RegistryService:           registryService,
 	})
