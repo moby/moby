@@ -652,13 +652,6 @@ func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventTy
 					}).Error("exit event")
 				return
 			}
-			_, err = p.Delete(context.Background())
-			if err != nil {
-				c.logger.WithError(err).WithFields(logrus.Fields{
-					"container": ei.ContainerID,
-					"process":   ei.ProcessID,
-				}).Warn("failed to delete process")
-			}
 
 			ctr, err := c.getContainer(ctx, ei.ContainerID)
 			if err != nil {
@@ -672,10 +665,17 @@ func (c *client) processEvent(ctx context.Context, et libcontainerdtypes.EventTy
 					c.logger.WithFields(logrus.Fields{
 						"container": ei.ContainerID,
 						"error":     err,
-					}).Error("failed to find container")
+					}).Error("failed to get container labels")
 					return
 				}
 				newFIFOSet(labels[DockerContainerBundlePath], ei.ProcessID, true, false).Close()
+			}
+			_, err = p.Delete(context.Background())
+			if err != nil {
+				c.logger.WithError(err).WithFields(logrus.Fields{
+					"container": ei.ContainerID,
+					"process":   ei.ProcessID,
+				}).Warn("failed to delete process")
 			}
 		}
 	})
