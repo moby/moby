@@ -20,6 +20,7 @@ import (
 )
 
 var maxDownloadAttempts = config.DefaultDownloadAttempts
+
 if config.Config.IsValueSet("max-download-attempts") && config.Config.MaxDownloadAttempts != nil {
 	maxDownloadAttempts = *config.Config.MaxDownloadAttempts
 }
