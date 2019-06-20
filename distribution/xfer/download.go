@@ -19,9 +19,9 @@ import (
 	"github.com/docker/docker/daemon/config"
 )
 
-var maxDownloadAttempts = config.DefaultDownloadAttempts
-if *config.Config.IsValueSet("max-download-attempts") && *config.Config.MaxDownloadAttempts != nil {
-	//maxDownloadAttempts = *config.Config.MaxDownloadAttempts
+maxDownloadAttempts := config.DefaultDownloadAttempts
+if config.Config.IsValueSet("max-download-attempts") && config.Config.MaxDownloadAttempts != nil {
+	maxDownloadAttempts = *config.Config.MaxDownloadAttempts
 }
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
