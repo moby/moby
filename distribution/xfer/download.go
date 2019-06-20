@@ -30,7 +30,7 @@ func MaxDownloadAttempts(conf *config.Config) int {
 	return maxDownloadAttempts
 }
 
-maxDownloadAttempts = MaxDownloadAttempts()
+var maxDownloadAttempts = MaxDownloadAttempts()
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
