@@ -188,8 +188,6 @@ func parseNetworkOptions(id string, option options.Generic) (*configuration, err
 	// setting the parent to "" will trigger an isolated network dummy parent link
 	if _, ok := option[netlabel.Internal]; ok {
 		config.Internal = true
-		// empty --parent= and --internal are handled the same.
-		config.Parent = ""
 	}
 
 	return config, nil

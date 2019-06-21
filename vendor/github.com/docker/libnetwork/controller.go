@@ -794,6 +794,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 	// From this point on, we need the network specific configuration,
 	// which may come from a configuration-only network
 	if network.configFrom != "" {
+		internal := network.internal
 		t, err = c.getConfigNetwork(network.configFrom)
 		if err != nil {
 			return nil, types.NotFoundErrorf("configuration network %q does not exist", network.configFrom)
@@ -801,6 +802,8 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		if err = t.applyConfigurationTo(network); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
+		network.internal = internal
+		network.generic[netlabel.Internal] = true
 		defer func() {
 			if err == nil {
 				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
