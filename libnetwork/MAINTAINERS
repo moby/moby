@@ -11,12 +11,10 @@
 [Org]
 	[Org."Core maintainers"]
 		people = [
-			"abhi",
-			"aboch",
-			"ctelfer",
-			"chenchun",
+			"euanh",
 			"fcrisciani",
 			"mavenugo",
+			"selansen",
 		]
 
 [people]
@@ -27,25 +25,10 @@
 
 	# ADD YOURSELF HERE IN ALPHABETICAL ORDER
 
-	[people.abhi]
-	Name = "Abhinandan Prativadi Bayankaram"
-	Email = "abhi@docker.com"
-	GitHub = "abhi"
-
-	[people.aboch]
-	Name = "Alessandro Boch"
-	Email = "aboch@docker.com"
-	GitHub = "aboch"
-
-	[people.ctelfer]
-	Name = "Christopher Telfer"
-	Email = "chris.telfer@docker.com"
-	GitHub = "ctelfer"
-
-	[people.chenchun]
-	Name = "Chun Chen"
-	Email = "ramichen@tencent.com"
-	GitHub = "chenchun"
+	[people.euanh]
+	Name = "Euan Harris"
+	Email = "euan.harris@docker.com"
+	GitHub = "euanh"
 
 	[people.fcrisciani]
 	Name = "Flavio Crisciani"
@@ -57,3 +40,7 @@
 	Email = "madhu@docker.com"
 	GitHub = "mavenugo"
 
+	[people.selansen]
+	Name = "Elangovan Sivanandam"
+	Email = "elango.siva@docker.com"
+	GitHub = "selansen"
