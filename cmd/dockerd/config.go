@@ -69,7 +69,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.CorsHeaders, "api-cors-header", "", "Set CORS headers in the Engine API")
 	flags.IntVar(&maxConcurrentDownloads, "max-concurrent-downloads", config.DefaultMaxConcurrentDownloads, "Set the max concurrent downloads for each pull")
 	flags.IntVar(&maxConcurrentUploads, "max-concurrent-uploads", config.DefaultMaxConcurrentUploads, "Set the max concurrent uploads for each push")
-	flags.IntVar(&maxDownloadAttempts, "max-concurrent-uploads", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
+	flags.IntVar(&maxDownloadAttempts, "max-download-attemtps", config.DefaultDownloadAttempts, "Set the max download attempts for each pull")
 	flags.IntVar(&conf.ShutdownTimeout, "shutdown-timeout", defaultShutdownTimeout, "Set the default shutdown timeout")
 	flags.IntVar(&conf.NetworkDiagnosticPort, "network-diagnostic-port", 0, "TCP port number of the network diagnostic server")
 	flags.MarkHidden("network-diagnostic-port")
