@@ -16,7 +16,7 @@ import (
 	"github.com/docker/docker/pkg/progress"
 	"github.com/docker/docker/pkg/system"
 	"github.com/sirupsen/logrus"
-	"github.com/docker/docker/daemon/config"
+	
 )
 
 var MaxDownloadAttempts *int
