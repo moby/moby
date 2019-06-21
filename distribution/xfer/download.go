@@ -19,7 +19,7 @@ import (
 	"github.com/docker/docker/daemon/config"
 )
 
-//var MaxDownloadAttempts *int
+var MaxDownloadAttempts *int
 
 //func MaxDownloadAttempts(conf *config.Config) int {
 //	// If no value is set for max-download-attempts we assume it is the default value
@@ -295,9 +295,21 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 					return
 				default:
 				}
+				
+				if *MaxDownloadAttempts != nil {
+				logrus.Debugf("*MaxdownloadAttempts not nil")
+				}
+				
+				if &MaxDownloadAttempts != nil {
+				logrus.Debugf("&MaxdownloadAttempts not nil")
+				}
+
+				if MaxDownloadAttempts != nil {
+					logrus.Debugf("MaxdownloadAttempts not nil")
+				}
 
 				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries == *config.MaxDownloadAttempts {
+				if _, isDNR := err.(DoNotRetry); isDNR || retries == *MaxDownloadAttempts {
 					logrus.Errorf("Download failed: %v", err)
 					d.err = err
 					return
