@@ -296,9 +296,9 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				default:
 				}
 				
-				if *MaxDownloadAttempts != nil {
-				logrus.Debugf("*MaxdownloadAttempts not nil")
-				}
+				//if *MaxDownloadAttempts != nil {
+				//logrus.Debugf("*MaxdownloadAttempts not nil")
+				//}
 				
 				if &MaxDownloadAttempts != nil {
 				logrus.Debugf("&MaxdownloadAttempts not nil")
