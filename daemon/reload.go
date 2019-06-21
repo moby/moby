@@ -125,10 +125,6 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes 
 	xfer.MaxDownloadAttempts = &maxDownloadAttempts
 	logrus.Debugf("Reset Max Download Attempts: %d", *xfer.MaxDownloadAttempts)
 
-	if daemon.imageService != nil {
-		daemon.imageService.UpdateConfig(&maxDownloadAttempts)
-	}
-
 	// prepare reload event attributes with updatable configurations
 	attributes["max-download-attempts"] = fmt.Sprintf("%d", *xfer.MaxDownloadAttempts)
 }
