@@ -16,7 +16,7 @@ import (
 // - Daemon debug log level
 // - Daemon max concurrent downloads
 // - Daemon max concurrent uploads
-// - xfer max download attempts
+// - Daemon max download attempts
 // - Daemon shutdown timeout (in seconds)
 // - Cluster discovery (reconfigure and restart)
 // - Daemon labels
@@ -45,7 +45,7 @@ func (daemon *Daemon) Reload(conf *config.Config) (err error) {
 	}
 	daemon.reloadDebug(conf, attributes)
 	daemon.reloadMaxConcurrentDownloadsAndUploads(conf, attributes)
-	daemon.reloadMaxDownloadAttempts(conf, attributes)
+	//daemon.reloadMaxDownloadAttempts(conf, attributes)
 	daemon.reloadShutdownTimeout(conf, attributes)
 	daemon.reloadFeatures(conf, attributes)
 
@@ -114,19 +114,19 @@ func (daemon *Daemon) reloadMaxConcurrentDownloadsAndUploads(conf *config.Config
 
 // reloadMaxDownloadAttempts updates configuration with max concurrent
 // download attempts when a connection is lost and updates the passed attributes
-func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes map[string]string) {
+//func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes map[string]string) {
 	// If no value is set for max-download-attempts we assume it is the default value
 	// We always "reset" as the cost is lightweight and easy to maintain.
-	maxDownloadAttempts := config.DefaultDownloadAttempts
-	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
-		maxDownloadAttempts = *conf.MaxDownloadAttempts
-	}
-	daemon.configStore.MaxConcurrentDownloads = &maxDownloadAttempts
-	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
+//	maxDownloadAttempts := config.DefaultDownloadAttempts
+//	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
+//		maxDownloadAttempts = *conf.MaxDownloadAttempts
+//	}
+//	daemon.configStore.MaxDownloadAttempts = &maxDownloadAttempts
+//	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
-}
+//	attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
+//}
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
 // and updates the passed attributes
