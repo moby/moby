@@ -37,6 +37,7 @@ type ImageServiceConfig struct {
 	LayerStores               map[string]layer.Store
 	MaxConcurrentDownloads    int
 	MaxConcurrentUploads      int
+	MaxDownloadAttempts		  int
 	ReferenceStore            dockerreference.Store
 	RegistryService           registry.Service
 }
@@ -45,10 +46,11 @@ type ImageServiceConfig struct {
 func NewImageService(config ImageServiceConfig) *ImageService {
 	logrus.Debugf("Max Concurrent Downloads: %d", config.MaxConcurrentDownloads)
 	logrus.Debugf("Max Concurrent Uploads: %d", config.MaxConcurrentUploads)
+	logrus.Debugf("Max Download Attempts: %d", config.MaxDownloadAttempts)
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
-		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads),
+		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, config.MaxConcurrentDownloads),
 		eventsService:             config.EventsService,
 		imageStore:                config.ImageStore,
 		layerStores:               config.LayerStores,
