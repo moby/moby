@@ -43,7 +43,7 @@ func NewLayerDownloadManager(layerStores map[string]layer.Store, concurrencyLimi
 		layerStores:  			layerStores,
 		tm:           			NewTransferManager(concurrencyLimit),
 		waitDuration: 			time.Second,
-		maxDownloadAttempts:	downloadattempts
+		maxDownloadAttempts:	downloadattempts,
 	}
 	for _, option := range options {
 		option(&manager)
