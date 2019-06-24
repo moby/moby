@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/discovery"
 	"github.com/sirupsen/logrus"
-	"github.com/docker/docker/distribution/xfer"
 )
 
 // Reload reads configuration changes and modifies the
