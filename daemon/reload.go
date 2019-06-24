@@ -123,10 +123,10 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes 
 		maxDownloadAttempts = *conf.MaxDownloadAttempts
 	}
 	xfer.MaxDownloadAttempts = &maxDownloadAttempts
-	logrus.Debugf("Reset Max Download Attempts: %d", *xfer.MaxDownloadAttempts)
+	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
 
 	// prepare reload event attributes with updatable configurations
-	attributes["max-download-attempts"] = fmt.Sprintf("%d", *xfer.MaxDownloadAttempts)
+	attributes["max-download-attempts"] = fmt.Sprintf("%d", *daemon.configStore.MaxDownloadAttempts)
 }
 
 // reloadShutdownTimeout updates configuration with daemon shutdown timeout option
