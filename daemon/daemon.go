@@ -1055,7 +1055,7 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	go d.execCommandGC()
 
 	// set max download attempts 
-	xfer.MaxDownloadAttempts = *config.MaxDownloadAttempts
+	xfer.MaxDownloadAttempts = config.MaxDownloadAttempts
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), ContainersNamespace, d)
 	if err != nil {
