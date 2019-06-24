@@ -294,7 +294,7 @@ func TestValidateConfigurationErrors(t *testing.T) {
 		{
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxDownloadAttemts: &minusNumber,
+					MaxDownloadAttempts: &minusNumber,
 					// This is weird...
 					ValuesSet: map[string]interface{}{
 						"max-download-attempts": -1,
@@ -376,7 +376,7 @@ func TestValidateConfiguration(t *testing.T) {
 		{
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxDownloadAttemts: &minusNumber,
+					MaxDownloadAttempts: &minusNumber,
 					// This is weird...
 					ValuesSet: map[string]interface{}{
 						"max-download-attempts": -1,
