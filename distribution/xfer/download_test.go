@@ -20,7 +20,7 @@ import (
 )
 
 const maxDownloadConcurrency = 3
-xfer.MaxDownloadAttempts = 5
+var xfer.MaxDownloadAttempts = 5
 
 type mockLayer struct {
 	layerData bytes.Buffer
