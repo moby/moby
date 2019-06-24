@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
-	"github.com/docker/docker/distribution/xfer"
+	//"github.com/docker/docker/distribution/xfer"
 )
 
 const (
