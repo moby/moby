@@ -20,7 +20,7 @@ import (
 )
 
 // MaxDownloadAttempts is specified in the config file, with a default value of 5. 
-var MaxDownloadAttempts int
+//var MaxDownloadAttempts int
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
