@@ -19,20 +19,8 @@ import (
 	
 )
 
+// MaxDownloadAttempts is specified in the config file, with a default value of 5. 
 var MaxDownloadAttempts *int
-
-//func MaxDownloadAttempts(conf *config.Config) int {
-//	// If no value is set for max-download-attempts we assume it is the default value
-//	// We always "reset" as the cost is lightweight and easy to maintain.
-//	maxDownloadAttempts := config.DefaultDownloadAttempts
-//	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
-//		maxDownloadAttempts = *conf.MaxDownloadAttempts
-//	}
-//
-//	return maxDownloadAttempts
-//}
-
-//var maxDownloadAttempts = MaxDownloadAttempts(config)
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
