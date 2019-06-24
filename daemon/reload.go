@@ -122,7 +122,7 @@ func (daemon *Daemon) reloadMaxDownloadAttempts(conf *config.Config, attributes 
 	if conf.IsValueSet("max-download-attempts") && conf.MaxDownloadAttempts != nil {
 		maxDownloadAttempts = *conf.MaxDownloadAttempts
 	}
-	xfer.MaxDownloadAttempts = &maxDownloadAttempts
+	daemon.configStore.MaxConcurrentDownloads = &maxDownloadAttempts
 	logrus.Debugf("Reset Max Download Attempts: %d", *daemon.configStore.MaxDownloadAttempts)
 
 	// prepare reload event attributes with updatable configurations
