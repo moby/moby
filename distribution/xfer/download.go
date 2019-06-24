@@ -20,7 +20,7 @@ import (
 )
 
 // MaxDownloadAttempts is specified in the config file, with a default value of 5. 
-var MaxDownloadAttempts *int
+var MaxDownloadAttempts int
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
@@ -285,7 +285,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				}
 				
 				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries == *MaxDownloadAttempts {
+				if _, isDNR := err.(DoNotRetry); isDNR || retries == MaxDownloadAttempts {
 					logrus.Errorf("Download failed: %v", err)
 					d.err = err
 					return
