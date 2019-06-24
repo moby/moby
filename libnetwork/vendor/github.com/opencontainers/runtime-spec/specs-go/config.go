@@ -25,6 +25,8 @@ type Spec struct {
 	Solaris *Solaris `json:"solaris,omitempty" platform:"solaris"`
 	// Windows is platform-specific configuration for Windows based containers.
 	Windows *Windows `json:"windows,omitempty" platform:"windows"`
+	// VM specifies configuration for virtual-machine-based containers.
+	VM *VM `json:"vm,omitempty" platform:"vm"`
 }
 
 // Process contains information to start a specific application inside the container.
@@ -36,7 +38,9 @@ type Process struct {
 	// User specifies user information for the process.
 	User User `json:"user"`
 	// Args specifies the binary and arguments for the application to execute.
-	Args []string `json:"args"`
+	Args []string `json:"args,omitempty"`
+	// CommandLine specifies the full command line for the application to execute on Windows.
+	CommandLine string `json:"commandLine,omitempty" platform:"windows"`
 	// Env populates the process environment for the process.
 	Env []string `json:"env,omitempty"`
 	// Cwd is the current working directory for the process and must be
@@ -158,8 +162,8 @@ type Linux struct {
 	ReadonlyPaths []string `json:"readonlyPaths,omitempty"`
 	// MountLabel specifies the selinux context for the mounts in the container.
 	MountLabel string `json:"mountLabel,omitempty"`
-	// IntelRdt contains Intel Resource Director Technology (RDT) information
-	// for handling resource constraints (e.g., L3 cache) for the container
+	// IntelRdt contains Intel Resource Director Technology (RDT) information for
+	// handling resource constraints (e.g., L3 cache, memory bandwidth) for the container
 	IntelRdt *LinuxIntelRdt `json:"intelRdt,omitempty"`
 }
 
@@ -194,10 +198,10 @@ const (
 
 // LinuxIDMapping specifies UID/GID mappings
 type LinuxIDMapping struct {
-	// HostID is the starting UID/GID on the host to be mapped to 'ContainerID'
-	HostID uint32 `json:"hostID"`
 	// ContainerID is the starting UID/GID in the container
 	ContainerID uint32 `json:"containerID"`
+	// HostID is the starting UID/GID on the host to be mapped to 'ContainerID'
+	HostID uint32 `json:"hostID"`
 	// Size is the number of IDs to be mapped
 	Size uint32 `json:"size"`
 }
@@ -320,6 +324,14 @@ type LinuxNetwork struct {
 	Priorities []LinuxInterfacePriority `json:"priorities,omitempty"`
 }
 
+// LinuxRdma for Linux cgroup 'rdma' resource management (Linux 4.11)
+type LinuxRdma struct {
+	// Maximum number of HCA handles that can be opened. Default is "no limit".
+	HcaHandles *uint32 `json:"hcaHandles,omitempty"`
+	// Maximum number of HCA objects that can be created. Default is "no limit".
+	HcaObjects *uint32 `json:"hcaObjects,omitempty"`
+}
+
 // LinuxResources has container runtime resource constraints
 type LinuxResources struct {
 	// Devices configures the device whitelist.
@@ -336,6 +348,10 @@ type LinuxResources struct {
 	HugepageLimits []LinuxHugepageLimit `json:"hugepageLimits,omitempty"`
 	// Network restriction configuration
 	Network *LinuxNetwork `json:"network,omitempty"`
+	// Rdma resource restriction configuration.
+	// Limits are a set of key value pairs that define RDMA resource limits,
+	// where the key is device name and value is resource limits.
+	Rdma map[string]LinuxRdma `json:"rdma,omitempty"`
 }
 
 // LinuxDevice represents the mknod information for a Linux special device file
@@ -419,6 +435,8 @@ type SolarisAnet struct {
 type Windows struct {
 	// LayerFolders contains a list of absolute paths to directories containing image layers.
 	LayerFolders []string `json:"layerFolders"`
+	// Devices are the list of devices to be mapped into the container.
+	Devices []WindowsDevice `json:"devices,omitempty"`
 	// Resources contains information for handling resource constraints for the container.
 	Resources *WindowsResources `json:"resources,omitempty"`
 	// CredentialSpec contains a JSON object describing a group Managed Service Account (gMSA) specification.
@@ -431,6 +449,14 @@ type Windows struct {
 	HyperV *WindowsHyperV `json:"hyperv,omitempty"`
 	// Network restriction configuration.
 	Network *WindowsNetwork `json:"network,omitempty"`
+}
+
+// WindowsDevice represents information about a host device to be mapped into the container.
+type WindowsDevice struct {
+	// Device identifier: interface class GUID, etc.
+	ID string `json:"id"`
+	// Device identifier type: "class", etc.
+	IDType string `json:"idType"`
 }
 
 // WindowsResources has container runtime resource constraints for containers running on Windows.
@@ -479,12 +505,50 @@ type WindowsNetwork struct {
 	DNSSearchList []string `json:"DNSSearchList,omitempty"`
 	// Name (ID) of the container that we will share with the network stack.
 	NetworkSharedContainerName string `json:"networkSharedContainerName,omitempty"`
+	// name (ID) of the network namespace that will be used for the container.
+	NetworkNamespace string `json:"networkNamespace,omitempty"`
 }
 
 // WindowsHyperV contains information for configuring a container to run with Hyper-V isolation.
 type WindowsHyperV struct {
 	// UtilityVMPath is an optional path to the image used for the Utility VM.
 	UtilityVMPath string `json:"utilityVMPath,omitempty"`
+}
+
+// VM contains information for virtual-machine-based containers.
+type VM struct {
+	// Hypervisor specifies hypervisor-related configuration for virtual-machine-based containers.
+	Hypervisor VMHypervisor `json:"hypervisor,omitempty"`
+	// Kernel specifies kernel-related configuration for virtual-machine-based containers.
+	Kernel VMKernel `json:"kernel"`
+	// Image specifies guest image related configuration for virtual-machine-based containers.
+	Image VMImage `json:"image,omitempty"`
+}
+
+// VMHypervisor contains information about the hypervisor to use for a virtual machine.
+type VMHypervisor struct {
+	// Path is the host path to the hypervisor used to manage the virtual machine.
+	Path string `json:"path"`
+	// Parameters specifies parameters to pass to the hypervisor.
+	Parameters []string `json:"parameters,omitempty"`
+}
+
+// VMKernel contains information about the kernel to use for a virtual machine.
+type VMKernel struct {
+	// Path is the host path to the kernel used to boot the virtual machine.
+	Path string `json:"path"`
+	// Parameters specifies parameters to pass to the kernel.
+	Parameters []string `json:"parameters,omitempty"`
+	// InitRD is the host path to an initial ramdisk to be used by the kernel.
+	InitRD string `json:"initrd,omitempty"`
+}
+
+// VMImage contains information about the virtual machine root image.
+type VMImage struct {
+	// Path is the host path to the root image that the VM kernel would boot into.
+	Path string `json:"path"`
+	// Format is the root image format type (e.g. "qcow2", "raw", "vhd", etc).
+	Format string `json:"format"`
 }
 
 // LinuxSeccomp represents syscall restrictions
@@ -561,10 +625,18 @@ type LinuxSyscall struct {
 	Args   []LinuxSeccompArg  `json:"args,omitempty"`
 }
 
-// LinuxIntelRdt has container runtime resource constraints
-// for Intel RDT/CAT which introduced in Linux 4.10 kernel
+// LinuxIntelRdt has container runtime resource constraints for Intel RDT
+// CAT and MBA features which introduced in Linux 4.10 and 4.12 kernel
 type LinuxIntelRdt struct {
+	// The identity for RDT Class of Service
+	ClosID string `json:"closID,omitempty"`
 	// The schema for L3 cache id and capacity bitmask (CBM)
 	// Format: "L3:<cache_id0>=<cbm0>;<cache_id1>=<cbm1>;..."
 	L3CacheSchema string `json:"l3CacheSchema,omitempty"`
+
+	// The schema of memory bandwidth per L3 cache id
+	// Format: "MB:<cache_id0>=bandwidth0;<cache_id1>=bandwidth1;..."
+	// The unit of memory bandwidth is specified in "percentages" by
+	// default, and in "MBps" if MBA Software Controller is enabled.
+	MemBwSchema string `json:"memBwSchema,omitempty"`
 }

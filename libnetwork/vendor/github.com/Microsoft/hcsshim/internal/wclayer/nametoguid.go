@@ -10,15 +10,25 @@ import (
 // Host Compute Service, ensuring GUIDs generated with the same string are common
 // across all clients.
 func NameToGuid(name string) (id guid.GUID, err error) {
-	title := "hcsshim::NameToGuid "
+	title := "hcsshim::NameToGuid"
+	fields := logrus.Fields{
+		"name": name,
+	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
 	err = nameToGuid(name, &id)
 	if err != nil {
-		err = hcserror.Errorf(err, title, "name=%s", name)
-		logrus.Error(err)
+		err = hcserror.New(err, title+" - failed", "")
 		return
 	}
-
-	logrus.Debugf(title+"name:%s guid:%s", name, id.String())
+	fields["guid"] = id.String()
 	return
 }

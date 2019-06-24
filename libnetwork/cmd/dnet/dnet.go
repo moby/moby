@@ -416,7 +416,7 @@ func startTestDriver() error {
 }
 
 func newDnetConnection(val string) (*dnetConnection, error) {
-	url, err := opts.ParseHost(false, val)
+	url, err := opts.ParseHost(false, false, val)
 	if err != nil {
 		return nil, err
 	}

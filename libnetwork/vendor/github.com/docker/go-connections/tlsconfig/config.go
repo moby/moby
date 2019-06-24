@@ -46,8 +46,6 @@ var acceptedCBCCiphers = []uint16{
 	tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
 	tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
 	tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA,
-	tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 }
 
 // DefaultServerAcceptedCiphers should be uses by code which already has a crypto/tls
@@ -67,8 +65,8 @@ var allTLSVersions = map[uint16]struct{}{
 // ServerDefault returns a secure-enough TLS configuration for the server TLS configuration.
 func ServerDefault(ops ...func(*tls.Config)) *tls.Config {
 	tlsconfig := &tls.Config{
-		// Avoid fallback by default to SSL protocols < TLS1.0
-		MinVersion:               tls.VersionTLS10,
+		// Avoid fallback by default to SSL protocols < TLS1.2
+		MinVersion:               tls.VersionTLS12,
 		PreferServerCipherSuites: true,
 		CipherSuites:             DefaultServerAcceptedCiphers,
 	}

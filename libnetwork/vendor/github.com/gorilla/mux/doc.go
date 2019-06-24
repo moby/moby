@@ -12,8 +12,8 @@ or other conditions. The main features are:
 
 	* Requests can be matched based on URL host, path, path prefix, schemes,
 	  header and query values, HTTP methods or using custom matchers.
-	* URL hosts and paths can have variables with an optional regular
-	  expression.
+	* URL hosts, paths and query values can have variables with an optional
+	  regular expression.
 	* Registered URLs can be built, or "reversed", which helps maintaining
 	  references to resources.
 	* Routes can be used as subrouters: nested routes are only tested if the
@@ -47,11 +47,20 @@ variable will be anything until the next slash. For example:
 	r.HandleFunc("/articles/{category}/", ArticlesCategoryHandler)
 	r.HandleFunc("/articles/{category}/{id:[0-9]+}", ArticleHandler)
 
+Groups can be used inside patterns, as long as they are non-capturing (?:re). For example:
+
+	r.HandleFunc("/articles/{category}/{sort:(?:asc|desc|new)}", ArticlesCategoryHandler)
+
 The names are used to create a map of route variables which can be retrieved
 calling mux.Vars():
 
 	vars := mux.Vars(request)
 	category := vars["category"]
+
+Note that if any capturing groups are present, mux will panic() during parsing. To prevent
+this, convert any capturing groups to non-capturing, e.g. change "/{sort:(asc|desc)}" to
+"/{sort:(?:asc|desc)}". This is a change from prior versions which behaved unpredictably
+when capturing groups were present.
 
 And this is all you need to know about the basic usage. More advanced options
 are explained below.
@@ -136,6 +145,31 @@ the inner routes use it as base for their paths:
 	// "/products/{key}/details"
 	s.HandleFunc("/{key}/details", ProductDetailsHandler)
 
+Note that the path provided to PathPrefix() represents a "wildcard": calling
+PathPrefix("/static/").Handler(...) means that the handler will be passed any
+request that matches "/static/*". This makes it easy to serve static files with mux:
+
+	func main() {
+		var dir string
+
+		flag.StringVar(&dir, "dir", ".", "the directory to serve files from. Defaults to the current dir")
+		flag.Parse()
+		r := mux.NewRouter()
+
+		// This will serve files under http://localhost:8000/static/<filename>
+		r.PathPrefix("/static/").Handler(http.StripPrefix("/static/", http.FileServer(http.Dir(dir))))
+
+		srv := &http.Server{
+			Handler:      r,
+			Addr:         "127.0.0.1:8000",
+			// Good practice: enforce timeouts for servers you create!
+			WriteTimeout: 15 * time.Second,
+			ReadTimeout:  15 * time.Second,
+		}
+
+		log.Fatal(srv.ListenAndServe())
+	}
+
 Now let's see how to build registered URLs.
 
 Routes can be named. All routes that define a name can have their URLs built,
@@ -154,18 +188,20 @@ key/value pairs for the route variables. For the previous route, we would do:
 
 	"/articles/technology/42"
 
-This also works for host variables:
+This also works for host and query value variables:
 
 	r := mux.NewRouter()
 	r.Host("{subdomain}.domain.com").
 	  Path("/articles/{category}/{id:[0-9]+}").
+	  Queries("filter", "{filter}").
 	  HandlerFunc(ArticleHandler).
 	  Name("article")
 
-	// url.String() will be "http://news.domain.com/articles/technology/42"
+	// url.String() will be "http://news.domain.com/articles/technology/42?filter=gorilla"
 	url, err := r.Get("article").URL("subdomain", "news",
 	                                 "category", "technology",
-	                                 "id", "42")
+	                                 "id", "42",
+	                                 "filter", "gorilla")
 
 All variables defined in the route are required, and their values must
 conform to the corresponding patterns. These requirements guarantee that a
@@ -202,5 +238,69 @@ as well:
 	url, err := r.Get("article").URL("subdomain", "news",
 	                                 "category", "technology",
 	                                 "id", "42")
+
+Mux supports the addition of middlewares to a Router, which are executed in the order they are added if a match is found, including its subrouters. Middlewares are (typically) small pieces of code which take one request, do something with it, and pass it down to another middleware or the final handler. Some common use cases for middleware are request logging, header manipulation, or ResponseWriter hijacking.
+
+	type MiddlewareFunc func(http.Handler) http.Handler
+
+Typically, the returned handler is a closure which does something with the http.ResponseWriter and http.Request passed to it, and then calls the handler passed as parameter to the MiddlewareFunc (closures can access variables from the context where they are created).
+
+A very basic middleware which logs the URI of the request being handled could be written as:
+
+	func simpleMw(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Do stuff here
+			log.Println(r.RequestURI)
+			// Call the next handler, which can be another middleware in the chain, or the final handler.
+			next.ServeHTTP(w, r)
+		})
+	}
+
+Middlewares can be added to a router using `Router.Use()`:
+
+	r := mux.NewRouter()
+	r.HandleFunc("/", handler)
+	r.Use(simpleMw)
+
+A more complex authentication middleware, which maps session token to users, could be written as:
+
+	// Define our struct
+	type authenticationMiddleware struct {
+		tokenUsers map[string]string
+	}
+
+	// Initialize it somewhere
+	func (amw *authenticationMiddleware) Populate() {
+		amw.tokenUsers["00000000"] = "user0"
+		amw.tokenUsers["aaaaaaaa"] = "userA"
+		amw.tokenUsers["05f717e5"] = "randomUser"
+		amw.tokenUsers["deadbeef"] = "user0"
+	}
+
+	// Middleware function, which will be called for each request
+	func (amw *authenticationMiddleware) Middleware(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token := r.Header.Get("X-Session-Token")
+
+			if user, found := amw.tokenUsers[token]; found {
+				// We found the token in our map
+				log.Printf("Authenticated user %s\n", user)
+				next.ServeHTTP(w, r)
+			} else {
+				http.Error(w, "Forbidden", http.StatusForbidden)
+			}
+		})
+	}
+
+	r := mux.NewRouter()
+	r.HandleFunc("/", handler)
+
+	amw := authenticationMiddleware{}
+	amw.Populate()
+
+	r.Use(amw.Middleware)
+
+Note: The handler chain will be stopped if your middleware doesn't call `next.ServeHTTP()` with the corresponding parameters. This can be used to abort a request if the middleware writer wants to.
+
 */
 package mux
