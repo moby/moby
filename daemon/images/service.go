@@ -37,7 +37,7 @@ type ImageServiceConfig struct {
 	LayerStores               map[string]layer.Store
 	MaxConcurrentDownloads    int
 	MaxConcurrentUploads      int
-	MaxDownloadAttempts 	  int
+	MaxDownloadAttempts		  int
 	ReferenceStore            dockerreference.Store
 	RegistryService           registry.Service
 }

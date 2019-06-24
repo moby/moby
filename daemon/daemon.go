@@ -43,6 +43,7 @@ import (
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
+	"github.com/docker/docker/distribution/xfer"
 
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
@@ -1052,6 +1053,8 @@ func NewDaemon(ctx context.Context, config *config.Config, pluginStore *plugin.S
 	})
 
 	go d.execCommandGC()
+
+	xfer.MaxDownloadAttempts = *config.MaxDownloadAttempts
 
 	d.containerd, err = libcontainerd.NewClient(ctx, d.containerdCli, filepath.Join(config.ExecRoot, "containerd"), ContainersNamespace, d)
 	if err != nil {
