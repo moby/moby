@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/registry"
 	"github.com/spf13/pflag"
-	//"github.com/docker/docker/distribution/xfer"
+	"github.com/docker/docker/distribution/xfer"
 )
 
 const (
@@ -85,7 +85,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
-	conf.MaxDownloadAttempts = &maxDownloadAttempts
+	xfer.MaxDownloadAttempts = &maxDownloadAttempts
 	return nil
 }
 
