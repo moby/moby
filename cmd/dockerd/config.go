@@ -85,7 +85,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	conf.MaxConcurrentDownloads = &maxConcurrentDownloads
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
-	xfer.MaxDownloadAttempts = &maxDownloadAttempts
+	conf.MaxDownloadAttempts = &maxDownloadAttempts
 	return nil
 }
 
