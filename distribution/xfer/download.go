@@ -284,10 +284,6 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				default:
 				}
 				
-				
-				//logrus.Debugf(*MaxDownloadAttempts, &MaxDownloadAttempts, MaxDownloadAttempts)
-				
-				
 				retries++
 				if _, isDNR := err.(DoNotRetry); isDNR || retries == *MaxDownloadAttempts {
 					logrus.Errorf("Download failed: %v", err)
