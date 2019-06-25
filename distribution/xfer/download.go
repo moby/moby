@@ -164,10 +164,10 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 		var xferFunc DoFunc
 		if topDownload != nil {
-			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, os, ldm.maxDownloadAttempts)
+			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, os)
 			defer topDownload.Transfer.Release(watcher)
 		} else {
-			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, os, ldm.maxDownloadAttempts)
+			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, os)
 		}
 		topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
 		topDownload = topDownloadUncasted.(*downloadTransfer)
