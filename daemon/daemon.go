@@ -43,7 +43,6 @@ import (
 	"github.com/moby/buildkit/util/resolver"
 	"github.com/moby/buildkit/util/tracing"
 	"github.com/sirupsen/logrus"
-	//"github.com/docker/docker/distribution/xfer"
 
 	// register graph drivers
 	_ "github.com/docker/docker/daemon/graphdriver/register"
