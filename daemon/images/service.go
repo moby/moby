@@ -38,7 +38,7 @@ type ImageServiceConfig struct {
 	LayerStores               map[string]layer.Store
 	MaxConcurrentDownloads    int
 	MaxConcurrentUploads      int
-	MaxDownloadAttempts		  int
+	MaxDownloadAttempts       int
 	ReferenceStore            dockerreference.Store
 	RegistryService           registry.Service
 	TrustKey                  libtrust.PrivateKey
@@ -52,7 +52,11 @@ func NewImageService(config ImageServiceConfig) *ImageService {
 	return &ImageService{
 		containers:                config.ContainerStore,
 		distributionMetadataStore: config.DistributionMetadataStore,
+<<<<<<< HEAD
 		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, config.MaxDownloadAttempts),
+=======
+		downloadManager:           xfer.NewLayerDownloadManager(config.LayerStores, config.MaxConcurrentDownloads, xfer.WithMaxDownloadAttempts(config.MaxDownloadAttempts)),
+>>>>>>> Add feature&test to set max download attempts
 		eventsService:             config.EventsService,
 		imageStore:                config.ImageStore,
 		layerStores:               config.LayerStores,

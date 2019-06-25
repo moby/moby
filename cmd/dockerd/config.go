@@ -90,6 +90,7 @@ func installCommonConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	conf.MaxConcurrentUploads = &maxConcurrentUploads
   	conf.MaxDownloadAttempts = &maxDownloadAttempts
 
+
 	flags.StringVar(&conf.ContainerdNamespace, "containerd-namespace", daemon.ContainersNamespace, "Containerd namespace to use")
 	if err := flags.MarkHidden("containerd-namespace"); err != nil {
 		return err

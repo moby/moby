@@ -572,9 +572,8 @@ func Validate(config *Config) error {
 	if config.MaxConcurrentUploads != nil && *config.MaxConcurrentUploads < 0 {
 		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxConcurrentUploads)
 	}
-	// validate MaxDownloadAttempts
-	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
+	if err := ValidateMaxDownloadAttempts(config); err != nil {
+		return err
 	}
 
 	// validate that "default" runtime is not reset
@@ -597,6 +596,14 @@ func Validate(config *Config) error {
 
 	// validate platform-specific settings
 	return config.ValidatePlatformConfig()
+}
+
+// ValidateMaxDownloadAttempts validates if the max-download-attempts is within the valid range
+func ValidateMaxDownloadAttempts(config *Config) error {
+	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts <= 0 {
+		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
+	}
+	return nil
 }
 
 // ModifiedDiscoverySettings returns whether the discovery configuration has been modified or not.
