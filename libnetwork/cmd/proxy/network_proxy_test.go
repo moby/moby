@@ -285,7 +285,7 @@ func TestSCTP4Proxy(t *testing.T) {
 	backend := NewEchoServer(t, "sctp", "127.0.0.1:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &sctp.SCTPAddr{IP: []net.IP{net.IPv4(127, 0, 0, 1)}, Port: 0}
+	frontendAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.IPv4(127, 0, 0, 1)}}, Port: 0}
 	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
 	if err != nil {
 		t.Fatal(err)
@@ -298,7 +298,7 @@ func TestSCTP6Proxy(t *testing.T) {
 	backend := NewEchoServer(t, "sctp", "[::1]:0", EchoServerOptions{})
 	defer backend.Close()
 	backend.Run()
-	frontendAddr := &sctp.SCTPAddr{IP: []net.IP{net.IPv6loopback}, Port: 0}
+	frontendAddr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.IPv6loopback}}, Port: 0}
 	proxy, err := NewProxy(frontendAddr, backend.LocalAddr())
 	if err != nil {
 		t.Fatal(err)

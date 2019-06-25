@@ -51,8 +51,8 @@ func parseHostContainerAddrs() (host net.Addr, container net.Addr) {
 		host = &net.UDPAddr{IP: net.ParseIP(*hostIP), Port: *hostPort}
 		container = &net.UDPAddr{IP: net.ParseIP(*containerIP), Port: *containerPort}
 	case "sctp":
-		host = &sctp.SCTPAddr{IP: []net.IP{net.ParseIP(*hostIP)}, Port: *hostPort}
-		container = &sctp.SCTPAddr{IP: []net.IP{net.ParseIP(*containerIP)}, Port: *containerPort}
+		host = &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP(*hostIP)}}, Port: *hostPort}
+		container = &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: net.ParseIP(*containerIP)}}, Port: *containerPort}
 	default:
 		log.Fatalf("unsupported protocol %s", *proto)
 	}
