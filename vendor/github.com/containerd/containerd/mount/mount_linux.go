@@ -111,7 +111,18 @@ func unmount(target string, flags int) error {
 // UnmountAll repeatedly unmounts the given mount point until there
 // are no mounts remaining (EINVAL is returned by mount), which is
 // useful for undoing a stack of mounts on the same mount point.
+// UnmountAll all is noop when the first argument is an empty string.
+// This is done when the containerd client did not specify any rootfs
+// mounts (e.g. because the rootfs is managed outside containerd)
+// UnmountAll is noop when the mount path does not exist.
 func UnmountAll(mount string, flags int) error {
+	if mount == "" {
+		return nil
+	}
+	if _, err := os.Stat(mount); os.IsNotExist(err) {
+		return nil
+	}
+
 	for {
 		if err := unmount(mount, flags); err != nil {
 			// EINVAL is returned if the target is not a

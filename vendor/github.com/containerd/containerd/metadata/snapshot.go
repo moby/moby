@@ -34,6 +34,10 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
+const (
+	inheritedLabelsPrefix = "containerd.io/snapshot/"
+)
+
 type snapshotter struct {
 	snapshots.Snapshotter
 	name string
@@ -338,12 +342,14 @@ func (s *snapshotter) createSnapshot(ctx context.Context, key, parent string, re
 			return err
 		}
 
+		inheritedOpt := snapshots.WithLabels(filterInheritedLabels(base.Labels))
+
 		// TODO: Consider doing this outside of transaction to lessen
 		// metadata lock time
 		if readonly {
-			m, err = s.Snapshotter.View(ctx, bkey, bparent)
+			m, err = s.Snapshotter.View(ctx, bkey, bparent, inheritedOpt)
 		} else {
-			m, err = s.Snapshotter.Prepare(ctx, bkey, bparent)
+			m, err = s.Snapshotter.Prepare(ctx, bkey, bparent, inheritedOpt)
 		}
 		return err
 	}); err != nil {
@@ -445,9 +451,11 @@ func (s *snapshotter) Commit(ctx context.Context, name, key string, opts ...snap
 			return err
 		}
 
+		inheritedOpt := snapshots.WithLabels(filterInheritedLabels(base.Labels))
+
 		// TODO: Consider doing this outside of transaction to lessen
 		// metadata lock time
-		return s.Snapshotter.Commit(ctx, nameKey, bkey)
+		return s.Snapshotter.Commit(ctx, nameKey, bkey, inheritedOpt)
 	})
 
 }
@@ -760,4 +768,20 @@ func (s *snapshotter) pruneBranch(ctx context.Context, node *treeNode) error {
 // Close closes s.Snapshotter but not db
 func (s *snapshotter) Close() error {
 	return s.Snapshotter.Close()
+}
+
+// filterInheritedLabels filters the provided labels by removing any key which doesn't have
+// a prefix of "containerd.io/snapshot/".
+func filterInheritedLabels(labels map[string]string) map[string]string {
+	if labels == nil {
+		return nil
+	}
+
+	filtered := make(map[string]string)
+	for k, v := range labels {
+		if strings.HasPrefix(k, inheritedLabelsPrefix) {
+			filtered[k] = v
+		}
+	}
+	return filtered
 }

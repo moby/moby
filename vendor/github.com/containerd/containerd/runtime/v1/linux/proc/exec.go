@@ -106,7 +106,7 @@ func (e *execProcess) Delete(ctx context.Context) error {
 }
 
 func (e *execProcess) delete(ctx context.Context) error {
-	e.wg.Wait()
+	waitTimeout(ctx, &e.wg, 2*time.Second)
 	if e.io != nil {
 		for _, c := range e.closers {
 			c.Close()

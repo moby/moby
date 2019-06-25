@@ -284,7 +284,7 @@ func (p *Init) Delete(ctx context.Context) error {
 }
 
 func (p *Init) delete(ctx context.Context) error {
-	p.wg.Wait()
+	waitTimeout(ctx, &p.wg, 2*time.Second)
 	err := p.runtime.Delete(ctx, p.id, nil)
 	// ignore errors if a runtime has already deleted the process
 	// but we still hold metadata and pipes
@@ -318,13 +318,6 @@ func (p *Init) Resize(ws console.WinSize) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.console == nil {
-		return nil
-	}
-	return p.console.Resize(ws)
-}
-
-func (p *Init) resize(ws console.WinSize) error {
 	if p.console == nil {
 		return nil
 	}

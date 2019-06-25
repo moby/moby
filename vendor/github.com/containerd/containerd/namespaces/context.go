@@ -36,10 +36,9 @@ type namespaceKey struct{}
 // WithNamespace sets a given namespace on the context
 func WithNamespace(ctx context.Context, namespace string) context.Context {
 	ctx = context.WithValue(ctx, namespaceKey{}, namespace) // set our key for namespace
-
-	// also store on the grpc headers so it gets picked up by any clients that
+	// also store on the grpc and ttrpc headers so it gets picked up by any clients that
 	// are using this.
-	return withGRPCNamespaceHeader(ctx, namespace)
+	return withTTRPCNamespaceHeader(withGRPCNamespaceHeader(ctx, namespace), namespace)
 }
 
 // NamespaceFromEnv uses the namespace defined in CONTAINERD_NAMESPACE or
@@ -58,9 +57,10 @@ func NamespaceFromEnv(ctx context.Context) context.Context {
 func Namespace(ctx context.Context) (string, bool) {
 	namespace, ok := ctx.Value(namespaceKey{}).(string)
 	if !ok {
-		return fromGRPCHeader(ctx)
+		if namespace, ok = fromGRPCHeader(ctx); !ok {
+			return fromTTRPCHeader(ctx)
+		}
 	}
-
 	return namespace, ok
 }
 
@@ -70,10 +70,8 @@ func NamespaceRequired(ctx context.Context) (string, error) {
 	if !ok || namespace == "" {
 		return "", errors.Wrapf(errdefs.ErrFailedPrecondition, "namespace is required")
 	}
-
 	if err := Validate(namespace); err != nil {
 		return "", errors.Wrap(err, "namespace validation")
 	}
-
 	return namespace, nil
 }

@@ -275,6 +275,207 @@ func (m *ListResponse) XXX_DiscardUnknown() {
 
 var xxx_messageInfo_ListResponse proto.InternalMessageInfo
 
+type Resource struct {
+	ID string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	// For snapshotter resource, there are many snapshotter types here, like
+	// overlayfs, devmapper etc. The type will be formatted with type,
+	// like "snapshotter/overlayfs".
+	Type                 string   `protobuf:"bytes,2,opt,name=type,proto3" json:"type,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *Resource) Reset()      { *m = Resource{} }
+func (*Resource) ProtoMessage() {}
+func (*Resource) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fefd70dfe8d93cbf, []int{6}
+}
+func (m *Resource) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *Resource) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_Resource.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *Resource) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_Resource.Merge(m, src)
+}
+func (m *Resource) XXX_Size() int {
+	return m.Size()
+}
+func (m *Resource) XXX_DiscardUnknown() {
+	xxx_messageInfo_Resource.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_Resource proto.InternalMessageInfo
+
+type AddResourceRequest struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Resource             Resource `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *AddResourceRequest) Reset()      { *m = AddResourceRequest{} }
+func (*AddResourceRequest) ProtoMessage() {}
+func (*AddResourceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fefd70dfe8d93cbf, []int{7}
+}
+func (m *AddResourceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *AddResourceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_AddResourceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *AddResourceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_AddResourceRequest.Merge(m, src)
+}
+func (m *AddResourceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *AddResourceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_AddResourceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_AddResourceRequest proto.InternalMessageInfo
+
+type DeleteResourceRequest struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Resource             Resource `protobuf:"bytes,2,opt,name=resource,proto3" json:"resource"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *DeleteResourceRequest) Reset()      { *m = DeleteResourceRequest{} }
+func (*DeleteResourceRequest) ProtoMessage() {}
+func (*DeleteResourceRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fefd70dfe8d93cbf, []int{8}
+}
+func (m *DeleteResourceRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *DeleteResourceRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_DeleteResourceRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *DeleteResourceRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_DeleteResourceRequest.Merge(m, src)
+}
+func (m *DeleteResourceRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *DeleteResourceRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_DeleteResourceRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_DeleteResourceRequest proto.InternalMessageInfo
+
+type ListResourcesRequest struct {
+	ID                   string   `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	XXX_NoUnkeyedLiteral struct{} `json:"-"`
+	XXX_unrecognized     []byte   `json:"-"`
+	XXX_sizecache        int32    `json:"-"`
+}
+
+func (m *ListResourcesRequest) Reset()      { *m = ListResourcesRequest{} }
+func (*ListResourcesRequest) ProtoMessage() {}
+func (*ListResourcesRequest) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fefd70dfe8d93cbf, []int{9}
+}
+func (m *ListResourcesRequest) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListResourcesRequest) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListResourcesRequest.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ListResourcesRequest) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListResourcesRequest.Merge(m, src)
+}
+func (m *ListResourcesRequest) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListResourcesRequest) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListResourcesRequest.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListResourcesRequest proto.InternalMessageInfo
+
+type ListResourcesResponse struct {
+	Resources            []Resource `protobuf:"bytes,1,rep,name=resources,proto3" json:"resources"`
+	XXX_NoUnkeyedLiteral struct{}   `json:"-"`
+	XXX_unrecognized     []byte     `json:"-"`
+	XXX_sizecache        int32      `json:"-"`
+}
+
+func (m *ListResourcesResponse) Reset()      { *m = ListResourcesResponse{} }
+func (*ListResourcesResponse) ProtoMessage() {}
+func (*ListResourcesResponse) Descriptor() ([]byte, []int) {
+	return fileDescriptor_fefd70dfe8d93cbf, []int{10}
+}
+func (m *ListResourcesResponse) XXX_Unmarshal(b []byte) error {
+	return m.Unmarshal(b)
+}
+func (m *ListResourcesResponse) XXX_Marshal(b []byte, deterministic bool) ([]byte, error) {
+	if deterministic {
+		return xxx_messageInfo_ListResourcesResponse.Marshal(b, m, deterministic)
+	} else {
+		b = b[:cap(b)]
+		n, err := m.MarshalTo(b)
+		if err != nil {
+			return nil, err
+		}
+		return b[:n], nil
+	}
+}
+func (m *ListResourcesResponse) XXX_Merge(src proto.Message) {
+	xxx_messageInfo_ListResourcesResponse.Merge(m, src)
+}
+func (m *ListResourcesResponse) XXX_Size() int {
+	return m.Size()
+}
+func (m *ListResourcesResponse) XXX_DiscardUnknown() {
+	xxx_messageInfo_ListResourcesResponse.DiscardUnknown(m)
+}
+
+var xxx_messageInfo_ListResourcesResponse proto.InternalMessageInfo
+
 func init() {
 	proto.RegisterType((*Lease)(nil), "containerd.services.leases.v1.Lease")
 	proto.RegisterMapType((map[string]string)(nil), "containerd.services.leases.v1.Lease.LabelsEntry")
@@ -284,6 +485,11 @@ func init() {
 	proto.RegisterType((*DeleteRequest)(nil), "containerd.services.leases.v1.DeleteRequest")
 	proto.RegisterType((*ListRequest)(nil), "containerd.services.leases.v1.ListRequest")
 	proto.RegisterType((*ListResponse)(nil), "containerd.services.leases.v1.ListResponse")
+	proto.RegisterType((*Resource)(nil), "containerd.services.leases.v1.Resource")
+	proto.RegisterType((*AddResourceRequest)(nil), "containerd.services.leases.v1.AddResourceRequest")
+	proto.RegisterType((*DeleteResourceRequest)(nil), "containerd.services.leases.v1.DeleteResourceRequest")
+	proto.RegisterType((*ListResourcesRequest)(nil), "containerd.services.leases.v1.ListResourcesRequest")
+	proto.RegisterType((*ListResourcesResponse)(nil), "containerd.services.leases.v1.ListResourcesResponse")
 }
 
 func init() {
@@ -291,40 +497,48 @@ func init() {
 }
 
 var fileDescriptor_fefd70dfe8d93cbf = []byte{
-	// 515 bytes of a gzipped FileDescriptorProto
-	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xac, 0x94, 0xdf, 0x8a, 0xd3, 0x40,
-	0x14, 0xc6, 0x3b, 0xe9, 0x36, 0x6e, 0x4f, 0x5d, 0x91, 0x61, 0x59, 0x4a, 0xc4, 0xb4, 0x04, 0xc1,
-	0xe2, 0x9f, 0x89, 0x5b, 0x6f, 0xd6, 0x5d, 0x11, 0xec, 0x76, 0x41, 0x21, 0x88, 0x04, 0x2f, 0x16,
-	0x6f, 0x96, 0x34, 0x3d, 0x1b, 0x83, 0x69, 0x12, 0x33, 0xd3, 0x42, 0xef, 0x7c, 0x04, 0x1f, 0xc1,
-	0x87, 0xf0, 0x21, 0x7a, 0xe9, 0xa5, 0x57, 0xab, 0x9b, 0x3b, 0xdf, 0x42, 0x32, 0x93, 0xb0, 0x7f,
-	0x44, 0x5b, 0x65, 0xef, 0xce, 0xcc, 0x7c, 0xdf, 0x99, 0xdf, 0xf9, 0xc2, 0x04, 0x86, 0x41, 0x28,
-	0xde, 0x4d, 0x47, 0xcc, 0x4f, 0x26, 0xb6, 0x9f, 0xc4, 0xc2, 0x0b, 0x63, 0xcc, 0xc6, 0xe7, 0x4b,
-	0x2f, 0x0d, 0x6d, 0x8e, 0xd9, 0x2c, 0xf4, 0x91, 0xdb, 0x11, 0x7a, 0x1c, 0xb9, 0x3d, 0xdb, 0x2e,
-	0x2b, 0x96, 0x66, 0x89, 0x48, 0xe8, 0xed, 0x33, 0x3d, 0xab, 0xb4, 0xac, 0x54, 0xcc, 0xb6, 0x8d,
-	0xcd, 0x20, 0x09, 0x12, 0xa9, 0xb4, 0x8b, 0x4a, 0x99, 0x8c, 0x5b, 0x41, 0x92, 0x04, 0x11, 0xda,
-	0x72, 0x35, 0x9a, 0x1e, 0xdb, 0x38, 0x49, 0xc5, 0xbc, 0x3c, 0xec, 0x5c, 0x3e, 0x14, 0xe1, 0x04,
-	0xb9, 0xf0, 0x26, 0xa9, 0x12, 0x58, 0x3f, 0x09, 0x34, 0x9c, 0xe2, 0x06, 0xba, 0x05, 0x5a, 0x38,
-	0x6e, 0x93, 0x2e, 0xe9, 0x35, 0x07, 0x7a, 0x7e, 0xd2, 0xd1, 0x5e, 0x0e, 0x5d, 0x2d, 0x1c, 0xd3,
-	0x7d, 0x00, 0x3f, 0x43, 0x4f, 0xe0, 0xf8, 0xc8, 0x13, 0x6d, 0xad, 0x4b, 0x7a, 0xad, 0xbe, 0xc1,
-	0x54, 0x5f, 0x56, 0xf5, 0x65, 0x6f, 0xaa, 0xbe, 0x83, 0xf5, 0xc5, 0x49, 0xa7, 0xf6, 0xe9, 0x7b,
-	0x87, 0xb8, 0xcd, 0xd2, 0xf7, 0x5c, 0xd0, 0x17, 0xa0, 0x47, 0xde, 0x08, 0x23, 0xde, 0xae, 0x77,
-	0xeb, 0xbd, 0x56, 0xff, 0x11, 0xfb, 0xeb, 0xa8, 0x4c, 0x22, 0x31, 0x47, 0x5a, 0x0e, 0x62, 0x91,
-	0xcd, 0xdd, 0xd2, 0x6f, 0x3c, 0x81, 0xd6, 0xb9, 0x6d, 0x7a, 0x13, 0xea, 0xef, 0x71, 0xae, 0xb0,
-	0xdd, 0xa2, 0xa4, 0x9b, 0xd0, 0x98, 0x79, 0xd1, 0x14, 0x25, 0x6a, 0xd3, 0x55, 0x8b, 0x5d, 0x6d,
-	0x87, 0x58, 0x5f, 0x08, 0x6c, 0xec, 0x4b, 0x24, 0x17, 0x3f, 0x4c, 0x91, 0x8b, 0x3f, 0xce, 0xfc,
-	0xfa, 0x12, 0xee, 0xce, 0x12, 0xdc, 0x0b, 0x5d, 0xaf, 0x1a, 0xdb, 0x81, 0x1b, 0x55, 0x7f, 0x9e,
-	0x26, 0x31, 0x47, 0xba, 0x0b, 0x0d, 0x79, 0xb7, 0xf4, 0xb7, 0xfa, 0x77, 0x56, 0x09, 0xd3, 0x55,
-	0x16, 0x6b, 0x0f, 0x36, 0x86, 0x18, 0xe1, 0xf2, 0x0c, 0x28, 0xac, 0xf1, 0x79, 0xec, 0x4b, 0x9e,
-	0x75, 0x57, 0xd6, 0xd6, 0x5d, 0x68, 0x39, 0x21, 0x17, 0x95, 0xb5, 0x0d, 0xd7, 0x8e, 0xc3, 0x48,
-	0x60, 0xc6, 0xdb, 0xa4, 0x5b, 0xef, 0x35, 0xdd, 0x6a, 0x69, 0x39, 0x70, 0x5d, 0x09, 0x4b, 0xe2,
-	0xa7, 0xa0, 0x2b, 0x1e, 0x29, 0x5c, 0x15, 0xb9, 0xf4, 0xf4, 0x3f, 0x6b, 0xa0, 0xcb, 0x1d, 0x4e,
-	0x11, 0x74, 0x15, 0x06, 0x7d, 0xf0, 0x2f, 0xdf, 0xc4, 0x78, 0xb8, 0xa2, 0xba, 0xe4, 0x7d, 0x05,
-	0xba, 0x4a, 0x69, 0xe9, 0x35, 0x17, 0xc2, 0x34, 0xb6, 0x7e, 0x7b, 0x18, 0x07, 0xc5, 0x6b, 0xa4,
-	0x47, 0xb0, 0x56, 0xe4, 0x41, 0xef, 0x2d, 0x9b, 0xfb, 0x2c, 0x5d, 0xe3, 0xfe, 0x4a, 0x5a, 0x05,
-	0x3c, 0x38, 0x5c, 0x9c, 0x9a, 0xb5, 0x6f, 0xa7, 0x66, 0xed, 0x63, 0x6e, 0x92, 0x45, 0x6e, 0x92,
-	0xaf, 0xb9, 0x49, 0x7e, 0xe4, 0x26, 0x79, 0xfb, 0xec, 0x3f, 0x7f, 0x4d, 0x7b, 0xaa, 0x3a, 0xac,
-	0x8d, 0x74, 0x39, 0xcc, 0xe3, 0x5f, 0x01, 0x00, 0x00, 0xff, 0xff, 0x14, 0x74, 0xdd, 0x12, 0xe5,
-	0x04, 0x00, 0x00,
+	// 644 bytes of a gzipped FileDescriptorProto
+	0x1f, 0x8b, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, 0xff, 0xbc, 0x55, 0xcd, 0x6e, 0xd3, 0x40,
+	0x10, 0xce, 0x26, 0xa9, 0x49, 0x26, 0xb4, 0x42, 0xab, 0xb6, 0x8a, 0x8c, 0x48, 0x22, 0x0b, 0xa9,
+	0x11, 0x3f, 0x36, 0x4d, 0x2b, 0x54, 0x5a, 0x84, 0xd4, 0xb4, 0x95, 0xa8, 0x88, 0x10, 0xb2, 0x38,
+	0x54, 0x1c, 0xa8, 0x1c, 0x7b, 0x1b, 0x2c, 0x9c, 0xd8, 0x78, 0x37, 0x41, 0xe9, 0x89, 0x47, 0xe0,
+	0x61, 0x78, 0x88, 0x1e, 0x39, 0x21, 0x4e, 0x85, 0xe6, 0xc6, 0x5b, 0x20, 0xef, 0x0f, 0x6d, 0x5a,
+	0xb5, 0x76, 0x11, 0xe2, 0x36, 0x1b, 0x7f, 0xdf, 0xcc, 0x37, 0x33, 0xdf, 0x6e, 0x60, 0xbb, 0xe7,
+	0xb3, 0x77, 0xc3, 0xae, 0xe9, 0x86, 0x7d, 0xcb, 0x0d, 0x07, 0xcc, 0xf1, 0x07, 0x24, 0xf6, 0xce,
+	0x86, 0x4e, 0xe4, 0x5b, 0x94, 0xc4, 0x23, 0xdf, 0x25, 0xd4, 0x0a, 0x88, 0x43, 0x09, 0xb5, 0x46,
+	0xcb, 0x32, 0x32, 0xa3, 0x38, 0x64, 0x21, 0xbe, 0x73, 0x8a, 0x37, 0x15, 0xd6, 0x94, 0x88, 0xd1,
+	0xb2, 0x3e, 0xdf, 0x0b, 0x7b, 0x21, 0x47, 0x5a, 0x49, 0x24, 0x48, 0xfa, 0xed, 0x5e, 0x18, 0xf6,
+	0x02, 0x62, 0xf1, 0x53, 0x77, 0x78, 0x60, 0x91, 0x7e, 0xc4, 0xc6, 0xf2, 0x63, 0xfd, 0xfc, 0x47,
+	0xe6, 0xf7, 0x09, 0x65, 0x4e, 0x3f, 0x12, 0x00, 0xe3, 0x17, 0x82, 0x99, 0x4e, 0x52, 0x01, 0x2f,
+	0x42, 0xde, 0xf7, 0xaa, 0xa8, 0x81, 0x9a, 0xe5, 0xb6, 0x36, 0x39, 0xae, 0xe7, 0x77, 0xb7, 0xed,
+	0xbc, 0xef, 0xe1, 0x2d, 0x00, 0x37, 0x26, 0x0e, 0x23, 0xde, 0xbe, 0xc3, 0xaa, 0xf9, 0x06, 0x6a,
+	0x56, 0x5a, 0xba, 0x29, 0xf2, 0x9a, 0x2a, 0xaf, 0xf9, 0x5a, 0xe5, 0x6d, 0x97, 0x8e, 0x8e, 0xeb,
+	0xb9, 0xcf, 0x3f, 0xea, 0xc8, 0x2e, 0x4b, 0xde, 0x26, 0xc3, 0xcf, 0x41, 0x0b, 0x9c, 0x2e, 0x09,
+	0x68, 0xb5, 0xd0, 0x28, 0x34, 0x2b, 0xad, 0x47, 0xe6, 0x95, 0xad, 0x9a, 0x5c, 0x92, 0xd9, 0xe1,
+	0x94, 0x9d, 0x01, 0x8b, 0xc7, 0xb6, 0xe4, 0xeb, 0x4f, 0xa0, 0x72, 0xe6, 0x67, 0x7c, 0x0b, 0x0a,
+	0xef, 0xc9, 0x58, 0xc8, 0xb6, 0x93, 0x10, 0xcf, 0xc3, 0xcc, 0xc8, 0x09, 0x86, 0x84, 0x4b, 0x2d,
+	0xdb, 0xe2, 0xb0, 0x9e, 0x5f, 0x43, 0xc6, 0x17, 0x04, 0xb3, 0x5b, 0x5c, 0x92, 0x4d, 0x3e, 0x0c,
+	0x09, 0x65, 0x97, 0xf6, 0xfc, 0xea, 0x9c, 0xdc, 0xb5, 0x14, 0xb9, 0x53, 0x59, 0xff, 0xb5, 0xec,
+	0x0e, 0xcc, 0xa9, 0xfc, 0x34, 0x0a, 0x07, 0x94, 0xe0, 0x75, 0x98, 0xe1, 0xb5, 0x39, 0xbf, 0xd2,
+	0xba, 0x9b, 0x65, 0x98, 0xb6, 0xa0, 0x18, 0x1b, 0x30, 0xbb, 0x4d, 0x02, 0x92, 0x3e, 0x03, 0x0c,
+	0x45, 0x3a, 0x1e, 0xb8, 0x5c, 0x4f, 0xc9, 0xe6, 0xb1, 0xb1, 0x04, 0x95, 0x8e, 0x4f, 0x99, 0xa2,
+	0x56, 0xe1, 0xc6, 0x81, 0x1f, 0x30, 0x12, 0xd3, 0x2a, 0x6a, 0x14, 0x9a, 0x65, 0x5b, 0x1d, 0x8d,
+	0x0e, 0xdc, 0x14, 0x40, 0xa9, 0xf8, 0x29, 0x68, 0x42, 0x0f, 0x07, 0x66, 0x95, 0x2c, 0x39, 0xc6,
+	0x63, 0x28, 0xd9, 0x84, 0x86, 0xc3, 0xd8, 0x25, 0x57, 0xc9, 0x65, 0xe3, 0x48, 0x8d, 0x8f, 0xc7,
+	0xc6, 0x47, 0xc0, 0x9b, 0x9e, 0xa7, 0xa8, 0x69, 0x0d, 0xef, 0x42, 0x29, 0x96, 0x50, 0x69, 0xf3,
+	0xa5, 0x14, 0x95, 0x2a, 0x73, 0xbb, 0x98, 0x78, 0xde, 0xfe, 0x43, 0x37, 0x0e, 0x61, 0x41, 0x0d,
+	0xf9, 0xbf, 0xd7, 0x36, 0x61, 0x5e, 0x8e, 0x9e, 0x9f, 0x69, 0x4a, 0x69, 0xc3, 0x83, 0x85, 0x73,
+	0x78, 0xb9, 0xb3, 0x17, 0x50, 0x56, 0x49, 0xd5, 0xda, 0xae, 0x29, 0xea, 0x94, 0xdf, 0xfa, 0x56,
+	0x04, 0x8d, 0x2f, 0x95, 0x62, 0x02, 0x9a, 0xf0, 0x33, 0x7e, 0x70, 0x9d, 0x6b, 0xa5, 0x3f, 0xcc,
+	0x88, 0x96, 0xf2, 0x5f, 0x82, 0x26, 0x76, 0x90, 0x5a, 0x66, 0xea, 0x3e, 0xe8, 0x8b, 0x17, 0xde,
+	0xb6, 0x9d, 0xe4, 0x41, 0xc5, 0xfb, 0x50, 0x4c, 0xe6, 0x84, 0xef, 0xa5, 0x59, 0xf7, 0xf4, 0x82,
+	0xe8, 0xf7, 0x33, 0x61, 0xa5, 0xe0, 0x3d, 0xa8, 0x9c, 0x71, 0x2b, 0x5e, 0x4e, 0xe1, 0x5e, 0x74,
+	0xf6, 0xa5, 0xd2, 0xdf, 0xc2, 0xdc, 0xb4, 0x1d, 0xf1, 0x6a, 0xc6, 0x91, 0x64, 0xcb, 0x7f, 0x08,
+	0xb3, 0x53, 0x16, 0xc2, 0x2b, 0xd9, 0xfa, 0x9e, 0x32, 0xa8, 0xbe, 0x7a, 0x3d, 0x92, 0x98, 0x5a,
+	0x7b, 0xef, 0xe8, 0xa4, 0x96, 0xfb, 0x7e, 0x52, 0xcb, 0x7d, 0x9a, 0xd4, 0xd0, 0xd1, 0xa4, 0x86,
+	0xbe, 0x4e, 0x6a, 0xe8, 0xe7, 0xa4, 0x86, 0xde, 0x3c, 0xfb, 0xcb, 0xff, 0xe4, 0x0d, 0x11, 0xed,
+	0xe5, 0xba, 0x1a, 0xef, 0x73, 0xe5, 0x77, 0x00, 0x00, 0x00, 0xff, 0xff, 0x0d, 0xfe, 0x39, 0x67,
+	0xde, 0x07, 0x00, 0x00,
 }
 
 // Reference imports to suppress errors if they are not otherwise used.
@@ -349,6 +563,12 @@ type LeasesClient interface {
 	// List lists all active leases, returning the full list of
 	// leases and optionally including the referenced resources.
 	List(ctx context.Context, in *ListRequest, opts ...grpc.CallOption) (*ListResponse, error)
+	// AddResource references the resource by the provided lease.
+	AddResource(ctx context.Context, in *AddResourceRequest, opts ...grpc.CallOption) (*types.Empty, error)
+	// DeleteResource dereferences the resource by the provided lease.
+	DeleteResource(ctx context.Context, in *DeleteResourceRequest, opts ...grpc.CallOption) (*types.Empty, error)
+	// ListResources lists all the resources referenced by the lease.
+	ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error)
 }
 
 type leasesClient struct {
@@ -386,6 +606,33 @@ func (c *leasesClient) List(ctx context.Context, in *ListRequest, opts ...grpc.C
 	return out, nil
 }
 
+func (c *leasesClient) AddResource(ctx context.Context, in *AddResourceRequest, opts ...grpc.CallOption) (*types.Empty, error) {
+	out := new(types.Empty)
+	err := c.cc.Invoke(ctx, "/containerd.services.leases.v1.Leases/AddResource", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leasesClient) DeleteResource(ctx context.Context, in *DeleteResourceRequest, opts ...grpc.CallOption) (*types.Empty, error) {
+	out := new(types.Empty)
+	err := c.cc.Invoke(ctx, "/containerd.services.leases.v1.Leases/DeleteResource", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *leasesClient) ListResources(ctx context.Context, in *ListResourcesRequest, opts ...grpc.CallOption) (*ListResourcesResponse, error) {
+	out := new(ListResourcesResponse)
+	err := c.cc.Invoke(ctx, "/containerd.services.leases.v1.Leases/ListResources", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // LeasesServer is the server API for Leases service.
 type LeasesServer interface {
 	// Create creates a new lease for managing changes to metadata. A lease
@@ -398,6 +645,12 @@ type LeasesServer interface {
 	// List lists all active leases, returning the full list of
 	// leases and optionally including the referenced resources.
 	List(context.Context, *ListRequest) (*ListResponse, error)
+	// AddResource references the resource by the provided lease.
+	AddResource(context.Context, *AddResourceRequest) (*types.Empty, error)
+	// DeleteResource dereferences the resource by the provided lease.
+	DeleteResource(context.Context, *DeleteResourceRequest) (*types.Empty, error)
+	// ListResources lists all the resources referenced by the lease.
+	ListResources(context.Context, *ListResourcesRequest) (*ListResourcesResponse, error)
 }
 
 func RegisterLeasesServer(s *grpc.Server, srv LeasesServer) {
@@ -458,6 +711,60 @@ func _Leases_List_Handler(srv interface{}, ctx context.Context, dec func(interfa
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Leases_AddResource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(AddResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeasesServer).AddResource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/containerd.services.leases.v1.Leases/AddResource",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeasesServer).AddResource(ctx, req.(*AddResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Leases_DeleteResource_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteResourceRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeasesServer).DeleteResource(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/containerd.services.leases.v1.Leases/DeleteResource",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeasesServer).DeleteResource(ctx, req.(*DeleteResourceRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _Leases_ListResources_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListResourcesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(LeasesServer).ListResources(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/containerd.services.leases.v1.Leases/ListResources",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(LeasesServer).ListResources(ctx, req.(*ListResourcesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 var _Leases_serviceDesc = grpc.ServiceDesc{
 	ServiceName: "containerd.services.leases.v1.Leases",
 	HandlerType: (*LeasesServer)(nil),
@@ -473,6 +780,18 @@ var _Leases_serviceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "List",
 			Handler:    _Leases_List_Handler,
+		},
+		{
+			MethodName: "AddResource",
+			Handler:    _Leases_AddResource_Handler,
+		},
+		{
+			MethodName: "DeleteResource",
+			Handler:    _Leases_DeleteResource_Handler,
+		},
+		{
+			MethodName: "ListResources",
+			Handler:    _Leases_ListResources_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
@@ -712,6 +1031,169 @@ func (m *ListResponse) MarshalTo(dAtA []byte) (int, error) {
 	return i, nil
 }
 
+func (m *Resource) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Resource) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintLeases(dAtA, i, uint64(len(m.ID)))
+		i += copy(dAtA[i:], m.ID)
+	}
+	if len(m.Type) > 0 {
+		dAtA[i] = 0x12
+		i++
+		i = encodeVarintLeases(dAtA, i, uint64(len(m.Type)))
+		i += copy(dAtA[i:], m.Type)
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *AddResourceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *AddResourceRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintLeases(dAtA, i, uint64(len(m.ID)))
+		i += copy(dAtA[i:], m.ID)
+	}
+	dAtA[i] = 0x12
+	i++
+	i = encodeVarintLeases(dAtA, i, uint64(m.Resource.Size()))
+	n3, err := m.Resource.MarshalTo(dAtA[i:])
+	if err != nil {
+		return 0, err
+	}
+	i += n3
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *DeleteResourceRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *DeleteResourceRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintLeases(dAtA, i, uint64(len(m.ID)))
+		i += copy(dAtA[i:], m.ID)
+	}
+	dAtA[i] = 0x12
+	i++
+	i = encodeVarintLeases(dAtA, i, uint64(m.Resource.Size()))
+	n4, err := m.Resource.MarshalTo(dAtA[i:])
+	if err != nil {
+		return 0, err
+	}
+	i += n4
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ListResourcesRequest) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListResourcesRequest) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.ID) > 0 {
+		dAtA[i] = 0xa
+		i++
+		i = encodeVarintLeases(dAtA, i, uint64(len(m.ID)))
+		i += copy(dAtA[i:], m.ID)
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
+func (m *ListResourcesResponse) Marshal() (dAtA []byte, err error) {
+	size := m.Size()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalTo(dAtA)
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *ListResourcesResponse) MarshalTo(dAtA []byte) (int, error) {
+	var i int
+	_ = i
+	var l int
+	_ = l
+	if len(m.Resources) > 0 {
+		for _, msg := range m.Resources {
+			dAtA[i] = 0xa
+			i++
+			i = encodeVarintLeases(dAtA, i, uint64(msg.Size()))
+			n, err := msg.MarshalTo(dAtA[i:])
+			if err != nil {
+				return 0, err
+			}
+			i += n
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		i += copy(dAtA[i:], m.XXX_unrecognized)
+	}
+	return i, nil
+}
+
 func encodeVarintLeases(dAtA []byte, offset int, v uint64) int {
 	for v >= 1<<7 {
 		dAtA[offset] = uint8(v&0x7f | 0x80)
@@ -842,6 +1324,96 @@ func (m *ListResponse) Size() (n int) {
 	return n
 }
 
+func (m *Resource) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ID)
+	if l > 0 {
+		n += 1 + l + sovLeases(uint64(l))
+	}
+	l = len(m.Type)
+	if l > 0 {
+		n += 1 + l + sovLeases(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *AddResourceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ID)
+	if l > 0 {
+		n += 1 + l + sovLeases(uint64(l))
+	}
+	l = m.Resource.Size()
+	n += 1 + l + sovLeases(uint64(l))
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *DeleteResourceRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ID)
+	if l > 0 {
+		n += 1 + l + sovLeases(uint64(l))
+	}
+	l = m.Resource.Size()
+	n += 1 + l + sovLeases(uint64(l))
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ListResourcesRequest) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	l = len(m.ID)
+	if l > 0 {
+		n += 1 + l + sovLeases(uint64(l))
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
+func (m *ListResourcesResponse) Size() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	if len(m.Resources) > 0 {
+		for _, e := range m.Resources {
+			l = e.Size()
+			n += 1 + l + sovLeases(uint64(l))
+		}
+	}
+	if m.XXX_unrecognized != nil {
+		n += len(m.XXX_unrecognized)
+	}
+	return n
+}
+
 func sovLeases(x uint64) (n int) {
 	for {
 		n++
@@ -940,6 +1512,64 @@ func (this *ListResponse) String() string {
 	}
 	s := strings.Join([]string{`&ListResponse{`,
 		`Leases:` + strings.Replace(fmt.Sprintf("%v", this.Leases), "Lease", "Lease", 1) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *Resource) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&Resource{`,
+		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
+		`Type:` + fmt.Sprintf("%v", this.Type) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *AddResourceRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&AddResourceRequest{`,
+		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
+		`Resource:` + strings.Replace(strings.Replace(this.Resource.String(), "Resource", "Resource", 1), `&`, ``, 1) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *DeleteResourceRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&DeleteResourceRequest{`,
+		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
+		`Resource:` + strings.Replace(strings.Replace(this.Resource.String(), "Resource", "Resource", 1), `&`, ``, 1) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListResourcesRequest) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListResourcesRequest{`,
+		`ID:` + fmt.Sprintf("%v", this.ID) + `,`,
+		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
+		`}`,
+	}, "")
+	return s
+}
+func (this *ListResourcesResponse) String() string {
+	if this == nil {
+		return "nil"
+	}
+	s := strings.Join([]string{`&ListResourcesResponse{`,
+		`Resources:` + strings.Replace(strings.Replace(fmt.Sprintf("%v", this.Resources), "Resource", "Resource", 1), `&`, ``, 1) + `,`,
 		`XXX_unrecognized:` + fmt.Sprintf("%v", this.XXX_unrecognized) + `,`,
 		`}`,
 	}, "")
@@ -1754,6 +2384,536 @@ func (m *ListResponse) Unmarshal(dAtA []byte) error {
 			}
 			m.Leases = append(m.Leases, &Lease{})
 			if err := m.Leases[len(m.Leases)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLeases(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *Resource) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLeases
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Resource: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Resource: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Type", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Type = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLeases(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *AddResourceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLeases
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: AddResourceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: AddResourceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resource", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Resource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLeases(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *DeleteResourceRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLeases
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: DeleteResourceRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: DeleteResourceRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resource", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if err := m.Resource.Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLeases(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListResourcesRequest) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLeases
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListResourcesRequest: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListResourcesRequest: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field ID", wireType)
+			}
+			var stringLen uint64
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				stringLen |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			intStringLen := int(stringLen)
+			if intStringLen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + intStringLen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.ID = string(dAtA[iNdEx:postIndex])
+			iNdEx = postIndex
+		default:
+			iNdEx = preIndex
+			skippy, err := skipLeases(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if skippy < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.XXX_unrecognized = append(m.XXX_unrecognized, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
+func (m *ListResourcesResponse) Unmarshal(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return ErrIntOverflowLeases
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: ListResourcesResponse: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: ListResourcesResponse: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		case 1:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Resources", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowLeases
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthLeases
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthLeases
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Resources = append(m.Resources, Resource{})
+			if err := m.Resources[len(m.Resources)-1].Unmarshal(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex

@@ -21,7 +21,6 @@ package proc
 import (
 	"context"
 
-	"github.com/containerd/console"
 	"github.com/containerd/containerd/runtime/proc"
 	runc "github.com/containerd/go-runc"
 	google_protobuf "github.com/gogo/protobuf/types"
@@ -30,7 +29,6 @@ import (
 )
 
 type initState interface {
-	Resize(console.WinSize) error
 	Start(context.Context) error
 	Delete(context.Context) error
 	Pause(context.Context) error
@@ -74,10 +72,6 @@ func (s *createdState) Update(ctx context.Context, r *google_protobuf.Any) error
 
 func (s *createdState) Checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	return errors.Errorf("cannot checkpoint a task in created state")
-}
-
-func (s *createdState) Resize(ws console.WinSize) error {
-	return s.p.resize(ws)
 }
 
 func (s *createdState) Start(ctx context.Context) error {
@@ -143,10 +137,6 @@ func (s *createdCheckpointState) Update(ctx context.Context, r *google_protobuf.
 
 func (s *createdCheckpointState) Checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	return errors.Errorf("cannot checkpoint a task in created state")
-}
-
-func (s *createdCheckpointState) Resize(ws console.WinSize) error {
-	return s.p.resize(ws)
 }
 
 func (s *createdCheckpointState) Start(ctx context.Context) error {
@@ -255,10 +245,6 @@ func (s *runningState) Checkpoint(ctx context.Context, r *CheckpointConfig) erro
 	return s.p.checkpoint(ctx, r)
 }
 
-func (s *runningState) Resize(ws console.WinSize) error {
-	return s.p.resize(ws)
-}
-
 func (s *runningState) Start(ctx context.Context) error {
 	return errors.Errorf("cannot start a running process")
 }
@@ -319,10 +305,6 @@ func (s *pausedState) Checkpoint(ctx context.Context, r *CheckpointConfig) error
 	return s.p.checkpoint(ctx, r)
 }
 
-func (s *pausedState) Resize(ws console.WinSize) error {
-	return s.p.resize(ws)
-}
-
 func (s *pausedState) Start(ctx context.Context) error {
 	return errors.Errorf("cannot start a paused process")
 }
@@ -379,10 +361,6 @@ func (s *stoppedState) Update(ctx context.Context, r *google_protobuf.Any) error
 
 func (s *stoppedState) Checkpoint(ctx context.Context, r *CheckpointConfig) error {
 	return errors.Errorf("cannot checkpoint a stopped container")
-}
-
-func (s *stoppedState) Resize(ws console.WinSize) error {
-	return errors.Errorf("cannot resize a stopped container")
 }
 
 func (s *stoppedState) Start(ctx context.Context) error {

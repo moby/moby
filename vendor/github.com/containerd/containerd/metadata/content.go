@@ -567,6 +567,8 @@ func (nw *namespacedWriter) createAndCopy(ctx context.Context, desc ocispec.Desc
 }
 
 func (nw *namespacedWriter) Commit(ctx context.Context, size int64, expected digest.Digest, opts ...content.Opt) error {
+	ctx = namespaces.WithNamespace(ctx, nw.namespace)
+
 	nw.l.RLock()
 	defer nw.l.RUnlock()
 
@@ -767,11 +769,7 @@ func writeExpireAt(expire time.Time, bkt *bolt.Bucket) error {
 	if err != nil {
 		return err
 	}
-	if err := bkt.Put(bucketKeyExpireAt, expireAt); err != nil {
-		return err
-	}
-
-	return nil
+	return bkt.Put(bucketKeyExpireAt, expireAt)
 }
 
 func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, err error) {

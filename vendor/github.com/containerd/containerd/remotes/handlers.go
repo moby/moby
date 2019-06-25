@@ -156,7 +156,7 @@ func push(ctx context.Context, provider content.Provider, pusher Pusher, desc oc
 //
 // Base handlers can be provided which will be called before any push specific
 // handlers.
-func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, provider content.Provider, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
+func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, store content.Store, platform platforms.MatchComparer, wrapper func(h images.Handler) images.Handler) error {
 	var m sync.Mutex
 	manifestStack := []ocispec.Descriptor{}
 
@@ -173,10 +173,14 @@ func PushContent(ctx context.Context, pusher Pusher, desc ocispec.Descriptor, pr
 		}
 	})
 
-	pushHandler := PushHandler(pusher, provider)
+	pushHandler := PushHandler(pusher, store)
+
+	platformFilterhandler := images.FilterPlatforms(images.ChildrenHandler(store), platform)
+
+	annotateHandler := annotateDistributionSourceHandler(platformFilterhandler, store)
 
 	var handler images.Handler = images.Handlers(
-		images.FilterPlatforms(images.ChildrenHandler(provider), platform),
+		annotateHandler,
 		filterHandler,
 		pushHandler,
 	)
@@ -239,5 +243,47 @@ func FilterManifestByPlatformHandler(f images.HandlerFunc, m platforms.Matcher) 
 			descs = children
 		}
 		return descs, nil
+	}
+}
+
+// annotateDistributionSourceHandler add distribution source label into
+// annotation of config or blob descriptor.
+func annotateDistributionSourceHandler(f images.HandlerFunc, manager content.Manager) images.HandlerFunc {
+	return func(ctx context.Context, desc ocispec.Descriptor) ([]ocispec.Descriptor, error) {
+		children, err := f(ctx, desc)
+		if err != nil {
+			return nil, err
+		}
+
+		// only add distribution source for the config or blob data descriptor
+		switch desc.MediaType {
+		case images.MediaTypeDockerSchema2Manifest, ocispec.MediaTypeImageManifest,
+			images.MediaTypeDockerSchema2ManifestList, ocispec.MediaTypeImageIndex:
+		default:
+			return children, nil
+		}
+
+		for i := range children {
+			child := children[i]
+
+			info, err := manager.Info(ctx, child.Digest)
+			if err != nil {
+				return nil, err
+			}
+
+			for k, v := range info.Labels {
+				if !strings.HasPrefix(k, "containerd.io/distribution.source.") {
+					continue
+				}
+
+				if child.Annotations == nil {
+					child.Annotations = map[string]string{}
+				}
+				child.Annotations[k] = v
+			}
+
+			children[i] = child
+		}
+		return children, nil
 	}
 }

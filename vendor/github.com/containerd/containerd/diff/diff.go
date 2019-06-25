@@ -51,6 +51,13 @@ type Comparer interface {
 	Compare(ctx context.Context, lower, upper []mount.Mount, opts ...Opt) (ocispec.Descriptor, error)
 }
 
+// ApplyConfig is used to hold parameters needed for a apply operation
+type ApplyConfig struct {
+}
+
+// ApplyOpt is used to configure an Apply operation
+type ApplyOpt func(*ApplyConfig) error
+
 // Applier allows applying diffs between mounts
 type Applier interface {
 	// Apply applies the content referred to by the given descriptor to
@@ -58,7 +65,7 @@ type Applier interface {
 	// implementation and content descriptor. For example, in the common
 	// case the descriptor is a file system difference in tar format,
 	// that tar would be applied on top of the mounts.
-	Apply(ctx context.Context, desc ocispec.Descriptor, mount []mount.Mount) (ocispec.Descriptor, error)
+	Apply(ctx context.Context, desc ocispec.Descriptor, mount []mount.Mount, opts ...ApplyOpt) (ocispec.Descriptor, error)
 }
 
 // WithMediaType sets the media type to use for creating the diff, without

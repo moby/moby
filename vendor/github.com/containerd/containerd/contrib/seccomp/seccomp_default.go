@@ -20,7 +20,8 @@ package seccomp
 
 import (
 	"runtime"
-	"syscall"
+
+	"golang.org/x/sys/unix"
 
 	"github.com/opencontainers/runtime-spec/specs-go"
 )
@@ -555,7 +556,7 @@ func DefaultProfile(sp *specs.Spec) *specs.LinuxSeccomp {
 				Args: []specs.LinuxSeccompArg{
 					{
 						Index:    1,
-						Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
+						Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 						ValueTwo: 0,
 						Op:       specs.OpMaskedEqual,
 					},
@@ -570,7 +571,7 @@ func DefaultProfile(sp *specs.Spec) *specs.LinuxSeccomp {
 				Args: []specs.LinuxSeccompArg{
 					{
 						Index:    0,
-						Value:    syscall.CLONE_NEWNS | syscall.CLONE_NEWUTS | syscall.CLONE_NEWIPC | syscall.CLONE_NEWUSER | syscall.CLONE_NEWPID | syscall.CLONE_NEWNET,
+						Value:    unix.CLONE_NEWNS | unix.CLONE_NEWUTS | unix.CLONE_NEWIPC | unix.CLONE_NEWUSER | unix.CLONE_NEWPID | unix.CLONE_NEWNET | unix.CLONE_NEWCGROUP,
 						ValueTwo: 0,
 						Op:       specs.OpMaskedEqual,
 					},

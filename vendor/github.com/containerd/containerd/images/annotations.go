@@ -14,6 +14,10 @@
    limitations under the License.
 */
 
-package proto
+package images
 
-//go:generate protoc --go_out=. manifest.proto
+const (
+	// AnnotationImageName is an annotation on a Descriptor in an index.json
+	// containing the `Name` value as used by an `Image` struct
+	AnnotationImageName = "io.containerd.image.name"
+)

@@ -181,7 +181,8 @@ func ImportIndex(ctx context.Context, store content.Store, reader io.Reader) (oc
 				}
 
 				mfstdesc.Annotations = map[string]string{
-					ocispec.AnnotationRefName: normalized,
+					images.AnnotationImageName: normalized,
+					ocispec.AnnotationRefName:  ociReferenceName(normalized),
 				}
 
 				idx.Manifests = append(idx.Manifests, mfstdesc)
@@ -197,10 +198,7 @@ func onUntarJSON(r io.Reader, j interface{}) error {
 	if err != nil {
 		return err
 	}
-	if err := json.Unmarshal(b, j); err != nil {
-		return err
-	}
-	return nil
+	return json.Unmarshal(b, j)
 }
 
 func onUntarBlob(ctx context.Context, r io.Reader, store content.Ingester, size int64, ref string) (digest.Digest, error) {

@@ -14,15 +14,28 @@
    limitations under the License.
 */
 
-package continuity
+package namespaces
 
-import "os"
+import (
+	"context"
 
-type hardlinkKey struct{}
+	"github.com/containerd/ttrpc"
+)
 
-func newHardlinkKey(fi os.FileInfo) (hardlinkKey, error) {
-	// NOTE(stevvooe): Obviously, this is not yet implemented. However, the
-	// makings of an implementation are available in src/os/types_windows.go. More
-	// investigation needs to be done to figure out exactly how to do this.
-	return hardlinkKey{}, errNotAHardLink
+const (
+	// TTRPCHeader defines the header name for specifying a containerd namespace
+	TTRPCHeader = "containerd-namespace-ttrpc"
+)
+
+func withTTRPCNamespaceHeader(ctx context.Context, namespace string) context.Context {
+	md, ok := ttrpc.GetMetadata(ctx)
+	if !ok {
+		md = ttrpc.MD{}
+	}
+	md.Set(TTRPCHeader, namespace)
+	return ttrpc.WithMetadata(ctx, md)
+}
+
+func fromTTRPCHeader(ctx context.Context) (string, bool) {
+	return ttrpc.GetMetadataValue(ctx, TTRPCHeader)
 }

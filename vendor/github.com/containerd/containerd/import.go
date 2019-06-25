@@ -130,16 +130,12 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 		}
 
 		for _, m := range idx.Manifests {
-			if ref := m.Annotations[ocispec.AnnotationRefName]; ref != "" {
-				if iopts.imageRefT != nil {
-					ref = iopts.imageRefT(ref)
-				}
-				if ref != "" {
-					imgs = append(imgs, images.Image{
-						Name:   ref,
-						Target: m,
-					})
-				}
+			name := imageName(m.Annotations, iopts.imageRefT)
+			if name != "" {
+				imgs = append(imgs, images.Image{
+					Name:   name,
+					Target: m,
+				})
 			}
 			if iopts.dgstRefT != nil {
 				ref := iopts.dgstRefT(m.Digest)
@@ -177,4 +173,18 @@ func (c *Client) Import(ctx context.Context, reader io.Reader, opts ...ImportOpt
 	}
 
 	return imgs, nil
+}
+
+func imageName(annotations map[string]string, ociCleanup func(string) string) string {
+	name := annotations[images.AnnotationImageName]
+	if name != "" {
+		return name
+	}
+	name = annotations[ocispec.AnnotationRefName]
+	if name != "" {
+		if ociCleanup != nil {
+			name = ociCleanup(name)
+		}
+	}
+	return name
 }

@@ -19,6 +19,7 @@
 package proc
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -56,6 +57,7 @@ func getLastRuntimeError(r *runc.Runc) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 
 	var (
 		errMsg string
@@ -141,4 +143,22 @@ func (p *pidFile) Path() string {
 
 func (p *pidFile) Read() (int, error) {
 	return runc.ReadPidFile(p.path)
+}
+
+// waitTimeout handles waiting on a waitgroup with a specified timeout.
+// this is commonly used for waiting on IO to finish after a process has exited
+func waitTimeout(ctx context.Context, wg *sync.WaitGroup, timeout time.Duration) error {
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	done := make(chan struct{}, 1)
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+	select {
+	case <-done:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
 }
