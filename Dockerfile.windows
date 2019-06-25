@@ -173,6 +173,8 @@ ENV GO_VERSION=1.12.6 `
     GOPATH=C:\go `
     FROM_DOCKERFILE=1
 
+ADD https://golang.org/dl/go${GO_VERSION}.windows-amd64.zip C:\go.zip
+
 RUN `
   Function Test-Nano() { `
     $EditionId = (Get-ItemProperty -Path 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' -Name 'EditionID').EditionId; `
@@ -210,9 +212,6 @@ RUN `
   Write-Host INFO: Downloading git...; `
   $location='https://www.nuget.org/api/v2/package/GitForWindows/'+$Env:GIT_VERSION; `
   Download-File $location C:\gitsetup.zip; `
-  `
-  Write-Host INFO: Downloading go...; `
-  Download-File $('https://dl.google.com/go/go'+$Env:GO_VERSION+'.windows-amd64.zip') C:\go.zip; `
   `
   Write-Host INFO: Downloading compiler 1 of 3...; `
   Download-File https://raw.githubusercontent.com/jhowardmsft/docker-tdmgcc/master/gcc.zip C:\gcc.zip; `
