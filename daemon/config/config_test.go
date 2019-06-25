@@ -223,25 +223,33 @@ func TestValidateReservedNamespaceLabels(t *testing.T) {
 }
 
 func TestValidateConfigurationErrors(t *testing.T) {
-	minusNumber := -10
+	intPtr := func(i int) *int { return &i }
+
 	testCases := []struct {
-		config *Config
+		name        string
+		config      *Config
+		expectedErr string
 	}{
 		{
+			name: "single label without value",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Labels: []string{"one"},
 				},
 			},
+			expectedErr: "bad attribute format: one",
 		},
 		{
+			name: "multiple label without value",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Labels: []string{"foo=bar", "one"},
 				},
 			},
+			expectedErr: "bad attribute format: one",
 		},
 		{
+			name: "single DNS, invalid IP-address",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -249,8 +257,10 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
+			expectedErr: "1.1.1.1o is not an ip address",
 		},
 		{
+			name: "multiple DNS, invalid IP-address",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -258,8 +268,10 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
+			expectedErr: "1.1.1.1o is not an ip address",
 		},
 		{
+			name: "single DNSSearch",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -267,8 +279,10 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
+			expectedErr: "123456 is not a valid domain",
 		},
 		{
+			name: "multiple DNSSearch",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -276,58 +290,80 @@ func TestValidateConfigurationErrors(t *testing.T) {
 					},
 				},
 			},
+			expectedErr: "123456 is not a valid domain",
 		},
 		{
+			name: "negative max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentDownloads: &minusNumber,
-					// This is weird...
-					ValuesSet: map[string]interface{}{
-						"max-concurrent-downloads": -1,
-					},
+					MaxConcurrentDownloads: intPtr(-10),
 				},
 			},
+			expectedErr: "invalid max concurrent downloads: -10",
 		},
 		{
+			name: "negative max-concurrent-uploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentUploads: &minusNumber,
-					// This is weird...
-					ValuesSet: map[string]interface{}{
-						"max-concurrent-uploads": -1,
-					},
+					MaxConcurrentUploads: intPtr(-10),
 				},
 			},
+			expectedErr: "invalid max concurrent uploads: -10",
 		},
 		{
+			name: "negative max-download-attempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: intPtr(-10),
+				},
+			},
+			expectedErr: "invalid max download attempts: -10",
+		},
+		{
+			name: "zero max-download-attempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: intPtr(0),
+				},
+			},
+			expectedErr: "invalid max download attempts: 0",
+		},
+		{
+			name: "generic resource without =",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo"},
 				},
 			},
+			expectedErr: "could not parse GenericResource: incorrect term foo, missing '=' or malformed expression",
 		},
 		{
+			name: "generic resource mixed named and discrete",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=bar", "foo=1"},
 				},
 			},
+			expectedErr: "could not parse GenericResource: mixed discrete and named resources in expression 'foo=[bar 1]'",
 		},
 	}
 	for _, tc := range testCases {
-		err := Validate(tc.config)
-		if err == nil {
-			t.Fatalf("expected error, got nil for config %v", tc.config)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			err := Validate(tc.config)
+			assert.Error(t, err, tc.expectedErr)
+		})
 	}
 }
 
 func TestValidateConfiguration(t *testing.T) {
-	minusNumber := 4
+	intPtr := func(i int) *int { return &i }
+
 	testCases := []struct {
+		name   string
 		config *Config
 	}{
 		{
+			name: "with label",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					Labels: []string{"one=two"},
@@ -335,6 +371,7 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
+			name: "with dns",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -344,6 +381,7 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
+			name: "with dns-search",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					DNSConfig: DNSConfig{
@@ -353,28 +391,31 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
+			name: "with max-concurrent-downloads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentDownloads: &minusNumber,
-					// This is weird...
-					ValuesSet: map[string]interface{}{
-						"max-concurrent-downloads": -1,
-					},
+					MaxConcurrentDownloads: intPtr(4),
 				},
 			},
 		},
 		{
+			name: "with max-concurrent-uploads",
 			config: &Config{
 				CommonConfig: CommonConfig{
-					MaxConcurrentUploads: &minusNumber,
-					// This is weird...
-					ValuesSet: map[string]interface{}{
-						"max-concurrent-uploads": -1,
-					},
+					MaxConcurrentUploads: intPtr(4),
 				},
 			},
 		},
 		{
+			name: "with max-download-attempts",
+			config: &Config{
+				CommonConfig: CommonConfig{
+					MaxDownloadAttempts: intPtr(4),
+				},
+			},
+		},
+		{
+			name: "with multiple node generic resources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=bar", "foo=baz"},
@@ -382,6 +423,7 @@ func TestValidateConfiguration(t *testing.T) {
 			},
 		},
 		{
+			name: "with node generic resources",
 			config: &Config{
 				CommonConfig: CommonConfig{
 					NodeGenericResources: []string{"foo=1"},
@@ -390,10 +432,10 @@ func TestValidateConfiguration(t *testing.T) {
 		},
 	}
 	for _, tc := range testCases {
-		err := Validate(tc.config)
-		if err != nil {
-			t.Fatalf("expected no error, got error %v", err)
-		}
+		t.Run(tc.name, func(t *testing.T) {
+			err := Validate(tc.config)
+			assert.NilError(t, err)
+		})
 	}
 }
 

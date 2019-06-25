@@ -24,9 +24,10 @@ const maxDownloadAttempts = 5
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStores  map[string]layer.Store
-	tm           TransferManager
-	waitDuration time.Duration
+	layerStores         map[string]layer.Store
+	tm                  TransferManager
+	waitDuration        time.Duration
+	maxDownloadAttempts int
 }
 
 // SetConcurrency sets the max concurrent downloads for each pull
@@ -37,14 +38,23 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 // NewLayerDownloadManager returns a new LayerDownloadManager.
 func NewLayerDownloadManager(layerStores map[string]layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
 	manager := LayerDownloadManager{
-		layerStores:  layerStores,
-		tm:           NewTransferManager(concurrencyLimit),
-		waitDuration: time.Second,
+		layerStores:         layerStores,
+		tm:                  NewTransferManager(concurrencyLimit),
+		waitDuration:        time.Second,
+		maxDownloadAttempts: maxDownloadAttempts,
 	}
 	for _, option := range options {
 		option(&manager)
 	}
 	return &manager
+}
+
+// WithMaxDownloadAttempts configures the maximum number of download
+// attempts for a download manager.
+func WithMaxDownloadAttempts(max int) func(*LayerDownloadManager) {
+	return func(dlm *LayerDownloadManager) {
+		dlm.maxDownloadAttempts = max
+	}
 }
 
 type downloadTransfer struct {
@@ -283,13 +293,13 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				}
 
 				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries == maxDownloadAttempts {
-					logrus.Errorf("Download failed: %v", err)
+				if _, isDNR := err.(DoNotRetry); isDNR || retries > ldm.maxDownloadAttempts {
+					logrus.Errorf("Download failed after %d attempts: %v", retries, err)
 					d.err = err
 					return
 				}
 
-				logrus.Errorf("Download failed, retrying: %v", err)
+				logrus.Infof("Download failed, retrying (%d/%d): %v", retries, ldm.maxDownloadAttempts, err)
 				delay := retries * 5
 				ticker := time.NewTicker(ldm.waitDuration)
 
