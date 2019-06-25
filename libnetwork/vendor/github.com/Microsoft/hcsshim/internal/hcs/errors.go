@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"github.com/Microsoft/hcsshim/internal/interop"
+	"github.com/Microsoft/hcsshim/internal/logfields"
 	"github.com/sirupsen/logrus"
 )
 
@@ -72,6 +73,9 @@ var (
 	// ErrVmcomputeUnknownMessage is an error encountered guest compute system doesn't support the message
 	ErrVmcomputeUnknownMessage = syscall.Errno(0xc037010b)
 
+	// ErrVmcomputeUnexpectedExit is an error encountered when the compute system terminates unexpectedly
+	ErrVmcomputeUnexpectedExit = syscall.Errno(0xC0370106)
+
 	// ErrNotSupported is an error encountered when hcs doesn't support the request
 	ErrPlatformNotSupported = errors.New("unsupported platform request")
 )
@@ -116,10 +120,14 @@ func (ev *ErrorEvent) String() string {
 func processHcsResult(resultp *uint16) []ErrorEvent {
 	if resultp != nil {
 		resultj := interop.ConvertAndFreeCoTaskMemString(resultp)
-		logrus.Debugf("Result: %s", resultj)
+		logrus.WithField(logfields.JSON, resultj).
+			Debug("HCS Result")
 		result := &hcsResult{}
 		if err := json.Unmarshal([]byte(resultj), result); err != nil {
-			logrus.Warnf("Could not unmarshal HCS result %s: %s", resultj, err)
+			logrus.WithFields(logrus.Fields{
+				logfields.JSON:  resultj,
+				logrus.ErrorKey: err,
+			}).Warning("Could not unmarshal HCS result")
 			return nil
 		}
 		return result.ErrorEvents

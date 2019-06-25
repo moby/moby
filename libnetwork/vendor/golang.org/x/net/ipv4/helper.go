@@ -10,6 +10,7 @@ import (
 )
 
 var (
+	errInvalidConn              = errors.New("invalid connection")
 	errMissingAddress           = errors.New("missing address")
 	errMissingHeader            = errors.New("missing header")
 	errHeaderTooShort           = errors.New("header too short")

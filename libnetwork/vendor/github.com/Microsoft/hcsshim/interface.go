@@ -17,6 +17,11 @@ type MappedPipe = schema1.MappedPipe
 type HvRuntime = schema1.HvRuntime
 type MappedVirtualDisk = schema1.MappedVirtualDisk
 
+// AssignedDevice represents a device that has been directly assigned to a container
+//
+// NOTE: Support added in RS5
+type AssignedDevice = schema1.AssignedDevice
+
 // ContainerConfig is used as both the input of CreateContainer
 // and to convert the parameters to JSON for passing onto the HCS
 type ContainerConfig = schema1.ContainerConfig

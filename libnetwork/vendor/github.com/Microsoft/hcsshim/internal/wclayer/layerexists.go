@@ -7,19 +7,27 @@ import (
 
 // LayerExists will return true if a layer with the given id exists and is known
 // to the system.
-func LayerExists(path string) (bool, error) {
-	title := "hcsshim::LayerExists "
-	logrus.Debugf(title+"path %s", path)
+func LayerExists(path string) (_ bool, err error) {
+	title := "hcsshim::LayerExists"
+	fields := logrus.Fields{
+		"path": path,
+	}
+	logrus.WithFields(fields).Debug(title)
+	defer func() {
+		if err != nil {
+			fields[logrus.ErrorKey] = err
+			logrus.WithFields(fields).Error(err)
+		} else {
+			logrus.WithFields(fields).Debug(title + " - succeeded")
+		}
+	}()
 
 	// Call the procedure itself.
 	var exists uint32
-	err := layerExists(&stdDriverInfo, path, &exists)
+	err = layerExists(&stdDriverInfo, path, &exists)
 	if err != nil {
-		err = hcserror.Errorf(err, title, "path=%s", path)
-		logrus.Error(err)
-		return false, err
+		return false, hcserror.New(err, title+" - failed", "")
 	}
-
-	logrus.Debugf(title+"succeeded path=%s exists=%d", path, exists)
+	fields["layer-exists"] = exists != 0
 	return exists != 0, nil
 }

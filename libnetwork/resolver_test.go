@@ -126,29 +126,33 @@ func TestDNSIPQuery(t *testing.T) {
 	r := NewResolver(resolverIPSandbox, false, sb.Key(), sb.(*sandbox))
 
 	// test name1's IP is resolved correctly with the default A type query
-	q := new(dns.Msg)
-	q.SetQuestion("name1", dns.TypeA)
-	r.(*resolver).ServeDNS(w, q)
-	resp := w.GetResponse()
-	checkNonNullResponse(t, resp)
-	t.Log("Response: ", resp.String())
-	checkDNSResponseCode(t, resp, dns.RcodeSuccess)
-	checkDNSAnswersCount(t, resp, 1)
-	checkDNSRRType(t, resp.Answer[0].Header().Rrtype, dns.TypeA)
-	if answer, ok := resp.Answer[0].(*dns.A); ok {
-		if !bytes.Equal(answer.A, net.ParseIP("192.168.0.1")) {
-			t.Fatalf("IP response in Answer %v does not match 192.168.0.1", answer.A)
+	// Also make sure DNS lookups are case insensitive
+	names := []string{"name1", "NaMe1"}
+	for _, name := range names {
+		q := new(dns.Msg)
+		q.SetQuestion(name, dns.TypeA)
+		r.(*resolver).ServeDNS(w, q)
+		resp := w.GetResponse()
+		checkNonNullResponse(t, resp)
+		t.Log("Response: ", resp.String())
+		checkDNSResponseCode(t, resp, dns.RcodeSuccess)
+		checkDNSAnswersCount(t, resp, 1)
+		checkDNSRRType(t, resp.Answer[0].Header().Rrtype, dns.TypeA)
+		if answer, ok := resp.Answer[0].(*dns.A); ok {
+			if !bytes.Equal(answer.A, net.ParseIP("192.168.0.1")) {
+				t.Fatalf("IP response in Answer %v does not match 192.168.0.1", answer.A)
+			}
+		} else {
+			t.Fatal("Answer of type A not found")
 		}
-	} else {
-		t.Fatal("Answer of type A not found")
+		w.ClearResponse()
 	}
-	w.ClearResponse()
 
 	// test MX query with name1 results in Success response with 0 answer records
-	q = new(dns.Msg)
+	q := new(dns.Msg)
 	q.SetQuestion("name1", dns.TypeMX)
 	r.(*resolver).ServeDNS(w, q)
-	resp = w.GetResponse()
+	resp := w.GetResponse()
 	checkNonNullResponse(t, resp)
 	t.Log("Response: ", resp.String())
 	checkDNSResponseCode(t, resp, dns.RcodeSuccess)

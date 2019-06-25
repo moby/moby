@@ -76,23 +76,27 @@ echo "Overlay network configuration"
 for networkID in $(${DOCKER} network ls --no-trunc --filter driver=overlay -q) "ingress_sbox"; do
     echo "nnn Network ${networkID}"
     if [ "${networkID}" != "ingress_sbox" ]; then
-        nspath=(${NSDIR}/*-${networkID:0:10})
+        nspath=($(ls ${NSDIR}/*${networkID:0:9}*))
         inspect_output=$(${DOCKER} network inspect ${NETINSPECT_VERBOSE_SUPPORT} ${networkID})
         echo "$inspect_output"
         check_ip_overlap $inspect_output
     else
         nspath=(${NSDIR}/${networkID})
     fi
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -o -4 address show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 route show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IP} -4 neigh show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${BRIDGE} fdb show
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t filter | grep -v '^$'
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
-    echo_and_run ${NSENTER} --net=${nspath[0]} ${IPVSADM} -l -n
-    printf "\n"
-    ((networks++))
+
+    for i in "${nspath[@]}"
+    do
+      echo_and_run ${NSENTER} --net=${i} ${IP} -o -4 address show
+      echo_and_run ${NSENTER} --net=${i} ${IP} -4 route show
+      echo_and_run ${NSENTER} --net=${i} ${IP} -4 neigh show
+      echo_and_run ${NSENTER} --net=${i} ${BRIDGE} fdb show
+      echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t filter | grep -v '^$'
+      echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t nat | grep -v '^$'
+      echo_and_run ${NSENTER} --net=${i} ${IPTABLES} -w1 -n -v -L -t mangle | grep -v '^$'
+      echo_and_run ${NSENTER} --net=${i} ${IPVSADM} -l -n
+      printf "\n"
+      ((networks++))
+    done
 done
 
 echo "Container network configuration"

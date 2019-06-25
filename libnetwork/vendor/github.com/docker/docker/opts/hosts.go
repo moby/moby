@@ -4,8 +4,11 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"path/filepath"
 	"strconv"
 	"strings"
+
+	"github.com/docker/docker/pkg/homedir"
 )
 
 var (
@@ -41,12 +44,20 @@ func ValidateHost(val string) (string, error) {
 	return val, nil
 }
 
-// ParseHost and set defaults for a Daemon host string
-func ParseHost(defaultToTLS bool, val string) (string, error) {
+// ParseHost and set defaults for a Daemon host string.
+// defaultToTLS is preferred over defaultToUnixRootless.
+func ParseHost(defaultToTLS, defaultToUnixRootless bool, val string) (string, error) {
 	host := strings.TrimSpace(val)
 	if host == "" {
 		if defaultToTLS {
 			host = DefaultTLSHost
+		} else if defaultToUnixRootless {
+			runtimeDir, err := homedir.GetRuntimeDir()
+			if err != nil {
+				return "", err
+			}
+			socket := filepath.Join(runtimeDir, "docker.sock")
+			host = "unix://" + socket
 		} else {
 			host = DefaultHost
 		}

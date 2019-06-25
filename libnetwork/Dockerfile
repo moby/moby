@@ -11,8 +11,7 @@ RUN go get golang.org/x/lint/golint \
 		golang.org/x/tools/cmd/cover \
 		github.com/mattn/goveralls \
 		github.com/gordonklaus/ineffassign \
-		github.com/client9/misspell/cmd/misspell \
-		honnef.co/go/tools/cmd/gosimple
+		github.com/client9/misspell/cmd/misspell
 
 WORKDIR /go/src/github.com/docker/libnetwork
 
