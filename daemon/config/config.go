@@ -559,7 +559,7 @@ func Validate(config *Config) error {
 	}
 	// validate MaxDownloadAttempts
 	if config.MaxDownloadAttempts != nil && *config.MaxDownloadAttempts < 0 {
-		return fmt.Errorf("invalid max concurrent uploads: %d", *config.MaxDownloadAttempts)
+		return fmt.Errorf("invalid max download attempts: %d", *config.MaxDownloadAttempts)
 	}
 
 	// validate that "default" runtime is not reset

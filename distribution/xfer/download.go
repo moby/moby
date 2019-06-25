@@ -20,15 +20,16 @@ import (
 )
 
 // MaxDownloadAttempts is specified in the config file, with a default value of 5. 
-var MaxDownloadAttempts int
+//var MaxDownloadAttempts int
 
 // LayerDownloadManager figures out which layers need to be downloaded, then
 // registers and downloads those, taking into account dependencies between
 // layers.
 type LayerDownloadManager struct {
-	layerStores  map[string]layer.Store
-	tm           TransferManager
-	waitDuration time.Duration
+	layerStores  		map[string]layer.Store
+	tm           		TransferManager
+	waitDuration 		time.Duration
+	maxDownloadAttempts	int
 }
 
 // SetConcurrency sets the max concurrent downloads for each pull
@@ -37,11 +38,12 @@ func (ldm *LayerDownloadManager) SetConcurrency(concurrency int) {
 }
 
 // NewLayerDownloadManager returns a new LayerDownloadManager.
-func NewLayerDownloadManager(layerStores map[string]layer.Store, concurrencyLimit int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
+func NewLayerDownloadManager(layerStores map[string]layer.Store, concurrencyLimit int, downloadattempts int, options ...func(*LayerDownloadManager)) *LayerDownloadManager {
 	manager := LayerDownloadManager{
-		layerStores:  layerStores,
-		tm:           NewTransferManager(concurrencyLimit),
-		waitDuration: time.Second,
+		layerStores:  			layerStores,
+		tm:           			NewTransferManager(concurrencyLimit),
+		waitDuration: 			time.Second,
+		maxDownloadAttempts:	downloadattempts,
 	}
 	for _, option := range options {
 		option(&manager)
@@ -165,10 +167,10 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 
 		var xferFunc DoFunc
 		if topDownload != nil {
-			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, os)
+			xferFunc = ldm.makeDownloadFunc(descriptor, "", topDownload, os, ldm.maxDownloadAttempts)
 			defer topDownload.Transfer.Release(watcher)
 		} else {
-			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, os)
+			xferFunc = ldm.makeDownloadFunc(descriptor, rootFS.ChainID(), nil, os, ldm.maxDownloadAttempts)
 		}
 		topDownloadUncasted, watcher = ldm.tm.Transfer(transferKey, xferFunc, progressOutput)
 		topDownload = topDownloadUncasted.(*downloadTransfer)
@@ -225,7 +227,7 @@ func (ldm *LayerDownloadManager) Download(ctx context.Context, initialRootFS ima
 // complete before the registration step, and registers the downloaded data
 // on top of parentDownload's resulting layer. Otherwise, it registers the
 // layer on top of the ChainID given by parentLayer.
-func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer, os string) DoFunc {
+func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor, parentLayer layer.ChainID, parentDownload *downloadTransfer, os string, maxDownloadAttempts int) DoFunc {
 	return func(progressChan chan<- progress.Progress, start <-chan struct{}, inactive chan<- struct{}) Transfer {
 		d := &downloadTransfer{
 			Transfer:   NewTransfer(),
@@ -285,7 +287,7 @@ func (ldm *LayerDownloadManager) makeDownloadFunc(descriptor DownloadDescriptor,
 				}
 				
 				retries++
-				if _, isDNR := err.(DoNotRetry); isDNR || retries == MaxDownloadAttempts {
+				if _, isDNR := err.(DoNotRetry); isDNR || retries == maxDownloadAttempts {
 					logrus.Errorf("Download failed: %v", err)
 					d.err = err
 					return
