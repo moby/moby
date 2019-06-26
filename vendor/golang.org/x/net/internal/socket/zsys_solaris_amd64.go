@@ -3,14 +3,6 @@
 
 package socket
 
-const (
-	sysAF_UNSPEC = 0x0
-	sysAF_INET   = 0x2
-	sysAF_INET6  = 0x1a
-
-	sysSOCK_RAW = 0x4
-)
-
 type iovec struct {
 	Base *int8
 	Len  uint64

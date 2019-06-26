@@ -90,7 +90,7 @@ func newDummyProxy(proto string, hostIP net.IP, hostPort int) (userlandProxy, er
 		addr := &net.UDPAddr{IP: hostIP, Port: hostPort}
 		return &dummyProxy{addr: addr}, nil
 	case "sctp":
-		addr := &sctp.SCTPAddr{IP: []net.IP{hostIP}, Port: hostPort}
+		addr := &sctp.SCTPAddr{IPAddrs: []net.IPAddr{{IP: hostIP}}, Port: hostPort}
 		return &dummyProxy{addr: addr}, nil
 	default:
 		return nil, fmt.Errorf("Unknown addr type: %s", proto)

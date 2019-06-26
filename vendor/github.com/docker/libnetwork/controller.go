@@ -1298,7 +1298,7 @@ func (c *controller) loadIPAMDriver(name string) error {
 	}
 
 	if err != nil {
-		if err == plugins.ErrNotFound {
+		if errors.Cause(err) == plugins.ErrNotFound {
 			return types.NotFoundErrorf(err.Error())
 		}
 		return err
