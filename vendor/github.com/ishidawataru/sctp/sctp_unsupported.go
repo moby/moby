@@ -34,7 +34,15 @@ func ListenSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
 	return nil, ErrUnsupported
 }
 
+func ListenSCTPExt(net string, laddr *SCTPAddr, options InitMsg) (*SCTPListener, error) {
+	return nil, ErrUnsupported
+}
+
 func (ln *SCTPListener) Accept() (net.Conn, error) {
+	return nil, ErrUnsupported
+}
+
+func (ln *SCTPListener) AcceptSCTP() (*SCTPConn, error) {
 	return nil, ErrUnsupported
 }
 
@@ -43,5 +51,9 @@ func (ln *SCTPListener) Close() error {
 }
 
 func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
+	return nil, ErrUnsupported
+}
+
+func DialSCTPExt(network string, laddr, raddr *SCTPAddr, options InitMsg) (*SCTPConn, error) {
 	return nil, ErrUnsupported
 }

@@ -302,7 +302,7 @@ func setINC(iface string, enable bool) error {
 				if i == 1 {
 					// Rollback the rule installed on first chain
 					if err2 := iptables.ProgramRule(iptables.Filter, chains[0], iptables.Delete, rules[0]); err2 != nil {
-						logrus.Warn("Failed to rollback iptables rule after failure (%v): %v", err, err2)
+						logrus.Warnf("Failed to rollback iptables rule after failure (%v): %v", err, err2)
 					}
 				}
 				return fmt.Errorf(msg)

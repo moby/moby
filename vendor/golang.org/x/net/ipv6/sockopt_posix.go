@@ -2,12 +2,13 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// +build darwin dragonfly freebsd linux netbsd openbsd solaris windows
+// +build aix darwin dragonfly freebsd linux netbsd openbsd solaris windows
 
 package ipv6
 
 import (
 	"net"
+	"runtime"
 	"unsafe"
 
 	"golang.org/x/net/bpf"
@@ -57,7 +58,8 @@ func (so *sockOpt) getMTUInfo(c *socket.Conn) (*net.Interface, int, error) {
 		return nil, 0, errNotImplemented
 	}
 	mi := (*ipv6Mtuinfo)(unsafe.Pointer(&b[0]))
-	if mi.Addr.Scope_id == 0 {
+	if mi.Addr.Scope_id == 0 || runtime.GOOS == "aix" {
+		// AIX kernel might return a wrong address.
 		return nil, int(mi.Mtu), nil
 	}
 	ifi, err := net.InterfaceByIndex(int(mi.Addr.Scope_id))

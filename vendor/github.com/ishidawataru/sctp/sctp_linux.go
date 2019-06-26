@@ -3,7 +3,6 @@
 package sctp
 
 import (
-	"fmt"
 	"io"
 	"net"
 	"sync/atomic"
@@ -115,31 +114,14 @@ func (c *SCTPConn) Close() error {
 	return syscall.EBADF
 }
 
+// ListenSCTP - start listener on specified address/port
 func ListenSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
-	af := syscall.AF_INET
-	switch net {
-	case "sctp":
-		hasv6 := func(addr *SCTPAddr) bool {
-			if addr == nil {
-				return false
-			}
-			for _, ip := range addr.IP {
-				if ip.To4() == nil {
-					return true
-				}
-			}
-			return false
-		}
-		if hasv6(laddr) {
-			af = syscall.AF_INET6
-		}
-	case "sctp4":
-	case "sctp6":
-		af = syscall.AF_INET6
-	default:
-		return nil, fmt.Errorf("invalid net: %s", net)
-	}
+	return ListenSCTPExt(net, laddr, InitMsg{NumOstreams: SCTP_MAX_STREAM})
+}
 
+// ListenSCTPExt - start listener on specified address/port with given SCTP options
+func ListenSCTPExt(network string, laddr *SCTPAddr, options InitMsg) (*SCTPListener, error) {
+	af, ipv6only := favoriteAddrFamily(network, laddr, nil, "listen")
 	sock, err := syscall.Socket(
 		af,
 		syscall.SOCK_STREAM,
@@ -148,11 +130,30 @@ func ListenSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = setNumOstreams(sock, SCTP_MAX_STREAM)
+
+	// close socket on error
+	defer func() {
+		if err != nil {
+			syscall.Close(sock)
+		}
+	}()
+	if err = setDefaultSockopts(sock, af, ipv6only); err != nil {
+		return nil, err
+	}
+	err = setInitOpts(sock, options)
 	if err != nil {
 		return nil, err
 	}
-	if laddr != nil && len(laddr.IP) != 0 {
+
+	if laddr != nil {
+		// If IP address and/or port was not provided so far, let's use the unspecified IPv4 or IPv6 address
+		if len(laddr.IPAddrs) == 0 {
+			if af == syscall.AF_INET {
+				laddr.IPAddrs = append(laddr.IPAddrs, net.IPAddr{IP: net.IPv4zero})
+			} else if af == syscall.AF_INET6 {
+				laddr.IPAddrs = append(laddr.IPAddrs, net.IPAddr{IP: net.IPv6zero})
+			}
+		}
 		err := SCTPBind(sock, laddr, SCTP_BINDX_ADD_ADDR)
 		if err != nil {
 			return nil, err
@@ -167,9 +168,15 @@ func ListenSCTP(net string, laddr *SCTPAddr) (*SCTPListener, error) {
 	}, nil
 }
 
-func (ln *SCTPListener) Accept() (net.Conn, error) {
+// AcceptSCTP waits for and returns the next SCTP connection to the listener.
+func (ln *SCTPListener) AcceptSCTP() (*SCTPConn, error) {
 	fd, _, err := syscall.Accept4(ln.fd, 0)
 	return NewSCTPConn(fd, nil), err
+}
+
+// Accept waits for and returns the next connection connection to the listener.
+func (ln *SCTPListener) Accept() (net.Conn, error) {
+	return ln.AcceptSCTP()
 }
 
 func (ln *SCTPListener) Close() error {
@@ -177,30 +184,14 @@ func (ln *SCTPListener) Close() error {
 	return syscall.Close(ln.fd)
 }
 
+// DialSCTP - bind socket to laddr (if given) and connect to raddr
 func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
-	af := syscall.AF_INET
-	switch net {
-	case "sctp":
-		hasv6 := func(addr *SCTPAddr) bool {
-			if addr == nil {
-				return false
-			}
-			for _, ip := range addr.IP {
-				if ip.To4() == nil {
-					return true
-				}
-			}
-			return false
-		}
-		if hasv6(laddr) || hasv6(raddr) {
-			af = syscall.AF_INET6
-		}
-	case "sctp4":
-	case "sctp6":
-		af = syscall.AF_INET6
-	default:
-		return nil, fmt.Errorf("invalid net: %s", net)
-	}
+	return DialSCTPExt(net, laddr, raddr, InitMsg{NumOstreams: SCTP_MAX_STREAM})
+}
+
+// DialSCTPExt - same as DialSCTP but with given SCTP options
+func DialSCTPExt(network string, laddr, raddr *SCTPAddr, options InitMsg) (*SCTPConn, error) {
+	af, ipv6only := favoriteAddrFamily(network, laddr, raddr, "dial")
 	sock, err := syscall.Socket(
 		af,
 		syscall.SOCK_STREAM,
@@ -209,11 +200,29 @@ func DialSCTP(net string, laddr, raddr *SCTPAddr) (*SCTPConn, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = setNumOstreams(sock, SCTP_MAX_STREAM)
+
+	// close socket on error
+	defer func() {
+		if err != nil {
+			syscall.Close(sock)
+		}
+	}()
+	if err = setDefaultSockopts(sock, af, ipv6only); err != nil {
+		return nil, err
+	}
+	err = setInitOpts(sock, options)
 	if err != nil {
 		return nil, err
 	}
 	if laddr != nil {
+		// If IP address and/or port was not provided so far, let's use the unspecified IPv4 or IPv6 address
+		if len(laddr.IPAddrs) == 0 {
+			if af == syscall.AF_INET {
+				laddr.IPAddrs = append(laddr.IPAddrs, net.IPAddr{IP: net.IPv4zero})
+			} else if af == syscall.AF_INET6 {
+				laddr.IPAddrs = append(laddr.IPAddrs, net.IPAddr{IP: net.IPv6zero})
+			}
+		}
 		err := SCTPBind(sock, laddr, SCTP_BINDX_ADD_ADDR)
 		if err != nil {
 			return nil, err
