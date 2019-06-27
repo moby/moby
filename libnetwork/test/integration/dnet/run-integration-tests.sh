@@ -136,20 +136,6 @@ function run_dnet_tests() {
     ./integration-tmp/bin/bats ./test/integration/dnet/dnet.bats
 }
 
-function run_simple_consul_tests() {
-    # Test a single node configuration with a global scope test driver
-    ## Setup
-    start_dnet 1 simple 1>>${INTEGRATION_ROOT}/test.log 2>&1
-    cmap[dnet-1-simple]=dnet-1-simple
-
-    ## Run the test cases
-    ./integration-tmp/bin/bats ./test/integration/dnet/simple.bats
-
-    ## Teardown
-    stop_dnet 1 simple 1>>${INTEGRATION_ROOT}/test.log 2>&1
-    unset cmap[dnet-1-simple]
-}
-
 function run_multi_consul_tests() {
     # Test multi node configuration with a global scope test driver backed by consul
 
