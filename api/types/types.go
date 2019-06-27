@@ -532,7 +532,7 @@ type ContainersPruneReport struct {
 // VolumesPruneReport contains the response for Engine API:
 // POST "/volumes/prune"
 type VolumesPruneReport struct {
-	Volumes        []string
+	VolumesDeleted []string
 	SpaceReclaimed uint64
 }
 

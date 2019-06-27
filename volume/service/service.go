@@ -216,7 +216,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 		return nil, err
 	}
 
-	rep := &types.VolumesPruneReport{Volumes: make([]string, 0, len(ls))}
+	rep := &types.VolumesPruneReport{VolumesDeleted: make([]string, 0, len(ls))}
 	for _, v := range ls {
 		select {
 		case <-ctx.Done():
@@ -233,7 +233,9 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 			logrus.WithField("volume", v.Name()).WithError(err).Warn("could not determine size of volume")
 		}
 
-		if !isDryRun(filter) {
+		if isDryRun(filter) {
+			logrus.WithField("volume", v.Name()).Info("running in dry-run mode")
+		} else {
 			if err := s.vs.Remove(ctx, v); err != nil {
 				logrus.WithError(err).WithField("volume", v.Name()).Warnf("Could not determine size of volume")
 				continue
@@ -241,7 +243,7 @@ func (s *VolumesService) Prune(ctx context.Context, filter filters.Args) (*types
 		}
 
 		rep.SpaceReclaimed += uint64(vSize)
-		rep.Volumes = append(rep.Volumes, v.Name())
+		rep.VolumesDeleted = append(rep.VolumesDeleted, v.Name())
 	}
 	return rep, nil
 }

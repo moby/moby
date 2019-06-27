@@ -176,12 +176,12 @@ func TestServicePrune(t *testing.T) {
 
 	pr, err := service.Prune(ctx, filters.NewArgs(filters.Arg("label", "banana")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 
 	pr, err = service.Prune(ctx, filters.NewArgs())
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 
 	_, err = service.Get(ctx, "test")
 	assert.Assert(t, IsNotExist(err), err)
@@ -195,8 +195,8 @@ func TestServicePrune(t *testing.T) {
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 	v, err = service.Get(ctx, "test2")
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(v.Driver, "other"))
@@ -205,32 +205,32 @@ func TestServicePrune(t *testing.T) {
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 
 	_, err = service.Create(ctx, "test3", volume.DefaultDriverName, opts.WithCreateLabels(map[string]string{"banana": "split"}))
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana=split")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label", "banana=split")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test3"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test3"))
 
 	v, err = service.Create(ctx, "test", volume.DefaultDriverName, opts.WithCreateReference(t.Name()))
 	assert.NilError(t, err)
 
 	pr, err = service.Prune(ctx, filters.NewArgs())
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 	assert.Assert(t, service.Release(ctx, v.Name, t.Name()))
 
 	pr, err = service.Prune(ctx, filters.NewArgs())
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 }
 
 func TestServicePruneDryRun(t *testing.T) {
@@ -252,12 +252,12 @@ func TestServicePruneDryRun(t *testing.T) {
 	pr, err := service.Prune(ctx,
 		filters.NewArgs(filters.Arg("label", "banana"), filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 
 	_, err = service.Get(ctx, "test")
 	assert.NilError(t, err)
@@ -286,8 +286,8 @@ func TestServicePruneDryRun_LabelFilter(t *testing.T) {
 	pr, err := service.Prune(ctx,
 		filters.NewArgs(filters.Arg("label!", "banana"), filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 	v, err := service.Get(ctx, "test")
 	assert.NilError(t, err)
 	assert.Assert(t, is.Equal(v.Driver, volume.DefaultDriverName))
@@ -302,7 +302,7 @@ func TestServicePruneDryRun_LabelFilter(t *testing.T) {
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana"), filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 	v, err = service.Get(ctx, "test")
 	assert.NilError(t, err)
 
@@ -310,15 +310,15 @@ func TestServicePruneDryRun_LabelFilter(t *testing.T) {
 	assert.NilError(t, err)
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label!", "banana=split"), filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 	v, err = service.Get(ctx, "test")
 	assert.NilError(t, err)
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("label", "banana=split"), filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test3"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test3"))
 	v, err = service.Get(ctx, "test3")
 	assert.NilError(t, err)
 }
@@ -339,13 +339,13 @@ func TestServicePruneDryRun_Reference(t *testing.T) {
 
 	pr, err := service.Prune(ctx, filters.NewArgs(filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 0))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 0))
 	assert.Assert(t, service.Release(ctx, v.Name, t.Name()))
 
 	pr, err = service.Prune(ctx, filters.NewArgs(filters.Arg("dryRun", "true")))
 	assert.NilError(t, err)
-	assert.Assert(t, is.Len(pr.Volumes, 1))
-	assert.Assert(t, is.Equal(pr.Volumes[0], "test"))
+	assert.Assert(t, is.Len(pr.VolumesDeleted, 1))
+	assert.Assert(t, is.Equal(pr.VolumesDeleted[0], "test"))
 	v, err = service.Get(ctx, "test")
 	assert.NilError(t, err)
 }
