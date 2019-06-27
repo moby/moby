@@ -41,7 +41,7 @@ search example.com`: {"1.2.3.4", "40.3.200.10"},
 		`nameserver 1.2.3.4
 search example.com
 nameserver 4.30.20.100`: {"1.2.3.4", "4.30.20.100"},
-		``: {},
+		``:                        {},
 		`  nameserver 1.2.3.4   `: {"1.2.3.4"},
 		`search example.com
 nameserver 1.2.3.4
@@ -65,7 +65,7 @@ search example.com`: {"1.2.3.4/32", "40.3.200.10/32"},
 		`nameserver 1.2.3.4
 search example.com
 nameserver 4.30.20.100`: {"1.2.3.4/32", "4.30.20.100/32"},
-		``: {},
+		``:                        {},
 		`  nameserver 1.2.3.4   `: {"1.2.3.4/32"},
 		`search example.com
 nameserver 1.2.3.4

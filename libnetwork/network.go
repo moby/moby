@@ -1054,7 +1054,7 @@ func (n *network) delete(force bool, rmLBEndpoint bool) error {
 					t.Name(), n.Name(), err)
 			}
 		} else {
-			logrus.Warnf("Could not find configuration network %q during removal of network %q", n.configOnly, n.Name())
+			logrus.Warnf("Could not find configuration network %q during removal of network %q", n.configFrom, n.Name())
 		}
 	}
 
