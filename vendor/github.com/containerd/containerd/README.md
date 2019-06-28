@@ -1,4 +1,4 @@
-![containerd banner](https://raw.githubusercontent.com/cncf/artwork/master/containerd/horizontal/color/containerd-horizontal-color.png)
+![containerd banner](https://raw.githubusercontent.com/cncf/artwork/master/projects/containerd/horizontal/color/containerd-horizontal-color.png)
 
 [![GoDoc](https://godoc.org/github.com/containerd/containerd?status.svg)](https://godoc.org/github.com/containerd/containerd)
 [![Build Status](https://travis-ci.org/containerd/containerd.svg?branch=master)](https://travis-ci.org/containerd/containerd)

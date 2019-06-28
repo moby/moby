@@ -767,11 +767,7 @@ func writeExpireAt(expire time.Time, bkt *bolt.Bucket) error {
 	if err != nil {
 		return err
 	}
-	if err := bkt.Put(bucketKeyExpireAt, expireAt); err != nil {
-		return err
-	}
-
-	return nil
+	return bkt.Put(bucketKeyExpireAt, expireAt)
 }
 
 func (cs *contentStore) garbageCollect(ctx context.Context) (d time.Duration, err error) {

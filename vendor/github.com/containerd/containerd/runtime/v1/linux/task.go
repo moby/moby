@@ -87,7 +87,7 @@ func (t *Task) Namespace() string {
 // Delete the task and return the exit status
 func (t *Task) Delete(ctx context.Context) (*runtime.Exit, error) {
 	rsp, err := t.shim.Delete(ctx, empty)
-	if err != nil {
+	if err != nil && !errdefs.IsNotFound(err) {
 		return nil, errdefs.FromGRPC(err)
 	}
 	t.tasks.Delete(ctx, t.id)
