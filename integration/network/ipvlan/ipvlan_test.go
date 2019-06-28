@@ -25,7 +25,7 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
-	d := daemon.New(t, daemon.WithExperimental)
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
@@ -85,7 +85,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			test: testIpvlanAddressing,
 		},
 	} {
-		d := daemon.New(t, daemon.WithExperimental)
+		d := daemon.New(t)
 		d.StartWithBusybox(t)
 		c := d.NewClientT(t)
 
