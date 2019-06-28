@@ -1,6 +1,6 @@
 // +build !windows
 
-package ipvlan
+package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
 
 import (
 	"context"
