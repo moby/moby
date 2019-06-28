@@ -124,6 +124,14 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 		})
 	}
 
+	rootfs := ""
+	if len(mounts) > 0 {
+		rootfs = filepath.Join(r.Bundle, "rootfs")
+		if err := os.Mkdir(rootfs, 0711); err != nil {
+			return nil, err
+		}
+	}
+
 	config := &proc.CreateConfig{
 		ID:               r.ID,
 		Bundle:           r.Bundle,
@@ -137,7 +145,6 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 		ParentCheckpoint: r.ParentCheckpoint,
 		Options:          r.Options,
 	}
-	rootfs := filepath.Join(r.Bundle, "rootfs")
 	defer func() {
 		if err != nil {
 			if err2 := mount.UnmountAll(rootfs, 0); err2 != nil {
@@ -169,6 +176,7 @@ func (s *Service) Create(ctx context.Context, r *shimapi.CreateTaskRequest) (_ *
 		s.config.SystemdCgroup,
 		s.platform,
 		config,
+		rootfs,
 	)
 	if err != nil {
 		return nil, errdefs.ToGRPC(err)
@@ -632,7 +640,7 @@ func getTopic(ctx context.Context, e interface{}) string {
 	return runtime.TaskUnknownTopic
 }
 
-func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform rproc.Platform, r *proc.CreateConfig) (*proc.Init, error) {
+func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu string, systemdCgroup bool, platform rproc.Platform, r *proc.CreateConfig, rootfs string) (*proc.Init, error) {
 	var options runctypes.CreateOptions
 	if r.Options != nil {
 		v, err := typeurl.UnmarshalAny(r.Options)
@@ -642,7 +650,6 @@ func newInit(ctx context.Context, path, workDir, runtimeRoot, namespace, criu st
 		options = *v.(*runctypes.CreateOptions)
 	}
 
-	rootfs := filepath.Join(path, "rootfs")
 	runtime := proc.NewRunc(runtimeRoot, path, namespace, r.Runtime, criu, systemdCgroup)
 	p := proc.New(r.ID, runtime, rproc.Stdio{
 		Stdin:    r.Stdin,
