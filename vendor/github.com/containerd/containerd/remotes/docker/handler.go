@@ -88,7 +88,7 @@ func appendDistributionSourceLabel(originLabel, repo string) string {
 	}
 	repos = append(repos, repo)
 
-	// use emtpy string to present duplicate items
+	// use empty string to present duplicate items
 	for i := 1; i < len(repos); i++ {
 		tmp, j := repos[i], i-1
 		for ; j >= 0 && repos[j] >= tmp; j-- {

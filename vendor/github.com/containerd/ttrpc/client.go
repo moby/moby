@@ -49,7 +49,15 @@ type Client struct {
 	err       error
 }
 
-func NewClient(conn net.Conn) *Client {
+type ClientOpts func(c *Client)
+
+func WithOnClose(onClose func()) ClientOpts {
+	return func(c *Client) {
+		c.closeFunc = onClose
+	}
+}
+
+func NewClient(conn net.Conn, opts ...ClientOpts) *Client {
 	c := &Client{
 		codec:     codec{},
 		conn:      conn,
@@ -58,6 +66,10 @@ func NewClient(conn net.Conn) *Client {
 		closed:    make(chan struct{}),
 		done:      make(chan struct{}),
 		closeFunc: func() {},
+	}
+
+	for _, o := range opts {
+		o(c)
 	}
 
 	go c.run()
@@ -139,11 +151,6 @@ func (c *Client) Close() error {
 	})
 
 	return nil
-}
-
-// OnClose allows a close func to be called when the server is closed
-func (c *Client) OnClose(closer func()) {
-	c.closeFunc = closer
 }
 
 type message struct {
@@ -255,7 +262,7 @@ func (c *Client) recv(resp *Response, msg *message) error {
 	}
 
 	if msg.Type != messageTypeResponse {
-		return errors.New("unkown message type received")
+		return errors.New("unknown message type received")
 	}
 
 	defer c.channel.putmbuf(msg.p)
