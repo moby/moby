@@ -76,7 +76,7 @@ func (s *serviceSet) dispatch(ctx context.Context, serviceName, methodName strin
 		switch v := obj.(type) {
 		case proto.Message:
 			if err := proto.Unmarshal(p, v); err != nil {
-				return status.Errorf(codes.Internal, "ttrpc: error unmarshaling payload: %v", err.Error())
+				return status.Errorf(codes.Internal, "ttrpc: error unmarshalling payload: %v", err.Error())
 			}
 		default:
 			return status.Errorf(codes.Internal, "ttrpc: error unsupported request type: %T", v)
