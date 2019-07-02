@@ -33,6 +33,24 @@ func TestMaskSecretKeys(t *testing.T) {
 			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
 		},
 		{
+			doc:      "secret update with API version",
+			path:     "/v1.30/secrets/mysecret/update",
+			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
+			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
+		},
+		{
+			doc:      "secret update with API version and trailing slashes",
+			path:     "/v1.30/secrets/mysecret/update//",
+			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
+			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
+		},
+		{
+			doc:      "secret update with query parameter",
+			path:     "/secrets/mysecret/update?version=34",
+			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
+			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
+		},
+		{
 			doc:  "other paths with API version",
 			path: "/v1.30/some/other/path",
 			input: map[string]interface{}{
