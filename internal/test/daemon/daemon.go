@@ -281,7 +281,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 		return errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
 	}
 
-	wait := make(chan error)
+	wait := make(chan error, 1)
 
 	go func() {
 		ret := d.cmd.Wait()
@@ -309,26 +309,27 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	req.URL.Host = clientConfig.addr
 	req.URL.Scheme = clientConfig.scheme
 
-	ticker := time.NewTicker(500 * time.Millisecond)
-	defer ticker.Stop()
-	tick := ticker.C
-
-	timeout := time.NewTimer(60 * time.Second) // timeout for the whole loop
-	defer timeout.Stop()
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
 	// make sure daemon is ready to receive requests
 	for {
 		d.log.Logf("[%s] waiting for daemon to start", d.id)
 
 		select {
-		case <-timeout.C:
-			return errors.Errorf("[%s] Daemon exited and never started", d.id)
-		case <-tick:
-			ctx, cancel := context.WithTimeout(context.TODO(), 2*time.Second)
-			resp, err := client.Do(req.WithContext(ctx))
-			cancel()
+		case <-ctx.Done():
+			return errors.Errorf("[%s] Daemon exited and never started: %s", d.id, ctx.Err())
+		case err := <-d.Wait:
+			return errors.Errorf("[%s] Daemon exited during startup: %v", d.id, err)
+		default:
+			rctx, rcancel := context.WithTimeout(context.TODO(), 2*time.Second)
+			defer rcancel()
+
+			resp, err := client.Do(req.WithContext(rctx))
 			if err != nil {
 				d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
+
+				time.Sleep(500 * time.Millisecond)
 				continue
 			}
 
@@ -342,8 +343,6 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 				return errors.Errorf("[%s] error querying daemon for root directory: %v", d.id, err)
 			}
 			return nil
-		case err := <-d.Wait:
-			return errors.Errorf("[%s] Daemon exited during startup: %v", d.id, err)
 		}
 	}
 }
