@@ -22,7 +22,6 @@ var (
 		"busy",
 		"charming",
 		"clever",
-		"cocky",
 		"cool",
 		"compassionate",
 		"competent",
