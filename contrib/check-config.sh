@@ -21,7 +21,7 @@ fi
 
 if ! command -v zgrep &> /dev/null; then
 	zgrep() {
-		zcat "$2" | grep "$1"
+		zcat "${!#}" | grep "${@:1:$#-1}"
 	}
 fi
 
@@ -31,13 +31,13 @@ kernelMinor="${kernelVersion#$kernelMajor.}"
 kernelMinor="${kernelMinor%%.*}"
 
 is_set() {
-	zgrep "CONFIG_$1=[y|m]" "$CONFIG" > /dev/null
+	zgrep -E "CONFIG_$1=[ym]" "$CONFIG" > /dev/null
 }
 is_set_in_kernel() {
-	zgrep "CONFIG_$1=y" "$CONFIG" > /dev/null
+	zgrep -E "CONFIG_$1=y" "$CONFIG" > /dev/null
 }
 is_set_as_module() {
-	zgrep "CONFIG_$1=m" "$CONFIG" > /dev/null
+	zgrep -E "CONFIG_$1=m" "$CONFIG" > /dev/null
 }
 
 color() {
@@ -191,9 +191,9 @@ flags=(
 	CGROUPS CGROUP_CPUACCT CGROUP_DEVICE CGROUP_FREEZER CGROUP_SCHED CPUSETS MEMCG
 	KEYS
 	VETH BRIDGE BRIDGE_NETFILTER
-	NF_NAT_IPV4 IP_NF_FILTER IP_NF_TARGET_MASQUERADE
+	"(NF_NAT_IPV4|IP_NF_NAT)" IP_NF_FILTER IP_NF_TARGET_MASQUERADE
 	NETFILTER_XT_MATCH_{ADDRTYPE,CONNTRACK,IPVS}
-	IP_NF_NAT NF_NAT NF_NAT_NEEDED
+	IP_NF_NAT "(NF_NAT_NEEDED|NF_NAT)"
 
 	# required for bind-mounting /dev/mqueue into containers
 	POSIX_MQUEUE
@@ -253,17 +253,11 @@ if [ "$kernelMajor" -lt 3 ] || ( [ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -l
 	check_flags RESOURCE_COUNTERS
 fi
 
-if [ "$kernelMajor" -lt 3 ] || ( [ "$kernelMajor" -eq 3 ] && [ "$kernelMinor" -le 13 ] ); then
-	netprio=NETPRIO_CGROUP
-else
-	netprio=CGROUP_NET_PRIO
-fi
-
 flags=(
-	BLK_CGROUP BLK_DEV_THROTTLING IOSCHED_CFQ CFQ_GROUP_IOSCHED
+	BLK_CGROUP BLK_DEV_THROTTLING "(IOSCHED_CFQ|IOSCHED_BFQ)" "(CFQ_GROUP_IOSCHED|BFQ_GROUP_IOSCHED)"
 	CGROUP_PERF
 	CGROUP_HUGETLB
-	NET_CLS_CGROUP $netprio
+	NET_CLS_CGROUP "(NETPRIO_CGROUP|CGROUP_NET_PRIO)"
 	CFS_BANDWIDTH FAIR_GROUP_SCHED RT_GROUP_SCHED
 	IP_NF_TARGET_REDIRECT
 	IP_VS
