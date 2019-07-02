@@ -23,7 +23,6 @@ func TestMaskSecretKeys(t *testing.T) {
 			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
 			expected: map[string]interface{}{"Data": "*****", "Name": "name", "Labels": map[string]interface{}{}},
 		},
-
 		{
 			path:     "/secrets/create?key=val",
 			input:    map[string]interface{}{"Data": "foo", "Name": "name", "Labels": map[string]interface{}{}},
@@ -32,8 +31,13 @@ func TestMaskSecretKeys(t *testing.T) {
 		{
 			path: "/v1.30/some/other/path",
 			input: map[string]interface{}{
-				"password": "pass",
+				"password":     "pass",
+				"secret":       "secret",
+				"jointoken":    "jointoken",
+				"unlockkey":    "unlockkey",
+				"signingcakey": "signingcakey",
 				"other": map[string]interface{}{
+					"password":     "pass",
 					"secret":       "secret",
 					"jointoken":    "jointoken",
 					"unlockkey":    "unlockkey",
@@ -41,12 +45,32 @@ func TestMaskSecretKeys(t *testing.T) {
 				},
 			},
 			expected: map[string]interface{}{
-				"password": "*****",
+				"password":     "*****",
+				"secret":       "*****",
+				"jointoken":    "*****",
+				"unlockkey":    "*****",
+				"signingcakey": "*****",
 				"other": map[string]interface{}{
+					"password":     "*****",
 					"secret":       "*****",
 					"jointoken":    "*****",
 					"unlockkey":    "*****",
 					"signingcakey": "*****",
+				},
+			},
+		},
+		{
+			path: "/v1.30/some/other/path",
+			input: map[string]interface{}{
+				"PASSWORD": "pass",
+				"other": map[string]interface{}{
+					"PASSWORD": "pass",
+				},
+			},
+			expected: map[string]interface{}{
+				"PASSWORD": "*****",
+				"other": map[string]interface{}{
+					"PASSWORD": "*****",
 				},
 			},
 		},
