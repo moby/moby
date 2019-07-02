@@ -90,6 +90,10 @@ type Builder struct {
 func New(opt Opt) (*Builder, error) {
 	reqHandler := newReqBodyHandler(tracing.DefaultTransport)
 
+	if opt.IdentityMapping != nil && opt.IdentityMapping.Empty() {
+		opt.IdentityMapping = nil
+	}
+
 	c, err := newController(reqHandler, opt)
 	if err != nil {
 		return nil, err
