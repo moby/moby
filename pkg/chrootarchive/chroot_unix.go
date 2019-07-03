@@ -10,3 +10,7 @@ func chroot(path string) error {
 	}
 	return unix.Chdir("/")
 }
+
+func realChroot(path string) error {
+	return chroot(path)
+}
