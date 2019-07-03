@@ -41,7 +41,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 
 		var postForm map[string]interface{}
 		if err := json.Unmarshal(b, &postForm); err == nil {
-			maskSecretKeys(postForm, r.RequestURI)
+			maskSecretKeys(postForm)
 			formStr, errMarshal := json.Marshal(postForm)
 			if errMarshal == nil {
 				logrus.Debugf("form data: %s", string(formStr))
@@ -54,18 +54,10 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 	}
 }
 
-func maskSecretKeys(inp interface{}, path string) {
-	// Remove any query string from the path
-	idx := strings.Index(path, "?")
-	if idx != -1 {
-		path = path[:idx]
-	}
-	// Remove trailing / characters
-	path = strings.TrimRight(path, "/")
-
+func maskSecretKeys(inp interface{}) {
 	if arr, ok := inp.([]interface{}); ok {
 		for _, f := range arr {
-			maskSecretKeys(f, path)
+			maskSecretKeys(f)
 		}
 		return
 	}
@@ -92,7 +84,7 @@ func maskSecretKeys(inp interface{}, path string) {
 					continue loop0
 				}
 			}
-			maskSecretKeys(v, path)
+			maskSecretKeys(v)
 		}
 	}
 }
