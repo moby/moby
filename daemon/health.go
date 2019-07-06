@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/docker/docker/api/types"
-	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/daemon/exec"
@@ -65,7 +64,7 @@ type cmdProbe struct {
 func (p *cmdProbe) run(ctx context.Context, d *Daemon, cntr *container.Container) (*types.HealthcheckResult, error) {
 	cmdSlice := strslice.StrSlice(cntr.Config.Healthcheck.Test)[1:]
 	if p.shell {
-		cmdSlice = append(getShell(cntr.Config), cmdSlice...)
+		cmdSlice = append(getShell(cntr), cmdSlice...)
 	}
 	entrypoint, args := d.getEntrypointAndArgs(strslice.StrSlice{}, cmdSlice)
 	execConfig := exec.NewConfig()
@@ -376,11 +375,14 @@ func min(x, y int) int {
 	return y
 }
 
-func getShell(config *containertypes.Config) []string {
-	if len(config.Shell) != 0 {
-		return config.Shell
+func getShell(cntr *container.Container) []string {
+	if len(cntr.Config.Shell) != 0 {
+		return cntr.Config.Shell
 	}
 	if runtime.GOOS != "windows" {
+		return []string{"/bin/sh", "-c"}
+	}
+	if cntr.OS != runtime.GOOS {
 		return []string{"/bin/sh", "-c"}
 	}
 	return []string{"cmd", "/S", "/C"}
