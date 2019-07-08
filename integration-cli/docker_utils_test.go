@@ -347,7 +347,7 @@ func getInspectBody(c *check.C, version, id string) []byte {
 // Run a long running idle task in a background container using the
 // system-specific default image and command.
 func runSleepingContainer(c *check.C, extraArgs ...string) string {
-	return runSleepingContainerInImage(c, defaultSleepImage, extraArgs...)
+	return runSleepingContainerInImage(c, "busybox", extraArgs...)
 }
 
 // Run a long running idle task in a background container using the specified
