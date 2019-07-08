@@ -56,7 +56,7 @@ func (d *Daemon) GetService(t assert.TestingT, id string) *swarm.Service {
 }
 
 // GetServiceTasks returns the swarm tasks for the specified service
-func (d *Daemon) GetServiceTasks(t assert.TestingT, service string) []swarm.Task {
+func (d *Daemon) GetServiceTasks(t assert.TestingT, service string, additionalFilters ...filters.KeyValuePair) []swarm.Task {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
@@ -66,6 +66,9 @@ func (d *Daemon) GetServiceTasks(t assert.TestingT, service string) []swarm.Task
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("desired-state", "running")
 	filterArgs.Add("service", service)
+	for _, filter := range additionalFilters {
+		filterArgs.Add(filter.Key, filter.Value)
+	}
 
 	options := types.TaskListOptions{
 		Filters: filterArgs,
