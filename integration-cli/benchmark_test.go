@@ -28,7 +28,7 @@ func (s *DockerSuite) BenchmarkConcurrentContainerActions(c *check.C) {
 			go func() {
 				defer innerGroup.Done()
 				for i := 0; i < numIterations; i++ {
-					args := []string{"run", "-d", defaultSleepImage}
+					args := []string{"run", "-d", "busybox"}
 					args = append(args, sleepCommandForDaemonPlatform()...)
 					out, _, err := dockerCmdWithError(args...)
 					if err != nil {
