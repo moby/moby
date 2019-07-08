@@ -80,10 +80,6 @@ func UnixCli() bool {
 	return isUnixCli
 }
 
-func ExecSupport() bool {
-	return supportsExec
-}
-
 func Network() bool {
 	// Set a timeout on the GET at 15s
 	var timeout = time.Duration(15 * time.Second)
