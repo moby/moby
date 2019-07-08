@@ -74,6 +74,15 @@ func parentExists(ifaceStr string) bool {
 	return true
 }
 
+// vlanLinkExists checks if specified vlan link exists in the default namespace
+func vlanLinkExists(linkStr string) bool {
+	_, err := ns.NlHandle().LinkByName(linkStr)
+	if err != nil {
+		return false
+	}
+	return true
+}
+
 // createVlanLink parses sub-interfaces and vlan id for creation
 func createVlanLink(parentName string) error {
 	if strings.Contains(parentName, ".") {
@@ -158,6 +167,15 @@ func parseVlan(linkName string) (string, int, error) {
 	}
 
 	return parent, vidInt, nil
+}
+
+// dummyLinkExists checks if dummylink exists in the default namespace
+func dummyLinkExists(dummyName string) bool {
+	_, err := ns.NlHandle().LinkByName(dummyName)
+	if err != nil {
+		return false
+	}
+	return true
 }
 
 // createDummyLink creates a dummy0 parent link
