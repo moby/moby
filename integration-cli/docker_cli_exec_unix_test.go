@@ -1,4 +1,4 @@
-// +build !windows,!test_no_exec
+// +build !windows
 
 package main
 

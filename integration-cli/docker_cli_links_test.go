@@ -140,7 +140,7 @@ func (s *DockerSuite) TestLinksNotStartedParentNotFail(c *check.C) {
 
 func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, testEnv.IsLocalDaemon, ExecSupport)
+	testRequires(c, testEnv.IsLocalDaemon)
 
 	out, _ := dockerCmd(c, "run", "-itd", "--name", "one", "busybox", "top")
 	idOne := strings.TrimSpace(out)
@@ -158,7 +158,7 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 
 func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	testRequires(c, DaemonIsLinux)
-	testRequires(c, testEnv.IsLocalDaemon, ExecSupport)
+	testRequires(c, testEnv.IsLocalDaemon)
 	dockerCmd(c, "run", "-d", "--name", "one", "busybox", "top")
 	out, _ := dockerCmd(c, "run", "-d", "--name", "two", "--link", "one:onetwo", "--link", "one:one", "busybox", "top")
 	id := strings.TrimSpace(string(out))

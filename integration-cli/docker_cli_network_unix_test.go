@@ -805,7 +805,6 @@ func (s *DockerNetworkSuite) TestDockerPluginV2NetworkDriver(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *check.C) {
-	testRequires(c, ExecSupport)
 	// On default bridge network built-in service discovery should not happen
 	hostsFile := "/etc/hosts"
 	bridgeName := "external-bridge"
@@ -863,7 +862,7 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 }
 
 func (s *DockerNetworkSuite) TestDockerNetworkAnonymousEndpoint(c *check.C) {
-	testRequires(c, ExecSupport, NotArm)
+	testRequires(c, NotArm)
 	hostsFile := "/etc/hosts"
 	cstmBridgeNw := "custom-bridge-nw"
 	cstmBridgeNw1 := "custom-bridge-nw1"

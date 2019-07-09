@@ -3430,7 +3430,7 @@ func (s *DockerSuite) TestRunLoopbackWhenNetworkDisabled(c *check.C) {
 
 func (s *DockerSuite) TestRunModeNetContainerHostname(c *check.C) {
 	// Windows does not support --net=container
-	testRequires(c, DaemonIsLinux, ExecSupport)
+	testRequires(c, DaemonIsLinux)
 
 	dockerCmd(c, "run", "-i", "-d", "--name", "parent", "busybox", "top")
 	out, _ := dockerCmd(c, "exec", "parent", "cat", "/etc/hostname")
