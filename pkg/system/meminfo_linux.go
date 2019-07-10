@@ -27,6 +27,7 @@ func ReadMemInfo() (*MemInfo, error) {
 func parseMemInfo(reader io.Reader) (*MemInfo, error) {
 	meminfo := &MemInfo{}
 	scanner := bufio.NewScanner(reader)
+	memAvailable := int64(-1)
 	for scanner.Scan() {
 		// Expected format: ["MemTotal:", "1234", "kB"]
 		parts := strings.Fields(scanner.Text())
@@ -48,12 +49,17 @@ func parseMemInfo(reader io.Reader) (*MemInfo, error) {
 			meminfo.MemTotal = bytes
 		case "MemFree:":
 			meminfo.MemFree = bytes
+		case "MemAvailable:":
+			memAvailable = bytes
 		case "SwapTotal:":
 			meminfo.SwapTotal = bytes
 		case "SwapFree:":
 			meminfo.SwapFree = bytes
 		}
 
+	}
+	if memAvailable != -1 {
+		meminfo.MemFree = memAvailable
 	}
 
 	// Handle errors that may have occurred during the reading of the file.
