@@ -219,7 +219,7 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 	return func(ctx context.Context, _ coci.Client, _ *containers.Container, s *coci.Spec) error {
 		userNS := false
 		// user
-		if isUsernsModePrivate() {
+		if isUsernsModePrivate(c, daemon.configStore) {
 			uidMap := daemon.idMapping.UIDs()
 			if uidMap != nil {
 				userNS = true
