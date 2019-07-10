@@ -14,8 +14,9 @@ func TestMemInfo(t *testing.T) {
 	const input = `
 	MemTotal:      1 kB
 	MemFree:       2 kB
-	SwapTotal:     3 kB
-	SwapFree:      4 kB
+	MemAvailable:  3 kB
+	SwapTotal:     4 kB
+	SwapFree:      5 kB
 	Malformed1:
 	Malformed2:    1
 	Malformed3:    2 MB
@@ -28,13 +29,13 @@ func TestMemInfo(t *testing.T) {
 	if meminfo.MemTotal != 1*units.KiB {
 		t.Fatalf("Unexpected MemTotal: %d", meminfo.MemTotal)
 	}
-	if meminfo.MemFree != 2*units.KiB {
+	if meminfo.MemFree != 3*units.KiB {
 		t.Fatalf("Unexpected MemFree: %d", meminfo.MemFree)
 	}
-	if meminfo.SwapTotal != 3*units.KiB {
+	if meminfo.SwapTotal != 4*units.KiB {
 		t.Fatalf("Unexpected SwapTotal: %d", meminfo.SwapTotal)
 	}
-	if meminfo.SwapFree != 4*units.KiB {
+	if meminfo.SwapFree != 5*units.KiB {
 		t.Fatalf("Unexpected SwapFree: %d", meminfo.SwapFree)
 	}
 }
