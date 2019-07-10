@@ -1197,7 +1197,7 @@ func setupRemappedRoot(config *config.Config) (*idtools.IdentityMapping, error) 
 		return nil, fmt.Errorf("User namespaces are only supported on Linux")
 	}
 
-	if config.DisableRemappedRoot {
+	if config.DefaultUsernsMode == "host" {
 		return &idtools.IdentityMapping{}, nil
 	}
 

@@ -40,8 +40,8 @@ type Config struct {
 	IpcMode              string                   `json:"default-ipc-mode,omitempty"`
 	CgroupNamespaceMode  string                   `json:"default-cgroupns-mode,omitempty"`
 
-	RemappedRoot        string `json:"userns-remap,omitempty"`
-	DisableRemappedRoot bool   `json:"userns-disable-remap,omitempty"`
+	RemappedRoot      string `json:"userns-remap,omitempty"`
+	DefaultUsernsMode string `json:"userns-default-mode,omitempty"`
 	// TODO(cpuguy83): naming is hard
 	EnableUsernsHostOnNetHost      bool `json:"enable-userns-host-on-net-host"`
 	EnableUsernsHostOnPidHost      bool `json:"enable-userns-host-on-pid-host"`

@@ -118,7 +118,7 @@ func TestSysctlOverride(t *testing.T) {
 		},
 	}
 	d := setupFakeDaemon(t, c)
-	d.configStore.DisableRemappedRoot = true
+	d.configStore.DefaultUsernsMode = "host"
 	defer cleanupFakeContainer(c)
 
 	// Ensure that the implicit sysctl is set correctly.

@@ -326,11 +326,16 @@ func WithNamespaces(daemon *Daemon, c *container.Container) coci.SpecOpts {
 }
 
 func isUsernsModePrivate(c *container.Container, config *config.Config) bool {
-	if c.HostConfig.UsernsMode.IsHost() || config.DisableRemappedRoot {
+	if c.HostConfig.UsernsMode.IsHost() {
 		return false
 	}
 
-	isPrivate := c.HostConfig.UsernsMode.IsPrivate()
+	mode := c.HostConfig.UsernsMode
+	if mode == "" {
+		mode = containertypes.UsernsMode(config.DefaultUsernsMode)
+	}
+
+	isPrivate := mode.IsPrivate()
 
 	if c.HostConfig.NetworkMode.IsHost() && config.EnableUsernsHostOnNetHost {
 		return !isPrivate

@@ -51,7 +51,9 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 	flags.StringVar(&conf.CgroupParent, "cgroup-parent", "", "Set parent cgroup for all containers")
 
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
-	flags.BoolVar(&conf.DisableRemappedRoot, "userns-disable-remap", false, "Disables userns root remapping")
+	flags.StringVar(&conf.DefaultUsernsMode, "userns-default-mode", "private", "Sets the default mode for user namespaces (e.g. 'host')") // TODO: private means nothing except that it's not "host"
+
+	// TODO: convert to --security-opt?
 	flags.BoolVar(&conf.EnableUsernsHostOnNetHost, "enable-userns-host-on-net-host", false, "Sets the container userns=host when net=host")
 	flags.BoolVar(&conf.EnableUsernsHostOnPidHost, "enable-userns-host-on-pid-host", false, "Sets the container userns=host when pid=host")
 	flags.BoolVar(&conf.EnableUsernsHostOnIPCHost, "enable-userns-host-on-ipc-host", false, "Sets the container userns=host when ipc=host")
