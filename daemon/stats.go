@@ -21,6 +21,10 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 	// Engine API version (used for backwards compatibility)
 	apiVersion := config.Version
 
+	if runtime.GOOS == "windows" && versions.LessThan(apiVersion, "1.21") {
+		return errors.New("API versions pre v1.21 do not support stats on Windows")
+	}
+
 	container, err := daemon.GetContainer(prefixOrName)
 	if err != nil {
 		return err
@@ -70,9 +74,6 @@ func (daemon *Daemon) ContainerStats(ctx context.Context, prefixOrName string, c
 			var statsJSON interface{}
 			statsJSONPost120 := getStatJSON(v)
 			if versions.LessThan(apiVersion, "1.21") {
-				if runtime.GOOS == "windows" {
-					return errors.New("API versions pre v1.21 do not support stats on Windows")
-				}
 				var (
 					rxBytes   uint64
 					rxPackets uint64
