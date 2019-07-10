@@ -283,6 +283,8 @@ func compressFile(fileName string, lastTimestamp time.Time) {
 
 // MaxFiles return maximum number of files
 func (w *LogFile) MaxFiles() int {
+	w.rotateMu.Lock()
+	defer w.rotateMu.Unlock()
 	return w.maxFiles
 }
 
