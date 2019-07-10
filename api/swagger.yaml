@@ -5543,8 +5543,6 @@ paths:
           description: "no error"
         304:
           description: "container already started"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
@@ -5576,8 +5574,6 @@ paths:
           description: "no error"
         304:
           description: "container already stopped"
-          schema:
-            $ref: "#/definitions/ErrorResponse"
         404:
           description: "no such container"
           schema:
