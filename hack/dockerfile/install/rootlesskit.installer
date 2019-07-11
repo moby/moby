@@ -1,7 +1,7 @@
 #!/bin/sh
 
-# v0.4.1
-ROOTLESSKIT_COMMIT=27a0c7a2483732b33d4192c1d178c83c6b9e202d
+# v0.6.0
+ROOTLESSKIT_COMMIT=2fcff6ceae968a1d895e6205e5154b107247356f
 
 install_rootlesskit() {
 	case "$1" in
