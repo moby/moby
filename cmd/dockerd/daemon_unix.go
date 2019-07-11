@@ -76,7 +76,7 @@ func (cli *DaemonCli) getPlatformContainerdDaemonOpts() ([]supervisor.DaemonOpt,
 	return opts, nil
 }
 
-// setupConfigReloadTrap configures the USR2 signal to reload the configuration.
+// setupConfigReloadTrap configures the SIGHUP signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
 	c := make(chan os.Signal, 1)
 	signal.Notify(c, unix.SIGHUP)
