@@ -2,8 +2,6 @@ package daemon // import "github.com/docker/docker/daemon"
 
 import (
 	"context"
-	"errors"
-	"fmt"
 	"runtime"
 	"strconv"
 	"time"
@@ -12,6 +10,7 @@ import (
 	"github.com/docker/docker/container"
 	libcontainerdtypes "github.com/docker/docker/libcontainerd/types"
 	"github.com/docker/docker/restartmanager"
+	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
 
@@ -29,8 +28,8 @@ func (daemon *Daemon) setStateCounter(c *container.Container) {
 // ProcessEvent is called by libcontainerd whenever an event occurs
 func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei libcontainerdtypes.EventInfo) error {
 	c, err := daemon.GetContainer(id)
-	if c == nil || err != nil {
-		return fmt.Errorf("no such container: %s", id)
+	if err != nil {
+		return errors.Wrapf(err, "could not find container %s", id)
 	}
 
 	switch e {
