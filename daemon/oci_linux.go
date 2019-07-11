@@ -732,11 +732,40 @@ func WithCommonOptions(daemon *Daemon, c *container.Container) coci.SpecOpts {
 		if err != nil {
 			return err
 		}
+
+		rootfs := c.BaseFS.Path()
+		// TODO: this should be abstracted probably?
+		if isUsernsModePrivate(c, daemon.configStore) && daemon.configStore.UsernsMappingDriver != mapperChownV0 {
+			mapped, err := c.GetMappedMountsPath()
+			if err != nil {
+				return errors.Wrap(err, "error getting container remapped rootfs path")
+			}
+			remappedRootfs := filepath.Join(mapped, "rootfs") // TODO: Is this safe?
+			if err := idtools.MkdirAllAndChown(remappedRootfs, 0700, idtools.Identity{}); err != nil {
+				return errors.Wrap(err, "error creating container remapped rootfs path")
+			}
+			switch daemon.configStore.UsernsMappingDriver {
+			case mapperIDMapFS, "":
+				_, err := idtools.MapFS(daemon.idMapping, rootfs, remappedRootfs, nil)
+				if err != nil {
+					errors.Wrap(err, "error mapping containers rootfs to user namespace")
+				}
+			default:
+				return errors.Errorf("user namespace filesystem driver not supported: %s", daemon.configStore.UsernsMappingDriver)
+			}
+			rootfs = remappedRootfs
+		}
+
 		s.Root = &specs.Root{
-			Path:     c.BaseFS.Path(),
+			Path:     rootfs,
 			Readonly: c.HostConfig.ReadonlyRootfs,
 		}
-		if err := c.SetupWorkingDirectory(daemon.idMapping.RootPair()); err != nil {
+
+		var rootID idtools.Identity
+		if daemon.configStore.UsernsMappingDriver == mapperChownV0 {
+			rootID = daemon.idMapping.RootPair()
+		}
+		if err := c.SetupWorkingDirectory(rootID); err != nil {
 			return err
 		}
 		cwd := c.Config.WorkingDir

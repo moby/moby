@@ -52,6 +52,7 @@ func installConfigFlags(conf *config.Config, flags *pflag.FlagSet) error {
 
 	flags.StringVar(&conf.RemappedRoot, "userns-remap", "", "User/Group setting for user namespaces")
 	flags.StringVar(&conf.DefaultUsernsMode, "userns-default-mode", "private", "Sets the default mode for user namespaces (e.g. 'host')") // TODO: private means nothing except that it's not "host"
+	flags.StringVar(&conf.DefaultUsernsMode, "userns-mapping-driver", "", "Driver to use for mapping filesystem access to the user namepsace")
 
 	// TODO: convert to --security-opt?
 	flags.BoolVar(&conf.EnableUsernsHostOnNetHost, "enable-userns-host-on-net-host", false, "Sets the container userns=host when net=host")
