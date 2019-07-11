@@ -75,6 +75,17 @@ You can just use the upstream Docker client but you need to set the socket path 
 $ docker -H unix://$XDG_RUNTIME_DIR/docker.sock run -d nginx
 ```
 
+### Expose Docker API socket via TCP
+
+To expose the Docker API socket via TCP, you need to launch `dockerd-rootless.sh` with `DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS="-p 0.0.0.0:2376:2376/tcp"`.
+
+```console
+$ DOCKERD_ROOTLESS_ROOTLESSKIT_FLAGS="-p 0.0.0.0:2376:2376/tcp" \
+ dockerd-rootless.sh --experimental \
+ -H tcp://0.0.0.0:2376 \
+ --tlsverify --tlscacert=ca.pem --tlscert=cert.pem --tlskey=key.pem
+```
+
 ### Routing ping packets
 
 To route ping packets, you need to set up `net.ipv4.ping_group_range` properly as the root.
@@ -86,8 +97,8 @@ $ sudo sh -c "echo 0   2147483647  > /proc/sys/net/ipv4/ping_group_range"
 ### Changing network stack
 
 `dockerd-rootless.sh` uses [slirp4netns](https://github.com/rootless-containers/slirp4netns) (if installed) or [VPNKit](https://github.com/moby/vpnkit) as the network stack by default.
-These network stacks run in userspace and might have performance overhead. See [RootlessKit documentation](https://github.com/rootless-containers/rootlesskit/tree/v0.4.0#network-drivers) for further information.
+These network stacks run in userspace and might have performance overhead. See [RootlessKit documentation](https://github.com/rootless-containers/rootlesskit/tree/v0.6.0#network-drivers) for further information.
 
 Optionally, you can use `lxc-user-nic` instead for the best performance.
-To use `lxc-user-nic`, you need to edit [`/etc/lxc/lxc-usernet`](https://github.com/rootless-containers/rootlesskit/tree/v0.4.0#--netlxc-user-nic-experimental) and set `$DOCKERD_ROOTLESS_ROOTLESSKIT_NET=lxc-user-nic`.
+To use `lxc-user-nic`, you need to edit [`/etc/lxc/lxc-usernet`](https://github.com/rootless-containers/rootlesskit/tree/v0.6.0#--netlxc-user-nic-experimental) and set `$DOCKERD_ROOTLESS_ROOTLESSKIT_NET=lxc-user-nic`.
 
