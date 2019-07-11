@@ -235,6 +235,9 @@ type CommonConfig struct {
 	Features map[string]bool `json:"features,omitempty"`
 
 	Builder BuilderConfig `json:"builder,omitempty"`
+
+	ContainerdNamespace       string `json:"containerd-namespace,omitempty"`
+	ContainerdPluginNamespace string `json:"containerd-plugin-namespace,omitempty"`
 }
 
 // IsValueSet returns true if a configuration value
