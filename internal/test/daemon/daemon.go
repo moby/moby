@@ -137,6 +137,11 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	return d
 }
 
+// ContainersNamespace returns the containerd namespace used for containers.
+func (d *Daemon) ContainersNamespace() string {
+	return d.id
+}
+
 // RootDir returns the root directory of the daemon.
 func (d *Daemon) RootDir() string {
 	return d.Root
@@ -226,12 +231,15 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	if err != nil {
 		return errors.Wrapf(err, "[%s] could not find docker binary in $PATH", d.id)
 	}
+
 	args := append(d.GlobalFlags,
 		"--containerd", containerdSocket,
 		"--data-root", d.Root,
 		"--exec-root", d.execRoot,
 		"--pidfile", fmt.Sprintf("%s/docker.pid", d.Folder),
 		fmt.Sprintf("--userland-proxy=%t", d.userlandProxy),
+		"--containerd-namespace", d.id,
+		"--containerd-plugins-namespace", d.id+"p",
 	)
 	if d.defaultCgroupNamespaceMode != "" {
 		args = append(args, []string{"--default-cgroupns-mode", d.defaultCgroupNamespaceMode}...)
