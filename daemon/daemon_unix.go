@@ -1265,6 +1265,10 @@ func setupDaemonRootPropagation(cfg *config.Config) error {
 		return nil
 	}
 
+	if err := os.MkdirAll(filepath.Dir(cleanupFile), 0700); err != nil {
+		return errors.Wrap(err, "error creating dir to store mount cleanup file")
+	}
+
 	if err := ioutil.WriteFile(cleanupFile, nil, 0600); err != nil {
 		return errors.Wrap(err, "error writing file to signal mount cleanup on shutdown")
 	}
