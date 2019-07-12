@@ -1315,6 +1315,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 // This one keeps the leader up, and asserts that other manager nodes in the cluster also have their unlock
 // key rotated.
 func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
+	c.Skip("Flaky")
 	if runtime.GOARCH == "s390x" {
 		c.Skip("Disabled on s390x")
 	}
