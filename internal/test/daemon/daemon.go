@@ -33,6 +33,13 @@ type testingT interface {
 	Fatalf(string, ...interface{})
 }
 
+type namer interface {
+	Name() string
+}
+type testNamer interface {
+	TestName() string
+}
+
 type logT interface {
 	Logf(string, ...interface{})
 }
@@ -90,6 +97,12 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
 		dest = os.Getenv("DEST")
+	}
+	switch v := t.(type) {
+	case namer:
+		dest = filepath.Join(dest, v.Name())
+	case testNamer:
+		dest = filepath.Join(dest, v.TestName())
 	}
 	assert.Check(t, dest != "", "Please set the DOCKER_INTEGRATION_DAEMON_DEST or the DEST environment variable")
 
