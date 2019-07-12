@@ -708,8 +708,10 @@ func cleanupRaftDir(t testingT, rootPath string) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
-	walDir := filepath.Join(rootPath, "swarm/raft/wal")
-	if err := os.RemoveAll(walDir); err != nil {
-		t.Logf("error removing %v: %v", walDir, err)
+	for _, p := range []string{"wal", "wal-v3-encrypted", "snap-v3-encrypted"} {
+		dir := filepath.Join(rootPath, "swarm/raft", p)
+		if err := os.RemoveAll(dir); err != nil {
+			t.Logf("error removing %v: %v", dir, err)
+		}
 	}
 }
