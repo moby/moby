@@ -118,6 +118,7 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			return cpErr
 		}
 
+		exitCode := 127
 		if execConfig := c.ExecCommands.Get(ei.ProcessID); execConfig != nil {
 			ec := int(ei.ExitCode)
 			execConfig.Lock()
@@ -135,18 +136,14 @@ func (daemon *Daemon) ProcessEvent(id string, e libcontainerdtypes.EventType, ei
 			// remove the exec command from the container's store only and not the
 			// daemon's store so that the exec command can be inspected.
 			c.ExecCommands.Delete(execConfig.ID, execConfig.Pid)
-			attributes := map[string]string{
-				"execID":   execConfig.ID,
-				"exitCode": strconv.Itoa(ec),
-			}
-			daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
-		} else {
-			logrus.WithFields(logrus.Fields{
-				"container": c.ID,
-				"exec-id":   ei.ProcessID,
-				"exec-pid":  ei.Pid,
-			}).Warn("Ignoring Exit Event, no such exec command found")
+
+			exitCode = ec
 		}
+		attributes := map[string]string{
+			"execID":   ei.ProcessID,
+			"exitCode": strconv.Itoa(exitCode),
+		}
+		daemon.LogContainerEventWithAttributes(c, "exec_die", attributes)
 	case libcontainerdtypes.EventStart:
 		c.Lock()
 		defer c.Unlock()
