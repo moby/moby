@@ -183,7 +183,7 @@ bundle() {
 main() {
 	if [ -z "${KEEPBUNDLE-}" ]; then
 		echo "Removing bundles/"
-		rm -rf "bundles/*"
+		rm -rf bundles/*
 		echo
 	fi
 	mkdir -p bundles
