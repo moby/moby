@@ -311,7 +311,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	defer cancel()
 
 	// make sure daemon is ready to receive requests
-	for {
+	for i := 0; ; i++ {
 		d.log.Logf("[%s] waiting for daemon to start", d.id)
 
 		select {
@@ -325,9 +325,14 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 			resp, err := client.Do(req.WithContext(rctx))
 			if err != nil {
-				d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
+				if i > 2 { // don't log the first couple, this ends up just being noise
+					d.log.Logf("[%s] error pinging daemon on start: %v", d.id, err)
+				}
 
-				time.Sleep(500 * time.Millisecond)
+				select {
+				case <-ctx.Done():
+				case <-time.After(500 * time.Microsecond):
+				}
 				continue
 			}
 
