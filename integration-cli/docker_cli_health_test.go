@@ -165,29 +165,3 @@ ENTRYPOINT /bin/sh -c "sleep 600"`))
 	waitForHealthStatus(c, name, "starting", "healthy")
 
 }
-
-// GitHub #37263
-func (s *DockerSuite) TestHealthKillContainer(c *check.C) {
-	testRequires(c, DaemonIsLinux) // busybox doesn't work on Windows
-
-	imageName := "testhealth"
-	buildImageSuccessfully(c, imageName, build.WithDockerfile(`FROM busybox
-HEALTHCHECK --interval=1s --timeout=5s --retries=5 CMD /bin/sh -c "sleep 1"
-ENTRYPOINT /bin/sh -c "sleep 600"`))
-
-	name := "test_health_kill"
-	dockerCmd(c, "run", "-d", "--name", name, imageName)
-	defer func() {
-		dockerCmd(c, "rm", "-f", name)
-		dockerCmd(c, "rmi", imageName)
-	}()
-
-	// Start
-	dockerCmd(c, "start", name)
-	waitForHealthStatus(c, name, "starting", "healthy")
-
-	dockerCmd(c, "kill", "-s", "SIGINT", name)
-	out, _ := dockerCmd(c, "inspect", "--format={{.State.Health.Status}}", name)
-	c.Check(out, checker.Equals, "healthy\n")
-
-}
