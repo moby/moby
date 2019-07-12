@@ -1433,6 +1433,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 // os.Kill should kill daemon ungracefully, leaving behind container mounts.
 // A subsequent daemon restart should clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
+	c.Skip("Flaky")
 	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	d.StartWithBusybox(c)
 
