@@ -1,6 +1,6 @@
 // +build !windows
 
-package ipvlan
+package ipvlan // import "github.com/docker/docker/integration/network/ipvlan"
 
 import (
 	"context"
@@ -22,11 +22,10 @@ import (
 
 func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	// verify the driver automatically provisions the 802.1q link (di-dummy0.70)
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
-	d := daemon.New(t, daemon.WithExperimental)
+	d := daemon.New(t)
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
@@ -50,7 +49,6 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 }
 
 func TestDockerNetworkIpvlan(t *testing.T) {
-	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
@@ -87,7 +85,7 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			test: testIpvlanAddressing,
 		},
 	} {
-		d := daemon.New(t, daemon.WithExperimental)
+		d := daemon.New(t)
 		d.StartWithBusybox(t)
 		c := d.NewClientT(t)
 
