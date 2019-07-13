@@ -352,7 +352,7 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 				select {
 				case <-ctx.Done():
-				case <-time.After(500 * time.Microsecond):
+				case <-time.After(500 * time.Millisecond):
 				}
 				continue
 			}
