@@ -801,6 +801,7 @@ func (c *controller) NewNetwork(networkType, name string, id string, options ...
 		if err = t.applyConfigurationTo(network); err != nil {
 			return nil, types.InternalErrorf("Failed to apply configuration: %v", err)
 		}
+		network.generic[netlabel.Internal] = network.internal
 		defer func() {
 			if err == nil {
 				if err := t.getEpCnt().IncEndpointCnt(); err != nil {
