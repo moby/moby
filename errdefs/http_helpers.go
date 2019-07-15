@@ -177,7 +177,7 @@ func statusCodeFromDistributionError(err error) int {
 }
 
 // statusCodeFromContainerdError returns status code for containerd errors when
-// consumed directory (not through gRPC)
+// consumed directly (not through gRPC)
 func statusCodeFromContainerdError(err error) int {
 	switch {
 	case containerderrors.IsInvalidArgument(err):
