@@ -61,33 +61,30 @@ pipeline {
             }
           }
           steps {
-            withCredentials([string(credentialsId: '52af932f-f13f-429e-8467-e7ff8b965cdb', variable: 'CODECOV_TOKEN')]) {
-              withGithubStatus('janky') {
-                sh '''
-                  # todo: include ip_vs in base image
-                  sudo modprobe ip_vs
+            withGithubStatus('janky') {
+              sh '''
+                # todo: include ip_vs in base image
+                sudo modprobe ip_vs
 
-                  GITCOMMIT=$(git rev-parse --short HEAD)
-                  docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
 
-                  docker run --rm -t --privileged \
-                    -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                    -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                    --name docker-pr$BUILD_NUMBER \
-                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                    -e DOCKER_GRAPHDRIVER=vfs \
-                    -e DOCKER_EXECDRIVER=native \
-                    -e CODECOV_TOKEN \
-                    -e GIT_SHA1=${GIT_COMMIT} \
-                    docker:$GITCOMMIT \
-                    hack/ci/janky
-                '''
-                sh '''
-                  GITCOMMIT=$(git rev-parse --short HEAD)
-                  echo "Building e2e image"
-                  docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
-                '''
-              }
+                docker run --rm -t --privileged \
+                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                  --name docker-pr$BUILD_NUMBER \
+                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                  -e DOCKER_GRAPHDRIVER=vfs \
+                  -e DOCKER_EXECDRIVER=native \
+                  -e GIT_SHA1=${GIT_COMMIT} \
+                  docker:$GITCOMMIT \
+                  hack/ci/janky
+              '''
+              sh '''
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                echo "Building e2e image"
+                docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
+              '''
             }
           }
           post {
