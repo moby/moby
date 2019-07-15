@@ -141,9 +141,6 @@ func statusCodeFromGRPCError(err error) int {
 	case codes.Unavailable: // code 14
 		return http.StatusServiceUnavailable
 	default:
-		if e, ok := err.(causer); ok {
-			return statusCodeFromGRPCError(e.Cause())
-		}
 		// codes.Canceled(1)
 		// codes.Unknown(2)
 		// codes.DeadlineExceeded(4)
@@ -168,10 +165,6 @@ func statusCodeFromDistributionError(err error) int {
 		}
 	case errcode.ErrorCoder:
 		return errs.ErrorCode().Descriptor().HTTPStatusCode
-	default:
-		if e, ok := err.(causer); ok {
-			return statusCodeFromDistributionError(e.Cause())
-		}
 	}
 	return http.StatusInternalServerError
 }
