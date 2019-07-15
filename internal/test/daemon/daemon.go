@@ -656,7 +656,9 @@ func (d *Daemon) getClientConfig() (*clientConfig, error) {
 		return nil, err
 	}
 	transport.DisableKeepAlives = true
-
+	if proto == "unix" {
+		addr = filepath.Base(addr)
+	}
 	return &clientConfig{
 		transport: transport,
 		scheme:    scheme,
