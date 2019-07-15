@@ -401,9 +401,11 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	defer cli.Close()
 
 	// Create a overlay network
-	name := "saanvisthira" + t.Name()
-	network.CreateNoError(context.Background(), t, cli, name,
-		network.WithDriver("overlay"))
+	name := "sthira" + t.Name()
+	overlayID := network.CreateNoError(context.Background(), t, cli, name,
+		network.WithDriver("overlay"),
+		network.WithCheckDuplicate(),
+	)
 
 	var instances uint64 = 1
 	serviceName := "TestService" + t.Name()
@@ -418,7 +420,7 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	_, _, err := cli.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	assert.NilError(t, err)
 
-	out, err := cli.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
+	out, err := cli.NetworkInspect(context.Background(), overlayID, types.NetworkInspectOptions{Verbose: true})
 	assert.NilError(t, err)
 	t.Logf("%s: NetworkInspect: %+v", t.Name(), out)
 	assert.Assert(t, len(out.IPAM.Config) > 0)
