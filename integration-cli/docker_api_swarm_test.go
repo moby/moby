@@ -27,6 +27,7 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"github.com/docker/swarmkit/ca"
 	"github.com/go-check/check"
+	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
 )
@@ -313,13 +314,24 @@ func (s *DockerSwarmSuite) TestAPISwarmLeaderElection(c *check.C) {
 		leader    *daemon.Daemon   // keep track of leader
 		followers []*daemon.Daemon // keep track of followers
 	)
+	var lastErr error
 	checkLeader := func(nodes ...*daemon.Daemon) checkF {
 		return func(c *check.C) (interface{}, check.CommentInterface) {
 			// clear these out before each run
 			leader = nil
 			followers = nil
 			for _, d := range nodes {
-				if d.GetNode(c, d.NodeID()).ManagerStatus.Leader {
+				n := d.GetNode(c, d.NodeID(), func(err error) bool {
+					if strings.Contains(errors.Cause(err).Error(), context.DeadlineExceeded.Error()) || strings.Contains(err.Error(), "swarm does not have a leader") {
+						lastErr = err
+						return true
+					}
+					return false
+				})
+				if n == nil {
+					return false, check.Commentf("failed to get node: %v", lastErr)
+				}
+				if n.ManagerStatus.Leader {
 					leader = d
 				} else {
 					followers = append(followers, d)
@@ -391,7 +403,7 @@ func (s *DockerSwarmSuite) TestAPISwarmRaftQuorum(c *check.C) {
 	defer cli.Close()
 
 	// d1 will eventually step down from leader because there is no longer an active quorum, wait for that to happen
-	waitAndAssert(c, defaultReconciliationTimeout, func(c *check.C) (interface{}, check.CommentInterface) {
+	waitAndAssert(c, defaultReconciliationTimeout*2, func(c *check.C) (interface{}, check.CommentInterface) {
 		_, err := cli.ServiceCreate(context.Background(), service.Spec, types.ServiceCreateOptions{})
 		return err.Error(), nil
 	}, checker.Contains, "Make sure more than half of the managers are online.")
