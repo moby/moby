@@ -575,7 +575,7 @@ func (a *Agent) nodeDescriptionWithHostname(ctx context.Context, tlsInfo *api.No
 
 	// Override hostname and TLS info
 	if desc != nil {
-		if a.config.Hostname != "" && desc != nil {
+		if a.config.Hostname != "" {
 			desc.Hostname = a.config.Hostname
 		}
 		desc.TLSInfo = tlsInfo

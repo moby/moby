@@ -516,20 +516,13 @@ func (r *Supervisor) Cancel(taskID string) {
 	<-delay.doneCh
 }
 
-// CancelAll aborts all pending restarts and waits for any instances of
-// StartNow that have already triggered to complete.
+// CancelAll aborts all pending restarts
 func (r *Supervisor) CancelAll() {
-	var cancelled []delayedStart
-
 	r.mu.Lock()
 	for _, delay := range r.delays {
 		delay.cancel()
 	}
 	r.mu.Unlock()
-
-	for _, delay := range cancelled {
-		<-delay.doneCh
-	}
 }
 
 // ClearServiceHistory forgets restart history related to a given service ID.

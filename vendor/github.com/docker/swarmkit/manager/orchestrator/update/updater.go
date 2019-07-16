@@ -501,7 +501,10 @@ func (u *Updater) removeOldTasks(ctx context.Context, batch *store.Batch, remove
 				return fmt.Errorf("task %s not found while trying to shut it down", original.ID)
 			}
 			if t.DesiredState > api.TaskStateRunning {
-				return fmt.Errorf("task %s was already shut down when reached by updater", original.ID)
+				return fmt.Errorf(
+					"task %s was already shut down when reached by updater (state: %v)",
+					original.ID, t.DesiredState,
+				)
 			}
 			t.DesiredState = api.TaskStateShutdown
 			return store.UpdateTask(tx, t)

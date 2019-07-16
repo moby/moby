@@ -22,7 +22,7 @@ func (m *DriverProvider) NewSecretDriver(driver *api.Driver) (*SecretDriver, err
 	if m.pluginGetter == nil {
 		return nil, fmt.Errorf("plugin getter is nil")
 	}
-	if driver == nil && driver.Name == "" {
+	if driver == nil || driver.Name == "" {
 		return nil, fmt.Errorf("driver specification is nil")
 	}
 	// Search for the specified plugin
