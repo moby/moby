@@ -37,6 +37,7 @@ source hack/make/.integration-test-helpers
 		(
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
+			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
 			exec docker build ${build_opts} -t ${docker_py_image} -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
