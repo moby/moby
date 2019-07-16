@@ -3,6 +3,7 @@ package agent
 import (
 	"context"
 	"errors"
+	"math"
 	"sync"
 	"time"
 
@@ -64,6 +65,7 @@ func newSession(ctx context.Context, agent *Agent, delay time.Duration, sessionI
 	cc, err := agent.config.ConnBroker.Select(
 		grpc.WithTransportCredentials(agent.config.Credentials),
 		grpc.WithTimeout(dispatcherRPCTimeout),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)),
 	)
 
 	if err != nil {
@@ -136,7 +138,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	// `ctx` is done and hence fail to propagate the timeout error to the agent.
 	// If the error is not propogated to the agent, the agent will not close
 	// the session or rebuild a new session.
-	sessionCtx, cancelSession := context.WithCancel(ctx) // nolint: vet
+	sessionCtx, cancelSession := context.WithCancel(ctx) //nolint:govet
 
 	// Need to run Session in a goroutine since there's no way to set a
 	// timeout for an individual Recv call in a stream.
@@ -159,7 +161,7 @@ func (s *session) start(ctx context.Context, description *api.NodeDescription) e
 	select {
 	case err := <-errChan:
 		if err != nil {
-			return err // nolint: vet
+			return err //nolint:govet
 		}
 	case <-time.After(dispatcherRPCTimeout):
 		cancelSession()

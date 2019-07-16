@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -758,6 +759,7 @@ func (m *Manager) updateKEK(ctx context.Context, cluster *api.Cluster) error {
 					func(addr string, timeout time.Duration) (net.Conn, error) {
 						return xnet.DialTimeoutLocal(addr, timeout)
 					}),
+				grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)),
 			)
 			if err != nil {
 				logger.WithError(err).Error("failed to connect to local manager socket after locking the cluster")

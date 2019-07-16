@@ -6,6 +6,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
+	"math"
 	"net"
 	"os"
 	"path/filepath"
@@ -33,7 +34,7 @@ import (
 	"github.com/docker/swarmkit/manager/encryption"
 	"github.com/docker/swarmkit/remotes"
 	"github.com/docker/swarmkit/xnet"
-	"github.com/grpc-ecosystem/go-grpc-prometheus"
+	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	bolt "go.etcd.io/bbolt"
@@ -911,6 +912,7 @@ func (n *Node) initManagerConnection(ctx context.Context, ready chan<- struct{})
 	opts := []grpc.DialOption{
 		grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor),
 		grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor),
+		grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(math.MaxInt32)),
 	}
 	insecureCreds := credentials.NewTLS(&tls.Config{InsecureSkipVerify: true})
 	opts = append(opts, grpc.WithTransportCredentials(insecureCreds))
