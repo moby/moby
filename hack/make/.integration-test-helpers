@@ -20,8 +20,12 @@ integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 	grep -vE '(^./integration($|/internal)|/testdata)')"}
 
 run_test_integration() {
-	[[ "$TESTFLAGS" != *-check.f* ]] && run_test_integration_suites
-	run_test_integration_legacy_suites
+	if [[ "$TESTFLAGS" != *-check.f* ]]; then
+		run_test_integration_suites
+	fi
+	if [[ "$TESTFLAGS" != *-test.run* ]]; then
+		run_test_integration_legacy_suites
+	fi
 }
 
 run_test_integration_suites() {
