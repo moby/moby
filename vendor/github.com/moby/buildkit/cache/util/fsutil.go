@@ -61,23 +61,23 @@ func ReadFile(ctx context.Context, ref cache.ImmutableRef, req ReadRequest) ([]b
 	err := withMount(ctx, ref, func(root string) error {
 		fp, err := fs.RootPath(root, req.Filename)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 
 		if req.Range == nil {
 			dt, err = ioutil.ReadFile(fp)
 			if err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 		} else {
 			f, err := os.Open(fp)
 			if err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 			dt, err = ioutil.ReadAll(io.NewSectionReader(f, int64(req.Range.Offset), int64(req.Range.Length)))
 			f.Close()
 			if err != nil {
-				return err
+				return errors.WithStack(err)
 			}
 		}
 		return nil
@@ -101,7 +101,7 @@ func ReadDir(ctx context.Context, ref cache.ImmutableRef, req ReadDirRequest) ([
 	err := withMount(ctx, ref, func(root string) error {
 		fp, err := fs.RootPath(root, req.Path)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		return fsutil.Walk(ctx, fp, &wo, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
@@ -128,10 +128,10 @@ func StatFile(ctx context.Context, ref cache.ImmutableRef, path string) (*fstype
 	err := withMount(ctx, ref, func(root string) error {
 		fp, err := fs.RootPath(root, path)
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		if st, err = fsutil.Stat(fp); err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		return nil
 	})

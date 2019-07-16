@@ -60,6 +60,9 @@ type execOp struct {
 }
 
 func NewExecOp(v solver.Vertex, op *pb.Op_Exec, platform *pb.Platform, cm cache.Manager, sm *session.Manager, md *metadata.Store, exec executor.Executor, w worker.Worker) (solver.Op, error) {
+	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
+		return nil, err
+	}
 	return &execOp{
 		op:          op.Exec,
 		cm:          cm,
@@ -324,7 +327,7 @@ func (e *execOp) getSSHMountable(ctx context.Context, m *pb.Mount) (cache.Mounta
 		if m.SSHOpt.Optional {
 			return nil, nil
 		}
-		if st, ok := status.FromError(err); ok && st.Code() == codes.Unimplemented {
+		if st, ok := status.FromError(errors.Cause(err)); ok && st.Code() == codes.Unimplemented {
 			return nil, errors.Errorf("no SSH key %q forwarded from the client", m.SSHOpt.ID)
 		}
 		return nil, err

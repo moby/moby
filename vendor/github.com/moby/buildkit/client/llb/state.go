@@ -240,18 +240,18 @@ func (s State) File(a *FileAction, opts ...ConstraintsOpt) State {
 }
 
 func (s State) AddEnv(key, value string) State {
-	return s.AddEnvf(key, value)
+	return addEnvf(key, value, false)(s)
 }
 
 func (s State) AddEnvf(key, value string, v ...interface{}) State {
-	return addEnvf(key, value, v...)(s)
+	return addEnvf(key, value, true, v...)(s)
 }
 
 func (s State) Dir(str string) State {
-	return s.Dirf(str)
+	return dirf(str, false)(s)
 }
 func (s State) Dirf(str string, v ...interface{}) State {
-	return dirf(str, v...)(s)
+	return dirf(str, true, v...)(s)
 }
 
 func (s State) GetEnv(key string) (string, bool) {

@@ -35,6 +35,9 @@ type fileOp struct {
 }
 
 func NewFileOp(v solver.Vertex, op *pb.Op_File, cm cache.Manager, md *metadata.Store, w worker.Worker) (solver.Op, error) {
+	if err := llbsolver.ValidateOp(&pb.Op{Op: op}); err != nil {
+		return nil, err
+	}
 	return &fileOp{
 		op:        op.File,
 		md:        md,

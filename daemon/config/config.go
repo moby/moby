@@ -109,6 +109,13 @@ type CommonTLSOptions struct {
 	KeyFile  string `json:"tlskey,omitempty"`
 }
 
+// DNSConfig defines the DNS configurations.
+type DNSConfig struct {
+	DNS        []string `json:"dns,omitempty"`
+	DNSOptions []string `json:"dns-opts,omitempty"`
+	DNSSearch  []string `json:"dns-search,omitempty"`
+}
+
 // CommonConfig defines the configuration of a docker daemon which is
 // common across platforms.
 // It includes json tags to deserialize configuration from a file
@@ -119,9 +126,6 @@ type CommonConfig struct {
 	AutoRestart           bool                      `json:"-"`
 	Context               map[string][]string       `json:"-"`
 	DisableBridge         bool                      `json:"-"`
-	DNS                   []string                  `json:"dns,omitempty"`
-	DNSOptions            []string                  `json:"dns-opts,omitempty"`
-	DNSSearch             []string                  `json:"dns-search,omitempty"`
 	ExecOptions           []string                  `json:"exec-opts,omitempty"`
 	GraphDriver           string                    `json:"storage-driver,omitempty"`
 	GraphOptions          []string                  `json:"storage-opts,omitempty"`
@@ -200,6 +204,7 @@ type CommonConfig struct {
 
 	MetricsAddress string `json:"metrics-addr"`
 
+	DNSConfig
 	LogConfig
 	BridgeConfig // bridgeConfig holds bridge network specific configuration.
 	NetworkConfig

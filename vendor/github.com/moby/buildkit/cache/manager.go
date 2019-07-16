@@ -157,14 +157,14 @@ func (cm *cacheManager) get(ctx context.Context, id string, fromSnapshotter bool
 func (cm *cacheManager) getRecord(ctx context.Context, id string, fromSnapshotter bool, opts ...RefOption) (cr *cacheRecord, retErr error) {
 	if rec, ok := cm.records[id]; ok {
 		if rec.isDead() {
-			return nil, errNotFound
+			return nil, errors.Wrapf(errNotFound, "failed to get dead record %s", id)
 		}
 		return rec, nil
 	}
 
 	md, ok := cm.md.Get(id)
 	if !ok && !fromSnapshotter {
-		return nil, errNotFound
+		return nil, errors.WithStack(errNotFound)
 	}
 	if mutableID := getEqualMutable(md); mutableID != "" {
 		mutable, err := cm.getRecord(ctx, mutableID, fromSnapshotter)
@@ -222,7 +222,7 @@ func (cm *cacheManager) getRecord(ctx context.Context, id string, fromSnapshotte
 		if err := rec.remove(ctx, true); err != nil {
 			return nil, err
 		}
-		return nil, errNotFound
+		return nil, errors.Wrapf(errNotFound, "failed to get deleted record %s", id)
 	}
 
 	if err := initializeMetadata(rec, opts...); err != nil {
@@ -330,14 +330,14 @@ func (cm *cacheManager) Prune(ctx context.Context, ch chan client.UsageInfo, opt
 func (cm *cacheManager) pruneOnce(ctx context.Context, ch chan client.UsageInfo, opt client.PruneInfo) error {
 	filter, err := filters.ParseAll(opt.Filter...)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to parse prune filters %v", opt.Filter)
 	}
 
 	var check ExternalRefChecker
 	if f := cm.PruneRefChecker; f != nil && (!opt.All || len(opt.Filter) > 0) {
 		c, err := f()
 		if err != nil {
-			return err
+			return errors.WithStack(err)
 		}
 		check = c
 	}
@@ -549,7 +549,7 @@ func (cm *cacheManager) markShared(m map[string]*cacheUsageInfo) error {
 	}
 	c, err := cm.PruneRefChecker()
 	if err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	var markAllParentsShared func(string)
@@ -590,7 +590,7 @@ type cacheUsageInfo struct {
 func (cm *cacheManager) DiskUsage(ctx context.Context, opt client.DiskUsageInfo) ([]*client.UsageInfo, error) {
 	filter, err := filters.ParseAll(opt.Filter...)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to parse diskusage filters %v", opt.Filter)
 	}
 
 	cm.mu.Lock()

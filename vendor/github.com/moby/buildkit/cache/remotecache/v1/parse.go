@@ -12,7 +12,7 @@ import (
 func Parse(configJSON []byte, provider DescriptorProvider, t solver.CacheExporterTarget) error {
 	var config CacheConfig
 	if err := json.Unmarshal(configJSON, &config); err != nil {
-		return err
+		return errors.WithStack(err)
 	}
 
 	return ParseConfig(config, provider, t)
