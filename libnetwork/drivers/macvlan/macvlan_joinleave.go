@@ -73,6 +73,15 @@ func (d *driver) Join(nid, eid string, sboxKey string, jinfo driverapi.JoinInfo,
 			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s Gateway: %s MacVlan_Mode: %s, Parent: %s",
 				ep.addrv6.IP.String(), v6gw.String(), n.config.MacvlanMode, n.config.Parent)
 		}
+	} else {
+		if len(n.config.Ipv4Subnets) > 0 {
+			logrus.Debugf("Macvlan Endpoint Joined with IPv4_Addr: %s, MacVlan_Mode: %s, Parent: %s",
+				ep.addr.IP.String(), n.config.MacvlanMode, n.config.Parent)
+		}
+		if len(n.config.Ipv6Subnets) > 0 {
+			logrus.Debugf("Macvlan Endpoint Joined with IPv6_Addr: %s MacVlan_Mode: %s, Parent: %s",
+				ep.addrv6.IP.String(), n.config.MacvlanMode, n.config.Parent)
+		}
 	}
 	iNames := jinfo.InterfaceName()
 	err = iNames.SetNames(vethName, containerVethPrefix)
