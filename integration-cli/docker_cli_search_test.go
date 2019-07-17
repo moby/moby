@@ -32,16 +32,6 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 	out, _, err = dockerCmdWithError("search", "-f", "is-official=a", "busybox")
 	assert.ErrorContains(c, err, "", out)
 	assert.Assert(c, strings.Contains(out, "Invalid filter"), "couldn't find the invalid filter warning")
-
-	// -s --stars deprecated since Docker 1.13
-	out, _, err = dockerCmdWithError("search", "--stars=a", "busybox")
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "invalid syntax"), "couldn't find the invalid value warning")
-
-	// -s --stars deprecated since Docker 1.13
-	out, _, err = dockerCmdWithError("search", "-s=-1", "busybox")
-	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "invalid syntax"), "couldn't find the invalid value warning")
 }
 
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
