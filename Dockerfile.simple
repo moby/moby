@@ -5,7 +5,9 @@
 
 # This represents the bare minimum required to build and test Docker.
 
-FROM golang:1.12.7
+ARG GO_VERSION=1.12.7
+
+FROM golang:${GO_VERSION}
 
 # allow replacing httpredir or deb mirror
 ARG APT_MIRROR=deb.debian.org
