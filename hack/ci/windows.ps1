@@ -453,7 +453,7 @@ Try {
         Write-Host  -ForegroundColor Cyan "`n`nINFO: Building the image from Dockerfile.windows at $(Get-Date)..."
         Write-Host
         $ErrorActionPreference = "SilentlyContinue"
-        $Duration=$(Measure-Command { docker build -t docker -f Dockerfile.windows . | Out-Host })
+        $Duration=$(Measure-Command { docker build --build-arg=GO_VERSION -t docker -f Dockerfile.windows . | Out-Host })
         $ErrorActionPreference = "Stop"
         if (-not($LastExitCode -eq 0)) {
            Throw "ERROR: Failed to build image from Dockerfile.windows"

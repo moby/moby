@@ -1,4 +1,6 @@
-FROM golang:1.12.7-alpine as base
+ARG GO_VERSION=1.12.7
+
+FROM golang:${GO_VERSION}-alpine AS base
 
 RUN apk --no-cache add \
     bash \
