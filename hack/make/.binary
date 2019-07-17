@@ -44,27 +44,27 @@ if [ "$(go env GOOS)/$(go env GOARCH)" != "$(go env GOHOSTOS)/$(go env GOHOSTARC
 	# must be cross-compiling!
 	case "$(go env GOOS)/$(go env GOARCH)" in
 		windows/amd64)
-			export CC=x86_64-w64-mingw32-gcc
+			export CC="${CC:-x86_64-w64-mingw32-gcc}"
 			export CGO_ENABLED=1
 			;;
 		linux/arm)
 			case "${GOARM}" in
 			5|"")
-				export CC=arm-linux-gnueabi-gcc
+				export CC="${CC:-arm-linux-gnueabi-gcc}"
 				export CGO_ENABLED=1
 				;;
 			7)
-				export CC=arm-linux-gnueabihf-gcc
+				export CC="${CC:-arm-linux-gnueabihf-gcc}"
 				export CGO_ENABLED=1
 				;;
 			esac
 			;;
 		linux/arm64)
-			export CC=aarch64-linux-gnu-gcc
+			export CC="${CC:-aarch64-linux-gnu-gcc}"
 			export CGO_ENABLED=1
 			;;
 		linux/amd64)
-			export CC=x86_64-linux-gnu-gcc
+			export CC="${CC:-x86_64-linux-gnu-gcc}"
 			export CGO_ENABLED=1
 			;;
 	esac
