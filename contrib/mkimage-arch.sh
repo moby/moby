@@ -24,50 +24,50 @@ chmod 755 $ROOTFS
 
 # required packages
 PKGREQUIRED=(
-    bash
-    haveged
-    pacman
-    pacman-mirrorlist
+	bash
+	haveged
+	pacman
+	pacman-mirrorlist
 )
 
 # packages to ignore for space savings
 PKGIGNORE=(
-    dhcpcd
-    diffutils
-    file
-    inetutils
-    iproute2
-    iputils
-    jfsutils
-    licenses
-    linux
-    linux-firmware
-    lvm2
-    man-db
-    man-pages
-    mdadm
-    nano
-    netctl
-    openresolv
-    pciutils
-    pcmciautils
-    psmisc
-    reiserfsprogs
-    s-nail
-    sysfsutils
-    systemd-sysvcompat
-    usbutils
-    vi
-    which
-    xfsprogs
+	dhcpcd
+	diffutils
+	file
+	inetutils
+	iproute2
+	iputils
+	jfsutils
+	licenses
+	linux
+	linux-firmware
+	lvm2
+	man-db
+	man-pages
+	mdadm
+	nano
+	netctl
+	openresolv
+	pciutils
+	pcmciautils
+	psmisc
+	reiserfsprogs
+	s-nail
+	sysfsutils
+	systemd-sysvcompat
+	usbutils
+	vi
+	which
+	xfsprogs
 )
 
 PKGREMOVE=(
-    gawk
-    haveged 
-    less
-    linux-libre
-    linux-libre-firmware
+	gawk
+	haveged 
+	less
+	linux-libre
+	linux-libre-firmware
 )
 
 PKGREQUIRED="${PKGREQUIRED[*]}"
@@ -115,7 +115,7 @@ expect <<EOF
 	}
 	set timeout $EXPECT_TIMEOUT
 
-  spawn pacstrap -C $PACMAN_CONF -c -d -G -i $ROOTFS base $PKGREQUIRED $PACMAN_EXTRA_PKGS --ignore $PKGIGNORE
+	spawn pacstrap -C $PACMAN_CONF -c -d -G -i $ROOTFS base $PKGREQUIRED $PACMAN_EXTRA_PKGS --ignore $PKGIGNORE
 	expect {
 		-exact "anyway? \[Y/n\] " { send -- "n\r"; exp_continue }
 		-exact "(default=all): " { send -- "\r"; exp_continue }
