@@ -10,8 +10,6 @@ import (
 
 // search for repos named  "registry" on the central registry
 func (s *DockerSuite) TestSearchOnCentralRegistry(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-
 	out, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Contains(out, "Busybox base image."), "couldn't find any repository named (or containing) 'Busybox base image.'")
 }
@@ -35,8 +33,6 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 }
 
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-
 	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Count(outSearchCmd, "\n") > 3, outSearchCmd)
 
@@ -65,15 +61,11 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 
 // search for repos which start with "ubuntu-" on the central registry
 func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-
 	dockerCmd(c, "search", "ubuntu-")
 }
 
 // test case for #23055
 func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
-	testRequires(c, Network, DaemonIsLinux)
-
 	for _, limit := range []int{10, 50, 100} {
 		out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
 		assert.NilError(c, err)
