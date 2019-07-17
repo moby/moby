@@ -74,29 +74,15 @@ func (s *DockerSuite) TestSearchOnCentralRegistryWithDash(c *check.C) {
 func (s *DockerSuite) TestSearchWithLimit(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
 
-	limit := 10
-	out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
-	assert.NilError(c, err)
-	outSlice := strings.Split(out, "\n")
-	assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
+	for _, limit := range []int{10, 50, 100} {
+		out, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+		assert.NilError(c, err)
+		outSlice := strings.Split(out, "\n")
+		assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
+	}
 
-	limit = 50
-	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
-	assert.NilError(c, err)
-	outSlice = strings.Split(out, "\n")
-	assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
-
-	limit = 100
-	out, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
-	assert.NilError(c, err)
-	outSlice = strings.Split(out, "\n")
-	assert.Equal(c, len(outSlice), limit+2) // 1 header, 1 carriage return
-
-	limit = 0
-	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
-	assert.ErrorContains(c, err, "")
-
-	limit = 200
-	_, _, err = dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
-	assert.ErrorContains(c, err, "")
+	for _, limit := range []int{-1, 0, 101} {
+		_, _, err := dockerCmdWithError("search", fmt.Sprintf("--limit=%d", limit), "docker")
+		assert.ErrorContains(c, err, "")
+	}
 }
