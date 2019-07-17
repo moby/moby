@@ -41,7 +41,7 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 
 		var postForm map[string]interface{}
 		if err := json.Unmarshal(b, &postForm); err == nil {
-			maskSecretKeys(postForm, r.RequestURI)
+			maskSecretKeys(postForm)
 			formStr, errMarshal := json.Marshal(postForm)
 			if errMarshal == nil {
 				logrus.Debugf("form data: %s", string(formStr))
@@ -54,41 +54,37 @@ func DebugRequestMiddleware(handler func(ctx context.Context, w http.ResponseWri
 	}
 }
 
-func maskSecretKeys(inp interface{}, path string) {
-	// Remove any query string from the path
-	idx := strings.Index(path, "?")
-	if idx != -1 {
-		path = path[:idx]
-	}
-	// Remove trailing / characters
-	path = strings.TrimRight(path, "/")
-
+func maskSecretKeys(inp interface{}) {
 	if arr, ok := inp.([]interface{}); ok {
 		for _, f := range arr {
-			maskSecretKeys(f, path)
+			maskSecretKeys(f)
 		}
 		return
 	}
 
 	if form, ok := inp.(map[string]interface{}); ok {
+		scrub := []string{
+			// Note: The Data field contains the base64-encoded secret in 'secret'
+			// and 'config' create and update requests. Currently, no other POST
+			// API endpoints use a data field, so we scrub this field unconditionally.
+			// Change this handling to be conditional if a new endpoint is added
+			// in future where this field should not be scrubbed.
+			"data",
+			"jointoken",
+			"password",
+			"secret",
+			"signingcakey",
+			"unlockkey",
+		}
 	loop0:
 		for k, v := range form {
-			for _, m := range []string{"password", "secret", "jointoken", "unlockkey", "signingcakey"} {
+			for _, m := range scrub {
 				if strings.EqualFold(m, k) {
 					form[k] = "*****"
 					continue loop0
 				}
 			}
-			maskSecretKeys(v, path)
-		}
-
-		// Route-specific redactions
-		if strings.HasSuffix(path, "/secrets/create") {
-			for k := range form {
-				if k == "Data" {
-					form[k] = "*****"
-				}
-			}
+			maskSecretKeys(v)
 		}
 	}
 }
