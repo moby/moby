@@ -30,7 +30,7 @@ ARG GO_VERSION=1.12.17
 ARG DEBIAN_FRONTEND=noninteractive
 ARG VPNKIT_DIGEST=e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e
 
-FROM golang:${GO_VERSION}-stretch AS base
+FROM golang:${GO_VERSION}-buster AS base
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
@@ -173,7 +173,7 @@ FROM dev-base AS containerd
 ARG DEBIAN_FRONTEND
 ARG CONTAINERD_COMMIT
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        btrfs-tools \
+        libbtrfs-dev \
     && rm -rf /var/lib/apt/lists/*
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
@@ -256,7 +256,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         aufs-tools \
         bash-completion \
         binutils-mingw-w64 \
-        btrfs-tools \
+        libbtrfs-dev \
         bzip2 \
         g++-mingw-w64-x86-64 \
         iptables \
