@@ -71,20 +71,6 @@ func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 	assert.Assert(c, strings.Count(outSearchCmdStars, "\n") <= strings.Count(outSearchCmd, "\n"), "Number of images with 10+ stars should be less than that of all images:\noutSearchCmdStars: %s\noutSearch: %s\n", outSearchCmdStars, outSearchCmd)
 
 	dockerCmd(c, "search", "--filter", "is-automated=true", "--filter", "stars=2", "--no-trunc=true", "busybox")
-
-	// --automated deprecated since Docker 1.13
-	outSearchCmdautomated1, _ := dockerCmd(c, "search", "--automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
-	outSearchCmdautomatedSlice1 := strings.Split(outSearchCmdautomated1, "\n")
-	for i := range outSearchCmdautomatedSlice1 {
-		assert.Assert(c, !strings.HasPrefix(outSearchCmdautomatedSlice1[i], "busybox "), "The busybox is not an AUTOMATED image: %s", outSearchCmdautomated)
-	}
-
-	// -s --stars deprecated since Docker 1.13
-	outSearchCmdStars1, _ := dockerCmd(c, "search", "--stars=2", "busybox")
-	assert.Assert(c, strings.Count(outSearchCmdStars1, "[OK]") <= strings.Count(outSearchCmd, "[OK]"), "The quantity of images with stars should be less than that of all images: %s", outSearchCmdStars1)
-
-	// -s --stars deprecated since Docker 1.13
-	dockerCmd(c, "search", "--stars=2", "--automated=true", "--no-trunc=true", "busybox")
 }
 
 // search for repos which start with "ubuntu-" on the central registry
