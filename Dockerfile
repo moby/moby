@@ -24,7 +24,9 @@
 # the case. Therefore, you don't have to disable it anymore.
 #
 
-FROM golang:1.11.12 AS base
+ARG GO_VERSION=1.11.12
+
+FROM golang:${GO_VERSION} AS base
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list

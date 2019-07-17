@@ -1,5 +1,6 @@
-## Step 1: Build tests
-FROM golang:1.11.12-alpine3.9 as builder
+ARG GO_VERSION=1.11.12
+
+FROM golang:${GO_VERSION}-alpine3.9 AS builder
 
 RUN apk --no-cache add \
     bash \
