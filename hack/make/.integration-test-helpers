@@ -20,6 +20,7 @@ integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
 	grep -vE '(^./integration($|/internal)|/testdata)')"}
 
 run_test_integration() {
+	set_platform_timeout
 	if [[ "$TESTFLAGS" != *-check.f* ]]; then
 		run_test_integration_suites
 	fi
@@ -108,10 +109,9 @@ test_env() {
 			"$@"
 	)
 }
-   
 
 error_on_leaked_containerd_shims() {
-	if [ "$(go env GOOS)" == 'windows' ]; then
+	if [ "$(go env GOOS)" = 'windows' ]; then
 		return
 	fi
 
@@ -122,5 +122,25 @@ error_on_leaked_containerd_shims() {
 		kill -9 ${leftovers} 2> /dev/null
 		echo "!!!! WARNING you have left over shim(s), Cleanup your test !!!!"
 		exit 1
+	fi
+}
+
+set_platform_timeout() {
+	# Test timeout.
+	if [ "${DOCKER_ENGINE_GOARCH}" = "arm64" ] || [ "${DOCKER_ENGINE_GOARCH}" = "arm" ]; then
+		: ${TIMEOUT:=10m}
+	elif [ "${DOCKER_ENGINE_GOARCH}" = "windows" ]; then
+		: ${TIMEOUT:=8m}
+	else
+		: ${TIMEOUT:=5m}
+	fi
+
+	if [ "${TEST_REPEAT}" -gt 1 ]; then
+		# TIMEOUT needs to take TEST_REPEAT into account, or a premature time out may happen.
+		# The following ugliness will:
+		# - remove last character (usually 'm' from '10m')
+		# - multiply by testcount
+		# - add last character back
+		TIMEOUT=$((${TIMEOUT::-1} * ${TEST_REPEAT}))${TIMEOUT:$((${#TIMEOUT}-1)):1}
 	fi
 }
