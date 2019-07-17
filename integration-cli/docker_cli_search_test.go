@@ -47,13 +47,8 @@ func (s *DockerSuite) TestSearchStarsOptionWithWrongParameter(c *check.C) {
 func (s *DockerSuite) TestSearchCmdOptions(c *check.C) {
 	testRequires(c, Network, DaemonIsLinux)
 
-	out, _ := dockerCmd(c, "search", "--help")
-	assert.Assert(c, strings.Contains(out, "Usage:\tdocker search [OPTIONS] TERM"))
-
 	outSearchCmd, _ := dockerCmd(c, "search", "busybox")
 	assert.Assert(c, strings.Count(outSearchCmd, "\n") > 3, outSearchCmd)
-	outSearchCmdNotrunc, _ := dockerCmd(c, "search", "--no-trunc=true", "busybox")
-	assert.Assert(c, len(outSearchCmd) <= len(outSearchCmdNotrunc), "The no-trunc option can't take effect.")
 
 	outSearchCmdautomated, _ := dockerCmd(c, "search", "--filter", "is-automated=true", "busybox") //The busybox is a busybox base image, not an AUTOMATED image.
 	outSearchCmdautomatedSlice := strings.Split(outSearchCmdautomated, "\n")
