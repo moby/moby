@@ -47,22 +47,27 @@ func SetServiceTasksRemove(ctx context.Context, s *store.MemoryStore, service *a
 	err = s.Batch(func(batch *store.Batch) error {
 		for _, t := range tasks {
 			err := batch.Update(func(tx store.Tx) error {
+				// the task may have changed for some reason in the meantime
+				// since we read it out, so we need to get from the store again
+				// within the boundaries of a transaction
+				latestTask := store.GetTask(tx, t.ID)
+
 				// time travel is not allowed. if the current desired state is
 				// above the one we're trying to go to we can't go backwards.
 				// we have nothing to do and we should skip to the next task
-				if t.DesiredState > api.TaskStateRemove {
+				if latestTask.DesiredState > api.TaskStateRemove {
 					// log a warning, though. we shouln't be trying to rewrite
 					// a state to an earlier state
 					log.G(ctx).Warnf(
 						"cannot update task %v in desired state %v to an earlier desired state %v",
-						t.ID, t.DesiredState, api.TaskStateRemove,
+						latestTask.ID, latestTask.DesiredState, api.TaskStateRemove,
 					)
 					return nil
 				}
 				// update desired state to REMOVE
-				t.DesiredState = api.TaskStateRemove
+				latestTask.DesiredState = api.TaskStateRemove
 
-				if err := store.UpdateTask(tx, t); err != nil {
+				if err := store.UpdateTask(tx, latestTask); err != nil {
 					log.G(ctx).WithError(err).Errorf("failed transaction: update task desired state to REMOVE")
 				}
 				return nil

@@ -238,7 +238,7 @@ func (d *Dispatcher) Run(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			if err == nil && len(clusters) == 1 {
+			if len(clusters) == 1 {
 				heartbeatPeriod, err := gogotypes.DurationFromProto(clusters[0].Spec.Dispatcher.HeartbeatPeriod)
 				if err == nil && heartbeatPeriod > 0 {
 					d.config.HeartbeatPeriod = heartbeatPeriod
