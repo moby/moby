@@ -28,7 +28,7 @@ func (s *DockerSwarmSuite) TestServiceHealthRun(c *check.C) {
 	result := cli.BuildCmd(c, imageName, cli.Daemon(d),
 		build.WithDockerfile(`FROM busybox
 		RUN touch /status
-		HEALTHCHECK --interval=1s --timeout=1s --retries=1\
+		HEALTHCHECK --interval=1s --timeout=5s --retries=1\
 		  CMD cat /status`),
 	)
 	result.Assert(c, icmd.Success)
