@@ -34,18 +34,20 @@ source hack/make/.integration-test-helpers
 			bundle .integration-daemon-stop
 			return 0
 	esac
-
 	docker_py_image="docker-sdk-python3:${DOCKER_PY_COMMIT}"
 	if ! docker image inspect "dockerPyImage" &> /dev/null; then
 		echo INFO: Building ${docker_py_image}...
 		(
 			[ -n "${TESTDEBUG}" ] && set -x
 			[ -z "${TESTDEBUG}" ] && build_opts="--quiet"
-			[ -f /.dockerenv ] || build_opts="${build_opts} --network=host"
+			# Previous integration tests might mess up the DNS options or /etc/hosts
+			# so always build in hostNetwork mode
+			build_opts="${build_opts} --network=host"
 			exec docker build ${build_opts} -t ${docker_py_image} -f tests/Dockerfile "https://github.com/docker/docker-py.git#${DOCKER_PY_COMMIT}"
 		)
 	fi
-
+	# Clean up unused docker networks
+	docker network prune -f
 	echo INFO: Starting docker-py tests...
 	(
 		[ -n "${TESTDEBUG}" ] && set -x

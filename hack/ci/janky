@@ -2,13 +2,15 @@
 # Entrypoint for jenkins janky CI build
 set -eu -o pipefail
 
+export TESTDEBUG=1
+
 hack/validate/default
 hack/test/unit
 
 hack/make.sh \
 	binary-daemon \
 	dynbinary \
-	test-docker-py \
 	test-integration-flaky \
 	test-integration \
-	cross
+	cross \
+	test-docker-py
