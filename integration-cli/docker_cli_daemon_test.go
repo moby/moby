@@ -2696,8 +2696,8 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeout(c *check.C) {
 }
 
 // Test case for #22471
-func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon)
+func (s *DockerSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) {
+	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	// daemon config file
 	configFilePath := "test.json"
@@ -2705,10 +2705,15 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	assert.NilError(c, err)
 	defer os.Remove(configFilePath)
 
+	d := daemon.New(c, dockerBinary, dockerdBinary,
+		testdaemon.WithEnvironment(testEnv.Execution),
+		testdaemon.WithShutDownTimeOut(0),
+	)
+
 	daemonConfig := `{ "shutdown-timeout" : 8 }`
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
+	d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
 
 	configFile, err = os.Create(configFilePath)
 	assert.NilError(c, err)
@@ -2716,17 +2721,16 @@ func (s *DockerDaemonSuite) TestDaemonShutdownTimeoutWithConfigFile(c *check.C) 
 	fmt.Fprintf(configFile, "%s", daemonConfig)
 	configFile.Close()
 
-	c.Assert(s.d.Signal(unix.SIGHUP), checker.IsNil)
+	c.Assert(d.Signal(unix.SIGHUP), checker.IsNil)
 
 	select {
-	case <-s.d.Wait:
+	case <-d.Wait:
 	case <-time.After(3 * time.Second):
 	}
 
-	expectedMessage := `level=debug msg="Reset Shutdown Timeout: 5"`
-	content, err := s.d.ReadLogFile()
+	content, err := d.ReadLogFile()
 	assert.NilError(c, err)
-	c.Assert(string(content), checker.Contains, expectedMessage)
+	c.Assert(string(content), checker.Contains, `level=debug msg="Reset Shutdown Timeout: 5"`)
 }
 
 // Test case for 29342
