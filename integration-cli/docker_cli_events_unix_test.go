@@ -18,6 +18,7 @@ import (
 	"github.com/kr/pty"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
+	"gotest.tools/fs"
 )
 
 // #5979
@@ -390,42 +391,19 @@ func (s *DockerSuite) TestEventsFilterNetworkID(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	// daemon config file
-	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
-	defer os.Remove(configFilePath)
+	configFile := fs.NewFile(c, "config", fs.WithContent(`{"max-concurrent-downloads":1,"labels":["bar=foo"]}`))
+	defer configFile.Remove()
 
-	daemonConfig := `{"labels":["foo=bar"]}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFile.Path()))
 
-	// Get daemon ID
-	out, err := s.d.Cmd("info")
-	assert.NilError(c, err)
-	daemonID := ""
-	daemonName := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "ID: ") {
-			daemonID = strings.TrimPrefix(line, "ID: ")
-		} else if strings.HasPrefix(line, "Name: ") {
-			daemonName = strings.TrimPrefix(line, "Name: ")
-		}
-	}
-	assert.Assert(c, daemonID != "")
-
-	configFile, err = os.Create(configFilePath)
-	assert.NilError(c, err)
-	daemonConfig = `{"max-concurrent-downloads":1,"labels":["bar=foo"], "shutdown-timeout": 10}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
+	info := s.d.Info(c)
+	daemonID := info.ID
+	daemonName := info.Name
 
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
-
 	time.Sleep(3 * time.Second)
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
+	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c))
 	assert.NilError(c, err)
 
 	// only check for values known (daemon ID/name) or explicitly set above,
@@ -448,46 +426,30 @@ func (s *DockerDaemonSuite) TestDaemonEvents(c *check.C) {
 		" name=" + daemonName,
 		" registry-mirrors=[",
 		" runtimes=",
-		" shutdown-timeout=10)",
 	}
 
 	for _, s := range expectedSubstrings {
-		assert.Check(c, strings.Contains(out, s))
+		assert.Check(c, strings.Contains(out, s), "event %q not found in output", s)
 	}
 }
 
 func (s *DockerDaemonSuite) TestDaemonEventsWithFilters(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	// daemon config file
-	configFilePath := "test.json"
-	configFile, err := os.Create(configFilePath)
-	assert.NilError(c, err)
-	defer os.Remove(configFilePath)
+	configFile := fs.NewFile(c, "config", fs.WithContent(`{"labels":["foo=bar"]}`))
+	defer configFile.Remove()
 
-	daemonConfig := `{"labels":["foo=bar"]}`
-	fmt.Fprintf(configFile, "%s", daemonConfig)
-	configFile.Close()
-	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFilePath))
+	s.d.Start(c, fmt.Sprintf("--config-file=%s", configFile.Path()))
 
-	// Get daemon ID
-	out, err := s.d.Cmd("info")
-	assert.NilError(c, err)
-	daemonID := ""
-	daemonName := ""
-	for _, line := range strings.Split(out, "\n") {
-		if strings.HasPrefix(line, "ID: ") {
-			daemonID = strings.TrimPrefix(line, "ID: ")
-		} else if strings.HasPrefix(line, "Name: ") {
-			daemonName = strings.TrimPrefix(line, "Name: ")
-		}
-	}
-	assert.Assert(c, daemonID != "")
+	info := s.d.Info(c)
+	daemonID := info.ID
+	daemonName := info.Name
+
 	assert.NilError(c, s.d.Signal(unix.SIGHUP))
 
 	time.Sleep(3 * time.Second)
 
-	out, err = s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonID))
+	out, err := s.d.Cmd("events", "--since=0", "--until", daemonUnixTime(c), "--filter", fmt.Sprintf("daemon=%s", daemonID))
 	assert.NilError(c, err)
 	assert.Assert(c, strings.Contains(out, fmt.Sprintf("daemon reload %s", daemonID)))
 
