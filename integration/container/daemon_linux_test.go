@@ -32,7 +32,9 @@ func TestContainerStartOnDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t, "--iptables=false")
 	defer d.Stop(t)
 
@@ -86,7 +88,9 @@ func TestDaemonRestartIpcMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t, "--iptables=false", "--default-ipc-mode=private")
 	defer d.Stop(t)
 

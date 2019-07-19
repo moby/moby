@@ -35,8 +35,9 @@ func testServiceCreateInit(daemonEnabled bool) func(t *testing.T) {
 		if daemonEnabled {
 			ops = append(ops, daemon.WithInit)
 		}
-		d := swarm.NewSwarm(t, testEnv, ops...)
-		defer d.Stop(t)
+		d, cleanup := swarm.NewSwarm(t, testEnv, ops...)
+		defer cleanup(t)
+
 		client := d.NewClientT(t)
 		defer client.Close()
 
@@ -77,8 +78,9 @@ func inspectServiceContainer(t *testing.T, client client.APIClient, serviceID st
 func TestCreateServiceMultipleTimes(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -126,8 +128,9 @@ func TestCreateServiceMultipleTimes(t *testing.T) {
 func TestCreateServiceConflict(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 	defer c.Close()
 	ctx := context.Background()
@@ -147,7 +150,9 @@ func TestCreateServiceConflict(t *testing.T) {
 
 func TestCreateServiceMaxReplicas(t *testing.T) {
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	defer d.Stop(t)
 	client := d.NewClientT(t)
 	defer client.Close()
@@ -168,8 +173,9 @@ func TestCreateServiceMaxReplicas(t *testing.T) {
 func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -221,8 +227,10 @@ func TestCreateWithDuplicateNetworkNames(t *testing.T) {
 func TestCreateServiceSecretFileMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -285,8 +293,10 @@ func TestCreateServiceSecretFileMode(t *testing.T) {
 func TestCreateServiceConfigFileMode(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -375,8 +385,9 @@ func TestCreateServiceSysctls(t *testing.T) {
 	)
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -459,8 +470,9 @@ func TestCreateServiceCapabilities(t *testing.T) {
 	)
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 

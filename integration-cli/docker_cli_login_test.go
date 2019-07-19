@@ -22,10 +22,11 @@ func (s *DockerSuite) TestLoginWithoutTTY(c *check.C) {
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestLoginToPrivateRegistry(c *check.C) {
 	// wrong credentials
-	out, _, err := dockerCmdWithError("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", privateRegistryURL)
+	s.d.Start(c)
+	out, err := s.d.Cmd("login", "-u", s.reg.Username(), "-p", "WRONGPASSWORD", s.reg.URL())
 	assert.ErrorContains(c, err, "", out)
-	assert.Assert(c, strings.Contains(out, "401 Unauthorized"))
+	assert.Assert(c, strings.Contains(out, "401 Unauthorized"), out)
 
 	// now it's fine
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
+	s.d.CmdT(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), s.reg.URL())
 }

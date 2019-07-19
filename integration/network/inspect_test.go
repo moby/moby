@@ -15,8 +15,9 @@ import (
 func TestInspectNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows", "FIXME")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 	defer c.Close()
 

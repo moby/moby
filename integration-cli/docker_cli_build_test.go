@@ -5000,18 +5000,19 @@ func (s *DockerSuite) TestBuildLabelMultiple(c *check.C) {
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TestBuildFromAuthenticatedRegistry(c *check.C) {
-	dockerCmd(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
-	baseImage := privateRegistryURL + "/baseimage"
+	s.d.StartWithBusybox(c)
+	s.d.CmdT(c, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), s.reg.URL())
+	baseImage := s.reg.URL() + "/baseimage"
 
-	buildImageSuccessfully(c, baseImage, build.WithDockerfile(`
+	buildImageSuccessfully(c, baseImage, cli.Daemon(s.d), build.WithDockerfile(`
 	FROM busybox
 	ENV env1 val1
 	`))
 
-	dockerCmd(c, "push", baseImage)
-	dockerCmd(c, "rmi", baseImage)
+	s.d.CmdT(c, "push", baseImage)
+	s.d.CmdT(c, "rmi", baseImage)
 
-	buildImageSuccessfully(c, baseImage, build.WithDockerfile(fmt.Sprintf(`
+	buildImageSuccessfully(c, baseImage, cli.Daemon(s.d), build.WithDockerfile(fmt.Sprintf(`
 	FROM %s
 	ENV env2 val2
 	`, baseImage)))

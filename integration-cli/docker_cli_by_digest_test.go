@@ -190,7 +190,8 @@ func (s *DockerRegistrySuite) TestBuildByDigest(c *check.C) {
 	dockerCmd(c, "pull", imageReference)
 
 	// get the image id
-	imageID := inspectField(c, imageReference, "Id")
+	out, _ := dockerCmd(c, "inspect", "--format", ".Id", imageReference)
+	imageID := strings.TrimSpace(out)
 
 	// do the build
 	name := "buildbydigest"
@@ -634,7 +635,7 @@ func (s *DockerRegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", testEnv.DaemonInfo.Driver, "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 
@@ -677,7 +678,7 @@ func (s *DockerSchema1RegistrySuite) TestPullFailsWithAlteredLayer(c *check.C) {
 	// digest verification for the target layer digest.
 
 	// Remove distribution cache to force a re-pull of the blobs
-	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", s.d.StorageDriver(), "distribution")); err != nil {
+	if err := os.RemoveAll(filepath.Join(testEnv.DaemonInfo.DockerRootDir, "image", testEnv.DaemonInfo.Driver, "distribution")); err != nil {
 		c.Fatalf("error clearing distribution cache: %v", err)
 	}
 

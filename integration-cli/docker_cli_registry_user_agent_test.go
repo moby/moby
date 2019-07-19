@@ -75,12 +75,11 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	var ua string
 
 	reg, err := registry.NewMock(c)
-	defer reg.Close()
 	assert.NilError(c, err)
 	registerUserAgentHandler(reg, &ua)
 	repoName := fmt.Sprintf("%s/busybox", reg.URL())
 
-	s.d.StartWithBusybox(c, "--insecure-registry", reg.URL())
+	defer reg.Close()
 
 	tmp, err := ioutil.TempDir("", "integration-cli-")
 	assert.NilError(c, err)
@@ -89,16 +88,16 @@ func (s *DockerRegistrySuite) TestUserAgentPassThrough(c *check.C) {
 	dockerfile, err := makefile(tmp, fmt.Sprintf("FROM %s", repoName))
 	assert.NilError(c, err, "Unable to create test dockerfile")
 
-	s.d.Cmd("build", "--file", dockerfile, tmp)
+	dockerCmdWithError("build", "--file", dockerfile, tmp)
 	regexpCheckUA(c, ua)
 
-	s.d.Cmd("login", "-u", "richard", "-p", "testtest", reg.URL())
+	dockerCmdWithError("login", "-u", "richard", "-p", "testtest", reg.URL())
 	regexpCheckUA(c, ua)
 
-	s.d.Cmd("pull", repoName)
+	dockerCmdWithError("pull", repoName)
 	regexpCheckUA(c, ua)
 
-	s.d.Cmd("tag", "busybox", repoName)
-	s.d.Cmd("push", repoName)
+	dockerCmdWithError("tag", "busybox", repoName)
+	dockerCmdWithError("push", repoName)
 	regexpCheckUA(c, ua)
 }

@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
@@ -22,7 +22,7 @@ import (
 var (
 	testEnv *environment.Execution
 	d       *daemon.Daemon
-	server  *httptest.Server
+	server  *http.Server
 )
 
 func TestMain(m *testing.M) {
@@ -39,7 +39,10 @@ func TestMain(m *testing.M) {
 	}
 
 	testEnv.Print()
-	setupSuite()
+	if err := setupSuite(); err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	exitCode := m.Run()
 	teardownSuite()
 
@@ -51,20 +54,30 @@ func setupTest(t *testing.T) func() {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	environment.ProtectAll(t, testEnv)
 
-	d = daemon.New(t, daemon.WithExperimental)
+	td, cleanup := daemon.New(t, daemon.WithExperimental)
+	defer cleanup(t)
+	d = td
 
 	return func() {
 		if d != nil {
-			d.Stop(t)
+			cleanup(t)
 		}
 		testEnv.Clean(t)
 	}
 }
 
-func setupSuite() {
-	mux := http.NewServeMux()
-	server = httptest.NewServer(mux)
+func setupSuite() error {
+	err := os.MkdirAll("/run/docker/plugins", 0755)
+	if err != nil {
+		return err
+	}
 
+	l, err := net.Listen("unix", "/run/docker/plugins/"+testAuthZPlugin+".sock")
+	if err != nil {
+		return err
+	}
+
+	mux := http.NewServeMux()
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		b, err := json.Marshal(plugins.Manifest{Implements: []string{authorization.AuthZApiImplements}})
 		if err != nil {
@@ -144,6 +157,10 @@ func setupSuite() {
 		ctrl.resUser = authReq.User
 		w.Write(b)
 	})
+
+	server = &http.Server{Handler: mux}
+	go server.Serve(l)
+	return nil
 }
 
 func teardownSuite() {

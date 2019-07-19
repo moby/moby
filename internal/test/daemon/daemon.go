@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -13,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/containerd/go-cni"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/client"
@@ -89,15 +91,19 @@ type Daemon struct {
 	DataPathPort    uint32
 	// cached information
 	CachedInfo types.Info
+
+	cleanupHandlers []func(testingT)
+	cniConfig       *cni.CNIResult
 }
 
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, ops ...func(*Daemon)) *Daemon {
+func New(t testingT, ops ...func(*Daemon)) (_ *Daemon, cleanup func(t testingT)) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
+
 	t.Log("Creating a new daemon")
 	dest := os.Getenv("DOCKER_INTEGRATION_DAEMON_DEST")
 	if dest == "" {
@@ -147,7 +153,9 @@ func New(t testingT, ops ...func(*Daemon)) *Daemon {
 		op(d)
 	}
 
-	return d
+	d.ensureNetworking(t)
+
+	return d, d.Cleanup
 }
 
 // ContainersNamespace returns the containerd namespace used for containers.
@@ -211,9 +219,17 @@ func (d *Daemon) Cleanup(t testingT) {
 	if ht, ok := t.(test.HelperT); ok {
 		ht.Helper()
 	}
+
+	if err := d.StopWithError(); err != nil && err != errDaemonNotStarted {
+		t.Logf("Error stopping daemon: %v", err)
+	}
 	// Cleanup swarmkit wal files if present
 	cleanupRaftDir(t, d.Root)
 	cleanupNetworkNamespace(t, d.execRoot)
+
+	for _, f := range d.cleanupHandlers {
+		f(t)
+	}
 }
 
 // Start starts the daemon and return once it is ready to receive requests.
@@ -294,10 +310,21 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 	d.cmd.Env = append(os.Environ(), "DOCKER_SERVICE_PREFER_OFFLINE_IMAGE=1")
 	d.cmd.Stdout = out
 	d.cmd.Stderr = out
+	if err := d.configureCmd(); err != nil {
+		return err
+	}
+
 	d.logFile = out
 
+	var startErr error
 	if err := d.cmd.Start(); err != nil {
-		return errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
+		startErr = errors.Errorf("[%s] could not start daemon container: %v", d.id, err)
+	}
+	if err != nil {
+		return err
+	}
+	if startErr != nil {
+		return err
 	}
 
 	wait := make(chan error, 1)
@@ -330,7 +357,10 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
+	return d.waitReady(ctx, req, client)
+}
 
+func (d *Daemon) waitReady(ctx context.Context, req *http.Request, client *http.Client) error {
 	// make sure daemon is ready to receive requests
 	for i := 0; ; i++ {
 		d.log.Logf("[%s] waiting for daemon to start", d.id)
@@ -369,6 +399,8 @@ func (d *Daemon) StartWithLogFile(out *os.File, providedArgs ...string) error {
 			return nil
 		}
 	}
+
+	return nil
 }
 
 // StartWithBusybox will first start the daemon with Daemon.Start()
@@ -451,7 +483,7 @@ func (d *Daemon) Stop(t testingT) {
 // Stop will not delete the daemon directory. If a purged daemon is needed,
 // instantiate a new one with NewDaemon.
 func (d *Daemon) StopWithError() (err error) {
-	if d.cmd == nil || d.Wait == nil {
+	if d.cmd == nil || d.Wait == nil || d.cmd.Process == nil {
 		return errDaemonNotStarted
 	}
 	defer func() {
@@ -735,4 +767,23 @@ func cleanupRaftDir(t testingT, rootPath string) {
 // ImageService returns the Daemon's ImageService
 func (d *Daemon) ImageService() *images.ImageService {
 	return d.imageService
+}
+
+// IP returns the IP used to communicate with the daemon network namespace
+func (d *Daemon) IP(t assert.TestingT) net.IP {
+	if th, ok := t.(test.HelperT); ok {
+		th.Helper()
+	}
+	d.ensureNetworking(t)
+
+	for _, i := range d.cniConfig.Interfaces {
+		for _, cfg := range i.IPConfigs {
+			if cfg.IP.IsLoopback() {
+				continue
+			}
+			return cfg.IP
+		}
+	}
+
+	return nil
 }

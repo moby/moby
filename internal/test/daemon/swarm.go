@@ -47,9 +47,10 @@ func (d *Daemon) StartAndSwarmInit(t testingT) {
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
-	if th, ok := t.(test.HelperT); ok {
-		th.Helper()
+	if ht, ok := t.(test.HelperT); ok {
+		ht.Helper()
 	}
+
 	d.StartNode(t)
 
 	tokens := leader.JoinTokens(t)
@@ -84,6 +85,7 @@ func (d *Daemon) SwarmInit(t assert.TestingT, req swarm.InitRequest) {
 	}
 	if req.ListenAddr == "" {
 		req.ListenAddr = fmt.Sprintf("%s:%d", d.swarmListenAddr, d.SwarmPort)
+		req.AdvertiseAddr = req.ListenAddr
 	}
 	if req.DefaultAddrPool == nil {
 		req.DefaultAddrPool = d.DefaultAddrPool

@@ -5,13 +5,14 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/pkg/errors"
 	"gotest.tools/assert"
 	"gotest.tools/poll"
 )
 
 // PluginIsRunning provides a poller to check if the specified plugin is running
 func (d *Daemon) PluginIsRunning(t assert.TestingT, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+	return withClient(t, d, d.withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.Enabled {
 			return poll.Success()
 		}
@@ -21,7 +22,7 @@ func (d *Daemon) PluginIsRunning(t assert.TestingT, name string) func(poll.LogT)
 
 // PluginIsNotRunning provides a poller to check if the specified plugin is not running
 func (d *Daemon) PluginIsNotRunning(t assert.TestingT, name string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+	return withClient(t, d, d.withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if !plugin.Enabled {
 			return poll.Success()
 		}
@@ -45,7 +46,7 @@ func (d *Daemon) PluginIsNotPresent(t assert.TestingT, name string) func(poll.Lo
 
 // PluginReferenceIs provides a poller to check if the specified plugin has the specified reference
 func (d *Daemon) PluginReferenceIs(t assert.TestingT, name, expectedRef string) func(poll.LogT) poll.Result {
-	return withClient(t, d, withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
+	return withClient(t, d, d.withPluginInspect(name, func(plugin *types.Plugin, t poll.LogT) poll.Result {
 		if plugin.PluginReference == expectedRef {
 			return poll.Success()
 		}
@@ -53,14 +54,14 @@ func (d *Daemon) PluginReferenceIs(t assert.TestingT, name, expectedRef string) 
 	}))
 }
 
-func withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result) func(client.APIClient, poll.LogT) poll.Result {
+func (d *Daemon) withPluginInspect(name string, f func(*types.Plugin, poll.LogT) poll.Result) func(client.APIClient, poll.LogT) poll.Result {
 	return func(c client.APIClient, t poll.LogT) poll.Result {
 		plugin, _, err := c.PluginInspectWithRaw(context.Background(), name)
 		if client.IsErrNotFound(err) {
-			return poll.Continue("plugin %q not found", name)
+			return poll.Continue("[%s] plugin %q not found", d.id, name)
 		}
 		if err != nil {
-			return poll.Error(err)
+			return poll.Error(errors.Wrap(err, "["+d.id+"]"))
 		}
 		return f(plugin, t)
 	}

@@ -64,7 +64,9 @@ func TestDaemonRestartKillContainers(t *testing.T) {
 
 					t.Parallel()
 
-					d := daemon.New(t)
+					d, cleanup := daemon.New(t)
+					defer cleanup(t)
+
 					client := d.NewClientT(t)
 
 					args := []string{"--iptables=false"}

@@ -39,7 +39,9 @@ func getCgroupFromBuildOutput(buildOutput io.Reader) (string, error) {
 // Runs a docker build against a daemon with the given cgroup namespace default value.
 // Returns the container cgroup and daemon cgroup.
 func testBuildWithCgroupNs(t *testing.T, daemonNsMode string) (string, string) {
-	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	d, cleanup := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	defer cleanup(t)
+
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 

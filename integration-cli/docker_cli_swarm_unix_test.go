@@ -22,12 +22,16 @@ func (s *DockerSwarmSuite) TestSwarmVolumePlugin(c *check.C) {
 	// Make sure task stays pending before plugin is available
 	waitAndAssert(c, defaultReconciliationTimeout, d.CheckServiceTasksInStateWithError("top", swarm.TaskStatePending, "missing plugin on 1 node"), checker.Equals, 1)
 
-	plugin := newVolumePlugin(c, "customvolumedriver")
+	var plugin interface {
+		Close()
+	}
+
+	plugin = newVolumePlugin(c, "customvolumedriver")
 	defer plugin.Close()
 
 	// create a dummy volume to trigger lazy loading of the plugin
 	out, err = d.Cmd("volume", "create", "-d", "customvolumedriver", "hello")
-	assert.NilError(c, err, out)
+	assert.NilError(c, err, "could not create volume: %s", out)
 
 	// TODO(aaronl): It will take about 15 seconds for swarm to realize the
 	// plugin was loaded. Switching the test over to plugin v2 would avoid

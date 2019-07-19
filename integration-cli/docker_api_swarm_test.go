@@ -6,7 +6,6 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"net"
 	"net/http"
 	"path/filepath"
 	"runtime"
@@ -885,12 +884,27 @@ func (s *DockerSwarmSuite) TestAPISwarmUnlockNotLocked(c *check.C) {
 
 // #29885
 func (s *DockerSwarmSuite) TestAPISwarmErrorHandling(c *check.C) {
-	ln, err := net.Listen("tcp", fmt.Sprintf(":%d", defaultSwarmPort))
-	assert.NilError(c, err)
-	defer ln.Close()
 	d := s.AddDaemon(c, false, false)
 	client := d.NewClientT(c)
-	_, err = client.SwarmInit(context.Background(), swarm.InitRequest{
+
+	ctx := context.Background()
+
+	init := true
+	cont, err := client.ContainerCreate(
+		ctx,
+		&container.Config{Image: "busybox", Cmd: []string{"/bin/sh", "-c", fmt.Sprintf("nc -l 0.0.0.0:%d", defaultSwarmPort)}},
+		&container.HostConfig{NetworkMode: container.NetworkMode("host"), Init: &init},
+		nil,
+		"",
+	)
+	assert.NilError(c, err)
+
+	defer client.ContainerRemove(ctx, cont.ID, types.ContainerRemoveOptions{Force: true})
+
+	err = client.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
+	assert.NilError(c, err)
+
+	_, err = client.SwarmInit(ctx, swarm.InitRequest{
 		ListenAddr: d.SwarmListenAddr(),
 	})
 	assert.ErrorContains(c, err, "address already in use")

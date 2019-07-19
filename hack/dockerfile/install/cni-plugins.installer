@@ -1,0 +1,42 @@
+#!/bin/sh
+
+install_cni-plugins() {
+	CNI_PLUGINS_VERSION=v0.8.1
+
+	repo_path="${GOPATH}/src/github.com/containernetworking/plugins"
+	git clone https://github.com/containernetworking/plugins.git "${repo_path}"
+	cd "${repo_path}"
+
+	mkdir -p "${PREFIX}/bin"
+	go build -o ${PREFIX}/bin/bridge ./plugins/main/bridge
+	go build -o ${PREFIX}/bin/host-local ./plugins/ipam/host-local
+	go build -o ${PREFIX}/bin/loopback ./plugins/main/loopback
+
+	mkdir -p "${PREFIX}/conf"
+	: ${CNI_BRIDGE_CIDR:="10.22.0.0/16"}
+	cat >"${PREFIX}/conf/10-mynet.conf" <<-EOF
+	{
+		"cniVersion": "0.2.0",
+		"name": "mynet",
+		"type": "bridge",
+		"bridge": "cni0",
+		"isGateway": true,
+		"ipMasq": true,
+		"ipam": {
+			"type": "host-local",
+			"subnet": "${CNI_BRIDGE_CIDR}",
+			"routes": [
+				{ "dst": "0.0.0.0/0" }
+			]
+		}
+	}
+	EOF
+
+	cat >"${PREFIX}/conf/99-loopback.conf" <<-EOF
+	{
+		"cniVersion": "0.2.0",
+		"name": "lo",
+		"type": "loopback"
+	}
+	EOF
+}

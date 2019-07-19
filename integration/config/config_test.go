@@ -27,8 +27,9 @@ func TestConfigList(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -109,8 +110,9 @@ func TestConfigsCreateAndDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -137,8 +139,9 @@ func TestConfigsUpdate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -189,8 +192,9 @@ func TestConfigsUpdate(t *testing.T) {
 
 func TestTemplatedConfig(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -323,8 +327,9 @@ func TestConfigInspect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -347,8 +352,9 @@ func TestConfigCreateWithLabels(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -374,8 +380,9 @@ func TestConfigCreateResolve(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -424,8 +431,8 @@ func TestConfigDaemonLibtrustID(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
 
-	d := daemon.New(t)
-	defer d.Stop(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
 
 	trustKey := filepath.Join(d.RootDir(), "key.json")
 	err := ioutil.WriteFile(trustKey, []byte(`{"crv":"P-256","d":"dm28PH4Z4EbyUN8L0bPonAciAQa1QJmmyYd876mnypY","kid":"WTJ3:YSIP:CE2E:G6KJ:PSBD:YX2Y:WEYD:M64G:NU2V:XPZV:H2CR:VLUB","kty":"EC","x":"Mh5-JINSjaa_EZdXDttri255Z5fbCEOTQIZjAcScFTk","y":"eUyuAjfxevb07hCCpvi4Zi334Dy4GDWQvEToGEX4exQ"}`), 0644)

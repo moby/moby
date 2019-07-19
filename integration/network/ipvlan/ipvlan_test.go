@@ -25,16 +25,17 @@ func TestDockerNetworkIpvlanPersistance(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, !ipvlanKernelSupport(t), "Kernel doesn't support ipvlan")
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t)
 	defer d.Stop(t)
 
+	c := d.NewClientT(t)
+	ctx := context.Background()
 	// master dummy interface 'di' notation represent 'docker ipvlan'
 	master := "di-dummy0"
-	n.CreateMasterDummy(t, master)
-	defer n.DeleteInterface(t, master)
-
-	c := d.NewClientT(t)
+	n.CreateMasterDummy(ctx, t, c, master)
 
 	// create a network specifying the desired sub-interface name
 	netName := "di-persist"
@@ -85,7 +86,9 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 			test: testIpvlanAddressing,
 		},
 	} {
-		d := daemon.New(t)
+		d, cleanup := daemon.New(t)
+		defer cleanup(t)
+
 		d.StartWithBusybox(t)
 		c := d.NewClientT(t)
 
@@ -98,12 +101,13 @@ func TestDockerNetworkIpvlan(t *testing.T) {
 
 func testIpvlanSubinterface(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
+		ctx := context.TODO()
+
 		master := "di-dummy0"
-		n.CreateMasterDummy(t, master)
-		defer n.DeleteInterface(t, master)
+		n.CreateMasterDummy(ctx, t, client, master)
 
 		netName := "di-subinterface"
-		net.CreateNoError(context.Background(), t, client, netName,
+		net.CreateNoError(ctx, t, client, netName,
 			net.WithIPvlan("di-dummy0.60", ""),
 		)
 		assert.Check(t, n.IsNetworkAvailable(client, netName))
@@ -114,18 +118,20 @@ func testIpvlanSubinterface(client dclient.APIClient) func(*testing.T) {
 
 		assert.Check(t, n.IsNetworkNotAvailable(client, netName))
 		// verify the network delete did not delete the predefined link
-		n.LinkExists(t, "di-dummy0")
+		n.LinkExists(ctx, t, client, "di-dummy0")
 	}
 }
 
 func testIpvlanOverlapParent(client dclient.APIClient) func(*testing.T) {
 	return func(t *testing.T) {
+		ctx := context.TODO()
+
 		// verify the same parent interface cannot be used if already in use by an existing network
 		master := "di-dummy0"
 		parent := master + ".30"
-		n.CreateMasterDummy(t, master)
-		defer n.DeleteInterface(t, master)
-		n.CreateVlanInterface(t, master, parent, "30")
+
+		n.CreateMasterDummy(ctx, t, client, master)
+		n.CreateVlanInterface(ctx, t, client, master, parent, "30")
 
 		netName := "di-subinterface"
 		net.CreateNoError(context.Background(), t, client, netName,

@@ -30,3 +30,14 @@ func (d *Daemon) CgroupNamespace(t assert.TestingT) string {
 	assert.Assert(t, false)
 	return "cgroup namespaces are not supported on Windows"
 }
+
+// Do runs the given function in the daemon's environment
+// For Windows this doesn't do anything except run the function as normal.
+func (d *Daemon) Do(t assert.TestingT, f func()) {
+	assert.NilError(t, d.do(f))
+}
+
+func (d *Daemon) do(f func()) error {
+	f()
+	return nil
+}

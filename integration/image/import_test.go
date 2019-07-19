@@ -23,7 +23,9 @@ func TestImportExtremelyLargeImageWorks(t *testing.T) {
 	t.Parallel()
 
 	// Spin up a new daemon, so that we can run this test in parallel (it's a slow test)
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t)
 	defer d.Stop(t)
 

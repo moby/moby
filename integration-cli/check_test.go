@@ -117,26 +117,20 @@ func init() {
 type DockerRegistrySuite struct {
 	ds  *DockerSuite
 	reg *registry.V2
-	d   *daemon.Daemon
 }
 
 func (s *DockerRegistrySuite) OnTimeout(c *check.C) {
-	s.d.DumpStackAndQuit()
+	s.ds.OnTimeout(c)
 }
 
 func (s *DockerRegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
 	s.reg = registry.NewV2(c)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerRegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
-	}
-	if s.d != nil {
-		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -150,26 +144,20 @@ func init() {
 type DockerSchema1RegistrySuite struct {
 	ds  *DockerSuite
 	reg *registry.V2
-	d   *daemon.Daemon
 }
 
 func (s *DockerSchema1RegistrySuite) OnTimeout(c *check.C) {
-	s.d.DumpStackAndQuit()
+	s.ds.OnTimeout(c)
 }
 
 func (s *DockerSchema1RegistrySuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, NotArm64, testEnv.IsLocalDaemon)
 	s.reg = registry.NewV2(c, registry.Schema1)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerSchema1RegistrySuite) TearDownTest(c *check.C) {
 	if s.reg != nil {
 		s.reg.Close()
-	}
-	if s.d != nil {
-		s.d.Stop(c)
 	}
 	s.ds.TearDownTest(c)
 }
@@ -192,9 +180,8 @@ func (s *DockerRegistryAuthHtpasswdSuite) OnTimeout(c *check.C) {
 
 func (s *DockerRegistryAuthHtpasswdSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
-	s.reg = registry.NewV2(c, registry.Htpasswd)
-	s.reg.WaitReady(c)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d, _ = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.reg = registry.NewV2(c, registry.Htpasswd, registry.Exec(s.d.Exec))
 }
 
 func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
@@ -206,6 +193,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
 	}
+	s.d.Cleanup(c)
 	s.ds.TearDownTest(c)
 }
 
@@ -227,7 +215,7 @@ func (s *DockerRegistryAuthTokenSuite) OnTimeout(c *check.C) {
 
 func (s *DockerRegistryAuthTokenSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, RegistryHosting, testEnv.IsLocalDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d, _ = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
@@ -239,6 +227,7 @@ func (s *DockerRegistryAuthTokenSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
 	}
+	s.d.Cleanup(c)
 	s.ds.TearDownTest(c)
 }
 
@@ -267,15 +256,15 @@ func (s *DockerDaemonSuite) OnTimeout(c *check.C) {
 
 func (s *DockerDaemonSuite) SetUpTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d, _ = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerDaemonSuite) TearDownTest(c *check.C) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	if s.d != nil {
-		s.d.Stop(c)
-	}
 	s.ds.TearDownTest(c)
+	if s.d != nil {
+		s.d.Cleanup(c)
+	}
 }
 
 func (s *DockerDaemonSuite) TearDownSuite(c *check.C) {
@@ -322,7 +311,7 @@ func (s *DockerSwarmSuite) SetUpTest(c *check.C) {
 }
 
 func (s *DockerSwarmSuite) AddDaemon(c *check.C, joinSwarm, manager bool) *daemon.Daemon {
-	d := daemon.New(c, dockerBinary, dockerdBinary,
+	d, _ := daemon.New(c, dockerBinary, dockerdBinary,
 		testdaemon.WithEnvironment(testEnv.Execution),
 		testdaemon.WithSwarmPort(defaultSwarmPort+s.portIndex),
 	)

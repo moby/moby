@@ -210,6 +210,19 @@ COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build/ ./install.sh $INSTALL_BINARY_NAME
 COPY ./contrib/dockerd-rootless.sh /build
 
+FROM runtime-dev AS cniplugins
+ENV INSTALL_BINARY_NAME=cni-plugins
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+ARG CNI_BRIDGE_CIDR=10.22.0.0/16
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+
+FROM base AS mkcert
+ENV INSTALL_BINARY_NAME=mkcert
+COPY hack/dockerfile/install/install.sh ./install.sh
+COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
+RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
+
 # TODO: Some of this is only really needed for testing, it would be nice to split this up
 FROM runtime-dev AS dev
 RUN groupadd -r docker
@@ -265,9 +278,12 @@ COPY --from=containerd /build/ /usr/local/bin/
 COPY --from=proxy /build/ /usr/local/bin/
 COPY --from=dockercli /build/ /usr/local/cli
 COPY --from=registry /build/registry* /usr/local/bin/
+COPY --from=cniplugins /build/bin/* /opt/cni/bin/
+COPY --from=cniplugins /build/conf/* /etc/cni/net.d/
 COPY --from=criu /build/ /usr/local/
 COPY --from=rootlesskit /build/ /usr/local/bin/
 COPY --from=djs55/vpnkit@sha256:e508a17cfacc8fd39261d5b4e397df2b953690da577e2c987a47630cd0c42f8e /vpnkit /usr/local/bin/vpnkit.x86_64
+COPY --from=mkcert /build/ /usr/local/bin/
 
 ENV PATH=/usr/local/cli:$PATH
 ENV DOCKER_BUILDTAGS apparmor seccomp selinux

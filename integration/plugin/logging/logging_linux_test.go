@@ -19,7 +19,9 @@ func TestContinueAfterPluginCrash(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "test requires daemon on the same host")
 	t.Parallel()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t, "--iptables=false", "--init")
 	defer d.Stop(t)
 

@@ -46,7 +46,10 @@ func TestInfoAPI(t *testing.T) {
 func TestInfoAPIWarnings(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon, "cannot run daemon when remote daemon")
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows", "FIXME")
-	d := daemon.New(t)
+
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t, "-H=0.0.0.0:23756", "-H="+d.Sock())

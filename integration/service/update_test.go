@@ -18,8 +18,9 @@ import (
 func TestServiceUpdateLabel(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -74,8 +75,9 @@ func TestServiceUpdateLabel(t *testing.T) {
 func TestServiceUpdateSecrets(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -136,8 +138,9 @@ func TestServiceUpdateSecrets(t *testing.T) {
 func TestServiceUpdateConfigs(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	cli := d.NewClientT(t)
 	defer cli.Close()
 
@@ -198,8 +201,9 @@ func TestServiceUpdateConfigs(t *testing.T) {
 func TestServiceUpdateNetwork(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	cli := d.NewClientT(t)
 	defer cli.Close()
 

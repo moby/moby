@@ -6,9 +6,10 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -50,11 +51,22 @@ func TestExternalGraphDriver(t *testing.T) {
 	skip.If(t, !requirement.HasHubConnectivity(t))
 
 	// Setup plugin(s)
-	ec := make(map[string]*graphEventsCounter)
-	sserver := setupPluginViaSpecFile(t, ec)
-	jserver := setupPluginViaJSONFile(t, ec)
+
 	// Create daemon
-	d := daemon.New(t, daemon.WithExperimental)
+	d, cleanup := daemon.New(t, daemon.WithExperimental)
+	defer cleanup(t)
+
+	ec := make(map[string]*graphEventsCounter)
+
+	pluginsDir, err := ioutil.TempDir("", t.Name())
+	assert.NilError(t, err)
+	defer os.RemoveAll(pluginsDir)
+
+	sserver := setupPluginViaSpecFile(t, ec, pluginsDir)
+	defer sserver.Close()
+	jserver := setupPluginViaJSONFile(t, ec, pluginsDir)
+	defer jserver.Close()
+
 	c := d.NewClientT(t)
 
 	for _, tc := range []struct {
@@ -76,27 +88,49 @@ func TestExternalGraphDriver(t *testing.T) {
 	} {
 		t.Run(tc.name, tc.test(c, d))
 	}
-
-	sserver.Close()
-	jserver.Close()
-	err := os.RemoveAll("/etc/docker/plugins")
-	assert.NilError(t, err)
 }
 
-func setupPluginViaSpecFile(t *testing.T, ec map[string]*graphEventsCounter) *httptest.Server {
+func setupPluginViaSpecFile(t *testing.T, ec map[string]*graphEventsCounter, dir string) *http.Server {
 	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
+	server := &http.Server{Handler: mux}
 
-	setupPlugin(t, ec, "spec", mux, []byte(server.URL))
+	sockPath := filepath.Join(dir, "spec-external-graph-driver.sock")
+
+	l, err := net.Listen("unix", sockPath)
+	assert.NilError(t, err)
+
+	go server.Serve(l)
+
+	defer func() {
+		if t.Failed() {
+			server.Close()
+		}
+	}()
+
+	setupPlugin(t, ec, "spec", mux, []byte("unix://"+sockPath))
 
 	return server
 }
 
-func setupPluginViaJSONFile(t *testing.T, ec map[string]*graphEventsCounter) *httptest.Server {
+func setupPluginViaJSONFile(t *testing.T, ec map[string]*graphEventsCounter, dir string) *http.Server {
 	mux := http.NewServeMux()
-	server := httptest.NewServer(mux)
+	server := &http.Server{Handler: mux}
 
-	p := plugins.NewLocalPlugin("json-external-graph-driver", server.URL)
+	name := "json-external-graph-driver"
+	sockPath := filepath.Join(dir, name+".sock")
+
+	l, err := net.Listen("unix", sockPath)
+	assert.NilError(t, err)
+
+	go server.Serve(l)
+
+	defer func() {
+		if t.Failed() {
+			server.Close()
+		}
+	}()
+
+	p := plugins.NewLocalPlugin(name, "unix://"+sockPath)
 	b, err := json.Marshal(p)
 	assert.NilError(t, err)
 
@@ -357,6 +391,7 @@ func testExternalGraphDriver(ext string, ec map[string]*graphEventsCounter) func
 		return func(t *testing.T) {
 			driverName := fmt.Sprintf("%s-external-graph-driver", ext)
 			d.StartWithBusybox(t, "-s", driverName)
+			defer d.Stop(t)
 
 			ctx := context.Background()
 
@@ -410,7 +445,9 @@ func TestGraphdriverPluginV2(t *testing.T) {
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	skip.If(t, !requirement.Overlay2Supported(testEnv.DaemonInfo.KernelVersion))
 
-	d := daemon.New(t, daemon.WithExperimental)
+	d, cleanup := daemon.New(t, daemon.WithExperimental)
+	defer cleanup(t)
+
 	d.Start(t)
 	defer d.Stop(t)
 

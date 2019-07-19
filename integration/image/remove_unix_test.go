@@ -31,7 +31,9 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 
 	// Create daemon with overlay2 graphdriver because vfs uses disk differently
 	// and this test case would not work with it.
-	d := daemon.New(t, daemon.WithStorageDriver("overlay2"), daemon.WithImageService)
+	d, cleanup := daemon.New(t, daemon.WithStorageDriver("overlay2"), daemon.WithImageService)
+	defer cleanup(t)
+
 	d.Start(t)
 	defer d.Stop(t)
 

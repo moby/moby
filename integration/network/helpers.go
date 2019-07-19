@@ -5,42 +5,86 @@ package network
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"os"
 	"testing"
 
 	"github.com/docker/docker/api/types"
+	containertypes "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/integration/internal/container"
 	"github.com/docker/docker/pkg/parsers/kernel"
+	"gotest.tools/assert"
 	"gotest.tools/assert/cmp"
-	"gotest.tools/icmd"
 )
 
 // CreateMasterDummy creates a dummy network interface
-func CreateMasterDummy(t *testing.T, master string) {
+func CreateMasterDummy(ctx context.Context, t *testing.T, c client.APIClient, master string) {
 	// ip link add <dummy_name> type dummy
-	icmd.RunCommand("ip", "link", "add", master, "type", "dummy").Assert(t, icmd.Success)
-	icmd.RunCommand("ip", "link", "set", master, "up").Assert(t, icmd.Success)
+	id := container.Create(
+		ctx,
+		t,
+		c,
+		container.WithNetworkMode("host"),
+		container.WithCmd("/bin/sh", "-c", "ip link add "+master+" type dummy && ip link set "+master+" up"),
+		container.WithPrivileged(true),
+	)
+	runAndWait(ctx, t, c, id)
 }
 
 // CreateVlanInterface creates a vlan network interface
-func CreateVlanInterface(t *testing.T, master, slave, id string) {
-	// ip link add link <master> name <master>.<VID> type vlan id <VID>
-	icmd.RunCommand("ip", "link", "add", "link", master, "name", slave, "type", "vlan", "id", id).Assert(t, icmd.Success)
-	// ip link set <sub_interface_name> up
-	icmd.RunCommand("ip", "link", "set", slave, "up").Assert(t, icmd.Success)
+func CreateVlanInterface(ctx context.Context, t *testing.T, c client.APIClient, master, slave, id string) {
+	cid := container.Create(
+		ctx,
+		t,
+		c,
+		container.WithNetworkMode("host"),
+		container.WithCmd("/bin/sh", "-c", "ip link add link "+master+" name "+slave+" type vlan id "+id+" && ip link set "+slave+" up"),
+		container.WithPrivileged(true),
+	)
+	runAndWait(ctx, t, c, cid)
 }
 
-// DeleteInterface deletes a network interface
-func DeleteInterface(t *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
+func runAndWait(ctx context.Context, t *testing.T, c client.APIClient, id string) {
+	t.Helper()
+
+	chWait, chErr := c.ContainerWait(ctx, id, containertypes.WaitConditionNextExit)
+
+	err := c.ContainerStart(ctx, id, types.ContainerStartOptions{})
+	assert.NilError(t, err)
+
+	select {
+	case <-ctx.Done():
+		assert.NilError(t, err)
+	case status := <-chWait:
+		assert.Assert(t, status.Error == nil)
+		var logs string
+		if status.StatusCode != 0 {
+			stream, _ := c.ContainerLogs(ctx, id, types.ContainerLogsOptions{
+				ShowStdout: true,
+				ShowStderr: true,
+			})
+			b, _ := ioutil.ReadAll(stream)
+			logs = string(b)
+		}
+		assert.Equal(t, status.StatusCode, int64(0), logs)
+	case err = <-chErr:
+		assert.NilError(t, err)
+	}
+
 }
 
 // LinkExists verifies that a link exists
-func LinkExists(t *testing.T, master string) {
+func LinkExists(ctx context.Context, t *testing.T, c client.APIClient, master string) {
 	// verify the specified link exists, ip link show <link_name>
-	icmd.RunCommand("ip", "link", "show", master).Assert(t, icmd.Success)
+	id := container.Create(
+		ctx,
+		t,
+		c,
+		container.WithNetworkMode("host"),
+		container.WithCmd("/bin/sh", "-c", "ip link show "+master),
+	)
+	runAndWait(ctx, t, c, id)
 }
 
 // IsNetworkAvailable provides a comparison to check if a docker network is available

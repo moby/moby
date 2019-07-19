@@ -1,0 +1,10 @@
+#!/bin/sh
+
+MKCERT_COMMIT=v1.3.0
+
+install_mkcert() {
+	git clone https://github.com/FiloSottile/mkcert.git "$GOPATH/src/github.com/FiloSottile/mkcert"
+	cd "$GOPATH/src/github.com/FiloSottile/mkcert"
+	git checkout ${MKCERT_COMMIT}
+	go build -o ${PREFIX}/mkcert
+}

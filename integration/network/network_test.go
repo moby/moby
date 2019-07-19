@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"net/http"
-	"os/exec"
 	"strings"
 	"testing"
 
@@ -14,6 +13,7 @@ import (
 	"github.com/docker/docker/internal/test/request"
 	"gotest.tools/assert"
 	is "gotest.tools/assert/cmp"
+	"gotest.tools/icmd"
 	"gotest.tools/skip"
 )
 
@@ -22,7 +22,9 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, IsUserNamespace())
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t, "-b", "none")
 	defer d.Stop(t)
 
@@ -43,12 +45,11 @@ func TestRunContainerWithBridgeNone(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, is.Equal(false, strings.Contains(result.Combined(), "eth0")), "There shouldn't be eth0 in container in bridge mode when bridge network is disabled")
 
-	nsCommand := "ls -l /proc/self/ns/net | awk -F '->' '{print $2}'"
-	cmd := exec.Command("sh", "-c", nsCommand)
 	stdout := bytes.NewBuffer(nil)
+	nsCommand := "ls -l /proc/self/ns/net | awk -F '->' '{print $2}'"
+	cmd := d.Exec("sh", "-c", nsCommand)
 	cmd.Stdout = stdout
-	err = cmd.Run()
-	assert.NilError(t, err, "Failed to get current process network namespace: %+v", err)
+	icmd.RunCmd(cmd).Assert(t, icmd.Success)
 
 	id3 := container.Run(ctx, t, c, container.WithNetworkMode("host"))
 	defer c.ContainerRemove(ctx, id3, types.ContainerRemoveOptions{Force: true})

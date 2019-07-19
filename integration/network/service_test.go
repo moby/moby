@@ -13,25 +13,27 @@ import (
 	"github.com/docker/docker/integration/internal/swarm"
 	"github.com/docker/docker/internal/test/daemon"
 	"gotest.tools/assert"
-	"gotest.tools/icmd"
 	"gotest.tools/poll"
 	"gotest.tools/skip"
 )
-
-// delInterface removes given network interface
-func delInterface(t *testing.T, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(t, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(t, icmd.Success)
-}
 
 func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	d := daemon.New(t)
-	defer d.Stop(t)
+
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t)
+
+	c := d.NewClientT(t)
+	defer c.Close()
+
+	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	assert.NilError(t, err)
+	origSubnet := out.IPAM.Config[0].Subnet
+
 	d.Restart(t,
 		"--live-restore=true",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
@@ -39,12 +41,10 @@ func TestDaemonRestartWithLiveRestore(t *testing.T) {
 	)
 
 	// Verify bridge network's subnet
-	c := d.NewClientT(t)
-	defer c.Close()
-	out, err := c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
+	out, err = c.NetworkInspect(context.Background(), "bridge", types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	// Make sure docker0 doesn't get override with new IP in live restore case
-	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.18.0.0/16")
+	assert.Equal(t, out.IPAM.Config[0].Subnet, origSubnet)
 }
 
 func TestDaemonDefaultNetworkPools(t *testing.T) {
@@ -52,10 +52,10 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	// Remove docker0 bridge and the start daemon defining the predefined address pools
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
-	delInterface(t, defaultNetworkBridge)
-	d := daemon.New(t)
-	defer d.Stop(t)
+
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t,
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
 		"--default-address-pool", "base=175.33.0.0/16,size=24",
@@ -86,16 +86,15 @@ func TestDaemonDefaultNetworkPools(t *testing.T) {
 	out, err = c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "175.33.1.0/24")
-	delInterface(t, defaultNetworkBridge)
-
 }
 
 func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
@@ -120,15 +119,15 @@ func TestDaemonRestartWithExistingNetwork(t *testing.T) {
 	out1, err := c.NetworkInspect(context.Background(), name, types.NetworkInspectOptions{})
 	assert.NilError(t, err)
 	assert.Equal(t, out1.IPAM.Config[0].Subnet, networkip)
-	delInterface(t, defaultNetworkBridge)
 }
 
 func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t)
 	defer d.Stop(t)
 	c := d.NewClientT(t)
@@ -170,16 +169,16 @@ func TestDaemonRestartWithExistingNetworkWithDefaultPoolRange(t *testing.T) {
 
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip)
 	assert.Check(t, out1.IPAM.Config[0].Subnet != networkip2)
-	delInterface(t, defaultNetworkBridge)
 }
 
 func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 	skip.If(t, versions.LessThan(testEnv.DaemonAPIVersion(), "1.38"), "skip test from new feature")
-	defaultNetworkBridge := "docker0"
-	d := daemon.New(t)
-	defer d.Stop(t)
+
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t,
 		"--bip=172.60.0.1/16",
 		"--default-address-pool", "base=175.30.0.0/16,size=16",
@@ -194,14 +193,14 @@ func TestDaemonWithBipAndDefaultNetworkPool(t *testing.T) {
 	assert.NilError(t, err)
 	// Make sure BIP IP doesn't get override with new default address pool .
 	assert.Equal(t, out.IPAM.Config[0].Subnet, "172.60.0.1/16")
-	delInterface(t, defaultNetworkBridge)
 }
 
 func TestServiceWithPredefinedNetwork(t *testing.T) {
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -231,8 +230,9 @@ func TestServiceRemoveKeepsIngressNetwork(t *testing.T) {
 
 	skip.If(t, testEnv.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 	defer c.Close()
 
@@ -336,7 +336,8 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	var ops = []func(*daemon.Daemon){}
 	var datapathPort uint32 = 7777
 	ops = append(ops, daemon.WithSwarmDataPathPort(datapathPort))
-	d := swarm.NewSwarm(t, testEnv, ops...)
+	d, cleanup := swarm.NewSwarm(t, testEnv, ops...)
+	defer cleanup(t)
 
 	c := d.NewClientT(t)
 	defer c.Close()
@@ -364,7 +365,9 @@ func TestServiceWithDataPathPortInit(t *testing.T) {
 	// Clean up , set it back to original one to make sure other tests don't fail
 	// call without datapath port option.
 	ops = []func(*daemon.Daemon){}
-	d = swarm.NewSwarm(t, testEnv, ops...)
+	d, cleanup = swarm.NewSwarm(t, testEnv, ops...)
+	defer cleanup(t)
+
 	c = d.NewClientT(t)
 
 	// Create a overlay network
@@ -395,7 +398,8 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	ipAddr := []string{"20.20.0.0/16"}
 	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
 	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-	d := swarm.NewSwarm(t, testEnv, ops...)
+	d, cleanup := swarm.NewSwarm(t, testEnv, ops...)
+	defer cleanup(t)
 
 	cli := d.NewClientT(t)
 	defer cli.Close()
@@ -435,7 +439,9 @@ func TestServiceWithDefaultAddressPoolInit(t *testing.T) {
 	ipAddr = []string{"10.0.0.0/8"}
 	ops = append(ops, daemon.WithSwarmDefaultAddrPool(ipAddr))
 	ops = append(ops, daemon.WithSwarmDefaultAddrPoolSubnetSize(24))
-	d = swarm.NewSwarm(t, testEnv, ops...)
+	d, cleanup = swarm.NewSwarm(t, testEnv, ops...)
+	defer cleanup(t)
+
 	d.SwarmLeave(t, true)
 	defer d.Stop(t)
 }

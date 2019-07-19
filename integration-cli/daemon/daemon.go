@@ -31,13 +31,13 @@ type Daemon struct {
 // New returns a Daemon instance to be used for testing.
 // This will create a directory such as d123456789 in the folder specified by $DOCKER_INTEGRATION_DAEMON_DEST or $DEST.
 // The daemon will not automatically start.
-func New(t testingT, dockerBinary string, dockerdBinary string, ops ...func(*daemon.Daemon)) *Daemon {
+func New(t testingT, dockerBinary string, dockerdBinary string, ops ...func(*daemon.Daemon)) (*Daemon, func(t testingT)) {
 	ops = append(ops, daemon.WithDockerdBinary(dockerdBinary))
-	d := daemon.New(t, ops...)
+	d, cleanup := daemon.New(t, ops...)
 	return &Daemon{
 		Daemon:       d,
 		dockerBinary: dockerBinary,
-	}
+	}, func(t testingT) { cleanup(t) }
 }
 
 // Cmd executes a docker CLI command against this daemon.
@@ -47,10 +47,17 @@ func (d *Daemon) Cmd(args ...string) (string, error) {
 	return result.Combined(), result.Error
 }
 
+// CmdT is like Cmd, except it asserts that the command ran to success.
+func (d *Daemon) CmdT(t assert.TestingT, args ...string) string {
+	result := icmd.RunCmd(d.Command(args...))
+	result.Assert(t, icmd.Success)
+	return result.Combined()
+}
+
 // Command creates a docker CLI command against this daemon, to be executed later.
 // Example: d.Command("version") creates a command to run "docker -H unix://path/to/unix.sock version"
 func (d *Daemon) Command(args ...string) icmd.Cmd {
-	return icmd.Command(d.dockerBinary, d.PrependHostArg(args)...)
+	return d.Exec(d.dockerBinary, d.PrependHostArg(args)...)
 }
 
 // PrependHostArg prepend the specified arguments by the daemon host flags

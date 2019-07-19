@@ -227,7 +227,9 @@ func TestAPIIpcModeHost(t *testing.T) {
 func testDaemonIpcPrivateShareable(t *testing.T, mustBeShared bool, arg ...string) {
 	defer setupTest(t)()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.StartWithBusybox(t, arg...)
 	defer d.Stop(t)
 

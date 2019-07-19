@@ -16,6 +16,7 @@ import (
 	"github.com/docker/docker/internal/test/fakecontext"
 	"github.com/docker/docker/internal/test/fakegit"
 	"github.com/docker/docker/internal/test/fakestorage"
+	"github.com/docker/docker/internal/test/registry"
 	"github.com/docker/docker/internal/test/request"
 	"github.com/go-check/check"
 	"gotest.tools/assert"
@@ -322,9 +323,12 @@ func (s *DockerSuite) TestBuildOnBuildCache(c *check.C) {
 }
 
 func (s *DockerRegistrySuite) TestBuildCopyFromForcePull(c *check.C) {
-	client := testEnv.APIClient()
+	reg := registry.NewV2(c)
+	defer reg.Close()
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox", reg.URL())
+
+	client := testEnv.APIClient()
 	// tag the image to upload it to the private registry
 	err := client.ImageTag(context.TODO(), "busybox", repoName)
 	assert.Check(c, err)

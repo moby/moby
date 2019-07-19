@@ -1,6 +1,8 @@
 package daemon
 
-import "github.com/docker/docker/internal/test/environment"
+import (
+	"github.com/docker/docker/internal/test/environment"
+)
 
 // WithDefaultCgroupNamespaceMode sets the default cgroup namespace mode for the daemon
 func WithDefaultCgroupNamespaceMode(mode string) func(*Daemon) {

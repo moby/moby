@@ -27,7 +27,7 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 
 	os.Setenv("PATH", testPath)
 
-	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", privateRegistryURL)
+	repoName := fmt.Sprintf("%v/dockercli/busybox:authtest", s.reg.URL())
 
 	tmp, err := ioutil.TempDir("", "integration-cli-")
 	assert.NilError(c, err)
@@ -39,24 +39,20 @@ func (s *DockerRegistryAuthHtpasswdSuite) TestLogoutWithExternalAuth(c *check.C)
 	err = ioutil.WriteFile(configPath, []byte(externalAuthConfig), 0644)
 	assert.NilError(c, err)
 
-	_, err = s.d.Cmd("--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), privateRegistryURL)
-	assert.NilError(c, err)
+	s.d.CmdT(c, "--config", tmp, "login", "-u", s.reg.Username(), "-p", s.reg.Password(), s.reg.URL())
 
 	b, err := ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
 	assert.Assert(c, !strings.Contains(string(b), `"auth":`))
-	assert.Assert(c, strings.Contains(string(b), privateRegistryURL))
+	assert.Assert(c, strings.Contains(string(b), s.reg.URL()))
 
-	_, err = s.d.Cmd("--config", tmp, "tag", "busybox", repoName)
-	assert.NilError(c, err)
-	_, err = s.d.Cmd("--config", tmp, "push", repoName)
-	assert.NilError(c, err)
-	_, err = s.d.Cmd("--config", tmp, "logout", privateRegistryURL)
-	assert.NilError(c, err)
+	s.d.CmdT(c, "--config", tmp, "tag", "busybox", repoName)
+	s.d.CmdT(c, "--config", tmp, "push", repoName)
+	s.d.CmdT(c, "--config", tmp, "logout", privateRegistryURL)
 
 	b, err = ioutil.ReadFile(configPath)
 	assert.NilError(c, err)
-	assert.Assert(c, !strings.Contains(string(b), privateRegistryURL))
+	assert.Assert(c, !strings.Contains(string(b), s.reg.URL()))
 
 	// check I cannot pull anymore
 	out, err := s.d.Cmd("--config", tmp, "pull", repoName)

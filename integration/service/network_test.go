@@ -17,8 +17,9 @@ import (
 func TestDockerNetworkConnectAlias(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -79,8 +80,9 @@ func TestDockerNetworkConnectAlias(t *testing.T) {
 func TestDockerNetworkReConnect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()

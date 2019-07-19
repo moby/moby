@@ -22,8 +22,10 @@ func TestSecretInspect(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 
@@ -45,8 +47,9 @@ func TestSecretList(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -122,8 +125,9 @@ func TestSecretsCreateAndDelete(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -169,8 +173,9 @@ func TestSecretsUpdate(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -218,8 +223,9 @@ func TestSecretsUpdate(t *testing.T) {
 
 func TestTemplatedSecret(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 	ctx := context.Background()
@@ -339,8 +345,9 @@ func TestSecretCreateResolve(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 
 	defer setupTest(t)()
-	d := swarm.NewSwarm(t, testEnv)
-	defer d.Stop(t)
+	d, cleanup := swarm.NewSwarm(t, testEnv)
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	defer client.Close()
 

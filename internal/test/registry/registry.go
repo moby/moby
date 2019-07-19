@@ -1,6 +1,8 @@
 package registry // import "github.com/docker/docker/internal/test/registry"
 
 import (
+	"crypto/tls"
+	"crypto/x509"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,8 +12,10 @@ import (
 	"time"
 
 	"github.com/docker/docker/internal/test"
+	"github.com/docker/docker/internal/test/certutil"
 	"github.com/opencontainers/go-digest"
 	"gotest.tools/assert"
+	"gotest.tools/icmd"
 )
 
 const (
@@ -28,6 +32,7 @@ type testingT interface {
 	logT
 	Fatal(...interface{})
 	Fatalf(string, ...interface{})
+	Failed() bool
 }
 
 type logT interface {
@@ -36,13 +41,14 @@ type logT interface {
 
 // V2 represent a registry version 2
 type V2 struct {
-	cmd         *exec.Cmd
+	cmd         *icmd.Result
 	registryURL string
 	dir         string
 	auth        string
 	username    string
 	password    string
 	email       string
+	tls         certutil.TLSConfig
 }
 
 // Config contains the test registry configuration
@@ -51,6 +57,8 @@ type Config struct {
 	auth        string
 	tokenURL    string
 	registryURL string
+	exec        func(command string, args ...string) icmd.Cmd
+	tls         certutil.TLSConfig
 }
 
 // NewV2 creates a v2 registry server
@@ -60,6 +68,7 @@ func NewV2(t testingT, ops ...func(*Config)) *V2 {
 	}
 	c := &Config{
 		registryURL: DefaultURL,
+		exec:        icmd.Command,
 	}
 	for _, op := range ops {
 		op(c)
@@ -74,6 +83,13 @@ storage:
 http:
     addr: %s
 %s`
+
+	defer func() {
+		if t.Failed() {
+			os.RemoveAll(tmp)
+		}
+	}()
+
 	var (
 		authTemplate string
 		username     string
@@ -110,30 +126,36 @@ http:
 	assert.NilError(t, err)
 	defer config.Close()
 
-	if _, err := fmt.Fprintf(config, template, tmp, c.registryURL, authTemplate); err != nil {
-		// FIXME(vdemeester) use a defer/clean func
-		os.RemoveAll(tmp)
-		t.Fatal(err)
-	}
+	_, err = fmt.Fprintf(config, template, tmp, c.registryURL, authTemplate)
+	assert.NilError(t, err)
 
 	binary := V2binary
 	if c.schema1 {
 		binary = V2binarySchema1
 	}
-	cmd := exec.Command(binary, confPath)
-	if err := cmd.Start(); err != nil {
-		// FIXME(vdemeester) use a defer/clean func
-		os.RemoveAll(tmp)
-		t.Fatal(err)
+
+	binPath, err := exec.LookPath(binary)
+	assert.NilError(t, err)
+
+	cmd := c.exec(binPath, confPath)
+
+	if c.tls.KeyPath != "" {
+		cmd.Env = append(cmd.Env, "REGISTRY_HTTP_TLS_KEY="+c.tls.KeyPath)
+		cmd.Env = append(cmd.Env, "REGISTRY_HTTP_TLS_CERTIFICATE="+c.tls.CertPath)
 	}
+
+	result := icmd.StartCmd(cmd)
+	result.Assert(t, icmd.Success)
+
 	return &V2{
-		cmd:         cmd,
+		cmd:         result,
 		dir:         tmp,
 		auth:        c.auth,
 		username:    username,
 		password:    password,
 		email:       email,
 		registryURL: c.registryURL,
+		tls:         c.tls,
 	}
 }
 
@@ -149,16 +171,37 @@ func (r *V2) WaitReady(t testingT) {
 		}
 		time.Sleep(100 * time.Millisecond)
 	}
-	t.Fatalf("timeout waiting for test registry to become available: %v", err)
+	t.Fatalf("timeout waiting for test registry to become available: %v:\n%v", err, r.cmd.Combined())
 }
 
 // Ping sends an http request to the current registry, and fail if it doesn't respond correctly
 func (r *V2) Ping() error {
-	// We always ping through HTTP for our test registry.
-	resp, err := http.Get(fmt.Sprintf("http://%s/v2/", r.registryURL))
+	scheme := "http"
+	var tlsConfig *tls.Config
+	if r.tls.KeyPath != "" {
+		scheme = "https"
+		pem, err := ioutil.ReadFile(r.tls.CACertPath)
+		if err != nil {
+			return err
+		}
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM(pem)
+		tlsConfig = &tls.Config{RootCAs: pool}
+	}
+
+	c := &http.Client{Transport: &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}}
+	req, err := http.NewRequest("GET", fmt.Sprintf("%s://%s/v2/", scheme, r.registryURL), nil)
 	if err != nil {
 		return err
 	}
+
+	resp, err := c.Do(req)
+	if err != nil {
+		return err
+	}
+
 	resp.Body.Close()
 
 	fail := resp.StatusCode != http.StatusOK
@@ -174,8 +217,8 @@ func (r *V2) Ping() error {
 
 // Close kills the registry server
 func (r *V2) Close() {
-	r.cmd.Process.Kill()
-	r.cmd.Process.Wait()
+	r.cmd.Cmd.Process.Kill()
+	r.cmd.Cmd.Process.Wait()
 	os.RemoveAll(r.dir)
 }
 
@@ -252,4 +295,9 @@ func (r *V2) Email() string {
 // Path returns the path where the registry write data
 func (r *V2) Path() string {
 	return filepath.Join(r.dir, "docker", "registry", "v2")
+}
+
+// URL returns the URL that the registry is at
+func (r *V2) URL() string {
+	return r.registryURL
 }

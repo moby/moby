@@ -60,7 +60,9 @@ func TestExportContainerAfterDaemonRestart(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	skip.If(t, testEnv.IsRemoteDaemon)
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t)

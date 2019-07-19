@@ -32,7 +32,9 @@ func TestCgroupDriverSystemdMemoryLimit(t *testing.T) {
 	skip.If(t, !hasSystemd())
 	t.Parallel()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	c := d.NewClientT(t)
 
 	d.StartWithBusybox(t, "--exec-opt", "native.cgroupdriver=systemd", "--iptables=false")

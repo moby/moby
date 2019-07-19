@@ -27,7 +27,9 @@ func containerCgroupNamespace(ctx context.Context, t *testing.T, client *client.
 
 // Bring up a daemon with the specified default cgroup namespace mode, and then create a container with the container options
 func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...func(*container.TestContainerConfig)) (string, string) {
-	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	d, cleanup := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	ctx := context.Background()
 
@@ -45,7 +47,9 @@ func testRunWithCgroupNs(t *testing.T, daemonNsMode string, containerOpts ...fun
 // Bring up a daemon with the specified default cgroup namespace mode. Create a container with the container options,
 // expecting an error with the specified string
 func testCreateFailureWithCgroupNs(t *testing.T, daemonNsMode string, errStr string, containerOpts ...func(*container.TestContainerConfig)) {
-	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	d, cleanup := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode(daemonNsMode))
+	defer cleanup(t)
+
 	client := d.NewClientT(t)
 	ctx := context.Background()
 
@@ -136,7 +140,9 @@ func TestCgroupNamespacesRunOlderClient(t *testing.T) {
 	skip.If(t, testEnv.IsRemoteDaemon())
 	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
-	d := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode("private"))
+	d, cleanup := daemon.New(t, daemon.WithDefaultCgroupNamespaceMode("private"))
+	defer cleanup(t)
+
 	client := d.NewClientT(t, client.WithVersion("1.39"))
 
 	ctx := context.Background()

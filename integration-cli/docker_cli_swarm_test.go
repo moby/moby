@@ -9,8 +9,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"io/ioutil"
+	"net"
 	"net/http"
-	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -632,7 +632,7 @@ func (s *DockerSwarmSuite) TestPsListContainersFilterIsTask(c *check.C) {
 const globalNetworkPlugin = "global-network-plugin"
 const globalIPAMPlugin = "global-ipam-plugin"
 
-func setupRemoteGlobalNetworkPlugin(c *check.C, mux *http.ServeMux, url, netDrv, ipamDrv string) {
+func setupRemoteGlobalNetworkPlugin(c *check.C, mux *http.ServeMux) {
 
 	mux.HandleFunc("/Plugin.Activate", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/vnd.docker.plugins.v1+json")
@@ -787,31 +787,29 @@ func setupRemoteGlobalNetworkPlugin(c *check.C, mux *http.ServeMux, url, netDrv,
 			fmt.Fprintf(w, "null")
 		}
 	})
-
-	err := os.MkdirAll("/etc/docker/plugins", 0755)
-	assert.NilError(c, err)
-
-	fileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", netDrv)
-	err = ioutil.WriteFile(fileName, []byte(url), 0644)
-	assert.NilError(c, err)
-
-	ipamFileName := fmt.Sprintf("/etc/docker/plugins/%s.spec", ipamDrv)
-	err = ioutil.WriteFile(ipamFileName, []byte(url), 0644)
-	assert.NilError(c, err)
 }
 
 func (s *DockerSwarmSuite) TestSwarmNetworkPlugin(c *check.C) {
-	mux := http.NewServeMux()
-	s.server = httptest.NewServer(mux)
-	c.Assert(s.server, check.NotNil) // check that HTTP server has started
-	setupRemoteGlobalNetworkPlugin(c, mux, s.server.URL, globalNetworkPlugin, globalIPAMPlugin)
-	defer func() {
-		s.server.Close()
-		err := os.RemoveAll("/etc/docker/plugins")
-		assert.NilError(c, err)
-	}()
-
 	d := s.AddDaemon(c, true, true)
+
+	err := os.MkdirAll("/run/docker/plugins", 0755)
+	assert.NilError(c, err)
+	defer os.RemoveAll("/run/docker/plugins")
+
+	mux := http.NewServeMux()
+	setupRemoteGlobalNetworkPlugin(c, mux)
+
+	netS := &http.Server{Handler: mux}
+	netL, err := net.Listen("unix", "/run/docker/plugins/"+globalNetworkPlugin+".sock")
+	assert.NilError(c, err)
+	go netS.Serve(netL)
+	defer netS.Close()
+
+	ipamS := &http.Server{Handler: mux}
+	ipamL, err := net.Listen("unix", "/run/docker/plugins/"+globalIPAMPlugin+".sock")
+	assert.NilError(c, err)
+	go ipamS.Serve(ipamL)
+	defer ipamS.Close()
 
 	out, err := d.Cmd("network", "create", "-d", globalNetworkPlugin, "foo")
 	assert.ErrorContains(c, err, "", out)
@@ -1474,7 +1472,7 @@ func (s *DockerSwarmSuite) TestSwarmManagerAddress(c *check.C) {
 	d3 := s.AddDaemon(c, true, false)
 
 	// Manager Addresses will always show Node 1's address
-	expectedOutput := fmt.Sprintf("Manager Addresses:\n  127.0.0.1:%d\n", d1.SwarmPort)
+	expectedOutput := fmt.Sprintf("Manager Addresses:\n  %s\n", d1.SwarmListenAddr())
 
 	out, err := d1.Cmd("info")
 	assert.NilError(c, err, out)

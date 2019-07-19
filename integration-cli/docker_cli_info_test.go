@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"net"
 	"strings"
 
 	"github.com/docker/docker/integration-cli/checker"
@@ -73,7 +72,9 @@ func (s *DockerSuite) TestInfoFormat(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "1.1.1.1:2375"
 	d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s", discoveryAdvertise))
@@ -90,7 +91,9 @@ func (s *DockerSuite) TestInfoDiscoveryBackend(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 
 	// --cluster-advertise with an invalid string is an error
@@ -107,25 +110,19 @@ func (s *DockerSuite) TestInfoDiscoveryInvalidAdvertise(c *check.C) {
 func (s *DockerSuite) TestInfoDiscoveryAdvertiseInterfaceName(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, Network, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	discoveryAdvertise := "eth0"
 
 	d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend), fmt.Sprintf("--cluster-advertise=%s:2375", discoveryAdvertise))
 	defer d.Stop(c)
 
-	iface, err := net.InterfaceByName(discoveryAdvertise)
-	assert.NilError(c, err)
-	addrs, err := iface.Addrs()
-	assert.NilError(c, err)
-	assert.Assert(c, len(addrs) > 0)
-	ip, _, err := net.ParseCIDR(addrs[0].String())
-	assert.NilError(c, err)
-
 	out, err := d.Cmd("info")
 	assert.NilError(c, err)
 	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Store: %s\n", discoveryBackend))
-	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", ip.String()))
+	c.Assert(out, checker.Contains, fmt.Sprintf("Cluster Advertise: %s:2375\n", d.IP(c).String()))
 }
 
 func (s *DockerSuite) TestInfoDisplaysRunningContainers(c *check.C) {
@@ -178,7 +175,9 @@ func (s *DockerSuite) TestInfoDisplaysStoppedContainers(c *check.C) {
 func (s *DockerSuite) TestInfoDebug(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	d.Start(c, "--debug")
 	defer d.Stop(c)
 
@@ -199,7 +198,9 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 	registryCIDR := "192.168.1.0/24"
 	registryHost := "insecurehost.com:5000"
 
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	d.Start(c, "--insecure-registry="+registryCIDR, "--insecure-registry="+registryHost)
 	defer d.Stop(c)
 

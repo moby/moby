@@ -20,7 +20,9 @@ func TestPluginWithDevMounts(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType == "windows")
 	t.Parallel()
 
-	d := daemon.New(t)
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+
 	d.Start(t, "--iptables=false")
 	defer d.Stop(t)
 

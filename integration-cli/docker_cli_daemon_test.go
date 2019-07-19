@@ -34,11 +34,11 @@ import (
 	"github.com/docker/docker/opts"
 	"github.com/docker/docker/pkg/mount"
 	"github.com/docker/go-units"
-	"github.com/docker/libnetwork/iptables"
 	"github.com/docker/libtrust"
 	"github.com/go-check/check"
 	"golang.org/x/sys/unix"
 	"gotest.tools/assert"
+	"gotest.tools/assert/cmp"
 	"gotest.tools/icmd"
 )
 
@@ -306,12 +306,12 @@ func (s *DockerDaemonSuite) TestDaemonIptablesClean(c *check.C) {
 	ipTablesSearchString := "tcp dpt:80"
 
 	// get output from iptables with container running
-	verifyIPTablesContains(c, ipTablesSearchString)
+	verifyIPTablesContains(c, ipTablesSearchString, s.d)
 
 	s.d.Stop(c)
 
 	// get output from iptables after restart
-	verifyIPTablesDoesNotContains(c, ipTablesSearchString)
+	verifyIPTablesDoesNotContains(c, ipTablesSearchString, s.d)
 }
 
 func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
@@ -323,7 +323,7 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 
 	// get output from iptables with container running
 	ipTablesSearchString := "tcp dpt:80"
-	verifyIPTablesContains(c, ipTablesSearchString)
+	verifyIPTablesContains(c, ipTablesSearchString, s.d)
 
 	s.d.Restart(c)
 
@@ -337,19 +337,18 @@ func (s *DockerDaemonSuite) TestDaemonIptablesCreate(c *check.C) {
 	}
 
 	// get output from iptables after restart
-	verifyIPTablesContains(c, ipTablesSearchString)
+	verifyIPTablesContains(c, ipTablesSearchString, s.d)
 }
 
-func verifyIPTablesContains(c *check.C, ipTablesSearchString string) {
-	result := icmd.RunCommand("iptables", "-nvL")
-	result.Assert(c, icmd.Success)
+func verifyIPTablesContains(c *check.C, ipTablesSearchString string, d *daemon.Daemon) {
+	result := icmd.RunCmd(d.Exec("iptable", "-nvL"))
 	if !strings.Contains(result.Combined(), ipTablesSearchString) {
 		c.Fatalf("iptables output should have contained %q, but was %q", ipTablesSearchString, result.Combined())
 	}
 }
 
-func verifyIPTablesDoesNotContains(c *check.C, ipTablesSearchString string) {
-	result := icmd.RunCommand("iptables", "-nvL")
+func verifyIPTablesDoesNotContains(c *check.C, ipTablesSearchString string, d *daemon.Daemon) {
+	result := icmd.RunCmd(d.Exec("iptables", "-nvL"))
 	result.Assert(c, icmd.Success)
 	if strings.Contains(result.Combined(), ipTablesSearchString) {
 		c.Fatalf("iptables output should not have contained %q, but was %q", ipTablesSearchString, result.Combined())
@@ -361,34 +360,13 @@ func verifyIPTablesDoesNotContains(c *check.C, ipTablesSearchString string) {
 func (s *DockerDaemonSuite) TestDaemonIPv6Enabled(c *check.C) {
 	testRequires(c, IPv6)
 
-	setupV6(c)
-	defer teardownV6(c)
-
+	createInterface(c, "bridge", "docker0", "172.17.0.1/24", s.d)
+	setupV6(c, s.d)
 	s.d.StartWithBusybox(c, "--ipv6")
 
-	iface, err := net.InterfaceByName("docker0")
-	if err != nil {
-		c.Fatalf("Error getting docker0 interface: %v", err)
-	}
-
-	addrs, err := iface.Addrs()
-	if err != nil {
-		c.Fatalf("Error getting addresses for docker0 interface: %v", err)
-	}
-
-	var found bool
-	expected := "fe80::1/64"
-
-	for i := range addrs {
-		if addrs[i].String() == expected {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		c.Fatalf("Bridge does not have an IPv6 Address")
-	}
+	result := icmd.RunCmd(s.d.Exec("ip", "a"))
+	result.Assert(c, icmd.Success)
+	assert.Assert(c, cmp.Contains(result, "fe80::1/64"))
 
 	if out, err := s.d.Cmd("run", "-itd", "--name=ipv6test", "busybox:latest"); err != nil {
 		c.Fatalf("Could not run container: %s, %v", out, err)
@@ -420,9 +398,6 @@ func (s *DockerDaemonSuite) TestDaemonIPv6Enabled(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, testEnv.IsLocalDaemon)
-	// Delete the docker0 bridge if its left around from previous daemon. It has to be recreated with
-	// ipv6 enabled
-	deleteInterface(c, "docker0")
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:2::/64", "--default-gateway-v6=2001:db8:2::100")
 
@@ -447,9 +422,6 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDR(c *check.C) {
 func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 	// IPv6 setup is messing with local bridge address.
 	testRequires(c, testEnv.IsLocalDaemon)
-	// Delete the docker0 bridge if its left around from previous daemon. It has to be recreated with
-	// ipv6 enabled
-	deleteInterface(c, "docker0")
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:1::/64")
 
@@ -465,7 +437,6 @@ func (s *DockerDaemonSuite) TestDaemonIPv6FixedCIDRAndMac(c *check.C) {
 // network=host the host ipv6 addresses are not removed
 func (s *DockerDaemonSuite) TestDaemonIPv6HostMode(c *check.C) {
 	testRequires(c, testEnv.IsLocalDaemon)
-	deleteInterface(c, "docker0")
 
 	s.d.StartWithBusybox(c, "--ipv6", "--fixed-cidr-v6=2001:db8:2::/64")
 	out, err := s.d.Cmd("run", "-itd", "--name=hostcnt", "--network=host", "busybox:latest")
@@ -595,13 +566,13 @@ func (s *DockerDaemonSuite) TestDaemonBridgeExternal(c *check.C) {
 	bridgeIP := "192.169.1.1/24"
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, d)
+	defer deleteInterface(c, bridgeName, d)
 
 	d.StartWithBusybox(c, "--bridge", bridgeName)
 
 	ipTablesSearchString := bridgeIPNet.String()
-	icmd.RunCommand("iptables", "-t", "nat", "-nvL").Assert(c, icmd.Expected{
+	icmd.RunCmd(d.Exec("iptables", "-t", "nat", "-nvL")).Assert(c, icmd.Expected{
 		Out: ipTablesSearchString,
 	})
 
@@ -620,7 +591,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *check.C) {
 	defer d.Restart(c)
 
 	// verify docker0 iface is not there
-	icmd.RunCommand("ifconfig", "docker0").Assert(c, icmd.Expected{
+	icmd.RunCmd(d.Exec("ifconfig", "docker0")).Assert(c, icmd.Expected{
 		ExitCode: 1,
 		Error:    "exit status 1",
 		Err:      "Device not found",
@@ -632,15 +603,15 @@ func (s *DockerDaemonSuite) TestDaemonBridgeNone(c *check.C) {
 	assert.Assert(c, strings.Contains(out, "No such network"))
 }
 
-func createInterface(c *check.C, ifType string, ifName string, ipNet string) {
-	icmd.RunCommand("ip", "link", "add", "name", ifName, "type", ifType).Assert(c, icmd.Success)
-	icmd.RunCommand("ifconfig", ifName, ipNet, "up").Assert(c, icmd.Success)
+func createInterface(c *check.C, ifType string, ifName string, ipNet string, d *daemon.Daemon) {
+	icmd.RunCmd(d.Exec("ip", "link", "add", ifName, "type", ifType)).Assert(c, icmd.Success)
+	icmd.RunCmd(d.Exec("ifconfig", ifName, ipNet, "up")).Assert(c, icmd.Success)
 }
 
-func deleteInterface(c *check.C, ifName string) {
-	icmd.RunCommand("ip", "link", "delete", ifName).Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "-t", "nat", "--flush").Assert(c, icmd.Success)
-	icmd.RunCommand("iptables", "--flush").Assert(c, icmd.Success)
+func deleteInterface(c *check.C, ifName string, d *daemon.Daemon) {
+	icmd.RunCmd(d.Exec("ip", "link", "delete", ifName)).Assert(c, icmd.Success)
+	icmd.RunCmd(d.Exec("iptables", "-t", "nat", "--flush")).Assert(c, icmd.Success)
+	icmd.RunCmd(d.Exec("iptables", "--flush")).Assert(c, icmd.Success)
 }
 
 func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
@@ -653,9 +624,6 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	// 6. Restart the Docker Daemon (via deferred action)
 	//    This Restart takes care of bringing docker0 interface back to auto-assigned IP
 
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
 	d := s.d
 
 	bridgeIP := "192.169.1.1/24"
@@ -665,12 +633,13 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	defer d.Restart(c)
 
 	ifconfigSearchString := ip.String()
-	icmd.RunCommand("ifconfig", defaultNetworkBridge).Assert(c, icmd.Expected{
+	defaultNetworkBridge := "docker0"
+	icmd.RunCmd(d.Exec("ifconfig", defaultNetworkBridge)).Assert(c, icmd.Expected{
 		Out: ifconfigSearchString,
 	})
 
 	ipTablesSearchString := bridgeIPNet.String()
-	icmd.RunCommand("iptables", "-t", "nat", "-nvL").Assert(c, icmd.Expected{
+	icmd.RunCmd(d.Exec("iptables", "-t", "nat", "-nvL")).Assert(c, icmd.Expected{
 		Out: ipTablesSearchString,
 	})
 
@@ -682,7 +651,7 @@ func (s *DockerDaemonSuite) TestDaemonBridgeIP(c *check.C) {
 	c.Assert(bridgeIPNet.Contains(ip), check.Equals, true,
 		check.Commentf("Container IP-Address must be in the same subnet range : %s",
 			containerIP))
-	deleteInterface(c, defaultNetworkBridge)
+	deleteInterface(c, defaultNetworkBridge, d)
 }
 
 func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *check.C) {
@@ -694,13 +663,13 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithBridgeIPChange(c *check.C) {
 	bridgeIP := "192.169.100.1/24"
 	_, bridgeIPNet, _ := net.ParseCIDR(bridgeIP)
 
-	icmd.RunCommand("ifconfig", "docker0", bridgeIP).Assert(c, icmd.Success)
+	icmd.RunCmd(s.d.Exec("ifconfig", "docker0", bridgeIP)).Assert(c, icmd.Success)
 
 	s.d.Start(c, "--bip", bridgeIP)
 
 	//check if the iptables contains new bridgeIP MASQUERADE rule
 	ipTablesSearchString := bridgeIPNet.String()
-	icmd.RunCommand("iptables", "-t", "nat", "-nvL").Assert(c, icmd.Expected{
+	icmd.RunCmd(s.d.Exec("iptables", "-t", "nat", "-nvL")).Assert(c, icmd.Expected{
 		Out: ipTablesSearchString,
 	})
 }
@@ -711,8 +680,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr(c *check.C) {
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	args := []string{"--bridge", bridgeName, "--fixed-cidr", "192.169.1.0/30"}
 	d.StartWithBusybox(c, args...)
@@ -733,8 +702,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCidr2(c *check.C) {
 	bridgeName := "external-bridge"
 	bridgeIP := "10.2.2.1/16"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	d.StartWithBusybox(c, "--bip", bridgeIP, "--fixed-cidr", "10.2.2.0/24")
 	defer s.d.Restart(c)
@@ -758,8 +727,8 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *check
 	bridgeName := "external-bridge"
 	bridgeIP := "172.27.42.1/16"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	d.StartWithBusybox(c, "--bridge", bridgeName, "--fixed-cidr", bridgeIP)
 	defer s.d.Restart(c)
@@ -771,9 +740,6 @@ func (s *DockerDaemonSuite) TestDaemonBridgeFixedCIDREqualBridgeNetwork(c *check
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
 	d := s.d
 
 	bridgeIP := "192.169.1.1"
@@ -788,12 +754,10 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Implicit(c *check.C) {
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Implicit default gateway should be bridge IP %s, but default route was '%s'",
 			bridgeIP, strings.TrimSpace(out)))
-	deleteInterface(c, defaultNetworkBridge)
+	deleteInterface(c, "docker0", s.d)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
 
 	d := s.d
 
@@ -810,31 +774,26 @@ func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4Explicit(c *check.C) {
 	c.Assert(strings.Contains(out, expectedMessage), check.Equals, true,
 		check.Commentf("Explicit default gateway should be %s, but default route was '%s'",
 			gatewayIP, strings.TrimSpace(out)))
-	deleteInterface(c, defaultNetworkBridge)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultGatewayIPv4ExplicitOutsideContainerSubnet(c *check.C) {
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
 	// Program a custom default gateway outside of the container subnet, daemon should accept it and start
 	s.d.StartWithBusybox(c, "--bip", "172.16.0.10/16", "--fixed-cidr", "172.16.1.0/24", "--default-gateway", "172.16.0.254")
 
-	deleteInterface(c, defaultNetworkBridge)
+	defaultNetworkBridge := "docker0"
+	deleteInterface(c, defaultNetworkBridge, s.d)
 	s.d.Restart(c)
 }
 
 func (s *DockerDaemonSuite) TestDaemonDefaultNetworkInvalidClusterConfig(c *check.C) {
 
-	// Start daemon without docker0 bridge
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
 	discoveryBackend := "consul://consuladdr:consulport/some/path"
 	s.d.Start(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
 
+	// Start daemon without docker0 bridge
+	defaultNetworkBridge := "docker0"
 	// Start daemon with docker0 bridge
-	result := icmd.RunCommand("ifconfig", defaultNetworkBridge)
+	result := icmd.RunCmd(s.d.Exec("ifconfig", defaultNetworkBridge))
 	result.Assert(c, icmd.Success)
 
 	s.d.Restart(c, fmt.Sprintf("--cluster-store=%s", discoveryBackend))
@@ -855,13 +814,13 @@ func (s *DockerDaemonSuite) TestDaemonIP(c *check.C) {
 	c.Assert(strings.Contains(out, "Error starting userland proxy"), check.Equals, true)
 
 	ifName := "dummy"
-	createInterface(c, "dummy", ifName, ipStr)
-	defer deleteInterface(c, ifName)
+	createInterface(c, "dummy", ifName, ipStr, s.d)
+	defer deleteInterface(c, ifName, s.d)
 
 	_, err = d.Cmd("run", "-d", "-p", "8000:8000", "busybox", "top")
 	assert.NilError(c, err, out)
 
-	result := icmd.RunCommand("iptables", "-t", "nat", "-nvL")
+	result := icmd.RunCmd(d.Exec("iptables", "-t", "nat", "-nvL"))
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DNAT.*%s.*dpt:8000", ip.String())
 	matched, _ := regexp.MatchString(regex, result.Combined())
@@ -876,13 +835,13 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCmd(d.Exec("iptables", "-nvL", "FORWARD"))
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
 	matched, _ := regexp.MatchString(regex, result.Combined())
@@ -896,7 +855,7 @@ func (s *DockerDaemonSuite) TestDaemonICCPing(c *check.C) {
 	ip, _, _ := net.ParseCIDR(ipStr)
 	ifName := "icc-dummy"
 
-	createInterface(c, "dummy", ifName, ipStr)
+	createInterface(c, "dummy", ifName, ipStr, s.d)
 
 	// But, Pinging external or a Host interface must succeed
 	pingCmd := fmt.Sprintf("ping -c 1 %s -W 1", ip.String())
@@ -911,13 +870,13 @@ func (s *DockerDaemonSuite) TestDaemonICCLinkExpose(c *check.C) {
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
 	defer d.Restart(c)
 
-	result := icmd.RunCommand("iptables", "-nvL", "FORWARD")
+	result := icmd.RunCmd(d.Exec("iptables", "-nvL", "FORWARD"))
 	result.Assert(c, icmd.Success)
 	regex := fmt.Sprintf("DROP.*all.*%s.*%s", bridgeName, bridgeName)
 	matched, _ := regexp.MatchString(regex, result.Combined())
@@ -935,8 +894,8 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.1.1/24"
 
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	s.d.StartWithBusybox(c, "--bridge", bridgeName, "--icc=false")
 	defer s.d.Restart(c)
@@ -951,14 +910,14 @@ func (s *DockerDaemonSuite) TestDaemonLinksIpTablesRulesWhenLinkAndUnlink(c *che
 
 	sourceRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", childIP, "--sport", "80", "-d", parentIP, "-j", "ACCEPT"}
 	destinationRule := []string{"-i", bridgeName, "-o", bridgeName, "-p", "tcp", "-s", parentIP, "--dport", "80", "-d", childIP, "-j", "ACCEPT"}
-	if !iptables.Exists("filter", "DOCKER", sourceRule...) || !iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules not found")
-	}
+
+	icmd.RunCmd(s.d.Exec("iptables", append([]string{"--wait", "-t", "filter", "-C", "DOCKER"}, sourceRule...)...)).Assert(c, icmd.Success)
+	icmd.RunCmd(s.d.Exec("iptables", append([]string{"--wait", "-t", "filter", "-C", "DOCKER"}, destinationRule...)...)).Assert(c, icmd.Success)
 
 	s.d.Cmd("rm", "--link", "parent/http")
-	if iptables.Exists("filter", "DOCKER", sourceRule...) || iptables.Exists("filter", "DOCKER", destinationRule...) {
-		c.Fatal("Iptables rules should be removed when unlink")
-	}
+
+	icmd.RunCmd(s.d.Exec("iptables", append([]string{"--wait", "-t", "filter", "-C", "DOCKER"}, sourceRule...)...)).Assert(c, icmd.Expected{ExitCode: 1})
+	icmd.RunCmd(s.d.Exec("iptables", append([]string{"--wait", "-t", "filter", "-C", "DOCKER"}, destinationRule...)...)).Assert(c, icmd.Expected{ExitCode: 1})
 
 	s.d.Cmd("kill", "child")
 	s.d.Cmd("kill", "parent")
@@ -1330,6 +1289,7 @@ func (s *DockerDaemonSuite) TestHTTPSRun(c *check.C) {
 }
 
 // TestTLSVerify verifies that --tlsverify=false turns on tls
+// TODO: This test really isn't testing that --tlsverify actually works!
 func (s *DockerDaemonSuite) TestTLSVerify(c *check.C) {
 	out, err := exec.Command(dockerdBinary, "--tlsverify=false").CombinedOutput()
 	if err == nil || !strings.Contains(string(out), "Could not load X509 key pair") {
@@ -1431,7 +1391,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartWithSocketAsVolume(c *check.C) {
 // os.Kill should kill daemon ungracefully, leaving behind container mounts.
 // A subsequent daemon restart should clean up said mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	d.StartWithBusybox(c)
 
 	out, err := d.Cmd("run", "-d", "busybox", "top")
@@ -1469,7 +1431,9 @@ func (s *DockerDaemonSuite) TestCleanupMountsAfterDaemonAndContainerKill(c *chec
 
 // os.Interrupt should perform a graceful daemon shutdown and hence cleanup mounts.
 func (s *DockerDaemonSuite) TestCleanupMountsAfterGracefulShutdown(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	d.StartWithBusybox(c)
 
 	out, err := d.Cmd("run", "-d", "busybox", "top")
@@ -1539,7 +1503,7 @@ func (s *DockerDaemonSuite) TestDaemonRestartCleanupNetns(c *check.C) {
 
 // tests regression detailed in #13964 where DOCKER_TLS_VERIFY env is ignored
 func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *check.C) {
-	host := "tcp://localhost:4271"
+	host := fmt.Sprintf("tcp://%s:4271", s.d.IP(c).String())
 	s.d.Start(c, "-H", host)
 	icmd.RunCmd(icmd.Cmd{
 		Command: []string{dockerBinary, "-H", host, "info"},
@@ -1550,14 +1514,14 @@ func (s *DockerDaemonSuite) TestDaemonTLSVerifyIssue13964(c *check.C) {
 	})
 }
 
-func setupV6(c *check.C) {
+func setupV6(c *check.C, d *daemon.Daemon) {
 	// Hack to get the right IPv6 address on docker0, which has already been created
-	result := icmd.RunCommand("ip", "addr", "add", "fe80::1/64", "dev", "docker0")
+	result := icmd.RunCmd(d.Exec("ip", "addr", "add", "fe80::1/64", "dev", "docker0"))
 	result.Assert(c, icmd.Success)
 }
 
-func teardownV6(c *check.C) {
-	result := icmd.RunCommand("ip", "addr", "del", "fe80::1/64", "dev", "docker0")
+func teardownV6(c *check.C, d *daemon.Daemon) {
+	result := icmd.RunCmd(d.Exec("ip", "addr", "del", "fe80::1/64", "dev", "docker0"))
 	result.Assert(c, icmd.Success)
 }
 
@@ -1659,7 +1623,9 @@ func (s *DockerDaemonSuite) TestDaemonRestartLocalVolumes(c *check.C) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	c.Assert(d.StartWithError("--log-driver=syslog", "--log-opt", "syslog-address=corrupted:42"), check.NotNil)
 	expected := "syslog-address should be in form proto://address"
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
@@ -1667,7 +1633,9 @@ func (s *DockerDaemonSuite) TestDaemonCorruptedLogDriverAddress(c *check.C) {
 
 // FIXME(vdemeester) should be a unit test
 func (s *DockerDaemonSuite) TestDaemonCorruptedFluentdAddress(c *check.C) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
+
 	c.Assert(d.StartWithError("--log-driver=fluentd", "--log-opt", "fluentd-address=corrupted:c"), check.NotNil)
 	expected := "invalid fluentd-address corrupted:c: "
 	icmd.RunCommand("grep", expected, d.LogFileName()).Assert(c, icmd.Success)
@@ -1682,13 +1650,12 @@ func (s *DockerDaemonSuite) TestDaemonStartWithoutHost(c *check.C) {
 	s.d.Start(c)
 }
 
-// FIXME(vdemeester) Use a new daemon instance instead of the Suite one
 func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *check.C) {
-	s.d.UseDefaultTLSHost = true
-	defer func() {
-		s.d.UseDefaultTLSHost = false
-	}()
-	s.d.Start(c,
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary)
+	defer cleanup(c)
+
+	d.UseDefaultTLSHost = true
+	d.Start(c,
 		"--tlsverify",
 		"--tlscacert", "fixtures/https/ca.pem",
 		"--tlscert", "fixtures/https/server-cert.pem",
@@ -1702,7 +1669,7 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *check.C) {
 
 	os.Setenv("DOCKER_HOST", "")
 
-	out, _ := dockerCmd(
+	out := s.d.CmdT(
 		c,
 		"--tlsverify",
 		"--tlscacert", "fixtures/https/ca.pem",
@@ -1743,9 +1710,6 @@ func (s *DockerDaemonSuite) TestDaemonStartWithDefaultTLSHost(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestBridgeIPIsExcludedFromAllocatorPool(c *check.C) {
-	defaultNetworkBridge := "docker0"
-	deleteInterface(c, defaultNetworkBridge)
-
 	bridgeIP := "192.169.1.1"
 	bridgeRange := bridgeIP + "/30"
 
@@ -2904,7 +2868,8 @@ func (s *DockerDaemonSuite) TestShmSizeReload(c *check.C) {
 }
 
 func testDaemonStartIpcMode(c *check.C, from, mode string, valid bool) {
-	d := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	defer cleanup(c)
 	c.Logf("Checking IpcMode %s set from %s\n", mode, from)
 	var serr error
 	switch from {
@@ -2964,7 +2929,9 @@ func (s *DockerDaemonSuite) TestDaemonStartWithIpcModes(c *check.C) {
 // the daemon from starting
 func (s *DockerDaemonSuite) TestFailedPluginRemove(c *check.C) {
 	testRequires(c, DaemonIsLinux, IsAmd64, testEnv.IsLocalDaemon)
-	d := daemon.New(c, dockerBinary, dockerdBinary)
+	d, cleanup := daemon.New(c, dockerBinary, dockerdBinary)
+	defer cleanup(c)
+
 	d.Start(c)
 	cli := d.NewClientT(c)
 

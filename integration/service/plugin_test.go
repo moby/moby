@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -14,6 +15,7 @@ import (
 	swarmtypes "github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/api/types/swarm/runtime"
 	"github.com/docker/docker/integration/internal/swarm"
+	"github.com/docker/docker/internal/test/certutil"
 	"github.com/docker/docker/internal/test/daemon"
 	"github.com/docker/docker/internal/test/fixtures/plugin"
 	"github.com/docker/docker/internal/test/registry"
@@ -28,17 +30,39 @@ func TestServicePlugin(t *testing.T) {
 	skip.If(t, os.Getenv("DOCKER_ENGINE_GOARCH") != "amd64")
 	defer setupTest(t)()
 
-	reg := registry.NewV2(t)
+	// TODO: We shouldn't really need to do this on a separate daemon, it's just
+	// convenient for getting an IP address to use for the registry which is
+	// accessible to all daemons...
+	d, cleanup := daemon.New(t)
+	defer cleanup(t)
+	d.Start(t)
+
+	certs, cleanupCerts := certutil.New(t, d.IP(t).String())
+	defer cleanupCerts(t)
+
+	reg := registry.NewV2(t, registry.URL(d.IP(t).String()+":5000"), registry.Exec(d.Exec), registry.TLS(certs))
 	defer reg.Close()
 
-	repo := path.Join(registry.DefaultURL, "swarm", "test:v1")
-	repo2 := path.Join(registry.DefaultURL, "swarm", "test:v2")
+	certsDir := "/etc/docker/certs.d/" + reg.URL()
+	assert.NilError(t, os.MkdirAll(certsDir, 0700))
+	defer os.RemoveAll(certsDir)
+	caCert, err := ioutil.ReadFile(certs.CACertPath)
+	assert.NilError(t, err)
+	err = ioutil.WriteFile(filepath.Join(certsDir, "ca.crt"), caCert, 0600)
+	assert.NilError(t, err)
+
+	reg.WaitReady(t)
+
+	repoPath1 := "swarm/test:v1"
+	repoPath2 := "swarm/test:v2"
+
+	repo := path.Join(reg.URL(), repoPath1)
+	repo2 := path.Join(reg.URL(), repoPath2)
 	name := "test"
 
-	d := daemon.New(t)
-	d.StartWithBusybox(t)
 	apiclient := d.NewClientT(t)
-	err := plugin.Create(context.Background(), apiclient, repo)
+
+	err = plugin.Create(context.Background(), apiclient, repo)
 	assert.NilError(t, err)
 	r, err := apiclient.PluginPush(context.Background(), repo, "")
 	assert.NilError(t, err)
@@ -52,16 +76,18 @@ func TestServicePlugin(t *testing.T) {
 	assert.NilError(t, err)
 	_, err = io.Copy(ioutil.Discard, r)
 	assert.NilError(t, err)
-	err = apiclient.PluginRemove(context.Background(), repo2, types.PluginRemoveOptions{})
-	assert.NilError(t, err)
-	d.Stop(t)
 
-	d1 := swarm.NewSwarm(t, testEnv, daemon.WithExperimental)
+	d1, cleanup1 := swarm.NewSwarm(t, testEnv, daemon.WithExperimental)
+	defer cleanup1(t)
 	defer d1.Stop(t)
-	d2 := daemon.New(t, daemon.WithExperimental, daemon.WithSwarmPort(daemon.DefaultSwarmPort+1))
+
+	d2, cleanup2 := daemon.New(t, daemon.WithExperimental)
+	defer cleanup2(t)
 	d2.StartAndSwarmJoin(t, d1, true)
 	defer d2.Stop(t)
-	d3 := daemon.New(t, daemon.WithExperimental, daemon.WithSwarmPort(daemon.DefaultSwarmPort+2))
+
+	d3, cleanup3 := daemon.New(t, daemon.WithExperimental)
+	defer cleanup3(t)
 	d3.StartAndSwarmJoin(t, d1, false)
 	defer d3.Stop(t)
 

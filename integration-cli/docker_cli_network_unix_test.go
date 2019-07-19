@@ -51,12 +51,13 @@ type DockerNetworkSuite struct {
 }
 
 func (s *DockerNetworkSuite) SetUpTest(c *check.C) {
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d, _ = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 }
 
 func (s *DockerNetworkSuite) TearDownTest(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
+		s.d.Cleanup(c)
 		s.ds.TearDownTest(c)
 	}
 }
@@ -809,8 +810,8 @@ func (s *DockerDaemonSuite) TestDockerNetworkNoDiscoveryDefaultBridgeNetwork(c *
 	hostsFile := "/etc/hosts"
 	bridgeName := "external-bridge"
 	bridgeIP := "192.169.255.254/24"
-	createInterface(c, "bridge", bridgeName, bridgeIP)
-	defer deleteInterface(c, bridgeName)
+	createInterface(c, "bridge", bridgeName, bridgeIP, s.d)
+	defer deleteInterface(c, bridgeName, s.d)
 
 	s.d.StartWithBusybox(c, "--bridge", bridgeName)
 	defer s.d.Restart(c)

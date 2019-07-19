@@ -41,7 +41,7 @@ func newDockerHubPullSuite() *DockerHubPullSuite {
 // SetUpSuite starts the suite daemon.
 func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 	testRequires(c, DaemonIsLinux, testEnv.IsLocalDaemon)
-	s.d = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
+	s.d, _ = daemon.New(c, dockerBinary, dockerdBinary, testdaemon.WithEnvironment(testEnv.Execution))
 	s.d.Start(c)
 }
 
@@ -49,6 +49,7 @@ func (s *DockerHubPullSuite) SetUpSuite(c *check.C) {
 func (s *DockerHubPullSuite) TearDownSuite(c *check.C) {
 	if s.d != nil {
 		s.d.Stop(c)
+		s.d.Cleanup(c)
 	}
 }
 
