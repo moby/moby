@@ -68,7 +68,7 @@ func TestCgroupNamespacesRun(t *testing.T) {
 func TestCgroupNamespacesRunPrivileged(t *testing.T) {
 	skip.If(t, testEnv.DaemonInfo.OSType != "linux")
 	skip.If(t, testEnv.IsRemoteDaemon())
-	skip.If(t, requirement.CgroupNamespacesEnabled())
+	skip.If(t, !requirement.CgroupNamespacesEnabled())
 
 	// When the daemon defaults to private cgroup namespaces, privileged containers
 	// launched should not be inside their own cgroup namespaces
