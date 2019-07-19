@@ -211,7 +211,6 @@ func (s *DockerSuite) TestInsecureRegistries(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRegistryMirrors(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon, DaemonIsLinux)
 
 	registryMirror1 := "https://192.168.1.2"
 	registryMirror2 := "http://registry.mirror.com:5000"

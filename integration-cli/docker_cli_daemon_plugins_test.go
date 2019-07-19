@@ -121,7 +121,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownLiveRestoreWithPlugins(c *check.C)
 
 // TestDaemonShutdownWithPlugins shuts down running plugins.
 func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
-	testRequires(c, IsAmd64, Network, testEnv.IsLocalDaemon)
+	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
@@ -159,7 +159,7 @@ func (s *DockerDaemonSuite) TestDaemonShutdownWithPlugins(c *check.C) {
 
 // TestDaemonKillWithPlugins leaves plugins running.
 func (s *DockerDaemonSuite) TestDaemonKillWithPlugins(c *check.C) {
-	testRequires(c, IsAmd64, Network, testEnv.IsLocalDaemon)
+	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c)
 	if out, err := s.d.Cmd("plugin", "install", "--grant-all-permissions", pName); err != nil {
@@ -232,7 +232,7 @@ func (s *DockerDaemonSuite) TestVolumePlugin(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestPluginVolumeRemoveOnRestart(c *check.C) {
-	testRequires(c, DaemonIsLinux, Network, IsAmd64)
+	testRequires(c, IsAmd64, Network)
 
 	s.d.Start(c, "--live-restore=true")
 
