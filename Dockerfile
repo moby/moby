@@ -38,7 +38,7 @@ ENV CRIU_VERSION 3.11
 # Install dependency packages specific to criu
 RUN apt-get update && apt-get install -y \
 	libnet-dev \
-	libprotobuf-c0-dev \
+	libprotobuf-c-dev \
 	libprotobuf-dev \
 	libnl-3-dev \
 	libcap-dev \
