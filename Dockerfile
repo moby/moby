@@ -214,6 +214,7 @@ RUN apt-get update && apt-get install -y \
 	btrfs-tools \
 	iptables \
 	jq \
+	libbtrfs-dev \
 	libcap2-bin \
 	libdevmapper-dev \
 	libudev-dev \
