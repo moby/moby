@@ -425,29 +425,6 @@ Try {
 
     Write-Host -ForegroundColor Green "INFO: Location for testing is $env:TEMP"
 
-    # CI Integrity check - ensure Dockerfile.windows and Dockerfile go versions match
-    $goVersionDockerfileWindows=$(Get-Content ".\Dockerfile.windows" | Select-String "^ENV GO_VERSION" | Select-object -First 1).ToString().Replace("ENV GO_VERSION=","").Replace("\","").Replace("``","").Trim()
-    $goVersionDockerfile=$(Get-Content ".\Dockerfile" | Select-String "^ENV GO_VERSION" | Select-object -First 1)
-    
-    # As of go 1.11, Dockerfile changed to be in the format like "FROM golang:1.11.0 AS base".
-    # If a version number ends with .0 (as in 1.11.0, a convention used in golang docker
-    # image versions), it needs to be removed (i.e. "1.11.0" becomes "1.11").
-    if ($null -eq $goVersionDockerfile) {
-        $goVersionDockerfile=$(Get-Content ".\Dockerfile" | Select-String "^FROM golang:" | Select-object -First 1)
-        if ($null -ne $goVersionDockerfile) {
-            $goVersionDockerfile = $goVersionDockerfile.ToString().Split(" ")[1].Split(":")[1] -replace '\.0$',''
-        }
-    } else {
-        $goVersionDockerfile = $goVersionDockerfile.ToString().Split(" ")[2]
-    }
-    if ($null -eq $goVersionDockerfile) {
-        Throw "ERROR: Failed to extract golang version from Dockerfile"
-    }
-    Write-Host  -ForegroundColor Green "INFO: Validating GOLang consistency in Dockerfile.windows..."
-    if (-not ($goVersionDockerfile -eq $goVersionDockerfileWindows)) {
-        Throw "ERROR: Mismatched GO versions between Dockerfile and Dockerfile.windows. Update your PR to ensure that both files are updated and in sync. $goVersionDockerfile $goVersionDockerfileWindows"
-    }
-
     # Build the image
     if ($null -eq $env:SKIP_IMAGE_BUILD) {
         Write-Host  -ForegroundColor Cyan "`n`nINFO: Building the image from Dockerfile.windows at $(Get-Date)..."
