@@ -151,7 +151,7 @@ COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
 RUN PREFIX=/build ./install.sh $INSTALL_BINARY_NAME
 
 FROM dev-base AS containerd
-RUN apt-get update && apt-get install -y btrfs-tools
+RUN apt-get update && apt-get install -y btrfs-tools libbtrfs-dev
 ENV INSTALL_BINARY_NAME=containerd
 COPY hack/dockerfile/install/install.sh ./install.sh
 COPY hack/dockerfile/install/$INSTALL_BINARY_NAME.installer ./
