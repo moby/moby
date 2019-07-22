@@ -284,6 +284,11 @@ RUN --mount=type=cache,sharing=locked,id=moby-dev-aptlib,target=/var/lib/apt \
             zip
 
 
+# Switch to use iptables instead of nftables (to match the host machine)
+RUN update-alternatives --set iptables  /usr/sbin/iptables-legacy  || true \
+ && update-alternatives --set ip6tables /usr/sbin/ip6tables-legacy || true \
+ && update-alternatives --set arptables /usr/sbin/arptables-legacy || true
+
 RUN pip3 install yamllint==1.16.0
 
 COPY --from=dockercli     /build/ /usr/local/cli
