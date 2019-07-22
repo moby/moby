@@ -178,7 +178,13 @@ func (cli *Client) doRequest(ctx context.Context, req *http.Request) (serverResp
 		// this is localised - for example in French the error would be
 		// `open //./pipe/docker_engine: Le fichier spécifié est introuvable.`
 		if strings.Contains(err.Error(), `open //./pipe/docker_engine`) {
-			err = errors.New(err.Error() + " In the default daemon configuration on Windows, the docker client must be run elevated to connect. This error may also indicate that the docker daemon is not running.")
+			// Checks if client is running with elevated privileges
+			if f, elevatedErr := os.Open("\\\\.\\PHYSICALDRIVE0"); elevatedErr == nil {
+				err = errors.Wrap(err, "In the default daemon configuration on Windows, the docker client must be run with elevated privileges to connect.")
+			} else {
+				f.Close()
+				err = errors.Wrap(err, "This error may indicate that the docker daemon is not running.")
+			}
 		}
 
 		return serverResp, errors.Wrap(err, "error during connect")
