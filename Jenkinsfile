@@ -1,37 +1,3 @@
-def withGithubStatus(String context, Closure cl) {
-  def setGithubStatus = { String state ->
-    try {
-      def backref = "${BUILD_URL}flowGraphTable/"
-      def reposSourceURL = scm.repositories[0].getURIs()[0].toString()
-      step(
-        $class: 'GitHubCommitStatusSetter',
-        contextSource: [$class: "ManuallyEnteredCommitContextSource", context: context],
-        errorHandlers: [[$class: 'ShallowAnyErrorHandler']],
-        reposSource: [$class: 'ManuallyEnteredRepositorySource', url: reposSourceURL],
-        statusBackrefSource: [$class: 'ManuallyEnteredBackrefSource', backref: backref],
-        statusResultSource: [$class: 'ConditionalStatusResultSource', results: [[$class: 'AnyBuildResult', state: state]]],
-      )
-    } catch (err) {
-      echo "Exception from GitHubCommitStatusSetter for $context: $err"
-    }
-  }
-
-  setGithubStatus 'PENDING'
-
-  try {
-    cl()
-	} catch (err) {
-    // AbortException signals a "normal" build failure.
-    if (!(err instanceof hudson.AbortException)) {
-      echo "Exception in withGithubStatus for $context: $err"
-		}
-		setGithubStatus 'FAILURE'
-		throw err
-	}
-	setGithubStatus 'SUCCESS'
-}
-
-
 pipeline {
   agent none
   options {
@@ -44,8 +10,8 @@ pipeline {
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
         booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
         booleanParam(name: 'vendor', defaultValue: true, description: 'Vendor')
-        booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
-        booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
+        // booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
+        // booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
   }
   stages {
     stage('Build') {
@@ -274,48 +240,48 @@ pipeline {
             }
           }
         }
-        stage('windowsRS1') {
-          when {
-            beforeAgent true
-            expression { params.windowsRS1 }
-          }
-          agent {
-            node {
-              label 'windows-rs1'
-              customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
-            }
-          }
-          steps {
-            withGithubStatus('windowsRS1') {
-              powershell '''
-                $ErrorActionPreference = 'Stop'
-                .\\hack\\ci\\windows.ps1
-                exit $LastExitCode
-              '''
-            }
-          }
-        }
-        stage('windowsRS5-process') {
-          when {
-            beforeAgent true
-            expression { params.windowsRS5 }
-          }
-          agent {
-            node {
-              label 'windows-rs5'
-              customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
-            }
-          }
-          steps {
-            withGithubStatus('windowsRS5-process') {
-              powershell '''
-                $ErrorActionPreference = 'Stop'
-                .\\hack\\ci\\windows.ps1
-                exit $LastExitCode
-              '''
-            }
-          }
-        }
+        // stage('windowsRS1') {
+        //   when {
+        //     beforeAgent true
+        //     expression { params.windowsRS1 }
+        //   }
+        //   agent {
+        //     node {
+        //       label 'windows-rs1'
+        //       customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+        //     }
+        //   }
+        //   steps {
+        //     withGithubStatus('windowsRS1') {
+        //       powershell '''
+        //         $ErrorActionPreference = 'Stop'
+        //         .\\hack\\ci\\windows.ps1
+        //         exit $LastExitCode
+        //       '''
+        //     }
+        //   }
+        // }
+        // stage('windowsRS5-process') {
+        //   when {
+        //     beforeAgent true
+        //     expression { params.windowsRS5 }
+        //   }
+        //   agent {
+        //     node {
+        //       label 'windows-rs5'
+        //       customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+        //     }
+        //   }
+        //   steps {
+        //     withGithubStatus('windowsRS5-process') {
+        //       powershell '''
+        //         $ErrorActionPreference = 'Stop'
+        //         .\\hack\\ci\\windows.ps1
+        //         exit $LastExitCode
+        //       '''
+        //     }
+        //   }
+        // }
       }
     }
   }
