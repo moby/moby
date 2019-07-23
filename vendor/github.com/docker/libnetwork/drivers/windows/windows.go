@@ -433,7 +433,7 @@ func convertQosPolicies(qosPolicies []types.QosPolicy) ([]json.RawMessage, error
 	// understood by the HCS.
 	for _, elem := range qosPolicies {
 		encodedPolicy, err := json.Marshal(hcsshim.QosPolicy{
-			Type: "QOS",
+			Type:                            "QOS",
 			MaximumOutgoingBandwidthInBytes: elem.MaxEgressBandwidth,
 		})
 

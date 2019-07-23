@@ -7,9 +7,9 @@ import (
 )
 
 var ovConfig = map[string]*kernel.OSValue{
-	"net.ipv4.neigh.default.gc_thresh1": {"8192", checkHigher},
-	"net.ipv4.neigh.default.gc_thresh2": {"49152", checkHigher},
-	"net.ipv4.neigh.default.gc_thresh3": {"65536", checkHigher},
+	"net.ipv4.neigh.default.gc_thresh1": {Value: "8192", CheckFn: checkHigher},
+	"net.ipv4.neigh.default.gc_thresh2": {Value: "49152", CheckFn: checkHigher},
+	"net.ipv4.neigh.default.gc_thresh3": {Value: "65536", CheckFn: checkHigher},
 }
 
 func checkHigher(val1, val2 string) bool {
