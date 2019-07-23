@@ -1,3 +1,4 @@
+@Library('jps@tweak-withgithubstatus') _
 pipeline {
   agent none
   options {
@@ -5,13 +6,13 @@ pipeline {
     timeout(time: 3, unit: 'HOURS')
   }
   parameters {
-        booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
-        booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
-        booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'powerpc', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'vendor', defaultValue: true, description: 'Vendor')
-        // booleanParam(name: 'windowsRS1', defaultValue: true, description: 'Windows 2016 (RS1) Build/Test')
-        // booleanParam(name: 'windowsRS5', defaultValue: true, description: 'Windows 2019 (RS5) Build/Test')
+        booleanParam(name: 'janky', defaultValue: false, description: 'x86 Build/Test')
+        booleanParam(name: 'experimental', defaultValue: false, description: 'x86 Experimental Build/Test ')
+        booleanParam(name: 'z', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'vendor', defaultValue: false, description: 'Vendor')
+        booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
+        booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
   }
   stages {
     stage('Build') {
@@ -27,33 +28,36 @@ pipeline {
             }
           }
           steps {
-            withGithubStatus('janky') {
+            withGithubStatus('janky', message="a message") {
               sh '''echo "Hello world" '''
-              // sh '''
-              //   # todo: include ip_vs in base image
-              //   sudo modprobe ip_vs
-              //
-              //   GITCOMMIT=$(git rev-parse --short HEAD)
-              //   docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
-              //
-              //   docker run --rm -t --privileged \
-              //     -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-              //     -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-              //     --name docker-pr$BUILD_NUMBER \
-              //     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-              //     -e DOCKER_GRAPHDRIVER=vfs \
-              //     -e DOCKER_EXECDRIVER=native \
-              //     -e GIT_SHA1=${GIT_COMMIT} \
-              //     docker:$GITCOMMIT \
-              //     hack/ci/janky
-              // '''
-              // sh '''
-              //   GITCOMMIT=$(git rev-parse --short HEAD)
-              //   echo "Building e2e image"
-              //   docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
-              // '''
+              /*
+              sh '''
+                # todo: include ip_vs in base image
+                sudo modprobe ip_vs
+             
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+             
+                docker run --rm -t --privileged \
+                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                  --name docker-pr$BUILD_NUMBER \
+                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                  -e DOCKER_GRAPHDRIVER=vfs \
+                  -e DOCKER_EXECDRIVER=native \
+                  -e GIT_SHA1=${GIT_COMMIT} \
+                  docker:$GITCOMMIT \
+                  hack/ci/janky
+              '''
+              sh '''
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                echo "Building e2e image"
+                docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
+              '''
+              */
             }
           }
+          /*
           post {
             always {
               sh '''
@@ -70,6 +74,7 @@ pipeline {
               archiveArtifacts artifacts: 'bundles.tar.gz'
             }
           }
+          */
         }
         stage('experimental') {
           when {
@@ -84,22 +89,25 @@ pipeline {
           steps {
             withGithubStatus('experimental') {
               sh '''echo "Hello World"'''
-              // sh '''
-              //   GITCOMMIT=$(git rev-parse --short HEAD)
-              //   docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:${GITCOMMIT}-exp .
-              //
-              //   docker run --rm -t --privileged \
-              //       -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-              //       -e DOCKER_EXPERIMENTAL=y \
-              //       --name docker-pr-exp$BUILD_NUMBER \
-              //       -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-              //       -e DOCKER_GRAPHDRIVER=vfs \
-              //       -e DOCKER_EXECDRIVER=native \
-              //       docker:${GITCOMMIT}-exp \
-              //       hack/ci/experimental
-              // '''
+              /*
+              sh '''
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:${GITCOMMIT}-exp .
+             
+                docker run --rm -t --privileged \
+                    -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                    -e DOCKER_EXPERIMENTAL=y \
+                    --name docker-pr-exp$BUILD_NUMBER \
+                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                    -e DOCKER_GRAPHDRIVER=vfs \
+                    -e DOCKER_EXECDRIVER=native \
+                    docker:${GITCOMMIT}-exp \
+                    hack/ci/experimental
+              '''
+              */
             }
           }
+          /*
           post {
             always {
               sh '''
@@ -116,6 +124,7 @@ pipeline {
               archiveArtifacts artifacts: 'bundles.tar.gz'
             }
           }
+          */
         }
         stage('z') {
           when {
@@ -130,25 +139,28 @@ pipeline {
           steps {
             withGithubStatus('z') {
               sh '''echo "Hello World" '''
-              // sh '''
-              //   GITCOMMIT=$(git rev-parse --short HEAD)
-              //
-              //   test -f Dockerfile.s390x && \
-              //   docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile.s390x . || \
-              //   docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile .
-              //
-              //   docker run --rm -t --privileged \
-              //     -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-              //       --name docker-pr-s390x$BUILD_NUMBER \
-              //       -e DOCKER_GRAPHDRIVER=vfs \
-              //       -e DOCKER_EXECDRIVER=native \
-              //       -e TIMEOUT="300m" \
-              //       -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-              //       docker-s390x:$GITCOMMIT \
-              //       hack/ci/z
-              // '''
+              /*
+              sh '''
+                GITCOMMIT=$(git rev-parse --short HEAD)
+             
+                test -f Dockerfile.s390x && \
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile.s390x . || \
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile .
+             
+                docker run --rm -t --privileged \
+                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                    --name docker-pr-s390x$BUILD_NUMBER \
+                    -e DOCKER_GRAPHDRIVER=vfs \
+                    -e DOCKER_EXECDRIVER=native \
+                    -e TIMEOUT="300m" \
+                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                    docker-s390x:$GITCOMMIT \
+                    hack/ci/z
+              '''
+              */
             }
           }
+          /*
           post {
             always {
               sh '''
@@ -165,6 +177,7 @@ pipeline {
               archiveArtifacts artifacts: 'bundles.tar.gz'
             }
           }
+          */
         }
         stage('powerpc') {
           when {
@@ -178,6 +191,8 @@ pipeline {
           }
           steps {
             withGithubStatus('powerpc') {
+              sh '''echo "Hello World"'''
+              /*
               sh '''
                 GITCOMMIT=$(git rev-parse --short HEAD)
 
@@ -195,8 +210,10 @@ pipeline {
                     docker-powerpc:$GITCOMMIT \
                     hack/ci/powerpc
               '''
+              */
             }
           }
+          /*
           post {
             always {
               sh '''
@@ -213,6 +230,7 @@ pipeline {
               archiveArtifacts artifacts: 'bundles.tar.gz'
             }
           }
+          */
         }
         stage('vendor') {
           when {
@@ -226,6 +244,8 @@ pipeline {
           }
           steps {
             withGithubStatus('vendor') {
+              sh '''echo "hello world"'''
+              /*
               sh '''
                 GITCOMMIT=$(git rev-parse --short HEAD)
 
@@ -240,51 +260,52 @@ pipeline {
                   -e TIMEOUT=120m dockerven:$GITCOMMIT \
                   hack/validate/vendor
               '''
+              */
             }
           }
         }
-        // stage('windowsRS1') {
-        //   when {
-        //     beforeAgent true
-        //     expression { params.windowsRS1 }
-        //   }
-        //   agent {
-        //     node {
-        //       label 'windows-rs1'
-        //       customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
-        //     }
-        //   }
-        //   steps {
-        //     withGithubStatus('windowsRS1') {
-        //       powershell '''
-        //         $ErrorActionPreference = 'Stop'
-        //         .\\hack\\ci\\windows.ps1
-        //         exit $LastExitCode
-        //       '''
-        //     }
-        //   }
-        // }
-        // stage('windowsRS5-process') {
-        //   when {
-        //     beforeAgent true
-        //     expression { params.windowsRS5 }
-        //   }
-        //   agent {
-        //     node {
-        //       label 'windows-rs5'
-        //       customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
-        //     }
-        //   }
-        //   steps {
-        //     withGithubStatus('windowsRS5-process') {
-        //       powershell '''
-        //         $ErrorActionPreference = 'Stop'
-        //         .\\hack\\ci\\windows.ps1
-        //         exit $LastExitCode
-        //       '''
-        //     }
-        //   }
-        // }
+        stage('windowsRS1') {
+          when {
+            beforeAgent true
+            expression { params.windowsRS1 }
+          }
+          agent {
+            node {
+              label 'windows-rs1'
+              customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+            }
+          }
+          steps {
+            withGithubStatus('windowsRS1') {
+              powershell '''
+                $ErrorActionPreference = 'Stop'
+                .\\hack\\ci\\windows.ps1
+                exit $LastExitCode
+              '''
+            }
+          }
+        }
+        stage('windowsRS5-process') {
+          when {
+            beforeAgent true
+            expression { params.windowsRS5 }
+          }
+          agent {
+            node {
+              label 'windows-rs5'
+              customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
+            }
+          }
+          steps {
+            withGithubStatus('windowsRS5-process') {
+              powershell '''
+                $ErrorActionPreference = 'Stop'
+                .\\hack\\ci\\windows.ps1
+                exit $LastExitCode
+              '''
+            }
+          }
+        }
       }
     }
   }

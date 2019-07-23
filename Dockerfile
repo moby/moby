@@ -17,7 +17,7 @@
 # # Run unit tests
 # # hack/test/unit
 #
-# # Run tests e.g. integration, py
+ # Run tests e.g. integration, py
 # # hack/make.sh binary test-integration test-docker-py
 #
 # Note: AppArmor used to mess with privileged mode, but this is no longer
@@ -27,7 +27,7 @@
 ARG CROSS="false"
 ARG GO_VERSION=1.12.7
 
-FROM golang:${GO_VERSION} AS base
+FROM golang:${GO_VERSION}-conflict AS base
 ARG APT_MIRROR
 RUN sed -ri "s/(httpredir|deb).debian.org/${APT_MIRROR:-deb.debian.org}/g" /etc/apt/sources.list \
  && sed -ri "s/(security).debian.org/${APT_MIRROR:-security.debian.org}/g" /etc/apt/sources.list
