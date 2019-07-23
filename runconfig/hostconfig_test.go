@@ -22,20 +22,20 @@ func TestNetworkModeTest(t *testing.T) {
 		"something:weird":          {true, false, false, false, false, false},
 		"bridge":                   {true, true, false, false, false, false},
 		DefaultDaemonNetworkMode(): {true, true, false, false, false, false},
-		"host":           {false, false, true, false, false, false},
-		"container:name": {false, false, false, true, false, false},
-		"none":           {true, false, false, false, true, false},
-		"default":        {true, false, false, false, false, true},
+		"host":                     {false, false, true, false, false, false},
+		"container:name":           {false, false, false, true, false, false},
+		"none":                     {true, false, false, false, true, false},
+		"default":                  {true, false, false, false, false, true},
 	}
 	networkModeNames := map[container.NetworkMode]string{
 		"":                         "",
 		"something:weird":          "something:weird",
 		"bridge":                   "bridge",
 		DefaultDaemonNetworkMode(): "bridge",
-		"host":           "host",
-		"container:name": "container",
-		"none":           "none",
-		"default":        "default",
+		"host":                     "host",
+		"container:name":           "container",
+		"none":                     "none",
+		"default":                  "default",
 	}
 	for networkMode, state := range networkModes {
 		if networkMode.IsPrivate() != state[0] {

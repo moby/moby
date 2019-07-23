@@ -1,5 +1,5 @@
 ## Step 1: Build tests
-FROM golang:1.10.8-alpine3.7 as builder
+FROM golang:1.11.11-alpine3.9 as builder
 
 RUN apk add --update \
     bash \
@@ -40,7 +40,7 @@ RUN hack/make.sh build-integration-test-binary
 RUN mkdir -p /output/tests && find . -name test.main -exec cp --parents '{}' /output/tests \;
 
 ## Step 2: Generate testing image
-FROM alpine:3.7 as runner
+FROM alpine:3.9 as runner
 
 # GNU tar is used for generating the emptyfs image
 RUN apk add --update \

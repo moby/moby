@@ -30,10 +30,10 @@ func TestValidateLogOpt(t *testing.T) {
 		splunkVerifyConnectionKey:     "true",
 		splunkGzipCompressionKey:      "true",
 		splunkGzipCompressionLevelKey: "1",
-		envKey:      "a",
-		envRegexKey: "^foo",
-		labelsKey:   "b",
-		tagKey:      "c",
+		envKey:                        "a",
+		envRegexKey:                   "^foo",
+		labelsKey:                     "b",
+		tagKey:                        "c",
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -251,9 +251,9 @@ func TestInlineFormatWithNonDefaultOptions(t *testing.T) {
 			splunkIndexKey:           "myindex",
 			splunkFormatKey:          splunkFormatInline,
 			splunkGzipCompressionKey: "true",
-			tagKey:      "{{.ImageName}}/{{.Name}}",
-			labelsKey:   "a",
-			envRegexKey: "^foo",
+			tagKey:                   "{{.ImageName}}/{{.Name}}",
+			labelsKey:                "a",
+			envRegexKey:              "^foo",
 		},
 		ContainerID:        "containeriid",
 		ContainerName:      "/container_name",

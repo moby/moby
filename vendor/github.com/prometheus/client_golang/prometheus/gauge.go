@@ -58,7 +58,7 @@ func NewGauge(opts GaugeOpts) Gauge {
 // (e.g. number of operations queued, partitioned by user and operation
 // type). Create instances with NewGaugeVec.
 type GaugeVec struct {
-	MetricVec
+	*MetricVec
 }
 
 // NewGaugeVec creates a new GaugeVec based on the provided GaugeOpts and
@@ -72,13 +72,9 @@ func NewGaugeVec(opts GaugeOpts, labelNames []string) *GaugeVec {
 		opts.ConstLabels,
 	)
 	return &GaugeVec{
-		MetricVec: MetricVec{
-			children: map[uint64]Metric{},
-			desc:     desc,
-			newMetric: func(lvs ...string) Metric {
-				return newValue(desc, GaugeValue, 0, lvs...)
-			},
-		},
+		MetricVec: newMetricVec(desc, func(lvs ...string) Metric {
+			return newValue(desc, GaugeValue, 0, lvs...)
+		}),
 	}
 }
 

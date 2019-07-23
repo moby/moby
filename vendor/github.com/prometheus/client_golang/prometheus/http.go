@@ -15,13 +15,113 @@ package prometheus
 
 import (
 	"bufio"
+	"bytes"
+	"compress/gzip"
+	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
+
+	"github.com/prometheus/common/expfmt"
 )
+
+// TODO(beorn7): Remove this whole file. It is a partial mirror of
+// promhttp/http.go (to avoid circular import chains) where everything HTTP
+// related should live. The functions here are just for avoiding
+// breakage. Everything is deprecated.
+
+const (
+	contentTypeHeader     = "Content-Type"
+	contentLengthHeader   = "Content-Length"
+	contentEncodingHeader = "Content-Encoding"
+	acceptEncodingHeader  = "Accept-Encoding"
+)
+
+var bufPool sync.Pool
+
+func getBuf() *bytes.Buffer {
+	buf := bufPool.Get()
+	if buf == nil {
+		return &bytes.Buffer{}
+	}
+	return buf.(*bytes.Buffer)
+}
+
+func giveBuf(buf *bytes.Buffer) {
+	buf.Reset()
+	bufPool.Put(buf)
+}
+
+// Handler returns an HTTP handler for the DefaultGatherer. It is
+// already instrumented with InstrumentHandler (using "prometheus" as handler
+// name).
+//
+// Deprecated: Please note the issues described in the doc comment of
+// InstrumentHandler. You might want to consider using promhttp.Handler instead
+// (which is non instrumented).
+func Handler() http.Handler {
+	return InstrumentHandler("prometheus", UninstrumentedHandler())
+}
+
+// UninstrumentedHandler returns an HTTP handler for the DefaultGatherer.
+//
+// Deprecated: Use promhttp.Handler instead. See there for further documentation.
+func UninstrumentedHandler() http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		mfs, err := DefaultGatherer.Gather()
+		if err != nil {
+			http.Error(w, "An error has occurred during metrics collection:\n\n"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		contentType := expfmt.Negotiate(req.Header)
+		buf := getBuf()
+		defer giveBuf(buf)
+		writer, encoding := decorateWriter(req, buf)
+		enc := expfmt.NewEncoder(writer, contentType)
+		var lastErr error
+		for _, mf := range mfs {
+			if err := enc.Encode(mf); err != nil {
+				lastErr = err
+				http.Error(w, "An error has occurred during metrics encoding:\n\n"+err.Error(), http.StatusInternalServerError)
+				return
+			}
+		}
+		if closer, ok := writer.(io.Closer); ok {
+			closer.Close()
+		}
+		if lastErr != nil && buf.Len() == 0 {
+			http.Error(w, "No metrics encoded, last error:\n\n"+err.Error(), http.StatusInternalServerError)
+			return
+		}
+		header := w.Header()
+		header.Set(contentTypeHeader, string(contentType))
+		header.Set(contentLengthHeader, fmt.Sprint(buf.Len()))
+		if encoding != "" {
+			header.Set(contentEncodingHeader, encoding)
+		}
+		w.Write(buf.Bytes())
+	})
+}
+
+// decorateWriter wraps a writer to handle gzip compression if requested.  It
+// returns the decorated writer and the appropriate "Content-Encoding" header
+// (which is empty if no compression is enabled).
+func decorateWriter(request *http.Request, writer io.Writer) (io.Writer, string) {
+	header := request.Header.Get(acceptEncodingHeader)
+	parts := strings.Split(header, ",")
+	for _, part := range parts {
+		part := strings.TrimSpace(part)
+		if part == "gzip" || strings.HasPrefix(part, "gzip;") {
+			return gzip.NewWriter(writer), "gzip"
+		}
+	}
+	return writer, ""
+}
 
 var instLabels = []string{"method", "code"}
 
@@ -58,7 +158,7 @@ func nowSeries(t ...time.Time) nower {
 // value. http_requests_total is a metric vector partitioned by HTTP method
 // (label name "method") and HTTP status code (label name "code").
 //
-// Note that InstrumentHandler has several issues:
+// Deprecated: InstrumentHandler has several issues:
 //
 // - It uses Summaries rather than Histograms. Summaries are not useful if
 // aggregation across multiple instances is required.
@@ -73,8 +173,8 @@ func nowSeries(t ...time.Time) nower {
 // performing such writes.
 //
 // Upcoming versions of this package will provide ways of instrumenting HTTP
-// handlers that are more flexible and have fewer issues. Consider this function
-// DEPRECATED and prefer direct instrumentation in the meantime.
+// handlers that are more flexible and have fewer issues. Please prefer direct
+// instrumentation in the meantime.
 func InstrumentHandler(handlerName string, handler http.Handler) http.HandlerFunc {
 	return InstrumentHandlerFunc(handlerName, handler.ServeHTTP)
 }
@@ -82,6 +182,9 @@ func InstrumentHandler(handlerName string, handler http.Handler) http.HandlerFun
 // InstrumentHandlerFunc wraps the given function for instrumentation. It
 // otherwise works in the same way as InstrumentHandler (and shares the same
 // issues).
+//
+// Deprecated: InstrumentHandlerFunc is deprecated for the same reasons as
+// InstrumentHandler is.
 func InstrumentHandlerFunc(handlerName string, handlerFunc func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	return InstrumentHandlerFuncWithOpts(
 		SummaryOpts{
@@ -117,6 +220,9 @@ func InstrumentHandlerFunc(handlerName string, handlerFunc func(http.ResponseWri
 // cannot use SummaryOpts. Instead, a CounterOpts struct is created internally,
 // and all its fields are set to the equally named fields in the provided
 // SummaryOpts.
+//
+// Deprecated: InstrumentHandlerWithOpts is deprecated for the same reasons as
+// InstrumentHandler is.
 func InstrumentHandlerWithOpts(opts SummaryOpts, handler http.Handler) http.HandlerFunc {
 	return InstrumentHandlerFuncWithOpts(opts, handler.ServeHTTP)
 }
@@ -125,6 +231,9 @@ func InstrumentHandlerWithOpts(opts SummaryOpts, handler http.Handler) http.Hand
 // the same issues) but provides more flexibility (at the cost of a more complex
 // call syntax). See InstrumentHandlerWithOpts for details how the provided
 // SummaryOpts are used.
+//
+// Deprecated: InstrumentHandlerFuncWithOpts is deprecated for the same reasons
+// as InstrumentHandler is.
 func InstrumentHandlerFuncWithOpts(opts SummaryOpts, handlerFunc func(http.ResponseWriter, *http.Request)) http.HandlerFunc {
 	reqCnt := NewCounterVec(
 		CounterOpts{
