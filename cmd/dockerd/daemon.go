@@ -37,6 +37,7 @@ import (
 	"github.com/docker/docker/daemon/cluster"
 	"github.com/docker/docker/daemon/config"
 	"github.com/docker/docker/daemon/listeners"
+	daemonplugin "github.com/docker/docker/daemon/plugin"
 	"github.com/docker/docker/dockerversion"
 	"github.com/docker/docker/libcontainerd/supervisor"
 	dopts "github.com/docker/docker/opts"
@@ -239,7 +240,9 @@ func (cli *DaemonCli) start(opts *daemonOptions) (err error) {
 	routerOptions.api = cli.api
 	routerOptions.cluster = c
 
-	initRouter(routerOptions)
+	if err := initRouter(ctx, routerOptions); err != nil {
+		return err
+	}
 
 	go d.ProcessClusterNotifications(ctx, c.GetWatchStream())
 
@@ -492,7 +495,7 @@ func loadDaemonCliConfig(opts *daemonOptions) (*config.Config, error) {
 	return conf, nil
 }
 
-func initRouter(opts routerOptions) {
+func initRouter(ctx context.Context, opts routerOptions) error {
 	decoder := runconfig.ContainerDecoder{}
 
 	routers := []router.Router{
@@ -515,6 +518,26 @@ func initRouter(opts routerOptions) {
 			grpcBackends = append(grpcBackends, b)
 		}
 	}
+
+	plugins := daemonplugin.Graph()
+	initialized := daemonplugin.NewPluginSet()
+	for _, p := range plugins {
+		cx := daemonplugin.NewContext(ctx, p, initialized, opts.daemon)
+		res := p.Init(cx)
+		if err := initialized.Add(res); err != nil {
+			return errors.Wrap(err, "could not add plugin")
+		}
+
+		i, err := res.Instance()
+		if err != nil {
+			return err
+		}
+
+		if v, ok := i.(grpcrouter.Backend); ok {
+			grpcBackends = append(grpcBackends, v)
+		}
+	}
+
 	if len(grpcBackends) > 0 {
 		routers = append(routers, grpcrouter.NewRouter(grpcBackends...))
 	}
@@ -534,6 +557,7 @@ func initRouter(opts routerOptions) {
 	}
 
 	opts.api.InitRouter(routers...)
+	return nil
 }
 
 // TODO: remove this from cli and return the authzMiddleware
