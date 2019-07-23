@@ -74,7 +74,7 @@ pipeline {
                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                   --name docker-pr$BUILD_NUMBER \
                   -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                  -e DOCKER_GRAPHDRIVER=vfs \
+                  -e DOCKER_GRAPHDRIVER=overlay2 \
                   -e GIT_SHA1=${GIT_COMMIT} \
                   docker:$GITCOMMIT \
                   hack/ci/janky
@@ -124,7 +124,7 @@ pipeline {
                     -e DOCKER_EXPERIMENTAL=y \
                     --name docker-pr-exp$BUILD_NUMBER \
                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                    -e DOCKER_GRAPHDRIVER=vfs \
+                    -e DOCKER_GRAPHDRIVER=overlay2 \
                     docker:${GITCOMMIT}-exp \
                     hack/ci/experimental
               '''
