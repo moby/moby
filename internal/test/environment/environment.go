@@ -34,13 +34,18 @@ type PlatformDefaults struct {
 }
 
 // New creates a new Execution struct
+// This is configured useing the env client (see client.FromEnv)
 func New() (*Execution, error) {
-	client, err := client.NewClientWithOpts(client.FromEnv)
+	c, err := client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create client")
 	}
+	return FromClient(c)
+}
 
-	info, err := client.Info(context.Background())
+// FromClient creates a new Execution environment from the passed in client
+func FromClient(c *client.Client) (*Execution, error) {
+	info, err := c.Info(context.Background())
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get info from daemon")
 	}
@@ -48,7 +53,7 @@ func New() (*Execution, error) {
 	osType := getOSType(info)
 
 	return &Execution{
-		client:            client,
+		client:            c,
 		DaemonInfo:        info,
 		OSType:            osType,
 		PlatformDefaults:  getPlatformDefaults(info, osType),
