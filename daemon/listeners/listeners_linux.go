@@ -1,9 +1,11 @@
 package listeners // import "github.com/docker/docker/daemon/listeners"
 
 import (
+	"bytes"
 	"crypto/tls"
 	"net"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/coreos/go-systemd/v22/activation"
@@ -12,6 +14,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 )
+
+const defaultSocketGroup = "docker"
 
 // Init creates new listeners for the server.
 // TODO: Clean up the fact that socketGroup and tlsConfig aren't always used.
@@ -32,20 +36,27 @@ func Init(proto, addr, socketGroup string, tlsConfig *tls.Config) ([]net.Listene
 		}
 		ls = append(ls, l)
 	case "unix":
-		gid, err := lookupGID(socketGroup)
+		gid := os.Getgid()
+		l, err := sockets.NewUnixSocket(addr, gid)
 		if err != nil {
-			if socketGroup != "" {
+			return nil, errors.Wrapf(err, "failed to create unix socket %s", addr)
+		}
+		if socketGroup != "" {
+			out, err := exec.Command("chgrp", socketGroup, addr).CombinedOutput()
+			if err != nil {
+				msg := err.Error()
+				if len(out) > 0 {
+					msg = string(bytes.TrimSpace(out))
+				}
+				err = errors.Errorf("could not change group of unix socket %s: %s", addr, msg)
 				if socketGroup != defaultSocketGroup {
 					return nil, err
 				}
-				logrus.Warnf("could not change group %s to %s: %v", addr, defaultSocketGroup, err)
+				// "docker" group does not exist? Don't fail, just warn
+				logrus.Warn(err)
 			}
-			gid = os.Getgid()
 		}
-		l, err := sockets.NewUnixSocket(addr, gid)
-		if err != nil {
-			return nil, errors.Wrapf(err, "can't create unix socket %s", addr)
-		}
+
 		if _, err := homedir.StickRuntimeDirContents([]string{addr}); err != nil {
 			// StickRuntimeDirContents returns nil error if XDG_RUNTIME_DIR is just unset
 			logrus.WithError(err).Warnf("cannot set sticky bit on socket %s under XDG_RUNTIME_DIR", addr)
