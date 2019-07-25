@@ -75,7 +75,6 @@ pipeline {
                   --name docker-pr$BUILD_NUMBER \
                   -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                   -e DOCKER_GRAPHDRIVER=vfs \
-                  -e DOCKER_EXECDRIVER=native \
                   -e GIT_SHA1=${GIT_COMMIT} \
                   docker:$GITCOMMIT \
                   hack/ci/janky
@@ -126,7 +125,6 @@ pipeline {
                     --name docker-pr-exp$BUILD_NUMBER \
                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                     -e DOCKER_GRAPHDRIVER=vfs \
-                    -e DOCKER_EXECDRIVER=native \
                     docker:${GITCOMMIT}-exp \
                     hack/ci/experimental
               '''
@@ -172,7 +170,6 @@ pipeline {
                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                     --name docker-pr-s390x$BUILD_NUMBER \
                     -e DOCKER_GRAPHDRIVER=vfs \
-                    -e DOCKER_EXECDRIVER=native \
                     -e TIMEOUT="300m" \
                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                     docker-s390x:$GITCOMMIT \
@@ -220,7 +217,6 @@ pipeline {
                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                     --name docker-pr-power$BUILD_NUMBER \
                     -e DOCKER_GRAPHDRIVER=vfs \
-                    -e DOCKER_EXECDRIVER=native \
                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                     -e TIMEOUT="180m" \
                     docker-powerpc:$GITCOMMIT \
@@ -265,7 +261,6 @@ pipeline {
                 docker run --rm -t --privileged \
                   --name dockerven-pr$BUILD_NUMBER \
                   -e DOCKER_GRAPHDRIVER=vfs \
-                  -e DOCKER_EXECDRIVER=native \
                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
                   -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                   -e TIMEOUT=120m dockerven:$GITCOMMIT \
