@@ -47,6 +47,9 @@ func (d *Daemon) StartAndSwarmInit(t testingT) {
 
 // StartAndSwarmJoin starts the daemon (with busybox) and join the specified swarm as worker or manager
 func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
+	if th, ok := t.(test.HelperT); ok {
+		th.Helper()
+	}
 	d.StartNode(t)
 
 	tokens := leader.JoinTokens(t)
@@ -54,6 +57,7 @@ func (d *Daemon) StartAndSwarmJoin(t testingT, leader *Daemon, manager bool) {
 	if manager {
 		token = tokens.Manager
 	}
+	t.Logf("[%s] joining swarm manager [%s]@%s, swarm listen addr %s", d.id, leader.id, leader.SwarmListenAddr(), d.SwarmListenAddr())
 	d.SwarmJoin(t, swarm.JoinRequest{
 		RemoteAddrs: []string{leader.SwarmListenAddr()},
 		JoinToken:   token,
@@ -106,7 +110,7 @@ func (d *Daemon) SwarmJoin(t assert.TestingT, req swarm.JoinRequest) {
 	cli := d.NewClientT(t)
 	defer cli.Close()
 	err := cli.SwarmJoin(context.Background(), req)
-	assert.NilError(t, err, "initializing swarm")
+	assert.NilError(t, err, "[%s] joining swarm", d.id)
 	d.CachedInfo = d.Info(t)
 }
 
