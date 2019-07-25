@@ -85,6 +85,10 @@ func vlanLinkExists(linkStr string) bool {
 
 // createVlanLink parses sub-interfaces and vlan id for creation
 func createVlanLink(parentName string) error {
+	if vlanLinkExists(parentName) {
+		logrus.Debugf("Parent Sub Interface %s already exists", parentName)
+		return nil
+	}
 	if strings.Contains(parentName, ".") {
 		parent, vidInt, err := parseVlan(parentName)
 		if err != nil {
@@ -180,6 +184,10 @@ func dummyLinkExists(dummyName string) bool {
 
 // createDummyLink creates a dummy0 parent link
 func createDummyLink(dummyName, truncNetID string) error {
+	if dummyLinkExists(truncNetID) {
+		logrus.Debugf("Dummy Link %s for Mac Vlan already exists", truncNetID)
+		return nil
+	}
 	// create a parent interface since one was not specified
 	parent := &netlink.Dummy{
 		LinkAttrs: netlink.LinkAttrs{

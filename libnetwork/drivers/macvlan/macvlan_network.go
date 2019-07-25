@@ -102,15 +102,11 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 	if !parentExists(config.Parent) {
 		// if the --internal flag is set, create a dummy link
 		if config.Internal {
-			if !dummyLinkExists(getDummyName(stringid.TruncateID(config.ID))) {
-				err := createDummyLink(config.Parent, getDummyName(stringid.TruncateID(config.ID)))
-				if err != nil {
-					return false, err
-				}
-				config.CreatedSlaveLink = true
-			} else {
-				logrus.Debugf("Dummy Link %s for Mac Vlan already exists", getDummyName(stringid.TruncateID(config.ID)))
+			err := createDummyLink(config.Parent, getDummyName(stringid.TruncateID(config.ID)))
+			if err != nil {
+				return false, err
 			}
+			config.CreatedSlaveLink = true
 			// notify the user in logs they have limited communications
 			if config.Parent == getDummyName(stringid.TruncateID(config.ID)) {
 				logrus.Debugf("Empty -o parent= and --internal flags limit communications to other containers inside of network: %s",
@@ -119,19 +115,12 @@ func (d *driver) createNetwork(config *configuration) (bool, error) {
 		} else {
 			// if the subinterface parent_iface.vlan_id checks do not pass, return err.
 			//  a valid example is 'eth0.10' for a parent iface 'eth0' with a vlan id '10'
-
-			if !vlanLinkExists(config.Parent) {
-				// if the subinterface parent_iface.vlan_id checks do not pass, return err.
-				//  a valid example is 'eth0.10' for a parent iface 'eth0' with a vlan id '10'
-				err := createVlanLink(config.Parent)
-				if err != nil {
-					return false, err
-				}
-				// if driver created the networks slave link, record it for future deletion
-				config.CreatedSlaveLink = true
-			} else {
-				logrus.Debugf("Parent Sub Interface %s already Exists NetID %s", config.Parent, config.ID)
+			err := createVlanLink(config.Parent)
+			if err != nil {
+				return false, err
 			}
+			// if driver created the networks slave link, record it for future deletion
+			config.CreatedSlaveLink = true
 		}
 	}
 	if !foundExisting {
