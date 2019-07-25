@@ -40,7 +40,7 @@ var (
 	loadBalancerConfig = map[string]*kernel.OSValue{
 		// expires connection from the IPVS connection table when the backend is not available
 		// more info: https://github.com/torvalds/linux/blob/master/Documentation/networking/ipvs-sysctl.txt#L126:1
-		"net.ipv4.vs.expire_nodest_conn": {"1", nil},
+		"net.ipv4.vs.expire_nodest_conn": {Value: "1", CheckFn: nil},
 	}
 )
 
