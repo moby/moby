@@ -17,7 +17,6 @@ var (
 		"beautiful",
 		"blissful",
 		"bold",
-		"boring",
 		"brave",
 		"busy",
 		"charming",
@@ -839,11 +838,7 @@ var (
 // formatted as "adjective_surname". For example 'focused_turing'. If retry is non-zero, a random
 // integer between 0 and 10 will be added to the end of the name, e.g `focused_turing3`
 func GetRandomName(retry int) string {
-begin:
 	name := fmt.Sprintf("%s_%s", left[rand.Intn(len(left))], right[rand.Intn(len(right))])
-	if name == "boring_wozniak" /* Steve Wozniak is not boring */ {
-		goto begin
-	}
 
 	if retry > 0 {
 		name = fmt.Sprintf("%s%d", name, rand.Intn(10))
