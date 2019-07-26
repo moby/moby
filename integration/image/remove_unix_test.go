@@ -8,6 +8,7 @@ import (
 	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 	"syscall"
 	"testing"
 	"unsafe"
@@ -75,7 +76,11 @@ func TestRemoveImageGarbageCollector(t *testing.T) {
 	argp = uintptr(unsafe.Pointer(&attr))
 	_, _, errno = syscall.Syscall(syscall.SYS_IOCTL, file.Fd(), fsflags, argp)
 	assert.Equal(t, "errno 0", errno.Error())
-	assert.ErrorContains(t, err, "permission denied")
+	assert.Assert(t, err != nil)
+	errStr := err.Error()
+	if !(strings.Contains(errStr, "permission denied") || strings.Contains(errStr, "operation not permitted")) {
+		t.Errorf("ImageRemove error not an permission error %s", errStr)
+	}
 
 	// Verify that layer remaining on disk
 	dir, _ := os.Stat(data["UpperDir"])
