@@ -36,7 +36,7 @@ all-local: build-local check-local clean
 # builder builds the libnetworkbuild container.  All wrapper targets
 # must depend on this to ensure that the container exists.
 builder:
-	docker build -t ${build_image} ${dockerbuildargs}
+	docker build -t ${build_image} --build-arg=GO_VERSION ${dockerbuildargs}
 
 build: builder
 	@echo "🐳 $@"
