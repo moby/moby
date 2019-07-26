@@ -1312,7 +1312,7 @@ func (s *DockerSwarmSuite) TestSwarmRotateUnlockKey(c *check.C) {
 			// an issue sometimes prevents leader to be available right away
 			outs, err = d.Cmd("node", "ls")
 			if err != nil && retry < 5 {
-				if strings.Contains(err.Error(), "swarm does not have a leader") {
+				if strings.Contains(outs, "swarm does not have a leader") {
 					retry++
 					time.Sleep(3 * time.Second)
 					continue
@@ -1404,7 +1404,7 @@ func (s *DockerSwarmSuite) TestSwarmClusterRotateUnlockKey(c *check.C) {
 				// an issue sometimes prevents leader to be available right away
 				outs, err = d.Cmd("node", "ls")
 				if err != nil && retry < 5 {
-					if strings.Contains(err.Error(), "swarm does not have a leader") {
+					if strings.Contains(outs, "swarm does not have a leader") {
 						retry++
 						time.Sleep(3 * time.Second)
 						continue
