@@ -3,6 +3,12 @@ set -e -o pipefail
 
 source hack/make/.integration-test-helpers
 
+if [ ! -z "${TEST_SKIP_INTEGRATION}" ] && [ ! -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+	echo integration and integraiton-cli skipped according to env vars
+	exit 0
+fi
+
+
 (
 	build_test_suite_binaries
 	bundle .integration-daemon-start
