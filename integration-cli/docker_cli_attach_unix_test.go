@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/go-check/check"
-	"github.com/kr/pty"
 	"gotest.tools/assert"
 )
 
