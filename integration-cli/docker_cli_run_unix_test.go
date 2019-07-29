@@ -1442,7 +1442,7 @@ func (s *DockerSuite) TestRunUserDeviceAllowed(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
+	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1467,7 +1467,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNewFormat(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
+	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1493,7 +1493,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoNameAndNames(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
+	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
@@ -1530,7 +1530,7 @@ func (s *DockerDaemonSuite) TestRunSeccompJSONNoArchAndArchMap(c *check.C) {
 }
 
 func (s *DockerDaemonSuite) TestRunWithDaemonDefaultSeccompProfile(c *check.C) {
-	testRequires(c, testEnv.IsLocalDaemon, seccompEnabled)
+	testRequires(c, seccompEnabled)
 
 	s.d.StartWithBusybox(c)
 
