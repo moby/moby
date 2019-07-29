@@ -54,9 +54,13 @@ DOCKER_ENVS := \
 	-e DOCKER_USERLANDPROXY \
 	-e DOCKERD_ARGS \
 	-e TEST_INTEGRATION_DIR \
+	-e TEST_SKIP_INTEGRATION \
+	-e TEST_SKIP_INTEGRATION_CLI \
 	-e TESTDEBUG \
 	-e TESTDIRS \
 	-e TESTFLAGS \
+	-e TESTFLAGS_INTEGRATION \
+	-e TESTFLAGS_INTEGRATION_CLI \
 	-e TIMEOUT \
 	-e VALIDATE_REPO \
 	-e VALIDATE_BRANCH \
@@ -182,8 +186,13 @@ test-docker-py: build ## run the docker-py tests
 
 test-integration-cli: test-integration ## (DEPRECATED) use test-integration
 
+ifneq ($(and $(TEST_SKIP_INTEGRATION),$(TEST_SKIP_INTEGRATION_CLI)),)
+test-integration:
+	@echo Both integrations suites skipped per environment variables
+else
 test-integration: build ## run the integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration
+endif
 
 test-integration-flaky: build ## run the stress test for all new integration tests
 	$(DOCKER_RUN_DOCKER) hack/make.sh dynbinary test-integration-flaky

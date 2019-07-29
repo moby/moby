@@ -5,6 +5,18 @@
 #
 #     TESTFLAGS='-check.f DockerSuite.TestBuild*' ./hack/make.sh binary test-integration
 #
+
+if [[ "${TESTFLAGS}" = *-check.f* ]]; then
+	echo Skipping integration tests since TESTFLAGS includes integration-cli only flags
+	TEST_SKIP_INTEGRATION=1
+fi
+
+if [[ "${TESTFLAGS}" = *-test.run* ]]; then
+	echo Skipping integration-cli tests since TESTFLAGS includes integration only flags
+	TEST_SKIP_INTEGRATION_CLI=1
+fi
+
+
 if [ -z ${MAKEDIR} ]; then
 	export MAKEDIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 fi
@@ -15,26 +27,24 @@ source "$MAKEDIR/.go-autogen"
 : ${TESTFLAGS:=}
 : ${TESTDEBUG:=}
 
-integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(
-	find ./integration -type d |
-	grep -vE '(^./integration($|/internal)|/testdata)')"}
+integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)"}
 
 run_test_integration() {
 	set_platform_timeout
-	if [[ "$TESTFLAGS" != *-check.f* ]]; then
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
 		run_test_integration_suites
 	fi
-	if [[ "$TESTFLAGS" != *-test.run* ]]; then
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
 		run_test_integration_legacy_suites
 	fi
 }
 
 run_test_integration_suites() {
-	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS"
+	local flags="-test.v -test.timeout=${TIMEOUT} $TESTFLAGS ${TESTFLAGS_INTEGRATION}"
 	for dir in ${integration_api_dirs}; do
 		if ! (
 			cd "$dir"
-			echo "Running $PWD"
+			echo "Running $PWD flags=${flags}"
 			test_env ./test.main ${flags}
 		); then exit 1; fi
 	done
@@ -42,9 +52,9 @@ run_test_integration_suites() {
 
 run_test_integration_legacy_suites() {
 	(
-		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS"
+		flags="-check.v -check.timeout=${TIMEOUT} -test.timeout=360m $TESTFLAGS ${TESTFLAGS_INTEGRATION_CLI}"
 		cd integration-cli
-		echo "Running $PWD"
+		echo "Running $PWD flags=${flags}"
 		test_env ./test.main $flags
 	)
 }
@@ -54,10 +64,14 @@ build_test_suite_binaries() {
 		echo "Skipping building test binaries; as DOCKER_INTEGRATION_TESTS_VERIFIED is set"
 		return
 	fi
-	build_test_suite_binary ./integration-cli "test.main"
-	for dir in ${integration_api_dirs}; do
-		build_test_suite_binary "$dir" "test.main"
-	done
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		build_test_suite_binary ./integration-cli "test.main"
+	fi
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		for dir in ${integration_api_dirs}; do
+			build_test_suite_binary "$dir" "test.main"
+		done
+	fi
 }
 
 # Build a binary for a test suite package
