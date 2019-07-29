@@ -361,11 +361,15 @@ func (daemon *Daemon) adaptContainerSettings(hostConfig *containertypes.HostConf
 
 	// Set default cgroup namespace mode, if unset for container
 	if hostConfig.CgroupnsMode.IsEmpty() {
-		m := config.DefaultCgroupNamespaceMode
-		if daemon.configStore != nil {
-			m = daemon.configStore.CgroupNamespaceMode
+		if hostConfig.Privileged {
+			hostConfig.CgroupnsMode = containertypes.CgroupnsMode("host")
+		} else {
+			m := config.DefaultCgroupNamespaceMode
+			if daemon.configStore != nil {
+				m = daemon.configStore.CgroupNamespaceMode
+			}
+			hostConfig.CgroupnsMode = containertypes.CgroupnsMode(m)
 		}
-		hostConfig.CgroupnsMode = containertypes.CgroupnsMode(m)
 	}
 
 	adaptSharedNamespaceContainer(daemon, hostConfig)
