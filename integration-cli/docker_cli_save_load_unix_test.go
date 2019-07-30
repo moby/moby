@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/creack/pty"
 	"github.com/docker/docker/integration-cli/cli/build"
 	"github.com/go-check/check"
-	"github.com/kr/pty"
 	"gotest.tools/assert"
 	"gotest.tools/icmd"
 )
