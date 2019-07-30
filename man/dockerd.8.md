@@ -20,6 +20,7 @@ dockerd - Enable daemon mode
 [**--containerd**[=*SOCKET-PATH*]]
 [**--data-root**[=*/var/lib/docker*]]
 [**-D**|**--debug**]
+[**--default-cgroupns-mode**[=*host*]]
 [**--default-gateway**[=*DEFAULT-GATEWAY*]]
 [**--default-gateway-v6**[=*DEFAULT-GATEWAY-V6*]]
 [**--default-address-pool**[=*DEFAULT-ADDRESS-POOL*]]
@@ -177,6 +178,10 @@ $ sudo dockerd --add-runtime runc=runc --add-runtime custom=/usr/local/bin/my-ru
 
 **-D**, **--debug**=*true*|*false*
   Enable debug mode. Default is false.
+
+**--default-cgroupns-mode**="**host**|**private**"
+  Set the default cgroup namespace mode for newly created containers. The argument
+  can either be **host** or **private**. If unset, this defaults to `host`.
 
 **--default-gateway**=""
   IPv4 address of the container default gateway; this address must be part of
