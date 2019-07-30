@@ -236,7 +236,8 @@ func Init(home string, options []string, uidMaps, gidMaps []idtools.IDMap) (grap
 	params := []struct {
 		name, value string
 	}{
-		{name: "index", value: "off"}, // moby/moby#37970
+		{name: "index", value: "off"},       // moby/moby#37970
+		{name: "redirect_dir", value: "on"}, // moby/moby#39566
 	}
 	for _, opt := range params {
 		_, err = os.Stat("/sys/module/overlay/parameters/" + opt.name)
