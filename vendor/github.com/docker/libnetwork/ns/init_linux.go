@@ -76,12 +76,8 @@ func NlHandle() *netlink.Handle {
 func getSupportedNlFamilies() []int {
 	fams := []int{syscall.NETLINK_ROUTE}
 	// NETLINK_XFRM test
-	if err := loadXfrmModules(); err != nil {
-		if checkXfrmSocket() != nil {
-			logrus.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
-		} else {
-			fams = append(fams, syscall.NETLINK_XFRM)
-		}
+	if err := checkXfrmSocket(); err != nil {
+		logrus.Warnf("Could not load necessary modules for IPSEC rules: %v", err)
 	} else {
 		fams = append(fams, syscall.NETLINK_XFRM)
 	}
@@ -97,16 +93,6 @@ func getSupportedNlFamilies() []int {
 	}
 
 	return fams
-}
-
-func loadXfrmModules() error {
-	if out, err := exec.Command("modprobe", "-va", "xfrm_user").CombinedOutput(); err != nil {
-		return fmt.Errorf("Running modprobe xfrm_user failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
-	}
-	if out, err := exec.Command("modprobe", "-va", "xfrm_algo").CombinedOutput(); err != nil {
-		return fmt.Errorf("Running modprobe xfrm_algo failed with message: `%s`, error: %v", strings.TrimSpace(string(out)), err)
-	}
-	return nil
 }
 
 // API check on required xfrm modules (xfrm_user, xfrm_algo)
