@@ -265,12 +265,23 @@ func orphanNodeTasks(tx store.Tx, nodeID string) error {
 		return err
 	}
 	for _, task := range tasks {
-		task.Status = api.TaskStatus{
-			Timestamp: gogotypes.TimestampNow(),
-			State:     api.TaskStateOrphaned,
-			Message:   "Task belonged to a node that has been deleted",
+		// this operation must occur within the same transaction boundary. If
+		// we cannot accomplish this task orphaning in the same transaction, we
+		// could crash or die between transactions and not get a chance to do
+		// this. however, in cases were there is an exceptionally large number
+		// of tasks for a node, this may cause the transaction to exceed the
+		// max message size.
+		//
+		// therefore, we restrict updating to only tasks in a non-terminal
+		// state. Tasks in a terminal state do not need to be updated.
+		if task.Status.State < api.TaskStateCompleted {
+			task.Status = api.TaskStatus{
+				Timestamp: gogotypes.TimestampNow(),
+				State:     api.TaskStateOrphaned,
+				Message:   "Task belonged to a node that has been deleted",
+			}
+			store.UpdateTask(tx, task)
 		}
-		store.UpdateTask(tx, task)
 	}
 	return nil
 }
