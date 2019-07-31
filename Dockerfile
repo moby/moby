@@ -222,6 +222,8 @@ RUN apt-get update && apt-get install -y \
 	g++-mingw-w64-x86-64 \
 	net-tools \
 	pigz \
+	python3-pip \
+	python3-setuptools \
 	thin-provisioning-tools \
 	vim \
 	vim-common \
@@ -233,6 +235,9 @@ RUN apt-get update && apt-get install -y \
 	libnet1 \
 	libnl-3-200 \
 	--no-install-recommends
+
+RUN pip3 install yamllint==1.16.0
+
 COPY --from=swagger /build/swagger* /usr/local/bin/
 COPY --from=frozen-images /build/ /docker-frozen-images
 COPY --from=gometalinter /build/ /usr/local/bin/
