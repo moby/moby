@@ -1,12 +1,14 @@
+#!groovy
 pipeline {
   agent none
-
 
   options {
     buildDiscarder(logRotator(daysToKeepStr: '30'))
     timeout(time: 3, unit: 'HOURS')
+    timestamps()
   }
   parameters {
+        booleanParam(name: 'unit', defaultValue: true, description: 'x86 unit tests')
         booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
         booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
         booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
@@ -18,6 +20,50 @@ pipeline {
   stages {
     stage('Build') {
       parallel {
+        stage('unit') {
+          when {
+            beforeAgent true
+            expression { params.unit }
+          }
+          agent { label 'amd64 && ubuntu-1804 && overlay2' }
+          environment { DOCKER_BUILDKIT='1' }
+
+          steps {
+              sh '''
+                # todo: include ip_vs in base image
+                sudo modprobe ip_vs
+
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+
+                docker run --rm -t --privileged \
+                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                  --name docker-pr$BUILD_NUMBER \
+                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                  docker:$GITCOMMIT \
+                  hack/test/unit
+              '''
+          }
+          post {
+            always {
+              junit 'bundles/junit-report.xml'
+              sh '''
+                echo 'Ensuring container killed.'
+                docker rm -vf docker-pr$BUILD_NUMBER || true
+
+                echo 'Chowning /workspace to jenkins user'
+                docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+
+                echo 'Creating unit-bundles.tar.gz'
+                tar -czvf unit-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
+              '''
+              archiveArtifacts artifacts:'unit-bundles.tar.gz'
+              deleteDir()
+            }
+          }
+        }
         stage('janky') {
           when {
             beforeAgent true
