@@ -33,8 +33,6 @@ func SetupTestOSContext(t *testing.T) func() {
 	// sure to re-initialize initNs context
 	ns.Init()
 
-	runtime.LockOSThread()
-
 	return func() {
 		if err := syscall.Close(fd); err != nil {
 			t.Logf("Warning: netns closing failed (%v)", err)

@@ -2,7 +2,6 @@ package osl
 
 import (
 	"os"
-	"runtime"
 	"testing"
 
 	"github.com/docker/docker/pkg/reexec"
@@ -80,7 +79,6 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	// Create another sandbox with the same key to see if we handle it
 	// gracefully.
@@ -88,7 +86,6 @@ func TestSandboxCreateTwice(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	err = s.Destroy()
 	if err != nil {
@@ -130,7 +127,6 @@ func TestAddRemoveInterface(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 
 	if s.Key() != key {
 		t.Fatalf("s.Key() returned %s. Expected %s", s.Key(), key)

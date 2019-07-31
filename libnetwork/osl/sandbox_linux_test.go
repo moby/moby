@@ -7,7 +7,6 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"syscall"
 	"testing"
@@ -199,7 +198,6 @@ func TestDisableIPv6DAD(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer s.Destroy()
 
 	n, ok := s.(*networkNamespace)
@@ -253,7 +251,6 @@ func TestSetInterfaceIP(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer s.Destroy()
 
 	n, ok := s.(*networkNamespace)
@@ -329,7 +326,6 @@ func TestLiveRestore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create a new sandbox: %v", err)
 	}
-	runtime.LockOSThread()
 	defer s.Destroy()
 
 	n, ok := s.(*networkNamespace)
