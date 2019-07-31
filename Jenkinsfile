@@ -7,17 +7,64 @@ pipeline {
     timeout(time: 3, unit: 'HOURS')
   }
   parameters {
-        booleanParam(name: 'janky', defaultValue: true, description: 'x86 Build/Test')
-        booleanParam(name: 'experimental', defaultValue: true, description: 'x86 Experimental Build/Test ')
-        booleanParam(name: 'z', defaultValue: true, description: 'IBM Z (s390x) Build/Test')
-        booleanParam(name: 'powerpc', defaultValue: true, description: 'PowerPC (ppc64le) Build/Test')
-        booleanParam(name: 'vendor', defaultValue: true, description: 'Vendor')
+        booleanParam(name: 'unit', defaultValue: true, description: 'x86 unit tests')
+        booleanParam(name: 'janky', defaultValue: false, description: 'x86 Build/Test')
+        booleanParam(name: 'experimental', defaultValue: false, description: 'x86 Experimental Build/Test ')
+        booleanParam(name: 'z', defaultValue: false, description: 'IBM Z (s390x) Build/Test')
+        booleanParam(name: 'powerpc', defaultValue: false, description: 'PowerPC (ppc64le) Build/Test')
+        booleanParam(name: 'vendor', defaultValue: false, description: 'Vendor')
         booleanParam(name: 'windowsRS1', defaultValue: false, description: 'Windows 2016 (RS1) Build/Test')
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
   }
   stages {
     stage('Build') {
       parallel {
+        stage('unit') {
+          when {
+            beforeAgent true
+            expression { params.unit }
+          }
+          agent { label 'amd64 && ubuntu-1804 && overlay2' }
+          environment { DOCKER_BUILDKIT='1' }
+
+          steps {
+              sh '''
+                # todo: include ip_vs in base image
+                sudo modprobe ip_vs
+
+                GITCOMMIT=$(git rev-parse --short HEAD)
+                docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+
+                docker run --rm -t --privileged \
+                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                  --name docker-pr$BUILD_NUMBER \
+                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                  -e GIT_SHA1=${GIT_COMMIT} \
+                  docker:$GITCOMMIT \
+                  hack/test/unit-junit
+              '''
+          }
+          post {
+            always {
+              sh '''
+                echo "Ensuring container killed."
+                docker rm -vf docker-pr$BUILD_NUMBER || true
+
+                echo "Chowning /workspace to jenkins user"
+                docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
+              '''
+              sh '''
+                echo "Creating unit-bundles.tar.gz"
+                (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf unit-bundles.tar.gz) || true
+              '''
+              archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+              junit 'junit-report.xml'
+              deleteDir()
+            }
+          }
+        }
         stage('janky') {
           when {
             beforeAgent true

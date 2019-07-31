@@ -20,4 +20,6 @@ dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go
 vendor/pkg/
 coverage.txt
+go-test.out
 profile.out
+junit-report.xml
