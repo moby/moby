@@ -31,24 +31,36 @@ pipeline {
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
-                    steps {
-                        sh '''
-                        # todo: include ip_vs in base image
-                        sudo modprobe ip_vs
-        
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
-        
-                        docker run --rm -t --privileged \
-                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                          --name docker-pr$BUILD_NUMBER \
-                          -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                          -e DOCKER_GRAPHDRIVER=overlay2 \
-                          docker:$GITCOMMIT \
-                          hack/test/unit
-                        '''
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                # todo: include ip_vs in base image
+                                sudo modprobe ip_vs
+                
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+               
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  docker:$GITCOMMIT \
+                                  hack/test/unit
+                                '''
+                            }
+                        }
                     }
+
                     post {
                         always {
                             junit 'bundles/junit-report.xml'
@@ -58,7 +70,9 @@ pipeline {
             
                             echo 'Chowning /workspace to jenkins user'
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
-            
+                            '''
+
+                            sh '''
                             echo 'Creating unit-bundles.tar.gz'
                             tar -czvf unit-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
                             '''
@@ -74,30 +88,46 @@ pipeline {
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
-                    steps {
-                        sh '''
-                        # todo: include ip_vs in base image
-                        sudo modprobe ip_vs
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                # todo: include ip_vs in base image
+                                sudo modprobe ip_vs
+                
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
         
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT .
-        
-                        docker run --rm -t --privileged \
-                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                          --name docker-pr$BUILD_NUMBER \
-                          -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                          -e DOCKER_GRAPHDRIVER=overlay2 \
-                          -e GIT_SHA1=${GIT_COMMIT} \
-                          docker:$GITCOMMIT \
-                          hack/ci/janky
-                        '''
-                        sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-                        echo "Building e2e image"
-                        docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
-                        '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                  -e DOCKER_GRAPHDRIVER=overlay2 \
+                                  -e GIT_SHA1=${GIT_COMMIT} \
+                                  docker:$GITCOMMIT \
+                                  hack/ci/janky
+                                '''
+                            }
+                        }
+                        stage("Build e2e image") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                echo "Building e2e image"
+                                docker build --build-arg DOCKER_GITCOMMIT=$GITCOMMIT -t moby-e2e-test -f Dockerfile.e2e .
+                                '''
+                            }
+                        }
                     }
+
                     post {
                         always {
                             sh '''
@@ -107,6 +137,7 @@ pipeline {
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
+
                             sh '''
                             echo "Creating janky-bundles.tar.gz"
                             (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf janky-bundles.tar.gz) || true
@@ -122,21 +153,33 @@ pipeline {
                         expression { params.experimental }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    steps {
-                        sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --force-rm --build-arg APT_MIRROR -t docker:${GITCOMMIT}-exp .
-        
-                        docker run --rm -t --privileged \
-                            -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                            -e DOCKER_EXPERIMENTAL=y \
-                            --name docker-pr-exp$BUILD_NUMBER \
-                            -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                            -e DOCKER_GRAPHDRIVER=overlay2 \
-                            docker:${GITCOMMIT}-exp \
-                            hack/ci/experimental
-                        '''
+
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:${GITCOMMIT}-exp .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker run --rm -t --privileged \
+                                    -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                    -e DOCKER_EXPERIMENTAL=y \
+                                    --name docker-pr-exp$BUILD_NUMBER \
+                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                    -e DOCKER_GRAPHDRIVER=overlay2 \
+                                    docker:${GITCOMMIT}-exp \
+                                    hack/ci/experimental
+                                '''
+                            }
+                        }
                     }
+
                     post {
                         always {
                             sh '''
@@ -146,13 +189,13 @@ pipeline {
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
+
                             sh '''
                             echo "Creating bundles.tar.gz"
                             (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf experimental-bundles.tar.gz) || true
                             '''
-                            sh '''
-                            make clean
-                            '''
+
+                            sh 'make clean'
                             archiveArtifacts artifacts: 'experimental-bundles.tar.gz'
                             deleteDir()
                         }
@@ -164,22 +207,33 @@ pipeline {
                         expression { params.z }
                     }
                     agent { label 's390x-ubuntu-1604' }
-                    steps {
-                        sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-        
-                        docker build --force-rm --build-arg APT_MIRROR -t docker-s390x:$GITCOMMIT -f Dockerfile .
-        
-                        docker run --rm -t --privileged \
-                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                            --name docker-pr-s390x$BUILD_NUMBER \
-                            -e DOCKER_GRAPHDRIVER=vfs \
-                            -e TIMEOUT="300m" \
-                            -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                            docker-s390x:$GITCOMMIT \
-                            hack/ci/z
-                        '''
+
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t docker-s390x:$GITCOMMIT -f Dockerfile .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                    --name docker-pr-s390x$BUILD_NUMBER \
+                                    -e DOCKER_GRAPHDRIVER=vfs \
+                                    -e TIMEOUT="300m" \
+                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                    docker-s390x:$GITCOMMIT \
+                                    hack/ci/z
+                                '''
+                            }
+                        }
                     }
+
                     post {
                         always {
                             sh '''
@@ -189,6 +243,7 @@ pipeline {
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" s390x/busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
+
                             sh '''
                             echo "Creating bundles.tar.gz"
                             find bundles -name '*.log' | xargs tar -czf s390x-bundles.tar.gz
@@ -204,22 +259,33 @@ pipeline {
                         expression { params.powerpc }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
-                    steps {
-                        sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-        
-                        docker build --force-rm --build-arg APT_MIRROR -t docker-powerpc:$GITCOMMIT -f Dockerfile .
-        
-                        docker run --rm -t --privileged \
-                          -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                            --name docker-pr-power$BUILD_NUMBER \
-                            -e DOCKER_GRAPHDRIVER=vfs \
-                            -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                            -e TIMEOUT="180m" \
-                            docker-powerpc:$GITCOMMIT \
-                            hack/ci/powerpc
-                        '''
+
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t docker-powerpc:$GITCOMMIT -f Dockerfile .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                    --name docker-pr-power$BUILD_NUMBER \
+                                    -e DOCKER_GRAPHDRIVER=vfs \
+                                    -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                    -e TIMEOUT="180m" \
+                                    docker-powerpc:$GITCOMMIT \
+                                    hack/ci/powerpc
+                                '''
+                            }
+                        }
                     }
+
                     post {
                         always {
                             sh '''
@@ -229,6 +295,7 @@ pipeline {
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" ppc64le/busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
+
                             sh '''
                             echo "Creating bundles.tar.gz"
                             find bundles -name '*.log' | xargs tar -czf powerpc-bundles.tar.gz
@@ -244,20 +311,30 @@ pipeline {
                         expression { params.vendor }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    steps {
-                        sh '''
-                        GITCOMMIT=$(git rev-parse --short HEAD)
-        
-                        docker build --force-rm --build-arg APT_MIRROR -t dockerven:$GITCOMMIT .
-        
-                        docker run --rm -t --privileged \
-                          --name dockerven-pr$BUILD_NUMBER \
-                          -e DOCKER_GRAPHDRIVER=vfs \
-                          -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                          -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                          -e TIMEOUT=120m dockerven:$GITCOMMIT \
-                          hack/validate/vendor
-                        '''
+
+                    stages {
+                        stage("Build dev image") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker build --force-rm --build-arg APT_MIRROR -t dockerven:$GITCOMMIT .
+                                '''
+                            }
+                        }
+                        stage("Run tests") {
+                            steps {
+                                sh '''
+                                GITCOMMIT=$(git rev-parse --short HEAD)
+                                docker run --rm -t --privileged \
+                                  --name dockerven-pr$BUILD_NUMBER \
+                                  -e DOCKER_GRAPHDRIVER=vfs \
+                                  -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
+                                  -e DOCKER_GITCOMMIT=${GITCOMMIT} \
+                                  -e TIMEOUT=120m dockerven:$GITCOMMIT \
+                                  hack/validate/vendor
+                                '''
+                            }
+                        }
                     }
                 }
                 stage('windowsRS1') {
@@ -271,12 +348,16 @@ pipeline {
                             customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
                         }
                     }
-                    steps {
-                        powershell '''
-                        $ErrorActionPreference = 'Stop'
-                        .\\hack\\ci\\windows.ps1
-                        exit $LastExitCode
-                        '''
+                    stages {
+                        stage("Run tests") {
+                            steps {
+                                powershell '''
+                                $ErrorActionPreference = 'Stop'
+                                .\\hack\\ci\\windows.ps1
+                                exit $LastExitCode
+                                '''
+                            }
+                        }
                     }
                 }
                 stage('windowsRS5-process') {
@@ -290,12 +371,16 @@ pipeline {
                             customWorkspace 'c:\\gopath\\src\\github.com\\docker\\docker'
                         }
                     }
-                    steps {
-                        powershell '''
-                        $ErrorActionPreference = 'Stop'
-                        .\\hack\\ci\\windows.ps1
-                        exit $LastExitCode
-                        '''
+                    stages {
+                        stage("Run tests") {
+                            steps {
+                                powershell '''
+                                $ErrorActionPreference = 'Stop'
+                                .\\hack\\ci\\windows.ps1
+                                exit $LastExitCode
+                                '''
+                            }
+                        }
                     }
                 }
             }
