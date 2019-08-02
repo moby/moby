@@ -223,7 +223,7 @@ pipeline {
                             steps {
                                 sh '''
                                 GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker-s390x:$GITCOMMIT -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
                                 '''
                             }
                         }
@@ -233,11 +233,11 @@ pipeline {
                                 GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr-s390x$BUILD_NUMBER \
+                                    --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GRAPHDRIVER=vfs \
                                     -e TIMEOUT="300m" \
                                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
-                                    docker-s390x:$GITCOMMIT \
+                                    docker:$GITCOMMIT \
                                     hack/ci/z
                                 '''
                             }
@@ -248,7 +248,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-s390x$BUILD_NUMBER || true
+                            docker rm -vf docker-pr-$BUILD_NUMBER || true
             
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" s390x/busybox chown -R "$(id -u):$(id -g)" /workspace
@@ -279,7 +279,7 @@ pipeline {
                             steps {
                                 sh '''
                                 GITCOMMIT=$(git rev-parse --short HEAD)
-                                docker build --force-rm --build-arg APT_MIRROR -t docker-powerpc:$GITCOMMIT -f Dockerfile .
+                                docker build --force-rm --build-arg APT_MIRROR -t docker:$GITCOMMIT -f Dockerfile .
                                 '''
                             }
                         }
@@ -289,11 +289,11 @@ pipeline {
                                 GITCOMMIT=$(git rev-parse --short HEAD)
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr-power$BUILD_NUMBER \
+                                    --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GRAPHDRIVER=vfs \
                                     -e DOCKER_GITCOMMIT=${GITCOMMIT} \
                                     -e TIMEOUT="180m" \
-                                    docker-powerpc:$GITCOMMIT \
+                                    docker:$GITCOMMIT \
                                     hack/ci/powerpc
                                 '''
                             }
@@ -304,7 +304,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-power$BUILD_NUMBER || true
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
             
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" ppc64le/busybox chown -R "$(id -u):$(id -g)" /workspace
