@@ -67,7 +67,9 @@ pipeline {
                             sh '''
                             echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
-            
+                            '''
+
+                            sh '''
                             echo 'Chowning /workspace to jenkins user'
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
@@ -137,7 +139,9 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr$BUILD_NUMBER || true
-            
+                            '''
+
+                            sh '''
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
@@ -193,7 +197,9 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr-exp$BUILD_NUMBER || true
-            
+                            '''
+
+                            sh '''
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
@@ -249,7 +255,9 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr-$BUILD_NUMBER || true
-            
+                            '''
+
+                            sh '''
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
@@ -305,7 +313,9 @@ pipeline {
                             sh '''
                             echo "Ensuring container killed."
                             docker rm -vf docker-pr$BUILD_NUMBER || true
-            
+                            '''
+
+                            sh '''
                             echo "Chowning /workspace to jenkins user"
                             docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
