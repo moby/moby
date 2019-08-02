@@ -18,6 +18,7 @@ pipeline {
         booleanParam(name: 'windowsRS5', defaultValue: false, description: 'Windows 2019 (RS5) Build/Test')
     }
     environment {
+        DOCKER_BUILDKIT = '1'
         APT_MIRROR      = 'cdn-fastly.deb.debian.org'
     }
     stages {
@@ -29,7 +30,6 @@ pipeline {
                         expression { params.unit }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    environment { DOCKER_BUILDKIT = '1' }
 
                     steps {
                         sh '''
@@ -73,7 +73,6 @@ pipeline {
                         expression { params.janky }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    environment { DOCKER_BUILDKIT = '1' }
 
                     steps {
                         sh '''
@@ -123,7 +122,6 @@ pipeline {
                         expression { params.experimental }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    environment { DOCKER_BUILDKIT = '1' }
                     steps {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
@@ -246,7 +244,6 @@ pipeline {
                         expression { params.vendor }
                     }
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
-                    environment { DOCKER_BUILDKIT = '1' }
                     steps {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
