@@ -241,6 +241,8 @@ pipeline {
                         expression { params.z }
                     }
                     agent { label 's390x-ubuntu-1604' }
+                    // s390x machines run on Docker 18.06, and buildkit has some bugs on that version
+                    environment { DOCKER_BUILDKIT = '0' }
 
                     stages {
                         stage("Print info") {
@@ -305,6 +307,8 @@ pipeline {
                         expression { params.powerpc }
                     }
                     agent { label 'ppc64le-ubuntu-1604' }
+                    // power machines run on Docker 18.06, and buildkit has some bugs on that version
+                    environment { DOCKER_BUILDKIT = '0' }
 
                     stages {
                         stage("Print info") {
