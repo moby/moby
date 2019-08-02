@@ -251,7 +251,7 @@ pipeline {
                             docker rm -vf docker-pr-$BUILD_NUMBER || true
             
                             echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" s390x/busybox chown -R "$(id -u):$(id -g)" /workspace
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
                             sh '''
@@ -307,7 +307,7 @@ pipeline {
                             docker rm -vf docker-pr$BUILD_NUMBER || true
             
                             echo "Chowning /workspace to jenkins user"
-                            docker run --rm -v "$WORKSPACE:/workspace" ppc64le/busybox chown -R "$(id -u):$(id -g)" /workspace
+                            docker run --rm -v "$WORKSPACE:/workspace" busybox chown -R "$(id -u):$(id -g)" /workspace
                             '''
 
                             sh '''
