@@ -76,7 +76,11 @@ pipeline {
                             echo 'Creating unit-bundles.tar.gz'
                             tar -czvf unit-bundles.tar.gz bundles/junit-report.xml bundles/go-test-report.json bundles/profile.out
                             '''
+
                             archiveArtifacts artifacts: 'unit-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
                             deleteDir()
                         }
                     }
@@ -142,7 +146,11 @@ pipeline {
                             echo "Creating janky-bundles.tar.gz"
                             (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf janky-bundles.tar.gz) || true
                             '''
+
                             archiveArtifacts artifacts: 'janky-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
                             deleteDir()
                         }
                     }
@@ -195,8 +203,10 @@ pipeline {
                             (find bundles -name '*.log' -o -name '*.prof' -o -name integration.test | xargs tar -czf experimental-bundles.tar.gz) || true
                             '''
 
-                            sh 'make clean'
                             archiveArtifacts artifacts: 'experimental-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
                             deleteDir()
                         }
                     }
@@ -248,7 +258,11 @@ pipeline {
                             echo "Creating bundles.tar.gz"
                             find bundles -name '*.log' | xargs tar -czf s390x-bundles.tar.gz
                             '''
+
                             archiveArtifacts artifacts: 's390x-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
                             deleteDir()
                         }
                     }
@@ -300,7 +314,11 @@ pipeline {
                             echo "Creating bundles.tar.gz"
                             find bundles -name '*.log' | xargs tar -czf powerpc-bundles.tar.gz
                             '''
+
                             archiveArtifacts artifacts: 'powerpc-bundles.tar.gz'
+                        }
+                        cleanup {
+                            sh 'make clean'
                             deleteDir()
                         }
                     }
@@ -336,7 +354,12 @@ pipeline {
                             }
                         }
                     }
-                }
+                    post {
+                        cleanup {
+                            sh 'make clean'
+                            deleteDir()
+                        }
+                    }                }
                 stage('windowsRS1') {
                     when {
                         beforeAgent true
