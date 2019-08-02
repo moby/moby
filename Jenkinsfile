@@ -167,8 +167,6 @@ pipeline {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
         
-                        test -f Dockerfile.s390x && \
-                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile.s390x . || \
                         docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile .
         
                         docker run --rm -t --privileged \
@@ -209,8 +207,6 @@ pipeline {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
         
-                        test -f Dockerfile.ppc64le && \
-                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile.ppc64le . || \
                         docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile .
         
                         docker run --rm -t --privileged \
