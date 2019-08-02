@@ -3,6 +3,7 @@
 #  please consider a global .gitignore https://help.github.com/articles/ignoring-files
 *.exe
 *.exe~
+*.gz
 *.orig
 test.main
 .*.swp
@@ -19,5 +20,6 @@ contrib/builder/rpm/*/changelog
 dockerversion/version_autogen.go
 dockerversion/version_autogen_unix.go
 vendor/pkg/
-coverage.txt
+go-test-report.json
 profile.out
+junit-report.xml
