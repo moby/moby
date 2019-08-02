@@ -32,6 +32,12 @@ pipeline {
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -95,6 +101,12 @@ pipeline {
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -167,6 +179,12 @@ pipeline {
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -225,6 +243,12 @@ pipeline {
                     agent { label 's390x-ubuntu-1604' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -283,6 +307,12 @@ pipeline {
                     agent { label 'ppc64le-ubuntu-1604' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -341,6 +371,12 @@ pipeline {
                     agent { label 'amd64 && ubuntu-1804 && overlay2' }
 
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Build dev image") {
                             steps {
                                 sh '''
@@ -382,6 +418,12 @@ pipeline {
                         }
                     }
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Run tests") {
                             steps {
                                 powershell '''
@@ -405,6 +447,12 @@ pipeline {
                         }
                     }
                     stages {
+                        stage("Print info") {
+                            steps {
+                                sh 'docker version'
+                                sh 'docker info'
+                            }
+                        }
                         stage("Run tests") {
                             steps {
                                 powershell '''
