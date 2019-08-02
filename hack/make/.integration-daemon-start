@@ -20,7 +20,7 @@ fi
 # This is a temporary hack for split-binary mode. It can be removed once
 # https://github.com/docker/docker/pull/22134 is merged into docker master
 if [ "$(go env GOOS)" = 'windows' ]; then
-       return
+	return
 fi
 
 if [ -z "$DOCKER_TEST_HOST" ]; then
