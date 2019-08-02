@@ -34,7 +34,7 @@ pipeline {
                         sudo modprobe ip_vs
         
                         GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
         
                         docker run --rm -t --privileged \
                           -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -78,7 +78,7 @@ pipeline {
                         sudo modprobe ip_vs
         
                         GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:$GITCOMMIT .
         
                         docker run --rm -t --privileged \
                           -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -124,7 +124,7 @@ pipeline {
                     steps {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:${GITCOMMIT}-exp .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker:${GITCOMMIT}-exp .
         
                         docker run --rm -t --privileged \
                             -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -168,8 +168,8 @@ pipeline {
                         GITCOMMIT=$(git rev-parse --short HEAD)
         
                         test -f Dockerfile.s390x && \
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile.s390x . || \
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile.s390x . || \
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-s390x:$GITCOMMIT -f Dockerfile .
         
                         docker run --rm -t --privileged \
                           -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -210,8 +210,8 @@ pipeline {
                         GITCOMMIT=$(git rev-parse --short HEAD)
         
                         test -f Dockerfile.ppc64le && \
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile.ppc64le . || \
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile.ppc64le . || \
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t docker-powerpc:$GITCOMMIT -f Dockerfile .
         
                         docker run --rm -t --privileged \
                           -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
@@ -252,7 +252,7 @@ pipeline {
                         sh '''
                         GITCOMMIT=$(git rev-parse --short HEAD)
         
-                        docker build --rm --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t dockerven:$GITCOMMIT .
+                        docker build --force-rm --build-arg APT_MIRROR=cdn-fastly.deb.debian.org -t dockerven:$GITCOMMIT .
         
                         docker run --rm -t --privileged \
                           --name dockerven-pr$BUILD_NUMBER \
