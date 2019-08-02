@@ -151,7 +151,7 @@ if [ -d "$rootfsDir/etc/apt/apt.conf.d" ]; then
 		# "8.273 MB".
 
 		Acquire::GzipIndexes "true";
-		Acquire::CompressionTypes::Order:: "gz";
+		Acquire::CompressionTypes::Order "gz";
 	EOF
 
 	# update "autoremove" configuration to be aggressive about removing suggests deps that weren't manually installed
