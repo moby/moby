@@ -63,6 +63,21 @@ pipeline {
                                 '''
                             }
                         }
+                        stage("Docker-py") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    test-docker-py
+                                '''
+                            }
+                        }
                         stage("Unit tests") {
                             steps {
                                 sh '''
@@ -168,7 +183,6 @@ pipeline {
                                   hack/make.sh \
                                     binary-daemon \
                                     dynbinary-daemon \
-                                    test-docker-py \
                                     test-integration-flaky \
                                     test-integration \
                                     cross
