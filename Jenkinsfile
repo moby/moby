@@ -66,7 +66,7 @@ pipeline {
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/.git:/go/src/github.com/docker/docker/.git" \
-                                  --name dockerven-pr$BUILD_NUMBER \
+                                  --name docker-pr$BUILD_NUMBER \
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER=overlay2 \
                                   -e TIMEOUT=120m \
@@ -83,7 +83,6 @@ pipeline {
                             sh '''
                             echo 'Ensuring container killed.'
                             docker rm -vf docker-pr$BUILD_NUMBER || true
-                            docker rm -vf dockerven-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
@@ -203,7 +202,7 @@ pipeline {
                                 docker run --rm -t --privileged \
                                     -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
                                     -e DOCKER_EXPERIMENTAL=y \
-                                    --name docker-pr-exp$BUILD_NUMBER \
+                                    --name docker-pr$BUILD_NUMBER \
                                     -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                     -e DOCKER_GRAPHDRIVER=overlay2 \
                                     docker:${GIT_COMMIT}-exp \
@@ -217,7 +216,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-exp$BUILD_NUMBER || true
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
@@ -281,7 +280,7 @@ pipeline {
                         always {
                             sh '''
                             echo "Ensuring container killed."
-                            docker rm -vf docker-pr-$BUILD_NUMBER || true
+                            docker rm -vf docker-pr$BUILD_NUMBER || true
                             '''
 
                             sh '''
