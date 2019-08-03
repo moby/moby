@@ -211,13 +211,13 @@ pipeline {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
-                                    -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    -e DOCKER_EXPERIMENTAL=y \
-                                    --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                    -e DOCKER_GRAPHDRIVER \
-                                    docker:${GIT_COMMIT}-exp \
-                                    hack/ci/experimental
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_EXPERIMENTAL=y \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT}-exp \
+                                  hack/ci/experimental
                                 '''
                             }
                         }
@@ -281,12 +281,12 @@ pipeline {
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER \
-                                    -e TIMEOUT="300m" \
-                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                    docker:${GIT_COMMIT} \
-                                    hack/ci/z
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TIMEOUT="300m" \
+                                  docker:${GIT_COMMIT} \
+                                  hack/ci/z
                                 '''
                             }
                         }
@@ -348,12 +348,12 @@ pipeline {
                                 sh '''
                                 docker run --rm -t --privileged \
                                   -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
-                                    --name docker-pr$BUILD_NUMBER \
-                                    -e DOCKER_GRAPHDRIVER \
-                                    -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
-                                    -e TIMEOUT="180m" \
-                                    docker:${GIT_COMMIT} \
-                                    hack/ci/powerpc
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  -e TIMEOUT="180m" \
+                                  docker:${GIT_COMMIT} \
+                                  hack/ci/powerpc
                                 '''
                             }
                         }
