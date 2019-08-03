@@ -27,7 +27,34 @@ source "$MAKEDIR/.go-autogen"
 : ${TESTFLAGS:=}
 : ${TESTDEBUG:=}
 
-integration_api_dirs=${TEST_INTEGRATION_DIR:-"$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)"}
+setup_integration_test_filter() {
+	if [ -z "${TEST_FILTER}" ]; then
+		return
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION}" ]; then
+		: ${TEST_INTEGRATION_DIR:=$(grep -rl "func\ .*${TEST_FILTER}.*\(t\ \*testing\.T\)" ./integration | grep '_test\.go' | xargs -I file dirname file | uniq)}
+		if [ -z "${TEST_INTEGRATION_DIR}" ]; then
+			echo Skipping integration tests since the supplied filter \"${TEST_FILTER}\" omits all integration tests
+			TEST_SKIP_INTEGRATION=1
+		else
+			TESTFLAGS_INTEGRATION+="-test.run ${TEST_FILTER}"
+		fi
+	fi
+
+	if [ -z "${TEST_SKIP_INTEGRATION_CLI}" ]; then
+		# ease up on the filtering here since CLI suites are namespaced by an object
+		if grep -r "${TEST_FILTER}.*\(c\ \*check\.C\)" ./integration-cli | grep -q '_test\.go$'; then
+			TEST_SKIP_INTEGRATION_CLI=1
+			echo Skipping integration-cli tests since the supplied filter \"${TEST_FILTER}\" omits all integration-cli tests
+		else
+			TESTFLAGS_INTEGRATION_CLI+="-check.f ${TEST_FILTER}"
+		fi
+	fi
+}
+
+setup_integration_test_filter
+integration_api_dirs=${TEST_INTEGRATION_DIR:-$(go list  -test -f '{{- if ne .ForTest "" -}}{{- .Dir -}}{{- end -}}'  ./integration/...)}
 
 run_test_integration() {
 	set_platform_timeout
