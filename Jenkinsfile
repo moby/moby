@@ -226,7 +226,7 @@ pipeline {
                                 sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT}-exp .'
                             }
                         }
-                        stage("Run tests") {
+                        stage("Integration tests") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -236,7 +236,9 @@ pipeline {
                                   -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
                                   -e DOCKER_GRAPHDRIVER \
                                   docker:${GIT_COMMIT}-exp \
-                                  hack/ci/experimental
+                                  hack/make.sh \
+                                    binary-daemon \
+                                    test-integration
                                 '''
                             }
                         }
@@ -295,7 +297,20 @@ pipeline {
                                 '''
                             }
                         }
-                        stage("Run tests") {
+                        stage("Unit tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -305,7 +320,9 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT="300m" \
                                   docker:${GIT_COMMIT} \
-                                  hack/ci/z
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
                                 '''
                             }
                         }
@@ -362,7 +379,20 @@ pipeline {
                                 sh 'docker build --force-rm --build-arg APT_MIRROR -t docker:${GIT_COMMIT} -f Dockerfile .'
                             }
                         }
-                        stage("Run tests") {
+                        stage("Unit tests") {
+                            steps {
+                                sh '''
+                                docker run --rm -t --privileged \
+                                  -v "$WORKSPACE/bundles:/go/src/github.com/docker/docker/bundles" \
+                                  --name docker-pr$BUILD_NUMBER \
+                                  -e DOCKER_GITCOMMIT=${GIT_COMMIT} \
+                                  -e DOCKER_GRAPHDRIVER \
+                                  docker:${GIT_COMMIT} \
+                                  hack/test/unit
+                                '''
+                            }
+                        }
+                        stage("Integration tests") {
                             steps {
                                 sh '''
                                 docker run --rm -t --privileged \
@@ -372,7 +402,9 @@ pipeline {
                                   -e DOCKER_GRAPHDRIVER \
                                   -e TIMEOUT="180m" \
                                   docker:${GIT_COMMIT} \
-                                  hack/ci/powerpc
+                                  hack/make.sh \
+                                    dynbinary \
+                                    test-integration
                                 '''
                             }
                         }
